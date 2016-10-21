@@ -1,6 +1,6 @@
 ﻿namespace Rasa.AuthData
 {
-    public enum AuthClientState : byte
+    public enum ClientState : byte
     {
         None = 0,
         Connected = 1,

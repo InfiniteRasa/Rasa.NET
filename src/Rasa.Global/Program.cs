@@ -1,21 +1,21 @@
 ﻿using System;
 using System.Diagnostics;
 
-namespace Rasa.Global
+namespace Rasa
 {
     using Commands;
+    using GlobalServer;
     using Misc;
-    using Networking;
 
-    public class Program : ProgramBase
+    public class GlobalProgram : ProgramBase
     {
         private const string Type = "Global";
 
-        private static GlobalServer _server;
+        private static Server _server;
 
         public static void Main(string[] args)
         {
-            _server = new GlobalServer();
+            _server = new Server();
 
             Logger.WriteLog(LogType.File, "Application startup!");
 

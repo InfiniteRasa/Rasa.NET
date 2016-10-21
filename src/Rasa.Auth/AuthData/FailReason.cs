@@ -1,6 +1,6 @@
 ﻿namespace Rasa.AuthData
 {
-    public enum AuthFailedReason : byte
+    public enum FailReason : byte
     {
         UnexpectedError = 0,
         UserNameOrPassword = 2,

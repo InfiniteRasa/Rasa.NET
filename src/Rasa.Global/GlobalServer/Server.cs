@@ -1,8 +1,8 @@
 ﻿using System;
 
-namespace Rasa.Global.Networking
+namespace Rasa.GlobalServer
 {
-    public class GlobalServer
+    public class Server
     {
         public bool Running { get; } = true;
 

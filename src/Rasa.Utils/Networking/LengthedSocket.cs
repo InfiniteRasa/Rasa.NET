@@ -12,9 +12,9 @@ namespace Rasa.Networking
 
     public enum SizeType : byte
     {
-        None = 0,
-        Char = 1,
-        Word = 2,
+        None  = 0,
+        Char  = 1,
+        Word  = 2,
         Dword = 4
     }
 
@@ -26,7 +26,7 @@ namespace Rasa.Networking
         public delegate void DisconnectHandler();
 
         public SizeType SizeHeaderLength { get; }
-        public int LengthSize => (int)SizeHeaderLength;
+        public int LengthSize => (int) SizeHeaderLength;
         public Socket Socket { get; }
         public bool Connected => Socket.Connected;
         public IPAddress RemoteAddress => ((IPEndPoint)Socket.RemoteEndPoint).Address;

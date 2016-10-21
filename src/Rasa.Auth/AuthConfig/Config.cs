@@ -4,7 +4,7 @@ namespace Rasa.AuthConfig
 {
     using Communicator;
 
-    public class AuthConfig
+    public class Config
     {
         public string DatabaseConnectionString { get; set; }
         public Dictionary<string, string> Servers { get; set; }

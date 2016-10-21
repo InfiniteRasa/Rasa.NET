@@ -2,6 +2,9 @@
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
+using System.Security.Cryptography;
+using System.Text;
+using Rasa.Database;
 
 namespace Rasa.AuthServer
 {
@@ -9,21 +12,23 @@ namespace Rasa.AuthServer
     using Commands;
     using Communicator;
     using Config;
+    using Database.Tables;
     using Memory;
     using Networking;
     using Packets;
+    using Structures;
     using Threading;
     using Timer;
 
     public class Server : ILoopable
     {
-        public const int MainLoopTime = 100; // Milliseconds
+        public const int MainLoopTime = 333; // Milliseconds
 
-        public AuthConfig Config { get; private set; }
+        public Config Config { get; private set; }
         public Communicator AuthCommunicator { get; private set; }
         public LengthedSocket ListenerSocket { get; private set; }
         public PacketQueue PacketQueue { get; }
-        public List<AuthClient> Clients { get; } = new List<AuthClient>();
+        public List<Client> Clients { get; } = new List<Client>();
         public MainLoop Loop { get; }
         public Timer Timer { get; }
         public bool Running => Loop != null && Loop.Running;
@@ -43,8 +48,11 @@ namespace Rasa.AuthServer
 
             BufferManager.Initialize(Config.SocketConfig.BufferSize, Config.SocketConfig.MaxClients, Config.SocketConfig.ConcurrentOperationsByClient);
 
+            DatabaseAccess.Initialize(Config.DatabaseConnectionString);
+
             CommandProcessor.RegisterCommand("exit", ProcessExitCommand);
             CommandProcessor.RegisterCommand("reload", ProcessReloadCommand);
+            CommandProcessor.RegisterCommand("create", ProcessCreateCommand);
         }
 
         ~Server()
@@ -62,7 +70,7 @@ namespace Rasa.AuthServer
 
         private void ConfigLoaded()
         {
-            Config = new AuthConfig();
+            Config = new Config();
             Configuration.Bind(Config);
 
             Logger.UpdateConfig(Config.LoggerConfig);
@@ -76,7 +84,7 @@ namespace Rasa.AuthServer
             return Config.Servers[id.ToString()] == password;
         }
 
-        public void Disconnect(AuthClient client)
+        public void Disconnect(Client client)
         {
             lock (Clients)
                 if (Clients.Contains(client))
@@ -125,7 +133,7 @@ namespace Rasa.AuthServer
                 return;
 
             lock (Clients)
-                Clients.Add(new AuthClient(newSocket, this));
+                Clients.Add(new Client(newSocket, this));
         }
 
         public void Shutdown()
@@ -176,6 +184,41 @@ namespace Rasa.AuthServer
             }
 
             Logger.WriteLog(LogType.Command, "Invalid reload command!");
+        }
+
+        private static void ProcessCreateCommand(string[] parts)
+        {
+            if (parts.Length < 4)
+            {
+                Logger.WriteLog(LogType.Command, "Invalid create account command! Usage: create <username> <email> <password>");
+                return;
+            }
+
+            var salt = new byte[20];
+
+            using (var rng = RandomNumberGenerator.Create())
+                rng.GetBytes(salt);
+
+            var data = new AccountData
+            {
+                Email = parts[1],
+                Username = parts[2],
+                Password = parts[3],
+                Salt = BitConverter.ToString(salt).Replace("-", "").ToLower()
+            };
+
+            data.HashPassword();
+
+            try
+            {
+                AccountTable.InsertAccount(data);
+
+                Logger.WriteLog(LogType.Command, $"Created account: {parts[1]}! (Password: {parts[3]})");
+            }
+            catch
+            {
+                Logger.WriteLog(LogType.Error, "Username or email is already taken!");
+            }
         }
 
         private void ProcessRestartCommand(string[] parts)

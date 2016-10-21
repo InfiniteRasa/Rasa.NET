@@ -7,18 +7,18 @@ namespace Rasa.AuthPackets.Server
 
     public class PlayFailPacket : IOpcodedPacket<AuthServerOpcode>
     {
-        public AuthFailedReason ResultCode { get; set; }
+        public FailReason ResultCode { get; set; }
 
         public AuthServerOpcode Opcode { get; } = AuthServerOpcode.PlayFail;
 
-        public PlayFailPacket(AuthFailedReason resultCode)
+        public PlayFailPacket(FailReason resultCode)
         {
             ResultCode = resultCode;
         }
 
         public void Read(BinaryReader reader)
         {
-            ResultCode = (AuthFailedReason) reader.ReadByte();
+            ResultCode = (FailReason) reader.ReadByte();
         }
 
         public void Write(BinaryWriter writer)

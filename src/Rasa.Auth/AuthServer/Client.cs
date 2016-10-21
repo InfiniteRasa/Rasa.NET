@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
+using Rasa.Database.Tables;
 
 namespace Rasa.AuthServer
 {
@@ -15,7 +16,7 @@ namespace Rasa.AuthServer
     using Networking;
     using Packets;
 
-    public class AuthClient : PacketRouter<AuthClient, ClientOpcode>, INetworkClient
+    public class Client : PacketRouter<Client, ClientOpcode>, INetworkClient
     {
         public const int LengthSize = 2;
 
@@ -26,14 +27,14 @@ namespace Rasa.AuthServer
         public uint SessionId1 { get; }
         public uint SessionId2 { get; }
         public byte LastServerId { get; private set; }
-        public AuthClientState State { get; private set; }
+        public ClientState State { get; private set; }
 
-        private static PacketRouter<AuthClient, ClientOpcode> PacketRouter { get; } = new PacketRouter<AuthClient, ClientOpcode>();
+        private static PacketRouter<Client, ClientOpcode> PacketRouter { get; } = new PacketRouter<Client, ClientOpcode>();
 
-        static AuthClient()
+        static Client()
         {
             // Create target-less delegates of the packet handler functions for opcode routing
-            // Note: Because it's target-less and the function is instanced (not static) we need to give 2 paramteres: The AuthClient (the target) and the BinaryReader (the parameter)
+            // Note: Because it's target-less and the function is instanced (not static) we need to give 2 paramteres: The Client (the target) and the BinaryReader (the parameter)
             PacketRouter.RegisterHandler(ClientOpcode.Login, "MsgLogin", typeof(LoginPacket));
             PacketRouter.RegisterHandler(ClientOpcode.Logout, "MsgLogout", typeof(LogoutPacket));
             PacketRouter.RegisterHandler(ClientOpcode.AboutToPlay, "MsgAboutToPlay", typeof(AboutToPlayPacket));
@@ -41,11 +42,11 @@ namespace Rasa.AuthServer
             PacketRouter.RegisterHandler(ClientOpcode.ServerListExt, "MsgServerListExt", typeof(ServerListExtPacket));
         }
 
-        public AuthClient(LengthedSocket socket, Server server)
+        public Client(LengthedSocket socket, Server server)
         {
             Socket = socket;
             Server = server;
-            State = AuthClientState.Connected;
+            State = ClientState.Connected;
 
             Socket.OnError += OnError;
             Socket.OnReceive += OnReceive;
@@ -69,7 +70,7 @@ namespace Rasa.AuthServer
         {
             Logger.WriteLog(LogType.Network, "*** Client disconnected! Ip: {0}", Socket.RemoteAddress);
 
-            State = AuthClientState.Disconnected;
+            State = ClientState.Disconnected;
 
             Socket.Close();
 
@@ -128,9 +129,31 @@ namespace Rasa.AuthServer
                 return;
             }
 
-            // TODO: handle proper auth after DB handling
+            var accData = AccountTable.GetAccount(loginPacket.UserName);
+            if (accData == null)
+            {
+                SendPacket(new LoginFailPacket(FailReason.UserNameOrPassword));
+                Logger.WriteLog(LogType.Debug, $"User ({loginPacket.UserName}) tried to log in with an invalid username!");
+                return;
+            }
 
-            State = AuthClientState.LoggedIn;
+            if (!accData.CheckPassword(loginPacket.Password))
+            {
+                SendPacket(new LoginFailPacket(FailReason.UserNameOrPassword));
+                Logger.WriteLog(LogType.Debug, $"User ({accData.Username}, {accData.Id}) tried to log in with an invalid password!");
+                return;
+            }
+
+            if (accData.Locked)
+            {
+                SendPacket(new BlockedAccountPacket());
+                Logger.WriteLog(LogType.Debug, $"User ({accData.Username}, {accData.Id}) tried to log in, but he/she is locked.");
+                return;
+            }
+
+            AccountTable.UpdateLoginData(accData.Id, Socket.RemoteAddress);
+
+            State = ClientState.LoggedIn;
 
             SendPacket(new LoginOkPacket
             {
@@ -174,7 +197,7 @@ namespace Rasa.AuthServer
                 return;
             }
 
-            State = AuthClientState.ServerList;
+            State = ClientState.ServerList;
 
             // TODO: load from the DB
 
