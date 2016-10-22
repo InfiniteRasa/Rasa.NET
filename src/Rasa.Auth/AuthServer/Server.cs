@@ -22,7 +22,7 @@ namespace Rasa.AuthServer
 
     public class Server : ILoopable
     {
-        public const int MainLoopTime = 333; // Milliseconds
+        public const int MainLoopTime = 100; // Milliseconds
 
         public Config Config { get; private set; }
         public Communicator AuthCommunicator { get; private set; }
