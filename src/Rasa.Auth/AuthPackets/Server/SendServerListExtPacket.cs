@@ -36,7 +36,7 @@ namespace Rasa.AuthPackets.Server
                 {
                     ServerId = reader.ReadByte(),
                     Ip = new IPAddress(reader.ReadBytes(4)),
-                    Port = reader.ReadUInt32(),
+                    QueuePort = reader.ReadUInt32(),
                     AgeLimit = reader.ReadByte(),
                     PKFlag = reader.ReadByte(),
                     CurrentPlayers = reader.ReadUInt16(),
@@ -65,7 +65,7 @@ namespace Rasa.AuthPackets.Server
             {
                 writer.Write(s.ServerId);
                 writer.Write(s.Ip.GetAddressBytes());
-                writer.Write(s.Port);
+                writer.Write(s.QueuePort);
                 writer.Write(s.AgeLimit);
                 writer.Write(s.PKFlag);
                 writer.Write(s.CurrentPlayers);

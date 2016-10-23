@@ -6,7 +6,7 @@ using MySql.Data.MySqlClient;
 
 namespace Rasa.Structures
 {
-    public class AccountData
+    public class AccountEntry
     {
         public uint Id { get; set; }
         public string Email { get; set; }
@@ -18,12 +18,12 @@ namespace Rasa.Structures
         public bool Locked { get; set; }
         public bool Validated { get; set; }
 
-        public static AccountData Read(MySqlDataReader reader)
+        public static AccountEntry Read(MySqlDataReader reader)
         {
             if (!reader.Read())
                 return null;
 
-            return new AccountData
+            return new AccountEntry
             {
                 Id = reader.GetUInt32("id"),
                 //Email = reader.GetString("email"), // Not needed by the server currently

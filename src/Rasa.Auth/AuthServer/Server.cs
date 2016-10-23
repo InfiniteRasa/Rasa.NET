@@ -3,15 +3,16 @@ using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
-using System.Text;
-using Rasa.Database;
 
 namespace Rasa.AuthServer
 {
     using AuthConfig;
+    using AuthData;
+    using AuthStructures;
     using Commands;
     using Communicator;
     using Config;
+    using Database;
     using Database.Tables;
     using Memory;
     using Networking;
@@ -29,6 +30,7 @@ namespace Rasa.AuthServer
         public LengthedSocket ListenerSocket { get; private set; }
         public PacketQueue PacketQueue { get; }
         public List<Client> Clients { get; } = new List<Client>();
+        public List<ServerInfo> ServerList { get; } = new List<ServerInfo>();
         public MainLoop Loop { get; }
         public Timer Timer { get; }
         public bool Running => Loop != null && Loop.Running;
@@ -157,6 +159,13 @@ namespace Rasa.AuthServer
                 packet.Client.SendPacket(packet.Packet);
         }
 
+        public RedirectResult RedirectToGlobal(Client client, byte serverId, out ServerInfo info)
+        {
+            // TODO: comm. with global server, get if the client should be queued or directly connected
+            info = null;
+            return RedirectResult.Fail;
+        }
+
         #region Commands
         private void ProcessExitCommand(string[] parts)
         {
@@ -199,7 +208,7 @@ namespace Rasa.AuthServer
             using (var rng = RandomNumberGenerator.Create())
                 rng.GetBytes(salt);
 
-            var data = new AccountData
+            var data = new AccountEntry
             {
                 Email = parts[1],
                 Username = parts[2],

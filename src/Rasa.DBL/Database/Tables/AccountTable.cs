@@ -42,25 +42,25 @@ namespace Rasa.Database.Tables
             InsertAccountCommand.Prepare();
         }
 
-        public static AccountData GetAccount(string accountName)
+        public static AccountEntry GetAccount(string accountName)
         {
             lock (DatabaseAccess.Lock)
             {
                 GetAccountByNameCommand.Parameters["@AccountName"].Value = accountName;
 
                 using (var reader = GetAccountByNameCommand.ExecuteReader())
-                    return AccountData.Read(reader);
+                    return AccountEntry.Read(reader);
             }
         }
 
-        public static AccountData GetAccount(uint accountId)
+        public static AccountEntry GetAccount(uint accountId)
         {
             lock (DatabaseAccess.Lock)
             {
                 GetAccountByIdCommand.Parameters["@AccountId"].Value = accountId;
 
                 using (var reader = GetAccountByIdCommand.ExecuteReader())
-                    return AccountData.Read(reader);
+                    return AccountEntry.Read(reader);
             }
         }
 
@@ -84,14 +84,14 @@ namespace Rasa.Database.Tables
             }
         }
 
-        public static void InsertAccount(AccountData data)
+        public static void InsertAccount(AccountEntry entry)
         {
             lock (DatabaseAccess.Lock)
             {
-                InsertAccountCommand.Parameters["@Email"].Value = data.Email;
-                InsertAccountCommand.Parameters["@Username"].Value = data.Username;
-                InsertAccountCommand.Parameters["@Password"].Value = data.Password;
-                InsertAccountCommand.Parameters["@Salt"].Value = data.Salt;
+                InsertAccountCommand.Parameters["@Email"].Value = entry.Email;
+                InsertAccountCommand.Parameters["@Username"].Value = entry.Username;
+                InsertAccountCommand.Parameters["@Password"].Value = entry.Password;
+                InsertAccountCommand.Parameters["@Salt"].Value = entry.Salt;
                 InsertAccountCommand.ExecuteNonQuery();
             }
         }

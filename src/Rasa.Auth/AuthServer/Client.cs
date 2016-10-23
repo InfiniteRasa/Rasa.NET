@@ -1,8 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Net;
 using System.Net.Sockets;
-using Rasa.Database.Tables;
 
 namespace Rasa.AuthServer
 {
@@ -11,10 +8,12 @@ namespace Rasa.AuthServer
     using AuthPackets.Server;
     using AuthStructures;
     using Cryptography;
+    using Database.Tables;
     using Extensions;
     using Memory;
     using Networking;
     using Packets;
+    using Structures;
 
     public class Client : PacketRouter<Client, ClientOpcode>, INetworkClient
     {
@@ -26,7 +25,7 @@ namespace Rasa.AuthServer
         public uint OneTimeKey { get; }
         public uint SessionId1 { get; }
         public uint SessionId2 { get; }
-        public byte LastServerId { get; private set; }
+        public AccountEntry Entry { get; private set; }
         public ClientState State { get; private set; }
 
         private static PacketRouter<Client, ClientOpcode> PacketRouter { get; } = new PacketRouter<Client, ClientOpcode>();
@@ -66,7 +65,7 @@ namespace Rasa.AuthServer
             Socket.ReceiveAsync();
         }
 
-        public void Close()
+        public void Close(bool sendPacket = true)
         {
             Logger.WriteLog(LogType.Network, "*** Client disconnected! Ip: {0}", Socket.RemoteAddress);
 
@@ -93,14 +92,14 @@ namespace Rasa.AuthServer
 
         private void OnError(SocketAsyncEventArgs args)
         {
-            Close();
+            Close(false);
         }
 
         private void OnReceive(BufferData data)
         {
             AuthCryptManager.Instance.Decrypt(data.Buffer, data.BaseOffset + data.Offset, data.Length - data.Offset);
 
-            var opcode = (ClientOpcode)data.Buffer[data.BaseOffset + data.Offset++];
+            var opcode = (ClientOpcode) data.Buffer[data.BaseOffset + data.Offset++];
 
             var packetType = PacketRouter.GetPacketType(opcode);
             if (packetType != null)
@@ -129,29 +128,32 @@ namespace Rasa.AuthServer
                 return;
             }
 
-            var accData = AccountTable.GetAccount(loginPacket.UserName);
-            if (accData == null)
+            Entry = AccountTable.GetAccount(loginPacket.UserName);
+            if (Entry == null)
             {
                 SendPacket(new LoginFailPacket(FailReason.UserNameOrPassword));
+                Close(false);
                 Logger.WriteLog(LogType.Debug, $"User ({loginPacket.UserName}) tried to log in with an invalid username!");
                 return;
             }
 
-            if (!accData.CheckPassword(loginPacket.Password))
+            if (!Entry.CheckPassword(loginPacket.Password))
             {
                 SendPacket(new LoginFailPacket(FailReason.UserNameOrPassword));
-                Logger.WriteLog(LogType.Debug, $"User ({accData.Username}, {accData.Id}) tried to log in with an invalid password!");
+                Close(false);
+                Logger.WriteLog(LogType.Debug, $"User ({Entry.Username}, {Entry.Id}) tried to log in with an invalid password!");
                 return;
             }
 
-            if (accData.Locked)
+            if (Entry.Locked)
             {
                 SendPacket(new BlockedAccountPacket());
-                Logger.WriteLog(LogType.Debug, $"User ({accData.Username}, {accData.Id}) tried to log in, but he/she is locked.");
+                Close(false);
+                Logger.WriteLog(LogType.Debug, $"User ({Entry.Username}, {Entry.Id}) tried to log in, but he/she is locked.");
                 return;
             }
 
-            AccountTable.UpdateLoginData(accData.Id, Socket.RemoteAddress);
+            AccountTable.UpdateLoginData(Entry.Id, Socket.RemoteAddress);
 
             State = ClientState.LoggedIn;
 
@@ -169,7 +171,7 @@ namespace Rasa.AuthServer
         // Used by reflection
         private void MsgLogout(IOpcodedPacket<ClientOpcode> packet)
         {
-            Close();
+            Close(false);
         }
 
         // ReSharper disable once UnusedMember.Local
@@ -199,38 +201,61 @@ namespace Rasa.AuthServer
 
             State = ClientState.ServerList;
 
-            // TODO: load from the DB
-
-            var list = new List<ServerInfo>(2)
-            {
-                new ServerInfo
-                {
-                    Port = 1,
-                    AgeLimit = 18,
-                    CurrentPlayers = 99,
-                    Ip = IPAddress.Any,
-                    MaxPlayers = 100,
-                    PKFlag = 1,
-                    ServerId = 1,
-                    Status = 1
-                }
-            };
-
-            SendPacket(new SendServerListExtPacket(list, LastServerId));
+            SendPacket(new SendServerListExtPacket(Server.ServerList, Entry.LastServerId));
         }
 
         // ReSharper disable once UnusedMember.Local
         // Used by reflection
         private void MsgAboutToPlay(IOpcodedPacket<ClientOpcode> packet)
         {
-            var aboutToPlayPacket = packet as AboutToPlayPacket;
-            if (aboutToPlayPacket == null)
+            var atpPacket = packet as AboutToPlayPacket;
+            if (atpPacket == null)
             {
                 Close();
                 return;
             }
 
-            // TODO: redirect packet, must be done after internal communication
+            if (SessionId1 != atpPacket.SessionId1 || SessionId2 != atpPacket.SessionId2)
+            {
+                Logger.WriteLog(LogType.Debug, $"Account ({Entry.Username}, {Entry.Id}) sent an AboutToPlay packet with invalid session data!");
+                return;
+            }
+
+            ServerInfo info;
+
+            switch (Server.RedirectToGlobal(this, atpPacket.ServerId, out info))
+            {
+                case RedirectResult.Fail:
+                    SendPacket(new PlayFailPacket(FailReason.UnexpectedError));
+
+                    Close(false);
+
+                    Logger.WriteLog(LogType.Error, $"Account ({Entry.Username}, {Entry.Id}) couldn't be redirected to server: {atpPacket.ServerId}!");
+                    break;
+
+                case RedirectResult.Success:
+                    SendPacket(new HandoffToGamePacket
+                    {
+                        OneTimeKey = OneTimeKey,
+                        ServerIp = BitConverter.ToUInt32(info.Ip.GetAddressBytes(), 0),
+                        ServerPort = info.GamePort,
+                        UserId = Entry.Id
+                    });
+
+                    Logger.WriteLog(LogType.Debug, $"Account  ({Entry.Username}, {Entry.Id}) was redirected to server: {atpPacket.ServerId}!");
+                    break;
+
+                case RedirectResult.Queue:
+                    SendPacket(new HandoffToQueuePacket
+                    {
+                        OneTimeKey = OneTimeKey,
+                        ServerId = info.ServerId,
+                        UserId = Entry.Id
+                    });
+
+                    Logger.WriteLog(LogType.Debug, $"Account  ({Entry.Username}, {Entry.Id}) was redirected to the queue of the server: {atpPacket.ServerId}!");
+                    break;
+            }
         }
         #endregion
     }
