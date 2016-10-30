@@ -29,5 +29,10 @@ namespace Rasa.Timer
             CurrentTimer -= delta;
             return false;
         }
+
+        public void ResetTimer()
+        {
+            CurrentTimer = Timer;
+        }
     }
 }

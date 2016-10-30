@@ -2666,6 +2666,22 @@
           "netstandard1.6/Rasa.DBL.dll": {}
         }
       },
+      "Rasa.Shared/1.0.0": {
+        "type": "project",
+        "framework": ".NETStandard,Version=v1.6",
+        "dependencies": {
+          "NETStandard.Library": "1.6.0",
+          "Rasa.DBL": "1.0.0",
+          "Rasa.Utils": "1.0.0",
+          "System.Threading.Thread": "4.0.0"
+        },
+        "compile": {
+          "netstandard1.6/Rasa.Shared.dll": {}
+        },
+        "runtime": {
+          "netstandard1.6/Rasa.Shared.dll": {}
+        }
+      },
       "Rasa.Utils/1.0.0": {
         "type": "project",
         "framework": ".NETStandard,Version=v1.6",
@@ -5598,6 +5614,22 @@
         },
         "runtime": {
           "netstandard1.6/Rasa.DBL.dll": {}
+        }
+      },
+      "Rasa.Shared/1.0.0": {
+        "type": "project",
+        "framework": ".NETStandard,Version=v1.6",
+        "dependencies": {
+          "NETStandard.Library": "1.6.0",
+          "Rasa.DBL": "1.0.0",
+          "Rasa.Utils": "1.0.0",
+          "System.Threading.Thread": "4.0.0"
+        },
+        "compile": {
+          "netstandard1.6/Rasa.Shared.dll": {}
+        },
+        "runtime": {
+          "netstandard1.6/Rasa.Shared.dll": {}
         }
       },
       "Rasa.Utils/1.0.0": {
@@ -8534,6 +8566,22 @@
           "netstandard1.6/Rasa.DBL.dll": {}
         }
       },
+      "Rasa.Shared/1.0.0": {
+        "type": "project",
+        "framework": ".NETStandard,Version=v1.6",
+        "dependencies": {
+          "NETStandard.Library": "1.6.0",
+          "Rasa.DBL": "1.0.0",
+          "Rasa.Utils": "1.0.0",
+          "System.Threading.Thread": "4.0.0"
+        },
+        "compile": {
+          "netstandard1.6/Rasa.Shared.dll": {}
+        },
+        "runtime": {
+          "netstandard1.6/Rasa.Shared.dll": {}
+        }
+      },
       "Rasa.Utils/1.0.0": {
         "type": "project",
         "framework": ".NETStandard,Version=v1.6",
@@ -11426,6 +11474,22 @@
         },
         "runtime": {
           "netstandard1.6/Rasa.DBL.dll": {}
+        }
+      },
+      "Rasa.Shared/1.0.0": {
+        "type": "project",
+        "framework": ".NETStandard,Version=v1.6",
+        "dependencies": {
+          "NETStandard.Library": "1.6.0",
+          "Rasa.DBL": "1.0.0",
+          "Rasa.Utils": "1.0.0",
+          "System.Threading.Thread": "4.0.0"
+        },
+        "compile": {
+          "netstandard1.6/Rasa.Shared.dll": {}
+        },
+        "runtime": {
+          "netstandard1.6/Rasa.Shared.dll": {}
         }
       },
       "Rasa.Utils/1.0.0": {
@@ -17752,6 +17816,11 @@
       "path": "../Rasa.DBL/project.json",
       "msbuildProject": "../Rasa.DBL/Rasa.DBL.xproj"
     },
+    "Rasa.Shared/1.0.0": {
+      "type": "project",
+      "path": "../Rasa.Shared/project.json",
+      "msbuildProject": "../Rasa.Shared/Rasa.Shared.xproj"
+    },
     "Rasa.Utils/1.0.0": {
       "type": "project",
       "path": "../Rasa.Utils/project.json",
@@ -17763,6 +17832,7 @@
       "Microsoft.NETCore.App >= 1.0.1",
       "Portable.BouncyCastle >= 1.8.1.1",
       "Rasa.DBL >= 1.0.0-*",
+      "Rasa.Shared >= 1.0.0-*",
       "Rasa.Utils >= 1.0.0-*"
     ],
     ".NETCoreApp,Version=v1.0": []

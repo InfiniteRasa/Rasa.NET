@@ -29,5 +29,14 @@ namespace Rasa.Timer
                     if (item.Value.Update(delta))
                         item.Value.Action?.Invoke();
         }
+
+        public void ResetTimer(string name)
+        {
+            lock (_timedItems)
+            {
+                if (_timedItems.ContainsKey(name))
+                    _timedItems[name].ResetTimer();
+            }
+        }
     }
 }

@@ -12,6 +12,7 @@
         },
         "Portable.BouncyCastle": "1.8.1.1",
         "Rasa.DBL": "1.0.0-*",
+        "Rasa.Shared": "1.0.0-*",
         "Rasa.Utils": "1.0.0-*"
     },
 

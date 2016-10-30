@@ -193,7 +193,8 @@ namespace Rasa.Networking
                             var currentOff = data.Offset;
 
                             data.Offset += LengthSize;
-                            data.Length = length - LengthSize;
+                            data.Length = length;
+                            //data.Length = length - LengthSize;
 
                             OnReceive?.Invoke(data);
 

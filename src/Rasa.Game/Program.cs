@@ -3,13 +3,13 @@ using System.Diagnostics;
 
 namespace Rasa
 {
-    using Auth;
     using Commands;
+    using Game;
     using Misc;
 
-    public class AuthProgram : ProgramBase
+    public class GlobalProgram : ProgramBase
     {
-        private const string Type = "Authentication";
+        private const string Type = "Global";
 
         private static Server _server;
 
@@ -21,7 +21,7 @@ namespace Rasa
 
             InitConsole(Type);
 
-            Logger.WriteLog(LogType.Initialize, "*** Initialized Authentication Server...");
+            Logger.WriteLog(LogType.Initialize, "*** Initialized Global Server...");
 
             if (!_server.Start())
             {
