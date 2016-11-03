@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 
@@ -13,6 +14,7 @@ namespace Rasa.Game
     using Networking;
     using Packets;
     using Packets.Communicator;
+    using Structures;
     using Threading;
     using Timer;
 
@@ -25,9 +27,11 @@ namespace Rasa.Game
         public LengthedSocket ListenerSocket { get; private set; }
         public PacketQueue PacketQueue { get; }
         public List<Client> Clients { get; } = new List<Client>();
+        public Dictionary<uint, ClientInfo> IncomingClients { get; } = new Dictionary<uint, ClientInfo>();
         public MainLoop Loop { get; }
         public Timer Timer { get; }
         public bool Running => Loop != null && Loop.Running;
+        public ushort CurrentPlayers { get; set; }
 
         private readonly PacketRouter<Server, CommOpcode> _router = new PacketRouter<Server, CommOpcode>();
 
@@ -78,8 +82,7 @@ namespace Rasa.Game
         public void Disconnect(Client client)
         {
             lock (Clients)
-                if (Clients.Contains(client))
-                    Clients.Remove(client);
+                Clients.Remove(client);
         }
 
         public void MainLoop(long delta)
@@ -121,10 +124,23 @@ namespace Rasa.Game
 
             // TODO: Set up timed events (query stuff, internal communication, etc...)
 
+            Timer.Add("SessionExpire", 10000, true, () =>
+            {
+                var toRemove = new List<uint>();
+
+                lock (IncomingClients)
+                {
+                    toRemove.AddRange(IncomingClients.Where(ic => ic.Value.ExpireTime < DateTime.Now).Select(ic => ic.Key));
+
+                    foreach (var rem in toRemove)
+                        IncomingClients.Remove(rem);
+                }
+            });
+
             return true;
         }
 
-        private void OnError(SocketAsyncEventArgs args)
+        private static void OnError(SocketAsyncEventArgs args)
         {
             if (args.LastOperation == SocketAsyncOperation.Accept && args.AcceptSocket != null && args.AcceptSocket.Connected)
                 args.AcceptSocket.Shutdown(SocketShutdown.Both);
@@ -140,6 +156,21 @@ namespace Rasa.Game
 
             lock (Clients)
                 Clients.Add(new Client(newSocket, this));
+        }
+
+        public bool AuthenticateClient(Client client, uint accountId, uint oneTimeKey)
+        {
+            lock (IncomingClients)
+            {
+                if (!IncomingClients.ContainsKey(accountId))
+                    return false;
+
+                var info = IncomingClients[accountId];
+
+                IncomingClients.Remove(accountId);
+
+                return info.OneTimeKey == oneTimeKey;
+            }
         }
 
         public void Shutdown()
@@ -232,7 +263,6 @@ namespace Rasa.Game
             AuthCommunicator = null;
 
             Logger.WriteLog(LogType.Error, "Could not authenticate with the Auth server! Shutting down internal communication!");
-            return;
         }
 
         // ReSharper disable once UnusedMember.Local
@@ -244,7 +274,7 @@ namespace Rasa.Game
             {
                 AgeLimit = Config.ServerInfoConfig.AgeLimit,
                 PKFlag = Config.ServerInfoConfig.PKFlag,
-                CurrentPlayers = 1, // todo
+                CurrentPlayers = CurrentPlayers,
                 GamePort = Config.GameSocketConfig.GamePort,
                 QueuePort = Config.GameSocketConfig.QueuePort,
                 MaxPlayers = (ushort) Config.SocketAsyncConfig.MaxClients
@@ -255,10 +285,24 @@ namespace Rasa.Game
         [PacketHandler(CommOpcode.RedirectRequest)]
         private void MsgRedirectRequest(RedirectRequestPacket packet)
         {
+            lock (IncomingClients)
+            {
+                if (IncomingClients.ContainsKey(packet.AccountId))
+                    IncomingClients.Remove(packet.AccountId);
+
+                IncomingClients.Add(packet.AccountId, new ClientInfo
+                {
+                    AccountId = packet.AccountId,
+                    OneTimeKey = packet.OneTimeKey,
+                    ExpireTime = DateTime.Now.AddMinutes(1)
+                });
+            }
+
             AuthCommunicator.Send(new RedirectResponsePacket
             {
-                Response = 0
-            }, null); // todo
+                AccountId = packet.AccountId,
+                Response = CurrentPlayers >= Config.ServerInfoConfig.MaxPlayers ? RedirectResult.Queue : RedirectResult.Success
+            }, null);
         }
         #endregion
 
@@ -291,7 +335,7 @@ namespace Rasa.Game
             Logger.WriteLog(LogType.Command, "Invalid reload command!");
         }
 
-        private void ProcessRestartCommand(string[] parts)
+        /*private void ProcessRestartCommand(string[] parts)
         {
             // TODO: delayed restart, with contacting globals, so they can warn players not to leave the server, or they won't be able to reconnect
         }
@@ -301,7 +345,7 @@ namespace Rasa.Game
             // TODO: delayed shutdown, with contacting globals, so they can warn players not to leave the server, or they won't be able to reconnect
             // TODO: add timer to report the remaining time until shutdown?
             // TODO: add timer to contact global servers to tell them periodically that we're getting shut down?
-        }
+        }*/
         #endregion
     }
 }

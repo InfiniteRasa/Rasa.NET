@@ -2,9 +2,12 @@
 
 namespace Rasa.Config
 {
+    using Data;
+
     public class Config
     {
         public string DatabaseConnectionString { get; set; }
+        public AuthListType AuthListType { get; set; }
         public Dictionary<string, string> Servers { get; set; }
         public SocketAsyncConfig SocketAsyncConfig { get; set; }
         public AuthSocketConfig AuthSocketConfig { get; set; }

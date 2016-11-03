@@ -7,17 +7,20 @@ namespace Rasa.Packets.Communicator
     public class RedirectResponsePacket : IOpcodedPacket<CommOpcode>
     {
         public CommOpcode Opcode { get; } = CommOpcode.RedirectResponse;
-        public byte Response { get; set; }
+        public RedirectResult Response { get; set; }
+        public uint AccountId { get; set; }
 
         public void Read(BinaryReader br)
         {
-            Response = br.ReadByte();
+            Response = (RedirectResult) br.ReadByte();
+            AccountId = br.ReadUInt32();
         }
 
         public void Write(BinaryWriter bw)
         {
             bw.Write((byte) Opcode);
-            bw.Write(Response);
+            bw.Write((byte) Response);
+            bw.Write(AccountId);
         }
     }
 }

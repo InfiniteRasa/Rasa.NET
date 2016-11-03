@@ -10,16 +10,19 @@ namespace Rasa.Timer
         public void Add(string name, long timer, bool repeating, Action action)
         {
             lock (_timedItems)
+            {
+                if (_timedItems.ContainsKey(name))
+                    _timedItems.Remove(name);
+
                 _timedItems.Add(name, new TimedItem(name, timer, repeating, action));
+            }
         }
 
         public void Remove(string name)
         {
             lock (_timedItems)
-            {
                 if (_timedItems.ContainsKey(name))
                     _timedItems.Remove(name);
-            }
         }
 
         public void Update(long delta)
@@ -33,10 +36,8 @@ namespace Rasa.Timer
         public void ResetTimer(string name)
         {
             lock (_timedItems)
-            {
                 if (_timedItems.ContainsKey(name))
                     _timedItems[name].ResetTimer();
-            }
         }
     }
 }

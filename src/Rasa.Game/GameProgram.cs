@@ -7,9 +7,9 @@ namespace Rasa
     using Game;
     using Misc;
 
-    public class GlobalProgram : ProgramBase
+    public class GameProgram : ProgramBase
     {
-        private const string Type = "Global";
+        private const string Type = "Game";
 
         private static Server _server;
 
@@ -21,7 +21,7 @@ namespace Rasa
 
             InitConsole(Type);
 
-            Logger.WriteLog(LogType.Initialize, "*** Initialized Global Server...");
+            Logger.WriteLog(LogType.Initialize, "*** Initialized Game Server...");
 
             if (!_server.Start())
             {

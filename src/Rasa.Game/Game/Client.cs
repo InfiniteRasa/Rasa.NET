@@ -5,6 +5,7 @@ namespace Rasa.Game
 {
     using Cryptography;
     using Data;
+    using Database.Tables;
     using Memory;
     using Networking;
     using Packets;
@@ -16,7 +17,7 @@ namespace Rasa.Game
 
         public LengthedSocket Socket { get; }
         public Server Server { get; }
-        public uint OneTimeKey { get; }
+        public uint OneTimeKey { get; private set; }
         public AccountEntry Entry { get; private set; }
         public ClientState State { get; private set; }
 
@@ -39,6 +40,12 @@ namespace Rasa.Game
 
             // Moved up before Sendpacket for debug purposes (it will get the first buffer part, easier to see values) can be moved back down after socketing is done
             Socket.ReceiveAsync();
+        }
+
+        public void AuthenticateClient(uint oneTimeKey, uint accountId)
+        {
+            OneTimeKey = oneTimeKey;
+            Entry = AccountTable.GetAccount(accountId);
         }
 
         public void Close(bool sendPacket = true)

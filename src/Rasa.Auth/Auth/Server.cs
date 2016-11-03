@@ -1,10 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
-using System.Runtime.InteropServices.ComTypes;
 using System.Security.Cryptography;
-using Rasa.Packets.Server;
 
 namespace Rasa.Auth
 {
@@ -17,6 +16,7 @@ namespace Rasa.Auth
     using Networking;
     using Packets;
     using Packets.Communicator;
+    using Packets.Server;
     using Structures;
     using Threading;
     using Timer;
@@ -27,7 +27,6 @@ namespace Rasa.Auth
 
         public Config Config { get; private set; }
         public LengthedSocket AuthCommunicator { get; private set; }
-        
         public LengthedSocket ListenerSocket { get; private set; }
         public PacketQueue PacketQueue { get; }
         public List<Client> Clients { get; } = new List<Client>();
@@ -47,6 +46,8 @@ namespace Rasa.Auth
 
             Loop = new MainLoop(this, MainLoopTime);
             Timer = new Timer();
+
+            SetupServerList();
 
             LengthedSocket.InitializeEventArgsPool(Config.SocketAsyncConfig.MaxClients * Config.SocketAsyncConfig.ConcurrentOperationsByClient);
 
@@ -77,18 +78,57 @@ namespace Rasa.Auth
 
         private void ConfigLoaded()
         {
+            var oldConfig = Config;
+
             Config = new Config();
             Configuration.Bind(Config);
 
             Logger.UpdateConfig(Config.LoggerConfig);
+
+            // Handle reloading the config and updating the list visibility
+            if (oldConfig == null || oldConfig.AuthListType == Config.AuthListType)
+                return;
+
+            lock (ServerList)
+            {
+                ServerList.Clear();
+                SetupServerList();
+                GenerateServerList();
+            }
         }
         #endregion
 
         public void Disconnect(Client client)
         {
             lock (Clients)
-                if (Clients.Contains(client))
-                    Clients.Remove(client);
+                Clients.Remove(client);
+        }
+
+        private void SetupServerList()
+        {
+            if (Config.AuthListType != AuthListType.All)
+                return;
+
+            foreach (var s in Config.Servers)
+            {
+                byte id;
+
+                if (!byte.TryParse(s.Key, out id))
+                    continue;
+
+                ServerList.Add(new ServerInfo
+                {
+                    AgeLimit = 0,
+                    CurrentPlayers = 0,
+                    GamePort = 0,
+                    Ip = IPAddress.None,
+                    MaxPlayers = 0,
+                    PKFlag = 0,
+                    QueuePort = 0,
+                    ServerId = id,
+                    Status = 0
+                });
+            }
         }
 
         #region Socketing
@@ -169,7 +209,10 @@ namespace Rasa.Auth
         {
             AuthCommunicator.AcceptAsync();
 
-            GameServerQueue.Add(new CommunicatorClient(socket, this));
+            lock (GameServers)
+                GameServerQueue.Add(new CommunicatorClient(socket, this));
+
+            Logger.WriteLog(LogType.Network, $"A Game server has connected! Remote: {socket.RemoteAddress}");
         }
 
         public bool AuthenticateGameServer(byte serverId, string password, CommunicatorClient client)
@@ -202,6 +245,8 @@ namespace Rasa.Auth
 
                 client.RequestServerInfo();
 
+                Logger.WriteLog(LogType.Network, $"The Game server (Id: {serverId}, Address: {client.Socket.RemoteAddress}) has authenticated! Requesting info...");
+
                 return true;
             }
         }
@@ -212,47 +257,101 @@ namespace Rasa.Auth
             BroadcastServerList();
         }
 
-        public void DisconnectCommunicator(CommunicatorClient client) // todo: clear server list on disconnect
+        public void RedirectResponse(CommunicatorClient client, RedirectResponsePacket packet)
         {
-            lock (GameServerQueue)
+            Client authClient;
+            lock (Clients)
+                authClient = Clients.FirstOrDefault(c => c.Entry.Id == packet.AccountId);
+
+            ServerInfo info;
+            lock (ServerList)
+                info = ServerList.FirstOrDefault(i => i.ServerId == client.ServerId);
+
+            if (authClient != null && info != null)
+                authClient.RedirectionResult(packet.Response, info);
+        }
+
+        public void RequestRedirection(Client client, byte serverId)
+        {
+            lock (GameServers)
+                if (GameServers.ContainsKey(serverId))
+                    GameServers[serverId].RequestRedirection(client.Entry.Id, client.OneTimeKey);
+        }
+
+        public void DisconnectCommunicator(CommunicatorClient client)
+        {
+            if (client == null)
+                return;
+
+            lock (GameServers)
+            {
                 GameServerQueue.Remove(client);
 
-            if (client.ServerId != 0)
-                lock (GameServers)
+                if (client.ServerId != 0)
                     GameServers.Remove(client.ServerId);
+
+                GenerateServerList();
+            }
 
             Timer.Add($"Disconnect-comm-{DateTime.Now.Ticks}", 1000, false, () =>
             {
-                client?.Socket?.Close();
+                client.Socket?.Close();
             });
 
-            GenerateServerList();
+            Logger.WriteLog(LogType.Network, $"The game server (Id: {client.ServerId}, Address: {client.Socket.RemoteAddress}) has disconnected!");
         }
 
         private void GenerateServerList()
         {
-            lock (GameServers)
+            lock (ServerList)
             {
-                lock (ServerList)
+                var toRemove = new List<ServerInfo>();
+
+                lock (GameServers)
                 {
-                    ServerList.Clear(); // only show the currently online servers, tbd: show them as offline if they were successfully connected to the auth earlier?
+                    foreach (var sInfo in ServerList)
+                    {
+                        CommunicatorClient client;
+                        if (GameServers.TryGetValue(sInfo.ServerId, out client))
+                        {
+                            sInfo.Setup(client.Socket.RemoteAddress, client.QueuePort, client.GamePort, client.AgeLimit, client.PKFlag, client.CurrentPlayers, client.MaxPlayers);
+                            continue;
+                        }
+
+                        if (Config.AuthListType == AuthListType.Online)
+                        {
+                            toRemove.Add(sInfo);
+                            continue;
+                        }
+
+                        sInfo.Clear();
+                    }
 
                     foreach (var server in GameServers)
                     {
-                        ServerList.Add(new ServerInfo
+                        if (ServerList.All(s => s.ServerId != server.Key))
                         {
-                            AgeLimit = server.Value.AgeLimit,
-                            PKFlag = server.Value.PKFlag,
-                            CurrentPlayers = server.Value.CurrentPlayers,
-                            MaxPlayers = server.Value.MaxPlayers,
-                            QueuePort = server.Value.QueuePort,
-                            GamePort = server.Value.GamePort,
-                            Ip = server.Value.Socket.RemoteAddress,
-                            ServerId = server.Key,
-                            Status = 1
-                        });
+                            ServerList.Add(new ServerInfo
+                            {
+                                AgeLimit = server.Value.AgeLimit,
+                                PKFlag = server.Value.PKFlag,
+                                CurrentPlayers = server.Value.CurrentPlayers,
+                                MaxPlayers = server.Value.MaxPlayers,
+                                QueuePort = server.Value.QueuePort,
+                                GamePort = server.Value.GamePort,
+                                Ip = server.Value.Socket.RemoteAddress,
+                                ServerId = server.Key,
+                                Status = 1
+                            });
+                        }
                     }
                 }
+
+                if (toRemove.Count == 0)
+                    return;
+
+                foreach (var rem in toRemove)
+                    ServerList.Remove(rem);
             }
         }
         #endregion
@@ -278,18 +377,12 @@ namespace Rasa.Auth
                 packet.Client.SendPacket(packet.Packet);
         }
 
-        public RedirectResult RedirectToGlobal(Client client, byte serverId, out ServerInfo info)
-        {
-            // TODO: comm. with global server, get if the client should be queued or directly connected
-            info = null;
-            return RedirectResult.Fail;
-        }
-
         public void BroadcastServerList()
         {
-            foreach (var c in Clients)
-                if (c.State == ClientState.ServerList)
-                    c.SendPacket(new SendServerListExtPacket(ServerList, c.Entry.LastServerId));
+            lock (Clients)
+                foreach (var c in Clients)
+                    if (c.State == ClientState.ServerList)
+                        c.SendPacket(new SendServerListExtPacket(ServerList, c.Entry.LastServerId));
         }
 
         #region Commands
@@ -356,7 +449,7 @@ namespace Rasa.Auth
             }
         }
 
-        private void ProcessRestartCommand(string[] parts)
+        /*private void ProcessRestartCommand(string[] parts)
         {
             // TODO: delayed restart, with contacting globals, so they can warn players not to leave the server, or they won't be able to reconnect
         }
@@ -366,7 +459,7 @@ namespace Rasa.Auth
             // TODO: delayed shutdown, with contacting globals, so they can warn players not to leave the server, or they won't be able to reconnect
             // TODO: add timer to report the remaining time until shutdown?
             // TODO: add timer to contact global servers to tell them periodically that we're getting shut down?
-        }
+        }*/
         #endregion
     }
 }

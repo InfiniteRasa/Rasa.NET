@@ -78,6 +78,46 @@ namespace Rasa.Auth
             PacketRouter.RoutePacket(this, authPacket);
         }
 
+        public void RedirectionResult(RedirectResult result, ServerInfo info)
+        {
+            switch (result)
+            {
+                case RedirectResult.Fail:
+                    SendPacket(new PlayFailPacket(FailReason.UnexpectedError));
+
+                    Close(false);
+
+                    Logger.WriteLog(LogType.Error, $"Account ({Entry.Username}, {Entry.Id}) couldn't be redirected to server: {info.ServerId}!");
+                    break;
+
+                case RedirectResult.Success:
+                    SendPacket(new HandoffToGamePacket
+                    {
+                        OneTimeKey = OneTimeKey,
+                        ServerIp = BitConverter.ToUInt32(info.Ip.GetAddressBytes(), 0),
+                        ServerPort = info.GamePort,
+                        UserId = Entry.Id
+                    });
+
+                    Logger.WriteLog(LogType.Debug, $"Account  ({Entry.Username}, {Entry.Id}) was redirected to server: {info.ServerId}!");
+                    break;
+
+                case RedirectResult.Queue:
+                    SendPacket(new HandoffToQueuePacket
+                    {
+                        OneTimeKey = OneTimeKey,
+                        ServerId = info.ServerId,
+                        UserId = Entry.Id
+                    });
+
+                    Logger.WriteLog(LogType.Debug, $"Account  ({Entry.Username}, {Entry.Id}) was redirected to the queue of the server: {info.ServerId}!");
+                    break;
+
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
+        }
+
         private void OnError(SocketAsyncEventArgs args)
         {
             Close(false);
@@ -87,21 +127,17 @@ namespace Rasa.Auth
         {
             AuthCryptManager.Instance.Decrypt(data.Buffer, data.BaseOffset + data.Offset, data.Length - data.Offset);
 
-            var opcode = (ClientOpcode) data.Buffer[data.BaseOffset + data.Offset++];
+            var packetType = PacketRouter.GetPacketType((ClientOpcode) data.Buffer[data.BaseOffset + data.Offset++]);
+            if (packetType == null)
+                return;
 
-            var packetType = PacketRouter.GetPacketType(opcode);
-            if (packetType != null)
-            {
-                var packet = Activator.CreateInstance(packetType) as IBasePacket;
-                if (packet == null)
-                    return;
+            var packet = Activator.CreateInstance(packetType) as IBasePacket;
+            if (packet == null)
+                return;
 
-                packet.Read(data.GetReader());
+            packet.Read(data.GetReader());
 
-                Server.PacketQueue.EnqueueIncoming(this, packet);
-            }
-            else
-                Logger.WriteLog(LogType.Error, $"Unhandled opcode: {opcode}");
+            Server.PacketQueue.EnqueueIncoming(this, packet);
         }
 
         #region Handlers
@@ -158,11 +194,11 @@ namespace Rasa.Auth
 
         // ReSharper disable once UnusedMember.Local - Used by reflection
         // ReSharper disable once UnusedParameter.Local
-        [PacketHandler(ClientOpcode.SCCheck)]
+        /*[PacketHandler(ClientOpcode.SCCheck)]
         private void MsgSCCheck(SCCheckPacket packet)
         {
             // I'm not sure we have to handle this, seems unused by the client
-        }
+        }*/
 
         // ReSharper disable once UnusedMember.Local - Used by reflection
         // ReSharper disable once UnusedParameter.Local
@@ -180,45 +216,11 @@ namespace Rasa.Auth
         {
             if (SessionId1 != packet.SessionId1 || SessionId2 != packet.SessionId2)
             {
-                Logger.WriteLog(LogType.Debug, $"Account ({Entry.Username}, {Entry.Id}) sent an AboutToPlay packet with invalid session data!");
+                Logger.WriteLog(LogType.Debug, $"Account ({Entry.Username}, {Entry.Id}) has sent an AboutToPlay packet with invalid session data!");
                 return;
             }
 
-            ServerInfo info;
-
-            switch (Server.RedirectToGlobal(this, packet.ServerId, out info))
-            {
-                case RedirectResult.Fail:
-                    SendPacket(new PlayFailPacket(FailReason.UnexpectedError));
-
-                    Close(false);
-
-                    Logger.WriteLog(LogType.Error, $"Account ({Entry.Username}, {Entry.Id}) couldn't be redirected to server: {packet.ServerId}!");
-                    break;
-
-                case RedirectResult.Success:
-                    SendPacket(new HandoffToGamePacket
-                    {
-                        OneTimeKey = OneTimeKey,
-                        ServerIp = BitConverter.ToUInt32(info.Ip.GetAddressBytes(), 0),
-                        ServerPort = info.GamePort,
-                        UserId = Entry.Id
-                    });
-
-                    Logger.WriteLog(LogType.Debug, $"Account  ({Entry.Username}, {Entry.Id}) was redirected to server: {packet.ServerId}!");
-                    break;
-
-                case RedirectResult.Queue:
-                    SendPacket(new HandoffToQueuePacket
-                    {
-                        OneTimeKey = OneTimeKey,
-                        ServerId = info.ServerId,
-                        UserId = Entry.Id
-                    });
-
-                    Logger.WriteLog(LogType.Debug, $"Account  ({Entry.Username}, {Entry.Id}) was redirected to the queue of the server: {packet.ServerId}!");
-                    break;
-            }
+            Server.RequestRedirection(this, packet.ServerId);
         }
         #endregion
     }
