@@ -1,16 +1,16 @@
 ﻿using System.IO;
 
-namespace Rasa.Packets.Server
+namespace Rasa.Packets.Auth.Server
 {
     using Data;
 
-    public class AccountKickedPacket : IOpcodedPacket<AuthServerOpcode>
+    public class SendServerFailPacket : IOpcodedPacket<ServerOpcode>
     {
         public byte ReasonCode { get; set; }
 
-        public AuthServerOpcode Opcode { get; } = AuthServerOpcode.AccountKicked;
+        public ServerOpcode Opcode { get; } = ServerOpcode.SendServerListFail;
 
-        public AccountKickedPacket(byte reasonCode)
+        public SendServerFailPacket(byte reasonCode)
         {
             ReasonCode = reasonCode;
         }
@@ -28,7 +28,7 @@ namespace Rasa.Packets.Server
 
         public override string ToString()
         {
-            return $"AccountKickedPacket({ReasonCode})";
+            return $"SendServerFailPacket({ReasonCode})";
         }
     }
 }

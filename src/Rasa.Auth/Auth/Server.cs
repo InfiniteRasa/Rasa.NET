@@ -16,7 +16,7 @@ namespace Rasa.Auth
     using Networking;
     using Packets;
     using Packets.Communicator;
-    using Packets.Server;
+    using Packets.Auth.Server;
     using Structures;
     using Threading;
     using Timer;
@@ -135,7 +135,7 @@ namespace Rasa.Auth
         public bool Start()
         {
             // If no config file has been found, these values are 0 by default
-            if (Config.AuthSocketConfig.Port == 0 || Config.AuthSocketConfig.Backlog == 0)
+            if (Config.AuthConfig.Port == 0 || Config.AuthConfig.Backlog == 0)
             {
                 Logger.WriteLog(LogType.Error, "Invalid config values!");
                 return false;
@@ -148,14 +148,21 @@ namespace Rasa.Auth
             ListenerSocket = new LengthedSocket(SizeType.Word);
             ListenerSocket.OnError += OnError;
             ListenerSocket.OnAccept += OnAccept;
-            ListenerSocket.Bind(new IPEndPoint(IPAddress.Any, Config.AuthSocketConfig.Port));
-            ListenerSocket.Listen(Config.AuthSocketConfig.Backlog);
+            ListenerSocket.Bind(new IPEndPoint(IPAddress.Any, Config.AuthConfig.Port));
+            ListenerSocket.Listen(Config.AuthConfig.Backlog);
 
-            Logger.WriteLog(LogType.Network, "*** Listening for clients on port {0}", Config.AuthSocketConfig.Port);
+            Logger.WriteLog(LogType.Network, "*** Listening for clients on port {0}", Config.AuthConfig.Port);
 
             ListenerSocket.AcceptAsync();
 
             // TODO: Set up timed events (query stuff, internal communication, etc...)
+
+            Timer.Add("DisconnectTimedoutClients", 10000, true, () =>
+            {
+                lock (Clients)
+                    foreach (var c in Clients.Where(c => c.TimeoutTime < DateTime.Now))
+                        c.Close();
+            });
 
             return true;
         }
@@ -215,25 +222,25 @@ namespace Rasa.Auth
             Logger.WriteLog(LogType.Network, $"A Game server has connected! Remote: {socket.RemoteAddress}");
         }
 
-        public bool AuthenticateGameServer(byte serverId, string password, CommunicatorClient client)
+        public bool AuthenticateGameServer(LoginRequestPacket packet, CommunicatorClient client)
         {
             lock (GameServers)
             {
-                if (GameServers.ContainsKey(serverId))
+                if (GameServers.ContainsKey(packet.ServerId))
                 {
                     DisconnectCommunicator(client);
                     Logger.WriteLog(LogType.Debug, $"A server tried to connect to an already in use server slot! Remote Address: {client.Socket.RemoteAddress}");
                     return false;
                 }
 
-                if (!Config.Servers.ContainsKey(serverId.ToString()))
+                if (!Config.Servers.ContainsKey(packet.ServerId.ToString()))
                 {
                     DisconnectCommunicator(client);
                     Logger.WriteLog(LogType.Debug, $"A server tried to connect to a non-defined server slot! Remote Address: {client.Socket.RemoteAddress}");
                     return false;
                 }
 
-                if (Config.Servers[serverId.ToString()] != password)
+                if (Config.Servers[packet.ServerId.ToString()] != packet.Password)
                 {
                     DisconnectCommunicator(client);
                     Logger.WriteLog(LogType.Error, $"A server tried to log in with an invalid password! Remote Address: {client.Socket.RemoteAddress}");
@@ -241,11 +248,11 @@ namespace Rasa.Auth
                 }
 
                 GameServerQueue.Remove(client);
-                GameServers.Add(serverId, client);
+                GameServers.Add(packet.ServerId, client);
 
                 client.RequestServerInfo();
 
-                Logger.WriteLog(LogType.Network, $"The Game server (Id: {serverId}, Address: {client.Socket.RemoteAddress}) has authenticated! Requesting info...");
+                Logger.WriteLog(LogType.Network, $"The Game server (Id: {packet.ServerId}, Address:{client.Socket.RemoteAddress}, Public Address: {packet.PublicAddress}) has authenticated! Requesting info...");
 
                 return true;
             }
@@ -314,7 +321,7 @@ namespace Rasa.Auth
                         CommunicatorClient client;
                         if (GameServers.TryGetValue(sInfo.ServerId, out client))
                         {
-                            sInfo.Setup(client.Socket.RemoteAddress, client.QueuePort, client.GamePort, client.AgeLimit, client.PKFlag, client.CurrentPlayers, client.MaxPlayers);
+                            sInfo.Setup(client.PublicAddress, client.QueuePort, client.GamePort, client.AgeLimit, client.PKFlag, client.CurrentPlayers, client.MaxPlayers);
                             continue;
                         }
 
@@ -339,7 +346,7 @@ namespace Rasa.Auth
                                 MaxPlayers = server.Value.MaxPlayers,
                                 QueuePort = server.Value.QueuePort,
                                 GamePort = server.Value.GamePort,
-                                Ip = server.Value.Socket.RemoteAddress,
+                                Ip = server.Value.PublicAddress,
                                 ServerId = server.Key,
                                 Status = 1
                             });

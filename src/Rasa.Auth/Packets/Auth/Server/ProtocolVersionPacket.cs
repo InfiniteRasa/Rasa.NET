@@ -1,15 +1,15 @@
 ﻿using System.IO;
 
-namespace Rasa.Packets.Server
+namespace Rasa.Packets.Auth.Server
 {
     using Data;
 
-    public class ProtocolVersionPacket : IOpcodedPacket<AuthServerOpcode>
+    public class ProtocolVersionPacket : IOpcodedPacket<ServerOpcode>
     {
         public uint ProtocolVersion { get; set; }
         public uint OneTimeKey { get; set; }
 
-        public AuthServerOpcode Opcode { get; } = AuthServerOpcode.ProtocolVersion;
+        public ServerOpcode Opcode { get; } = ServerOpcode.ProtocolVersion;
 
         public ProtocolVersionPacket(uint oneTimeKey = 0U, uint protocolVersion = 0U)
         {

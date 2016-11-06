@@ -1,16 +1,16 @@
 ﻿using System.IO;
 
-namespace Rasa.Packets.Server
+namespace Rasa.Packets.Auth.Server
 {
     using Data;
 
-    public class HandoffToQueuePacket : IOpcodedPacket<AuthServerOpcode>
+    public class PlayOkPacket : IOpcodedPacket<ServerOpcode>
     {
         public uint OneTimeKey { get; set; }
         public uint UserId { get; set; }
         public byte ServerId { get; set; }
 
-        public AuthServerOpcode Opcode { get; } = AuthServerOpcode.HandOffToQueue;
+        public ServerOpcode Opcode { get; } = ServerOpcode.PlayOk;
 
         public void Read(BinaryReader reader)
         {
@@ -29,7 +29,7 @@ namespace Rasa.Packets.Server
 
         public override string ToString()
         {
-            return $"HandoffToQueuePacket({OneTimeKey}, {UserId}, {ServerId})";
+            return $"PlayOkPacket({OneTimeKey}, {UserId}, {ServerId})";
         }
     }
 }

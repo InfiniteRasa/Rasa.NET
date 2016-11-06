@@ -10,8 +10,9 @@ namespace Rasa.Auth
     using Memory;
     using Networking;
     using Packets;
-    using Packets.Client;
-    using Packets.Server;
+    using Packets.Auth.Client;
+    using Packets.Auth.Server;
+    using Packets.Shared.Server;
     using Structures;
 
     public class Client : INetworkClient
@@ -26,6 +27,7 @@ namespace Rasa.Auth
         public uint SessionId2 { get; }
         public AccountEntry Entry { get; private set; }
         public ClientState State { get; private set; }
+        public DateTime TimeoutTime { get; private set; }
 
         private static PacketRouter<Client, ClientOpcode> PacketRouter { get; } = new PacketRouter<Client, ClientOpcode>();
 
@@ -34,6 +36,7 @@ namespace Rasa.Auth
             Socket = socket;
             Server = server;
             State = ClientState.Connected;
+            TimeoutTime = DateTime.Now.AddMinutes(Server.Config.AuthConfig.ClientTimeout);
 
             Socket.OnError += OnError;
             Socket.OnReceive += OnReceive;
@@ -125,6 +128,9 @@ namespace Rasa.Auth
 
         private void OnReceive(BufferData data)
         {
+            // Reset the timeout after every action
+            TimeoutTime = DateTime.Now.AddMinutes(Server.Config.AuthConfig.ClientTimeout);
+
             AuthCryptManager.Instance.Decrypt(data.Buffer, data.BaseOffset + data.Offset, data.Length - data.Offset);
 
             var packetType = PacketRouter.GetPacketType((ClientOpcode) data.Buffer[data.BaseOffset + data.Offset++]);

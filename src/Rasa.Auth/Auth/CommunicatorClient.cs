@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Net;
 using System.Net.Sockets;
 
 namespace Rasa.Auth
@@ -21,6 +22,7 @@ namespace Rasa.Auth
         public ushort CurrentPlayers { get; set; }
         public ushort MaxPlayers { get; set; }
         public DateTime LastUpdateTime { get; set; }
+        public IPAddress PublicAddress { get; set; }
 
         private readonly PacketRouter<CommunicatorClient, CommOpcode> _router = new PacketRouter<CommunicatorClient, CommOpcode>();
 
@@ -79,7 +81,7 @@ namespace Rasa.Auth
         [PacketHandler(CommOpcode.LoginRequest)]
         private void MsgLoginRequest(LoginRequestPacket packet)
         {
-            if (!Server.AuthenticateGameServer(packet.ServerId, packet.Password, this))
+            if (!Server.AuthenticateGameServer(packet, this))
             {
                 Socket.Send(new LoginResponsePacket
                 {
@@ -89,6 +91,7 @@ namespace Rasa.Auth
             }
 
             ServerId = packet.ServerId;
+            PublicAddress = packet.PublicAddress;
 
             RequestServerInfo();
         }

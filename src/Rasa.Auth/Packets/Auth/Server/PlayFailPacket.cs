@@ -1,16 +1,16 @@
 ﻿using System.IO;
 
-namespace Rasa.Packets.Server
+namespace Rasa.Packets.Auth.Server
 {
     using Data;
 
-    public class LoginFailPacket : IOpcodedPacket<AuthServerOpcode>
+    public class PlayFailPacket : IOpcodedPacket<ServerOpcode>
     {
         public FailReason ResultCode { get; set; }
 
-        public AuthServerOpcode Opcode { get; } = AuthServerOpcode.LoginFail;
+        public ServerOpcode Opcode { get; } = ServerOpcode.PlayFail;
 
-        public LoginFailPacket(FailReason resultCode)
+        public PlayFailPacket(FailReason resultCode)
         {
             ResultCode = resultCode;
         }
@@ -28,7 +28,7 @@ namespace Rasa.Packets.Server
 
         public override string ToString()
         {
-            return $"LoginFailPacket({ResultCode})";
+            return $"PlayFailPacket({ResultCode})";
         }
     }
 }

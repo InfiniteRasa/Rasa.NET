@@ -2096,20 +2096,6 @@
           "lib/netstandard1.3/System.Xml.XDocument.dll": {}
         }
       },
-      "Rasa.DBL/1.0.0": {
-        "type": "project",
-        "framework": ".NETStandard,Version=v1.6",
-        "dependencies": {
-          "MySql.Data": "7.0.5-IR21",
-          "NETStandard.Library": "1.6.0"
-        },
-        "compile": {
-          "netstandard1.6/Rasa.DBL.dll": {}
-        },
-        "runtime": {
-          "netstandard1.6/Rasa.DBL.dll": {}
-        }
-      },
       "Rasa.Utils/1.0.0": {
         "type": "project",
         "framework": ".NETStandard,Version=v1.6",
@@ -2119,7 +2105,6 @@
           "Microsoft.Extensions.Options.ConfigurationExtensions": "1.0.0",
           "MySql.Data": "7.0.5-IR21",
           "NETStandard.Library": "1.6.0",
-          "System.Data.Common": "4.1.0",
           "System.Threading.Thread": "4.0.0"
         },
         "compile": {
@@ -6556,11 +6541,6 @@
         "ref/xamarinwatchos10/_._"
       ]
     },
-    "Rasa.DBL/1.0.0": {
-      "type": "project",
-      "path": "../Rasa.DBL/project.json",
-      "msbuildProject": "../Rasa.DBL/Rasa.DBL.xproj"
-    },
     "Rasa.Utils/1.0.0": {
       "type": "project",
       "path": "../Rasa.Utils/project.json",
@@ -6570,9 +6550,7 @@
   "projectFileDependencyGroups": {
     "": [
       "NETStandard.Library >= 1.6.0",
-      "Rasa.DBL >= 1.0.0-*",
-      "Rasa.Utils >= 1.0.0-*",
-      "System.Threading.Thread >= 4.0.0"
+      "Rasa.Utils >= 1.0.0-*"
     ],
     ".NETStandard,Version=v1.6": []
   },

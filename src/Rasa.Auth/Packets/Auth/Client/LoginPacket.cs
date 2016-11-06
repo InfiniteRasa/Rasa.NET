@@ -5,7 +5,7 @@ using System.Text;
 using Org.BouncyCastle.Crypto.Engines;
 using Org.BouncyCastle.Crypto.Parameters;
 
-namespace Rasa.Packets.Client
+namespace Rasa.Packets.Auth.Client
 {
     using Data;
 

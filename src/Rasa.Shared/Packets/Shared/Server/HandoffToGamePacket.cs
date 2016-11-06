@@ -1,17 +1,17 @@
 ﻿using System.IO;
 
-namespace Rasa.Packets.Server
+namespace Rasa.Packets.Shared.Server
 {
     using Data;
 
-    public class HandoffToGamePacket : IOpcodedPacket<AuthServerOpcode>
+    public class HandoffToGamePacket : IOpcodedPacket<QueueOpcode>
     {
         public uint OneTimeKey { get; set; }
         public uint UserId { get; set; }
         public uint ServerIp { get; set; }
         public int ServerPort { get; set; }
 
-        public AuthServerOpcode Opcode { get; } = AuthServerOpcode.HandoffToGame;
+        public QueueOpcode Opcode { get; } = QueueOpcode.HandoffToGame;
 
         public void Read(BinaryReader reader)
         {
@@ -23,7 +23,7 @@ namespace Rasa.Packets.Server
 
         public void Write(BinaryWriter writer)
         {
-            writer.Write((byte) Opcode);
+            writer.Write((byte)Opcode);
             writer.Write(ServerIp);
             writer.Write(ServerPort);
             writer.Write(UserId);

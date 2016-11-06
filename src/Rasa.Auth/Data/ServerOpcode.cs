@@ -1,6 +1,6 @@
 ﻿namespace Rasa.Data
 {
-    public enum AuthServerOpcode : byte
+    public enum ServerOpcode : byte
     {
         ProtocolVersion           = 0x00,
         LoginFail                 = 0x01,
@@ -15,12 +15,6 @@
         SCCheckReq                = 0x0A, // null
         Unknown1                  = 0x0B, // null, or in different vTable
         HandOffToQueue            = 0x0C,
-        PositionInQueue           = 0x0D,
-        HandoffToGame             = 0x0E,
-
-        // Internal opcodes, it can't be called through the socket
-        //Unknown4                  = 0xFC, // OnDisconnectedFromQueue
-        //Unknown5                  = 0xFD, // null, or in different vTable
-        //Unknown6                  = 0xFE, // OnConnectedToQueue
+        HandoffToGame             = 0x0E
     }
 }

@@ -1,14 +1,14 @@
 ﻿using System.IO;
 
-namespace Rasa.Packets.Server
+namespace Rasa.Packets.Auth.Server
 {
     using Data;
 
-    public class BlockedAccountPacket : IOpcodedPacket<AuthServerOpcode>
+    public class BlockedAccountPacket : IOpcodedPacket<ServerOpcode>
     {
         public uint Reason { get; set; }
 
-        public AuthServerOpcode Opcode { get; } = AuthServerOpcode.BlockedAccount;
+        public ServerOpcode Opcode { get; } = ServerOpcode.BlockedAccount;
 
         public void Read(BinaryReader reader)
         {

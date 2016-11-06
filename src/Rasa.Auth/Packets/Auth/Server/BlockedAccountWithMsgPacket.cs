@@ -2,13 +2,13 @@
 using System.Diagnostics;
 using System.IO;
 
-namespace Rasa.Packets.Server
+namespace Rasa.Packets.Auth.Server
 {
     using Data;
 
-    public class BlockedAccountWithMsgPacket : IOpcodedPacket<AuthServerOpcode>
+    public class BlockedAccountWithMsgPacket : IOpcodedPacket<ServerOpcode>
     {
-        public AuthServerOpcode Opcode { get; } = AuthServerOpcode.BlockedAccountWithMessage;
+        public ServerOpcode Opcode { get; } = ServerOpcode.BlockedAccountWithMessage;
         public void Read(BinaryReader reader)
         {
             var count = reader.ReadByte();

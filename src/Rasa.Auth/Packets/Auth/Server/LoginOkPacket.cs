@@ -1,10 +1,10 @@
 ﻿using System.IO;
 
-namespace Rasa.Packets.Server
+namespace Rasa.Packets.Auth.Server
 {
     using Data;
 
-    public class LoginOkPacket : IOpcodedPacket<AuthServerOpcode>
+    public class LoginOkPacket : IOpcodedPacket<ServerOpcode>
     {
         public uint SessionId1 { get; set; }
         public uint SessionId2 { get; set; }
@@ -17,7 +17,7 @@ namespace Rasa.Packets.Server
         public uint LoginFlag { get; set; }
         public byte UnkByte { get; set; }
 
-        public AuthServerOpcode Opcode { get; } = AuthServerOpcode.LoginOk;
+        public ServerOpcode Opcode { get; } = ServerOpcode.LoginOk;
 
         public void Read(BinaryReader reader)
         {

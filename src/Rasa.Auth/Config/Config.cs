@@ -10,14 +10,8 @@ namespace Rasa.Config
         public AuthListType AuthListType { get; set; }
         public Dictionary<string, string> Servers { get; set; }
         public SocketAsyncConfig SocketAsyncConfig { get; set; }
-        public AuthSocketConfig AuthSocketConfig { get; set; }
+        public AuthConfig AuthConfig { get; set; }
         public CommunicatorConfig CommunicatorConfig { get; set; }
         public Logger.LoggerConfig LoggerConfig { get; set; }
-    }
-
-    public class AuthSocketConfig
-    {
-        public int Port { get; set; }
-        public int Backlog { get; set; }
     }
 }

@@ -14,6 +14,7 @@ namespace Rasa.Game
     using Networking;
     using Packets;
     using Packets.Communicator;
+    using Queue;
     using Structures;
     using Threading;
     using Timer;
@@ -23,9 +24,11 @@ namespace Rasa.Game
         public const int MainLoopTime = 100; // Milliseconds
 
         public Config Config { get; private set; }
+        public IPAddress PublicAddress { get; private set; }
         public LengthedSocket AuthCommunicator { get; private set; }
         public LengthedSocket ListenerSocket { get; private set; }
         public PacketQueue PacketQueue { get; }
+        public QueueManager QueueManager { get; private set; }
         public List<Client> Clients { get; } = new List<Client>();
         public Dictionary<uint, ClientInfo> IncomingClients { get; } = new Dictionary<uint, ClientInfo>();
         public MainLoop Loop { get; }
@@ -44,9 +47,11 @@ namespace Rasa.Game
             Loop = new MainLoop(this, MainLoopTime);
             Timer = new Timer();
 
-            LengthedSocket.InitializeEventArgsPool(Config.SocketAsyncConfig.MaxClients * Config.SocketAsyncConfig.ConcurrentOperationsByClient);
-
             PacketQueue = new PacketQueue();
+
+            PublicAddress = IPAddress.Parse(Config.GameConfig.PublicAddress);
+
+            LengthedSocket.InitializeEventArgsPool(Config.SocketAsyncConfig.MaxClients * Config.SocketAsyncConfig.ConcurrentOperationsByClient);
 
             BufferManager.Initialize(Config.SocketAsyncConfig.BufferSize, Config.SocketAsyncConfig.MaxClients, Config.SocketAsyncConfig.ConcurrentOperationsByClient);
 
@@ -102,7 +107,7 @@ namespace Rasa.Game
         public bool Start()
         {
             // If no config file has been found, these values are 0 by default
-            if (Config.GameSocketConfig.GamePort == 0 || Config.GameSocketConfig.Backlog == 0)
+            if (Config.GameConfig.Port == 0 || Config.GameConfig.Backlog == 0)
             {
                 Logger.WriteLog(LogType.Error, "Invalid config values!");
                 return false;
@@ -112,17 +117,17 @@ namespace Rasa.Game
 
             SetupCommunicator();
 
-            ListenerSocket = new LengthedSocket(SizeType.Word);
+            ListenerSocket = new LengthedSocket(SizeType.Dword, false);
             ListenerSocket.OnError += OnError;
             ListenerSocket.OnAccept += OnAccept;
-            ListenerSocket.Bind(new IPEndPoint(IPAddress.Any, Config.GameSocketConfig.GamePort));
-            ListenerSocket.Listen(Config.GameSocketConfig.Backlog);
-
-            Logger.WriteLog(LogType.Network, "*** Listening for clients on port {0}", Config.GameSocketConfig.GamePort);
+            ListenerSocket.Bind(new IPEndPoint(IPAddress.Any, Config.GameConfig.Port));
+            ListenerSocket.Listen(Config.GameConfig.Backlog);
 
             ListenerSocket.AcceptAsync();
 
-            // TODO: Set up timed events (query stuff, internal communication, etc...)
+            QueueManager = new QueueManager(this);
+
+            Logger.WriteLog(LogType.Network, "*** Listening for clients on port {0}", Config.GameConfig.Port);
 
             Timer.Add("SessionExpire", 10000, true, () =>
             {
@@ -137,6 +142,11 @@ namespace Rasa.Game
                 }
             });
 
+            Timer.Add("QueueManagerUpdate", Config.QueueConfig.UpdateInterval, true, () =>
+            {
+                QueueManager.Update();
+            });
+
             return true;
         }
 
@@ -145,7 +155,6 @@ namespace Rasa.Game
             if (args.LastOperation == SocketAsyncOperation.Accept && args.AcceptSocket != null && args.AcceptSocket.Connected)
                 args.AcceptSocket.Shutdown(SocketShutdown.Both);
         }
-
 
         private void OnAccept(LengthedSocket newSocket)
         {
@@ -229,7 +238,8 @@ namespace Rasa.Game
             AuthCommunicator.Send(new LoginRequestPacket
             {
                 ServerId = Config.ServerInfoConfig.Id,
-                Password = Config.ServerInfoConfig.Password
+                Password = Config.ServerInfoConfig.Password,
+                PublicAddress = PublicAddress
             }, null);
 
             AuthCommunicator.ReceiveAsync();
@@ -275,8 +285,8 @@ namespace Rasa.Game
                 AgeLimit = Config.ServerInfoConfig.AgeLimit,
                 PKFlag = Config.ServerInfoConfig.PKFlag,
                 CurrentPlayers = CurrentPlayers,
-                GamePort = Config.GameSocketConfig.GamePort,
-                QueuePort = Config.GameSocketConfig.QueuePort,
+                GamePort = Config.GameConfig.Port,
+                QueuePort = Config.QueueConfig.Port,
                 MaxPlayers = (ushort) Config.SocketAsyncConfig.MaxClients
             }, null);
         }

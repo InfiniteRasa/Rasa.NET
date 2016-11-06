@@ -12,6 +12,7 @@ namespace Rasa.Cryptography
         {
             get
             {
+                // ReSharper disable once InvertIf - To avoid another warning about double checked locking
                 if (_instance == null)
                 {
                     lock (InstLock)

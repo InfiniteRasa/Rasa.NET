@@ -1,4 +1,5 @@
 {
+    "title": "Rasa.NET Game",
     "version": "1.0.0-*",
     "buildOptions": {
         "emitEntryPoint": true,

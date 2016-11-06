@@ -26,6 +26,7 @@ namespace Rasa.Networking
         public delegate void DisconnectHandler();
 
         public SizeType SizeHeaderLength { get; }
+        public bool CountSize { get; }
         public int LengthSize => (int) SizeHeaderLength;
         public Socket Socket { get; }
         public bool Connected => Socket.Connected;
@@ -37,6 +38,18 @@ namespace Rasa.Networking
         public AsyncHandler OnSend;
         public ReceiveHandler OnReceive;
         public AsyncHandler OnError;
+
+        public LengthedSocket(SizeType sizeHeaderLen, bool countSize = true)
+           : this(new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp), sizeHeaderLen, countSize)
+        {
+        }
+
+        public LengthedSocket(Socket s, SizeType sizeHeaderLen, bool countSize)
+        {
+            Socket = s;
+            SizeHeaderLength = sizeHeaderLen;
+            CountSize = countSize;
+        }
 
         #region SocketAsyncEventArgs
         private static Stack<SocketAsyncEventArgs> _socketAsyncEventArgsPool;
@@ -209,7 +222,7 @@ namespace Rasa.Networking
                         break;
 
                     case SocketAsyncOperation.Accept:
-                        OnAccept?.Invoke(new LengthedSocket(args.AcceptSocket, SizeHeaderLength));
+                        OnAccept?.Invoke(new LengthedSocket(args.AcceptSocket, SizeHeaderLength, CountSize));
                         break;
                 }
             }
@@ -219,33 +232,24 @@ namespace Rasa.Networking
 
         private int ReadSize(BufferData data)
         {
+            var headerSize = !CountSize ? LengthSize : 0;
+
             switch (SizeHeaderLength)
             {
                 case SizeType.Char:
-                    return BufferManager.Buffer[data.BaseOffset + data.Offset];
+                    return headerSize + data.Buffer[data.BaseOffset + data.Offset];
 
                 case SizeType.Word:
-                    return BitConverter.ToUInt16(BufferManager.Buffer, data.BaseOffset + data.Offset);
+                    return headerSize + BitConverter.ToUInt16(data.Buffer, data.BaseOffset + data.Offset);
 
                 case SizeType.Dword:
-                    return BitConverter.ToInt32(BufferManager.Buffer, data.BaseOffset + data.Offset);
+                    return headerSize + BitConverter.ToInt32(data.Buffer, data.BaseOffset + data.Offset);
 
                 default:
                     throw new NotImplementedException($"Only 1, 2 and 4 byte headers are supported! {SizeHeaderLength} is not!");
             }
         }
         #endregion
-
-        public LengthedSocket(SizeType sizeHeaderLen)
-            : this(new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp), sizeHeaderLen)
-        {
-        }
-
-        public LengthedSocket(Socket s, SizeType sizeHeaderLen)
-        {
-            Socket = s;
-            SizeHeaderLength = sizeHeaderLen;
-        }
 
         public void Bind(EndPoint ep)
         {
@@ -286,7 +290,7 @@ namespace Rasa.Networking
                 OperationCompleted(Socket, args);
         }
 
-        public void Send(IBasePacket packet, ICryptoManager cryptManager)
+        public void Send(IBasePacket packet, ICryptoManager cryptoManager)
         {
             var args = SetupEventArgs(SocketAsyncOperation.Send);
             var data = args.GetUserToken<BufferData>();
@@ -304,41 +308,19 @@ namespace Rasa.Networking
                 length = (int) sw.BaseStream.Position;
             }
 
-            cryptManager?.Encrypt(args.Buffer, data.BaseOffset + data.Offset, ref length, data.Length - data.Offset);
-
-            length += LengthSize;
-
-            if (length > data.MaxLength)
-                throw new OutOfMemoryException("Tried to send a bigger packet than the max packet length!");
+            cryptoManager?.Encrypt(args.Buffer, data.BaseOffset + data.Offset, ref length, data.Length - LengthSize);
 
             // Reset the offset to send everything (including the size header)
             data.Offset = 0;
-            data.Length = length;
+            data.Length = length + LengthSize;
+
+            var sizeLen = CountSize ? data.Length : length;
 
             // Copy the size header into the buffer
-            var size = new List<byte>();
+            for (var i = 0; i < LengthSize; ++i)
+                args.Buffer[data.BaseOffset + i] = (byte) ((sizeLen >> (i * 8)) & 0xFF);
 
-            switch (SizeHeaderLength)
-            {
-                case SizeType.Char:
-                    size.Add((byte) length);
-                    break;
-
-                case SizeType.Word:
-                    size.AddRange(BitConverter.GetBytes((ushort) length));
-                    break;
-
-                case SizeType.Dword:
-                    size.AddRange(BitConverter.GetBytes((uint) length));
-                    break;
-
-                default:
-                    throw new NotImplementedException($"Only 1, 2 and 4 byte headers are supported! {SizeHeaderLength} is not!");
-            }
-
-            Array.Copy(size.ToArray(), 0, args.Buffer, data.BaseOffset, LengthSize);
-
-            args.SetBuffer(data.BaseOffset, length);
+            args.SetBuffer(data.BaseOffset, data.Length);
 
             SendAsync(args);
         }

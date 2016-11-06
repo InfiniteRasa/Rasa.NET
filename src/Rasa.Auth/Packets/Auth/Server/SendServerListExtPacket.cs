@@ -4,17 +4,17 @@ using System.IO;
 using System.Linq;
 using System.Net;
 
-namespace Rasa.Packets.Server
+namespace Rasa.Packets.Auth.Server
 {
     using Data;
     using Structures;
 
-    public class SendServerListExtPacket : IOpcodedPacket<AuthServerOpcode>
+    public class SendServerListExtPacket : IOpcodedPacket<ServerOpcode>
     {
         public byte LastServerId { get; set; }
         public List<ServerInfo> ServerList { get; set; }
 
-        public AuthServerOpcode Opcode { get; } = AuthServerOpcode.SendServerListExt;
+        public ServerOpcode Opcode { get; } = ServerOpcode.SendServerListExt;
 
         public SendServerListExtPacket(List<ServerInfo> servers, byte lastServerId = 0)
         {

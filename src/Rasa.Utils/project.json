@@ -1,4 +1,5 @@
 {
+    "title": "Rasa.NET Utils",
     "version": "1.0.0-*",
 
     "dependencies": {
@@ -7,7 +8,6 @@
         "Microsoft.Extensions.Options.ConfigurationExtensions": "1.0.0",
         "MySql.Data": "7.0.5-IR21",
         "NETStandard.Library": "1.6.0",
-        "System.Data.Common": "4.1.0",
         "System.Threading.Thread": "4.0.0"
     },
 
