@@ -1,10 +1,12 @@
 ﻿using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.InteropServices.ComTypes;
 
 namespace Rasa.Queue
 {
     using Config;
+    using Data;
     using Game;
     using Networking;
 
@@ -13,6 +15,8 @@ namespace Rasa.Queue
     public class QueueManager
     {
         private readonly Queue<QueueClient> _queuedClients = new Queue<QueueClient>();
+
+        public List<QueueClient> Clients { get; } = new List<QueueClient>();
 
         public Server Server { get; }
         public LengthedSocket Socket { get; }
@@ -41,41 +45,101 @@ namespace Rasa.Queue
 
         private void OnAccept(LengthedSocket socket)
         {
-            lock (_queuedClients)
-                _queuedClients.Enqueue(new QueueClient(this, socket));
+            Socket.AcceptAsync();
+
+            lock (Clients)
+                Clients.Add(new QueueClient(this, socket));
         }
 
-        public void AdvanceQueue(uint freeSlots)
+        public void Disconnect(QueueClient client)
         {
-            if (QueuedClients == 0)
-                return;
+            lock (Clients)
+                Clients.Remove(client);
+        }
 
+        public void Enqueue(QueueClient client)
+        {
             lock (_queuedClients)
             {
-                for (var i = 0; i < freeSlots; ++i)
+                if (!Server.IsFull)
                 {
-                    var client = _queuedClients.Dequeue();
+                    // TODO: need a position update before redirect?
+                    client.Redirect(Server.PublicAddress, Server.Config.GameConfig.Port);
+                    return;
+                }
 
-                    client.Redirect(Server.PublicAddress, Server.Config.GameConfig.Port, 0, 0);
+                _queuedClients.Enqueue(client);
+
+                var pos = 0;
+
+                foreach (var c in _queuedClients)
+                {
+                    if (c.State == QueueState.Disconnected)
+                        continue;
+
+                    if (c == client)
+                        c.SendPositionUpdate(pos, 10000 * pos); // TODO: proper estimated time calculation
+                    else
+                        ++pos;
                 }
             }
         }
 
-        public void Update()
+        private void AdvanceQueue(int freeSlots)
         {
             if (QueuedClients == 0)
                 return;
 
             lock (_queuedClients)
             {
-                var position = 1;
+                for (var i = 0; i < freeSlots && QueuedClients > 0;)
+                {
+                    var client = _queuedClients.Dequeue();
+                    if (client.State == QueueState.Disconnected)
+                        continue;
 
-                foreach (var client in _queuedClients)
-                    client.SendPositionUpdate(position++, 100); // TODO: estimated time calculation
+                    client.Redirect(Server.PublicAddress, Server.Config.GameConfig.Port);
+                    ++i;
+                }
             }
         }
 
-        //client.SendPositionUpdate(_queuedClients.Count, 200); // TODO: estimated time calculation
-        // TODO: move after authenticated
+        private void ClearDisconnected()
+        {
+            if (QueuedClients == 0)
+                return;
+
+            lock (_queuedClients)
+            {
+                do
+                {
+                    var c = _queuedClients.Peek();
+                    if (c.State != QueueState.Disconnected)
+                        break;
+
+                    _queuedClients.Dequeue();
+                }
+                while (QueuedClients > 0);
+            }
+        }
+
+        public void Update(int freeSlots)
+        {
+            if (QueuedClients == 0)
+                return;
+
+            lock (_queuedClients)
+            {
+                ClearDisconnected();
+
+                AdvanceQueue(freeSlots);
+
+                var position = 0;
+
+                foreach (var client in _queuedClients)
+                    if (client.State != QueueState.Disconnected)
+                        client.SendPositionUpdate(position, 10000 * position++); // TODO: proper estimated time calculation
+            }
+        }
     }
 }

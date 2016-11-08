@@ -1,4 +1,4 @@
-﻿namespace Rasa.Cryptography.Game
+﻿namespace Rasa.Cryptography
 {
     public class ClientCryptData
     {

@@ -90,6 +90,12 @@ namespace Rasa.Auth
                 return;
             }
 
+            Socket.Send(new LoginResponsePacket
+            {
+                Response = CommLoginReason.Success
+            }, null);
+
+            LastUpdateTime = DateTime.Now;
             ServerId = packet.ServerId;
             PublicAddress = packet.PublicAddress;
 
@@ -100,6 +106,8 @@ namespace Rasa.Auth
         [PacketHandler(CommOpcode.ServerInfoResponse)]
         private void MsgGameInfoResponse(ServerInfoResponsePacket packet)
         {
+            LastUpdateTime = DateTime.Now;
+
             Server.UpdateServerInfo(this, packet);
         }
 

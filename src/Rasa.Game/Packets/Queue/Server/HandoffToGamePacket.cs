@@ -1,6 +1,7 @@
 ﻿using System.IO;
+using System.Net;
 
-namespace Rasa.Packets.Shared.Server
+namespace Rasa.Packets.Queue.Server
 {
     using Data;
 
@@ -8,14 +9,14 @@ namespace Rasa.Packets.Shared.Server
     {
         public uint OneTimeKey { get; set; }
         public uint UserId { get; set; }
-        public uint ServerIp { get; set; }
+        public IPAddress ServerIp { get; set; }
         public int ServerPort { get; set; }
 
         public QueueOpcode Opcode { get; } = QueueOpcode.HandoffToGame;
 
         public void Read(BinaryReader reader)
         {
-            ServerIp = reader.ReadUInt32();
+            ServerIp = new IPAddress(reader.ReadBytes(4));
             ServerPort = reader.ReadInt32();
             UserId = reader.ReadUInt32();
             OneTimeKey = reader.ReadUInt32();
@@ -24,7 +25,7 @@ namespace Rasa.Packets.Shared.Server
         public void Write(BinaryWriter writer)
         {
             writer.Write((byte)Opcode);
-            writer.Write(ServerIp);
+            writer.Write(ServerIp.GetAddressBytes());
             writer.Write(ServerPort);
             writer.Write(UserId);
             writer.Write(OneTimeKey);

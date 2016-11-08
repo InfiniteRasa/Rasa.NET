@@ -12,7 +12,6 @@ namespace Rasa.Auth
     using Packets;
     using Packets.Auth.Client;
     using Packets.Auth.Server;
-    using Packets.Shared.Server;
     using Structures;
 
     public class Client : INetworkClient
@@ -94,18 +93,6 @@ namespace Rasa.Auth
                     break;
 
                 case RedirectResult.Success:
-                    SendPacket(new HandoffToGamePacket
-                    {
-                        OneTimeKey = OneTimeKey,
-                        ServerIp = BitConverter.ToUInt32(info.Ip.GetAddressBytes(), 0),
-                        ServerPort = info.GamePort,
-                        UserId = Entry.Id
-                    });
-
-                    Logger.WriteLog(LogType.Debug, $"Account  ({Entry.Username}, {Entry.Id}) was redirected to server: {info.ServerId}!");
-                    break;
-
-                case RedirectResult.Queue:
                     SendPacket(new HandoffToQueuePacket
                     {
                         OneTimeKey = OneTimeKey,

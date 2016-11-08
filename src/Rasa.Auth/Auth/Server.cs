@@ -205,7 +205,7 @@ namespace Rasa.Auth
             {
                 lock (GameServers)
                     foreach (var server in GameServers)
-                        if ((DateTime.Now - server.Value.LastUpdateTime).Milliseconds > 30000)
+                        if ((DateTime.Now - server.Value.LastUpdateTime).TotalMilliseconds > 30000)
                             server.Value.RequestServerInfo();
             });
 
@@ -250,9 +250,7 @@ namespace Rasa.Auth
                 GameServerQueue.Remove(client);
                 GameServers.Add(packet.ServerId, client);
 
-                client.RequestServerInfo();
-
-                Logger.WriteLog(LogType.Network, $"The Game server (Id: {packet.ServerId}, Address:{client.Socket.RemoteAddress}, Public Address: {packet.PublicAddress}) has authenticated! Requesting info...");
+                Logger.WriteLog(LogType.Network, $"The Game server (Id: {packet.ServerId}, Address: {client.Socket.RemoteAddress}, Public Address: {packet.PublicAddress}) has authenticated! Requesting info...");
 
                 return true;
             }

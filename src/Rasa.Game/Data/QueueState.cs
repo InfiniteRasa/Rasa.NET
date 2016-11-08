@@ -2,9 +2,10 @@
 {
     public enum QueueState
     {
-        Authenticating,
-        InQueue,
-        Redirecting,
-        Disconnected
+        Authenticating = 0,
+        Authenticated  = 1,
+        InQueue        = 2,
+        Redirecting    = 3,
+        Disconnected   = 4
     }
 }

@@ -90,7 +90,7 @@ namespace Rasa.Memory
         // ReSharper disable UnusedParameter.Local
         private void CheckConstraints(int offset, int length)
         {
-            if (offset < 0 || offset >= MaxLength || offset + length > MaxLength)
+            if (offset < 0 || length < 0 || offset >= MaxLength || offset + length > MaxLength)
                 throw new Exception("BufferData tried to access another BufferData's memory!");
         }
         // ReSharper restore UnusedParameter.Local

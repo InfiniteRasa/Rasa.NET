@@ -3,7 +3,6 @@
 namespace Rasa.Cryptography
 {
     using Auth;
-    using ClientCryptData = Game.ClientCryptData;
 
     public class AuthCryptManager : ICryptoManager
     {
@@ -48,7 +47,7 @@ namespace Rasa.Cryptography
                 length += 8 - rem;
 
             if (length + 8 > maxLength)
-                throw new ArgumentException("The length can't exceed the maximal buffer length!", nameof(length));
+                throw new ArgumentOutOfRangeException(nameof(length), "The length can't exceed the maximal buffer length!");
 
             // Fill up extra padding bytes
             for (var i = oldLen; i < length; ++i)

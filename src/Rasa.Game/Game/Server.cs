@@ -34,6 +34,7 @@ namespace Rasa.Game
         public MainLoop Loop { get; }
         public Timer Timer { get; }
         public bool Running => Loop != null && Loop.Running;
+        public bool IsFull => CurrentPlayers >= Config.ServerInfoConfig.MaxPlayers;
         public ushort CurrentPlayers { get; set; }
 
         private readonly PacketRouter<Server, CommOpcode> _router = new PacketRouter<Server, CommOpcode>();
@@ -144,7 +145,7 @@ namespace Rasa.Game
 
             Timer.Add("QueueManagerUpdate", Config.QueueConfig.UpdateInterval, true, () =>
             {
-                QueueManager.Update();
+                QueueManager.Update(Config.ServerInfoConfig.MaxPlayers - CurrentPlayers);
             });
 
             return true;
@@ -267,7 +268,10 @@ namespace Rasa.Game
         private void MsgLoginResponse(LoginResponsePacket packet)
         {
             if (packet.Response == CommLoginReason.Success)
+            {
+                Logger.WriteLog(LogType.Network, "Successfully authenticated with the Auth server!");
                 return;
+            }
 
             AuthCommunicator?.Close();
             AuthCommunicator = null;
@@ -311,7 +315,7 @@ namespace Rasa.Game
             AuthCommunicator.Send(new RedirectResponsePacket
             {
                 AccountId = packet.AccountId,
-                Response = CurrentPlayers >= Config.ServerInfoConfig.MaxPlayers ? RedirectResult.Queue : RedirectResult.Success
+                Response = RedirectResult.Success
             }, null);
         }
         #endregion

@@ -1,5 +1,6 @@
 ﻿using System.IO;
 using System.Net;
+using System.Net.Sockets;
 
 namespace Rasa.Packets.Communicator
 {
@@ -17,7 +18,7 @@ namespace Rasa.Packets.Communicator
         {
             ServerId = br.ReadByte();
             Password = br.ReadLengthedString();
-            PublicAddress = IPAddress.Parse(br.ReadLengthedString());
+            PublicAddress = new IPAddress(br.ReadBytes(br.ReadByte()));
         }
 
         public void Write(BinaryWriter bw)
@@ -25,7 +26,8 @@ namespace Rasa.Packets.Communicator
             bw.Write((byte) Opcode);
             bw.Write(ServerId);
             bw.WriteLengthedString(Password);
-            bw.WriteLengthedString(PublicAddress.ToString());
+            bw.Write((byte) (PublicAddress.AddressFamily == AddressFamily.InterNetwork ? 4 : 16));
+            bw.Write(PublicAddress.GetAddressBytes());
         }
     }
 }
