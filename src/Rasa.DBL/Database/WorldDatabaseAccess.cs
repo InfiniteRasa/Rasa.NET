@@ -5,7 +5,7 @@ using MySql.Data.MySqlClient;
 
 namespace Rasa.Database
 {
-    public class GameDatabaseAccess
+    public class WorldDatabaseAccess
     {
         public static MySqlConnection WorldConnection { get; private set; }
         public static MySqlConnection CharConnection { get; private set; }

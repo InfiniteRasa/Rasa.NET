@@ -2,7 +2,7 @@
 {
     public class Config
     {
-        public string GameDatabaseConnectionString { get; set; }
+        public string WorldDatabaseConnectionString { get; set; }
         public string CharDatabaseConnectionString { get; set; }
         public SocketAsyncConfig SocketAsyncConfig { get; set; }
         public GameConfig GameConfig { get; set; }
