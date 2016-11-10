@@ -2,7 +2,7 @@
 
 using MySql.Data.MySqlClient;
 
-namespace Rasa.Database.Tables
+namespace Rasa.Database.Tables.Auth
 {
     using Structures;
 
@@ -16,25 +16,25 @@ namespace Rasa.Database.Tables
 
         public static void Initialize()
         {
-            GetAccountByNameCommand.Connection = DatabaseAccess.Connection;
+            GetAccountByNameCommand.Connection = AuthDatabaseAccess.Connection;
             GetAccountByNameCommand.Parameters.Add("@AccountName", MySqlDbType.VarChar);
             GetAccountByNameCommand.Prepare();
 
-            GetAccountByIdCommand.Connection = DatabaseAccess.Connection;
+            GetAccountByIdCommand.Connection = AuthDatabaseAccess.Connection;
             GetAccountByIdCommand.Parameters.Add("@AccountId", MySqlDbType.UInt32);
             GetAccountByIdCommand.Prepare();
 
-            UpdateLoginDataCommand.Connection = DatabaseAccess.Connection;
+            UpdateLoginDataCommand.Connection = AuthDatabaseAccess.Connection;
             UpdateLoginDataCommand.Parameters.Add("@AccountId", MySqlDbType.UInt32);
             UpdateLoginDataCommand.Parameters.Add("@LastIP", MySqlDbType.VarChar);
             UpdateLoginDataCommand.Prepare();
 
-            UpdateLastServerCommand.Connection = DatabaseAccess.Connection;
+            UpdateLastServerCommand.Connection = AuthDatabaseAccess.Connection;
             UpdateLastServerCommand.Parameters.Add("@AccountId", MySqlDbType.UInt32);
             UpdateLastServerCommand.Parameters.Add("@LastServerId", MySqlDbType.UByte);
             UpdateLastServerCommand.Prepare();
 
-            InsertAccountCommand.Connection = DatabaseAccess.Connection;
+            InsertAccountCommand.Connection = AuthDatabaseAccess.Connection;
             InsertAccountCommand.Parameters.Add("@Email", MySqlDbType.VarChar);
             InsertAccountCommand.Parameters.Add("@Username", MySqlDbType.VarChar);
             InsertAccountCommand.Parameters.Add("@Password", MySqlDbType.VarChar);
@@ -44,7 +44,7 @@ namespace Rasa.Database.Tables
 
         public static AccountEntry GetAccount(string accountName)
         {
-            lock (DatabaseAccess.Lock)
+            lock (AuthDatabaseAccess.Lock)
             {
                 GetAccountByNameCommand.Parameters["@AccountName"].Value = accountName;
 
@@ -55,7 +55,7 @@ namespace Rasa.Database.Tables
 
         public static AccountEntry GetAccount(uint accountId)
         {
-            lock (DatabaseAccess.Lock)
+            lock (AuthDatabaseAccess.Lock)
             {
                 GetAccountByIdCommand.Parameters["@AccountId"].Value = accountId;
 
@@ -66,7 +66,7 @@ namespace Rasa.Database.Tables
 
         public static void UpdateLoginData(uint accountId, IPAddress ipa)
         {
-            lock (DatabaseAccess.Lock)
+            lock (AuthDatabaseAccess.Lock)
             {
                 UpdateLoginDataCommand.Parameters["@LastIP"].Value = ipa.ToString();
                 UpdateLoginDataCommand.Parameters["@AccountId"].Value = accountId;
@@ -76,7 +76,7 @@ namespace Rasa.Database.Tables
 
         public static void UpdateLastServer(uint accountId, byte lastServerId)
         {
-            lock (DatabaseAccess.Lock)
+            lock (AuthDatabaseAccess.Lock)
             {
                 UpdateLastServerCommand.Parameters["@LastServerId"].Value = lastServerId;
                 UpdateLastServerCommand.Parameters["@AccountId"].Value = accountId;
@@ -86,7 +86,7 @@ namespace Rasa.Database.Tables
 
         public static void InsertAccount(AccountEntry entry)
         {
-            lock (DatabaseAccess.Lock)
+            lock (AuthDatabaseAccess.Lock)
             {
                 InsertAccountCommand.Parameters["@Email"].Value = entry.Email;
                 InsertAccountCommand.Parameters["@Username"].Value = entry.Username;

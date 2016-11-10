@@ -7,7 +7,7 @@ namespace Rasa.Game
 {
     using Cryptography;
     using Data;
-    using Database.Tables;
+    using Database.Tables.Auth;
     using Memory;
     using Networking;
     using Packets;

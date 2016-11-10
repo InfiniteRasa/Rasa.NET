@@ -5,7 +5,7 @@ using MySql.Data.MySqlClient;
 
 namespace Rasa.Database
 {
-    public static class DatabaseAccess
+    public static class AuthDatabaseAccess
     {
         public static MySqlConnection Connection { get; private set; }
 
@@ -16,7 +16,7 @@ namespace Rasa.Database
             Connection = new MySqlConnection(connectionString);
             Connection.Open();
 
-            foreach (var type in typeof(DatabaseAccess).GetTypeInfo().Assembly.GetTypes().Where(c => c.Namespace == "Rasa.Database.Tables"))
+            foreach (var type in typeof(AuthDatabaseAccess).GetTypeInfo().Assembly.GetTypes().Where(c => c.Namespace == "Rasa.Database.Tables.Auth"))
             {
                 var method = type.GetMethod("Initialize", BindingFlags.Public | BindingFlags.Static);
                 if (method == null)

@@ -11,7 +11,7 @@ namespace Rasa.Auth
     using Config;
     using Data;
     using Database;
-    using Database.Tables;
+    using Database.Tables.Auth;
     using Memory;
     using Networking;
     using Packets;
@@ -55,7 +55,7 @@ namespace Rasa.Auth
 
             BufferManager.Initialize(Config.SocketAsyncConfig.BufferSize, Config.SocketAsyncConfig.MaxClients, Config.SocketAsyncConfig.ConcurrentOperationsByClient);
 
-            DatabaseAccess.Initialize(Config.DatabaseConnectionString);
+            AuthDatabaseAccess.Initialize(Config.DatabaseConnectionString);
 
             CommandProcessor.RegisterCommand("exit", ProcessExitCommand);
             CommandProcessor.RegisterCommand("reload", ProcessReloadCommand);

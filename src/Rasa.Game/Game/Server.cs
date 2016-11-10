@@ -55,7 +55,7 @@ namespace Rasa.Game
 
             BufferManager.Initialize(Config.SocketAsyncConfig.BufferSize, Config.SocketAsyncConfig.MaxClients, Config.SocketAsyncConfig.ConcurrentOperationsByClient);
 
-            DatabaseAccess.Initialize(Config.DatabaseConnectionString);
+            GameDatabaseAccess.Initialize(Config.GameDatabaseConnectionString, Config.CharDatabaseConnectionString);
 
             CommandProcessor.RegisterCommand("exit", ProcessExitCommand);
             CommandProcessor.RegisterCommand("reload", ProcessReloadCommand);

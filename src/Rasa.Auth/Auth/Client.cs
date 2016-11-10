@@ -5,7 +5,7 @@ namespace Rasa.Auth
 {
     using Cryptography;
     using Data;
-    using Database.Tables;
+    using Database.Tables.Auth;
     using Extensions;
     using Memory;
     using Networking;

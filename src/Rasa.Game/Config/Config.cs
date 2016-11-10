@@ -2,7 +2,8 @@
 {
     public class Config
     {
-        public string DatabaseConnectionString { get; set; }
+        public string GameDatabaseConnectionString { get; set; }
+        public string CharDatabaseConnectionString { get; set; }
         public SocketAsyncConfig SocketAsyncConfig { get; set; }
         public GameConfig GameConfig { get; set; }
         public CommunicatorConfig CommunicatorConfig { get; set; }
