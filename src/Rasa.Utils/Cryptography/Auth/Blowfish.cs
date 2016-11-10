@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Rasa.Cryptography.Auth
+﻿namespace Rasa.Cryptography.Auth
 {
     public static class Blowfish
     {
@@ -147,22 +145,21 @@ namespace Rasa.Cryptography.Auth
         /// <param name="length">The length for which to encrypt.</param>
         public static void Encrypt(byte[] data, int offset, int length)
         {
-            var blockNumber = length >> 3;
+            var blocks = length >> 3;
 
-            for (var k = 0; k < blockNumber; k++)
+            for (var k = 0; k < blocks; k++)
             {
                 var p = offset + (k << 3);
 
-                var xl = BitConverter.ToUInt32(data, p);
-                var xr = BitConverter.ToUInt32(data, p + 4);
+                var xl = (uint) (data[p    ] | (data[p + 1] << 8) | (data[p + 2] << 16) | (data[p + 3] << 24));
+                var xr = (uint) (data[p + 4] | (data[p + 5] << 8) | (data[p + 6] << 16) | (data[p + 7] << 24));
+
                 uint tmp;
 
                 for (var i = 0; i < 16; i++)
                 {
-                    xl = xl ^ PBox[i];
-                    xr = F(xl) ^ xr;
-                    tmp = xl;
-                    xl = xr;
+                    tmp = xl ^ PBox[i];
+                    xl = F(tmp) ^ xr;
                     xr = tmp;
                 }
 
@@ -171,8 +168,15 @@ namespace Rasa.Cryptography.Auth
                 xr = tmp;
                 xr ^= PBox[16];
                 xl ^= PBox[17];
-                Array.Copy(BitConverter.GetBytes(xl), 0, data, p, 4);
-                Array.Copy(BitConverter.GetBytes(xr), 0, data, p + 4, 4);
+
+                data[p    ] = (byte)( xl        & 0xFF);
+                data[p + 1] = (byte)((xl >>  8) & 0xFF);
+                data[p + 2] = (byte)((xl >> 16) & 0xFF);
+                data[p + 3] = (byte)((xl >> 24) & 0xFF);
+                data[p + 4] = (byte)( xr        & 0xFF);
+                data[p + 5] = (byte)((xr >>  8) & 0xFF);
+                data[p + 6] = (byte)((xr >> 16) & 0xFF);
+                data[p + 7] = (byte)((xr >> 24) & 0xFF);
             }
         }
 
@@ -199,16 +203,14 @@ namespace Rasa.Cryptography.Auth
             {
                 var p = offset + (k << 3);
 
-                var lb = BitConverter.ToUInt32(data, p);
-                var rb = BitConverter.ToUInt32(data, p + 4);
+                var lb = (uint) (data[p    ] | (data[p + 1] << 8) | (data[p + 2] << 16) | (data[p + 3] << 24));
+                var rb = (uint) (data[p + 4] | (data[p + 5] << 8) | (data[p + 6] << 16) | (data[p + 7] << 24));
                 uint tmp;
 
                 for (var i = 17; i > 1; i--)
                 {
-                    lb = lb ^ PBox[i];
-                    rb = F(lb) ^ rb;
-                    tmp = lb;
-                    lb = rb;
+                    tmp = lb ^ PBox[i];
+                    lb = F(tmp) ^ rb;
                     rb = tmp;
                 }
 
@@ -217,8 +219,15 @@ namespace Rasa.Cryptography.Auth
                 rb = tmp;
                 rb ^= PBox[1];
                 lb ^= PBox[0];
-                Array.Copy(BitConverter.GetBytes(lb), 0, data, p, 4);
-                Array.Copy(BitConverter.GetBytes(rb), 0, data, p + 4, 4);
+
+                data[p    ] = (byte) ( lb        & 0xFF);
+                data[p + 1] = (byte) ((lb >>  8) & 0xFF);
+                data[p + 2] = (byte) ((lb >> 16) & 0xFF);
+                data[p + 3] = (byte) ((lb >> 24) & 0xFF);
+                data[p + 4] = (byte) ( rb        & 0xFF);
+                data[p + 5] = (byte) ((rb >>  8) & 0xFF);
+                data[p + 6] = (byte) ((rb >> 16) & 0xFF);
+                data[p + 7] = (byte) ((rb >> 24) & 0xFF);
             }
         }
 

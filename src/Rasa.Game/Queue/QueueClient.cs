@@ -34,7 +34,7 @@ namespace Rasa.Queue
                 PublicKey = Manager.Config.PublicKey,
                 Prime = Manager.Config.Prime,
                 Generator = Manager.Config.Generator
-            }, null);
+            });
 
             State = QueueState.Authenticating;
         }
@@ -54,7 +54,7 @@ namespace Rasa.Queue
                         return;
                     }
 
-                    Socket.Send(new ClientKeyOkPacket(), null);
+                    Socket.Send(new ClientKeyOkPacket());
 
                     State = QueueState.Authenticated;
 
@@ -102,7 +102,7 @@ namespace Rasa.Queue
                 ServerIp = ip,
                 ServerPort = port,
                 UserId = UserId
-            }, null);
+            });
         }
 
         public void SendPositionUpdate(int position, int estimatedTime)
@@ -111,7 +111,7 @@ namespace Rasa.Queue
             {
                 Position = position,
                 EstimatedTime = estimatedTime
-            }, null);
+            });
         }
     }
 }

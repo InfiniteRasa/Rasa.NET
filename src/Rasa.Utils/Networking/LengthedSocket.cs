@@ -24,6 +24,8 @@ namespace Rasa.Networking
         public delegate void AsyncHandler(SocketAsyncEventArgs args);
         public delegate void ReceiveHandler(BufferData data);
         public delegate void DisconnectHandler();
+        public delegate void EncryptDelegate(BufferData data, ref int length);
+        public delegate bool DecryptDelegate(BufferData data);
 
         public SizeType SizeHeaderLength { get; }
         public bool CountSize { get; }
@@ -38,6 +40,8 @@ namespace Rasa.Networking
         public AsyncHandler OnSend;
         public ReceiveHandler OnReceive;
         public AsyncHandler OnError;
+        public EncryptDelegate OnEncrypt;
+        public DecryptDelegate OnDecrypt;
 
         public LengthedSocket(SizeType sizeHeaderLen, bool countSize = true)
            : this(new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp), sizeHeaderLen, countSize)
@@ -207,8 +211,8 @@ namespace Rasa.Networking
 
                             data.Offset += LengthSize;
                             data.Length = length;
-                            //data.Length = length - LengthSize;
 
+                            OnDecrypt?.Invoke(data);
                             OnReceive?.Invoke(data);
 
                             data.Offset = currentOff + length;
@@ -290,7 +294,7 @@ namespace Rasa.Networking
                 OperationCompleted(Socket, args);
         }
 
-        public void Send(IBasePacket packet, ICryptoManager cryptoManager)
+        public void Send(IBasePacket packet)
         {
             var args = SetupEventArgs(SocketAsyncOperation.Send);
             var data = args.GetUserToken<BufferData>();
@@ -308,7 +312,7 @@ namespace Rasa.Networking
                 length = (int) sw.BaseStream.Position;
             }
 
-            cryptoManager?.Encrypt(args.Buffer, data.BaseOffset + data.Offset, ref length, data.Length - LengthSize);
+            OnEncrypt?.Invoke(data, ref length);
 
             // Reset the offset to send everything (including the size header)
             data.Offset = 0;

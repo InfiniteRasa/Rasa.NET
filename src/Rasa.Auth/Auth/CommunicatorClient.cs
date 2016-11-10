@@ -65,7 +65,7 @@ namespace Rasa.Auth
 
         public void RequestServerInfo()
         {
-            Socket.Send(new ServerInfoRequestPacket(), null);
+            Socket.Send(new ServerInfoRequestPacket());
         }
 
         public void RequestRedirection(uint accountId, uint oneTimeKey)
@@ -74,7 +74,7 @@ namespace Rasa.Auth
             {
                 AccountId = accountId,
                 OneTimeKey = oneTimeKey
-            }, null);
+            });
         }
 
         // ReSharper disable once UnusedMember.Local
@@ -86,14 +86,14 @@ namespace Rasa.Auth
                 Socket.Send(new LoginResponsePacket
                 {
                     Response = CommLoginReason.Failure
-                }, null);
+                });
                 return;
             }
 
             Socket.Send(new LoginResponsePacket
             {
                 Response = CommLoginReason.Success
-            }, null);
+            });
 
             LastUpdateTime = DateTime.Now;
             ServerId = packet.ServerId;

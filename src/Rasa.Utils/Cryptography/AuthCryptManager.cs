@@ -30,7 +30,9 @@ namespace Rasa.Cryptography
 
         public bool Decrypt(byte[] data, int offset, int length, ClientCryptData cryptData = null)
         {
-            // TODO: merge the 2 blowfish, use a static cryptdata instance with the other blowfish engine, if possible
+            if (length % 8 != 0)
+                throw new ArgumentOutOfRangeException(nameof(length), "The lenght must be a multiple of 8!");
+
             Blowfish.Decrypt(data, offset, length);
 
             return VerifyChecksum(data, offset, length);
@@ -38,7 +40,6 @@ namespace Rasa.Cryptography
 
         public void Encrypt(byte[] data, int offset, ref int length, int maxLength, ClientCryptData cryptData = null)
         {
-            // TODO: merge the 2 blowfish, use a static cryptdata instance with the other blowfish engine, if possible
             var oldLen = length;
 
             // Make the length a multiple of 8

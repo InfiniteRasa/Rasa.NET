@@ -39,6 +39,7 @@ namespace Rasa.Auth
 
             Socket.OnError += OnError;
             Socket.OnReceive += OnReceive;
+            Socket.OnDecrypt += OnDecrypt;
 
             var rnd = new Random();
 
@@ -47,7 +48,10 @@ namespace Rasa.Auth
             SessionId2 = rnd.NextUInt();
 
             // This packet must not be encrypted, so call Socket.Send instead of SendPacket
-            Socket.Send(new ProtocolVersionPacket(OneTimeKey), null);
+            SendPacket(new ProtocolVersionPacket(OneTimeKey));
+
+            // This is here, so Prot Version packet won't get encrypted
+            Socket.OnEncrypt += OnEncrypt;
 
             Logger.WriteLog(LogType.Network, "*** Client connected from {0}", Socket.RemoteAddress);
 
@@ -68,7 +72,7 @@ namespace Rasa.Auth
 
         public void SendPacket(IBasePacket packet)
         {
-            Socket.Send(packet, AuthCryptManager.Instance);
+            Socket.Send(packet);
         }
 
         public void HandlePacket(IBasePacket packet)
@@ -113,12 +117,20 @@ namespace Rasa.Auth
             Close(false);
         }
 
+        private static void OnEncrypt(BufferData data, ref int length)
+        {
+            AuthCryptManager.Instance.Encrypt(data.Buffer, data.RealOffset, ref length, data.RemainingLength);
+        }
+
+        private static bool OnDecrypt(BufferData data)
+        {
+            return AuthCryptManager.Instance.Decrypt(data.Buffer, data.RealOffset, data.RemainingLength);
+        }
+
         private void OnReceive(BufferData data)
         {
             // Reset the timeout after every action
             TimeoutTime = DateTime.Now.AddMinutes(Server.Config.AuthConfig.ClientTimeout);
-
-            AuthCryptManager.Instance.Decrypt(data.Buffer, data.BaseOffset + data.Offset, data.Length - data.Offset);
 
             var packetType = PacketRouter.GetPacketType((ClientOpcode) data.Buffer[data.BaseOffset + data.Offset++]);
             if (packetType == null)

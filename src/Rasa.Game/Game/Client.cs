@@ -61,7 +61,7 @@ namespace Rasa.Game
 
         public void SendPacket(IBasePacket packet)
         {
-            Socket.Send(packet, AuthCryptManager.Instance);
+            Socket.Send(packet);
         }
 
         public void HandlePacket(IBasePacket packet)

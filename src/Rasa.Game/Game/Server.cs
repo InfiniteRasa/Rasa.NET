@@ -241,7 +241,7 @@ namespace Rasa.Game
                 ServerId = Config.ServerInfoConfig.Id,
                 Password = Config.ServerInfoConfig.Password,
                 PublicAddress = PublicAddress
-            }, null);
+            });
 
             AuthCommunicator.ReceiveAsync();
         }
@@ -292,7 +292,7 @@ namespace Rasa.Game
                 GamePort = Config.GameConfig.Port,
                 QueuePort = Config.QueueConfig.Port,
                 MaxPlayers = (ushort) Config.SocketAsyncConfig.MaxClients
-            }, null);
+            });
         }
 
         // ReSharper disable once UnusedMember.Local
@@ -316,7 +316,7 @@ namespace Rasa.Game
             {
                 AccountId = packet.AccountId,
                 Response = RedirectResult.Success
-            }, null);
+            });
         }
         #endregion
 

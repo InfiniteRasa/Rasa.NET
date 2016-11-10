@@ -13,8 +13,10 @@ namespace Rasa.Memory
         public int Length { get; set; }
         public int ByteCount { get; set; }
         public int ByteOffset => BaseOffset + ByteCount;
+        public int RealOffset => BaseOffset + Offset;
         public int Remaining => ByteCount - Offset;
         public int Missing => Length - ByteCount;
+        public int RemainingLength => Length - Offset;
 
         public BufferData(int baseOffset)
         {

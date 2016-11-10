@@ -50,7 +50,7 @@ namespace Rasa.Packets.Auth.Server
             if (ServerList == null)
                 throw new InvalidOperationException("You must specify a list of ServerInfo before you can serialize it!");
 
-            var count = ServerList.Count();
+            var count = ServerList.Count;
             if (count >= 16)
                 count = 16;
 

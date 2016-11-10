@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Diagnostics;
 using System.Security.Cryptography;
 
 namespace Rasa.Cryptography
@@ -35,82 +34,93 @@ namespace Rasa.Cryptography
         {
             Blowfish.SetKey(inputK, cryptData.Key);
 
-            var md5 = MD5.Create();
+            using (var md5 = MD5.Create())
+                Array.Copy(md5.ComputeHash(inputK), cryptData.MD5, 0x10);
 
-            Array.Copy(md5.ComputeHash(inputK), cryptData.MD5, 0x10);
             Array.Copy(inputK, cryptData.K, 0x40);
         }
 
-        public void Encrypt(byte[] packetData, int offset, ref int len, int maxLength, ClientCryptData cryptData)
+        public void Encrypt(byte[] data, int offset, ref int length, int maxLength, ClientCryptData cryptData)
         {
-            if ((len & 7) != 0)
-                Debugger.Break(); // TODO: add extra bytes and fill with const data, instead of breaking, if needed
+            var oldLen = length;
 
-            var data = new uint[len / 4];
-            Buffer.BlockCopy(packetData, offset, data, 0, len);
+            // Make the length a multiple of 8
+            var rem = length % 8;
+            if (rem != 0)
+                length += 8 - rem;
+
+            if (length > maxLength)
+                throw new ArgumentOutOfRangeException(nameof(length), "The length can't exceed the maximal buffer length!");
+
+            // Fill up extra padding bytes
+            for (var i = oldLen; i < length; ++i)
+                data[offset + i] = 0xCC;
+
+            var uintData = new uint[length / 4];
+            Buffer.BlockCopy(data, offset, uintData, 0, length);
 
             var x = SwitchEndianInt(BitConverter.ToUInt32(cryptData.MD5, 0));
             var y = SwitchEndianInt(BitConverter.ToUInt32(cryptData.MD5, 4));
 
-            for (var i = 0; i < (len / 8); ++i)
+            for (var i = 0; i < (length / 8); ++i)
             {
                 var a2 = i * 2;
 
-                data[a2] = SwitchEndianInt(data[a2]);
-                data[a2 + 1] = SwitchEndianInt(data[a2 + 1]);
-                data[a2] ^= x;
-                data[a2 + 1] ^= y;
+                uintData[a2] = SwitchEndianInt(uintData[a2]);
+                uintData[a2 + 1] = SwitchEndianInt(uintData[a2 + 1]);
+                uintData[a2] ^= x;
+                uintData[a2 + 1] ^= y;
 
-                Blowfish.Encrypt(data, a2, cryptData.Key);
+                Blowfish.Encrypt(uintData, a2, cryptData.Key);
 
-                x = data[a2];
-                y = data[a2 + 1];
+                x = uintData[a2];
+                y = uintData[a2 + 1];
 
-                data[a2] = SwitchEndianInt(data[a2]);
-                data[a2 + 1] = SwitchEndianInt(data[a2 + 1]);
+                uintData[a2] = SwitchEndianInt(uintData[a2]);
+                uintData[a2 + 1] = SwitchEndianInt(uintData[a2 + 1]);
             }
 
-            Buffer.BlockCopy(data, 0, packetData, offset, len);
+            Buffer.BlockCopy(uintData, 0, data, offset, length);
         }
 
-        public bool Decrypt(byte[] packetData, int offset, int len, ClientCryptData cryptData)
+        public bool Decrypt(byte[] data, int offset, int length, ClientCryptData cryptData)
         {
-            if (len % 8 != 0)
-                Debugger.Break();
+            if (length % 8 != 0)
+                throw new ArgumentOutOfRangeException(nameof(length), "The lenght must be a multiple of 8!");
 
-            var data = new uint[len / 4];
-            Buffer.BlockCopy(packetData, offset, data, 0, len);
+            var uintData = new uint[length / 4];
+            Buffer.BlockCopy(data, offset, uintData, 0, length);
 
             var x = SwitchEndianInt(BitConverter.ToUInt32(cryptData.MD5, 0));
             var y = SwitchEndianInt(BitConverter.ToUInt32(cryptData.MD5, 4));
 
-            for (var i = 0; i < (len / 8); ++i)
+            for (var i = 0; i < (length / 8); ++i)
             {
                 //Switch endian first
                 var a2 = offset + i * 2;
 
-                data[a2] = SwitchEndianInt(data[a2]);
-                data[a2 + 1] = SwitchEndianInt(data[a2 + 1]);
+                uintData[a2] = SwitchEndianInt(uintData[a2]);
+                uintData[a2 + 1] = SwitchEndianInt(uintData[a2 + 1]);
 
                 //Store new XOR
-                var x2 = data[a2];
-                var y2 = data[a2 + 1];
+                var x2 = uintData[a2];
+                var y2 = uintData[a2 + 1];
 
-                Blowfish.Decrypt(data, a2, cryptData.Key);
+                Blowfish.Decrypt(uintData, a2, cryptData.Key);
 
-                data[a2] ^= x;
-                data[a2 + 1] ^= y;
+                uintData[a2] ^= x;
+                uintData[a2 + 1] ^= y;
 
                 //Update XOR
                 x = x2;
                 y = y2;
 
                 //Switch endian now
-                data[a2] = SwitchEndianInt(data[a2]);
-                data[a2 + 1] = SwitchEndianInt(data[a2 + 1]);
+                uintData[a2] = SwitchEndianInt(uintData[a2]);
+                uintData[a2 + 1] = SwitchEndianInt(uintData[a2 + 1]);
             }
 
-            Buffer.BlockCopy(data, 0, packetData, offset, len);
+            Buffer.BlockCopy(uintData, 0, data, offset, length);
 
             return true;
         }
