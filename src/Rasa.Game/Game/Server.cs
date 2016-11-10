@@ -10,6 +10,7 @@ namespace Rasa.Game
     using Config;
     using Data;
     using Database;
+    using Login;
     using Memory;
     using Networking;
     using Packets;
@@ -24,15 +25,16 @@ namespace Rasa.Game
         public const int MainLoopTime = 100; // Milliseconds
 
         public Config Config { get; private set; }
-        public IPAddress PublicAddress { get; private set; }
+        public IPAddress PublicAddress { get; }
         public LengthedSocket AuthCommunicator { get; private set; }
         public LengthedSocket ListenerSocket { get; private set; }
-        public PacketQueue PacketQueue { get; }
+        public PacketQueue PacketQueue { get; } = new PacketQueue();
         public QueueManager QueueManager { get; private set; }
+        public LoginManager LoginManager { get; set; } = new LoginManager();
         public List<Client> Clients { get; } = new List<Client>();
         public Dictionary<uint, ClientInfo> IncomingClients { get; } = new Dictionary<uint, ClientInfo>();
         public MainLoop Loop { get; }
-        public Timer Timer { get; }
+        public Timer Timer { get; } = new Timer();
         public bool Running => Loop != null && Loop.Running;
         public bool IsFull => CurrentPlayers >= Config.ServerInfoConfig.MaxPlayers;
         public ushort CurrentPlayers { get; set; }
@@ -46,9 +48,6 @@ namespace Rasa.Game
             Configuration.Load();
 
             Loop = new MainLoop(this, MainLoopTime);
-            Timer = new Timer();
-
-            PacketQueue = new PacketQueue();
 
             PublicAddress = IPAddress.Parse(Config.GameConfig.PublicAddress);
 
@@ -124,9 +123,11 @@ namespace Rasa.Game
             ListenerSocket.Bind(new IPEndPoint(IPAddress.Any, Config.GameConfig.Port));
             ListenerSocket.Listen(Config.GameConfig.Backlog);
 
-            ListenerSocket.AcceptAsync();
+            LoginManager.OnLogin += OnLogin;
 
             QueueManager = new QueueManager(this);
+
+            ListenerSocket.AcceptAsync();
 
             Logger.WriteLog(LogType.Network, "*** Listening for clients on port {0}", Config.GameConfig.Port);
 
@@ -151,6 +152,12 @@ namespace Rasa.Game
             return true;
         }
 
+        private void OnLogin(LoginClient client)
+        {
+            lock (Clients)
+                Clients.Add(new Client(client.Socket, client.Data, this));
+        }
+
         private static void OnError(SocketAsyncEventArgs args)
         {
             if (args.LastOperation == SocketAsyncOperation.Accept && args.AcceptSocket != null && args.AcceptSocket.Connected)
@@ -164,8 +171,7 @@ namespace Rasa.Game
             if (newSocket == null)
                 return;
 
-            lock (Clients)
-                Clients.Add(new Client(newSocket, this));
+            LoginManager.LoginSocket(newSocket);
         }
 
         public bool AuthenticateClient(Client client, uint accountId, uint oneTimeKey)

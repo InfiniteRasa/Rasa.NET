@@ -205,7 +205,7 @@ namespace Rasa.Auth
             {
                 lock (GameServers)
                     foreach (var server in GameServers)
-                        if ((DateTime.Now - server.Value.LastUpdateTime).TotalMilliseconds > 30000)
+                        if ((DateTime.Now - server.Value.LastRequestTime).TotalMilliseconds > 30000)
                             server.Value.RequestServerInfo();
             });
 

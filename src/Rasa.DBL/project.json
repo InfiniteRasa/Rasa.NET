@@ -4,7 +4,8 @@
 
     "dependencies": {
         "MySql.Data": "7.0.5-IR21",
-        "NETStandard.Library": "1.6.0"
+        "NETStandard.Library": "1.6.0",
+        "Rasa.Utils": "1.0.0-*"
     },
 
     "frameworks": {

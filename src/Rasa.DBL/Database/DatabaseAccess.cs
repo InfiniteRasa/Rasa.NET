@@ -1,9 +1,10 @@
-﻿using MySql.Data.MySqlClient;
+﻿using System.Linq;
+using System.Reflection;
+
+using MySql.Data.MySqlClient;
 
 namespace Rasa.Database
 {
-    using Tables;
-
     public static class DatabaseAccess
     {
         public static MySqlConnection Connection { get; private set; }
@@ -15,8 +16,17 @@ namespace Rasa.Database
             Connection = new MySqlConnection(connectionString);
             Connection.Open();
 
-            // TODO: load by reflection and call init for every class?
-            AccountTable.Initialize();
+            foreach (var type in typeof(DatabaseAccess).GetTypeInfo().Assembly.GetTypes().Where(c => c.Namespace == "Rasa.Database.Tables"))
+            {
+                var method = type.GetMethod("Initialize", BindingFlags.Public | BindingFlags.Static);
+                if (method == null)
+                {
+                    Logger.WriteLog(LogType.Error, $"Table class {type.FullName} has no public static void Initialize()!");
+                    continue;
+                }
+
+                method.Invoke(null, null);
+            }
         }
     }
 }

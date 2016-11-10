@@ -61,6 +61,9 @@ namespace Rasa.Queue
                     break;
 
                 case QueueState.Authenticated:
+                    if (data[data.Offset++] != 7)
+                        throw new Exception("Invalid opcode???");
+
                     var loginPacket = new QueueLoginPacket();
 
                     loginPacket.Read(data.GetReader());

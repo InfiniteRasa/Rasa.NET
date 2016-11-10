@@ -12,11 +12,11 @@
         public static readonly byte[] ConstantGenerator = { 5 };
 
         // ReSharper disable InconsistentNaming
-        public static void GeneratePrivateAndPublicA(Bignum a, Bignum A)
+        public static void GeneratePrivateAndPublicA(BigNum a, BigNum A)
         // ReSharper restore InconsistentNaming
         {
-            var prime = new Bignum();
-            var generator = new Bignum();
+            var prime = new BigNum();
+            var generator = new BigNum();
 
             prime.ReadBigEndian(ConstantPrime, 0, ConstantPrime.Length);
             generator.ReadBigEndian(ConstantGenerator, 0, ConstantGenerator.Length);
@@ -29,9 +29,9 @@
             A.ModExp(generator, a, prime);
         }
 
-        public static void GenerateServerK(Bignum a, Bignum b, Bignum k)
+        public static void GenerateServerK(BigNum a, BigNum b, BigNum k)
         {
-            var prime = new Bignum();
+            var prime = new BigNum();
 
             prime.ReadBigEndian(ConstantPrime, 0, ConstantPrime.Length);
 

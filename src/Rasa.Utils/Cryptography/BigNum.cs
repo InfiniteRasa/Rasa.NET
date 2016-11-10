@@ -2,7 +2,7 @@
 
 namespace Rasa.Cryptography
 {
-    public class Bignum
+    public class BigNum
     {
         private const int BignumSize = 256; //Wert: 0 - 2^65536 
 
@@ -21,20 +21,20 @@ namespace Rasa.Cryptography
             return true;
         }
 
-        public bool Copy(Bignum src)
+        public bool Copy(BigNum src)
         {
             Array.Copy(src.Content, Content, src.Content.Length);
             return true;
         }
 
         //Addiert zwei Bignums (A = B + C), gibt den Überlauf zurück
-        public uint Add(Bignum b, Bignum c)
+        public uint Add(BigNum b, BigNum c)
         {
             var overflow = 0U;
 
             for (var i = 0; i < BignumSize; ++i)
             {
-                //Addiere zu overflow die beiden Bignum Ziffern
+                //Addiere zu overflow die beiden BigNum Ziffern
                 overflow += (uint)b.Content[i] + c.Content[i];
 
                 //Speichere aktuellen Ziffernwert
@@ -47,13 +47,13 @@ namespace Rasa.Cryptography
         }
 
         //Subtrahiert zwei Bignums (Result = B - C), gibt den Überlauf zurück
-        public uint Sub(Bignum b, Bignum c)
+        public uint Sub(BigNum b, BigNum c)
         {
             var overflow = 1U;
 
             for (var i = 0; i < BignumSize; i++)
             {
-                //Addiere zu overflow die beiden Bignum Ziffern b + ~d
+                //Addiere zu overflow die beiden BigNum Ziffern b + ~d
                 overflow += b.Content[i] + (uint)((~c.Content[i]) & 0xFF);
 
                 //Speichere aktuellen Ziffernwert
@@ -67,14 +67,14 @@ namespace Rasa.Cryptography
         }
 
         //Multipliziert zwei Bignums (result = a * b)
-        public bool Mul(Bignum a, Bignum b)
+        public bool Mul(BigNum a, BigNum b)
         {
             //Zwischenspeicher für Ziffern-Multiplikationsergebniss
-            var storer = new Bignum();
-            var resultnew = new Bignum();
+            var storer = new BigNum();
+            var resultnew = new BigNum();
 
-            var o1 = new Bignum();
-            var o2 = new Bignum();
+            var o1 = new BigNum();
+            var o2 = new BigNum();
 
             o1.Copy(a);
             o2.Copy(b);
@@ -112,11 +112,11 @@ namespace Rasa.Cryptography
             return true;
         }
 
-        //Dividiert einen Bignum (result = a / c)
-        public bool Div(Bignum a, Bignum b)
+        //Dividiert einen BigNum (result = a / c)
+        public bool Div(BigNum a, BigNum b)
         {
-            var o1 = new Bignum();
-            var o2 = new Bignum();
+            var o1 = new BigNum();
+            var o2 = new BigNum();
 
             Reset();
 
@@ -166,9 +166,9 @@ namespace Rasa.Cryptography
         }
 
         //Berechnet den Modulo einer Bignumdivision (result = A%B)
-        public bool Mod(Bignum a, Bignum b)
+        public bool Mod(BigNum a, BigNum b)
         {
-            var factor = new Bignum();
+            var factor = new BigNum();
 
             //Runde Factor auf a/b*b
             factor.Div(a, b);
@@ -182,10 +182,10 @@ namespace Rasa.Cryptography
         }
 
         //Modulare Exponentiation (result = (B^E)%N)
-        public bool ModExp(Bignum b, Bignum e, Bignum n)
+        public bool ModExp(BigNum b, BigNum e, BigNum n)
         {
-            var p = new Bignum();
-            var exponent = new Bignum();
+            var p = new BigNum();
+            var exponent = new BigNum();
 
             var bitCount = e.CountBits();
 
@@ -221,7 +221,7 @@ namespace Rasa.Cryptography
             return true;
         }
 
-        //Halbiert einen Bignum (a = a / 2)
+        //Halbiert einen BigNum (a = a / 2)
         public bool Half()
         {
             //Shiftbit ist 0
@@ -242,7 +242,7 @@ namespace Rasa.Cryptography
             return true;
         }
 
-        //Verdoppelt einen Bignum (a = a * 2)
+        //Verdoppelt einen BigNum (a = a * 2)
         public bool Double()
         {
             //Shiftbit ist 0
@@ -267,7 +267,7 @@ namespace Rasa.Cryptography
         //Bignumvergleiche
 
         //Vergleicht zwei Bignums (-1,0,1)
-        public int Compare(Bignum b)
+        public int Compare(BigNum b)
         {
             for (var i = (BignumSize - 1); i >= 0; --i)
             {
@@ -282,7 +282,7 @@ namespace Rasa.Cryptography
             return 0;
         }
 
-        //Vergleicht einen Bignum mit 0
+        //Vergleicht einen BigNum mit 0
         public bool IsZero()
         {
             //Für alle Ziffern
@@ -303,7 +303,7 @@ namespace Rasa.Cryptography
             return 0;
         }
 
-        //Liest einen Bignum aus dem Speicher
+        //Liest einen BigNum aus dem Speicher
         public bool Read(byte[] p, int offset, int digitCount)
         {
             Reset();
@@ -315,7 +315,7 @@ namespace Rasa.Cryptography
             return true;
         }
 
-        //Liest einen Bignum aus dem Speicher im Big Endian Format.
+        //Liest einen BigNum aus dem Speicher im Big Endian Format.
         public bool ReadBigEndian(byte[] p, int offset, int digitCount)
         {
             Reset();
@@ -327,19 +327,19 @@ namespace Rasa.Cryptography
             return true;
         }
 
-        //Schreibt einen Bignum in den Speicher
-        public bool WriteTo(byte[] p, int digitCount)
+        //Schreibt einen BigNum in den Speicher
+        public bool WriteTo(byte[] p, int off, int digitCount)
         {
-            Array.Clear(p, 0, digitCount);
+            Array.Clear(p, off, digitCount);
 
             for (var i = 0; i < digitCount; ++i)
-                p[i] = Content[i];
+                p[off + i] = Content[i];
 
             //Return Erfolg
             return true;
         }
 
-        //Schreibt einen Bignum in den Speicher im Big Endian Format
+        //Schreibt einen BigNum in den Speicher im Big Endian Format
         //Achtung: Funktioniert nicht ganz fehlerfrei wenn DigitCount > Eigentliche Anzahl der Stellen
         public bool WriteToBigEndian(byte[] p, int off, int digitCount)
         {
@@ -352,7 +352,7 @@ namespace Rasa.Cryptography
             return true;
         }
 
-        //Gibt die Länge eines Bignum in Byte-Stellen zurück
+        //Gibt die Länge eines BigNum in Byte-Stellen zurück
         public int Length()
         {
             for (var i = (BignumSize - 1); i >= 0; --i)

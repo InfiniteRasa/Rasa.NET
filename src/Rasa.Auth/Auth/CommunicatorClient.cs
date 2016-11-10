@@ -21,7 +21,7 @@ namespace Rasa.Auth
         public byte PKFlag { get; set; }
         public ushort CurrentPlayers { get; set; }
         public ushort MaxPlayers { get; set; }
-        public DateTime LastUpdateTime { get; set; }
+        public DateTime LastRequestTime { get; set; }
         public IPAddress PublicAddress { get; set; }
 
         private readonly PacketRouter<CommunicatorClient, CommOpcode> _router = new PacketRouter<CommunicatorClient, CommOpcode>();
@@ -65,6 +65,8 @@ namespace Rasa.Auth
 
         public void RequestServerInfo()
         {
+            LastRequestTime = DateTime.Now;
+
             Socket.Send(new ServerInfoRequestPacket());
         }
 
@@ -95,7 +97,6 @@ namespace Rasa.Auth
                 Response = CommLoginReason.Success
             });
 
-            LastUpdateTime = DateTime.Now;
             ServerId = packet.ServerId;
             PublicAddress = packet.PublicAddress;
 
@@ -106,8 +107,6 @@ namespace Rasa.Auth
         [PacketHandler(CommOpcode.ServerInfoResponse)]
         private void MsgGameInfoResponse(ServerInfoResponsePacket packet)
         {
-            LastUpdateTime = DateTime.Now;
-
             Server.UpdateServerInfo(this, packet);
         }
 

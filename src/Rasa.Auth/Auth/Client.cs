@@ -124,7 +124,7 @@ namespace Rasa.Auth
 
         private static bool OnDecrypt(BufferData data)
         {
-            return AuthCryptManager.Instance.Decrypt(data.Buffer, data.RealOffset, data.RemainingLength);
+            return AuthCryptManager.Instance.Decrypt(data.Buffer, data.RealOffset, data.Length);
         }
 
         private void OnReceive(BufferData data)

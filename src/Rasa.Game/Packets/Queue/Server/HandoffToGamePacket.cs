@@ -24,7 +24,7 @@ namespace Rasa.Packets.Queue.Server
 
         public void Write(BinaryWriter writer)
         {
-            writer.Write((byte)Opcode);
+            writer.Write((byte) Opcode);
             writer.Write(ServerIp.GetAddressBytes());
             writer.Write(ServerPort);
             writer.Write(UserId);

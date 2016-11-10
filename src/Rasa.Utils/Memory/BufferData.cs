@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Text;
 
 namespace Rasa.Memory
 {
@@ -18,11 +19,19 @@ namespace Rasa.Memory
         public int Missing => Length - ByteCount;
         public int RemainingLength => Length - Offset;
 
+        public string StrData => ByteData();
+
         public BufferData(int baseOffset)
         {
             BaseOffset = baseOffset;
 
             Reset();
+        }
+
+        public byte this[int off]
+        {
+            get { return Buffer[BaseOffset + off]; }
+            set { Buffer[BaseOffset + off] = value; }
         }
 
         public void Reset()
@@ -55,7 +64,7 @@ namespace Rasa.Memory
 
         public void MoveTo(BufferData other, int destOffset = 0)
         {
-            MoveTo(other, Offset, Length - Offset, destOffset);
+            MoveTo(other, Offset, Length, destOffset);
         }
 
         public void MoveTo(BufferData other, int offset, int length, int destOffset = 0)
@@ -67,7 +76,7 @@ namespace Rasa.Memory
 
         public BinaryReader GetReader()
         {
-            return GetReader(Offset, Length - Offset);
+            return GetReader(Offset, Length);
         }
 
         public BinaryReader GetReader(int offset, int length)
@@ -79,7 +88,7 @@ namespace Rasa.Memory
 
         public BinaryWriter CreateWriter()
         {
-            return CreateWriter(Offset, Length - Offset);
+            return CreateWriter(Offset, RemainingLength);
         }
 
         public BinaryWriter CreateWriter(int offset, int length)
@@ -96,5 +105,25 @@ namespace Rasa.Memory
                 throw new Exception("BufferData tried to access another BufferData's memory!");
         }
         // ReSharper restore UnusedParameter.Local
+
+        public string ByteData()
+        {
+            var sb = new StringBuilder();
+
+            for (var i = 0; i < Length; ++i)
+            {
+                if (i > 0)
+                    sb.Append(", ");
+
+                sb.Append($"0x{this[Offset + i]:X2}");
+            }
+
+            return sb.ToString();
+        }
+
+        public override string ToString()
+        {
+            return $"BufferData[{BaseOffset} + {Offset}, {Length}]";
+        }
     }
 }

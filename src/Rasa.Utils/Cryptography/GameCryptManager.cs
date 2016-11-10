@@ -97,7 +97,7 @@ namespace Rasa.Cryptography
             for (var i = 0; i < (length / 8); ++i)
             {
                 //Switch endian first
-                var a2 = offset + i * 2;
+                var a2 = i * 2;
 
                 uintData[a2] = SwitchEndianInt(uintData[a2]);
                 uintData[a2 + 1] = SwitchEndianInt(uintData[a2 + 1]);

@@ -34,6 +34,8 @@ namespace Rasa.Networking
         public bool Connected => Socket.Connected;
         public IPAddress RemoteAddress => ((IPEndPoint)Socket.RemoteEndPoint).Address;
 
+        public bool AutoReceive { get; set; } = true;
+
         public AsyncHandler OnConnect;
         public DisconnectHandler OnDisconnect;
         public AcceptHandler OnAccept;
@@ -210,7 +212,7 @@ namespace Rasa.Networking
                             var currentOff = data.Offset;
 
                             data.Offset += LengthSize;
-                            data.Length = length;
+                            data.Length = length - LengthSize;
 
                             OnDecrypt?.Invoke(data);
                             OnReceive?.Invoke(data);
@@ -218,7 +220,9 @@ namespace Rasa.Networking
                             data.Offset = currentOff + length;
                         }
 
-                        ReceiveAsync();
+                        if (AutoReceive)
+                            ReceiveAsync();
+
                         break;
 
                     case SocketAsyncOperation.Connect:
