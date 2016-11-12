@@ -78,7 +78,6 @@ namespace Rasa.Game
         #region Socketing
         private void OnEncrypt(BufferData data, ref int length)
         {
-            Console.WriteLine(BitConverter.ToString(data.Buffer, data.BaseOffset, length + 4));
             GameCryptManager.Instance.Encrypt(data.Buffer, data.RealOffset, ref length, data.RemainingLength, Data);
         }
 
