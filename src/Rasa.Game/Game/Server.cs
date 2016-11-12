@@ -32,7 +32,7 @@ namespace Rasa.Game
         public QueueManager QueueManager { get; private set; }
         public LoginManager LoginManager { get; set; } = new LoginManager();
         public List<Client> Clients { get; } = new List<Client>();
-        public Dictionary<uint, ClientInfo> IncomingClients { get; } = new Dictionary<uint, ClientInfo>();
+        public Dictionary<uint, LoginAccountEntry> IncomingClients { get; } = new Dictionary<uint, LoginAccountEntry>();
         public MainLoop Loop { get; }
         public Timer Timer { get; } = new Timer();
         public bool Running => Loop != null && Loop.Running;
@@ -55,7 +55,7 @@ namespace Rasa.Game
 
             BufferManager.Initialize(Config.SocketAsyncConfig.BufferSize, Config.SocketAsyncConfig.MaxClients, Config.SocketAsyncConfig.ConcurrentOperationsByClient);
 
-            WorldDatabaseAccess.Initialize(Config.WorldDatabaseConnectionString, Config.CharDatabaseConnectionString);
+            GameDatabaseAccess.Initialize(Config.WorldDatabaseConnectionString, Config.CharDatabaseConnectionString);
 
             CommandProcessor.RegisterCommand("exit", ProcessExitCommand);
             CommandProcessor.RegisterCommand("reload", ProcessReloadCommand);
@@ -174,18 +174,18 @@ namespace Rasa.Game
             LoginManager.LoginSocket(newSocket);
         }
 
-        public bool AuthenticateClient(Client client, uint accountId, uint oneTimeKey)
+        public LoginAccountEntry AuthenticateClient(Client client, uint accountId, uint oneTimeKey)
         {
             lock (IncomingClients)
             {
                 if (!IncomingClients.ContainsKey(accountId))
-                    return false;
+                    return null;
 
-                var info = IncomingClients[accountId];
+                var entry = IncomingClients[accountId];
 
                 IncomingClients.Remove(accountId);
 
-                return info.OneTimeKey == oneTimeKey;
+                return entry;
             }
         }
 
@@ -307,20 +307,15 @@ namespace Rasa.Game
         {
             lock (IncomingClients)
             {
-                if (IncomingClients.ContainsKey(packet.AccountId))
-                    IncomingClients.Remove(packet.AccountId);
+                if (IncomingClients.ContainsKey(packet.Id))
+                    IncomingClients.Remove(packet.Id);
 
-                IncomingClients.Add(packet.AccountId, new ClientInfo
-                {
-                    AccountId = packet.AccountId,
-                    OneTimeKey = packet.OneTimeKey,
-                    ExpireTime = DateTime.Now.AddMinutes(1)
-                });
+                IncomingClients.Add(packet.Id, new LoginAccountEntry(packet));
             }
 
             AuthCommunicator.Send(new RedirectResponsePacket
             {
-                AccountId = packet.AccountId,
+                AccountId = packet.Id,
                 Response = RedirectResult.Success
             });
         }

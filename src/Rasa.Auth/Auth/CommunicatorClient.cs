@@ -9,6 +9,7 @@ namespace Rasa.Auth
     using Networking;
     using Packets;
     using Packets.Communicator;
+    using Structures;
 
     public class CommunicatorClient
     {
@@ -70,12 +71,14 @@ namespace Rasa.Auth
             Socket.Send(new ServerInfoRequestPacket());
         }
 
-        public void RequestRedirection(uint accountId, uint oneTimeKey)
+        public void RequestRedirection(Client client)
         {
             Socket.Send(new RedirectRequestPacket
             {
-                AccountId = accountId,
-                OneTimeKey = oneTimeKey
+                Id = client.Entry.Id,
+                Username = client.Entry.Username,
+                Level = client.Entry.Level,
+                OneTimeKey = client.OneTimeKey
             });
         }
 

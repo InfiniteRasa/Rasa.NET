@@ -41,6 +41,8 @@ namespace Rasa.Auth
             Socket.OnReceive += OnReceive;
             Socket.OnDecrypt += OnDecrypt;
 
+            Socket.ReceiveAsync();
+
             var rnd = new Random();
 
             OneTimeKey = rnd.NextUInt();
@@ -50,13 +52,10 @@ namespace Rasa.Auth
             // This packet must not be encrypted, so call Socket.Send instead of SendPacket
             SendPacket(new ProtocolVersionPacket(OneTimeKey));
 
-            // This is here, so Prot Version packet won't get encrypted
+            // This is here, so ProtocolVersionPacket won't get encrypted
             Socket.OnEncrypt += OnEncrypt;
 
             Logger.WriteLog(LogType.Network, "*** Client connected from {0}", Socket.RemoteAddress);
-
-            // Moved up before Sendpacket for debug purposes (it will get the first buffer part, easier to see values) can be moved back down after socketing is done
-            Socket.ReceiveAsync();
         }
         
         public void Close(bool sendPacket = true)

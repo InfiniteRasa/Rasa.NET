@@ -5,12 +5,13 @@ using MySql.Data.MySqlClient;
 
 namespace Rasa.Database
 {
-    public class WorldDatabaseAccess
+    public class GameDatabaseAccess
     {
         public static MySqlConnection WorldConnection { get; private set; }
         public static MySqlConnection CharConnection { get; private set; }
 
-        public static object Lock { get; } = new object();
+        public static object WorldLock { get; } = new object();
+        public static object CharLock { get; } = new object();
 
         public static void Initialize(string worldConnectionString, string charConnectionString)
         {

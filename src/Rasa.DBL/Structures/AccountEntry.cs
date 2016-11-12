@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -6,6 +7,8 @@ using MySql.Data.MySqlClient;
 
 namespace Rasa.Structures
 {
+    using Extensions;
+
     public class AccountEntry
     {
         public uint Id { get; set; }

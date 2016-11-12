@@ -280,7 +280,7 @@ namespace Rasa.Auth
         {
             lock (GameServers)
                 if (GameServers.ContainsKey(serverId))
-                    GameServers[serverId].RequestRedirection(client.Entry.Id, client.OneTimeKey);
+                    GameServers[serverId].RequestRedirection(client);
         }
 
         public void DisconnectCommunicator(CommunicatorClient client)
