@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Text;
 
 namespace Rasa.Memory
 {
@@ -8,10 +9,12 @@ namespace Rasa.Memory
     public class PythonReader : IDisposable
     {
         public BinaryReader Reader { get; }
+        public long BeginPosition { get; }
 
         public PythonReader(BinaryReader reader)
         {
             Reader = reader;
+            BeginPosition = Reader.BaseStream.Position;
         }
 
         public void ReadNoneStruct()
@@ -107,10 +110,10 @@ namespace Rasa.Memory
                 case 0x31:
                     return 1.0D;
 
-                case 0x1E:
+                case 0x3E:
                     return Reader.ReadDouble();
 
-                case 0x1F:
+                case 0x3F:
                     return Reader.ReadSingle();
 
                 default:
@@ -262,6 +265,91 @@ namespace Rasa.Memory
                 default:
                     throw new Exception($"WTF? Tuple type: {type:X2}");
             }
+        }
+
+        public override string ToString()
+        {
+            var originalPosition = Reader.BaseStream.Position;
+
+            Reader.BaseStream.Position = BeginPosition;
+
+            var sb = new StringBuilder();
+
+            while (Reader.BaseStream.Position < Reader.BaseStream.Length)
+            {
+                var type = Reader.ReadByte();
+                if (type == 0x66)
+                {
+                    if (Reader.ReadByte() == 0x2A)
+                        break;
+                        
+                    --Reader.BaseStream.Position;
+                }
+
+                --Reader.BaseStream.Position;
+
+                switch (type & 0xF0)
+                {
+                    case 0x00:
+                        switch (type & 0x0F)
+                        {
+                            case 0x00:
+                                ReadNoneStruct();
+                                sb.AppendLine("NoneStruct");
+                                break;
+
+                            case 0x01:
+                                ReadTrueStruct();
+                                sb.AppendLine("TrueStruct");
+                                break;
+
+                            case 0x02:
+                                ReadZeroStruct();
+                                sb.AppendLine("ZeroStruct");
+                                break;
+                        }
+                        break;
+
+                    case 0x10:
+                        sb.Append("Integer: ").AppendLine($"{ReadInt()}");
+                        break;
+
+                    case 0x20:
+                        sb.Append("Long: ").AppendLine($"{ReadLong()}");
+                        break;
+
+                    case 0x30:
+                        sb.Append("Double: ").AppendLine($"{ReadDouble()}");
+                        break;
+
+                    case 0x40:
+                        sb.Append("String: ").AppendLine($"{ReadString()}");
+                        break;
+
+                    case 0x50:
+                        sb.Append("Unicode string: ").AppendLine($"{ReadUnicodeString()}");
+                        break;
+
+                    case 0x60:
+                        sb.Append("Dictionary: Element count: ").AppendLine($"{ReadDictionary()}");
+                        break;
+
+                    case 0x70:
+                        sb.Append("List: Element count: ").AppendLine($"{ReadList()}");
+                        break;
+
+                    case 0x80:
+                        sb.Append("Tuple: Element count: ").AppendLine($"{ReadTuple()}");
+                        break;
+
+                    default:
+                        throw new Exception($"Invalid type read! Type: {type:X}");
+                }
+            }
+
+            Reader.BaseStream.Position = originalPosition;
+
+            return sb.ToString();
         }
 
         public void Dispose()

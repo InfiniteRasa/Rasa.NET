@@ -1,5 +1,7 @@
 ﻿using System;
 using System.IO;
+using System.Runtime.InteropServices.ComTypes;
+using System.Text;
 
 namespace Rasa.Memory
 {
@@ -8,10 +10,12 @@ namespace Rasa.Memory
     public class PythonWriter : IDisposable
     {
         public BinaryWriter Writer { get; }
+        public long BeginPositon { get; }
 
         public PythonWriter(BinaryWriter writer)
         {
             Writer = writer;
+            BeginPositon = Writer.BaseStream.Position;
         }
 
         public void WriteNoneStruct()
@@ -214,6 +218,20 @@ namespace Rasa.Memory
                 Writer.Write((byte) 0x8F);
                 Writer.Write(elementCount);
             }
+        }
+
+        public override string ToString()
+        {
+            var data = new byte[Writer.BaseStream.Position - BeginPositon];
+
+            var currentPosition = Writer.BaseStream.Position;
+
+            Writer.BaseStream.Position = BeginPositon;
+            Writer.BaseStream.Read(data, 0, data.Length);
+            Writer.BaseStream.Position = currentPosition;
+
+            using (var pr = new PythonReader(new BinaryReader(new MemoryStream(data))))
+                return pr.ToString();
         }
 
         public void Dispose()
