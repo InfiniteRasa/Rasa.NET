@@ -17,6 +17,15 @@ namespace Rasa.Memory
             BeginPosition = Reader.BaseStream.Position;
         }
 
+        public PythonType PeekType()
+        {
+            var type = Reader.ReadByte();
+
+            --Reader.BaseStream.Position;
+
+            return (PythonType) (type & 0xF0);
+        }
+
         public void ReadNoneStruct()
         {
             var val = Reader.ReadByte();
@@ -267,6 +276,16 @@ namespace Rasa.Memory
             }
         }
 
+        public T ReadStruct<T>()
+            where T : IPythonDataStruct, new()
+        {
+            var ret = new T();
+
+            ret.Read(this);
+
+            return ret;
+        }
+
         public override string ToString()
         {
             var originalPosition = Reader.BaseStream.Position;
@@ -288,9 +307,9 @@ namespace Rasa.Memory
 
                 --Reader.BaseStream.Position;
 
-                switch (type & 0xF0)
+                switch ((PythonType) (type & 0xF0))
                 {
-                    case 0x00:
+                    case PythonType.Structs:
                         switch (type & 0x0F)
                         {
                             case 0x00:
@@ -307,38 +326,41 @@ namespace Rasa.Memory
                                 ReadZeroStruct();
                                 sb.AppendLine("ZeroStruct");
                                 break;
+
+                            default:
+                                throw new Exception($"Invalid type read! Type: {type:X}");
                         }
                         break;
 
-                    case 0x10:
+                    case PythonType.Int:
                         sb.Append("Integer: ").AppendLine($"{ReadInt()}");
                         break;
 
-                    case 0x20:
+                    case PythonType.Long:
                         sb.Append("Long: ").AppendLine($"{ReadLong()}");
                         break;
 
-                    case 0x30:
+                    case PythonType.Double:
                         sb.Append("Double: ").AppendLine($"{ReadDouble()}");
                         break;
 
-                    case 0x40:
+                    case PythonType.String:
                         sb.Append("String: ").AppendLine($"{ReadString()}");
                         break;
 
-                    case 0x50:
+                    case PythonType.UnicodeString:
                         sb.Append("Unicode string: ").AppendLine($"{ReadUnicodeString()}");
                         break;
 
-                    case 0x60:
+                    case PythonType.Dictionary:
                         sb.Append("Dictionary: Element count: ").AppendLine($"{ReadDictionary()}");
                         break;
 
-                    case 0x70:
+                    case PythonType.List:
                         sb.Append("List: Element count: ").AppendLine($"{ReadList()}");
                         break;
 
-                    case 0x80:
+                    case PythonType.Tuple:
                         sb.Append("Tuple: Element count: ").AppendLine($"{ReadTuple()}");
                         break;
 

@@ -220,6 +220,18 @@ namespace Rasa.Memory
             }
         }
 
+        public void WriteStruct<T>(T obj)
+            where T : IPythonDataStruct
+        {
+            if (obj == null)
+            {
+                WriteNoneStruct();
+                return;
+            }
+
+            obj.Write(this);
+        }
+
         public override string ToString()
         {
             var data = new byte[Writer.BaseStream.Position - BeginPositon];
