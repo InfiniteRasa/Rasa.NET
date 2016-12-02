@@ -31,8 +31,9 @@ namespace Rasa.Game
         }
 
         [PacketHandler(GameOpcode.RequestCreateCharacterInSlot)]
-        private void RequestCreateCharacterInSlot(object packet)
+        private void RequestCreateCharacterInSlot(RequestCreateCharacterInSlotPacket packet)
         {
+            CharacterManager.Instance.RequestCreateCharacterInSlot(Client, packet);
         }
 
         [PacketHandler(GameOpcode.RequestDeleteCharacterInSlot)]

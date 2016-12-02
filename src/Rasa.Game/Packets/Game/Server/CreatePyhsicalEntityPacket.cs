@@ -11,6 +11,12 @@
         public int ClassId { get; set; }
         public object EntityData { get; set; }
 
+        public CreatePyhsicalEntityPacket(int entityId, int classId)
+        {
+            EntityId = entityId;
+            ClassId = classId;
+        }
+
         public override void Read(PythonReader pr)
         {
             pr.ReadTuple();

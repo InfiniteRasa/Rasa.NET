@@ -13,6 +13,23 @@ namespace Rasa.Structures
 
         public int Hue => (Alpha << 24) | (Blue << 16) | (Green << 8) | Red;
 
+        public Color()
+        {
+        }
+
+        public Color(int hue)
+            : this((byte) (hue & 0xFF), (byte) ((hue >> 8) & 0xFF), (byte) ((hue >> 16) & 0xFF), (byte) ((hue >> 24) & 0xFF))
+        {
+        }
+
+        public Color(byte red, byte green, byte blue, byte alpha = 0xFF)
+        {
+            Red = red;
+            Green = green;
+            Blue = blue;
+            Alpha = alpha;
+        }
+
         public void Read(PythonReader pr)
         {
             var size = pr.ReadTuple();

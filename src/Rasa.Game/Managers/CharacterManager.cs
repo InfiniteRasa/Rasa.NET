@@ -56,42 +56,50 @@ namespace Rasa.Managers
             client.SendPacket(5, packet);
 
             for (var i = 0; i < 16; ++i)
-            {
-                var createPacket = new CreatePyhsicalEntityPacket
-                {
-                    EntityId = 101 + i,
-                    ClassId = 3543
-                };
+                client.SendPacket(5, new CreatePyhsicalEntityPacket(101 + i, 3543));
 
-                client.SendPacket(5, createPacket);
-            }
-
-            for (var i = 0U; i < 16U; ++i)
-            {
-                var charPacket = new CharacterInfoPacket((int)i + 1, true);
-
-                client.SendPacket(101 + i, charPacket);
-            }
+            for (var i = 0; i < 16; ++i)
+                client.SendPacket(101 + (uint) i, new CharacterInfoPacket(i + 1, true));
         }
 
         public void RequestCharacterName(Client client, int gender)
         {
-            var response = new GeneratedCharacterNamePacket
+            client.SendPacket(5, new GeneratedCharacterNamePacket
             {
                 Name = RandomNameTable.GetRandom(gender == 0 ? "male" : "female", "first") ?? (gender == 0 ? "Richard" : "Rachel")
-            };
-
-            client.SendPacket(5, response);
+            });
         }
 
         public void RequestFamilyName(Client client)
         {
-            var response = new GeneratedFamilyNamePacket
+            client.SendPacket(5, new GeneratedFamilyNamePacket
             {
                 Name = RandomNameTable.GetRandom("neatural", "last") ?? "Garriott"
-            };
+            });
+        }
 
-            client.SendPacket(5, response);
+        public void RequestCreateCharacterInSlot(Client client, RequestCreateCharacterInSlotPacket packet)
+        {
+            var result = packet.CheckName();
+            if (result != CreateCharacterResult.Success)
+            {
+                SendCharacterCreateFailed(client, result);
+                return;
+            }
+
+            // todo: save the character to the DB
+
+            SendCharacterCreateSuccess(client, packet.SlotNum, packet.FamilyName);
+        }
+
+        private void SendCharacterCreateFailed(Client client, CreateCharacterResult result)
+        {
+            client.SendPacket(5, new UserCreationFailedPacket(result));
+        }
+
+        private void SendCharacterCreateSuccess(Client client, int slotNum, string familyName)
+        {
+            client.SendPacket(5, new CharacterCreateSuccessPacket(slotNum, familyName));
         }
     }
 }

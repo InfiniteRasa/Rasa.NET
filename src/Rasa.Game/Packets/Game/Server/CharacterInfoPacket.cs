@@ -2,6 +2,7 @@
 {
     using Data;
     using Memory;
+    using Structures;
 
     public class CharacterInfoPacket : PythonPacket
     {
@@ -12,7 +13,7 @@
         public int SlotId { get; set; }
         public bool IsSelected { get; set; }
         public BodyDataTuple BodyData { get; set; }
-        public AppearanceDataTuple AppearanceData { get; set; }
+        public AppearanceData AppearanceData { get; set; }
         public object CharacterData { get; set; }
         public string UserName { get; set; }
         public int GameContextId { get; set; }
@@ -142,9 +143,5 @@
     {
         public int GenderClassId { get; set; }
         public double Scale { get; set; }
-    }
-
-    public class AppearanceDataTuple
-    {
     }
 }
