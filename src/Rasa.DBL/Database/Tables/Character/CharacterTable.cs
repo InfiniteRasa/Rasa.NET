@@ -95,7 +95,7 @@ namespace Rasa.Database.Tables.Character
 
         public static int IsSlotAvailable(uint accountId, int slotId)
          {
-             lock (GameDatabaseAccess.WorldLock)
+             lock (GameDatabaseAccess.CharLock)
              {
                 IsSlotAvailableCommand.Parameters["@AccountId"].Value = accountId;
                 IsSlotAvailableCommand.Parameters["@SlotId"].Value = slotId;

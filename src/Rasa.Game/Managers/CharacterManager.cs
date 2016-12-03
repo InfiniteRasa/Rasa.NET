@@ -91,7 +91,6 @@ namespace Rasa.Managers
 
             // insert character into DB
             var id = CharacterTable.CreateCharacter(client.Entry.Id, packet.CharacterName, packet.FamilyName, packet.SlotNum, packet.Gender, packet.Scale, packet.RaceId);
-            //CharacterTable.LastId();
             // Give character basic items
             CharacterInventoryTable.BasicInventory((uint)id);
             // Create default entry in CharacterAbilitiesTable
@@ -115,16 +114,16 @@ namespace Rasa.Managers
         public CreateCharacterResult CheckName(Client client, RequestCreateCharacterInSlotPacket packet)
         {
             if (packet.CharacterName.Length < 3)
-            { return CreateCharacterResult.NameTooShort;}
+                return CreateCharacterResult.NameTooShort;
 
             if (packet.CharacterName.Length > 20)
-            { return CreateCharacterResult.NameTooLong;}
+                return CreateCharacterResult.NameTooLong;
             
             if (CharacterTable.IsNameAvailable(packet.CharacterName) == packet.CharacterName)
-            { return CreateCharacterResult.NameInUse;}
+                return CreateCharacterResult.NameInUse;
 
             if (CharacterTable.IsSlotAvailable(client.Entry.Id, packet.SlotNum) == packet.SlotNum)
-            { return CreateCharacterResult.CharacterSlotInUse;}
+                return CreateCharacterResult.CharacterSlotInUse;
             
             return !NameRegex.IsMatch(packet.CharacterName) ? CreateCharacterResult.NameFormatInvalid : CreateCharacterResult.Success;
         }
