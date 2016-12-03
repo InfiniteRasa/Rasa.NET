@@ -1,15 +1,17 @@
-﻿using System;
+﻿using System.Text.RegularExpressions;
 
 namespace Rasa.Managers
 {
     using Data;
     using Database.Tables.World;
+    using Database.Tables.Character;
     using Game;
     using Packets.Game.Client;
     using Packets.Game.Server;
 
     public class CharacterManager
     {
+        private static readonly Regex NameRegex = new Regex(@"^[\w ]+$", RegexOptions.Compiled);
         private static CharacterManager _instance;
         private static readonly object InstanceLock = new object();
 
@@ -80,14 +82,22 @@ namespace Rasa.Managers
 
         public void RequestCreateCharacterInSlot(Client client, RequestCreateCharacterInSlotPacket packet)
         {
-            var result = packet.CheckName();
+            var result = CheckName(client, packet);
             if (result != CreateCharacterResult.Success)
             {
                 SendCharacterCreateFailed(client, result);
                 return;
             }
 
-            // todo: save the character to the DB
+            // insert character into DB
+            var id = CharacterTable.CreateCharacter(client.Entry.Id, packet.CharacterName, packet.FamilyName, packet.SlotNum, packet.Gender, packet.Scale, packet.RaceId);
+            //CharacterTable.LastId();
+            // Give character basic items
+            CharacterInventoryTable.BasicInventory((uint)id);
+            // Create default entry in CharacterAbilitiesTable
+            CharacterAbilitiesTable.BasicEntry((uint)id);
+            // Create default entry in CharacterSkillsTable
+            CharacterSkillsTable.BasicEntry((uint)id);
 
             SendCharacterCreateSuccess(client, packet.SlotNum, packet.FamilyName);
         }
@@ -100,6 +110,23 @@ namespace Rasa.Managers
         private void SendCharacterCreateSuccess(Client client, int slotNum, string familyName)
         {
             client.SendPacket(5, new CharacterCreateSuccessPacket(slotNum, familyName));
+        }
+
+        public CreateCharacterResult CheckName(Client client, RequestCreateCharacterInSlotPacket packet)
+        {
+            if (packet.CharacterName.Length < 3)
+            { return CreateCharacterResult.NameTooShort;}
+
+            if (packet.CharacterName.Length > 20)
+            { return CreateCharacterResult.NameTooLong;}
+            
+            if (CharacterTable.IsNameAvailable(packet.CharacterName) == packet.CharacterName)
+            { return CreateCharacterResult.NameInUse;}
+
+            if (CharacterTable.IsSlotAvailable(client.Entry.Id, packet.SlotNum) == packet.SlotNum)
+            { return CreateCharacterResult.CharacterSlotInUse;}
+            
+            return !NameRegex.IsMatch(packet.CharacterName) ? CreateCharacterResult.NameFormatInvalid : CreateCharacterResult.Success;
         }
     }
 }
