@@ -70,8 +70,8 @@ namespace Rasa.Structures
         {
             if (!reader.Read())
                 return null;
-            
-         return new CharacterEntry
+
+            return new CharacterEntry
             {
                 Id = reader.GetUInt32("id"),
                 Name = reader.GetString("name"),
@@ -80,6 +80,10 @@ namespace Rasa.Structures
                 Gender = reader.GetInt32("gender"),
                 Scale = reader.GetDouble("scale"),
                 MapContextId = reader.GetInt32("mapContextId"),
+                PosX = reader.GetDouble("posX"),
+                PosY = reader.GetDouble("posY"),
+                PosZ = reader.GetDouble("posZ"),
+                Rotation = reader.GetDouble("rotation"),
                 ClassId = reader.GetInt32("classId"),
                 RaceId = reader.GetInt32("raceId"),
             };

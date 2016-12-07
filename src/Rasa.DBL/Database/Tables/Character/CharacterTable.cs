@@ -8,7 +8,7 @@ namespace Rasa.Database.Tables.Character
         private static readonly MySqlCommand CreateCharacterCommand = new MySqlCommand("INSERT INTO characters" +
                                                                                        "(name, familyName, accountId, slotId, gender, scale, raceId, classId, mapContextId, posX, posY, posZ, rotation) VALUES" +
                                                                                        "(@Name, @FamilyName, @AccountId, @SlotId, @Gender, @Scale, @RaceId, @ClassId, @MapContextId, @PosX, @PosY, @PosZ, @Rotation)");
-        private static readonly MySqlCommand GetCharacterDataCommand = new MySqlCommand("SELECT id, name, familyName, slotId, gender, scale, raceId, classId, mapContextId, experience, level, body, mind, spirit, cloneCredits, " +
+        private static readonly MySqlCommand GetCharacterDataCommand = new MySqlCommand("SELECT id, name, familyName, slotId, gender, scale, raceId, classId, mapContextId, posX, posY, posZ, rotation, experience, level, body, mind, spirit, cloneCredits, " +
                                                                                         "numLogins, totalTimePlayed, timeSinceLastPlayed FROM characters WHERE accountId = @AccountId AND slotId = @SlotId");
         private static readonly MySqlCommand GetCharacterNameCommand = new MySqlCommand("SELECT name FROM characters WHERE accountId = @AccountID AND slotId = @SlotId");
         private static readonly MySqlCommand DeleteCharacterCommand = new MySqlCommand("DELETE characters, character_abilities, character_equipment, character_inventory, character_skills FROM characters " +
@@ -62,18 +62,7 @@ namespace Rasa.Database.Tables.Character
             IsSlotAvailableCommand.Parameters.Add("@SlotId", MySqlDbType.Int32);
             IsSlotAvailableCommand.Prepare();
         }
-
-        public static void DeleteCharacter(ulong accountId, int slotId)
-        {
-            lock (GameDatabaseAccess.CharLock)
-            {
-                DeleteCharacterCommand.Parameters["@AccountId"].Value = accountId;
-                DeleteCharacterCommand.Parameters["@SlotId"].Value = slotId;
-                DeleteCharacterCommand.ExecuteNonQuery();
-               
-            }
-        }
-
+        
         public static int CreateCharacter(ulong accountId, string name, string familyName, int slotId, int gender, double scale, int raceId)
         {
             lock (GameDatabaseAccess.CharLock)
@@ -94,6 +83,16 @@ namespace Rasa.Database.Tables.Character
                 CreateCharacterCommand.Parameters["@Rotation"].Value = 1;
                 CreateCharacterCommand.ExecuteNonQuery();
                 return (int)CreateCharacterCommand.LastInsertedId;
+            }
+        }
+
+        public static void DeleteCharacter(ulong accountId, int slotId)
+        {
+            lock (GameDatabaseAccess.CharLock)
+            {
+                DeleteCharacterCommand.Parameters["@AccountId"].Value = accountId;
+                DeleteCharacterCommand.Parameters["@SlotId"].Value = slotId;
+                DeleteCharacterCommand.ExecuteNonQuery();
             }
         }
 

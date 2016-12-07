@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using Rasa.Structures;
 
@@ -109,11 +110,36 @@ namespace Rasa.Managers
             UpdateCharacterSelection(client, packet.SlotNum);
         }
 
-        public void RequestDeleteCharacterInSlot(Client client, int slotId )
+        public void RequestDeleteCharacterInSlot(Client client, int slotNum )
         {
-            CharacterTable.DeleteCharacter(client.Entry.Id, slotId);
+            CharacterTable.DeleteCharacter(client.Entry.Id, slotNum);
             client.SendPacket(5, new CharacterDeleteSuccessPacket{ HasCharacters = 0}); // ToDo send 0 if last character deleted else 1
-            UpdateCharacterSelection(client, slotId);
+            UpdateCharacterSelection(client, slotNum);
+        }
+
+        public void RequestSwitchToCharacterInSlot(Client client, int slotNum)
+        {
+            if (slotNum < 1 || slotNum > 16)
+                return;
+            
+            client.SendPacket(5, new SetIsGMPacket {IsGmAccount = true});
+
+            client.SendPacket(5, new PreWonkavatePacket {Something = 0});   // ToDo need to see what is this
+
+            var data = CharacterTable.GetCharacterData(client.Entry.Id, slotNum);
+            var packet = new WonkavatePacket
+            {
+                MapContextId = data.MapContextId,
+                MapInstanceId = 0,                  // ToDo MapInstanceId / MapVersion
+                MapVersion = 0,
+                PosX = data.PosX,
+                PosY = data.PosY,
+                PosZ = data.PosZ,
+                Rotation = data.Rotation
+            };
+
+            client.SendPacket(5, packet);
+            Console.WriteLine("Connecting to mapChannel...");
         }
 
         private void SendCharacterInfo(Client client, int slotNum)

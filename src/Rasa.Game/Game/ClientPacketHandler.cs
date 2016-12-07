@@ -19,8 +19,7 @@
         {
             CharacterManager.Instance.RequestCharacterName(Client, packet.Gender);
         }
-
-        // ReSharper disable once UnusedParameter.Local
+        
         [PacketHandler(GameOpcode.RequestFamilyName)]
         private void RequestFamilyName(RequestFamilyNamePacket packet)
         {
@@ -42,6 +41,7 @@
         [PacketHandler(GameOpcode.RequestSwitchToCharacterInSlot)]
         private void RequestSwitchToCharacterInSlot(RequestSwitchToCharacterInSlotPacket packet)
         {
+            CharacterManager.Instance.RequestSwitchToCharacterInSlot(Client, packet.SlotNum);
         }
     }
 }
