@@ -9,8 +9,10 @@ namespace Rasa.Database.Tables.Character
                 "INSERT INTO characters" +
                 "(name, familyName, accountId, slotId, gender, scale, raceId, classId, mapContextId, posX, posY, posZ, rotation) VALUES" +
                 "(@Name, @FamilyName, @AccountId, @SlotId, @Gender, @Scale, @RaceId, @ClassId, @MapContextId, @PosX, @PosY, @PosZ, @Rotation)");
-        private static readonly MySqlCommand GetCharacterDataCommand = new MySqlCommand("SELECT name, familyName, slotId, gender, scale, raceId, classId, mapContextId, posX, posY, posZ, rotation FROM characters WHERE guid = @Guid");
-		private static readonly MySqlCommand IsNameAvailableCommand = new MySqlCommand("SELECT name FROM characters WHERE name = @Name");
+        private static readonly MySqlCommand GetCharacterDataCommand = new MySqlCommand(
+                "SELECT id, name, familyName, slotId, gender, scale, raceId, classId, mapContextId, experience, level, body, mind, spirit, cloneCredits, numLogins, totalTimePlayed, timeSinceLastPlayed FROM characters WHERE accountId = @AccountId AND slotId = @SlotId");
+        private static readonly MySqlCommand GetCharacterNameCommand = new MySqlCommand("SELECT name FROM characters WHERE accountId = @AccountID AND slotId = @SlotId");
+        private static readonly MySqlCommand IsNameAvailableCommand = new MySqlCommand("SELECT name FROM characters WHERE name = @Name");
         private static readonly MySqlCommand IsSlotAvailableCommand = new MySqlCommand("SELECT slotId FROM characters WHERE accountId = @AccountID AND slotId = @SlotId");
 
         public static void Initialize()
@@ -32,8 +34,14 @@ namespace Rasa.Database.Tables.Character
             CreateCharacterCommand.Prepare();
 
             GetCharacterDataCommand.Connection = GameDatabaseAccess.CharConnection;
-            GetCharacterDataCommand.Parameters.Add("@Guid", MySqlDbType.UInt64);
+            GetCharacterDataCommand.Parameters.Add("@AccountId", MySqlDbType.UInt32);
+            GetCharacterDataCommand.Parameters.Add("@SlotId", MySqlDbType.Int32);
             GetCharacterDataCommand.Prepare();
+
+            GetCharacterNameCommand.Connection = GameDatabaseAccess.CharConnection;
+            GetCharacterNameCommand.Parameters.Add("@AccountId", MySqlDbType.UInt32);
+            GetCharacterNameCommand.Parameters.Add("@SlotId", MySqlDbType.Int32);
+            GetCharacterNameCommand.Prepare();
 
             IsNameAvailableCommand.Connection = GameDatabaseAccess.CharConnection;
             IsNameAvailableCommand.Parameters.Add("@Name", MySqlDbType.VarChar);
@@ -68,15 +76,31 @@ namespace Rasa.Database.Tables.Character
             }
         }
 
-        public static CharacterEntry GetCharacterData(uint id)
+        public static CharacterEntry GetCharacterData(uint accountId, int slotId)
         {
             lock (GameDatabaseAccess.CharLock)
             {
-                CreateCharacterCommand.Parameters["@Id"].Value = id;
+                GetCharacterDataCommand.Parameters["@AccountId"].Value = accountId;
+                GetCharacterDataCommand.Parameters["@SlotId"].Value = slotId;
 
                 using (var reader = GetCharacterDataCommand.ExecuteReader())
-                    return CharacterEntry.Read(reader);
+                    return CharacterEntry.GetData(reader);
             }
+        }
+
+        public static string GetCharacterName(uint accountId, int slotId)
+        {
+            lock (GameDatabaseAccess.CharLock)
+            {
+                GetCharacterNameCommand.Parameters["@AccountId"].Value = accountId;
+                GetCharacterNameCommand.Parameters["@SlotId"].Value = slotId;
+
+                using (var reader = GetCharacterNameCommand.ExecuteReader())
+                    if (reader.Read())
+                        return reader.GetString("name");
+            }
+
+            return null;
         }
 
         public static string IsNameAvailable(string name)

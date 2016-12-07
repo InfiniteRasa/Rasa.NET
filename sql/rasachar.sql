@@ -15,7 +15,7 @@ DROP TABLE IF EXISTS `characters`;
 CREATE TABLE IF NOT EXISTS `characters` (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
   `name` varchar(64) NOT NULL,
-  `familyName` varchar(64) NOT NULL DEFAULT '0',
+  `familyName` varchar(64) NOT NULL,
   `accountId` int(11) unsigned NOT NULL,
   `slotId` int(11) NOT NULL DEFAULT '0',
   `gender` int(11) NOT NULL DEFAULT '0',
@@ -27,11 +27,22 @@ CREATE TABLE IF NOT EXISTS `characters` (
   `posY` double NOT NULL DEFAULT '0',
   `posZ` double NOT NULL DEFAULT '0',
   `rotation` double NOT NULL DEFAULT '0',
+  `experience` int(11) NOT NULL DEFAULT '0',
+  `level` int(11) NOT NULL DEFAULT '0',
+  `body` int(11) NOT NULL DEFAULT '0',
+  `mind` int(11) NOT NULL DEFAULT '0',
+  `spirit` int(11) NOT NULL DEFAULT '0',
+  `cloneCredits` int(11) NOT NULL DEFAULT '0',
+  `numLogins` int(11) NOT NULL DEFAULT '0',
+  `totalTimePlayed` int(11) NOT NULL DEFAULT '0',
+  `timeSinceLastPlayed` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `id` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
--- Data exporting was unselected.
+-- Dumping data for table rasachar.characters: ~0 rows (approximately)
+/*!40000 ALTER TABLE `characters` DISABLE KEYS */;
+/*!40000 ALTER TABLE `characters` ENABLE KEYS */;
 
 
 -- Dumping structure for table rasachar.character_abilities
@@ -92,7 +103,63 @@ CREATE TABLE IF NOT EXISTS `character_abilities` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
--- Data exporting was unselected.
+-- Dumping data for table rasachar.character_abilities: ~0 rows (approximately)
+/*!40000 ALTER TABLE `character_abilities` DISABLE KEYS */;
+/*!40000 ALTER TABLE `character_abilities` ENABLE KEYS */;
+
+
+-- Dumping structure for table rasachar.character_equipment
+DROP TABLE IF EXISTS `character_equipment`;
+CREATE TABLE IF NOT EXISTS `character_equipment` (
+  `id` int(11) unsigned NOT NULL,
+  `helmet` int(11) NOT NULL DEFAULT '10908' COMMENT 'Helmet',
+  `helmetHue` int(11) NOT NULL DEFAULT '-2139062144',
+  `shoes` int(11) NOT NULL DEFAULT '7054' COMMENT 'Boots',
+  `shoesHue` int(11) NOT NULL DEFAULT '-2139062144',
+  `gloves` int(11) NOT NULL DEFAULT '10909' COMMENT 'Gloves',
+  `glovesHue` int(11) NOT NULL DEFAULT '-2139062144',
+  `slot4` int(11) NOT NULL DEFAULT '0',
+  `slot4Hue` int(11) NOT NULL DEFAULT '0',
+  `slot5` int(11) NOT NULL DEFAULT '0',
+  `slot5Hue` int(11) NOT NULL DEFAULT '0',
+  `slot6` int(11) NOT NULL DEFAULT '0',
+  `slot6Hue` int(11) NOT NULL DEFAULT '0',
+  `slot7` int(11) NOT NULL DEFAULT '0',
+  `slot7Hue` int(11) NOT NULL DEFAULT '0',
+  `slot8` int(11) NOT NULL DEFAULT '0',
+  `slot8Hue` int(11) NOT NULL DEFAULT '0',
+  `slot9` int(11) NOT NULL DEFAULT '0',
+  `slot9Hue` int(11) NOT NULL DEFAULT '0',
+  `slot10` int(11) NOT NULL DEFAULT '0',
+  `slot10Hue` int(11) NOT NULL DEFAULT '0',
+  `slot11` int(11) NOT NULL DEFAULT '0',
+  `slot11Hue` int(11) NOT NULL DEFAULT '0',
+  `slot12` int(11) NOT NULL DEFAULT '0',
+  `slot12Hue` int(11) NOT NULL DEFAULT '0',
+  `weapon` int(11) NOT NULL DEFAULT '0' COMMENT 'Weapon',
+  `weaponHue` int(11) NOT NULL DEFAULT '0',
+  `hair` int(11) NOT NULL DEFAULT '0' COMMENT 'Hair',
+  `hairHue` int(11) NOT NULL DEFAULT '0',
+  `torso` int(11) NOT NULL DEFAULT '7052' COMMENT 'Vest',
+  `torsoHue` int(11) NOT NULL DEFAULT '-2139062144',
+  `legs` int(11) NOT NULL DEFAULT '7053' COMMENT 'Legs',
+  `legsHue` int(11) NOT NULL DEFAULT '-2139062144',
+  `face` int(11) NOT NULL DEFAULT '0' COMMENT 'Face',
+  `faceHue` int(11) NOT NULL DEFAULT '0',
+  `wing` int(11) NOT NULL DEFAULT '0' COMMENT 'Wing',
+  `wingHue` int(11) NOT NULL DEFAULT '0',
+  `eyeWeare` int(11) NOT NULL DEFAULT '0' COMMENT 'Eyeweare',
+  `eyeWeareHue` int(11) NOT NULL DEFAULT '0',
+  `beard` int(11) NOT NULL DEFAULT '0' COMMENT 'Beard',
+  `beardHue` int(11) NOT NULL DEFAULT '0',
+  `mask` int(11) NOT NULL DEFAULT '0' COMMENT 'Mask',
+  `maskHue` int(11) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+-- Dumping data for table rasachar.character_equipment: ~0 rows (approximately)
+/*!40000 ALTER TABLE `character_equipment` DISABLE KEYS */;
+/*!40000 ALTER TABLE `character_equipment` ENABLE KEYS */;
 
 
 -- Dumping structure for table rasachar.character_inventory
@@ -651,7 +718,9 @@ CREATE TABLE IF NOT EXISTS `character_inventory` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
--- Data exporting was unselected.
+-- Dumping data for table rasachar.character_inventory: ~0 rows (approximately)
+/*!40000 ALTER TABLE `character_inventory` DISABLE KEYS */;
+/*!40000 ALTER TABLE `character_inventory` ENABLE KEYS */;
 
 
 -- Dumping structure for table rasachar.character_skills
@@ -734,7 +803,9 @@ CREATE TABLE IF NOT EXISTS `character_skills` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
--- Data exporting was unselected.
+-- Dumping data for table rasachar.character_skills: ~0 rows (approximately)
+/*!40000 ALTER TABLE `character_skills` DISABLE KEYS */;
+/*!40000 ALTER TABLE `character_skills` ENABLE KEYS */;
 /*!40101 SET SQL_MODE=IFNULL(@OLD_SQL_MODE, '') */;
 /*!40014 SET FOREIGN_KEY_CHECKS=IF(@OLD_FOREIGN_KEY_CHECKS IS NULL, 1, @OLD_FOREIGN_KEY_CHECKS) */;
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

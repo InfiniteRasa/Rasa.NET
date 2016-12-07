@@ -1,4 +1,6 @@
-﻿namespace Rasa.Packets.Game.Server
+﻿using System;
+
+namespace Rasa.Packets.Game.Server
 {
     using Data;
     using Memory;
@@ -19,10 +21,10 @@
 
         public override void Read(PythonReader pr)
         {
+            Console.WriteLine("CreatePhysicalEntity Read\n{0}", pr.ToString());   // ToDo just for testing, remove later
             pr.ReadTuple();
             EntityId = pr.ReadInt();
             ClassId = pr.ReadInt();
-
             // todo
         }
 
