@@ -109,6 +109,13 @@ namespace Rasa.Managers
             UpdateCharacterSelection(client, packet.SlotNum);
         }
 
+        public void RequestDeleteCharacterInSlot(Client client, int slotId )
+        {
+            CharacterTable.DeleteCharacter(client.Entry.Id, slotId);
+            client.SendPacket(5, new CharacterDeleteSuccessPacket{ HasCharacters = 0}); // ToDo send 0 if last character deleted else 1
+            UpdateCharacterSelection(client, slotId);
+        }
+
         private void SendCharacterInfo(Client client, int slotNum)
         {
             var data = CharacterTable.GetCharacterData(client.Entry.Id, slotNum + 1);

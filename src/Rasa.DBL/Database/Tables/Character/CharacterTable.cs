@@ -5,15 +5,20 @@ namespace Rasa.Database.Tables.Character
     using Structures;
     public static class CharacterTable
     {
-        private static readonly MySqlCommand CreateCharacterCommand = new MySqlCommand(
-                "INSERT INTO characters" +
-                "(name, familyName, accountId, slotId, gender, scale, raceId, classId, mapContextId, posX, posY, posZ, rotation) VALUES" +
-                "(@Name, @FamilyName, @AccountId, @SlotId, @Gender, @Scale, @RaceId, @ClassId, @MapContextId, @PosX, @PosY, @PosZ, @Rotation)");
-        private static readonly MySqlCommand GetCharacterDataCommand = new MySqlCommand(
-                "SELECT id, name, familyName, slotId, gender, scale, raceId, classId, mapContextId, experience, level, body, mind, spirit, cloneCredits, numLogins, totalTimePlayed, timeSinceLastPlayed FROM characters WHERE accountId = @AccountId AND slotId = @SlotId");
+        private static readonly MySqlCommand CreateCharacterCommand = new MySqlCommand("INSERT INTO characters" +
+                                                                                       "(name, familyName, accountId, slotId, gender, scale, raceId, classId, mapContextId, posX, posY, posZ, rotation) VALUES" +
+                                                                                       "(@Name, @FamilyName, @AccountId, @SlotId, @Gender, @Scale, @RaceId, @ClassId, @MapContextId, @PosX, @PosY, @PosZ, @Rotation)");
+        private static readonly MySqlCommand GetCharacterDataCommand = new MySqlCommand("SELECT id, name, familyName, slotId, gender, scale, raceId, classId, mapContextId, experience, level, body, mind, spirit, cloneCredits, " +
+                                                                                        "numLogins, totalTimePlayed, timeSinceLastPlayed FROM characters WHERE accountId = @AccountId AND slotId = @SlotId");
         private static readonly MySqlCommand GetCharacterNameCommand = new MySqlCommand("SELECT name FROM characters WHERE accountId = @AccountID AND slotId = @SlotId");
+        private static readonly MySqlCommand DeleteCharacterCommand = new MySqlCommand("DELETE characters, character_abilities, character_equipment, character_inventory, character_skills FROM characters " +
+                                                                                       "INNER JOIN character_abilities ON characters.id = character_abilities.id " +
+                                                                                       "INNER JOIN character_equipment ON characters.id = character_equipment.id " +
+                                                                                       "INNER JOIN character_inventory ON characters.id = character_inventory.id " +
+                                                                                       "INNER JOIN character_skills ON characters.id = character_skills.id " +
+                                                                                       "WHERE accountId = @AccountId AND slotId = @SlotId");
         private static readonly MySqlCommand IsNameAvailableCommand = new MySqlCommand("SELECT name FROM characters WHERE name = @Name");
-        private static readonly MySqlCommand IsSlotAvailableCommand = new MySqlCommand("SELECT slotId FROM characters WHERE accountId = @AccountID AND slotId = @SlotId");
+        private static readonly MySqlCommand IsSlotAvailableCommand = new MySqlCommand("SELECT slotId FROM characters WHERE accountId = @AccountId AND slotId = @SlotId");
 
         public static void Initialize()
         {
@@ -33,6 +38,11 @@ namespace Rasa.Database.Tables.Character
             CreateCharacterCommand.Parameters.Add("@Rotation", MySqlDbType.Double);
             CreateCharacterCommand.Prepare();
 
+            DeleteCharacterCommand.Connection = GameDatabaseAccess.CharConnection;
+            DeleteCharacterCommand.Parameters.Add("@AccountId", MySqlDbType.UInt32);
+            DeleteCharacterCommand.Parameters.Add("@SlotId", MySqlDbType.Int32);
+            DeleteCharacterCommand.Prepare();
+
             GetCharacterDataCommand.Connection = GameDatabaseAccess.CharConnection;
             GetCharacterDataCommand.Parameters.Add("@AccountId", MySqlDbType.UInt32);
             GetCharacterDataCommand.Parameters.Add("@SlotId", MySqlDbType.Int32);
@@ -51,6 +61,17 @@ namespace Rasa.Database.Tables.Character
             IsSlotAvailableCommand.Parameters.Add("@AccountId", MySqlDbType.UInt32);
             IsSlotAvailableCommand.Parameters.Add("@SlotId", MySqlDbType.Int32);
             IsSlotAvailableCommand.Prepare();
+        }
+
+        public static void DeleteCharacter(ulong accountId, int slotId)
+        {
+            lock (GameDatabaseAccess.CharLock)
+            {
+                DeleteCharacterCommand.Parameters["@AccountId"].Value = accountId;
+                DeleteCharacterCommand.Parameters["@SlotId"].Value = slotId;
+                DeleteCharacterCommand.ExecuteNonQuery();
+               
+            }
         }
 
         public static int CreateCharacter(ulong accountId, string name, string familyName, int slotId, int gender, double scale, int raceId)

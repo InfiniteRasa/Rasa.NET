@@ -94,7 +94,7 @@ namespace Rasa.Packets.Game.Server
                 pw.WriteTuple(3);
                 pw.WriteInt(LoginData.NumLogins);
                 pw.WriteInt(LoginData.TotalTimePlayed);
-                pw.WriteString(LoginData.TimeSinceLastPlayed);
+                pw.WriteInt(LoginData.TimeSinceLastPlayed);
             }
             else
                 pw.WriteNoneStruct();
@@ -135,7 +135,7 @@ namespace Rasa.Packets.Game.Server
     {
         public int NumLogins { get; set; }
         public int TotalTimePlayed { get; set; }
-        public string TimeSinceLastPlayed { get; set; }
+        public int TimeSinceLastPlayed { get; set; }
     }
 
     public class ClanDataTupple

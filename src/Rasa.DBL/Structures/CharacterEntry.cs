@@ -26,7 +26,7 @@ namespace Rasa.Structures
         public int CloneCredits { get; set; }
         public int NumLogins { get; set; }
         public int TotalTimePlayed { get; set; }
-        public string TimeSinceLastPlayed { get; set; }
+        public int TimeSinceLastPlayed { get; set; }
         /* ToDo
          * public int ClanId { get; set; }
          * public int ClanName { get; set; }
@@ -62,7 +62,7 @@ namespace Rasa.Structures
                 CloneCredits = reader.GetInt32("cloneCredits"),
                 NumLogins = reader.GetInt32("numLogins"),
                 TotalTimePlayed = reader.GetInt32("totalTimePlayed"),
-                TimeSinceLastPlayed = reader.GetString("timeSinceLastPlayed")
+                TimeSinceLastPlayed = reader.GetInt32("timeSinceLastPlayed")
             };
         }
 
