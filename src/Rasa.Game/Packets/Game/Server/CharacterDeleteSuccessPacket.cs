@@ -9,6 +9,11 @@
 
         public int HasCharacters { get; set; }
 
+        public CharacterDeleteSuccessPacket(bool hasCharacters)
+        {
+            HasCharacters = hasCharacters ? 1 : 0;
+        }
+
         public override void Read(PythonReader pr)
         {
         }

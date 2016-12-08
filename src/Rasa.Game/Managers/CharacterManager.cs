@@ -113,7 +113,9 @@ namespace Rasa.Managers
         public void RequestDeleteCharacterInSlot(Client client, int slotNum )
         {
             CharacterTable.DeleteCharacter(client.Entry.Id, slotNum);
-            client.SendPacket(5, new CharacterDeleteSuccessPacket{ HasCharacters = 0}); // ToDo send 0 if last character deleted else 1
+
+            client.SendPacket(5, new CharacterDeleteSuccessPacket(CharacterTable.GetCharacterCount(client.Entry.Id) > 0));
+
             UpdateCharacterSelection(client, slotNum);
         }
 
@@ -121,10 +123,10 @@ namespace Rasa.Managers
         {
             if (slotNum < 1 || slotNum > 16)
                 return;
-            
-            client.SendPacket(5, new SetIsGMPacket {IsGmAccount = true});
 
-            client.SendPacket(5, new PreWonkavatePacket {Something = 0});   // ToDo need to see what is this
+            client.SendPacket(5, new SetIsGMPacket(true));
+
+            client.SendPacket(5, new PreWonkavatePacket(0)); // ToDo need to see what is this
 
             var data = CharacterTable.GetCharacterData(client.Entry.Id, slotNum);
             var packet = new WonkavatePacket
@@ -155,7 +157,7 @@ namespace Rasa.Managers
                     IsSelected = 1,
                     BodyData = new BodyDataTuple
                     {
-                        GenderClassId = data.Gender==0?692:691,
+                        GenderClassId = data.Gender == 0 ? 692 : 691,
                         Scale = data.Scale
                     },
                     CharacterData = new CharacterDataTuple
