@@ -1,0 +1,60 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 14
+VisualStudioVersion = 14.0.25420.1
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{B8E6F56E-FC5A-40E5-A0B7-38A1073647FB}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{F123E9F2-04CD-4D31-9ABE-0E1D5C541534}"
+	ProjectSection(SolutionItems) = preProject
+		global.json = global.json
+	EndProjectSection
+EndProject
+Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "Rasa.Game", "src\Rasa.Game\Rasa.Game.xproj", "{0880A5F1-A46B-4BBF-BE52-37FEEC006D30}"
+EndProject
+Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "Rasa.Shared", "src\Rasa.Shared\Rasa.Shared.xproj", "{97F299B7-4CB1-4437-B910-F6F84958A6CF}"
+EndProject
+Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "Rasa.DBL", "src\Rasa.DBL\Rasa.DBL.xproj", "{94BA5D4F-67E5-4027-8440-65BE576952C6}"
+EndProject
+Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "Rasa.Utils", "src\Rasa.Utils\Rasa.Utils.xproj", "{9028A94B-74E3-45AA-8B36-AAB753755974}"
+EndProject
+Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "Rasa.Auth", "src\Rasa.Auth\Rasa.Auth.xproj", "{A0C37E2B-2DA0-4D9B-9C8F-A3CFFD06F51D}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{0880A5F1-A46B-4BBF-BE52-37FEEC006D30}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0880A5F1-A46B-4BBF-BE52-37FEEC006D30}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0880A5F1-A46B-4BBF-BE52-37FEEC006D30}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0880A5F1-A46B-4BBF-BE52-37FEEC006D30}.Release|Any CPU.Build.0 = Release|Any CPU
+		{97F299B7-4CB1-4437-B910-F6F84958A6CF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{97F299B7-4CB1-4437-B910-F6F84958A6CF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{97F299B7-4CB1-4437-B910-F6F84958A6CF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{97F299B7-4CB1-4437-B910-F6F84958A6CF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{94BA5D4F-67E5-4027-8440-65BE576952C6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{94BA5D4F-67E5-4027-8440-65BE576952C6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{94BA5D4F-67E5-4027-8440-65BE576952C6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{94BA5D4F-67E5-4027-8440-65BE576952C6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9028A94B-74E3-45AA-8B36-AAB753755974}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9028A94B-74E3-45AA-8B36-AAB753755974}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9028A94B-74E3-45AA-8B36-AAB753755974}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9028A94B-74E3-45AA-8B36-AAB753755974}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A0C37E2B-2DA0-4D9B-9C8F-A3CFFD06F51D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A0C37E2B-2DA0-4D9B-9C8F-A3CFFD06F51D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A0C37E2B-2DA0-4D9B-9C8F-A3CFFD06F51D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A0C37E2B-2DA0-4D9B-9C8F-A3CFFD06F51D}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{0880A5F1-A46B-4BBF-BE52-37FEEC006D30} = {B8E6F56E-FC5A-40E5-A0B7-38A1073647FB}
+		{97F299B7-4CB1-4437-B910-F6F84958A6CF} = {B8E6F56E-FC5A-40E5-A0B7-38A1073647FB}
+		{94BA5D4F-67E5-4027-8440-65BE576952C6} = {B8E6F56E-FC5A-40E5-A0B7-38A1073647FB}
+		{9028A94B-74E3-45AA-8B36-AAB753755974} = {B8E6F56E-FC5A-40E5-A0B7-38A1073647FB}
+		{A0C37E2B-2DA0-4D9B-9C8F-A3CFFD06F51D} = {B8E6F56E-FC5A-40E5-A0B7-38A1073647FB}
+	EndGlobalSection
+EndGlobal
