@@ -19,6 +19,7 @@ namespace Rasa.Database.Tables.Character
                                                                                        "WHERE accountId = @AccountId AND slotId = @SlotId");
         private static readonly MySqlCommand IsNameAvailableCommand = new MySqlCommand("SELECT name FROM characters WHERE name = @Name");
         private static readonly MySqlCommand IsSlotAvailableCommand = new MySqlCommand("SELECT slotId FROM characters WHERE accountId = @AccountId AND slotId = @SlotId");
+        private static readonly MySqlCommand GetCharacterCountCommand = new MySqlCommand("SELECT COUNT(*) FROM characters WHERE accountId = @AccountId;");
 
         public static void Initialize()
         {
@@ -61,9 +62,13 @@ namespace Rasa.Database.Tables.Character
             IsSlotAvailableCommand.Parameters.Add("@AccountId", MySqlDbType.UInt32);
             IsSlotAvailableCommand.Parameters.Add("@SlotId", MySqlDbType.Int32);
             IsSlotAvailableCommand.Prepare();
+
+            GetCharacterCountCommand.Connection = GameDatabaseAccess.CharConnection;
+            GetCharacterCountCommand.Parameters.Add("@AccountId", MySqlDbType.UInt32);
+            GetCharacterCountCommand.Prepare();
         }
         
-        public static int CreateCharacter(ulong accountId, string name, string familyName, int slotId, int gender, double scale, int raceId)
+        public static int CreateCharacter(uint accountId, string name, string familyName, int slotId, int gender, double scale, int raceId)
         {
             lock (GameDatabaseAccess.CharLock)
             {
@@ -86,13 +91,22 @@ namespace Rasa.Database.Tables.Character
             }
         }
 
-        public static void DeleteCharacter(ulong accountId, int slotId)
+        public static void DeleteCharacter(uint accountId, int slotId)
         {
             lock (GameDatabaseAccess.CharLock)
             {
                 DeleteCharacterCommand.Parameters["@AccountId"].Value = accountId;
                 DeleteCharacterCommand.Parameters["@SlotId"].Value = slotId;
                 DeleteCharacterCommand.ExecuteNonQuery();
+            }
+        }
+
+        public static int GetCharacterCount(uint accountId)
+        {
+            lock (GameDatabaseAccess.CharLock)
+            {
+                GetCharacterCountCommand.Parameters["@AccountId"].Value = accountId;
+                return (int) GetCharacterCountCommand.ExecuteScalar();
             }
         }
 
