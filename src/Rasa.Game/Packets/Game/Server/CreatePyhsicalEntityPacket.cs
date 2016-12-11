@@ -21,7 +21,6 @@ namespace Rasa.Packets.Game.Server
 
         public override void Read(PythonReader pr)
         {
-            Console.WriteLine("CreatePhysicalEntity Read\n{0}", pr.ToString());   // ToDo just for testing, remove later
             pr.ReadTuple();
             EntityId = pr.ReadInt();
             ClassId = pr.ReadInt();
@@ -40,6 +39,7 @@ namespace Rasa.Packets.Game.Server
             }
             else
                 pw.WriteNoneStruct();
+
         }
     }
 }

@@ -21,7 +21,9 @@ namespace Rasa.Packets.Game.Server
         public Dictionary<int, AppearanceData> AppearanceData { get; set; } = new Dictionary<int, AppearanceData>();
         public Color Color { get; set; }
 
-        public override void Read(PythonReader pr ){ }
+        public override void Read(PythonReader pr)
+        {
+        }
 
         public override void Write(PythonWriter pw)
         {

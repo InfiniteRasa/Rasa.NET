@@ -13,7 +13,7 @@
         {
             IsGmAccount = isGm;
         }
-
+        
         public override void Read(PythonReader pr)
         {
         }

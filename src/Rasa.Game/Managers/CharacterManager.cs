@@ -45,20 +45,40 @@ namespace Rasa.Managers
             if (client.State != ClientState.LoggedIn)
                 return;
 
-            var packet = new BeginCharacterSelectionPacket
+            var getFamily = CharacterTable.GetCharacterFamily(client.Entry.Id);
+            if (getFamily.Length > 1)
             {
-                FamilyName = null,
-                HasCharacters = false,
-                CanSkipBootcamp = true,
-                UserId = 1
-            };
+                var packet = new BeginCharacterSelectionPacket
+                {
+                    FamilyName = getFamily,
+                    HasCharacters = true,
+                    CanSkipBootcamp = true,
+                    UserId = client.Entry.Id
+                };
+                packet.EnabledRaceList.Add(1);
+                packet.EnabledRaceList.Add(2);
+                packet.EnabledRaceList.Add(3);
+                packet.EnabledRaceList.Add(4);
 
-            packet.EnabledRaceList.Add(1);
-            packet.EnabledRaceList.Add(2);
-            packet.EnabledRaceList.Add(3);
-            packet.EnabledRaceList.Add(4);
+                client.SendPacket(5, packet);
+            }
+            else
+            {
+                var packet = new BeginCharacterSelectionPacket
+                {
+                    FamilyName = null,
+                    HasCharacters = false,
+                    CanSkipBootcamp = true,
+                    UserId = client.Entry.Id
+                };
 
-            client.SendPacket(5, packet);
+                packet.EnabledRaceList.Add(1);
+                packet.EnabledRaceList.Add(2);
+                packet.EnabledRaceList.Add(3);
+                packet.EnabledRaceList.Add(4);
+                
+                client.SendPacket(5, packet);
+            }
 
             for (var i = 0; i < 16; ++i)
                 client.SendPacket(5, new CreatePyhsicalEntityPacket(101 + i, 3543));
@@ -124,7 +144,7 @@ namespace Rasa.Managers
             if (slotNum < 1 || slotNum > 16)
                 return;
 
-            client.SendPacket(5, new SetIsGMPacket(true));
+            client.SendPacket(5, new SetIsGMPacket(client.Entry.Level > 0 ));
 
             client.SendPacket(5, new PreWonkavatePacket(0)); // ToDo need to see what is this
 
@@ -207,12 +227,11 @@ namespace Rasa.Managers
                     },
                     ClanData = new ClanDataTupple
                     {
-                        ClanId = 0,
-                        ClanName = ""   // ToDo
+                        ClanId = data.ClanId,
+                        ClanName = data.ClanName
                     }
                 };
-
-
+                
                 client.SendPacket(101 + (uint) slotNum, packet);
             }
             else
@@ -222,6 +241,7 @@ namespace Rasa.Managers
                     SlotId = slotNum + 1,
                     IsSelected = 0  
                 };
+
                 client.SendPacket(101 + (uint) slotNum, packet);
             }
         }
