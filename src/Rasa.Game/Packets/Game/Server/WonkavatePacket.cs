@@ -20,7 +20,7 @@
 
         public override void Write(PythonWriter pw)
         {
-            pw.WriteTuple(4);
+            pw.WriteTuple(5);
             pw.WriteInt(MapContextId);
             pw.WriteInt(MapInstanceId);
             pw.WriteInt(MapVersion);
