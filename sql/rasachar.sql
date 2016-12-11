@@ -35,12 +35,14 @@ CREATE TABLE IF NOT EXISTS `characters` (
   `cloneCredits` int(11) NOT NULL DEFAULT '0',
   `numLogins` int(11) NOT NULL DEFAULT '0',
   `totalTimePlayed` int(11) NOT NULL DEFAULT '0',
-  `timeSinceLastPlayed` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `timeSinceLastPlayed` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `clanId` int(11) NOT NULL DEFAULT '0',
+  `clanName` varchar(50) NOT NULL DEFAULT '',
   PRIMARY KEY (`id`),
   UNIQUE KEY `id` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=27 DEFAULT CHARSET=utf8;
 
--- Dumping data for table rasachar.characters: ~0 rows (approximately)
+-- Dumping data for table rasachar.characters: ~1 rows (approximately)
 /*!40000 ALTER TABLE `characters` DISABLE KEYS */;
 /*!40000 ALTER TABLE `characters` ENABLE KEYS */;
 
@@ -103,7 +105,7 @@ CREATE TABLE IF NOT EXISTS `character_abilities` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
--- Dumping data for table rasachar.character_abilities: ~0 rows (approximately)
+-- Dumping data for table rasachar.character_abilities: ~1 rows (approximately)
 /*!40000 ALTER TABLE `character_abilities` DISABLE KEYS */;
 /*!40000 ALTER TABLE `character_abilities` ENABLE KEYS */;
 
@@ -157,7 +159,7 @@ CREATE TABLE IF NOT EXISTS `character_equipment` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
--- Dumping data for table rasachar.character_equipment: ~0 rows (approximately)
+-- Dumping data for table rasachar.character_equipment: ~1 rows (approximately)
 /*!40000 ALTER TABLE `character_equipment` DISABLE KEYS */;
 /*!40000 ALTER TABLE `character_equipment` ENABLE KEYS */;
 
@@ -718,7 +720,7 @@ CREATE TABLE IF NOT EXISTS `character_inventory` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
--- Dumping data for table rasachar.character_inventory: ~0 rows (approximately)
+-- Dumping data for table rasachar.character_inventory: ~1 rows (approximately)
 /*!40000 ALTER TABLE `character_inventory` DISABLE KEYS */;
 /*!40000 ALTER TABLE `character_inventory` ENABLE KEYS */;
 
@@ -803,7 +805,7 @@ CREATE TABLE IF NOT EXISTS `character_skills` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
--- Dumping data for table rasachar.character_skills: ~0 rows (approximately)
+-- Dumping data for table rasachar.character_skills: ~1 rows (approximately)
 /*!40000 ALTER TABLE `character_skills` DISABLE KEYS */;
 /*!40000 ALTER TABLE `character_skills` ENABLE KEYS */;
 /*!40101 SET SQL_MODE=IFNULL(@OLD_SQL_MODE, '') */;

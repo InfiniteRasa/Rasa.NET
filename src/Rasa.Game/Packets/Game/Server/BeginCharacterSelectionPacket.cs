@@ -12,8 +12,20 @@ namespace Rasa.Packets.Game.Server
         public string FamilyName { get; set; }
         public bool HasCharacters { get; set; }
         public uint UserId { get; set; }
-        public List<int> EnabledRaceList { get; } = new List<int>();
+        public List<int> EnabledRaceList { get; set; } = new List<int>();
         public bool CanSkipBootcamp { get; set; }
+
+        public BeginCharacterSelectionPacket(string familyName, bool hasCharacters, uint userId)
+        {
+            FamilyName = familyName;
+            HasCharacters = hasCharacters;
+            UserId = userId;
+            CanSkipBootcamp = true;
+            EnabledRaceList.Add(1);
+            EnabledRaceList.Add(2);
+            EnabledRaceList.Add(3);
+            EnabledRaceList.Add(4);
+        }
 
         public override void Read(PythonReader pr)
         {
