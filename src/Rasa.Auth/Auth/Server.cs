@@ -423,7 +423,7 @@ namespace Rasa.Auth
         {
             if (parts.Length < 4)
             {
-                Logger.WriteLog(LogType.Command, "Invalid create account command! Usage: create <username> <email> <password>");
+                Logger.WriteLog(LogType.Command, "Invalid create account command! Usage: create <email> <username> <password>");
                 return;
             }
 
