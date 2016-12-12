@@ -18,6 +18,7 @@ namespace Rasa.Database.Tables.Character
         private static readonly MySqlCommand GetCharacterDataCommand = new MySqlCommand("SELECT id, name, familyName, accountId, slotId, gender, scale, raceId, classId, mapContextId, posX, posY, posZ, rotation, experience, level, body, mind, spirit, cloneCredits, " +
                                                                                         "numLogins, totalTimePlayed, TIMESTAMPDIFF(MINUTE , timeSinceLastPlayed, NOW()) AS timeSinceLastPlayed, clanId, clanName FROM characters WHERE accountId = @AccountId AND slotId = @SlotId");
         private static readonly MySqlCommand GetCharacterFamilyCommand = new MySqlCommand("SELECT COUNT(*), familyName FROM characters WHERE accountId = @AccountId;");
+        private static readonly MySqlCommand IsFamilyNameAvailableCommand = new MySqlCommand("SELECT familyName FROM characters WHERE familyName = @FamilyName");
         private static readonly MySqlCommand IsNameAvailableCommand = new MySqlCommand("SELECT name FROM characters WHERE name = @Name");
         private static readonly MySqlCommand IsSlotAvailableCommand = new MySqlCommand("SELECT slotId FROM characters WHERE accountId = @AccountId AND slotId = @SlotId");
 
@@ -48,6 +49,10 @@ namespace Rasa.Database.Tables.Character
             GetCharacterDataCommand.Parameters.Add("@AccountId", MySqlDbType.UInt32);
             GetCharacterDataCommand.Parameters.Add("@SlotId", MySqlDbType.Int32);
             GetCharacterDataCommand.Prepare();
+
+            IsFamilyNameAvailableCommand.Connection = GameDatabaseAccess.CharConnection;
+            IsFamilyNameAvailableCommand.Parameters.Add("@FamilyName", MySqlDbType.VarChar);
+            IsFamilyNameAvailableCommand.Prepare();
 
             IsNameAvailableCommand.Connection = GameDatabaseAccess.CharConnection;
             IsNameAvailableCommand.Parameters.Add("@Name", MySqlDbType.VarChar);
@@ -136,6 +141,20 @@ namespace Rasa.Database.Tables.Character
 
                 return "";
             }
+        }
+
+        public static string IsFamilyNameAvailable(string familyName)
+        {
+            lock (GameDatabaseAccess.CharLock)
+            {
+                IsFamilyNameAvailableCommand.Parameters["@FamilyName"].Value = familyName;
+
+                using (var reader = IsFamilyNameAvailableCommand.ExecuteReader())
+                    if (reader.Read())
+                        return reader.GetString("familyName");
+            }
+
+            return null;
         }
 
         public static string IsNameAvailable(string name)

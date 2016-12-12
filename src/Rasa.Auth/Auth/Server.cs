@@ -446,7 +446,7 @@ namespace Rasa.Auth
             {
                 AccountTable.InsertAccount(data);
 
-                Logger.WriteLog(LogType.Command, $"Created account: {parts[1]}! (Password: {parts[3]})");
+                Logger.WriteLog(LogType.Command, $"Created account: {parts[2]}! (Password: {parts[3]})");
             }
             catch
             {
