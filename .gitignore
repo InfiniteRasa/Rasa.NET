@@ -230,6 +230,6 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 /.vs
-/src/Rasa.Auth/log-auth.txt
 
-src/Rasa.Game/log-game.txt
+/src/Rasa.Auth/log-auth.txt
+/src/Rasa.Game/log-game.txt
