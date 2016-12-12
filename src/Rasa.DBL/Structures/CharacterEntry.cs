@@ -27,11 +27,8 @@ namespace Rasa.Structures
         public int NumLogins { get; set; }
         public int TotalTimePlayed { get; set; }
         public int TimeSinceLastPlayed { get; set; }
-        /* ToDo
-         * public int ClanId { get; set; }
-         * public int ClanName { get; set; }
-         */
-
+        public int ClanId { get; set; }
+        public string ClanName { get; set; }
 
         public static CharacterEntry Read(MySqlDataReader reader)
         {
@@ -62,30 +59,9 @@ namespace Rasa.Structures
                 CloneCredits = reader.GetInt32("cloneCredits"),
                 NumLogins = reader.GetInt32("numLogins"),
                 TotalTimePlayed = reader.GetInt32("totalTimePlayed"),
-                TimeSinceLastPlayed = reader.GetInt32("timeSinceLastPlayed")
-            };
-        }
-
-        public static CharacterEntry GetData(MySqlDataReader reader)
-        {
-            if (!reader.Read())
-                return null;
-
-            return new CharacterEntry
-            {
-                Id = reader.GetUInt32("id"),
-                Name = reader.GetString("name"),
-                FamilyName = reader.GetString("familyName"),
-                SlotId = reader.GetInt32("slotId"),
-                Gender = reader.GetInt32("gender"),
-                Scale = reader.GetDouble("scale"),
-                MapContextId = reader.GetInt32("mapContextId"),
-                PosX = reader.GetDouble("posX"),
-                PosY = reader.GetDouble("posY"),
-                PosZ = reader.GetDouble("posZ"),
-                Rotation = reader.GetDouble("rotation"),
-                ClassId = reader.GetInt32("classId"),
-                RaceId = reader.GetInt32("raceId"),
+                TimeSinceLastPlayed = reader.GetInt32("timeSinceLastPlayed"),
+                ClanId = reader.GetInt32("clanId"),
+                ClanName = reader.GetString("clanName")
             };
         }
     }
