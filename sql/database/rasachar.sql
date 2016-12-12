@@ -22,7 +22,9 @@ CREATE TABLE IF NOT EXISTS `characters` (
   `cloneCredits` int(11) NOT NULL DEFAULT '0',
   `numLogins` int(11) NOT NULL DEFAULT '0',
   `totalTimePlayed` int(11) NOT NULL DEFAULT '0',
-  `timeSinceLastPlayed` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `timeSinceLastPlayed` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `clanId` int(11) NOT NULL DEFAULT '0',
+  `clanName` varchar(50) NOT NULL DEFAULT '',
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
