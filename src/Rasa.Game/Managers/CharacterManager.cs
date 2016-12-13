@@ -241,9 +241,12 @@ namespace Rasa.Managers
             if (CharacterTable.IsSlotAvailable(client.Entry.Id, packet.SlotNum) == packet.SlotNum)
                 return CreateCharacterResult.CharacterSlotInUse;
 
-            if (CharacterTable.IsFamilyNameAvailable(packet.FamilyName) == packet.FamilyName)
-                return CreateCharacterResult.FamilyNameReserved;
-
+            if (CharacterTable.GetCharacterCount(client.Entry.Id) == 0)
+            {
+                if (CharacterTable.IsFamilyNameAvailable(packet.FamilyName) == packet.FamilyName)
+                    return CreateCharacterResult.FamilyNameReserved;
+            }
+            
             return !NameRegex.IsMatch(packet.CharacterName) ? CreateCharacterResult.NameFormatInvalid : CreateCharacterResult.Success;
         }
 
