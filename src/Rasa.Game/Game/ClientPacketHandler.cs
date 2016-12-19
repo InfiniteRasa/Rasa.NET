@@ -4,6 +4,7 @@
     using Managers;
     using Packets;
     using Packets.Game.Client;
+    using Packets.MapChannel.Client;
 
     public class ClientPacketHandler
     {
@@ -13,6 +14,7 @@
         {
             Client = client;
         }
+        #region CharacterSelection
 
         [PacketHandler(GameOpcode.RequestCharacterName)]
         private void RequestCharacterName(RequestCharacterNamePacket packet)
@@ -43,5 +45,15 @@
         {
             CharacterManager.Instance.RequestSwitchToCharacterInSlot(Client, packet.SlotNum);
         }
+        #endregion
+
+        #region MapChannel
+
+        [PacketHandler(GameOpcode.MapLoaded)]
+        private void MapLoaded(MapLoadedPacket packet)
+        {
+            MapChannelManager.Instance.MapLoaded(Client);
+        }
+        #endregion
     }
 }

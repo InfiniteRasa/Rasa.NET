@@ -124,15 +124,14 @@ namespace Rasa.Managers
             {
                 MapContextId = data.MapContextId,
                 MapInstanceId = 0,                  // ToDo MapInstanceId / MapVersion
-                MapVersion = 0,
+                MapVersion = 1556,
                 PosX = data.PosX,
                 PosY = data.PosY,
                 PosZ = data.PosZ,
                 Rotation = data.Rotation
             };
 
-            client.SendPacket(5, packet);
-            Console.WriteLine("Connecting to mapChannel...");
+            client.SendPacket(6, packet);
         }
 
         private void SendCharacterInfo(Client client, int slotNum)
