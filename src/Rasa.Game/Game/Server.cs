@@ -6,6 +6,7 @@ using System.Net.Sockets;
 
 namespace Rasa.Game
 {
+    using Managers;
     using Commands;
     using Config;
     using Data;
@@ -276,6 +277,8 @@ namespace Rasa.Game
             if (packet.Response == CommLoginReason.Success)
             {
                 Logger.WriteLog(LogType.Network, "Successfully authenticated with the Auth server!");
+
+                MapChannelManager.MapChannelInit();
                 return;
             }
 

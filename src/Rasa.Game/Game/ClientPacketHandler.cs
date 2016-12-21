@@ -54,6 +54,11 @@
         {
             MapChannelManager.Instance.MapLoaded(Client);
         }
+        [PacketHandler(GameOpcode.Ping)]
+        private void Ping(PingPacket packet)
+        {
+            MapChannelManager.Instance.Ping(Client);
+        }
         #endregion
     }
 }

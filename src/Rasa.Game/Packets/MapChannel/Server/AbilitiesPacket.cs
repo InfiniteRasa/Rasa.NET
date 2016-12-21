@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace Rasa.Packets.MapChannel.Server
 {
@@ -48,7 +47,6 @@ namespace Rasa.Packets.MapChannel.Server
         }
         public override void Read(PythonReader pr)
         {
-            Console.WriteLine("Abilities Read\n{0}", pr.ToString());   // ToDo just for testing, remove later
         }
 
         public override void Write(PythonWriter pw)
@@ -61,8 +59,6 @@ namespace Rasa.Packets.MapChannel.Server
                 pw.WriteInt(AbilityIdList[i]);
                 pw.WriteInt(SkillIndexLevelList[i]);
             }
-
-            Console.WriteLine("Abilities Write\n{0}", pw.ToString());   // just for testing, remove later
         }
     }
 }

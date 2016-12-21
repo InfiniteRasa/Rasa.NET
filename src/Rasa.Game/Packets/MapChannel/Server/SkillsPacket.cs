@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace Rasa.Packets.MapChannel.Server
 {
@@ -25,6 +24,7 @@ namespace Rasa.Packets.MapChannel.Server
             162,163,164,165,166,172,173,174
         };
 
+        // ToDo Read data from DB skill Lv
         private static readonly int[] SkillIIdLevel = {
             0,0,0,0,0,0,0,0,0,
             0,0,0,0,0,0,0,0,
@@ -37,7 +37,7 @@ namespace Rasa.Packets.MapChannel.Server
             0,0,0,0,0,0,0,0,
         };
 
-        private readonly int[] _skillIByIndex = {
+        /*private readonly int[] _skillIByIndex = {
             -1,0,-1,-1,-1,-1,-1,-1,1,-1,-1,-1,-1,-1,2,-1,-1,-1,-1,3,
             4,5,6,7,8,9,10,-1,11,-1,12,13,14,-1,15,16,17,18,-1,19,
             20,-1,-1,21,-1,-1,-1,22,23,24,25,-1,-1,-1,26,27,-1,28,29,-1,
@@ -48,7 +48,7 @@ namespace Rasa.Packets.MapChannel.Server
             -1,-1,-1,-1,-1,-1,-1,50,51,52,53,54,55,56,57,58,59,60,61,62,
             63,64,65,66,67,68,69,-1,-1,-1,-1,-1,70,71,72,-1,-1,-1,-1,-1,
             -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1
-        };
+        };*/
 
         public SkillsPacket()
         {
@@ -58,7 +58,6 @@ namespace Rasa.Packets.MapChannel.Server
 
         public override void Read(PythonReader pr)
         {
-            Console.WriteLine("Skills Read\n{0}", pr.ToString());   // ToDo just for testing, remove later
         }
 
         public override void Write(PythonWriter pw)
@@ -71,7 +70,6 @@ namespace Rasa.Packets.MapChannel.Server
                 pw.WriteInt(SkillIndexList[i]);
                 pw.WriteInt(SkillIndexLevelList[i]);
             }
-            Console.WriteLine("Skills Write\n{0}", pw.ToString());   // just for testing, remove later
         }
     }
 }

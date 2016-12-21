@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Rasa.Packets.MapChannel.Server
+﻿namespace Rasa.Packets.MapChannel.Server
 {
     using Data;
     using Memory;
@@ -17,7 +15,6 @@ namespace Rasa.Packets.MapChannel.Server
 
         public override void Read(PythonReader pr)
         {
-            Console.WriteLine("AdvancementStats Read\n{0}", pr.ToString());   // ToDo just for testing, remove later
         }
 
         public override void Write(PythonWriter pw)
@@ -28,7 +25,6 @@ namespace Rasa.Packets.MapChannel.Server
             pw.WriteInt(Attributes);
             pw.WriteInt(TrainPts);  // not used by client ???
             pw.WriteInt(SkillPts);
-            Console.WriteLine("AdvancementStats Write\n{0}", pw.ToString());   // just for testing, remove later
         }
     }
 }

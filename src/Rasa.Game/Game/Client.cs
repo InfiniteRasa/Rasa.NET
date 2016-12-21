@@ -177,7 +177,7 @@ namespace Rasa.Game
                         Server.PacketQueue.EnqueueIncoming(this, pythonPacket);
                     }
                     else
-                        Logger.WriteLog(LogType.Error, $"Unhandled game opcode: {packet.Opcode}");
+                        Logger.WriteLog(LogType.Error, $"Unhandled game opcode:\n{packet.Opcode}\n");
                 }
                 else
                     Logger.WriteLog(LogType.Error, $"Invalid data found in Python method call! Off: {br.BaseStream.Position} | Len: {packet.DataSize} | Array len: {br.BaseStream.Length}");

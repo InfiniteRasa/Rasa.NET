@@ -2,11 +2,12 @@
 {
     using Data;
     using Memory;
-    public class UpdateRegionsPacket : PythonPacket
-    {
-        public override GameOpcode Opcode { get; } = GameOpcode.UpdateRegions;
 
-        public int RegionIdList { get; set; }
+    public class CharacterClassPacket : PythonPacket
+    {
+        public override GameOpcode Opcode { get; } = GameOpcode.CharacterClass;
+
+        public int CharacterClass { get; set; }
 
         public override void Read(PythonReader pr)
         {
@@ -15,8 +16,7 @@
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(1);
-            pw.WriteList(1);
-            pw.WriteInt(RegionIdList);
+            pw.WriteInt(CharacterClass);
         }
     }
 }

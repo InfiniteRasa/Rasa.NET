@@ -15,8 +15,8 @@
         public void SetStartUpData()
         {
             PosX = 894.9;
-            PosY = 307.9;
-            PosZ = 347.1;
+            PosY = 347.1;
+            PosZ = 307.9;
             Rotation = 1;
             MapContextId = 1220;
             ClassId = 1; // recruit, maybe we need to chage this and get data from game client

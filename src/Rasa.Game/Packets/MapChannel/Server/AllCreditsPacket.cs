@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Rasa.Packets.MapChannel.Server
+﻿namespace Rasa.Packets.MapChannel.Server
 {
     using Data;
     using Memory;
@@ -14,7 +12,6 @@ namespace Rasa.Packets.MapChannel.Server
 
         public override void Read(PythonReader pr)
         {
-            Console.WriteLine("AllCredits Read\n{0}", pr.ToString());   // ToDo just for testing, remove later
         }
 
         public override void Write(PythonWriter pw)
@@ -27,7 +24,6 @@ namespace Rasa.Packets.MapChannel.Server
             pw.WriteTuple(2);
             pw.WriteInt(2);         // Credits type id 2 = prestige
             pw.WriteInt(Prestige);  // value
-            Console.WriteLine("AllCredits Write\n{0}", pw.ToString());   // just for testing, remove later
         }
     }
 }

@@ -26,8 +26,8 @@
             pw.WriteInt(MapVersion);
             pw.WriteTuple(3);
             pw.WriteDouble(PosX);
-            pw.WriteDouble(PosY);
             pw.WriteDouble(PosZ);
+            pw.WriteDouble(PosY);
             pw.WriteDouble(Rotation);
         }
     }

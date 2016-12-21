@@ -9,5 +9,6 @@ namespace Rasa.Structures
         public CharacterData CharacterData { get; set; }
         public PlayerData Player{ get; set; }
         public Client Client { get; set; }
+        public bool Disconected { get; set; }
     }
 }
