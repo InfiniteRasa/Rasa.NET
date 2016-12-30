@@ -51,7 +51,7 @@ namespace Rasa.Managers
         {
             if (mapClient.JoinedChannels >= 14)
                 return; // todo, send error to client
-                        // generate channel hash
+            // generate channel hash
             var cHash = GenerateDefaultChannelHash(channelId, mapClient.MapChannel.MapInfo.MapId, 0);
             // find channel
             ChatChannel chatChannel;
@@ -76,23 +76,7 @@ namespace Rasa.Managers
             mapClient.JoinedChannels++;
             // add client to channel
             AddClientToChannel(mapClient, cHash);
-            mapClient.Client.SendPacket(8, new ChatChannelJoinedPacket { ChannelId = channelId, MapContextId = mapClient.MapChannel.MapInfo.MapId });
-            /* go through all clients
-            var currentLink = new ChatChannelPlayerLink();
-            currentLink = chatChannel.FirstPlayer;
-            while (currentLink != null)
-            {
-                var chatClient = new MapChannelClient();
-                chatClient = PlayersByEntityId[currentLink.EntityId];
-                if (chatClient != null)
-                {
-                    chatClient.Client.SendPacket( 8, new ChannelChatPacket());
-                }
-                // next
-                currentLink = currentLink.Next;
-            }*/
-
-
+            mapClient.Client.SendPacket(8, new ChatChannelJoinedPacket { ChannelId = channelId, MapContextId = mapClient.MapChannel.MapInfo.MapId });            
         }
 
         public static void PlayerEnterMap(MapChannelClient mapClient)
@@ -102,18 +86,7 @@ namespace Rasa.Managers
         }
 
         public static void PlayerExitMap(Client client)
-        {
-            /* save player position
-            CharacterManager.UpdateCharacter(
-                client.MapClient.Player.AccountId,
-                client.MapClient.Player.SlotId,
-                5,
-                client.MapClient.Player.Actor.PosX,
-                client.MapClient.Player.Actor.PosY,
-                client.MapClient.Player.Actor.PosZ,
-                client.MapClient.Player.Actor.Rotation,
-                client.MapClient.Player.Actor.MapContextId
-                );*/
+        {            
             CharacterManager.UpdateCharacter(client.MapClient.Player, 5);
             // save player time
             CharacterManager.UpdateCharacter(client.MapClient.Player, 7);

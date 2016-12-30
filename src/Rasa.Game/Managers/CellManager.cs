@@ -8,11 +8,11 @@ namespace Rasa.Managers
 
     public static class CellManager
     {
-        public static double CellSize = 25.0f;
-        public static double CellBias = 32768.0f;
+        public const double CellSize = 25.0D;
+        public const double CellBias = 32768.0D;
         public static uint CellPosX { get; set; }
         public static uint CellPosY { get; set; }
-        public static uint CellViewRange = 2;   // view 2 cell's in every direction
+        public const uint CellViewRange = 2;   // view 2 cell's in every direction
 
         // Player
         public static void AddToWorld(MapChannelClient client)
@@ -135,8 +135,7 @@ namespace Rasa.Managers
                     if (nMapCell != null)
                     {
                         // remove notify entry
-                        var count = nMapCell.PlayerNotifyList.Count;
-                        for (var i = 0; i < count; i++)
+                        for (var i = 0; i < nMapCell.PlayerNotifyList.Count; i++)
                         {
                             if (nMapCell.PlayerNotifyList[i] == client.MapClient)
                             {

@@ -50,7 +50,7 @@
 
         #region MapChannel
         [PacketHandler(GameOpcode.CharacterLogout)]
-        private void RequestLogout(CharacterLogoutPacket packet)
+        private void CharacterLogout(CharacterLogoutPacket packet)
         {
             MapChannelManager.Instance.CharacterLogout(Client);
         }
@@ -68,7 +68,7 @@
         }
 
         [PacketHandler(GameOpcode.RadialChat)]
-        private void RequestLogout(RadialChatPacket packet)
+        private void RadialChat(RadialChatPacket packet)
         {
             MapChannelManager.Instance.RadialChat(Client, packet.TextMsg);
         }
