@@ -27,8 +27,8 @@
             pw.WriteDouble(PosY);
             pw.WriteTuple(4);
             pw.WriteDouble(RotationX);
-            pw.WriteDouble(RotationY);
             pw.WriteDouble(RotationZ);
+            pw.WriteDouble(RotationY);
             pw.WriteDouble(Unknwon);
         }
     }

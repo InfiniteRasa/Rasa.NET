@@ -17,7 +17,7 @@ namespace Rasa.Structures
         // player
         public int PlayerCount { get; set; }
         public int PlayerLimit { get; set; }
-        public MapChannelClient[] PlayerList { get; set; }
+        public List<MapChannelClient> PlayerList { get; set; }
         //
         public MapCellInfo MapCellInfo = new MapCellInfo();
     }

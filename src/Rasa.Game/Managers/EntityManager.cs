@@ -15,5 +15,10 @@ namespace Rasa.Managers
         {
             EntytyTable.Add(entityId, entity);
         }
+
+        public static void UnregisterEntity(uint entityId)
+        {
+            EntytyTable.Remove(entityId);
+        }
     }
 }

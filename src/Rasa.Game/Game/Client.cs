@@ -21,7 +21,8 @@ namespace Rasa.Game
         public Server Server { get; }
         public LoginAccountEntry Entry { get; private set; }
         public ClientState State { get; private set; }
-
+        public int LastCharPlayed { get; set; }
+        public MapChannelClient MapClient { get; set; }
         private readonly ClientPacketHandler _handler;
 
         private static PacketRouter<ClientPacketHandler, GameOpcode> PacketRouter { get; } = new PacketRouter<ClientPacketHandler, GameOpcode>();

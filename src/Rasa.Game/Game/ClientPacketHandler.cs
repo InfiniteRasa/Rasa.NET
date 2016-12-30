@@ -14,6 +14,7 @@
         {
             Client = client;
         }
+       
         #region CharacterSelection
 
         [PacketHandler(GameOpcode.RequestCharacterName)]
@@ -48,16 +49,34 @@
         #endregion
 
         #region MapChannel
+        [PacketHandler(GameOpcode.CharacterLogout)]
+        private void RequestLogout(CharacterLogoutPacket packet)
+        {
+            MapChannelManager.Instance.CharacterLogout(Client);
+        }
 
         [PacketHandler(GameOpcode.MapLoaded)]
         private void MapLoaded(MapLoadedPacket packet)
         {
             MapChannelManager.Instance.MapLoaded(Client);
         }
+
         [PacketHandler(GameOpcode.Ping)]
         private void Ping(PingPacket packet)
         {
             MapChannelManager.Instance.Ping(Client);
+        }
+
+        [PacketHandler(GameOpcode.RadialChat)]
+        private void RequestLogout(RadialChatPacket packet)
+        {
+            MapChannelManager.Instance.RadialChat(Client, packet.TextMsg);
+        }
+
+        [PacketHandler(GameOpcode.RequestLogout)]
+        private void RequestLogout(RequestLogoutPacket packet)
+        {
+            MapChannelManager.Instance.RequestLogout(Client);
         }
         #endregion
     }

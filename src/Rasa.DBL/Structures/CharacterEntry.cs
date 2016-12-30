@@ -29,6 +29,8 @@ namespace Rasa.Structures
         public int TimeSinceLastPlayed { get; set; }
         public int ClanId { get; set; }
         public string ClanName { get; set; }
+        public int Credits { get; set; }
+        public int Prestige { get; set; }
 
         public static CharacterEntry Read(MySqlDataReader reader)
         {
@@ -61,7 +63,9 @@ namespace Rasa.Structures
                 TotalTimePlayed = reader.GetInt32("totalTimePlayed"),
                 TimeSinceLastPlayed = reader.GetInt32("timeSinceLastPlayed"),
                 ClanId = reader.GetInt32("clanId"),
-                ClanName = reader.GetString("clanName")
+                ClanName = reader.GetString("clanName"),
+                Credits = reader.GetInt32("credits"),
+                Prestige = reader.GetInt32("prestige")
             };
         }
     }

@@ -1,6 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Text.RegularExpressions;
-using Rasa.Structures;
 
 namespace Rasa.Managers
 {
@@ -10,6 +10,7 @@ namespace Rasa.Managers
     using Game;
     using Packets.Game.Client;
     using Packets.Game.Server;
+    using Structures;
 
     public class CharacterManager
     {
@@ -39,6 +40,7 @@ namespace Rasa.Managers
         {
         }
 
+        #region Character Selection
         public void StartCharacterSelection(Client client)
         {
             if (client.State != ClientState.LoggedIn)
@@ -131,6 +133,8 @@ namespace Rasa.Managers
             };
 
             client.SendPacket(6, packet);
+
+            client.LastCharPlayed = slotNum;
         }
 
         private void SendCharacterInfo(Client client, int slotNum)
@@ -252,5 +256,39 @@ namespace Rasa.Managers
         {
             SendCharacterInfo(client, slotNum - 1);
         }
+
+        #endregion
+
+        #region InGame
+        public static void UpdateCharacter(PlayerData player, int job)
+        {
+            switch (job)
+            {
+                case 1: // update level
+                    break;
+                case 2: // updarte credits
+                    break;
+                case 3: // update prestige
+                    break;
+                case 4: // update experience
+                    break;
+                case 5: // update possition
+                    CharacterTable.UpdateCharacterPos(player.AccountId, player.SlotId, player.Actor.PosX, player.Actor.PosY, player.Actor.PosZ, player.Actor.Rotation, player.Actor.MapContextId);
+                    break;
+                case 6: // update stats
+                    break;
+                case 7: // update login
+                    CharacterTable.UpdateCharacterLogin(player.AccountId, player.SlotId, player.LoginTime); // ToDO LoginTime need to be changed with proper value
+                    break;
+                case 8: // update logos
+                    break;
+                case 9: // update class
+                    break;
+                default:
+                    break;
+
+            }
+        }
+        #endregion
     }
 }
