@@ -6,10 +6,9 @@ namespace Rasa.Managers
     public class EntityManager
     {
         public static Dictionary<uint, MapChannelClient> EntytyTable = new Dictionary<uint, MapChannelClient>();
-        public static uint GetFreeEntityIdForPlayer()
-        {
-            return 4096; // ToDo Generate unique EntetyId for every player
-        }
+        public static Dictionary<uint, Item> ItemTable = new Dictionary<uint, Item>();
+
+        // Players
 
         public static void RegisterEntity(uint entityId, MapChannelClient entity)
         {
@@ -19,6 +18,23 @@ namespace Rasa.Managers
         public static void UnregisterEntity(uint entityId)
         {
             EntytyTable.Remove(entityId);
+        }
+
+        // Items
+        public static Item GetItem(uint entityId)
+        {
+            return ItemTable[entityId];
+        }
+
+        public static void RegisterItem(uint entityId, Item item)
+        {
+            if (!ItemTable.ContainsKey(entityId))
+                ItemTable.Add(entityId, item);
+        }
+
+        public static void UnregisterItem(uint entityId)
+        {
+            ItemTable.Remove(entityId);
         }
     }
 }

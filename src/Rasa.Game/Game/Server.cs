@@ -277,7 +277,8 @@ namespace Rasa.Game
             if (packet.Response == CommLoginReason.Success)
             {
                 Logger.WriteLog(LogType.Network, "Successfully authenticated with the Auth server!");
-
+                // Load items from db
+                ItemManager.LoadItems();
                 MapChannelManager.MapChannelInit();
                 return;
             }

@@ -1,0 +1,70 @@
+﻿namespace Rasa.Data
+{
+    public enum Augmentation
+    {
+        Creature            = 1,    // Actor: AI bodies                                 (CreatureClass)
+        Weapon              = 2,    // The weapon class                                 (WeaponClass)
+        Manifestation       = 3,    // Actor: Player "bodies"                           (ManifestationClass)
+        Equipable           = 4,    // Equipable items                                  (EquipableClass)
+        Item                = 6,    // Items that can go into inventory                 (ItemClass)
+        DynamicMapObject    = 7,    // Map objects that can change
+        StatelessSwitch     = 8,    // Usable: Switch that emits an event and has no state
+        TwoStateSwitch      = 9,    // Usable: Switch that can be ON or OFF
+        Door                = 10,   // Usable: Door can be OPEN or CLOSED
+        ControlPanel        = 11,   // Usable: Presents a UI with controls
+        Vendor              = 12,   // Allows player to request vending functionality
+        Shrine              = 13,   // Usable: Allows player to request character management functionality
+        Recipe              = 16,   // Items that allow crafting                        (RecipeClass)
+        Customization       = 19,   // Allows player customization options              (CustomizationClass)
+        AccessModule        = 21,   // Usable: Pluggable access module
+        PressurePlateSwitch = 23,   // Usable: Switch activated by a pressure plate
+        PowerModule         = 24,   // Usable: Power source for powered objects
+        PoweredAccessModule = 25,   // Usable: an AccessModule that requires power
+        PowerGenerator      = 32,   // Usable: Device that generates power for other usables requiring power
+        EnergyHopper        = 33,   // Usable: Device that receives energy units to fuel PowerGenerator
+        ItemDispenser       = 34,   // Usable: In-world Item proxy that delivers a real Item to player when used
+        Decoration          = 36,   // Allows an entity to be placed on objects with compatible sockets
+        Kraftwerks          = 37,   // Usable: allows player to request crafting in a public place
+        Overloader          = 40,   // Usable: has several overloading states after which it is destroyed
+        InertDestroyable    = 41,   // Usable: inert object that can be destroyed, like the proverbial crate
+        Bomb                = 42,   // Usable/Item: explosive device with an optional timer (BombClass)
+        ItemAcceptor        = 43,   // Usable: accepts an item of a specific class for placement in the world (ItemAcceptorClass)
+        AdventureLauncher   = 44,   // Usable: provides user interaction and visuals for Adventure Launcher GBB
+        AdventureExtractor  = 45,   // Usable: provides user interaction and visuals for Return Teleporter GBB
+        BenefactorDiskPuzzlePiece = 46, // Usable: specialized puzzle piece
+        RandomExplosion     = 48,   // Usable: blows up and does damage at random
+        FXPackageEmitter    = 49,   // Emitter: emits an FX package
+        LootDispenser       = 50,   // Usable: dispenses loot depending on looting rights
+        Armor               = 51,   // The armor class                                  (ArmorClass)
+        NPC                 = 52,   // NPC augmentation. Supports dialog, mission manipulation, and vending    
+        LogosStone          = 54,   // Item: Logos Stone inventory item                 (LogosStoneClass)
+        LogosMarker         = 55,   // World item with symbolic language written on it  (LogosMarkerClass)
+        CharacterSelectionPod = 56, // World item that is the character selection pod
+        ControlPoint        = 57,   // Usable: tracks which faction has control over a map location
+        TeslaCoil           = 58,   // Usable: Bane Tesla Coil (goes zzzzZZZAAAPPPP!!!!)
+        Harvestable         = 59,   // Allows an entity to be harvested for treasure    (HarvestableClass)
+        Eye                 = 60,   //  An entity with actor-like senses
+        CreatureSpawner     = 61,   // Usable:  spawn creatures into the world
+        ForceField          = 62,   // Usable:  blocks enemy forces, allows allies to pass
+        TreasureDispenser   = 64,   // Usabe: drops loot into inventory (or world) when used
+        TriggeredTwoState   = 65,   // Usable: a two state object that is turned on/off by collision triggers
+        Lockbox             = 66,   // Lockbox
+        Wormhole            = 67,   // Usable: Wormhole created by Temporary Wormhole ability
+        DestroyableCreatureSpawner = 68, // Usable: Creature spawner that spawns when destroyed
+        DestroyableStatelessSwitch = 69, // Usable: Stateless Switch with health
+        CloneCredit         = 70,   // Items that give a cloning credit to the player upon use
+        ThreeStateSwitch    = 71,   // Usable: a switch with three states
+        Auctioneer          = 72,   // An entity that gives access to the auction house
+        TransferCredit      = 73,   // An entity that represents some amount of credits
+        LootableProxy       = 74,   // Usable: something we can place out in the world to be looted (LootableProxy)
+        FiveStateSwitch     = 75,   // Usable: a switch with five states
+        ClanLockbox         = 76,   // Usable: clan lockbox
+        ClanControlPoint    = 77,   // Usable: a control point that can be owned by the bane/afs/or clans
+        ChallengeBoard      = 78,   // Usable: a challenge board giving access to CP
+        ClanForceField      = 79,   // Usable: a forcefield that blocks actors based on clan
+        ModuleItem          = 81,   // Itemization of a loot module
+        OwnableControlPoint = 82,   // Usable: a generic cp that can be owned
+        MechPad             = 83,   // Usable: Mechpad
+        OwnableForceField   = 84    // Usable: a forcefield that is owned by team or faction or clans
+    }
+}

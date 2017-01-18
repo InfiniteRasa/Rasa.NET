@@ -6,16 +6,14 @@
         public uint EntityClassId { get; set; }
         public string Name { get; set; }
         public string FamilyName { get; set; }
-        public double PosX { get; set; }
-        public double PosY { get; set; }
-        public double PosZ { get; set; }
+        public Position Position { get; set; }
         public double Rotation { get; set; }
         public int MapContextId { get; set; }
         public bool IsRunning { get; set; }
         public bool InCombatMode { get; set; }
         //public char State { get; set; }
         // action data
-        //public ActorCurrentAction CurrentAction { get; set; }
+        //public ActorCurrentAction CurrentAction { get; set; } = new ActorCurrentAction();
         public ActorStats Stats = new ActorStats();
         //public GameEffect ActiveEffects { get; set; }
         public MapCellLocation CellLocation { get; set; } = new MapCellLocation();

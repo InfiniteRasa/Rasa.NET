@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 
 namespace Rasa.Managers
 {
@@ -21,8 +20,8 @@ namespace Rasa.Managers
                 return;
 
             var mapChannel = client.MapChannel;
-            CellPosX = (uint) (client.Player.Actor.PosX/CellSize + CellBias);
-            CellPosY = (uint) (client.Player.Actor.PosZ/CellSize + CellBias);
+            CellPosX = (uint) (client.Player.Actor.Position.PosX/CellSize + CellBias);
+            CellPosY = (uint) (client.Player.Actor.Position.PosY/CellSize + CellBias);
 
             // calculate initial cell
             client.Player.Actor.CellLocation.CellPosX = CellPosX;
@@ -98,21 +97,11 @@ namespace Rasa.Managers
                 mapChannel.MapCellInfo.LoadedCellList.Add(cell);
                 mapChannel.MapCellInfo.LoadedCellCount++;
                 // register cell
-                mapChannel.MapCellInfo.Cells.Add(cellSeed, cell);
+                mapChannel.MapCellInfo.Cells.Add(cellSeed, cell);   // ToDo check why it crash here sometimes
                 return cell;
             }
 
         }
-
-       /* public static bool InitForMapChannel(MapChannel mapChannel)
-        {
-            mapChannel.MapCellInfo.Cells = new Dictionary<uint, MapCell>();
-            mapChannel.MapCellInfo.LoadedCellCount = 0;
-            mapChannel.MapCellInfo.LoadedCellLimit = 2048;
-            mapChannel.MapCellInfo.LoadedCellList = new List<MapCell>();
-            mapChannel.MapCellInfo.TimeUpdateVisibility = Environment.TickCount + 1000;
-            return true;
-        }*/
 
         public static void RemoveFromWorld(Client client)
         {
@@ -188,8 +177,8 @@ namespace Rasa.Managers
                 if (client.Disconected || client.Player == null)
                     continue;
 
-                var cellPosX = (uint)(client.Player.Actor.PosX / CellSize + CellBias);
-                var cellPosY = (uint)(client.Player.Actor.PosZ / CellSize + CellBias);
+                var cellPosX = (uint)(client.Player.Actor.Position.PosX / CellSize + CellBias);
+                var cellPosY = (uint)(client.Player.Actor.Position.PosY / CellSize + CellBias);
                 if (client.Player.Actor.CellLocation.CellPosX != cellPosX ||
                     client.Player.Actor.CellLocation.CellPosY != cellPosY)
                 {

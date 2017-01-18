@@ -6,17 +6,18 @@
     {
         public ulong UserId { get; set; }
         public int ClassId { get; set; }
-        public double PosX { get; set; }
-        public double PosY { get; set; }
-        public double PosZ { get; set; }
+        public Position Position { get; set; }
         public double Rotation { get; set; }
         public int MapContextId { get; set; }
 
         public void SetStartUpData()
         {
-            PosX = 894.9;
-            PosY = 347.1;
-            PosZ = 307.9;
+            Position = new Position
+            {
+                PosX = 894.9,
+                PosY = 347.1,
+                PosZ = 307.9
+            };
             Rotation = 1;
             MapContextId = 1220;
             ClassId = 1; // recruit, maybe we need to chage this and get data from game client

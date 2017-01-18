@@ -3,26 +3,24 @@
 namespace Rasa.Database.Tables.Character
 {
     using Structures;
+
     public static class CharacterTable
     {
         private static readonly MySqlCommand CreateCharacterCommand = new MySqlCommand("INSERT INTO characters" +
-                                                                                       "(name, familyName, accountId, slotId, gender, scale, raceId, classId, mapContextId, posX, posY, posZ, rotation) VALUES" +
-                                                                                       "(@Name, @FamilyName, @AccountId, @SlotId, @Gender, @Scale, @RaceId, @ClassId, @MapContextId, @PosX, @PosY, @PosZ, @Rotation)");
-        private static readonly MySqlCommand DeleteCharacterCommand = new MySqlCommand("DELETE characters, character_abilities, character_equipment, character_inventory, character_skills FROM characters " +
-                                                                                       "INNER JOIN character_abilities ON characters.id = character_abilities.id " +
-                                                                                       "INNER JOIN character_equipment ON characters.id = character_equipment.id " +
-                                                                                       "INNER JOIN character_inventory ON characters.id = character_inventory.id " +
-                                                                                       "INNER JOIN character_skills ON characters.id = character_skills.id " +
-                                                                                       "WHERE accountId = @AccountId AND slotId = @SlotId");
+                                                                                       "(name, familyName, accountId, slotId, gender, scale, raceId, classId, mapContextId, posX, posY, posZ, rotation, level, logos) VALUES" +
+                                                                                       "(@Name, @FamilyName, @AccountId, @SlotId, @Gender, @Scale, @RaceId, @ClassId, @MapContextId, @PosX, @PosY, @PosZ, @Rotation, @Level, @Logos)");
+        private static readonly MySqlCommand DeleteCharacterCommand = new MySqlCommand("DELETE FROM characters WHERE accountId = @AccountId AND slotId = @SlotId");
         private static readonly MySqlCommand GetCharacterCountCommand = new MySqlCommand("SELECT COUNT(*) FROM characters WHERE accountId = @AccountId;");
-        private static readonly MySqlCommand GetCharacterDataCommand = new MySqlCommand("SELECT id, name, familyName, accountId, slotId, gender, scale, raceId, classId, mapContextId, posX, posY, posZ, rotation, experience, level, body, mind, spirit, cloneCredits, " +
-                                                                                        "numLogins, totalTimePlayed, TIMESTAMPDIFF(MINUTE , timeSinceLastPlayed, NOW()) AS timeSinceLastPlayed, clanId, clanName, credits, prestige FROM characters WHERE accountId = @AccountId AND slotId = @SlotId");
-        private static readonly MySqlCommand GetCharacterFamilyCommand = new MySqlCommand("SELECT COUNT(*), familyName FROM characters WHERE accountId = @AccountId;");
+        private static readonly MySqlCommand GetCharacterDataCommand = new MySqlCommand("SELECT characterId, name, familyName, accountId, slotId, gender, scale, raceId, classId, mapContextId, posX, posY, posZ, rotation, experience, level, body, mind, spirit, cloneCredits, " +
+                                                                                        "numLogins, totalTimePlayed, TIMESTAMPDIFF(MINUTE , timeSinceLastPlayed, NOW()) AS timeSinceLastPlayed, clanId, clanName, credits, prestige, currentAbilityDrawer, logos FROM characters WHERE accountId = @AccountId AND slotId = @SlotId");
+        private static readonly MySqlCommand GetCharacterFamilyCommand = new MySqlCommand("SELECT COUNT(*), familyName FROM characters WHERE accountId = @AccountId");
+        private static readonly MySqlCommand GetCharacterSkillsCommand = new MySqlCommand("SELECT skills FROM characters WHERE characterId = @CharacterId");
         private static readonly MySqlCommand IsFamilyNameAvailableCommand = new MySqlCommand("SELECT familyName FROM characters WHERE familyName = @FamilyName");
         private static readonly MySqlCommand IsNameAvailableCommand = new MySqlCommand("SELECT name FROM characters WHERE name = @Name");
         private static readonly MySqlCommand IsSlotAvailableCommand = new MySqlCommand("SELECT slotId FROM characters WHERE accountId = @AccountId AND slotId = @SlotId");
-        private static readonly MySqlCommand UpdateCharacterLoginCommand = new MySqlCommand("UPDATE characters SET numLogins = numLogins + 1, totalTimePlayed = totalTimePlayed + @Value, timeSinceLastPlayed = NOW() WHERE accountId = @AccountId AND slotId = @SlotId");
-        private static readonly MySqlCommand UpdateCharacterPosCommand = new MySqlCommand("UPDATE characters SET posX=@PosX, posY=@PosY, posZ=@PosZ, rotation=@Rotation, mapContextId=@MapContextId WHERE accountId=@AccountId AND slotId=@SlotId");
+        private static readonly MySqlCommand UpdateCharacterLoginCommand = new MySqlCommand("UPDATE characters SET numLogins = numLogins + 1, totalTimePlayed = totalTimePlayed + @Value, timeSinceLastPlayed = NOW() WHERE characterId = @CharacterId");
+        private static readonly MySqlCommand UpdateCharacterPosCommand = new MySqlCommand("UPDATE characters SET posX = @PosX, posY = @PosY, posZ = @PosZ, rotation = @Rotation, mapContextId  =@MapContextId WHERE characterId = @CharacterId");
+        private static readonly MySqlCommand UpdateCharacterSkillsCommand = new MySqlCommand("UPDATE characters SET skills = @Skills WHERE characterId = @CharacterId");
 
         public static void Initialize()
         {
@@ -40,6 +38,8 @@ namespace Rasa.Database.Tables.Character
             CreateCharacterCommand.Parameters.Add("@PosY", MySqlDbType.Double);
             CreateCharacterCommand.Parameters.Add("@PosZ", MySqlDbType.Double);
             CreateCharacterCommand.Parameters.Add("@Rotation", MySqlDbType.Double);
+            CreateCharacterCommand.Parameters.Add("@Level", MySqlDbType.Int32);
+            CreateCharacterCommand.Parameters.Add("@Logos", MySqlDbType.VarChar);
             CreateCharacterCommand.Prepare();
 
             DeleteCharacterCommand.Connection = GameDatabaseAccess.CharConnection;
@@ -47,10 +47,22 @@ namespace Rasa.Database.Tables.Character
             DeleteCharacterCommand.Parameters.Add("@SlotId", MySqlDbType.Int32);
             DeleteCharacterCommand.Prepare();
 
+            GetCharacterCountCommand.Connection = GameDatabaseAccess.CharConnection;
+            GetCharacterCountCommand.Parameters.Add("@AccountId", MySqlDbType.UInt32);
+            GetCharacterCountCommand.Prepare();
+
             GetCharacterDataCommand.Connection = GameDatabaseAccess.CharConnection;
             GetCharacterDataCommand.Parameters.Add("@AccountId", MySqlDbType.UInt32);
             GetCharacterDataCommand.Parameters.Add("@SlotId", MySqlDbType.Int32);
             GetCharacterDataCommand.Prepare();
+
+            GetCharacterFamilyCommand.Connection = GameDatabaseAccess.CharConnection;
+            GetCharacterFamilyCommand.Parameters.Add("@AccountId", MySqlDbType.UInt32);
+            GetCharacterFamilyCommand.Prepare();
+
+            GetCharacterSkillsCommand.Connection = GameDatabaseAccess.CharConnection;
+            GetCharacterSkillsCommand.Parameters.Add("@CharacterId", MySqlDbType.UInt32);
+            GetCharacterSkillsCommand.Prepare();
 
             IsFamilyNameAvailableCommand.Connection = GameDatabaseAccess.CharConnection;
             IsFamilyNameAvailableCommand.Parameters.Add("@FamilyName", MySqlDbType.VarChar);
@@ -65,33 +77,27 @@ namespace Rasa.Database.Tables.Character
             IsSlotAvailableCommand.Parameters.Add("@SlotId", MySqlDbType.Int32);
             IsSlotAvailableCommand.Prepare();
 
-            GetCharacterCountCommand.Connection = GameDatabaseAccess.CharConnection;
-            GetCharacterCountCommand.Parameters.Add("@AccountId", MySqlDbType.UInt32);
-            GetCharacterCountCommand.Prepare();
-
-
-            GetCharacterFamilyCommand.Connection = GameDatabaseAccess.CharConnection;
-            GetCharacterFamilyCommand.Parameters.Add("@AccountId", MySqlDbType.UInt32);
-            GetCharacterFamilyCommand.Prepare();
-
             UpdateCharacterLoginCommand.Connection = GameDatabaseAccess.CharConnection;
-            UpdateCharacterLoginCommand.Parameters.Add("@AccountId", MySqlDbType.UInt32);
-            UpdateCharacterLoginCommand.Parameters.Add("@SlotId", MySqlDbType.Int32);
+            UpdateCharacterLoginCommand.Parameters.Add("@CharacterId", MySqlDbType.UInt32);
             UpdateCharacterLoginCommand.Parameters.Add("@Value", MySqlDbType.Int32);
             UpdateCharacterLoginCommand.Prepare();
 
             UpdateCharacterPosCommand.Connection = GameDatabaseAccess.CharConnection;
-            UpdateCharacterPosCommand.Parameters.Add("@AccountId", MySqlDbType.UInt32);
-            UpdateCharacterPosCommand.Parameters.Add("@SlotId", MySqlDbType.Int32);
+            UpdateCharacterPosCommand.Parameters.Add("@CharacterId", MySqlDbType.UInt32);
             UpdateCharacterPosCommand.Parameters.Add("@PosX", MySqlDbType.Double);
             UpdateCharacterPosCommand.Parameters.Add("@PosY", MySqlDbType.Double);
             UpdateCharacterPosCommand.Parameters.Add("@PosZ", MySqlDbType.Double);
             UpdateCharacterPosCommand.Parameters.Add("@Rotation", MySqlDbType.Double);
             UpdateCharacterPosCommand.Parameters.Add("@MapContextId", MySqlDbType.Int32);
             UpdateCharacterPosCommand.Prepare();
+
+            UpdateCharacterSkillsCommand.Connection = GameDatabaseAccess.CharConnection;
+            UpdateCharacterSkillsCommand.Parameters.Add("@CharacterId", MySqlDbType.UInt32);
+            UpdateCharacterSkillsCommand.Parameters.Add("@Skills", MySqlDbType.VarChar);
+            UpdateCharacterSkillsCommand.Prepare();
         }
         
-        public static int CreateCharacter(uint accountId, string name, string familyName, int slotId, int gender, double scale, int raceId)
+        public static uint CreateCharacter(uint accountId, string name, string familyName, int slotId, int gender, double scale, int raceId)
         {
             lock (GameDatabaseAccess.CharLock)
             {
@@ -109,8 +115,15 @@ namespace Rasa.Database.Tables.Character
                 CreateCharacterCommand.Parameters["@PosY"].Value = 347.1;
                 CreateCharacterCommand.Parameters["@PosZ"].Value = 307.9;
                 CreateCharacterCommand.Parameters["@Rotation"].Value = 1;
+                CreateCharacterCommand.Parameters["@Level"].Value = 1;
+                CreateCharacterCommand.Parameters["@Logos"].Value = "00000000000000000000000000000000000000000000000000000000000000000000000000000000"+
+                                                                    "00000000000000000000000000000000000000000000000000000000000000000000000000000000"+
+                                                                    "00000000000000000000000000000000000000000000000000000000000000000000000000000000"+
+                                                                    "00000000000000000000000000000000000000000000000000000000000000000000000000000000"+
+                                                                    "00000000000000000000000000000000000000000000000000000000000000000000000000000000"+
+                                                                    "0000000000";   // 410 logos
                 CreateCharacterCommand.ExecuteNonQuery();
-                return (int)CreateCharacterCommand.LastInsertedId;
+                return (uint)CreateCharacterCommand.LastInsertedId;
             }
         }
 
@@ -161,6 +174,18 @@ namespace Rasa.Database.Tables.Character
             }
         }
 
+        public static string GetCharacterSkills(uint characterId)
+        {
+            lock (GameDatabaseAccess.CharLock)
+            {
+                GetCharacterSkillsCommand.Parameters["@CharacterId"].Value = characterId;
+                using (var reader = GetCharacterSkillsCommand.ExecuteReader())
+                    if (reader.Read())
+                        return reader.GetString("skills");
+            }
+            return "";
+        }
+
         public static string IsFamilyNameAvailable(string familyName)
         {
             lock (GameDatabaseAccess.CharLock)
@@ -204,29 +229,37 @@ namespace Rasa.Database.Tables.Character
             return 0;
         }
 
-        public static void UpdateCharacterLogin(uint accountId, int slotId, int value)
+        public static void UpdateCharacterLogin(uint characterId, int value)
         {
             lock (GameDatabaseAccess.CharLock)
             {
-                UpdateCharacterLoginCommand.Parameters["@AccountId"].Value = accountId;
-                UpdateCharacterLoginCommand.Parameters["@SlotId"].Value = slotId;
+                UpdateCharacterLoginCommand.Parameters["@CharacterId"].Value = characterId;
                 UpdateCharacterLoginCommand.Parameters["@Value"].Value = value;
                 UpdateCharacterLoginCommand.ExecuteNonQuery();
             }
         }
 
-        public static void UpdateCharacterPos(uint accountId, int slotId, double posX, double posY, double posZ, double rotation, int mapContextId)
+        public static void UpdateCharacterPos(uint characterId, double posX, double posY, double posZ, double rotation, int mapContextId)
         {
             lock (GameDatabaseAccess.CharLock)
             {
-                UpdateCharacterPosCommand.Parameters["@AccountId"].Value = accountId;
-                UpdateCharacterPosCommand.Parameters["@SlotId"].Value = slotId;
+                UpdateCharacterPosCommand.Parameters["@CharacterId"].Value = characterId;
                 UpdateCharacterPosCommand.Parameters["@PosX"].Value = posX;
                 UpdateCharacterPosCommand.Parameters["@PosY"].Value = posY;
                 UpdateCharacterPosCommand.Parameters["@PosZ"].Value = posZ;                
                 UpdateCharacterPosCommand.Parameters["@Rotation"].Value = rotation;
                 UpdateCharacterPosCommand.Parameters["@MapContextId"].Value = mapContextId;
                 UpdateCharacterPosCommand.ExecuteNonQuery();
+            }
+        }
+
+        public static void UpdateCharacterSkills(uint characterId, string skills)
+        {
+            lock (GameDatabaseAccess.CharLock)
+            {
+                UpdateCharacterSkillsCommand.Parameters["@CharacterId"].Value = characterId;
+                UpdateCharacterSkillsCommand.Parameters["@Skills"].Value = skills;
+                UpdateCharacterSkillsCommand.ExecuteNonQuery();
             }
         }
     }

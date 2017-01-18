@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Text.RegularExpressions;
 
 namespace Rasa.Managers
@@ -83,21 +82,34 @@ namespace Rasa.Managers
                 SendCharacterCreateFailed(client, result);
                 return;
             }
-
             // insert character into DB
-            var id = CharacterTable.CreateCharacter(client.Entry.Id, packet.CharacterName, packet.FamilyName, packet.SlotNum, packet.Gender, packet.Scale, packet.RaceId);
+            var characterId = CharacterTable.CreateCharacter(client.Entry.Id, packet.CharacterName, packet.FamilyName, packet.SlotNum, packet.Gender, packet.Scale, packet.RaceId);
             // Give character basic items
-            CharacterInventoryTable.BasicInventory((uint)id);
-            // Give character basic equipment
-            //CharacterEquipmentTable.UpdateEquipment((uint)id, 10908, -2139062144, 7054, -2139062144, 10909, -2139062144, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, packet.AppearanceData[13].ClassId, packet.AppearanceData[13].Color.Hue, 7052, -2139062144, 7053, -2139062144, packet.AppearanceData[16].ClassId, packet.AppearanceData[16].Color.Hue, packet.AppearanceData[17].ClassId, packet.AppearanceData[17].Color.Hue, packet.AppearanceData[18].ClassId, packet.AppearanceData[18].Color.Hue, packet.AppearanceData[19].ClassId, packet.AppearanceData[19].Color.Hue, packet.AppearanceData[20].ClassId, packet.AppearanceData[20].Color.Hue);
-
-            CharacterEquipmentTable.BasicEquipment((uint) id, 10908, -2139062144, 7054, -2139062144, 10909, -2139062144, ItemTemplateItemClassTable.GetClassId(packet.AppearanceData[13].ClassId), packet.AppearanceData[13].Color.Hue, 7052, -2139062144, 7053, -2139062144, ItemTemplateItemClassTable.GetClassId(packet.AppearanceData[16].ClassId), packet.AppearanceData[16].Color.Hue, ItemTemplateItemClassTable.GetClassId(packet.AppearanceData[18].ClassId), packet.AppearanceData[18].Color.Hue, ItemTemplateItemClassTable.GetClassId(packet.AppearanceData[19].ClassId), packet.AppearanceData[19].Color.Hue);
+            ItemManager.CreateFromTemplateId(characterId, 50, 28, 100);
+            ItemManager.CreateFromTemplateId(characterId, 250, 17131, 1);
+            ItemManager.CreateFromTemplateId(characterId, 251, 13126, 1);
+            ItemManager.CreateFromTemplateId(characterId, 252, 13066, 1);
+            ItemManager.CreateFromTemplateId(characterId, 253, 13096, 1);
+            ItemManager.CreateFromTemplateId(characterId, 265, 13186, 1);
+            ItemManager.CreateFromTemplateId(characterId, 266, 13156, 1);
+            ItemManager.CreateFromTemplateId(characterId, 272, 17131, 1);
+            // Set character appearance
+            CharacterAppearanceTable.SetAppearance(characterId, 1, 10908, -2139062144);
+            CharacterAppearanceTable.SetAppearance(characterId, 2, 7054, -2139062144);
+            CharacterAppearanceTable.SetAppearance(characterId, 3, 10909, -2139062144);
+            CharacterAppearanceTable.SetAppearance(characterId, 14, StarterItemsTable.GetItemTemplateId(packet.AppearanceData[13].ClassId), packet.AppearanceData[13].Color.Hue);
+            CharacterAppearanceTable.SetAppearance(characterId, 15, 7052, -2139062144);
+            CharacterAppearanceTable.SetAppearance(characterId, 16, 7053, -2139062144);
+            CharacterAppearanceTable.SetAppearance(characterId, 17, StarterItemsTable.GetItemTemplateId(packet.AppearanceData[16].ClassId), packet.AppearanceData[16].Color.Hue);
+            CharacterAppearanceTable.SetAppearance(characterId, 19, StarterItemsTable.GetItemTemplateId(packet.AppearanceData[18].ClassId), packet.AppearanceData[18].Color.Hue);
+            CharacterAppearanceTable.SetAppearance(characterId, 20, StarterItemsTable.GetItemTemplateId(packet.AppearanceData[19].ClassId), packet.AppearanceData[19].Color.Hue);
             // Create default entry in CharacterAbilitiesTable
-            CharacterAbilitiesTable.BasicEntry((uint)id);
+            for (var i = 0; i < 25; i++)
+                CharacterAbilityDrawerTable.SetCharacterAbility(characterId, i, 0, 0);
             // Create default entry in CharacterSkillsTable
-            CharacterSkillsTable.BasicEntry((uint)id);
+            for (var i = 0; i < 73; i++)
+                CharacterSkillsTable.SetCharacterSkill(characterId, PlayerManager.SkillIById[i], PlayerManager.SkillIdx2AbilityID[i], 0);
 
-            
             SendCharacterCreateSuccess(client, packet.SlotNum, packet.FamilyName);
             UpdateCharacterSelection(client, packet.SlotNum);
         }
@@ -126,9 +138,12 @@ namespace Rasa.Managers
                 MapContextId = data.MapContextId,
                 MapInstanceId = 0,                  // ToDo MapInstanceId / MapVersion
                 MapVersion = 1556,
-                PosX = data.PosX,
-                PosY = data.PosY,
-                PosZ = data.PosZ,
+                Position = new Position
+                {
+                    PosX = data.PosX,
+                    PosY = data.PosY,
+                    PosZ = data.PosZ
+                },
                 Rotation = data.Rotation
             };
 
@@ -140,10 +155,20 @@ namespace Rasa.Managers
         private void SendCharacterInfo(Client client, int slotNum)
         {
             var data = CharacterTable.GetCharacterData(client.Entry.Id, slotNum + 1);
-            
             if (data != null)
             {
-                var equipment = CharacterEquipmentTable.GetEquipment(data.Id);
+                var appearanceData = new Dictionary<int, AppearanceData>();
+                for (var i = 1; i < 22; i++)
+                {
+                    var appearance = CharacterAppearanceTable.GetAppearance(data.CharacterId, i);
+                    if (appearance.Count == 0)
+                    {
+                        appearanceData.Add(i, new AppearanceData { SlotId = i, ClassId = 0, Color = new Color(0) });
+                        continue;
+                    }
+                    appearanceData.Add(i, new AppearanceData { SlotId = i, ClassId = appearance[0], Color = new Color(appearance[1]) });
+                }
+
                 var packet = new CharacterInfoPacket
                 {
                     SlotId = data.SlotId,
@@ -166,30 +191,7 @@ namespace Rasa.Managers
                         CloneCredits = data.CloneCredits,
                         RaceId = data.RaceId
                     },
-                    AppearanceData = new Dictionary<int, AppearanceData>
-                    {
-                        { 1, new AppearanceData{ SlotId = 1, ClassId = equipment.Helmet, Color = new Color(equipment.HelmetHue) } },
-                        { 2, new AppearanceData{ SlotId = 2, ClassId = equipment.Shoes, Color = new Color(equipment.ShoesHue) } },
-                        { 3, new AppearanceData{ SlotId = 3, ClassId = equipment.Gloves, Color = new Color(equipment.GlovesHue) } },
-                        { 4, new AppearanceData{ SlotId = 4, ClassId = equipment.Slot4,  Color = new Color(equipment.Slot4Hue) } },
-                        { 5, new AppearanceData{ SlotId = 5, ClassId = equipment.Slot5, Color = new Color(equipment.Slot5Hue) } },
-                        { 6, new AppearanceData{ SlotId = 6, ClassId = equipment.Slot6, Color = new Color(equipment.Slot6Hue) } },
-                        { 7, new AppearanceData{ SlotId = 7, ClassId = equipment.Slot7, Color = new Color(equipment.Slot7Hue) } },
-                        { 8, new AppearanceData{ SlotId = 8, ClassId = equipment.Slot8, Color = new Color(equipment.Slot8Hue) } },
-                        { 9, new AppearanceData{ SlotId = 9, ClassId = equipment.Slot9, Color = new Color(equipment.Slot9Hue) } },
-                        { 10, new AppearanceData{ SlotId = 10, ClassId = equipment.Slot10, Color = new Color(equipment.Slot10Hue) } },
-                        { 11, new AppearanceData{ SlotId = 11, ClassId = equipment.Slot11, Color = new Color(equipment.Slot11Hue) } },
-                        { 12, new AppearanceData{ SlotId = 12, ClassId = equipment.Slot12, Color = new Color(equipment.Slot12Hue) } },
-                        { 13, new AppearanceData{ SlotId = 13, ClassId = equipment.Weapon, Color = new Color(equipment.WeaponHue) } },
-                        { 14, new AppearanceData{ SlotId = 14, ClassId = equipment.Hair, Color = new Color(equipment.HairHue) } },
-                        { 15, new AppearanceData{ SlotId = 15, ClassId = equipment.Torso, Color = new Color(equipment.TorsoHue) } },
-                        { 16, new AppearanceData{ SlotId = 16, ClassId = equipment.Legs, Color = new Color(equipment.LegsHue) } },
-                        { 17, new AppearanceData{ SlotId = 17, ClassId = equipment.Face, Color = new Color(equipment.FaceHue) } },
-                        { 18, new AppearanceData{ SlotId = 18, ClassId = equipment.Wing, Color = new Color(equipment.Wing) } },
-                        { 19, new AppearanceData{ SlotId = 19, ClassId = equipment.EyeWeare, Color = new Color(equipment.EyeWeareHue) } },
-                        { 20, new AppearanceData{ SlotId = 20, ClassId = equipment.Beard, Color = new Color(equipment.BeardHue) } },
-                        { 21, new AppearanceData{ SlotId = 21, ClassId = equipment.Mask, Color = new Color(equipment.MaskHue) } }
-                    },
+                    AppearanceData = appearanceData,                    
                     UserName = data.FamilyName,
                     GameContextId = data.MapContextId,
                     LoginData = new LoginDataTupple
@@ -273,12 +275,12 @@ namespace Rasa.Managers
                 case 4: // update experience
                     break;
                 case 5: // update possition
-                    CharacterTable.UpdateCharacterPos(player.AccountId, player.SlotId, player.Actor.PosX, player.Actor.PosY, player.Actor.PosZ, player.Actor.Rotation, player.Actor.MapContextId);
+                    CharacterTable.UpdateCharacterPos(player.CharacterId, player.Actor.Position.PosX, player.Actor.Position.PosY, player.Actor.Position.PosZ, player.Actor.Rotation, player.Actor.MapContextId);
                     break;
                 case 6: // update stats
                     break;
                 case 7: // update login
-                    CharacterTable.UpdateCharacterLogin(player.AccountId, player.SlotId, player.LoginTime); // ToDO LoginTime need to be changed with proper value
+                    CharacterTable.UpdateCharacterLogin(player.CharacterId, player.LoginTime); // ToDO LoginTime need to be changed with proper value
                     break;
                 case 8: // update logos
                     break;

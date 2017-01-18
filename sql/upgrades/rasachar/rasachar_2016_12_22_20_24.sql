@@ -1,1 +1,0 @@
-ALTER TABLE characters ADD credits int(11) NOT NULL DEFAULT 0, ADD prestige int(11) NOT NULL DEFAULT 0;

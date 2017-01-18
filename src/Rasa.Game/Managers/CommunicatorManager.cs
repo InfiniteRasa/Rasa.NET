@@ -145,24 +145,17 @@ namespace Rasa.Managers
                     //ParseGmCommand(cm, textMsg))
                     return;
                 }
-            }
+            } 
             if (client.MapClient.Player == null)
                 return;
             // go through all players and send chat message ( can ignore sync because playerList will not change )
-            var senderX = client.MapClient.Player.Actor.PosX;
-            var senderY = client.MapClient.Player.Actor.PosY;
-            var senderZ = client.MapClient.Player.Actor.PosZ;
             var mapChannel = client.MapClient.MapChannel;
             for (var i = 0; i < mapChannel.PlayerCount; i++)
             {
                 var tempClient = mapChannel.PlayerList[i];
                 if (tempClient.Player != null)
                 {
-                    // calulate distance
-                    var distX = tempClient.Player.Actor.PosX;
-                    var distY = tempClient.Player.Actor.PosY;
-                    var distZ = tempClient.Player.Actor.PosZ;
-                    var distance = Math.Sqrt(Math.Pow(distX - senderX, 2) + Math.Pow(distY -senderY, 2) + Math.Pow(distZ - senderZ, 2));
+                    var distance = Position.Distance(client.MapClient.Player.Actor.Position, tempClient.Player.Actor.Position);
                     if (distance <= 70.0) // 70 is about the range the client is visible
                     client.SendPacket(8, new RadialChatPacket
                         {

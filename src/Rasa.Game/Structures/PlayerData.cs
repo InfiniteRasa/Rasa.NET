@@ -32,9 +32,11 @@ namespace Rasa.Structures
         public string ClanName { get; set; }
         public int Credits { get; set; }
         public int Prestige { get; set; }
-        public int[] Skills = new int[73];
-        public int[] AbilityDrawer = new int[5 * 5];
-        public int[] AbilityLvDrawer = new int[5 * 5];
+        public int SpentBody { get; set; }
+        public int SpentMind { get; set; }
+        public int SpentSpirit { get; set; }
+        public Dictionary<int, SkillsData> Skills = new Dictionary<int, SkillsData>();
+        public Dictionary<int, AbilityDrawerData> Abilities = new Dictionary<int, AbilityDrawerData>();
         public int CurrentAbilityDrawer { get; set; }
         public int MissionStateCount { get; set; }
         //public CharacterMissionData MissionStateData { get; set; }

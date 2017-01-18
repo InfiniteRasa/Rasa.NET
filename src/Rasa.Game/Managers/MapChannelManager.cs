@@ -49,7 +49,7 @@ namespace Rasa.Managers
         public void CreatePlayerCharacter(MapChannel mapChannel, MapChannelClient mapClient)
         {
             mapClient.MapChannel = mapChannel;
-            mapClient.ClientEntityId = EntityManager.GetFreeEntityIdForPlayer();
+            mapClient.ClientEntityId = mapClient.Player.Actor.EntityId;
             AddNewPlayer(mapChannel, mapClient);
             CellManager.AddToWorld(mapClient);
             PlayerManager.AssignPlayer(mapChannel, mapClient);
@@ -61,6 +61,29 @@ namespace Rasa.Managers
             if (client.MapClient.LogoutActive == false)
                 return;
             client.MapClient.RemoveFromMap = true;
+        }
+
+        public static Dictionary<int, AbilityDrawerData> GetPlayerAbilities(uint characterId)
+        {
+            var abilities = new Dictionary<int, AbilityDrawerData>();
+            var abilitiesData = CharacterAbilityDrawerTable.GetCharacterAbilities(characterId);
+            for (var i = 0; i < 25; i++)
+            {
+                if (abilitiesData[i * 3 + 1] > 0)   // don't insert if there is no ablility in slot
+                    abilities.Add(abilitiesData[i * 3], new AbilityDrawerData { AbilitySlotId = abilitiesData[i * 3],  AbilityId = abilitiesData[i * 3 + 1], AbilityLevel = abilitiesData[i * 3 + 2] });
+            }
+            return abilities;
+        }
+
+        public static Dictionary<int, SkillsData> GetPlayerSkills(uint characterId)
+        {
+            var skills = new Dictionary<int, SkillsData>();
+            var skillsData = CharacterSkillsTable.GetCharacterSkills(characterId);
+            for (var i = 0; i < 73; i++)
+            {
+                skills.Add(skillsData[i * 3], new SkillsData { SkillId = skillsData[i*3], AbilityId = skillsData[i*3+1], SkillLevel = skillsData[i*3+2] });
+            }
+            return skills;
         }
 
         public static void MapChannelInit()
@@ -206,7 +229,6 @@ namespace Rasa.Managers
                         {
                             if (player.RemoveFromMap == true)
                             {
-
                                 CommunicatorManager.PlayerExitMap(player.Client);
                                 RemovePlayer(player.Client);
                             }
@@ -221,52 +243,39 @@ namespace Rasa.Managers
         {
             var mapClient = new MapChannelClient();
             var data = CharacterTable.GetCharacterData(client.Entry.Id, client.LastCharPlayed);
-            var equipment = CharacterEquipmentTable.GetEquipment(data.Id);
+            
+            var appearanceData = new Dictionary<int, AppearanceData>();
+            for (var i = 1; i < 22; i++)
+            {
+                var appearance = CharacterAppearanceTable.GetAppearance(data.CharacterId, i);
+                if (appearance.Count == 0)
+                {
+                    appearanceData.Add(i, new AppearanceData { SlotId = i, ClassId = 0, Color = new Color(0) });
+                    continue;
+                }
+                appearanceData.Add(i, new AppearanceData { SlotId = i, ClassId = appearance[0], Color = new Color(appearance[1]) });
+            }
             var player = new PlayerData
             {
                 Actor = new Actor
                 {
-                    EntityId = EntityManager.GetFreeEntityIdForPlayer(),
+                    EntityId = data.CharacterId,
                     EntityClassId = data.Gender == 0 ? (uint)692 : 691,
                     Name = data.Name,
                     FamilyName = data.FamilyName,
-                    PosX = data.PosX,
-                    PosY = data.PosY,
-                    PosZ = data.PosZ,
+                    Position = new Position {
+                        PosX = data.PosX,
+                        PosY = data.PosY,
+                        PosZ = data.PosZ
+                    },
                     Rotation = data.Rotation,
                     MapContextId = data.MapContextId,
                     IsRunning = true,
                     InCombatMode = false,
-                    Stats = new ActorStats
-                    {
-                        Level = data.Level
-                    },
+                    Stats = new ActorStats(),
                 },
-                AppearanceData = new Dictionary<int, AppearanceData>
-                    {
-                        { 1, new AppearanceData{ SlotId = 1, ClassId = equipment.Helmet, Color = new Color(equipment.HelmetHue) } },
-                        { 2, new AppearanceData{ SlotId = 2, ClassId = equipment.Shoes, Color = new Color(equipment.ShoesHue) } },
-                        { 3, new AppearanceData{ SlotId = 3, ClassId = equipment.Gloves, Color = new Color(equipment.GlovesHue) } },
-                        { 4, new AppearanceData{ SlotId = 4, ClassId = equipment.Slot4,  Color = new Color(equipment.Slot4Hue) } },
-                        { 5, new AppearanceData{ SlotId = 5, ClassId = equipment.Slot5, Color = new Color(equipment.Slot5Hue) } },
-                        { 6, new AppearanceData{ SlotId = 6, ClassId = equipment.Slot6, Color = new Color(equipment.Slot6Hue) } },
-                        { 7, new AppearanceData{ SlotId = 7, ClassId = equipment.Slot7, Color = new Color(equipment.Slot7Hue) } },
-                        { 8, new AppearanceData{ SlotId = 8, ClassId = equipment.Slot8, Color = new Color(equipment.Slot8Hue) } },
-                        { 9, new AppearanceData{ SlotId = 9, ClassId = equipment.Slot9, Color = new Color(equipment.Slot9Hue) } },
-                        { 10, new AppearanceData{ SlotId = 10, ClassId = equipment.Slot10, Color = new Color(equipment.Slot10Hue) } },
-                        { 11, new AppearanceData{ SlotId = 11, ClassId = equipment.Slot11, Color = new Color(equipment.Slot11Hue) } },
-                        { 12, new AppearanceData{ SlotId = 12, ClassId = equipment.Slot12, Color = new Color(equipment.Slot12Hue) } },
-                        { 13, new AppearanceData{ SlotId = 13, ClassId = equipment.Weapon, Color = new Color(equipment.WeaponHue) } },
-                        { 14, new AppearanceData{ SlotId = 14, ClassId = equipment.Hair, Color = new Color(equipment.HairHue) } },
-                        { 15, new AppearanceData{ SlotId = 15, ClassId = equipment.Torso, Color = new Color(equipment.TorsoHue) } },
-                        { 16, new AppearanceData{ SlotId = 16, ClassId = equipment.Legs, Color = new Color(equipment.LegsHue) } },
-                        { 17, new AppearanceData{ SlotId = 17, ClassId = equipment.Face, Color = new Color(equipment.FaceHue) } },
-                        { 18, new AppearanceData{ SlotId = 18, ClassId = equipment.Wing, Color = new Color(equipment.Wing) } },
-                        { 19, new AppearanceData{ SlotId = 19, ClassId = equipment.EyeWeare, Color = new Color(equipment.EyeWeareHue) } },
-                        { 20, new AppearanceData{ SlotId = 20, ClassId = equipment.Beard, Color = new Color(equipment.BeardHue) } },
-                        { 21, new AppearanceData{ SlotId = 21, ClassId = equipment.Mask, Color = new Color(equipment.MaskHue) } }
-                    },
-                CharacterId = data.Id,
+                AppearanceData = appearanceData,
+                CharacterId = data.CharacterId,
                 AccountId = data.AccountId,
                 SlotId = data.SlotId,
                 Gender = data.Gender,
@@ -274,21 +283,21 @@ namespace Rasa.Managers
                 RaceId = data.RaceId,
                 ClassId = data.ClassId,
                 Experience = data.Experience,
+                Level = data.Level,
                 Body = data.Body,
                 Mind = data.Mind,
                 Spirit = data.Spirit,
                 CloneCredits = data.CloneCredits,
                 NumLogins = data.NumLogins + 1,
-                TotalTimePlayed = data.TotalTimePlayed, // 21
+                TotalTimePlayed = data.TotalTimePlayed,
                 TimeSinceLastPlayed = data.TimeSinceLastPlayed,
                 ClanId = data.ClanId,
                 ClanName = data.ClanName,
-                Credits = data.Credits,            // ToDo
+                Credits = data.Credits,
                 Prestige = data.Prestige,
-                Skills = new[] { 0 },
-                AbilityDrawer = new[] { 0 },
-                AbilityLvDrawer = new[] { 0 },
-                CurrentAbilityDrawer = 0,
+                Skills = GetPlayerSkills(data.CharacterId),
+                Abilities = GetPlayerAbilities(data.CharacterId),
+                CurrentAbilityDrawer = data.CurrentAbilityDrawer,
                 MissionStateCount = 0,
                 // MissionStateData = new CharacterMissionData(),
                 LoginTime = 0,

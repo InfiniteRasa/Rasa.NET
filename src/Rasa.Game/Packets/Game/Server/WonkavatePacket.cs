@@ -2,6 +2,7 @@
 {
     using Data;
     using Memory;
+    using Structures;
     public class WonkavatePacket : PythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.Wonkavate;
@@ -9,9 +10,7 @@
         public int MapContextId { get; set; }
         public int MapInstanceId { get; set; }
         public int MapVersion { get; set; }
-        public double PosX { get; set; }
-        public double PosY { get; set; }
-        public double PosZ { get; set; }
+        public Position Position { get; set; }
         public double Rotation { get; set; }
 
         public override void Read(PythonReader pr)
@@ -25,9 +24,9 @@
             pw.WriteInt(MapInstanceId);
             pw.WriteInt(MapVersion);
             pw.WriteTuple(3);
-            pw.WriteDouble(PosX);
-            pw.WriteDouble(PosZ);
-            pw.WriteDouble(PosY);
+            pw.WriteDouble(Position.PosX);
+            pw.WriteDouble(Position.PosZ);
+            pw.WriteDouble(Position.PosY);
             pw.WriteDouble(Rotation);
         }
     }

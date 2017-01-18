@@ -2,37 +2,105 @@
 {
     public class ActorStats
     {
-        public int Level { get; set; }
-        // regen rate
-        public int RegenRateCurrentMax { get; set; }
-        public int RegenRateNormalMax { get; set; }     // regen rate without bonus
-        public double RegenHealthPerSecond { get; set; } // health regen per second
-        /* health
-        sint32 healthCurrent;
-        sint32 healthCurrentMax;
-        sint32 healthNormalMax;
-        // body
-        sint32 bodyCurrent;
-        sint32 bodyCurrentMax;
-        sint32 bodyNormalMax;
-        // mind
-        sint32 mindCurrent;
-        sint32 mindCurrentMax;
-        sint32 mindNormalMax;
-        // spirit
-        sint32 spiritCurrent;
-        sint32 spiritCurrentMax;
-        sint32 spiritNormalMax;
-        // chi/power
-        sint32 chiCurrent;
-        sint32 chiCurrentMax;
-        sint32 chiNormalMax;
-        // armor 
-        sint32 armorCurrent;
-        sint32 armorCurrentMax;
-        sint32 armorNormalMax;
-        // armor regen
-        sint32 armorRegenCurrent;
-        */// todo: Regeneration rates
+        public Body Body { get; set; } = new Body();
+        public Mind Mind { get; set; } = new Mind();
+        public Spirit Spirit { get; set; } = new Spirit();
+        public Health Health { get; set; } = new Health();
+        public Chi Chi { get; set; } = new Chi ();
+        public Power Power { get; set; } = new Power();
+        public Aware Aware { get; set; } = new Aware();
+        public Armor Armor { get; set; } = new Armor();
+        public Speed Speed { get; set; } = new Speed();
+        public Regen Regen { get; set; } = new Regen();
+    }
+    // BODY 1
+    public class Body
+    {
+        public int NormalMax { get; set; }
+        public int CurrentMax { get; set; }
+        public int Current { get; set; }
+        public int RefreshAmount { get; set; }
+        public int RefreshPeriod { get; set; }
+    }
+    // MIND 2
+    public class Mind
+    {
+        public int NormalMax { get; set; }
+        public int CurrentMax { get; set; }
+        public int Current { get; set; }
+        public int RefreshAmount { get; set; }
+        public int RefreshPeriod { get; set; }
+    }
+    // SPIRIT 3
+    public class Spirit
+    {
+        public int NormalMax { get; set; }
+        public int CurrentMax { get; set; }
+        public int Current { get; set; }
+        public int RefreshAmount { get; set; }
+        public int RefreshPeriod { get; set; }
+    }
+    // HEALTH 4
+    public class Health
+    {
+        public int NormalMax { get; set; }
+        public int CurrentMax { get; set; }
+        public int Current { get; set; }
+        public int RefreshAmount { get; set; }
+        public int RefreshPeriod { get; set; }
+    }
+    // CHI 5
+    public class Chi
+    {
+        public int NormalMax { get; set; }
+        public int CurrentMax { get; set; }
+        public int Current { get; set; }
+        public int RefreshAmount { get; set; }
+        public int RefreshPeriod { get; set; }
+    }
+    // POWER 6
+    public class Power
+    {
+        public int NormalMax { get; set; }
+        public int CurrentMax { get; set; }
+        public int Current { get; set; }
+        public int RefreshAmount { get; set; }
+        public int RefreshPeriod { get; set; }
+    }
+    // AWERE 7
+    public class Aware
+    {
+        public int NormalMax { get; set; }
+        public int CurrentMax { get; set; }
+        public int Current { get; set; }
+        public int RefreshAmount { get; set; }
+        public int RefreshPeriod { get; set; }
+    }
+    // ARMOR 8
+    public class Armor
+    {
+        public int NormalMax { get; set; }
+        public int CurrentMax { get; set; }
+        public int Current { get; set; }
+        public int RefreshAmount { get; set; }
+        public int RefreshPeriod { get; set; }
+    }
+    // SPEED 9
+    public class Speed
+    {
+        public int NormalMax { get; set; }
+        public int CurrentMax { get; set; }
+        public int Current { get; set; }
+        public int RefreshAmount { get; set; }
+        public int RefreshPeriod { get; set; }
+    }
+    // REGEN 10
+    public class Regen
+    {
+        public int NormalMax { get; set; }
+        public int CurrentMax { get; set; }
+        public int Current { get; set; }
+        public int RefreshAmount { get; set; }
+        public int RefreshPeriod { get; set; }
     }
 }

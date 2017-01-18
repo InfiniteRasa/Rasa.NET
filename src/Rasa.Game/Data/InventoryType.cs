@@ -2,10 +2,10 @@
 {
     public enum InventoryType
     {
-        Personal			    = 1,
-        HomeInventory		    = 2, // (lockbox)
-        HiddenInventory		    = 3,
-        TradeInventory		    = 4,
+        Personal                = 1,
+        HomeInventory           = 2, // (lockbox)
+        HiddenInventory         = 3,
+        TradeInventory          = 4,
         PlayerVendorInventory   = 5,
         GameContextInventory    = 6,
         OverflowInventory       = 7,
@@ -47,9 +47,14 @@
     public enum InventoryOffset
     {
         Player              = 0,
-        CategoryConsumable  = (50),
+        CategoryConsumable  = 50,
         Equiped             = 250,
-        WeaponDrawer        = 266
+        WeaponDrawer        = 272
     }
     
+    public enum ItemTypes
+    {
+        Weapon  = 1,
+        Armor   = 2
+    }
 }
