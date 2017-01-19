@@ -243,5 +243,10 @@ namespace Rasa.Managers
             // SetStackCount
             mapClient.Player.Client.SendPacket(item.EntityId, new SetStackCountPacket { StackSize = item.Stacksize });
         }
+
+        public static void SendItemDestruction(MapChannelClient mapClient, Item item)
+        {
+            mapClient.Player.Client.SendPacket(5, new DestroyPhysicalEntityPacket {EntityId = item.EntityId});
+        }
     }
 }

@@ -15,7 +15,7 @@
         // action data
         //public ActorCurrentAction CurrentAction { get; set; } = new ActorCurrentAction();
         public ActorStats Stats = new ActorStats();
-        //public GameEffect ActiveEffects { get; set; }
+        public GameEffect ActiveEffects { get; set; }
         public MapCellLocation CellLocation { get; set; } = new MapCellLocation();
         // sometimes we only have access to the actor, the owner variable allows us to access the client anyway (only if actor is a player manifestation)
         //public MapChannelClient Owner { get; set; }

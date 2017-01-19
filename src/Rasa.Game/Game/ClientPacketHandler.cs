@@ -64,6 +64,18 @@ namespace Rasa.Game
             PlayerManager.AutoFireKeepAlive(Client, packet.KeepAliveDelay);
         }
 
+        [PacketHandler(GameOpcode.CancelLogoutRequest)]
+        private void CancelLogoutRequest(CancelLogoutRequestPacket packet)
+        {
+            Console.WriteLine("ToDo 'CancelLogoutRequestPacket'");  // gues nothing to do here
+        }
+
+        [PacketHandler(GameOpcode.ChangeShowHelmet)]
+        private void ChangeShowHelmet(ChangeShowHelmetPacket packet)
+        {
+           // ToDo
+        }
+
         [PacketHandler(GameOpcode.CharacterLogout)]
         private void CharacterLogout(CharacterLogoutPacket packet)
         {
@@ -80,6 +92,18 @@ namespace Rasa.Game
         private void MapLoaded(MapLoadedPacket packet)
         {
             MapChannelManager.Instance.MapLoaded(Client);
+        }
+
+        [PacketHandler(GameOpcode.PersonalInventory_DestroyItem)]
+        private void PersonalInventory_DestroyItem(PersonalInventory_DestroyItemPacket packet)
+        {
+            InventoryManager.PersonalInventory_DestroyItem(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.PersonalInventory_MoveItem)]
+        private void PersonalInventory_MoveItem(PersonalInventory_MoveItemPacket packet)
+        {
+            InventoryManager.PersonalInventory_MoveItem(Client, packet);
         }
 
         [PacketHandler(GameOpcode.Ping)]
@@ -106,6 +130,12 @@ namespace Rasa.Game
             PlayerManager.RequestArmWeapon(Client, packet.RequestedWeaponDrawerSlot);
         }
 
+        [PacketHandler(GameOpcode.RequestEquipArmor)]
+        private void RequestEquipArmor(RequestEquipArmorPacket packet)
+        {
+            InventoryManager.RequestEquipArmor(Client, packet);
+        }
+
         [PacketHandler(GameOpcode.RequestEquipWeapon)]
         private void RequestEquipWeapon(RequestEquipWeaponPacket packet)
         {
@@ -116,6 +146,12 @@ namespace Rasa.Game
         private void RequestLogout(RequestLogoutPacket packet)
         {
             MapChannelManager.Instance.RequestLogout(Client);
+        }
+
+        [PacketHandler(GameOpcode.RequestPerformAbility)]
+        private void RequestPerformAbility(RequestPerformAbilityPacket packet)
+        {
+            PlayerManager.RequestPerformAbility(Client, packet);
         }
 
         [PacketHandler(GameOpcode.RequestSwapAbilitySlots)]
@@ -146,6 +182,12 @@ namespace Rasa.Game
         private void SetAutoLootThreshold(SetAutoLootThresholdPacket packet)
         {
             Console.WriteLine("ToDo 'SetAutoLootThreshold'");
+        }
+
+        [PacketHandler(GameOpcode.SetDesiredCrouchState)]
+        private void SetDesiredCrouchState(SetDesiredCrouchStatePacket packet)
+        {
+            PlayerManager.SetDesiredCrouchState(Client, packet.DesiredStateId);
         }
 
         [PacketHandler(GameOpcode.StartAutoFire)]

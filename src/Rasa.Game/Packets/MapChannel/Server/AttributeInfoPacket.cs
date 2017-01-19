@@ -79,9 +79,9 @@
             // Armor
             pw.WriteInt(8);
             pw.WriteTuple(5);
-            pw.WriteInt(ActorStats.Armor.Current);
-            pw.WriteInt(ActorStats.Armor.CurrentMax);
-            pw.WriteInt(ActorStats.Armor.NormalMax);
+            pw.WriteDouble(ActorStats.Armor.Current);
+            pw.WriteDouble(ActorStats.Armor.CurrentMax);
+            pw.WriteDouble(ActorStats.Armor.NormalMax);
             pw.WriteInt(ActorStats.Armor.RefreshAmount);
             pw.WriteInt(ActorStats.Armor.RefreshPeriod);
             // Speed

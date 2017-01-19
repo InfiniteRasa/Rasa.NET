@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace Rasa.Managers
 {
@@ -128,7 +127,7 @@ namespace Rasa.Managers
         public static void Recv_RadialChat(Client client, string textMsg)
         {
             // check if it's gm command
-            if (textMsg[0] == '?')
+            if (textMsg[0] == '.')
             {
                 // it's GM command, check if client is GM
                 client.SendPacket(8, new RadialChatPacket   // this msg is just for fun, implement later

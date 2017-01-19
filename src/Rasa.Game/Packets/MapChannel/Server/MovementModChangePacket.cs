@@ -3,11 +3,11 @@
     using Data;
     using Memory;
 
-    public class DestroyPhysicalEntityPacket : PythonPacket
+    public class MovementModChangePacket : PythonPacket
     {
-        public override GameOpcode Opcode { get; } = GameOpcode.DestroyPhysicalEntity;
+        public override GameOpcode Opcode { get; } = GameOpcode.MovementModChange;
 
-        public uint EntityId { get; set; }
+        public double MovementMod { get; set; }
 
         public override void Read(PythonReader pr)
         {
@@ -16,7 +16,7 @@
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(1);
-            pw.WriteInt((int)EntityId);
+            pw.WriteDouble(MovementMod);
         }
     }
 }

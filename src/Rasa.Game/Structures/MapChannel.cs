@@ -18,7 +18,9 @@ namespace Rasa.Structures
         public int PlayerCount { get; set; }
         public int PlayerLimit { get; set; }
         public List<MapChannelClient> PlayerList { get; set; }
-        //
+        // cell
         public MapCellInfo MapCellInfo = new MapCellInfo();
+        // effect
+        public int CurrentEffectId { get; set; } // increases with every spawned game effect
     }
 }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 
 namespace Rasa.Managers
 {
+    using Data;
     using Database.Tables.Character;
     using Database.Tables.World;
     using Game;
@@ -94,7 +95,7 @@ namespace Rasa.Managers
             {
                 if (mapChannel.PlayerList[i].ClientEntityId == client.ClientEntityId)
                     continue;
-                client.Client.SendPacket(5, new DestroyPhysicalEntityPacket{ EntityID = client.Player.Actor.EntityId });
+                client.Client.SendPacket(5, new DestroyPhysicalEntityPacket{ EntityId = client.Player.Actor.EntityId });
 
             }
         }
@@ -107,7 +108,7 @@ namespace Rasa.Managers
                     continue;
                 if (mapChannel.PlayerList[i].ClientEntityId == client.ClientEntityId)
                     continue;
-                client.Client.SendPacket(5, new DestroyPhysicalEntityPacket { EntityID = mapChannel.PlayerList[i].Player.Actor.EntityId });
+                client.Client.SendPacket(5, new DestroyPhysicalEntityPacket { EntityId = mapChannel.PlayerList[i].Player.Actor.EntityId });
             }
 
         }
@@ -121,13 +122,13 @@ namespace Rasa.Managers
 
             for (var i = 0; i < playerCount; i++)
             {
-                client.Client.SendPacket(client.Player.Actor.EntityId, new AttributeInfoPacket { ActorStats = client.Player.Actor.Stats } );  // ToDo
+                client.Client.SendPacket(client.Player.Actor.EntityId, new AttributeInfoPacket { ActorStats = client.Player.Actor.Stats } );
             }
             
             // PreloadData
             for (var i = 0; i < playerCount; i++)
             {
-                client.Client.SendPacket(client.Player.Actor.EntityId, new PreloadDataPacket());
+                client.Client.SendPacket(client.Player.Actor.EntityId, new PreloadDataPacket());    // ToDo
             }
             // Recv_AppearanceData
             for (var i = 0; i < playerCount; i++)
@@ -170,7 +171,7 @@ namespace Rasa.Managers
                 client.Client.SendPacket(client.Player.Actor.EntityId, new LogosStoneTabulaPacket());       // ToDo
             }
             // Recv_Abilities (id: 10, desc: must only be sent for the local manifestation)
-            // We dont need to send ability data to every client, but only the owner (which is done in manifestation_assignPlayer)
+            // We dont need to send ability data to every client, but only the owner (which is done in PlayerManager.AssignPlayer)
             // Skills -> Everything that the player can learn via the skills menu (Sprint, Firearms...) Abilities -> Every skill gained by logos?
             // Recv_WorldLocationDescriptor
             for (var i = 0; i < playerCount; i++)
@@ -199,6 +200,7 @@ namespace Rasa.Managers
             {
                 client.Client.SendPacket(client.Player.Actor.EntityId, new PlayerFlagsPacket());
             }
+            // ToDo
             // send inital movement packet
             //netCompressedMovement_t netMovement = { 0 };
             //netMovement.entityId = client->player->actor->entityId;
@@ -256,6 +258,7 @@ namespace Rasa.Managers
                 });
                 // set target category
                 mapClient.Client.SendPacket(tempClient.Player.Actor.EntityId, new TargetCategoryPacket{ TargetCategory = 0 });  // 0 frendly
+                // ToDo
                 // send inital movement packet
                 //netCompressedMovement_t netMovement = { 0 };
                 //netMovement.entityId = tempClient->player->actor->entityId;
@@ -377,6 +380,33 @@ namespace Rasa.Managers
             client.SendPacket(tempItem.EntityId, new WeaponAmmoInfoPacket{ AmmoInfo = tempItem.WeaponAmmoCount });
         }
 
+        public static void RequestPerformAbility(Client client, RequestPerformAbilityPacket packet)
+        {
+            /*
+            ServerArgs = (self.actionId, self.actionArgId, target, self.itemId)
+            if self.useClientYaw: serverArgs += (actor.body.GetYaw())
+            gameclient.SendCallActorMethod('RequestPerformAbility', serverArgs)
+            */
+
+            switch (packet.ActionId)
+            {
+                /*case 194: // Lightning
+                    printf("Lightning: Target %u\n", (uint32)targetEntityId);
+                    //missile_launch(cm->mapChannel, cm->player->actor, targetEntityId, MISSILE_LIGHTNING, 40);
+                    missile_launch(cm->mapChannel, cm->player->actor, targetEntityId, 180 + (rand() % 61), 194, 1);
+                    //_test_PerformAbility();
+
+                    //gameEffect_attach(cm->mapChannel, targetEntityId, 86, 1); // stun
+                    return;*/
+                case 401: // Sprint
+                    GameEffectManager.AttachSprint(client.MapClient.MapChannel, client.MapClient.Player, packet.ActionArgId, 5000);
+                    return;
+                default:
+                    Console.WriteLine("Unknown Ability: ID {0} ArgID {1} Target {2}\n", packet.ActionId, packet.ActionArgId, packet.Target);
+                    return;
+            };
+        }
+
         public static void RequestSetAbilitySlot(Client client, RequestSetAbilitySlotPacket packet)
         {
             // todo: do we need to check if ability is available ??
@@ -472,6 +502,12 @@ namespace Rasa.Managers
             CharacterAppearanceTable.UpdateCharacterAppearance(player.CharacterId, equipmentSlotId, itemClassId, hueAARRGGBB);
         }
 
+        public static void SetDesiredCrouchState(Client client, int stateId)
+        {
+            // ToDo incrace accuracy or something 
+            // stateId's 1 = standing, 14 = crouched
+        }
+
         public static void StartAutoFire(Client client, double retryDelayMs)
         {
             // ToDo
@@ -482,6 +518,84 @@ namespace Rasa.Managers
             if (mapClient.Player == null)
                 return;
             mapClient.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, new AppearanceDataPacket { AppearanceData = mapClient.Player.AppearanceData });
+        }
+
+        /*
+         * ToDO (this still need work, this is just copied from c++ projet
+         * Updates all attributes depending on level, spent attribute points, etc.
+         * Does not send values to clients
+         * If fullreset is true, the current values of each attribute are set to the maximum
+         */
+        public static void UpdateStatsValues(MapChannelClient mapClient, bool fullreset)
+        {
+            var player = mapClient.Player;
+            var stats = player.Actor.Stats;
+            // body
+            stats.Body.NormalMax = 10 + (player.Level - 1) * 2 + player.SpentBody;
+            var bodyBonus = 0;
+            stats.Body.CurrentMax = stats.Body.NormalMax + bodyBonus;
+            stats.Body.Current = stats.Body.CurrentMax;
+            // mind
+            stats.Mind.NormalMax = 10 + (player.Level - 1) * 2 + player.SpentMind;
+            var mindBonus = 0;
+            stats.Mind.CurrentMax = stats.Mind.NormalMax + mindBonus;
+            stats.Mind.Current = stats.Mind.CurrentMax;
+            // spirit
+            stats.Spirit.NormalMax = 10 + (player.Level - 1) * 2 + player.SpentSpirit;
+            var spiritBonus = 0;
+            stats.Spirit.CurrentMax = stats.Spirit.NormalMax + spiritBonus;
+            stats.Spirit.Current = stats.Spirit.CurrentMax;
+            // health
+            stats.Health.NormalMax = 100 + (player.Level - 1) * 2 * 8 + player.SpentBody * 6;
+            var healthBonus = 0;
+            stats.Health.CurrentMax = stats.Health.NormalMax + healthBonus;
+            if (fullreset)
+                stats.Health.Current = stats.Health.CurrentMax;
+            else
+                stats.Health.Current = Math.Min(stats.Health.Current, stats.Health.CurrentMax);
+            // chi/adrenaline
+            stats.Chi.NormalMax = 100 + (player.Level - 1) * 2 * 4 + player.SpentSpirit * 3;
+            var chiBonus = 0;
+            stats.Chi.CurrentMax = stats.Chi.NormalMax + chiBonus;
+            if (fullreset)
+                stats.Chi.Current = stats.Chi.CurrentMax;
+            else
+                stats.Chi.Current = Math.Min(stats.Chi.Current, stats.Chi.CurrentMax);
+            // update regen rate
+            stats.Regen.NormalMax = 100 + (player.Level - 1) * 2 + Math.Max(0, (stats.Spirit.CurrentMax - 10)) * 6; // regenRate in percent
+            var regenBonus = 0;
+            stats.Regen.CurrentMax = stats.Regen.NormalMax + regenBonus;
+            stats.Regen.RefreshAmount = 2 * (stats.Regen.CurrentMax / 100); // 2.0 per second is the base regeneration for health
+            // calculate armor max
+            var armorMax = 0.0d;
+            //float armorBonus = 0; // todo! (From item modules)
+            var armorBonusPct = player.SpentBody * 0.0066666d;
+            var armorRegenRate = 0;
+            for (var i = 0; i < 22; i++)
+            {
+                if (mapClient.Inventory.EquippedInventory[i] == 0)
+                    continue;
+                var equipmentItem = EntityManager.GetItem(mapClient.Inventory.EquippedInventory[i]);
+                if (equipmentItem == null)
+                {
+                    // this is very bad, how can the item disappear while it is still linked in the inventory?
+                    Console.WriteLine("manifestation_updateStatsValues: Equipment item has no physical copy");
+                    continue;
+                }
+                if (equipmentItem.ItemTemplate.ItemType != (int)ItemTypes.Armor)
+                    continue; // how can the player equip non-armor?
+                armorMax += equipmentItem.ItemTemplate.Armor.ArmorValue;
+                armorRegenRate += equipmentItem.ItemTemplate.Armor.RegenRate;
+                // what about damage absorbed? Was it used at all?
+            }
+            armorMax = armorMax * (1.0d + armorBonusPct);
+            stats.Armor.Current = armorRegenRate;
+            stats.Armor.NormalMax = armorMax;
+            stats.Armor.CurrentMax = armorMax;
+            if (fullreset)
+                stats.Armor.Current = stats.Armor.CurrentMax;
+            else
+                stats.Armor.Current = Math.Min(stats.Armor.Current, armorMax);
         }
     }
 }

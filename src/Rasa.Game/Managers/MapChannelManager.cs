@@ -51,6 +51,7 @@ namespace Rasa.Managers
             mapClient.MapChannel = mapChannel;
             mapClient.ClientEntityId = mapClient.Player.Actor.EntityId;
             AddNewPlayer(mapChannel, mapClient);
+            PlayerManager.UpdateStatsValues(mapClient, true);
             CellManager.AddToWorld(mapClient);
             PlayerManager.AssignPlayer(mapChannel, mapClient);
 

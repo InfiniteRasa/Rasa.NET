@@ -3,16 +3,12 @@
     using Data;
     using Memory;
 
-    public class PingPacket : PythonPacket
+    public class CancelLogoutRequestPacket : PythonPacket
     {
-        public override GameOpcode Opcode { get; } = GameOpcode.Ping;
-
-        public double Ping { get; set; }
+        public override GameOpcode Opcode { get; } = GameOpcode.CancelLogoutRequest;
 
         public override void Read(PythonReader pr)
         {
-            pr.ReadTuple();
-            Ping = pr.ReadDouble();
         }
 
         public override void Write(PythonWriter pw)

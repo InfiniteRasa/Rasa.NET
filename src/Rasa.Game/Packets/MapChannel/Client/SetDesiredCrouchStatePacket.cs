@@ -3,16 +3,16 @@
     using Data;
     using Memory;
 
-    public class PingPacket : PythonPacket
+    public class SetDesiredCrouchStatePacket : PythonPacket
     {
-        public override GameOpcode Opcode { get; } = GameOpcode.Ping;
+        public override GameOpcode Opcode { get; } = GameOpcode.SetDesiredCrouchState;
 
-        public double Ping { get; set; }
+        public int DesiredStateId { get; set; }
 
         public override void Read(PythonReader pr)
         {
             pr.ReadTuple();
-            Ping = pr.ReadDouble();
+            DesiredStateId = pr.ReadInt();
         }
 
         public override void Write(PythonWriter pw)

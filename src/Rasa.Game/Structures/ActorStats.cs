@@ -79,9 +79,9 @@
     // ARMOR 8
     public class Armor
     {
-        public int NormalMax { get; set; }
-        public int CurrentMax { get; set; }
-        public int Current { get; set; }
+        public double NormalMax { get; set; }
+        public double CurrentMax { get; set; }
+        public double Current { get; set; }
         public int RefreshAmount { get; set; }
         public int RefreshPeriod { get; set; }
     }
