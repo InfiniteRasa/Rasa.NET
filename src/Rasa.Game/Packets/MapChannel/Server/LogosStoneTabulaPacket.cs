@@ -17,8 +17,7 @@
             pw.WriteList(409);
             for (var i = 0; i < 409; i++)
             {
-                pw.WriteTuple(1);
-                pw.WriteInt(1); // ToDo
+                pw.WriteInt(i); // ToDO , currently all logos added
             }
         }
     }

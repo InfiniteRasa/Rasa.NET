@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 namespace Rasa.Managers
 {
@@ -130,18 +131,20 @@ namespace Rasa.Managers
             if (textMsg[0] == '.')
             {
                 // it's GM command, check if client is GM
-                client.SendPacket(8, new RadialChatPacket   // this msg is just for fun, implement later
+                if (client.Entry.Level > 0)
+                {
+                    // Client is GM
+                    ParseGmCommand(client.MapClient, textMsg);
+                    return;
+                }
+                else
+                {
+                    client.SendPacket(8, new RadialChatPacket   // this msg is just for fun, implement later
                     {
                         FamilyName = client.MapClient.Player.Actor.FamilyName,
                         TextMsg = "It is Gm Command, dont play with it!!",
                         EntityId = client.MapClient.Player.Actor.EntityId
-                    }
-                );
-                return;
-                if (client.Entry.Level > 0)
-                {
-                    // Client is GM
-                    //ParseGmCommand(cm, textMsg))
+                    });
                     return;
                 }
             } 
@@ -212,5 +215,41 @@ namespace Rasa.Managers
                 PlayersByEntityId.Remove(mapClient.ClientEntityId);
             }
         }
+
+        // maybe move this to GmCommandsManager
+        #region Gm Commands
+        public static void ParseGmCommand(MapChannelClient mapClient, string textMsg)
+        {
+            // chat GM command to give item to player
+            if ((!string.IsNullOrWhiteSpace(textMsg) && textMsg.Length >= 10 ? textMsg.Substring(0, 10) : textMsg) == ".GiveItem ")
+            {
+                var parts = textMsg.Split(' ');
+                if (parts.Length == 3)
+                {
+                    int itemTemplateId, quantity;
+                    if (int.TryParse(parts[1], out itemTemplateId))
+                        if (int.TryParse(parts[2], out quantity))
+                        {
+                            InventoryManager.AddItemToInventory(mapClient, itemTemplateId, quantity);
+                            return;
+                        }
+                        else
+                        {
+                            Console.WriteLine("Invalid .GiveItem command param 3\nCorrect usage is\n.GiveItem itemTemplateId quantity\n");
+                            return;
+                        }
+                    else
+                    {
+                        Console.WriteLine("Invalid .GiveItem command param 2\nCorrect usage is\n.GiveItem itemTemplateId quantity\n");
+                        return;
+                    }
+                }
+                Console.WriteLine("Invalid usage of .GiveItem command\nCorrect usage is\n.GiveItem itemTemplateId quantity\n");
+                return;
+            }
+            else
+                Console.WriteLine("Invalid Gm command {0}", textMsg);
+        }
+        #endregion
     }
 }

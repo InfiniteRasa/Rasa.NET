@@ -16,7 +16,6 @@
         {
             pw.WriteTuple(1);
             pw.WriteList(1);
-            pw.WriteTuple(1);
             pw.WriteInt(RegionIdList);
         }
     }

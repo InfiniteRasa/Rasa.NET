@@ -596,6 +596,18 @@ namespace Rasa.Managers
                 stats.Armor.Current = stats.Armor.CurrentMax;
             else
                 stats.Armor.Current = Math.Min(stats.Armor.Current, armorMax);
+            // added by krssrb
+            // power test
+            stats.Power.NormalMax = 100 + (player.Level - 1) * 2 * 4 + player.SpentMind * 3;
+            var powerBonus = 0;
+            stats.Power.CurrentMax = stats.Power.NormalMax + powerBonus;
+            if (fullreset)
+                stats.Power.Current = stats.Power.CurrentMax;
+            else
+                stats.Power.Current = Math.Min(stats.Power.Current, stats.Power.CurrentMax);
+
+            // Send Data to client
+            mapClient.Client.SendPacket(mapClient.Player.CharacterId, new AttributeInfoPacket { ActorStats = mapClient.Player.Actor.Stats });
         }
     }
 }

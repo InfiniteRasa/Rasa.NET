@@ -92,8 +92,9 @@ namespace Rasa.Managers
         
         public static ItemTemplate GetItemTemplateById(int itemTemplateId)
         {
-            var itemTemplate = new ItemTemplate();
-            itemTemplate = LoadedItemTemplates[itemTemplateId];
+            ItemTemplate itemTemplate = null;
+            if (LoadedItemTemplates.ContainsKey(itemTemplateId))
+                itemTemplate = LoadedItemTemplates[itemTemplateId];
             return itemTemplate;
         }
 

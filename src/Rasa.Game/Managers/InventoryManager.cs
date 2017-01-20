@@ -44,6 +44,17 @@ namespace Rasa.Managers
             ItemsTable.UpdateItem(tempItem.EntityId, tempItem.OwnerId, tempItem.OwnerSlotId, tempItem.Stacksize);
         }
 
+        public static void AddItemToInventory(MapChannelClient mapClient, int itemTemplateId, int quantity)
+        {
+            // ToDo
+            // first check if we already have that item
+            // then check if that item stacksize is more than 1
+            // then check if that item isn't at max stack size
+            // then if we dont have item, check for item inventory category
+            // then do we have space in that inventory
+            // if it pass all this, then create new item and add it to inventory
+        }
+
         public static Item CurrentWeapon(MapChannelClient mapClient)
         {
             return EntityManager.GetItem(mapClient.Inventory.WeaponDrawer[mapClient.Inventory.ActiveWeaponDrawer]);
@@ -284,11 +295,8 @@ namespace Rasa.Managers
                 PlayerManager.SetAppearanceItem(client.MapClient.Player, itemToEquip.ItemTemplate.ClassId, -2139062144);
             }
             PlayerManager.UpdateAppearance(client.MapClient);
-            // update armor
+            // update stats
             PlayerManager.UpdateStatsValues(client.MapClient, false);
-            //manifestation_buildAttributeInfoPacket(client, &pms);
-            // ToDo this should be revrite to CellDomainSendPacket
-            client.SendPacket(client.MapClient.Player.CharacterId, new AttributeInfoPacket { ActorStats = client.MapClient.Player.Actor.Stats });
         }
 
         public static void RequestEquipWeapon(Client client, RequestEquipWeaponPacket packet)
