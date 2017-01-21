@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace Rasa.Managers
 {
@@ -192,6 +191,11 @@ namespace Rasa.Managers
             PlayersByEntityId.Add(mapClient.ClientEntityId, mapClient);
         }
 
+        public static void SystemMessage(MapChannelClient mapClient, string textMsg)
+        {
+            mapClient.Player.Client.SendPacket(8, new SystemMessagePacket { TextMessage = textMsg });
+        }
+
         public static void UnregisterPlayer(MapChannelClient mapClient)
         {
             //var upperCase = new char[mapClient.Player.Actor.Name.Length+1];
@@ -221,7 +225,7 @@ namespace Rasa.Managers
         public static void ParseGmCommand(MapChannelClient mapClient, string textMsg)
         {
             // chat GM command to give item to player
-            if ((!string.IsNullOrWhiteSpace(textMsg) && textMsg.Length >= 10 ? textMsg.Substring(0, 10) : textMsg) == ".GiveItem ")
+            if ((!string.IsNullOrWhiteSpace(textMsg) && textMsg.Length >= 10 ? textMsg.Substring(0, 10) : textMsg) == ".giveitem ")
             {
                 var parts = textMsg.Split(' ');
                 if (parts.Length == 3)
@@ -235,20 +239,20 @@ namespace Rasa.Managers
                         }
                         else
                         {
-                            Console.WriteLine("Invalid .GiveItem command param 3\nCorrect usage is\n.GiveItem itemTemplateId quantity\n");
+                            SystemMessage(mapClient,"Invalid .giveitem command param 3\nCorrect usage is\n.giveitem itemTemplateId quantity\n");
                             return;
                         }
                     else
                     {
-                        Console.WriteLine("Invalid .GiveItem command param 2\nCorrect usage is\n.GiveItem itemTemplateId quantity\n");
+                        SystemMessage(mapClient, "Invalid .giveitem command param 2\nCorrect usage is\n.giveitem itemTemplateId quantity\n");
                         return;
                     }
                 }
-                Console.WriteLine("Invalid usage of .GiveItem command\nCorrect usage is\n.GiveItem itemTemplateId quantity\n");
+                SystemMessage(mapClient, "Invalid number of parameters for .giveitem command,\nCorrect usage is\n.giveitem itemTemplateId quantity\n");
                 return;
             }
             else
-                Console.WriteLine("Invalid Gm command {0}", textMsg);
+                SystemMessage(mapClient, "Invalid Gm command "+ textMsg +".");
         }
         #endregion
     }

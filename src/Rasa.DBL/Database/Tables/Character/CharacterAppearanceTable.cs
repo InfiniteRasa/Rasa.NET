@@ -3,7 +3,6 @@ using MySql.Data.MySqlClient;
 
 namespace Rasa.Database.Tables.Character
 {
-    using Structures;
     public class CharacterAppearanceTable
     {        
         private static readonly MySqlCommand GetAppearanceCommand = new MySqlCommand("SELECT slotItem, slotHue FROM character_appearance WHERE characterId = @CharacterId AND slotId = @SlotId");

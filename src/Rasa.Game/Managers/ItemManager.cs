@@ -31,6 +31,7 @@ namespace Rasa.Managers
             item.ItemTemplate = itemTemplate;
             item.OwnerId = ownerId;
             item.OwnerSlotId = ownerSlotId;
+            item.Stacksize = stackSize;
             // register item
             EntityManager.RegisterItem(item.EntityId, item);
             return item;

@@ -496,7 +496,7 @@ namespace Rasa.Managers
             var equipmentSlotId = EquipableClassEquipmentSlotTable.GetSlotId((uint)itemClassId);
             if (equipmentSlotId == 0)
                 return;
-            player.AppearanceData[equipmentSlotId].ClassId = (int)itemClassId;
+            player.AppearanceData[equipmentSlotId].ClassId = itemClassId;
             player.AppearanceData[equipmentSlotId].Color = new Color(hueAARRGGBB);
             // update appearance data in database
             CharacterAppearanceTable.UpdateCharacterAppearance(player.CharacterId, equipmentSlotId, itemClassId, hueAARRGGBB);

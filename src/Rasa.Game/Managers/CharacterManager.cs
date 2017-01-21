@@ -86,7 +86,6 @@ namespace Rasa.Managers
             var characterId = CharacterTable.CreateCharacter(client.Entry.Id, packet.CharacterName, packet.FamilyName, packet.SlotNum, packet.Gender, packet.Scale, packet.RaceId);
             // Give character basic items
             ItemManager.CreateFromTemplateId(characterId, 50, 28, 100);
-            ItemManager.CreateFromTemplateId(characterId, 250, 17131, 1);
             ItemManager.CreateFromTemplateId(characterId, 251, 13126, 1);
             ItemManager.CreateFromTemplateId(characterId, 252, 13066, 1);
             ItemManager.CreateFromTemplateId(characterId, 253, 13096, 1);
@@ -103,6 +102,7 @@ namespace Rasa.Managers
             CharacterAppearanceTable.SetAppearance(characterId, 17, StarterItemsTable.GetItemTemplateId(packet.AppearanceData[16].ClassId), packet.AppearanceData[16].Color.Hue);
             CharacterAppearanceTable.SetAppearance(characterId, 19, StarterItemsTable.GetItemTemplateId(packet.AppearanceData[18].ClassId), packet.AppearanceData[18].Color.Hue);
             CharacterAppearanceTable.SetAppearance(characterId, 20, StarterItemsTable.GetItemTemplateId(packet.AppearanceData[19].ClassId), packet.AppearanceData[19].Color.Hue);
+            CharacterAppearanceTable.SetAppearance(characterId, 21, StarterItemsTable.GetItemTemplateId(packet.AppearanceData[19].ClassId), packet.AppearanceData[20].Color.Hue);
             // Create default entry in CharacterAbilitiesTable
             for (var i = 0; i < 25; i++)
                 CharacterAbilityDrawerTable.SetCharacterAbility(characterId, i, 0, 0);

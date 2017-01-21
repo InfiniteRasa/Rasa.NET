@@ -11,7 +11,7 @@ namespace Rasa.Managers
 
     public class InventoryManager
     {
-        private static void AddItemBySlot(MapChannelClient mapClient, InventoryType inventoryType, uint itemId, int slotId)
+        private static void AddItemBySlot(MapChannelClient mapClient, InventoryType inventoryType, uint itemId, int slotId, bool updateDB)
         {
             var tempItem = EntityManager.GetItem(itemId);
             if (tempItem == null)
@@ -41,18 +41,89 @@ namespace Rasa.Managers
             // send inventoryAddItem
             mapClient.Player.Client.SendPacket(9, new InventoryAddItemPacket { Type = inventoryType, EntityId = itemId, SlotId = slotId });
             // update item in database
-            ItemsTable.UpdateItem(tempItem.EntityId, tempItem.OwnerId, tempItem.OwnerSlotId, tempItem.Stacksize);
+            if (updateDB)
+                ItemsTable.UpdateItem(tempItem.EntityId, tempItem.OwnerId, tempItem.OwnerSlotId, tempItem.Stacksize);
         }
 
         public static void AddItemToInventory(MapChannelClient mapClient, int itemTemplateId, int quantity)
         {
-            // ToDo
-            // first check if we already have that item
-            // then check if that item stacksize is more than 1
-            // then check if that item isn't at max stack size
-            // then if we dont have item, check for item inventory category
-            // then do we have space in that inventory
-            // if it pass all this, then create new item and add it to inventory
+            var itemTemplate = ItemManager.GetItemTemplateById(itemTemplateId);
+            if (itemTemplate == null)
+                return; // invalid itemTemplateId
+            // get item category offset
+            var itemCategoryOffset = (itemTemplate.InventoryCategory - 1);
+            if (itemCategoryOffset < 0 || itemCategoryOffset >= 5)
+            {
+                Console.WriteLine("AddItemToInventory: The item inventory category {0} is invalid", itemCategoryOffset);
+                return;
+            }
+            itemCategoryOffset *= 50;
+            // see if we can merge the item into an already existing item
+            for (var i = 0; i < 50; i++)
+            {
+                if (mapClient.Inventory.PersonalInventory[itemCategoryOffset + i] != 0)
+                {
+                    // get item
+                    var slotItem = EntityManager.GetItem(mapClient.Inventory.PersonalInventory[itemCategoryOffset + i]);
+                    // same item template?
+                    if (slotItem.ItemTemplate.ItemTemplateId != itemTemplateId)
+                        continue;
+                    // calculate how many items we can add to the stack
+                    var stackAdd = slotItem.ItemTemplate.Stacksize - slotItem.Stacksize;
+                    if (stackAdd == 0)
+                        continue;
+                    // add item to existing stack
+                    var stackMove = Math.Min(stackAdd, quantity);
+                    slotItem.Stacksize += stackMove;
+                    // notify client of changed stack count
+                    mapClient.Player.Client.SendPacket(slotItem.EntityId, new SetStackCountPacket { StackSize = slotItem.Stacksize });
+                    // update item in database
+                    ItemsTable.UpdateItem(slotItem.EntityId, mapClient.Player.CharacterId, slotItem.OwnerSlotId, slotItem.Stacksize);
+                    CommunicatorManager.SystemMessage(mapClient, "You got item with id:" + itemTemplateId + " (" + stackMove + ").");
+                    quantity -= stackMove;
+                    if (quantity > 0)
+                    {
+                        // call function again with what's left of stack size
+                        AddItemToInventory(mapClient, itemTemplateId, quantity);
+                        return;
+                    }
+                    break;
+                }
+            }
+            // we need to crate new item
+            if (quantity > 0)
+                for (var i = 0; i < 50; i++)
+                {
+                    // check item stacksize
+                    if (itemTemplate.Stacksize < quantity)
+                    {
+                        // find empty slot
+                        if (mapClient.Inventory.PersonalInventory[itemCategoryOffset + i] == 0)
+                        {
+                            var newItem = ItemManager.CreateFromTemplateId(mapClient.Player.CharacterId, itemCategoryOffset + i, itemTemplateId, itemTemplate.Stacksize);
+                            newItem.ItemTemplate.CrafterName = mapClient.Player.Actor.Name;
+                            // send data to client
+                            ItemManager.SendItemDataToClient(mapClient, newItem);
+                            // add item to empty slot
+                            AddItemBySlot(mapClient, InventoryType.Personal, newItem.EntityId, itemCategoryOffset + i, true);
+                            CommunicatorManager.SystemMessage(mapClient, "You got item with id:" + itemTemplateId + " (" + itemTemplate.Stacksize + ").");
+                            quantity -= itemTemplate.Stacksize;
+                        }
+                    }
+                    else
+                        // find empty slot
+                        if (mapClient.Inventory.PersonalInventory[itemCategoryOffset + i] == 0)
+                    {
+                        var newItem = ItemManager.CreateFromTemplateId(mapClient.Player.CharacterId, itemCategoryOffset + i, itemTemplateId, quantity);
+                        newItem.ItemTemplate.CrafterName = mapClient.Player.Actor.Name;
+                        // send data to client
+                        ItemManager.SendItemDataToClient(mapClient, newItem);
+                        // add item to empty slot
+                        AddItemBySlot(mapClient, InventoryType.Personal, newItem.EntityId, itemCategoryOffset + i, true);
+                        CommunicatorManager.SystemMessage(mapClient, "You got item with id:" + itemTemplateId + " (" + quantity + ").");
+                        break;
+                    }
+                }
         }
 
         public static Item CurrentWeapon(MapChannelClient mapClient)
@@ -119,7 +190,7 @@ namespace Rasa.Managers
                 var slotItem = EntityManager.GetItem(mapClient.Inventory.PersonalInventory[i]);
                 ItemManager.SendItemDataToClient(mapClient, slotItem);
                 // make the item appear on the client
-                AddItemBySlot(mapClient, InventoryType.Personal, mapClient.Inventory.PersonalInventory[i], i);
+                AddItemBySlot(mapClient, InventoryType.Personal, mapClient.Inventory.PersonalInventory[i], i, false);
             }
             
             // send inventory data - equipped inventory
@@ -132,7 +203,7 @@ namespace Rasa.Managers
                 var slotItem = EntityManager.GetItem(mapClient.Inventory.EquippedInventory[i]);
                 ItemManager.SendItemDataToClient(mapClient, slotItem);
                 // make the item appear on the client
-               AddItemBySlot(mapClient, InventoryType.EquipedInventory, mapClient.Inventory.EquippedInventory[i], i);
+               AddItemBySlot(mapClient, InventoryType.EquipedInventory, mapClient.Inventory.EquippedInventory[i], i, false);
             }
 
             // send inventory data - weapon drawer
@@ -145,7 +216,7 @@ namespace Rasa.Managers
                 var slotItem = EntityManager.GetItem(mapClient.Inventory.WeaponDrawer[i]);
                 ItemManager.SendItemDataToClient(mapClient, slotItem);
                 // make the item appear on the client
-                AddItemBySlot(mapClient, InventoryType.WeaponDrawerInventory, mapClient.Inventory.WeaponDrawer[i], i);
+                AddItemBySlot(mapClient, InventoryType.WeaponDrawerInventory, mapClient.Inventory.WeaponDrawer[i], i, false);
                 // update appearance
                 PlayerManager.SetAppearanceItem(mapClient.Player, slotItem.ItemTemplate.ClassId, -2139062144);
             }
@@ -183,9 +254,9 @@ namespace Rasa.Managers
             // if toSlot is not empty, move current item to SrcSlot (item swap)
             if (client.MapClient.Inventory.PersonalInventory[packet.DestSlot] != 0)
             {
-                AddItemBySlot(client.MapClient, InventoryType.Personal, client.MapClient.Inventory.PersonalInventory[packet.DestSlot], packet.SrcSlot);
+                AddItemBySlot(client.MapClient, InventoryType.Personal, client.MapClient.Inventory.PersonalInventory[packet.DestSlot], packet.SrcSlot, true);
             }
-            AddItemBySlot(client.MapClient, InventoryType.Personal, entityId, packet.DestSlot);
+            AddItemBySlot(client.MapClient, InventoryType.Personal, entityId, packet.DestSlot, true);
         }
 
         public static void ReduceStackCount(MapChannelClient mapClient, Item tempItem, int stackDecreaseCount)
@@ -280,9 +351,9 @@ namespace Rasa.Managers
             if (client.MapClient.Inventory.EquippedInventory[packet.DestSlot] != 0)
                 RemoveItemBySlot(client.MapClient, InventoryType.EquipedInventory, packet.DestSlot);
             if (entityIdEquippedItem != 0)
-                AddItemBySlot(client.MapClient, InventoryType.Personal, entityIdEquippedItem, packet.SrcSlot);
+                AddItemBySlot(client.MapClient, InventoryType.Personal, entityIdEquippedItem, packet.SrcSlot, true);
             if (entityIdInventoryItem != 0)
-                AddItemBySlot(client.MapClient, InventoryType.EquipedInventory, entityIdInventoryItem, packet.DestSlot);
+                AddItemBySlot(client.MapClient, InventoryType.EquipedInventory, entityIdInventoryItem, packet.DestSlot, true);
             // update appearance
             if (itemToEquip == null)
             {
@@ -336,9 +407,9 @@ namespace Rasa.Managers
             if (client.MapClient.Inventory.WeaponDrawer[destSlot] != 0)
                 RemoveItemBySlot(client.MapClient, InventoryType.WeaponDrawerInventory, destSlot);
             if (entityIdEquippedItem != 0)
-                AddItemBySlot(client.MapClient, InventoryType.Personal, entityIdEquippedItem, srcSlot);
+                AddItemBySlot(client.MapClient, InventoryType.Personal, entityIdEquippedItem, srcSlot, true);
             if (entityIdInventoryItem != 0)
-                AddItemBySlot(client.MapClient, InventoryType.WeaponDrawerInventory, entityIdInventoryItem, destSlot);
+                AddItemBySlot(client.MapClient, InventoryType.WeaponDrawerInventory, entityIdInventoryItem, destSlot, true);
             // update appearance
             if (destSlot == client.MapClient.Inventory.ActiveWeaponDrawer)
             {
@@ -419,13 +490,13 @@ namespace Rasa.Managers
             {
                 RemoveItemBySlot(client.MapClient, InventoryType.WeaponDrawerInventory, packet.SrcSlot);
                 RemoveItemBySlot(client.MapClient, InventoryType.WeaponDrawerInventory, packet.DestSlot);
-                AddItemBySlot(client.MapClient, InventoryType.WeaponDrawerInventory, srcEquippedItem, packet.DestSlot);
-                AddItemBySlot(client.MapClient, InventoryType.WeaponDrawerInventory, destEquippedItem, packet.SrcSlot);
+                AddItemBySlot(client.MapClient, InventoryType.WeaponDrawerInventory, srcEquippedItem, packet.DestSlot, true);
+                AddItemBySlot(client.MapClient, InventoryType.WeaponDrawerInventory, destEquippedItem, packet.SrcSlot, true);
             }
             else
             {
                 RemoveItemBySlot(client.MapClient, InventoryType.WeaponDrawerInventory, packet.SrcSlot);
-                AddItemBySlot(client.MapClient, InventoryType.WeaponDrawerInventory, srcEquippedItem, packet.DestSlot);
+                AddItemBySlot(client.MapClient, InventoryType.WeaponDrawerInventory, srcEquippedItem, packet.DestSlot, true);
             }
         }
     }
