@@ -82,6 +82,9 @@ namespace Rasa.Managers
             // don't send this packet if abilityDrawer is empty
             if (player.Abilities.Count > 0)
                 player.Client.SendPacket(actor.EntityId, new AbilityDrawerPacket ( player.Abilities ));
+
+            player.Client.SendPacket(player.CharacterId, new TitlesPacket(player.Titles));
+
         }
 
         public static void AutoFireKeepAlive(Client client, int keepAliveDelay)
@@ -267,6 +270,11 @@ namespace Rasa.Managers
                 //netMovement.posZ24b = tempClient->player->actor->posZ * 256.0f;
                 //netMgr_sendEntityMovement(client->cgm, &netMovement);
             }
+        }
+
+        public static void ChangeTitle(Client client, int titleId)
+        {
+            client.SendPacket(client.MapClient.Player.CharacterId, new ChangeTitlePacket { TitleId = titleId });
         }
 
         public static int GetAvailableAttributePoints(MapChannelClient mapClient)

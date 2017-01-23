@@ -296,6 +296,7 @@ namespace Rasa.Managers
                 Credits = data.Credits,
                 Prestige = data.Prestige,
                 Skills = GetPlayerSkills(data.CharacterId),
+                Titles = CharacterTitlesTable.GetCharacterTitles(data.CharacterId),
                 Abilities = GetPlayerAbilities(data.CharacterId),
                 CurrentAbilityDrawer = data.CurrentAbilityDrawer,
                 MissionStateCount = 0,

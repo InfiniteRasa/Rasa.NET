@@ -70,10 +70,16 @@ namespace Rasa.Game
             Console.WriteLine("ToDo 'CancelLogoutRequestPacket'");  // gues nothing to do here
         }
 
+        [PacketHandler(GameOpcode.ChangeTitle)]
+        private void ChangeTitle(ChangeTitlePacket packet)
+        {
+            PlayerManager.ChangeTitle(Client, packet.TitleId);
+        }
+
         [PacketHandler(GameOpcode.ChangeShowHelmet)]
         private void ChangeShowHelmet(ChangeShowHelmetPacket packet)
         {
-           // ToDo
+            // ToDo
         }
 
         [PacketHandler(GameOpcode.CharacterLogout)]
