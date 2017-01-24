@@ -11,7 +11,31 @@
 
     public class GameEffectManager
     {
-        public static void AddToList(Actor actor, GameEffect gameEffect)
+        private static GameEffectManager _instance;
+        private static readonly object InstanceLock = new object();
+        public static GameEffectManager Instance
+        {
+            get
+            {
+                // ReSharper disable once InvertIf
+                if (_instance == null)
+                {
+                    lock (InstanceLock)
+                    {
+                        if (_instance == null)
+                            _instance = new GameEffectManager();
+                    }
+                }
+
+                return _instance;
+            }
+        }
+
+        private GameEffectManager()
+        {
+        }
+
+        public void AddToList(Actor actor, GameEffect gameEffect)
         {
             // fast and simple prepend list 
             gameEffect.Next = actor.ActiveEffects;
@@ -20,7 +44,8 @@
             gameEffect.Previous = null;
             actor.ActiveEffects = gameEffect;
         }
-        public static void AttachSprint(MapChannel mapChannel, PlayerData player, int effectLevel, int duration)
+
+        public void AttachSprint(MapChannel mapChannel, PlayerData player, int effectLevel, int duration)
         {
             mapChannel.CurrentEffectId++; // generate new effectId
             var effectId = mapChannel.CurrentEffectId;
@@ -38,8 +63,7 @@
             // add to list
             AddToList(player.Actor, gameEffect);
             
-            // ToDO rewrite to client.CellDomainSendPacket
-            player.Client.SendPacket(player.Actor.EntityId, new GameEffectAttachedPacket {
+            player.Client.SendPacket(mapChannel, player.Actor, player.CharacterId, new GameEffectAttachedPacket {
                 EffectTypeId = gameEffect.TypeId,
                 EffectId = gameEffect.EffectId,
                 EffectLevel = gameEffect.EffectLevel,
@@ -57,7 +81,7 @@
             UpdateMovementMod(mapChannel, player);
         }
 
-        public static void UpdateMovementMod(MapChannel mapChannel, PlayerData player)
+        public void UpdateMovementMod(MapChannel mapChannel, PlayerData player)
         {
             var movementMod = 1.0d;
             // check for sprint
@@ -75,10 +99,7 @@
                 gameeffect = gameeffect.Next;
             }
             // todo: other modificators?
-            // Recv_MovementModChange 580
-            // ToDO rewrite to client.CellDomainSendPacket
-            player.Client.SendPacket(player.Actor.EntityId, new MovementModChangePacket { MovementMod = movementMod });
-            //netMgr_cellDomain_pythonAddMethodCallRaw(mapChannel, actor, actor->entityId, 580, pym_getData(&pms), pym_getLen(&pms));
+            player.Client.SendPacket(mapChannel, player.Actor, player.CharacterId, new MovementModChangePacket( movementMod) );
         }
     }
 }

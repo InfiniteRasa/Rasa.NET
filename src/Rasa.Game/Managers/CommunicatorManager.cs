@@ -9,11 +9,35 @@ namespace Rasa.Managers
 
     public class CommunicatorManager
     {
+        private static CommunicatorManager _instance;
+        private static readonly object InstanceLock = new object();
         public static Dictionary<string, MapChannelClient> PlayersByName = new Dictionary<string, MapChannelClient>();
         public static Dictionary<uint, MapChannelClient> PlayersByEntityId = new Dictionary<uint, MapChannelClient>();
         public static Dictionary<int, ChatChannel> ChannelsBySeed = new Dictionary<int, ChatChannel>();
 
-        public static void AddClientToChannel(MapChannelClient mapClient, int cHash)
+        public static CommunicatorManager Instance
+        {
+            get
+            {
+                // ReSharper disable once InvertIf
+                if (_instance == null)
+                {
+                    lock (InstanceLock)
+                    {
+                        if (_instance == null)
+                            _instance = new CommunicatorManager();
+                    }
+                }
+
+                return _instance;
+            }
+        }
+
+        private CommunicatorManager()
+        {
+        }
+
+        public void AddClientToChannel(MapChannelClient mapClient, int cHash)
         {
             ChatChannel chatChannel;
             if (ChannelsBySeed.TryGetValue(cHash, out chatChannel))
@@ -39,14 +63,14 @@ namespace Rasa.Managers
             }
         }
 
-        public static int GenerateDefaultChannelHash(int channelId, int mapContextId, int instanceId)
+        public int GenerateDefaultChannelHash(int channelId, int mapContextId, int instanceId)
         {
             var v = 0;
             v = (channelId ^ (channelId << 7)) ^ mapContextId ^ (mapContextId * 121) ^ ((instanceId + instanceId * 13) << 3);
             return v;
         }
 
-        public static void JoinDefaultLocalChannel(MapChannelClient mapClient, int channelId)
+        public void JoinDefaultLocalChannel(MapChannelClient mapClient, int channelId)
         {
             if (mapClient.JoinedChannels >= 14)
                 return; // todo, send error to client
@@ -78,13 +102,13 @@ namespace Rasa.Managers
             mapClient.Client.SendPacket(8, new ChatChannelJoinedPacket { ChannelId = channelId, MapContextId = mapClient.MapChannel.MapInfo.MapId });            
         }
 
-        public static void PlayerEnterMap(MapChannelClient mapClient)
+        public void PlayerEnterMap(MapChannelClient mapClient)
         {
             JoinDefaultLocalChannel(mapClient, 1); // join general
 
         }
 
-        public static void PlayerExitMap(Client client)
+        public void PlayerExitMap(Client client)
         {            
             CharacterManager.UpdateCharacter(client.MapClient.Player, 5);
             // save player time
@@ -124,7 +148,7 @@ namespace Rasa.Managers
             client.MapClient.JoinedChannels = 0;
         }
 
-        public static void Recv_RadialChat(Client client, string textMsg)
+        public void Recv_RadialChat(Client client, string textMsg)
         {
             // check if it's gm command
             if (textMsg[0] == '.')
@@ -133,17 +157,7 @@ namespace Rasa.Managers
                 if (client.Entry.Level > 0)
                 {
                     // Client is GM
-                    ParseGmCommand(client.MapClient, textMsg);
-                    return;
-                }
-                else
-                {
-                    client.SendPacket(8, new RadialChatPacket   // this msg is just for fun, implement later
-                    {
-                        FamilyName = client.MapClient.Player.Actor.FamilyName,
-                        TextMsg = "It is Gm Command, dont play with it!!",
-                        EntityId = client.MapClient.Player.Actor.EntityId
-                    });
+                    ChatCommandsManager.Instance.ProcessCommand(client.MapClient, textMsg);
                     return;
                 }
             } 
@@ -169,7 +183,7 @@ namespace Rasa.Managers
             }
         }
             
-        public static void RegisterPlayer(MapChannelClient mapClient)
+        public void RegisterPlayer(MapChannelClient mapClient)
         {
             /*var upperCase = new char[mapClient.Player.Actor.Name.Length+1];
             var from = mapClient.Player.Actor.Name;
@@ -191,12 +205,12 @@ namespace Rasa.Managers
             PlayersByEntityId.Add(mapClient.ClientEntityId, mapClient);
         }
 
-        public static void SystemMessage(MapChannelClient mapClient, string textMsg)
+        public void SystemMessage(MapChannelClient mapClient, string textMsg)
         {
             mapClient.Player.Client.SendPacket(8, new SystemMessagePacket { TextMessage = textMsg });
         }
 
-        public static void UnregisterPlayer(MapChannelClient mapClient)
+        public void UnregisterPlayer(MapChannelClient mapClient)
         {
             //var upperCase = new char[mapClient.Player.Actor.Name.Length+1];
             if (mapClient.Player != null)
@@ -219,41 +233,5 @@ namespace Rasa.Managers
                 PlayersByEntityId.Remove(mapClient.ClientEntityId);
             }
         }
-
-        // maybe move this to GmCommandsManager
-        #region Gm Commands
-        public static void ParseGmCommand(MapChannelClient mapClient, string textMsg)
-        {
-            // chat GM command to give item to player
-            if ((!string.IsNullOrWhiteSpace(textMsg) && textMsg.Length >= 10 ? textMsg.Substring(0, 10) : textMsg) == ".giveitem ")
-            {
-                var parts = textMsg.Split(' ');
-                if (parts.Length == 3)
-                {
-                    int itemTemplateId, quantity;
-                    if (int.TryParse(parts[1], out itemTemplateId))
-                        if (int.TryParse(parts[2], out quantity))
-                        {
-                            InventoryManager.AddItemToInventory(mapClient, itemTemplateId, quantity);
-                            return;
-                        }
-                        else
-                        {
-                            SystemMessage(mapClient,"Invalid .giveitem command param 3\nCorrect usage is\n.giveitem itemTemplateId quantity\n");
-                            return;
-                        }
-                    else
-                    {
-                        SystemMessage(mapClient, "Invalid .giveitem command param 2\nCorrect usage is\n.giveitem itemTemplateId quantity\n");
-                        return;
-                    }
-                }
-                SystemMessage(mapClient, "Invalid number of parameters for .giveitem command,\nCorrect usage is\n.giveitem itemTemplateId quantity\n");
-                return;
-            }
-            else
-                SystemMessage(mapClient, "Invalid Gm command "+ textMsg +".");
-        }
-        #endregion
     }
 }

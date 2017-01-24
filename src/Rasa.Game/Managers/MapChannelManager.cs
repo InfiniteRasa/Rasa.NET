@@ -1,20 +1,21 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Threading;
-using Rasa.Packets.MapChannel.Server;
 
 namespace Rasa.Managers
 {
     using Database.Tables.Character;
     using Game;
+    using Packets.MapChannel.Server;
     using Structures;
+    using Timer;
 
     public class MapChannelManager
     {
         private static MapChannelManager _instance;
         private static readonly object InstanceLock = new object();
-        private static readonly Dictionary<int,MapChannel> MapChannelsByContextId = new Dictionary<int, MapChannel>();     // list of maps that need to be loaded
-        private static readonly Dictionary<int, MapChannel> MapChannelArray = new Dictionary<int, MapChannel>();           // list of loaded maps
+        private readonly Dictionary<int,MapChannel> MapChannelsByContextId = new Dictionary<int, MapChannel>();     // list of maps that need to be loaded
+        public readonly Dictionary<int, MapChannel> MapChannelArray = new Dictionary<int, MapChannel>();           // list of loaded maps
+        public readonly Timer Timer = new Timer();
         public static MapChannelManager Instance
         {
             get
@@ -43,7 +44,7 @@ namespace Rasa.Managers
             mapChannel.PlayerCount++;
 
             // register mapChannelClient
-            EntityManager.RegisterEntity(mapClient.ClientEntityId, mapClient);
+            EntityManager.Instance.RegisterEntity(mapClient.ClientEntityId, mapClient);
         }
 
         public void CreatePlayerCharacter(MapChannel mapChannel, MapChannelClient mapClient)
@@ -51,8 +52,8 @@ namespace Rasa.Managers
             mapClient.MapChannel = mapChannel;
             mapClient.ClientEntityId = mapClient.Player.Actor.EntityId;
             AddNewPlayer(mapChannel, mapClient);
-            CellManager.AddToWorld(mapClient);
-            PlayerManager.AssignPlayer(mapChannel, mapClient);
+            CellManager.Instance.AddToWorld(mapClient);
+            PlayerManager.Instance.AssignPlayer(mapChannel, mapClient);
 
         }
 
@@ -63,7 +64,7 @@ namespace Rasa.Managers
             client.MapClient.RemoveFromMap = true;
         }
 
-        public static Dictionary<int, AbilityDrawerData> GetPlayerAbilities(uint characterId)
+        public Dictionary<int, AbilityDrawerData> GetPlayerAbilities(uint characterId)
         {
             var abilities = new Dictionary<int, AbilityDrawerData>();
             var abilitiesData = CharacterAbilityDrawerTable.GetCharacterAbilities(characterId);
@@ -75,7 +76,7 @@ namespace Rasa.Managers
             return abilities;
         }
 
-        public static Dictionary<int, SkillsData> GetPlayerSkills(uint characterId)
+        public Dictionary<int, SkillsData> GetPlayerSkills(uint characterId)
         {
             var skills = new Dictionary<int, SkillsData>();
             var skillsData = CharacterSkillsTable.GetCharacterSkills(characterId);
@@ -86,7 +87,7 @@ namespace Rasa.Managers
             return skills;
         }
 
-        public static void MapChannelInit()
+        public void MapChannelInit()
         {
             MapChannelsByContextId.Add(1220, new MapChannel { MapInfo = new MapInfo { BaseRegionId = 0, MapId = 1220, MapName = "adv_foreas_concordia_wilderness", MapVersion = 1556 } });
             MapChannelsByContextId.Add(1148, new MapChannel { MapInfo = new MapInfo { BaseRegionId = 10, MapId = 1148, MapName = "adv_foreas_concordia_divide", MapVersion = 1584 } });
@@ -112,12 +113,7 @@ namespace Rasa.Managers
                 // register mapChannel
                 MapChannelArray.Add(id, newMapChannel);
             }
-            var test = new Thread(MapChannelWorker);
-            test.Start();
-        }
 
-        public static void MapChannelWorker()
-        {
             foreach (var t in MapChannelArray)
             {
                 var mapChannel = t.Value;
@@ -134,107 +130,111 @@ namespace Rasa.Managers
 
             Console.WriteLine("\nMapChannels Started...");
 
-            while (true)
+            Timer.Add("CheckForPlayers", 1000, true, null);
+            //Timer.Add("MissileCheck", 100, true, null);
+        }
+
+        public void MapChannelWorker(long delta)
+        {
+            Timer.Update(delta);
+
+            foreach (var t in MapChannelArray)
             {
-                foreach (var t in MapChannelArray)
+                var mapChannel = t.Value;
+
+                if (mapChannel.PlayerCount <= 0)
+                    continue;
+                //missile_check(mapChannel, 100);
+                // do other work
+                CellManager.Instance.DoWork(mapChannel);
+                // check timers
+                if (Timer.IsTriggered("CheckForPlayers"))
+                    //gameEffect_checkForPlayers(mapChannel->playerList, mapChannel->playerCount, 500);
+                    //Debugger.Break();
+                //if (Timer.IsTriggered("MissileCheck"))
+                    //missile_check(mapChannel, 100);
+                /*if (currentTime - mapChannel.TimerMissileUpdate >= 100)
                 {
-                    var mapChannel = t.Value;
-
-                    if (mapChannel.PlayerCount <= 0)
-                        continue;
-                    // do other work
-                    CellManager.DoWork(mapChannel);
-                    // check timers
-                    var currentTime = Environment.TickCount;
-                    if (currentTime - mapChannel.TimerClientEffectUpdate >= 500)
+                    //missile_check(mapChannel, 100);
+                    mapChannel.TimerMissileUpdate += 100;
+                }
+                if (currentTime - mapChannel.TimerDynObjUpdate >= 100)
+                {
+                    //dynamicObject_check(mapChannel, 100);
+                    mapChannel.TimerDynObjUpdate += 100;
+                }
+                if (currentTime - mapChannel.TimerController >= 250)
+                {
+                    //mapteleporter_checkForEntityInRange(mapChannel);
+                    //controller_mapChannelThink(mapChannel);
+                    mapChannel.TimerController += 250;
+                }
+                if ((currentTime - mapChannel.TimerPlayerUpdate) >= 1000)
+                {
+                    var playerUpdateTick = currentTime - mapChannel.TimerPlayerUpdate;
+                    mapChannel.TimerPlayerUpdate = currentTime;
+                    for (var i = 0; i < mapChannel.PlayerCount; i++)
                     {
-                        //gameEffect_checkForPlayers(mapChannel->playerList, mapChannel->playerCount, 500);
-                        mapChannel.TimerClientEffectUpdate += 500;
+                        //manifestation_updatePlayer(mapChannel->playerList[i], playerUpdateTick);
                     }
-                    if (currentTime - mapChannel.TimerMissileUpdate >= 100)
+                }*/
+                /*if (currentTime - mapChannel.TimerGeneralTimer >= 100)
+                {
+                    var timePassed = 100;
+                    // queue for deleting map timers
+                    std::vector<mapChannelTimer_t*> queue_timerDeletion;
+                    // parse through all timers
+                    mapChannel_check_AutoFireTimers(mapChannel);
+                    std::vector<mapChannelTimer_t*>::iterator timer = mapChannel->timerList.begin();
+                    while (timer != mapChannel->timerList.end())
                     {
-                        //missile_check(mapChannel, 100);
-                        mapChannel.TimerMissileUpdate += 100;
-                    }
-                    if (currentTime - mapChannel.TimerDynObjUpdate >= 100)
-                    {
-                        //dynamicObject_check(mapChannel, 100);
-                        mapChannel.TimerDynObjUpdate += 100;
-                    }
-                    if (currentTime - mapChannel.TimerController >= 250)
-                    {
-                        //mapteleporter_checkForEntityInRange(mapChannel);
-                        //controller_mapChannelThink(mapChannel);
-                        mapChannel.TimerController += 250;
-                    }
-                    if ((currentTime - mapChannel.TimerPlayerUpdate) >= 1000)
-                    {
-                        var playerUpdateTick = currentTime - mapChannel.TimerPlayerUpdate;
-                        mapChannel.TimerPlayerUpdate = currentTime;
-                        for (var i = 0; i < mapChannel.PlayerCount; i++)
+                        (*timer)->timeLeft -= timePassed;
+                        if ((*timer)->timeLeft <= 0)
                         {
-                            //manifestation_updatePlayer(mapChannel->playerList[i], playerUpdateTick);
+                            sint32 objTimePassed = (*timer)->period - (*timer)->timeLeft;
+                            (*timer)->timeLeft += (*timer)->period;
+                            // trigger object
+                            bool remove = (*timer)->cb(mapChannel, (*timer)->param, objTimePassed);
+                            if (remove == false)
+                                queue_timerDeletion.push_back(*timer);
                         }
+                        timer++;
                     }
-                    /*if (currentTime - mapChannel.TimerGeneralTimer >= 100)
+                    // parse deletion queue
+                    if (queue_timerDeletion.empty() != true)
                     {
-                        var timePassed = 100;
-                        // queue for deleting map timers
-                        std::vector<mapChannelTimer_t*> queue_timerDeletion;
-                        // parse through all timers
-                        mapChannel_check_AutoFireTimers(mapChannel);
-                        std::vector<mapChannelTimer_t*>::iterator timer = mapChannel->timerList.begin();
-                        while (timer != mapChannel->timerList.end())
+                        mapChannelTimer_t** timerList = &queue_timerDeletion[0];
+                        sint32 timerCount = queue_timerDeletion.size();
+                        for (sint32 f = 0; f < timerCount; f++)
                         {
-                            (*timer)->timeLeft -= timePassed;
-                            if ((*timer)->timeLeft <= 0)
+                            mapChannelTimer_t* toBeDeletedTimer = timerList[f];
+                            // remove from timer list
+                            std::vector<mapChannelTimer_t*>::iterator itr = mapChannel->timerList.begin();
+                            while (itr != mapChannel->timerList.end())
                             {
-                                sint32 objTimePassed = (*timer)->period - (*timer)->timeLeft;
-                                (*timer)->timeLeft += (*timer)->period;
-                                // trigger object
-                                bool remove = (*timer)->cb(mapChannel, (*timer)->param, objTimePassed);
-                                if (remove == false)
-                                    queue_timerDeletion.push_back(*timer);
-                            }
-                            timer++;
-                        }
-                        // parse deletion queue
-                        if (queue_timerDeletion.empty() != true)
-                        {
-                            mapChannelTimer_t** timerList = &queue_timerDeletion[0];
-                            sint32 timerCount = queue_timerDeletion.size();
-                            for (sint32 f = 0; f < timerCount; f++)
-                            {
-                                mapChannelTimer_t* toBeDeletedTimer = timerList[f];
-                                // remove from timer list
-                                std::vector<mapChannelTimer_t*>::iterator itr = mapChannel->timerList.begin();
-                                while (itr != mapChannel->timerList.end())
+                                if ((*itr) == toBeDeletedTimer)
                                 {
-                                    if ((*itr) == toBeDeletedTimer)
-                                    {
-                                        mapChannel.TimerList.erase(itr);
-                                        break;
-                                    }
-                                    ++itr;
+                                    mapChannel.TimerList.erase(itr);
+                                    break;
                                 }
-                            }
-                        }
-                        mapChannel.TimerGeneralTimer += 100;
-                    }*/
-
-                    for (var i = 0; i < mapChannel.PlayerList.Count; i++)
-                    {
-                        var player = mapChannel.PlayerList[i];
-                        if (player != null)
-                        {
-                            if (player.RemoveFromMap == true)
-                            {
-                                CommunicatorManager.PlayerExitMap(player.Client);
-                                RemovePlayer(player.Client);
+                                ++itr;
                             }
                         }
                     }
-                    Thread.Sleep(1000);
+                    mapChannel.TimerGeneralTimer += 100;
+                }*/
+
+                for (var i = 0; i < mapChannel.PlayerList.Count; i++)
+                {
+                    var player = mapChannel.PlayerList[i];
+                    if (player != null)
+                    {
+                        if (player.RemoveFromMap == true)
+                        {
+                            CommunicatorManager.Instance.PlayerExitMap(player.Client);
+                            RemovePlayer(player.Client);
+                        }
+                    }
                 }
             }
         }
@@ -310,10 +310,10 @@ namespace Rasa.Managers
             mapClient.Client = client;
             client.MapClient = mapClient;
             CreatePlayerCharacter(mapChannel, mapClient);
-            CommunicatorManager.RegisterPlayer(mapClient);
-            CommunicatorManager.PlayerEnterMap(mapClient);
-            InventoryManager.InitForClient(mapClient);
-            PlayerManager.UpdateStatsValues(mapClient, true);
+            CommunicatorManager.Instance.RegisterPlayer(mapClient);
+            CommunicatorManager.Instance.PlayerEnterMap(mapClient);
+            InventoryManager.Instance.InitForClient(mapClient);
+            PlayerManager.Instance.UpdateStatsValues(mapClient, true);
         }
 
         public static void PassClientToCharacterSelection(Client client)
@@ -336,19 +336,14 @@ namespace Rasa.Managers
             // ToDo
         }
 
-        public void RadialChat(Client client, string textMsg)
-        {
-            CommunicatorManager.Recv_RadialChat(client, textMsg);
-        }
-
         public static void RemovePlayer(Client client)
         {
             var mapClient = client.MapClient;
             // unregister mapChannelClient
-            EntityManager.UnregisterEntity(mapClient.ClientEntityId);
-            CommunicatorManager.UnregisterPlayer(mapClient);            
-            CellManager.RemoveFromWorld(client);
-            PlayerManager.RemovePlayerCharacter(mapClient.MapChannel, mapClient);
+            EntityManager.Instance.UnregisterEntity(mapClient.ClientEntityId);
+            CommunicatorManager.Instance.UnregisterPlayer(mapClient);            
+            CellManager.Instance.RemoveFromWorld(client);
+            PlayerManager.Instance.RemovePlayerCharacter(mapClient.MapChannel, mapClient);
             if (mapClient.Disconected == false)
                 PassClientToCharacterSelection(client);
             // remove from list
@@ -369,7 +364,5 @@ namespace Rasa.Managers
             client.MapClient.LogoutRequestedLast = Environment.TickCount;
             client.MapClient.LogoutActive = true;
         }
-        
-        //
     }
 }

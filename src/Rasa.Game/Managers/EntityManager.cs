@@ -5,34 +5,83 @@ namespace Rasa.Managers
     using Structures;
     public class EntityManager
     {
-        public static Dictionary<uint, MapChannelClient> EntytyTable = new Dictionary<uint, MapChannelClient>();
-        public static Dictionary<uint, Item> ItemTable = new Dictionary<uint, Item>();
+        private static EntityManager _instance;
+        private static readonly object InstanceLock = new object();
+        public Dictionary<uint, MapChannelClient> EntityTable = new Dictionary<uint, MapChannelClient>();
+        public Dictionary<uint, Item> ItemTable = new Dictionary<uint, Item>();
+
+        private uint _entityId = 1000;
+        private object _entityIdLock = new object();
+        private List<uint> _freeEntityIds = new List<uint>();
+
+        public static EntityManager Instance
+        {
+            get
+            {
+                // ReSharper disable once InvertIf
+                if (_instance == null)
+                {
+                    lock (InstanceLock)
+                    {
+                        if (_instance == null)
+                            _instance = new EntityManager();
+                    }
+                }
+
+                return _instance;
+            }
+        }
+        public uint NextEntityId
+        {
+            get
+            {
+                lock (_entityIdLock)
+                {
+                    if (_freeEntityIds.Count > 0)
+                    {
+                        var freeEntityId = _freeEntityIds[0];
+
+                        _freeEntityIds.RemoveAt(0);
+
+                        return freeEntityId;
+                    }
+
+                    return _entityId++;
+                }
+            }
+        }
+
+        public void FreeEntity(uint id)
+        {
+            lock (_entityIdLock)
+                _freeEntityIds.Add(id);
+        }
 
         // Players
 
-        public static void RegisterEntity(uint entityId, MapChannelClient entity)
+        public void RegisterEntity(uint entityId, MapChannelClient entity)
         {
-            EntytyTable.Add(entityId, entity);
+            EntityTable.Add(entityId, entity);
         }
 
-        public static void UnregisterEntity(uint entityId)
+        public void UnregisterEntity(uint entityId)
         {
-            EntytyTable.Remove(entityId);
+            EntityTable.Remove(entityId);
         }
 
         // Items
-        public static Item GetItem(uint entityId)
+        public Item GetItem(uint entityId)
         {
             return ItemTable[entityId];
         }
 
-        public static void RegisterItem(uint entityId, Item item)
+        public void RegisterItem(uint entityId, Item item)
         {
             if (!ItemTable.ContainsKey(entityId))
                 ItemTable.Add(entityId, item);
         }
 
-        public static void UnregisterItem(uint entityId)
+        public void UnregisterItem(uint entityId)
         {
             ItemTable.Remove(entityId);
         }

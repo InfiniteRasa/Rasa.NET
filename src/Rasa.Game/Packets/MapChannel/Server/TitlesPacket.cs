@@ -9,7 +9,7 @@ namespace Rasa.Packets.MapChannel.Server
     {
         public override GameOpcode Opcode { get; } = GameOpcode.Titles;
 
-        public List<int> Titles { get; set; } = new List<int>();
+        public List<int> Titles { get; set; }
 
         public TitlesPacket(List<int> titles)
         {
@@ -18,7 +18,6 @@ namespace Rasa.Packets.MapChannel.Server
 
         public override void Read(PythonReader pr)
         {
-            
         }
 
         public override void Write(PythonWriter pw)

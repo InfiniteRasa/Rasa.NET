@@ -12,7 +12,8 @@
         public double RotationX { get; set; }
         public double RotationY { get; set; }
         public double RotationZ { get; set; }
-        public double Unknwon { get; set; }     // camera poss?
+        public double RotationW { get; set; }
+
         public override void Read(PythonReader pr)
         {
         }
@@ -28,7 +29,7 @@
             pw.WriteDouble(RotationX);
             pw.WriteDouble(RotationZ);
             pw.WriteDouble(RotationY);
-            pw.WriteDouble(Unknwon);
+            pw.WriteDouble(RotationW);
         }
     }
 }

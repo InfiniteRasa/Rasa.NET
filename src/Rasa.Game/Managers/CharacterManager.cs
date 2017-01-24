@@ -52,7 +52,7 @@ namespace Rasa.Managers
                     : new BeginCharacterSelectionPacket(null, false, client.Entry.Id));
 
             for (var i = 0; i < 16; ++i)
-                client.SendPacket(5, new CreatePyhsicalEntityPacket(101 + i, 3543));
+                client.SendPacket(5, new CreatePhysicalEntityPacket(101 + i, 3543));
 
             for (var i = 0; i < 16; ++i)
                 SendCharacterInfo(client, i);
@@ -85,13 +85,13 @@ namespace Rasa.Managers
             // insert character into DB
             var characterId = CharacterTable.CreateCharacter(client.Entry.Id, packet.CharacterName, packet.FamilyName, packet.SlotNum, packet.Gender, packet.Scale, packet.RaceId);
             // Give character basic items
-            ItemManager.CreateFromTemplateId(characterId, 50, 28, 100);
-            ItemManager.CreateFromTemplateId(characterId, 251, 13126, 1);
-            ItemManager.CreateFromTemplateId(characterId, 252, 13066, 1);
-            ItemManager.CreateFromTemplateId(characterId, 253, 13096, 1);
-            ItemManager.CreateFromTemplateId(characterId, 265, 13186, 1);
-            ItemManager.CreateFromTemplateId(characterId, 266, 13156, 1);
-            ItemManager.CreateFromTemplateId(characterId, 272, 17131, 1);
+            ItemManager.Instance.CreateFromTemplateId(characterId, 50, 28, 100);
+            ItemManager.Instance.CreateFromTemplateId(characterId, 251, 13126, 1);
+            ItemManager.Instance.CreateFromTemplateId(characterId, 252, 13066, 1);
+            ItemManager.Instance.CreateFromTemplateId(characterId, 253, 13096, 1);
+            ItemManager.Instance.CreateFromTemplateId(characterId, 265, 13186, 1);
+            ItemManager.Instance.CreateFromTemplateId(characterId, 266, 13156, 1);
+            ItemManager.Instance.CreateFromTemplateId(characterId, 272, 17131, 1);
             // Set character appearance
             CharacterAppearanceTable.SetAppearance(characterId, 1, 10908, -2139062144);
             CharacterAppearanceTable.SetAppearance(characterId, 2, 7054, -2139062144);
@@ -108,7 +108,7 @@ namespace Rasa.Managers
                 CharacterAbilityDrawerTable.SetCharacterAbility(characterId, i, 0, 0);
             // Create default entry in CharacterSkillsTable
             for (var i = 0; i < 73; i++)
-                CharacterSkillsTable.SetCharacterSkill(characterId, PlayerManager.SkillIById[i], PlayerManager.SkillIdx2AbilityID[i], 0);
+                CharacterSkillsTable.SetCharacterSkill(characterId, PlayerManager.Instance.SkillIById[i], PlayerManager.Instance.SkillIdx2AbilityID[i], 0);
 
             SendCharacterCreateSuccess(client, packet.SlotNum, packet.FamilyName);
             UpdateCharacterSelection(client, packet.SlotNum);
@@ -130,14 +130,15 @@ namespace Rasa.Managers
 
             client.SendPacket(5, new SetIsGMPacket(client.Entry.Level > 0 ));
 
-            client.SendPacket(5, new PreWonkavatePacket(0)); // ToDo need to see what is this
+            client.SendPacket(5, new PreWonkavatePacket());
 
             var data = CharacterTable.GetCharacterData(client.Entry.Id, slotNum);
+            var mapData = MapChannelManager.Instance.MapChannelArray[data.MapContextId];
             var packet = new WonkavatePacket
             {
-                MapContextId = data.MapContextId,
-                MapInstanceId = 0,                  // ToDo MapInstanceId / MapVersion
-                MapVersion = 1556,
+                MapContextId = mapData.MapInfo.MapId,
+                MapInstanceId = 0,                  // ToDo MapInstanceId
+                MapVersion = mapData.MapInfo.MapVersion,
                 Position = new Position
                 {
                     PosX = data.PosX,

@@ -93,6 +93,8 @@ namespace Rasa.Game
 
         public void MainLoop(long delta)
         {
+            MapChannelManager.Instance.MapChannelWorker(delta);
+
             QueuedPacket packet;
 
             while ((packet = PacketQueue.PopIncoming()) != null)
@@ -149,6 +151,11 @@ namespace Rasa.Game
             {
                 QueueManager.Update(Config.ServerInfoConfig.MaxPlayers - CurrentPlayers);
             });
+
+            // Load items from db
+            ItemManager.Instance.LoadItems();
+            ChatCommandsManager.Instance.RegisterChatCommands();
+            MapChannelManager.Instance.MapChannelInit();
 
             return true;
         }
@@ -277,9 +284,6 @@ namespace Rasa.Game
             if (packet.Response == CommLoginReason.Success)
             {
                 Logger.WriteLog(LogType.Network, "Successfully authenticated with the Auth server!");
-                // Load items from db
-                ItemManager.LoadItems();
-                MapChannelManager.MapChannelInit();
                 return;
             }
 

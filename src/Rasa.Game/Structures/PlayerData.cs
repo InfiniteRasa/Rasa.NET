@@ -37,11 +37,11 @@ namespace Rasa.Structures
         public int SpentSpirit { get; set; }
         public Dictionary<int, SkillsData> Skills = new Dictionary<int, SkillsData>();
         public Dictionary<int, AbilityDrawerData> Abilities = new Dictionary<int, AbilityDrawerData>();
+        public List<int> Titles { get; set; } = new List<int>();
         public int CurrentAbilityDrawer { get; set; }
         public int MissionStateCount { get; set; }
         //public CharacterMissionData MissionStateData { get; set; }
         public int LoginTime { get; set; }
         public List<byte> Logos = new List<byte>();
-        public List<int> Titles { get; set; }
     }
 }

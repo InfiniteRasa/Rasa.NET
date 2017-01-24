@@ -5,16 +5,17 @@ namespace Rasa.Packets.MapChannel.Client
     using Data;
     using Memory;
 
-    public class ChangeShowHelmetPacket : PythonPacket
+    public class SaveUserOptionsPacket :PythonPacket
     {
-        public override GameOpcode Opcode { get; } = GameOpcode.ChangeShowHelmet;
+        public override GameOpcode Opcode { get; } = GameOpcode.SaveUserOptions;
 
-        public bool ShowHelmet { get; set; }
+        public double Ping { get; set; }
 
         public override void Read(PythonReader pr)
         {
-            Console.WriteLine("ChangeShowHelmet\n{0}", pr.ToString());
+            Console.WriteLine("SaveUserOptions\n{0}", pr.ToString());
         }
+
         public override void Write(PythonWriter pw)
         {
         }

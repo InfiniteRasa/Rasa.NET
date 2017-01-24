@@ -1,5 +1,6 @@
 ﻿namespace Rasa.Packets.MapChannel.Server
 {
+    // ToDo need future work on this packet
     using Data;
     using Memory;
 

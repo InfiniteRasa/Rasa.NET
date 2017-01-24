@@ -8,11 +8,37 @@ namespace Rasa.Managers
     using Packets.Game.Server;
     using Packets.MapChannel.Server;
     using Structures;
+
     public class ItemManager
     {
-        public static Dictionary<int, ItemTemplate> LoadedItemTemplates = new Dictionary<int, ItemTemplate>();
+        private static ItemManager _instance;
+        private static readonly object InstanceLock = new object();
+        public Dictionary<int, ItemTemplate> LoadedItemTemplates = new Dictionary<int, ItemTemplate>();
+
+        public static ItemManager Instance
+        {
+            get
+            {
+                // ReSharper disable once InvertIf
+                if (_instance == null)
+                {
+                    lock (InstanceLock)
+                    {
+                        if (_instance == null)
+                            _instance = new ItemManager();
+                    }
+                }
+
+                return _instance;
+            }
+        }
+
+        private ItemManager()
+        {
+        }
         
-        public static Item CreateFromTemplateId(uint ownerId, int ownerSlotId, int itemTemplateId, int stackSize)
+        
+        public Item CreateFromTemplateId(uint ownerId, int ownerSlotId, int itemTemplateId, int stackSize)
         {
             var itemTemplate = GetItemTemplateById(itemTemplateId);
             if (itemTemplate == null)
@@ -21,23 +47,23 @@ namespace Rasa.Managers
             return item;
         }
 
-        public static Item CreateItem(uint ownerId, int ownerSlotId, ItemTemplate itemTemplate, int stackSize)
+        public Item CreateItem(uint ownerId, int ownerSlotId, ItemTemplate itemTemplate, int stackSize)
         {
             if (itemTemplate == null)
                 return null;
             var item = new Item();
             var id = ItemsTable.CreateItem(ownerId, ownerSlotId, itemTemplate.ItemTemplateId, stackSize);
-            item.EntityId = id;
+            //item.EntityId = id;
             item.ItemTemplate = itemTemplate;
             item.OwnerId = ownerId;
             item.OwnerSlotId = ownerSlotId;
             item.Stacksize = stackSize;
             // register item
-            EntityManager.RegisterItem(item.EntityId, item);
+            EntityManager.Instance.RegisterItem(item.EntityId, item);
             return item;
         }
 
-        public static void GetItemArmorData()
+        public void GetItemArmorData()
         {
             var rows = ArmorTemplateTable.GetDbRows();
             for (var i = 0; i < rows; i++)
@@ -55,7 +81,7 @@ namespace Rasa.Managers
             Console.WriteLine("Loaded {0} ArmorTemplates.", rows);
         }
 
-        public static void GetItemEquipmentData()
+        public void GetItemEquipmentData()
         {
             var rows = EquipmentTemplateTable.GetDbRows();
             for (var i = 0; i < rows; i++)
@@ -73,25 +99,25 @@ namespace Rasa.Managers
             Console.WriteLine("Loaded {0} EquipmentTemplates.", rows);
         }
 
-        public static Item GetItemFromTemplateId(uint itemId, uint ownerId, int ownerSlot, int itemTemplateId, int stackSize)
+        public Item GetItemFromTemplateId(uint itemId, uint ownerId, int ownerSlot, int itemTemplateId, int stackSize)
         {
             var itemTemplate = GetItemTemplateById(itemTemplateId);
             if (itemTemplate == null)
                 return null;
             var item = new Item
             {
-                EntityId = itemId,
+                //EntityId = itemId,
                 OwnerId = ownerId,
                 OwnerSlotId = ownerSlot,
                 ItemTemplate = itemTemplate,
                 Stacksize = stackSize,
             };
             // register item
-            EntityManager.RegisterItem(item.EntityId, item);
+            EntityManager.Instance.RegisterItem(item.EntityId, item);
             return item;
         }
         
-        public static ItemTemplate GetItemTemplateById(int itemTemplateId)
+        public ItemTemplate GetItemTemplateById(int itemTemplateId)
         {
             ItemTemplate itemTemplate = null;
             if (LoadedItemTemplates.ContainsKey(itemTemplateId))
@@ -99,7 +125,7 @@ namespace Rasa.Managers
             return itemTemplate;
         }
 
-        public static void GetItemTemplates()
+        public void GetItemTemplates()
         {
             var rows = ItemTemplateTable.GetDbRows();
             Console.WriteLine("Loading ItemTemplates from db...");
@@ -129,7 +155,7 @@ namespace Rasa.Managers
             Console.WriteLine("Loaded {0} ItemTemplates.", rows);
         }
 
-        public static void GetItemWeaponData()
+        public void GetItemWeaponData()
         {
             var rows = WeaponTemplateTable.GetDbRows();
             for (var i = 0; i < rows; i++)
@@ -172,7 +198,7 @@ namespace Rasa.Managers
             Console.WriteLine("Loaded {0} WeaponTemplates.\n", rows);
         }
 
-        public static void LoadItems()
+        public void LoadItems()
         {
             // Load ItemTemplates from DB
             GetItemTemplates();            
@@ -186,10 +212,10 @@ namespace Rasa.Managers
             // todo
         }
         
-        public static void SendItemDataToClient(MapChannelClient mapClient, Item item)
+        public void SendItemDataToClient(MapChannelClient mapClient, Item item)
         {
             // CreatePhysicalEntity
-            mapClient.Player.Client.SendPacket(5, new CreatePyhsicalEntityPacket( (int)item.EntityId, item.ItemTemplate.ClassId));
+            mapClient.Player.Client.SendPacket(5, new CreatePhysicalEntityPacket( (int)item.EntityId, item.ItemTemplate.ClassId));
             // ItemInfo
             mapClient.Player.Client.SendPacket(item.EntityId, new ItemInfoPacket
             {
@@ -240,14 +266,16 @@ namespace Rasa.Managers
             if (item.ItemTemplate.ItemType == 2)    // armor
             {
                 // ArmorInfo
-                mapClient.Player.Client.SendPacket(item.EntityId, new ArmorInfoPacket { CurrentHitPoints = item.ItemTemplate.CurrentHitPoints, MaxHitPoints = item.ItemTemplate.MaxHitPoints});
+                // we dont need to send this, it is just an empty method on the client which has no effect
+                //mapClient.Player.Client.SendPacket(item.EntityId, new ArmorInfoPacket { CurrentHitPoints = item.ItemTemplate.CurrentHitPoints, MaxHitPoints = item.ItemTemplate.MaxHitPoints});
             }
             // SetStackCount
             mapClient.Player.Client.SendPacket(item.EntityId, new SetStackCountPacket { StackSize = item.Stacksize });
         }
 
-        public static void SendItemDestruction(MapChannelClient mapClient, Item item)
-        {
+        public void SendItemDestruction(MapChannelClient mapClient, Item item)
+        { 
+            EntityManager.Instance.FreeEntity(item.EntityId);
             mapClient.Player.Client.SendPacket(5, new DestroyPhysicalEntityPacket {EntityId = item.EntityId});
         }
     }

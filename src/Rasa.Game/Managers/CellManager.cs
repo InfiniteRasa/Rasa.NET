@@ -5,16 +5,40 @@ namespace Rasa.Managers
     using Game;
     using Structures;
 
-    public static class CellManager
+    public class CellManager
     {
+        private static CellManager _instance;
+        private static readonly object InstanceLock = new object();
         public const double CellSize = 25.0D;
         public const double CellBias = 32768.0D;
         public static uint CellPosX { get; set; }
         public static uint CellPosY { get; set; }
         public const uint CellViewRange = 2;   // view 2 cell's in every direction
 
+        public static CellManager Instance
+        {
+            get
+            {
+                // ReSharper disable once InvertIf
+                if (_instance == null)
+                {
+                    lock (InstanceLock)
+                    {
+                        if (_instance == null)
+                            _instance = new CellManager();
+                    }
+                }
+
+                return _instance;
+            }
+        }
+
+        private CellManager()
+        {
+        }
+
         // Player
-        public static void AddToWorld(MapChannelClient client)
+        public void AddToWorld(MapChannelClient client)
         {
             if (client.Player == null)
                 return;
@@ -55,14 +79,14 @@ namespace Rasa.Managers
                 if (mapCell.PlayerNotifyList.Count > 0)
                 {
                     // notify all players of me
-                    PlayerManager.CellIntroduceClientToPlayers(mapChannel, client, mapCell.PlayerNotifyList.Count);
+                    PlayerManager.Instance.CellIntroduceClientToPlayers(mapChannel, client, mapCell.PlayerNotifyList);
                     // notify me about all players that are visible here
-                    PlayerManager.CellIntroducePlayersToClient(mapChannel, client, mapCell.PlayerNotifyList.Count);
+                    PlayerManager.Instance.CellIntroducePlayersToClient(mapChannel, client, mapCell.PlayerNotifyList.Count);
                 }
             }
         }
         
-        public static void DoWork(MapChannel mapChannel)
+        public void DoWork(MapChannel mapChannel)
         {
             var currentTime = Environment.TickCount;
             if (mapChannel.MapCellInfo.TimeUpdateVisibility < currentTime)
@@ -76,7 +100,7 @@ namespace Rasa.Managers
             // events etc...
         }
 
-        public static MapCell GetCell(MapChannel mapChannel, uint cellPosX, uint cellPosY)
+        public MapCell GetCell(MapChannel mapChannel, uint cellPosX, uint cellPosY)
         {
             var cellSeed = (cellPosX & 0xFFFF) | (cellPosY << 16);
             MapCell cell;
@@ -103,7 +127,7 @@ namespace Rasa.Managers
 
         }
 
-        public static void RemoveFromWorld(Client client)
+        public void RemoveFromWorld(Client client)
         {
             var actor = client.MapClient.Player.Actor;
             var mapChannel = client.MapClient.MapChannel;
@@ -135,8 +159,8 @@ namespace Rasa.Managers
                         // remove player visibility client-side
                         if (nMapCell.PlayerNotifyList.Count > 0)
                         {
-                            PlayerManager.CellDiscardClientToPlayers(mapChannel, client.MapClient, nMapCell.PlayerNotifyList.Count);
-                            PlayerManager.CellDiscardPlayersToClient(mapChannel, client.MapClient, nMapCell.PlayerNotifyList.Count);
+                            PlayerManager.Instance.CellDiscardClientToPlayers(mapChannel, client.MapClient, nMapCell.PlayerNotifyList.Count);
+                            PlayerManager.Instance.CellDiscardPlayersToClient(mapChannel, client.MapClient, nMapCell.PlayerNotifyList.Count);
                         }
                     }
                 }
@@ -156,7 +180,7 @@ namespace Rasa.Managers
             }
         }
                
-        public static MapCell TryGetCell(MapChannel mapChannel, uint cellPosX, uint cellPosY)
+        public MapCell TryGetCell(MapChannel mapChannel, uint cellPosX, uint cellPosY)
         {
             var cellSeed = (cellPosX & 0xFFFF) | (cellPosY << 16);
             MapCell cell;
@@ -169,7 +193,7 @@ namespace Rasa.Managers
             return null;
         }
 
-        public static void UpdateVisibility(MapChannel mapChannel)
+        public void UpdateVisibility(MapChannel mapChannel)
         {
             for (var i = 0; i < mapChannel.PlayerCount; i++)
             {
@@ -209,8 +233,8 @@ namespace Rasa.Managers
                                 // remove player visibility client-side
                                 if (nMapCell.PlayerNotifyList.Count > 0)
                                 {
-                                    PlayerManager.CellDiscardClientToPlayers(mapChannel, client, nMapCell.PlayerNotifyList.Count);
-                                    PlayerManager.CellDiscardPlayersToClient(mapChannel, client, nMapCell.PlayerNotifyList.Count);
+                                    PlayerManager.Instance.CellDiscardClientToPlayers(mapChannel, client, nMapCell.PlayerNotifyList.Count);
+                                    PlayerManager.Instance.CellDiscardPlayersToClient(mapChannel, client, nMapCell.PlayerNotifyList.Count);
                                 }
                                 // remove object visibility
                                // if (nMapCell->ht_objectList.empty() == false)
@@ -235,9 +259,9 @@ namespace Rasa.Managers
                                 if (nnMapCell.PlayerNotifyList.Count > 0)
                                 {
                                     // notify all players of me
-                                    PlayerManager.CellIntroduceClientToPlayers(mapChannel, client, nnMapCell.PlayerNotifyList.Count);
+                                    PlayerManager.Instance.CellIntroduceClientToPlayers(mapChannel, client, nnMapCell.PlayerNotifyList);
                                     // notify me about all players that are visible here
-                                    PlayerManager.CellIntroducePlayersToClient(mapChannel, client, nnMapCell.PlayerNotifyList.Count);
+                                    PlayerManager.Instance.CellIntroducePlayersToClient(mapChannel, client, nnMapCell.PlayerNotifyList.Count);
                                 }
                                 //if (nMapCell.ObjectList > 0)
                                 //    dynamicObject_cellIntroduceObjectsToClient(mapChannel, client, &nMapCell->ht_objectList[0], nMapCell->ht_objectList.size());

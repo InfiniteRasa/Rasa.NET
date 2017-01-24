@@ -333,6 +333,41 @@ namespace Rasa.Networking
             SendAsync(args);
         }
 
+        public void Send(MovementPacket packet)
+        {
+            var args = SetupEventArgs(SocketAsyncOperation.Send);
+            var data = args.GetUserToken<BufferData>();
+
+            int length;
+
+            // Keep space for the length header
+            data.Offset = LengthSize;
+
+            // Write the packet data to the buffer
+            using (var sw = data.CreateWriter())
+            {
+                packet.WriteMovement(sw);
+
+                length = (int)sw.BaseStream.Position;
+            }
+
+            OnEncrypt?.Invoke(data, ref length);
+
+            // Reset the offset to send everything (including the size header)
+            data.Offset = 0;
+            data.Length = length + LengthSize;
+
+            var sizeLen = CountSize ? data.Length : length;
+
+            // Copy the size header into the buffer
+            for (var i = 0; i < LengthSize; ++i)
+                args.Buffer[data.BaseOffset + i] = (byte)((sizeLen >> (i * 8)) & 0xFF);
+
+            args.SetBuffer(data.BaseOffset, data.Length);
+
+            SendAsync(args);
+        }
+
         private void SendAsync(SocketAsyncEventArgs args)
         {
             if (!Socket.SendAsync(args))

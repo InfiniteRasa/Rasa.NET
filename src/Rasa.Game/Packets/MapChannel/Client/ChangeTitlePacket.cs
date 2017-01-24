@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Rasa.Packets.MapChannel.Client
+﻿namespace Rasa.Packets.MapChannel.Client
 {
     using Data;
     using Memory;
@@ -10,11 +8,9 @@ namespace Rasa.Packets.MapChannel.Client
         public override GameOpcode Opcode { get; } = GameOpcode.ChangeTitle;
 
         public int TitleId { get; set; }
-        public int EntityId { get; set; }
 
         public override void Read(PythonReader pr)
         {
-            Console.WriteLine("changetitle\n{0}", pr.ToString());
             pr.ReadTuple();
             if (pr.PeekType() == PythonType.Int)
                 TitleId = pr.ReadInt();
@@ -24,10 +20,8 @@ namespace Rasa.Packets.MapChannel.Client
 
         public override void Write(PythonWriter pw)
         {
-            pw.WriteTuple(2);
+            pw.WriteTuple(1);
             pw.WriteInt(TitleId);
-            pw.WriteInt((int)EntityId);
-                  
         }
     }
 }

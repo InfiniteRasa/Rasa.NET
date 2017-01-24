@@ -2,17 +2,10 @@
 {
     using Data;
     using Memory;
-
+    // PreWonkavatePacket initialize loading screen
     public class PreWonkavatePacket : PythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.PreWonkavate;
-
-        public int Something { get; set; }  // ToDo variable unknown
-
-        public PreWonkavatePacket(int something)
-        {
-            Something = something;
-        }
 
         public override void Read(PythonReader pr)
         {
@@ -21,7 +14,7 @@
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(1);
-            pw.WriteInt(Something);
+            pw.WriteInt(0); // wonktype isnt used by game client, so we send 0
         }
     }
 }

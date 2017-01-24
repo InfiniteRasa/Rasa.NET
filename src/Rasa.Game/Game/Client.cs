@@ -66,6 +66,14 @@ namespace Rasa.Game
             Socket.Send(packet);
         }
 
+        public void SendPacket(MovementPacket packet)
+        {
+            if (!(packet is MovementCallPacket))
+                Debugger.Break(); // todo: handle outgoing queue packet sending from server (like in auth) (todo: maybe a delegate instead of an interface?)
+
+            Socket.Send(packet);
+        }
+
         public void HandlePacket(IBasePacket packet)
         {
             var authPacket = packet as PythonPacket;
@@ -186,11 +194,59 @@ namespace Rasa.Game
 
             return true;
         }
-
+        
+        //netMgr_pythonAddMethodCallRaw
         public void SendPacket(uint entityId, PythonPacket packet)
         {
             SendPacket(new PythonCallPacket(packet, entityId));
         }
+        
+        // netMgr_cellDomain_pythonAddMethodCallRaw (mapChannel)
+        public void SendPacket(MapChannel mapChannel, Actor aggregator, uint entityId, PythonPacket packet)
+        {
+            var mapCell = CellManager.Instance.GetCell(mapChannel, aggregator.CellLocation.CellPosX, aggregator.CellLocation.CellPosY);
+            // get players
+            var playerList = mapCell.PlayerNotifyList;
+            if (playerList == null || mapCell.PlayerNotifyList.Count == 0)
+                return;
+            foreach (var mapClient in playerList)
+                mapClient.Player.Client.SendPacket(entityId, packet);
+        }
+
+        // netMgr_cellDomain_pythonAddMethodCallRaw (mapClient)
+        public void SendPacket(MapChannelClient aggregator, uint entityId, PythonPacket packet)
+        {
+            var mapCell = CellManager.Instance.GetCell(aggregator.MapChannel, aggregator.Player.Actor.CellLocation.CellPosX, aggregator.Player.Actor.CellLocation.CellPosY);
+            // get players
+            var playerList = mapCell.PlayerNotifyList;
+            if (playerList == null || mapCell.PlayerNotifyList.Count == 0)
+                return;
+            foreach (var mapClient in playerList)
+                mapClient.Player.Client.SendPacket(entityId, packet);
+        }
+
+        // netMgr_cellDomain_pythonAddMethodCallRawIgnoreSelf
+        public void SendPacketIgnoreSelf(MapChannelClient aggregator, uint entityId, PythonPacket packet)
+        {
+            var mapCell = CellManager.Instance.GetCell(aggregator.MapChannel, aggregator.Player.Actor.CellLocation.CellPosX, aggregator.Player.Actor.CellLocation.CellPosY);
+            // get players
+            var playerList = mapCell.PlayerNotifyList;
+            if (playerList == null || mapCell.PlayerNotifyList.Count == 0)
+                return;
+            foreach (var mapClient in playerList)
+            {
+                if (mapClient == aggregator)
+                    return;
+                mapClient.Player.Client.SendPacket(entityId, packet);
+            }
+        }
+
+        // netMgr_sendEntityMovement    // ToDo
+        public void SendPacket(uint entityId, NetCompressedMovement movement)
+        {
+            SendPacket(new MovementCallPacket(entityId, movement));
+        }
+        
         #endregion
     }
 }

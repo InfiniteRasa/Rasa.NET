@@ -1,13 +1,8 @@
 ﻿using MySql.Data.MySqlClient;
-using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Rasa.Database.Tables.Character
 {
-    using Structures;
-
     public static class CharacterTitlesTable
     {
         private static readonly MySqlCommand CharacterTitles = new MySqlCommand("SELECT titleId FROM character_titles WHERE characterId = @CharacterId;");

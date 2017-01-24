@@ -9,6 +9,11 @@
 
         public double MovementMod { get; set; }
 
+        public MovementModChangePacket(double speed)
+        {
+            MovementMod = speed;
+        }
+
         public override void Read(PythonReader pr)
         {
         }

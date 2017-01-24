@@ -61,7 +61,7 @@ namespace Rasa.Game
         [PacketHandler(GameOpcode.AutoFireKeepAlive)]
         private void AutoFireKeepAlive(AutoFireKeepAlivePacket packet)
         {
-            PlayerManager.AutoFireKeepAlive(Client, packet.KeepAliveDelay);
+            PlayerManager.Instance.AutoFireKeepAlive(Client, packet.KeepAliveDelay);
         }
 
         [PacketHandler(GameOpcode.CancelLogoutRequest)]
@@ -73,13 +73,13 @@ namespace Rasa.Game
         [PacketHandler(GameOpcode.ChangeTitle)]
         private void ChangeTitle(ChangeTitlePacket packet)
         {
-            PlayerManager.ChangeTitle(Client, packet.TitleId);
+            PlayerManager.Instance.ChangeTitle(Client, packet.TitleId);
         }
 
         [PacketHandler(GameOpcode.ChangeShowHelmet)]
         private void ChangeShowHelmet(ChangeShowHelmetPacket packet)
         {
-            // ToDo
+           // ToDo
         }
 
         [PacketHandler(GameOpcode.CharacterLogout)]
@@ -91,7 +91,7 @@ namespace Rasa.Game
         [PacketHandler(GameOpcode.LevelSkills)]
         private void LevelSkills(LevelSkillsPacket packet)
         {
-            PlayerManager.LevelSkills(Client, packet);
+            PlayerManager.Instance.LevelSkills(Client, packet);
         }
 
         [PacketHandler(GameOpcode.MapLoaded)]
@@ -103,13 +103,13 @@ namespace Rasa.Game
         [PacketHandler(GameOpcode.PersonalInventory_DestroyItem)]
         private void PersonalInventory_DestroyItem(PersonalInventory_DestroyItemPacket packet)
         {
-            InventoryManager.PersonalInventory_DestroyItem(Client, packet);
+            InventoryManager.Instance.PersonalInventory_DestroyItem(Client, packet);
         }
 
         [PacketHandler(GameOpcode.PersonalInventory_MoveItem)]
         private void PersonalInventory_MoveItem(PersonalInventory_MoveItemPacket packet)
         {
-            InventoryManager.PersonalInventory_MoveItem(Client, packet);
+            InventoryManager.Instance.PersonalInventory_MoveItem(Client, packet);
         }
 
         [PacketHandler(GameOpcode.Ping)]
@@ -121,31 +121,31 @@ namespace Rasa.Game
         [PacketHandler(GameOpcode.RadialChat)]
         private void RadialChat(RadialChatPacket packet)
         {
-            MapChannelManager.Instance.RadialChat(Client, packet.TextMsg);
+            CommunicatorManager.Instance.Recv_RadialChat(Client, packet.TextMsg);
         }
 
         [PacketHandler(GameOpcode.RequestArmAbility)]
         private void RequestArmAbility(RequestArmAbilityPacket packet)
         {
-            PlayerManager.RequestArmAbility(Client, packet.AbilityDrawerSlot);
+            PlayerManager.Instance.RequestArmAbility(Client, packet.AbilityDrawerSlot);
         }
 
         [PacketHandler(GameOpcode.RequestArmWeapon)]
         private void RequestArmWeapon(RequestArmWeaponPacket packet)
         {
-            PlayerManager.RequestArmWeapon(Client, packet.RequestedWeaponDrawerSlot);
+            PlayerManager.Instance.RequestArmWeapon(Client, packet.RequestedWeaponDrawerSlot);
         }
 
         [PacketHandler(GameOpcode.RequestEquipArmor)]
         private void RequestEquipArmor(RequestEquipArmorPacket packet)
         {
-            InventoryManager.RequestEquipArmor(Client, packet);
+            InventoryManager.Instance.RequestEquipArmor(Client, packet);
         }
 
         [PacketHandler(GameOpcode.RequestEquipWeapon)]
         private void RequestEquipWeapon(RequestEquipWeaponPacket packet)
         {
-            InventoryManager.RequestEquipWeapon(Client, packet);
+            InventoryManager.Instance.RequestEquipWeapon(Client, packet);
         }
 
         [PacketHandler(GameOpcode.RequestLogout)]
@@ -157,31 +157,37 @@ namespace Rasa.Game
         [PacketHandler(GameOpcode.RequestPerformAbility)]
         private void RequestPerformAbility(RequestPerformAbilityPacket packet)
         {
-            PlayerManager.RequestPerformAbility(Client, packet);
+            PlayerManager.Instance.RequestPerformAbility(Client, packet);
         }
 
         [PacketHandler(GameOpcode.RequestSwapAbilitySlots)]
         private void RequestSwapAbilitySlots(RequestSwapAbilitySlotsPacket packet)
         {
-            PlayerManager.RequestSwapAbilitySlots(Client, packet);
+            PlayerManager.Instance.RequestSwapAbilitySlots(Client, packet);
         }
 
         [PacketHandler(GameOpcode.RequestTooltipForItemTemplateId)]
         private void RequestTooltipForItemTemplateId(RequestTooltipForItemTemplateIdPacket packet)
         {
-            InventoryManager.RequestTooltipForItemTemplateId(Client, packet.ItemTemplateId);
+            InventoryManager.Instance.RequestTooltipForItemTemplateId(Client, packet.ItemTemplateId);
         }
 
         [PacketHandler(GameOpcode.RequestSetAbilitySlot)]
         private void RequestSetAbilitySlot(RequestSetAbilitySlotPacket packet)
         {
-            PlayerManager.RequestSetAbilitySlot(Client, packet);
+            PlayerManager.Instance.RequestSetAbilitySlot(Client, packet);
         }
 
         [PacketHandler(GameOpcode.RequestVisualCombatMode)]
         private void RequestVisualCombatMode(RequestVisualCombatModePacket packet)
         {
-            PlayerManager.RequestVisualCombatMode(Client, packet.CombatMode);
+            PlayerManager.Instance.RequestVisualCombatMode(Client, packet.CombatMode);
+        }
+
+        [PacketHandler(GameOpcode.SaveUserOptions)]
+        private void SaveUserOptions(SaveUserOptionsPacket packet)
+        {
+            // ToDo
         }
 
         [PacketHandler(GameOpcode.SetAutoLootThreshold)]
@@ -193,19 +199,19 @@ namespace Rasa.Game
         [PacketHandler(GameOpcode.SetDesiredCrouchState)]
         private void SetDesiredCrouchState(SetDesiredCrouchStatePacket packet)
         {
-            PlayerManager.SetDesiredCrouchState(Client, packet.DesiredStateId);
+            PlayerManager.Instance.SetDesiredCrouchState(Client, packet.DesiredStateId);
         }
 
         [PacketHandler(GameOpcode.StartAutoFire)]
         private void StartAutoFire(StartAutoFirePacket packet)
         {
-            PlayerManager.StartAutoFire(Client, packet.RetryDelayMs);
+            PlayerManager.Instance.StartAutoFire(Client, packet.RetryDelayMs);
         }
 
         [PacketHandler(GameOpcode.WeaponDrawerInventory_MoveItem)]
         private void WeaponDrawerInventory_MoveItem(WeaponDrawerInventory_MoveItemPacket packet)
         {
-            InventoryManager.WeaponDrawerInventory_MoveItem(Client, packet);
+            InventoryManager.Instance.WeaponDrawerInventory_MoveItem(Client, packet);
         }
         #endregion
     }
