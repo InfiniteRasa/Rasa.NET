@@ -1,8 +1,14 @@
 ﻿namespace Rasa.Structures
 {
     using Game;
+    using Managers;
+
     public class MapChannelClient
     {
+        public MapChannelClient()
+        {
+            ClientEntityId = EntityManager.Instance.GetEntityId;
+        }
         public uint ClientEntityId { get; set; }
         public MapChannel MapChannel { get; set; }
         public PlayerData Player { get; set; }

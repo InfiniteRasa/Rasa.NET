@@ -38,7 +38,11 @@ namespace Rasa.Managers
         }
 
         // Player
+<<<<<<< origin/dev-EnterWorld
+        public void AddToWorld(MapChannelClient client)
+=======
         public void AddToWorld(MapChannelClient mapClient)
+>>>>>>> local
         {
             if (mapClient.Player == null)
                 return;
@@ -78,10 +82,17 @@ namespace Rasa.Managers
                 }
                 if (mapCell.PlayerNotifyList.Count > 0)
                 {
+<<<<<<< origin/dev-EnterWorld
+                    // notify all players of me
+                    PlayerManager.Instance.CellIntroduceClientToPlayers(mapChannel, client, mapCell.PlayerNotifyList);
+                    // notify me about all players that are visible here
+                    PlayerManager.Instance.CellIntroducePlayersToClient(mapChannel, client, mapCell.PlayerNotifyList.Count);
+=======
                     // notify all players of me, including me
                     PlayerManager.Instance.CellIntroduceClientToPlayers(mapClient, mapCell.PlayerNotifyList);
                     // notify me about all players that are visible here
                     PlayerManager.Instance.CellIntroducePlayersToClient(mapChannel, mapClient, mapCell.PlayerNotifyList);
+>>>>>>> local
                 }
             }
         }
@@ -259,9 +270,15 @@ namespace Rasa.Managers
                                 if (nnMapCell.PlayerNotifyList.Count > 0)
                                 {
                                     // notify all players of me
+<<<<<<< origin/dev-EnterWorld
+                                    PlayerManager.Instance.CellIntroduceClientToPlayers(mapChannel, client, nnMapCell.PlayerNotifyList);
+                                    // notify me about all players that are visible here
+                                    PlayerManager.Instance.CellIntroducePlayersToClient(mapChannel, client, nnMapCell.PlayerNotifyList.Count);
+=======
                                     PlayerManager.Instance.CellIntroduceClientToPlayers(client, nnMapCell.PlayerNotifyList);
                                     // notify me about all players that are visible here
                                     PlayerManager.Instance.CellIntroducePlayersToClient(mapChannel, client, nnMapCell.PlayerNotifyList);
+>>>>>>> local
                                 }
                                 //if (nMapCell.ObjectList > 0)
                                 //    dynamicObject_cellIntroduceObjectsToClient(mapChannel, client, &nMapCell->ht_objectList[0], nMapCell->ht_objectList.size());

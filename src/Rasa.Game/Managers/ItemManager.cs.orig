@@ -61,7 +61,10 @@ namespace Rasa.Managers
             item.Stacksize = stackSize;
             // register item
             EntityManager.Instance.RegisterItem(item.EntityId, item);
+<<<<<<< origin/dev-EnterWorld
+=======
             EntityManager.Instance.RegisterEntity(item.EntityId, EntityType.Item);
+>>>>>>> local
             return item;
         }
 
@@ -116,7 +119,10 @@ namespace Rasa.Managers
             };
             // register item
             EntityManager.Instance.RegisterItem(item.EntityId, item);
+<<<<<<< origin/dev-EnterWorld
+=======
             EntityManager.Instance.RegisterEntity(item.EntityId, EntityType.Item);
+>>>>>>> local
             return item;
         }
         
@@ -275,5 +281,14 @@ namespace Rasa.Managers
             // SetStackCount
             mapClient.Player.Client.SendPacket(item.EntityId, new SetStackCountPacket { StackSize = item.Stacksize });
         }
+<<<<<<< origin/dev-EnterWorld
+
+        public void SendItemDestruction(MapChannelClient mapClient, Item item)
+        { 
+            EntityManager.Instance.FreeEntity(item.EntityId);
+            mapClient.Player.Client.SendPacket(5, new DestroyPhysicalEntityPacket {EntityId = item.EntityId});
+        }
+=======
+>>>>>>> local
     }
 }

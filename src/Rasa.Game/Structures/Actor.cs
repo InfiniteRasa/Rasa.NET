@@ -1,7 +1,13 @@
 ﻿namespace Rasa.Structures
 {
+    using Managers;
+
     public class Actor
     {
+        public Actor()
+        {
+            EntityId = EntityManager.Instance.GetEntityId;
+        }
         public uint EntityId { get; set; }
         public uint EntityClassId { get; set; }
         public string Name { get; set; }

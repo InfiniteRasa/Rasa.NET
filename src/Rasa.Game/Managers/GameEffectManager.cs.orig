@@ -62,8 +62,13 @@
             gameEffect.EffectLevel = effectLevel;
             // add to list
             AddToList(player.Actor, gameEffect);
+<<<<<<< origin/dev-EnterWorld
+            
+            player.Client.SendPacket(mapChannel, player.Actor, player.CharacterId, new GameEffectAttachedPacket {
+=======
             // ToDO send on cell domain
             player.Client.SendPacket(player.Actor.EntityId, new GameEffectAttachedPacket {
+>>>>>>> local
                 EffectTypeId = gameEffect.TypeId,
                 EffectId = gameEffect.EffectId,
                 EffectLevel = gameEffect.EffectLevel,
@@ -99,8 +104,12 @@
                 gameeffect = gameeffect.Next;
             }
             // todo: other modificators?
+<<<<<<< origin/dev-EnterWorld
+            player.Client.SendPacket(mapChannel, player.Actor, player.CharacterId, new MovementModChangePacket( movementMod) );
+=======
             // ToDO send on cell domain
             player.Client.SendPacket(player.Actor.EntityId, new MovementModChangePacket( movementMod) );
+>>>>>>> local
         }
     }
 }

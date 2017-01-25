@@ -2,6 +2,8 @@
 
 namespace Rasa.Structures
 {
+    using Game;
+
     public class MapChannel
     {
         // ToDo
@@ -18,6 +20,10 @@ namespace Rasa.Structures
         public int PlayerCount { get; set; }
         public int PlayerLimit { get; set; }
         public List<MapChannelClient> PlayerList { get; set; }
+        // queue
+        public readonly Queue<Client> QueuedClients = new Queue<Client>();
+        public int PlayerQueueReadIndex { get; set; }
+        public int PlayerQueueWriteIndex { get; set; }
         // cell
         public MapCellInfo MapCellInfo = new MapCellInfo();
         // effect

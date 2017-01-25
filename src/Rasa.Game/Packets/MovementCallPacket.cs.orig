@@ -7,8 +7,13 @@ namespace Rasa.Packets
     using Data;
     using Extensions;
     using Structures;
+<<<<<<< origin/dev-EnterWorld
+
+    public class MovementCallPacket : MovementPacket
+=======
 	// ToDo
     public class MovementCallPacket : IBasePacket
+>>>>>>> local
     {
         private readonly NetCompressedMovement _movement;
         private readonly uint _entityId;
@@ -19,17 +24,23 @@ namespace Rasa.Packets
         public byte Type { get; private set; }
         public uint AccountId { get; private set; }
 
+<<<<<<< origin/dev-EnterWorld
+=======
         public MovementCallPacket(int size)
         {
             Size = size;
         }
 
+>>>>>>> local
         public MovementCallPacket(uint entityId, NetCompressedMovement movement)
         {
             _entityId = entityId;
             _movement = movement;
         }
 
+<<<<<<< origin/dev-EnterWorld
+        public void WriteMovement(BinaryWriter bw)
+=======
         public void Read(BinaryReader br)
         {
             Console.WriteLine("Movement packet received");
@@ -37,6 +48,7 @@ namespace Rasa.Packets
         }
 
         public void Write(BinaryWriter bw)
+>>>>>>> local
         {
             bw.Write((byte)1); // align byte
 

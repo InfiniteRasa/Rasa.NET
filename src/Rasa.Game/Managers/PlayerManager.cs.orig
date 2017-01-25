@@ -77,7 +77,11 @@ namespace Rasa.Managers
         };
         public readonly int[] requiredSkillLevelPoints = { 0, 1, 3, 6, 10, 15 };
 
+<<<<<<< origin/dev-EnterWorld
+        public void AssignPlayer(MapChannel mapChannel, MapChannelClient mapClient)
+=======
         public void AssignPlayer(MapChannelClient mapClient)
+>>>>>>> local
         {
             var player = mapClient.Player;
             var actor = mapClient.Player.Actor;
@@ -122,6 +126,10 @@ namespace Rasa.Managers
             {
                 if (mapChannel.PlayerList[i].Player == mapClient.Player)
                     continue;
+<<<<<<< origin/dev-EnterWorld
+                mapClient.Client.SendPacket(5, new DestroyPhysicalEntityPacket{ EntityId = mapClient.Player.Actor.EntityId });
+=======
+>>>>>>> local
 
                 mapClient.Client.SendPacket(5, new DestroyPhysicalEntityPacket{ EntityId = mapClient.Player.Actor.EntityId });
                 EntityManager.Instance.FreeEntity(mapClient.Player.Actor.EntityId);
@@ -141,10 +149,17 @@ namespace Rasa.Managers
 
         }
 
+<<<<<<< origin/dev-EnterWorld
+        public void CellIntroduceClientToPlayers(MapChannel mapChannel, MapChannelClient mapClient, List<MapChannelClient> playerList)
+        {
+            var netMovement = new NetCompressedMovement();
+            netMovement.EntityId = mapClient.Player.CharacterId;
+=======
         public void CellIntroduceClientToPlayers(MapChannelClient mapClient, List<MapChannelClient> playerList)
         {
             var netMovement = new NetCompressedMovement();
             netMovement.EntityId = mapClient.Player.Actor.EntityId;
+>>>>>>> local
             netMovement.Flag = 0;
             netMovement.PosX24b = (uint)mapClient.Player.Actor.Position.PosX * 256;
             netMovement.PosY24b = (uint)mapClient.Player.Actor.Position.PosY * 256;
@@ -152,6 +167,20 @@ namespace Rasa.Managers
 
             foreach (var tempPlayer in playerList)
             {
+<<<<<<< origin/dev-EnterWorld
+                tempPlayer.Player.Client.SendPacket(5, new CreatePhysicalEntityPacket( (int)mapClient.Player.CharacterId, (int)mapClient.Player.Actor.EntityClassId));
+                tempPlayer.Player.Client.SendPacket(mapClient.Player.CharacterId, new AttributeInfoPacket { ActorStats = mapClient.Player.Actor.Stats });
+                tempPlayer.Player.Client.SendPacket(mapClient.Player.CharacterId, new PreloadDataPacket());    // ToDo
+                tempPlayer.Player.Client.SendPacket(mapClient.Player.CharacterId, new AppearanceDataPacket { AppearanceData = mapClient.Player.AppearanceData });
+                tempPlayer.Player.Client.SendPacket(mapClient.Player.CharacterId, new ActorControllerInfoPacket { IsPlayer = true });
+                tempPlayer.Player.Client.SendPacket(mapClient.Player.CharacterId, new LevelPacket { Level = mapClient.Player.Level });
+                tempPlayer.Player.Client.SendPacket(mapClient.Player.CharacterId, new CharacterClassPacket { CharacterClass = mapClient.Player.ClassId });
+                tempPlayer.Player.Client.SendPacket(mapClient.Player.CharacterId, new CharacterNamePacket { CharacterName = mapClient.Player.Actor.Name });
+                tempPlayer.Player.Client.SendPacket(mapClient.Player.CharacterId, new ActorNamePacket { CharacterFamily = mapClient.Player.Actor.FamilyName });
+                tempPlayer.Player.Client.SendPacket(mapClient.Player.CharacterId, new IsRunningPacket { IsRunning = mapClient.Player.Actor.IsRunning });
+                tempPlayer.Player.Client.SendPacket(mapClient.Player.CharacterId, new LogosStoneTabulaPacket());       // ToDo
+                tempPlayer.Player.Client.SendPacket(mapClient.Player.CharacterId, new WorldLocationDescriptorPacket
+=======
                 tempPlayer.Player.Client.SendPacket(5, new CreatePhysicalEntityPacket( (int)mapClient.Player.Actor.EntityId, (int)mapClient.Player.Actor.EntityClassId));
                 tempPlayer.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, new AttributeInfoPacket { ActorStats = mapClient.Player.Actor.Stats });
                 tempPlayer.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, new PreloadDataPacket());    // ToDo
@@ -164,6 +193,7 @@ namespace Rasa.Managers
                 tempPlayer.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, new IsRunningPacket { IsRunning = mapClient.Player.Actor.IsRunning });
                 tempPlayer.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, new LogosStoneTabulaPacket());       // ToDo
                 tempPlayer.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, new WorldLocationDescriptorPacket
+>>>>>>> local
                 {
                     Position = mapClient.Player.Actor.Position,
                     RotationX = 0.0D,
@@ -171,6 +201,15 @@ namespace Rasa.Managers
                     RotationZ = 0.0D,
                     RotationW = 1.0D
                 });
+<<<<<<< origin/dev-EnterWorld
+                tempPlayer.Player.Client.SendPacket(mapClient.Player.CharacterId, new TargetCategoryPacket { TargetCategory = 0 });    // 0 frendly
+                tempPlayer.Player.Client.SendPacket(mapClient.Player.CharacterId, new PlayerFlagsPacket());
+
+                if (tempPlayer.Player.CharacterId == mapClient.Player.CharacterId)
+                    continue;
+
+                tempPlayer.Player.Client.SendPacket(mapClient.Player.CharacterId, netMovement);
+=======
                 tempPlayer.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, new TargetCategoryPacket { TargetCategory = 0 });    // 0 frendly
                 tempPlayer.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, new PlayerFlagsPacket());
 
@@ -178,6 +217,7 @@ namespace Rasa.Managers
                     continue;
 
                 //tempPlayer.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, netMovement);
+>>>>>>> local
             }
 
             // Recv_Abilities (id: 10, desc: must only be sent for the local manifestation)
@@ -187,7 +227,11 @@ namespace Rasa.Managers
 
         }
 
+<<<<<<< origin/dev-EnterWorld
+        public void CellIntroducePlayersToClient(MapChannel mapChannel, MapChannelClient mapClient, int playerCount)
+=======
         public void CellIntroducePlayersToClient(MapChannel mapChannel, MapChannelClient mapClient, List<MapChannelClient> playerList)
+>>>>>>> local
         {
             foreach (var tempClient in playerList)
             {
@@ -195,6 +239,31 @@ namespace Rasa.Managers
                 if (mapClient == tempClient)
                     continue;
 
+<<<<<<< origin/dev-EnterWorld
+                var tempClient = mapChannel.PlayerList[i];
+
+                mapClient.Player.Client.SendPacket(5, new CreatePhysicalEntityPacket((int)tempClient.Player.Actor.EntityId, (int)tempClient.Player.Actor.EntityClassId));
+
+                mapClient.Player.Client.SendPacket(tempClient.Player.Actor.EntityId, new AttributeInfoPacket { ActorStats = tempClient.Player.Actor.Stats });
+                // doesnt seem important (its only for loading gfx early?)
+                //PreloadData
+                //client.Client.SendPacket(tempClient.Player.Actor.EntityId, new PreloadDataPacket());
+                // Recv_AppearanceData
+                mapClient.Player.Client.SendPacket(tempClient.Player.Actor.EntityId, new AppearanceDataPacket { AppearanceData = tempClient.Player.AppearanceData });
+                // set controller
+                mapClient.Player.Client.SendPacket(tempClient.Player.Actor.EntityId, new ActorControllerInfoPacket{IsPlayer = true});
+                // set level
+                mapClient.Player.Client.SendPacket(tempClient.Player.Actor.EntityId, new LevelPacket{ Level = tempClient.Player.Level });
+                // set class
+                mapClient.Player.Client.SendPacket(tempClient.Player.Actor.EntityId, new CharacterClassPacket{ CharacterClass = tempClient.Player.ClassId });
+                // set charname (name)
+                mapClient.Player.Client.SendPacket(tempClient.Player.Actor.EntityId, new CharacterNamePacket{ CharacterName = tempClient.Player.Actor.Name });
+                // set actor name (familyName)
+                mapClient.Player.Client.SendPacket(tempClient.Player.Actor.EntityId, new ActorNamePacket{ CharacterFamily = tempClient.Player.Actor.FamilyName });
+                // set running
+                mapClient.Player.Client.SendPacket(tempClient.Player.Actor.EntityId, new IsRunningPacket{ IsRunning = tempClient.Player.Actor.IsRunning });
+                // Recv_WorldLocationDescriptor
+=======
                 mapClient.Player.Client.SendPacket(5, new CreatePhysicalEntityPacket((int)tempClient.Player.Actor.EntityId, (int)tempClient.Player.Actor.EntityClassId));
                 mapClient.Player.Client.SendPacket(tempClient.Player.Actor.EntityId, new AttributeInfoPacket { ActorStats = tempClient.Player.Actor.Stats });
                 mapClient.Player.Client.SendPacket(tempClient.Player.Actor.EntityId, new AppearanceDataPacket { AppearanceData = tempClient.Player.AppearanceData });
@@ -204,6 +273,7 @@ namespace Rasa.Managers
                 mapClient.Player.Client.SendPacket(tempClient.Player.Actor.EntityId, new CharacterNamePacket { CharacterName = tempClient.Player.Actor.Name });
                 mapClient.Player.Client.SendPacket(tempClient.Player.Actor.EntityId, new ActorNamePacket { CharacterFamily = tempClient.Player.Actor.FamilyName });
                 mapClient.Player.Client.SendPacket(tempClient.Player.Actor.EntityId, new IsRunningPacket { IsRunning = tempClient.Player.Actor.IsRunning });
+>>>>>>> local
                 mapClient.Player.Client.SendPacket(tempClient.Player.Actor.EntityId, new WorldLocationDescriptorPacket
                 {
                     Position = tempClient.Player.Actor.Position,
@@ -212,11 +282,20 @@ namespace Rasa.Managers
                     RotationZ = 0.0D,
                     RotationW = 1.0D
                 });
+<<<<<<< origin/dev-EnterWorld
+                // set target category
+                mapClient.Player.Client.SendPacket(tempClient.Player.Actor.EntityId, new TargetCategoryPacket{ TargetCategory = 0 });  // 0 frendly
+                // ToDo
+                // send inital movement packet
+                //netCompressedMovement_t netMovement = { 0 };
+				//var netMovement = new NetCompressedMovement();
+=======
                 mapClient.Player.Client.SendPacket(tempClient.Player.Actor.EntityId, new TargetCategoryPacket { TargetCategory = 0 });  // 0 frendly
                 // ToDo
                 // send inital movement packet
                 //netCompressedMovement_t netMovement = { 0 };
                 //var netMovement = new NetCompressedMovement();
+>>>>>>> local
                 //netMovement.entityId = tempClient->player->actor->entityId;
                 //netMovement.posX24b = tempClient->player->actor->posX * 256.0f;
                 //netMovement.posY24b = tempClient->player->actor->posY * 256.0f;
@@ -228,12 +307,21 @@ namespace Rasa.Managers
         public void ChangeTitle(Client client, int titleId)
         {
             if (titleId != 0)
+<<<<<<< origin/dev-EnterWorld
+                client.SendPacket(client.MapClient.Player.CharacterId, new ChangeTitlePacket { TitleId = titleId });
+            else
+                client.SendPacket(client.MapClient.Player.CharacterId, new TitleRemovedPacket());
+        }
+
+        public int GetAvailableAttributePoints(MapChannelClient mapClient)
+=======
                 client.SendPacket(client.MapClient.Player.Actor.EntityId, new ChangeTitlePacket { TitleId = titleId });
             else
                 client.SendPacket(client.MapClient.Player.Actor.EntityId, new TitleRemovedPacket());
         }
 
         public int GetAvailableAttributePoints(PlayerData player)
+>>>>>>> local
         {
             var points = player.Level * 2 - 2;
             points -= player.SpentBody;
@@ -248,7 +336,11 @@ namespace Rasa.Managers
             return skillId < 0 ? -1 : skillId >= 200 ? -1 : SkillId2Idx[skillId];
         }
 
+<<<<<<< origin/dev-EnterWorld
+        public int GetSkillPointsAvailable(MapChannelClient mapClient)
+=======
         public int GetSkillPointsAvailable(PlayerData player)
+>>>>>>> local
         {
             var pointsAvailable = (player.Level - 1) * 2;
             pointsAvailable += 5; // add five points because of the recruit skills that start at level 1

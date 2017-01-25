@@ -15,6 +15,7 @@ namespace Rasa.Managers
         private static readonly object InstanceLock = new object();
 
         public static InventoryManager Instance
+<<<<<<< origin/dev-EnterWorld
         {
             get
             {
@@ -38,6 +39,31 @@ namespace Rasa.Managers
 
         public void AddItemBySlot(MapChannelClient mapClient, InventoryType inventoryType, uint itemId, int slotId, bool updateDB)
         {
+=======
+        {
+            get
+            {
+                // ReSharper disable once InvertIf
+                if (_instance == null)
+                {
+                    lock (InstanceLock)
+                    {
+                        if (_instance == null)
+                            _instance = new InventoryManager();
+                    }
+                }
+
+                return _instance;
+            }
+        }
+
+        private InventoryManager()
+        {
+        }
+
+        public void AddItemBySlot(MapChannelClient mapClient, InventoryType inventoryType, uint itemId, int slotId, bool updateDB)
+        {
+>>>>>>> local
             var tempItem = EntityManager.Instance.GetItem(itemId);
             if (tempItem == null)
                 return;
@@ -293,8 +319,12 @@ namespace Rasa.Managers
             {
                 // destroy item
                 RemoveItemBySlot(mapClient, InventoryType.Personal, tempItem.OwnerSlotId);
+<<<<<<< origin/dev-EnterWorld
+                ItemManager.Instance.SendItemDestruction(mapClient, tempItem);
+=======
                 EntityManager.Instance.DestroyPhysicalEntity(mapClient, tempItem.EntityId, EntityType.Item);
                 // ToDo Update DB
+>>>>>>> local
             }
             else
             {
@@ -477,21 +507,19 @@ namespace Rasa.Managers
                 return; // no ammo found -> ToDo: Tell the client?
             // send action start
             var reloadActionId = 134;
-            var reloadActionArgId = 1;// todo: Use correct argId depending on weapon type
-            // ToDo write netMgr_cellDomain_pythonAddMethodCallRaw and netMgr_cellDomain_pythonAddMethodCallRawIgnoreSelf
-            /*if (tellSelf)
+            var reloadActionArgId = 1;// ToDo: Use correct argId depending on weapon type
+            if (tellSelf)
             {
                 // if item_recv_RequestWeaponReload() is not called by client, then the server issued the weapon reload request
                 // tell all clients about the action start
-                netMgr_cellDomain_pythonAddMethodCallRaw(client, client->player->actor->entityId, PerformWindup, pym_getData(&pms), pym_getLen(&pms));
+                mapClient.Player.Client.SendPacket(mapClient, mapClient.Player.CharacterId, new PerformWindupPacket { ActionId = reloadActionId, ActionArgId = reloadActionArgId });
             }
             else
             {
                 // if the client sent the request, tell everyone but the client to start the reload action
                 // In this case, the action is created on the client without actually having to trigger it via Recv_PerformWindup
-                netMgr_cellDomain_pythonAddMethodCallRawIgnoreSelf(client, client->player->actor->entityId, PerformWindup, pym_getData(&pms), pym_getLen(&pms));
-            }*/
-            mapClient.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, new PerformWindupPacket { ActionId = reloadActionId, ActionArgId = reloadActionArgId });
+                mapClient.Player.Client.SendPacketIgnoreSelf(mapClient, mapClient.Player.CharacterId, new PerformWindupPacket { ActionId = reloadActionId, ActionArgId = reloadActionArgId });
+            }
             // start reload action
             //actor_startActionOnEntity(client->mapChannel, client->player->actor, 0, reloadActionId, reloadActionArgId, 1500, 0, _cb_item_recv_RequestWeaponReload_actionUpdate);
         }

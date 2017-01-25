@@ -102,7 +102,11 @@ namespace Rasa.Managers
             mapClient.Client.SendPacket(8, new ChatChannelJoinedPacket { ChannelId = channelId, MapContextId = mapClient.MapChannel.MapInfo.MapId });            
         }
 
+<<<<<<< origin/dev-EnterWorld
+        public void PlayerEnterMap(MapChannelClient mapClient)
+=======
         public void LoginOk(MapChannelClient mapClient, MapChannel mapChannel)
+>>>>>>> local
         {
             // send LoginOk (despite the original description in the python files, this will only show 'You have arrived at ....' msg in chat)
             mapClient.Player.Client.SendPacket(8, new LoginOkPacket(mapClient.Player.Actor.Name) );

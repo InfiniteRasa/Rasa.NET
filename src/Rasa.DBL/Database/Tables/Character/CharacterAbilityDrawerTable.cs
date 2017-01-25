@@ -1,6 +1,5 @@
-﻿using System.Collections.Generic;
-
-using MySql.Data.MySqlClient;
+﻿using MySql.Data.MySqlClient;
+using System.Collections.Generic;
 
 namespace Rasa.Database.Tables.Character
 {

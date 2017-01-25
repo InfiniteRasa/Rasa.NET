@@ -150,7 +150,11 @@ namespace Rasa.Managers
 
             client.SendPacket(6, packet);
 
-            client.LastCharPlayed = slotNum;
+            client.LoadingSlot = slotNum;
+            client.LoadingMap = mapData.MapInfo.MapId;
+            // early pass client to mapChannel
+            var mapChannel = MapChannelManager.Instance.FindByContextId(mapData.MapInfo.MapId);
+            MapChannelManager.Instance.PassClientToMapChannel(client, mapChannel);
         }
 
         private void SendCharacterInfo(Client client, int slotNum)

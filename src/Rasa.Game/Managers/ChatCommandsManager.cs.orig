@@ -91,16 +91,33 @@ namespace Rasa.Managers
             }
             if (parts.Length == 2)
             {
+<<<<<<< origin/dev-EnterWorld
+                var randomEntityId = 200000 + new Random().Next();
+=======
                 var _entityId = EntityManager.Instance.GetEntityId;
+>>>>>>> local
                 int entityClassId;
                 if (int.TryParse(parts[1], out entityClassId))
                 {
                     // create object entity
+<<<<<<< origin/dev-EnterWorld
+                    _mapClient.Player.Client.SendPacket(5, new CreatePhysicalEntityPacket(randomEntityId, entityClassId));
+                    // set position
+                    _mapClient.Player.Client.SendPacket((uint)randomEntityId, new WorldLocationDescriptorPacket
+                    {
+                        Position = new Position
+                        {
+                            PosX = _mapClient.Player.Actor.Position.PosX + 5.0D,
+                            PosY = _mapClient.Player.Actor.Position.PosY + 5.0D,
+                            PosZ = _mapClient.Player.Actor.Position.PosZ
+                        },
+=======
                     _mapClient.Player.Client.SendPacket(5, new CreatePhysicalEntityPacket((int)_entityId, entityClassId));
                     // set position
                     _mapClient.Player.Client.SendPacket(_entityId, new WorldLocationDescriptorPacket
                     {
                         Position = _mapClient.Player.Actor.Position,
+>>>>>>> local
                         RotationX = 0.0D,
                         RotationY = 0.0D,
                         RotationZ = 0.0D,
@@ -166,9 +183,12 @@ namespace Rasa.Managers
                                 _mapClient.Player.Client.SendPacket(5, new PreWonkavatePacket());
                                 // Remove player
                                 EntityManager.Instance.UnregisterEntity(_mapClient.ClientEntityId);
+<<<<<<< origin/dev-EnterWorld
+=======
                                 EntityManager.Instance.UnregisterMapClient(_mapClient.ClientEntityId);
                                 EntityManager.Instance.UnregisterEntity(_mapClient.Player.Actor.EntityId);
                                 EntityManager.Instance.UnregisterActor(_mapClient.Player.Actor.EntityId);
+>>>>>>> local
                                 CommunicatorManager.Instance.UnregisterPlayer(_mapClient);
                                 CellManager.Instance.RemoveFromWorld(_mapClient.Player.Client);
                                 PlayerManager.Instance.RemovePlayerCharacter(_mapClient.MapChannel, _mapClient);
@@ -196,14 +216,23 @@ namespace Rasa.Managers
 
         private void TestMoveCommand(string[] parts)
         {
+<<<<<<< origin/dev-EnterWorld
+            var netMovement = new NetCompressedMovement();
+            netMovement.EntityId = _mapClient.Player.CharacterId;
+=======
             //CommunicatorManager.Instance.SystemMessage(_mapClient, "Place hodler");
             var netMovement = new NetCompressedMovement();
             netMovement.EntityId = _mapClient.Player.Actor.EntityId;
+>>>>>>> local
             //netMovement.Flag = 0;
             netMovement.PosX24b = (uint)_mapClient.Player.Actor.Position.PosX * 256;
             netMovement.PosY24b = (uint)_mapClient.Player.Actor.Position.PosY * 256;
             netMovement.PosZ24b = (uint)_mapClient.Player.Actor.Position.PosZ * 256;
+<<<<<<< origin/dev-EnterWorld
+            _mapClient.Player.Client.SendPacket(_mapClient.Player.CharacterId, netMovement);
+=======
             _mapClient.Player.Client.SendMovement(_mapClient.Player.Actor.EntityId, netMovement);
+>>>>>>> local
             return;
         }
 
@@ -218,7 +247,11 @@ namespace Rasa.Managers
             {
                 int regionId;
                 if (int.TryParse(parts[1], out regionId))
+<<<<<<< origin/dev-EnterWorld
+                    _mapClient.Player.Client.SendPacket(_mapClient.Player.CharacterId, new UpdateRegionsPacket { RegionIdList = regionId });
+=======
                     _mapClient.Player.Client.SendPacket(_mapClient.Player.Actor.EntityId, new UpdateRegionsPacket { RegionIdList = regionId });
+>>>>>>> local
             }
             return;
         }
@@ -234,8 +267,12 @@ namespace Rasa.Managers
             {
                 double speed;
                 if (double.TryParse(parts[1], out speed))
+<<<<<<< origin/dev-EnterWorld
+                    _mapClient.Player.Client.SendPacket(_mapClient.MapChannel, _mapClient.Player.Actor, _mapClient.Player.CharacterId, new MovementModChangePacket(speed) );
+=======
                     // ToDO send on cell domain
                     _mapClient.Player.Client.SendPacket(_mapClient.Player.Actor.EntityId, new MovementModChangePacket(speed) );
+>>>>>>> local
             }
             return;
         }
