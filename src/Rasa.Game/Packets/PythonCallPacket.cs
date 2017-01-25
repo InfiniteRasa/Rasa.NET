@@ -52,7 +52,16 @@ namespace Rasa.Packets
                 Debugger.Break(); // for testing purposes
 
             var majorOpcode = br.ReadUInt16(); // 1 byte channel id, 1 byte unk?
-            if (majorOpcode != 0)
+            if (majorOpcode == 1)
+            {
+                // function from c++ project
+                // mapChannel_decodeMovementPacket(mc, data+pIdx, subSize-pIdx);
+                var movementPacket = new MovementCallPacket(subSize);
+                movementPacket.Read(br);
+                Return = true;
+                return;
+            }
+            else if (majorOpcode != 0)
             {
                 Return = true;
                 return;

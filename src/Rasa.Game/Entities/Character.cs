@@ -1,31 +1,26 @@
-﻿using System;
-
-namespace Rasa.Entities
+﻿namespace Rasa.Entities
 {
     using Structures;
 
     public class Character
     {
-        public int StilyeCount { get; set; }
-        public int ErrorCode { get; set; }
         public ulong UserId { get; set; }
         public int ClassId { get; set; }
-        public double PosX { get; set; }
-        public double PosY { get; set; }
-        public double PosZ { get; set; }
+        public Position Position { get; set; }
         public double Rotation { get; set; }
         public int MapContextId { get; set; }
 
-        private void SetStartUpData()
+        public void SetStartUpData()
         {
-            PosX = 894.9;
-            PosY = 307.9;
-            PosZ = 347.1;
+            Position = new Position
+            {
+                PosX = 894.9,
+                PosY = 347.1,
+                PosZ = 307.9
+            };
             Rotation = 1;
             MapContextId = 1220;
             ClassId = 1; // recruit, maybe we need to chage this and get data from game client
-            //UserId = CharacterTable.GetHigherId() + 1;
-            Console.WriteLine("userID is => {0}", UserId);
             var helm = new AppearanceData
             {
                 SlotId = 1,

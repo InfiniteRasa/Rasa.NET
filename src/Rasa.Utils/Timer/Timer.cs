@@ -39,5 +39,14 @@ namespace Rasa.Timer
                 if (_timedItems.ContainsKey(name))
                     _timedItems[name].ResetTimer();
         }
+
+        public bool IsTriggered(string name)
+        {
+            lock (_timedItems)
+                if (_timedItems.ContainsKey(name))
+                    return _timedItems[name].Triggered;
+
+            return false;
+        }
     }
 }

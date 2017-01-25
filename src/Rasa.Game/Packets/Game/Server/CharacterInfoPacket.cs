@@ -1,4 +1,6 @@
-﻿namespace Rasa.Packets.Game.Server
+﻿using System.Collections.Generic;
+
+namespace Rasa.Packets.Game.Server
 {
     using Data;
     using Memory;
@@ -7,28 +9,20 @@
     public class CharacterInfoPacket : PythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.CharacterInfo;
-
-        private readonly bool _empty;
-
+        
         public int SlotId { get; set; }
-        public bool IsSelected { get; set; }
+        public int IsSelected { get; set; }
         public BodyDataTuple BodyData { get; set; }
-        public AppearanceData AppearanceData { get; set; }
-        public object CharacterData { get; set; }
+        public CharacterDataTuple CharacterData { get; set; }
         public string UserName { get; set; }
         public int GameContextId { get; set; }
-        public object LoginData { get; set; }
-        public object ClanData { get; set; }
-
-        public CharacterInfoPacket(int slotId, bool empty)
-        {
-            SlotId = slotId;
-            _empty = empty;
-        }
+        public LoginDataTupple LoginData { get; set; }
+        public ClanDataTupple ClanData { get; set; }
+        public Dictionary<int, AppearanceData> AppearanceData { get; set; } = new Dictionary<int, AppearanceData>();
+        public Color Color { get; set; }
 
         public override void Read(PythonReader pr)
         {
-            throw new System.NotImplementedException(); // todo
         }
 
         public override void Write(PythonWriter pw)
@@ -40,99 +34,79 @@
             pw.WriteInt(SlotId);
 
             pw.WriteString("IsSelected");
-            pw.WriteInt(SlotId == 0 ? 1 : 0);
+            pw.WriteInt(IsSelected);
 
             pw.WriteString("BodyData");
-            if (BodyData != null && !_empty)
+            if (BodyData != null)
             {
                 pw.WriteTuple(2);
                 pw.WriteInt(BodyData.GenderClassId);
                 pw.WriteDouble(BodyData.Scale);
             }
             else
-                pw.WriteNoneStruct();
-
-            pw.WriteString("CharacterData");
-            if (CharacterData != null && !_empty)
             {
-                pw.WriteTuple(10); // TODO
-                pw.WriteUnicodeString("CharName");
-                pw.WriteInt(1); // pos
-                pw.WriteInt(41); // xpptrs
-                pw.WriteInt(10); // xplvl
-                pw.WriteInt(111); // body
-                pw.WriteInt(12); //mind
-                pw.WriteInt(21); // spirit
-                pw.WriteInt(2); // class id
-                pw.WriteInt(3); // clone credits
-                pw.WriteInt(3); // raceId
+                pw.WriteNoneStruct();
+            }
+            pw.WriteString("CharacterData");
+            if (CharacterData != null)
+            {
+                pw.WriteTuple(10);
+                pw.WriteUnicodeString(CharacterData.Name);
+                pw.WriteInt(CharacterData.MapContextId);
+                pw.WriteInt(CharacterData.Experience);
+                pw.WriteInt(CharacterData.Level);
+                pw.WriteInt(CharacterData.Body);
+                pw.WriteInt(CharacterData.Mind);
+                pw.WriteInt(CharacterData.Spirit);
+                pw.WriteInt(CharacterData.ClassId);
+                pw.WriteInt(CharacterData.CloneCredits);
+                pw.WriteInt(CharacterData.RaceId);
             }
             else
                 pw.WriteNoneStruct();
 
             pw.WriteString("AppearanceData");
-            if (AppearanceData != null && !_empty)
+            if (AppearanceData.Count != 0)
             {
-                // TODO
-                var count = 0;
+                pw.WriteDictionary(21);
                 for (var i = 0; i < 21; ++i)
                 {
-                    if (true) // TODO:
-                        ++count;
-                }
-
-                pw.WriteDictionary(count);
-
-                for (var i = 0; i < 21; ++i)
-                {
-                    if (true)
-                    {
-                        pw.WriteInt(i + 1); // equipment slot id
-                        pw.WriteTuple(2);
-                        pw.WriteInt(0); // classId
-
-                        pw.WriteTuple(4);
-                        pw.WriteInt(0); // hueR
-                        pw.WriteInt(0); // hueG
-                        pw.WriteInt(0); // hueB
-                        pw.WriteInt(0); // hueA
-                    }// TODO: else nonstruct?
+                    pw.WriteInt(i+1);
+                    pw.WriteTuple(2);
+                    pw.WriteInt(AppearanceData[i+1].ClassId);
+                    pw.WriteTuple(4);
+                    pw.WriteInt(AppearanceData[i+1].Color.Red);
+                    pw.WriteInt(AppearanceData[i+1].Color.Green);
+                    pw.WriteInt(AppearanceData[i+1].Color.Blue);
+                    pw.WriteInt(AppearanceData[i+1].Color.Alpha);
                 }
             }
             else
-                pw.WriteTuple(0);
+                pw.WriteDictionary(0);
 
             pw.WriteString("UserName");
-            if (UserName != null && !_empty)
-            {
-                pw.WriteUnicodeString(UserName);
-            }
-            else
-                pw.WriteNoneStruct();
-
+            pw.WriteUnicodeString(UserName);
+           
             pw.WriteString("GameContextId");
-            if (!_empty)
-                pw.WriteInt(GameContextId);
-            else
-                pw.WriteNoneStruct();
-
+            pw.WriteInt(GameContextId);
+            
             pw.WriteString("LoginData");
-            if (LoginData != null && !_empty)
+            if (LoginData != null)
             {
                 pw.WriteTuple(3);
-                pw.WriteInt(0); // num logins
-                pw.WriteInt(0); // total time played
-                pw.WriteInt(0); // time since last played
+                pw.WriteInt(LoginData.NumLogins);
+                pw.WriteInt(LoginData.TotalTimePlayed);
+                pw.WriteInt(LoginData.TimeSinceLastPlayed);
             }
             else
                 pw.WriteNoneStruct();
 
             pw.WriteString("ClanData");
-            if (ClanData != null && !_empty)
+            if (ClanData != null)
             {
                 pw.WriteTuple(2);
-                pw.WriteInt(0); // clan id
-                pw.WriteUnicodeString("Clan name"); // clan name
+                pw.WriteInt(ClanData.ClanId);
+                pw.WriteUnicodeString(ClanData.ClanName);
             }
             else
                 pw.WriteNoneStruct();
@@ -143,5 +117,32 @@
     {
         public int GenderClassId { get; set; }
         public double Scale { get; set; }
+    }
+
+    public class CharacterDataTuple
+    {
+        public string Name { get; set; }
+        public int MapContextId { get; set; }
+        public int Experience { get; set; }
+        public int Level { get; set; }
+        public int Body { get; set; }
+        public int Mind { get; set; }
+        public int Spirit { get; set; }
+        public int ClassId { get; set; }
+        public int CloneCredits { get; set; }
+        public int RaceId { get; set; }
+    }
+
+    public class LoginDataTupple
+    {
+        public int NumLogins { get; set; }
+        public int TotalTimePlayed { get; set; }
+        public int TimeSinceLastPlayed { get; set; }
+    }
+
+    public class ClanDataTupple
+    {
+        public int ClanId { get; set; }
+        public string ClanName { get; set; }
     }
 }

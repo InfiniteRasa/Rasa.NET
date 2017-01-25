@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text.RegularExpressions;
+﻿using System.Collections.Generic;
 
 namespace Rasa.Packets.Game.Client
 {
@@ -12,8 +10,7 @@ namespace Rasa.Packets.Game.Client
     public class RequestCreateCharacterInSlotPacket : PythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.RequestCreateCharacterInSlot;
-
-        // data from game
+        
         public int SlotNum { get; set; }
         public string FamilyName { get; set; }
         public string CharacterName { get; set; }
@@ -22,8 +19,6 @@ namespace Rasa.Packets.Game.Client
         public int RaceId { get; set; }
 
         public Dictionary<int, AppearanceData> AppearanceData { get; } = new Dictionary<int, AppearanceData>();
-
-        private static readonly Regex NameRegex = new Regex(@"^[\w ]+$", RegexOptions.Compiled);
 
         public override void Read(PythonReader pr)
         {
@@ -35,29 +30,22 @@ namespace Rasa.Packets.Game.Client
             Gender = pr.ReadInt();
             Scale = pr.ReadDouble();
 
+            // init dictionary
+            for (var i = 0; i < 21; i++)
+                AppearanceData.Add(i + 1, new AppearanceData { SlotId = i + 1, ClassId = 0, Color = new Color { Red = 0x00, Green = 0x00, Blue = 0x00, Alpha = 0x00 } });
+
             var itemCount = pr.ReadDictionary();
             for (var i = 0; i < itemCount; i++)
             {
+                //edit data
                 var data = pr.ReadStruct<AppearanceData>();
-                AppearanceData.Add(data.SlotId, data);
+                AppearanceData[data.SlotId - 1] = new AppearanceData {SlotId = data.SlotId, ClassId = data.ClassId, Color = data.Color};
             }
-
-            RaceId = pr.ReadInt();
+           RaceId = pr.ReadInt();
         }
 
         public override void Write(PythonWriter pw)
         {
-        }
-
-        public CreateCharacterResult CheckName()
-        {
-            if (CharacterName.Length < 3)
-                return CreateCharacterResult.NameTooShort;
-
-            if (CharacterName.Length > 20)
-                return CreateCharacterResult.NameTooLong;
-
-            return !NameRegex.IsMatch(CharacterName) ? CreateCharacterResult.NameFormatInvalid : CreateCharacterResult.Success;
         }
     }
 }

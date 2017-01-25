@@ -1,0 +1,22 @@
+﻿namespace Rasa.Packets.MapChannel.Client
+{
+    using Data;
+    using Memory;
+
+    public class SetAutoLootThresholdPacket : PythonPacket
+    {
+        public override GameOpcode Opcode { get; } = GameOpcode.SetAutoLootThreshold;
+
+        public int LootLevel { get; set; }      // rename maybe to LootTreshold
+
+        public override void Read(PythonReader pr)
+        {
+            pr.ReadTuple();
+            LootLevel = pr.ReadInt();
+        }
+
+        public override void Write(PythonWriter pw)
+        {
+        }
+    }
+}

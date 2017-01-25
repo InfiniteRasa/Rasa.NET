@@ -6,6 +6,7 @@ namespace Rasa.Timer
     {
         public string Name { get; }
         public bool Repeating { get; }
+        public bool Triggered { get; private set; }
         public long Timer { get; }
         public long CurrentTimer { get; private set; }
         public Action Action { get; }
@@ -23,11 +24,11 @@ namespace Rasa.Timer
             if (CurrentTimer <= delta)
             {
                 CurrentTimer = Timer - (delta - CurrentTimer);
-                return true;
+                return (Triggered = true);
             }
 
             CurrentTimer -= delta;
-            return false;
+            return (Triggered = false);
         }
 
         public void ResetTimer()
