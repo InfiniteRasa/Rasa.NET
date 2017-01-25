@@ -1,5 +1,6 @@
-﻿using MySql.Data.MySqlClient;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+
+using MySql.Data.MySqlClient;
 
 namespace Rasa.Database.Tables.Character
 {
@@ -49,11 +50,13 @@ namespace Rasa.Database.Tables.Character
             {
                 GetInvItemCommand.Parameters["@CharacterId"].Value = characterId;
                 GetInvItemCommand.Parameters["@SlotId"].Value = slotId;
+
                 var itemData = new List<uint>();
                 using (var reader = GetInvItemCommand.ExecuteReader())
                     if (reader.Read())
                         for (var i = 0; i < 3; i++)
                             itemData.Add((uint)reader[i].GetHashCode());
+
                 return itemData;
             }
         }

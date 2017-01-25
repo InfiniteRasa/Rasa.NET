@@ -1,5 +1,6 @@
-﻿using MySql.Data.MySqlClient;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+
+using MySql.Data.MySqlClient;
 
 namespace Rasa.Database.Tables.Character
 {
@@ -35,14 +36,18 @@ namespace Rasa.Database.Tables.Character
             lock (GameDatabaseAccess.CharLock)
             {
                 GetCharacterAbilitiesCommand.Parameters["@CharacterId"].Value = characterId;
+
                 var characterAbilities = new List<int>();
                 using (var reader = GetCharacterAbilitiesCommand.ExecuteReader())
+                {
                     while (reader.Read())
                     {
                         characterAbilities.Add(reader.GetInt32("abilitySlotId"));
                         characterAbilities.Add(reader.GetInt32("abilityId"));
                         characterAbilities.Add(reader.GetInt32("abilityLevel"));
                     }
+                }
+
                 return characterAbilities;
             }
         }

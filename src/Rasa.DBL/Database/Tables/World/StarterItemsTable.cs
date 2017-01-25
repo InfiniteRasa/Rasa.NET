@@ -18,6 +18,7 @@ namespace Rasa.Database.Tables.World
             lock (GameDatabaseAccess.WorldLock)
             {
                 GetItemTemplateIdCommand.Parameters["@ClassId"].Value = classId;
+
                 using (var reader = GetItemTemplateIdCommand.ExecuteReader())
                     if (reader.Read())
                         return reader.GetInt32("itemTemplateId");

@@ -32,7 +32,7 @@ namespace Rasa.Database.Tables.World
         {
             lock (GameDatabaseAccess.WorldLock)
             {
-                GetClassIdCommand.Parameters["@ItemTemplateId"].Value = (uint)itemTemplateId;
+                GetClassIdCommand.Parameters["@ItemTemplateId"].Value = itemTemplateId;
 
                 using (var reader = GetClassIdCommand.ExecuteReader())
                     if (reader.Read())
@@ -44,10 +44,8 @@ namespace Rasa.Database.Tables.World
 
         public static long GetDbRows()
         {
-            lock ( GameDatabaseAccess.WorldLock)
-            {
+            lock (GameDatabaseAccess.WorldLock)
                 return (long)GetDbRowsCommand.ExecuteScalar();
-            }
         }
 
         public static ItemTemplateEntry GetItemTemplates(int row)

@@ -1,9 +1,9 @@
 ﻿using System.Collections.Generic;
+
 using MySql.Data.MySqlClient;
 
 namespace Rasa.Database.Tables.Character
 {
-    using Structures;
     public class ItemsTable
     {
         private static readonly MySqlCommand CreateItemCommand = new MySqlCommand("INSERT INTO items (ownerId, ownerSlotId, entityId, stackSize) VALUES (@OwnerId, @OwnerSlotId, @EntityID, @StackSize)");
@@ -41,6 +41,7 @@ namespace Rasa.Database.Tables.Character
                 CreateItemCommand.Parameters["@EntityId"].Value = entityId;
                 CreateItemCommand.Parameters["@stackSize"].Value = stackSize;
                 CreateItemCommand.ExecuteNonQuery();
+
                 return (uint)CreateItemCommand.LastInsertedId;
             }
         }
@@ -51,11 +52,13 @@ namespace Rasa.Database.Tables.Character
             {
                 GetItemCommand.Parameters["@OwnerId"].Value = ownerId;
                 GetItemCommand.Parameters["@OwnerSlotId"].Value = ownerSlotId;
+
                 var itemData = new List<uint>();
                 using (var reader = GetItemCommand.ExecuteReader())
                     if (reader.Read())
                         for (var i = 0; i < 3; i++)
                             itemData.Add((uint)reader[i].GetHashCode());
+
                 return itemData;
             }
         }
