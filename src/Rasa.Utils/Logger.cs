@@ -53,6 +53,11 @@ namespace Rasa
             }
         }
 
+        public static void WriteLog(LogType type, object log)
+        {
+            WriteLog(type, log?.ToString() ?? "null");
+        }
+
         public static void WriteLog(LogType type, string log)
         {
             string prefix;

@@ -5,7 +5,6 @@ using System.Net.Sockets;
 
 namespace Rasa.Networking
 {
-    using Cryptography;
     using Extensions;
     using Memory;
     using Packets;

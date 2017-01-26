@@ -49,11 +49,13 @@ namespace Rasa.Auth
 
             SetupServerList();
 
-            LengthedSocket.InitializeEventArgsPool(Config.SocketAsyncConfig.MaxClients * Config.SocketAsyncConfig.ConcurrentOperationsByClient);
+            LengthedSocket.InitializeEventArgsPool(Config.SocketAsyncConfig.MaxClients*
+                                                   Config.SocketAsyncConfig.ConcurrentOperationsByClient);
 
             PacketQueue = new PacketQueue();
 
-            BufferManager.Initialize(Config.SocketAsyncConfig.BufferSize, Config.SocketAsyncConfig.MaxClients, Config.SocketAsyncConfig.ConcurrentOperationsByClient);
+            BufferManager.Initialize(Config.SocketAsyncConfig.BufferSize, Config.SocketAsyncConfig.MaxClients,
+                Config.SocketAsyncConfig.ConcurrentOperationsByClient);
 
             AuthDatabaseAccess.Initialize(Config.DatabaseConnectionString);
 
@@ -68,6 +70,7 @@ namespace Rasa.Auth
         }
 
         #region Configuration
+
         private static void ConfigReLoaded()
         {
             Logger.WriteLog(LogType.Initialize, "Config file reloaded by external change!");
@@ -96,6 +99,7 @@ namespace Rasa.Auth
                 GenerateServerList();
             }
         }
+
         #endregion
 
         public void Disconnect(Client client)
@@ -132,6 +136,7 @@ namespace Rasa.Auth
         }
 
         #region Socketing
+
         public bool Start()
         {
             // If no config file has been found, these values are 0 by default
@@ -141,15 +146,26 @@ namespace Rasa.Auth
                 return false;
             }
 
+            try
+            {
+                ListenerSocket = new LengthedSocket(SizeType.Word);
+                ListenerSocket.OnError += OnError;
+                ListenerSocket.OnAccept += OnAccept;
+                ListenerSocket.Bind(new IPEndPoint(IPAddress.Any, Config.AuthConfig.Port));
+                ListenerSocket.Listen(Config.AuthConfig.Backlog);
+            }
+            catch (Exception e)
+            {
+                Logger.WriteLog(LogType.Error, "Unable to create or start listening on the client socket! Exception:");
+                Logger.WriteLog(LogType.Error, e);
+
+                return false;
+            }
+
+            if (!SetupCommunicator())
+                return false;
+
             Loop.Start();
-
-            SetupCommunicator();
-
-            ListenerSocket = new LengthedSocket(SizeType.Word);
-            ListenerSocket.OnError += OnError;
-            ListenerSocket.OnAccept += OnAccept;
-            ListenerSocket.Bind(new IPEndPoint(IPAddress.Any, Config.AuthConfig.Port));
-            ListenerSocket.Listen(Config.AuthConfig.Backlog);
 
             Logger.WriteLog(LogType.Network, "*** Listening for clients on port {0}", Config.AuthConfig.Port);
 
@@ -167,7 +183,7 @@ namespace Rasa.Auth
             return true;
         }
 
-        private void OnError(SocketAsyncEventArgs args)
+        private static void OnError(SocketAsyncEventArgs args)
         {
             if (args.LastOperation == SocketAsyncOperation.Accept && args.AcceptSocket != null && args.AcceptSocket.Connected)
                 args.AcceptSocket.Shutdown(SocketShutdown.Both);
@@ -186,18 +202,27 @@ namespace Rasa.Auth
         #endregion
 
         #region Communicator
-        private void SetupCommunicator()
+        private bool SetupCommunicator()
         {
             if (Config.CommunicatorConfig.Port == 0 || Config.CommunicatorConfig.Address == null || Config.CommunicatorConfig.Backlog == 0)
             {
                 Logger.WriteLog(LogType.Error, "Invalid Communicator config data! Can't connect!");
-                return;
+                return false;
             }
 
-            AuthCommunicator = new LengthedSocket(SizeType.Word);
-            AuthCommunicator.OnAccept += OnCommunicatorAccept;
-            AuthCommunicator.Bind(new IPEndPoint(IPAddress.Parse(Config.CommunicatorConfig.Address), Config.CommunicatorConfig.Port));
-            AuthCommunicator.Listen(Config.CommunicatorConfig.Backlog);
+            try {
+                AuthCommunicator = new LengthedSocket(SizeType.Word);
+                AuthCommunicator.OnAccept += OnCommunicatorAccept;
+                AuthCommunicator.Bind(new IPEndPoint(IPAddress.Parse(Config.CommunicatorConfig.Address), Config.CommunicatorConfig.Port));
+                AuthCommunicator.Listen(Config.CommunicatorConfig.Backlog);
+            }
+            catch (Exception e)
+            {
+                Logger.WriteLog(LogType.Error, "Unable to create or start listening on the communicator socket! Exception:");
+                Logger.WriteLog(LogType.Error, e);
+
+                return false;
+            }
 
             AuthCommunicator.AcceptAsync();
 
@@ -210,6 +235,8 @@ namespace Rasa.Auth
             });
 
             Logger.WriteLog(LogType.Network, $"*** Listening for Game servers on port {Config.CommunicatorConfig.Port}");
+
+            return true;
         }
 
         private void OnCommunicatorAccept(LengthedSocket socket)

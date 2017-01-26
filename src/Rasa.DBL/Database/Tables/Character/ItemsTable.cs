@@ -1,9 +1,9 @@
-﻿using MySql.Data.MySqlClient;
+using MySql.Data.MySqlClient;
 
 namespace Rasa.Database.Tables.Character
 {
     using Structures;
-
+  
     public class ItemsTable
     {
         private static readonly MySqlCommand CraftItemCommand = new MySqlCommand("INSERT INTO items (entityClassId, stackSize, crafterName) VALUES (@EntityClassId, @StackSize, @CrafterName)");
@@ -53,6 +53,7 @@ namespace Rasa.Database.Tables.Character
                 CreateItemCommand.Parameters["@EntityClassId"].Value = entityClassId;
                 CreateItemCommand.Parameters["@StackSize"].Value = stackSize;
                 CreateItemCommand.ExecuteNonQuery();
+
                 return (uint)CreateItemCommand.LastInsertedId;
             }
         }

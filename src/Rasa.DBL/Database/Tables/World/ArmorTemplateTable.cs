@@ -3,6 +3,7 @@
 namespace Rasa.Database.Tables.World
 {
     using Structures;
+
     public class ArmorTemplateTable
     {
         private static readonly MySqlCommand GetDbRowsCommand = new MySqlCommand("SELECT COUNT(*) FROM itemtemplate_armor");
@@ -21,9 +22,7 @@ namespace Rasa.Database.Tables.World
         public static long GetDbRows()
         {
             lock (GameDatabaseAccess.WorldLock)
-            {
                 return (long)GetDbRowsCommand.ExecuteScalar();
-            }
         }
 
         public static ArmorTemplateEntry GetArmorTemplates(int row)

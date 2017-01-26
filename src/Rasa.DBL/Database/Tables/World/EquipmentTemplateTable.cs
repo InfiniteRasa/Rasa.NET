@@ -23,9 +23,7 @@ namespace Rasa.Database.Tables.World
         public static long GetDbRows()
         {
             lock (GameDatabaseAccess.WorldLock)
-            {
                 return (long)GetDbRowsCommand.ExecuteScalar();
-            }
         }
 
         public static EquipmentTemplateEntry GetEquipmentTemplates(int row)

@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+
 using MySql.Data.MySqlClient;
 
 namespace Rasa.Database.Tables.Character
@@ -35,17 +36,20 @@ namespace Rasa.Database.Tables.Character
         {
             lock (GameDatabaseAccess.CharLock)
             {
-                var PlayerAppearance = new List<int>();
+                var playerAppearance = new List<int>();
                 GetAppearanceCommand.Parameters["@CharacterId"].Value = characterId;
                 GetAppearanceCommand.Parameters["@SlotId"].Value = slotId;
 
                 using (var reader = GetAppearanceCommand.ExecuteReader())
-                if (reader.Read())
+                {
+                    if (reader.Read())
                     {
-                        PlayerAppearance.Add(reader[0].GetHashCode());
-                        PlayerAppearance.Add(reader[1].GetHashCode());
+                        playerAppearance.Add(reader[0].GetHashCode());
+                        playerAppearance.Add(reader[1].GetHashCode());
                     }
-                return PlayerAppearance;
+                }
+
+                return playerAppearance;
             }
         }
 

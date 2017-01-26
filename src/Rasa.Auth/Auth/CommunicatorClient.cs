@@ -9,7 +9,6 @@ namespace Rasa.Auth
     using Networking;
     using Packets;
     using Packets.Communicator;
-    using Structures;
 
     public class CommunicatorClient
     {
