@@ -7,7 +7,7 @@
     {
         public override GameOpcode Opcode { get; } = GameOpcode.InventoryRemoveItem;
 
-        public int InventoryType { get; set; }
+        public InventoryType InventoryType { get; set; }
         public int EntityId { get; set; }
 
         public override void Read(PythonReader pr)
@@ -17,7 +17,7 @@
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(2);
-            pw.WriteInt(InventoryType);
+            pw.WriteInt((int)InventoryType);
             pw.WriteInt(EntityId);
         }
     }

@@ -10,6 +10,8 @@
         }
         
         public uint EntityId { get; }
+        // uniqe id stored in db
+        public uint ItemId { get; set; }
         // location info
         public uint OwnerId { get; set; }
         public int OwnerSlotId { get; set; }
