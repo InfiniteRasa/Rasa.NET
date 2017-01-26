@@ -39,29 +39,33 @@ namespace Rasa.Managers
         }
         
         
-        public Item CreateFromTemplateId(uint ownerId, int ownerSlotId, int itemTemplateId, int stackSize)
+        public Item CreateFromTemplateId(uint characterId, int slotId, int itemTemplateId, int stackSize)
         {
             var itemTemplate = GetItemTemplateById(itemTemplateId);
             if (itemTemplate == null)
                 return null;
-            var item = CreateItem(ownerId, ownerSlotId, itemTemplate, stackSize);
+            var item = CreateItem(characterId, slotId, itemTemplate, stackSize);
             return item;
         }
 
-        public Item CreateItem(uint ownerId, int ownerSlotId, ItemTemplate itemTemplate, int stackSize)
+        public Item CreateItem(uint characterId, int slotId, ItemTemplate itemTemplate, int stackSize)
         {
             if (itemTemplate == null)
                 return null;
+            // insert into items table to get unique ItemId
+            var itemId = ItemsTable.CreateItem(itemTemplate.ItemTemplateId, stackSize);
+            // insert new item into character table
+            CharacterInventoryTable.AddInvItem(characterId, slotId, itemId);
+            // create physical copy of item
             var item = new Item();
-            var id = ItemsTable.CreateItem(ownerId, ownerSlotId, itemTemplate.ItemTemplateId, stackSize);
-            //item.EntityId = id;
+            item.ItemId = itemId;
             item.ItemTemplate = itemTemplate;
-            item.OwnerId = ownerId;
-            item.OwnerSlotId = ownerSlotId;
+            item.OwnerId = characterId;
+            item.OwnerSlotId = slotId;
             item.Stacksize = stackSize;
             // register item
-            EntityManager.Instance.RegisterItem(item.EntityId, item);
             EntityManager.Instance.RegisterEntity(item.EntityId, EntityType.Item);
+            EntityManager.Instance.RegisterItem(item.EntityId, item);
             return item;
         }
 

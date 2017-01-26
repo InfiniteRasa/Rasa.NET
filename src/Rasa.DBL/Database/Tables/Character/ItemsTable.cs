@@ -1,74 +1,79 @@
-﻿using System.Collections.Generic;
-using MySql.Data.MySqlClient;
+﻿using MySql.Data.MySqlClient;
 
 namespace Rasa.Database.Tables.Character
 {
     using Structures;
+
     public class ItemsTable
     {
-        private static readonly MySqlCommand CreateItemCommand = new MySqlCommand("INSERT INTO items (ownerId, ownerSlotId, entityId, stackSize) VALUES (@OwnerId, @OwnerSlotId, @EntityID, @StackSize)");
-        private static readonly MySqlCommand GetItemCommand = new MySqlCommand("SELECT id, entityId, stackSize FROM items WHERE ownerId = @OwnerId AND ownerSlotId = @OwnerSlotId");
-        private static readonly MySqlCommand UpdateItemCommand = new MySqlCommand("UPDATE items SET ownerId = @OwnerId, ownerSlotId = @OwnerSlotID, stackSize = @StackSize WHERE id = @Id");
+        private static readonly MySqlCommand CraftItemCommand = new MySqlCommand("INSERT INTO items (entityClassId, stackSize, crafterName) VALUES (@EntityClassId, @StackSize, @CrafterName)");
+        private static readonly MySqlCommand CreateItemCommand = new MySqlCommand("INSERT INTO items (entityClassId, stackSize) VALUES (@EntityClassId, @StackSize)");
+        private static readonly MySqlCommand GetItemCommand = new MySqlCommand("SELECT entityClassId, stackSize, color, ammoCount, crafterName FROM items WHERE itemId = @ItemId");
+        private static readonly MySqlCommand UpdateItemStackSizeCommand = new MySqlCommand("UPDATE items SET stackSize = @StackSize WHERE itemId = @ItemId");
 
         public static void Initialize()
         {
+            CraftItemCommand.Connection = GameDatabaseAccess.CharConnection;
+            CraftItemCommand.Parameters.Add("@EntityClassId", MySqlDbType.Int32);
+            CraftItemCommand.Parameters.Add("@StackSize", MySqlDbType.Int32);
+            CraftItemCommand.Parameters.Add("@CrafterName", MySqlDbType.VarChar);
+            CraftItemCommand.Prepare();
+
             CreateItemCommand.Connection = GameDatabaseAccess.CharConnection;
-            CreateItemCommand.Parameters.Add("@OwnerId", MySqlDbType.UInt32);
-            CreateItemCommand.Parameters.Add("@OwnerSlotId", MySqlDbType.Int32);
-            CreateItemCommand.Parameters.Add("@EntityId", MySqlDbType.Int32);
+            CreateItemCommand.Parameters.Add("@EntityClassId", MySqlDbType.Int32);
             CreateItemCommand.Parameters.Add("@StackSize", MySqlDbType.Int32);
             CreateItemCommand.Prepare();
 
             GetItemCommand.Connection = GameDatabaseAccess.CharConnection;
-            GetItemCommand.Parameters.Add("@OwnerId", MySqlDbType.UInt32);
-            GetItemCommand.Parameters.Add("@OwnerSlotId", MySqlDbType.Int32);
+            GetItemCommand.Parameters.Add("@ItemId", MySqlDbType.UInt32);
             GetItemCommand.Prepare();
 
-            UpdateItemCommand.Connection = GameDatabaseAccess.CharConnection;
-            UpdateItemCommand.Parameters.Add("@Id", MySqlDbType.UInt32);
-            UpdateItemCommand.Parameters.Add("@OwnerId", MySqlDbType.UInt32);
-            UpdateItemCommand.Parameters.Add("@OwnerSlotId", MySqlDbType.Int32);
-            UpdateItemCommand.Parameters.Add("@StackSize", MySqlDbType.Int32);
-            UpdateItemCommand.Prepare();
+            UpdateItemStackSizeCommand.Connection = GameDatabaseAccess.CharConnection;
+            UpdateItemStackSizeCommand.Parameters.Add("@ItemId", MySqlDbType.UInt32);
+            UpdateItemStackSizeCommand.Parameters.Add("@StackSize", MySqlDbType.Int32);
+            UpdateItemStackSizeCommand.Prepare();
         }
 
-        public static uint CreateItem(uint ownerId, int ownerSlotId, int entityId, int stackSize)
+        public static uint CraftItem(int entityClassId, int stackSize, string crafterName)
         {
             lock (GameDatabaseAccess.CharLock)
             {
-                CreateItemCommand.Parameters["@OwnerId"].Value = ownerId;
-                CreateItemCommand.Parameters["@OwnerSlotId"].Value = ownerSlotId;
-                CreateItemCommand.Parameters["@EntityId"].Value = entityId;
-                CreateItemCommand.Parameters["@stackSize"].Value = stackSize;
+                CraftItemCommand.Parameters["@EntityClassId"].Value = entityClassId;
+                CraftItemCommand.Parameters["@StackSize"].Value = stackSize;
+                CraftItemCommand.Parameters["@CrafterName"].Value = crafterName;
+                CraftItemCommand.ExecuteNonQuery();
+                return (uint)CraftItemCommand.LastInsertedId;
+            }
+        }
+
+        public static uint CreateItem(int entityClassId, int stackSize)
+        {
+            lock (GameDatabaseAccess.CharLock)
+            {
+                CreateItemCommand.Parameters["@EntityClassId"].Value = entityClassId;
+                CreateItemCommand.Parameters["@StackSize"].Value = stackSize;
                 CreateItemCommand.ExecuteNonQuery();
                 return (uint)CreateItemCommand.LastInsertedId;
             }
         }
 
-        public static List<uint> GetItem(uint ownerId, int ownerSlotId)
+        public static ItemsEntry GetItem(uint itemId)
         {
             lock (GameDatabaseAccess.CharLock)
             {
-                GetItemCommand.Parameters["@OwnerId"].Value = ownerId;
-                GetItemCommand.Parameters["@OwnerSlotId"].Value = ownerSlotId;
-                var itemData = new List<uint>();
+                GetItemCommand.Parameters["@ItemId"].Value = itemId;
                 using (var reader = GetItemCommand.ExecuteReader())
-                    if (reader.Read())
-                        for (var i = 0; i < 3; i++)
-                            itemData.Add((uint)reader[i].GetHashCode());
-                return itemData;
+                    return ItemsEntry.Read(reader);
             }
         }
 
-        public static void UpdateItem(uint id, uint ownerId, int ownerSlotId, int stackSize)
+        public static void UpdateItemStackSize(uint id, int stackSize)
         {
             lock (GameDatabaseAccess.CharLock)
             {
-                UpdateItemCommand.Parameters["@Id"].Value = id;
-                UpdateItemCommand.Parameters["@OwnerId"].Value = ownerId;
-                UpdateItemCommand.Parameters["@OwnerSlotId"].Value = ownerSlotId;
-                UpdateItemCommand.Parameters["@StackSize"].Value = stackSize;
-                UpdateItemCommand.ExecuteNonQuery();
+                UpdateItemStackSizeCommand.Parameters["@ItemId"].Value = id;
+                UpdateItemStackSizeCommand.Parameters["@StackSize"].Value = stackSize;
+                UpdateItemStackSizeCommand.ExecuteNonQuery();
             }
         }
     }

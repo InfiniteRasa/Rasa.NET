@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS `characters` (
   `currentAbilityDrawer` int(11) NOT NULL DEFAULT '0',
   `logos` varbinary(410) NOT NULL,
   PRIMARY KEY (`characterId`)
-) ENGINE=InnoDB AUTO_INCREMENT=1000 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- Dumping data for table rasachar.characters: ~0 rows (approximately)
 /*!40000 ALTER TABLE `characters` DISABLE KEYS */;
@@ -78,6 +78,20 @@ CREATE TABLE IF NOT EXISTS `character_appearance` (
 /*!40000 ALTER TABLE `character_appearance` ENABLE KEYS */;
 
 
+-- Dumping structure for table rasachar.character_inventory
+DROP TABLE IF EXISTS `character_inventory`;
+CREATE TABLE IF NOT EXISTS `character_inventory` (
+  `characterId` int(10) unsigned DEFAULT NULL,
+  `slotId` int(11) DEFAULT NULL,
+  `itemId` int(10) unsigned DEFAULT NULL,
+  UNIQUE KEY `itemId` (`itemId`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+-- Dumping data for table rasachar.character_inventory: ~0 rows (approximately)
+/*!40000 ALTER TABLE `character_inventory` DISABLE KEYS */;
+/*!40000 ALTER TABLE `character_inventory` ENABLE KEYS */;
+
+
 -- Dumping structure for table rasachar.character_skills
 DROP TABLE IF EXISTS `character_skills`;
 CREATE TABLE IF NOT EXISTS `character_skills` (
@@ -92,17 +106,30 @@ CREATE TABLE IF NOT EXISTS `character_skills` (
 /*!40000 ALTER TABLE `character_skills` ENABLE KEYS */;
 
 
+-- Dumping structure for table rasachar.character_titles
+DROP TABLE IF EXISTS `character_titles`;
+CREATE TABLE IF NOT EXISTS `character_titles` (
+  `characterId` int(11) unsigned DEFAULT NULL,
+  `titleId` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+-- Dumping data for table rasachar.character_titles: ~0 rows (approximately)
+/*!40000 ALTER TABLE `character_titles` DISABLE KEYS */;
+/*!40000 ALTER TABLE `character_titles` ENABLE KEYS */;
+
+
 -- Dumping structure for table rasachar.items
 DROP TABLE IF EXISTS `items`;
 CREATE TABLE IF NOT EXISTS `items` (
-  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
-  `ownerId` int(11) unsigned NOT NULL,
-  `ownerSlotId` int(11) NOT NULL,
-  `entityId` int(11) NOT NULL,
-  `stackSize` int(11) NOT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `id` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=100000 DEFAULT CHARSET=utf8;
+  `itemId` int(11) unsigned NOT NULL AUTO_INCREMENT,
+  `entityClassId` int(11) NOT NULL DEFAULT '0',
+  `stackSize` int(11) NOT NULL DEFAULT '0',
+  `color` int(11) NOT NULL DEFAULT '0',
+  `ammoCount` int(11) NOT NULL DEFAULT '0',
+  `crafterName` varchar(64) DEFAULT '0',
+  PRIMARY KEY (`itemId`),
+  UNIQUE KEY `id` (`itemId`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- Dumping data for table rasachar.items: ~0 rows (approximately)
 /*!40000 ALTER TABLE `items` DISABLE KEYS */;

@@ -46,7 +46,6 @@ namespace Rasa.Managers
             //free entity
             switch (entityType)
             {
-                
                 case EntityType.MapClient:
                     break;
                 case EntityType.Player:
@@ -62,6 +61,7 @@ namespace Rasa.Managers
                 case EntityType.Item:
                     {
                         FreeEntity(entityId);
+                        UnregisterEntity(entityId);
                         UnregisterItem(entityId);
                         break;
                     }
