@@ -1,4 +1,6 @@
-﻿using MySql.Data.MySqlClient;
+﻿using System.Collections.Generic;
+
+using MySql.Data.MySqlClient;
 
 namespace Rasa.Database.Tables.World
 {
@@ -6,33 +8,24 @@ namespace Rasa.Database.Tables.World
 
     public class ArmorTemplateTable
     {
-        private static readonly MySqlCommand GetDbRowsCommand = new MySqlCommand("SELECT COUNT(*) FROM itemtemplate_armor");
-        private static readonly MySqlCommand GetArmorTemplatesCommand = new MySqlCommand("SELECT * FROM itemtemplate_armor LIMIT @Row, 1");
+        private static readonly MySqlCommand GetArmorTemplatesCommand = new MySqlCommand("SELECT * FROM itemtemplate_armor");
 
         public static void Initialize()
         {
-            GetDbRowsCommand.Connection = GameDatabaseAccess.WorldConnection;
-            GetDbRowsCommand.Prepare();
-
             GetArmorTemplatesCommand.Connection = GameDatabaseAccess.WorldConnection;
-            GetArmorTemplatesCommand.Parameters.Add("@Row", MySqlDbType.Int32);
             GetArmorTemplatesCommand.Prepare();
         }
 
-        public static long GetDbRows()
-        {
-            lock (GameDatabaseAccess.WorldLock)
-                return (long)GetDbRowsCommand.ExecuteScalar();
-        }
-
-        public static ArmorTemplateEntry GetArmorTemplates(int row)
+        public static List<ArmorTemplateEntry> GetArmorTemplates()
         {
             lock (GameDatabaseAccess.WorldLock)
             {
-                GetArmorTemplatesCommand.Parameters["@Row"].Value = row;
-
+                var armorTemplates = new List<ArmorTemplateEntry>();
                 using (var reader = GetArmorTemplatesCommand.ExecuteReader())
-                    return ArmorTemplateEntry.Read(reader);
+                    while (reader.Read())
+                        armorTemplates.Add(ArmorTemplateEntry.Read(reader));
+
+                return armorTemplates;
             }
         }
     }

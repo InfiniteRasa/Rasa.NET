@@ -10,7 +10,7 @@ namespace Rasa.Database.Tables.Character
     {
         private static readonly MySqlCommand AddInvItemCommand = new MySqlCommand("INSERT INTO character_inventory (characterId, slotId, itemId) VALUES (@CharacterId, @SlotId, @ItemId)");
         private static readonly MySqlCommand DeleteInvItemCommand = new MySqlCommand("DELETE FROM character_inventory WHERE characterId = @CharacterId AND slotId = @SlotId");
-        private static readonly MySqlCommand GetInvItemCommand = new MySqlCommand("SELECT itemId, slotId FROM character_inventory WHERE characterId = @CharacterId");
+        private static readonly MySqlCommand GetInvItemsCommand = new MySqlCommand("SELECT itemId, slotId FROM character_inventory WHERE characterId = @CharacterId");
         private static readonly MySqlCommand MoveInvItemCommand = new MySqlCommand("UPDATE character_inventory SET slotId = @SlotId WHERE characterId = @CharacterId AND itemId = @ItemId");
 
         public static void Initialize()
@@ -26,9 +26,9 @@ namespace Rasa.Database.Tables.Character
             DeleteInvItemCommand.Parameters.Add("@SlotId", MySqlDbType.Int32);
             DeleteInvItemCommand.Prepare();
 
-            GetInvItemCommand.Connection = GameDatabaseAccess.CharConnection;
-            GetInvItemCommand.Parameters.Add("@CharacterId", MySqlDbType.UInt32);
-            GetInvItemCommand.Prepare();
+            GetInvItemsCommand.Connection = GameDatabaseAccess.CharConnection;
+            GetInvItemsCommand.Parameters.Add("@CharacterId", MySqlDbType.UInt32);
+            GetInvItemsCommand.Prepare();
 
             MoveInvItemCommand.Connection = GameDatabaseAccess.CharConnection;
             MoveInvItemCommand.Parameters.Add("@CharacterId", MySqlDbType.UInt32);
@@ -59,21 +59,15 @@ namespace Rasa.Database.Tables.Character
             }
         }
 
-        public static List<CharacterInventoryEntry> GetItem(uint characterId)
+        public static List<CharacterInventoryEntry> GetItems(uint characterId)
         {
             lock (GameDatabaseAccess.CharLock)
             {
-                GetInvItemCommand.Parameters["@CharacterId"].Value = characterId;
+                GetInvItemsCommand.Parameters["@CharacterId"].Value = characterId;
                 var invItemData = new List<CharacterInventoryEntry>();
-                using (var reader = GetInvItemCommand.ExecuteReader())
+                using (var reader = GetInvItemsCommand.ExecuteReader())
                     while (reader.Read())
-                    {
-                        invItemData.Add(new CharacterInventoryEntry
-                        {
-                            ItemId = reader.GetUInt32("itemId"),
-                            SlotId = reader.GetInt32("slotId"),
-                        } );
-                    }
+                        invItemData.Add(CharacterInventoryEntry.Read(reader));
 
                 return invItemData;
             }

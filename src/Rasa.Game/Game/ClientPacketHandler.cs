@@ -205,7 +205,7 @@ namespace Rasa.Game
         [PacketHandler(GameOpcode.StartAutoFire)]
         private void StartAutoFire(StartAutoFirePacket packet)
         {
-            PlayerManager.Instance.StartAutoFire(Client, packet.RetryDelayMs);
+            PlayerManager.Instance.StartAutoFire(Client, packet.FromUi);
         }
 
         [PacketHandler(GameOpcode.WeaponDrawerInventory_MoveItem)]

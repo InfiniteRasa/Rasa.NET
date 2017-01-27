@@ -18,7 +18,7 @@ namespace Rasa.Packets.Game.Server
         public int GameContextId { get; set; }
         public LoginDataTupple LoginData { get; set; }
         public ClanDataTupple ClanData { get; set; }
-        public Dictionary<int, AppearanceData> AppearanceData { get; set; } = new Dictionary<int, AppearanceData>();
+        public List<AppearanceData> AppearanceData { get; set; } = new List<AppearanceData>();
         public Color Color { get; set; }
 
         public override void Read(PythonReader pr)
@@ -66,23 +66,18 @@ namespace Rasa.Packets.Game.Server
                 pw.WriteNoneStruct();
 
             pw.WriteString("AppearanceData");
-            if (AppearanceData.Count != 0)
+            pw.WriteDictionary(AppearanceData.Count);
+            foreach (var t in AppearanceData)
             {
-                pw.WriteDictionary(21);
-                for (var i = 0; i < 21; ++i)
-                {
-                    pw.WriteInt(i+1);
-                    pw.WriteTuple(2);
-                    pw.WriteInt(AppearanceData[i+1].ClassId);
-                    pw.WriteTuple(4);
-                    pw.WriteInt(AppearanceData[i+1].Color.Red);
-                    pw.WriteInt(AppearanceData[i+1].Color.Green);
-                    pw.WriteInt(AppearanceData[i+1].Color.Blue);
-                    pw.WriteInt(AppearanceData[i+1].Color.Alpha);
-                }
+                pw.WriteInt(t.SlotId);
+                pw.WriteTuple(2);
+                pw.WriteInt(t.ClassId);
+                pw.WriteTuple(4);
+                pw.WriteInt(t.Color.Red);
+                pw.WriteInt(t.Color.Green);
+                pw.WriteInt(t.Color.Blue);
+                pw.WriteInt(t.Color.Alpha);
             }
-            else
-                pw.WriteDictionary(0);
 
             pw.WriteString("UserName");
             pw.WriteUnicodeString(UserName);

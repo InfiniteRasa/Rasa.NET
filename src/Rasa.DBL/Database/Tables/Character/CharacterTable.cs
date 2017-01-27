@@ -111,9 +111,9 @@ namespace Rasa.Database.Tables.Character
                 // ToDo maybe get data from elsewhere, insted of hardcore input
                 CreateCharacterCommand.Parameters["@ClassId"].Value = 1;    // recruit
                 CreateCharacterCommand.Parameters["@MapContextId"].Value = 1220;
-                CreateCharacterCommand.Parameters["@PosX"].Value = 894.9;
-                CreateCharacterCommand.Parameters["@PosY"].Value = 347.1;
-                CreateCharacterCommand.Parameters["@PosZ"].Value = 307.9;
+                CreateCharacterCommand.Parameters["@PosX"].Value = 894;
+                CreateCharacterCommand.Parameters["@PosY"].Value = 347;
+                CreateCharacterCommand.Parameters["@PosZ"].Value = 306;
                 CreateCharacterCommand.Parameters["@Rotation"].Value = 1;
                 CreateCharacterCommand.Parameters["@Level"].Value = 1;
                 CreateCharacterCommand.Parameters["@Logos"].Value = "00000000000000000000000000000000000000000000000000000000000000000000000000000000"+

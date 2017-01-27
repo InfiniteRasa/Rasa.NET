@@ -195,7 +195,7 @@ namespace Rasa.Managers
 
         public void UpdateVisibility(MapChannel mapChannel)
         {
-            for (var i = 0; i < mapChannel.PlayerCount; i++)
+            for (var i = 0; i < mapChannel.PlayerList.Count; i++)
             {
                 var client = mapChannel.PlayerList[i];
                 if (client.Disconected || client.Player == null)

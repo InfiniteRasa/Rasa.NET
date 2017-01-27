@@ -1,13 +1,7 @@
 ﻿namespace Rasa.Managers
 {
-    using Data;
-    using Database.Tables.Character;
-    using Database.Tables.World;
-    using Game;
-    using Structures;
-    using Packets.MapChannel.Client;
     using Packets.MapChannel.Server;
-    using Packets.Game.Server;
+    using Structures;
 
     public class GameEffectManager
     {
@@ -37,18 +31,13 @@
 
         public void AddToList(Actor actor, GameEffect gameEffect)
         {
-            // fast and simple prepend list 
-            gameEffect.Next = actor.ActiveEffects;
-            if (gameEffect.Next != null)
-                gameEffect.Next.Previous = gameEffect;
-            gameEffect.Previous = null;
-            actor.ActiveEffects = gameEffect;
+            actor.ActiveEffects.Add(gameEffect.EffectId, gameEffect);
         }
 
-        public void AttachSprint(MapChannel mapChannel, PlayerData player, int effectLevel, int duration)
+        public void AttachSprint(MapChannelClient mapClient, Actor actor, int effectLevel, int duration)
         {
-            mapChannel.CurrentEffectId++; // generate new effectId
-            var effectId = mapChannel.CurrentEffectId;
+            mapClient.MapChannel.CurrentEffectId++; // generate new effectId
+            var effectId = mapClient.MapChannel.CurrentEffectId;
             // effectId -> The id used to identify the effect when sending/receiving effect related data (similiar to entityId, just for effects)
             // typeId -> The id used to lookup the effect class and animation
             // level -> The sub id of the effect, some effects have multiple levels (especially the ones linked with player abilities)
@@ -61,13 +50,13 @@
             gameEffect.EffectId = effectId;
             gameEffect.EffectLevel = effectLevel;
             // add to list
-            AddToList(player.Actor, gameEffect);
-            // ToDO send on cell domain
-            player.Client.SendPacket(player.Actor.EntityId, new GameEffectAttachedPacket {
+            AddToList(actor, gameEffect);
+            mapClient.Player.Client.CellSendPacket(mapClient, actor.EntityId, new GameEffectAttachedPacket
+            {
                 EffectTypeId = gameEffect.TypeId,
                 EffectId = gameEffect.EffectId,
                 EffectLevel = gameEffect.EffectLevel,
-                SourceId = (int)player.Actor.EntityId,
+                SourceId = (int)actor.EntityId,
                 Announced = true,
                 Duration = gameEffect.Duration,
                 DamageType = 0,
@@ -78,29 +67,72 @@
                 IsNegativeEffect = false
             });
             // do ability specific work
-            UpdateMovementMod(mapChannel, player);
+            UpdateMovementMod(mapClient, actor);
         }
 
-        public void UpdateMovementMod(MapChannel mapChannel, PlayerData player)
+        public void DettachEffect(MapChannelClient mapClient, Actor actor, GameEffect gameEffect)
+        {
+            // inform clients (Recv_GameEffectDetached 75)
+            mapClient.Player.Client.CellSendPacket(mapClient, actor.EntityId, new GameEffectDetachedPacket { EffectId = gameEffect.EffectId });
+            // remove from list
+            RemoveFromList(actor, gameEffect);
+            // do ability specific work
+            if (gameEffect.TypeId == 247)
+                UpdateMovementMod(mapClient, actor);
+            // more todo..
+        }
+
+        public void DoWork(MapChannel mapChannel, long passedTime)
+        {
+            foreach (var mapClient in mapChannel.PlayerList)
+            {
+                if (mapClient.Player == null)
+                    continue;
+                var actor = mapClient.Player.Actor;
+                var gameEffect = actor.ActiveEffects;
+
+                // This need future work
+                foreach (var t in gameEffect)
+                {
+                    var effect = t.Value;
+                    effect.EffectTime += (int)passedTime;
+                    // stop effect if too old
+                    if (effect.EffectTime >= effect.Duration)
+                    {
+                        DettachEffect(mapClient, actor, effect);
+                        break;
+                    }
+
+                }
+
+            }
+            
+        }
+        
+
+        public void RemoveFromList(Actor actor, GameEffect gameEffect)
+        {
+            actor.ActiveEffects.Remove(gameEffect.EffectId);
+        }
+
+        public void UpdateMovementMod(MapChannelClient mapClient, Actor actor)
         {
             var movementMod = 1.0d;
             // check for sprint
-            var gameeffect = player.Actor.ActiveEffects;
-            while (gameeffect != null)
+            foreach (var t in actor.ActiveEffects)
             {
-                if (gameeffect.TypeId == 247) // ToDO curently hardcoded EFFECT_TYPE_SPRINT
+                var efect = t.Value;
+                if (efect.TypeId == 247) // ToDO curently hardcoded EFFECT_TYPE_SPRINT
                 {
                     // apply sprint bonus
-                    movementMod += 0.10d;
-                    movementMod += gameeffect.EffectLevel * 0.10d;
+                    movementMod += 1.0d;
+                    movementMod += efect.EffectLevel * 0.10d;
                     break;
                 }
-                // next
-                gameeffect = gameeffect.Next;
             }
             // todo: other modificators?
             // ToDO send on cell domain
-            player.Client.SendPacket(player.Actor.EntityId, new MovementModChangePacket( movementMod) );
+            mapClient.Player.Client.CellSendPacket(mapClient, actor.EntityId, new MovementModChangePacket(movementMod));
         }
     }
 }

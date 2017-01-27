@@ -189,6 +189,53 @@ namespace Rasa.Game
             return true;
         }
 
+        // Cell Domain
+        public void CellSendPacket(MapChannelClient mapClient, uint entityId, PythonPacket packet)
+        {
+            var mapCell = CellManager.Instance.GetCell(mapClient.MapChannel, mapClient.Player.Actor.CellLocation.CellPosX, mapClient.Player.Actor.CellLocation.CellPosY);
+            var playerCount = mapCell.PlayerNotifyList.Count;
+            var playerList = mapCell.PlayerNotifyList;
+
+            if (playerList == null  || playerCount == 0)
+                return;
+
+            foreach (var t in playerList)
+                t.Player.Client.SendPacket(entityId, packet);
+        }
+
+        // Cell Domain ignore self
+        public void CellIgnoreSelfSendPacket(MapChannelClient mapClient, uint entityId, PythonPacket packet)
+        {
+            var mapCell = CellManager.Instance.GetCell(mapClient.MapChannel, mapClient.Player.Actor.CellLocation.CellPosX, mapClient.Player.Actor.CellLocation.CellPosY);
+            var playerCount = mapCell.PlayerNotifyList.Count;
+            var playerList = mapCell.PlayerNotifyList;
+
+            if (playerList == null || playerCount == 0)
+                return;
+
+            foreach (var t in playerList)
+            {
+                if (t == mapClient)
+                    return;
+                t.Player.Client.SendPacket(entityId, packet);
+            }
+        }
+
+        /* MapChannel
+         * we will see, will we neeed this, it's same as CellSendPacket
+        public void MapChannelSendPacket(MapChannel mapChannel, Actor actor, uint entityId, PythonPacket packet)
+        {
+            var mapCell = CellManager.Instance.GetCell(mapChannel, actor.CellLocation.CellPosX, actor.CellLocation.CellPosY);
+            var playerCount = mapCell.PlayerNotifyList.Count;
+            var playerList = mapCell.PlayerNotifyList;
+
+            if (playerList == null || playerCount == 0)
+                return;
+
+            foreach (var t in playerList)
+                t.Player.Client.SendPacket(entityId, packet);
+        }*/
+
         // Client
         public void SendPacket(uint entityId, PythonPacket packet)
         {
@@ -201,7 +248,7 @@ namespace Rasa.Game
             foreach (var mapClient in playerList)
                 mapClient.Player.Client.SendPacket(entityId, packet);
         }
-
+        
         // netMgr_sendEntityMovement    // ToDo
         public void SendMovement(uint entityId, NetCompressedMovement movement)
         {

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace Rasa.Managers
 {    
@@ -192,24 +193,28 @@ namespace Rasa.Managers
 
         public void InitCharacterInventory(MapChannelClient mapClient)
         {
-            
-            var getInventoryData = CharacterInventoryTable.GetItem(mapClient.Player.CharacterId);
+            var getInventoryData = CharacterInventoryTable.GetItems(mapClient.Player.CharacterId);
+
             foreach (var item in getInventoryData)
             {
                 var itemData = ItemsTable.GetItem(item.ItemId);
                 var tempItem = ItemManager.Instance.GetItemFromTemplateId(item.ItemId, mapClient.Player.CharacterId, item.SlotId, itemData.EntityClassId, itemData.StackSize);
+
                 tempItem.ItemId = item.ItemId;
-                
+                tempItem.Color = itemData.Color;
+                tempItem.ItemTemplate.CrafterName = itemData.CrafterName;
+                // check if item is weapon;
+                if (tempItem.ItemTemplate.ItemType == (int)ItemTypes.Weapon)
+                    tempItem.ItemTemplate.Weapon.CurrentAmmo = itemData.AmmoCount;
+                // fill invenoty slot
                 if (item.SlotId < 250)
                     mapClient.Inventory.PersonalInventory[item.SlotId] = tempItem.EntityId;
                 else if (249 < item.SlotId && item.SlotId < 272)
                     mapClient.Inventory.EquippedInventory[item.SlotId - 250] = tempItem.EntityId;
                 else if (271 < item.SlotId)
-                {
-                    tempItem.WeaponAmmoCount = itemData.AmmoCount;
                     mapClient.Inventory.WeaponDrawer[item.SlotId - 250 - 22] = tempItem.EntityId;
-                }
             }
+            
             // send inventory data - personal inventory
             for (var i = 0; i < 250; i++)
             {
@@ -247,7 +252,7 @@ namespace Rasa.Managers
                 // make the item appear on the client
                 AddItemBySlot(mapClient, InventoryType.WeaponDrawerInventory, mapClient.Inventory.WeaponDrawer[i], i, false);
                 // update appearance
-                PlayerManager.Instance.SetAppearanceItem(mapClient.Player, slotItem.ItemTemplate.ClassId, 0);
+                PlayerManager.Instance.SetAppearanceItem(mapClient.Player, slotItem);
             }
 
             PlayerManager.Instance.UpdateAppearance(mapClient);
@@ -256,7 +261,10 @@ namespace Rasa.Managers
 
         public void NotifyEquipmentUpdate(MapChannelClient mapClient)
         {
-            mapClient.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, new EquipmentInfoPacket { WeaponDrawer = mapClient.Inventory.WeaponDrawer[mapClient.Inventory.ActiveWeaponDrawer] });
+            var weaponInfo = new List<EquipmentInfo>();
+            weaponInfo.Add(new EquipmentInfo { SlotId = 13, EntityId = (int)mapClient.Inventory.WeaponDrawer[mapClient.Inventory.ActiveWeaponDrawer] });
+            // ToDo more equipment update?
+            mapClient.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, new EquipmentInfoPacket { EquipmentInfo = weaponInfo });
         }
 
         public void PersonalInventory_DestroyItem(Client client, PersonalInventory_DestroyItemPacket packet)
@@ -372,7 +380,7 @@ namespace Rasa.Managers
             }
             else
             {
-                PlayerManager.Instance.SetAppearanceItem(client.MapClient.Player, itemToEquip.ItemTemplate.ClassId, -2139062144);
+                PlayerManager.Instance.SetAppearanceItem(client.MapClient.Player, itemToEquip);
             }
             PlayerManager.Instance.UpdateAppearance(client.MapClient);
             // update stats
@@ -429,7 +437,7 @@ namespace Rasa.Managers
                 }
                 else
                 {
-                    PlayerManager.Instance.SetAppearanceItem(client.MapClient.Player, itemToEquip.ItemTemplate.ClassId, -2139062144);
+                    PlayerManager.Instance.SetAppearanceItem(client.MapClient.Player, itemToEquip);
                 }
                 PlayerManager.Instance.UpdateAppearance(client.MapClient);
             }
@@ -437,44 +445,47 @@ namespace Rasa.Managers
 
         public void RequestWeaponReload(MapChannelClient mapClient, Item weapon, bool tellSelf)
         {
-            // find and eat a piece of ammunition
             var ammoClassId = weapon.ItemTemplate.Weapon.AmmoClassId;
             bool foundAmmo = false;
+
             for (var i = 0; i < 50; i++)
             {
                 if (mapClient.Inventory.PersonalInventory[(int)InventoryOffset.CategoryConsumable + i] == 0)
                     continue;
+
                 var weaponAmmo = EntityManager.Instance.GetItem(mapClient.Inventory.PersonalInventory[(int)InventoryOffset.CategoryConsumable + i]);
-                //if (!itemAmmo)
-                    //return;
+
+                if (weaponAmmo == null)
+                    return;
+
                 if (weaponAmmo.ItemTemplate.ClassId == ammoClassId)
                 {
-                    // consume one piece of ammo
                     foundAmmo = true;
                     break;
                 }
             }
+
             if (foundAmmo == false)
                 return; // no ammo found -> ToDo: Tell the client?
+
             // send action start
             var reloadActionId = 134;
             var reloadActionArgId = 1;// todo: Use correct argId depending on weapon type
-            // ToDo write netMgr_cellDomain_pythonAddMethodCallRaw and netMgr_cellDomain_pythonAddMethodCallRawIgnoreSelf
-            /*if (tellSelf)
+            
+            if (tellSelf)
             {
                 // if item_recv_RequestWeaponReload() is not called by client, then the server issued the weapon reload request
                 // tell all clients about the action start
-                netMgr_cellDomain_pythonAddMethodCallRaw(client, client->player->actor->entityId, PerformWindup, pym_getData(&pms), pym_getLen(&pms));
-            }
+                mapClient.Player.Client.CellSendPacket(mapClient, mapClient.Player.Actor.EntityId, new PerformWindupPacket { ActionId = reloadActionId, ActionArgId = reloadActionArgId });
+                }
             else
             {
                 // if the client sent the request, tell everyone but the client to start the reload action
                 // In this case, the action is created on the client without actually having to trigger it via Recv_PerformWindup
-                netMgr_cellDomain_pythonAddMethodCallRawIgnoreSelf(client, client->player->actor->entityId, PerformWindup, pym_getData(&pms), pym_getLen(&pms));
-            }*/
-            mapClient.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, new PerformWindupPacket { ActionId = reloadActionId, ActionArgId = reloadActionArgId });
+                mapClient.Player.Client.CellIgnoreSelfSendPacket(mapClient, mapClient.Player.Actor.EntityId, new PerformWindupPacket { ActionId = reloadActionId, ActionArgId = reloadActionArgId });
+            }
             // start reload action
-            //actor_startActionOnEntity(client->mapChannel, client->player->actor, 0, reloadActionId, reloadActionArgId, 1500, 0, _cb_item_recv_RequestWeaponReload_actionUpdate);
+            // actor_startActionOnEntity(client->mapChannel, client->player->actor, 0, reloadActionId, reloadActionArgId, 1500, 0, _cb_item_recv_RequestWeaponReload_actionUpdate);
         }
 
         public void RequestTooltipForItemTemplateId(Client client, int itemTemplateId)

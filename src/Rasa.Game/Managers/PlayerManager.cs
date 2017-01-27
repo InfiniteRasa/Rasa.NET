@@ -306,6 +306,27 @@ namespace Rasa.Managers
                 CharacterSkillsTable.UpdateCharacterSkill(mapClient.Player.CharacterId, mapClient.Player.Skills[skill.Key].SkillId, mapClient.Player.Skills[skill.Key].SkillLevel);
         }
 
+        public void PerformAbilitie(MapChannel mapChannel, PerformAbilityData abilityData)
+        {
+            /*
+             * ServerArgs = (self.actionId, self.actionArgId, target, self.itemId)
+             * if self.useClientYaw: serverArgs += (actor.body.GetYaw())
+             * gameclient.SendCallActorMethod('RequestPerformAbility', serverArgs)
+             */
+            switch (abilityData.ActionId)
+            {
+                case 194: // Lightning
+                    Console.WriteLine("ToDo : Lightning");
+                    return;
+                case 401: // Sprint
+                    GameEffectManager.Instance.AttachSprint(abilityData.MapClient, abilityData.MapClient.Player.Actor, abilityData.ActionArgId, 500);
+                    return;
+                default:
+                    Console.WriteLine($"Unknown Ability: Id {abilityData.ActionId}, ArgId {abilityData.ActionArgId}, Target {abilityData.TargetId}");
+                    return;
+            };
+        }
+
         public void RemovePlayerCharacter(MapChannel mapChannel, MapChannelClient mapClient)
         {
             // ToDo do we need remove something, or it's done already 
@@ -313,7 +334,7 @@ namespace Rasa.Managers
 
         public void RemoveAppearanceItem(PlayerData player, int itemClassId)
         {
-            var equipmentSlotId = EquipableClassEquipmentSlotTable.GetSlotId((uint)itemClassId);
+            var equipmentSlotId = EquipableClassEquipmentSlotTable.GetSlotId(itemClassId);
             if (equipmentSlotId == 0)
                 return;
             player.AppearanceData[equipmentSlotId].ClassId = 0;
@@ -338,37 +359,15 @@ namespace Rasa.Managers
             var tempItem = EntityManager.Instance.GetItem(client.MapClient.Inventory.WeaponDrawer[client.MapClient.Inventory.ActiveWeaponDrawer]);
             if (tempItem == null)
                 return;
-            SetAppearanceItem(client.MapClient.Player, tempItem.ItemTemplate.ClassId, -2139062144);
+            SetAppearanceItem(client.MapClient.Player, tempItem);
             UpdateAppearance(client.MapClient);
             // update ammo info
-            client.SendPacket(tempItem.EntityId, new WeaponAmmoInfoPacket{ AmmoInfo = tempItem.WeaponAmmoCount });
+            client.SendPacket(tempItem.EntityId, new WeaponAmmoInfoPacket{ AmmoInfo = tempItem.ItemTemplate.Weapon.CurrentAmmo });
         }
 
         public void RequestPerformAbility(Client client, RequestPerformAbilityPacket packet)
         {
-            /*
-            ServerArgs = (self.actionId, self.actionArgId, target, self.itemId)
-            if self.useClientYaw: serverArgs += (actor.body.GetYaw())
-            gameclient.SendCallActorMethod('RequestPerformAbility', serverArgs)
-            */
-
-            switch (packet.ActionId)
-            {
-                /*case 194: // Lightning
-                    printf("Lightning: Target %u\n", (uint32)targetEntityId);
-                    //missile_launch(cm->mapChannel, cm->player->actor, targetEntityId, MISSILE_LIGHTNING, 40);
-                    missile_launch(cm->mapChannel, cm->player->actor, targetEntityId, 180 + (rand() % 61), 194, 1);
-                    //_test_PerformAbility();
-
-                    //gameEffect_attach(cm->mapChannel, targetEntityId, 86, 1); // stun
-                    return;*/
-                case 401: // Sprint
-                    GameEffectManager.Instance.AttachSprint(client.MapClient.MapChannel, client.MapClient.Player, packet.ActionArgId, 5000);
-                    return;
-                default:
-                    Console.WriteLine("Unknown Ability: ID {0} ArgID {1} Target {2}\n", packet.ActionId, packet.ActionArgId, packet.Target);
-                    return;
-            };
+            client.MapClient.MapChannel.QueuedPerformAbilities.Enqueue(new PerformAbilityData(client.MapClient, packet.ActionId, packet.ActionArgId, packet.Target, packet.ItemId));
         }
 
         public void RequestSetAbilitySlot(Client client, RequestSetAbilitySlotPacket packet)
@@ -455,15 +454,17 @@ namespace Rasa.Managers
             }
         }
 
-        public void SetAppearanceItem(PlayerData player, int itemClassId, int hueAARRGGBB)
+        public void SetAppearanceItem(PlayerData player, Item item)
         {
-            var equipmentSlotId = EquipableClassEquipmentSlotTable.GetSlotId((uint)itemClassId);
+            var equipmentSlotId = EquipableClassEquipmentSlotTable.GetSlotId(item.ItemTemplate.ClassId);
             if (equipmentSlotId == 0)
                 return;
-            player.AppearanceData[equipmentSlotId].ClassId = itemClassId;
-            player.AppearanceData[equipmentSlotId].Color = new Color(hueAARRGGBB);
+            if (!player.AppearanceData.ContainsKey(equipmentSlotId))
+                player.AppearanceData.Add(equipmentSlotId, new AppearanceData());
+            player.AppearanceData[equipmentSlotId].ClassId = item.ItemTemplate.ClassId;
+            player.AppearanceData[equipmentSlotId].Color = new Color(item.Color);
             // update appearance data in database
-            CharacterAppearanceTable.UpdateCharacterAppearance(player.CharacterId, equipmentSlotId, itemClassId, hueAARRGGBB);
+            CharacterAppearanceTable.UpdateCharacterAppearance(player.CharacterId, equipmentSlotId, item.ItemTemplate.ClassId, item.Color);
         }
 
         public void SetDesiredCrouchState(Client client, int stateId)
@@ -472,9 +473,80 @@ namespace Rasa.Managers
             // stateId's 1 = standing, 14 = crouched
         }
 
-        public void StartAutoFire(Client client, double retryDelayMs)
+        public void StartAutoFire(Client client, double fromUi)
         {
-            // ToDo
+            // ToDo data that's recived via this packe have to do something with player rotation
+            Console.WriteLine($"StartAutOFire data = {fromUi}");
+            // do we need to reload?
+            var itemWeapon = InventoryManager.Instance.CurrentWeapon(client.MapClient);
+            if (itemWeapon == null)
+                return; // no weapon armed
+            if (itemWeapon.ItemTemplate.Weapon.CurrentAmmo < itemWeapon.ItemTemplate.Weapon.AmmoPerShot)
+            {
+                InventoryManager.Instance.RequestWeaponReload(client.MapClient, itemWeapon, true);
+                return;
+            }
+            /* item_recv_RequestWeaponReload
+
+
+
+    pyMarshalString_t pms;
+    client->player->actor->inCombatMode = true;
+    pym_init(&pms);
+    pym_tuple_begin(&pms);
+    pym_addBool(&pms, true);
+    pym_tuple_end(&pms);
+    netMgr_cellDomain_pythonAddMethodCallRaw(client->mapChannel, client->player->actor, client->player->actor->entityId, 753, pym_getData(&pms), pym_getLen(&pms));
+
+
+
+
+
+    printf("%f at %I64d\n", yaw, client->player->targetEntityId);
+    // TODO!
+
+    printf("TODO: "); puts(__FUNCTION__);
+    printf("target: %I64u\n", client->player->targetEntityId);
+
+    //##################### Begin: if target is Mapchannel Client #################
+    //desc: have to use mapchannel-client id instead of player-entity-id because
+    //player-entity-id isnt registered, when new player is created(enter world)
+
+    sint32 targetType = entityMgr_getEntityType(client->player->targetEntityId);
+    sint32 newTargetEntityId = 0;
+    if (targetType == 0) //1:client-type,0=player-type
+    {
+        mapCell_t* mapCell = cellMgr_tryGetCell(client->mapChannel,
+                                                client->player->actor->cellLocation.x,
+                                                client->player->actor->cellLocation.z);
+        if (mapCell)
+        {
+            mapChannelClient_t** playerList = NULL;
+            sint32 tCount = mapCell->ht_playerNotifyList.size();
+            playerList = &mapCell->ht_playerNotifyList[0];
+            for (sint32 i = 0; i < tCount; i++)
+            {
+
+                mapChannelClient_t* targetPlayer = playerList[i];
+                if (targetPlayer->player->actor->entityId == client->player->targetEntityId)
+                {
+                    client->player->targetEntityId = targetPlayer->clientEntityId;
+                    break; //player-entity-id found, now use client-entity-id for missile trigger
+                }
+            }
+            //void *entity = entityMgr_get();
+        }
+
+    }
+    //##################### End: if target is Mapchannel Client #################
+
+    //if( client->player->targetEntityId )
+    //{
+    mapChannel_registerAutoFireTimer(client);
+
+    //}//--if: targed id	
+}*/
+
         }
 
         public void UpdateAppearance(MapChannelClient mapClient)

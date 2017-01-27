@@ -4,9 +4,11 @@ using MySql.Data.MySqlClient;
 
 namespace Rasa.Database.Tables.Character
 {
+    using Structures;
+
     public class CharacterAppearanceTable
     {        
-        private static readonly MySqlCommand GetAppearanceCommand = new MySqlCommand("SELECT slotItem, slotHue FROM character_appearance WHERE characterId = @CharacterId AND slotId = @SlotId");
+        private static readonly MySqlCommand GetAppearanceCommand = new MySqlCommand("SELECT slotId, slotItem, slotHue FROM character_appearance WHERE characterId = @CharacterId");
         private static readonly MySqlCommand SetAppearanceCommand = new MySqlCommand("INSERT INTO character_appearance (characterId, slotId, slotItem, slotHue) VALUES (@CharacterId, @SlotId, @SlotItem, @SlotHue)");
         private static readonly MySqlCommand UpdateAppearanceCommand = new MySqlCommand("UPDATE character_appearance SET slotItem = @ClassId, slotHue = @Hue WHERE characterId = @CharacterId AND slotId = @SlotId");
         
@@ -32,22 +34,16 @@ namespace Rasa.Database.Tables.Character
             UpdateAppearanceCommand.Prepare();            
         }
 
-        public static List<int> GetAppearance(uint characterId, int slotId)
+        public static List<AppearanceEntry> GetAppearance(uint characterId)
         {
             lock (GameDatabaseAccess.CharLock)
             {
-                var playerAppearance = new List<int>();
-                GetAppearanceCommand.Parameters["@CharacterId"].Value = characterId;
-                GetAppearanceCommand.Parameters["@SlotId"].Value = slotId;
+                var playerAppearance = new List<AppearanceEntry>();
 
+                GetAppearanceCommand.Parameters["@CharacterId"].Value = characterId;
                 using (var reader = GetAppearanceCommand.ExecuteReader())
-                {
-                    if (reader.Read())
-                    {
-                        playerAppearance.Add(reader[0].GetHashCode());
-                        playerAppearance.Add(reader[1].GetHashCode());
-                    }
-                }
+                    while (reader.Read())
+                        playerAppearance.Add(AppearanceEntry.Read(reader));
 
                 return playerAppearance;
             }

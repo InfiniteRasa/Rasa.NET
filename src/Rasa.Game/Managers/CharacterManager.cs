@@ -96,13 +96,13 @@ namespace Rasa.Managers
             CharacterAppearanceTable.SetAppearance(characterId, 1, 10908, -2139062144);
             CharacterAppearanceTable.SetAppearance(characterId, 2, 7054, -2139062144);
             CharacterAppearanceTable.SetAppearance(characterId, 3, 10909, -2139062144);
-            CharacterAppearanceTable.SetAppearance(characterId, 14, StarterItemsTable.GetItemTemplateId(packet.AppearanceData[13].ClassId), packet.AppearanceData[13].Color.Hue);
             CharacterAppearanceTable.SetAppearance(characterId, 15, 7052, -2139062144);
             CharacterAppearanceTable.SetAppearance(characterId, 16, 7053, -2139062144);
-            CharacterAppearanceTable.SetAppearance(characterId, 17, StarterItemsTable.GetItemTemplateId(packet.AppearanceData[16].ClassId), packet.AppearanceData[16].Color.Hue);
-            CharacterAppearanceTable.SetAppearance(characterId, 19, StarterItemsTable.GetItemTemplateId(packet.AppearanceData[18].ClassId), packet.AppearanceData[18].Color.Hue);
-            CharacterAppearanceTable.SetAppearance(characterId, 20, StarterItemsTable.GetItemTemplateId(packet.AppearanceData[19].ClassId), packet.AppearanceData[19].Color.Hue);
-            CharacterAppearanceTable.SetAppearance(characterId, 21, StarterItemsTable.GetItemTemplateId(packet.AppearanceData[19].ClassId), packet.AppearanceData[20].Color.Hue);
+            foreach (var t in packet.AppearanceData)
+            {
+                var v = t.Value;
+                CharacterAppearanceTable.SetAppearance(characterId, v.SlotId, StarterItemsTable.GetItemTemplateId(v.ClassId), v.Color.Hue);
+            }
             // Create default entry in CharacterAbilitiesTable
             for (var i = 0; i < 25; i++)
                 CharacterAbilityDrawerTable.SetCharacterAbility(characterId, i, 0, 0);
@@ -162,19 +162,12 @@ namespace Rasa.Managers
             var data = CharacterTable.GetCharacterData(client.Entry.Id, slotNum + 1);
             if (data != null)
             {
-                var appearanceData = new Dictionary<int, AppearanceData>();
-                for (var i = 1; i < 22; i++)
-                {
-                    var appearance = CharacterAppearanceTable.GetAppearance(data.CharacterId, i);
-                    if (appearance.Count == 0)
-                    {
-                        appearanceData.Add(i, new AppearanceData { SlotId = i, ClassId = 0, Color = new Color(0) });
-                        continue;
-                    }
-                    appearanceData.Add(i, new AppearanceData { SlotId = i, ClassId = appearance[0], Color = new Color(appearance[1]) });
-                }
+                var tempAppearanceData = new List<AppearanceData>();
+                var appearance = CharacterAppearanceTable.GetAppearance(data.CharacterId);
+                foreach (var t in appearance)
+                    tempAppearanceData.Add(new AppearanceData { SlotId = t.SlotId, ClassId = t.ClassId, Color = new Color(t.Color) });
 
-                var packet = new CharacterInfoPacket
+                client.SendPacket(101 + (uint)slotNum, new CharacterInfoPacket
                 {
                     SlotId = data.SlotId,
                     IsSelected = 1,
@@ -196,7 +189,7 @@ namespace Rasa.Managers
                         CloneCredits = data.CloneCredits,
                         RaceId = data.RaceId
                     },
-                    AppearanceData = appearanceData,                    
+                    AppearanceData = tempAppearanceData,
                     UserName = data.FamilyName,
                     GameContextId = data.MapContextId,
                     LoginData = new LoginDataTupple
@@ -210,20 +203,10 @@ namespace Rasa.Managers
                         ClanId = data.ClanId,
                         ClanName = data.ClanName
                     }
-                };
-                
-                client.SendPacket(101 + (uint) slotNum, packet);
+                });
             }
             else
-            {
-                var packet = new CharacterInfoPacket
-                {
-                    SlotId = slotNum + 1,
-                    IsSelected = 0  
-                };
-
-                client.SendPacket(101 + (uint) slotNum, packet);
-            }
+                client.SendPacket(101 + (uint)slotNum, new CharacterInfoPacket { SlotId = slotNum + 1, IsSelected = 0 });
         }
 
         private void SendCharacterCreateFailed(Client client, CreateCharacterResult result)

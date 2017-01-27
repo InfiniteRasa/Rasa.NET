@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Rasa.Packets.MapChannel.Client
+﻿namespace Rasa.Packets.MapChannel.Client
 {
     using Data;
     using Memory;
@@ -16,7 +14,6 @@ namespace Rasa.Packets.MapChannel.Client
 
         public override void Read(PythonReader pr)
         {
-            Console.WriteLine("RequestPerformAbility\n{0}", pr.ToString());
             pr.ReadTuple();
             ActionId = pr.ReadInt();
             ActionArgId = pr.ReadInt();

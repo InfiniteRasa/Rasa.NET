@@ -71,38 +71,34 @@ namespace Rasa.Managers
 
         public void GetItemArmorData()
         {
-            var rows = ArmorTemplateTable.GetDbRows();
-            for (var i = 0; i < rows; i++)
+            var armorTemplates = ArmorTemplateTable.GetArmorTemplates();
+            foreach (var template in armorTemplates)
             {
-                // get data from db
-                var data = ArmorTemplateTable.GetArmorTemplates(i);
                 // update LoadedItemTemplates
-                LoadedItemTemplates[data.ItemTemplateId].Armor = new ArmorTupple
+                LoadedItemTemplates[template.ItemTemplateId].Armor = new ArmorTupple
                 {
-                    ArmorValue = data.ArmorValue,
-                    DamageAbsorbed = data.DamageAbsorbed,
-                    RegenRate = data.RegenRate
+                    ArmorValue = template.ArmorValue,
+                    DamageAbsorbed = template.DamageAbsorbed,
+                    RegenRate = template.RegenRate
                 };
             }
-            Console.WriteLine("Loaded {0} ArmorTemplates.", rows);
+            Console.WriteLine($"Loaded {armorTemplates.Count} ArmorTemplates.");
         }
 
         public void GetItemEquipmentData()
         {
-            var rows = EquipmentTemplateTable.GetDbRows();
-            for (var i = 0; i < rows; i++)
+            var equipmentTemplates = EquipmentTemplateTable.GetEquipmentTemplates();
+            foreach (var template in equipmentTemplates)
             {
-                // get data from db
-                var data = EquipmentTemplateTable.GetEquipmentTemplates(i);
                 // update LoadedItemTemplates
-                LoadedItemTemplates[data.ItemTemplateId].Equipment = new EquipmentTupple
+                LoadedItemTemplates[template.ItemTemplateId].Equipment = new EquipmentTupple
                 {
-                    EquiptmentSlotType = data.SlotType,
-                    RequiredSkillId = data.RequiredSkillId,
-                    RequiredSkillMinVal = data.RequiredSkillMinVal
+                    EquiptmentSlotType = template.SlotType,
+                    RequiredSkillId = template.RequiredSkillId,
+                    RequiredSkillMinVal = template.RequiredSkillMinVal
                 };
             }
-            Console.WriteLine("Loaded {0} EquipmentTemplates.", rows);
+            Console.WriteLine($"Loaded {equipmentTemplates.Count} EquipmentTemplates.");
         }
 
         public Item GetItemFromTemplateId(uint itemId, uint ownerId, int ownerSlot, int itemTemplateId, int stackSize)
@@ -112,7 +108,6 @@ namespace Rasa.Managers
                 return null;
             var item = new Item
             {
-                //EntityId = itemId,
                 OwnerId = ownerId,
                 OwnerSlotId = ownerSlot,
                 ItemTemplate = itemTemplate,
@@ -134,75 +129,72 @@ namespace Rasa.Managers
 
         public void GetItemTemplates()
         {
-            var rows = ItemTemplateTable.GetDbRows();
             Console.WriteLine("Loading ItemTemplates from db...");
-            for (var i = 0; i < rows; i++)
+            var itemTemplates = ItemTemplateTable.GetItemTemplates();
+            foreach (var template in itemTemplates)
             {
-                var data = ItemTemplateTable.GetItemTemplates(i);
-                LoadedItemTemplates.Add(data.ItemTemplateId, new ItemTemplate
+                LoadedItemTemplates.Add(template.ItemTemplateId, new ItemTemplate
                 {
-                    ItemTemplateId = data.ItemTemplateId,
-                    ClassId = data.ClassId,
-                    QualityId = data.QualityId,
-                    ItemType = data.ItemType,
-                    HasSellableFlag = data.HasSellableFlag,
-                    NotTradable = data.NotTradeableFlag,
-                    HasCharacterUniqueFlag = data.HasCharacterUniqueFlag,
-                    HasAccountUniqueFlag = data.HasAccountUniqueFlag,
-                    HasBoEFlag = data.HasBoEFlag,
-                    BoundToCharacter = data.BoundToCharacterFlag,
-                    NotPlaceableInLockbox = data.NotPlaceableInLockBoxFlag,
-                    InventoryCategory = data.InventoryCategory,
-                    ReqLevel = data.ReqLevel,
-                    BuyPrice = data.BuyPrice,
-                    SellPrice = data.SellPrice,
-                    Stacksize = data.StackSize
+                    ItemTemplateId = template.ItemTemplateId,
+                    ClassId = template.ClassId,
+                    QualityId = template.QualityId,
+                    ItemType = template.ItemType,
+                    HasSellableFlag = template.HasSellableFlag,
+                    NotTradable = template.NotTradeableFlag,
+                    HasCharacterUniqueFlag = template.HasCharacterUniqueFlag,
+                    HasAccountUniqueFlag = template.HasAccountUniqueFlag,
+                    HasBoEFlag = template.HasBoEFlag,
+                    BoundToCharacter = template.BoundToCharacterFlag,
+                    NotPlaceableInLockbox = template.NotPlaceableInLockBoxFlag,
+                    InventoryCategory = template.InventoryCategory,
+                    ReqLevel = template.ReqLevel,
+                    BuyPrice = template.BuyPrice,
+                    SellPrice = template.SellPrice,
+                    Stacksize = template.StackSize
                 });
             }
-            Console.WriteLine("Loaded {0} ItemTemplates.", rows);
+            Console.WriteLine($"Loaded {itemTemplates.Count} ItemTemplates.");
         }
 
         public void GetItemWeaponData()
         {
-            var rows = WeaponTemplateTable.GetDbRows();
-            for (var i = 0; i < rows; i++)
+            var weaponTemplates = WeaponTemplateTable.GetWeaponTemplates();
+            foreach (var template in weaponTemplates)
             {
-                // get data from db
-                var data = WeaponTemplateTable.GetWeaponTemplates(i);
                 // update LoadedItemTemplates
-                LoadedItemTemplates[data.ItemTemplateId].Weapon = new WeaponTupple
+                LoadedItemTemplates[template.ItemTemplateId].Weapon = new WeaponTupple
                 {
-                    ClipSize = data.ClipSize,
-                    CurrentAmmo = data.CurrentAmmo,
-                    AimRate = data.AimRate,
-                    ReloadTime = data.ReloadTime,
-                    AltActionId = data.AltActionId,
-                    AltActionArg = data.AltActionArg,
-                    AeType = data.AeType,
-                    AeRadius = data.AeRadius,
-                    RecoilAmount = data.RecoilAmount,
-                    ReuseOverride = data.ReuseOverride,
-                    CoolRate = data.CoolRate,
-                    HeatPerShot = data.HeatPerShot,
-                    ToolType = data.ToolType,
-                    AmmoPerShot = data.AmmoPerShot,
-                    MinDamage = data.MinDamage,
-                    MaxDamage = data.MaxDamage,
-                    AmmoClassId = data.AmmoClassId,
-                    DamageType = data.DamageType,
-                    WindupTime = data.WindupTime,
-                    RecoveryTime = data.RecoveryTime,
-                    RefireTime = data.RefireTime,
-                    Range = data.Range,
-                    AltMaxDamage = data.AltMaxDamage,
-                    AltDamageType = data.AltDamageType,
-                    AltRange = data.AltRange,
-                    AltAERadius = data.AltAERadius,
-                    AltAEType = data.AltAEType,
-                    AttackType = data.AttackType
+                    ClipSize = template.ClipSize,
+                    CurrentAmmo = template.CurrentAmmo,
+                    AimRate = template.AimRate,
+                    ReloadTime = template.ReloadTime,
+                    AltActionId = template.AltActionId,
+                    AltActionArg = template.AltActionArg,
+                    AeType = template.AeType,
+                    AeRadius = template.AeRadius,
+                    RecoilAmount = template.RecoilAmount,
+                    ReuseOverride = template.ReuseOverride,
+                    CoolRate = template.CoolRate,
+                    HeatPerShot = template.HeatPerShot,
+                    ToolType = template.ToolType,
+                    AmmoPerShot = template.AmmoPerShot,
+                    MinDamage = template.MinDamage,
+                    MaxDamage = template.MaxDamage,
+                    AmmoClassId = template.AmmoClassId,
+                    DamageType = template.DamageType,
+                    WindupTime = template.WindupTime,
+                    RecoveryTime = template.RecoveryTime,
+                    RefireTime = template.RefireTime,
+                    Range = template.Range,
+                    AltMaxDamage = template.AltMaxDamage,
+                    AltDamageType = template.AltDamageType,
+                    AltRange = template.AltRange,
+                    AltAERadius = template.AltAERadius,
+                    AltAEType = template.AltAEType,
+                    AttackType = template.AttackType
                 };
             }
-            Console.WriteLine("Loaded {0} WeaponTemplates.\n", rows);
+            Console.WriteLine($"Loaded {weaponTemplates.Count} WeaponTemplates.\n");
         }
 
         public void LoadItems()
@@ -267,7 +259,7 @@ namespace Rasa.Managers
                     CammeraProfile = item.ItemTemplate.Weapon.CammeraProfile
                 } );
                 // WeaponAmmoInfo
-                mapClient.Player.Client.SendPacket(item.EntityId, new WeaponAmmoInfoPacket { AmmoInfo = item.WeaponAmmoCount });
+                mapClient.Player.Client.SendPacket(item.EntityId, new WeaponAmmoInfoPacket { AmmoInfo = item.ItemTemplate.Weapon.CurrentAmmo });
             }
 
             if (item.ItemTemplate.ItemType == 2)    // armor

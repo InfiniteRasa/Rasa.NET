@@ -1,4 +1,6 @@
-﻿namespace Rasa.Structures
+﻿using System.Collections.Generic;
+
+namespace Rasa.Structures
 {
     using Managers;
 
@@ -19,9 +21,9 @@
         public bool InCombatMode { get; set; }
         //public char State { get; set; }
         // action data
-        //public ActorCurrentAction CurrentAction { get; set; } = new ActorCurrentAction();
+        public ActorCurrentAction CurrentAction { get; set; }
         public ActorStats Stats = new ActorStats();
-        public GameEffect ActiveEffects { get; set; }
+        public Dictionary<int, GameEffect> ActiveEffects { get; set; } = new Dictionary<int, GameEffect>();
         public MapCellLocation CellLocation { get; set; } = new MapCellLocation();
         // sometimes we only have access to the actor, the owner variable allows us to access the client anyway (only if actor is a player manifestation)
         //public MapChannelClient Owner { get; set; }

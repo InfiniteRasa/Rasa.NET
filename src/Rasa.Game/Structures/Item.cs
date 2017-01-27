@@ -20,7 +20,5 @@
         // item instance specific
         public int Stacksize { get; set; }
         public int Color { get; set; }
-        // item WeaponDrawer specific
-        public int WeaponAmmoCount { get; set; }
     }
 }

@@ -11,9 +11,6 @@ namespace Rasa.Structures
 
         public static ArmorTemplateEntry Read(MySqlDataReader reader)
         {
-            if (!reader.Read())
-                return null;
-
             return new ArmorTemplateEntry
             {
                 ItemTemplateId = reader.GetInt32("itemTemplateId"),

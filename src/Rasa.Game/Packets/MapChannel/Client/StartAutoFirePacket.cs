@@ -7,12 +7,12 @@
     {
         public override GameOpcode Opcode { get; } = GameOpcode.StartAutoFire;
 
-        public double RetryDelayMs { get; set; }
+        public double FromUi { get; set; }
 
         public override void Read(PythonReader pr)
         {
             pr.ReadTuple();
-            RetryDelayMs = pr.ReadDouble();
+            FromUi = pr.ReadDouble();
         }
 
         public override void Write(PythonWriter pw)

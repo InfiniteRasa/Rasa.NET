@@ -1,4 +1,6 @@
-﻿using MySql.Data.MySqlClient;
+﻿using System.Collections.Generic;
+
+using MySql.Data.MySqlClient;
 
 namespace Rasa.Database.Tables.World
 {
@@ -6,34 +8,25 @@ namespace Rasa.Database.Tables.World
 
     public class EquipmentTemplateTable
     {
-        private static readonly MySqlCommand GetDbRowsCommand = new MySqlCommand("SELECT COUNT(*) FROM itemtemplate_equipment");
-        private static readonly MySqlCommand GetEquipmentTemplatesCommand = new MySqlCommand("SELECT * FROM itemtemplate_equipment LIMIT @Row, 1");
-        //private static readonly MySqlCommand GetItemTemplatesCommand = new MySqlCommand("SELECT itemTemplateId, slotType, requiredSkillId, requiredSkillMinVal FROM itemtemplate_equipment");
+        private static readonly MySqlCommand GetEquipmentTemplatesCommand = new MySqlCommand("SELECT * FROM itemtemplate_equipment");
 
         public static void Initialize()
         {
-            GetDbRowsCommand.Connection = GameDatabaseAccess.WorldConnection;
-            GetDbRowsCommand.Prepare();
 
             GetEquipmentTemplatesCommand.Connection = GameDatabaseAccess.WorldConnection;
-            GetEquipmentTemplatesCommand.Parameters.Add("@Row", MySqlDbType.Int32);
             GetEquipmentTemplatesCommand.Prepare();
         }
 
-        public static long GetDbRows()
-        {
-            lock (GameDatabaseAccess.WorldLock)
-                return (long)GetDbRowsCommand.ExecuteScalar();
-        }
-
-        public static EquipmentTemplateEntry GetEquipmentTemplates(int row)
+        public static List<EquipmentTemplateEntry> GetEquipmentTemplates()
         {
             lock (GameDatabaseAccess.WorldLock)
             {
-                GetEquipmentTemplatesCommand.Parameters["@Row"].Value = row;
-
+                var equiopmentTemplates = new List<EquipmentTemplateEntry>();
                 using (var reader = GetEquipmentTemplatesCommand.ExecuteReader())
-                    return EquipmentTemplateEntry.Read(reader);
+                    while (reader.Read())
+                        equiopmentTemplates.Add(EquipmentTemplateEntry.Read(reader));
+
+                return equiopmentTemplates;
             }
         }
     }

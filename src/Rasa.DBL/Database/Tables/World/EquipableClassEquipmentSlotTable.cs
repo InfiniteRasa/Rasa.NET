@@ -9,11 +9,11 @@ namespace Rasa.Database.Tables.World
         public static void Initialize()
         {
             GetSlotIdCommand.Connection = GameDatabaseAccess.WorldConnection;
-            GetSlotIdCommand.Parameters.Add("@EntityId", MySqlDbType.UInt32);
+            GetSlotIdCommand.Parameters.Add("@EntityId", MySqlDbType.Int32);
             GetSlotIdCommand.Prepare();
         }
 
-        public static int GetSlotId(uint entityId)
+        public static int GetSlotId(int entityId)
         {
             lock (GameDatabaseAccess.WorldLock)
             {

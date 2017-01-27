@@ -6,7 +6,6 @@ namespace Rasa.Managers
     using Data;
     using Database.Tables.Character;
     using Game;
-    using Queue;
     using Packets.MapChannel.Server;
     using Structures;
     using Timer;
@@ -64,17 +63,11 @@ namespace Rasa.Managers
         public void CreatePlayerCharacter(MapChannelClient mapClient)
         {
             var data = CharacterTable.GetCharacterData(mapClient.Client.Entry.Id, mapClient.Client.LoadingSlot);
-            var appearanceData = new Dictionary<int, AppearanceData>();
-            for (var i = 1; i < 22; i++)
-            {
-                var appearance = CharacterAppearanceTable.GetAppearance(data.CharacterId, i);
-                if (appearance.Count == 0)
-                {
-                    appearanceData.Add(i, new AppearanceData { SlotId = i, ClassId = 0, Color = new Color(0) });
-                    continue;
-                }
-                appearanceData.Add(i, new AppearanceData { SlotId = i, ClassId = appearance[0], Color = new Color(appearance[1]) });
-            }
+            var tempAppearanceData = new Dictionary<int, AppearanceData>();
+            var appearance = CharacterAppearanceTable.GetAppearance(data.CharacterId);
+            foreach (var t in appearance)
+                tempAppearanceData.Add(t.SlotId, new AppearanceData { SlotId = t.SlotId, ClassId = t.ClassId, Color = new Color(t.Color) });
+
             var player = new PlayerData
             {
                 Actor = new Actor
@@ -95,7 +88,7 @@ namespace Rasa.Managers
                     Stats = new ActorStats(),
                 },
                 ControllerUser = mapClient,
-                AppearanceData = appearanceData,
+                AppearanceData = tempAppearanceData,
                 CharacterId = data.CharacterId,
                 AccountId = data.AccountId,
                 SlotId = data.SlotId,
@@ -186,13 +179,13 @@ namespace Rasa.Managers
                 {
                     MapInfo = MapChannelsByContextId[id].MapInfo,
                     SocketToClient = new Dictionary<int, MapChannelClient>(),
-                    TimerClientEffectUpdate = Environment.TickCount,
-                    TimerMissileUpdate = Environment.TickCount,
-                    TimerDynObjUpdate = Environment.TickCount,
-                    TimerGeneralTimer = Environment.TickCount,
-                    TimerController = Environment.TickCount,
-                    TimerPlayerUpdate = Environment.TickCount,
-                    PlayerCount = 0,
+                    //TimerClientEffectUpdate = Environment.TickCount,
+                    //TimerMissileUpdate = Environment.TickCount,
+                    //TimerDynObjUpdate = Environment.TickCount,
+                    //TimerGeneralTimer = Environment.TickCount,
+                    //TimerController = Environment.TickCount,
+                    //TimerPlayerUpdate = Environment.TickCount,
+                    //PlayerCount = 0,
                     PlayerLimit = 128,
                     PlayerList = new List<MapChannelClient>()
                 };
@@ -216,8 +209,9 @@ namespace Rasa.Managers
 
             Console.WriteLine("\nMapChannels Started...");
 
-            Timer.Add("CheckForPlayers", 1000, true, null);
-            //Timer.Add("MissileCheck", 100, true, null);
+            Timer.Add("CheckForLogingClients", 1000, true, null);
+            Timer.Add("PerformAbilities", 500, true, null);
+            Timer.Add("ClientEffectUpdate", 1000, true, null);
         }
 
         public void MapChannelWorker(long delta)
@@ -227,8 +221,8 @@ namespace Rasa.Managers
             foreach (var t in MapChannelArray)
             {
                 var mapChannel = t.Value;
-
-                if (Timer.IsTriggered("CheckForPlayers"))
+                mapChannel.MapChannelElapsed += delta;
+                if (Timer.IsTriggered("CheckForLogingClients"))
                     if (mapChannel.QueuedClients.Count > 0)
                     {
                         // create new player
@@ -237,8 +231,18 @@ namespace Rasa.Managers
                         mapChannel.PlayerList.Add(newMapCLient);
                     }
 
-                if (mapChannel.PlayerCount > 0)
+                if (mapChannel.PlayerList.Count > 0)
                 {
+                    // CellManager worker
+                    CellManager.Instance.DoWork(mapChannel);
+                    // chack timers
+                    if (Timer.IsTriggered("PerformAbilities"))
+                        if (mapChannel.QueuedPerformAbilities.Count > 0)
+                            PlayerManager.Instance.PerformAbilitie(mapChannel, mapChannel.QueuedPerformAbilities.Dequeue());
+
+                    if (Timer.IsTriggered("ClientEffectUpdate"))
+                        GameEffectManager.Instance.DoWork(mapChannel, delta);
+
                     // chack for player LogOut
                     for (var i = 0; i < mapChannel.PlayerList.Count; i++)
                     {
@@ -252,8 +256,8 @@ namespace Rasa.Managers
                             }
                         }
                     }
-                    // CellManager worker
-                    CellManager.Instance.DoWork(mapChannel);
+
+
 
                     // ToDo check for timers
                     //missile_check(mapChannel, 100);
@@ -391,12 +395,12 @@ namespace Rasa.Managers
             if (mapClient.Disconected == false)
                 PassClientToCharacterSelection(client);
             // remove from list
-            for (var i = 0; i < mapClient.MapChannel.PlayerCount; i++)
+            for (var i = 0; i < mapClient.MapChannel.PlayerList.Count; i++)
             {
                 if (mapClient == mapClient.MapChannel.PlayerList[i])
                 {
                     mapClient.MapChannel.PlayerList.RemoveAt(i);
-                    mapClient.MapChannel.PlayerCount--;
+                    //mapClient.MapChannel.PlayerCount--;
                     break;
                 }
             }

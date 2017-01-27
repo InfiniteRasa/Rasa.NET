@@ -16,7 +16,6 @@ namespace Rasa.Managers
         private List<uint> _freeEntityIds = new List<uint>();
 
         public Dictionary<uint, EntityType> RegisteredEntities = new Dictionary<uint, EntityType>();
-
         public Dictionary<uint, Item> Items = new Dictionary<uint, Item>();
         public Dictionary<uint, MapChannelClient> MapClients = new Dictionary<uint, MapChannelClient>();
         public Dictionary<uint, Actor> Actors = new Dictionary<uint, Actor>();
@@ -38,6 +37,11 @@ namespace Rasa.Managers
                 return _instance;
             }
         }
+
+        private EntityManager()
+        {
+        }
+
         // All Entities (everything in game)
         public void DestroyPhysicalEntity(MapChannelClient mapClient, uint entityId, EntityType entityType)
         {

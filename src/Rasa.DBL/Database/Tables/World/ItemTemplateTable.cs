@@ -1,4 +1,6 @@
-﻿using MySql.Data.MySqlClient;
+﻿using System.Collections.Generic;
+
+using MySql.Data.MySqlClient;
 
 namespace Rasa.Database.Tables.World
 {
@@ -7,12 +9,7 @@ namespace Rasa.Database.Tables.World
     public class ItemTemplateTable
     {
         private static readonly MySqlCommand GetClassIdCommand = new MySqlCommand("SELECT classId FROM itemtemplate WHERE itemTemplateId = @ItemTemplateId");
-        private static readonly MySqlCommand GetDbRowsCommand = new MySqlCommand("SELECT COUNT(*) FROM itemtemplate");
-        /*private static readonly MySqlCommand GetItemTemplatesCommand = new MySqlCommand("SELECT itemTemplateId, classId, qualityId, `type`, hasSellableFlag, notTradeableFlag, hasCharacterUniqueFlag, "+
-                                                                                        "hasAccountUniqueFlag, hasBoEFlag, boundToCharacterFlag, notPlaceableInLockBoxFlag, inventoryCategory, buyPrice, "+
-                                                                                        "sellPrice,reqLevel,stacksize FROM itemTemplate");
-        */
-        private static readonly MySqlCommand GetItemTemplatesCommand = new MySqlCommand("SELECT * FROM itemtemplate LIMIT @Row, 1");
+        private static readonly MySqlCommand GetItemTemplatesCommand = new MySqlCommand("SELECT * FROM itemtemplate");
 
         public static void Initialize()
         {
@@ -20,11 +17,7 @@ namespace Rasa.Database.Tables.World
             GetClassIdCommand.Parameters.Add("@ItemTemplateId", MySqlDbType.UInt32);
             GetClassIdCommand.Prepare();
 
-            GetDbRowsCommand.Connection = GameDatabaseAccess.WorldConnection;
-            GetDbRowsCommand.Prepare();
-
             GetItemTemplatesCommand.Connection = GameDatabaseAccess.WorldConnection;
-            GetItemTemplatesCommand.Parameters.Add("@Row", MySqlDbType.Int32);
             GetItemTemplatesCommand.Prepare();
         }
 
@@ -42,20 +35,17 @@ namespace Rasa.Database.Tables.World
             return 0;
         }
 
-        public static long GetDbRows()
-        {
-            lock (GameDatabaseAccess.WorldLock)
-                return (long)GetDbRowsCommand.ExecuteScalar();
-        }
-
-        public static ItemTemplateEntry GetItemTemplates(int row)
+        public static List<ItemTemplateEntry> GetItemTemplates()
         {
             lock (GameDatabaseAccess.WorldLock)
             {
-                GetItemTemplatesCommand.Parameters["@Row"].Value = row;
-
+                var itemTemplateList = new List<ItemTemplateEntry>();
                 using (var reader = GetItemTemplatesCommand.ExecuteReader())
-                    return ItemTemplateEntry.Read(reader);
+
+                    while (reader.Read())
+                        itemTemplateList.Add(ItemTemplateEntry.Read(reader));
+
+                return itemTemplateList;
             }
         }
     }

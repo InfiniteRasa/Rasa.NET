@@ -174,7 +174,7 @@ namespace Rasa.Managers
                 return;
             // go through all players and send chat message ( can ignore sync because playerList will not change )
             var mapChannel = client.MapClient.MapChannel;
-            for (var i = 0; i < mapChannel.PlayerCount; i++)
+            for (var i = 0; i < mapChannel.PlayerList.Count; i++)
             {
                 var tempClient = mapChannel.PlayerList[i];
                 if (tempClient.Player != null)
