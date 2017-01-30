@@ -91,7 +91,7 @@ namespace Rasa.Managers
             ItemManager.Instance.CreateFromTemplateId(characterId, 253, 13096, 1);
             ItemManager.Instance.CreateFromTemplateId(characterId, 265, 13186, 1);
             ItemManager.Instance.CreateFromTemplateId(characterId, 266, 13156, 1);
-            ItemManager.Instance.CreateFromTemplateId(characterId, 272, 17131, 1);
+            ItemManager.Instance.CreateFromTemplateId(characterId, 0, 17131, 1);
             // Set character appearance
             CharacterAppearanceTable.SetAppearance(characterId, 1, 10908, -2139062144);
             CharacterAppearanceTable.SetAppearance(characterId, 2, 7054, -2139062144);
@@ -106,9 +106,6 @@ namespace Rasa.Managers
             // Create default entry in CharacterAbilitiesTable
             for (var i = 0; i < 25; i++)
                 CharacterAbilityDrawerTable.SetCharacterAbility(characterId, i, 0, 0);
-            // Create default entry in CharacterSkillsTable
-            for (var i = 0; i < 73; i++)
-                CharacterSkillsTable.SetCharacterSkill(characterId, PlayerManager.Instance.SkillIById[i], PlayerManager.Instance.SkillIdx2AbilityID[i], 0);
 
             SendCharacterCreateSuccess(client, packet.SlotNum, packet.FamilyName);
             UpdateCharacterSelection(client, packet.SlotNum);

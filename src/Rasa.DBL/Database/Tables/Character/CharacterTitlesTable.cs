@@ -24,6 +24,7 @@ namespace Rasa.Database.Tables.Character
                 using (var reader = CharacterTitles.ExecuteReader())
                     while (reader.Read())
                         titles.Add(reader.GetInt32("titleId"));
+
                 return titles;
             }
         }

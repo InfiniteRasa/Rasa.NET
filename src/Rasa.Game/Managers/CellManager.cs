@@ -88,13 +88,8 @@ namespace Rasa.Managers
         
         public void DoWork(MapChannel mapChannel)
         {
-            var currentTime = Environment.TickCount;
-            if (mapChannel.MapCellInfo.TimeUpdateVisibility < currentTime)
-            {
-                UpdateVisibility(mapChannel);
-                // update three times a second
-                mapChannel.MapCellInfo.TimeUpdateVisibility = currentTime + 300;
-            }
+            // 2 times per sec, do we need check more often?
+            UpdateVisibility(mapChannel);
             // mob work
 
             // events etc...
@@ -127,13 +122,13 @@ namespace Rasa.Managers
 
         }
 
-        public void RemoveFromWorld(Client client)
+        public void RemoveFromWorld(MapChannelClient mapClient)
         {
-            var actor = client.MapClient.Player.Actor;
-            var mapChannel = client.MapClient.MapChannel;
-            var player = client.MapClient.Player;
-            
-            if (client.MapClient.Player == null)
+            var mapChannel = mapClient.MapChannel;
+            var player = mapClient.Player;
+            var actor = player.Actor;
+
+            if (player == null)
                 return;
             
             var oldX1 = actor.CellLocation.CellPosX - CellViewRange;
@@ -150,7 +145,7 @@ namespace Rasa.Managers
                         // remove notify entry
                         for (var i = 0; i < nMapCell.PlayerNotifyList.Count; i++)
                         {
-                            if (nMapCell.PlayerNotifyList[i] == client.MapClient)
+                            if (nMapCell.PlayerNotifyList[i] == mapClient)
                             {
                                 nMapCell.PlayerNotifyList.RemoveAt(i);
                                 break;
@@ -159,8 +154,8 @@ namespace Rasa.Managers
                         // remove player visibility client-side
                         if (nMapCell.PlayerNotifyList.Count > 0)
                         {
-                            PlayerManager.Instance.CellDiscardClientToPlayers(mapChannel, client.MapClient, nMapCell.PlayerNotifyList.Count);
-                            PlayerManager.Instance.CellDiscardPlayersToClient(mapChannel, client.MapClient, nMapCell.PlayerNotifyList.Count);
+                            PlayerManager.Instance.CellDiscardClientToPlayers(mapClient, nMapCell.PlayerNotifyList);
+                            PlayerManager.Instance.CellDiscardPlayersToClient(mapClient, nMapCell.PlayerNotifyList);
                         }
                     }
                 }
@@ -171,7 +166,7 @@ namespace Rasa.Managers
                 var count = mapCell.PlayerNotifyList.Count;
                 for (var i = 0; i < count; i++)
                 {
-                    if (mapCell.PlayerNotifyList[i] == client.MapClient)
+                    if (mapCell.PlayerNotifyList[i] == mapClient)
                     {
                         mapCell.PlayerNotifyList.RemoveAt(i);
                         break;
@@ -197,19 +192,19 @@ namespace Rasa.Managers
         {
             for (var i = 0; i < mapChannel.PlayerList.Count; i++)
             {
-                var client = mapChannel.PlayerList[i];
-                if (client.Disconected || client.Player == null)
+                var mapClient = mapChannel.PlayerList[i];
+                if (mapClient.Disconected || mapClient.Player == null)
                     continue;
 
-                var cellPosX = (uint)(client.Player.Actor.Position.PosX / CellSize + CellBias);
-                var cellPosY = (uint)(client.Player.Actor.Position.PosY / CellSize + CellBias);
-                if (client.Player.Actor.CellLocation.CellPosX != cellPosX ||
-                    client.Player.Actor.CellLocation.CellPosY != cellPosY)
+                var cellPosX = (uint)(mapClient.Player.Actor.Position.PosX / CellSize + CellBias);
+                var cellPosY = (uint)(mapClient.Player.Actor.Position.PosY / CellSize + CellBias);
+                if (mapClient.Player.Actor.CellLocation.CellPosX != cellPosX ||
+                    mapClient.Player.Actor.CellLocation.CellPosY != cellPosY)
                 {
-                    var oldX1 = client.Player.Actor.CellLocation.CellPosX - CellViewRange;
-                    var oldX2 = client.Player.Actor.CellLocation.CellPosX + CellViewRange;
-                    var oldY1 = client.Player.Actor.CellLocation.CellPosY - CellViewRange;
-                    var oldY2 = client.Player.Actor.CellLocation.CellPosY + CellViewRange;
+                    var oldX1 = mapClient.Player.Actor.CellLocation.CellPosX - CellViewRange;
+                    var oldX2 = mapClient.Player.Actor.CellLocation.CellPosX + CellViewRange;
+                    var oldY1 = mapClient.Player.Actor.CellLocation.CellPosY - CellViewRange;
+                    var oldY2 = mapClient.Player.Actor.CellLocation.CellPosY + CellViewRange;
                     // find players that leave visibility range
                     for (var ix = oldX1; ix <= oldX2; ix++)
                     {
@@ -217,6 +212,7 @@ namespace Rasa.Managers
                         {
                             if ((ix >= (cellPosX - CellViewRange) && ix <= (cellPosX + CellViewRange)) && (iy >= (cellPosY - CellViewRange) && iy <= (cellPosY + CellViewRange)))
                                 continue;
+
                             var nMapCell = GetCell(mapChannel, ix, iy);
                             if (nMapCell != null)
                             {
@@ -224,7 +220,7 @@ namespace Rasa.Managers
                                 var count = nMapCell.PlayerNotifyList.Count;
                                 for (var j = 0; j < count; j++)
                                 {
-                                    if (nMapCell.PlayerNotifyList[j] == client)
+                                    if (nMapCell.PlayerNotifyList[j] == mapClient)
                                     {
                                         nMapCell.PlayerNotifyList.RemoveAt(j);
                                         break;
@@ -233,8 +229,8 @@ namespace Rasa.Managers
                                 // remove player visibility client-side
                                 if (nMapCell.PlayerNotifyList.Count > 0)
                                 {
-                                    PlayerManager.Instance.CellDiscardClientToPlayers(mapChannel, client, nMapCell.PlayerNotifyList.Count);
-                                    PlayerManager.Instance.CellDiscardPlayersToClient(mapChannel, client, nMapCell.PlayerNotifyList.Count);
+                                    PlayerManager.Instance.CellDiscardClientToPlayers(mapClient, nMapCell.PlayerNotifyList);
+                                    PlayerManager.Instance.CellDiscardPlayersToClient(mapClient, nMapCell.PlayerNotifyList);
                                 }
                                 // remove object visibility
                                // if (nMapCell->ht_objectList.empty() == false)
@@ -259,9 +255,9 @@ namespace Rasa.Managers
                                 if (nnMapCell.PlayerNotifyList.Count > 0)
                                 {
                                     // notify all players of me
-                                    PlayerManager.Instance.CellIntroduceClientToPlayers(client, nnMapCell.PlayerNotifyList);
+                                    PlayerManager.Instance.CellIntroduceClientToPlayers(mapClient, nnMapCell.PlayerNotifyList);
                                     // notify me about all players that are visible here
-                                    PlayerManager.Instance.CellIntroducePlayersToClient(mapChannel, client, nnMapCell.PlayerNotifyList);
+                                    PlayerManager.Instance.CellIntroducePlayersToClient(mapChannel, mapClient, nnMapCell.PlayerNotifyList);
                                 }
                                 //if (nMapCell.ObjectList > 0)
                                 //    dynamicObject_cellIntroduceObjectsToClient(mapChannel, client, &nMapCell->ht_objectList[0], nMapCell->ht_objectList.size());
@@ -272,13 +268,13 @@ namespace Rasa.Managers
                         }
                     }
                     // move the player entry
-                    var mapCell = GetCell(mapChannel, client.Player.Actor.CellLocation.CellPosX, client.Player.Actor.CellLocation.CellPosX);
+                    var mapCell = GetCell(mapChannel, mapClient.Player.Actor.CellLocation.CellPosX, mapClient.Player.Actor.CellLocation.CellPosX);
                     if (mapCell != null)
                     {
                         var count = mapCell.PlayerNotifyList.Count;
                         for (var k = 0; k < count; k++)
                         {
-                            if (mapCell.PlayerNotifyList[k] == client)
+                            if (mapCell.PlayerNotifyList[k] == mapClient)
                             {
                                 mapCell.PlayerNotifyList.RemoveAt(k);
                                 break;
@@ -287,8 +283,8 @@ namespace Rasa.Managers
                     }
 
                     // update location
-                    client.Player.Actor.CellLocation.CellPosX = cellPosX;
-                    client.Player.Actor.CellLocation.CellPosY = cellPosY;
+                    mapClient.Player.Actor.CellLocation.CellPosX = cellPosX;
+                    mapClient.Player.Actor.CellLocation.CellPosY = cellPosY;
                 }
             }
         }

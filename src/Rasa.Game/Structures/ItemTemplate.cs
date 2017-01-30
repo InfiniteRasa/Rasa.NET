@@ -2,6 +2,26 @@
 {
     public class ItemTemplate
     {
+        public ItemTemplate(ItemTemplateEntry template)
+        {
+            ItemTemplateId = template.ItemTemplateId;
+            ClassId = template.ClassId;
+            QualityId = template.QualityId;
+            ItemType = template.ItemType;
+            HasSellableFlag = template.HasSellableFlag;
+            NotTradable = template.NotTradeableFlag;
+            HasCharacterUniqueFlag = template.HasCharacterUniqueFlag;
+            HasAccountUniqueFlag = template.HasAccountUniqueFlag;
+            HasBoEFlag = template.HasBoEFlag;
+            BoundToCharacter = template.BoundToCharacterFlag;
+            NotPlaceableInLockbox = template.NotPlaceableInLockBoxFlag;
+            InventoryCategory = template.InventoryCategory;
+            ReqLevel = template.ReqLevel;
+            BuyPrice = template.BuyPrice;
+            SellPrice = template.SellPrice;
+            Stacksize = template.StackSize;
+        }
+
         // item augmentation and general item info
         public int ClassId { get; set; }
         public int ItemTemplateId { get; set; }
@@ -59,7 +79,6 @@
         // constant data from DB
         public int ItemTemplateId { get; set; }
         public int ClipSize { get; set; }
-        public int CurrentAmmo { get; set; }    // this sould be elsewhere i gues :)
         public double AimRate { get; set; }
         public int ReloadTime { get; set; }
         public int AltActionId { get; set; }

@@ -38,7 +38,6 @@ namespace Rasa.Managers
         {
         }
         
-        
         public Item CreateFromTemplateId(uint characterId, int slotId, int itemTemplateId, int stackSize)
         {
             var itemTemplate = GetItemTemplateById(itemTemplateId);
@@ -53,16 +52,19 @@ namespace Rasa.Managers
             if (itemTemplate == null)
                 return null;
             // insert into items table to get unique ItemId
-            var itemId = ItemsTable.CreateItem(itemTemplate.ItemTemplateId, stackSize);
+            var itemId = ItemsTable.CreateItem(itemTemplate.ItemTemplateId, stackSize, -2139062144);
             // insert new item into character table
             CharacterInventoryTable.AddInvItem(characterId, slotId, itemId);
             // create physical copy of item
-            var item = new Item();
-            item.ItemId = itemId;
-            item.ItemTemplate = itemTemplate;
-            item.OwnerId = characterId;
-            item.OwnerSlotId = slotId;
-            item.Stacksize = stackSize;
+            var item = new Item
+            {
+                ItemId = itemId,
+                ItemTemplate = itemTemplate,
+                OwnerId = characterId,
+                OwnerSlotId = slotId,
+                Stacksize = stackSize,
+                Color = -2139062144     // ToDo we will have to find color in game client files
+            };
             // register item
             EntityManager.Instance.RegisterEntity(item.EntityId, EntityType.Item);
             EntityManager.Instance.RegisterItem(item.EntityId, item);
@@ -88,6 +90,7 @@ namespace Rasa.Managers
         public void GetItemEquipmentData()
         {
             var equipmentTemplates = EquipmentTemplateTable.GetEquipmentTemplates();
+
             foreach (var template in equipmentTemplates)
             {
                 // update LoadedItemTemplates
@@ -101,15 +104,15 @@ namespace Rasa.Managers
             Console.WriteLine($"Loaded {equipmentTemplates.Count} EquipmentTemplates.");
         }
 
-        public Item GetItemFromTemplateId(uint itemId, uint ownerId, int ownerSlot, int itemTemplateId, int stackSize)
+        public Item GetItemFromTemplateId(uint itemId, uint characterId, int slotId, int itemTemplateId, int stackSize)
         {
             var itemTemplate = GetItemTemplateById(itemTemplateId);
             if (itemTemplate == null)
                 return null;
             var item = new Item
             {
-                OwnerId = ownerId,
-                OwnerSlotId = ownerSlot,
+                OwnerId = characterId,
+                OwnerSlotId = slotId,
                 ItemTemplate = itemTemplate,
                 Stacksize = stackSize,
             };
@@ -121,10 +124,10 @@ namespace Rasa.Managers
         
         public ItemTemplate GetItemTemplateById(int itemTemplateId)
         {
-            ItemTemplate itemTemplate = null;
             if (LoadedItemTemplates.ContainsKey(itemTemplateId))
-                itemTemplate = LoadedItemTemplates[itemTemplateId];
-            return itemTemplate;
+                return LoadedItemTemplates[itemTemplateId];
+            else
+                return null;
         }
 
         public void GetItemTemplates()
@@ -132,27 +135,8 @@ namespace Rasa.Managers
             Console.WriteLine("Loading ItemTemplates from db...");
             var itemTemplates = ItemTemplateTable.GetItemTemplates();
             foreach (var template in itemTemplates)
-            {
-                LoadedItemTemplates.Add(template.ItemTemplateId, new ItemTemplate
-                {
-                    ItemTemplateId = template.ItemTemplateId,
-                    ClassId = template.ClassId,
-                    QualityId = template.QualityId,
-                    ItemType = template.ItemType,
-                    HasSellableFlag = template.HasSellableFlag,
-                    NotTradable = template.NotTradeableFlag,
-                    HasCharacterUniqueFlag = template.HasCharacterUniqueFlag,
-                    HasAccountUniqueFlag = template.HasAccountUniqueFlag,
-                    HasBoEFlag = template.HasBoEFlag,
-                    BoundToCharacter = template.BoundToCharacterFlag,
-                    NotPlaceableInLockbox = template.NotPlaceableInLockBoxFlag,
-                    InventoryCategory = template.InventoryCategory,
-                    ReqLevel = template.ReqLevel,
-                    BuyPrice = template.BuyPrice,
-                    SellPrice = template.SellPrice,
-                    Stacksize = template.StackSize
-                });
-            }
+                LoadedItemTemplates.Add(template.ItemTemplateId, new ItemTemplate(template));
+
             Console.WriteLine($"Loaded {itemTemplates.Count} ItemTemplates.");
         }
 
@@ -165,7 +149,6 @@ namespace Rasa.Managers
                 LoadedItemTemplates[template.ItemTemplateId].Weapon = new WeaponTupple
                 {
                     ClipSize = template.ClipSize,
-                    CurrentAmmo = template.CurrentAmmo,
                     AimRate = template.AimRate,
                     ReloadTime = template.ReloadTime,
                     AltActionId = template.AltActionId,
@@ -220,7 +203,7 @@ namespace Rasa.Managers
             {
                 CurrentHitPoints = item.ItemTemplate.CurrentHitPoints,
                 MaxHitPoints = item.ItemTemplate.MaxHitPoints,
-                CrafterName = item.ItemTemplate.CrafterName,
+                CrafterName = item.CrafterName,
                 ItemTemplateId = item.ItemTemplate.ItemTemplateId,
                 HasSellableFlag = item.ItemTemplate.HasSellableFlag,
                 HasCharacterUniqueFlag = item.ItemTemplate.HasCharacterUniqueFlag,
@@ -242,7 +225,7 @@ namespace Rasa.Managers
                 {
                     WeaponName = item.ItemTemplate.Weapon.WeaponName,
                     ClipSize = item.ItemTemplate.Weapon.ClipSize,
-                    CurrentAmmo = item.ItemTemplate.Weapon.CurrentAmmo,
+                    CurrentAmmo = item.CurrentAmmo,
                     AimRate = item.ItemTemplate.Weapon.AimRate,
                     ReloadTime = item.ItemTemplate.Weapon.ReloadTime,
                     AltActionId = item.ItemTemplate.Weapon.AltActionId,
@@ -259,7 +242,7 @@ namespace Rasa.Managers
                     CammeraProfile = item.ItemTemplate.Weapon.CammeraProfile
                 } );
                 // WeaponAmmoInfo
-                mapClient.Player.Client.SendPacket(item.EntityId, new WeaponAmmoInfoPacket { AmmoInfo = item.ItemTemplate.Weapon.CurrentAmmo });
+                mapClient.Player.Client.SendPacket(item.EntityId, new WeaponAmmoInfoPacket { AmmoInfo = item.CurrentAmmo });
             }
 
             if (item.ItemTemplate.ItemType == 2)    // armor

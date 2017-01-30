@@ -4,6 +4,8 @@ using MySql.Data.MySqlClient;
 
 namespace Rasa.Database.Tables.Character
 {
+    using Structures;
+
     public static class CharacterSkillsTable
     {
         public static readonly MySqlCommand GetCharacterSkillsCommand = new MySqlCommand("SELECT skillId, abilityId, skillLevel FROM character_skills WHERE characterId = @CharacterId");
@@ -30,22 +32,17 @@ namespace Rasa.Database.Tables.Character
             UpdateCharacterSkillCommand.Prepare();
         }
 
-        public static List<int> GetCharacterSkills(uint characterId)
+        public static List<CharacterSkillsEntry> GetCharacterSkills(uint characterId)
         {
             lock (GameDatabaseAccess.CharLock)
             {
                 GetCharacterSkillsCommand.Parameters["@CharacterId"].Value = characterId;
 
-                var characterSkills = new List<int>();
+                var characterSkills = new List<CharacterSkillsEntry>();
+
                 using (var reader = GetCharacterSkillsCommand.ExecuteReader())
-                {
                     while (reader.Read())
-                    {
-                        characterSkills.Add(reader.GetInt32("skillId"));
-                        characterSkills.Add(reader.GetInt32("abilityId"));
-                        characterSkills.Add(reader.GetInt32("skillLevel"));
-                    }
-                }
+                        characterSkills.Add(CharacterSkillsEntry.Read(reader));
 
                 return characterSkills;
             }

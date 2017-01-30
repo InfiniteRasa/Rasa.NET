@@ -32,7 +32,7 @@
             pw.WriteTuple(15);
             pw.WriteInt(CurrentHitPoints);      // 'currentHitPoints' --> Displayed as "Armor: x" in case of armor
             pw.WriteInt(MaxHitPoints);
-            if (CrafterName != null)
+            if (CrafterName != "")
                 pw.WriteString(CrafterName);
             else
                 pw.WriteNoneStruct();

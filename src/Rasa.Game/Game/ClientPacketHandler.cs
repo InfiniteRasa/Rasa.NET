@@ -184,6 +184,24 @@ namespace Rasa.Game
             PlayerManager.Instance.RequestVisualCombatMode(Client, packet.CombatMode);
         }
 
+        [PacketHandler(GameOpcode.RequestWeaponDraw)]
+        private void RequestWeaponDraw(RequestWeaponDrawPacket packet)
+        {
+            // PlayerManager.Instance.RequestVisualCombatMode(Client, packet.CombatMode);
+        }
+
+        [PacketHandler(GameOpcode.RequestWeaponReload)]
+        private void RequestWeaponReload(RequestWeaponReloadPacket packet)
+        {
+            PlayerManager.Instance.RequestWeaponReload(Client);
+        }
+
+        [PacketHandler(GameOpcode.RequestWeaponStow)]
+        private void RequestWeaponStow(RequestWeaponStowPacket packet)
+        {
+            // PlayerManager.Instance.RequestVisualCombatMode(Client, packet.CombatMode);
+        }
+
         [PacketHandler(GameOpcode.SaveUserOptions)]
         private void SaveUserOptions(SaveUserOptionsPacket packet)
         {

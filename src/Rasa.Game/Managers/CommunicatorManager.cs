@@ -117,22 +117,22 @@ namespace Rasa.Managers
             JoinDefaultLocalChannel(mapClient, 1); // join general
         }
 
-        public void PlayerExitMap(Client client)
+        public void PlayerExitMap(MapChannelClient mapClient)
         {            
-            CharacterManager.UpdateCharacter(client.MapClient.Player, 5);
+            CharacterManager.UpdateCharacter(mapClient.Player, 5);
             // save player time
-            CharacterManager.UpdateCharacter(client.MapClient.Player, 7);
+            CharacterManager.UpdateCharacter(mapClient.Player, 7);
             // remove client from all channels
-            for (var i = 0; i < client.MapClient.JoinedChannels; i++)
+            for (var i = 0; i < mapClient.JoinedChannels; i++)
             {
-                var chatChannel = ChannelsBySeed[client.MapClient.ChannelHashes[i]];
+                var chatChannel = ChannelsBySeed[mapClient.ChannelHashes[i]];
                 if (chatChannel != null)
                 {
                     // remove client link from channel
                     var currentLink = chatChannel.FirstPlayer;
                     while (currentLink != null)
                     {
-                        if (currentLink.EntityId == client.MapClient.ClientEntityId)
+                        if (currentLink.EntityId == mapClient.ClientEntityId)
                         {
                             // do removing
                             if (currentLink.Previous == null)
@@ -154,7 +154,7 @@ namespace Rasa.Managers
                     }
                 }
             }
-            client.MapClient.JoinedChannels = 0;
+            mapClient.JoinedChannels = 0;
         }
 
         public void Recv_RadialChat(Client client, string textMsg)

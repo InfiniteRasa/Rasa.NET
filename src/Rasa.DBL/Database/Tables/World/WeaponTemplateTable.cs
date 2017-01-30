@@ -5,6 +5,7 @@ using MySql.Data.MySqlClient;
 namespace Rasa.Database.Tables.World
 {
     using Structures;
+
     public class WeaponTemplateTable
     {
         private static readonly MySqlCommand GetWeaponTemplatesCommand = new MySqlCommand("SELECT * FROM itemtemplate_weapon");

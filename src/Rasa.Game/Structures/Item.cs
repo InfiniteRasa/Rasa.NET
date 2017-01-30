@@ -18,7 +18,10 @@
         // template
         public ItemTemplate ItemTemplate { get; set; }
         // item instance specific
+        public string CrafterName { get; set; }
         public int Stacksize { get; set; }
         public int Color { get; set; }
+        // weapon specific
+        public int CurrentAmmo { get; set; }
     }
 }

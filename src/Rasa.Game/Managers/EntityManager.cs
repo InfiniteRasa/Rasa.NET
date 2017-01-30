@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 
 namespace Rasa.Managers
@@ -37,7 +38,7 @@ namespace Rasa.Managers
                 return _instance;
             }
         }
-
+        
         private EntityManager()
         {
         }
@@ -51,6 +52,9 @@ namespace Rasa.Managers
             switch (entityType)
             {
                 case EntityType.MapClient:
+                    FreeEntity(entityId);
+                    UnregisterEntity(entityId);
+                    UnregisterMapClient(entityId);
                     break;
                 case EntityType.Player:
                     break;
@@ -63,17 +67,13 @@ namespace Rasa.Managers
                 case EntityType.Creature:
                     break;
                 case EntityType.Item:
-                    {
-                        FreeEntity(entityId);
-                        UnregisterEntity(entityId);
-                        UnregisterItem(entityId);
-                        break;
-                    }
+                    FreeEntity(entityId);
+                    UnregisterEntity(entityId);
+                    UnregisterItem(entityId);
+                    break;
                 default:
-                    {
-                        Debugger.Break();
-                        break;
-                    }
+                    Debugger.Break();
+                    break;
             }
                     
         }
@@ -128,6 +128,7 @@ namespace Rasa.Managers
         {
             Actors.Remove(entityId);
         }
+
         // Items
         public Item GetItem(uint entityId)
         {

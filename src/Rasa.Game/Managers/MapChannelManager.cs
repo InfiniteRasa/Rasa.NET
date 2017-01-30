@@ -159,10 +159,10 @@ namespace Rasa.Managers
         {
             var skills = new Dictionary<int, SkillsData>();
             var skillsData = CharacterSkillsTable.GetCharacterSkills(characterId);
-            for (var i = 0; i < 73; i++)
-            {
-                skills.Add(skillsData[i * 3], new SkillsData { SkillId = skillsData[i*3], AbilityId = skillsData[i*3+1], SkillLevel = skillsData[i*3+2] });
-            }
+
+            foreach (var skill in skillsData)
+                skills.Add(skill.SkillId, new SkillsData { SkillId = skill.SkillId, AbilityId = skill.AbilityId, SkillLevel = skill.SkillLevel});
+
             return skills;
         }
 
@@ -172,7 +172,7 @@ namespace Rasa.Managers
             MapChannelsByContextId.Add(1148, new MapChannel { MapInfo = new MapInfo { BaseRegionId = 10, MapId = 1148, MapName = "adv_foreas_concordia_divide", MapVersion = 1584 } });
             
             foreach (var t in MapChannelsByContextId)
-            {
+            {  
                 var id = t.Key;
                 // load all maps
                 var newMapChannel = new MapChannel
@@ -211,7 +211,8 @@ namespace Rasa.Managers
 
             Timer.Add("CheckForLogingClients", 1000, true, null);
             Timer.Add("PerformAbilities", 500, true, null);
-            Timer.Add("ClientEffectUpdate", 1000, true, null);
+            Timer.Add("ClientEffectUpdate", 500, true, null);
+            Timer.Add("CellUpdateVisibility", 300, true, null);
         }
 
         public void MapChannelWorker(long delta)
@@ -233,31 +234,29 @@ namespace Rasa.Managers
 
                 if (mapChannel.PlayerList.Count > 0)
                 {
+                    ActorActionManager.Instance.DoWork(delta);
+
                     // CellManager worker
-                    CellManager.Instance.DoWork(mapChannel);
-                    // chack timers
+                    if (Timer.IsTriggered("CellUpdateVisibility"))
+                        CellManager.Instance.DoWork(mapChannel);
+                    
+                    // check for abilities
                     if (Timer.IsTriggered("PerformAbilities"))
                         if (mapChannel.QueuedPerformAbilities.Count > 0)
                             PlayerManager.Instance.PerformAbilitie(mapChannel, mapChannel.QueuedPerformAbilities.Dequeue());
-
+                    
+                    // check for effects (buffs)
                     if (Timer.IsTriggered("ClientEffectUpdate"))
                         GameEffectManager.Instance.DoWork(mapChannel, delta);
 
                     // chack for player LogOut
-                    for (var i = 0; i < mapChannel.PlayerList.Count; i++)
-                    {
-                        var player = mapChannel.PlayerList[i];
-                        if (player != null)
-                        {
-                            if (player.RemoveFromMap == true)
+                    foreach (var mapClient in mapChannel.PlayerList)
+                        if (mapClient != null)
+                            if (mapClient.RemoveFromMap == true)
                             {
-                                CommunicatorManager.Instance.PlayerExitMap(player.Client);
-                                RemovePlayer(player.Client);
+                                RemovePlayer(mapClient, true);
+                                break;
                             }
-                        }
-                    }
-
-
 
                     // ToDo check for timers
                     //missile_check(mapChannel, 100);
@@ -379,21 +378,36 @@ namespace Rasa.Managers
             // ToDo
         }
 
-        public void RemovePlayer(Client client)
+        public void RemovePlayer(MapChannelClient mapClient, bool logout)
         {
-            var mapClient = client.MapClient;
+            // unregister Communicator
+            CommunicatorManager.Instance.PlayerExitMap(mapClient);
             // unregister mapChannelClient
             EntityManager.Instance.UnregisterEntity(mapClient.ClientEntityId);
             EntityManager.Instance.UnregisterMapClient(mapClient.ClientEntityId);
             // unregister Actor
             EntityManager.Instance.UnregisterEntity(mapClient.Player.Actor.EntityId);
             EntityManager.Instance.UnregisterActor(mapClient.Player.Actor.EntityId);
+            // unregister character Inventory
+            foreach (var item in mapClient.Inventory.PersonalInventory)
+                if (item != 0)
+                    EntityManager.Instance.DestroyPhysicalEntity(mapClient, item, EntityType.Item);
+
+            foreach (var item in mapClient.Inventory.EquippedInventory)
+                if (item != 0)
+                    EntityManager.Instance.DestroyPhysicalEntity(mapClient, item, EntityType.Item);
+
+            foreach (var item in mapClient.Inventory.WeaponDrawer)
+                if (item != 0)
+                    EntityManager.Instance.DestroyPhysicalEntity(mapClient, item, EntityType.Item);
+
             // unregister from chat
-            CommunicatorManager.Instance.UnregisterPlayer(mapClient);            
-            CellManager.Instance.RemoveFromWorld(client);
+            CommunicatorManager.Instance.UnregisterPlayer(mapClient);
+            CellManager.Instance.RemoveFromWorld(mapClient);
             PlayerManager.Instance.RemovePlayerCharacter(mapClient.MapChannel, mapClient);
-            if (mapClient.Disconected == false)
-                PassClientToCharacterSelection(client);
+            if (logout)
+                if (mapClient.Disconected == false)
+                    PassClientToCharacterSelection(mapClient.Client);
             // remove from list
             for (var i = 0; i < mapClient.MapChannel.PlayerList.Count; i++)
             {
@@ -404,6 +418,7 @@ namespace Rasa.Managers
                     break;
                 }
             }
+        
         }
 
         public void RequestLogout(Client client)

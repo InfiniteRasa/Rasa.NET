@@ -32,7 +32,7 @@
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(17);
-            pw.WriteString(WeaponName);     // maybe not used by client
+            pw.WriteNoneStruct();       // maybe not used by client
             pw.WriteInt(ClipSize);
             pw.WriteInt(CurrentAmmo);
             pw.WriteDouble(AimRate);
@@ -42,13 +42,13 @@
             pw.WriteInt(AeType);
             pw.WriteInt(AeRadius);
             pw.WriteInt(RecoilAmount);
-            pw.WriteNoneStruct();              // ReuseOverride ToDo
+            pw.WriteNoneStruct();       // ReuseOverride ToDo
             pw.WriteInt(CoolRate);
             pw.WriteDouble(HeatPerShot);
             pw.WriteInt(ToolType);
             pw.WriteBool(IsJammed);
             pw.WriteInt(AmmoPerShot);
-            pw.WriteString(CammeraProfile);
+            pw.WriteString("");
         }
     }
 }

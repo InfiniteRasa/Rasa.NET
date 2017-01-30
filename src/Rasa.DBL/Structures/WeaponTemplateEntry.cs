@@ -6,7 +6,6 @@ namespace Rasa.Structures
     {
         public int ItemTemplateId { get; set; }        
         public int ClipSize { get; set; }
-        public int CurrentAmmo { get; set; }    // this sould be elsewhere i gues :)
         public double AimRate { get; set; }
         public int ReloadTime { get; set; }
         public int AltActionId { get; set; }
@@ -40,7 +39,6 @@ namespace Rasa.Structures
             {
                 ItemTemplateId = reader.GetInt32("itemTemplateId"),
                 ClipSize = reader.GetInt32("clipSize"),
-                CurrentAmmo = reader.GetInt32("currentAmmo"),
                 AimRate = reader.GetDouble("aimRate"),
                 ReloadTime = reader.GetInt32("reloadTime"),
                 AltActionId = reader.GetInt32("altActionId"),

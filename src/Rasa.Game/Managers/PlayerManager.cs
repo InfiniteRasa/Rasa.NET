@@ -66,7 +66,7 @@ namespace Rasa.Managers
             -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1
         };
         // table for skillIndex to ability mapping
-        public readonly int[] SkillIdx2AbilityID =
+        public readonly int[] SkillIdx2AbilityId =
         {
             -1, -1, -1, -1, 137, -1, -1, -1, -1, 178, 177, 158, -1, -1,
             197, 186, 188, 162, 187, -1, -1, 233, 234, -1, 194, -1, -1,
@@ -116,27 +116,26 @@ namespace Rasa.Managers
             // ToDo (after reload continue auto fire????)
         }
 
-        public void CellDiscardClientToPlayers(MapChannel mapChannel, MapChannelClient mapClient, int playerCount)
+        public void CellDiscardClientToPlayers(MapChannelClient mapClient, List<MapChannelClient> notifyPlayers)
         {
-            for (var i = 0; i < playerCount; i++)
+            foreach (var t in notifyPlayers)
             {
-                if (mapChannel.PlayerList[i].Player == mapClient.Player)
+                if (t == mapClient)
                     continue;
 
-                mapClient.Client.SendPacket(5, new DestroyPhysicalEntityPacket{ EntityId = mapClient.Player.Actor.EntityId });
-                EntityManager.Instance.FreeEntity(mapClient.Player.Actor.EntityId);
+                t.Player.Client.SendPacket(5, new DestroyPhysicalEntityPacket{ EntityId = mapClient.Player.Actor.EntityId });
             }
         }
 
-        public void CellDiscardPlayersToClient(MapChannel mapChannel, MapChannelClient client, int playerCount)
+        public void CellDiscardPlayersToClient(MapChannelClient mapClient, List<MapChannelClient> notifyPlayers)
         {
-            for (var i = 0; i < playerCount; i++)
+            foreach (var t in notifyPlayers)
             {
-                if (mapChannel.PlayerList[i].Player == null)
+                if (t == null)
                     continue;
-                if (mapChannel.PlayerList[i].ClientEntityId == client.ClientEntityId)
+                if (t == mapClient)
                     continue;
-                client.Client.SendPacket(5, new DestroyPhysicalEntityPacket { EntityId = mapChannel.PlayerList[i].Player.Actor.EntityId });
+                mapClient.Player.Client.SendPacket(5, new DestroyPhysicalEntityPacket { EntityId = t.Player.Actor.EntityId });
             }
 
         }
@@ -268,18 +267,34 @@ namespace Rasa.Managers
             var mapClient = client.MapClient;
             var skillPointsAvailable = GetSkillPointsAvailable(mapClient.Player);
             var skillLevelupArray = new Dictionary<int, SkillsData>(); // used to temporarily safe skill level updates
+
             for (var i = 0;  i< packet.ListLenght; i++)
             {
                 var skillId = packet.SkillIds[i];
+
                 if ( skillId == -1)
-                    throw new Exception("LevelSkills: Invalid skillID received. Modified or outdated client?");
-                var oldSkillLevel = mapClient.Player.Skills[skillId].SkillLevel;
-                var newSkillLevel = packet.SkillLevels[i];
-                if (newSkillLevel < oldSkillLevel || newSkillLevel > 5)
+                    throw new Exception("LevelSkills: Invalid skillId received. Modified or outdated client?");
+
+                var oldSkillLevel = 0;
+
+                if (mapClient.Player.Skills.ContainsKey(skillId))
+                    oldSkillLevel = mapClient.Player.Skills[skillId].SkillId;
+                else
                 {
-                    throw new Exception("LevelSkills: Invalid skill level received\n");
+                    // create new entry in character skils and db
+                    var abilityId = SkillIdx2AbilityId[GetSkillIndexById(packet.SkillIds[i])];
+
+                    mapClient.Player.Skills.Add(skillId, new SkillsData { SkillId = skillId, AbilityId = abilityId, SkillLevel = 0 });
+                    CharacterSkillsTable.SetCharacterSkill(mapClient.Player.CharacterId, skillId, abilityId, 0);
                 }
+
+                var newSkillLevel = packet.SkillLevels[i];
+
+                if (newSkillLevel < oldSkillLevel || newSkillLevel > 5)
+                    throw new Exception("LevelSkills: Invalid skill level received\n");
+
                 var additionalSkillPointsRequired = requiredSkillLevelPoints[newSkillLevel] - requiredSkillLevelPoints[oldSkillLevel];
+
                 skillPointsAvailable -= additionalSkillPointsRequired;
                 skillLevelupArray.Add(skillId, new SkillsData { SkillId = skillId, SkillLevel = newSkillLevel - oldSkillLevel });
 
@@ -306,6 +321,11 @@ namespace Rasa.Managers
                 CharacterSkillsTable.UpdateCharacterSkill(mapClient.Player.CharacterId, mapClient.Player.Skills[skill.Key].SkillId, mapClient.Player.Skills[skill.Key].SkillLevel);
         }
 
+        public void NotifyEquipmentUpdate(MapChannelClient mapClient, EquipmentInfo equipmentInfo)
+        {
+            mapClient.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, new EquipmentInfoPacket { EquipmentInfo = equipmentInfo });
+        }
+
         public void PerformAbilitie(MapChannel mapChannel, PerformAbilityData abilityData)
         {
             /*
@@ -315,7 +335,11 @@ namespace Rasa.Managers
              */
             switch (abilityData.ActionId)
             {
+                case 134: // Reload Weapon
+                    WeaponReload(abilityData.MapClient, abilityData.ActionId, abilityData.ActionArgId);
+                    return;
                 case 194: // Lightning
+                    abilityData.MapClient.Player.Client.CellSendPacket(abilityData.MapClient, abilityData.MapClient.Player.Actor.EntityId, new PerformWindupPacket { ActionId = abilityData.ActionId, ActionArgId = abilityData.ActionArgId });
                     Console.WriteLine("ToDo : Lightning");
                     return;
                 case 401: // Sprint
@@ -332,9 +356,8 @@ namespace Rasa.Managers
             // ToDo do we need remove something, or it's done already 
         }
 
-        public void RemoveAppearanceItem(PlayerData player, int itemClassId)
+        public void RemoveAppearanceItem(PlayerData player, int equipmentSlotId)
         {
-            var equipmentSlotId = EquipableClassEquipmentSlotTable.GetSlotId(itemClassId);
             if (equipmentSlotId == 0)
                 return;
             player.AppearanceData[equipmentSlotId].ClassId = 0;
@@ -354,15 +377,20 @@ namespace Rasa.Managers
             client.MapClient.Inventory.ActiveWeaponDrawer = requestedWeaponDrawerSlot;
             // 574 Recv_WeaponDrawerSlot(self, slotNum, bRequested = True):
             client.SendPacket(client.MapClient.Player.Actor.EntityId, new WeaponDrawerSlotPacket { RequestedWeaponDrawerSlot = requestedWeaponDrawerSlot });
-            //tell client to change weapon appearance
-            InventoryManager.Instance.NotifyEquipmentUpdate(client.MapClient);
+
             var tempItem = EntityManager.Instance.GetItem(client.MapClient.Inventory.WeaponDrawer[client.MapClient.Inventory.ActiveWeaponDrawer]);
+
             if (tempItem == null)
                 return;
+
+            client.MapClient.Inventory.EquippedInventory[13] = tempItem.EntityId;
+            
+            NotifyEquipmentUpdate(client.MapClient, new EquipmentInfo { SlotId = 13, EntityId = tempItem.EntityId } );
+
             SetAppearanceItem(client.MapClient.Player, tempItem);
             UpdateAppearance(client.MapClient);
             // update ammo info
-            client.SendPacket(tempItem.EntityId, new WeaponAmmoInfoPacket{ AmmoInfo = tempItem.ItemTemplate.Weapon.CurrentAmmo });
+            client.SendPacket(tempItem.EntityId, new WeaponAmmoInfoPacket{ AmmoInfo = tempItem.CurrentAmmo });
         }
 
         public void RequestPerformAbility(Client client, RequestPerformAbilityPacket packet)
@@ -454,13 +482,24 @@ namespace Rasa.Managers
             }
         }
 
+        public void RequestWeaponReload(Client client)
+        {
+            // todo: Use correct argId depending on weapon type
+            client.MapClient.MapChannel.QueuedPerformAbilities.Enqueue(new PerformAbilityData(client.MapClient, 134, 1, 0, 0));
+        }
+
         public void SetAppearanceItem(PlayerData player, Item item)
         {
-            var equipmentSlotId = EquipableClassEquipmentSlotTable.GetSlotId(item.ItemTemplate.ClassId);
+            var equipmentSlotId = item.ItemTemplate.Equipment.EquiptmentSlotType;
             if (equipmentSlotId == 0)
                 return;
             if (!player.AppearanceData.ContainsKey(equipmentSlotId))
-                player.AppearanceData.Add(equipmentSlotId, new AppearanceData());
+            {
+                // Add new appearance slot to character and db
+                player.AppearanceData.Add(equipmentSlotId, new AppearanceData { SlotId = equipmentSlotId } );
+                CharacterAppearanceTable.SetAppearance(player.CharacterId, equipmentSlotId, 0, 0);
+            }
+
             player.AppearanceData[equipmentSlotId].ClassId = item.ItemTemplate.ClassId;
             player.AppearanceData[equipmentSlotId].Color = new Color(item.Color);
             // update appearance data in database
@@ -481,9 +520,9 @@ namespace Rasa.Managers
             var itemWeapon = InventoryManager.Instance.CurrentWeapon(client.MapClient);
             if (itemWeapon == null)
                 return; // no weapon armed
-            if (itemWeapon.ItemTemplate.Weapon.CurrentAmmo < itemWeapon.ItemTemplate.Weapon.AmmoPerShot)
+            if (itemWeapon.CurrentAmmo < itemWeapon.ItemTemplate.Weapon.AmmoPerShot)
             {
-                InventoryManager.Instance.RequestWeaponReload(client.MapClient, itemWeapon, true);
+                PlayerManager.Instance.RequestWeaponReload(client);
                 return;
             }
             /* item_recv_RequestWeaponReload
@@ -553,7 +592,7 @@ namespace Rasa.Managers
         {
             if (mapClient.Player == null)
                 return;
-            mapClient.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, new AppearanceDataPacket { AppearanceData = mapClient.Player.AppearanceData });
+            mapClient.Player.Client.CellSendPacket(mapClient, mapClient.Player.Actor.EntityId, new AppearanceDataPacket { AppearanceData = mapClient.Player.AppearanceData });
         }
 
         /*
@@ -644,6 +683,42 @@ namespace Rasa.Managers
 
             // Send Data to client
             mapClient.Client.SendPacket(mapClient.Player.Actor.EntityId, new AttributeInfoPacket { ActorStats = mapClient.Player.Actor.Stats });
+        }
+
+        public void WeaponReload(MapChannelClient mapClient, int actionId, int actionArgId)
+        {
+            var weapon = EntityManager.Instance.GetItem(mapClient.Inventory.WeaponDrawer[mapClient.Inventory.ActiveWeaponDrawer]);
+            var ammoClassId = weapon.ItemTemplate.Weapon.AmmoClassId;
+            var foundAmmo = false;
+            var foundAmmoAmount = 0;
+
+            for (var i = 0; i < 50; i++)
+            {
+                if (mapClient.Inventory.PersonalInventory[(int)InventoryOffset.CategoryConsumable + i] == 0)
+                    continue;
+
+                var weaponAmmo = EntityManager.Instance.GetItem(mapClient.Inventory.PersonalInventory[(int)InventoryOffset.CategoryConsumable + i]);
+
+                if (weaponAmmo == null)
+                    return;
+
+                if (weaponAmmo.ItemTemplate.ClassId == ammoClassId)
+                {
+                    // consume ammo
+                    int ammoToGrab = Math.Min(weapon.ItemTemplate.Weapon.ClipSize - foundAmmoAmount - weapon.CurrentAmmo, weaponAmmo.Stacksize);
+                    foundAmmoAmount = ammoToGrab + weapon.CurrentAmmo;
+                    InventoryManager.Instance.ReduceStackCount(mapClient, weaponAmmo, ammoToGrab);
+                    foundAmmo = true;
+                    if (foundAmmoAmount == weapon.ItemTemplate.Weapon.ClipSize)
+                        break;
+                }
+            }
+
+            if (foundAmmo == false)
+                return; // no ammo found -> ToDo: Tell the client?
+
+            mapClient.Player.Client.CellSendPacket(mapClient, mapClient.Player.Actor.EntityId, new PerformWindupPacket { ActionId = actionId, ActionArgId = actionArgId });
+            ActorActionManager.Instance.RequestWeaponReload(mapClient, mapClient.Player.Actor, weapon, foundAmmoAmount);
         }
     }
 }

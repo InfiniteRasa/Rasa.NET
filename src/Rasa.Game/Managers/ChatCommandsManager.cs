@@ -165,20 +165,21 @@ namespace Rasa.Managers
                                 // init loading screen
                                 _mapClient.Player.Client.SendPacket(5, new PreWonkavatePacket());
                                 // Remove player
-                                EntityManager.Instance.UnregisterEntity(_mapClient.ClientEntityId);
+                                MapChannelManager.Instance.RemovePlayer(_mapClient, false);
+                                /*EntityManager.Instance.UnregisterEntity(_mapClient.ClientEntityId);
                                 EntityManager.Instance.UnregisterMapClient(_mapClient.ClientEntityId);
                                 EntityManager.Instance.UnregisterEntity(_mapClient.Player.Actor.EntityId);
                                 EntityManager.Instance.UnregisterActor(_mapClient.Player.Actor.EntityId);
                                 CommunicatorManager.Instance.UnregisterPlayer(_mapClient);
-                                CellManager.Instance.RemoveFromWorld(_mapClient.Player.Client);
-                                PlayerManager.Instance.RemovePlayerCharacter(_mapClient.MapChannel, _mapClient);
+                                CellManager.Instance.RemoveFromWorld(_mapClient.);
+                                PlayerManager.Instance.RemovePlayerCharacter(_mapClient.MapChannel, _mapClient);*/
                                 // send Wonkavate
-                                var mapData = MapChannelManager.Instance.MapChannelArray[mapId];
+                                var mapChannel = MapChannelManager.Instance.MapChannelArray[mapId];
                                 _mapClient.Player.Client.SendPacket(6, new WonkavatePacket
                                 {
-                                    MapContextId = mapData.MapInfo.MapId,
+                                    MapContextId = mapChannel.MapInfo.MapId,
                                     MapInstanceId = 0,                  // ToDo MapInstanceId
-                                    MapVersion = mapData.MapInfo.MapVersion,
+                                    MapVersion = mapChannel.MapInfo.MapVersion,
                                     Position = new Position
                                     {
                                         PosX = posX,
@@ -189,6 +190,7 @@ namespace Rasa.Managers
                                 });
                                 // Update Db, this position will be loaded in MapLoadedPacket
                                 CharacterTable.UpdateCharacterPos(_mapClient.Player.CharacterId, posX, posY, posZ, 1, mapId);
+                                mapChannel.PlayerList.Add(_mapClient );
                             }
             }
             return;

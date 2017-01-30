@@ -1,12 +1,19 @@
-﻿namespace Rasa.Managers
+﻿using System.Collections.Generic;
+
+namespace Rasa.Managers
 {
+    using Database.Tables.Character;
+    using Packets.MapChannel.Server;
+    using Packets;
+    using Timer;
     using Structures;
 
     public class ActorActionManager
     {
         private static ActorActionManager _instance;
         private static readonly object InstanceLock = new object();
-
+        public readonly Timer Timer = new Timer();
+        public List<ActionsData> QueuedActions { get; set; } = new List<ActionsData>();
         public static ActorActionManager Instance
         {
             get
@@ -29,28 +36,42 @@
         {
         }
 
-        /*bool ActionCompletedTimer(MapChannel mapChannel, void* param, int timePassed)
+        public void RequestWeaponReload(MapChannelClient mapClient, Actor actor, Item weapon, int foundAmmo)
         {
-            var actor = (actor_t*)param;
-            actor_completeCurrentAction(mapChannel, actor);
-            // return false to delete the timer immediately
-            return false;
+            weapon.CurrentAmmo = foundAmmo;
+            // update ammo in database
+            ItemsTable.UpdateItemCurrentAmmo(weapon.ItemId, foundAmmo);
+            // send action complete packet
+            QueuedActions.Add(new ActionsData
+            {
+                MapClient = mapClient,
+                EntityId = actor.EntityId,
+                Packet = new PerformRecoveryPacket { ActionId = 134, ActionArgId = 1, AmmoCount = foundAmmo },
+                WaitTime = weapon.ItemTemplate.Weapon.ReloadTime
+            });
         }
 
-        public void StartActionOnEntity(MapChannel mapChannel, Actor actor, uint targetEntityId, int actionId, int actionArgId, int windupTime, int recoverTimepublic, ActorCurrentAction.ActorActionUpdateCallback callback)
+        public void DoWork(long delta)
         {
-            if (actor.CurrentAction.ActionId != 0)
-                return;
-            // update current action data
-            actor.CurrentAction.ActionId = actionId;
-            actor.CurrentAction.ActionArgId = actionArgId;
-            actor.CurrentAction.TargetEntityId = targetEntityId;
-            ActorActionUpdateCallback = callback;
-            if (windupTime >= 0)
-                mapChannel.RegisterTimer(mapChannel, windupTime, actor, _cb_actor_actionCompletedTimer);
-            else if (windupTime == 0)
+            foreach (var action in QueuedActions)
+            {
+                action.PassedTime += delta;
+                if (action.WaitTime <= action.PassedTime)
+                {
+                    action.MapClient.Player.Client.CellSendPacket(action.MapClient, action.EntityId, action.Packet);
+                    QueuedActions.Remove(action);
+                    break;
+                }
+            }
+        }
 
-                _cb_actor_actionCompletedTimer(mapChannel, actor, 0);
-        }*/
+        public class ActionsData
+        {
+            public MapChannelClient MapClient { get; set; }
+            public uint EntityId { get; set; }
+            public PythonPacket Packet { get; set; }
+            public long WaitTime { get; set; }
+            public long PassedTime { get; set; }
+        }
     }
 }
