@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Rasa.Packets.MapChannel.Client
+﻿namespace Rasa.Packets.MapChannel.Client
 {
     using Data;
     using Memory;
@@ -13,7 +11,6 @@ namespace Rasa.Packets.MapChannel.Client
 
         public override void Read(PythonReader pr)
         {
-            Console.WriteLine("RequestWeaponStow\n{0}", pr.ToString());
         }
 
         public override void Write(PythonWriter pw)

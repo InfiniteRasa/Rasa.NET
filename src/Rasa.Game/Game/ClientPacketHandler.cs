@@ -187,7 +187,7 @@ namespace Rasa.Game
         [PacketHandler(GameOpcode.RequestWeaponDraw)]
         private void RequestWeaponDraw(RequestWeaponDrawPacket packet)
         {
-            // PlayerManager.Instance.RequestVisualCombatMode(Client, packet.CombatMode);
+            PlayerManager.Instance.RequestWeaponDraw(Client);
         }
 
         [PacketHandler(GameOpcode.RequestWeaponReload)]
@@ -199,7 +199,7 @@ namespace Rasa.Game
         [PacketHandler(GameOpcode.RequestWeaponStow)]
         private void RequestWeaponStow(RequestWeaponStowPacket packet)
         {
-            // PlayerManager.Instance.RequestVisualCombatMode(Client, packet.CombatMode);
+            PlayerManager.Instance.RequestWeaponStow(Client);
         }
 
         [PacketHandler(GameOpcode.SaveUserOptions)]

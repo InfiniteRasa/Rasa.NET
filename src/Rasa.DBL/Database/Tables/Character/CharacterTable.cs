@@ -13,7 +13,7 @@ namespace Rasa.Database.Tables.Character
         private static readonly MySqlCommand GetCharacterCountCommand = new MySqlCommand("SELECT COUNT(*) FROM characters WHERE accountId = @AccountId;");
         private static readonly MySqlCommand GetCharacterDataCommand = new MySqlCommand("SELECT characterId, name, familyName, accountId, slotId, gender, scale, raceId, classId, mapContextId, posX, posY, posZ, rotation, experience, level, body, mind, spirit, cloneCredits, " +
                                                                                         "numLogins, totalTimePlayed, TIMESTAMPDIFF(MINUTE , timeSinceLastPlayed, NOW()) AS timeSinceLastPlayed, clanId, clanName, credits, prestige, currentAbilityDrawer, logos FROM characters WHERE accountId = @AccountId AND slotId = @SlotId");
-        private static readonly MySqlCommand GetCharacterFamilyCommand = new MySqlCommand("SELECT COUNT(*), familyName FROM characters WHERE accountId = @AccountId");
+        private static readonly MySqlCommand GetCharacterFamilyCommand = new MySqlCommand("SELECT familyName FROM characters WHERE accountId = @AccountId");
         private static readonly MySqlCommand GetCharacterSkillsCommand = new MySqlCommand("SELECT skills FROM characters WHERE characterId = @CharacterId");
         private static readonly MySqlCommand IsFamilyNameAvailableCommand = new MySqlCommand("SELECT familyName FROM characters WHERE familyName = @FamilyName");
         private static readonly MySqlCommand IsNameAvailableCommand = new MySqlCommand("SELECT name FROM characters WHERE name = @Name");
@@ -163,12 +163,9 @@ namespace Rasa.Database.Tables.Character
             lock (GameDatabaseAccess.CharLock)
             {
                 GetCharacterFamilyCommand.Parameters["@AccountId"].Value = accountId;
-                if ((int)(long)GetCharacterFamilyCommand.ExecuteScalar() != 0)
-                {
-                    using (var reader = GetCharacterFamilyCommand.ExecuteReader())
-                        if (reader.Read())
-                            return reader.GetString("familyName");
-                }
+                using (var reader = GetCharacterFamilyCommand.ExecuteReader())
+                    if (reader.Read())
+                        return reader.GetString("familyName");
 
                 return "";
             }

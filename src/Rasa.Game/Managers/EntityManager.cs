@@ -98,6 +98,11 @@ namespace Rasa.Managers
             }
         }
 
+        public EntityType GetEntityType(uint entityId)
+        {
+            return RegisteredEntities[entityId];
+        }
+
         public void FreeEntity(uint id)
         {
             lock (_entityIdLock)

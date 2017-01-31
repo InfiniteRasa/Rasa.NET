@@ -328,13 +328,16 @@ namespace Rasa.Managers
 
         public void PerformAbilitie(MapChannel mapChannel, PerformAbilityData abilityData)
         {
-            /*
-             * ServerArgs = (self.actionId, self.actionArgId, target, self.itemId)
-             * if self.useClientYaw: serverArgs += (actor.body.GetYaw())
-             * gameclient.SendCallActorMethod('RequestPerformAbility', serverArgs)
-             */
             switch (abilityData.ActionId)
             {
+                case 129: // Weapon Stow
+                    abilityData.MapClient.Player.Client.CellSendPacket(abilityData.MapClient, abilityData.MapClient.Player.Actor.EntityId, new PerformWindupPacket { ActionId = abilityData.ActionId, ActionArgId = abilityData.ActionArgId });
+                    abilityData.MapClient.Player.WeaponReady = false;
+                    return;
+                case 130: // Weapon Draw
+                    abilityData.MapClient.Player.Client.CellSendPacket(abilityData.MapClient, abilityData.MapClient.Player.Actor.EntityId, new PerformWindupPacket { ActionId = abilityData.ActionId, ActionArgId = abilityData.ActionArgId });
+                    abilityData.MapClient.Player.WeaponReady = true;
+                    return;
                 case 134: // Reload Weapon
                     WeaponReload(abilityData.MapClient, abilityData.ActionId, abilityData.ActionArgId);
                     return;
@@ -468,24 +471,34 @@ namespace Rasa.Managers
 
         public void RequestVisualCombatMode(Client client, int combatMode)
         {
-            if (combatMode > 0) // Enter combat mode
+            if (combatMode > 0)
             {
                 client.MapClient.Player.Actor.InCombatMode = true;
-                // ToDo need to write new function, we cannot use client.SendPacket();
-                //netMgr_cellDomain_pythonAddMethodCallRaw(client->mapChannel, client->player->actor, client->player->actor->entityId, 753, pym_getData(&pms), pym_getLen(&pms));
+                client.CellSendPacket(client.MapClient, client.MapClient.Player.Actor.EntityId, new RequestVisualCombatModePacket { CombatMode = 1 });
             }
-            else // Exit combat mode
+            else
             {
                 client.MapClient.Player.Actor.InCombatMode = false;
-                // ToDo need to write new function, we cannot use client.SendPacket();
-                //netMgr_cellDomain_pythonAddMethodCallRaw(client->mapChannel, client->player->actor, client->player->actor->entityId, 753, pym_getData(&pms), pym_getLen(&pms));
+                client.CellSendPacket(client.MapClient, client.MapClient.Player.Actor.EntityId, new RequestVisualCombatModePacket { CombatMode = 0 });
             }
+        }
+
+        public void RequestWeaponDraw(Client client)
+        {
+            // todo: Use correct argId depending on weapon type
+            client.MapClient.MapChannel.QueuedPerformAbilities.Enqueue(new PerformAbilityData(client.MapClient, 130, 1, 0, 0));
         }
 
         public void RequestWeaponReload(Client client)
         {
             // todo: Use correct argId depending on weapon type
             client.MapClient.MapChannel.QueuedPerformAbilities.Enqueue(new PerformAbilityData(client.MapClient, 134, 1, 0, 0));
+        }
+
+        public void RequestWeaponStow(Client client)
+        {
+            // todo: Use correct argId depending on weapon type
+            client.MapClient.MapChannel.QueuedPerformAbilities.Enqueue(new PerformAbilityData(client.MapClient, 129, 1, 0, 0));
         }
 
         public void SetAppearanceItem(PlayerData player, Item item)
@@ -514,7 +527,11 @@ namespace Rasa.Managers
 
         public void StartAutoFire(Client client, double fromUi)
         {
-            // ToDo data that's recived via this packe have to do something with player rotation
+            if (!client.MapClient.Player.WeaponReady)
+            {
+                RequestWeaponDraw(client);
+                return;
+            }
             Console.WriteLine($"StartAutOFire data = {fromUi}");
             // do we need to reload?
             var itemWeapon = InventoryManager.Instance.CurrentWeapon(client.MapClient);
@@ -525,67 +542,34 @@ namespace Rasa.Managers
                 PlayerManager.Instance.RequestWeaponReload(client);
                 return;
             }
-            /* item_recv_RequestWeaponReload
 
+            client.CellSendPacket(client.MapClient, client.MapClient.Player.Actor.EntityId, new RequestVisualCombatModePacket { CombatMode = 1 });
 
+            //##################### Begin: if target is Mapchannel Client #################
+            //desc: have to use mapchannel-client id instead of player-entity-id because
+            //player-entity-id isnt registered, when new player is created(enter world)
+            if (client.MapClient.Player.TargetEntityId == 0)
+                return;
 
-    pyMarshalString_t pms;
-    client->player->actor->inCombatMode = true;
-    pym_init(&pms);
-    pym_tuple_begin(&pms);
-    pym_addBool(&pms, true);
-    pym_tuple_end(&pms);
-    netMgr_cellDomain_pythonAddMethodCallRaw(client->mapChannel, client->player->actor, client->player->actor->entityId, 753, pym_getData(&pms), pym_getLen(&pms));
-
-
-
-
-
-    printf("%f at %I64d\n", yaw, client->player->targetEntityId);
-    // TODO!
-
-    printf("TODO: "); puts(__FUNCTION__);
-    printf("target: %I64u\n", client->player->targetEntityId);
-
-    //##################### Begin: if target is Mapchannel Client #################
-    //desc: have to use mapchannel-client id instead of player-entity-id because
-    //player-entity-id isnt registered, when new player is created(enter world)
-
-    sint32 targetType = entityMgr_getEntityType(client->player->targetEntityId);
-    sint32 newTargetEntityId = 0;
-    if (targetType == 0) //1:client-type,0=player-type
-    {
-        mapCell_t* mapCell = cellMgr_tryGetCell(client->mapChannel,
-                                                client->player->actor->cellLocation.x,
-                                                client->player->actor->cellLocation.z);
-        if (mapCell)
-        {
-            mapChannelClient_t** playerList = NULL;
-            sint32 tCount = mapCell->ht_playerNotifyList.size();
-            playerList = &mapCell->ht_playerNotifyList[0];
-            for (sint32 i = 0; i < tCount; i++)
+            var targetType = EntityManager.Instance.GetEntityType(client.MapClient.Player.TargetEntityId);
+            if (targetType ==EntityType.Player) //1:client-type,0=player-type
             {
-
-                mapChannelClient_t* targetPlayer = playerList[i];
-                if (targetPlayer->player->actor->entityId == client->player->targetEntityId)
+                var mapCell = CellManager.Instance.TryGetCell(
+                    client.MapClient.MapChannel,
+                    client.MapClient.Player.Actor.CellLocation.CellPosX,
+                     client.MapClient.Player.Actor.CellLocation.CellPosY);
+                if (mapCell != null)
                 {
-                    client->player->targetEntityId = targetPlayer->clientEntityId;
-                    break; //player-entity-id found, now use client-entity-id for missile trigger
+                    var playerList = client.MapClient.MapChannel.PlayerList;
+                    foreach (var targetPlayer in playerList)
+                        if (targetPlayer.Player.Actor.EntityId == client.MapClient.Player.TargetEntityId)
+                        {
+                            client.MapClient.Player.TargetEntityId = targetPlayer.ClientEntityId;
+                            break;
+                        }
                 }
-            }
-            //void *entity = entityMgr_get();
-        }
 
-    }
-    //##################### End: if target is Mapchannel Client #################
-
-    //if( client->player->targetEntityId )
-    //{
-    mapChannel_registerAutoFireTimer(client);
-
-    //}//--if: targed id	
-}*/
-
+            }	
         }
 
         public void UpdateAppearance(MapChannelClient mapClient)
