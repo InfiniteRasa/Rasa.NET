@@ -42,7 +42,7 @@ namespace Rasa.Structures
         public int MissionStateCount { get; set; }
         //public CharacterMissionData MissionStateData { get; set; }
         public int LoginTime { get; set; }
-        public List<byte> Logos = new List<byte>();
+        public List<int> Logos = new List<int>();
         public bool WeaponReady { get; set; }
         public uint TargetEntityId { get; set; }
     }

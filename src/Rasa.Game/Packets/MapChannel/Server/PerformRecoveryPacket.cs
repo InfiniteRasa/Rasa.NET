@@ -17,10 +17,19 @@
 
         public override void Write(PythonWriter pw)
         {
-            pw.WriteTuple(3);
-            pw.WriteInt(ActionId);
-            pw.WriteInt(ActionArgId);
-            pw.WriteInt(AmmoCount);
+            if (AmmoCount > 0)
+            {
+                pw.WriteTuple(3);
+                pw.WriteInt(ActionId);
+                pw.WriteInt(ActionArgId);
+                pw.WriteInt(AmmoCount);
+            }
+            else
+            {
+                pw.WriteTuple(2);
+                pw.WriteInt(ActionId);
+                pw.WriteInt(ActionArgId);
+            }
         }
     }
 }

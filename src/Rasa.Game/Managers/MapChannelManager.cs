@@ -116,7 +116,7 @@ namespace Rasa.Managers
                 MissionStateCount = 0,
                 // MissionStateData = new CharacterMissionData(),
                 LoginTime = 0,
-                Logos = new List<byte>(),
+                Logos = CharacterLogosTable.GetLogos(data.CharacterId)
             };
             // register new Player
             EntityManager.Instance.RegisterEntity(player.Actor.EntityId, EntityType.Player);
@@ -143,6 +143,7 @@ namespace Rasa.Managers
 
             return null;
         }
+
         public Dictionary<int, AbilityDrawerData> GetPlayerAbilities(uint characterId)
         {
             var abilities = new Dictionary<int, AbilityDrawerData>();
@@ -346,6 +347,7 @@ namespace Rasa.Managers
         {
             var mapClient = GetMapClientFromMapChannel(client);
             client.MapClient = mapClient;
+
             CreatePlayerCharacter(mapClient);
             CommunicatorManager.Instance.RegisterPlayer(mapClient);
             CommunicatorManager.Instance.PlayerEnterMap(mapClient);
@@ -389,17 +391,26 @@ namespace Rasa.Managers
             EntityManager.Instance.UnregisterEntity(mapClient.Player.Actor.EntityId);
             EntityManager.Instance.UnregisterActor(mapClient.Player.Actor.EntityId);
             // unregister character Inventory
-            foreach (var item in mapClient.Inventory.PersonalInventory)
-                if (item != 0)
-                    EntityManager.Instance.DestroyPhysicalEntity(mapClient, item, EntityType.Item);
+            for (var i = 0; i < 250; i++)
+                if (mapClient.Inventory.PersonalInventory[i] != 0)
+                {
+                    EntityManager.Instance.DestroyPhysicalEntity(mapClient, mapClient.Inventory.PersonalInventory[i], EntityType.Item);
+                    mapClient.Inventory.PersonalInventory[i] = 0;
+                }
 
-            foreach (var item in mapClient.Inventory.EquippedInventory)
-                if (item != 0)
-                    EntityManager.Instance.DestroyPhysicalEntity(mapClient, item, EntityType.Item);
+            for (var i = 0; i < 22; i++)
+                if (mapClient.Inventory.EquippedInventory[i] != 0)
+                {
+                    EntityManager.Instance.DestroyPhysicalEntity(mapClient, mapClient.Inventory.EquippedInventory[i], EntityType.Item);
+                    mapClient.Inventory.EquippedInventory[i] = 0;
+                }
 
-            foreach (var item in mapClient.Inventory.WeaponDrawer)
-                if (item != 0)
-                    EntityManager.Instance.DestroyPhysicalEntity(mapClient, item, EntityType.Item);
+            for (var i = 0; i < 5; i++)
+                if (mapClient.Inventory.WeaponDrawer[i] != 0)
+                {
+                    EntityManager.Instance.DestroyPhysicalEntity(mapClient, mapClient.Inventory.WeaponDrawer[i], EntityType.Item);
+                    mapClient.Inventory.WeaponDrawer[i] = 0;
+                }
 
             // unregister from chat
             CommunicatorManager.Instance.UnregisterPlayer(mapClient);

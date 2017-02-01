@@ -131,7 +131,6 @@
                 }
             }
             // todo: other modificators?
-            // ToDO send on cell domain
             mapClient.Player.Client.CellSendPacket(mapClient, actor.EntityId, new MovementModChangePacket(movementMod));
         }
     }

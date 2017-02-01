@@ -68,6 +68,7 @@ namespace Rasa.Managers
         {
             RegisterCommand(".createobj", CreateObjectCommand);
             RegisterCommand(".giveitem", GiveItemCommand);
+            RegisterCommand(".givelogos", GiveLogosCommand);
             RegisterCommand(".gm", EnterGmModCommand);
             RegisterCommand(".help", HelpGmCommand);
             RegisterCommand(".teleport", TeleportCommand);
@@ -138,6 +139,24 @@ namespace Rasa.Managers
             return;
         }
 
+        private void GiveLogosCommand(string[] parts)
+        {
+            if (parts.Length == 1)
+            {
+                CommunicatorManager.Instance.SystemMessage(_mapClient, "usage: .givelogos logosId");
+                return;
+            }
+            if (parts.Length == 2)
+            {
+                int logosId;
+                if (int.TryParse(parts[1], out logosId))
+                    {
+                        PlayerManager.Instance.GiveLogos(_mapClient, logosId);
+                    }
+            }
+            return;
+        }
+
         private void HelpGmCommand(string[] parts)
         {
             CommunicatorManager.Instance.SystemMessage(_mapClient, "GM Commands List:");
@@ -166,15 +185,9 @@ namespace Rasa.Managers
                                 _mapClient.Player.Client.SendPacket(5, new PreWonkavatePacket());
                                 // Remove player
                                 MapChannelManager.Instance.RemovePlayer(_mapClient, false);
-                                /*EntityManager.Instance.UnregisterEntity(_mapClient.ClientEntityId);
-                                EntityManager.Instance.UnregisterMapClient(_mapClient.ClientEntityId);
-                                EntityManager.Instance.UnregisterEntity(_mapClient.Player.Actor.EntityId);
-                                EntityManager.Instance.UnregisterActor(_mapClient.Player.Actor.EntityId);
-                                CommunicatorManager.Instance.UnregisterPlayer(_mapClient);
-                                CellManager.Instance.RemoveFromWorld(_mapClient.);
-                                PlayerManager.Instance.RemovePlayerCharacter(_mapClient.MapChannel, _mapClient);*/
                                 // send Wonkavate
                                 var mapChannel = MapChannelManager.Instance.MapChannelArray[mapId];
+                                _mapClient.Player.Client.LoadingMap = mapId;
                                 _mapClient.Player.Client.SendPacket(6, new WonkavatePacket
                                 {
                                     MapContextId = mapChannel.MapInfo.MapId,

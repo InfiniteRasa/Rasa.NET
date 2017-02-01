@@ -106,7 +106,8 @@ namespace Rasa.Managers
         public void FreeEntity(uint id)
         {
             lock (_entityIdLock)
-                _freeEntityIds.Add(id);
+                if(!_freeEntityIds.Contains(id))
+                    _freeEntityIds.Add(id);
         }
 
         public void RegisterEntity(uint entityId, EntityType type)

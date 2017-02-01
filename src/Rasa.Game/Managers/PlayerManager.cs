@@ -161,7 +161,7 @@ namespace Rasa.Managers
                 tempPlayer.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, new CharacterNamePacket { CharacterName = mapClient.Player.Actor.Name });
                 tempPlayer.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, new ActorNamePacket { CharacterFamily = mapClient.Player.Actor.FamilyName });
                 tempPlayer.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, new IsRunningPacket { IsRunning = mapClient.Player.Actor.IsRunning });
-                tempPlayer.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, new LogosStoneTabulaPacket());       // ToDo
+                tempPlayer.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, new LogosStoneTabulaPacket { Logos = mapClient.Player.Logos }); 
                 tempPlayer.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, new WorldLocationDescriptorPacket
                 {
                     Position = mapClient.Player.Actor.Position,
@@ -262,6 +262,13 @@ namespace Rasa.Managers
             return Math.Max(0, pointsAvailable);
         }
 
+        public void GiveLogos(MapChannelClient mapClient, int logosId)
+        {
+            mapClient.Player.Logos.Add(logosId);
+            CharacterLogosTable.SetLogos(mapClient.Player.CharacterId, logosId);
+            mapClient.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, new LogosStoneTabulaPacket { Logos = mapClient.Player.Logos });
+        }
+
         public void LevelSkills(Client client, LevelSkillsPacket packet)
         {
             var mapClient = client.MapClient;
@@ -331,11 +338,11 @@ namespace Rasa.Managers
             switch (abilityData.ActionId)
             {
                 case 129: // Weapon Stow
-                    abilityData.MapClient.Player.Client.CellSendPacket(abilityData.MapClient, abilityData.MapClient.Player.Actor.EntityId, new PerformWindupPacket { ActionId = abilityData.ActionId, ActionArgId = abilityData.ActionArgId });
+                    abilityData.MapClient.Player.Client.CellSendPacket(abilityData.MapClient, abilityData.MapClient.Player.Actor.EntityId, new PerformRecoveryPacket { ActionId = abilityData.ActionId, ActionArgId = abilityData.ActionArgId });
                     abilityData.MapClient.Player.WeaponReady = false;
                     return;
                 case 130: // Weapon Draw
-                    abilityData.MapClient.Player.Client.CellSendPacket(abilityData.MapClient, abilityData.MapClient.Player.Actor.EntityId, new PerformWindupPacket { ActionId = abilityData.ActionId, ActionArgId = abilityData.ActionArgId });
+                    abilityData.MapClient.Player.Client.CellSendPacket(abilityData.MapClient, abilityData.MapClient.Player.Actor.EntityId, new PerformRecoveryPacket { ActionId = abilityData.ActionId, ActionArgId = abilityData.ActionArgId });
                     abilityData.MapClient.Player.WeaponReady = true;
                     return;
                 case 134: // Reload Weapon
@@ -543,6 +550,7 @@ namespace Rasa.Managers
                 return;
             }
 
+            client.MapClient.Player.Actor.InCombatMode = true;
             client.CellSendPacket(client.MapClient, client.MapClient.Player.Actor.EntityId, new RequestVisualCombatModePacket { CombatMode = 1 });
 
             //##################### Begin: if target is Mapchannel Client #################
