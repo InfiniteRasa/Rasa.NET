@@ -9,11 +9,11 @@ namespace Rasa.Packets.Game.Server
     {
         public override GameOpcode Opcode { get; } = GameOpcode.CreatePhysicalEntity;
 
-        public int EntityId { get; set; }
+        public uint EntityId { get; set; }
         public int ClassId { get; set; }
         public object EntityData { get; set; }
 
-        public CreatePhysicalEntityPacket(int entityId, int classId)
+        public CreatePhysicalEntityPacket(uint entityId, int classId)
         {
             EntityId = entityId;
             ClassId = classId;
@@ -22,7 +22,7 @@ namespace Rasa.Packets.Game.Server
         public override void Read(PythonReader pr)
         {
             pr.ReadTuple();
-            EntityId = pr.ReadInt();
+            EntityId = (uint)pr.ReadInt();
             ClassId = pr.ReadInt();
             // todo
         }
@@ -30,7 +30,7 @@ namespace Rasa.Packets.Game.Server
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(3);
-            pw.WriteInt(EntityId);
+            pw.WriteInt((int)EntityId);
             pw.WriteInt(ClassId);
 
             if (EntityData != null)

@@ -2,6 +2,7 @@
 
 namespace Rasa.Managers
 {
+    using Data;
     using Game;
     using Structures;
 
@@ -35,6 +36,31 @@ namespace Rasa.Managers
 
         private CellManager()
         {
+        }
+
+        public void AddToWorld(MapChannel mapChannel, Creature creature)
+        {
+            if (creature == null)
+                return;
+            // register creature entity
+            EntityManager.Instance.RegisterEntity(creature.EntityId, EntityType.Creature);
+            // get initial cell
+            var x = (uint)(creature.Actor.Position.PosX / CellSize + CellBias);
+            var y = (uint)(creature.Actor.Position.PosY / CellSize + CellBias);
+            // calculate initial cell
+            creature.Actor.CellLocation.CellPosX = x;
+            creature.Actor.CellLocation.CellPosY = y;
+            // get cell
+            var mapCell = GetCell(mapChannel, x, y);
+            if (mapCell != null)
+            {
+                // register object
+                //hashTable_set(&mapCell->ht_creatureList, creature->actor.entityId, creature);
+                mapCell.CreatureList.Add(creature);
+                // notify all players of object
+                if (mapCell.PlayerNotifyList.Count > 0)
+                    CreatureManager.Instance.CellIntroduceCreatureToClients(mapChannel, creature, mapCell.PlayerNotifyList);
+            }
         }
 
         // Player

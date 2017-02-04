@@ -197,7 +197,7 @@ namespace Rasa.Managers
         public void SendItemDataToClient(MapChannelClient mapClient, Item item)
         {
             // CreatePhysicalEntity
-            mapClient.Player.Client.SendPacket(5, new CreatePhysicalEntityPacket( (int)item.EntityId, item.ItemTemplate.ClassId));
+            mapClient.Player.Client.SendPacket(5, new CreatePhysicalEntityPacket( item.EntityId, item.ItemTemplate.ClassId));
             // ItemInfo
             mapClient.Player.Client.SendPacket(item.EntityId, new ItemInfoPacket
             {

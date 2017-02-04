@@ -9,7 +9,7 @@
 
         public int ActionId { get; set; }
         public int ActionArgId { get; set; }
-        public int AmmoCount { get; set; }
+        public int Args { get; set; }
 
         public override void Read(PythonReader pr)
         {
@@ -17,12 +17,12 @@
 
         public override void Write(PythonWriter pw)
         {
-            if (AmmoCount > 0)
+            if (Args != 0)
             {
                 pw.WriteTuple(3);
                 pw.WriteInt(ActionId);
                 pw.WriteInt(ActionArgId);
-                pw.WriteInt(AmmoCount);
+                pw.WriteInt(Args);
             }
             else
             {

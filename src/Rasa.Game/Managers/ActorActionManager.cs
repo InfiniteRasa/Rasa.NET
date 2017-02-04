@@ -46,7 +46,7 @@ namespace Rasa.Managers
             {
                 MapClient = mapClient,
                 EntityId = actor.EntityId,
-                Packet = new PerformRecoveryPacket { ActionId = 134, ActionArgId = 1, AmmoCount = foundAmmo },
+                Packet = new PerformRecoveryPacket { ActionId = 134, ActionArgId = 1, Args = foundAmmo },
                 WaitTime = weapon.ItemTemplate.Weapon.ReloadTime
             });
         }

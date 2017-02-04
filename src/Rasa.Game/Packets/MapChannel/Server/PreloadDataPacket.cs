@@ -1,14 +1,17 @@
-﻿namespace Rasa.Packets.MapChannel.Server
+﻿using System.Collections.Generic;
+
+namespace Rasa.Packets.MapChannel.Server
 {
     using Data;
     using Memory;
+    using Structures;
 
     public class PreloadDataPacket : PythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.PreloadData;
 
         public int WeaponId { get; set; }
-        public int AbilitiesList { get; set; }
+        public List<AbilityDrawerData> AbilitiesList { get; set; } = new List<AbilityDrawerData>(); //ToDo
 
         public override void Read(PythonReader pr)
         {
@@ -18,22 +21,13 @@
         {
             pw.WriteTuple(2);
             pw.WriteInt(WeaponId);
-            pw.WriteList(25);
-            for (var i = 0; i < 24; i++)
+            pw.WriteList(AbilitiesList.Count);
+            foreach (var ability in AbilitiesList)
             {
                 pw.WriteTuple(2);
-                pw.WriteInt(1);
-                pw.WriteInt(1);
+                pw.WriteInt(ability.AbilityId);
+                pw.WriteInt(ability.AbilityLevel);
             }
-
-            /* old c++ code i think it's wrong
-            // PreloadData
-            pym_init(&pms);
-            pym_tuple_begin(&pms);
-            pym_addInt(&pms, 0); // weaponId
-            pym_addInt(&pms, 0); // abilities
-            pym_tuple_end(&pms);
-            */
         }
     }
 }

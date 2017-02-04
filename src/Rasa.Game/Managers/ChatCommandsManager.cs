@@ -67,6 +67,8 @@ namespace Rasa.Managers
         public void RegisterChatCommands()
         {
             RegisterCommand(".createobj", CreateObjectCommand);
+            RegisterCommand(".creature", CreateCreatureCommand);
+            RegisterCommand(".creatureloc", SetCreatureLocation);
             RegisterCommand(".giveitem", GiveItemCommand);
             RegisterCommand(".givelogos", GiveLogosCommand);
             RegisterCommand(".gm", EnterGmModCommand);
@@ -83,6 +85,34 @@ namespace Rasa.Managers
         #endregion
 
         #region GM
+        private void CreateCreatureCommand(string[] parts)
+        {
+            if (parts.Length == 1)
+            {
+                CommunicatorManager.Instance.SystemMessage(_mapClient, "usage: .creature entityClassId");
+                return;
+            }
+            if (parts.Length == 2)
+            {
+                int entityClassId;
+                if (int.TryParse(parts[1], out entityClassId))
+                {
+                    var creatureType = new CreatureType();
+
+                    creatureType.CreatureStats.Health.Current = 150;
+                    creatureType.NameId = 0;
+                    creatureType.EntityClassId = entityClassId;
+                    creatureType.Name = "test Npc";
+
+                    var creature = CreatureManager.Instance.CreateCreature(creatureType, null);
+                    CreatureManager.Instance.SetLocation(creature, _mapClient.Player.Actor.Position, _mapClient.Player.Actor.Rotation);
+                    CellManager.Instance.AddToWorld(_mapClient.MapChannel, creature);
+                    CommunicatorManager.Instance.SystemMessage(_mapClient, $"Created new creature with EntityId {creature.Actor.EntityId}");
+                }
+            }
+            return;
+        }
+
         private void CreateObjectCommand(string[] parts)
         {
             if (parts.Length == 1)
@@ -97,7 +127,7 @@ namespace Rasa.Managers
                 if (int.TryParse(parts[1], out entityClassId))
                 {
                     // create object entity
-                    _mapClient.Player.Client.SendPacket(5, new CreatePhysicalEntityPacket((int)_entityId, entityClassId));
+                    _mapClient.Player.Client.SendPacket(5, new CreatePhysicalEntityPacket(_entityId, entityClassId));
                     // set position
                     _mapClient.Player.Client.SendPacket(_entityId, new WorldLocationDescriptorPacket
                     {
@@ -219,6 +249,39 @@ namespace Rasa.Managers
             netMovement.PosY24b = (uint)_mapClient.Player.Actor.Position.PosY * 256;
             netMovement.PosZ24b = (uint)_mapClient.Player.Actor.Position.PosZ * 256;
             _mapClient.Player.Client.SendMovement(_mapClient.Player.Actor.EntityId, netMovement);
+            return;
+        }
+
+        private void SetCreatureLocation(string[] parts)
+        {
+            if (parts.Length == 1)
+            {
+                CommunicatorManager.Instance.SystemMessage(_mapClient, "usage: .creatureloc entityClassId, posX, posY, posZ");
+                return;
+            }
+            if (parts.Length == 5)
+            {
+                double posX, posY, posZ;
+                int entityClassId;
+                if (int.TryParse(parts[1], out entityClassId))
+                    if (double.TryParse(parts[2], out posX))
+                        if (double.TryParse(parts[3], out posY))
+                            if (double.TryParse(parts[4], out posZ))
+                            {
+                                var creatureType = new CreatureType();
+                                var position = new Position { PosX = posX, PosY = posY, PosZ = posZ };
+
+                                creatureType.CreatureStats.Health.Current = 150;
+                                creatureType.NameId = 0;
+                                creatureType.EntityClassId = entityClassId;
+                                creatureType.Name = "test Npc";
+
+                                var creature = CreatureManager.Instance.CreateCreature(creatureType, null);
+                                CreatureManager.Instance.SetLocation(creature, position, _mapClient.Player.Actor.Rotation);
+                                CellManager.Instance.AddToWorld(_mapClient.MapChannel, creature);
+                                CommunicatorManager.Instance.SystemMessage(_mapClient, $"Created new creature with EntityId {creature.Actor.EntityId}");
+                            }
+            }
             return;
         }
 

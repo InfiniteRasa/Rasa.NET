@@ -72,7 +72,7 @@ namespace Rasa.Managers
             {
                 Actor = new Actor
                 {
-                    EntityClassId = data.Gender == 0 ? (uint)692 : 691,
+                    EntityClassId = data.Gender == 0 ? 692 : 691,
                     Name = data.Name,
                     FamilyName = data.FamilyName,
                     Position = new Position
@@ -81,7 +81,7 @@ namespace Rasa.Managers
                         PosY = data.PosY,
                         PosZ = data.PosZ
                     },
-                    Rotation = data.Rotation,
+                    Rotation = new Quaternion(),    // ToDo
                     MapContextId = data.MapContextId,
                     IsRunning = true,
                     InCombatMode = false,
@@ -123,7 +123,6 @@ namespace Rasa.Managers
             EntityManager.Instance.RegisterActor(player.Actor.EntityId, player.Actor);
             mapClient.Player = player;
             mapClient.Player.Client = mapClient.Client;
-            PlayerManager.Instance.UpdateStatsValues(mapClient, true);
             CommunicatorManager.Instance.LoginOk(mapClient, mapClient.MapChannel);
             CellManager.Instance.AddToWorld(mapClient); // will introduce the player to all clients, including the current owner
             PlayerManager.Instance.AssignPlayer(mapClient);
@@ -352,6 +351,7 @@ namespace Rasa.Managers
             CommunicatorManager.Instance.RegisterPlayer(mapClient);
             CommunicatorManager.Instance.PlayerEnterMap(mapClient);
             InventoryManager.Instance.InitForClient(mapClient);
+            PlayerManager.Instance.UpdateStatsValues(mapClient, true);
             //mission_initForClient(cm);
         }
 

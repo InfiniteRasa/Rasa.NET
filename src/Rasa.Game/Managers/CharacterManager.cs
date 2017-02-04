@@ -52,7 +52,7 @@ namespace Rasa.Managers
                     : new BeginCharacterSelectionPacket(null, false, client.Entry.Id));
 
             for (var i = 0; i < 16; ++i)
-                client.SendPacket(5, new CreatePhysicalEntityPacket(101 + i, 3543));
+                client.SendPacket(5, new CreatePhysicalEntityPacket(101 + (uint)i, 3543));
 
             for (var i = 0; i < 16; ++i)
                 SendCharacterInfo(client, i);
@@ -260,7 +260,7 @@ namespace Rasa.Managers
                 case 4: // update experience
                     break;
                 case 5: // update possition
-                    CharacterTable.UpdateCharacterPos(player.CharacterId, player.Actor.Position.PosX, player.Actor.Position.PosY, player.Actor.Position.PosZ, player.Actor.Rotation, player.Actor.MapContextId);
+                    CharacterTable.UpdateCharacterPos(player.CharacterId, player.Actor.Position.PosX, player.Actor.Position.PosY, player.Actor.Position.PosZ, 1 , player.Actor.MapContextId);   // ToDo rotation
                     break;
                 case 6: // update stats
                     break;

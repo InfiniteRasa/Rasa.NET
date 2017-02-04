@@ -100,15 +100,15 @@ namespace Rasa.Managers
                 SkillPts = GetSkillPointsAvailable(mapClient.Player)
             });
 
-            player.Client.SendPacket(actor.EntityId, new SkillsPacket(player.Skills) );
+            player.Client.SendPacket(actor.EntityId, new SkillsPacket(player.Skills));
 
-            player.Client.SendPacket(actor.EntityId, new AbilitiesPacket(player.Skills) );
+            player.Client.SendPacket(actor.EntityId, new AbilitiesPacket(player.Skills));
 
             // don't send this packet if abilityDrawer is empty
             if (player.Abilities.Count > 0)
-                player.Client.SendPacket(actor.EntityId, new AbilityDrawerPacket(player.Abilities) );
+                player.Client.SendPacket(actor.EntityId, new AbilityDrawerPacket(player.Abilities));
 
-            player.Client.SendPacket(actor.EntityId, new TitlesPacket(player.Titles) );
+            player.Client.SendPacket(actor.EntityId, new TitlesPacket(player.Titles));
         }
 
         public void AutoFireKeepAlive(Client client, int keepAliveDelay)
@@ -151,7 +151,7 @@ namespace Rasa.Managers
 
             foreach (var tempPlayer in playerList)
             {
-                tempPlayer.Player.Client.SendPacket(5, new CreatePhysicalEntityPacket( (int)mapClient.Player.Actor.EntityId, (int)mapClient.Player.Actor.EntityClassId));
+                tempPlayer.Player.Client.SendPacket(5, new CreatePhysicalEntityPacket(mapClient.Player.Actor.EntityId, (int)mapClient.Player.Actor.EntityClassId));
                 tempPlayer.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, new AttributeInfoPacket { ActorStats = mapClient.Player.Actor.Stats });
                 tempPlayer.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, new PreloadDataPacket());    // ToDo
                 tempPlayer.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, new AppearanceDataPacket { AppearanceData = mapClient.Player.AppearanceData });
@@ -161,7 +161,7 @@ namespace Rasa.Managers
                 tempPlayer.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, new CharacterNamePacket { CharacterName = mapClient.Player.Actor.Name });
                 tempPlayer.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, new ActorNamePacket { CharacterFamily = mapClient.Player.Actor.FamilyName });
                 tempPlayer.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, new IsRunningPacket { IsRunning = mapClient.Player.Actor.IsRunning });
-                tempPlayer.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, new LogosStoneTabulaPacket { Logos = mapClient.Player.Logos }); 
+                tempPlayer.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, new LogosStoneTabulaPacket { Logos = mapClient.Player.Logos });
                 tempPlayer.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, new WorldLocationDescriptorPacket
                 {
                     Position = mapClient.Player.Actor.Position,
@@ -194,7 +194,7 @@ namespace Rasa.Managers
                 if (mapClient == tempClient)
                     continue;
 
-                mapClient.Player.Client.SendPacket(5, new CreatePhysicalEntityPacket((int)tempClient.Player.Actor.EntityId, (int)tempClient.Player.Actor.EntityClassId));
+                mapClient.Player.Client.SendPacket(5, new CreatePhysicalEntityPacket(tempClient.Player.Actor.EntityId, (int)tempClient.Player.Actor.EntityClassId));
                 mapClient.Player.Client.SendPacket(tempClient.Player.Actor.EntityId, new AttributeInfoPacket { ActorStats = tempClient.Player.Actor.Stats });
                 mapClient.Player.Client.SendPacket(tempClient.Player.Actor.EntityId, new AppearanceDataPacket { AppearanceData = tempClient.Player.AppearanceData });
                 mapClient.Player.Client.SendPacket(tempClient.Player.Actor.EntityId, new ActorControllerInfoPacket { IsPlayer = true });
@@ -633,10 +633,11 @@ namespace Rasa.Managers
             var regenBonus = 0;
             stats.Regen.CurrentMax = stats.Regen.NormalMax + regenBonus;
             stats.Regen.RefreshAmount = 2 * (stats.Regen.CurrentMax / 100); // 2.0 per second is the base regeneration for health
+            
             // calculate armor max
             var armorMax = 0.0d;
             //float armorBonus = 0; // todo! (From item modules)
-            var armorBonusPct = player.SpentBody * 0.0066666d;
+            var armorBonusPct = player.Actor.Stats.Body.CurrentMax * 0.0066666d;
             var armorRegenRate = 0;
             for (var i = 0; i < 22; i++)
             {

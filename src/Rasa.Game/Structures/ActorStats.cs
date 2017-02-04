@@ -82,8 +82,8 @@
         public double NormalMax { get; set; }
         public double CurrentMax { get; set; }
         public double Current { get; set; }
-        public int RefreshAmount { get; set; }
-        public int RefreshPeriod { get; set; }
+        public double RefreshAmount { get; set; }
+        public double RefreshPeriod { get; set; }
     }
     // SPEED 9
     public class Speed
