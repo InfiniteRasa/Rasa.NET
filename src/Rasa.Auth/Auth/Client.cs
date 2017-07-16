@@ -103,7 +103,9 @@ namespace Rasa.Auth
                         UserId = Entry.Id
                     });
 
-                    Logger.WriteLog(LogType.Debug, $"Account  ({Entry.Username}, {Entry.Id}) was redirected to the queue of the server: {info.ServerId}!");
+                    AccountTable.UpdateLastServer(Entry.Id, info.ServerId);
+
+                    Logger.WriteLog(LogType.Debug, $"Account ({Entry.Username}, {Entry.Id}) was redirected to the queue of the server: {info.ServerId}!");
                     break;
 
                 default:
