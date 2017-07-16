@@ -40,13 +40,7 @@ namespace Rasa.Managers
             if (client.State != ClientState.LoggedIn)
                 return;
 
-            var packet = new BeginCharacterSelectionPacket
-            {
-                FamilyName = null,
-                HasCharacters = false,
-                CanSkipBootcamp = true,
-                UserId = 1
-            };
+            var packet = new BeginCharacterSelectionPacket(null, false, 1);
 
             packet.EnabledRaceList.Add(1);
             packet.EnabledRaceList.Add(2);
