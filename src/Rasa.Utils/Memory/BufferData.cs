@@ -76,35 +76,59 @@ namespace Rasa.Memory
 
         public BinaryReader GetReader()
         {
-            return GetReader(Offset, Length);
+            return GetReader(Offset, Length, Encoding.UTF8, false);
         }
 
         public BinaryReader GetReader(int offset, int length)
         {
+            return GetReader(offset, length, Encoding.UTF8, false);
+        }
+
+        public BinaryReader GetReader(int offset, int length, Encoding encoding)
+        {
+            return GetReader(offset, length, encoding, false);
+        }
+
+        public BinaryReader GetReader(int offset, int length, Encoding encoding, bool leaveOpen)
+        {
             CheckConstraints(offset, length);
 
-            return new BinaryReader(new MemoryStream(Buffer, BaseOffset + offset, length, false));
+            return new BinaryReader(new MemoryStream(Buffer, BaseOffset + offset, length, false), encoding, leaveOpen);
         }
 
         public BinaryWriter CreateWriter()
         {
-            return CreateWriter(Offset, RemainingLength);
+            return CreateWriter(Offset, RemainingLength, Encoding.UTF8, false);
         }
 
         public BinaryWriter CreateWriter(int offset, int length)
         {
+            return CreateWriter(offset, length, Encoding.UTF8, false);
+        }
+
+        public BinaryWriter CreateWriter(int offset, int length, Encoding encoding)
+        {
+            return CreateWriter(offset, length, encoding, false);
+        }
+
+        public BinaryWriter CreateWriter(int offset, int length, Encoding encoding, bool leaveOpen)
+        {
             CheckConstraints(offset, length);
 
-            return new BinaryWriter(new MemoryStream(Buffer, BaseOffset + offset, length, true));
+            return new BinaryWriter(new MemoryStream(Buffer, BaseOffset + offset, length, true), encoding, leaveOpen);
         }
 
-        // ReSharper disable UnusedParameter.Local
         private void CheckConstraints(int offset, int length)
         {
-            if (offset < 0 || length < 0 || offset >= MaxLength || offset + length > MaxLength)
+            if (offset < 0)
+                throw new ArgumentOutOfRangeException(nameof(offset));
+
+            if (length < 0)
+                throw new ArgumentOutOfRangeException(nameof(length));
+
+            if (offset + length > MaxLength)
                 throw new Exception("BufferData tried to access another BufferData's memory!");
         }
-        // ReSharper restore UnusedParameter.Local
 
         public string ByteData()
         {
