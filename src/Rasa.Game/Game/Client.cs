@@ -20,7 +20,7 @@ namespace Rasa.Game
         public ClientCryptData Data { get; }
         public Server Server { get; }
         public LoginAccountEntry Entry { get; private set; }
-        public ClientState State { get; private set; }
+        public ClientState State { get; set; }
 
         private readonly ClientPacketHandler _handler;
 

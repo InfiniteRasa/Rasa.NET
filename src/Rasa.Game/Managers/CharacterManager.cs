@@ -54,6 +54,8 @@ namespace Rasa.Managers
 
             for (var i = 0; i < 16; ++i)
                 client.SendPacket(101 + (uint) i, new CharacterInfoPacket(i + 1, true));
+
+            client.State = ClientState.CharacterSelection;
         }
 
         public void RequestCharacterName(Client client, int gender)
