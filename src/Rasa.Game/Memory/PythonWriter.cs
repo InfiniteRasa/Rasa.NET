@@ -65,9 +65,25 @@ namespace Rasa.Memory
                 Writer.Write((byte) (0x10 | value));
         }
 
+        public void WriteUInt(uint value)
+        {
+            WriteInt((int) value);
+        }
+
         public void WriteLong(long value)
         {
-            if (value != 0)
+            if (value != 0L)
+            {
+                Writer.Write((byte) 0x2F);
+                Writer.Write(value);
+            }
+            else
+                Writer.Write((byte) 0x20);
+        }
+
+        public void WriteULong(ulong value)
+        {
+            if (value != 0UL)
             {
                 Writer.Write((byte) 0x2F);
                 Writer.Write(value);

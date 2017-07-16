@@ -90,6 +90,31 @@ namespace Rasa.Memory
             }
         }
 
+        public uint ReadUInt()
+        {
+            var type = Reader.ReadByte();
+            if ((type & 0x10) != 0x10)
+                throw new Exception($"Expected 0x1_. Got: {type:X2}");
+
+            if (type <= 0x1C)
+                return (uint) (type & 0xF);
+
+            switch (type)
+            {
+                case 0x1D:
+                    return Reader.ReadByte();
+
+                case 0x1E:
+                    return Reader.ReadUInt16();
+
+                case 0x1F:
+                    return Reader.ReadUInt32();
+
+                default:
+                    throw new Exception($"WTF? Int type: {type:X2}");
+            }
+        }
+
         public long ReadLong()
         {
             var type = Reader.ReadByte();
@@ -103,6 +128,21 @@ namespace Rasa.Memory
                 throw new Exception($"WTF? Long type: {type:X2}");
 
             return Reader.ReadInt64();
+        }
+
+        public ulong ReadULong()
+        {
+            var type = Reader.ReadByte();
+            if ((type & 0x20) != 0x20)
+                throw new Exception($"Expected 0x2_. Got: {type:X2}");
+
+            if (type == 0x20)
+                return 0UL;
+
+            if (type != 0x2F)
+                throw new Exception($"WTF? Long type: {type:X2}");
+
+            return Reader.ReadUInt64();
         }
 
         public double ReadDouble()
