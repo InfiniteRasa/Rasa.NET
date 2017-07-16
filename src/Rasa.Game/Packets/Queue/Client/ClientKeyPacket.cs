@@ -1,10 +1,9 @@
-﻿using System;
-using System.IO;
-using Rasa.Extensions;
+﻿using System.IO;
 
 namespace Rasa.Packets.Queue.Client
 {
     using Data;
+    using Extensions;
 
     public class ClientKeyPacket : IOpcodedPacket<QueueOpcode>
     {

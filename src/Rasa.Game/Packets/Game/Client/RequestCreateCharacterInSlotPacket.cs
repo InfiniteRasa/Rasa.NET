@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Text.RegularExpressions;
 
 namespace Rasa.Packets.Game.Client
@@ -13,7 +12,6 @@ namespace Rasa.Packets.Game.Client
     {
         public override GameOpcode Opcode { get; } = GameOpcode.RequestCreateCharacterInSlot;
 
-        // data from game
         public int SlotNum { get; set; }
         public string FamilyName { get; set; }
         public string CharacterName { get; set; }
