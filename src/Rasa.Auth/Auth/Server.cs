@@ -141,15 +141,26 @@ namespace Rasa.Auth
                 return false;
             }
 
+            try
+            {
+                ListenerSocket = new LengthedSocket(SizeType.Word);
+                ListenerSocket.OnError += OnError;
+                ListenerSocket.OnAccept += OnAccept;
+                ListenerSocket.Bind(new IPEndPoint(IPAddress.Any, Config.AuthConfig.Port));
+                ListenerSocket.Listen(Config.AuthConfig.Backlog);
+            }
+            catch (Exception e)
+            {
+                Logger.WriteLog(LogType.Error, "Unable to create or start listening on the client socket! Exception:");
+                Logger.WriteLog(LogType.Error, e);
+
+                return false;
+            }
+
             Loop.Start();
 
-            SetupCommunicator();
-
-            ListenerSocket = new LengthedSocket(SizeType.Word);
-            ListenerSocket.OnError += OnError;
-            ListenerSocket.OnAccept += OnAccept;
-            ListenerSocket.Bind(new IPEndPoint(IPAddress.Any, Config.AuthConfig.Port));
-            ListenerSocket.Listen(Config.AuthConfig.Backlog);
+            if (!SetupCommunicator())
+                return false;
 
             Logger.WriteLog(LogType.Network, "*** Listening for clients on port {0}", Config.AuthConfig.Port);
 
@@ -167,9 +178,10 @@ namespace Rasa.Auth
             return true;
         }
 
-        private void OnError(SocketAsyncEventArgs args)
+        private static void OnError(SocketAsyncEventArgs args)
         {
-            if (args.LastOperation == SocketAsyncOperation.Accept && args.AcceptSocket != null && args.AcceptSocket.Connected)
+            if (args.LastOperation == SocketAsyncOperation.Accept && args.AcceptSocket != null &&
+                args.AcceptSocket.Connected)
                 args.AcceptSocket.Shutdown(SocketShutdown.Both);
         }
 
@@ -186,18 +198,28 @@ namespace Rasa.Auth
         #endregion
 
         #region Communicator
-        private void SetupCommunicator()
+        private bool SetupCommunicator()
         {
             if (Config.CommunicatorConfig.Port == 0 || Config.CommunicatorConfig.Address == null || Config.CommunicatorConfig.Backlog == 0)
             {
                 Logger.WriteLog(LogType.Error, "Invalid Communicator config data! Can't connect!");
-                return;
+                return false;
             }
 
-            AuthCommunicator = new LengthedSocket(SizeType.Word);
-            AuthCommunicator.OnAccept += OnCommunicatorAccept;
-            AuthCommunicator.Bind(new IPEndPoint(IPAddress.Parse(Config.CommunicatorConfig.Address), Config.CommunicatorConfig.Port));
-            AuthCommunicator.Listen(Config.CommunicatorConfig.Backlog);
+            try
+            {
+                AuthCommunicator = new LengthedSocket(SizeType.Word);
+                AuthCommunicator.OnAccept += OnCommunicatorAccept;
+                AuthCommunicator.Bind(new IPEndPoint(IPAddress.Parse(Config.CommunicatorConfig.Address), Config.CommunicatorConfig.Port));
+                AuthCommunicator.Listen(Config.CommunicatorConfig.Backlog);
+            }
+            catch (Exception e)
+            {
+                Logger.WriteLog(LogType.Error, "Unable to create or start listening on the communicator socket! Exception:");
+                Logger.WriteLog(LogType.Error, e);
+
+                return false;
+            }
 
             AuthCommunicator.AcceptAsync();
 
@@ -210,6 +232,8 @@ namespace Rasa.Auth
             });
 
             Logger.WriteLog(LogType.Network, $"*** Listening for Game servers on port {Config.CommunicatorConfig.Port}");
+
+            return true;
         }
 
         private void OnCommunicatorAccept(LengthedSocket socket)
@@ -423,7 +447,7 @@ namespace Rasa.Auth
         {
             if (parts.Length < 4)
             {
-                Logger.WriteLog(LogType.Command, "Invalid create account command! Usage: create <username> <email> <password>");
+                Logger.WriteLog(LogType.Command, "Invalid create account command! Usage: create <email> <username> <password>");
                 return;
             }
 
@@ -446,7 +470,7 @@ namespace Rasa.Auth
             {
                 AccountTable.InsertAccount(data);
 
-                Logger.WriteLog(LogType.Command, $"Created account: {parts[1]}! (Password: {parts[3]})");
+                Logger.WriteLog(LogType.Command, $"Created account: {parts[2]}! (Password: {parts[3]})");
             }
             catch
             {

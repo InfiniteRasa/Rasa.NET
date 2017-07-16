@@ -117,11 +117,21 @@ namespace Rasa.Game
 
             SetupCommunicator();
 
-            ListenerSocket = new LengthedSocket(SizeType.Dword, false);
-            ListenerSocket.OnError += OnError;
-            ListenerSocket.OnAccept += OnAccept;
-            ListenerSocket.Bind(new IPEndPoint(IPAddress.Any, Config.GameConfig.Port));
-            ListenerSocket.Listen(Config.GameConfig.Backlog);
+            try
+            {
+                ListenerSocket = new LengthedSocket(SizeType.Dword, false);
+                ListenerSocket.OnError += OnError;
+                ListenerSocket.OnAccept += OnAccept;
+                ListenerSocket.Bind(new IPEndPoint(IPAddress.Any, Config.GameConfig.Port));
+                ListenerSocket.Listen(Config.GameConfig.Backlog);
+            }
+            catch (Exception e)
+            {
+                Logger.WriteLog(LogType.Error, "Unable to create or start listening on the client socket! Exception:");
+                Logger.WriteLog(LogType.Error, e);
+
+                return false;
+            }
 
             LoginManager.OnLogin += OnLogin;
 
@@ -218,9 +228,17 @@ namespace Rasa.Game
             if (AuthCommunicator?.Connected ?? false)
                 AuthCommunicator?.Close();
 
-            AuthCommunicator = new LengthedSocket(SizeType.Word);
-            AuthCommunicator.OnConnect += OnCommunicatorConnect;
-            AuthCommunicator.ConnectAsync(new IPEndPoint(IPAddress.Parse(Config.CommunicatorConfig.Address), Config.CommunicatorConfig.Port));
+            try
+            {
+                AuthCommunicator = new LengthedSocket(SizeType.Word);
+                AuthCommunicator.OnConnect += OnCommunicatorConnect;
+                AuthCommunicator.ConnectAsync(new IPEndPoint(IPAddress.Parse(Config.CommunicatorConfig.Address), Config.CommunicatorConfig.Port));
+            }
+            catch (Exception e)
+            {
+                Logger.WriteLog(LogType.Error, "Unable to create or start listening on the client socket! Retrying soon... Exception:");
+                Logger.WriteLog(LogType.Error, e);
+            }
 
             Logger.WriteLog(LogType.Network, $"*** Connecting to auth server! Address: {Config.CommunicatorConfig.Address}:{Config.CommunicatorConfig.Port}");
         }
@@ -231,7 +249,7 @@ namespace Rasa.Game
             {
                 Timer.Add("CommReconnect", 10000, false, () =>
                 {
-                    if (!AuthCommunicator.Connected)
+                    if (AuthCommunicator?.Connected ?? true)
                         ConnectCommunicator();
                 });
 
