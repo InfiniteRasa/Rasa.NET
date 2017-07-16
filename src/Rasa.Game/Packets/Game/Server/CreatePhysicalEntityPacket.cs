@@ -3,15 +3,15 @@
     using Data;
     using Memory;
 
-    public class CreatePyhsicalEntityPacket : PythonPacket
+    public class CreatePhysicalEntityPacket : PythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.CreatePhysicalEntity;
 
-        public int EntityId { get; set; }
+        public uint EntityId { get; set; }
         public int ClassId { get; set; }
         public object EntityData { get; set; }
 
-        public CreatePyhsicalEntityPacket(int entityId, int classId)
+        public CreatePhysicalEntityPacket(uint entityId, int classId)
         {
             EntityId = entityId;
             ClassId = classId;
@@ -20,7 +20,7 @@
         public override void Read(PythonReader pr)
         {
             pr.ReadTuple();
-            EntityId = pr.ReadInt();
+            EntityId = pr.ReadUInt();
             ClassId = pr.ReadInt();
 
             // todo
@@ -29,7 +29,7 @@
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(3);
-            pw.WriteInt(EntityId);
+            pw.WriteUInt(EntityId);
             pw.WriteInt(ClassId);
 
             if (EntityData != null)

@@ -55,8 +55,8 @@ namespace Rasa.Managers
 
             client.SendPacket(5, packet);
 
-            for (var i = 0; i < 16; ++i)
-                client.SendPacket(5, new CreatePyhsicalEntityPacket(101 + i, 3543));
+            for (var i = 0U; i < 16U; ++i)
+                client.SendPacket(5, new CreatePhysicalEntityPacket(101U + i, 3543));
 
             for (var i = 0; i < 16; ++i)
                 client.SendPacket(101 + (uint) i, new CharacterInfoPacket(i + 1, true));
