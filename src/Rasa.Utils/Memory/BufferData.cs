@@ -4,7 +4,7 @@ using System.Text;
 
 namespace Rasa.Memory
 {
-    public class BufferData
+    public class BufferData : IDisposable
     {
         public byte[] Buffer => BufferManager.Buffer;
         public int BaseOffset { get; }
@@ -18,6 +18,8 @@ namespace Rasa.Memory
         public int Remaining => ByteCount - Offset;
         public int Missing => Length - ByteCount;
         public int RemainingLength => Length - Offset;
+
+        public bool Free { get; set; } = true;
 
         public string StrData => ByteData();
 
@@ -57,7 +59,7 @@ namespace Rasa.Memory
         public void CopyTo(BufferData other, int offset, int length, int destOffset = 0)
         {
             CheckConstraints(offset, length);
-            CheckConstraints(destOffset, length);
+            other.CheckConstraints(destOffset, length);
 
             Array.Copy(Buffer, BaseOffset + offset, Buffer, other.BaseOffset + destOffset, length);
         }
@@ -148,6 +150,20 @@ namespace Rasa.Memory
         public override string ToString()
         {
             return $"BufferData[{BaseOffset} + {Offset}, {Length}]";
+        }
+
+        public void FreeBuffer()
+        {
+            if (Free)
+                return;
+
+            BufferManager.FreeBuffer(this);
+            Free = true;
+        }
+
+        public void Dispose()
+        {
+            FreeBuffer();
         }
     }
 }
