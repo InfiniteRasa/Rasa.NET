@@ -10,12 +10,25 @@ namespace Rasa.Packets.Protocol
 
     public class ProtocolPacket : IBasePacket
     {
-        public ClientMessageOpcode Type { get; private set; }
+        public ClientMessageOpcode Type { get; private set; } = ClientMessageOpcode.None;
 
         public ushort Size { get; private set; }
         public byte Channel { get; private set; }
+        public uint SequenceNumber { get; set; }
         public bool Compress { get; private set; }
         public IClientMessage Message { get; set; }
+
+        public ProtocolPacket()
+        {
+        }
+
+        public ProtocolPacket(IClientMessage message, ClientMessageOpcode type, bool compress, byte channel)
+        {
+            Message = message;
+            Type = type;
+            Compress = compress;
+            Channel = channel;
+        }
 
         public void Read(BinaryReader br)
         {
@@ -30,9 +43,14 @@ namespace Rasa.Packets.Protocol
             if (Size > br.BaseStream.Length)
                 throw new Exception("Fragmented receive, should not happen!");
 
-            if (Channel != 0) // 0 == ReliableStreamChannel (no extra data)
+            if (Channel == 0xFF) // Internal channel: Send timeout checking, ignore the packet
+                return;
+
+            if (Channel != 0) // 0 == ReliableStreamChannel (no extra data), Move message uses channels
             {
-                br.ReadInt32(); // Sequence number? if (previousValue - newValue < 0) { process packet; previousValue = newValue; }
+                Debugger.Break();
+
+                SequenceNumber = br.ReadUInt32(); // Sequence number? if (previousValue - newValue < 0) { process packet; previousValue = newValue; }
                 br.ReadInt32(); // 0xDEADBEEF
                 br.ReadInt32(); // skip
             }

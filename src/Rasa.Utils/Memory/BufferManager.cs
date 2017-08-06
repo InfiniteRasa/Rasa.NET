@@ -42,8 +42,8 @@ namespace Rasa.Memory
             lock (BufferDatas)
                 data = BufferDatas.Pop();
 
-            // Clear the buffer of any previous writes
-            data.Clear();
+            data.Reset();
+            data.Free = false;
 
             return data;
         }
@@ -51,6 +51,7 @@ namespace Rasa.Memory
         public static void FreeBuffer(BufferData data)
         {
             data.Reset();
+            data.Free = true;
 
             lock (BufferDatas)
                 BufferDatas.Push(data);

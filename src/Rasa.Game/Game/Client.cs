@@ -10,6 +10,7 @@ namespace Rasa.Game
     using Memory;
     using Networking;
     using Packets;
+    using Packets.Protocol;
     using Structures;
 
     public class Client : INetworkClient
@@ -21,6 +22,8 @@ namespace Rasa.Game
         public Server Server { get; }
         public LoginAccountEntry Entry { get; private set; }
         public ClientState State { get; set; }
+        public uint SendSequence { get; private set; } = 1;
+        public uint ReceiveSequence { get; private set; }
 
         private readonly ClientPacketHandler _handler;
 
@@ -57,10 +60,47 @@ namespace Rasa.Game
             Server.Disconnect(this);
         }
 
+        public void CallMethod(uint entityId, PythonPacket packet)
+        {
+            SendMessage(new CallMethodMessage(entityId, packet));
+        }
+
+        public void SendMessage(CallMethodMessage message)
+        {
+            SendPacket(new ProtocolPacket(message, ClientMessageOpcode.CallMethod, false, 0));
+        }
+
+        public void SendMessage(LoginResponseMessage message)
+        {
+            SendPacket(new ProtocolPacket(message, ClientMessageOpcode.LoginResponse, false, 0));
+        }
+
+        public void SendMessage(MoveObjectMessage message)
+        {
+            SendPacket(new ProtocolPacket(message, ClientMessageOpcode.MoveObject, false, 1));
+        }
+
+        public void SendMessage(NegotiateMoveChannelMessage message)
+        {
+            SendPacket(new ProtocolPacket(message, ClientMessageOpcode.NegotiateMoveChannel, false, 0));
+        }
+
+        public void SendMessage(PingMessage message)
+        {
+            SendPacket(new ProtocolPacket(message, ClientMessageOpcode.Ping, false, 0));
+        }
+
         public void SendPacket(IBasePacket packet)
         {
-            if (!(packet is PythonCallPacket))
+            var pPacket = packet as ProtocolPacket;
+            if (pPacket == null)
+            {
                 Debugger.Break(); // todo: handle outgoing queue packet sending from server (like in auth) (todo: maybe a delegate instead of an interface?)
+                return;
+            }
+
+            if (pPacket.Channel != 0)
+                pPacket.SequenceNumber = SendSequence++;
 
             Socket.Send(packet);
         }
@@ -77,12 +117,36 @@ namespace Rasa.Game
         #region Socketing
         private void OnEncrypt(BufferData data, ref int length)
         {
-            GameCryptManager.Instance.Encrypt(data.Buffer, data.RealOffset, ref length, data.RemainingLength, Data);
+            var paddingCount = (byte) (8 - length % 8);
+
+            var tempArray = BufferManager.RequestBuffer();
+
+            tempArray[0] = paddingCount;
+
+            BufferData.Copy(data, data.Offset, tempArray, paddingCount, length);
+
+            length += paddingCount;
+
+            GameCryptManager.Encrypt(tempArray.Buffer, tempArray.BaseOffset, ref length, length, Data);
+
+            BufferData.Copy(tempArray, 0, data, data.Offset, length);
+
+            BufferManager.FreeBuffer(tempArray);
         }
 
         private bool OnDecrypt(BufferData data)
         {
-            return GameCryptManager.Instance.Decrypt(data.Buffer, data.RealOffset, data.Length, Data);
+            var result = GameCryptManager.Decrypt(data.Buffer, data.BaseOffset + data.Offset, data.RemainingLength, Data);
+            if (!result)
+                return false;
+
+            var blowfishPadding = data[data.Offset] & 0xF;
+            if (blowfishPadding > 8)
+                throw new Exception("More than 8 bytes of blowfish padding was added to the packet?");
+
+            data.Offset += blowfishPadding;
+
+            return true;
         }
 
         private void OnError(SocketAsyncEventArgs args)
@@ -92,52 +156,87 @@ namespace Rasa.Game
 
         private void OnReceive(BufferData data)
         {
-            // TODO: find in the client and rethink subsize calculation
-            var align = data[data.Offset] % 9;
-            var size = data.Length - align;
-
-            data.Offset += align;
-
             do
             {
-                var subsize = data[data.Offset] | (data[data.Offset + 1] << 8);
-                if (subsize == 43 && size == 12)
+                if (data.RemainingLength == 0)
+                    break;
+
+                ushort subsize;
+                var startOffset = data.Offset;
+
+                if (!DecodePacket(data, out subsize))
                     return;
 
-                if (subsize > 4000)
-                {
-                    var zeroFound = 0;
-                    var i = 0;
+                if (data.Offset == startOffset + subsize)
+                    continue;
 
-                    for (; i < subsize; ++i)
-                    {
-                        if (data[data.Offset + i] == 0 && data[data.Offset + i + 1] == 0)
-                            ++zeroFound;
+                if (data.Offset < startOffset + subsize)
+                    throw new Exception("ProtocolPacket underread!");
 
-                        if (zeroFound != 2)
-                            continue;
-
-                        if (i - 2 < 0)
-                            Console.WriteLine("FindSubsize::HOLYSHIT !!!");
-
-                        subsize = i - 2;
-                    }
-
-                    subsize = i;
-                }
-
-                if (!DecodePacket(data, subsize))
-                    return;
-
-                data.Offset += subsize;
-                size -= subsize;
+                if (data.Offset > startOffset + subsize)
+                    throw new Exception("ProtocolPacket overread!");
             }
-            while (size > 0);
+            while (true);
         }
 
-        private bool DecodePacket(BufferData data, int length)
+        private bool DecodePacket(BufferData data, out ushort length)
         {
-            var packet = new PythonCallPacket(length);
+            using (var br = data.GetReader(data.Offset, data.RemainingLength))
+            {
+                var rawPacket = new ProtocolPacket();
+
+                rawPacket.Read(br);
+
+                if (rawPacket.Channel != 0 && rawPacket.SequenceNumber < ReceiveSequence)
+                    Debugger.Break();
+
+                length = rawPacket.Size;
+
+                data.Offset += (int) br.BaseStream.Position;
+
+                switch (rawPacket.Type)
+                {
+                    case ClientMessageOpcode.None: // Send timeout check
+                        if (length != 4)
+                            Debugger.Break(); // If it's not send timeout check, let's investigate...
+
+                        return true;
+
+                    case ClientMessageOpcode.Login:
+                        var loginMsg = rawPacket.Message as LoginMessage;
+                        if (loginMsg == null)
+                        {
+                            Close(false);
+                            return false;
+                        }
+
+                        if (loginMsg.Version.Length != 8 || loginMsg.Version != "1.16.5.0")
+                            Logger.WriteLog(LogType.Error, $"Client version mismatch: Server: 1.16.5.0 | Client: {loginMsg.Version}");
+
+                        Entry = Server.AuthenticateClient(this, loginMsg.AccountId, loginMsg.OneTimeKey);
+                        if (Entry == null)
+                        {
+                            Logger.WriteLog(LogType.Error, "Client with ip: {0} tried to log in with invalid session data! User Id: {1} | OneTimeKey: {2}", Socket.RemoteAddress, loginMsg.AccountId, loginMsg.OneTimeKey);
+                            Close(false);
+                            return false;
+                        }
+
+                        State = ClientState.LoggedIn;
+
+                        CharacterManager.Instance.StartCharacterSelection(this);
+                        return true;
+
+                    case ClientMessageOpcode.Move:
+                        break;
+
+                    case ClientMessageOpcode.CallServerMethod:
+                        break;
+
+                    case ClientMessageOpcode.Ping:
+                        break;
+                }
+            }
+            /*var packet = new PythonCallPacket(length);
             using (var br = data.GetReader())
             {
                 packet.Read(br);
@@ -181,14 +280,9 @@ namespace Rasa.Game
                 }
                 else
                     Logger.WriteLog(LogType.Error, $"Invalid data found in Python method call! Off: {br.BaseStream.Position} | Len: {packet.DataSize} | Array len: {br.BaseStream.Length}");
-            }
+            }*/
 
             return true;
-        }
-
-        public void SendPacket(uint entityId, PythonPacket packet)
-        {
-            SendPacket(new PythonCallPacket(packet, entityId));
         }
         #endregion
     }

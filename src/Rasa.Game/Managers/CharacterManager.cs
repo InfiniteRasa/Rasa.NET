@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Rasa.Managers
+﻿namespace Rasa.Managers
 {
     using Data;
     using Database.Tables.World;
@@ -47,20 +45,20 @@ namespace Rasa.Managers
             packet.EnabledRaceList.Add(3);
             packet.EnabledRaceList.Add(4);
 
-            client.SendPacket(5, packet);
+            client.CallMethod(5U, packet);
 
             for (var i = 0U; i < 16U; ++i)
-                client.SendPacket(5, new CreatePhysicalEntityPacket(101U + i, 3543));
+                client.CallMethod(5U, new CreatePhysicalEntityPacket(101U + i, 3543));
 
-            for (var i = 0; i < 16; ++i)
-                client.SendPacket(101 + (uint) i, new CharacterInfoPacket(i + 1, true));
+            for (var i = 0U; i < 16U; ++i)
+                client.CallMethod(101U + i, new CharacterInfoPacket(i + 1U, true));
 
             client.State = ClientState.CharacterSelection;
         }
 
         public void RequestCharacterName(Client client, int gender)
         {
-            client.SendPacket(5, new GeneratedCharacterNamePacket
+            client.CallMethod(5, new GeneratedCharacterNamePacket
             {
                 Name = RandomNameTable.GetRandom(gender == 0 ? "male" : "female", "first") ?? (gender == 0 ? "Richard" : "Rachel")
             });
@@ -68,7 +66,7 @@ namespace Rasa.Managers
 
         public void RequestFamilyName(Client client)
         {
-            client.SendPacket(5, new GeneratedFamilyNamePacket
+            client.CallMethod(5, new GeneratedFamilyNamePacket
             {
                 Name = RandomNameTable.GetRandom("neatural", "last") ?? "Garriott"
             });
@@ -90,12 +88,12 @@ namespace Rasa.Managers
 
         private void SendCharacterCreateFailed(Client client, CreateCharacterResult result)
         {
-            client.SendPacket(5, new UserCreationFailedPacket(result));
+            client.CallMethod(5, new UserCreationFailedPacket(result));
         }
 
         private void SendCharacterCreateSuccess(Client client, int slotNum, string familyName)
         {
-            client.SendPacket(5, new CharacterCreateSuccessPacket(slotNum, familyName));
+            client.CallMethod(5, new CharacterCreateSuccessPacket(slotNum, familyName));
         }
     }
 }

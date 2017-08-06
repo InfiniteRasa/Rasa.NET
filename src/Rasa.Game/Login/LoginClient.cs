@@ -43,7 +43,7 @@ namespace Rasa.Login
 
         private void OnEncrypt(BufferData data, ref int length)
         {
-            GameCryptManager.Instance.Encrypt(data.Buffer, data.RealOffset, ref length, data.RemainingLength, Data);
+            GameCryptManager.Encrypt(data.Buffer, data.BaseOffset + data.Offset, ref length, data.RemainingLength, Data);
         }
 
         private void OnReceive(BufferData data)
@@ -56,7 +56,7 @@ namespace Rasa.Login
             var key = new byte[64];
             K.WriteToBigEndian(key, 0, key.Length);
 
-            GameCryptManager.Instance.Initialize(Data, key);
+            GameCryptManager.Initialize(Data, key);
 
             Socket.Send(new ClientKeyOkPacket());
 

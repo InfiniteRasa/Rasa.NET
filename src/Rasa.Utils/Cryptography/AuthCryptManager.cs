@@ -4,31 +4,9 @@ namespace Rasa.Cryptography
 {
     using Auth;
 
-    public class AuthCryptManager : ICryptoManager
+    public static class AuthCryptManager
     {
-        public static AuthCryptManager Instance
-        {
-            get
-            {
-                if (_instance == null)
-                {
-                    lock (InstLock)
-                    {
-                        if (_instance == null)
-                            _instance = new AuthCryptManager();
-                    }
-                }
-
-                return _instance;
-            }
-        }
-
-        private static AuthCryptManager _instance;
-        private static readonly object InstLock = new object();
-
-        private AuthCryptManager() {}
-
-        public bool Decrypt(byte[] data, int offset, int length, ClientCryptData cryptData = null)
+        public static bool Decrypt(byte[] data, int offset, int length, ClientCryptData cryptData = null)
         {
             if (length % 8 != 0)
                 throw new ArgumentOutOfRangeException(nameof(length), "The lenght must be a multiple of 8!");
@@ -38,7 +16,7 @@ namespace Rasa.Cryptography
             return VerifyChecksum(data, offset, length);
         }
 
-        public void Encrypt(byte[] data, int offset, ref int length, int maxLength, ClientCryptData cryptData = null)
+        public static void Encrypt(byte[] data, int offset, ref int length, int maxLength, ClientCryptData cryptData = null)
         {
             var oldLen = length;
 

@@ -192,6 +192,8 @@ namespace Rasa.Game
                     return null;
 
                 var entry = IncomingClients[accountId];
+                if (entry == null || entry.OneTimeKey != oneTimeKey)
+                    return null;
 
                 IncomingClients.Remove(accountId);
 

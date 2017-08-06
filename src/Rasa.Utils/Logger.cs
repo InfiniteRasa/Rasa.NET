@@ -13,6 +13,7 @@ namespace Rasa
         Initialize,
         Command,
         File,
+        Security,
         None
     }
 
@@ -108,6 +109,11 @@ namespace Rasa
                 case LogType.File: // Only logs to file, color doesn't matter
                     prefix = "FileLog";
                     desiredColor = ConsoleColor.Black;
+                    break;
+
+                case LogType.Security:
+                    prefix = "Security";
+                    desiredColor = ConsoleColor.DarkRed;
                     break;
 
                 default:

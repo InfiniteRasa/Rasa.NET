@@ -10,7 +10,7 @@
 
         private readonly bool _empty;
 
-        public int SlotId { get; set; }
+        public uint SlotId { get; set; }
         public bool IsSelected { get; set; }
         public BodyDataTuple BodyData { get; set; }
         public AppearanceData AppearanceData { get; set; }
@@ -20,7 +20,7 @@
         public object LoginData { get; set; }
         public object ClanData { get; set; }
 
-        public CharacterInfoPacket(int slotId, bool empty)
+        public CharacterInfoPacket(uint slotId, bool empty)
         {
             SlotId = slotId;
             _empty = empty;
@@ -37,7 +37,7 @@
             pw.WriteDictionary(9);
 
             pw.WriteString("SlotId");
-            pw.WriteInt(SlotId);
+            pw.WriteUInt(SlotId);
 
             pw.WriteString("IsSelected");
             pw.WriteInt(SlotId == 0 ? 1 : 0);

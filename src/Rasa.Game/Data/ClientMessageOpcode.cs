@@ -2,6 +2,7 @@
 {
     public enum ClientMessageOpcode : short
     {
+        None                 = 0,
         Login                = 1,
         LoginResponse        = 2,
         Move                 = 3,

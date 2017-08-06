@@ -4,19 +4,16 @@ using System.Text;
 
 namespace Rasa.Memory
 {
-    public class BufferData : IDisposable
+    public class BufferData
     {
         public byte[] Buffer => BufferManager.Buffer;
-        public int BaseOffset { get; }
-        public int MaxLength => BufferManager.BlockSize;
+        public int BaseOffset { get; set; }
+        public int RealBaseOffset { get; }
+        public int MaxLength => BufferManager.BlockSize - (RealBaseOffset - BaseOffset);
 
         public int Offset { get; set; }
         public int Length { get; set; }
         public int ByteCount { get; set; }
-        public int ByteOffset => BaseOffset + ByteCount;
-        public int RealOffset => BaseOffset + Offset;
-        public int Remaining => ByteCount - Offset;
-        public int Missing => Length - ByteCount;
         public int RemainingLength => Length - Offset;
 
         public bool Free { get; set; } = true;
@@ -25,7 +22,7 @@ namespace Rasa.Memory
 
         public BufferData(int baseOffset)
         {
-            BaseOffset = baseOffset;
+            RealBaseOffset = baseOffset;
 
             Reset();
         }
@@ -38,6 +35,7 @@ namespace Rasa.Memory
 
         public void Reset()
         {
+            BaseOffset = RealBaseOffset;
             Length = MaxLength;
             Offset = ByteCount = 0;
 
@@ -56,29 +54,29 @@ namespace Rasa.Memory
             Array.Clear(Buffer, BaseOffset + offset, length);
         }
 
-        public void CopyTo(BufferData other, int offset, int length, int destOffset = 0)
+        public static void Copy(BufferData source, int sourceOffset, BufferData dest, int destOffset, int length)
         {
-            CheckConstraints(offset, length);
-            other.CheckConstraints(destOffset, length);
+            source.CheckConstraints(sourceOffset, length);
+            dest.CheckConstraints(destOffset, length);
 
-            Array.Copy(Buffer, BaseOffset + offset, Buffer, other.BaseOffset + destOffset, length);
+            Array.Copy(source.Buffer, source.BaseOffset + sourceOffset, dest.Buffer, dest.BaseOffset + destOffset, length);
         }
 
         public void MoveTo(BufferData other, int destOffset = 0)
         {
-            MoveTo(other, Offset, Length, destOffset);
+            MoveTo(other, Offset, RemainingLength, destOffset);
         }
 
         public void MoveTo(BufferData other, int offset, int length, int destOffset = 0)
         {
-            CopyTo(other, offset, length, destOffset);
+            Copy(this, offset, other, destOffset, length);
 
             Clear(offset, length);
         }
 
         public BinaryReader GetReader()
         {
-            return GetReader(Offset, Length, Encoding.UTF8, false);
+            return GetReader(Offset, RemainingLength, Encoding.UTF8, false);
         }
 
         public BinaryReader GetReader(int offset, int length)
@@ -136,7 +134,7 @@ namespace Rasa.Memory
         {
             var sb = new StringBuilder();
 
-            for (var i = 0; i < Length; ++i)
+            for (var i = 0; i < RemainingLength; ++i)
             {
                 if (i > 0)
                     sb.Append(", ");
@@ -150,20 +148,6 @@ namespace Rasa.Memory
         public override string ToString()
         {
             return $"BufferData[{BaseOffset} + {Offset}, {Length}]";
-        }
-
-        public void FreeBuffer()
-        {
-            if (Free)
-                return;
-
-            BufferManager.FreeBuffer(this);
-            Free = true;
-        }
-
-        public void Dispose()
-        {
-            FreeBuffer();
         }
     }
 }

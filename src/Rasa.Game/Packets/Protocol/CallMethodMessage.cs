@@ -19,6 +19,14 @@ namespace Rasa.Packets.Protocol
         public byte MinSubtype { get; } = 1;
         public byte MaxSubtype { get; } = 4;
         public ClientMessageSubtypeFlag SubtypeFlags { get; } = ClientMessageSubtypeFlag.HasSubtype;
+        public uint EntityId { get; private set; }
+        public PythonPacket Packet { get; private set; }
+
+        public CallMethodMessage(uint entityId, PythonPacket packet)
+        {
+            EntityId = entityId;
+            Packet = packet;
+        }
 
         public void Read(ProtocolBufferReader reader)
         {

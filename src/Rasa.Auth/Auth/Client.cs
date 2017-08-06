@@ -105,7 +105,7 @@ namespace Rasa.Auth
 
                     AccountTable.UpdateLastServer(Entry.Id, info.ServerId);
 
-                    Logger.WriteLog(LogType.Debug, $"Account ({Entry.Username}, {Entry.Id}) was redirected to the queue of the server: {info.ServerId}!");
+                    Logger.WriteLog(LogType.Network, $"Account ({Entry.Username}, {Entry.Id}) was redirected to the queue of the server: {info.ServerId}!");
                     break;
 
                 default:
@@ -120,12 +120,12 @@ namespace Rasa.Auth
 
         private static void OnEncrypt(BufferData data, ref int length)
         {
-            AuthCryptManager.Instance.Encrypt(data.Buffer, data.RealOffset, ref length, data.RemainingLength);
+            AuthCryptManager.Encrypt(data.Buffer, data.BaseOffset + data.Offset, ref length, data.RemainingLength);
         }
 
         private static bool OnDecrypt(BufferData data)
         {
-            return AuthCryptManager.Instance.Decrypt(data.Buffer, data.RealOffset, data.Length);
+            return AuthCryptManager.Decrypt(data.Buffer, data.BaseOffset + data.Offset, data.RemainingLength);
         }
 
         private void OnReceive(BufferData data)
@@ -157,7 +157,7 @@ namespace Rasa.Auth
             {
                 SendPacket(new LoginFailPacket(FailReason.UserNameOrPassword));
                 Close(false);
-                Logger.WriteLog(LogType.Debug, $"User ({packet.UserName}) tried to log in with an invalid username!");
+                Logger.WriteLog(LogType.Security, $"User ({packet.UserName}) tried to log in with an invalid username!");
                 return;
             }
 
@@ -165,7 +165,7 @@ namespace Rasa.Auth
             {
                 SendPacket(new LoginFailPacket(FailReason.UserNameOrPassword));
                 Close(false);
-                Logger.WriteLog(LogType.Debug, $"User ({Entry.Username}, {Entry.Id}) tried to log in with an invalid password!");
+                Logger.WriteLog(LogType.Security, $"User ({Entry.Username}, {Entry.Id}) tried to log in with an invalid password!");
                 return;
             }
 
@@ -173,7 +173,7 @@ namespace Rasa.Auth
             {
                 SendPacket(new BlockedAccountPacket());
                 Close(false);
-                Logger.WriteLog(LogType.Debug, $"User ({Entry.Username}, {Entry.Id}) tried to log in, but he/she is locked.");
+                Logger.WriteLog(LogType.Security, $"User ({Entry.Username}, {Entry.Id}) tried to log in, but he/she is locked.");
                 return;
             }
 
@@ -222,7 +222,7 @@ namespace Rasa.Auth
         {
             if (SessionId1 != packet.SessionId1 || SessionId2 != packet.SessionId2)
             {
-                Logger.WriteLog(LogType.Debug, $"Account ({Entry.Username}, {Entry.Id}) has sent an AboutToPlay packet with invalid session data!");
+                Logger.WriteLog(LogType.Security, $"Account ({Entry.Username}, {Entry.Id}) has sent an AboutToPlay packet with invalid session data!");
                 return;
             }
 
