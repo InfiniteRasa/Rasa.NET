@@ -9,7 +9,7 @@ namespace Rasa.Memory
         public byte[] Buffer => BufferManager.Buffer;
         public int BaseOffset { get; set; }
         public int RealBaseOffset { get; }
-        public int MaxLength => BufferManager.BlockSize - (RealBaseOffset - BaseOffset);
+        public int MaxLength => BufferManager.BlockSize - (BaseOffset - RealBaseOffset);
 
         public int Offset { get; set; }
         public int Length { get; set; }
@@ -128,6 +128,9 @@ namespace Rasa.Memory
 
             if (offset + length > MaxLength)
                 throw new Exception("BufferData tried to access another BufferData's memory!");
+
+            if (BaseOffset < RealBaseOffset || BaseOffset > RealBaseOffset + BufferManager.BlockSize)
+                throw new Exception("The BaseOffset is in another buffer's area!");
         }
 
         public string ByteData()
