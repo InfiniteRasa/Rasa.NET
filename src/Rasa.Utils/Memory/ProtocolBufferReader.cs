@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Net;
 using System.Text;
 
 namespace Rasa.Memory
@@ -93,7 +94,7 @@ namespace Rasa.Memory
 
         public int ReadInt()
         {
-            ReadDebugByte(7);
+            ReadDebugByte(6);
 
             return (Flags & ProtocolBufferFlags.DontFragment) == ProtocolBufferFlags.DontFragment ? Reader.ReadInt32() : ReadIntBySevenBits();
         }
@@ -105,6 +106,13 @@ namespace Rasa.Memory
             return (Flags & ProtocolBufferFlags.DontFragment) == ProtocolBufferFlags.DontFragment ? Reader.ReadUInt32() : ReadUIntBySevenBits();
         }
 
+        public ulong ReadULong()
+        {
+            ReadDebugByte(9);
+
+            return (Flags & ProtocolBufferFlags.DontFragment) == ProtocolBufferFlags.DontFragment ? Reader.ReadUInt64() : ReadULongBySevenBits();
+        }
+
         public string ReadString()
         {
             ReadDebugByte(13);
@@ -114,6 +122,74 @@ namespace Rasa.Memory
             var strBytes = Reader.ReadBytes(length);
 
             return Encoding.UTF8.GetString(strBytes, 0, length);
+        }
+
+        public IPEndPoint ReadNetAddress()
+        {
+            ReadDebugByte(41);
+
+            var addr = ReadUInt(); // todo: maybe ntohl?
+            var port = ReadInt() & 0xFFFF; // todo: maybe htons?
+
+            ReadUInt(); // unknown, unused value
+
+            ReadDebugByte(42);
+
+            return new IPEndPoint(addr, port);
+        }
+
+        public object ReadMovement()
+        {
+            ReadDebugByte(41);
+
+            ReadDebugByte(3);
+            ReadByte();
+
+            var x = ReadPackedFloat(); // TODO
+            var y = ReadPackedFloat();
+            var z = ReadPackedFloat();
+            var velocity = ReadPackedVelocity();
+            var flags = ReadByte();
+
+            float viewX, viewY;
+            ReadPackedViewCoords(out viewX, out viewY);
+            
+
+            ReadDebugByte(42);
+
+            return null;
+        }
+
+        public float ReadPackedFloat()
+        {
+            ReadDebugByte(41);
+
+            var value = ((ReadByte() << 16)  | (ReadByte() << 8) | ReadByte()) / 256.0f;
+
+            ReadDebugByte(42);
+
+            return value;
+        }
+
+        public float ReadPackedVelocity()
+        {
+            ReadDebugByte(41);
+
+            var velocity = ReadUshort() / 1024.0f;
+
+            ReadDebugByte(42);
+
+            return velocity;
+        }
+
+        public void ReadPackedViewCoords(out float viewX, out float viewY)
+        {
+            ReadDebugByte(41);
+
+            viewX = ReadUshort() / 10430.378f;
+            viewY = ReadUshort() / 10430.378f;
+
+            ReadDebugByte(42);
         }
 
         public short ReadShortBySevenBits()
@@ -169,10 +245,15 @@ namespace Rasa.Memory
             int byteCount;
             var valueBytes = GatherSevenBitBytes(6, out byteCount);
 
-            var bitCount = 0;
-            var value = 0;
+            var negative = (valueBytes[0] & 0x40) != 0;
+            var value = valueBytes[0] & 0x3F;
 
-            for (var i = 0; i < byteCount;)
+            if ((valueBytes[0] & 0x80) == 0)
+                return negative ? -value : value;
+            
+            var bitCount = 6;
+
+            for (var i = 1; i < byteCount;)
             {
                 if (bitCount >= 32)
                     throw new Exception("Bitcount can't be higher or equal to 32!");
@@ -182,7 +263,7 @@ namespace Rasa.Memory
                 bitCount += 7;
 
                 if ((valueBytes[i++] & 0x80) == 0)
-                    return value;
+                    return negative ? -value : value;
             }
 
             throw new Exception("Input value is not over, but the array is!");
@@ -202,6 +283,30 @@ namespace Rasa.Memory
                     throw new Exception("Bitcount can't be higher or equal to 32!");
 
                 value = (uint) (((valueBytes[i] & 0x7F) << bitCount) | ((int) value & ((1 << bitCount) - 1)));
+
+                bitCount += 7;
+
+                if ((valueBytes[i++] & 0x80) == 0)
+                    return value;
+            }
+
+            throw new Exception("Input value is not over, but the array is!");
+        }
+
+        public ulong ReadULongBySevenBits()
+        {
+            int byteCount;
+            var valueBytes = GatherSevenBitBytes(10, out byteCount);
+
+            var bitCount = 0;
+            var value = 0UL;
+
+            for (var i = 0; i < byteCount;)
+            {
+                if (bitCount >= 64)
+                    throw new Exception("Bitcount can't be higher or equal to 64!");
+
+                value = ((valueBytes[i] & 0x7FUL) << bitCount) | (value & ((1UL << bitCount) - 1UL));
 
                 bitCount += 7;
 
@@ -234,8 +339,8 @@ namespace Rasa.Memory
             for (byteInd = 0; byteInd < length;)
             {
                 dest[byteInd] = Reader.ReadByte();
-                hasValue = (dest[byteInd++] & 0x80) != 0;
 
+                hasValue = (dest[byteInd++] & 0x80) != 0;
                 if (!hasValue)
                     break;
             }

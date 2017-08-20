@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Rasa.Packets.Protocol
+﻿namespace Rasa.Packets.Protocol
 {
     using Data;
     using Memory;
@@ -19,9 +17,12 @@ namespace Rasa.Packets.Protocol
         public byte MaxSubtype { get; } = 0;
         public ClientMessageSubtypeFlag SubtypeFlags { get; } = ClientMessageSubtypeFlag.None;
 
+        public byte UnkByte { get; set; }
+
         public void Read(ProtocolBufferReader reader)
         {
-            throw new NotImplementedException();
+            UnkByte = reader.ReadByte();
+            var movementData = reader.ReadMovement();
         }
 
         public void Write(ProtocolBufferWriter writer)

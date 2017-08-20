@@ -17,6 +17,15 @@ namespace Rasa.Data
         Type2 = 2
     }
 
+    public enum LoginResponseMessageSubtype : byte
+    {
+        Handoff       = 1,
+        HandoffFailed = 2,
+        WaitForLogout = 3,
+        Success       = 4,
+        Failed        = 5
+    }
+
     public enum CallMethodMessageSubtype : byte
     {
         MethodId          = 1,

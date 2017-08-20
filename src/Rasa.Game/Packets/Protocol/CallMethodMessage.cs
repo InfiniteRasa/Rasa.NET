@@ -30,6 +30,33 @@ namespace Rasa.Packets.Protocol
 
         public void Read(ProtocolBufferReader reader)
         {
+            // read entity id
+            switch (Subtype)
+            {
+                case CallMethodMessageSubtype.MethodId:
+                    // readuint
+                    break;
+
+                case CallMethodMessageSubtype.MethodName:
+                    // readstring
+                    break;
+
+                case CallMethodMessageSubtype.UnkPlusMethodId:
+                    // readuint
+                    break;
+
+                case CallMethodMessageSubtype.UnkPlusMethodName:
+                    // readstring
+                    break;
+
+                default:
+                    throw new Exception($"Invalid subtype ({Subtype}) for CallMethodMessage!");
+            }
+            throw new NotImplementedException();
+        }
+
+        public void Write(ProtocolBufferWriter writer)
+        {
             switch (Subtype)
             {
                 case CallMethodMessageSubtype.MethodId:
@@ -47,11 +74,7 @@ namespace Rasa.Packets.Protocol
                 default:
                     throw new Exception($"Invalid subtype ({Subtype}) for CallMethodMessage!");
             }
-            throw new NotImplementedException();
-        }
 
-        public void Write(ProtocolBufferWriter writer)
-        {
             throw new NotImplementedException();
         }
     }

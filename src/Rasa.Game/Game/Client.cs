@@ -22,8 +22,8 @@ namespace Rasa.Game
         public Server Server { get; }
         public LoginAccountEntry Entry { get; private set; }
         public ClientState State { get; set; }
-        public uint SendSequence { get; private set; } = 1;
-        public uint ReceiveSequence { get; private set; }
+        public uint[] SendSequence { get; } = new uint[256];
+        public uint[] ReceiveSequence { get; } = new uint[256];
 
         private readonly ClientPacketHandler _handler;
 
@@ -45,6 +45,9 @@ namespace Rasa.Game
             Socket.OnDecrypt += OnDecrypt;
 
             Socket.ReceiveAsync();
+
+            for (var i = 0; i < 256; ++i)
+                SendSequence[i] = 1;
 
             Logger.WriteLog(LogType.Network, "*** Client connected from {0}", Socket.RemoteAddress);
         }
@@ -100,7 +103,7 @@ namespace Rasa.Game
             }
 
             if (pPacket.Channel != 0)
-                pPacket.SequenceNumber = SendSequence++;
+                pPacket.SequenceNumber = SendSequence[pPacket.Channel]++;
 
             Socket.Send(packet);
         }
@@ -187,8 +190,18 @@ namespace Rasa.Game
 
                 rawPacket.Read(br);
 
-                if (rawPacket.Channel != 0 && rawPacket.SequenceNumber < ReceiveSequence)
-                    Debugger.Break();
+                if (rawPacket.Channel != 0)
+                {
+                    if (rawPacket.SequenceNumber < ReceiveSequence[rawPacket.Channel])
+                    {
+                        Debugger.Break();
+
+                        length = rawPacket.Size; // throw away the packet
+                        return true;
+                    }
+
+                    ReceiveSequence[rawPacket.Channel] = rawPacket.SequenceNumber;
+                }
 
                 length = rawPacket.Size;
 
@@ -210,16 +223,41 @@ namespace Rasa.Game
                             return false;
                         }
 
+
                         if (loginMsg.Version.Length != 8 || loginMsg.Version != "1.16.5.0")
+                        {
                             Logger.WriteLog(LogType.Error, $"Client version mismatch: Server: 1.16.5.0 | Client: {loginMsg.Version}");
 
-                        Entry = Server.AuthenticateClient(this, loginMsg.AccountId, loginMsg.OneTimeKey);
-                        if (Entry == null)
-                        {
-                            Logger.WriteLog(LogType.Error, "Client with ip: {0} tried to log in with invalid session data! User Id: {1} | OneTimeKey: {2}", Socket.RemoteAddress, loginMsg.AccountId, loginMsg.OneTimeKey);
+                            SendMessage(new LoginResponseMessage()
+                            {
+                                ErrorCode = LoginErrorCodes.VersionMismatch,
+                                Subtype = LoginResponseMessageSubtype.Failed
+                            });
+
                             Close(false);
                             return false;
                         }
+
+                        Entry = Server.AuthenticateClient(this, loginMsg.AccountId, loginMsg.OneTimeKey); // TODO: implement ban system and check if the account is banned
+                        if (Entry == null)
+                        {
+                            Logger.WriteLog(LogType.Error, "Client with ip: {0} tried to log in with invalid session data! User Id: {1} | OneTimeKey: {2}", Socket.RemoteAddress, loginMsg.AccountId, loginMsg.OneTimeKey);
+
+                            SendMessage(new LoginResponseMessage()
+                            {
+                                ErrorCode = LoginErrorCodes.AuthenticationFailed,
+                                Subtype = LoginResponseMessageSubtype.Failed
+                            });
+
+                            Close(false);
+                            return false;
+                        }
+
+                        SendMessage(new LoginResponseMessage()
+                        {
+                            AccountId = loginMsg.AccountId,
+                            Subtype = LoginResponseMessageSubtype.Success
+                        });
 
                         State = ClientState.LoggedIn;
 

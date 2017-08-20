@@ -14,7 +14,7 @@ namespace Rasa.Memory
             Flags = flags;
         }
 
-        public void WriteProtocolFlags()
+        /*public void WriteProtocolFlags()
         {
 
         }
@@ -27,7 +27,7 @@ namespace Rasa.Memory
         public void WriteString(string value)
         {
 
-        }
+        }*/
 
         public void Dispose()
         {
