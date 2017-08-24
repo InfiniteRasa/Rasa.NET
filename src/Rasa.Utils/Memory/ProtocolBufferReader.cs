@@ -33,20 +33,6 @@ namespace Rasa.Memory
             Flags = flags;
         }
 
-        public void ReadProtocolFlags()
-        {
-            if ((Flags & ProtocolBufferFlags.Unk80) == ProtocolBufferFlags.Unk80)
-                return;
-
-            var flagByte = Reader.ReadByte();
-
-            Flags = (ProtocolBufferFlags)(flagByte & 0x3F);
-            UnknownValue = flagByte >> 6;
-
-            if (UnknownValue != 0)
-                throw new NotImplementedException("Reading is disabled if UnknownValue isn't 0!");
-        }
-
         public void ReadDebugByte(byte value)
         {
             if ((Flags & ProtocolBufferFlags.Debug) != ProtocolBufferFlags.Debug)
@@ -57,25 +43,11 @@ namespace Rasa.Memory
                 throw new Exception($"ProtocolBufferReader::ReadDebugByte(): Expected {value}, found {val}");
         }
 
-        public void ReadXORCheck(int length)
+        public byte[] ReadArray()
         {
-            if ((Flags & ProtocolBufferFlags.Unk80) == ProtocolBufferFlags.Unk80)
-                return;
+            ReadDebugByte(1);
 
-            if (Reader.ReadByte() != (byte)((length & 0xFF) ^ ((length >> 8) & 0xFF) ^ ((length >> 16) & 0xFF) ^ ((length >> 24) & 0xFF)))
-                throw new Exception("XORCheck failed!");
-        }
-
-        public void ReadPacketType(out ushort type, out bool compress)
-        {
-            ReadDebugByte(41);
-
-            var typeVal = ReadUshort();
-
-            type = (ushort) (typeVal >> 1);
-            compress = (typeVal & 1) == 1;
-
-            ReadDebugByte(42);
+            return Reader.ReadBytes(ReadCount());
         }
 
         public byte ReadByte()
@@ -85,7 +57,7 @@ namespace Rasa.Memory
             return Reader.ReadByte();
         }
 
-        public ushort ReadUshort()
+        public ushort ReadUShort()
         {
             ReadDebugByte(5);
 
@@ -117,11 +89,46 @@ namespace Rasa.Memory
         {
             ReadDebugByte(13);
 
-            var length = ReadStringLength();
+            var length = ReadCount();
 
             var strBytes = Reader.ReadBytes(length);
 
             return Encoding.UTF8.GetString(strBytes, 0, length);
+        }
+
+        public void ReadProtocolFlags()
+        {
+            if ((Flags & ProtocolBufferFlags.Unk80) == ProtocolBufferFlags.Unk80)
+                return;
+
+            var flagByte = Reader.ReadByte();
+
+            Flags = (ProtocolBufferFlags)(flagByte & 0x3F);
+            UnknownValue = flagByte >> 6;
+
+            if (UnknownValue != 0)
+                throw new NotImplementedException("Reading is disabled if UnknownValue isn't 0!");
+        }
+
+        public void ReadXORCheck(int length)
+        {
+            if ((Flags & ProtocolBufferFlags.Unk80) == ProtocolBufferFlags.Unk80)
+                return;
+
+            if (Reader.ReadByte() != (byte)((length & 0xFF) ^ ((length >> 8) & 0xFF) ^ ((length >> 16) & 0xFF) ^ ((length >> 24) & 0xFF)))
+                throw new Exception("XORCheck failed!");
+        }
+
+        public void ReadPacketType(out ushort type, out bool compress)
+        {
+            ReadDebugByte(41);
+
+            var typeVal = ReadUShort();
+
+            type = (ushort)(typeVal >> 1);
+            compress = (typeVal & 1) == 1;
+
+            ReadDebugByte(42);
         }
 
         public IPEndPoint ReadNetAddress()
@@ -175,7 +182,7 @@ namespace Rasa.Memory
         {
             ReadDebugByte(41);
 
-            var velocity = ReadUshort() / 1024.0f;
+            var velocity = ReadUShort() / 1024.0f;
 
             ReadDebugByte(42);
 
@@ -186,8 +193,8 @@ namespace Rasa.Memory
         {
             ReadDebugByte(41);
 
-            viewX = ReadUshort() / 10430.378f;
-            viewY = ReadUshort() / 10430.378f;
+            viewX = ReadUShort() / 10430.378f;
+            viewY = ReadUShort() / 10430.378f;
 
             ReadDebugByte(42);
         }
@@ -317,7 +324,7 @@ namespace Rasa.Memory
             throw new Exception("Input value is not over, but the array is!");
         }
 
-        private int ReadStringLength()
+        private int ReadCount()
         {
             ReadDebugByte(203);
 

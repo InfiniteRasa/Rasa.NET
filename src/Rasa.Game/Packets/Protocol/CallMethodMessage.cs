@@ -19,63 +19,70 @@ namespace Rasa.Packets.Protocol
         public byte MinSubtype { get; } = 1;
         public byte MaxSubtype { get; } = 4;
         public ClientMessageSubtypeFlag SubtypeFlags { get; } = ClientMessageSubtypeFlag.HasSubtype;
-        public uint EntityId { get; private set; }
-        public PythonPacket Packet { get; private set; }
+
+        public ulong EntityId { get; private set; }
+        public GameOpcode MethodId { get; set; }
+        public string MethodName { get; set; }
+        public uint UnknownValue { get; set; }
+        public PythonPacket Packet { get; }
 
         public CallMethodMessage(uint entityId, PythonPacket packet)
         {
             EntityId = entityId;
             Packet = packet;
+            Subtype = CallMethodMessageSubtype.MethodId;
         }
 
         public void Read(ProtocolBufferReader reader)
         {
-            // read entity id
+            EntityId = reader.ReadULong();
+
             switch (Subtype)
             {
                 case CallMethodMessageSubtype.MethodId:
-                    // readuint
+                case CallMethodMessageSubtype.UnkPlusMethodId:
+                    MethodId = (GameOpcode) reader.ReadUInt();
                     break;
 
                 case CallMethodMessageSubtype.MethodName:
-                    // readstring
-                    break;
-
-                case CallMethodMessageSubtype.UnkPlusMethodId:
-                    // readuint
-                    break;
-
                 case CallMethodMessageSubtype.UnkPlusMethodName:
-                    // readstring
+                    MethodName = reader.ReadString();
                     break;
 
                 default:
                     throw new Exception($"Invalid subtype ({Subtype}) for CallMethodMessage!");
             }
-            throw new NotImplementedException();
+
+            reader.ReadArray(); // No need to properly implement this, it won't be called anyways
+
+            if (Subtype == CallMethodMessageSubtype.UnkPlusMethodId || Subtype == CallMethodMessageSubtype.UnkPlusMethodName)
+                UnknownValue = reader.ReadUInt();
         }
 
         public void Write(ProtocolBufferWriter writer)
         {
+            writer.WriteULong(EntityId);
+
             switch (Subtype)
             {
                 case CallMethodMessageSubtype.MethodId:
+                case CallMethodMessageSubtype.UnkPlusMethodId:
+                    writer.WriteUInt((uint) MethodId);
                     break;
 
                 case CallMethodMessageSubtype.MethodName:
-                    break;
-
-                case CallMethodMessageSubtype.UnkPlusMethodId:
-                    break;
-
                 case CallMethodMessageSubtype.UnkPlusMethodName:
+                    writer.WriteString(MethodName);
                     break;
 
                 default:
                     throw new Exception($"Invalid subtype ({Subtype}) for CallMethodMessage!");
             }
 
-            throw new NotImplementedException();
+            Packet.Write(writer.Writer);
+
+            if (Subtype == CallMethodMessageSubtype.UnkPlusMethodId || Subtype == CallMethodMessageSubtype.UnkPlusMethodName)
+                writer.WriteUInt(UnknownValue);
         }
     }
 }

@@ -27,7 +27,8 @@
 
         public void Write(ProtocolBufferWriter writer)
         {
-            throw new NotImplementedException();
+            writer.WriteByte(UnkByte);
+            writer.WriteMovementData();
         }
     }
 }

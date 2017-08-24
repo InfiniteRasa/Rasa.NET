@@ -1,6 +1,6 @@
 ﻿namespace Rasa.Data
 {
-    public enum ClientMessageOpcode : short
+    public enum ClientMessageOpcode : ushort
     {
         None                 = 0,
         Login                = 1,

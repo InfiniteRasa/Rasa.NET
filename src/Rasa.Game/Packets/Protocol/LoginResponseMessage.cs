@@ -26,7 +26,7 @@ namespace Rasa.Packets.Protocol
         public uint MillisecondsUntilLogin { get; set; }
         public LoginErrorCodes ErrorCode { get; set; }
         public uint UnkUint { get; set; }
-        public string UnkStr { get; set; }
+        public string UnkStr { get; set; } = "";
         public IPEndPoint Address { get; set; }
 
         public void Read(ProtocolBufferReader reader)
@@ -62,7 +62,33 @@ namespace Rasa.Packets.Protocol
 
         public void Write(ProtocolBufferWriter writer)
         {
-            throw new NotImplementedException();
+            switch (Subtype)
+            {
+                case LoginResponseMessageSubtype.Handoff:
+                    writer.WriteUInt(AccountId);
+                    writer.WriteUInt(OneTimeKey);
+                    writer.WriteNetAddress(Address);
+                    break;
+
+                case LoginResponseMessageSubtype.HandoffFailed:
+                    writer.WriteUInt((uint)ErrorCode);
+                    break;
+
+                case LoginResponseMessageSubtype.WaitForLogout:
+                    writer.WriteUInt(MillisecondsUntilLogin);
+                    break;
+
+                case LoginResponseMessageSubtype.Success:
+                    writer.WriteUInt(AccountId);
+                    writer.WriteUInt(UnkUint);
+                    break;
+
+                case LoginResponseMessageSubtype.Failed:
+                    writer.WriteUInt((uint) ErrorCode);
+                    break;
+            }
+
+            writer.WriteString(UnkStr);
         }
     }
 }

@@ -86,7 +86,7 @@ namespace Rasa.Packets.Protocol
                 {
                     Debugger.Break(); // TODO: test
                     var uncompressedSize = br.ReadInt32();
-                    var compressedData = br.ReadBytes(Size - ((int)br.BaseStream.Position - packetBeginPosition));
+                    var compressedData = br.ReadBytes(Size - ((int) br.BaseStream.Position - packetBeginPosition));
                     var uncompressedData = new byte[uncompressedSize]; // TODO: later: avoid allocating byte[], reuse the byte[] in the buffer
 
                     using (var compressedStream = new MemoryStream(compressedData))
@@ -152,14 +152,40 @@ namespace Rasa.Packets.Protocol
             bw.Write(Channel);
             bw.Write((byte) 0); // padding
 
-            if (Channel != 0) // 0 == ReliableStreamChannel
+            if (Channel != 0)
             {
-                bw.Write(0); // sequence num?
+                bw.Write(SequenceNumber); // sequence num?
                 bw.Write(0xDEADBEEF); // const
                 bw.Write(0); // padding
             }
 
+            var packetBeginPosition = (int) bw.BaseStream.Position;
 
+            using (var writer = new ProtocolBufferWriter(bw, ProtocolBufferFlags.DontFragment)) // One writer only (should be two), because compression isn't implemented
+            {
+                // Packet type
+                writer.WriteProtocolFlags();
+
+                writer.WritePacketType((ushort) Message.Type, false); // TODO: proper compress handling
+
+                writer.WriteXORCheck((int) bw.BaseStream.Position - packetBeginPosition);
+
+                var xorCheckPosition = (int) bw.BaseStream.Position;
+
+                // Message body
+                writer.WriteProtocolFlags();
+
+                writer.WriteDebugByte(41);
+
+                if ((Message.SubtypeFlags & ClientMessageSubtypeFlag.HasSubtype) == ClientMessageSubtypeFlag.HasSubtype)
+                    writer.WriteByte(Message.RawSubtype);
+
+                Message.Write(writer);
+
+                writer.WriteDebugByte(42);
+
+                writer.WriteXORCheck((int) bw.BaseStream.Position - xorCheckPosition);
+            }
 
             var currentPosition = bw.BaseStream.Position;
 
@@ -168,8 +194,6 @@ namespace Rasa.Packets.Protocol
             bw.Write((ushort) (currentPosition - sizePosition));
 
             bw.BaseStream.Position = currentPosition;
-
-            throw new NotImplementedException();
         }
     }
 }

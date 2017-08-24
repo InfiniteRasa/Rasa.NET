@@ -19,14 +19,16 @@ namespace Rasa.Packets.Protocol
         public byte MaxSubtype { get; } = 0;
         public ClientMessageSubtypeFlag SubtypeFlags { get; } = ClientMessageSubtypeFlag.None;
 
+        public uint Unknown { get; set; }
+
         public void Read(ProtocolBufferReader reader)
         {
-            throw new NotImplementedException();
+            Unknown = reader.ReadUInt();
         }
 
         public void Write(ProtocolBufferWriter writer)
         {
-            throw new NotImplementedException();
+            writer.WriteUInt(Unknown);
         }
     }
 }

@@ -68,29 +68,9 @@ namespace Rasa.Game
             SendMessage(new CallMethodMessage(entityId, packet));
         }
 
-        public void SendMessage(CallMethodMessage message)
+        public void SendMessage(IClientMessage message, bool compress = false, byte channel = 0)
         {
-            SendPacket(new ProtocolPacket(message, ClientMessageOpcode.CallMethod, false, 0));
-        }
-
-        public void SendMessage(LoginResponseMessage message)
-        {
-            SendPacket(new ProtocolPacket(message, ClientMessageOpcode.LoginResponse, false, 0));
-        }
-
-        public void SendMessage(MoveObjectMessage message)
-        {
-            SendPacket(new ProtocolPacket(message, ClientMessageOpcode.MoveObject, false, 1));
-        }
-
-        public void SendMessage(NegotiateMoveChannelMessage message)
-        {
-            SendPacket(new ProtocolPacket(message, ClientMessageOpcode.NegotiateMoveChannel, false, 0));
-        }
-
-        public void SendMessage(PingMessage message)
-        {
-            SendPacket(new ProtocolPacket(message, ClientMessageOpcode.Ping, false, 0));
+            SendPacket(new ProtocolPacket(message, message.Type, compress, channel));
         }
 
         public void SendPacket(IBasePacket packet)
@@ -98,7 +78,7 @@ namespace Rasa.Game
             var pPacket = packet as ProtocolPacket;
             if (pPacket == null)
             {
-                Debugger.Break(); // todo: handle outgoing queue packet sending from server (like in auth) (todo: maybe a delegate instead of an interface?)
+                Debugger.Break();
                 return;
             }
 
@@ -228,7 +208,7 @@ namespace Rasa.Game
                         {
                             Logger.WriteLog(LogType.Error, $"Client version mismatch: Server: 1.16.5.0 | Client: {loginMsg.Version}");
 
-                            SendMessage(new LoginResponseMessage()
+                            SendMessage(new LoginResponseMessage
                             {
                                 ErrorCode = LoginErrorCodes.VersionMismatch,
                                 Subtype = LoginResponseMessageSubtype.Failed
@@ -243,7 +223,7 @@ namespace Rasa.Game
                         {
                             Logger.WriteLog(LogType.Error, "Client with ip: {0} tried to log in with invalid session data! User Id: {1} | OneTimeKey: {2}", Socket.RemoteAddress, loginMsg.AccountId, loginMsg.OneTimeKey);
 
-                            SendMessage(new LoginResponseMessage()
+                            SendMessage(new LoginResponseMessage
                             {
                                 ErrorCode = LoginErrorCodes.AuthenticationFailed,
                                 Subtype = LoginResponseMessageSubtype.Failed
@@ -253,7 +233,7 @@ namespace Rasa.Game
                             return false;
                         }
 
-                        SendMessage(new LoginResponseMessage()
+                        SendMessage(new LoginResponseMessage
                         {
                             AccountId = loginMsg.AccountId,
                             Subtype = LoginResponseMessageSubtype.Success
