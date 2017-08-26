@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
+using System.Text;
 
 namespace Rasa.Packets.Protocol
 {
@@ -55,7 +56,7 @@ namespace Rasa.Packets.Protocol
                 br.ReadInt32(); // skip
             }
 
-            var packetBeginPosition = (int) br.BaseStream.Position;
+            var packetBeginPosition = br.BaseStream.Position;
 
             using (var reader = new ProtocolBufferReader(br, ProtocolBufferFlags.DontFragment))
             {
@@ -69,12 +70,14 @@ namespace Rasa.Packets.Protocol
                 Type = (ClientMessageOpcode) type;
                 Compress = compress;
 
-                reader.ReadXORCheck((int) br.BaseStream.Position - packetBeginPosition);
+                reader.ReadXORCheck((int) (br.BaseStream.Position - packetBeginPosition));
             }
 
             var xorCheckPosition = (int) br.BaseStream.Position;
 
             var readBr = br;
+
+            BufferData buffer = null;
 
             if (Compress)
             {
@@ -85,15 +88,26 @@ namespace Rasa.Packets.Protocol
                 if (someType == 1)
                 {
                     Debugger.Break(); // TODO: test
+
                     var uncompressedSize = br.ReadInt32();
-                    var compressedData = br.ReadBytes(Size - ((int) br.BaseStream.Position - packetBeginPosition));
-                    var uncompressedData = new byte[uncompressedSize]; // TODO: later: avoid allocating byte[], reuse the byte[] in the buffer
 
-                    using (var compressedStream = new MemoryStream(compressedData))
-                        using (var deflateStream = new DeflateStream(compressedStream, CompressionMode.Decompress))
-                            deflateStream.Read(uncompressedData, 0, uncompressedSize);
+                    byte[] uncompressedData;
+                    var offset = 0;
 
-                    readBr = new BinaryReader(new MemoryStream(uncompressedData));
+                    if (uncompressedSize > BufferManager.BlockSize)
+                        uncompressedData = new byte[uncompressedSize];
+                    else
+                    {
+                        buffer = BufferManager.RequestBuffer();
+
+                        uncompressedData = buffer.Buffer;
+                        offset = buffer.BaseOffset;
+                    }
+
+                    using (var deflateStream = new DeflateStream(br.BaseStream, CompressionMode.Decompress, true)) // TODO: test if the br.BaseStream is cool as the Stream input for the DeflateStream
+                        deflateStream.Read(uncompressedData, offset, uncompressedSize);
+
+                    readBr = buffer != null ? buffer.GetReader() : new BinaryReader(new MemoryStream(uncompressedData, 0, uncompressedSize, false), Encoding.UTF8, false);
                 }
             }
 
@@ -139,8 +153,11 @@ namespace Rasa.Packets.Protocol
 
                 reader.ReadDebugByte(42);
 
-                reader.ReadXORCheck((int)br.BaseStream.Position - xorCheckPosition);
+                reader.ReadXORCheck((int) br.BaseStream.Position - xorCheckPosition);
             }
+
+            if (buffer != null) // If we requested a buffer for decompressing, free it
+                BufferManager.FreeBuffer(buffer);
         }
 
         public void Write(BinaryWriter bw)
@@ -161,31 +178,67 @@ namespace Rasa.Packets.Protocol
 
             var packetBeginPosition = (int) bw.BaseStream.Position;
 
-            using (var writer = new ProtocolBufferWriter(bw, ProtocolBufferFlags.DontFragment)) // One writer only (should be two), because compression isn't implemented
+            var packetBuffer = BufferManager.RequestBuffer();
+            int uncompressedSize;
+
+            using (var ms = new MemoryStream(packetBuffer.Buffer, packetBuffer.BaseOffset, packetBuffer.MaxLength, true))
             {
-                // Packet type
+                using (var packetWriter = new BinaryWriter(ms, Encoding.UTF8, true))
+                {
+                    using (var writer = new ProtocolBufferWriter(packetWriter, ProtocolBufferFlags.DontFragment))
+                    {
+                        writer.WriteProtocolFlags();
+
+                        writer.WriteDebugByte(41);
+
+                        if ((Message.SubtypeFlags & ClientMessageSubtypeFlag.HasSubtype) == ClientMessageSubtypeFlag.HasSubtype)
+                            writer.WriteByte(Message.RawSubtype);
+
+                        Message.Write(writer);
+
+                        writer.WriteDebugByte(42);
+
+                        uncompressedSize = (int) ms.Position;
+
+                        writer.WriteXORCheck(uncompressedSize);
+                    }
+                }
+            }
+
+            var compress = (Message.SubtypeFlags & ClientMessageSubtypeFlag.Compress) == ClientMessageSubtypeFlag.Compress && uncompressedSize > 0;
+
+            using (var writer = new ProtocolBufferWriter(bw, ProtocolBufferFlags.DontFragment))
+            {
                 writer.WriteProtocolFlags();
 
-                writer.WritePacketType((ushort) Message.Type, false); // TODO: proper compress handling
+                writer.WritePacketType((ushort) Message.Type, compress);
 
                 writer.WriteXORCheck((int) bw.BaseStream.Position - packetBeginPosition);
 
-                var xorCheckPosition = (int) bw.BaseStream.Position;
-
-                // Message body
-                writer.WriteProtocolFlags();
-
-                writer.WriteDebugByte(41);
-
-                if ((Message.SubtypeFlags & ClientMessageSubtypeFlag.HasSubtype) == ClientMessageSubtypeFlag.HasSubtype)
-                    writer.WriteByte(Message.RawSubtype);
-
-                Message.Write(writer);
-
-                writer.WriteDebugByte(42);
-
-                writer.WriteXORCheck((int) bw.BaseStream.Position - xorCheckPosition);
             }
+
+            if (compress) // TODO: test
+            {
+                bw.Write((byte) 0x01);
+                bw.Write(uncompressedSize);
+
+                var compressedBuffer = BufferManager.RequestBuffer();
+                int compressedSize;
+
+                using (var compressStream = compressedBuffer.GetStream(true))
+                {
+                    using (var compressorStream = new DeflateStream(compressStream, CompressionMode.Compress, true))
+                        compressorStream.Write(packetBuffer.Buffer, packetBuffer.BaseOffset, uncompressedSize);
+
+                    compressedSize = (int) compressStream.Position;
+                }
+
+                bw.Write(compressedBuffer.Buffer, compressedBuffer.BaseOffset, compressedSize);
+
+                BufferManager.FreeBuffer(compressedBuffer);
+            }
+
+            BufferManager.FreeBuffer(packetBuffer);
 
             var currentPosition = bw.BaseStream.Position;
 

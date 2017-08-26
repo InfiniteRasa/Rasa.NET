@@ -8,7 +8,7 @@ namespace Rasa.Data
         None       = 0x00,
         Unk1       = 0x01,
         HasSubtype = 0x02,
-        Unk4       = 0x04
+        Compress   = 0x04
     }
 
     public enum LoginMessageSubtype : byte

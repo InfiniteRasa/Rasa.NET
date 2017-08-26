@@ -62,16 +62,16 @@ namespace Rasa.Memory
             Array.Copy(source.Buffer, source.BaseOffset + sourceOffset, dest.Buffer, dest.BaseOffset + destOffset, length);
         }
 
-        public void MoveTo(BufferData other, int destOffset = 0)
+        public MemoryStream GetStream(bool writable)
         {
-            MoveTo(other, Offset, RemainingLength, destOffset);
+            return GetStream(Offset, RemainingLength, writable);
         }
 
-        public void MoveTo(BufferData other, int offset, int length, int destOffset = 0)
+        public MemoryStream GetStream(int offset, int length, bool writable)
         {
-            Copy(this, offset, other, destOffset, length);
+            CheckConstraints(offset, length);
 
-            Clear(offset, length);
+            return new MemoryStream(Buffer, BaseOffset + offset, length, writable);
         }
 
         public BinaryReader GetReader()
@@ -84,16 +84,9 @@ namespace Rasa.Memory
             return GetReader(offset, length, Encoding.UTF8, false);
         }
 
-        public BinaryReader GetReader(int offset, int length, Encoding encoding)
-        {
-            return GetReader(offset, length, encoding, false);
-        }
-
         public BinaryReader GetReader(int offset, int length, Encoding encoding, bool leaveOpen)
         {
-            CheckConstraints(offset, length);
-
-            return new BinaryReader(new MemoryStream(Buffer, BaseOffset + offset, length, false), encoding, leaveOpen);
+            return new BinaryReader(GetStream(offset, length, false), encoding, leaveOpen);
         }
 
         public BinaryWriter CreateWriter()
@@ -106,16 +99,9 @@ namespace Rasa.Memory
             return CreateWriter(offset, length, Encoding.UTF8, false);
         }
 
-        public BinaryWriter CreateWriter(int offset, int length, Encoding encoding)
-        {
-            return CreateWriter(offset, length, encoding, false);
-        }
-
         public BinaryWriter CreateWriter(int offset, int length, Encoding encoding, bool leaveOpen)
         {
-            CheckConstraints(offset, length);
-
-            return new BinaryWriter(new MemoryStream(Buffer, BaseOffset + offset, length, true), encoding, leaveOpen);
+            return new BinaryWriter(GetStream(offset, length, true), encoding, leaveOpen);
         }
 
         private void CheckConstraints(int offset, int length)

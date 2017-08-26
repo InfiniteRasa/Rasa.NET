@@ -24,6 +24,20 @@ namespace Rasa.Memory
             Writer.Write(debug);
         }
 
+        public void WriteArray(byte[] bytes)
+        {
+            WriteArray(bytes, 0, bytes.Length);
+        }
+
+        public void WriteArray(byte[] bytes, int offset, int length)
+        {
+            WriteDebugByte(1);
+
+            WriteCount(length);
+
+            Writer.Write(bytes, offset, length);
+        }
+
         public void WriteByte(byte value)
         {
             WriteDebugByte(3);
