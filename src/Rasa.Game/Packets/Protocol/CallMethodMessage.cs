@@ -31,6 +31,15 @@ namespace Rasa.Packets.Protocol
             EntityId = entityId;
             Packet = packet;
             Subtype = CallMethodMessageSubtype.MethodId;
+            MethodId = packet.Opcode;
+        }
+
+        public CallMethodMessage(uint entityId, string methodName, PythonPacket packet)
+        {
+            EntityId = entityId;
+            MethodName = methodName;
+            Packet = packet;
+            Subtype = CallMethodMessageSubtype.MethodName;
         }
 
         public void Read(ProtocolBufferReader reader)
@@ -53,7 +62,7 @@ namespace Rasa.Packets.Protocol
                     throw new Exception($"Invalid subtype ({Subtype}) for CallMethodMessage!");
             }
 
-            reader.ReadArray(); // No need to properly implement this, it won't be called anyways
+            reader.ReadArray(); // No need to properly implement this, it won't be called anyways, the Read function is only here for clarity
 
             if (Subtype == CallMethodMessageSubtype.UnkPlusMethodId || Subtype == CallMethodMessageSubtype.UnkPlusMethodName)
                 UnknownValue = reader.ReadUInt();
@@ -79,7 +88,20 @@ namespace Rasa.Packets.Protocol
                     throw new Exception($"Invalid subtype ({Subtype}) for CallMethodMessage!");
             }
 
-            Packet.Write(writer.Writer);
+            var buffer = BufferManager.RequestBuffer();
+
+            using (var bw = buffer.CreateWriter())
+            {
+                bw.Write((byte) 0x4F); // 'O' - Optimized Marshall Format
+
+                Packet.Write(bw);
+
+                bw.Write((byte) 0x66); // 'f' - python payload finish mark
+
+                writer.WriteArray(buffer.Buffer, buffer.BaseOffset, (int) bw.BaseStream.Position);
+            }
+
+            BufferManager.FreeBuffer(buffer);
 
             if (Subtype == CallMethodMessageSubtype.UnkPlusMethodId || Subtype == CallMethodMessageSubtype.UnkPlusMethodName)
                 writer.WriteUInt(UnknownValue);
