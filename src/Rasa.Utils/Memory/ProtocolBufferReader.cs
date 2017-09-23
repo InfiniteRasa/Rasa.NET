@@ -85,6 +85,20 @@ namespace Rasa.Memory
             return (Flags & ProtocolBufferFlags.DontFragment) == ProtocolBufferFlags.DontFragment ? Reader.ReadUInt64() : ReadULongBySevenBits();
         }
 
+        public int ReadCount()
+        {
+            ReadDebugByte(203);
+
+            var lenMask = PeekByte();
+            var lenCount = lenMask >> 6;
+
+            var dest = new byte[4];
+
+            Reader.Read(dest, 0, lenCount + 1);
+
+            return (dest[0] & 0x3F) | (dest[1] << 6) | (dest[2] << 14) | (dest[3] << 22);
+        }
+
         public string ReadString()
         {
             ReadDebugByte(13);
@@ -322,20 +336,6 @@ namespace Rasa.Memory
             }
 
             throw new Exception("Input value is not over, but the array is!");
-        }
-
-        private int ReadCount()
-        {
-            ReadDebugByte(203);
-
-            var lenMask = PeekByte();
-            var lenCount = lenMask >> 6;
-
-            var dest = new byte[4];
-
-            Reader.Read(dest, 0, lenCount + 1);
-
-            return (dest[0] & 0x3F) | (dest[1] << 6) | (dest[2] << 14) | (dest[3] << 22);
         }
 
         private byte[] GatherSevenBitBytes(int length, out int byteInd)
