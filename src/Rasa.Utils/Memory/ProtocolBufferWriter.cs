@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Net;
 using System.Text;
 
 namespace Rasa.Memory
@@ -140,6 +141,16 @@ namespace Rasa.Memory
             WriteUShort((ushort) (type << 1 | (compress ? 1 : 0)));
 
             WriteDebugByte(42);
+        }
+
+        public void WriteNetAddress(IPEndPoint address)
+        {
+
+        }
+
+        public void WriteMovementData()
+        {
+
         }
 
         public void WriteUShortBySevenBits(ushort value)
