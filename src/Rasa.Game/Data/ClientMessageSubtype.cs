@@ -33,4 +33,18 @@ namespace Rasa.Data
         UnkPlusMethodId   = 3,
         UnkPlusMethodName = 4
     }
+
+    public enum CallServerMethodSubtype : byte
+    {
+        UserMethodById      = 1,
+        UserMethodByName    = 2,
+        SysUserMethodById   = 3,
+        SysUSerMethodByName = 4,
+        ActorMethodById     = 5,
+        ActorMethodByName   = 6,
+        ChatMsgById         = 7,
+        ChatMsgByName       = 8,
+        WorldMsgById        = 9,
+        WorldMsgByName      = 10
+    }
 }

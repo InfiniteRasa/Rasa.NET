@@ -70,7 +70,7 @@ namespace Rasa.Packets.Protocol
                     break;
 
                 case LoginResponseMessageSubtype.HandoffFailed:
-                    writer.WriteUInt((uint)ErrorCode);
+                    writer.WriteUInt((uint) ErrorCode);
                     break;
 
                 case LoginResponseMessageSubtype.WaitForLogout:

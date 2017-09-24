@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Rasa.Packets.Protocol
+﻿namespace Rasa.Packets.Protocol
 {
     using Data;
     using Memory;

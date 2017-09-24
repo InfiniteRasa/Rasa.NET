@@ -22,7 +22,7 @@
         public void Read(ProtocolBufferReader reader)
         {
             UnkByte = reader.ReadByte();
-            var movementData = reader.ReadMovement();
+            /*var movementData = */reader.ReadMovement();
         }
 
         public void Write(ProtocolBufferWriter writer)
