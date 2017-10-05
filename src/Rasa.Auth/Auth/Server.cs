@@ -28,13 +28,14 @@ namespace Rasa.Auth
         public Config Config { get; private set; }
         public LengthedSocket AuthCommunicator { get; private set; }
         public LengthedSocket ListenerSocket { get; private set; }
-        public PacketQueue PacketQueue { get; }
         public List<Client> Clients { get; } = new List<Client>();
+       
         public List<ServerInfo> ServerList { get; } = new List<ServerInfo>();
         public MainLoop Loop { get; }
         public Timer Timer { get; }
         public bool Running => Loop != null && Loop.Running;
 
+        private List<Client> ClientsToRemove { get; } = new List<Client>();
         private List<CommunicatorClient> GameServerQueue { get; } = new List<CommunicatorClient>();
         private Dictionary<byte, CommunicatorClient> GameServers { get; } = new Dictionary<byte, CommunicatorClient>();
 
@@ -50,8 +51,6 @@ namespace Rasa.Auth
             SetupServerList();
 
             LengthedSocket.InitializeEventArgsPool(Config.SocketAsyncConfig.MaxClients * Config.SocketAsyncConfig.ConcurrentOperationsByClient);
-
-            PacketQueue = new PacketQueue();
 
             BufferManager.Initialize(Config.SocketAsyncConfig.BufferSize, Config.SocketAsyncConfig.MaxClients, Config.SocketAsyncConfig.ConcurrentOperationsByClient);
 
@@ -100,8 +99,8 @@ namespace Rasa.Auth
 
         public void Disconnect(Client client)
         {
-            lock (Clients)
-                Clients.Remove(client);
+            lock (ClientsToRemove)
+                ClientsToRemove.Add(client);
         }
 
         private void SetupServerList()
@@ -111,9 +110,7 @@ namespace Rasa.Auth
 
             foreach (var s in Config.Servers)
             {
-                byte id;
-
-                if (!byte.TryParse(s.Key, out id))
+                if (!byte.TryParse(s.Key, out byte id))
                     continue;
 
                 ServerList.Add(new ServerInfo
@@ -167,13 +164,6 @@ namespace Rasa.Auth
             ListenerSocket.AcceptAsync();
 
             // TODO: Set up timed events (query stuff, internal communication, etc...)
-
-            Timer.Add("DisconnectTimedoutClients", 10000, true, () =>
-            {
-                lock (Clients)
-                    foreach (var c in Clients.Where(c => c.TimeoutTime < DateTime.Now))
-                        c.Close();
-            });
 
             return true;
         }
@@ -290,7 +280,7 @@ namespace Rasa.Auth
         {
             Client authClient;
             lock (Clients)
-                authClient = Clients.FirstOrDefault(c => c.Entry.Id == packet.AccountId);
+                authClient = Clients.FirstOrDefault(c => c.AccountEntry.Id == packet.AccountId);
 
             ServerInfo info;
             lock (ServerList)
@@ -340,8 +330,7 @@ namespace Rasa.Auth
                 {
                     foreach (var sInfo in ServerList)
                     {
-                        CommunicatorClient client;
-                        if (GameServers.TryGetValue(sInfo.ServerId, out client))
+                        if (GameServers.TryGetValue(sInfo.ServerId, out CommunicatorClient client))
                         {
                             sInfo.Setup(client.PublicAddress, client.QueuePort, client.GamePort, client.AgeLimit, client.PKFlag, client.CurrentPlayers, client.MaxPlayers);
                             continue;
@@ -395,15 +384,27 @@ namespace Rasa.Auth
 
         public void MainLoop(long delta)
         {
-            QueuedPacket packet;
-
-            while ((packet = PacketQueue.PopIncoming()) != null)
-                packet.Client.HandlePacket(packet.Packet);
-
             Timer.Update(delta);
 
-            while ((packet = PacketQueue.PopOutgoing()) != null)
-                packet.Client.SendPacket(packet.Packet);
+            if (Clients.Count == 0)
+                return;
+
+            lock (Clients)
+            {
+                foreach (var c in Clients)
+                    c.Update(delta);
+
+                if (ClientsToRemove.Count > 0)
+                {
+                    lock (ClientsToRemove)
+                    {
+                        foreach (var client in ClientsToRemove)
+                            Clients.Remove(client);
+
+                        ClientsToRemove.Clear();
+                    }
+                }
+            }
         }
 
         public void BroadcastServerList()
@@ -411,7 +412,7 @@ namespace Rasa.Auth
             lock (Clients)
                 foreach (var c in Clients)
                     if (c.State == ClientState.ServerList)
-                        c.SendPacket(new SendServerListExtPacket(ServerList, c.Entry.LastServerId));
+                        c.SendPacket(new SendServerListExtPacket(ServerList, c.AccountEntry.LastServerId));
         }
 
         #region Commands

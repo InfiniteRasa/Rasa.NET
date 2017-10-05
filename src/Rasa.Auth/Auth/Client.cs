@@ -13,6 +13,7 @@ namespace Rasa.Auth
     using Packets.Auth.Client;
     using Packets.Auth.Server;
     using Structures;
+    using Timer;
 
     public class Client : INetworkClient
     {
@@ -24,9 +25,11 @@ namespace Rasa.Auth
         public uint OneTimeKey { get; }
         public uint SessionId1 { get; }
         public uint SessionId2 { get; }
-        public AccountEntry Entry { get; private set; }
+        public AccountEntry AccountEntry { get; private set; }
         public ClientState State { get; private set; }
-        public DateTime TimeoutTime { get; private set; }
+        public Timer Timer { get; }
+
+        private PacketQueue PacketQueue { get; } = new PacketQueue();
 
         private static PacketRouter<Client, ClientOpcode> PacketRouter { get; } = new PacketRouter<Client, ClientOpcode>();
 
@@ -35,7 +38,8 @@ namespace Rasa.Auth
             Socket = socket;
             Server = server;
             State = ClientState.Connected;
-            TimeoutTime = DateTime.Now.AddMinutes(Server.Config.AuthConfig.ClientTimeout);
+
+            Timer = new Timer();
 
             Socket.OnError += OnError;
             Socket.OnReceive += OnReceive;
@@ -49,18 +53,45 @@ namespace Rasa.Auth
             SessionId1 = rnd.NextUInt();
             SessionId2 = rnd.NextUInt();
 
-            // This packet must not be encrypted, so call Socket.Send instead of SendPacket
             SendPacket(new ProtocolVersionPacket(OneTimeKey));
 
-            // This is here, so ProtocolVersionPacket won't get encrypted
+            // This is here (after ProtocolVersionPacket), so it won't get encrypted
             Socket.OnEncrypt += OnEncrypt;
 
+            Timer.Add("timeout", Server.Config.AuthConfig.ClientTimeout * 1000, false, () =>
+            {
+                Logger.WriteLog(LogType.Network, "*** Client timed out! Ip: {0}", Socket.RemoteAddress);
+
+                Close(true);
+            });
+
             Logger.WriteLog(LogType.Network, "*** Client connected from {0}", Socket.RemoteAddress);
+        }
+
+        public void Update(long delta)
+        {
+            Timer.Update(delta);
+
+            if (State == ClientState.Disconnected)
+                return;
+
+            QueuedPacket packet;
+
+            while ((packet = PacketQueue.PopIncoming()) != null)
+                HandlePacket(packet.Packet);
+
+            while ((packet = PacketQueue.PopOutgoing()) != null)
+                SendPacket(packet.Packet);
         }
         
         public void Close(bool sendPacket = true)
         {
+            if (State == ClientState.Disconnected)
+                return;
+
             Logger.WriteLog(LogType.Network, "*** Client disconnected! Ip: {0}", Socket.RemoteAddress);
+
+            Timer.Remove("timeout");
 
             State = ClientState.Disconnected;
 
@@ -92,7 +123,7 @@ namespace Rasa.Auth
 
                     Close(false);
 
-                    Logger.WriteLog(LogType.Error, $"Account ({Entry.Username}, {Entry.Id}) couldn't be redirected to server: {info.ServerId}!");
+                    Logger.WriteLog(LogType.Error, $"Account ({AccountEntry.Username}, {AccountEntry.Id}) couldn't be redirected to server: {info.ServerId}!");
                     break;
 
                 case RedirectResult.Success:
@@ -100,12 +131,12 @@ namespace Rasa.Auth
                     {
                         OneTimeKey = OneTimeKey,
                         ServerId = info.ServerId,
-                        UserId = Entry.Id
+                        UserId = AccountEntry.Id
                     });
 
-                    AccountTable.UpdateLastServer(Entry.Id, info.ServerId);
+                    AccountTable.UpdateLastServer(AccountEntry.Id, info.ServerId);
 
-                    Logger.WriteLog(LogType.Network, $"Account ({Entry.Username}, {Entry.Id}) was redirected to the queue of the server: {info.ServerId}!");
+                    Logger.WriteLog(LogType.Network, $"Account ({AccountEntry.Username}, {AccountEntry.Id}) was redirected to the queue of the server: {info.ServerId}!");
                     break;
 
                 default:
@@ -131,7 +162,7 @@ namespace Rasa.Auth
         private void OnReceive(BufferData data)
         {
             // Reset the timeout after every action
-            TimeoutTime = DateTime.Now.AddMinutes(Server.Config.AuthConfig.ClientTimeout);
+            Timer.ResetTimer("timeout");
 
             var packetType = PacketRouter.GetPacketType((ClientOpcode) data.Buffer[data.BaseOffset + data.Offset++]);
             if (packetType == null)
@@ -143,7 +174,7 @@ namespace Rasa.Auth
 
             packet.Read(data.GetReader());
 
-            Server.PacketQueue.EnqueueIncoming(this, packet);
+            PacketQueue.EnqueueIncoming(this, packet);
         }
 
         #region Handlers
@@ -152,8 +183,8 @@ namespace Rasa.Auth
         private void MsgLogin(LoginPacket packet)
         {
 
-            Entry = AccountTable.GetAccount(packet.UserName);
-            if (Entry == null)
+            AccountEntry = AccountTable.GetAccount(packet.UserName);
+            if (AccountEntry == null)
             {
                 SendPacket(new LoginFailPacket(FailReason.UserNameOrPassword));
                 Close(false);
@@ -161,23 +192,23 @@ namespace Rasa.Auth
                 return;
             }
 
-            if (!Entry.CheckPassword(packet.Password))
+            if (!AccountEntry.CheckPassword(packet.Password))
             {
                 SendPacket(new LoginFailPacket(FailReason.UserNameOrPassword));
                 Close(false);
-                Logger.WriteLog(LogType.Security, $"User ({Entry.Username}, {Entry.Id}) tried to log in with an invalid password!");
+                Logger.WriteLog(LogType.Security, $"User ({AccountEntry.Username}, {AccountEntry.Id}) tried to log in with an invalid password!");
                 return;
             }
 
-            if (Entry.Locked)
+            if (AccountEntry.Locked)
             {
                 SendPacket(new BlockedAccountPacket());
                 Close(false);
-                Logger.WriteLog(LogType.Security, $"User ({Entry.Username}, {Entry.Id}) tried to log in, but he/she is locked.");
+                Logger.WriteLog(LogType.Security, $"User ({AccountEntry.Username}, {AccountEntry.Id}) tried to log in, but he/she is locked.");
                 return;
             }
 
-            AccountTable.UpdateLoginData(Entry.Id, Socket.RemoteAddress);
+            AccountTable.UpdateLoginData(AccountEntry.Id, Socket.RemoteAddress);
 
             State = ClientState.LoggedIn;
 
@@ -213,7 +244,7 @@ namespace Rasa.Auth
         {
             State = ClientState.ServerList;
 
-            SendPacket(new SendServerListExtPacket(Server.ServerList, Entry.LastServerId));
+            SendPacket(new SendServerListExtPacket(Server.ServerList, AccountEntry.LastServerId));
         }
 
         // ReSharper disable once UnusedMember.Local - Used by reflection
@@ -222,7 +253,7 @@ namespace Rasa.Auth
         {
             if (SessionId1 != packet.SessionId1 || SessionId2 != packet.SessionId2)
             {
-                Logger.WriteLog(LogType.Security, $"Account ({Entry.Username}, {Entry.Id}) has sent an AboutToPlay packet with invalid session data!");
+                Logger.WriteLog(LogType.Security, $"Account ({AccountEntry.Username}, {AccountEntry.Id}) has sent an AboutToPlay packet with invalid session data!");
                 return;
             }
 
