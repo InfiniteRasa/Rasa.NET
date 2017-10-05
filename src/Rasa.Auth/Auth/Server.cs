@@ -35,7 +35,7 @@ namespace Rasa.Auth
         public Timer Timer { get; }
         public bool Running => Loop != null && Loop.Running;
 
-        private List<Client> ClientsToRemove { get; } = new List<Client>();
+        private readonly List<Client> _clientsToRemove = new List<Client>();
         private List<CommunicatorClient> GameServerQueue { get; } = new List<CommunicatorClient>();
         private Dictionary<byte, CommunicatorClient> GameServers { get; } = new Dictionary<byte, CommunicatorClient>();
 
@@ -99,8 +99,8 @@ namespace Rasa.Auth
 
         public void Disconnect(Client client)
         {
-            lock (ClientsToRemove)
-                ClientsToRemove.Add(client);
+            lock (_clientsToRemove)
+                _clientsToRemove.Add(client);
         }
 
         private void SetupServerList()
@@ -394,14 +394,14 @@ namespace Rasa.Auth
                 foreach (var c in Clients)
                     c.Update(delta);
 
-                if (ClientsToRemove.Count > 0)
+                if (_clientsToRemove.Count > 0)
                 {
-                    lock (ClientsToRemove)
+                    lock (_clientsToRemove)
                     {
-                        foreach (var client in ClientsToRemove)
+                        foreach (var client in _clientsToRemove)
                             Clients.Remove(client);
 
-                        ClientsToRemove.Clear();
+                        _clientsToRemove.Clear();
                     }
                 }
             }

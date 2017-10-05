@@ -15,7 +15,7 @@ namespace Rasa.Auth
     using Structures;
     using Timer;
 
-    public class Client : INetworkClient
+    public class Client
     {
         public const int LengthSize = 2;
 
@@ -29,7 +29,7 @@ namespace Rasa.Auth
         public ClientState State { get; private set; }
         public Timer Timer { get; }
 
-        private PacketQueue PacketQueue { get; } = new PacketQueue();
+        private PacketQueue _packetQueue = new PacketQueue();
 
         private static PacketRouter<Client, ClientOpcode> PacketRouter { get; } = new PacketRouter<Client, ClientOpcode>();
 
@@ -75,13 +75,13 @@ namespace Rasa.Auth
             if (State == ClientState.Disconnected)
                 return;
 
-            QueuedPacket packet;
+            IBasePacket packet;
 
-            while ((packet = PacketQueue.PopIncoming()) != null)
-                HandlePacket(packet.Packet);
+            while ((packet = _packetQueue.PopIncoming()) != null)
+                HandlePacket(packet);
 
-            while ((packet = PacketQueue.PopOutgoing()) != null)
-                SendPacket(packet.Packet);
+            while ((packet = _packetQueue.PopOutgoing()) != null)
+                SendPacket(packet);
         }
         
         public void Close(bool sendPacket = true)
@@ -174,7 +174,7 @@ namespace Rasa.Auth
 
             packet.Read(data.GetReader());
 
-            PacketQueue.EnqueueIncoming(this, packet);
+            _packetQueue.EnqueueIncoming(packet);
         }
 
         #region Handlers

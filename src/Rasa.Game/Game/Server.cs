@@ -28,7 +28,6 @@ namespace Rasa.Game
         public IPAddress PublicAddress { get; }
         public LengthedSocket AuthCommunicator { get; private set; }
         public LengthedSocket ListenerSocket { get; private set; }
-        public PacketQueue PacketQueue { get; } = new PacketQueue();
         public QueueManager QueueManager { get; private set; }
         public LoginManager LoginManager { get; set; } = new LoginManager();
         public List<Client> Clients { get; } = new List<Client>();
@@ -39,6 +38,7 @@ namespace Rasa.Game
         public bool IsFull => CurrentPlayers >= Config.ServerInfoConfig.MaxPlayers;
         public ushort CurrentPlayers { get; set; }
 
+        private readonly List<Client> _clientsToRemove = new List<Client>();
         private readonly PacketRouter<Server, CommOpcode> _router = new PacketRouter<Server, CommOpcode>();
 
         public Server()
@@ -86,21 +86,31 @@ namespace Rasa.Game
 
         public void Disconnect(Client client)
         {
-            lock (Clients)
-                Clients.Remove(client);
+            lock (_clientsToRemove)
+                _clientsToRemove.Add(client);
         }
 
         public void MainLoop(long delta)
         {
-            QueuedPacket packet;
+            if (Clients.Count == 0)
+                return;
 
-            while ((packet = PacketQueue.PopIncoming()) != null)
-                packet.Client.HandlePacket(packet.Packet);
+            lock (Clients)
+            {
+                foreach (var client in Clients)
+                    client.Update(delta);
 
-            Timer.Update(delta);
+                if (_clientsToRemove.Count > 0)
+                {
+                    lock (_clientsToRemove)
+                    {
+                        foreach (var client in _clientsToRemove)
+                            Clients.Remove(client);
 
-            while ((packet = PacketQueue.PopOutgoing()) != null)
-                packet.Client.SendPacket(packet.Packet);
+                        _clientsToRemove.Clear();
+                    }
+                }
+            }
         }
 
         #region Socketing

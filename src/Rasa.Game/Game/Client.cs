@@ -13,19 +13,21 @@ namespace Rasa.Game
     using Packets.Protocol;
     using Structures;
 
-    public class Client : INetworkClient
+    public class Client
     {
         public const int LengthSize = 2;
 
         public LengthedSocket Socket { get; }
         public ClientCryptData Data { get; }
         public Server Server { get; }
-        public LoginAccountEntry Entry { get; private set; }
+        public LoginAccountEntry AccountEntry { get; private set; }
         public ClientState State { get; set; }
         public uint[] SendSequence { get; } = new uint[256];
         public uint[] ReceiveSequence { get; } = new uint[256];
 
+        private readonly object _clientLock = new object();
         private readonly ClientPacketHandler _handler;
+        private readonly PacketQueue _packetQueue = new PacketQueue();
 
         private static PacketRouter<ClientPacketHandler, GameOpcode> PacketRouter { get; } = new PacketRouter<ClientPacketHandler, GameOpcode>();
 
@@ -52,15 +54,35 @@ namespace Rasa.Game
             Logger.WriteLog(LogType.Network, "*** Client connected from {0}", Socket.RemoteAddress);
         }
 
+        public void Update(long delta)
+        {
+            IBasePacket packet;
+
+            while ((packet = _packetQueue.PopIncoming()) != null)
+                HandlePacket(packet);
+
+            while ((packet = _packetQueue.PopOutgoing()) != null)
+                SendPacket(packet);
+        }
+
         public void Close(bool sendPacket = true)
         {
-            Logger.WriteLog(LogType.Network, "*** Client disconnected! Ip: {0}", Socket.RemoteAddress);
+            if (State == ClientState.Disconnected)
+                return;
 
-            State = ClientState.Disconnected;
+            lock (_clientLock)
+            {
+                if (State == ClientState.Disconnected)
+                    return;
 
-            Socket.Close();
+                Logger.WriteLog(LogType.Network, "*** Client disconnected! Ip: {0}", Socket.RemoteAddress);
 
-            Server.Disconnect(this);
+                State = ClientState.Disconnected;
+
+                Socket.Close();
+
+                Server.Disconnect(this);
+            }
         }
 
         public void CallMethod(uint entityId, PythonPacket packet)
@@ -68,9 +90,14 @@ namespace Rasa.Game
             SendMessage(new CallMethodMessage(entityId, packet));
         }
 
-        public void SendMessage(IClientMessage message, bool compress = false, byte channel = 0)
+        public void SendMessage(IClientMessage message, bool compress = false, byte channel = 0, bool delay = true)
         {
-            SendPacket(new ProtocolPacket(message, message.Type, compress, channel));
+            var protocolPacket = new ProtocolPacket(message, message.Type, compress, channel);
+
+            if (!delay)
+                SendPacket(protocolPacket);
+            else
+                _packetQueue.EnqueueOutgoing(protocolPacket);
         }
 
         public void SendPacket(IBasePacket packet)
@@ -85,16 +112,73 @@ namespace Rasa.Game
             if (pPacket.Channel != 0)
                 pPacket.SequenceNumber = SendSequence[pPacket.Channel]++;
 
-            Socket.Send(packet);
+            Socket.Send(pPacket);
         }
 
         public void HandlePacket(IBasePacket packet)
         {
-            var authPacket = packet as PythonPacket;
-            if (authPacket == null)
+            var pPacket = packet as ProtocolPacket;
+            if (pPacket == null)
                 return;
 
-            PacketRouter.RoutePacket(_handler, authPacket);
+            switch (pPacket.Type)
+            {
+                case ClientMessageOpcode.Login:
+                    var loginMsg = pPacket.Message as LoginMessage;
+                    if (loginMsg == null)
+                    {
+                        Close(false);
+                        return;
+                    }
+
+                    if (loginMsg.Version.Length != 8 || loginMsg.Version != "1.16.5.0")
+                    {
+                        Logger.WriteLog(LogType.Error, $"Client version mismatch: Server: 1.16.5.0 | Client: {loginMsg.Version}");
+
+                        SendMessage(new LoginResponseMessage
+                        {
+                            ErrorCode = LoginErrorCodes.VersionMismatch,
+                            Subtype = LoginResponseMessageSubtype.Failed
+                        }, delay: false);
+                        return;
+                    }
+
+                    AccountEntry = Server.AuthenticateClient(this, loginMsg.AccountId, loginMsg.OneTimeKey); // TODO: implement ban system and check if the account is banned
+                    if (AccountEntry == null)
+                    {
+                        Logger.WriteLog(LogType.Error, "Client with ip: {0} tried to log in with invalid session data! User Id: {1} | OneTimeKey: {2}", Socket.RemoteAddress, loginMsg.AccountId, loginMsg.OneTimeKey);
+
+                        SendMessage(new LoginResponseMessage
+                        {
+                            ErrorCode = LoginErrorCodes.AuthenticationFailed,
+                            Subtype = LoginResponseMessageSubtype.Failed
+                        }, delay: false);
+                        return;
+                    }
+
+                    SendMessage(new LoginResponseMessage
+                    {
+                        AccountId = loginMsg.AccountId,
+                        Subtype = LoginResponseMessageSubtype.Success
+                    });
+
+                    State = ClientState.LoggedIn;
+
+                    CharacterManager.Instance.StartCharacterSelection(this);
+                    return;
+
+                case ClientMessageOpcode.Move:
+                    break;
+
+                case ClientMessageOpcode.CallServerMethod:
+                    var csmPacket = pPacket.Message as CallServerMethodMessage; // TODO
+                    PacketRouter.RoutePacket(_handler, null);
+                    break;
+
+                case ClientMessageOpcode.Ping:
+                    break;
+            }
+
         }
 
         #region Socketing
@@ -144,10 +228,9 @@ namespace Rasa.Game
                 if (data.RemainingLength == 0)
                     break;
 
-                ushort subsize;
                 var startOffset = data.Offset;
 
-                if (!DecodePacket(data, out subsize))
+                if (!DecodePacket(data, out ushort subsize))
                     return;
 
                 if (data.Offset == startOffset + subsize)
@@ -187,72 +270,15 @@ namespace Rasa.Game
 
                 data.Offset += (int) br.BaseStream.Position;
 
-                switch (rawPacket.Type)
+                if (rawPacket.Type == ClientMessageOpcode.None)
                 {
-                    case ClientMessageOpcode.None: // Send timeout check
-                        if (length != 4)
-                            Debugger.Break(); // If it's not send timeout check, let's investigate...
+                    if (length != 4)
+                        Debugger.Break(); // If it's not send timeout check, let's investigate...
 
-                        return true;
-
-                    case ClientMessageOpcode.Login:
-                        var loginMsg = rawPacket.Message as LoginMessage;
-                        if (loginMsg == null)
-                        {
-                            Close(false);
-                            return false;
-                        }
-
-
-                        if (loginMsg.Version.Length != 8 || loginMsg.Version != "1.16.5.0")
-                        {
-                            Logger.WriteLog(LogType.Error, $"Client version mismatch: Server: 1.16.5.0 | Client: {loginMsg.Version}");
-
-                            SendMessage(new LoginResponseMessage
-                            {
-                                ErrorCode = LoginErrorCodes.VersionMismatch,
-                                Subtype = LoginResponseMessageSubtype.Failed
-                            });
-
-                            Close(false);
-                            return false;
-                        }
-
-                        Entry = Server.AuthenticateClient(this, loginMsg.AccountId, loginMsg.OneTimeKey); // TODO: implement ban system and check if the account is banned
-                        if (Entry == null)
-                        {
-                            Logger.WriteLog(LogType.Error, "Client with ip: {0} tried to log in with invalid session data! User Id: {1} | OneTimeKey: {2}", Socket.RemoteAddress, loginMsg.AccountId, loginMsg.OneTimeKey);
-
-                            SendMessage(new LoginResponseMessage
-                            {
-                                ErrorCode = LoginErrorCodes.AuthenticationFailed,
-                                Subtype = LoginResponseMessageSubtype.Failed
-                            });
-
-                            Close(false);
-                            return false;
-                        }
-
-                        SendMessage(new LoginResponseMessage
-                        {
-                            AccountId = loginMsg.AccountId,
-                            Subtype = LoginResponseMessageSubtype.Success
-                        });
-
-                        State = ClientState.LoggedIn;
-
-                        CharacterManager.Instance.StartCharacterSelection(this);
-                        return true;
-
-                    case ClientMessageOpcode.Move:
-                        break;
-
-                    case ClientMessageOpcode.CallServerMethod:
-                        break;
-
-                    case ClientMessageOpcode.Ping:
-                        break;
+                    return true;
                 }
+
+                _packetQueue.EnqueueIncoming(rawPacket);
             }
             /*var packet = new PythonCallPacket(length);
             using (var br = data.GetReader())

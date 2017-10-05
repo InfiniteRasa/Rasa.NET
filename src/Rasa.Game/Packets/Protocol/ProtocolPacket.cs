@@ -198,9 +198,11 @@ namespace Rasa.Packets.Protocol
 
                         writer.WriteDebugByte(42);
 
-                        uncompressedSize = (int) ms.Position;
+                        var currentPos = (int) ms.Position;
 
-                        writer.WriteXORCheck(uncompressedSize);
+                        writer.WriteXORCheck(currentPos);
+
+                        uncompressedSize = (int) ms.Position;
                     }
                 }
             }
@@ -216,6 +218,8 @@ namespace Rasa.Packets.Protocol
                 writer.WriteXORCheck((int) bw.BaseStream.Position - packetBeginPosition);
 
             }
+
+            int packetSize = uncompressedSize;
 
             if (compress) // TODO: test
             {
@@ -233,10 +237,13 @@ namespace Rasa.Packets.Protocol
                     compressedSize = (int) compressStream.Position;
                 }
 
-                bw.Write(compressedBuffer.Buffer, compressedBuffer.BaseOffset, compressedSize);
+                BufferManager.FreeBuffer(packetBuffer);
 
-                BufferManager.FreeBuffer(compressedBuffer);
+                packetBuffer = compressedBuffer;
+                packetSize = compressedSize;
             }
+
+            bw.Write(packetBuffer.Buffer, packetBuffer.BaseOffset, packetSize);
 
             BufferManager.FreeBuffer(packetBuffer);
 
