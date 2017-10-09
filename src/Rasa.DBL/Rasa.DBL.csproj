@@ -20,4 +20,8 @@
     <PackageReference Include="MySql.Data" Version="7.0.5-IR21" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Database\Tables\Character\" />
+  </ItemGroup>
+
 </Project>

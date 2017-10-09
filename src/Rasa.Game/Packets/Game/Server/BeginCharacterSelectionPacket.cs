@@ -12,20 +12,20 @@ namespace Rasa.Packets.Game.Server
         public string FamilyName { get; set; }
         public bool HasCharacters { get; set; }
         public uint UserId { get; set; }
-        public List<int> EnabledRaceList { get; } = new List<int>();
+        public List<Race> EnabledRaceList { get; } = new List<Race>();
         public bool CanSkipBootcamp { get; set; }
 
-        public BeginCharacterSelectionPacket(string familyName, bool hasCharacters, uint userId)
+        public BeginCharacterSelectionPacket(string familyName, bool hasCharacters, uint userId, bool canSkipBootcamp = true)
         {
             FamilyName = familyName;
             HasCharacters = hasCharacters;
             UserId = userId;
-            CanSkipBootcamp = true;
+            CanSkipBootcamp = canSkipBootcamp;
 
-            EnabledRaceList.Add(1);
-            EnabledRaceList.Add(2);
-            EnabledRaceList.Add(3);
-            EnabledRaceList.Add(4);
+            EnabledRaceList.Add(Race.Human);
+            EnabledRaceList.Add(Race.Forean);
+            EnabledRaceList.Add(Race.Brann);
+            EnabledRaceList.Add(Race.Thrax);
         }
 
         public override void Read(PythonReader pr)
@@ -37,7 +37,7 @@ namespace Rasa.Packets.Game.Server
 
             var raceCount = pr.ReadTuple();
             for (var i = 0; i < raceCount; ++i)
-                EnabledRaceList.Add(pr.ReadInt());
+                EnabledRaceList.Add((Race) pr.ReadInt());
 
             CanSkipBootcamp = pr.ReadBool();
         }
@@ -47,12 +47,12 @@ namespace Rasa.Packets.Game.Server
             pw.WriteTuple(5);
             pw.WriteUnicodeString(FamilyName);
             pw.WriteBool(HasCharacters);
-            pw.WriteInt((int)UserId);
+            pw.WriteUInt(UserId);
 
             pw.WriteTuple(EnabledRaceList.Count);
 
             foreach (var race in EnabledRaceList)
-                pw.WriteInt(race);
+                pw.WriteInt((int) race);
 
             pw.WriteBool(CanSkipBootcamp);
         }

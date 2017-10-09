@@ -8,6 +8,8 @@
 
     public class CharacterManager
     {
+        public const uint SelectionPodStartEntityId = 100;
+
         private static CharacterManager _instance;
         private static readonly object InstanceLock = new object();
 
@@ -38,20 +40,16 @@
             if (client.State != ClientState.LoggedIn)
                 return;
 
-            var packet = new BeginCharacterSelectionPacket(null, false, 1);
+            client.CallMethod(SysEntity.ClientMethodId, new BeginCharacterSelectionPacket(null, false, client.AccountEntry.Id));
 
-            packet.EnabledRaceList.Add(1);
-            packet.EnabledRaceList.Add(2);
-            packet.EnabledRaceList.Add(3);
-            packet.EnabledRaceList.Add(4);
+            for (var i = 1U; i <= 16U; ++i)
+            {
+                var newEntityPacket = new CreatePhysicalEntityPacket(SelectionPodStartEntityId + i, EntityClass.CharacterSelectionPod);
 
-            client.CallMethod(5U, packet);
+                newEntityPacket.EntityData.Add(new CharacterInfoPacket(i, true));
 
-            for (var i = 0U; i < 16U; ++i)
-                client.CallMethod(5U, new CreatePhysicalEntityPacket(101U + i, 3543));
-
-            for (var i = 0U; i < 16U; ++i)
-                client.CallMethod(101U + i, new CharacterInfoPacket(i + 1U, true));
+                client.CallMethod(SysEntity.ClientMethodId, newEntityPacket);
+            }
 
             client.State = ClientState.CharacterSelection;
         }

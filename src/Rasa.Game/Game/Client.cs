@@ -31,6 +31,11 @@ namespace Rasa.Game
 
         private static PacketRouter<ClientPacketHandler, GameOpcode> PacketRouter { get; } = new PacketRouter<ClientPacketHandler, GameOpcode>();
 
+        public static Type GetPacketType(GameOpcode opcode)
+        {
+            return PacketRouter.GetPacketType(opcode);
+        }
+
         public Client(LengthedSocket socket, ClientCryptData data, Server server)
         {
             _handler = new ClientPacketHandler(this);
@@ -90,6 +95,11 @@ namespace Rasa.Game
             SendMessage(new CallMethodMessage(entityId, packet));
         }
 
+        public void CallMethod(SysEntity entityId, PythonPacket packet)
+        {
+            SendMessage(new CallMethodMessage((uint) entityId, packet));
+        }
+
         public void SendMessage(IClientMessage message, bool compress = false, byte channel = 0, bool delay = true)
         {
             var protocolPacket = new ProtocolPacket(message, message.Type, compress, channel);
@@ -127,7 +137,7 @@ namespace Rasa.Game
                     var loginMsg = pPacket.Message as LoginMessage;
                     if (loginMsg == null)
                     {
-                        Close(false);
+                        Close(true);
                         return;
                     }
 
@@ -171,8 +181,20 @@ namespace Rasa.Game
                     break;
 
                 case ClientMessageOpcode.CallServerMethod:
-                    var csmPacket = pPacket.Message as CallServerMethodMessage; // TODO
-                    PacketRouter.RoutePacket(_handler, null);
+                    var csmPacket = pPacket.Message as CallServerMethodMessage;
+                    if (csmPacket == null)
+                    {
+                        Close(true);
+                        return;
+                    }
+
+                    if (!csmPacket.ReadPacket())
+                    {
+                        Close(true);
+                        return;
+                    }
+
+                    PacketRouter.RoutePacket(_handler, csmPacket.Packet);
                     break;
 
                 case ClientMessageOpcode.Ping:
