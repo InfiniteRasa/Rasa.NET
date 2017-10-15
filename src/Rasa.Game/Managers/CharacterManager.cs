@@ -9,6 +9,7 @@
     public class CharacterManager
     {
         public const uint SelectionPodStartEntityId = 100;
+        public const uint MaxSelectionPods = 16;
 
         private static CharacterManager _instance;
         private static readonly object InstanceLock = new object();
@@ -17,14 +18,13 @@
         {
             get
             {
-                // ReSharper disable once InvertIf
-                if (_instance == null)
+                if (_instance != null)
+                    return _instance;
+
+                lock (InstanceLock)
                 {
-                    lock (InstanceLock)
-                    {
-                        if (_instance == null)
-                            _instance = new CharacterManager();
-                    }
+                    if (_instance == null)
+                        _instance = new CharacterManager();
                 }
 
                 return _instance;
@@ -42,7 +42,7 @@
 
             client.CallMethod(SysEntity.ClientMethodId, new BeginCharacterSelectionPacket(null, false, client.AccountEntry.Id));
 
-            for (var i = 1U; i <= 16U; ++i)
+            for (var i = 1U; i <= MaxSelectionPods; ++i)
             {
                 var newEntityPacket = new CreatePhysicalEntityPacket(SelectionPodStartEntityId + i, EntityClass.CharacterSelectionPod);
 
@@ -56,7 +56,7 @@
 
         public void RequestCharacterName(Client client, int gender)
         {
-            client.CallMethod(5, new GeneratedCharacterNamePacket
+            client.CallMethod(SysEntity.ClientMethodId, new GeneratedCharacterNamePacket
             {
                 Name = RandomNameTable.GetRandom(gender == 0 ? "male" : "female", "first") ?? (gender == 0 ? "Richard" : "Rachel")
             });
@@ -64,9 +64,9 @@
 
         public void RequestFamilyName(Client client)
         {
-            client.CallMethod(5, new GeneratedFamilyNamePacket
+            client.CallMethod(SysEntity.ClientMethodId, new GeneratedFamilyNamePacket
             {
-                Name = RandomNameTable.GetRandom("neatural", "last") ?? "Garriott"
+                Name = RandomNameTable.GetRandom("neutral", "last") ?? "Garriott"
             });
         }
 
@@ -86,12 +86,12 @@
 
         private void SendCharacterCreateFailed(Client client, CreateCharacterResult result)
         {
-            client.CallMethod(5, new UserCreationFailedPacket(result));
+            client.CallMethod(SysEntity.ClientMethodId, new UserCreationFailedPacket(result));
         }
 
         private void SendCharacterCreateSuccess(Client client, int slotNum, string familyName)
         {
-            client.CallMethod(5, new CharacterCreateSuccessPacket(slotNum, familyName));
+            client.CallMethod(SysEntity.ClientMethodId, new CharacterCreateSuccessPacket(slotNum, familyName));
         }
     }
 }

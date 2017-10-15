@@ -236,16 +236,16 @@ namespace Rasa.Memory
             }
         }
 
-        public void WriteStruct<T>(T obj)
+        public void WriteStruct<T>(T structure)
             where T : IPythonDataStruct
         {
-            if (obj == null)
+            if (structure == null)
             {
                 WriteNoneStruct();
                 return;
             }
 
-            obj.Write(this);
+            structure.Write(this);
         }
 
         public override string ToString()
