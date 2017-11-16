@@ -1,5 +1,4 @@
 ﻿using System.Collections.Generic;
-using System.Text.RegularExpressions;
 
 namespace Rasa.Packets.Game.Client
 {
@@ -12,22 +11,19 @@ namespace Rasa.Packets.Game.Client
     {
         public override GameOpcode Opcode { get; } = GameOpcode.RequestCreateCharacterInSlot;
 
-        public int SlotNum { get; set; }
+        public uint SlotId { get; set; }
         public string FamilyName { get; set; }
         public string CharacterName { get; set; }
         public int Gender { get; set; }
         public double Scale { get; set; }
         public int RaceId { get; set; }
-
         public Dictionary<int, AppearanceData> AppearanceData { get; } = new Dictionary<int, AppearanceData>();
-
-        private static readonly Regex NameRegex = new Regex(@"^[\w ]+$", RegexOptions.Compiled);
 
         public override void Read(PythonReader pr)
         {
             pr.ReadTuple();
 
-            SlotNum = pr.ReadInt();
+            SlotId = pr.ReadUInt();
             FamilyName = pr.ReadUnicodeString();
             CharacterName = pr.ReadUnicodeString();
             Gender = pr.ReadInt();
@@ -47,15 +43,5 @@ namespace Rasa.Packets.Game.Client
         {
         }
 
-        public CreateCharacterResult CheckName()
-        {
-            if (CharacterName.Length < 3)
-                return CreateCharacterResult.NameTooShort;
-
-            if (CharacterName.Length > 20)
-                return CreateCharacterResult.NameTooLong;
-
-            return !NameRegex.IsMatch(CharacterName) ? CreateCharacterResult.NameFormatInvalid : CreateCharacterResult.Success;
-        }
     }
 }
