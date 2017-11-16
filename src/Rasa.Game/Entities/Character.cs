@@ -1,62 +1,30 @@
-﻿using System;
-
-namespace Rasa.Entities
+﻿namespace Rasa.Entities
 {
+    using Data;
     using Structures;
 
     public class Character
     {
-        public int StilyeCount { get; set; }
-        public int ErrorCode { get; set; }
-        public ulong UserId { get; set; }
         public int ClassId { get; set; }
-        public double PosX { get; set; }
-        public double PosY { get; set; }
-        public double PosZ { get; set; }
-        public double Rotation { get; set; }
-        public int MapContextId { get; set; }
-
-        private void SetStartUpData()
+        public int GameContextId { get; set; }
+        public Position Position { get; set; }
+        public double Rotatation { get; set; }
+        public int Level { get; set; }
+        public string Logos { get; set; }
+        
+        public Character CreateCharacter()
         {
-            PosX = 894.9;
-            PosY = 307.9;
-            PosZ = 347.1;
-            Rotation = 1;
-            MapContextId = 1220;
-            ClassId = 1; // recruit, maybe we need to chage this and get data from game client
-            //UserId = CharacterTable.GetHigherId() + 1;
-            Console.WriteLine("userID is => {0}", UserId);
-            var helm = new AppearanceData
+            var newCharacter = new Character
             {
-                SlotId = 1,
-                ClassId = 10908,
-                Color = new Color(0x80, 0x80, 0x80)
-            };
-            var boots = new AppearanceData
-            {
-                SlotId = 2,
-                ClassId = 7054,
-                Color = new Color(0x80, 0x80, 0x80),
-            };
-            var gloves = new AppearanceData
-            {
-                SlotId = 3,
-                ClassId = 10909,
-                Color = new Color(0x80, 0x80, 0x80),
-            };
-            var torso = new AppearanceData
-            {
-                SlotId = 15,
-                ClassId = 7082,
-                Color = new Color(0x80, 0x80, 0x80),
-            };
-            var legs = new AppearanceData
-            {
-                SlotId = 16,
-                ClassId = 7053,
-                Color = new Color(0x80, 0x80, 0x80),
-            };
-            // todo: save default items to the db
+                ClassId = (int)CharacterClass.Recruit,
+                GameContextId = 1220,
+                Position = new Position(894D, 347D, 306D),
+                Rotatation = 1D,
+                Level = 1,
+                Logos = "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"   // 410 logos
+        };
+
+            return newCharacter;
         }
     }
 }
