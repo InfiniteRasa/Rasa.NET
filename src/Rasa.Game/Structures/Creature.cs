@@ -1,20 +1,25 @@
-﻿namespace Rasa.Structures
-{
-    using Managers;
+﻿using System.Collections.Generic;
 
+namespace Rasa.Structures
+{
     public class Creature
     {
+        /*
         public Creature()
         {
             EntityId = EntityManager.Instance.GetEntityId;
         }
-
         public uint EntityId { get; }
-        public CreatureType CreatureType { get; set; }  // the creature 'layout'
-        public Actor Actor { get; set; }               // the base actor object
+        */
+        public uint DbId { get; set; }
+        public CreatureType CreatureType { get; set; } = new CreatureType();    // the creature 'layout'
+        public Actor Actor { get; set; }                                        // the base actor object
+        public int Faction { get; set; }
         public int Level { get; set; }
-        public int UpdatePositionCounter;               // decreases, when it hits 0 and the cell position changed, call creature_updateCellLocation()
-        public Position HomePosition { get; set; }
+        public int MaxHitPoints { get; set; }
+        public int NameId { get; set; }
+        public int UpdatePositionCounter;                                       // decreases, when it hits 0 and the cell position changed, call creature_updateCellLocation()
+        public Dictionary<int, AppearanceData> AppearanceData { get; set; }
         //sint32 lastattack;
         //sint32 lastresttime;
         //float velocity;

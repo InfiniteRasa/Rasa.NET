@@ -10,6 +10,12 @@
         public int Credits { get; set; }
         public int Prestige { get; set; }
 
+        public AllCreditsPacket(int creadits, int prestige)
+        {
+            Credits = creadits;
+            Prestige = prestige;
+        }
+
         public override void Read(PythonReader pr)
         {
         }
@@ -19,11 +25,11 @@
             pw.WriteTuple(1);
             pw.WriteList(2);
             pw.WriteTuple(2);
-            pw.WriteInt(1);         // Credits type id 1 = credits
-            pw.WriteInt(Credits);   // value
+            pw.WriteInt((int)Curency.Credits);
+            pw.WriteInt(Credits);
             pw.WriteTuple(2);
-            pw.WriteInt(2);         // Credits type id 2 = prestige
-            pw.WriteInt(Prestige);  // value
+            pw.WriteInt((int)Curency.Prestige);
+            pw.WriteInt(Prestige);
         }
     }
 }

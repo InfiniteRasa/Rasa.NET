@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace Rasa.Managers
 {
@@ -68,12 +67,14 @@ namespace Rasa.Managers
             // register item
             EntityManager.Instance.RegisterEntity(item.EntityId, EntityType.Item);
             EntityManager.Instance.RegisterItem(item.EntityId, item);
+
             return item;
         }
 
         public void GetItemArmorData()
         {
             var armorTemplates = ArmorTemplateTable.GetArmorTemplates();
+
             foreach (var template in armorTemplates)
             {
                 // update LoadedItemTemplates
@@ -84,7 +85,8 @@ namespace Rasa.Managers
                     RegenRate = template.RegenRate
                 };
             }
-            Console.WriteLine($"Loaded {armorTemplates.Count} ArmorTemplates.");
+
+            Logger.WriteLog(LogType.Initialize, $"Loaded {armorTemplates.Count} ArmorTemplates.");
         }
 
         public void GetItemEquipmentData()
@@ -101,7 +103,8 @@ namespace Rasa.Managers
                     RequiredSkillMinVal = template.RequiredSkillMinVal
                 };
             }
-            Console.WriteLine($"Loaded {equipmentTemplates.Count} EquipmentTemplates.");
+
+            Logger.WriteLog(LogType.Initialize, $"Loaded {equipmentTemplates.Count} EquipmentTemplates.");
         }
 
         public Item GetItemFromTemplateId(uint itemId, uint characterId, int slotId, int itemTemplateId, int stackSize)
@@ -119,6 +122,7 @@ namespace Rasa.Managers
             // register item
             EntityManager.Instance.RegisterItem(item.EntityId, item);
             EntityManager.Instance.RegisterEntity(item.EntityId, EntityType.Item);
+
             return item;
         }
         
@@ -132,12 +136,12 @@ namespace Rasa.Managers
 
         public void GetItemTemplates()
         {
-            Console.WriteLine("Loading ItemTemplates from db...");
+            Logger.WriteLog(LogType.Initialize, "Loading ItemTemplates from db...");
             var itemTemplates = ItemTemplateTable.GetItemTemplates();
             foreach (var template in itemTemplates)
                 LoadedItemTemplates.Add(template.ItemTemplateId, new ItemTemplate(template));
 
-            Console.WriteLine($"Loaded {itemTemplates.Count} ItemTemplates.");
+            Logger.WriteLog(LogType.Initialize, $"Loaded {itemTemplates.Count} ItemTemplates.");
         }
 
         public void GetItemWeaponData()
@@ -177,7 +181,8 @@ namespace Rasa.Managers
                     AttackType = template.AttackType
                 };
             }
-            Console.WriteLine($"Loaded {weaponTemplates.Count} WeaponTemplates.\n");
+
+            Logger.WriteLog(LogType.Initialize, $"Loaded {weaponTemplates.Count} WeaponTemplates.");
         }
 
         public void LoadItems()

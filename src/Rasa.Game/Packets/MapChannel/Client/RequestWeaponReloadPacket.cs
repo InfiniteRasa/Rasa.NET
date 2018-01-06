@@ -7,8 +7,7 @@
     {
         public override GameOpcode Opcode { get; } = GameOpcode.RequestWeaponReload;
 
-        public double Ping { get; set; }
-
+        // 0 Elements
         public override void Read(PythonReader pr)
         {
         }

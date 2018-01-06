@@ -17,8 +17,6 @@
 
         public override void Write(PythonWriter pw)
         {
-            pw.WriteTuple(1);
-            pw.WriteInt(LangId);
         }
     }
 }

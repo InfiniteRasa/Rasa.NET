@@ -9,6 +9,11 @@
 
         public int AbilityDrawerSlot { get; set; }
 
+        public AbilityDrawerSlotPacket(int abilityDrawerSlot)
+        {
+            AbilityDrawerSlot = abilityDrawerSlot;
+        }
+
         public override void Read(PythonReader pr)
         {
         }

@@ -89,7 +89,7 @@
             pw.WriteTuple(5);
             pw.WriteInt(ActorStats.Speed.Current);
             pw.WriteInt(ActorStats.Speed.CurrentMax);
-            pw.WriteInt(ActorStats.Speed.NormalMax);
+            pw.WriteDouble(ActorStats.Speed.NormalMax);
             pw.WriteInt(ActorStats.Speed.RefreshAmount);
             pw.WriteInt(ActorStats.Speed.RefreshPeriod);
             // Regen

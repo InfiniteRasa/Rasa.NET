@@ -12,12 +12,7 @@
 
         public void SetStartUpData()
         {
-            Position = new Position
-            {
-                PosX = 894.9,
-                PosY = 347.1,
-                PosZ = 307.9
-            };
+            Position = new Position(894.9, 347.1, 307.9); 
             Rotation = 1;
             MapContextId = 1220;
             ClassId = 1; // recruit, maybe we need to chage this and get data from game client

@@ -7,6 +7,8 @@
     {
         public override GameOpcode Opcode { get; } = GameOpcode.MapLoaded;
         
+
+        // 0 Elements
         public override void Read(PythonReader pr)
         {
         }

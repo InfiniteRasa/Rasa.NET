@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Diagnostics;
 
 namespace Rasa.Managers
@@ -18,8 +17,9 @@ namespace Rasa.Managers
 
         public Dictionary<uint, EntityType> RegisteredEntities = new Dictionary<uint, EntityType>();
         public Dictionary<uint, Item> Items = new Dictionary<uint, Item>();
-        public Dictionary<uint, MapChannelClient> MapClients = new Dictionary<uint, MapChannelClient>();
+        public Dictionary<uint, MapChannelClient> Players = new Dictionary<uint, MapChannelClient>();
         public Dictionary<uint, Actor> Actors = new Dictionary<uint, Actor>();
+        public Dictionary<uint, Creature> Creatures = new Dictionary<uint, Creature>();
 
         public static EntityManager Instance
         {
@@ -51,25 +51,24 @@ namespace Rasa.Managers
             //free entity
             switch (entityType)
             {
-                case EntityType.MapClient:
+                case EntityType.Player:
                     FreeEntity(entityId);
                     UnregisterEntity(entityId);
-                    UnregisterMapClient(entityId);
-                    break;
-                case EntityType.Player:
-                    break;
-                case EntityType.Entity:
-                    break;
-                case EntityType.Object:
+                    UnregisterPlayer(entityId);
                     break;
                 case EntityType.Npc:
                     break;
                 case EntityType.Creature:
+                    FreeEntity(entityId);
+                    UnregisterEntity(entityId);
+                    UnregisterCreature(entityId);
                     break;
                 case EntityType.Item:
                     FreeEntity(entityId);
                     UnregisterEntity(entityId);
                     UnregisterItem(entityId);
+                    break;
+                case EntityType.Object:
                     break;
                 default:
                     Debugger.Break();
@@ -151,20 +150,36 @@ namespace Rasa.Managers
             Items.Remove(entityId);
         }
 
-        // MapClients
-        public MapChannelClient GetMapClient(uint entityId)
+        // Players
+        public MapChannelClient GetPlayer(uint entityId)
         {
-            return MapClients[entityId];
+            return Players[entityId];
         }
 
-        public void RegisterMapClient(uint entityId, MapChannelClient mapClient)
+        public void RegisterPlayer(uint entityId, MapChannelClient mapClient)
         {
-            MapClients.Add(entityId, mapClient);
+            Players.Add(entityId, mapClient);
         }
 
-        public void UnregisterMapClient(uint entityId)
+        public void UnregisterPlayer(uint entityId)
         {
-            MapClients.Remove(entityId);
+            Players.Remove(entityId);
+        }
+
+        // Creatures
+        public Creature GetCreature(uint entityId)
+        {
+            return Creatures[entityId];
+        }
+
+        public void RegisterCreature(Creature creature)
+        {
+            Creatures.Add(creature.Actor.EntityId, creature);
+        }
+
+        public void UnregisterCreature(uint entityId)
+        {
+            Creatures.Remove(entityId);
         }
     }
 }

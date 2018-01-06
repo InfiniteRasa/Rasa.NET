@@ -11,6 +11,20 @@ namespace Rasa.Structures
         {
             return Math.Sqrt(Math.Pow(other.PosX - player.PosX, 2) + Math.Pow(other.PosY - player.PosY, 2) + Math.Pow(other.PosZ - other.PosZ, 2));
         }
+
+        public Position(double posX, double posY, double posZ)
+        {
+            PosX = posX;
+            PosY = posY;
+            PosZ = posZ;
+        }
+
+        public Position(Position position)
+        {
+            PosX = position.PosX;
+            PosY = position.PosY;
+            PosZ = position.PosZ;
+        }
     }
 
     public class Quaternion
@@ -19,5 +33,13 @@ namespace Rasa.Structures
         public double Y { get; set; }
         public double Z { get; set; }
         public double W { get; set; }
+
+        public Quaternion(double x, double y, double z, double w)
+        {
+            X = x;
+            Y = y;
+            Z = z;
+            W = w;
+        }
     }
 }

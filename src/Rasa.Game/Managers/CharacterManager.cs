@@ -136,12 +136,7 @@ namespace Rasa.Managers
                 MapContextId = mapData.MapInfo.MapId,
                 MapInstanceId = 0,                  // ToDo MapInstanceId
                 MapVersion = mapData.MapInfo.MapVersion,
-                Position = new Position
-                {
-                    PosX = data.PosX,
-                    PosY = data.PosY,
-                    PosZ = data.PosZ
-                },
+                Position = new Position(data.PosX, data.PosY, data.PosZ),
                 Rotation = data.Rotation
             };
 

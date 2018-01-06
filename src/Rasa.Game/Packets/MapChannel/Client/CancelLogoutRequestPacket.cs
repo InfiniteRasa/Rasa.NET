@@ -7,6 +7,7 @@
     {
         public override GameOpcode Opcode { get; } = GameOpcode.CancelLogoutRequest;
 
+        // 0 Elements
         public override void Read(PythonReader pr)
         {
         }

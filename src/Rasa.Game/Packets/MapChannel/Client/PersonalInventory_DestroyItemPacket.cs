@@ -7,13 +7,13 @@
     {
         public override GameOpcode Opcode { get; } = GameOpcode.PersonalInventory_DestroyItem;
 
-        public long ItemId { get; set; }
+        public long EntityId { get; set; }
         public long Quantity { get; set; }
 
         public override void Read(PythonReader pr)
         {
             pr.ReadTuple();
-            ItemId = pr.ReadLong();
+            EntityId = pr.ReadLong();
             Quantity = pr.ReadLong();
         }
 

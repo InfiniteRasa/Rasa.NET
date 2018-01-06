@@ -5,5 +5,12 @@
         public int SkillId { get; set; }
         public int AbilityId { get; set; }
         public int SkillLevel { get; set; }
+
+        public SkillsData(int skillId, int abilityId, int skillLevel)
+        {
+            SkillId = skillId;
+            AbilityId = abilityId;
+            SkillLevel = skillLevel;
+        }
     }
 }

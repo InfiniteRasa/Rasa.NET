@@ -8,6 +8,7 @@
         public override GameOpcode Opcode { get; } = GameOpcode.SetCurrentContextId;
 
         public int MapContextId { get; set; }
+
         public override void Read(PythonReader pr)
         {
         }

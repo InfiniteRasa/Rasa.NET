@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Rasa.Game
+﻿namespace Rasa.Game
 {
     using Data;
     using Managers;
@@ -55,7 +53,7 @@ namespace Rasa.Game
         [PacketHandler(GameOpcode.AcceptPartyInvitesChanged)]
         private void AcceptPartyInvitesChanged(AcceptPartyInvitesChangedPacket packet)
         {
-            Console.WriteLine("ToDo 'AcceptPartyInvitesChanged'");
+            Logger.WriteLog(LogType.Debug, "ToDo AcceptPartyInvitesChanged");
         }
 
         [PacketHandler(GameOpcode.AutoFireKeepAlive)]
@@ -67,7 +65,7 @@ namespace Rasa.Game
         [PacketHandler(GameOpcode.CancelLogoutRequest)]
         private void CancelLogoutRequest(CancelLogoutRequestPacket packet)
         {
-            Console.WriteLine("ToDo 'CancelLogoutRequestPacket'");  // gues nothing to do here
+            Logger.WriteLog(LogType.Debug, "ToDo CancelLogoutRequest");  // gues nothing to do here
         }
 
         [PacketHandler(GameOpcode.ChangeTitle)]
@@ -79,13 +77,19 @@ namespace Rasa.Game
         [PacketHandler(GameOpcode.ChangeShowHelmet)]
         private void ChangeShowHelmet(ChangeShowHelmetPacket packet)
         {
-           // ToDo
+            Logger.WriteLog(LogType.Debug, "ToDo ChangeShowHelmet");
         }
 
         [PacketHandler(GameOpcode.CharacterLogout)]
         private void CharacterLogout(CharacterLogoutPacket packet)
         {
             MapChannelManager.Instance.CharacterLogout(Client);
+        }
+
+        [PacketHandler(GameOpcode.ClearTargetId)]
+        private void ClearTargetId(ClearTargetIdPacket packet)
+        {
+            Logger.WriteLog(LogType.Debug, "ToDo ClearTargetId");
         }
 
         [PacketHandler(GameOpcode.LevelSkills)]
@@ -154,6 +158,12 @@ namespace Rasa.Game
             MapChannelManager.Instance.RequestLogout(Client);
         }
 
+        [PacketHandler(GameOpcode.RequestNPCConverse)]
+        private void RequestNPCConverse(RequestNPCConversePacket packet)
+        {
+            CreatureManager.Instance.RequestNpcConverse(Client, packet);
+        }
+
         [PacketHandler(GameOpcode.RequestPerformAbility)]
         private void RequestPerformAbility(RequestPerformAbilityPacket packet)
         {
@@ -164,6 +174,12 @@ namespace Rasa.Game
         private void RequestSwapAbilitySlots(RequestSwapAbilitySlotsPacket packet)
         {
             PlayerManager.Instance.RequestSwapAbilitySlots(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.RequestToggleRun)]
+        private void RequestToggleRun(RequestToggleRunPacket packet)
+        {
+            PlayerManager.Instance.RequestToggleRun(Client);
         }
 
         [PacketHandler(GameOpcode.RequestTooltipForItemTemplateId)]
@@ -182,6 +198,12 @@ namespace Rasa.Game
         private void RequestVisualCombatMode(RequestVisualCombatModePacket packet)
         {
             PlayerManager.Instance.RequestVisualCombatMode(Client, packet.CombatMode);
+        }
+
+        [PacketHandler(GameOpcode.RequestWeaponAttack)]
+        private void RequestWeaponAttack(RequestWeaponAttackPacket packet)
+        {
+            Logger.WriteLog(LogType.Debug, "ToDo RequestWeaponAttack");
         }
 
         [PacketHandler(GameOpcode.RequestWeaponDraw)]
@@ -205,13 +227,13 @@ namespace Rasa.Game
         [PacketHandler(GameOpcode.SaveUserOptions)]
         private void SaveUserOptions(SaveUserOptionsPacket packet)
         {
-            // ToDo
+            Logger.WriteLog(LogType.Debug, "ToDo SaveUserOptions");
         }
 
         [PacketHandler(GameOpcode.SetAutoLootThreshold)]
         private void SetAutoLootThreshold(SetAutoLootThresholdPacket packet)
         {
-            Console.WriteLine("ToDo 'SetAutoLootThreshold'");
+            Logger.WriteLog(LogType.Debug, "ToDo SetAutoLootThreshold");
         }
 
         [PacketHandler(GameOpcode.SetDesiredCrouchState)]
@@ -220,10 +242,22 @@ namespace Rasa.Game
             PlayerManager.Instance.SetDesiredCrouchState(Client, packet.DesiredStateId);
         }
 
+        [PacketHandler(GameOpcode.SetTargetId)]
+        private void SetTargetId(SetTargetIdPacket packet)
+        {
+            Logger.WriteLog(LogType.Debug, "ToDo SetTargetId");
+        }
+
         [PacketHandler(GameOpcode.StartAutoFire)]
         private void StartAutoFire(StartAutoFirePacket packet)
         {
             PlayerManager.Instance.StartAutoFire(Client, packet.FromUi);
+        }
+
+        [PacketHandler(GameOpcode.StopAutoFire)]
+        private void StopAutoFire(StopAutoFirePacket packet)
+        {
+            Logger.WriteLog(LogType.Debug, "ToDo StopAutoFire");
         }
 
         [PacketHandler(GameOpcode.WeaponDrawerInventory_MoveItem)]

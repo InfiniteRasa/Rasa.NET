@@ -12,6 +12,7 @@
 
         public override void Read(PythonReader pr)
         {
+            Logger.WriteLog(LogType.Debug, $"WeaponDrawerInventory_MoveItem:\n{pr.ToString()}");
             pr.ReadTuple();
             SrcSlot = pr.ReadInt();
             DestSlot = pr.ReadInt();

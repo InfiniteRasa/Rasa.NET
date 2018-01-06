@@ -13,6 +13,7 @@
 
         public override void Read(PythonReader pr)
         {
+            Logger.WriteLog(LogType.Debug, $"LevelSkills:\n{pr.ToString()}");
             pr.ReadTuple();
             ListLenght = pr.ReadList();
             SkillIds = new int[ListLenght];

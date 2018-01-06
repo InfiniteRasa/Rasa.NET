@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-
-namespace Rasa.Packets.MapChannel.Server
+﻿namespace Rasa.Packets.MapChannel.Server
 {
     using Data;
     using Memory;
@@ -12,7 +9,7 @@ namespace Rasa.Packets.MapChannel.Server
 
         public int Titles { get; set; }
 
-    public TitleAddedPacket(int titleId)
+        public TitleAddedPacket(int titleId)
         {
             Titles = titleId;
         }

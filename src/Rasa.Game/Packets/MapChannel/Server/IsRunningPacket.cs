@@ -2,11 +2,17 @@
 {
     using Data;
     using Memory;
+
     public class IsRunningPacket : PythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.IsRunning;
 
         public bool IsRunning { get; set; }
+
+        public IsRunningPacket(bool isRunning)
+        {
+            IsRunning = isRunning;
+        }
 
         public override void Read(PythonReader pr)
         {

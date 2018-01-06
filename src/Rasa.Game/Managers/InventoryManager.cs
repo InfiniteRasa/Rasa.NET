@@ -252,9 +252,9 @@ namespace Rasa.Managers
 
         public void PersonalInventory_DestroyItem(Client client, PersonalInventory_DestroyItemPacket packet)
         {
-            if (packet.ItemId == 0)
+            if (packet.EntityId == 0)
                 return;
-            var tempItem = EntityManager.Instance.GetItem((uint)packet.ItemId);
+            var tempItem = EntityManager.Instance.GetItem((uint)packet.EntityId);
             ReduceStackCount(client.MapClient, tempItem, (int)packet.Quantity);
         }
 

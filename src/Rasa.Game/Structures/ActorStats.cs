@@ -88,7 +88,7 @@
     // SPEED 9
     public class Speed
     {
-        public int NormalMax { get; set; }
+        public double NormalMax { get; set; }
         public int CurrentMax { get; set; }
         public int Current { get; set; }
         public int RefreshAmount { get; set; }

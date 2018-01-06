@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Rasa.Packets.MapChannel.Client
+﻿namespace Rasa.Packets.MapChannel.Client
 {
     using Data;
     using Memory;
@@ -9,11 +7,9 @@ namespace Rasa.Packets.MapChannel.Client
     {
         public override GameOpcode Opcode { get; } = GameOpcode.SaveUserOptions;
 
-        public double Ping { get; set; }
-
         public override void Read(PythonReader pr)
         {
-            Console.WriteLine("SaveUserOptions\n{0}", pr.ToString());
+            Logger.WriteLog(LogType.Debug, $"SaveUserOptions:\n{pr.ToString()}");
         }
 
         public override void Write(PythonWriter pw)

@@ -55,8 +55,8 @@ namespace Rasa.Managers
             mapClient.Client = client;
             mapClient.MapChannel = mapChannel;
             // register mapChannelClient
-            EntityManager.Instance.RegisterEntity(mapClient.ClientEntityId, EntityType.MapClient);
-            EntityManager.Instance.RegisterMapClient(mapClient.ClientEntityId, mapClient);
+            EntityManager.Instance.RegisterEntity(mapClient.ClientEntityId, EntityType.Player);
+            EntityManager.Instance.RegisterPlayer(mapClient.ClientEntityId, mapClient);
             return mapClient;
         }
 
@@ -75,13 +75,8 @@ namespace Rasa.Managers
                     EntityClassId = data.Gender == 0 ? 692 : 691,
                     Name = data.Name,
                     FamilyName = data.FamilyName,
-                    Position = new Position
-                    {
-                        PosX = data.PosX,
-                        PosY = data.PosY,
-                        PosZ = data.PosZ
-                    },
-                    Rotation = new Quaternion(),    // ToDo
+                    Position = new Position(data.PosX, data.PosY, data.PosZ),
+                    Rotation = new Quaternion(0D, 0D, 0D, 0D),    // ToDo
                     MapContextId = data.MapContextId,
                     IsRunning = true,
                     InCombatMode = false,
@@ -113,7 +108,7 @@ namespace Rasa.Managers
                 Titles = CharacterTitlesTable.GetCharacterTitles(data.CharacterId),
                 Abilities = GetPlayerAbilities(data.CharacterId),
                 CurrentAbilityDrawer = data.CurrentAbilityDrawer,
-                MissionStateCount = 0,
+                //MissionStateCount = 0,
                 // MissionStateData = new CharacterMissionData(),
                 LoginTime = 0,
                 Logos = CharacterLogosTable.GetLogos(data.CharacterId)
@@ -161,7 +156,7 @@ namespace Rasa.Managers
             var skillsData = CharacterSkillsTable.GetCharacterSkills(characterId);
 
             foreach (var skill in skillsData)
-                skills.Add(skill.SkillId, new SkillsData { SkillId = skill.SkillId, AbilityId = skill.AbilityId, SkillLevel = skill.SkillLevel});
+                skills.Add(skill.SkillId, new SkillsData(skill.SkillId, skill.AbilityId, skill.SkillLevel));
 
             return skills;
         }
@@ -200,7 +195,7 @@ namespace Rasa.Managers
                 //dynamicObject_init(mapChannel);
                 //mission_initForChannel(mapChannel);
                 //missile_initForMapchannel(mapChannel);
-                //spawnPool_initForMapChannel(mapChannel);
+                //SpawnPoolManager.Instance.InitForMapChannel(mapChannel);
                 //controller_initForMapChannel(mapChannel);
                 //teleporter_initForMapChannel(mapChannel); //---load teleporters
                 //logos_initForMapChannel(mapChannel); // logos world objects
@@ -213,6 +208,7 @@ namespace Rasa.Managers
             Timer.Add("PerformAbilities", 500, true, null);
             Timer.Add("ClientEffectUpdate", 500, true, null);
             Timer.Add("CellUpdateVisibility", 300, true, null);
+            Timer.Add("CheckForCreatures", 3000, true, null);
         }
 
         public void MapChannelWorker(long delta)
@@ -222,7 +218,9 @@ namespace Rasa.Managers
             foreach (var t in MapChannelArray)
             {
                 var mapChannel = t.Value;
+
                 mapChannel.MapChannelElapsed += delta;
+
                 if (Timer.IsTriggered("CheckForLogingClients"))
                     if (mapChannel.QueuedClients.Count > 0)
                     {
@@ -239,7 +237,11 @@ namespace Rasa.Managers
                     // CellManager worker
                     if (Timer.IsTriggered("CellUpdateVisibility"))
                         CellManager.Instance.DoWork(mapChannel);
-                    
+
+                    // check for creatures
+                    if (Timer.IsTriggered("CheckForCreatures"))
+                        SpawnPoolManager.Instance.SpawnPoolWorker(mapChannel, delta);
+
                     // check for abilities
                     if (Timer.IsTriggered("PerformAbilities"))
                         if (mapChannel.QueuedPerformAbilities.Count > 0)
@@ -248,6 +250,8 @@ namespace Rasa.Managers
                     // check for effects (buffs)
                     if (Timer.IsTriggered("ClientEffectUpdate"))
                         GameEffectManager.Instance.DoWork(mapChannel, delta);
+
+                    // check for creatures
 
                     // chack for player LogOut
                     foreach (var mapClient in mapChannel.PlayerList)
@@ -386,7 +390,7 @@ namespace Rasa.Managers
             CommunicatorManager.Instance.PlayerExitMap(mapClient);
             // unregister mapChannelClient
             EntityManager.Instance.UnregisterEntity(mapClient.ClientEntityId);
-            EntityManager.Instance.UnregisterMapClient(mapClient.ClientEntityId);
+            EntityManager.Instance.UnregisterPlayer(mapClient.ClientEntityId);
             // unregister Actor
             EntityManager.Instance.UnregisterEntity(mapClient.Player.Actor.EntityId);
             EntityManager.Instance.UnregisterActor(mapClient.Player.Actor.EntityId);

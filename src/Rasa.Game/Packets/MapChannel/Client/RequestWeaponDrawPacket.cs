@@ -7,8 +7,7 @@
     {
         public override GameOpcode Opcode { get; } = GameOpcode.RequestWeaponDraw;
 
-        public int KeepAliveDelay { get; set; }
-
+        // 0 Elements
         public override void Read(PythonReader pr)
         {
         }

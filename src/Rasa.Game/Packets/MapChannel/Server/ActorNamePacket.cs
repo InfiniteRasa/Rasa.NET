@@ -9,6 +9,11 @@
 
         public string CharacterFamily { get; set; }
 
+        public ActorNamePacket(string characterFamily)
+        {
+            CharacterFamily = characterFamily;
+        }
+
         public override void Read(PythonReader pr)
         {
         }

@@ -11,7 +11,12 @@ namespace Rasa.Packets.MapChannel.Server
         public override GameOpcode Opcode { get; } = GameOpcode.AppearanceData;
 
         public Dictionary<int, AppearanceData> AppearanceData { get; set; }
-        
+
+        public AppearanceDataPacket(Dictionary<int, AppearanceData> appearanceData)
+        {
+            AppearanceData = appearanceData;
+        }
+
         public override void Read(PythonReader pr)
         {
         }
@@ -22,15 +27,15 @@ namespace Rasa.Packets.MapChannel.Server
             pw.WriteDictionary(AppearanceData.Count);
             foreach (var t in AppearanceData)
             {
-                var v = t.Value;
-                pw.WriteInt(v.SlotId);
+                var appearence = t.Value;
+                pw.WriteInt(appearence.SlotId);
                 pw.WriteTuple(2);
-                pw.WriteInt(v.ClassId);
+                pw.WriteInt(appearence.ClassId);
                 pw.WriteTuple(4);
-                pw.WriteInt(v.Color.Red);
-                pw.WriteInt(v.Color.Green);
-                pw.WriteInt(v.Color.Blue);
-                pw.WriteInt(v.Color.Alpha);
+                pw.WriteInt(appearence.Color.Red);
+                pw.WriteInt(appearence.Color.Green);
+                pw.WriteInt(appearence.Color.Blue);
+                pw.WriteInt(appearence.Color.Alpha);
             }
         }
     }

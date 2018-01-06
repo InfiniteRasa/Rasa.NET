@@ -7,6 +7,7 @@
     {
         public override GameOpcode Opcode { get; } = GameOpcode.CharacterLogout;
 
+        // 0 Elements
         public override void Read(PythonReader pr)
         {
         }

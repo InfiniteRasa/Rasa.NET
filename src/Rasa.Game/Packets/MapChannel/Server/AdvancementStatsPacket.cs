@@ -13,6 +13,15 @@
         public int TrainPts { get; set; }
         public int SkillPts { get; set; }
 
+        public AdvancementStatsPacket(int level, int experience, int attributes, int trainPts, int skillPts)
+        {
+            Level = level;
+            Experience = experience;
+            Attributes = attributes;
+            TrainPts = trainPts;
+            SkillPts = skillPts;
+        }
+
         public override void Read(PythonReader pr)
         {
         }

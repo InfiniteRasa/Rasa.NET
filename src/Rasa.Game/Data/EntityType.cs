@@ -2,12 +2,10 @@
 {
     public enum EntityType
     {
-        MapClient   = 0,
-        Player      = 1,
-        Entity      = 2,
-        Object      = 3,
-        Npc         = 4,
-        Creature    = 5,
-        Item        = 6
+        Player      = 0,
+        Creature    = 1,
+        Npc         = 2,
+        Item        = 3,
+        Object      = 4
     }
 }

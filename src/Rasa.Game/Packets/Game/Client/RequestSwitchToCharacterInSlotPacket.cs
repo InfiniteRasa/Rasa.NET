@@ -2,6 +2,7 @@
 {
     using Data;
     using Memory;
+
     public class RequestSwitchToCharacterInSlotPacket : PythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.RequestSwitchToCharacterInSlot;

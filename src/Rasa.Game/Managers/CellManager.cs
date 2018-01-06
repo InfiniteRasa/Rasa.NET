@@ -1,9 +1,6 @@
-﻿using System;
-
-namespace Rasa.Managers
+﻿namespace Rasa.Managers
 {
     using Data;
-    using Game;
     using Structures;
 
     public class CellManager
@@ -43,7 +40,7 @@ namespace Rasa.Managers
             if (creature == null)
                 return;
             // register creature entity
-            EntityManager.Instance.RegisterEntity(creature.EntityId, EntityType.Creature);
+            EntityManager.Instance.RegisterEntity(creature.Actor.EntityId, EntityType.Creature);
             // get initial cell
             var x = (uint)(creature.Actor.Position.PosX / CellSize + CellBias);
             var y = (uint)(creature.Actor.Position.PosY / CellSize + CellBias);

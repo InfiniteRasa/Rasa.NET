@@ -21,7 +21,11 @@ namespace Rasa.Packets.MapChannel.Server
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(4);
-            pw.WriteInt(CreatureNameId);
+            if (CreatureNameId == 0)
+                pw.WriteNoneStruct();           // creatureNameId (none, server defines name)
+            else
+                pw.WriteInt(CreatureNameId);    // use creaturename table to lookup translated name
+
             pw.WriteBool(IsFlyer);
             pw.WriteNoneStruct();               // LeaderId is not used by client
             pw.WriteList(CreatureFlags.Count);  // generated.client.constant.creatureflag.pyo

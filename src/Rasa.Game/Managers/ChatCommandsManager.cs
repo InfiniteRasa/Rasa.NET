@@ -89,27 +89,27 @@ namespace Rasa.Managers
         {
             if (parts.Length == 1)
             {
-                CommunicatorManager.Instance.SystemMessage(_mapClient, "usage: .creature entityClassId");
+                CommunicatorManager.Instance.SystemMessage(_mapClient, "usage: .creature dbId");
                 return;
             }
+
             if (parts.Length == 2)
             {
-                int entityClassId;
-                if (int.TryParse(parts[1], out entityClassId))
+                if (uint.TryParse(parts[1], out uint dbId))
                 {
-                    var creatureType = new CreatureType();
+                    var creature = CreatureManager.Instance.CreateCreature(dbId, SpawnPoolManager.Instance.LoadedSpawnPools[1]);
 
-                    creatureType.CreatureStats.Health.Current = 150;
-                    creatureType.NameId = 0;
-                    creatureType.EntityClassId = entityClassId;
-                    creatureType.Name = "test Npc";
-
-                    var creature = CreatureManager.Instance.CreateCreature(creatureType, null);
-                    CreatureManager.Instance.SetLocation(creature, _mapClient.Player.Actor.Position, _mapClient.Player.Actor.Rotation);
-                    CellManager.Instance.AddToWorld(_mapClient.MapChannel, creature);
-                    CommunicatorManager.Instance.SystemMessage(_mapClient, $"Created new creature with EntityId {creature.Actor.EntityId}");
+                    if (creature != null)
+                    {
+                        CreatureManager.Instance.SetLocation(creature, _mapClient.Player.Actor.Position, _mapClient.Player.Actor.Rotation);
+                        CellManager.Instance.AddToWorld(_mapClient.MapChannel, creature);
+                        CommunicatorManager.Instance.SystemMessage(_mapClient, $"Created new creature with EntityId {creature.Actor.EntityId}");
+                    }
+                    else
+                        CommunicatorManager.Instance.SystemMessage(_mapClient, $"Creature with dbId={dbId} isn't in database");
                 }
             }
+
             return;
         }
 
@@ -129,14 +129,7 @@ namespace Rasa.Managers
                     // create object entity
                     _mapClient.Player.Client.SendPacket(5, new CreatePhysicalEntityPacket(_entityId, entityClassId));
                     // set position
-                    _mapClient.Player.Client.SendPacket(_entityId, new WorldLocationDescriptorPacket
-                    {
-                        Position = _mapClient.Player.Actor.Position,
-                        RotationX = 0.0D,
-                        RotationY = 0.0D,
-                        RotationZ = 0.0D,
-                        RotationW = 1.0D
-                    });
+                    _mapClient.Player.Client.SendPacket(_entityId, new WorldLocationDescriptorPacket(_mapClient.Player.Actor.Position, _mapClient.Player.Actor.Rotation));
                     CommunicatorManager.Instance.SystemMessage(_mapClient, "Created object");
                 }
             }
@@ -223,12 +216,7 @@ namespace Rasa.Managers
                                     MapContextId = mapChannel.MapInfo.MapId,
                                     MapInstanceId = 0,                  // ToDo MapInstanceId
                                     MapVersion = mapChannel.MapInfo.MapVersion,
-                                    Position = new Position
-                                    {
-                                        PosX = posX,
-                                        PosY = posY,
-                                        PosZ = posZ
-                                    },
+                                    Position = new Position(posX, posY, posZ),
                                     Rotation = 1
                                 });
                                 // Update Db, this position will be loaded in MapLoadedPacket
@@ -254,7 +242,7 @@ namespace Rasa.Managers
 
         private void SetCreatureLocation(string[] parts)
         {
-            if (parts.Length == 1)
+            /*if (parts.Length == 1)
             {
                 CommunicatorManager.Instance.SystemMessage(_mapClient, "usage: .creatureloc entityClassId, posX, posY, posZ");
                 return;
@@ -270,19 +258,17 @@ namespace Rasa.Managers
                             {
                                 var creatureType = new CreatureType();
                                 var position = new Position { PosX = posX, PosY = posY, PosZ = posZ };
-
-                                creatureType.CreatureStats.Health.Current = 150;
+                                
                                 creatureType.NameId = 0;
-                                creatureType.EntityClassId = entityClassId;
                                 creatureType.Name = "test Npc";
 
-                                var creature = CreatureManager.Instance.CreateCreature(creatureType, null);
+                                var creature = CreatureManager.Instance.CreateCreature(creatureType, entityClassId, _mapClient.Player.AppearanceData, null);
                                 CreatureManager.Instance.SetLocation(creature, position, _mapClient.Player.Actor.Rotation);
                                 CellManager.Instance.AddToWorld(_mapClient.MapChannel, creature);
                                 CommunicatorManager.Instance.SystemMessage(_mapClient, $"Created new creature with EntityId {creature.Actor.EntityId}");
                             }
             }
-            return;
+            return;*/
         }
 
         private void SetRegionCommand(string[] parts)

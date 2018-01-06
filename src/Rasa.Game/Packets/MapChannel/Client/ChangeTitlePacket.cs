@@ -11,6 +11,7 @@
 
         public override void Read(PythonReader pr)
         {
+            Logger.WriteLog(LogType.Debug, $"ChangeTitle:\n{pr.ToString()}");
             pr.ReadTuple();
             if (pr.PeekType() == PythonType.Int)
                 TitleId = pr.ReadInt();

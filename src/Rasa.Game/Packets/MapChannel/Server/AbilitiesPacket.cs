@@ -14,9 +14,9 @@ namespace Rasa.Packets.MapChannel.Server
 
         public AbilitiesPacket(Dictionary<int, SkillsData> abilityList)
         {
-            foreach (var entry in abilityList)
-                if (abilityList[entry.Key].AbilityId != -1)   // don't insert if there is no ablilityId
-                    AbilityList.Add(entry.Key, new SkillsData { AbilityId = entry.Value.AbilityId, SkillLevel = entry.Value.SkillLevel } );
+            foreach (var ability in abilityList)
+                if (abilityList[ability.Key].AbilityId != -1)   // don't insert if there is no ablilityId
+                    AbilityList.Add(ability.Key, new SkillsData(ability.Value.SkillId, ability.Value.AbilityId, ability.Value.SkillLevel));
         }
 
         public override void Read(PythonReader pr)

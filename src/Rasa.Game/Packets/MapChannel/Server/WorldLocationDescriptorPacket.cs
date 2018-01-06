@@ -9,10 +9,13 @@
         public override GameOpcode Opcode { get; } = GameOpcode.WorldLocationDescriptor;
 
         public Position Position { get; set; }
-        public double RotationX { get; set; }
-        public double RotationY { get; set; }
-        public double RotationZ { get; set; }
-        public double RotationW { get; set; }
+        public Quaternion Rotation { get; set; }
+
+        public WorldLocationDescriptorPacket(Position position, Quaternion rotation)
+        {
+            Position = position;
+            Rotation = rotation;
+        }
 
         public override void Read(PythonReader pr)
         {
@@ -26,10 +29,10 @@
             pw.WriteDouble(Position.PosZ);
             pw.WriteDouble(Position.PosY);
             pw.WriteTuple(4);
-            pw.WriteDouble(RotationX);
-            pw.WriteDouble(RotationZ);
-            pw.WriteDouble(RotationY);
-            pw.WriteDouble(RotationW);
+            pw.WriteDouble(Rotation.X);
+            pw.WriteDouble(Rotation.Z);
+            pw.WriteDouble(Rotation.Y);
+            pw.WriteDouble(Rotation.W);
         }
     }
 }

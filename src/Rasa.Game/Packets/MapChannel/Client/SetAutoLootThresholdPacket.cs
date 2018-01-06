@@ -7,7 +7,7 @@
     {
         public override GameOpcode Opcode { get; } = GameOpcode.SetAutoLootThreshold;
 
-        public int LootLevel { get; set; }      // rename maybe to LootTreshold
+        public int LootLevel { get; set; }
 
         public override void Read(PythonReader pr)
         {
