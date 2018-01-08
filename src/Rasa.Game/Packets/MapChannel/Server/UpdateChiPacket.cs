@@ -4,16 +4,16 @@
     using Memory;
     using Structures;
 
-    public class UpdateArmorPacket : PythonPacket
+    public class UpdateChiPacket : PythonPacket
     {
-        public override GameOpcode Opcode { get; } = GameOpcode.UpdateArmor;
+        public override GameOpcode Opcode { get; } = GameOpcode.UpdateChi;
 
-        public ActorAttributes Armor { get; set; }
+        public ActorAttributes Chi { get; set; }
         public int WhoId { get; set; }
 
-        public UpdateArmorPacket(ActorAttributes armor, int whoId)
+        public UpdateChiPacket(ActorAttributes chi, int whoId)
         {
-            Armor = armor;
+            Chi = chi;
             WhoId = whoId;
         }
 
@@ -24,9 +24,9 @@
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(4);
-            pw.WriteInt(Armor.Current);
-            pw.WriteInt(Armor.CurrentMax);
-            pw.WriteInt(Armor.RefreshAmount);
+            pw.WriteInt(Chi.Current);
+            pw.WriteInt(Chi.CurrentMax);
+            pw.WriteInt(Chi.RefreshAmount);
             pw.WriteInt(WhoId);
         }
     }

@@ -107,6 +107,8 @@ namespace Rasa.Managers
                 player.Client.SendPacket(actor.EntityId, new AbilityDrawerPacket(player.Abilities));
 
             player.Client.SendPacket(actor.EntityId, new TitlesPacket(player.Titles));
+
+            player.Client.SendPacket(actor.EntityId, new UpdateAttributesPacket(player.Actor.Attributes, 0));
         }
 
         public void AutoFireKeepAlive(Client client, int keepAliveDelay)
@@ -152,18 +154,19 @@ namespace Rasa.Managers
             foreach (var tempPlayer in playerList)
             {
                 tempPlayer.Player.Client.SendPacket(5, new CreatePhysicalEntityPacket(mapClient.Player.Actor.EntityId, (int)mapClient.Player.Actor.EntityClassId));
-                tempPlayer.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, new AttributeInfoPacket { ActorStats = mapClient.Player.Actor.Stats });
+                tempPlayer.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, new AttributeInfoPacket(mapClient.Player.Actor.Attributes));
                 tempPlayer.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, new PreloadDataPacket());    // ToDo
+                //tempPlayer.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, new ResistanceDataPacket());   // ToDo generate resistance data from character item's buff's etc.
                 tempPlayer.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, new AppearanceDataPacket(mapClient.Player.AppearanceData));
                 tempPlayer.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, new ActorControllerInfoPacket(true));
-                tempPlayer.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, new LevelPacket { Level = mapClient.Player.Level });
+                tempPlayer.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, new LevelPacket(mapClient.Player.Level));
                 tempPlayer.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, new CharacterClassPacket { CharacterClass = mapClient.Player.ClassId });
                 tempPlayer.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, new CharacterNamePacket { CharacterName = mapClient.Player.Actor.Name });
                 tempPlayer.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, new ActorNamePacket(mapClient.Player.Actor.FamilyName));
                 tempPlayer.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, new IsRunningPacket(mapClient.Player.Actor.IsRunning));
                 tempPlayer.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, new LogosStoneTabulaPacket { Logos = mapClient.Player.Logos });
                 tempPlayer.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, new WorldLocationDescriptorPacket(mapClient.Player.Actor.Position, mapClient.Player.Actor.Rotation));
-                tempPlayer.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, new TargetCategoryPacket { TargetCategory = 0 });    // 0 frendly
+                tempPlayer.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, new TargetCategoryPacket(0));    // 0 frendly
                 tempPlayer.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, new PlayerFlagsPacket());
 
                 if (tempPlayer.Player.Actor.EntityId == mapClient.Player.Actor.EntityId)
@@ -188,16 +191,16 @@ namespace Rasa.Managers
                     continue;
 
                 mapClient.Player.Client.SendPacket(5, new CreatePhysicalEntityPacket(tempClient.Player.Actor.EntityId, (int)tempClient.Player.Actor.EntityClassId));
-                mapClient.Player.Client.SendPacket(tempClient.Player.Actor.EntityId, new AttributeInfoPacket { ActorStats = tempClient.Player.Actor.Stats });
+                mapClient.Player.Client.SendPacket(tempClient.Player.Actor.EntityId, new AttributeInfoPacket(tempClient.Player.Actor.Attributes));
                 mapClient.Player.Client.SendPacket(tempClient.Player.Actor.EntityId, new AppearanceDataPacket(tempClient.Player.AppearanceData));
                 mapClient.Player.Client.SendPacket(tempClient.Player.Actor.EntityId, new ActorControllerInfoPacket(true));
-                mapClient.Player.Client.SendPacket(tempClient.Player.Actor.EntityId, new LevelPacket { Level = tempClient.Player.Level });
+                mapClient.Player.Client.SendPacket(tempClient.Player.Actor.EntityId, new LevelPacket(tempClient.Player.Level));
                 mapClient.Player.Client.SendPacket(tempClient.Player.Actor.EntityId, new CharacterClassPacket { CharacterClass = tempClient.Player.ClassId });
                 mapClient.Player.Client.SendPacket(tempClient.Player.Actor.EntityId, new CharacterNamePacket { CharacterName = tempClient.Player.Actor.Name });
                 mapClient.Player.Client.SendPacket(tempClient.Player.Actor.EntityId, new ActorNamePacket(tempClient.Player.Actor.FamilyName));
                 mapClient.Player.Client.SendPacket(tempClient.Player.Actor.EntityId, new IsRunningPacket(tempClient.Player.Actor.IsRunning));
                 mapClient.Player.Client.SendPacket(tempClient.Player.Actor.EntityId, new WorldLocationDescriptorPacket(tempClient.Player.Actor.Position, tempClient.Player.Actor.Rotation));
-                mapClient.Player.Client.SendPacket(tempClient.Player.Actor.EntityId, new TargetCategoryPacket { TargetCategory = 0 });  // 0 frendly
+                mapClient.Player.Client.SendPacket(tempClient.Player.Actor.EntityId, new TargetCategoryPacket(0));  // 0 frendly
                 // ToDo
                 // send inital movement packet
                 //netCompressedMovement_t netMovement = { 0 };
@@ -351,13 +354,13 @@ namespace Rasa.Managers
             // ToDo do we need remove something, or it's done already 
         }
 
-        public void RemoveAppearanceItem(PlayerData player, int equipmentSlotId)
+        public void RemoveAppearanceItem(PlayerData player, EquipmentSlots equipmentSlotId)
         {
             if (equipmentSlotId == 0)
                 return;
             player.AppearanceData[equipmentSlotId].ClassId = 0;
             // update appearance data in database
-            CharacterAppearanceTable.UpdateCharacterAppearance(player.CharacterId, equipmentSlotId, 0, 0);
+            CharacterAppearanceTable.UpdateCharacterAppearance(player.CharacterId, (int)equipmentSlotId, 0, 0);
         }
 
         public void RequestArmAbility(Client client, int abilityDrawerSlot)
@@ -505,15 +508,15 @@ namespace Rasa.Managers
             var equipmentSlotId = item.ItemTemplate.Equipment.EquiptmentSlotType;
             if (equipmentSlotId == 0)
                 return;
-            if (!player.AppearanceData.ContainsKey(equipmentSlotId))
+            if (!player.AppearanceData.ContainsKey((EquipmentSlots)equipmentSlotId))
             {
                 // Add new appearance slot to character and db
-                player.AppearanceData.Add(equipmentSlotId, new AppearanceData { SlotId = equipmentSlotId } );
+                player.AppearanceData.Add((EquipmentSlots)equipmentSlotId, new AppearanceData { SlotId = equipmentSlotId } );
                 CharacterAppearanceTable.SetAppearance(player.CharacterId, equipmentSlotId, 0, 0);
             }
 
-            player.AppearanceData[equipmentSlotId].ClassId = item.ItemTemplate.ClassId;
-            player.AppearanceData[equipmentSlotId].Color = new Color(item.Color);
+            player.AppearanceData[(EquipmentSlots)equipmentSlotId].ClassId = item.ItemTemplate.ClassId;
+            player.AppearanceData[(EquipmentSlots)equipmentSlotId].Color = new Color(item.Color);
             // update appearance data in database
             CharacterAppearanceTable.UpdateCharacterAppearance(player.CharacterId, equipmentSlotId, item.ItemTemplate.ClassId, item.Color);
         }
@@ -589,48 +592,47 @@ namespace Rasa.Managers
         public void UpdateStatsValues(MapChannelClient mapClient, bool fullreset)
         {
             var player = mapClient.Player;
-            var stats = player.Actor.Stats;
+            var attribute = player.Actor.Attributes;
             // body
-            stats.Body.NormalMax = 10 + (player.Level - 1) * 2 + player.SpentBody;
+            attribute[Attributes.Body].NormalMax = 10 + (player.Level - 1) * 2 + player.SpentBody;
             var bodyBonus = 0;
-            stats.Body.CurrentMax = stats.Body.NormalMax + bodyBonus;
-            stats.Body.Current = stats.Body.CurrentMax;
+            attribute[Attributes.Body].CurrentMax = attribute[Attributes.Body].NormalMax + bodyBonus;
+            attribute[Attributes.Body].Current = attribute[Attributes.Body].CurrentMax;
             // mind
-            stats.Mind.NormalMax = 10 + (player.Level - 1) * 2 + player.SpentMind;
+            attribute[Attributes.Mind].NormalMax = 10 + (player.Level - 1) * 2 + player.SpentMind;
             var mindBonus = 0;
-            stats.Mind.CurrentMax = stats.Mind.NormalMax + mindBonus;
-            stats.Mind.Current = stats.Mind.CurrentMax;
+            attribute[Attributes.Mind].CurrentMax = attribute[Attributes.Mind].NormalMax + mindBonus;
+            attribute[Attributes.Mind].Current = attribute[Attributes.Mind].CurrentMax;
             // spirit
-            stats.Spirit.NormalMax = 10 + (player.Level - 1) * 2 + player.SpentSpirit;
+            attribute[Attributes.Spirit].NormalMax = 10 + (player.Level - 1) * 2 + player.SpentSpirit;
             var spiritBonus = 0;
-            stats.Spirit.CurrentMax = stats.Spirit.NormalMax + spiritBonus;
-            stats.Spirit.Current = stats.Spirit.CurrentMax;
+            attribute[Attributes.Spirit].CurrentMax = attribute[Attributes.Spirit].NormalMax + spiritBonus;
+            attribute[Attributes.Spirit].Current = attribute[Attributes.Spirit].CurrentMax;
             // health
-            stats.Health.NormalMax = 100 + (player.Level - 1) * 2 * 8 + player.SpentBody * 6;
+            attribute[Attributes.Health].NormalMax = 100 + (player.Level - 1) * 2 * 8 + player.SpentBody * 6;
             var healthBonus = 0;
-            stats.Health.CurrentMax = stats.Health.NormalMax + healthBonus;
+            attribute[Attributes.Health].CurrentMax = attribute[Attributes.Health].NormalMax + healthBonus;
             if (fullreset)
-                stats.Health.Current = stats.Health.CurrentMax;
+                attribute[Attributes.Health].Current = attribute[Attributes.Health].CurrentMax;
             else
-                stats.Health.Current = Math.Min(stats.Health.Current, stats.Health.CurrentMax);
+                attribute[Attributes.Health].Current = Math.Min(attribute[Attributes.Health].Current, attribute[Attributes.Health].CurrentMax);
             // chi/adrenaline
-            stats.Chi.NormalMax = 100 + (player.Level - 1) * 2 * 4 + player.SpentSpirit * 3;
+            attribute[Attributes.Chi].NormalMax = 100 + (player.Level - 1) * 2 * 4 + player.SpentSpirit * 3;
             var chiBonus = 0;
-            stats.Chi.CurrentMax = stats.Chi.NormalMax + chiBonus;
+            attribute[Attributes.Chi].CurrentMax = attribute[Attributes.Chi].NormalMax + chiBonus;
             if (fullreset)
-                stats.Chi.Current = stats.Chi.CurrentMax;
+                attribute[Attributes.Chi].Current = attribute[Attributes.Chi].CurrentMax;
             else
-                stats.Chi.Current = Math.Min(stats.Chi.Current, stats.Chi.CurrentMax);
+                attribute[Attributes.Chi].Current = Math.Min(attribute[Attributes.Chi].Current, attribute[Attributes.Chi].CurrentMax);
             // update regen rate
-            stats.Regen.NormalMax = 100 + (player.Level - 1) * 2 + Math.Max(0, (stats.Spirit.CurrentMax - 10)) * 6; // regenRate in percent
+            attribute[Attributes.Regen].NormalMax = 100 + (player.Level - 1) * 2 + Math.Max(0, (attribute[Attributes.Spirit].CurrentMax - 10)) * 6; // regenRate in percent
             var regenBonus = 0;
-            stats.Regen.CurrentMax = stats.Regen.NormalMax + regenBonus;
-            stats.Regen.RefreshAmount = 2 * (stats.Regen.CurrentMax / 100); // 2.0 per second is the base regeneration for health
-            
+            attribute[Attributes.Regen].CurrentMax = attribute[Attributes.Regen].NormalMax + regenBonus;
+            attribute[Attributes.Regen].RefreshAmount = (int)Math.Round(2D * (attribute[Attributes.Regen].CurrentMax / 100), 0); // 2.0 per second is the base regeneration for health
             // calculate armor max
             var armorMax = 0.0d;
             //float armorBonus = 0; // todo! (From item modules)
-            var armorBonusPct = player.Actor.Stats.Body.CurrentMax * 0.0066666d;
+            var armorBonusPct = player.Actor.Attributes[Attributes.Body].CurrentMax * 0.0066666d;
             var armorRegenRate = 0;
             for (var i = 0; i < 22; i++)
             {
@@ -650,25 +652,25 @@ namespace Rasa.Managers
                 // what about damage absorbed? Was it used at all?
             }
             armorMax = armorMax * (1.0d + armorBonusPct);
-            stats.Armor.Current = armorRegenRate;
-            stats.Armor.NormalMax = armorMax;
-            stats.Armor.CurrentMax = armorMax;
+            attribute[Attributes.Armor].Current = armorRegenRate;
+            attribute[Attributes.Armor].NormalMax = (int)Math.Round(armorMax,0);
+            attribute[Attributes.Armor].CurrentMax = attribute[Attributes.Armor].NormalMax;
             if (fullreset)
-                stats.Armor.Current = stats.Armor.CurrentMax;
+                attribute[Attributes.Armor].Current = attribute[Attributes.Armor].CurrentMax;
             else
-                stats.Armor.Current = Math.Min(stats.Armor.Current, armorMax);
+                attribute[Attributes.Armor].Current = Math.Min(attribute[Attributes.Armor].Current, attribute[Attributes.Armor].CurrentMax);
             // added by krssrb
             // power test
-            stats.Power.NormalMax = 100 + (player.Level - 1) * 2 * 4 + player.SpentMind * 3;
+            attribute[Attributes.Power].NormalMax = 100 + (player.Level - 1) * 2 * 4 + player.SpentMind * 3;
             var powerBonus = 0;
-            stats.Power.CurrentMax = stats.Power.NormalMax + powerBonus;
+            attribute[Attributes.Power].CurrentMax = attribute[Attributes.Power].NormalMax + powerBonus;
             if (fullreset)
-                stats.Power.Current = stats.Power.CurrentMax;
+                attribute[Attributes.Power].Current = attribute[Attributes.Power].CurrentMax;
             else
-                stats.Power.Current = Math.Min(stats.Power.Current, stats.Power.CurrentMax);
+                attribute[Attributes.Power].Current = Math.Min(attribute[Attributes.Power].Current, attribute[Attributes.Power].CurrentMax);
 
             // Send Data to client
-            mapClient.Client.SendPacket(mapClient.Player.Actor.EntityId, new AttributeInfoPacket { ActorStats = mapClient.Player.Actor.Stats });
+            mapClient.Client.SendPacket(mapClient.Player.Actor.EntityId, new AttributeInfoPacket(mapClient.Player.Actor.Attributes));
         }
 
         public void WeaponReload(MapChannelClient mapClient, int actionId, int actionArgId)

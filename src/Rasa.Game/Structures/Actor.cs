@@ -2,6 +2,7 @@
 
 namespace Rasa.Structures
 {
+    using Data;
     using Managers;
 
     public class Actor
@@ -22,7 +23,7 @@ namespace Rasa.Structures
         //public char State { get; set; }
         // action data
         public ActorCurrentAction CurrentAction { get; set; }
-        public ActorStats Stats = new ActorStats();
+        public Dictionary<Attributes, ActorAttributes> Attributes = new Dictionary<Attributes, ActorAttributes>();
         public Dictionary<int, GameEffect> ActiveEffects { get; set; } = new Dictionary<int, GameEffect>();
         public MapCellLocation CellLocation { get; set; } = new MapCellLocation();
         // sometimes we only have access to the actor, the owner variable allows us to access the client anyway (only if actor is a player manifestation)

@@ -9,6 +9,11 @@
 
         public bool IsTargetable { get; set; }
 
+        public IsTargetablePacket(bool isTargetable)
+        {
+            IsTargetable = isTargetable;
+        }
+
         public override void Read(PythonReader pr)
         {
         }

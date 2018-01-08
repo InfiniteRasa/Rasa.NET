@@ -39,8 +39,9 @@ namespace Rasa.Managers
         {
             // for now we do a simple straight forward search
             // todo: replace by binary search
-            foreach (var mission in client.MapClient.Player.MissionLog)
+            foreach (var entry in client.MapClient.Player.MissionLog)
             {
+                var mission = entry.Value;
                 if (mission.MissionIndex == missionIndex)
                     return mission;
             }
@@ -55,6 +56,39 @@ namespace Rasa.Managers
                     return mission.Value;
 
             return null;
+        }
+
+        public Mission GetByIndex(int missionIndex)
+        {
+            var missionEnv = new MissionEnv();
+            if (missionIndex >= missionEnv.MissionCount)
+                return null;
+
+            return missionEnv.Missions[missionIndex];
+        }
+
+        public bool IsCreatureMissionDispenser(Mission mission, Creature creatureOrNPC)
+        {
+            var scriptLineTo = mission.StateMapping[1];
+            for (var i = 0; i < scriptLineTo; i++)
+            {
+                var scriptline = mission.ScriptLines[i];
+
+                if (scriptline.Command == MissionScriptCommand.Dispenser)
+                    if (creatureOrNPC.CreatureType.DbId == scriptline.Value1)
+                        return true;
+            }
+
+            return false;
+        }
+
+        public bool IsCompletedByPlayer(Client client, int missionIndex)
+        {
+            if (client.MapClient.Player.MissionLog.ContainsKey(missionIndex))
+                if (client.MapClient.Player.MissionLog[missionIndex].State == 2)
+                    return true;
+
+            return false;
         }
     }
 }

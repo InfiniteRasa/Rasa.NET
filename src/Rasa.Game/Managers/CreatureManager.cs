@@ -2,8 +2,10 @@
 
 namespace Rasa.Managers
 {
+    using Data;
     using Database.Tables.World;
     using Game;
+    using Packets;
     using Packets.Game.Server;
     using Packets.MapChannel.Client;
     using Packets.MapChannel.Server;
@@ -66,8 +68,7 @@ namespace Rasa.Managers
             var creature = new Creature
             {
                 Actor = new Actor(),
-                //AppearanceData = LoadedCreatures[dbId].AppearanceData,
-                AppearanceData = new Dictionary<int, AppearanceData>(),
+                AppearanceData = LoadedCreatures[dbId].AppearanceData,
                 CreatureType = LoadedCreatures[dbId].CreatureType,
                 DbId = LoadedCreatures[dbId].DbId,
                 Faction = LoadedCreatures[dbId].Faction,
@@ -76,6 +77,21 @@ namespace Rasa.Managers
                 NameId = LoadedCreatures[dbId].NameId,
                 SpawnPool = spawnPool
             };
+            // set creature stats
+            var creatureStats = CreatureStatsTable.GetCreatureStats(dbId);
+            if (creatureStats != null)
+            {
+                creature.Actor.Attributes.Add(Attributes.Body, new ActorAttributes(Attributes.Body, creatureStats.Body, creatureStats.Body, creatureStats.Body, 5, 1000));
+                creature.Actor.Attributes.Add(Attributes.Mind, new ActorAttributes(Attributes.Mind, creatureStats.Mind, creatureStats.Mind, creatureStats.Mind, 5, 1000));
+                creature.Actor.Attributes.Add(Attributes.Spirit, new ActorAttributes(Attributes.Spirit, creatureStats.Spirit, creatureStats.Spirit, creatureStats.Spirit, 5, 1000));
+                creature.Actor.Attributes.Add(Attributes.Health, new ActorAttributes(Attributes.Health, creatureStats.Health, creatureStats.Health, creatureStats.Health, 5, 1000));
+                creature.Actor.Attributes.Add(Attributes.Chi, new ActorAttributes(Attributes.Chi, 0, 0, 0, 0, 0));
+                creature.Actor.Attributes.Add(Attributes.Power, new ActorAttributes(Attributes.Power, 0, 0, 0, 0, 0));
+                creature.Actor.Attributes.Add(Attributes.Aware, new ActorAttributes(Attributes.Aware, 0, 0, 0, 0, 0));
+                creature.Actor.Attributes.Add(Attributes.Armor, new ActorAttributes(Attributes.Armor, creatureStats.Armor, creatureStats.Armor, creatureStats.Armor, 5, 1000));
+                creature.Actor.Attributes.Add(Attributes.Speed, new ActorAttributes(Attributes.Speed, 1, 1, 1, 0, 0));
+                creature.Actor.Attributes.Add(Attributes.Regen, new ActorAttributes(Attributes.Regen, 0, 0, 0, 0, 0));
+            }
 
             if (spawnPool != null)
                 SpawnPoolManager.Instance.IncreaseAliveCreatureCount(spawnPool);
@@ -89,31 +105,36 @@ namespace Rasa.Managers
             if (creature == null)
                 return;
 
-            mapClient.Player.Client.SendPacket(5, new CreatePhysicalEntityPacket(creature.Actor.EntityId, creature.CreatureType.ClassId));
-            // set attributes - Recv_AttributeInfo (29)
-            mapClient.Player.Client.SendPacket(creature.Actor.EntityId, new AttributeInfoPacket { ActorStats = creature.Actor.Stats });
-            // set appearence
-            if (creature.AppearanceData != null)
-                mapClient.Player.Client.SendPacket(creature.Actor.EntityId, new AppearanceDataPacket(creature.AppearanceData));
-            // set level
-            mapClient.Player.Client.SendPacket(creature.Actor.EntityId, new LevelPacket { Level = creature.Level });
-            // set creature info (439)
+            var entityData = new List<PythonPacket>
+            {
+                // PhysicalEntity
+                new WorldLocationDescriptorPacket(creature.Actor.Position, creature.Actor.Rotation),
+                new IsTargetablePacket(true),
+                // Creature augmentation
+                new CreatureInfoPacket(creature.NameId, false, new List<int>()),    // ToDo add creature flags
+                // Actor augmentation
+                new AppearanceDataPacket(creature.AppearanceData),
+                new LevelPacket(creature.Level),
+                new AttributeInfoPacket(creature.Actor.Attributes),
+                new TargetCategoryPacket(creature.Faction),
+                new UpdateAttributesPacket(creature.Actor.Attributes, 0),
+                new IsRunningPacket(false)
+        };
 
-            mapClient.Player.Client.SendPacket(creature.Actor.EntityId, new CreatureInfoPacket { CreatureNameId = creature.NameId, IsFlyer = false, CreatureFlags = new List<int> { 37, 69, 141 } });    // ToDo add creature flags
-            // set running
-            mapClient.Player.Client.SendPacket(creature.Actor.EntityId, new IsRunningPacket(false));
-            // Recv_WorldLocationDescriptor (243)
-            mapClient.Player.Client.SendPacket(creature.Actor.EntityId, new WorldLocationDescriptorPacket(creature.Actor.Position, creature.Actor.Rotation));
-            // TargetCategory
-            mapClient.Player.Client.SendPacket(creature.Actor.EntityId, new TargetCategoryPacket { TargetCategory = creature.Faction });
-            // Recv_IsTargetable
-            mapClient.Player.Client.SendPacket(creature.Actor.EntityId, new IsTargetablePacket { IsTargetable = true });
+            mapClient.Player.Client.SendPacket(5, new CreatePhysicalEntityPacket(creature.Actor.EntityId, creature.CreatureType.ClassId, entityData));
 
-            // NPC
+            // NPC augmentation
             if (creature.CreatureType.NpcData != null)
             {
-                //mapClient.Player.Client.SendPacket(creature.Actor.EntityId, new NPCInfoPacket(726));
-                mapClient.Player.Client.SendPacket(creature.Actor.EntityId, new ConversePacket());
+                /*
+             * NPCInfo
+             * NPCConversationStatus
+             * Converse
+             * Train
+             */
+                UpdateConversationStatus(mapClient.Client, creature);
+                mapClient.Player.Client.SendPacket(creature.Actor.EntityId, new NPCInfoPacket(726));
+                //mapClient.Player.Client.SendPacket(creature.Actor.EntityId, new ConversePacket());
                 //mapClient.Player.Client.SendPacket(creature.Actor.EntityId, new NPCConversationStatusPacket(ConversationType.Vending, new List<int> { 10 }));
             }
             /*if (creature->actor.entityClassId == 25580) // pistol
@@ -168,20 +189,20 @@ namespace Rasa.Managers
                 // fix health
                 creature->actor.stats.healthCurrent = 0;
             }*/
-            /* if (creature->type->npcData)
-             {
-                 npc_creature_updateConversationStatus(client, creature);
-                 // send Recv_NPCInfo (only npcPackageId)
-                 // the only reason to send this is because the language lookup for mission objectives needs it...
-                 if (creature->type->npcData->npcPackageId != 0)
-                 {
-                     pym_init(&pms);
-                     pym_tuple_begin(&pms);
-                     pym_addInt(&pms, creature->type->npcData->npcPackageId); // the glorious npcPackageId
-                     pym_tuple_end(&pms);
-                     netMgr_pythonAddMethodCallRaw(client->cgm, creature->actor.entityId, 490, pym_getData(&pms), pym_getLen(&pms));
-                 }
-             }*/
+            /*if (creature->type->npcData)
+            {
+                npc_creature_updateConversationStatus(client, creature);
+                // send Recv_NPCInfo (only npcPackageId)
+                // the only reason to send this is because the language lookup for mission objectives needs it...
+                if (creature->type->npcData->npcPackageId != 0)
+                {
+                    pym_init(&pms);
+                    pym_tuple_begin(&pms);
+                    pym_addInt(&pms, creature->type->npcData->npcPackageId); // the glorious npcPackageId
+                    pym_tuple_end(&pms);
+                    netMgr_pythonAddMethodCallRaw(client->cgm, creature->actor.entityId, 490, pym_getData(&pms), pym_getLen(&pms));
+                }
+            }*/
         }
 
         public Creature FindCreature(uint creatureId)
@@ -195,6 +216,23 @@ namespace Rasa.Managers
 
             foreach (var data in creatureList)
             {
+                var appearanceData = CreatureAppearenceTable.GetCreatureAppearence(data.DbId);
+                var tempAppearnece = new Dictionary<EquipmentSlots, AppearanceData>();
+                if (appearanceData != null)
+                {
+                    tempAppearnece.Add(EquipmentSlots.Helmet, new AppearanceData { SlotId = 1, ClassId = appearanceData.Helmet, Color = new Color(appearanceData.HelmetHue) });
+                    tempAppearnece.Add(EquipmentSlots.Shoes, new AppearanceData { SlotId = 2, ClassId = appearanceData.Shoes, Color = new Color(appearanceData.ShoesHue) });
+                    tempAppearnece.Add(EquipmentSlots.Gloves, new AppearanceData { SlotId = 3, ClassId = appearanceData.Gloves, Color = new Color(appearanceData.GlovesHue) });
+                    tempAppearnece.Add(EquipmentSlots.Weapon, new AppearanceData { SlotId = 13, ClassId = appearanceData.Weapon, Color = new Color(appearanceData.WeaponHue) });
+                    tempAppearnece.Add(EquipmentSlots.Hair, new AppearanceData { SlotId = 14, ClassId = appearanceData.Hair, Color = new Color(appearanceData.HairHue) });
+                    tempAppearnece.Add(EquipmentSlots.Torso, new AppearanceData { SlotId = 15, ClassId = appearanceData.Torso, Color = new Color(appearanceData.TorsoHue) });
+                    tempAppearnece.Add(EquipmentSlots.Legs, new AppearanceData { SlotId = 16, ClassId = appearanceData.Legs, Color = new Color(appearanceData.LegsHue) });
+                    tempAppearnece.Add(EquipmentSlots.Face, new AppearanceData { SlotId = 17, ClassId = appearanceData.Face, Color = new Color(appearanceData.FaceHue) });
+                    tempAppearnece.Add(EquipmentSlots.EyeWear, new AppearanceData { SlotId = 19, ClassId = appearanceData.EyeWear, Color = new Color(appearanceData.EyeWearHue) });
+                    tempAppearnece.Add(EquipmentSlots.Beard, new AppearanceData { SlotId = 20, ClassId = appearanceData.Beard, Color = new Color(appearanceData.BeardHue) });
+                    tempAppearnece.Add(EquipmentSlots.Mask, new AppearanceData { SlotId = 21, ClassId = appearanceData.Mask, Color = new Color(appearanceData.MaskHue) });
+                }
+
                 var creature = new Creature
                 {
                     DbId = data.DbId,
@@ -202,7 +240,9 @@ namespace Rasa.Managers
                     Faction = data.Faction,
                     Level = data.Level,
                     MaxHitPoints = data.MaxHitPoints,
-                    NameId = data.NameId
+                    NameId = data.NameId,
+                    AppearanceData = tempAppearnece
+
                 };
 
                 LoadedCreatures.Add(creature.DbId, creature);
@@ -468,6 +508,98 @@ namespace Rasa.Managers
             pym_tuple_end(&pms);
             netMgr_pythonAddMethodCallRaw(client->cgm, creature->actor.entityId, 433, pym_getData(&pms), pym_getLen(&pms));
             */
+        }
+        
+        public void UpdateConversationStatus(Client client, Creature creature)
+        {
+            var npcData = creature.CreatureType.NpcData;
+            var statusSet = false;
+
+            foreach (var entry in npcData.RelatedMissions)
+            {
+                var missionLogEntry = MissionManager.Instance.FindPlayerMission(client, entry.MissionIndex);
+                var mission = MissionManager.Instance.GetById(missionLogEntry.MissionIndex);
+
+                if (missionLogEntry != null)
+                {
+                    if (mission == null)
+                        continue;
+
+                    if (missionLogEntry.State >= mission.StateCount)
+                        continue;
+
+                    // search for objective or mission related updates
+                    var scriptlineStart = mission.StateMapping[missionLogEntry.State];
+                    var scriptlineEnd = mission.StateMapping[missionLogEntry.State + 1];
+
+                    for (var i = scriptlineStart; i < scriptlineEnd; i++)
+                    {
+                        var scriptline = mission.ScriptLines[i];
+
+                        if (scriptline.Command == MissionScriptCommand.CompleteObjective)
+                        {
+                            if (creature.CreatureType.DbId == scriptline.Value1) // same NPC?
+                            {
+                                // objective already completed?
+                                if (missionLogEntry.MissionData[scriptline.StorageIndex] == 1)
+                                    continue;
+
+                                // send objective completable flag
+                                client.SendPacket(creature.Actor.EntityId, new NPCConversationStatusPacket(ConversationStatus.ObjectivComplete, new List<int>())); // status - complete objective
+
+                                statusSet = true;
+
+                                break;
+                            }
+                            else if (scriptline.Command == MissionScriptCommand.Collector)
+                            {
+                                if (creature.CreatureType.DbId == scriptline.Value1) // same NPC?
+                                {
+                                    // mission already completed?
+                                    if (missionLogEntry.State != (mission.StateCount - 1))
+                                        continue;
+
+                                    // send mission completable flag
+                                    client.SendPacket(creature.Actor.EntityId, new NPCConversationStatusPacket(ConversationStatus.MissionComplete, new List<int>())); // status - complete objective
+
+                                    statusSet = true;
+
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+                else if (MissionManager.Instance.IsCompletedByPlayer(client, mission.MissionIndex) == false)
+                {
+                    // check if the npc is actually the mission dispenser and not only a objective related npc
+                    if (MissionManager.Instance.IsCreatureMissionDispenser(MissionManager.Instance.GetByIndex(mission.MissionIndex), creature))
+                    {
+                        // mission available overwrites any other converse state
+                        client.SendPacket(creature.Actor.EntityId, new NPCConversationStatusPacket(ConversationStatus.Available, new List<int>())); // status - available
+
+                        statusSet = true;
+
+                        break;
+                    }
+                }
+            }
+            // is NPC vendor?
+            if (creature.CreatureType.VendorData != null && statusSet == false )
+            {
+                // creature->npcData.isVendor
+                client.SendPacket(creature.Actor.EntityId, new NPCConversationStatusPacket(ConversationStatus.Available, new List<int> { (creature.CreatureType.VendorData.VendorPackageId) })); // status - vending
+
+                statusSet = true;
+            }
+            // no status set yet? Send NONE conversation status
+            if (statusSet == false )
+            {
+                // no other status, set NONE status
+                client.SendPacket(creature.Actor.EntityId, new NPCConversationStatusPacket(ConversationStatus.None, new List<int>()));// status - none
+
+                statusSet = true;
+            }
         }
         #endregion
     }

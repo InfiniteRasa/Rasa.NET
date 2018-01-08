@@ -15,7 +15,7 @@ namespace Rasa.Structures
         public MissionScriptLine MissionScriptLines { get; set; }
         public uint MissionScriptLineCount { get; set; }
         // mission table (used for missionIndex -> mission mapping)
-        public Mission Missions { get; set; }
+        public List<Mission> Missions { get; set; }
         public int MissionCount { get; set; }
     }
 }

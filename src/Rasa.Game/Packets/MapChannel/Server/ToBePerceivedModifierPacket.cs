@@ -3,15 +3,15 @@
     using Data;
     using Memory;
 
-    public class LevelPacket : PythonPacket
+    public class ToBePerceivedModifierPacket : PythonPacket
     {
-        public override GameOpcode Opcode { get; } = GameOpcode.Level;
+        public override GameOpcode Opcode { get; } = GameOpcode.ToBePerceivedModifier;
 
-        public int Level { get; set; }
+        public int Mod { get; set; }
 
-        public LevelPacket(int level)
+        public ToBePerceivedModifierPacket(int mod)
         {
-            Level = level;
+            Mod = mod;
         }
 
         public override void Read(PythonReader pr)
@@ -21,7 +21,7 @@
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(1);
-            pw.WriteInt(Level);
+            pw.WriteInt(Mod);
         }
     }
 }

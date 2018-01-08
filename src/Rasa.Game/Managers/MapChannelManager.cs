@@ -63,10 +63,11 @@ namespace Rasa.Managers
         public void CreatePlayerCharacter(MapChannelClient mapClient)
         {
             var data = CharacterTable.GetCharacterData(mapClient.Client.Entry.Id, mapClient.Client.LoadingSlot);
-            var tempAppearanceData = new Dictionary<int, AppearanceData>();
+            var tempAppearanceData = new Dictionary<EquipmentSlots, AppearanceData>();
             var appearance = CharacterAppearanceTable.GetAppearance(data.CharacterId);
+
             foreach (var t in appearance)
-                tempAppearanceData.Add(t.SlotId, new AppearanceData { SlotId = t.SlotId, ClassId = t.ClassId, Color = new Color(t.Color) });
+                tempAppearanceData.Add((EquipmentSlots)t.SlotId, new AppearanceData { SlotId = t.SlotId, ClassId = t.ClassId, Color = new Color(t.Color) });
 
             var player = new PlayerData
             {
@@ -80,7 +81,19 @@ namespace Rasa.Managers
                     MapContextId = data.MapContextId,
                     IsRunning = true,
                     InCombatMode = false,
-                    Stats = new ActorStats(),
+                    Attributes = new Dictionary<Attributes, ActorAttributes>
+                    {
+                        { Attributes.Body, new ActorAttributes(Attributes.Body, 0, 0, 0, 0, 0) },
+                        { Attributes.Mind, new ActorAttributes(Attributes.Mind, 0, 0, 0, 0, 0) },
+                        { Attributes.Spirit, new ActorAttributes(Attributes.Spirit, 0, 0, 0, 0, 0) },
+                        { Attributes.Health, new ActorAttributes(Attributes.Health, 0, 0, 0, 0, 0) },
+                        { Attributes.Chi, new ActorAttributes(Attributes.Chi, 0, 0, 0, 0, 0) },
+                        { Attributes.Power, new ActorAttributes(Attributes.Power, 0, 0, 0, 0, 0) },
+                        { Attributes.Aware, new ActorAttributes(Attributes.Aware, 0, 0, 0, 0, 0) },
+                        { Attributes.Armor, new ActorAttributes(Attributes.Armor, 0, 0, 0, 0, 0) },
+                        { Attributes.Speed, new ActorAttributes(Attributes.Speed, 0, 0, 0, 0, 0) },
+                        { Attributes.Regen, new ActorAttributes(Attributes.Regen, 0, 0, 0, 0, 0) }
+                    }
                 },
                 ControllerUser = mapClient,
                 AppearanceData = tempAppearanceData,
@@ -208,7 +221,7 @@ namespace Rasa.Managers
             Timer.Add("PerformAbilities", 500, true, null);
             Timer.Add("ClientEffectUpdate", 500, true, null);
             Timer.Add("CellUpdateVisibility", 300, true, null);
-            Timer.Add("CheckForCreatures", 3000, true, null);
+            Timer.Add("CheckForCreatures", 1000, true, null);
         }
 
         public void MapChannelWorker(long delta)

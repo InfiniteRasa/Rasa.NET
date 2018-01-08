@@ -14,6 +14,13 @@ namespace Rasa.Packets.MapChannel.Server
         //public int LeaderId { get; set; }
         public List<int> CreatureFlags { get; set; }
 
+        public CreatureInfoPacket(int creatureNameId, bool isFlyer, List<int> creatureFlags)
+        {
+            CreatureNameId = creatureNameId;
+            IsFlyer = isFlyer;
+            CreatureFlags = creatureFlags;
+        }
+
         public override void Read(PythonReader pr)
         {
         }

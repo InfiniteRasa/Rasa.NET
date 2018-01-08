@@ -114,17 +114,17 @@ namespace Rasa.Managers
                 var spawnPool = key.Value;
 
                 if (spawnPool.ContextId != mapChannel.MapInfo.MapId)
-                    return; // spawnpool is not for this map
+                    continue; // spawnpool is not for this map
 
                 var totalCreaturesActive = spawnPool.AliveCreatures + spawnPool.QueuedCreatures;
 
                 if (totalCreaturesActive > 0)
-                   return; // there is still active creatures
+                   continue; // there is still active creatures
 
                 spawnPool.UpdateTimer = spawnPool.UpdateTimer + timePassed;
 
                 if (spawnPool.UpdateTimer < spawnPool.RespawnTime)
-                    return; // spawnpool is still on cooldown
+                    continue; // spawnpool is still on cooldown
 
                 //reset timer
                 spawnPool.UpdateTimer = 0;
@@ -144,7 +144,7 @@ namespace Rasa.Managers
                 }
 
                 if (creatureList.Count == 0)
-                    return; // nothing to spawn
+                    continue; // nothing to spawn
 
                 if (spawnPool.AnimType == 0)    // animType==0; spawn without animation
                 {

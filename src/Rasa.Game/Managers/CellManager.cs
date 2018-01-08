@@ -41,6 +41,7 @@
                 return;
             // register creature entity
             EntityManager.Instance.RegisterEntity(creature.Actor.EntityId, EntityType.Creature);
+            EntityManager.Instance.RegisterCreature(creature);
             // get initial cell
             var x = (uint)(creature.Actor.Position.PosX / CellSize + CellBias);
             var y = (uint)(creature.Actor.Position.PosY / CellSize + CellBias);
@@ -90,13 +91,12 @@
                         // notify me about all objects that are visible to the cell
                         //if (nMapCell.ObjectList.Count > 0)
                         //{
-                            // dynamicObject_cellIntroduceObjectsToClient(mapChannel, client, &nMapCell->ht_objectList[0], nMapCell->ht_objectList.size());
+                        // dynamicObject_cellIntroduceObjectsToClient(mapChannel, client, &nMapCell->ht_objectList[0], nMapCell->ht_objectList.size());
                         //}
+
                         // notify me about all creatures that are visible to the cell
-                        //if (nMapCell.CreatureList.Count > 0)
-                       // {
-                            //creature_cellIntroduceCreaturesToClient(mapChannel, client, &nMapCell->ht_creatureList[0], nMapCell->ht_creatureList.size());
-                       // }
+                        if (nMapCell.CreatureList.Count > 0)
+                            CreatureManager.Instance.CellIntroduceCreaturesToClient(mapChannel, mapClient, mapCell.CreatureList);
                     }
                 }
                 if (mapCell.PlayerNotifyList.Count > 0)

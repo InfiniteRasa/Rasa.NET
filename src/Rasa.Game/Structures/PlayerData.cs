@@ -2,13 +2,14 @@
 
 namespace Rasa.Structures
 {
+    using Data;
     using Game;
 
     public class PlayerData
     {
         public Actor Actor { get; set; }
         public Client Client { get; set; }
-        public Dictionary<int, AppearanceData> AppearanceData { get; set; }
+        public Dictionary<EquipmentSlots, AppearanceData> AppearanceData { get; set; }
         public MapChannelClient ControllerUser { get; set; }
         public uint CharacterId { get; set; }
         public string Name { get; set; }
@@ -39,7 +40,7 @@ namespace Rasa.Structures
         public Dictionary<int, AbilityDrawerData> Abilities = new Dictionary<int, AbilityDrawerData>();
         public List<int> Titles { get; set; } = new List<int>();
         public int CurrentAbilityDrawer { get; set; }
-        public List<MissionLog> MissionLog { get; set; }
+        public Dictionary<int, MissionLog> MissionLog { get; set; } = new Dictionary<int, MissionLog>();
         public int LoginTime { get; set; }
         public List<int> Logos = new List<int>();
         public bool WeaponReady { get; set; }

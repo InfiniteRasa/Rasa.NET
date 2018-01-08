@@ -9,10 +9,10 @@ namespace Rasa.Packets.MapChannel.Server
     {
         public override GameOpcode Opcode { get; } = GameOpcode.NPCConversationStatus;
 
-        public ConversationType ConvoStatusId { get; set; }
+        public ConversationStatus ConvoStatusId { get; set; }
         public List<int> Data { get; set; }
 
-        public NPCConversationStatusPacket(ConversationType convoStatusId, List<int> data)
+        public NPCConversationStatusPacket(ConversationStatus convoStatusId, List<int> data)
         {
             ConvoStatusId = convoStatusId;
             Data = data;

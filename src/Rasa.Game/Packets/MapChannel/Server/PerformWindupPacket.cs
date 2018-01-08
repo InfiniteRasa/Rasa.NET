@@ -22,8 +22,14 @@ namespace Rasa.Packets.MapChannel.Server
             pw.WriteTuple(3);
             pw.WriteInt(ActionId);
             pw.WriteInt(ActionArgId);
-            pw.WriteNoneStruct();
-            //pw.WriteList(Args.Count);   // ToDo
+            if (Args != null)
+            {
+                pw.WriteList(Args.Count);
+                foreach (var arg in Args)
+                    pw.WriteInt(arg);
+            }
+            else
+                pw.WriteNoneStruct();
         }
     }
 }

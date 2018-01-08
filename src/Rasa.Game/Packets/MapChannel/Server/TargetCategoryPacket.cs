@@ -9,6 +9,11 @@
 
         public int TargetCategory { get; set; }
 
+        public TargetCategoryPacket(int targetCategory)
+        {
+            TargetCategory = targetCategory;
+        }
+
         public override void Read(PythonReader pr)
         {
         }

@@ -367,7 +367,7 @@ namespace Rasa.Managers
             {
                 // remove item graphic if dequipped
                 var prevEquippedItem = EntityManager.Instance.GetItem(entityIdEquippedItem);
-                PlayerManager.Instance.RemoveAppearanceItem(client.MapClient.Player, prevEquippedItem.ItemTemplate.Equipment.EquiptmentSlotType);
+                PlayerManager.Instance.RemoveAppearanceItem(client.MapClient.Player, (EquipmentSlots)prevEquippedItem.ItemTemplate.Equipment.EquiptmentSlotType);
             }
             else
                 PlayerManager.Instance.SetAppearanceItem(client.MapClient.Player, itemToEquip);
@@ -424,7 +424,7 @@ namespace Rasa.Managers
                 {
                     // remove item graphic if dequipped
                     var prevEquippedItem = EntityManager.Instance.GetItem(entityIdEquippedItem);
-                    PlayerManager.Instance.RemoveAppearanceItem(client.MapClient.Player, prevEquippedItem.ItemTemplate.Equipment.EquiptmentSlotType);
+                    PlayerManager.Instance.RemoveAppearanceItem(client.MapClient.Player, (EquipmentSlots)prevEquippedItem.ItemTemplate.Equipment.EquiptmentSlotType);
                 }
                 else
                 {

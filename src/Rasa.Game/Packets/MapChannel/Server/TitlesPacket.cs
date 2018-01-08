@@ -23,7 +23,7 @@ namespace Rasa.Packets.MapChannel.Server
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(1);
-            pw.WriteList(Titles.Count); 
+            pw.WriteList(Titles.Count);
             foreach (var title in Titles)
                 pw.WriteInt(title);
         }

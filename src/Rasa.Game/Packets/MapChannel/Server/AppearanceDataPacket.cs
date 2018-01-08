@@ -10,9 +10,9 @@ namespace Rasa.Packets.MapChannel.Server
     {
         public override GameOpcode Opcode { get; } = GameOpcode.AppearanceData;
 
-        public Dictionary<int, AppearanceData> AppearanceData { get; set; }
+        public Dictionary<EquipmentSlots, AppearanceData> AppearanceData { get; set; }
 
-        public AppearanceDataPacket(Dictionary<int, AppearanceData> appearanceData)
+        public AppearanceDataPacket(Dictionary<EquipmentSlots, AppearanceData> appearanceData)
         {
             AppearanceData = appearanceData;
         }

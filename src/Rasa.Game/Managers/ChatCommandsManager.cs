@@ -97,7 +97,7 @@ namespace Rasa.Managers
             {
                 if (uint.TryParse(parts[1], out uint dbId))
                 {
-                    var creature = CreatureManager.Instance.CreateCreature(dbId, SpawnPoolManager.Instance.LoadedSpawnPools[1]);
+                    var creature = CreatureManager.Instance.CreateCreature(dbId, null);
 
                     if (creature != null)
                     {

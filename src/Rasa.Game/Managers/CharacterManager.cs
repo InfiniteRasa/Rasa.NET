@@ -93,11 +93,11 @@ namespace Rasa.Managers
             ItemManager.Instance.CreateFromTemplateId(characterId, 266, 13156, 1);
             ItemManager.Instance.CreateFromTemplateId(characterId, 0, 17131, 1);
             // Set character appearance
-            CharacterAppearanceTable.SetAppearance(characterId, 1, 10908, -2139062144);
-            CharacterAppearanceTable.SetAppearance(characterId, 2, 7054, -2139062144);
-            CharacterAppearanceTable.SetAppearance(characterId, 3, 10909, -2139062144);
-            CharacterAppearanceTable.SetAppearance(characterId, 15, 7052, -2139062144);
-            CharacterAppearanceTable.SetAppearance(characterId, 16, 7053, -2139062144);
+            CharacterAppearanceTable.SetAppearance(characterId, (int)EquipmentSlots.Helmet, 10908, -2139062144);
+            CharacterAppearanceTable.SetAppearance(characterId, (int)EquipmentSlots.Shoes, 7054, -2139062144);
+            CharacterAppearanceTable.SetAppearance(characterId, (int)EquipmentSlots.Gloves, 10909, -2139062144);
+            CharacterAppearanceTable.SetAppearance(characterId, (int)EquipmentSlots.Torso, 7052, -2139062144);
+            CharacterAppearanceTable.SetAppearance(characterId, (int)EquipmentSlots.Legs, 7053, -2139062144);
             foreach (var t in packet.AppearanceData)
             {
                 var v = t.Value;
