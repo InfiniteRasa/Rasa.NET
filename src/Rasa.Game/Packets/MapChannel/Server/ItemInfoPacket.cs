@@ -21,7 +21,7 @@
         public bool BoundToCharacter { get; set; }
         public bool NotTradable { get; set; }
         public bool NotPlaceableInLockbox { get; set; }
-        public int InventoryCategory { get; set; }
+        public InventoryCategory InventoryCategory { get; set; }
 
         public override void Read(PythonReader pr)
         {
@@ -36,7 +36,7 @@
                 pw.WriteString(CrafterName);
             else
                 pw.WriteNoneStruct();
-            pw.WriteInt((int)ItemTemplateId);
+            pw.WriteInt(ItemTemplateId);
             pw.WriteBool(HasSellableFlag);
             pw.WriteBool(HasCharacterUniqueFlag);
             pw.WriteBool(HasAccountUniqueFlag);
@@ -47,7 +47,7 @@
             pw.WriteBool(BoundToCharacter);
             pw.WriteBool(NotTradable);
             pw.WriteBool(NotPlaceableInLockbox);
-            pw.WriteInt(InventoryCategory);
+            pw.WriteInt((int)InventoryCategory);
         }
     }
 }

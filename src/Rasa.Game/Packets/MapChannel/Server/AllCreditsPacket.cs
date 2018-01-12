@@ -25,10 +25,10 @@
             pw.WriteTuple(1);
             pw.WriteList(2);
             pw.WriteTuple(2);
-            pw.WriteInt((int)Curency.Credits);
+            pw.WriteInt((int)CurencyType.Credits);
             pw.WriteInt(Credits);
             pw.WriteTuple(2);
-            pw.WriteInt((int)Curency.Prestige);
+            pw.WriteInt((int)CurencyType.Prestige);
             pw.WriteInt(Prestige);
         }
     }

@@ -26,9 +26,14 @@ namespace Rasa.Packets.MapChannel.Server
         {
             pw.WriteTuple(2);
             pw.WriteInt((int)ConvoStatusId);
-            pw.WriteList(Data.Count);
-            foreach (var data in Data)
-                pw.WriteInt(data);
+            if (Data != null)
+            {
+                pw.WriteList(Data.Count);
+                foreach (var data in Data)
+                    pw.WriteInt(data);
+            }
+            else
+                pw.WriteNoneStruct();
         }
     }
 }

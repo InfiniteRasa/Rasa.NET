@@ -110,8 +110,10 @@ namespace Rasa.Managers
         public Item GetItemFromTemplateId(uint itemId, uint characterId, int slotId, int itemTemplateId, int stackSize)
         {
             var itemTemplate = GetItemTemplateById(itemTemplateId);
+
             if (itemTemplate == null)
                 return null;
+
             var item = new Item
             {
                 OwnerId = characterId,
@@ -130,8 +132,8 @@ namespace Rasa.Managers
         {
             if (LoadedItemTemplates.ContainsKey(itemTemplateId))
                 return LoadedItemTemplates[itemTemplateId];
-            else
-                return null;
+
+            return null;
         }
 
         public void GetItemTemplates()
@@ -147,40 +149,9 @@ namespace Rasa.Managers
         public void GetItemWeaponData()
         {
             var weaponTemplates = WeaponTemplateTable.GetWeaponTemplates();
-            foreach (var template in weaponTemplates)
-            {
-                // update LoadedItemTemplates
-                LoadedItemTemplates[template.ItemTemplateId].Weapon = new WeaponTupple
-                {
-                    ClipSize = template.ClipSize,
-                    AimRate = template.AimRate,
-                    ReloadTime = template.ReloadTime,
-                    AltActionId = template.AltActionId,
-                    AltActionArg = template.AltActionArg,
-                    AeType = template.AeType,
-                    AeRadius = template.AeRadius,
-                    RecoilAmount = template.RecoilAmount,
-                    ReuseOverride = template.ReuseOverride,
-                    CoolRate = template.CoolRate,
-                    HeatPerShot = template.HeatPerShot,
-                    ToolType = template.ToolType,
-                    AmmoPerShot = template.AmmoPerShot,
-                    MinDamage = template.MinDamage,
-                    MaxDamage = template.MaxDamage,
-                    AmmoClassId = template.AmmoClassId,
-                    DamageType = template.DamageType,
-                    WindupTime = template.WindupTime,
-                    RecoveryTime = template.RecoveryTime,
-                    RefireTime = template.RefireTime,
-                    Range = template.Range,
-                    AltMaxDamage = template.AltMaxDamage,
-                    AltDamageType = template.AltDamageType,
-                    AltRange = template.AltRange,
-                    AltAERadius = template.AltAERadius,
-                    AltAEType = template.AltAEType,
-                    AttackType = template.AttackType
-                };
-            }
+            // update LoadedItemTemplates
+            foreach (var weaponTemplate in weaponTemplates)
+                LoadedItemTemplates[weaponTemplate.ItemTemplateId].Weapon = new WeaponTupple(weaponTemplate);
 
             Logger.WriteLog(LogType.Initialize, $"Loaded {weaponTemplates.Count} WeaponTemplates.");
         }
@@ -220,7 +191,7 @@ namespace Rasa.Managers
                 BoundToCharacter = item.ItemTemplate.BoundToCharacter,
                 NotTradable = item.ItemTemplate.NotTradable,
                 NotPlaceableInLockbox = item.ItemTemplate.NotPlaceableInLockbox,
-                InventoryCategory = item.ItemTemplate.InventoryCategory
+                InventoryCategory = (InventoryCategory)item.ItemTemplate.InventoryCategory
             } );
 
             if (item.ItemTemplate.ItemType == 1)    // weapon

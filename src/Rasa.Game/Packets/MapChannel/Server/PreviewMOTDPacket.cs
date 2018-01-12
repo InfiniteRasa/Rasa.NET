@@ -21,7 +21,7 @@
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(1);
-            pw.WriteString(Motd);
+            pw.WriteUnicodeString(Motd);
         }
     }
 }

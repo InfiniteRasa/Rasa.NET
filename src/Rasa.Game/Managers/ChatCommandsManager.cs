@@ -3,7 +3,9 @@ using System.Collections.Generic;
 
 namespace Rasa.Managers
 {
+    using Data;
     using Database.Tables.Character;
+    using Database.Tables.World;
     using Packets.Game.Server;
     using Packets.MapChannel.Server;
     using Structures;
@@ -68,6 +70,7 @@ namespace Rasa.Managers
         {
             RegisterCommand(".createobj", CreateObjectCommand);
             RegisterCommand(".creature", CreateCreatureCommand);
+            RegisterCommand(".creatureappearance", SetCreatureAppearanceCommand);
             RegisterCommand(".creatureloc", SetCreatureLocation);
             RegisterCommand(".giveitem", GiveItemCommand);
             RegisterCommand(".givelogos", GiveLogosCommand);
@@ -185,6 +188,7 @@ namespace Rasa.Managers
             CommunicatorManager.Instance.SystemMessage(_mapClient, "GM Commands List:");
             foreach (var command in Commands)
                 CommunicatorManager.Instance.SystemMessage(_mapClient, $"{command.Key}");
+
             return;
         }
 
@@ -237,6 +241,56 @@ namespace Rasa.Managers
             netMovement.PosY24b = (uint)_mapClient.Player.Actor.Position.PosY * 256;
             netMovement.PosZ24b = (uint)_mapClient.Player.Actor.Position.PosZ * 256;
             _mapClient.Player.Client.SendMovement(_mapClient.Player.Actor.EntityId, netMovement);
+            return;
+        }
+
+        private void SetCreatureAppearanceCommand(string[] parts)
+        {
+            if (parts.Length == 1)
+            {
+                CommunicatorManager.Instance.SystemMessage(_mapClient, "usage: .creatureappearance creatureEntityId slotId classId color");
+                return;
+            }
+            if (parts.Length == 5)
+            {
+                if (uint.TryParse(parts[1], out uint entityId))
+                    if (EquipmentSlots.TryParse(parts[2], out EquipmentSlots slotId))
+                        if (int.TryParse(parts[3], out int classId))
+                            if (int.TryParse(parts[4], out int color))
+                            {
+                                // get creature from entityId
+                                var creature = EntityManager.Instance.GetCreature(entityId);
+                                var newAppearance = false;
+                                if (!creature.AppearanceData.ContainsKey(slotId))
+                                {
+                                    // new appearance
+                                    creature.AppearanceData.Add(slotId, new AppearanceData { SlotId = (int)slotId, ClassId = classId, Color = new Color(color) });
+                                    newAppearance = true;
+                                }
+                                if (classId < 0) // update only color of slot item
+                                {
+                                    creature.AppearanceData[slotId].Color = new Color(color);
+                                    _mapClient.Player.Client.CellSendPacket(_mapClient, entityId, new AppearanceDataPacket(creature.AppearanceData));
+                                }
+                                else
+                                {
+                                    creature.AppearanceData[slotId].ClassId = classId;
+                                    creature.AppearanceData[slotId].Color = new Color(color);
+                                }
+
+                                // update creature appearance on client's
+                                _mapClient.Player.Client.CellSendPacket(_mapClient, entityId, new AppearanceDataPacket(creature.AppearanceData));
+
+                                // update creature in database
+                                if (newAppearance)
+                                    CreatureAppearanceTable.SetCreatureAppearance(creature.DbId, (int)slotId, creature.AppearanceData[slotId].ClassId, creature.AppearanceData[slotId].Color.Hue);
+                                else
+                                    CreatureAppearanceTable.UpdateCreatureAppearance(creature.DbId, (int)slotId, creature.AppearanceData[slotId].ClassId, creature.AppearanceData[slotId].Color.Hue);
+
+                                Logger.WriteLog(LogType.Debug, "Creature Look updated");
+                            }
+            }
+
             return;
         }
 

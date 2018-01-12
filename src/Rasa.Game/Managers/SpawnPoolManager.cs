@@ -96,6 +96,7 @@ namespace Rasa.Managers
                     ContextId = data.ContextId,
                     DbId = data.DbId,
                     HomePosition = new Position(data.PosX, data.PosY, data.PosZ),
+                    HomeRotation = new Quaternion(data.Rotation, 0D, 0D, 0D),
                     Mode = data.Mode,
                     RespawnTime = data.RespawnTime * 100,  //convert to ms
                     SpawnSlot = spawnPoolSlots
@@ -167,15 +168,16 @@ namespace Rasa.Managers
                         {
                             //CreatureManager.Instance.SetLocation(creature, new Position(spawnPool.HomePosition.PosX, spawnPool.HomePosition.PosY, spawnPool.HomePosition.PosZ), new Quaternion(0D, 0D, 0D, 0D));
                             creature.Actor.Position = new Position(spawnPool.HomePosition.PosX, spawnPool.HomePosition.PosY, spawnPool.HomePosition.PosZ);
-                            creature.Actor.Rotation = new Quaternion(0D, 0D, 0D, 0D);
+                            creature.Actor.Rotation = new Quaternion(spawnPool.HomeRotation.X, spawnPool.HomeRotation.Y, spawnPool.HomeRotation.Z, spawnPool.HomeRotation.W);
                         }
                         else
                         {
                             creature.Actor.Position = new Position(spawnPool.HomePosition.PosX + (double)new Random().Next(-10, 10), spawnPool.HomePosition.PosY + (double)new Random().Next(-10, 10), spawnPool.HomePosition.PosZ);
-                            creature.Actor.Rotation = new Quaternion(0D, 0D, 0D, 0D);
+                            creature.Actor.Rotation = new Quaternion(spawnPool.HomeRotation.X, spawnPool.HomeRotation.Y, spawnPool.HomeRotation.Z, spawnPool.HomeRotation.W);
                         }
 
                         CellManager.Instance.AddToWorld(mapChannel, creature);
+                        Logger.WriteLog(LogType.Debug, $"Spawnpool {spawnPool.DbId}");
                     }
 
                     DecreaseQueuedCreatureCount(spawnPool, creatureList.Count);

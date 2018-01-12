@@ -1,6 +1,6 @@
 ﻿namespace Rasa.Data
 {
-    public enum Curency
+    public enum CurencyType
     {
         Credits     = 1,
         Prestige    = 2

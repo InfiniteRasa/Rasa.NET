@@ -23,7 +23,7 @@
         public int ToolType { get; set; }
         public bool IsJammed { get; set; }
         public int AmmoPerShot { get; set; }
-        public string CammeraProfile { get; set; }
+        public int CammeraProfile { get; set; }
 
         public override void Read(PythonReader pr)
         {
@@ -48,7 +48,7 @@
             pw.WriteInt(ToolType);
             pw.WriteBool(IsJammed);
             pw.WriteInt(AmmoPerShot);
-            pw.WriteString("");
+            pw.WriteInt(CammeraProfile);
         }
     }
 }

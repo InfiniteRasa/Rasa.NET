@@ -445,6 +445,13 @@ namespace Rasa.Managers
             client.SendPacket(12, new ItemTemplateTooltipInfoPacket {ItemTemplate = itemTemplate});
         }
 
+        public void RequestTooltipForModuleId(Client client, int moduleId)
+        {
+            Logger.WriteLog(LogType.Debug, "ToDo RequestTooltipForModuleId");
+            //var moduleInfo = new ModuleInfo()
+            //client.SendPacket(12, new ModuleTooltipInfoPacket(moduleId, moduleInfo));
+        }
+
         public void WeaponDrawerInventory_MoveItem(Client client, WeaponDrawerInventory_MoveItemPacket packet)
         {
             var srcEntityId = client.MapClient.Inventory.WeaponDrawer[packet.SrcSlot];

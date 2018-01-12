@@ -140,6 +140,12 @@
             PlayerManager.Instance.RequestArmWeapon(Client, packet.RequestedWeaponDrawerSlot);
         }
 
+        [PacketHandler(GameOpcode.RequestCancelVendor)]
+        private void RequestCancelVendor(RequestCancelVendorPacket packet)
+        {
+            CreatureManager.Instance.RequestCancelVendor(Client, packet.EntityId);
+        }
+
         [PacketHandler(GameOpcode.RequestEquipArmor)]
         private void RequestEquipArmor(RequestEquipArmorPacket packet)
         {
@@ -162,6 +168,18 @@
         private void RequestNPCConverse(RequestNPCConversePacket packet)
         {
             CreatureManager.Instance.RequestNpcConverse(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.RequestNPCOpenAuctionHouse)]
+        private void RequestNPCOpenAuctionHouse(RequestNPCOpenAuctionHousePacket packet)
+        {
+            CreatureManager.Instance.RequestNPCOpenAuctionHouse(Client, packet.EntityId);
+        }
+
+        [PacketHandler(GameOpcode.RequestNPCVending)]
+        private void RequestNPCVending(RequestNPCVendingPacket packet)
+        {
+            CreatureManager.Instance.RequestNPCVending(Client, packet);
         }
 
         [PacketHandler(GameOpcode.RequestPerformAbility)]
@@ -188,10 +206,28 @@
             InventoryManager.Instance.RequestTooltipForItemTemplateId(Client, packet.ItemTemplateId);
         }
 
+        [PacketHandler(GameOpcode.RequestTooltipForModuleId)]
+        private void RequestTooltipForModuleId(RequestTooltipForModuleIdPacket packet)
+        {
+            InventoryManager.Instance.RequestTooltipForModuleId(Client, packet.ModuleId);
+        }
+
         [PacketHandler(GameOpcode.RequestSetAbilitySlot)]
         private void RequestSetAbilitySlot(RequestSetAbilitySlotPacket packet)
         {
             PlayerManager.Instance.RequestSetAbilitySlot(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.RequestVendorPurchase)]
+        private void RequestVendorPurchase(RequestVendorPurchasePacket packet)
+        {
+            //CreatureManager.Instance.RequestVendorPurchase(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.RequestVendorSale)]
+        private void RequestVendorSale(RequestVendorSalePacket packet)
+        {
+            //CreatureManager.Instance.RequestVendorSale(Client, packet);
         }
 
         [PacketHandler(GameOpcode.RequestVisualCombatMode)]

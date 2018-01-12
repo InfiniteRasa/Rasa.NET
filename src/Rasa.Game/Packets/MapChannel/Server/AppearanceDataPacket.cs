@@ -27,15 +27,15 @@ namespace Rasa.Packets.MapChannel.Server
             pw.WriteDictionary(AppearanceData.Count);
             foreach (var t in AppearanceData)
             {
-                var appearence = t.Value;
-                pw.WriteInt(appearence.SlotId);
+                var appearance = t.Value;
+                pw.WriteInt(appearance.SlotId);
                 pw.WriteTuple(2);
-                pw.WriteInt(appearence.ClassId);
+                pw.WriteInt(appearance.ClassId);
                 pw.WriteTuple(4);
-                pw.WriteInt(appearence.Color.Red);
-                pw.WriteInt(appearence.Color.Green);
-                pw.WriteInt(appearence.Color.Blue);
-                pw.WriteInt(appearence.Color.Alpha);
+                pw.WriteInt(appearance.Color.Red);
+                pw.WriteInt(appearance.Color.Green);
+                pw.WriteInt(appearance.Color.Blue);
+                pw.WriteInt(appearance.Color.Alpha);
             }
         }
     }

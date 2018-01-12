@@ -132,77 +132,12 @@ namespace Rasa.Managers
              * Converse
              * Train
              */
-                UpdateConversationStatus(mapClient.Client, creature);
-                mapClient.Player.Client.SendPacket(creature.Actor.EntityId, new NPCInfoPacket(726));
+                //UpdateConversationStatus(mapClient.Client, creature);
+                mapClient.Player.Client.SendPacket(creature.Actor.EntityId, new NPCConversationStatusPacket(ConversationStatus.Vending, new List<int> { 106 }));
+                //mapClient.Player.Client.SendPacket(creature.Actor.EntityId, new NPCInfoPacket(726));
                 //mapClient.Player.Client.SendPacket(creature.Actor.EntityId, new ConversePacket());
-                //mapClient.Player.Client.SendPacket(creature.Actor.EntityId, new NPCConversationStatusPacket(ConversationType.Vending, new List<int> { 10 }));
+                //mapClient.Player.Client.SendPacket(creature.Actor.EntityId, new NPCConversationStatusPacket(ConversationStatus.Vending, new List<int> { 10 }));
             }
-            /*if (creature->actor.entityClassId == 25580) // pistol
-            {
-                creature_updateAppearance(client->cgm, creature->actor.entityId, 3782);
-            }
-            if (creature->actor.entityClassId == 25581) // rifle
-            {
-                creature_updateAppearance(client->cgm, creature->actor.entityId, 3878);
-            }
-            if (creature->actor.entityClassId == 6163) // staff
-            {
-                creature_updateAppearance(client->cgm, creature->actor.entityId, 6164);
-            }
-            if (creature->actor.entityClassId == 6043) // spear
-            {
-                creature_updateAppearance(client->cgm, creature->actor.entityId, 6042);
-            }
-            */
-            /*if (creature->actor.entityClassId == 29765) // pistol
-            {
-                creature_updateAppearance(client->cgm, creature->actor.entityId, 6443);
-                // weapon ready
-                pym_init(&pms);
-                pym_tuple_begin(&pms);
-                pym_addBool(&pms, true);
-                pym_tuple_end(&pms);
-                netMgr_pythonAddMethodCallRaw(client->cgm, creature->actor.entityId, 575, pym_getData(&pms), pym_getLen(&pms));
-            }
-            if (creature->actor.entityClassId == 29423)
-            {
-                creature_updateAppearance(client->cgm, creature->actor.entityId, 6443);
-                // weapon ready
-                pym_init(&pms);
-                pym_tuple_begin(&pms);
-                pym_addBool(&pms, true);
-                pym_tuple_end(&pms);
-                netMgr_pythonAddMethodCallRaw(client->cgm, creature->actor.entityId, 575, pym_getData(&pms), pym_getLen(&pms));
-            }*/
-
-            /*if (creature->actor.stats.healthCurrent <= 0)
-            {
-                creature->actor.state = ACTOR_STATE_DEAD;
-                // dead!
-                pym_init(&pms);
-                pym_tuple_begin(&pms);
-                pym_list_begin(&pms);
-                pym_addInt(&pms, 5); // dead
-                pym_list_end(&pms);
-                pym_tuple_end(&pms);
-                netMgr_pythonAddMethodCallRaw(client->cgm, creature->actor.entityId, 206, pym_getData(&pms), pym_getLen(&pms));
-                // fix health
-                creature->actor.stats.healthCurrent = 0;
-            }*/
-            /*if (creature->type->npcData)
-            {
-                npc_creature_updateConversationStatus(client, creature);
-                // send Recv_NPCInfo (only npcPackageId)
-                // the only reason to send this is because the language lookup for mission objectives needs it...
-                if (creature->type->npcData->npcPackageId != 0)
-                {
-                    pym_init(&pms);
-                    pym_tuple_begin(&pms);
-                    pym_addInt(&pms, creature->type->npcData->npcPackageId); // the glorious npcPackageId
-                    pym_tuple_end(&pms);
-                    netMgr_pythonAddMethodCallRaw(client->cgm, creature->actor.entityId, 490, pym_getData(&pms), pym_getLen(&pms));
-                }
-            }*/
         }
 
         public Creature FindCreature(uint creatureId)
@@ -216,22 +151,12 @@ namespace Rasa.Managers
 
             foreach (var data in creatureList)
             {
-                var appearanceData = CreatureAppearenceTable.GetCreatureAppearence(data.DbId);
-                var tempAppearnece = new Dictionary<EquipmentSlots, AppearanceData>();
+                var appearanceData = CreatureAppearanceTable.GetCreatureAppearance(data.DbId);
+                var tempAppearanceData = new Dictionary<EquipmentSlots, AppearanceData>();
+
                 if (appearanceData != null)
-                {
-                    tempAppearnece.Add(EquipmentSlots.Helmet, new AppearanceData { SlotId = 1, ClassId = appearanceData.Helmet, Color = new Color(appearanceData.HelmetHue) });
-                    tempAppearnece.Add(EquipmentSlots.Shoes, new AppearanceData { SlotId = 2, ClassId = appearanceData.Shoes, Color = new Color(appearanceData.ShoesHue) });
-                    tempAppearnece.Add(EquipmentSlots.Gloves, new AppearanceData { SlotId = 3, ClassId = appearanceData.Gloves, Color = new Color(appearanceData.GlovesHue) });
-                    tempAppearnece.Add(EquipmentSlots.Weapon, new AppearanceData { SlotId = 13, ClassId = appearanceData.Weapon, Color = new Color(appearanceData.WeaponHue) });
-                    tempAppearnece.Add(EquipmentSlots.Hair, new AppearanceData { SlotId = 14, ClassId = appearanceData.Hair, Color = new Color(appearanceData.HairHue) });
-                    tempAppearnece.Add(EquipmentSlots.Torso, new AppearanceData { SlotId = 15, ClassId = appearanceData.Torso, Color = new Color(appearanceData.TorsoHue) });
-                    tempAppearnece.Add(EquipmentSlots.Legs, new AppearanceData { SlotId = 16, ClassId = appearanceData.Legs, Color = new Color(appearanceData.LegsHue) });
-                    tempAppearnece.Add(EquipmentSlots.Face, new AppearanceData { SlotId = 17, ClassId = appearanceData.Face, Color = new Color(appearanceData.FaceHue) });
-                    tempAppearnece.Add(EquipmentSlots.EyeWear, new AppearanceData { SlotId = 19, ClassId = appearanceData.EyeWear, Color = new Color(appearanceData.EyeWearHue) });
-                    tempAppearnece.Add(EquipmentSlots.Beard, new AppearanceData { SlotId = 20, ClassId = appearanceData.Beard, Color = new Color(appearanceData.BeardHue) });
-                    tempAppearnece.Add(EquipmentSlots.Mask, new AppearanceData { SlotId = 21, ClassId = appearanceData.Mask, Color = new Color(appearanceData.MaskHue) });
-                }
+                    foreach (var t in appearanceData)
+                        tempAppearanceData.Add((EquipmentSlots)t.SlotId, new AppearanceData { SlotId = t.SlotId, ClassId = t.ClassId, Color = new Color(t.Color) });
 
                 var creature = new Creature
                 {
@@ -241,7 +166,7 @@ namespace Rasa.Managers
                     Level = data.Level,
                     MaxHitPoints = data.MaxHitPoints,
                     NameId = data.NameId,
-                    AppearanceData = tempAppearnece
+                    AppearanceData = tempAppearanceData
 
                 };
 
@@ -265,7 +190,7 @@ namespace Rasa.Managers
 
                 /*  ToDo
                 if (creatureData.IsAuctioner > 0)
-                    creature.CreatureType.AuvtionerData = new AuctionerData();
+                    creature.CreatureType.AuctionerData = new AuctionerData();
                 */
 
                 if (data.IsHarvestable > 0)
@@ -279,11 +204,11 @@ namespace Rasa.Managers
 
                 LoadedCreatureTypes.Add(creatureType.DbId, creatureType);
             }
-            
+
             Logger.WriteLog(LogType.Initialize, $"Loaded {LoadedCreatureTypes.Count} CreatureTypes");
 
         }
-        
+
         public void SetLocation(Creature creature, Position position, Quaternion rotation)
         {
             // set spawnlocation
@@ -309,207 +234,112 @@ namespace Rasa.Managers
 
             if (creature == null)
                 return;
-            /*
-            var npcData = creature.NpcData;
 
-            if (npcData == null)
-                return;
+            // ToDo create DB structures, and replace constant data with dinamic
 
-            if (npcData.RelatedMissionCount > 64)
-            {
-                Logger.WriteLog(LogType.Debug, "NPC has more than 64 missions! Truncating list...");
-                npcData.RelatedMissionCount = 64;
-            }
-            // collect player state info about provided missions
-            var missionState = new List<int>();     // -2 means mission completed, -1 means not accepted
-            /*
-            foreach (var mission in npcData.RelatedMissions)
-            {
-                //missionState.Add(MISSION_STATE_NOTACCEPTED;
-                var missionLog = MissionManager.Instance.FindPlayerMission(client, mission.MissionIndex);
+            // Greeting = 0
+            var greetingId = 19;
 
-                if (missionLog != null)
-                {
-                    // check specific state of mission
-                    var getMission = MissionManager.Instance.GetById(missionLog.MissionIndex);
-                    if (getMission == null)
-                    {
-                        missionState[i] = MISSION_STATE_COMPLETED;
-                        continue;
-                    }
-                    if (missionLogEntry->state >= (mission->stateCount - 1))
-                    {
-                        missionState[i] = MISSION_STATE_COMPLETEABLE;
-                        continue;
-                    }
-                    // check specific state of mission
-                    missionState[i] = missionLogEntry->state;
-                }
-                else if (mission_isCompletedByPlayer(client, npcData->relatedMissions[i].missionIndex) == true)
-                {
-                    missionState[i] = MISSION_STATE_COMPLETED;
-                }
-            }
+            // ForceTopic = 1
+            var forceTopicType = new ForceTopic(ConversationType.MissionReward, 429);
 
-            // count mission types
-            sint32 countMissionAvailable = 0;
-            sint32 countMissionCompletable = 0;
-            sint32 countMissionObjectiveCompletable = 0;
-            for (uint32 i = 0; i < npcData->relatedMissionCount; i++)
+            // DispensableMissions = 2
+            var missionId = 429;
+            var missionLevel = 1;
+            var groupType = 1;
+            var credits = new List<Curency>
             {
-                if (missionState[i] == MISSION_STATE_COMPLETED)
-                    ; // completed mission not available
-                else if (missionState[i] == MISSION_STATE_NOTACCEPTED)
-                    countMissionAvailable++;
-                else if (missionState[i] == MISSION_STATE_COMPLETEABLE)
-                    countMissionCompletable++;
-                else if (missionState[i] > 0)
-                    countMissionObjectiveCompletable++;
-            }
-            */
-            client.SendPacket(creature.Actor.EntityId, new ConversePacket());
-            /*
-            // build info about available missions
-            if (countMissionAvailable > 0)
+                new Curency(CurencyType.Credits, 200),
+                new Curency(CurencyType.Prestige, 100)
+            };
+            var fixedItems = new List<RewardItem>
             {
-                pym_addInt(&pms, 2); // key: CONVO_TYPE_MISSIONDISPENSE
-                pym_dict_begin(&pms); // mission list
-                for (uint32 i = 0; i < npcData->relatedMissionCount; i++)
-                {
-                    if (missionState[i] == MISSION_STATE_NOTACCEPTED)
-                    {
-                        mission_t* mission = mission_getByIndex(npcData->relatedMissions[i].missionIndex);
-                        if (mission == NULL)
-                            continue;
-                        pym_addInt(&pms, mission->missionId); // missionID
-                        pym_tuple_begin(&pms);  // mission info
-                        pym_addInt(&pms, 1);    // level
-                        mission_buildRewardInfoTuple(mission, &pms);
-                        pym_addNoneStruct(&pms); // offerVOAudioSetId (NoneStruct for no-audio)
-                        pym_list_begin(&pms);   // itemsRequired
-                        pym_list_end(&pms);
-                        pym_list_begin(&pms);   // objectives
-                        pym_list_end(&pms);
-                        pym_addInt(&pms, MISSION_GROUPTYPE_SOLO); // groupType
-                        pym_tuple_end(&pms);
-                    }
-                }
-                pym_dict_end(&pms);
-            }
-            // build info about objectives
-            if (countMissionObjectiveCompletable > 0)
+                new RewardItem(17131, 27120, 1, new List<int>{900620 }, 2),
+                new RewardItem(17131, 27120, 1, new List<int>{900007 }, 2)
+            };
+            var selectableRewards = new List<RewardItem>
             {
-                pym_addInt(&pms, 6); // key: CONVO_TYPE_OBJECTIVECOMPLETE
-                pym_list_begin(&pms); // mission list
-                for (uint32 i = 0; i < npcData->relatedMissionCount; i++)
-                {
-                    if (missionState[i] <= 0)
-                        continue;
-                    mission_t* mission = mission_getByIndex(npcData->relatedMissions[i].missionIndex);
-                    sint32 scriptlineStart = mission->stateMapping[missionState[i]];
-                    sint32 scriptlineEnd = mission->stateMapping[missionState[i] + 1];
-                    for (sint32 l = scriptlineStart; l < scriptlineEnd; l++)
-                    {
-                        missionScriptLine_t* scriptline = mission->scriptLines + l;
-                        if (scriptline->command == M_OP_COMPLETEOBJECTIVE)
-                        {
-                            if (creature->type->typeId == scriptline->value1)
-                            {
-                                pym_tuple_begin(&pms);  // mission info
-                                pym_addInt(&pms, mission->missionId); // missionID
-                                pym_addInt(&pms, scriptline->value2); // objectiveId
-                                pym_addInt(&pms, scriptline->value3); // playerFlagId
-                                pym_tuple_end(&pms);
-                            }
-                        }
-                    }
-                }
-                pym_list_end(&pms);
-            }
-            // build info about completable missions
-            if (countMissionCompletable > 0)
+                new RewardItem(28, 3147, 20, new List<int>(), 1),
+                new RewardItem(28, 3147, 50, new List<int>(), 1)
+            };
+            var fixedReward = new FixedReward(credits, fixedItems);
+            var selectableReward = new List<RewardItem>(selectableRewards);
+            var rewardInfo = new RewardInfo(fixedReward, selectableReward);
+            var missionObjectives = new List<MissionObjectives> { new MissionObjectives(4), new MissionObjectives(5) };
+            var itemRequired = new List<RewardItem> { new RewardItem(26544) };
+            var missionInfo = new MissionInfo(missionLevel, rewardInfo, missionObjectives, itemRequired, groupType);
+            var dispensableMissions = new List<DispensableMissions>
             {
-                pym_addInt(&pms, 3); // key: CONVO_TYPE_MISSIONCOMPLETE
-                pym_dict_begin(&pms); // mission list
-                for (uint32 i = 0; i < npcData->relatedMissionCount; i++)
-                {
-                    if (missionState[i] == MISSION_STATE_COMPLETEABLE)
-                    {
-                        mission_t* mission = mission_getByIndex(npcData->relatedMissions[i].missionIndex);
-                        if (mission == NULL)
-                            continue;
-                        pym_addInt(&pms, mission->missionId); // missionID
-                        mission_buildRewardInfoTuple(mission, &pms);
-                    }
-                }
-                pym_dict_end(&pms);
-            }
-            // build info about vendor data
-            if (creature->type->vendorData)
-            {
-                pym_addInt(&pms, 11); // key: CONVO_TYPE_VENDING
-                pym_list_begin(&pms); // vendor packageId list
-                pym_addInt(&pms, creature->type->vendorData->vendorPackageId); // vendorPackageId (why do some parts support more than one vendorPackageId?)
-                pym_list_end(&pms);
-            }
+                new DispensableMissions(missionId, missionInfo),
+                new DispensableMissions(298, missionInfo)
+            };
 
-            //mission_t *missionAvailableList[16];
-            //sint32 missionAvailableCount; 
-            //// send greeting
-            //pym_addInt(&pms, 0); // key: CONVO_TYPE_GREETING
-            ////pym_tuple_begin(&pms); // greeting data
-            //pym_addInt(&pms, 6); // blah
+            // CompletableMissions = 3
+            var completeableMissions = new List<CompleteableMissions>
+            {
+                new CompleteableMissions(missionId, rewardInfo),
+                new CompleteableMissions(298, rewardInfo)
+            };
 
-            //missionAvailableCount = 16; // limit
-            //if( mission_completeableAvailableForClient(npc->missionList, client, npc, missionAvailableList, &missionAvailableCount) )
-            //{
-            //	if( missionAvailableCount > 0 )
-            //	{
-            //		// CONVO_TYPE_MISSIONCOMPLETE (3)
-            //		pym_addInt(&pms, 3); // key: CONVO_TYPE_MISSIONCOMPLETE
-            //		pym_dict_begin(&pms); // mission list
-            //		for(sint32 i=0; i<missionAvailableCount; i++)
-            //		{
-            //			mission_t *mission = missionAvailableList[i];
-            //			if( !mission )
-            //				continue;
-            //			pym_addInt(&pms, mission->missionId); // missionID
-            //			pym_tuple_begin(&pms); // rewardInfo
-            //			  pym_tuple_begin(&pms); // fixed redward
-            //			     pym_list_begin(&pms); // fixedReward-credits
-            //			     pym_list_end(&pms); // fixedReward-credits
-            //			     pym_list_begin(&pms); // fixedReward-items
-            //			     pym_list_end(&pms); // fixedReward-items
-            //			  pym_tuple_end(&pms); // fixed redward
-            //		      pym_list_begin(&pms); // selectionList
-            //			  pym_list_end(&pms);
-            //			pym_tuple_end(&pms); 
-            //			/*
-            //				rewardInfo(T):
-            //					fixedReward(T)
-            //						credits(List)
-            //							Number of credits, can have multiple or no entry?
-            //						fixedItems(List)
-            //							items (	'itemTemplateId'
-            //									'itemClassId'
-            //									'quantity'
-            //									'hue'
-            //									'moduleIds'
-            //									'qualityId' )
-            //					selectionList(List)
-            //							items (see above)
-            //			*/
-            //		}
-            //		pym_dict_end(&pms); // mission list
-            //	}
-            //}
-            /*
-            pym_dict_end(&pms);
-            pym_tuple_end(&pms);
-            netMgr_pythonAddMethodCallRaw(client->cgm, creature->actor.entityId, 433, pym_getData(&pms), pym_getLen(&pms));
-            */
+            // MissionReminder = 4
+            var remindableMissions = new List<int> { 298, 429, 430 };
+
+            // ObjectiveAmbient = 5
+            var ambientObjectives = new List<AmbientObjectives>
+            {
+                new AmbientObjectives(missionId, 5, 1),
+                new AmbientObjectives(missionId, 4, 1)
+            };
+
+            // ObjectiveComplete = 6
+            var objectiveComplete = new List<CompleteableObjectives>
+            {
+                new CompleteableObjectives(missionId, 5, 1),
+                new CompleteableObjectives(missionId, 4, 1)
+            };
+
+            // RewardableMission = 7 (mission without objectives ???)
+            var revardableMissions = new List<RewardableMissions>
+            {
+                new RewardableMissions(298, rewardInfo),
+                new RewardableMissions(missionId, rewardInfo),
+            };
+
+            // ObjectiveChoice = 8,
+            // EndConversation = 9,
+            // Training = 10,
+            var training = new TrainingConverse(true, 1);
+            // Vending = 11,
+            var vendor = new ConvoDataDict
+            {
+                VendorPackageIds = new List<int> { 106 }
+            };
+            // ImportantGreering = 12,
+            // Clan = 13,
+            // Auctioner = 14,
+            var auctioneer = new ConvoDataDict
+            {
+                IsAuctioneer = true
+            };
+            // ForcedByScript = 15
+
+            var testConvoDataDict = new Dictionary<ConversationType, ConvoDataDict>
+            {
+                { ConversationType.MissionDispense, new ConvoDataDict(dispensableMissions) },
+                //{ ConversationType.ObjectiveComplete, new ConvoDataDict(objectiveComplete) },
+                { ConversationType.MissionComplete, new ConvoDataDict(completeableMissions) },
+                //{ ConversationType.MissionReward, new ConvoDataDict(revardableMissions) },
+                //{ ConversationType.Greeting, new ConvoDataDict(greetingId) },
+                //{ ConversationType.MissionReminder, new ConvoDataDict(remindableMissions) },
+                //{ ConversationType.ObjectiveAmbient, new ConvoDataDict(ambientObjectives) },
+                //{ ConversationType.Training, new ConvoDataDict(training) }
+                { ConversationType.Auctioneer, auctioneer },
+                { ConversationType.Vending, vendor }
+            };
+
+            client.SendPacket(creature.Actor.EntityId, new ConversePacket(testConvoDataDict));
         }
-        
+
         public void UpdateConversationStatus(Client client, Creature creature)
         {
             var npcData = creature.CreatureType.NpcData;
@@ -545,7 +375,7 @@ namespace Rasa.Managers
                                     continue;
 
                                 // send objective completable flag
-                                client.SendPacket(creature.Actor.EntityId, new NPCConversationStatusPacket(ConversationStatus.ObjectivComplete, new List<int>())); // status - complete objective
+                                client.SendPacket(creature.Actor.EntityId, new NPCConversationStatusPacket(ConversationStatus.ObjectivComplete, new List<int> { })); // status - complete objective
 
                                 statusSet = true;
 
@@ -560,7 +390,7 @@ namespace Rasa.Managers
                                         continue;
 
                                     // send mission completable flag
-                                    client.SendPacket(creature.Actor.EntityId, new NPCConversationStatusPacket(ConversationStatus.MissionComplete, new List<int>())); // status - complete objective
+                                    client.SendPacket(creature.Actor.EntityId, new NPCConversationStatusPacket(ConversationStatus.MissionComplete, new List<int> { })); // status - complete objective
 
                                     statusSet = true;
 
@@ -576,7 +406,7 @@ namespace Rasa.Managers
                     if (MissionManager.Instance.IsCreatureMissionDispenser(MissionManager.Instance.GetByIndex(mission.MissionIndex), creature))
                     {
                         // mission available overwrites any other converse state
-                        client.SendPacket(creature.Actor.EntityId, new NPCConversationStatusPacket(ConversationStatus.Available, new List<int>())); // status - available
+                        client.SendPacket(creature.Actor.EntityId, new NPCConversationStatusPacket(ConversationStatus.Available, new List<int> { })); // status - available
 
                         statusSet = true;
 
@@ -585,21 +415,40 @@ namespace Rasa.Managers
                 }
             }
             // is NPC vendor?
-            if (creature.CreatureType.VendorData != null && statusSet == false )
+            if (creature.CreatureType.VendorData != null && statusSet == false)
             {
                 // creature->npcData.isVendor
-                client.SendPacket(creature.Actor.EntityId, new NPCConversationStatusPacket(ConversationStatus.Available, new List<int> { (creature.CreatureType.VendorData.VendorPackageId) })); // status - vending
+                client.SendPacket(creature.Actor.EntityId, new NPCConversationStatusPacket(ConversationStatus.Available, new List<int> {creature.CreatureType.VendorData.VendorPackageId })); // status - vending
 
                 statusSet = true;
             }
             // no status set yet? Send NONE conversation status
-            if (statusSet == false )
+            if (statusSet == false)
             {
                 // no other status, set NONE status
-                client.SendPacket(creature.Actor.EntityId, new NPCConversationStatusPacket(ConversationStatus.None, new List<int>()));// status - none
+                client.SendPacket(creature.Actor.EntityId, new NPCConversationStatusPacket(ConversationStatus.None, null));// status - none
 
                 statusSet = true;
             }
+        }
+        #endregion
+
+        #region Auctioneer
+        public void RequestNPCOpenAuctionHouse(Client client, long entityId)
+        {
+            client.SendPacket((uint)entityId, new OpenAuctionHousePacket());
+        }
+        #endregion
+
+        #region Vendor
+        public void RequestNPCVending(Client client, RequestNPCVendingPacket packet)
+        {
+            client.SendPacket((uint)packet.EntityId, new VendPacket());
+        }
+
+        public void RequestCancelVendor(Client client, long entityId)
+        {
+            Logger.WriteLog(LogType.Debug, "ToDo RequestCancelVendor");
         }
         #endregion
     }

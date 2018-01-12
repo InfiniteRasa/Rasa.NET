@@ -108,6 +108,37 @@
         // used by Recv_WeaponInfo
         public string WeaponName { get; set; }
         public bool IsJammed { get; set; }
-        public string CammeraProfile { get; set; }
+        public int CammeraProfile { get; set; }
+
+        public WeaponTupple(WeaponTemplateEntry weapon)
+        {
+            ClipSize = weapon.ClipSize;
+            AimRate = weapon.AimRate;
+            ReloadTime = weapon.ReloadTime;
+            AltActionId = weapon.AltActionId;
+            AltActionArg = weapon.AltActionArg;
+            AeType = weapon.AeType;
+            AeRadius = weapon.AeRadius;
+            RecoilAmount = weapon.RecoilAmount;
+            ReuseOverride = weapon.ReuseOverride;
+            CoolRate = weapon.CoolRate;
+            HeatPerShot = weapon.HeatPerShot;
+            ToolType = weapon.ToolType;
+            AmmoPerShot = weapon.AmmoPerShot;
+            MinDamage = weapon.MinDamage;
+            MaxDamage = weapon.MaxDamage;
+            AmmoClassId = weapon.AmmoClassId;
+            DamageType = weapon.DamageType;
+            WindupTime = weapon.WindupTime;
+            RecoveryTime = weapon.RecoveryTime;
+            RefireTime = weapon.RefireTime;
+            Range = weapon.Range;
+            AltMaxDamage = weapon.AltMaxDamage;
+            AltDamageType = weapon.AltDamageType;
+            AltRange = weapon.AltRange;
+            AltAERadius = weapon.AltAERadius;
+            AltAEType = weapon.AltAEType;
+            AttackType = weapon.AttackType;
+        }
     }
 }

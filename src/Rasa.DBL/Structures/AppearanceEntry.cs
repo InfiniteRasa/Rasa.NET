@@ -13,8 +13,8 @@ namespace Rasa.Structures
             return new AppearanceEntry
             {
                 SlotId = reader.GetInt32("slotId"),
-                ClassId = reader.GetInt32("slotItem"),
-                Color = reader.GetInt32("slotHue")
+                ClassId = reader.GetInt32("classId"),
+                Color = reader.GetInt32("color")
             };
         }
     }

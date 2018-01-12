@@ -79,7 +79,7 @@ namespace Rasa.Managers
             // find channel
             ChatChannel chatChannel;
             if (ChannelsBySeed.TryGetValue(cHash, out chatChannel))
-            {                
+            {
             }
             else
             {
@@ -99,13 +99,13 @@ namespace Rasa.Managers
             mapClient.JoinedChannels++;
             // add client to channel
             AddClientToChannel(mapClient, cHash);
-            mapClient.Client.SendPacket(8, new ChatChannelJoinedPacket { ChannelId = channelId, MapContextId = mapClient.MapChannel.MapInfo.MapId });            
+            mapClient.Client.SendPacket(8, new ChatChannelJoinedPacket { ChannelId = channelId, MapContextId = mapClient.MapChannel.MapInfo.MapId });
         }
 
         public void LoginOk(MapChannelClient mapClient, MapChannel mapChannel)
         {
             // send LoginOk (despite the original description in the python files, this will only show 'You have arrived at ....' msg in chat)
-            mapClient.Player.Client.SendPacket(8, new LoginOkPacket(mapClient.Player.Actor.Name) );
+            mapClient.Player.Client.SendPacket(8, new LoginOkPacket(mapClient.Player.Actor.Name));
             // send MOTD ( Recv_SendMOTD - receives MOTDDict {languageId: text} )
             // SendMOTD = 770		// Displayed only if different
             // PreviewMOTD = 769	// Displayed always

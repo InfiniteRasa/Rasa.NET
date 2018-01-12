@@ -16,7 +16,7 @@
         Vending             = 11,
         ImportantGreering   = 12,
         Clan                = 13,
-        Auctioner           = 14,
+        Auctioneer          = 14,
         ForcedByScript      = 15
     }
 

@@ -9,6 +9,10 @@
         public override GameOpcode Opcode { get; } = GameOpcode.ItemTemplateTooltipInfo;
         
         public ItemTemplate ItemTemplate { get; set; }
+        public int ItemTemplateId { get; set; }
+        public int ItemClassId { get; set; }
+        //public ItemInfo Info { get; set; }
+
 
         public override void Read(PythonReader pr)
         {            
@@ -18,7 +22,7 @@
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(3);
-            pw.WriteInt((int)ItemTemplate.ItemTemplateId);  // itemTemplateId
+            pw.WriteInt(ItemTemplate.ItemTemplateId);  // itemTemplateId
             pw.WriteInt(ItemTemplate.ClassId);              // itemClas
 
             if (ItemTemplate.ItemType == (int)ItemTypes.Armor)

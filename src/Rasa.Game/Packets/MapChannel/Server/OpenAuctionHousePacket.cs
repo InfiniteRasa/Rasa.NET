@@ -1,12 +1,12 @@
-﻿namespace Rasa.Packets.MapChannel.Server
+﻿namespace Rasa.Packets.MapChannel.Client
 {
     using Data;
     using Memory;
 
-    public class MadeDeadPacket : PythonPacket
+    public class OpenAuctionHousePacket : PythonPacket
     {
-        public override GameOpcode Opcode { get; } = GameOpcode.MadeDead;
-
+        public override GameOpcode Opcode { get; } = GameOpcode.OpenAuctionHouse;
+        
         public override void Read(PythonReader pr)
         {
         }

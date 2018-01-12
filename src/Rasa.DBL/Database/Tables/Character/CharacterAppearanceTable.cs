@@ -8,9 +8,9 @@ namespace Rasa.Database.Tables.Character
 
     public class CharacterAppearanceTable
     {        
-        private static readonly MySqlCommand GetAppearanceCommand = new MySqlCommand("SELECT slotId, slotItem, slotHue FROM character_appearance WHERE characterId = @CharacterId");
-        private static readonly MySqlCommand SetAppearanceCommand = new MySqlCommand("INSERT INTO character_appearance (characterId, slotId, slotItem, slotHue) VALUES (@CharacterId, @SlotId, @SlotItem, @SlotHue)");
-        private static readonly MySqlCommand UpdateAppearanceCommand = new MySqlCommand("UPDATE character_appearance SET slotItem = @ClassId, slotHue = @Hue WHERE characterId = @CharacterId AND slotId = @SlotId");
+        private static readonly MySqlCommand GetAppearanceCommand = new MySqlCommand("SELECT slotId, classId, color FROM character_appearance WHERE characterId = @CharacterId");
+        private static readonly MySqlCommand SetAppearanceCommand = new MySqlCommand("INSERT INTO character_appearance (characterId, slotId, classId, color) VALUES (@CharacterId, @SlotId, @ClassId, @Color)");
+        private static readonly MySqlCommand UpdateAppearanceCommand = new MySqlCommand("UPDATE character_appearance SET classId = @ClassId, color = @Color WHERE characterId = @CharacterId AND slotId = @SlotId");
         
         public static void Initialize()
         {
@@ -22,15 +22,15 @@ namespace Rasa.Database.Tables.Character
             SetAppearanceCommand.Connection = GameDatabaseAccess.CharConnection;
             SetAppearanceCommand.Parameters.Add("@CharacterId", MySqlDbType.UInt32);
             SetAppearanceCommand.Parameters.Add("@SlotId", MySqlDbType.Int32);
-            SetAppearanceCommand.Parameters.Add("@SlotItem", MySqlDbType.Int32);
-            SetAppearanceCommand.Parameters.Add("@SlotHue", MySqlDbType.Int32);
+            SetAppearanceCommand.Parameters.Add("@ClassId", MySqlDbType.Int32);
+            SetAppearanceCommand.Parameters.Add("@Color", MySqlDbType.Int32);
             SetAppearanceCommand.Prepare();
 
             UpdateAppearanceCommand.Connection = GameDatabaseAccess.CharConnection;
             UpdateAppearanceCommand.Parameters.Add("@CharacterId", MySqlDbType.UInt32);
             UpdateAppearanceCommand.Parameters.Add("@SlotId", MySqlDbType.Int32);
             UpdateAppearanceCommand.Parameters.Add("@ClassId", MySqlDbType.Int32);
-            UpdateAppearanceCommand.Parameters.Add("@Hue", MySqlDbType.Int32);
+            UpdateAppearanceCommand.Parameters.Add("@Color", MySqlDbType.Int32);
             UpdateAppearanceCommand.Prepare();            
         }
 
@@ -49,26 +49,26 @@ namespace Rasa.Database.Tables.Character
             }
         }
 
-        public static void SetAppearance(uint characterId, int slotId, int slotItem, int slotHue)
+        public static void SetAppearance(uint characterId, int slotId, int classId, int color)
         {
             lock (GameDatabaseAccess.CharLock)
             {
                 SetAppearanceCommand.Parameters["@CharacterId"].Value = characterId;
                 SetAppearanceCommand.Parameters["@SlotId"].Value = slotId;
-                SetAppearanceCommand.Parameters["@SlotItem"].Value = slotItem;
-                SetAppearanceCommand.Parameters["@SlotHue"].Value = slotHue;
+                SetAppearanceCommand.Parameters["@ClassId"].Value = classId;
+                SetAppearanceCommand.Parameters["@Color"].Value = color;
                 SetAppearanceCommand.ExecuteNonQuery();
             }
         }
 
-        public static void UpdateCharacterAppearance(uint characterId, int slotId, int classId, int hue)
+        public static void UpdateCharacterAppearance(uint characterId, int slotId, int classId, int color)
         {
             lock (GameDatabaseAccess.CharLock)
             {
                 UpdateAppearanceCommand.Parameters["@CharacterId"].Value = characterId;
                 UpdateAppearanceCommand.Parameters["@SlotId"].Value =  slotId;
                 UpdateAppearanceCommand.Parameters["@ClassId"].Value = classId;
-                UpdateAppearanceCommand.Parameters["@Hue"].Value = hue;
+                UpdateAppearanceCommand.Parameters["@Color"].Value = color;
                 UpdateAppearanceCommand.ExecuteNonQuery();
             }
         }
