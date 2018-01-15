@@ -224,17 +224,14 @@ namespace Rasa.Packets.MapChannel.Server
                         break;
 
                     case ConversationType.Training:
-                        Logger.WriteLog(LogType.Debug, $"ConversationType resived = {entry.Key}");
                         pw.WriteTuple(2);
                         pw.WriteBool(convoDataDict.Training.CanTrain);
                         pw.WriteInt(convoDataDict.Training.DialogId);
                         break;
 
                     case ConversationType.Vending:
-                        pw.WriteList(convoDataDict.VendorPackageIds.Count);
-                        foreach (var vendorPackageId in convoDataDict.VendorPackageIds)
-                            pw.WriteInt(vendorPackageId);
-                        Logger.WriteLog(LogType.Debug, $"ConversationType resived = {entry.Key}");
+                        pw.WriteList(1);    // appearantly there can be only 1 vendorPackage per npc
+                        pw.WriteInt(convoDataDict.VendorConverse[0]);
                         break;
 
                     case ConversationType.ImportantGreering:

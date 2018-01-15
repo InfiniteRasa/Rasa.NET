@@ -9,7 +9,6 @@ namespace Rasa.Structures
         public int IsNpc { get; set; }
         public int IsVendor { get; set; }
         public int IsHarvestable { get; set; }
-        public int IsAuctioner { get; set; }
 
         public static CreatureTypesEntry Read(MySqlDataReader reader)
         {
@@ -19,8 +18,7 @@ namespace Rasa.Structures
                 ClassId = reader.GetInt32("classId"),
                 IsNpc = reader.GetInt32("isNpc"),
                 IsVendor = reader.GetInt32("isVendor"),
-                IsHarvestable = reader.GetInt32("isHarvestable"),
-                IsAuctioner = reader.GetInt32("isAuctioner")
+                IsHarvestable = reader.GetInt32("isHarvestable")
             };
         }
     }

@@ -388,7 +388,7 @@ namespace Rasa.Managers
             SetAppearanceItem(client.MapClient.Player, tempItem);
             UpdateAppearance(client.MapClient);
             // update ammo info
-            client.SendPacket(tempItem.EntityId, new WeaponAmmoInfoPacket{ AmmoInfo = tempItem.CurrentAmmo });
+            client.SendPacket(tempItem.EntityId, new WeaponAmmoInfoPacket(tempItem.CurrentAmmo ));
         }
 
         public void RequestPerformAbility(Client client, RequestPerformAbilityPacket packet)
@@ -505,20 +505,19 @@ namespace Rasa.Managers
 
         public void SetAppearanceItem(PlayerData player, Item item)
         {
-            var equipmentSlotId = item.ItemTemplate.Equipment.EquiptmentSlotType;
-            if (equipmentSlotId == 0)
-                return;
-            if (!player.AppearanceData.ContainsKey((EquipmentSlots)equipmentSlotId))
+            var equipmentSlotId = EntityClassManager.Instance.LoadedEntityClasses[item.ItemTemplate.ClassId].EquipableClassInfo.EquipmentSlotId;
+
+            if (!player.AppearanceData.ContainsKey(equipmentSlotId))
             {
                 // Add new appearance slot to character and db
-                player.AppearanceData.Add((EquipmentSlots)equipmentSlotId, new AppearanceData { SlotId = equipmentSlotId } );
-                CharacterAppearanceTable.SetAppearance(player.CharacterId, equipmentSlotId, 0, 0);
+                player.AppearanceData.Add(equipmentSlotId, new AppearanceData { SlotId = equipmentSlotId } );
+                CharacterAppearanceTable.SetAppearance(player.CharacterId, (int)equipmentSlotId, 0, 0);
             }
 
             player.AppearanceData[(EquipmentSlots)equipmentSlotId].ClassId = item.ItemTemplate.ClassId;
             player.AppearanceData[(EquipmentSlots)equipmentSlotId].Color = new Color(item.Color);
             // update appearance data in database
-            CharacterAppearanceTable.UpdateCharacterAppearance(player.CharacterId, equipmentSlotId, item.ItemTemplate.ClassId, item.Color);
+            CharacterAppearanceTable.UpdateCharacterAppearance(player.CharacterId, (int)equipmentSlotId, item.ItemTemplate.ClassId, item.Color);
         }
 
         public void SetDesiredCrouchState(Client client, int stateId)
@@ -539,7 +538,7 @@ namespace Rasa.Managers
             var itemWeapon = InventoryManager.Instance.CurrentWeapon(client.MapClient);
             if (itemWeapon == null)
                 return; // no weapon armed
-            if (itemWeapon.CurrentAmmo < itemWeapon.ItemTemplate.Weapon.AmmoPerShot)
+            if (itemWeapon.CurrentAmmo < itemWeapon.ItemTemplate.WeaponInfo.AmmoPerShot)
             {
                 PlayerManager.Instance.RequestWeaponReload(client);
                 return;
@@ -634,21 +633,33 @@ namespace Rasa.Managers
             //float armorBonus = 0; // todo! (From item modules)
             var armorBonusPct = player.Actor.Attributes[Attributes.Body].CurrentMax * 0.0066666d;
             var armorRegenRate = 0;
+
             for (var i = 0; i < 22; i++)
             {
+                // skipp weapon slot
+                if (i == 13)
+                    continue;
+
                 if (mapClient.Inventory.EquippedInventory[i] == 0)
                     continue;
+
                 var equipmentItem = EntityManager.Instance.GetItem(mapClient.Inventory.EquippedInventory[i]);
+                var classInfo = EntityClassManager.Instance.LoadedEntityClasses[equipmentItem.ItemTemplate.ClassId];
+
                 if (equipmentItem == null)
                 {
                     // this is very bad, how can the item disappear while it is still linked in the inventory?
                     Logger.WriteLog(LogType.Error, "UpdateStatsValues: Equipment item has no physical copy (item is missing)");
                     continue;
                 }
-                if (equipmentItem.ItemTemplate.ItemType != (int)ItemTypes.Armor)
-                    continue; // how can the player equip non-armor?
-                armorMax += equipmentItem.ItemTemplate.Armor.ArmorValue;
-                armorRegenRate += equipmentItem.ItemTemplate.Armor.RegenRate;
+                if (classInfo.ArmorClassInfo == null)
+                {
+                    // how can the player equip non-armor?
+                    Logger.WriteLog(LogType.Error, "UpdateStatsValues: Player try to equip non_armor item");
+                    continue;
+                }
+                armorMax += equipmentItem.ItemTemplate.ArmorValue;      // ToDo
+                armorRegenRate += classInfo.ArmorClassInfo.RegenRate;
                 // what about damage absorbed? Was it used at all?
             }
             armorMax = armorMax * (1.0d + armorBonusPct);
@@ -676,7 +687,7 @@ namespace Rasa.Managers
         public void WeaponReload(MapChannelClient mapClient, int actionId, int actionArgId)
         {
             var weapon = EntityManager.Instance.GetItem(mapClient.Inventory.WeaponDrawer[mapClient.Inventory.ActiveWeaponDrawer]);
-            var ammoClassId = weapon.ItemTemplate.Weapon.AmmoClassId;
+            var weaponClassInfo = EntityClassManager.Instance.LoadedEntityClasses[weapon.ItemTemplate.ClassId].WeaponClassInfo;
             var foundAmmo = false;
             var foundAmmoAmount = 0;
 
@@ -690,14 +701,14 @@ namespace Rasa.Managers
                 if (weaponAmmo == null)
                     return;
 
-                if (weaponAmmo.ItemTemplate.ClassId == ammoClassId)
+                if (weaponAmmo.ItemTemplate.ClassId == weaponClassInfo.AmmoClassId)
                 {
                     // consume ammo
-                    int ammoToGrab = Math.Min(weapon.ItemTemplate.Weapon.ClipSize - foundAmmoAmount - weapon.CurrentAmmo, weaponAmmo.Stacksize);
+                    int ammoToGrab = Math.Min(weaponClassInfo.ClipSize - foundAmmoAmount - weapon.CurrentAmmo, weaponAmmo.Stacksize);
                     foundAmmoAmount = ammoToGrab + weapon.CurrentAmmo;
                     InventoryManager.Instance.ReduceStackCount(mapClient, weaponAmmo, ammoToGrab);
                     foundAmmo = true;
-                    if (foundAmmoAmount == weapon.ItemTemplate.Weapon.ClipSize)
+                    if (foundAmmoAmount == weaponClassInfo.ClipSize)
                         break;
                 }
             }

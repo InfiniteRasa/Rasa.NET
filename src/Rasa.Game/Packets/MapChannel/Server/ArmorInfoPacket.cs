@@ -10,6 +10,12 @@
         public int CurrentHitPoints { get; set; }
         public int MaxHitPoints { get; set; }
 
+        public ArmorInfoPacket(int current, int max)
+        {
+            CurrentHitPoints = current;
+            MaxHitPoints = max;
+        }
+
         public override void Read(PythonReader pr)
         {
         }

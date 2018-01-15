@@ -67,12 +67,4 @@
         Equiped             = 250,
         WeaponDrawer        = 272
     }
-    
-    public enum ItemTypes
-    {
-        Weapon  = 1,
-        Armor   = 2,
-        // just for now, add more types later, mission, consumable, misc...
-        Decoration = 3
-    }
 }

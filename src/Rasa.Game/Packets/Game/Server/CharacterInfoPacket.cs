@@ -69,7 +69,7 @@ namespace Rasa.Packets.Game.Server
             pw.WriteDictionary(AppearanceData.Count);
             foreach (var t in AppearanceData)
             {
-                pw.WriteInt(t.SlotId);
+                pw.WriteInt((int)t.SlotId);
                 pw.WriteTuple(2);
                 pw.WriteInt(t.ClassId);
                 pw.WriteTuple(4);

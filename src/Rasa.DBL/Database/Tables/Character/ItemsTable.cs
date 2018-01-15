@@ -6,23 +6,26 @@ namespace Rasa.Database.Tables.Character
   
     public class ItemsTable
     {
-        private static readonly MySqlCommand CraftItemCommand = new MySqlCommand("INSERT INTO items (entityClassId, stackSize, crafterName) VALUES (@EntityClassId, @StackSize, @CrafterName)");
-        private static readonly MySqlCommand CreateItemCommand = new MySqlCommand("INSERT INTO items (entityClassId, stackSize, color) VALUES (@EntityClassId, @StackSize, @Color)");
-        private static readonly MySqlCommand GetItemCommand = new MySqlCommand("SELECT entityClassId, stackSize, color, ammoCount, crafterName FROM items WHERE itemId = @ItemId");
+        private static readonly MySqlCommand CraftItemCommand = new MySqlCommand("INSERT INTO items (itemTemplateId, stackSize, currentHitPoints, crafterName) VALUES (@ItemTemplateId, @StackSize, @CurrentHitPoints, @CrafterName)");
+        private static readonly MySqlCommand CreateItemCommand = new MySqlCommand("INSERT INTO items (itemTemplateId, stackSize, currentHitPoints, color) VALUES (@ItemTemplateId, @StackSize, @CurrentHitPoints, @Color)");
+        private static readonly MySqlCommand GetItemCommand = new MySqlCommand("SELECT itemTemplateId, stackSize, currentHitPoints, color, ammoCount, crafterName FROM items WHERE itemId = @ItemId");
         private static readonly MySqlCommand UpdateItemCurrentAmmoCommand = new MySqlCommand("UPDATE items SET ammoCount = @AmmoCount WHERE itemId = @ItemId");
+        private static readonly MySqlCommand UpdateItemCurrentHitPointsCommand = new MySqlCommand("UPDATE items SET currentHitPoints = @CurrentHitPoints WHERE itemId = @ItemId");
         private static readonly MySqlCommand UpdateItemStackSizeCommand = new MySqlCommand("UPDATE items SET stackSize = @StackSize WHERE itemId = @ItemId");
 
         public static void Initialize()
         {
             CraftItemCommand.Connection = GameDatabaseAccess.CharConnection;
-            CraftItemCommand.Parameters.Add("@EntityClassId", MySqlDbType.Int32);
+            CraftItemCommand.Parameters.Add("@ItemTemplateId", MySqlDbType.Int32);
             CraftItemCommand.Parameters.Add("@StackSize", MySqlDbType.Int32);
+            CraftItemCommand.Parameters.Add("@CurrentHitPoints", MySqlDbType.Int32);
             CraftItemCommand.Parameters.Add("@CrafterName", MySqlDbType.VarChar);
             CraftItemCommand.Prepare();
 
             CreateItemCommand.Connection = GameDatabaseAccess.CharConnection;
-            CreateItemCommand.Parameters.Add("@EntityClassId", MySqlDbType.Int32);
+            CreateItemCommand.Parameters.Add("@ItemTemplateId", MySqlDbType.Int32);
             CreateItemCommand.Parameters.Add("@StackSize", MySqlDbType.Int32);
+            CreateItemCommand.Parameters.Add("@CurrentHitPoints", MySqlDbType.Int32);
             CreateItemCommand.Parameters.Add("@Color", MySqlDbType.Int32);
             CreateItemCommand.Prepare();
 
@@ -35,30 +38,37 @@ namespace Rasa.Database.Tables.Character
             UpdateItemCurrentAmmoCommand.Parameters.Add("@AmmoCount", MySqlDbType.Int32);
             UpdateItemCurrentAmmoCommand.Prepare();
 
+            UpdateItemCurrentHitPointsCommand.Connection = GameDatabaseAccess.CharConnection;
+            UpdateItemCurrentHitPointsCommand.Parameters.Add("@ItemId", MySqlDbType.UInt32);
+            UpdateItemCurrentHitPointsCommand.Parameters.Add("@CurrentHitPoints", MySqlDbType.Int32);
+            UpdateItemCurrentHitPointsCommand.Prepare();
+
             UpdateItemStackSizeCommand.Connection = GameDatabaseAccess.CharConnection;
             UpdateItemStackSizeCommand.Parameters.Add("@ItemId", MySqlDbType.UInt32);
             UpdateItemStackSizeCommand.Parameters.Add("@StackSize", MySqlDbType.Int32);
             UpdateItemStackSizeCommand.Prepare();
         }
 
-        public static uint CraftItem(int entityClassId, int stackSize, string crafterName)
+        public static uint CraftItem(int itemTemplateId, int stackSize, int currentHitPoints, string crafterName)
         {
             lock (GameDatabaseAccess.CharLock)
             {
-                CraftItemCommand.Parameters["@EntityClassId"].Value = entityClassId;
+                CraftItemCommand.Parameters["@ItemTemplateId"].Value = itemTemplateId;
                 CraftItemCommand.Parameters["@StackSize"].Value = stackSize;
+                CraftItemCommand.Parameters["@CurrentHitPoints"].Value = currentHitPoints;
                 CraftItemCommand.Parameters["@CrafterName"].Value = crafterName;
                 CraftItemCommand.ExecuteNonQuery();
                 return (uint)CraftItemCommand.LastInsertedId;
             }
         }
 
-        public static uint CreateItem(int entityClassId, int stackSize, int color)
+        public static uint CreateItem(int itemTemplateId, int stackSize, int currentHitPoints, int color)
         {
             lock (GameDatabaseAccess.CharLock)
             {
-                CreateItemCommand.Parameters["@EntityClassId"].Value = entityClassId;
+                CreateItemCommand.Parameters["@ItemTemplateId"].Value = itemTemplateId;
                 CreateItemCommand.Parameters["@StackSize"].Value = stackSize;
+                CreateItemCommand.Parameters["@CurrentHitPoints"].Value = currentHitPoints;
                 CreateItemCommand.Parameters["@Color"].Value = color;
                 CreateItemCommand.ExecuteNonQuery();
 
@@ -83,6 +93,16 @@ namespace Rasa.Database.Tables.Character
                 UpdateItemCurrentAmmoCommand.Parameters["@ItemId"].Value = itemId;
                 UpdateItemCurrentAmmoCommand.Parameters["@AmmoCount"].Value = ammoCount;
                 UpdateItemCurrentAmmoCommand.ExecuteNonQuery();
+            }
+        }
+
+        public static void UpdateCurrentHitPoints(uint itemId, int currentHitPoints)
+        {
+            lock (GameDatabaseAccess.CharLock)
+            {
+                UpdateItemStackSizeCommand.Parameters["@ItemId"].Value = itemId;
+                UpdateItemStackSizeCommand.Parameters["@CurrentHitPoints"].Value = currentHitPoints;
+                UpdateItemStackSizeCommand.ExecuteNonQuery();
             }
         }
 

@@ -75,13 +75,19 @@ namespace Rasa.Managers
         public void AddItemToInventory(MapChannelClient mapClient, int itemTemplateId, int quantity)
         {
             var itemTemplate = ItemManager.Instance.GetItemTemplateById(itemTemplateId);
+
+            if (itemTemplate == null)
+                return;
+
+            var itemClassInfo = EntityClassManager.Instance.LoadedEntityClasses[itemTemplate.ClassId].ItemClassInfo;
+
             if (itemTemplate == null)
                 return; // invalid itemTemplateId
             // get item category offset
-            var itemCategoryOffset = (itemTemplate.InventoryCategory - 1);
+            var itemCategoryOffset = itemTemplate.InventoryCategory - 1;
             if (itemCategoryOffset < 0 || itemCategoryOffset >= 5)
             {
-                Console.WriteLine("AddItemToInventory: The item inventory category {0} is invalid", itemCategoryOffset);
+                Logger.WriteLog(LogType.Error, $"AddItemToInventory: itemTemplate = {itemTemplate.ItemTemplateId} inventory category = {itemCategoryOffset} is invalid");
                 return;
             }
             itemCategoryOffset *= 50;
@@ -92,11 +98,12 @@ namespace Rasa.Managers
                 {
                     // get item
                     var slotItem = EntityManager.Instance.GetItem(mapClient.Inventory.PersonalInventory[itemCategoryOffset + i]);
+                    
                     // same item template?
                     if (slotItem.ItemTemplate.ItemTemplateId != itemTemplateId)
                         continue;
                     // calculate how many items we can add to the stack
-                    var stackAdd = slotItem.ItemTemplate.Stacksize - slotItem.Stacksize;
+                    var stackAdd = itemClassInfo.StackSize - slotItem.Stacksize;
                     if (stackAdd == 0)
                         continue;
                     // add item to existing stack
@@ -122,19 +129,21 @@ namespace Rasa.Managers
                 for (var i = 0; i < 50; i++)
                 {
                     // check item stacksize
-                    if (itemTemplate.Stacksize < quantity)
+                    if (itemClassInfo.StackSize < quantity)
                     {
                         // find empty slot
                         if (mapClient.Inventory.PersonalInventory[itemCategoryOffset + i] == 0)
                         {
-                            var newItem = ItemManager.Instance.CreateFromTemplateId(mapClient.Player.CharacterId, itemCategoryOffset + i, itemTemplateId, itemTemplate.Stacksize);
-                            newItem.ItemTemplate.CrafterName = mapClient.Player.Actor.Name;
+                            var newItem = ItemManager.Instance.CreateFromTemplateId(mapClient.Player.CharacterId, itemCategoryOffset + i, itemTemplateId, itemClassInfo.StackSize);
+
+                            newItem.CrafterName = mapClient.Player.Actor.Name;
+                            newItem.CurrentHitPoints = itemClassInfo.MaxHitPoints;
                             // send data to client
                             ItemManager.Instance.SendItemDataToClient(mapClient, newItem);
                             // add item to empty slot
                             AddItemBySlot(mapClient, InventoryType.Personal, newItem.EntityId, itemCategoryOffset + i, true);
-                            CommunicatorManager.Instance.SystemMessage(mapClient, "You got item with id:" + itemTemplateId + " (" + itemTemplate.Stacksize + ").");
-                            quantity -= itemTemplate.Stacksize;
+                            CommunicatorManager.Instance.SystemMessage(mapClient, "You got item with id:" + itemTemplateId + " (" + itemClassInfo.StackSize + ").");
+                            quantity -= itemClassInfo.StackSize;
                         }
                     }
                     else
@@ -142,7 +151,8 @@ namespace Rasa.Managers
                         if (mapClient.Inventory.PersonalInventory[itemCategoryOffset + i] == 0)
                     {
                         var newItem = ItemManager.Instance.CreateFromTemplateId(mapClient.Player.CharacterId, itemCategoryOffset + i, itemTemplateId, quantity);
-                        newItem.ItemTemplate.CrafterName = mapClient.Player.Actor.Name;
+                        newItem.CrafterName = mapClient.Player.Actor.Name;
+                        newItem.CurrentHitPoints = itemClassInfo.MaxHitPoints;
                         // send data to client
                         ItemManager.Instance.SendItemDataToClient(mapClient, newItem);
                         // add item to empty slot
@@ -198,7 +208,7 @@ namespace Rasa.Managers
             foreach (var item in getInventoryData)
             {
                 var itemData = ItemsTable.GetItem(item.ItemId);
-                var itemTemplate = ItemManager.Instance.GetItemTemplateById(itemData.EntityClassId);
+                var itemTemplate = ItemManager.Instance.GetItemTemplateById(itemData.ItemTemplateId);
 
                 if (itemTemplate == null)
                     return;
@@ -209,13 +219,14 @@ namespace Rasa.Managers
                     OwnerSlotId = item.SlotId,
                     ItemTemplate = itemTemplate,
                     Stacksize = itemData.StackSize,
+                    CurrentHitPoints = itemData.CurrentHitPoints,
                     Color = itemData.Color,
                     ItemId = item.ItemId,
                     CrafterName = itemData.CrafterName
                 };
 
                 // check if item is weapon
-                if (newItem.ItemTemplate.ItemType == (int)ItemTypes.Weapon)
+                if (newItem.ItemTemplate.WeaponInfo != null)
                     newItem.CurrentAmmo = itemData.AmmoCount;
 
                 // register item
@@ -236,6 +247,8 @@ namespace Rasa.Managers
                     mapClient.Inventory.EquippedInventory[item.SlotId - 250] = newItem.EntityId;
                     // make the item appear on the client
                     AddItemBySlot(mapClient, InventoryType.EquipedInventory, mapClient.Inventory.EquippedInventory[item.SlotId - 250], item.SlotId - 250, false);
+                    // sendEquipementInfo to slot
+                    PlayerManager.Instance.NotifyEquipmentUpdate(mapClient, new EquipmentInfo { SlotId = item.SlotId - 250, EntityId = mapClient.Inventory.EquippedInventory[item.SlotId - 250] });
                 }
                 else if (271 < item.SlotId)
                 {
@@ -245,9 +258,6 @@ namespace Rasa.Managers
                     AddItemBySlot(mapClient, InventoryType.WeaponDrawerInventory, mapClient.Inventory.WeaponDrawer[item.SlotId - 250 - 22], item.SlotId - 250 - 22, false);
                 }
             }
-
-            PlayerManager.Instance.NotifyEquipmentUpdate(mapClient, new EquipmentInfo { SlotId = 13, EntityId = mapClient.Inventory.EquippedInventory[13] });
-            //PlayerManager.Instance.UpdateAppearance(mapClient);
         }
 
         public void PersonalInventory_DestroyItem(Client client, PersonalInventory_DestroyItemPacket packet)
@@ -347,11 +357,13 @@ namespace Rasa.Managers
             {
                 itemToEquip = EntityManager.Instance.GetItem(entityIdInventoryItem);
                 // min level criteria met?
-                if (itemToEquip != null && client.MapClient.Player.Level < itemToEquip.ItemTemplate.ReqLevel)
-                {
-                    // level too low, cannot equip item
-                    return;
-                }
+                if (itemToEquip != null && itemToEquip.ItemTemplate.ItemInfo.Requirements.ContainsKey(RequirementsType.ReqXpLevel))
+                    if (client.MapClient.Player.Level < itemToEquip.ItemTemplate.ItemInfo.Requirements[RequirementsType.ReqXpLevel])
+                    {
+                        // level too low, cannot equip item
+                        Logger.WriteLog(LogType.Debug, "client level to low");
+                        return;
+                    }
             }
             // swap items on the client and server
             if (client.MapClient.Inventory.PersonalInventory[packet.SrcSlot] != 0)
@@ -367,7 +379,8 @@ namespace Rasa.Managers
             {
                 // remove item graphic if dequipped
                 var prevEquippedItem = EntityManager.Instance.GetItem(entityIdEquippedItem);
-                PlayerManager.Instance.RemoveAppearanceItem(client.MapClient.Player, (EquipmentSlots)prevEquippedItem.ItemTemplate.Equipment.EquiptmentSlotType);
+                var equipableClassInfo = EntityClassManager.Instance.LoadedEntityClasses[prevEquippedItem.ItemTemplate.ClassId].EquipableClassInfo;
+                PlayerManager.Instance.RemoveAppearanceItem(client.MapClient.Player, (EquipmentSlots)equipableClassInfo.EquipmentSlotId);
             }
             else
                 PlayerManager.Instance.SetAppearanceItem(client.MapClient.Player, itemToEquip);
@@ -390,6 +403,7 @@ namespace Rasa.Managers
                 return;
             if (destSlot < 0 || destSlot >= 5)
                 return;
+           
             // equip item
             var entityIdEquippedItem = client.MapClient.Inventory.WeaponDrawer[destSlot]; // the old equipped item (can be none)
             var entityIdInventoryItem = client.MapClient.Inventory.PersonalInventory[srcSlot]; // the new equipped item (can be none)
@@ -397,13 +411,13 @@ namespace Rasa.Managers
             Item itemToEquip = null;
             if (entityIdInventoryItem != 0)
             {
-                itemToEquip =  EntityManager.Instance.GetItem(entityIdInventoryItem);
-                // min level criteria met?
-                if (itemToEquip != null && client.MapClient.Player.Level < itemToEquip.ItemTemplate.ReqLevel)
-                {
-                    // level too low, cannot equip item
-                    return;
-                }
+                if (itemToEquip != null && itemToEquip.ItemTemplate.ItemInfo.Requirements.ContainsKey(RequirementsType.ReqXpLevel))
+                    if (client.MapClient.Player.Level < itemToEquip.ItemTemplate.ItemInfo.Requirements[RequirementsType.ReqXpLevel])
+                    {
+                        // level too low, cannot equip item
+                        Logger.WriteLog(LogType.Debug, "client level to low");
+                        return;
+                    }
             }
             // swap items on the client and server
             if (client.MapClient.Inventory.PersonalInventory[srcSlot] != 0)
@@ -424,7 +438,8 @@ namespace Rasa.Managers
                 {
                     // remove item graphic if dequipped
                     var prevEquippedItem = EntityManager.Instance.GetItem(entityIdEquippedItem);
-                    PlayerManager.Instance.RemoveAppearanceItem(client.MapClient.Player, (EquipmentSlots)prevEquippedItem.ItemTemplate.Equipment.EquiptmentSlotType);
+                    var equipableClassInfo = EntityClassManager.Instance.LoadedEntityClasses[prevEquippedItem.ItemTemplate.ClassId].EquipableClassInfo;
+                    PlayerManager.Instance.RemoveAppearanceItem(client.MapClient.Player, equipableClassInfo.EquipmentSlotId);
                 }
                 else
                 {
@@ -438,11 +453,14 @@ namespace Rasa.Managers
         {
 
             var itemTemplate = ItemManager.Instance.GetItemTemplateById(itemTemplateId);
+            var classInfo = EntityClassManager.Instance.LoadedEntityClasses[itemTemplate.ClassId];
+
             if (itemTemplate == null)
+            {
+                Logger.WriteLog(LogType.Error, $"RequestTooltipForItemTemplateId: Unknown itemTemplateId {itemTemplateId}");
                 return; // todo: even answer on a unknown template, else the client will continue to spam us with requests
-
-
-            client.SendPacket(12, new ItemTemplateTooltipInfoPacket {ItemTemplate = itemTemplate});
+            }
+            client.SendPacket(12, new ItemTemplateTooltipInfoPacket(itemTemplate, classInfo));
         }
 
         public void RequestTooltipForModuleId(Client client, int moduleId)

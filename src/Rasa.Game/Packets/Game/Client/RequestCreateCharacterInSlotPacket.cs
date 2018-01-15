@@ -18,7 +18,7 @@ namespace Rasa.Packets.Game.Client
         public double Scale { get; set; }
         public int RaceId { get; set; }
 
-        public Dictionary<int, AppearanceData> AppearanceData { get; } = new Dictionary<int, AppearanceData>();
+        public Dictionary<EquipmentSlots, AppearanceData> AppearanceData { get; } = new Dictionary<EquipmentSlots, AppearanceData>();
 
         public override void Read(PythonReader pr)
         {

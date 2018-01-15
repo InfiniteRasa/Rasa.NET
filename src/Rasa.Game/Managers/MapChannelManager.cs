@@ -67,7 +67,7 @@ namespace Rasa.Managers
             var appearance = CharacterAppearanceTable.GetAppearance(data.CharacterId);
 
             foreach (var t in appearance)
-                tempAppearanceData.Add((EquipmentSlots)t.SlotId, new AppearanceData { SlotId = t.SlotId, ClassId = t.ClassId, Color = new Color(t.Color) });
+                tempAppearanceData.Add((EquipmentSlots)t.SlotId, new AppearanceData { SlotId = (EquipmentSlots)t.SlotId, ClassId = t.ClassId, Color = new Color(t.Color) });
 
             var player = new PlayerData
             {

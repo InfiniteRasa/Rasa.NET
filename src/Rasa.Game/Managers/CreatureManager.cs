@@ -127,14 +127,14 @@ namespace Rasa.Managers
             if (creature.CreatureType.NpcData != null)
             {
                 /*
-             * NPCInfo
+             * NPCInfo                  // used for mission/objectives state only
              * NPCConversationStatus
              * Converse
-             * Train
+             * Train                    // Train not used by client?? def Recv_Train(self, trainerPackageIDs): pass
              */
                 //UpdateConversationStatus(mapClient.Client, creature);
-                mapClient.Player.Client.SendPacket(creature.Actor.EntityId, new NPCConversationStatusPacket(ConversationStatus.Vending, new List<int> { 106 }));
-                //mapClient.Player.Client.SendPacket(creature.Actor.EntityId, new NPCInfoPacket(726));
+                mapClient.Player.Client.SendPacket(creature.Actor.EntityId, new NPCConversationStatusPacket(ConversationStatus.ObjectivChoice, new List<int> { }));
+                mapClient.Player.Client.SendPacket(creature.Actor.EntityId, new NPCInfoPacket(116));
                 //mapClient.Player.Client.SendPacket(creature.Actor.EntityId, new ConversePacket());
                 //mapClient.Player.Client.SendPacket(creature.Actor.EntityId, new NPCConversationStatusPacket(ConversationStatus.Vending, new List<int> { 10 }));
             }
@@ -156,7 +156,7 @@ namespace Rasa.Managers
 
                 if (appearanceData != null)
                     foreach (var t in appearanceData)
-                        tempAppearanceData.Add((EquipmentSlots)t.SlotId, new AppearanceData { SlotId = t.SlotId, ClassId = t.ClassId, Color = new Color(t.Color) });
+                        tempAppearanceData.Add((EquipmentSlots)t.SlotId, new AppearanceData { SlotId = (EquipmentSlots)t.SlotId, ClassId = t.ClassId, Color = new Color(t.Color) });
 
                 var creature = new Creature
                 {
@@ -312,7 +312,7 @@ namespace Rasa.Managers
             // Vending = 11,
             var vendor = new ConvoDataDict
             {
-                VendorPackageIds = new List<int> { 106 }
+                VendorConverse = new List<int> { 142 }
             };
             // ImportantGreering = 12,
             // Clan = 13,
@@ -326,10 +326,10 @@ namespace Rasa.Managers
             var testConvoDataDict = new Dictionary<ConversationType, ConvoDataDict>
             {
                 { ConversationType.MissionDispense, new ConvoDataDict(dispensableMissions) },
-                //{ ConversationType.ObjectiveComplete, new ConvoDataDict(objectiveComplete) },
+                { ConversationType.ObjectiveComplete, new ConvoDataDict(objectiveComplete) },
                 { ConversationType.MissionComplete, new ConvoDataDict(completeableMissions) },
                 //{ ConversationType.MissionReward, new ConvoDataDict(revardableMissions) },
-                //{ ConversationType.Greeting, new ConvoDataDict(greetingId) },
+                { ConversationType.Greeting, new ConvoDataDict(greetingId) },
                 //{ ConversationType.MissionReminder, new ConvoDataDict(remindableMissions) },
                 //{ ConversationType.ObjectiveAmbient, new ConvoDataDict(ambientObjectives) },
                 //{ ConversationType.Training, new ConvoDataDict(training) }
@@ -443,6 +443,9 @@ namespace Rasa.Managers
         #region Vendor
         public void RequestNPCVending(Client client, RequestNPCVendingPacket packet)
         {
+            var itemList = new List<Item>();
+
+            client.SendPacket((uint)packet.EntityId, new NPCConversationStatusPacket(ConversationStatus.Vending, new List<int> { packet.ChosenVendorPackage }));
             client.SendPacket((uint)packet.EntityId, new VendPacket());
         }
 

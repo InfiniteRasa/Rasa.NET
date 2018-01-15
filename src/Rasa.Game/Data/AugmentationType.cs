@@ -1,6 +1,6 @@
 ﻿namespace Rasa.Data
 {
-    public enum Augmentation
+    public enum AugmentationType
     {
         Creature            = 1,    // Actor: AI bodies                                 (CreatureClass)
         Weapon              = 2,    // The weapon class                                 (WeaponClass)

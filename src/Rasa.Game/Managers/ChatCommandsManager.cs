@@ -154,14 +154,10 @@ namespace Rasa.Managers
                 return;
             }
             if (parts.Length == 3)
-            {
-                int itemTemplateId, quantity;
-                if (int.TryParse(parts[1], out itemTemplateId))
-                    if (int.TryParse(parts[2], out quantity))
-                    {
+                if (int.TryParse(parts[1], out int itemTemplateId))
+                    if (int.TryParse(parts[2], out int quantity))
                         InventoryManager.Instance.AddItemToInventory(_mapClient, itemTemplateId, quantity);
-                    }
-            }
+
             return;
         }
 
@@ -264,7 +260,7 @@ namespace Rasa.Managers
                                 if (!creature.AppearanceData.ContainsKey(slotId))
                                 {
                                     // new appearance
-                                    creature.AppearanceData.Add(slotId, new AppearanceData { SlotId = (int)slotId, ClassId = classId, Color = new Color(color) });
+                                    creature.AppearanceData.Add(slotId, new AppearanceData { SlotId = slotId, ClassId = classId, Color = new Color(color) });
                                     newAppearance = true;
                                 }
                                 if (classId < 0) // update only color of slot item

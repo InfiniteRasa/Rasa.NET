@@ -101,7 +101,7 @@ namespace Rasa.Managers
             foreach (var t in packet.AppearanceData)
             {
                 var v = t.Value;
-                CharacterAppearanceTable.SetAppearance(characterId, v.SlotId, StarterItemsTable.GetItemTemplateId(v.ClassId), v.Color.Hue);
+                CharacterAppearanceTable.SetAppearance(characterId, (int)v.SlotId, StarterItemsTable.GetItemTemplateId(v.ClassId), v.Color.Hue);
             }
             // Create default entry in CharacterAbilitiesTable
             for (var i = 0; i < 25; i++)
@@ -157,7 +157,7 @@ namespace Rasa.Managers
                 var tempAppearanceData = new List<AppearanceData>();
                 var appearance = CharacterAppearanceTable.GetAppearance(data.CharacterId);
                 foreach (var t in appearance)
-                    tempAppearanceData.Add(new AppearanceData { SlotId = t.SlotId, ClassId = t.ClassId, Color = new Color(t.Color) });
+                    tempAppearanceData.Add(new AppearanceData { SlotId = (EquipmentSlots)t.SlotId, ClassId = t.ClassId, Color = new Color(t.Color) });
 
                 client.SendPacket(101 + (uint)slotNum, new CharacterInfoPacket
                 {

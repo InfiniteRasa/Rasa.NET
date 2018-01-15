@@ -28,7 +28,7 @@ namespace Rasa.Packets.MapChannel.Server
             foreach (var t in AppearanceData)
             {
                 var appearance = t.Value;
-                pw.WriteInt(appearance.SlotId);
+                pw.WriteInt((int)appearance.SlotId);
                 pw.WriteTuple(2);
                 pw.WriteInt(appearance.ClassId);
                 pw.WriteTuple(4);

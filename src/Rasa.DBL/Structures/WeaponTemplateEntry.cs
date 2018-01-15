@@ -4,24 +4,19 @@ namespace Rasa.Structures
 {
     public class WeaponTemplateEntry
     {
-        public int ItemTemplateId { get; set; }        
-        public int ClipSize { get; set; }
+        public int ItemTemplateId { get; set; }
         public double AimRate { get; set; }
         public int ReloadTime { get; set; }
+        public int AEType { get; set; }
         public int AltActionId { get; set; }
         public int AltActionArg { get; set; }
-        public int AeType { get; set; }
-        public int AeRadius { get; set; }
+        public int AERadius { get; set; }
         public int RecoilAmount { get; set; }
         public int ReuseOverride { get; set; }
         public int CoolRate { get; set; }
         public double HeatPerShot { get; set; }
         public int ToolType { get; set; }        
         public int AmmoPerShot { get; set; }
-        public int MinDamage { get; set; }
-        public int MaxDamage { get; set; }
-        public int AmmoClassId { get; set; }
-        public int DamageType { get; set; }
         public int WindupTime { get; set; }
         public int RecoveryTime { get; set; }
         public int RefireTime { get; set; }
@@ -38,23 +33,18 @@ namespace Rasa.Structures
             return new WeaponTemplateEntry
             {
                 ItemTemplateId = reader.GetInt32("itemTemplateId"),
-                ClipSize = reader.GetInt32("clipSize"),
                 AimRate = reader.GetDouble("aimRate"),
                 ReloadTime = reader.GetInt32("reloadTime"),
+                AEType = reader.GetInt32("aeType"),
                 AltActionId = reader.GetInt32("altActionId"),
                 AltActionArg = reader.GetInt32("altActionArg"),
-                AeType = reader.GetInt32("aeType"),
-                AeRadius = reader.GetInt32("aeRadius"),
+                AERadius = reader.GetInt32("aeRadius"),
                 RecoilAmount = reader.GetInt32("recoilAmount"),
                 ReuseOverride = reader.GetInt32("ReuseOverride"),
                 CoolRate = reader.GetInt32("coolRate"),
                 HeatPerShot = reader.GetDouble("heatPerShot"),
                 ToolType = reader.GetInt32("toolType"),
                 AmmoPerShot = reader.GetInt32("ammoPerShot"),
-                MinDamage = reader.GetInt32("minDamage"),
-                MaxDamage = reader.GetInt32("maxDamage"),
-                AmmoClassId = reader.GetInt32("ammoClassId"),
-                DamageType = reader.GetInt32("damageType"),
                 WindupTime = reader.GetInt32("windupTime"),
                 RecoveryTime = reader.GetInt32("recoveryTime"),
                 RefireTime = reader.GetInt32("refireTime"),

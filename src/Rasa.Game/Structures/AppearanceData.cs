@@ -1,16 +1,17 @@
 ﻿namespace Rasa.Structures
 {
+    using Data;
     using Memory;
 
     public class AppearanceData : IPythonDataStruct
     {
-        public int SlotId { get; set; }
+        public EquipmentSlots SlotId { get; set; }
         public int ClassId { get; set; }
         public Color Color { get; set; }
 
         public void Read(PythonReader pr)
         {
-            SlotId = pr.ReadInt();
+            SlotId = (EquipmentSlots)pr.ReadInt();
 
             pr.ReadTuple();
 
@@ -20,7 +21,7 @@
 
         public void Write(PythonWriter pw)
         {
-            pw.WriteInt(SlotId);
+            pw.WriteInt((int)SlotId);
 
             pw.WriteTuple(2);
             pw.WriteInt(ClassId);

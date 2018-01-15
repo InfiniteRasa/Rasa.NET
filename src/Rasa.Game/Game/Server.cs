@@ -167,11 +167,11 @@ namespace Rasa.Game
             });
 
             // Load items from db
+            EntityClassManager.Instance.LoadEntityClasses();
             CreatureManager.Instance.CreatureTypesInit();
             CreatureManager.Instance.CreatureInit();
             SpawnPoolManager.Instance.SpawnPoolInit();
             ChatCommandsManager.Instance.RegisterChatCommands();
-            ItemManager.Instance.LoadItems();
             MapChannelManager.Instance.MapChannelInit();
 
             return true;

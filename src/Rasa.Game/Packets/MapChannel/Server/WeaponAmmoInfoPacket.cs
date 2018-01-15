@@ -9,6 +9,11 @@
 
         public int AmmoInfo { get; set; }
 
+        public WeaponAmmoInfoPacket(int ammoInfo)
+        {
+            AmmoInfo = ammoInfo;
+        }
+
         public override void Read(PythonReader pr)
         {
         }

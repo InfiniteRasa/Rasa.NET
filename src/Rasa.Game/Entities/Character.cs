@@ -1,5 +1,6 @@
 ﻿namespace Rasa.Entities
 {
+    using Data;
     using Structures;
 
     public class Character
@@ -18,31 +19,31 @@
             ClassId = 1; // recruit, maybe we need to chage this and get data from game client
             var helm = new AppearanceData
             {
-                SlotId = 1,
+                SlotId = EquipmentSlots.Helmet,
                 ClassId = 10908,
                 Color = new Color(0x80, 0x80, 0x80)
             };
             var boots = new AppearanceData
             {
-                SlotId = 2,
+                SlotId = EquipmentSlots.Shoes,
                 ClassId = 7054,
                 Color = new Color(0x80, 0x80, 0x80),
             };
             var gloves = new AppearanceData
             {
-                SlotId = 3,
+                SlotId = EquipmentSlots.Gloves,
                 ClassId = 10909,
                 Color = new Color(0x80, 0x80, 0x80),
             };
             var torso = new AppearanceData
             {
-                SlotId = 15,
+                SlotId = EquipmentSlots.Torso,
                 ClassId = 7082,
                 Color = new Color(0x80, 0x80, 0x80),
             };
             var legs = new AppearanceData
             {
-                SlotId = 16,
+                SlotId = EquipmentSlots.Legs,
                 ClassId = 7053,
                 Color = new Color(0x80, 0x80, 0x80),
             };

@@ -15,7 +15,7 @@ namespace Rasa.Structures
         public List<CompleteableObjectives> CompleteableObjectives { get; set; }    // 6
         public List<RewardableMissions> RewardableMissions { get; set; }            // 7
         public TrainingConverse Training { get; set; }                              // 10
-        public List<int> VendorPackageIds { get; set; }                             // 11
+        public List<int> VendorConverse { get; set; }                               // 11
         public bool IsAuctioneer { get; set; }                                      // 14
 
         public ConvoDataDict(int greetingId)
@@ -155,7 +155,7 @@ namespace Rasa.Structures
             DialogId = dialogId;
         }
     }
-
+    
     public class FixedReward
     {
         public List<Curency> Credits { get; set; } = new List<Curency>();
