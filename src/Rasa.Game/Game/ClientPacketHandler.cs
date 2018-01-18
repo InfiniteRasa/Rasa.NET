@@ -218,16 +218,28 @@
             PlayerManager.Instance.RequestSetAbilitySlot(Client, packet);
         }
 
+        [PacketHandler(GameOpcode.RequestVendorBuyback)]
+        private void RequestVendorBuyback(RequestVendorBuybackPacket packet)
+        {
+            CreatureManager.Instance.RequestVendorBuyback(Client, packet);
+        }
+
         [PacketHandler(GameOpcode.RequestVendorPurchase)]
         private void RequestVendorPurchase(RequestVendorPurchasePacket packet)
         {
-            //CreatureManager.Instance.RequestVendorPurchase(Client, packet);
+            CreatureManager.Instance.RequestVendorPurchase(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.RequestVendorRepair)]
+        private void RequestVendorRepair(RequestVendorRepairPacket packet)
+        {
+            CreatureManager.Instance.RequestVendorRepair(Client, packet);
         }
 
         [PacketHandler(GameOpcode.RequestVendorSale)]
         private void RequestVendorSale(RequestVendorSalePacket packet)
         {
-            //CreatureManager.Instance.RequestVendorSale(Client, packet);
+            CreatureManager.Instance.RequestVendorSale(Client, packet);
         }
 
         [PacketHandler(GameOpcode.RequestVisualCombatMode)]

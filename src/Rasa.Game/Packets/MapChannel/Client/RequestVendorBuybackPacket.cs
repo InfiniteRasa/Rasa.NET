@@ -3,20 +3,19 @@
     using Data;
     using Memory;
 
-    public class RequestVendorPurchasePacket : PythonPacket
+    public class RequestVendorBuybackPacket : PythonPacket
     {
-        public override GameOpcode Opcode { get; } = GameOpcode.RequestVendorPurchase;
+        public override GameOpcode Opcode { get; } = GameOpcode.RequestVendorBuyback;
 
         public long VendorEntityId { get; set; }
         public int ItemEntityId { get; set; }
-        public int Quantity { get; set; }
 
         public override void Read(PythonReader pr)
         {
+            Logger.WriteLog(LogType.Debug, $"RequestVendorBuybackPacket: {pr.ToString()}");
             pr.ReadTuple();
             VendorEntityId = pr.ReadLong();
             ItemEntityId = pr.ReadInt();
-            Quantity = pr.ReadInt();
         }
 
         public override void Write(PythonWriter pw)

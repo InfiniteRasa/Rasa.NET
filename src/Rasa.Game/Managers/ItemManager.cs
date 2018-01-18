@@ -2,11 +2,14 @@
 
 namespace Rasa.Managers
 {
+    using System;
     using Data;
     using Database.Tables.Character;
     using Database.Tables.World;
+    using Game;
     using Packets.Game.Server;
     using Packets.MapChannel.Server;
+    using Rasa.Packets.MapChannel.Client;
     using Structures;
 
     public class ItemManager
@@ -36,13 +39,15 @@ namespace Rasa.Managers
         private ItemManager()
         {
         }
-        
-        public Item CreateFromTemplateId(uint characterId, int slotId, int itemTemplateId, int stackSize)
+
+        /*public Item CreateFromTemplateId(uint characterId, int slotId, int itemTemplateId, int stackSize)
         {
             var itemTemplate = GetItemTemplateById(itemTemplateId);
             if (itemTemplate == null)
                 return null;
+
             var item = CreateItem(characterId, slotId, itemTemplate, stackSize);
+
             return item;
         }
 
@@ -76,7 +81,86 @@ namespace Rasa.Managers
             EntityManager.Instance.RegisterItem(item.EntityId, item);
 
             return item;
+        }*/
+
+
+        public Item CreateFromTemplateId(int itemTemplateId, int stackSize, string crafter)
+        {
+            var itemTemplate = GetItemTemplateById(itemTemplateId);
+            if (itemTemplate == null)
+                return null;
+
+            var item = CreateItem(itemTemplate, stackSize, crafter);
+
+            return item;
         }
+
+        public Item CreateItem(ItemTemplate itemTemplate, int stackSize, string crafter)
+        {
+            if (itemTemplate == null)
+                return null;
+
+            var classInfo = EntityClassManager.Instance.LoadedEntityClasses[itemTemplate.ClassId];
+
+            // dont create more then max stackSize
+            if (classInfo.ItemClassInfo.StackSize < stackSize)
+                stackSize = classInfo.ItemClassInfo.StackSize;
+
+            // insert into items table to get unique ItemId
+            var itemId = 0U;
+            if (crafter != "")
+                itemId = ItemsTable.CraftItem(itemTemplate.ItemTemplateId, stackSize, classInfo.ItemClassInfo.MaxHitPoints, crafter, -2139062144);
+            else
+                itemId = ItemsTable.CreateItem(itemTemplate.ItemTemplateId, stackSize, classInfo.ItemClassInfo.MaxHitPoints, -2139062144);
+            
+            // create physical copy of item
+            var item = new Item
+            {
+                ItemId = itemId,
+                ItemTemplate = itemTemplate,
+                Stacksize = stackSize,
+                Color = -2139062144     // ToDo we will have to find color in game client files
+            };
+            // register item
+            EntityManager.Instance.RegisterEntity(item.EntityId, EntityType.Item);
+            EntityManager.Instance.RegisterItem(item.EntityId, item);
+
+            return item;
+        }
+
+        public Item CreateVendorItem(Client client, int itemTemplateId)
+        {
+            var itemTemplate = GetItemTemplateById(itemTemplateId);
+            var classInfo = EntityClassManager.Instance.LoadedEntityClasses[itemTemplate.ClassId];
+
+            var item = new Item
+            {
+                ItemTemplate = itemTemplate,
+                CurrentHitPoints = classInfo.ItemClassInfo.MaxHitPoints
+            } ;
+
+            // register item
+            EntityManager.Instance.RegisterEntity(item.EntityId, EntityType.Item);
+            EntityManager.Instance.RegisterItem(item.EntityId, item);
+
+            SendItemDataToClient(client.MapClient, item, false);
+
+            return item;
+        }
+
+        public Item DuplicateItem(Client client, RequestVendorPurchasePacket packet)
+        {
+            var vendorItem = EntityManager.Instance.GetItem((uint)packet.ItemEntityId);
+            var item = CreateFromTemplateId(vendorItem.ItemTemplate.ItemTemplateId, packet.Quantity, "");
+
+            item.CurrentHitPoints = vendorItem.CurrentHitPoints;
+            item.Color = vendorItem.Color;
+
+            SendItemDataToClient(client.MapClient, item, false);
+
+            return item;
+        }
+
         public Item GetItemFromTemplateId(uint itemId, uint characterId, int slotId, int itemTemplateId, int stackSize)
         {
             var itemTemplate = GetItemTemplateById(itemTemplateId);
@@ -169,7 +253,7 @@ namespace Rasa.Managers
                 LoadedItemTemplates[template.ItemTemplateId].HasBoEFlag = template.HasBoEFlag;
                 LoadedItemTemplates[template.ItemTemplateId].HasCharacterUniqueFlag = template.HasCharacterUniqueFlag;
                 LoadedItemTemplates[template.ItemTemplateId].HasSellableFlag = template.HasSellableFlag;
-                LoadedItemTemplates[template.ItemTemplateId].InventoryCategory = template.InventoryCategory;
+                LoadedItemTemplates[template.ItemTemplateId].InventoryCategory = (InventoryCategory)template.InventoryCategory;
                 LoadedItemTemplates[template.ItemTemplateId].NotPlaceableInLockbox = template.NotPlaceableInLockBoxFlag;
                 LoadedItemTemplates[template.ItemTemplateId].ItemInfo.Tradable = template.NotTradableFlag;
                 LoadedItemTemplates[template.ItemTemplateId].QualityId = template.QualityId;
@@ -190,10 +274,11 @@ namespace Rasa.Managers
             Logger.WriteLog(LogType.Initialize, $"ItemReqs = {itemReqs.Count}, loaded = {loaded}, skipped = {skipped}");
         }
         
-        public void SendItemDataToClient(MapChannelClient mapClient, Item item)
+        public void SendItemDataToClient(MapChannelClient mapClient, Item item, bool updateOnly)
         {
             // CreatePhysicalEntity
-            mapClient.Player.Client.SendPacket(5, new CreatePhysicalEntityPacket( item.EntityId, item.ItemTemplate.ClassId));
+            if(!updateOnly)
+                mapClient.Player.Client.SendPacket(5, new CreatePhysicalEntityPacket( item.EntityId, item.ItemTemplate.ClassId));
 
             var classInfo = EntityClassManager.Instance.LoadedEntityClasses[item.ItemTemplate.ClassId];
             // ItemInfo
@@ -248,7 +333,7 @@ namespace Rasa.Managers
                 mapClient.Player.Client.SendPacket(item.EntityId, new ArmorInfoPacket(item.CurrentHitPoints, classInfo.ItemClassInfo.MaxHitPoints));
             
             // SetStackCount
-            mapClient.Player.Client.SendPacket(item.EntityId, new SetStackCountPacket { StackSize = item.Stacksize });
+            mapClient.Player.Client.SendPacket(item.EntityId, new SetStackCountPacket(item.Stacksize));
         }
     }
 }

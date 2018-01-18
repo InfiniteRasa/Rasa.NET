@@ -24,7 +24,7 @@ namespace Rasa.Packets.MapChannel.Server
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(1);
-            pw.WriteDictionary(10);
+            pw.WriteDictionary(ActorAttributes.Count);
             foreach (var entry in ActorAttributes)
             {
                 var attribute = entry.Value;

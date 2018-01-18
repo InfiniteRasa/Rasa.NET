@@ -1,5 +1,7 @@
 ﻿namespace Rasa.Structures
 {
+    using Data;
+
     public class ItemTemplate
     {
         public int ClassId { get; set; }
@@ -19,7 +21,7 @@
         public bool HasBoEFlag { get; set; }
         public int QualityId { get; set; }
         public bool NotPlaceableInLockbox { get; set; }
-        public int InventoryCategory { get; set; }
+        public InventoryCategory InventoryCategory { get; set; }
 
         public int BuyPrice { get; set; }
         public int SellPrice { get; set; }

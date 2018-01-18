@@ -6,15 +6,14 @@ namespace Rasa.Structures
 
     public class Creature
     {
-        /*
-        public Creature()
-        {
-            EntityId = EntityManager.Instance.GetEntityId;
-        }
-        public uint EntityId { get; }
-        */
         public uint DbId { get; set; }
-        public CreatureType CreatureType { get; set; } = new CreatureType();    // the creature 'layout'
+        public int ClassId { get; set; }
+        // npc data (only if creature is a NPC)
+        public CreatureNpcData NpcData { get; set; }
+        // loot data (only if creature is harvestable)
+        public CreatureLootData LootData { get; set; }
+        // vendor data (only if creature is a vendor, creatures do not need to be a NPC to be a vendor serverside)
+        public CreatureVendorData VendorData { get; set; }
         public Actor Actor { get; set; }                                        // the base actor object
         public int Faction { get; set; }
         public int Level { get; set; }

@@ -1,8 +1,10 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 namespace Rasa.Managers
 {
     using Data;
+    using Database.Tables.Character;
     using Database.Tables.World;
     using Game;
     using Packets;
@@ -16,7 +18,6 @@ namespace Rasa.Managers
         private static CreatureManager _instance;
         private static readonly object InstanceLock = new object();
         public const int CreatureLocationUpdateTime = 1500;
-        public readonly Dictionary<uint, CreatureType> LoadedCreatureTypes = new Dictionary<uint, CreatureType>();           // list of loaded Creatures
         public readonly Dictionary<uint, Creature> LoadedCreatures = new Dictionary<uint, Creature>();
 
         public static CreatureManager Instance
@@ -63,19 +64,31 @@ namespace Rasa.Managers
                 Logger.WriteLog(LogType.Error, $"Creature with dbId={dbId}, isn't in database");
                 return null;
             }
+            var isCreature = false;
+            // check if classId have creature Augmentation
+            foreach (var aug in EntityClassManager.Instance.LoadedEntityClasses[LoadedCreatures[dbId].ClassId].Augmentations)
+                if (aug == AugmentationType.Creature)
+                    isCreature = true;
+            if(!isCreature)
+            {
+                Logger.WriteLog(LogType.Error, $"Creature with dbId={dbId}, don't have creature Augmentation");
+                return null;
+            }
 
             // crate creature
             var creature = new Creature
             {
                 Actor = new Actor(),
                 AppearanceData = LoadedCreatures[dbId].AppearanceData,
-                CreatureType = LoadedCreatures[dbId].CreatureType,
                 DbId = LoadedCreatures[dbId].DbId,
+                ClassId = LoadedCreatures[dbId].ClassId,
                 Faction = LoadedCreatures[dbId].Faction,
                 Level = LoadedCreatures[dbId].Level,
                 MaxHitPoints = LoadedCreatures[dbId].MaxHitPoints,
                 NameId = LoadedCreatures[dbId].NameId,
-                SpawnPool = spawnPool
+                NpcData = LoadedCreatures[dbId].NpcData,
+                SpawnPool = spawnPool,
+                VendorData = LoadedCreatures[dbId].VendorData
             };
             // set creature stats
             var creatureStats = CreatureStatsTable.GetCreatureStats(dbId);
@@ -121,10 +134,10 @@ namespace Rasa.Managers
                 new IsRunningPacket(false)
         };
 
-            mapClient.Player.Client.SendPacket(5, new CreatePhysicalEntityPacket(creature.Actor.EntityId, creature.CreatureType.ClassId, entityData));
+            mapClient.Player.Client.SendPacket(5, new CreatePhysicalEntityPacket(creature.Actor.EntityId, creature.ClassId, entityData));
 
-            // NPC augmentation
-            if (creature.CreatureType.NpcData != null)
+            // NPC  & Vendor augmentation
+            if (creature.NpcData != null || creature.VendorData != null)
             {
                 /*
              * NPCInfo                  // used for mission/objectives state only
@@ -133,8 +146,8 @@ namespace Rasa.Managers
              * Train                    // Train not used by client?? def Recv_Train(self, trainerPackageIDs): pass
              */
                 //UpdateConversationStatus(mapClient.Client, creature);
-                mapClient.Player.Client.SendPacket(creature.Actor.EntityId, new NPCConversationStatusPacket(ConversationStatus.ObjectivChoice, new List<int> { }));
-                mapClient.Player.Client.SendPacket(creature.Actor.EntityId, new NPCInfoPacket(116));
+                mapClient.Player.Client.SendPacket(creature.Actor.EntityId, new NPCConversationStatusPacket(ConversationStatus.Vending, new List<int> {creature.VendorData.VendorPackageId }));
+                //mapClient.Player.Client.SendPacket(creature.Actor.EntityId, new NPCInfoPacket(116));
                 //mapClient.Player.Client.SendPacket(creature.Actor.EntityId, new ConversePacket());
                 //mapClient.Player.Client.SendPacket(creature.Actor.EntityId, new NPCConversationStatusPacket(ConversationStatus.Vending, new List<int> { 10 }));
             }
@@ -148,7 +161,6 @@ namespace Rasa.Managers
         public void CreatureInit()
         {
             var creatureList = CreatureTable.LoadCreatures();
-
             foreach (var data in creatureList)
             {
                 var appearanceData = CreatureAppearanceTable.GetCreatureAppearance(data.DbId);
@@ -161,7 +173,7 @@ namespace Rasa.Managers
                 var creature = new Creature
                 {
                     DbId = data.DbId,
-                    CreatureType = LoadedCreatureTypes[data.CreatureType],
+                    ClassId = data.ClassId,
                     Faction = data.Faction,
                     Level = data.Level,
                     MaxHitPoints = data.MaxHitPoints,
@@ -173,40 +185,30 @@ namespace Rasa.Managers
                 LoadedCreatures.Add(creature.DbId, creature);
             }
 
-            Logger.WriteLog(LogType.Initialize, $"Loaded {LoadedCreatures.Count} Creatures");
-        }
-
-        public void CreatureTypesInit()
-        {
-            var creatureTypeData = CreatureTypesTable.LoadCreatureTypes();
-
-            foreach (var data in creatureTypeData)
+            var vendorsList = VendorsTable.LoadVendors();
+            foreach (var vendor in vendorsList)
             {
-                var creatureType = new CreatureType
+                if (LoadedCreatures.ContainsKey(vendor.DbId))
                 {
-                    DbId = data.DbId,
-                    ClassId = data.ClassId
-                };
-
-                /*  ToDo
-                if (creatureData.IsAuctioner > 0)
-                    creature.CreatureType.AuctionerData = new AuctionerData();
-                */
-
-                if (data.IsHarvestable > 0)
-                    creatureType.LootData = new CreatureLootData();
-
-                if (data.IsNpc > 0)
-                    creatureType.NpcData = new CreatureNpcData();
-
-                if (data.IsVendor > 0)
-                    creatureType.VendorData = new CreatureVendorData();
-
-                LoadedCreatureTypes.Add(creatureType.DbId, creatureType);
+                    foreach (var aug in EntityClassManager.Instance.LoadedEntityClasses[LoadedCreatures[vendor.DbId].ClassId].Augmentations)
+                        if (aug == AugmentationType.Vendor || aug == AugmentationType.NPC)
+                            LoadedCreatures[vendor.DbId].VendorData = new CreatureVendorData { VendorPackageId = vendor.PackageId };
+                }
+                else
+                    Logger.WriteLog(LogType.Error, $"LoadVendors: unknown cratueDbId = {vendor.DbId}");
             }
 
-            Logger.WriteLog(LogType.Initialize, $"Loaded {LoadedCreatureTypes.Count} CreatureTypes");
+            var vendorItemList = VendorItemsTable.LoadVendorItems();
+            foreach (var vendorItem in vendorItemList)
+            {
+                if (LoadedCreatures.ContainsKey(vendorItem.DbId))
+                    LoadedCreatures[vendorItem.DbId].VendorData.SellItemList.Add(vendorItem.ItemTemplateId);
+                else
+                    Logger.WriteLog(LogType.Error, $"LoadVendorItems: unknown cratueDbId = {vendorItem.DbId}");
+            }
 
+            Logger.WriteLog(LogType.Initialize, $"Loaded {LoadedCreatures.Count} Creatures");
+            Logger.WriteLog(LogType.Initialize, $"Loaded {vendorsList.Count} Vendors");
         }
 
         public void SetLocation(Creature creature, Position position, Quaternion rotation)
@@ -237,6 +239,11 @@ namespace Rasa.Managers
 
             // ToDo create DB structures, and replace constant data with dinamic
 
+            var testConvoDataDict = new Dictionary<ConversationType, ConvoDataDict>();
+
+            if (creature.VendorData != null)
+                testConvoDataDict.Add(ConversationType.Vending, new ConvoDataDict { VendorConverse = new List<int> { creature.VendorData.VendorPackageId } });
+            /*
             // Greeting = 0
             var greetingId = 19;
 
@@ -336,13 +343,14 @@ namespace Rasa.Managers
                 { ConversationType.Auctioneer, auctioneer },
                 { ConversationType.Vending, vendor }
             };
+            */
 
             client.SendPacket(creature.Actor.EntityId, new ConversePacket(testConvoDataDict));
         }
 
         public void UpdateConversationStatus(Client client, Creature creature)
         {
-            var npcData = creature.CreatureType.NpcData;
+            var npcData = creature.NpcData;
             var statusSet = false;
 
             foreach (var entry in npcData.RelatedMissions)
@@ -368,7 +376,7 @@ namespace Rasa.Managers
 
                         if (scriptline.Command == MissionScriptCommand.CompleteObjective)
                         {
-                            if (creature.CreatureType.DbId == scriptline.Value1) // same NPC?
+                            if (creature.DbId == scriptline.Value1) // same NPC?
                             {
                                 // objective already completed?
                                 if (missionLogEntry.MissionData[scriptline.StorageIndex] == 1)
@@ -383,7 +391,7 @@ namespace Rasa.Managers
                             }
                             else if (scriptline.Command == MissionScriptCommand.Collector)
                             {
-                                if (creature.CreatureType.DbId == scriptline.Value1) // same NPC?
+                                if (creature.DbId == scriptline.Value1) // same NPC?
                                 {
                                     // mission already completed?
                                     if (missionLogEntry.State != (mission.StateCount - 1))
@@ -415,10 +423,10 @@ namespace Rasa.Managers
                 }
             }
             // is NPC vendor?
-            if (creature.CreatureType.VendorData != null && statusSet == false)
+            if (creature.VendorData != null && statusSet == false)
             {
                 // creature->npcData.isVendor
-                client.SendPacket(creature.Actor.EntityId, new NPCConversationStatusPacket(ConversationStatus.Available, new List<int> {creature.CreatureType.VendorData.VendorPackageId })); // status - vending
+                client.SendPacket(creature.Actor.EntityId, new NPCConversationStatusPacket(ConversationStatus.Available, new List<int> {creature.VendorData.VendorPackageId })); // status - vending
 
                 statusSet = true;
             }
@@ -444,14 +452,167 @@ namespace Rasa.Managers
         public void RequestNPCVending(Client client, RequestNPCVendingPacket packet)
         {
             var itemList = new List<Item>();
+            var entityList = new List<uint>();
 
-            client.SendPacket((uint)packet.EntityId, new NPCConversationStatusPacket(ConversationStatus.Vending, new List<int> { packet.ChosenVendorPackage }));
-            client.SendPacket((uint)packet.EntityId, new VendPacket());
+            if (EntityManager.Instance.VendorItems.ContainsKey((uint)packet.EntityId))
+            {
+                // store was opened before
+                entityList = EntityManager.Instance.VendorItems[(uint)packet.EntityId];
+
+                foreach (var entityId in entityList)
+                    itemList.Add(EntityManager.Instance.GetItem(entityId));
+            }
+            else
+            {
+                // opening store first Time, create item
+                var creature = EntityManager.Instance.GetCreature((uint)packet.EntityId);
+
+                foreach (var itemTemplateId in creature.VendorData.SellItemList)
+                {
+                    var item = ItemManager.Instance.CreateVendorItem(client, itemTemplateId);
+
+                    itemList.Add(item);
+                    entityList.Add(item.EntityId);
+                }
+
+                EntityManager.Instance.RegisterVendorItem((uint)packet.EntityId, entityList);
+            }
+
+            client.SendPacket((uint)packet.EntityId, new VendPacket(itemList));
         }
 
         public void RequestCancelVendor(Client client, long entityId)
         {
-            Logger.WriteLog(LogType.Debug, "ToDo RequestCancelVendor");
+            // ToDo
+        }
+
+        public void RequestVendorBuyback(Client client, RequestVendorBuybackPacket packet)
+        {
+            client.SendPacket(9, new RemoveBuybackItemPacket((uint)packet.ItemEntityId));
+
+            var buyBackItem = EntityManager.Instance.GetItem((uint)packet.ItemEntityId);
+            var buyedItem = InventoryManager.Instance.AddItemToInventory(client.MapClient, buyBackItem);
+            var buyPrice = buyedItem.Stacksize * buyedItem.ItemTemplate.SellPrice;
+            // remove credits
+            PlayerManager.Instance.GainCredits(client, -buyPrice);
+        }
+
+        public void RequestVendorPurchase(Client client, RequestVendorPurchasePacket packet)
+        {
+            var itemQuantity = packet.Quantity;
+            if (itemQuantity <= 0)
+                return;
+
+            // get the instance of the bought item
+            var selectedVendorItem = EntityManager.Instance.GetItem((uint)packet.ItemEntityId);
+
+            if (selectedVendorItem == null)
+            {
+                Logger.WriteLog(LogType.Error, "RequestVendorPurchase: The item instance does not exist");
+                return;
+            }
+            // has the player enough credits?
+            var buyPrice = selectedVendorItem.ItemTemplate.BuyPrice * itemQuantity;
+            
+            if (client.MapClient.Player.Credits < buyPrice)
+                return; // not enough credits
+
+            // duplicate item
+            var boughtItem = ItemManager.Instance.DuplicateItem(client, packet);
+
+            if (boughtItem == null)
+                return; // could not duplicate item
+
+            var tempItem = boughtItem;
+            var desiredStacksize = tempItem.Stacksize;
+
+            boughtItem = InventoryManager.Instance.AddItemToInventory(client.MapClient, boughtItem);
+
+            if (boughtItem == null)
+            {
+                // item could not be added to inventory
+                var appliedRestStackSize = tempItem.Stacksize;
+                if (appliedRestStackSize == desiredStacksize)
+                {
+                    // not even 1x item could be added to the inventory
+                    EntityManager.Instance.DestroyPhysicalEntity(client, tempItem.EntityId, EntityType.Item);
+                    return;
+                }
+                // we were able to at least get a part of the stack into the inventory
+                // destroy the rest and update the stacksize for the price
+                EntityManager.Instance.DestroyPhysicalEntity(client, tempItem.EntityId, EntityType.Item);
+                itemQuantity = (desiredStacksize - appliedRestStackSize);
+            }
+            // get correct buy price
+            buyPrice = boughtItem.ItemTemplate.BuyPrice * itemQuantity;
+            // remove credits
+            PlayerManager.Instance.GainCredits(client, -buyPrice);
+        }
+        
+        public void RequestVendorRepair(Client client, RequestVendorRepairPacket packet)
+        {
+            foreach( var itemEntityId in packet.ItemEntitesId)
+            {
+                var item = EntityManager.Instance.GetItem((uint)itemEntityId);
+                var classInfo = EntityClassManager.Instance.LoadedEntityClasses[item.ItemTemplate.ClassId];
+
+                // calculate cost
+                var cost = (double)((classInfo.ItemClassInfo.MaxHitPoints - item.CurrentHitPoints) * item.ItemTemplate.SellPrice) / 100;
+                // set itemHit points to full
+                item.CurrentHitPoints = classInfo.ItemClassInfo.MaxHitPoints;
+                // remove player credits
+                PlayerManager.Instance.GainCredits(client, -(int)Math.Round(cost, 0));
+                // updateItem on client
+                ItemManager.Instance.SendItemDataToClient(client.MapClient, item, true);
+                // updare item in db
+                ItemsTable.UpdateCurrentHitPoints(item.ItemId, item.CurrentHitPoints);
+            }
+        }
+
+        public void RequestVendorSale(Client client, RequestVendorSalePacket packet)
+        {
+            var vendorEntityId = packet.VendorEntityId;
+            var itemEntityId = packet.ItemEntityId;
+            var itemQuantity = packet.Quantity;
+
+            // note: Players can only sell items directly from their personal inventory
+            //       so we only have to scan there for the item entityId
+            var slotIndex = -1;
+            for (var i = 0; i < 250; i++)
+            {
+                if (client.MapClient.Inventory.PersonalInventory[i] == itemEntityId)
+                {
+                    slotIndex = i;
+                    break;
+                }
+            }
+
+            if (slotIndex == -1)
+            {
+                Logger.WriteLog(LogType.Error, "RequestVendorSale: Item entity not found in player's inventory\n");
+                return;
+            }
+            
+            // get item handle
+            var soldItem = EntityManager.Instance.GetItem((uint)itemEntityId);
+
+            if (soldItem == null)
+            {
+                Logger.WriteLog(LogType.Error, "RequestVendorSale: Item reference found but item instance does not exist\n");
+                return;
+            }
+
+            // get sell price
+            var realItemQuantity = Math.Min(itemQuantity, soldItem.Stacksize);
+            var sellPrice = soldItem.ItemTemplate.SellPrice * realItemQuantity;
+            // remove item
+            // todo: Handle stacksizes correctly and only decrease item by quantity parameter
+            InventoryManager.Instance.RemoveItemBySlot(client, InventoryType.Personal, slotIndex);
+            CharacterInventoryTable.DeleteInvItem(client.MapClient.Player.CharacterId, slotIndex);
+            // add credits to player
+            PlayerManager.Instance.GainCredits(client, (int)sellPrice);
+            // add item to buyback list
+            client.SendPacket(9, new AddBuybackItemPacket((uint)packet.ItemEntityId, (int)sellPrice, 1));
         }
         #endregion
     }

@@ -10,7 +10,12 @@ namespace Rasa.Packets.MapChannel.Server
     {
         public override GameOpcode Opcode { get; } = GameOpcode.Vend;
 
-        public List<VendorItem> VendorItems { get; set; }
+        public List<Item> VendorItems { get; set; }
+
+        public VendPacket(List<Item> vendorItems)
+        {
+            VendorItems = vendorItems;
+        }
 
         public override void Read(PythonReader pr)
         {
@@ -19,27 +24,14 @@ namespace Rasa.Packets.MapChannel.Server
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(1);
-            pw.WriteDictionary(3);
-
-            pw.WriteInt(1003);
-            pw.WriteTuple(2);
-            pw.WriteInt(50);
-            pw.WriteInt(1);
-
-            pw.WriteInt(1008);
-            pw.WriteTuple(2);
-            pw.WriteInt(100);
-            pw.WriteInt(2);
-            pw.WriteInt(1009);
-            pw.WriteTuple(2);
-            pw.WriteInt(100);
-            pw.WriteInt(0);
-            /*pw.WriteDictionary(VendorItems.Count);
-            foreach (var item in VendorItems)
+            pw.WriteDictionary(VendorItems.Count);
+            for (var i = 0; i < VendorItems.Count; i++)
             {
-                pw.WriteInt((int)item.ItemTemplateId);
-                pw.WriteInt(0);
-            }*/
+                pw.WriteUInt(VendorItems[i].EntityId);
+                pw.WriteTuple(2);
+                pw.WriteInt(VendorItems[i].ItemTemplate.BuyPrice);
+                pw.WriteInt(i);
+            }
         }
     }
 }

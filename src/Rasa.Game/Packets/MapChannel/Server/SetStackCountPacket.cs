@@ -9,6 +9,11 @@
 
         public int StackSize { get; set; }
 
+        public SetStackCountPacket(int stackSize)
+        {
+            StackSize = stackSize;
+        }
+
         public override void Read(PythonReader pr)
         {
         }

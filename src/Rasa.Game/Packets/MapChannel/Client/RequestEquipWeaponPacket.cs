@@ -8,14 +8,14 @@
         public override GameOpcode Opcode { get; } = GameOpcode.RequestEquipWeapon;
 
         public int SrcSlot { get; set; }
-        public int InventoryType { get; set; }
+        public InventoryType InventoryType { get; set; }
         public int DestSlot { get; set; }
 
         public override void Read(PythonReader pr)
         {
             pr.ReadTuple();
             SrcSlot = pr.ReadInt();
-            InventoryType = pr.ReadInt();
+            InventoryType = (InventoryType)pr.ReadInt();
             DestSlot = pr.ReadInt();
         }
 

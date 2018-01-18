@@ -2,6 +2,7 @@
 
 namespace Rasa.Database.Tables.Character
 {
+    using System;
     using Structures;
 
     public static class CharacterTable
@@ -18,6 +19,7 @@ namespace Rasa.Database.Tables.Character
         private static readonly MySqlCommand IsFamilyNameAvailableCommand = new MySqlCommand("SELECT familyName FROM characters WHERE familyName = @FamilyName");
         private static readonly MySqlCommand IsNameAvailableCommand = new MySqlCommand("SELECT name FROM characters WHERE name = @Name");
         private static readonly MySqlCommand IsSlotAvailableCommand = new MySqlCommand("SELECT slotId FROM characters WHERE accountId = @AccountId AND slotId = @SlotId");
+        private static readonly MySqlCommand UpdateCharacterCreditsCommand = new MySqlCommand("UPDATE characters SET credits = @Credits WHERE characterId = @CharacterId");
         private static readonly MySqlCommand UpdateCharacterLoginCommand = new MySqlCommand("UPDATE characters SET numLogins = numLogins + 1, totalTimePlayed = totalTimePlayed + @Value, timeSinceLastPlayed = NOW() WHERE characterId = @CharacterId");
         private static readonly MySqlCommand UpdateCharacterPosCommand = new MySqlCommand("UPDATE characters SET posX = @PosX, posY = @PosY, posZ = @PosZ, rotation = @Rotation, mapContextId  =@MapContextId WHERE characterId = @CharacterId");
         private static readonly MySqlCommand UpdateCharacterSkillsCommand = new MySqlCommand("UPDATE characters SET skills = @Skills WHERE characterId = @CharacterId");
@@ -76,6 +78,11 @@ namespace Rasa.Database.Tables.Character
             IsSlotAvailableCommand.Parameters.Add("@AccountId", MySqlDbType.UInt32);
             IsSlotAvailableCommand.Parameters.Add("@SlotId", MySqlDbType.Int32);
             IsSlotAvailableCommand.Prepare();
+
+            UpdateCharacterCreditsCommand.Connection = GameDatabaseAccess.CharConnection;
+            UpdateCharacterCreditsCommand.Parameters.Add("@CharacterId", MySqlDbType.UInt32);
+            UpdateCharacterCreditsCommand.Parameters.Add("@Credits", MySqlDbType.Int32);
+            UpdateCharacterCreditsCommand.Prepare();
 
             UpdateCharacterLoginCommand.Connection = GameDatabaseAccess.CharConnection;
             UpdateCharacterLoginCommand.Parameters.Add("@CharacterId", MySqlDbType.UInt32);
@@ -224,6 +231,16 @@ namespace Rasa.Database.Tables.Character
             }
 
             return 0;
+        }
+
+        public static void UpdateCharacterCredits(uint characterId, int credits)
+        {
+            lock (GameDatabaseAccess.CharLock)
+            {
+                UpdateCharacterCreditsCommand.Parameters["@CharacterId"].Value = characterId;
+                UpdateCharacterCreditsCommand.Parameters["@Credits"].Value = credits;
+                UpdateCharacterCreditsCommand.ExecuteNonQuery();
+            }
         }
 
         public static void UpdateCharacterLogin(uint characterId, int value)

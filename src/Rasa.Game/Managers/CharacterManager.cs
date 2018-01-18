@@ -85,13 +85,13 @@ namespace Rasa.Managers
             // insert character into DB
             var characterId = CharacterTable.CreateCharacter(client.Entry.Id, packet.CharacterName, packet.FamilyName, packet.SlotNum, packet.Gender, packet.Scale, packet.RaceId);
             // Give character basic items
-            ItemManager.Instance.CreateFromTemplateId(characterId, 50, 28, 100);
-            ItemManager.Instance.CreateFromTemplateId(characterId, 251, 13126, 1);
-            ItemManager.Instance.CreateFromTemplateId(characterId, 252, 13066, 1);
-            ItemManager.Instance.CreateFromTemplateId(characterId, 253, 13096, 1);
-            ItemManager.Instance.CreateFromTemplateId(characterId, 265, 13186, 1);
-            ItemManager.Instance.CreateFromTemplateId(characterId, 266, 13156, 1);
-            ItemManager.Instance.CreateFromTemplateId(characterId, 0, 17131, 1);
+            CharacterInventoryTable.AddInvItem(characterId, 50, ItemsTable.CreateItem(28, 100, EntityClassManager.Instance.LoadedEntityClasses[28].ItemClassInfo.MaxHitPoints, -2139062144));
+            CharacterInventoryTable.AddInvItem(characterId, 251, ItemsTable.CreateItem(13126, 1, EntityClassManager.Instance.LoadedEntityClasses[13126].ItemClassInfo.MaxHitPoints, -2139062144));
+            CharacterInventoryTable.AddInvItem(characterId, 252, ItemsTable.CreateItem(13066, 1, EntityClassManager.Instance.LoadedEntityClasses[13066].ItemClassInfo.MaxHitPoints, -2139062144));
+            CharacterInventoryTable.AddInvItem(characterId, 253, ItemsTable.CreateItem(13096, 1, EntityClassManager.Instance.LoadedEntityClasses[13096].ItemClassInfo.MaxHitPoints, -2139062144));
+            CharacterInventoryTable.AddInvItem(characterId, 265, ItemsTable.CreateItem(13186, 1, EntityClassManager.Instance.LoadedEntityClasses[13186].ItemClassInfo.MaxHitPoints, -2139062144));
+            CharacterInventoryTable.AddInvItem(characterId, 266, ItemsTable.CreateItem(13156, 1, EntityClassManager.Instance.LoadedEntityClasses[13156].ItemClassInfo.MaxHitPoints, -2139062144));
+            CharacterInventoryTable.AddInvItem(characterId, 0, ItemsTable.CreateItem(17131, 1, EntityClassManager.Instance.LoadedEntityClasses[17131].ItemClassInfo.MaxHitPoints, -2139062144));
             // Set character appearance
             CharacterAppearanceTable.SetAppearance(characterId, (int)EquipmentSlots.Helmet, 10908, -2139062144);
             CharacterAppearanceTable.SetAppearance(characterId, (int)EquipmentSlots.Shoes, 7054, -2139062144);
@@ -242,13 +242,14 @@ namespace Rasa.Managers
         #endregion
 
         #region InGame
-        public static void UpdateCharacter(PlayerData player, int job)
+        public void UpdateCharacter(PlayerData player, int job)
         {
             switch (job)
             {
                 case 1: // update level
                     break;
                 case 2: // updarte credits
+                    CharacterTable.UpdateCharacterCredits(player.CharacterId, player.Credits);
                     break;
                 case 3: // update prestige
                     break;

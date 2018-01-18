@@ -1,6 +1,20 @@
 ﻿namespace Rasa.Structures
 {
-    public class ModuleInfo
+    public class ItemModule
+    {
+        public int ModuleId { get; set; }
+        public int ModuleLevel { get; set; }
+        public ModuleInfo ModuleInfo { get; set; }
+
+        public ItemModule(int moduleId, int moduleLevel, ModuleInfo moduleInfo)
+        {
+            ModuleId = moduleId;
+            ModuleLevel = ModuleLevel;
+            ModuleInfo = moduleInfo;
+        }
+    }
+
+        public class ModuleInfo
     {
         public int EffectId { get; set; }
         public int SetLevel { get; set; }

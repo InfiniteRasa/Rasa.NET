@@ -153,10 +153,23 @@ namespace Rasa.Managers
                 CommunicatorManager.Instance.SystemMessage(_mapClient, "usage: .giveitem itemTemplateId quantity");
                 return;
             }
+            // if only item template, give max stack size
+            if (parts.Length == 2)
+                if (int.TryParse(parts[1], out int itemTemplateId))
+                {
+                    var classInfo = EntityClassManager.Instance.LoadedEntityClasses[ItemManager.Instance.ItemTemplateItemClass[itemTemplateId]];
+                    var item = ItemManager.Instance.CreateFromTemplateId(itemTemplateId, classInfo.ItemClassInfo.StackSize, _mapClient.Player.Actor.FamilyName);
+                    item.CrafterName = _mapClient.Player.Actor.FamilyName;
+                    InventoryManager.Instance.AddItemToInventory(_mapClient, item);
+                }
             if (parts.Length == 3)
                 if (int.TryParse(parts[1], out int itemTemplateId))
                     if (int.TryParse(parts[2], out int quantity))
-                        InventoryManager.Instance.AddItemToInventory(_mapClient, itemTemplateId, quantity);
+                    {
+                        var item = ItemManager.Instance.CreateFromTemplateId(itemTemplateId, quantity, _mapClient.Player.Actor.FamilyName);
+                        item.CrafterName = _mapClient.Player.Actor.FamilyName;
+                        InventoryManager.Instance.AddItemToInventory(_mapClient, item);
+                    }
 
             return;
         }
@@ -207,7 +220,7 @@ namespace Rasa.Managers
                                 // init loading screen
                                 _mapClient.Player.Client.SendPacket(5, new PreWonkavatePacket());
                                 // Remove player
-                                MapChannelManager.Instance.RemovePlayer(_mapClient, false);
+                                MapChannelManager.Instance.RemovePlayer(_mapClient.Client, false);
                                 // send Wonkavate
                                 var mapChannel = MapChannelManager.Instance.MapChannelArray[mapId];
                                 _mapClient.Player.Client.LoadingMap = mapId;

@@ -6,8 +6,9 @@ namespace Rasa.Database.Tables.Character
   
     public class ItemsTable
     {
-        private static readonly MySqlCommand CraftItemCommand = new MySqlCommand("INSERT INTO items (itemTemplateId, stackSize, currentHitPoints, crafterName) VALUES (@ItemTemplateId, @StackSize, @CurrentHitPoints, @CrafterName)");
+        private static readonly MySqlCommand CraftItemCommand = new MySqlCommand("INSERT INTO items (itemTemplateId, stackSize, currentHitPoints, crafterName, color) VALUES (@ItemTemplateId, @StackSize, @CurrentHitPoints, @CrafterName, @Color)");
         private static readonly MySqlCommand CreateItemCommand = new MySqlCommand("INSERT INTO items (itemTemplateId, stackSize, currentHitPoints, color) VALUES (@ItemTemplateId, @StackSize, @CurrentHitPoints, @Color)");
+        private static readonly MySqlCommand DeleteItemCommand = new MySqlCommand("DELETE FROM items WHERE itemId = @ItemId");
         private static readonly MySqlCommand GetItemCommand = new MySqlCommand("SELECT itemTemplateId, stackSize, currentHitPoints, color, ammoCount, crafterName FROM items WHERE itemId = @ItemId");
         private static readonly MySqlCommand UpdateItemCurrentAmmoCommand = new MySqlCommand("UPDATE items SET ammoCount = @AmmoCount WHERE itemId = @ItemId");
         private static readonly MySqlCommand UpdateItemCurrentHitPointsCommand = new MySqlCommand("UPDATE items SET currentHitPoints = @CurrentHitPoints WHERE itemId = @ItemId");
@@ -20,6 +21,7 @@ namespace Rasa.Database.Tables.Character
             CraftItemCommand.Parameters.Add("@StackSize", MySqlDbType.Int32);
             CraftItemCommand.Parameters.Add("@CurrentHitPoints", MySqlDbType.Int32);
             CraftItemCommand.Parameters.Add("@CrafterName", MySqlDbType.VarChar);
+            CraftItemCommand.Parameters.Add("@Color", MySqlDbType.Int32);
             CraftItemCommand.Prepare();
 
             CreateItemCommand.Connection = GameDatabaseAccess.CharConnection;
@@ -28,6 +30,10 @@ namespace Rasa.Database.Tables.Character
             CreateItemCommand.Parameters.Add("@CurrentHitPoints", MySqlDbType.Int32);
             CreateItemCommand.Parameters.Add("@Color", MySqlDbType.Int32);
             CreateItemCommand.Prepare();
+
+            DeleteItemCommand.Connection = GameDatabaseAccess.CharConnection;
+            DeleteItemCommand.Parameters.Add("@ItemId", MySqlDbType.UInt32);
+            DeleteItemCommand.Prepare();
 
             GetItemCommand.Connection = GameDatabaseAccess.CharConnection;
             GetItemCommand.Parameters.Add("@ItemId", MySqlDbType.UInt32);
@@ -49,7 +55,7 @@ namespace Rasa.Database.Tables.Character
             UpdateItemStackSizeCommand.Prepare();
         }
 
-        public static uint CraftItem(int itemTemplateId, int stackSize, int currentHitPoints, string crafterName)
+        public static uint CraftItem(int itemTemplateId, int stackSize, int currentHitPoints, string crafterName, int color)
         {
             lock (GameDatabaseAccess.CharLock)
             {
@@ -57,6 +63,7 @@ namespace Rasa.Database.Tables.Character
                 CraftItemCommand.Parameters["@StackSize"].Value = stackSize;
                 CraftItemCommand.Parameters["@CurrentHitPoints"].Value = currentHitPoints;
                 CraftItemCommand.Parameters["@CrafterName"].Value = crafterName;
+                CraftItemCommand.Parameters["@Color"].Value = color;
                 CraftItemCommand.ExecuteNonQuery();
                 return (uint)CraftItemCommand.LastInsertedId;
             }
@@ -73,6 +80,15 @@ namespace Rasa.Database.Tables.Character
                 CreateItemCommand.ExecuteNonQuery();
 
                 return (uint)CreateItemCommand.LastInsertedId;
+            }
+        }
+
+        public static void DeleteItem(uint itemId)
+        {
+            lock (GameDatabaseAccess.CharLock)
+            {
+                DeleteItemCommand.Parameters["@ItemId"].Value = itemId;
+                DeleteItemCommand.ExecuteNonQuery();
             }
         }
 
@@ -100,9 +116,9 @@ namespace Rasa.Database.Tables.Character
         {
             lock (GameDatabaseAccess.CharLock)
             {
-                UpdateItemStackSizeCommand.Parameters["@ItemId"].Value = itemId;
-                UpdateItemStackSizeCommand.Parameters["@CurrentHitPoints"].Value = currentHitPoints;
-                UpdateItemStackSizeCommand.ExecuteNonQuery();
+                UpdateItemCurrentHitPointsCommand.Parameters["@ItemId"].Value = itemId;
+                UpdateItemCurrentHitPointsCommand.Parameters["@CurrentHitPoints"].Value = currentHitPoints;
+                UpdateItemCurrentHitPointsCommand.ExecuteNonQuery();
             }
         }
 

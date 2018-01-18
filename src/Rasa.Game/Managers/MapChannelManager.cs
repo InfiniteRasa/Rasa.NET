@@ -271,7 +271,7 @@ namespace Rasa.Managers
                         if (mapClient != null)
                             if (mapClient.RemoveFromMap == true)
                             {
-                                RemovePlayer(mapClient, true);
+                                RemovePlayer(mapClient.Client, true);
                                 break;
                             }
 
@@ -397,51 +397,51 @@ namespace Rasa.Managers
             // ToDo
         }
 
-        public void RemovePlayer(MapChannelClient mapClient, bool logout)
+        public void RemovePlayer(Client client, bool logout)
         {
             // unregister Communicator
-            CommunicatorManager.Instance.PlayerExitMap(mapClient);
+            CommunicatorManager.Instance.PlayerExitMap(client.MapClient);
             // unregister mapChannelClient
-            EntityManager.Instance.UnregisterEntity(mapClient.ClientEntityId);
-            EntityManager.Instance.UnregisterPlayer(mapClient.ClientEntityId);
+            EntityManager.Instance.UnregisterEntity(client.MapClient.ClientEntityId);
+            EntityManager.Instance.UnregisterPlayer(client.MapClient.ClientEntityId);
             // unregister Actor
-            EntityManager.Instance.UnregisterEntity(mapClient.Player.Actor.EntityId);
-            EntityManager.Instance.UnregisterActor(mapClient.Player.Actor.EntityId);
+            EntityManager.Instance.UnregisterEntity(client.MapClient.Player.Actor.EntityId);
+            EntityManager.Instance.UnregisterActor(client.MapClient.Player.Actor.EntityId);
             // unregister character Inventory
             for (var i = 0; i < 250; i++)
-                if (mapClient.Inventory.PersonalInventory[i] != 0)
+                if (client.MapClient.Inventory.PersonalInventory[i] != 0)
                 {
-                    EntityManager.Instance.DestroyPhysicalEntity(mapClient, mapClient.Inventory.PersonalInventory[i], EntityType.Item);
-                    mapClient.Inventory.PersonalInventory[i] = 0;
+                    EntityManager.Instance.DestroyPhysicalEntity(client, client.MapClient.Inventory.PersonalInventory[i], EntityType.Item);
+                    client.MapClient.Inventory.PersonalInventory[i] = 0;
                 }
 
             for (var i = 0; i < 22; i++)
-                if (mapClient.Inventory.EquippedInventory[i] != 0)
+                if (client.MapClient.Inventory.EquippedInventory[i] != 0)
                 {
-                    EntityManager.Instance.DestroyPhysicalEntity(mapClient, mapClient.Inventory.EquippedInventory[i], EntityType.Item);
-                    mapClient.Inventory.EquippedInventory[i] = 0;
+                    EntityManager.Instance.DestroyPhysicalEntity(client, client.MapClient.Inventory.EquippedInventory[i], EntityType.Item);
+                    client.MapClient.Inventory.EquippedInventory[i] = 0;
                 }
 
             for (var i = 0; i < 5; i++)
-                if (mapClient.Inventory.WeaponDrawer[i] != 0)
+                if (client.MapClient.Inventory.WeaponDrawer[i] != 0)
                 {
-                    EntityManager.Instance.DestroyPhysicalEntity(mapClient, mapClient.Inventory.WeaponDrawer[i], EntityType.Item);
-                    mapClient.Inventory.WeaponDrawer[i] = 0;
+                    EntityManager.Instance.DestroyPhysicalEntity(client, client.MapClient.Inventory.WeaponDrawer[i], EntityType.Item);
+                    client.MapClient.Inventory.WeaponDrawer[i] = 0;
                 }
 
             // unregister from chat
-            CommunicatorManager.Instance.UnregisterPlayer(mapClient);
-            CellManager.Instance.RemoveFromWorld(mapClient);
-            PlayerManager.Instance.RemovePlayerCharacter(mapClient.MapChannel, mapClient);
+            CommunicatorManager.Instance.UnregisterPlayer(client.MapClient);
+            CellManager.Instance.RemoveFromWorld(client.MapClient);
+            PlayerManager.Instance.RemovePlayerCharacter(client.MapClient.MapChannel, client.MapClient);
             if (logout)
-                if (mapClient.Disconected == false)
-                    PassClientToCharacterSelection(mapClient.Client);
+                if (client.MapClient.Disconected == false)
+                    PassClientToCharacterSelection(client);
             // remove from list
-            for (var i = 0; i < mapClient.MapChannel.PlayerList.Count; i++)
+            for (var i = 0; i < client.MapClient.MapChannel.PlayerList.Count; i++)
             {
-                if (mapClient == mapClient.MapChannel.PlayerList[i])
+                if (client.MapClient == client.MapClient.MapChannel.PlayerList[i])
                 {
-                    mapClient.MapChannel.PlayerList.RemoveAt(i);
+                    client.MapClient.MapChannel.PlayerList.RemoveAt(i);
                     //mapClient.MapChannel.PlayerCount--;
                     break;
                 }

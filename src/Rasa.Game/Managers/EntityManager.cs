@@ -4,6 +4,7 @@ using System.Diagnostics;
 namespace Rasa.Managers
 {
     using Data;
+    using Game;
     using Packets.MapChannel.Server;
     using Structures;
 
@@ -20,6 +21,7 @@ namespace Rasa.Managers
         public Dictionary<uint, MapChannelClient> Players = new Dictionary<uint, MapChannelClient>();
         public Dictionary<uint, Actor> Actors = new Dictionary<uint, Actor>();
         public Dictionary<uint, Creature> Creatures = new Dictionary<uint, Creature>();
+        public Dictionary<uint, List<uint>> VendorItems = new Dictionary<uint, List<uint>>();
 
         public static EntityManager Instance
         {
@@ -44,10 +46,9 @@ namespace Rasa.Managers
         }
 
         // All Entities (everything in game)
-        public void DestroyPhysicalEntity(MapChannelClient mapClient, uint entityId, EntityType entityType)
+        public void DestroyPhysicalEntity(Client client, uint entityId, EntityType entityType)
         {
-            // destroy entity
-            mapClient.Player.Client.SendPacket(5, new DestroyPhysicalEntityPacket { EntityId = entityId });
+            client.SendPacket(5, new DestroyPhysicalEntityPacket(entityId));
             //free entity
             switch (entityType)
             {
@@ -69,6 +70,8 @@ namespace Rasa.Managers
                     UnregisterItem(entityId);
                     break;
                 case EntityType.Object:
+                    break;
+                case EntityType.VendorItem:
                     break;
                 default:
                     Debugger.Break();
@@ -137,7 +140,10 @@ namespace Rasa.Managers
         // Items
         public Item GetItem(uint entityId)
         {
-            return Items[entityId];
+            if (Items.ContainsKey(entityId))
+                return Items[entityId];
+
+            return null;
         }
 
         public void RegisterItem(uint entityId, Item item)
@@ -181,5 +187,17 @@ namespace Rasa.Managers
         {
             Creatures.Remove(entityId);
         }
+
+        // VendorItems
+        public void RegisterVendorItem(uint vendorEntityId, List<uint> itemEntityIds)
+        {
+            VendorItems.Add(vendorEntityId, itemEntityIds);
+        }
+
+        public void UnRegisterVendorItem(uint clientEntityId)
+        {
+            // ToDO
+        }
+
     }
 }

@@ -75,7 +75,7 @@ namespace Rasa.Managers
                 var scriptline = mission.ScriptLines[i];
 
                 if (scriptline.Command == MissionScriptCommand.Dispenser)
-                    if (creatureOrNPC.CreatureType.DbId == scriptline.Value1)
+                    if (creatureOrNPC.DbId == scriptline.Value1)
                         return true;
             }
 

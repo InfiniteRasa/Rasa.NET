@@ -123,7 +123,7 @@ namespace Rasa.Managers
                 if (t == mapClient)
                     continue;
 
-                t.Player.Client.SendPacket(5, new DestroyPhysicalEntityPacket{ EntityId = mapClient.Player.Actor.EntityId });
+                t.Player.Client.SendPacket(5, new DestroyPhysicalEntityPacket(mapClient.Player.Actor.EntityId));
             }
         }
 
@@ -133,9 +133,11 @@ namespace Rasa.Managers
             {
                 if (t == null)
                     continue;
+
                 if (t == mapClient)
                     continue;
-                mapClient.Player.Client.SendPacket(5, new DestroyPhysicalEntityPacket { EntityId = t.Player.Actor.EntityId });
+
+                mapClient.Player.Client.SendPacket(5, new DestroyPhysicalEntityPacket(t.Player.Actor.EntityId));
             }
 
         }
@@ -219,6 +221,20 @@ namespace Rasa.Managers
                 client.SendPacket(client.MapClient.Player.Actor.EntityId, new ChangeTitlePacket { TitleId = titleId });
             else
                 client.SendPacket(client.MapClient.Player.Actor.EntityId, new TitleRemovedPacket());
+        }
+
+        public void GainCredits(Client client, int credits)
+        {
+            client.MapClient.Player.Credits += credits;
+            // update database with new character credits amount
+            CharacterManager.Instance.UpdateCharacter(client.MapClient.Player, 2);
+            // inform owner
+            client.SendPacket(client.MapClient.Player.Actor.EntityId, new UpdateCreditsPacket(CurencyType.Credits, client.MapClient.Player.Credits, credits));
+            // send player message
+            if (credits > 0)
+            {
+                client.SendPacket(8, new DisplayClientMessagePacket(262, new Dictionary<string, string> { { "amount", credits.ToString() } }, 10000027));
+            }
         }
 
         public int GetAvailableAttributePoints(PlayerData player)
@@ -706,7 +722,7 @@ namespace Rasa.Managers
                     // consume ammo
                     int ammoToGrab = Math.Min(weaponClassInfo.ClipSize - foundAmmoAmount - weapon.CurrentAmmo, weaponAmmo.Stacksize);
                     foundAmmoAmount = ammoToGrab + weapon.CurrentAmmo;
-                    InventoryManager.Instance.ReduceStackCount(mapClient, weaponAmmo, ammoToGrab);
+                    InventoryManager.Instance.ReduceStackCount(mapClient.Client, weaponAmmo, ammoToGrab);
                     foundAmmo = true;
                     if (foundAmmoAmount == weaponClassInfo.ClipSize)
                         break;
