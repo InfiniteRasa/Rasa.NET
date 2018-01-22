@@ -40,50 +40,6 @@ namespace Rasa.Managers
         {
         }
 
-        /*public Item CreateFromTemplateId(uint characterId, int slotId, int itemTemplateId, int stackSize)
-        {
-            var itemTemplate = GetItemTemplateById(itemTemplateId);
-            if (itemTemplate == null)
-                return null;
-
-            var item = CreateItem(characterId, slotId, itemTemplate, stackSize);
-
-            return item;
-        }
-
-        public Item CreateItem(uint characterId, int slotId, ItemTemplate itemTemplate, int stackSize)
-        {
-            if (itemTemplate == null)
-                return null;
-
-            var classInfo = EntityClassManager.Instance.LoadedEntityClasses[itemTemplate.ClassId];
-
-            // dont create more then max stackSize
-            if (classInfo.ItemClassInfo.StackSize < stackSize)
-                stackSize = classInfo.ItemClassInfo.StackSize;
-
-            // insert into items table to get unique ItemId
-            var itemId = ItemsTable.CreateItem(itemTemplate.ItemTemplateId, stackSize, classInfo.ItemClassInfo.MaxHitPoints, -2139062144);
-            // insert new item into character table
-            CharacterInventoryTable.AddInvItem(characterId, slotId, itemId);
-            // create physical copy of item
-            var item = new Item
-            {
-                ItemId = itemId,
-                ItemTemplate = itemTemplate,
-                OwnerId = characterId,
-                OwnerSlotId = slotId,
-                Stacksize = stackSize,
-                Color = -2139062144     // ToDo we will have to find color in game client files
-            };
-            // register item
-            EntityManager.Instance.RegisterEntity(item.EntityId, EntityType.Item);
-            EntityManager.Instance.RegisterItem(item.EntityId, item);
-
-            return item;
-        }*/
-
-
         public Item CreateFromTemplateId(int itemTemplateId, int stackSize, string crafter)
         {
             var itemTemplate = GetItemTemplateById(itemTemplateId);
@@ -292,13 +248,13 @@ namespace Rasa.Managers
                 HasCharacterUniqueFlag = item.ItemTemplate.HasCharacterUniqueFlag,
                 HasAccountUniqueFlag = item.ItemTemplate.HasAccountUniqueFlag,
                 HasBoEFlag = item.ItemTemplate.HasBoEFlag,
-                ClassModuleIds = item.ItemTemplate.ClassModuleIds,
+                ClassModuleIds = item.ItemTemplate.ModuleIds,
                 LootModuleIds = item.ItemTemplate.LootModuleIds,
                 QualityId = item.ItemTemplate.QualityId,
                 BoundToCharacter = item.ItemTemplate.BoundToCharacter,
                 NotTradable = item.ItemTemplate.ItemInfo.Tradable,
                 NotPlaceableInLockbox = item.ItemTemplate.NotPlaceableInLockbox,
-                InventoryCategory = (InventoryCategory)item.ItemTemplate.InventoryCategory
+                InventoryCategory = item.ItemTemplate.InventoryCategory
             } );
 
             if (item.ItemTemplate.WeaponInfo != null)    // weapon

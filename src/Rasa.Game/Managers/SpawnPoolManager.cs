@@ -10,7 +10,7 @@ namespace Rasa.Managers
     {
         private static SpawnPoolManager _instance;
         private static readonly object InstanceLock = new object();
-        public readonly Dictionary<uint, SpawnPool> LoadedSpawnPools = new Dictionary<uint, SpawnPool>();
+        public readonly Dictionary<int, SpawnPool> LoadedSpawnPools = new Dictionary<int, SpawnPool>();
 
         public static SpawnPoolManager Instance
         {

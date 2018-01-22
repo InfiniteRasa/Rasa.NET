@@ -18,7 +18,7 @@ namespace Rasa.Managers
         private static CreatureManager _instance;
         private static readonly object InstanceLock = new object();
         public const int CreatureLocationUpdateTime = 1500;
-        public readonly Dictionary<uint, Creature> LoadedCreatures = new Dictionary<uint, Creature>();
+        public readonly Dictionary<int, Creature> LoadedCreatures = new Dictionary<int, Creature>();
 
         public static CreatureManager Instance
         {
@@ -56,7 +56,7 @@ namespace Rasa.Managers
                 CreateCreatureOnClient(mapClient, creature);
         }
 
-        public Creature CreateCreature(uint dbId, SpawnPool spawnPool)
+        public Creature CreateCreature(int dbId, SpawnPool spawnPool)
         {
             // check is creature in database
             if (!LoadedCreatures.ContainsKey(dbId))
@@ -138,22 +138,10 @@ namespace Rasa.Managers
 
             // NPC  & Vendor augmentation
             if (creature.NpcData != null || creature.VendorData != null)
-            {
-                /*
-             * NPCInfo                  // used for mission/objectives state only
-             * NPCConversationStatus
-             * Converse
-             * Train                    // Train not used by client?? def Recv_Train(self, trainerPackageIDs): pass
-             */
-                //UpdateConversationStatus(mapClient.Client, creature);
-                mapClient.Player.Client.SendPacket(creature.Actor.EntityId, new NPCConversationStatusPacket(ConversationStatus.Vending, new List<int> {creature.VendorData.VendorPackageId }));
-                //mapClient.Player.Client.SendPacket(creature.Actor.EntityId, new NPCInfoPacket(116));
-                //mapClient.Player.Client.SendPacket(creature.Actor.EntityId, new ConversePacket());
-                //mapClient.Player.Client.SendPacket(creature.Actor.EntityId, new NPCConversationStatusPacket(ConversationStatus.Vending, new List<int> { 10 }));
-            }
+                UpdateConversationStatus(mapClient.Client, creature);
         }
 
-        public Creature FindCreature(uint creatureId)
+        public Creature FindCreature(int creatureId)
         {
             return LoadedCreatures[creatureId];
         }
@@ -181,21 +169,62 @@ namespace Rasa.Managers
                     AppearanceData = tempAppearanceData
 
                 };
+                // add mission data to npc's
+                foreach (var entry in MissionManager.Instance.LoadedMissions)
+                {
+                    var mission = entry.Value;
+                    if (mission.MissionGiver == data.DbId || mission.MissionReciver == data.DbId)
+                    {
+                        if (creature.NpcData != null)
+                        {
+                            if (!creature.NpcData.Missions.ContainsKey(mission.MissionId))
+                                creature.NpcData.Missions.Add(mission.MissionId, mission);
+                        }
+                        else
+                        {
+                            creature.NpcData = new CreatureNpcData();
+                            creature.NpcData.Missions.Add(mission.MissionId, mission);
+                        }
+                    }
+                }
 
                 LoadedCreatures.Add(creature.DbId, creature);
+            }
+
+            var npcPackages = NPCPackagesTable.LoadNPCPackages();
+            foreach (var package in npcPackages)
+            {
+                if (LoadedCreatures.ContainsKey(package.CreatureDbId))
+                {
+                    foreach (var aug in EntityClassManager.Instance.LoadedEntityClasses[LoadedCreatures[package.CreatureDbId].ClassId].Augmentations)
+                        if (aug == AugmentationType.NPC)
+                            if (LoadedCreatures[package.CreatureDbId].NpcData == null)
+                            {
+                                LoadedCreatures[package.CreatureDbId].NpcData = new CreatureNpcData();
+                                LoadedCreatures[package.CreatureDbId].NpcData.NpcPackageIds.Add(package.NpcPackageId);
+                                break;
+                            }
+                            else
+                            {
+                                LoadedCreatures[package.CreatureDbId].NpcData.NpcPackageIds.Add(package.NpcPackageId);
+                                break;
+                            }
+                }
+                else
+                    Logger.WriteLog(LogType.Error, $"LoadNPCPackages: unknown cratueDbId = {package.CreatureDbId}");
             }
 
             var vendorsList = VendorsTable.LoadVendors();
             foreach (var vendor in vendorsList)
             {
-                if (LoadedCreatures.ContainsKey(vendor.DbId))
+                if (LoadedCreatures.ContainsKey(vendor.CreatureDbId))
                 {
-                    foreach (var aug in EntityClassManager.Instance.LoadedEntityClasses[LoadedCreatures[vendor.DbId].ClassId].Augmentations)
+                    foreach (var aug in EntityClassManager.Instance.LoadedEntityClasses[LoadedCreatures[vendor.CreatureDbId].ClassId].Augmentations)
                         if (aug == AugmentationType.Vendor || aug == AugmentationType.NPC)
-                            LoadedCreatures[vendor.DbId].VendorData = new CreatureVendorData { VendorPackageId = vendor.PackageId };
+                            LoadedCreatures[vendor.CreatureDbId].VendorData = new CreatureVendorData { VendorPackageId = vendor.PackageId };
                 }
                 else
-                    Logger.WriteLog(LogType.Error, $"LoadVendors: unknown cratueDbId = {vendor.DbId}");
+                    Logger.WriteLog(LogType.Error, $"LoadVendors: unknown cratueDbId = {vendor.CreatureDbId}");
             }
 
             var vendorItemList = VendorItemsTable.LoadVendorItems();
@@ -206,9 +235,6 @@ namespace Rasa.Managers
                 else
                     Logger.WriteLog(LogType.Error, $"LoadVendorItems: unknown cratueDbId = {vendorItem.DbId}");
             }
-
-            Logger.WriteLog(LogType.Initialize, $"Loaded {LoadedCreatures.Count} Creatures");
-            Logger.WriteLog(LogType.Initialize, $"Loaded {vendorsList.Count} Vendors");
         }
 
         public void SetLocation(Creature creature, Position position, Quaternion rotation)
@@ -230,6 +256,19 @@ namespace Rasa.Managers
 
         }
 
+        public void AssignNPCMission(Client client, AssignNPCMissionPacket packet)
+        {
+            var mission = EntityManager.Instance.GetCreature((uint)packet.NpcEntityId).NpcData.Missions[packet.MissionId];
+
+            if (client.MapClient.Player.Missions.Count > 30)
+            {
+                CommunicatorManager.Instance.SystemMessage(client.MapClient, "Mission log is full.");
+                return;
+            }
+
+            client.SendPacket(client.MapClient.Player.Actor.EntityId, new MissionGainedPacket(mission.MissionId, mission.MissionInfo));
+        }
+
         public void RequestNpcConverse(Client client, RequestNPCConversePacket packet)
         {
             var creature = EntityManager.Instance.GetCreature((uint)packet.EntityId);
@@ -239,10 +278,33 @@ namespace Rasa.Managers
 
             // ToDo create DB structures, and replace constant data with dinamic
 
-            var testConvoDataDict = new Dictionary<ConversationType, ConvoDataDict>();
+            var testConvoDataDict = new Dictionary<ConversationType, ConvoData>();
 
             if (creature.VendorData != null)
-                testConvoDataDict.Add(ConversationType.Vending, new ConvoDataDict { VendorConverse = new List<int> { creature.VendorData.VendorPackageId } });
+                testConvoDataDict.Add(ConversationType.Vending, new ConvoData { VendorConverse = new List<int> { creature.VendorData.VendorPackageId } });
+
+            if (creature.NpcData != null)
+                if (creature.NpcData.Missions.Count > 0)
+                {
+                    var dispensableMissions = new List<DispensableMissions>();
+                    var completeableMissions = new List<CompleteableMissions>();
+                    var completeableObjectives = new List<CompleteableObjectives>();
+
+                    foreach (var entry in creature.NpcData.Missions)
+                    {
+                        var mission = entry.Value;
+
+                        if (mission.MissionGiver == creature.DbId)
+                            dispensableMissions.Add(new DispensableMissions(mission.MissionId, mission.MissionInfo ));
+
+                        if (mission.MissionReciver == creature.DbId)
+                            completeableMissions.Add(new CompleteableMissions(mission.MissionId, mission.MissionInfo.MissionConstantData.RewardInfo));
+                    }
+
+                    testConvoDataDict.Add(ConversationType.MissionDispense, new ConvoData { DispensableMissions = dispensableMissions });
+                    testConvoDataDict.Add(ConversationType.MissionComplete, new ConvoData { CompleteableMissions = completeableMissions });
+                }
+                    
             /*
             // Greeting = 0
             var greetingId = 19;
@@ -353,6 +415,24 @@ namespace Rasa.Managers
             var npcData = creature.NpcData;
             var statusSet = false;
 
+            if (npcData != null)
+                if (npcData.Missions != null)
+                    if (npcData.Missions.Count > 0)
+                    {
+
+                    }
+
+            if (npcData != null)
+            {
+                if (npcData.NpcPackageIds.Count > 0)
+                    foreach (var packageId in npcData.NpcPackageIds)
+                        client.SendPacket(creature.Actor.EntityId, new NPCInfoPacket(packageId));
+
+                client.SendPacket(creature.Actor.EntityId, new NPCConversationStatusPacket(ConversationStatus.ObjectivComplete, new List<int>())); // complete objective
+                statusSet = true;
+            }
+            /*
+
             foreach (var entry in npcData.RelatedMissions)
             {
                 var missionLogEntry = MissionManager.Instance.FindPlayerMission(client, entry.MissionIndex);
@@ -421,13 +501,12 @@ namespace Rasa.Managers
                         break;
                     }
                 }
-            }
+            }*/
             // is NPC vendor?
             if (creature.VendorData != null && statusSet == false)
             {
                 // creature->npcData.isVendor
-                client.SendPacket(creature.Actor.EntityId, new NPCConversationStatusPacket(ConversationStatus.Available, new List<int> {creature.VendorData.VendorPackageId })); // status - vending
-
+                client.SendPacket(creature.Actor.EntityId, new NPCConversationStatusPacket(ConversationStatus.Vending, new List<int> { creature.VendorData.VendorPackageId })); // status - vending
                 statusSet = true;
             }
             // no status set yet? Send NONE conversation status

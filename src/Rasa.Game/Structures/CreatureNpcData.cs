@@ -4,7 +4,7 @@ namespace Rasa.Structures
 {
     public class CreatureNpcData
     {
-        public List<NpcDataRelatedMission> RelatedMissions { get; set; } = new List<NpcDataRelatedMission>();   // list of all missions that involve this NPC type
-        public int NpcPackageId { get; set; }
+        public Dictionary<int, Mission> Missions = new Dictionary<int, Mission>();   // list of all missions that involve this NPC type
+        public List<int> NpcPackageIds = new List<int>();
     }
 }

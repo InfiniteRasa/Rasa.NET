@@ -56,6 +56,12 @@
             Logger.WriteLog(LogType.Debug, "ToDo AcceptPartyInvitesChanged");
         }
 
+        [PacketHandler(GameOpcode.AssignNPCMission)]
+        private void AssignNPCMission(AssignNPCMissionPacket packet)
+        {
+            CreatureManager.Instance.AssignNPCMission(Client, packet);
+        }
+
         [PacketHandler(GameOpcode.AutoFireKeepAlive)]
         private void AutoFireKeepAlive(AutoFireKeepAlivePacket packet)
         {

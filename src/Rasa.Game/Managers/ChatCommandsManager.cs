@@ -76,6 +76,7 @@ namespace Rasa.Managers
             RegisterCommand(".givelogos", GiveLogosCommand);
             RegisterCommand(".gm", EnterGmModCommand);
             RegisterCommand(".help", HelpGmCommand);
+            RegisterCommand(".rqs", RqsWindowCommand);
             RegisterCommand(".teleport", TeleportCommand);
             RegisterCommand(".setregion", SetRegionCommand);
             RegisterCommand(".speed", SpeedCommand);
@@ -98,7 +99,7 @@ namespace Rasa.Managers
 
             if (parts.Length == 2)
             {
-                if (uint.TryParse(parts[1], out uint dbId))
+                if (int.TryParse(parts[1], out int dbId))
                 {
                     var creature = CreatureManager.Instance.CreateCreature(dbId, null);
 
@@ -199,6 +200,15 @@ namespace Rasa.Managers
                 CommunicatorManager.Instance.SystemMessage(_mapClient, $"{command.Key}");
 
             return;
+        }
+
+        private void RqsWindowCommand(string[] parts)
+        {
+            if (parts.Length == 1)
+            {
+                _mapClient.Client.SendPacket(5, new DevRQSWindowPacket());
+                return;
+            }
         }
 
         private void TeleportCommand(string[] parts)

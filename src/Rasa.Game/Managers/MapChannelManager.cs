@@ -63,11 +63,18 @@ namespace Rasa.Managers
         public void CreatePlayerCharacter(MapChannelClient mapClient)
         {
             var data = CharacterTable.GetCharacterData(mapClient.Client.Entry.Id, mapClient.Client.LoadingSlot);
-            var tempAppearanceData = new Dictionary<EquipmentSlots, AppearanceData>();
-            var appearance = CharacterAppearanceTable.GetAppearance(data.CharacterId);
+            var appearances = CharacterAppearanceTable.GetAppearance(data.CharacterId);
+            var missions = CharacterMissionsTable.GetMissions(data.CharacterId);
 
-            foreach (var t in appearance)
-                tempAppearanceData.Add((EquipmentSlots)t.SlotId, new AppearanceData { SlotId = (EquipmentSlots)t.SlotId, ClassId = t.ClassId, Color = new Color(t.Color) });
+            var appearanceData = new Dictionary<EquipmentSlots, AppearanceData>();
+            var missionData = new Dictionary<int, MissionLog>();
+
+            foreach (var appearance in appearances)
+                appearanceData.Add((EquipmentSlots)appearance.SlotId, new AppearanceData { SlotId = (EquipmentSlots)appearance.SlotId, ClassId = appearance.ClassId, Color = new Color(appearance.Color) });
+
+            foreach (var mission in missions)
+                missionData.Add(mission.MissionId, new MissionLog{ MissionId = mission.MissionId, MissionState = mission.MissionState });
+
 
             var player = new PlayerData
             {
@@ -96,7 +103,7 @@ namespace Rasa.Managers
                     }
                 },
                 ControllerUser = mapClient,
-                AppearanceData = tempAppearanceData,
+                AppearanceData = appearanceData,
                 CharacterId = data.CharacterId,
                 AccountId = data.AccountId,
                 SlotId = data.SlotId,
@@ -121,8 +128,7 @@ namespace Rasa.Managers
                 Titles = CharacterTitlesTable.GetCharacterTitles(data.CharacterId),
                 Abilities = GetPlayerAbilities(data.CharacterId),
                 CurrentAbilityDrawer = data.CurrentAbilityDrawer,
-                //MissionStateCount = 0,
-                // MissionStateData = new CharacterMissionData(),
+                Missions = missionData,
                 LoginTime = 0,
                 Logos = CharacterLogosTable.GetLogos(data.CharacterId)
             };

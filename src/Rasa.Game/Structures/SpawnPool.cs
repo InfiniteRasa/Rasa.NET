@@ -4,7 +4,7 @@ namespace Rasa.Structures
 {
     public class SpawnPool
     {
-        public uint DbId { get; set; }         // id of the spawnpool
+        public int DbId { get; set; }         // id of the spawnpool
 
         public Position HomePosition { get; set; }
         public Quaternion HomeRotation { get; set; }

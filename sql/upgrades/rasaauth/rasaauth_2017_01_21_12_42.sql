@@ -1,2 +1,0 @@
-INSERT INTO `account` (`email`, `username`, `password`, `salt`, `level`, `last_ip`, `last_server_id`, `last_login`, `join_date`, `locked`, `validated`, `validation_token`) VALUES
-	('test@test.com', 'test', 'cb82594cf66f17acc074c9fd5e6d602b62faadf7b9364f0c95996de45f3eeaec', '0bae44ea0d4d284f9cd451f97100475b0603a8be', 1, '127.0.0.1', 0, '2017-01-21 12:14:11', '2017-01-19 23:00:15', b'0', b'1', NULL);

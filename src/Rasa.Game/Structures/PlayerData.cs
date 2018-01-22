@@ -40,7 +40,7 @@ namespace Rasa.Structures
         public Dictionary<int, AbilityDrawerData> Abilities = new Dictionary<int, AbilityDrawerData>();
         public List<int> Titles { get; set; } = new List<int>();
         public int CurrentAbilityDrawer { get; set; }
-        public Dictionary<int, MissionLog> MissionLog { get; set; } = new Dictionary<int, MissionLog>();
+        public Dictionary<int, MissionLog> Missions { get; set; } = new Dictionary<int, MissionLog>();
         public int LoginTime { get; set; }
         public List<int> Logos = new List<int>();
         public bool WeaponReady { get; set; }

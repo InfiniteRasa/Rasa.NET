@@ -6,7 +6,7 @@ namespace Rasa.Structures
 
     public class Creature
     {
-        public uint DbId { get; set; }
+        public int DbId { get; set; }
         public int ClassId { get; set; }
         // npc data (only if creature is a NPC)
         public CreatureNpcData NpcData { get; set; }

@@ -2,7 +2,6 @@
 
 namespace Rasa.Database.Tables.Character
 {
-    using System;
     using Structures;
 
     public static class CharacterTable

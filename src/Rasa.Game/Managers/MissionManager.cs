@@ -2,16 +2,15 @@
 
 namespace Rasa.Managers
 {
-    using System;
     using Data;
-    using Game;
+    using Database.Tables.World;
     using Structures;
 
     public class MissionManager
     {
         private static MissionManager _instance;
         private static readonly object InstanceLock = new object();
-        private readonly Dictionary<int, Mission> LoadedMissions = new Dictionary<int, Mission>();
+        public readonly Dictionary<int, Mission> LoadedMissions = new Dictionary<int, Mission>();
 
         public static MissionManager Instance
         {
@@ -35,60 +34,44 @@ namespace Rasa.Managers
         {
         }
 
-        public MissionLog FindPlayerMission(Client client, uint missionIndex)
+        public void LoadMissions()
         {
-            // for now we do a simple straight forward search
-            // todo: replace by binary search
-            foreach (var entry in client.MapClient.Player.MissionLog)
+            var missions = NpcMissionsTable.GetNpcMissions();
+
+            foreach (var line in missions)
             {
-                var mission = entry.Value;
-                if (mission.MissionIndex == missionIndex)
-                    return mission;
+                if (!LoadedMissions.ContainsKey(line.MissionId))
+                    LoadedMissions.Add(line.MissionId, new Mission(line.MissionId));
+
+                switch ((MissionScriptCommand)line.Command)
+                {
+                    case MissionScriptCommand.Dispenser:
+                        LoadedMissions[line.MissionId].MissionGiver = line.Var1;
+                        break;
+                    case MissionScriptCommand.Collector:
+                        LoadedMissions[line.MissionId].MissionReciver = line.Var1;
+                        break;
+                    case MissionScriptCommand.RewardItem:
+                        {
+                            var itemTemplate = ItemManager.Instance.GetItemTemplateById(line.Var1);
+
+                            var rewardItem = new RewardItem
+                            {
+                                ItemTemplateId = line.Var1,
+                                ClassId = itemTemplate.ClassId,
+                                Quantity = line.Var2,
+                                ModuleIds = itemTemplate.ModuleIds,
+                                QualityId = itemTemplate.QualityId
+                            };
+
+                            LoadedMissions[line.MissionId].MissionInfo.MissionConstantData.RewardInfo.FixedReward.FixedItems.Add(rewardItem);
+                            break;
+                        }
+                    default:
+                        Logger.WriteLog(LogType.Error, $"LoadMissions: Unknown command {line.Command}");
+                        break;
+                }
             }
-
-            return null;
-        }
-
-        public Mission GetById(int missionId)
-        {
-            foreach (var mission in LoadedMissions)
-                if (mission.Key == missionId)
-                    return mission.Value;
-
-            return null;
-        }
-
-        public Mission GetByIndex(int missionIndex)
-        {
-            var missionEnv = new MissionEnv();
-            if (missionIndex >= missionEnv.MissionCount)
-                return null;
-
-            return missionEnv.Missions[missionIndex];
-        }
-
-        public bool IsCreatureMissionDispenser(Mission mission, Creature creatureOrNPC)
-        {
-            var scriptLineTo = mission.StateMapping[1];
-            for (var i = 0; i < scriptLineTo; i++)
-            {
-                var scriptline = mission.ScriptLines[i];
-
-                if (scriptline.Command == MissionScriptCommand.Dispenser)
-                    if (creatureOrNPC.DbId == scriptline.Value1)
-                        return true;
-            }
-
-            return false;
-        }
-
-        public bool IsCompletedByPlayer(Client client, int missionIndex)
-        {
-            if (client.MapClient.Player.MissionLog.ContainsKey(missionIndex))
-                if (client.MapClient.Player.MissionLog[missionIndex].State == 2)
-                    return true;
-
-            return false;
         }
     }
 }

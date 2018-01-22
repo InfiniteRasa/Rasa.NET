@@ -1,4 +1,6 @@
-﻿namespace Rasa.Structures
+﻿using System.Collections.Generic;
+
+namespace Rasa.Structures
 {
     using Data;
 
@@ -16,7 +18,7 @@
         public bool HasSellableFlag { get; set; }
         public bool HasCharacterUniqueFlag { get; set; }
         public bool HasAccountUniqueFlag { get; set; }
-        public int[] ClassModuleIds { get; set; }
+        public List<int> ModuleIds = new List<int>();
         public int[] LootModuleIds { get; set; }
         public bool HasBoEFlag { get; set; }
         public int QualityId { get; set; }

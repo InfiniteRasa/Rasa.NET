@@ -4,14 +4,14 @@ namespace Rasa.Structures
 {
     public class VendorsEntry
     {
-        public uint DbId { get; set; }
+        public int CreatureDbId { get; set; }
         public int PackageId { get; set; }
 
         public static VendorsEntry Read(MySqlDataReader reader)
         {
             return new VendorsEntry
             {
-                DbId = reader.GetUInt32("creatureDbId"),
+                CreatureDbId = reader.GetInt32("creatureDbId"),
                 PackageId = reader.GetInt32("packageId")
             };
         }

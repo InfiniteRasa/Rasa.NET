@@ -15,25 +15,25 @@ namespace Rasa.Database.Tables.World
         public static void Initialize()
         {
             GetCreatureAppearanceCommand.Connection = GameDatabaseAccess.WorldConnection;
-            GetCreatureAppearanceCommand.Parameters.Add("@CreatureDbId", MySqlDbType.UInt32);
+            GetCreatureAppearanceCommand.Parameters.Add("@CreatureDbId", MySqlDbType.Int32);
             GetCreatureAppearanceCommand.Prepare();
 
             SetCreatureAppearanceCommand.Connection = GameDatabaseAccess.WorldConnection;
-            SetCreatureAppearanceCommand.Parameters.Add("@CreatureDbId", MySqlDbType.UInt32);
+            SetCreatureAppearanceCommand.Parameters.Add("@CreatureDbId", MySqlDbType.Int32);
             SetCreatureAppearanceCommand.Parameters.Add("@SlotId", MySqlDbType.Int32);
             SetCreatureAppearanceCommand.Parameters.Add("@ClassId", MySqlDbType.Int32);
             SetCreatureAppearanceCommand.Parameters.Add("@Color", MySqlDbType.Int32);
             SetCreatureAppearanceCommand.Prepare();
 
             UpdateCreatureAppearanceCommand.Connection = GameDatabaseAccess.WorldConnection;
-            UpdateCreatureAppearanceCommand.Parameters.Add("@CreatureDbId", MySqlDbType.UInt32);
+            UpdateCreatureAppearanceCommand.Parameters.Add("@CreatureDbId", MySqlDbType.Int32);
             UpdateCreatureAppearanceCommand.Parameters.Add("@SlotId", MySqlDbType.Int32);
             UpdateCreatureAppearanceCommand.Parameters.Add("@ClassId", MySqlDbType.Int32);
             UpdateCreatureAppearanceCommand.Parameters.Add("@Color", MySqlDbType.Int32);
             UpdateCreatureAppearanceCommand.Prepare();
         }
 
-        public static List<AppearanceEntry> GetCreatureAppearance(uint creatureDbId)
+        public static List<AppearanceEntry> GetCreatureAppearance(int creatureDbId)
         {
             lock (GameDatabaseAccess.WorldLock)
             {
@@ -48,7 +48,7 @@ namespace Rasa.Database.Tables.World
             }
         }
 
-        public static void SetCreatureAppearance(uint creatureDbId, int slotId, int classId, int color)
+        public static void SetCreatureAppearance(int creatureDbId, int slotId, int classId, int color)
         {
             lock (GameDatabaseAccess.WorldLock)
             {
@@ -60,7 +60,7 @@ namespace Rasa.Database.Tables.World
             }
         }
 
-        public static void UpdateCreatureAppearance(uint creatureDbId, int slotId, int classId, int color)
+        public static void UpdateCreatureAppearance(int creatureDbId, int slotId, int classId, int color)
         {
             lock (GameDatabaseAccess.WorldLock)
             {

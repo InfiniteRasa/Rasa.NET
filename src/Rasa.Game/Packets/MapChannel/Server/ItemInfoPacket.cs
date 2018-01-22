@@ -1,4 +1,6 @@
-﻿namespace Rasa.Packets.MapChannel.Server
+﻿using System.Collections.Generic;
+
+namespace Rasa.Packets.MapChannel.Server
 {
     using Data;
     using Memory;
@@ -15,7 +17,7 @@
         public bool HasCharacterUniqueFlag { get; set; }
         public bool HasAccountUniqueFlag { get; set; }
         public bool HasBoEFlag { get; set; }
-        public int[] ClassModuleIds { get; set; }
+        public List<int> ClassModuleIds { get; set; }
         public int[] LootModuleIds { get; set; }
         public int QualityId { get; set; }
         public bool BoundToCharacter { get; set; }
@@ -32,7 +34,7 @@
             pw.WriteTuple(15);
             pw.WriteInt(CurrentHitPoints);      // 'currentHitPoints' --> Displayed as "Armor: x" in case of armor
             pw.WriteInt(MaxHitPoints);
-            if (CrafterName != "")
+            if (CrafterName != "" && CrafterName != null)
                 pw.WriteString(CrafterName);
             else
                 pw.WriteNoneStruct();

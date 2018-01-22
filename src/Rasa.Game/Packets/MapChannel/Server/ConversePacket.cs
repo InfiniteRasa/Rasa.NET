@@ -10,9 +10,9 @@ namespace Rasa.Packets.MapChannel.Server
     {
         public override GameOpcode Opcode { get; } = GameOpcode.Converse;
 
-        public Dictionary<ConversationType, ConvoDataDict> ConvoDataDict { get; set; }
+        public Dictionary<ConversationType, ConvoData> ConvoDataDict { get; set; }
         
-        public ConversePacket(Dictionary<ConversationType, ConvoDataDict> convoDataDict)
+        public ConversePacket(Dictionary<ConversationType, ConvoData> convoDataDict)
         {
             ConvoDataDict = convoDataDict;
         }
@@ -42,62 +42,25 @@ namespace Rasa.Packets.MapChannel.Server
                         break;
 
                     case ConversationType.MissionDispense:
-                        pw.WriteDictionary(convoDataDict.DispensableMissions.Count);                   // = mission list
-                        foreach (var mission in convoDataDict.DispensableMissions)                     // ==
-                        {                                                                               // ==
-                            pw.WriteInt(mission.MissionId);                                             // == missionID
-                            pw.WriteTuple(6);                                                           // == mission info
-                            pw.WriteInt(mission.MissionInfo.Level);                                     // === level
-                            pw.WriteTuple(2);                                                           // === rewardInfo
-                            pw.WriteTuple(2);                                                           // ==== (fixed redward tuple)
-                            pw.WriteList(mission.MissionInfo.RewardInfo.FixedReward.Credits.Count);     // ===== (credits)
-                            foreach (var credit in mission.MissionInfo.RewardInfo.FixedReward.Credits)  // =====
-                            {                                                                           // =====
-                                pw.WriteTuple(2);                                                       // ===== 
-                                pw.WriteInt((int)credit.CurencyType);                                   // ===== credit type
-                                pw.WriteInt(credit.Amount);                                             // ===== credit ammount
-                            }                                                                           // ====
-                            pw.WriteList(mission.MissionInfo.RewardInfo.FixedReward.FixedItems.Count);  // ===== (fixed reward items)
-                            foreach (var item in mission.MissionInfo.RewardInfo.FixedReward.FixedItems) // =====
-                            {                                                                           // =====
-                                pw.WriteTuple(6);                                                       // =====
-                                pw.WriteLong(item.ItemTemplateId);                                      // ===== itemTemplateId
-                                pw.WriteInt(item.ItemClassId);                                          // ===== itemClassId
-                                pw.WriteInt(item.Quantity);                                             // ===== quantity
-                                pw.WriteNoneStruct();                                                   // ===== hue    (not used by client)
-                                pw.WriteList(item.ModuleIds.Count);                                     // ===== moduleIds
-                                foreach (var module in item.ModuleIds)                                  // ======
-                                    pw.WriteInt(module);                                                // ====== moduleId
-                                pw.WriteInt(item.QualityId);                                            // ===== qualityId
-                            }                                                                           // ===
-                            pw.WriteList(mission.MissionInfo.RewardInfo.SelectableReward.Count);        // === selection list (selectable reward)
-                            foreach (var item in mission.MissionInfo.RewardInfo.SelectableReward)
-                            {
-                                pw.WriteTuple(6);
-                                pw.WriteLong(item.ItemTemplateId);                  // itemTemplateId
-                                pw.WriteInt(item.ItemClassId);                      // itemClassId
-                                pw.WriteInt(item.Quantity);                         // quantity
-                                pw.WriteNoneStruct();                               // hue      (not used by client)
-                                pw.WriteList(item.ModuleIds.Count);                 // moduleIds
-                                foreach (var module in item.ModuleIds)
-                                    pw.WriteInt(module);
-                                pw.WriteInt(item.QualityId);                        // qualityId
-                            }
-
-                            pw.WriteNoneStruct();                               // offerVOAudioSetId (NoneStruct for no-audio)  // ToDo
-                                                                                // itemsRequired
-                            pw.WriteList(mission.MissionInfo.ItemRequired.Count);
+                        pw.WriteDictionary(convoDataDict.DispensableMissions.Count);
+                        foreach (var mission in convoDataDict.DispensableMissions)
+                        {
+                            pw.WriteInt(mission.MissionId);
+                            pw.WriteTuple(6);
+                            pw.WriteInt(mission.MissionInfo.MissionConstantData.Level);
+                            pw.WriteStruct(mission.MissionInfo.MissionConstantData.RewardInfo);
+                            pw.WriteNoneStruct();                                       // offerVOAudioSetId (NoneStruct for no-audio)  // ToDo
+                            pw.WriteList(mission.MissionInfo.ItemRequired.Count);       // itemsRequired
                             foreach (var item in mission.MissionInfo.ItemRequired)
-                                pw.WriteInt(item.ItemClassId);                      // itemClassId
-                                                                                    // objectives
-                            pw.WriteList(mission.MissionInfo.MissionObjectives.Count);
-                            foreach (var objective in mission.MissionInfo.MissionObjectives)
+                                pw.WriteInt(item);                                      // itemClassId
+                            pw.WriteList(mission.MissionInfo.ObjectivesList.Count);  // objectives
+                            foreach (var objective in mission.MissionInfo.ObjectivesList)
                             {
                                 pw.WriteTuple(2);
                                 pw.WriteNoneStruct();                   // ordinal      (not used by client)
                                 pw.WriteInt(objective.ObjectiveId);     // objectiveId
                             }
-                            pw.WriteInt(mission.MissionInfo.GroupType);         // groupType
+                            pw.WriteInt(mission.MissionInfo.MissionConstantData.GroupType);         // groupType
                         }
                         break;
 
@@ -106,41 +69,7 @@ namespace Rasa.Packets.MapChannel.Server
                         foreach ( var mission in convoDataDict.CompleteableMissions)
                         {
                             pw.WriteInt(mission.MissionId);
-                            pw.WriteTuple(2);
-                            pw.WriteTuple(2);
-                            pw.WriteList(mission.RewardInfo.FixedReward.Credits.Count);
-                            foreach (var credit in mission.RewardInfo.FixedReward.Credits)
-                            {
-                                pw.WriteTuple(2);
-                                pw.WriteInt((int)credit.CurencyType);
-                                pw.WriteInt(credit.Amount);
-                            }
-                            pw.WriteList(mission.RewardInfo.FixedReward.FixedItems.Count);
-                            foreach (var item in mission.RewardInfo.FixedReward.FixedItems)
-                            {
-                                pw.WriteTuple(6);
-                                pw.WriteLong(item.ItemTemplateId);
-                                pw.WriteInt(item.ItemClassId);
-                                pw.WriteInt(item.Quantity);
-                                pw.WriteNoneStruct();
-                                pw.WriteList(item.ModuleIds.Count);
-                                foreach (var module in item.ModuleIds)
-                                    pw.WriteInt(module);
-                                pw.WriteInt(item.QualityId);
-                            }
-                            pw.WriteList(mission.RewardInfo.SelectableReward.Count);
-                            foreach (var item in mission.RewardInfo.SelectableReward)
-                            {
-                                pw.WriteTuple(6);
-                                pw.WriteLong(item.ItemTemplateId);
-                                pw.WriteInt(item.ItemClassId);
-                                pw.WriteInt(item.Quantity);
-                                pw.WriteNoneStruct();
-                                pw.WriteList(item.ModuleIds.Count);
-                                foreach (var module in item.ModuleIds)
-                                    pw.WriteInt(module);
-                                pw.WriteInt(item.QualityId);
-                            }
+                            pw.WriteStruct(mission.RewardInfo);
                         }
                         break;
 
@@ -177,41 +106,7 @@ namespace Rasa.Packets.MapChannel.Server
                         foreach (var mission in convoDataDict.RewardableMissions)
                         {
                             pw.WriteInt(mission.MissionId);
-                            pw.WriteTuple(2);
-                            pw.WriteTuple(2);
-                            pw.WriteList(mission.RewardInfo.FixedReward.Credits.Count);
-                            foreach (var credit in mission.RewardInfo.FixedReward.Credits)
-                            {
-                                pw.WriteTuple(2);
-                                pw.WriteInt((int)credit.CurencyType);
-                                pw.WriteInt(credit.Amount);
-                            }
-                            pw.WriteList(mission.RewardInfo.FixedReward.FixedItems.Count);
-                            foreach (var item in mission.RewardInfo.FixedReward.FixedItems)
-                            {
-                                pw.WriteTuple(6);
-                                pw.WriteLong(item.ItemTemplateId);
-                                pw.WriteInt(item.ItemClassId);
-                                pw.WriteInt(item.Quantity);
-                                pw.WriteNoneStruct();
-                                pw.WriteList(item.ModuleIds.Count);
-                                foreach (var module in item.ModuleIds)
-                                    pw.WriteInt(module);
-                                pw.WriteInt(item.QualityId);
-                            }
-                            pw.WriteList(mission.RewardInfo.SelectableReward.Count);
-                            foreach (var item in mission.RewardInfo.SelectableReward)
-                            {
-                                pw.WriteTuple(6);
-                                pw.WriteLong(item.ItemTemplateId);
-                                pw.WriteInt(item.ItemClassId);
-                                pw.WriteInt(item.Quantity);
-                                pw.WriteNoneStruct();
-                                pw.WriteList(item.ModuleIds.Count);
-                                foreach (var module in item.ModuleIds)
-                                    pw.WriteInt(module);
-                                pw.WriteInt(item.QualityId);
-                            }
+                            pw.WriteStruct(mission.RewardInfo);
                         }
                         break;
 
