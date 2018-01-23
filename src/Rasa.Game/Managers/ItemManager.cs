@@ -257,6 +257,9 @@ namespace Rasa.Managers
                 InventoryCategory = item.ItemTemplate.InventoryCategory
             } );
 
+            // isConsumable
+            mapClient.Player.Client.SendPacket(item.EntityId, new SetConsumablePacket(classInfo.ItemClassInfo.IsConsumableFlag));
+
             if (item.ItemTemplate.WeaponInfo != null)    // weapon
             {
                 // WeaponInfo

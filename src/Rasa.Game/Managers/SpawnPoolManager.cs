@@ -177,7 +177,6 @@ namespace Rasa.Managers
                         }
 
                         CellManager.Instance.AddToWorld(mapChannel, creature);
-                        Logger.WriteLog(LogType.Debug, $"Spawnpool {spawnPool.DbId}");
                     }
 
                     DecreaseQueuedCreatureCount(spawnPool, creatureList.Count);

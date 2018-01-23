@@ -1,4 +1,6 @@
-﻿namespace Rasa.Structures
+﻿using System.Collections.Generic;
+
+namespace Rasa.Structures
 {
     public class Inventory
     {
@@ -9,7 +11,7 @@
         // 261 unknown, 262 unknown, 263 unknown, 264 unknown, 265 vest
         // 266 legs, 267 unknown, 268 unknown, 269 eyeweare, 270 unknown
         // 271 mask    (there is maybe more)         
-        public uint[] EquippedInventory { get; set; } = new uint[22];
+        public Dictionary<int, uint> EquippedInventory = new Dictionary<int, uint>();
         // 272 weapondrawer1, 273 weapondrawer2, 274 weapondrawer3, 275 weapondrawer4, 276 weapondrawer5
         // 277 weapondrawer1ammo, 278 weapondrawer2ammo, 279 weapondrawer3ammo, 280 weapondrawer4ammo, 281 weapondrawer5ammo
         public uint[] WeaponDrawer { get; set; }  = new uint[5];

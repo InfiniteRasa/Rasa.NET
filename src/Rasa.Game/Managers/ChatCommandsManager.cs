@@ -78,6 +78,7 @@ namespace Rasa.Managers
             RegisterCommand(".help", HelpGmCommand);
             RegisterCommand(".rqs", RqsWindowCommand);
             RegisterCommand(".teleport", TeleportCommand);
+            RegisterCommand(".setkillstreak", SetKillStreakCommand);
             RegisterCommand(".setregion", SetRegionCommand);
             RegisterCommand(".speed", SpeedCommand);
             RegisterCommand(".testmove", TestMoveCommand);
@@ -209,6 +210,20 @@ namespace Rasa.Managers
                 _mapClient.Client.SendPacket(5, new DevRQSWindowPacket());
                 return;
             }
+        }
+
+        private void SetKillStreakCommand(string[] parts)
+        {
+            if (parts.Length == 1)
+            {
+                CommunicatorManager.Instance.SystemMessage(_mapClient, "usage: .setkillstreak streakCount");
+                return;
+            }
+            if (parts.Length == 2)
+                if (int.TryParse(parts[1], out int count))
+                    _mapClient.Client.SendPacket(5, new SetKillStreakPacket(count));
+
+            return;
         }
 
         private void TeleportCommand(string[] parts)

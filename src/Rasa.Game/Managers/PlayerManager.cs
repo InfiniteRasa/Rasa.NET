@@ -247,6 +247,18 @@ namespace Rasa.Managers
             return points;
         }
 
+        public void GetCustomizationChoices(Client client, GetCustomizationChoicesPacket packet)
+        {
+            var test = EntityManager.Instance.GetEntityType((uint)packet.EntityId);
+            var choices = new Dictionary<int, int>
+            {
+                { 3663, 36 },
+                { 3672, 42 },
+                { 3812, 60 }
+            };
+            client.SendPacket(5, new CustomizationChoicesPacket((uint)packet.EntityId, choices));
+        }
+
         public int GetSkillIndexById(int skillId)
         {
             return skillId < 0 ? -1 : skillId >= 200 ? -1 : SkillId2Idx[skillId];
@@ -332,9 +344,9 @@ namespace Rasa.Managers
                 CharacterSkillsTable.UpdateCharacterSkill(mapClient.Player.CharacterId, mapClient.Player.Skills[skill.Key].SkillId, mapClient.Player.Skills[skill.Key].SkillLevel);
         }
 
-        public void NotifyEquipmentUpdate(MapChannelClient mapClient, EquipmentInfo equipmentInfo)
+        public void NotifyEquipmentUpdate(MapChannelClient mapClient)
         {
-            mapClient.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, new EquipmentInfoPacket { EquipmentInfo = equipmentInfo });
+            mapClient.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, new EquipmentInfoPacket(mapClient.Inventory.EquippedInventory));
         }
 
         public void PerformAbilitie(MapChannel mapChannel, PerformAbilityData abilityData)
@@ -389,8 +401,8 @@ namespace Rasa.Managers
         public void RequestArmWeapon(Client client, int requestedWeaponDrawerSlot)
         {
             client.MapClient.Inventory.ActiveWeaponDrawer = requestedWeaponDrawerSlot;
-            // 574 Recv_WeaponDrawerSlot(self, slotNum, bRequested = True):
-            client.SendPacket(client.MapClient.Player.Actor.EntityId, new WeaponDrawerSlotPacket { RequestedWeaponDrawerSlot = requestedWeaponDrawerSlot });
+
+            client.SendPacket(client.MapClient.Player.Actor.EntityId, new WeaponDrawerSlotPacket(requestedWeaponDrawerSlot, true));
 
             var tempItem = EntityManager.Instance.GetItem(client.MapClient.Inventory.WeaponDrawer[client.MapClient.Inventory.ActiveWeaponDrawer]);
 
@@ -399,12 +411,17 @@ namespace Rasa.Managers
 
             client.MapClient.Inventory.EquippedInventory[13] = tempItem.EntityId;
             
-            NotifyEquipmentUpdate(client.MapClient, new EquipmentInfo { SlotId = 13, EntityId = tempItem.EntityId } );
+            NotifyEquipmentUpdate(client.MapClient);
 
             SetAppearanceItem(client.MapClient.Player, tempItem);
             UpdateAppearance(client.MapClient);
             // update ammo info
             client.SendPacket(tempItem.EntityId, new WeaponAmmoInfoPacket(tempItem.CurrentAmmo ));
+        }
+
+        public void RequestCustomization(Client client, RequestCustomizationPacket packet)
+        {
+            // ToDo
         }
 
         public void RequestPerformAbility(Client client, RequestPerformAbilityPacket packet)
@@ -530,8 +547,8 @@ namespace Rasa.Managers
                 CharacterAppearanceTable.SetAppearance(player.CharacterId, (int)equipmentSlotId, 0, 0);
             }
 
-            player.AppearanceData[(EquipmentSlots)equipmentSlotId].ClassId = item.ItemTemplate.ClassId;
-            player.AppearanceData[(EquipmentSlots)equipmentSlotId].Color = new Color(item.Color);
+            player.AppearanceData[equipmentSlotId].ClassId = item.ItemTemplate.ClassId;
+            player.AppearanceData[equipmentSlotId].Color = new Color(item.Color);
             // update appearance data in database
             CharacterAppearanceTable.UpdateCharacterAppearance(player.CharacterId, (int)equipmentSlotId, item.ItemTemplate.ClassId, item.Color);
         }
@@ -650,16 +667,16 @@ namespace Rasa.Managers
             var armorBonusPct = player.Actor.Attributes[Attributes.Body].CurrentMax * 0.0066666d;
             var armorRegenRate = 0;
 
-            for (var i = 0; i < 22; i++)
+            foreach (var entry in mapClient.Inventory.EquippedInventory)
             {
-                // skipp weapon slot
-                if (i == 13)
+                if (entry.Value == 0)
                     continue;
 
-                if (mapClient.Inventory.EquippedInventory[i] == 0)
+                // skip weapon slot
+                if (entry.Key == 13)
                     continue;
 
-                var equipmentItem = EntityManager.Instance.GetItem(mapClient.Inventory.EquippedInventory[i]);
+                var equipmentItem = EntityManager.Instance.GetItem(entry.Value);
                 var classInfo = EntityClassManager.Instance.LoadedEntityClasses[equipmentItem.ItemTemplate.ClassId];
 
                 if (equipmentItem == null)

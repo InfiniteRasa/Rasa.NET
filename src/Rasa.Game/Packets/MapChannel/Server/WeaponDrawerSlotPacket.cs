@@ -5,11 +5,16 @@
 
     public class WeaponDrawerSlotPacket : PythonPacket
     {
-        // 574 Recv_WeaponDrawerSlot(self, slotNum, bRequested = True):
         public override GameOpcode Opcode { get; } = GameOpcode.WeaponDrawerSlot;
 
-        public int RequestedWeaponDrawerSlot { get; set; }
-        // public bool Requested { get; set;}   // do we need send this too?
+        public int SlotNum { get; set; }
+        public bool Requested { get; set;}
+
+        public WeaponDrawerSlotPacket(int slotNum, bool requested)
+        {
+            SlotNum = slotNum;
+            Requested = requested;
+        }
 
         public override void Read(PythonReader pr)
         {
@@ -17,8 +22,9 @@
 
         public override void Write(PythonWriter pw)
         {
-            pw.WriteTuple(1);
-            pw.WriteInt(RequestedWeaponDrawerSlot);
+            pw.WriteTuple(2);
+            pw.WriteInt(SlotNum);
+            pw.WriteBool(Requested);
         }
     }
 }

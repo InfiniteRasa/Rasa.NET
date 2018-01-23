@@ -114,6 +114,11 @@
                         pw.WriteInt(EntityClass.ArmorClassInfo.RegenRate);
                         break;
 
+                    case AugmentationType.Customization:
+                        pw.WriteInt((int)AugmentationType.Customization);
+                        pw.WriteNoneStruct();
+                        break;
+
                     default:
                         Logger.WriteLog(LogType.Error, $"ItemTemplateTooltipInfoPacket:\n recived unsuported augumentationType {augumentation}");
                         break;

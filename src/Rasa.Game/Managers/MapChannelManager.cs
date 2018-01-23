@@ -51,9 +51,11 @@ namespace Rasa.Managers
 
         public MapChannelClient CreateNewMapClient(MapChannel mapChannel, Client client)
         {
-            var mapClient = new MapChannelClient();
-            mapClient.Client = client;
-            mapClient.MapChannel = mapChannel;
+            var mapClient = new MapChannelClient
+            {
+                Client = client,
+                MapChannel = mapChannel
+            };
             // register mapChannelClient
             EntityManager.Instance.RegisterEntity(mapClient.ClientEntityId, EntityType.Player);
             EntityManager.Instance.RegisterPlayer(mapClient.ClientEntityId, mapClient);
@@ -398,9 +400,9 @@ namespace Rasa.Managers
             //ClientsGameMainCount++;
         }
 
-        public void Ping(Client client)
+        public void Ping(Client client, double ping)
         {
-            // ToDo
+            client.SendPacket(5, new AckPingPacket(ping));
         }
 
         public void RemovePlayer(Client client, bool logout)
@@ -421,12 +423,9 @@ namespace Rasa.Managers
                     client.MapClient.Inventory.PersonalInventory[i] = 0;
                 }
 
-            for (var i = 0; i < 22; i++)
-                if (client.MapClient.Inventory.EquippedInventory[i] != 0)
-                {
-                    EntityManager.Instance.DestroyPhysicalEntity(client, client.MapClient.Inventory.EquippedInventory[i], EntityType.Item);
-                    client.MapClient.Inventory.EquippedInventory[i] = 0;
-                }
+            foreach (var entry in client.MapClient.Inventory.EquippedInventory)
+                if (entry.Value != 0)
+                    EntityManager.Instance.DestroyPhysicalEntity(client, entry.Value, EntityType.Item);
 
             for (var i = 0; i < 5; i++)
                 if (client.MapClient.Inventory.WeaponDrawer[i] != 0)

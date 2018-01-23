@@ -98,6 +98,12 @@
             Logger.WriteLog(LogType.Debug, "ToDo ClearTargetId");
         }
 
+        [PacketHandler(GameOpcode.GetCustomizationChoices)]
+        private void GetCustomizationChoices(GetCustomizationChoicesPacket packet)
+        {
+            PlayerManager.Instance.GetCustomizationChoices(Client, packet);
+        }
+
         [PacketHandler(GameOpcode.LevelSkills)]
         private void LevelSkills(LevelSkillsPacket packet)
         {
@@ -125,7 +131,7 @@
         [PacketHandler(GameOpcode.Ping)]
         private void Ping(PingPacket packet)
         {
-            MapChannelManager.Instance.Ping(Client);
+            MapChannelManager.Instance.Ping(Client, packet.Ping);
         }
 
         [PacketHandler(GameOpcode.RadialChat)]
@@ -150,6 +156,12 @@
         private void RequestCancelVendor(RequestCancelVendorPacket packet)
         {
             CreatureManager.Instance.RequestCancelVendor(Client, packet.EntityId);
+        }
+
+        [PacketHandler(GameOpcode.RequestCustomization)]
+        private void RequestCustomization(RequestCustomizationPacket packet)
+        {
+            PlayerManager.Instance.RequestCustomization(Client, packet);
         }
 
         [PacketHandler(GameOpcode.RequestEquipArmor)]

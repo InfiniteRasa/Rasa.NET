@@ -190,6 +190,9 @@ namespace Rasa.Managers
         public void InitCharacterInventory(MapChannelClient mapClient)
         {
             var getInventoryData = CharacterInventoryTable.GetItems(mapClient.Player.CharacterId);
+            // init equiped inventory
+            for (int i = 0; i < 21; i++)
+                mapClient.Inventory.EquippedInventory.Add(i + 1, 0);
 
             foreach (var item in getInventoryData)
             {
@@ -233,8 +236,6 @@ namespace Rasa.Managers
                     mapClient.Inventory.EquippedInventory[item.SlotId - 250] = newItem.EntityId;
                     // make the item appear on the client
                     AddItemBySlot(mapClient, InventoryType.EquipedInventory, mapClient.Inventory.EquippedInventory[item.SlotId - 250], item.SlotId - 250, false);
-                    // sendEquipementInfo to slot
-                    PlayerManager.Instance.NotifyEquipmentUpdate(mapClient, new EquipmentInfo { SlotId = item.SlotId - 250, EntityId = mapClient.Inventory.EquippedInventory[item.SlotId - 250] });
                 }
                 else if (271 < item.SlotId)
                 {
@@ -244,6 +245,8 @@ namespace Rasa.Managers
                     AddItemBySlot(mapClient, InventoryType.WeaponDrawerInventory, mapClient.Inventory.WeaponDrawer[item.SlotId - 250 - 22], item.SlotId - 250 - 22, false);
                 }
             }
+
+            PlayerManager.Instance.NotifyEquipmentUpdate(mapClient);
         }
 
         public void PersonalInventory_DestroyItem(Client client, PersonalInventory_DestroyItemPacket packet)
@@ -373,13 +376,14 @@ namespace Rasa.Managers
                 // remove item graphic if dequipped
                 var prevEquippedItem = EntityManager.Instance.GetItem(entityIdEquippedItem);
                 var equipableClassInfo = EntityClassManager.Instance.LoadedEntityClasses[prevEquippedItem.ItemTemplate.ClassId].EquipableClassInfo;
-                PlayerManager.Instance.RemoveAppearanceItem(client.MapClient.Player, (EquipmentSlots)equipableClassInfo.EquipmentSlotId);
+                PlayerManager.Instance.RemoveAppearanceItem(client.MapClient.Player, equipableClassInfo.EquipmentSlotId);
             }
             else
                 PlayerManager.Instance.SetAppearanceItem(client.MapClient.Player, itemToEquip);
-
+            
             PlayerManager.Instance.UpdateAppearance(client.MapClient);
             PlayerManager.Instance.UpdateStatsValues(client.MapClient, false);
+            PlayerManager.Instance.NotifyEquipmentUpdate(client.MapClient);
         }
 
         public void RequestEquipWeapon(Client client, RequestEquipWeaponPacket packet)
@@ -425,7 +429,7 @@ namespace Rasa.Managers
                 AddItemBySlot(client.MapClient, InventoryType.WeaponDrawerInventory, entityIdInventoryItem, destSlot, true);
             
             // Tell client that he have new weapon
-            PlayerManager.Instance.NotifyEquipmentUpdate(client.MapClient, new EquipmentInfo { SlotId = 13, EntityId = entityIdInventoryItem } );
+            PlayerManager.Instance.NotifyEquipmentUpdate(client.MapClient);
 
             if (destSlot == client.MapClient.Inventory.ActiveWeaponDrawer)
             {
