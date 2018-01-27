@@ -11,6 +11,11 @@ namespace Rasa.Packets.MapChannel.Server
 
         public List<int> Logos { get; set; }
 
+        public LogosStoneTabulaPacket(List<int> logos)
+        {
+            Logos = logos;
+        }
+
         public override void Read(PythonReader pr)
         {
         }

@@ -23,7 +23,7 @@ namespace Rasa.Game
         public LoginAccountEntry Entry { get; private set; }
         public ClientState State { get; private set; }
         public int LoadingMap { get; set; }
-        public int LoadingSlot { get; set; }
+        public uint LoadingSlot { get; set; }
         public MapChannelClient MapClient { get; set; }
         private readonly ClientPacketHandler _handler;
 
@@ -190,34 +190,35 @@ namespace Rasa.Game
         }
 
         // Cell Domain
-        public void CellSendPacket(MapChannelClient mapClient, uint entityId, PythonPacket packet)
+        public void CellSendPacket(Client client, uint entityId, PythonPacket packet)
         {
-            var mapCell = CellManager.Instance.GetCell(mapClient.MapChannel, mapClient.Player.Actor.CellLocation.CellPosX, mapClient.Player.Actor.CellLocation.CellPosY);
-            var playerCount = mapCell.PlayerNotifyList.Count;
-            var playerList = mapCell.PlayerNotifyList;
+            var mapCell = CellManager.Instance.GetCell(client.MapClient.MapChannel, client.MapClient.Player.Actor.CellLocation.CellPosX, client.MapClient.Player.Actor.CellLocation.CellPosY);
+            var clientCount = mapCell.ClientNotifyList.Count;
+            var clientList = mapCell.ClientNotifyList;
 
-            if (playerList == null  || playerCount == 0)
+            if (clientList == null  || clientCount == 0)
                 return;
 
-            foreach (var t in playerList)
-                t.Player.Client.SendPacket(entityId, packet);
+            foreach (var tempClient in clientList)
+                tempClient.SendPacket(entityId, packet);
         }
 
         // Cell Domain ignore self
-        public void CellIgnoreSelfSendPacket(MapChannelClient mapClient, uint entityId, PythonPacket packet)
+        public void CellIgnoreSelfSendPacket(Client client, uint entityId, PythonPacket packet)
         {
-            var mapCell = CellManager.Instance.GetCell(mapClient.MapChannel, mapClient.Player.Actor.CellLocation.CellPosX, mapClient.Player.Actor.CellLocation.CellPosY);
-            var playerCount = mapCell.PlayerNotifyList.Count;
-            var playerList = mapCell.PlayerNotifyList;
+            var mapCell = CellManager.Instance.GetCell(client.MapClient.MapChannel, client.MapClient.Player.Actor.CellLocation.CellPosX, client.MapClient.Player.Actor.CellLocation.CellPosY);
+            var clientCount = mapCell.ClientNotifyList.Count;
+            var clientList = mapCell.ClientNotifyList;
 
-            if (playerList == null || playerCount == 0)
+            if (clientList == null || clientCount == 0)
                 return;
 
-            foreach (var t in playerList)
+            foreach (var tempClient in clientList)
             {
-                if (t == mapClient)
+                if (tempClient == client)
                     return;
-                t.Player.Client.SendPacket(entityId, packet);
+
+                tempClient.SendPacket(entityId, packet);
             }
         }
 
@@ -243,10 +244,10 @@ namespace Rasa.Game
         }
 
         // Clients
-        public void SendPackets(List<MapChannelClient> playerList, uint entityId, PythonPacket packet)
+        public void SendPackets(List<Client> clientList, uint entityId, PythonPacket packet)
         {
-            foreach (var mapClient in playerList)
-                mapClient.Player.Client.SendPacket(entityId, packet);
+            foreach (var client in clientList)
+                client.SendPacket(entityId, packet);
         }
         
         // netMgr_sendEntityMovement    // ToDo

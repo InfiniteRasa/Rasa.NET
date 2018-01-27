@@ -11,6 +11,13 @@
         public uint EntityId { get; set; }
         public int SlotId { get; set; }
 
+        public InventoryAddItemPacket(InventoryType type, uint entityId, int slotId)
+        {
+            Type = type;
+            EntityId = entityId;
+            SlotId = slotId;
+        }
+
         public override void Read(PythonReader pr)
         {
         }

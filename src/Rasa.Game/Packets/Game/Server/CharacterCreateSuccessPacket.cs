@@ -7,10 +7,10 @@
     {
         public override GameOpcode Opcode { get; } = GameOpcode.CharacterCreateSuccess;
 
-        public int SlotNum { get; set; }
+        public uint SlotNum { get; set; }
         public string FamilyName { get; set; }
 
-        public CharacterCreateSuccessPacket(int slotNum, string familyName)
+        public CharacterCreateSuccessPacket(uint slotNum, string familyName)
         {
             SlotNum = slotNum;
             FamilyName = familyName;
@@ -23,7 +23,7 @@
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(2);
-            pw.WriteInt(SlotNum);
+            pw.WriteUInt(SlotNum);
             pw.WriteUnicodeString(FamilyName);
         }
     }

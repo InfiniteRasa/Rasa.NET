@@ -1,4 +1,6 @@
-﻿namespace Rasa.Packets.MapChannel.Server
+﻿using System.Collections.Generic;
+
+namespace Rasa.Packets.MapChannel.Server
 {
     using Data;
     using Memory;
@@ -9,7 +11,14 @@
 
         public int ActionId { get; set; }
         public int ActionArgId { get; set; }
-        public int Args { get; set; }
+        public List<int> Args { get; set; }
+
+        public PerformRecoveryPacket(int actionId, int actionArgId, List<int> args)
+        {
+            ActionId = actionId;
+            ActionArgId = actionArgId;
+            Args = args;
+        }
 
         public override void Read(PythonReader pr)
         {
@@ -17,19 +26,17 @@
 
         public override void Write(PythonWriter pw)
         {
-            if (Args != 0)
+            pw.WriteTuple(3);
+            pw.WriteInt(ActionId);
+            pw.WriteInt(ActionArgId);
+            if (Args.Count > 0)
             {
-                pw.WriteTuple(3);
-                pw.WriteInt(ActionId);
-                pw.WriteInt(ActionArgId);
-                pw.WriteInt(Args);
+                pw.WriteList(Args.Count);
+                foreach (var arg in Args)
+                    pw.WriteInt(arg);
             }
             else
-            {
-                pw.WriteTuple(2);
-                pw.WriteInt(ActionId);
-                pw.WriteInt(ActionArgId);
-            }
+                pw.WriteNoneStruct();
         }
     }
 }

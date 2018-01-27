@@ -64,6 +64,7 @@ namespace Rasa.Managers
 
             // insert into items table to get unique ItemId
             var itemId = 0U;
+
             if (crafter != "")
                 itemId = ItemsTable.CraftItem(itemTemplate.ItemTemplateId, stackSize, classInfo.ItemClassInfo.MaxHitPoints, crafter, -2139062144);
             else
@@ -99,7 +100,7 @@ namespace Rasa.Managers
             EntityManager.Instance.RegisterEntity(item.EntityId, EntityType.Item);
             EntityManager.Instance.RegisterItem(item.EntityId, item);
 
-            SendItemDataToClient(client.MapClient, item, false);
+            SendItemDataToClient(client, item, false);
 
             return item;
         }
@@ -112,12 +113,12 @@ namespace Rasa.Managers
             item.CurrentHitPoints = vendorItem.CurrentHitPoints;
             item.Color = vendorItem.Color;
 
-            SendItemDataToClient(client.MapClient, item, false);
+            SendItemDataToClient(client, item, false);
 
             return item;
         }
 
-        public Item GetItemFromTemplateId(uint itemId, uint characterId, int slotId, int itemTemplateId, int stackSize)
+        public Item GetItemFromTemplateId(uint itemId, uint characterSlot, int slotId, int itemTemplateId, int stackSize)
         {
             var itemTemplate = GetItemTemplateById(itemTemplateId);
 
@@ -126,7 +127,7 @@ namespace Rasa.Managers
 
             var item = new Item
             {
-                OwnerId = characterId,
+                OwnerId = characterSlot,
                 OwnerSlotId = slotId,
                 ItemTemplate = itemTemplate,
                 Stacksize = stackSize,
@@ -230,15 +231,15 @@ namespace Rasa.Managers
             Logger.WriteLog(LogType.Initialize, $"ItemReqs = {itemReqs.Count}, loaded = {loaded}, skipped = {skipped}");
         }
         
-        public void SendItemDataToClient(MapChannelClient mapClient, Item item, bool updateOnly)
+        public void SendItemDataToClient(Client client, Item item, bool updateOnly)
         {
             // CreatePhysicalEntity
             if(!updateOnly)
-                mapClient.Player.Client.SendPacket(5, new CreatePhysicalEntityPacket( item.EntityId, item.ItemTemplate.ClassId));
+                client.SendPacket(5, new CreatePhysicalEntityPacket( item.EntityId, item.ItemTemplate.ClassId));
 
             var classInfo = EntityClassManager.Instance.LoadedEntityClasses[item.ItemTemplate.ClassId];
             // ItemInfo
-            mapClient.Player.Client.SendPacket(item.EntityId, new ItemInfoPacket
+            client.SendPacket(item.EntityId, new ItemInfoPacket
             {
                 CurrentHitPoints = item.CurrentHitPoints,
                 MaxHitPoints = classInfo.ItemClassInfo.MaxHitPoints,
@@ -258,12 +259,12 @@ namespace Rasa.Managers
             } );
 
             // isConsumable
-            mapClient.Player.Client.SendPacket(item.EntityId, new SetConsumablePacket(classInfo.ItemClassInfo.IsConsumableFlag));
+            client.SendPacket(item.EntityId, new SetConsumablePacket(classInfo.ItemClassInfo.IsConsumableFlag));
 
             if (item.ItemTemplate.WeaponInfo != null)    // weapon
             {
                 // WeaponInfo
-                mapClient.Player.Client.SendPacket(item.EntityId, new WeaponInfoPacket
+                client.SendPacket(item.EntityId, new WeaponInfoPacket
                 {
                     WeaponName = item.ItemTemplate.WeaponInfo.WeaponName,
                     ClipSize = classInfo.WeaponClassInfo.ClipSize,
@@ -285,14 +286,14 @@ namespace Rasa.Managers
                 } );
 
                 // WeaponAmmoInfo
-                mapClient.Player.Client.SendPacket(item.EntityId, new WeaponAmmoInfoPacket(item.CurrentAmmo));
+                client.SendPacket(item.EntityId, new WeaponAmmoInfoPacket(item.CurrentAmmo));
             }
             // ArmorInfo
             if (classInfo.ArmorClassInfo != null)
-                mapClient.Player.Client.SendPacket(item.EntityId, new ArmorInfoPacket(item.CurrentHitPoints, classInfo.ItemClassInfo.MaxHitPoints));
+                client.SendPacket(item.EntityId, new ArmorInfoPacket(item.CurrentHitPoints, classInfo.ItemClassInfo.MaxHitPoints));
             
             // SetStackCount
-            mapClient.Player.Client.SendPacket(item.EntityId, new SetStackCountPacket(item.Stacksize));
+            client.SendPacket(item.EntityId, new SetStackCountPacket(item.Stacksize));
         }
     }
 }

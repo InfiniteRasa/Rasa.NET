@@ -6,36 +6,40 @@ namespace Rasa.Database.Tables.Character
 {
     public static class CharacterAbilityDrawerTable
     {
-        public static readonly MySqlCommand GetCharacterAbilitiesCommand = new MySqlCommand("SELECT abilitySlotId, abilityId, abilityLevel FROM character_abilitydrawer WHERE characterId = @CharacterId");
-        public static readonly MySqlCommand SetCharacterAbilityCommand = new MySqlCommand("INSERT INTO character_abilitydrawer (characterId, abilitySlotId, abilityId, abilityLevel) VALUES (@CharacterId, @AbilitySlotId, @AbilityId, @AbilityLevel)");
-        public static readonly MySqlCommand UpdateCharacterAbilityCommand = new MySqlCommand("UPDATE character_abilitydrawer SET abilityId = @AbilityId, abilityLevel = @AbilityLevel WHERE characterId = @CharacterId AND abilitySlotId = @AbilitySlotId");
+        private static readonly MySqlCommand GetCharacterAbilitiesCommand = new MySqlCommand("SELECT abilitySlotId, abilityId, abilityLevel FROM character_abilitydrawer WHERE accountId = @AccountId AND characterSlot = @CharacterSlot");
+        private static readonly MySqlCommand SetCharacterAbilityCommand = new MySqlCommand("INSERT INTO character_abilitydrawer (accountId, characterSlot, abilitySlotId, abilityId, abilityLevel) VALUES (@AccountId, @CharacterSlot, @AbilitySlotId, @AbilityId, @AbilityLevel)");
+        private static readonly MySqlCommand UpdateCharacterAbilityCommand = new MySqlCommand("UPDATE character_abilitydrawer SET abilityId = @AbilityId, abilityLevel = @AbilityLevel WHERE accountId = @AccountId AND characterSlot = @CharacterSlot AND abilitySlotId = @AbilitySlotId");
 
         public static void Initialize()
         {
             GetCharacterAbilitiesCommand.Connection = GameDatabaseAccess.CharConnection;
-            GetCharacterAbilitiesCommand.Parameters.Add("@CharacterId", MySqlDbType.UInt32);
+            GetCharacterAbilitiesCommand.Parameters.Add("@AccountId", MySqlDbType.UInt32);
+            GetCharacterAbilitiesCommand.Parameters.Add("@CharacterSlot", MySqlDbType.UInt32);
             GetCharacterAbilitiesCommand.Prepare();
 
             SetCharacterAbilityCommand.Connection = GameDatabaseAccess.CharConnection;
-            SetCharacterAbilityCommand.Parameters.Add("@CharacterId", MySqlDbType.UInt32);
+            SetCharacterAbilityCommand.Parameters.Add("@AccountId", MySqlDbType.UInt32);
+            SetCharacterAbilityCommand.Parameters.Add("@CharacterSlot", MySqlDbType.UInt32);
             SetCharacterAbilityCommand.Parameters.Add("@AbilitySlotId", MySqlDbType.Int32);
             SetCharacterAbilityCommand.Parameters.Add("@AbilityId", MySqlDbType.Int32);
             SetCharacterAbilityCommand.Parameters.Add("@AbilityLevel", MySqlDbType.Int32);
             SetCharacterAbilityCommand.Prepare();
 
             UpdateCharacterAbilityCommand.Connection = GameDatabaseAccess.CharConnection;
-            UpdateCharacterAbilityCommand.Parameters.Add("@CharacterId", MySqlDbType.UInt32);
+            UpdateCharacterAbilityCommand.Parameters.Add("@AccountId", MySqlDbType.UInt32);
+            UpdateCharacterAbilityCommand.Parameters.Add("@CharacterSlot", MySqlDbType.UInt32);
             UpdateCharacterAbilityCommand.Parameters.Add("@AbilitySlotId", MySqlDbType.Int32);
             UpdateCharacterAbilityCommand.Parameters.Add("@AbilityId", MySqlDbType.Int32);
             UpdateCharacterAbilityCommand.Parameters.Add("@AbilityLevel", MySqlDbType.Int32);
             UpdateCharacterAbilityCommand.Prepare();
         }
-
-        public static List<int> GetCharacterAbilities(uint characterId)
+        
+        public static List<int> GetCharacterAbilities(uint accountId, uint characterSlot)
         {
             lock (GameDatabaseAccess.CharLock)
             {
-                GetCharacterAbilitiesCommand.Parameters["@CharacterId"].Value = characterId;
+                GetCharacterAbilitiesCommand.Parameters["@AccountId"].Value = accountId;
+                GetCharacterAbilitiesCommand.Parameters["@CharacterSlot"].Value = characterSlot;
 
                 var characterAbilities = new List<int>();
                 using (var reader = GetCharacterAbilitiesCommand.ExecuteReader())
@@ -52,11 +56,12 @@ namespace Rasa.Database.Tables.Character
             }
         }
 
-        public static void SetCharacterAbility(uint characterId, int abilitySlotId, int abilityId, int abilityLevel)
+        public static void SetCharacterAbility(uint accountId, uint characterSlot, int abilitySlotId, int abilityId, int abilityLevel)
         {
             lock (GameDatabaseAccess.CharLock)
             {
-                SetCharacterAbilityCommand.Parameters["@CharacterId"].Value = characterId;
+                SetCharacterAbilityCommand.Parameters["@AccountId"].Value = accountId;
+                SetCharacterAbilityCommand.Parameters["@CharacterSlot"].Value = characterSlot;
                 SetCharacterAbilityCommand.Parameters["@AbilitySlotId"].Value = abilitySlotId;
                 SetCharacterAbilityCommand.Parameters["@AbilityId"].Value = abilityId;
                 SetCharacterAbilityCommand.Parameters["@AbilityLevel"].Value = abilityLevel;
@@ -64,16 +69,18 @@ namespace Rasa.Database.Tables.Character
             }
         }
 
-        public static void UpdateCharacterAbility(uint characterId, int abilitySlotId, int abilityId, int abilityLevel)
+        public static void UpdateCharacterAbility(uint accountId, uint characterSlot, int abilitySlotId, int abilityId, int abilityLevel)
         {
             lock (GameDatabaseAccess.CharLock)
             {
-                UpdateCharacterAbilityCommand.Parameters["@CharacterId"].Value = characterId;
+                UpdateCharacterAbilityCommand.Parameters["@AccountId"].Value = accountId;
+                UpdateCharacterAbilityCommand.Parameters["@CharacterSlot"].Value = characterSlot;
                 UpdateCharacterAbilityCommand.Parameters["@AbilitySlotId"].Value = abilitySlotId;
                 UpdateCharacterAbilityCommand.Parameters["@AbilityId"].Value = abilityId;
                 UpdateCharacterAbilityCommand.Parameters["@AbilityLevel"].Value = abilityLevel;
                 UpdateCharacterAbilityCommand.ExecuteNonQuery();
             }
         }
+        
     }
 }

@@ -3,6 +3,7 @@
 namespace Rasa.Managers
 {
     using Database.Tables.Character;
+    using Game;
     using Packets.MapChannel.Server;
     using Packets;
     using Timer;
@@ -36,7 +37,7 @@ namespace Rasa.Managers
         {
         }
 
-        public void RequestWeaponReload(MapChannelClient mapClient, Actor actor, Item weapon, int foundAmmo)
+        public void RequestWeaponReload(Client client, Actor actor, Item weapon, int foundAmmo)
         {
             weapon.CurrentAmmo = foundAmmo;
             // update ammo in database
@@ -44,9 +45,9 @@ namespace Rasa.Managers
             // send action complete packet
             QueuedActions.Add(new ActionsData
             {
-                MapClient = mapClient,
+                Client = client,
                 EntityId = actor.EntityId,
-                Packet = new PerformRecoveryPacket { ActionId = 134, ActionArgId = 1, Args = foundAmmo },
+                Packet = new PerformRecoveryPacket(134, 1, new List<int>{foundAmmo}),
                 WaitTime = weapon.ItemTemplate.WeaponInfo.ReloadTime
             });
         }
@@ -58,7 +59,7 @@ namespace Rasa.Managers
                 action.PassedTime += delta;
                 if (action.WaitTime <= action.PassedTime)
                 {
-                    action.MapClient.Player.Client.CellSendPacket(action.MapClient, action.EntityId, action.Packet);
+                    action.Client.CellSendPacket(action.Client, action.EntityId, action.Packet);
                     QueuedActions.Remove(action);
                     break;
                 }
@@ -67,7 +68,7 @@ namespace Rasa.Managers
 
         public class ActionsData
         {
-            public MapChannelClient MapClient { get; set; }
+            public Client Client { get; set; }
             public uint EntityId { get; set; }
             public PythonPacket Packet { get; set; }
             public long WaitTime { get; set; }

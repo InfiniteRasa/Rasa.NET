@@ -10,7 +10,7 @@ namespace Rasa.Packets.Game.Server
     {
         public override GameOpcode Opcode { get; } = GameOpcode.CharacterInfo;
         
-        public int SlotId { get; set; }
+        public uint SlotId { get; set; }
         public int IsSelected { get; set; }
         public BodyDataTuple BodyData { get; set; }
         public CharacterDataTuple CharacterData { get; set; }
@@ -20,6 +20,25 @@ namespace Rasa.Packets.Game.Server
         public ClanDataTupple ClanData { get; set; }
         public List<AppearanceData> AppearanceData { get; set; } = new List<AppearanceData>();
         public Color Color { get; set; }
+
+        public CharacterInfoPacket(uint slotId, int isSelected)
+        {
+            SlotId = slotId;
+            IsSelected = isSelected;
+        }
+
+        public CharacterInfoPacket(uint slotId, int isSelected, BodyDataTuple bodyData, CharacterDataTuple characterData, List<AppearanceData> appearanceData, string userName, int gameContextId, LoginDataTupple loginData, ClanDataTupple clanData)
+        {
+            SlotId = slotId;
+            IsSelected = isSelected;
+            BodyData = bodyData;
+            CharacterData = characterData;
+            AppearanceData = appearanceData;
+            UserName = userName;
+            GameContextId = gameContextId;
+            LoginData = loginData;
+            ClanData = clanData;
+        }
 
         public override void Read(PythonReader pr)
         {
@@ -31,7 +50,7 @@ namespace Rasa.Packets.Game.Server
             pw.WriteDictionary(9);
 
             pw.WriteString("SlotId");
-            pw.WriteInt(SlotId);
+            pw.WriteUInt(SlotId);
 
             pw.WriteString("IsSelected");
             pw.WriteInt(IsSelected);

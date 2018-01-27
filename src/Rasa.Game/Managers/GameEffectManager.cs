@@ -1,5 +1,6 @@
 ﻿namespace Rasa.Managers
 {
+    using Game;
     using Packets.MapChannel.Server;
     using Structures;
 
@@ -34,10 +35,10 @@
             actor.ActiveEffects.Add(gameEffect.EffectId, gameEffect);
         }
 
-        public void AttachSprint(MapChannelClient mapClient, Actor actor, int effectLevel, int duration)
+        public void AttachSprint(Client client, Actor actor, int effectLevel, int duration)
         {
-            mapClient.MapChannel.CurrentEffectId++; // generate new effectId
-            var effectId = mapClient.MapChannel.CurrentEffectId;
+            client.MapClient.MapChannel.CurrentEffectId++; // generate new effectId
+            var effectId = client.MapClient.MapChannel.CurrentEffectId;
             // effectId -> The id used to identify the effect when sending/receiving effect related data (similiar to entityId, just for effects)
             // typeId -> The id used to lookup the effect class and animation
             // level -> The sub id of the effect, some effects have multiple levels (especially the ones linked with player abilities)
@@ -51,7 +52,7 @@
             gameEffect.EffectLevel = effectLevel;
             // add to list
             AddToList(actor, gameEffect);
-            mapClient.Player.Client.CellSendPacket(mapClient, actor.EntityId, new GameEffectAttachedPacket
+            client.CellSendPacket(client, actor.EntityId, new GameEffectAttachedPacket
             {
                 EffectTypeId = gameEffect.TypeId,
                 EffectId = gameEffect.EffectId,
@@ -67,28 +68,29 @@
                 IsNegativeEffect = false
             });
             // do ability specific work
-            UpdateMovementMod(mapClient, actor);
+            UpdateMovementMod(client, actor);
         }
 
-        public void DettachEffect(MapChannelClient mapClient, Actor actor, GameEffect gameEffect)
+        public void DettachEffect(Client client, Actor actor, GameEffect gameEffect)
         {
             // inform clients (Recv_GameEffectDetached 75)
-            mapClient.Player.Client.CellSendPacket(mapClient, actor.EntityId, new GameEffectDetachedPacket { EffectId = gameEffect.EffectId });
+            client.CellSendPacket(client, actor.EntityId, new GameEffectDetachedPacket { EffectId = gameEffect.EffectId });
             // remove from list
             RemoveFromList(actor, gameEffect);
             // do ability specific work
             if (gameEffect.TypeId == 247)
-                UpdateMovementMod(mapClient, actor);
+                UpdateMovementMod(client, actor);
             // more todo..
         }
 
         public void DoWork(MapChannel mapChannel, long passedTime)
         {
-            foreach (var mapClient in mapChannel.PlayerList)
+            foreach (var client in mapChannel.ClientList)
             {
-                if (mapClient.Player == null)
+                if (client.MapClient.Player == null)
                     continue;
-                var actor = mapClient.Player.Actor;
+
+                var actor = client.MapClient.Player.Actor;
                 var gameEffect = actor.ActiveEffects;
 
                 // This need future work
@@ -99,14 +101,11 @@
                     // stop effect if too old
                     if (effect.EffectTime >= effect.Duration)
                     {
-                        DettachEffect(mapClient, actor, effect);
+                        DettachEffect(client, actor, effect);
                         break;
                     }
-
                 }
-
             }
-            
         }
         
 
@@ -115,7 +114,7 @@
             actor.ActiveEffects.Remove(gameEffect.EffectId);
         }
 
-        public void UpdateMovementMod(MapChannelClient mapClient, Actor actor)
+        public void UpdateMovementMod(Client client, Actor actor)
         {
             var movementMod = 1.0d;
             // check for sprint
@@ -131,7 +130,7 @@
                 }
             }
             // todo: other modificators?
-            mapClient.Player.Client.CellSendPacket(mapClient, actor.EntityId, new MovementModChangePacket(movementMod));
+            client.CellSendPacket(client, actor.EntityId, new MovementModChangePacket(movementMod));
         }
     }
 }

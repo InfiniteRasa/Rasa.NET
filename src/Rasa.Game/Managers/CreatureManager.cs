@@ -43,17 +43,17 @@ namespace Rasa.Managers
         }
 
         // 1 creature to n client's
-        public void CellIntroduceCreatureToClients(MapChannel mapChannel, Creature creature, List<MapChannelClient> playerList)
+        public void CellIntroduceCreatureToClients(MapChannel mapChannel, Creature creature, List<Client> clientList)
         {
-            foreach (var player in playerList)
-                CreateCreatureOnClient(player, creature);
+            foreach (var client in clientList)
+                CreateCreatureOnClient(client, creature);
         }
 
         // n creatures to 1 client
-        public void CellIntroduceCreaturesToClient(MapChannel mapChannel, MapChannelClient mapClient, List<Creature> creaturList)
+        public void CellIntroduceCreaturesToClient(MapChannel mapChannel, Client client, List<Creature> creaturList)
         {
             foreach (var creature in creaturList)
-                CreateCreatureOnClient(mapClient, creature);
+                CreateCreatureOnClient(client, creature);
         }
 
         public Creature CreateCreature(int dbId, SpawnPool spawnPool)
@@ -112,7 +112,7 @@ namespace Rasa.Managers
             return creature;
         }
 
-        public void CreateCreatureOnClient(MapChannelClient mapClient, Creature creature)
+        public void CreateCreatureOnClient(Client client, Creature creature)
 
         {
             if (creature == null)
@@ -134,11 +134,11 @@ namespace Rasa.Managers
                 new IsRunningPacket(false)
         };
 
-            mapClient.Player.Client.SendPacket(5, new CreatePhysicalEntityPacket(creature.Actor.EntityId, creature.ClassId, entityData));
+            client.SendPacket(5, new CreatePhysicalEntityPacket(creature.Actor.EntityId, creature.ClassId, entityData));
 
             // NPC  & Vendor augmentation
             if (creature.NpcData != null || creature.VendorData != null)
-                UpdateConversationStatus(mapClient.Client, creature);
+                UpdateConversationStatus(client, creature);
         }
 
         public Creature FindCreature(int creatureId)
@@ -262,7 +262,7 @@ namespace Rasa.Managers
 
             if (client.MapClient.Player.Missions.Count > 30)
             {
-                CommunicatorManager.Instance.SystemMessage(client.MapClient, "Mission log is full.");
+                CommunicatorManager.Instance.SystemMessage(client, "Mission log is full.");
                 return;
             }
 
@@ -570,7 +570,7 @@ namespace Rasa.Managers
             client.SendPacket(9, new RemoveBuybackItemPacket((uint)packet.ItemEntityId));
 
             var buyBackItem = EntityManager.Instance.GetItem((uint)packet.ItemEntityId);
-            var buyedItem = InventoryManager.Instance.AddItemToInventory(client.MapClient, buyBackItem);
+            var buyedItem = InventoryManager.Instance.AddItemToInventory(client, buyBackItem);
             var buyPrice = buyedItem.Stacksize * buyedItem.ItemTemplate.SellPrice;
             // remove credits
             PlayerManager.Instance.GainCredits(client, -buyPrice);
@@ -605,7 +605,7 @@ namespace Rasa.Managers
             var tempItem = boughtItem;
             var desiredStacksize = tempItem.Stacksize;
 
-            boughtItem = InventoryManager.Instance.AddItemToInventory(client.MapClient, boughtItem);
+            boughtItem = InventoryManager.Instance.AddItemToInventory(client, boughtItem);
 
             if (boughtItem == null)
             {
@@ -642,7 +642,7 @@ namespace Rasa.Managers
                 // remove player credits
                 PlayerManager.Instance.GainCredits(client, -(int)Math.Round(cost, 0));
                 // updateItem on client
-                ItemManager.Instance.SendItemDataToClient(client.MapClient, item, true);
+                ItemManager.Instance.SendItemDataToClient(client, item, true);
                 // updare item in db
                 ItemsTable.UpdateCurrentHitPoints(item.ItemId, item.CurrentHitPoints);
             }
@@ -687,7 +687,7 @@ namespace Rasa.Managers
             // remove item
             // todo: Handle stacksizes correctly and only decrease item by quantity parameter
             InventoryManager.Instance.RemoveItemBySlot(client, InventoryType.Personal, slotIndex);
-            CharacterInventoryTable.DeleteInvItem(client.MapClient.Player.CharacterId, slotIndex);
+            CharacterInventoryTable.DeleteInvItem(client.Entry.Id, client.MapClient.Player.CharacterSlot, (int)InventoryType.Personal, slotIndex);
             // add credits to player
             PlayerManager.Instance.GainCredits(client, (int)sellPrice);
             // add item to buyback list

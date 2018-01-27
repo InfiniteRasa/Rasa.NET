@@ -8,7 +8,6 @@ namespace Rasa.Structures
     {
         // ToDo
         public MapInfo MapInfo { get; set; }
-        public Dictionary<int, MapChannelClient> SocketToClient { get; set; }
         // timers
         //public int TimerClientEffectUpdate { get; set; }
         //public int TimerMissileUpdate { get; set; }
@@ -19,7 +18,7 @@ namespace Rasa.Structures
         // player
         //public int PlayerCount { get; set; }
         public int PlayerLimit { get; set; }
-        public List<MapChannelClient> PlayerList { get; set; }
+        public List<Client> ClientList { get; set; }
         // queue
         public readonly Queue<Client> QueuedClients = new Queue<Client>();
         public readonly Queue<PerformAbilityData> QueuedPerformAbilities = new Queue<PerformAbilityData>();

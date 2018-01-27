@@ -1,6 +1,7 @@
 ﻿namespace Rasa.Managers
 {
     using Data;
+    using Game;
     using Structures;
 
     public class CellManager
@@ -56,38 +57,38 @@
                 //hashTable_set(&mapCell->ht_creatureList, creature->actor.entityId, creature);
                 mapCell.CreatureList.Add(creature);
                 // notify all players of object
-                if (mapCell.PlayerNotifyList.Count > 0)
-                    CreatureManager.Instance.CellIntroduceCreatureToClients(mapChannel, creature, mapCell.PlayerNotifyList);
+                if (mapCell.ClientNotifyList.Count > 0)
+                    CreatureManager.Instance.CellIntroduceCreatureToClients(mapChannel, creature, mapCell.ClientNotifyList);
             }
         }
 
         // Player
-        public void AddToWorld(MapChannelClient mapClient)
+        public void AddToWorld(Client client)
         {
-            if (mapClient.Player == null)
+            if (client.MapClient.Player == null)
                 return;
 
-            var mapChannel = mapClient.MapChannel;
-            CellPosX = (uint) (mapClient.Player.Actor.Position.PosX/CellSize + CellBias);
-            CellPosY = (uint) (mapClient.Player.Actor.Position.PosY/CellSize + CellBias);
+            var mapChannel = client.MapClient.MapChannel;
+            CellPosX = (uint) (client.MapClient.Player.Actor.Position.PosX/CellSize + CellBias);
+            CellPosY = (uint) (client.MapClient.Player.Actor.Position.PosY/CellSize + CellBias);
 
             // calculate initial cell
-            mapClient.Player.Actor.CellLocation.CellPosX = CellPosX;
-            mapClient.Player.Actor.CellLocation.CellPosY = CellPosY;
+            client.MapClient.Player.Actor.CellLocation.CellPosX = CellPosX;
+            client.MapClient.Player.Actor.CellLocation.CellPosY = CellPosY;
             
             // get cell
             var mapCell = GetCell(mapChannel, CellPosX, CellPosY);
             if (mapCell != null)
             {
                 // register player in cell
-                mapCell.PlayerList.Add(mapClient);
+                mapCell.ClientList.Add(client);
                 // register notifications in visible area
                 for (var ix = CellPosX - CellViewRange; ix <= CellPosX + CellViewRange; ix++)
                 {
                     for (var iy = CellPosY - CellViewRange; iy <= CellPosY + CellViewRange; iy++)
                     {
                         var nMapCell = GetCell(mapChannel, ix, iy);
-                        nMapCell?.PlayerNotifyList.Add(mapClient);
+                        nMapCell?.ClientNotifyList.Add(client);
                         // notify me about all objects that are visible to the cell
                         //if (nMapCell.ObjectList.Count > 0)
                         //{
@@ -96,15 +97,15 @@
 
                         // notify me about all creatures that are visible to the cell
                         if (nMapCell.CreatureList.Count > 0)
-                            CreatureManager.Instance.CellIntroduceCreaturesToClient(mapChannel, mapClient, mapCell.CreatureList);
+                            CreatureManager.Instance.CellIntroduceCreaturesToClient(mapChannel, client, mapCell.CreatureList);
                     }
                 }
-                if (mapCell.PlayerNotifyList.Count > 0)
+                if (mapCell.ClientNotifyList.Count > 0)
                 {
                     // notify all players of me, including me
-                    PlayerManager.Instance.CellIntroduceClientToPlayers(mapClient, mapCell.PlayerNotifyList);
+                    PlayerManager.Instance.CellIntroduceClientToPlayers(client, mapCell.ClientNotifyList);
                     // notify me about all players that are visible here
-                    PlayerManager.Instance.CellIntroducePlayersToClient(mapChannel, mapClient, mapCell.PlayerNotifyList);
+                    PlayerManager.Instance.CellIntroducePlayersToClient(client, mapCell.ClientNotifyList);
                 }
             }
         }
@@ -145,10 +146,10 @@
 
         }
 
-        public void RemoveFromWorld(MapChannelClient mapClient)
+        public void RemoveFromWorld(Client client)
         {
-            var mapChannel = mapClient.MapChannel;
-            var player = mapClient.Player;
+            var mapChannel = client.MapClient.MapChannel;
+            var player = client.MapClient.Player;
             var actor = player.Actor;
 
             if (player == null)
@@ -158,40 +159,43 @@
             var oldX2 = actor.CellLocation.CellPosX + CellViewRange;
             var oldY1 = actor.CellLocation.CellPosY - CellViewRange;
             var oldY2 = actor.CellLocation.CellPosY + CellViewRange;
+
             for (var ix = oldX1; ix <=oldX2; ix++)
             {
                 for (var iy = oldY1; iy <= oldY2; iy++)
                 {
                     var nMapCell = GetCell(mapChannel, ix, iy);
+
                     if (nMapCell != null)
                     {
                         // remove notify entry
-                        for (var i = 0; i < nMapCell.PlayerNotifyList.Count; i++)
-                        {
-                            if (nMapCell.PlayerNotifyList[i] == mapClient)
+                        for (int i = nMapCell.ClientNotifyList.Count - 1; i >= 0; i--)
+                            if (nMapCell.ClientNotifyList[i] == client)
                             {
-                                nMapCell.PlayerNotifyList.RemoveAt(i);
+                                nMapCell.ClientNotifyList.RemoveAt(i);
                                 break;
                             }
-                        }
+
                         // remove player visibility client-side
-                        if (nMapCell.PlayerNotifyList.Count > 0)
+                        if (nMapCell.ClientNotifyList.Count > 0)
                         {
-                            PlayerManager.Instance.CellDiscardClientToPlayers(mapClient, nMapCell.PlayerNotifyList);
-                            PlayerManager.Instance.CellDiscardPlayersToClient(mapClient, nMapCell.PlayerNotifyList);
+                            PlayerManager.Instance.CellDiscardClientToPlayers(client, nMapCell.ClientNotifyList);
+                            PlayerManager.Instance.CellDiscardPlayersToClient(client, nMapCell.ClientNotifyList);
                         }
                     }
                 }
             }
+
             var mapCell = GetCell(mapChannel, actor.CellLocation.CellPosX, actor.CellLocation.CellPosY);
+
             if (mapCell != null)
             {
-                var count = mapCell.PlayerNotifyList.Count;
+                var count = mapCell.ClientNotifyList.Count;
                 for (var i = 0; i < count; i++)
                 {
-                    if (mapCell.PlayerNotifyList[i] == mapClient)
+                    if (mapCell.ClientNotifyList[i] == client)
                     {
-                        mapCell.PlayerNotifyList.RemoveAt(i);
+                        mapCell.ClientNotifyList.RemoveAt(i);
                         break;
                     }
                 }
@@ -213,21 +217,21 @@
 
         public void UpdateVisibility(MapChannel mapChannel)
         {
-            for (var i = 0; i < mapChannel.PlayerList.Count; i++)
+            for (var i = 0; i < mapChannel.ClientList.Count; i++)
             {
-                var mapClient = mapChannel.PlayerList[i];
-                if (mapClient.Disconected || mapClient.Player == null)
+                var client = mapChannel.ClientList[i];
+                if (client.MapClient.Disconected || client.MapClient.Player == null)
                     continue;
 
-                var cellPosX = (uint)(mapClient.Player.Actor.Position.PosX / CellSize + CellBias);
-                var cellPosY = (uint)(mapClient.Player.Actor.Position.PosY / CellSize + CellBias);
-                if (mapClient.Player.Actor.CellLocation.CellPosX != cellPosX ||
-                    mapClient.Player.Actor.CellLocation.CellPosY != cellPosY)
+                var cellPosX = (uint)(client.MapClient.Player.Actor.Position.PosX / CellSize + CellBias);
+                var cellPosY = (uint)(client.MapClient.Player.Actor.Position.PosY / CellSize + CellBias);
+                if (client.MapClient.Player.Actor.CellLocation.CellPosX != cellPosX ||
+                    client.MapClient.Player.Actor.CellLocation.CellPosY != cellPosY)
                 {
-                    var oldX1 = mapClient.Player.Actor.CellLocation.CellPosX - CellViewRange;
-                    var oldX2 = mapClient.Player.Actor.CellLocation.CellPosX + CellViewRange;
-                    var oldY1 = mapClient.Player.Actor.CellLocation.CellPosY - CellViewRange;
-                    var oldY2 = mapClient.Player.Actor.CellLocation.CellPosY + CellViewRange;
+                    var oldX1 = client.MapClient.Player.Actor.CellLocation.CellPosX - CellViewRange;
+                    var oldX2 = client.MapClient.Player.Actor.CellLocation.CellPosX + CellViewRange;
+                    var oldY1 = client.MapClient.Player.Actor.CellLocation.CellPosY - CellViewRange;
+                    var oldY2 = client.MapClient.Player.Actor.CellLocation.CellPosY + CellViewRange;
                     // find players that leave visibility range
                     for (var ix = oldX1; ix <= oldX2; ix++)
                     {
@@ -240,20 +244,18 @@
                             if (nMapCell != null)
                             {
                                 // remove notify entry
-                                var count = nMapCell.PlayerNotifyList.Count;
-                                for (var j = 0; j < count; j++)
-                                {
-                                    if (nMapCell.PlayerNotifyList[j] == mapClient)
+                                for (int j = nMapCell.ClientNotifyList.Count - 1; i >= 0; i--)
+                                    if (nMapCell.ClientNotifyList[j] == client)
                                     {
-                                        nMapCell.PlayerNotifyList.RemoveAt(j);
+                                        nMapCell.ClientNotifyList.RemoveAt(j);
                                         break;
                                     }
-                                }
+
                                 // remove player visibility client-side
-                                if (nMapCell.PlayerNotifyList.Count > 0)
+                                if (nMapCell.ClientNotifyList.Count > 0)
                                 {
-                                    PlayerManager.Instance.CellDiscardClientToPlayers(mapClient, nMapCell.PlayerNotifyList);
-                                    PlayerManager.Instance.CellDiscardPlayersToClient(mapClient, nMapCell.PlayerNotifyList);
+                                    PlayerManager.Instance.CellDiscardClientToPlayers(client, nMapCell.ClientNotifyList);
+                                    PlayerManager.Instance.CellDiscardPlayersToClient(client, nMapCell.ClientNotifyList);
                                 }
                                 // remove object visibility
                                // if (nMapCell->ht_objectList.empty() == false)
@@ -275,12 +277,12 @@
                             if (nnMapCell != null)
                             {
                                 // add player visibility client-side
-                                if (nnMapCell.PlayerNotifyList.Count > 0)
+                                if (nnMapCell.ClientNotifyList.Count > 0)
                                 {
                                     // notify all players of me
-                                    PlayerManager.Instance.CellIntroduceClientToPlayers(mapClient, nnMapCell.PlayerNotifyList);
+                                    PlayerManager.Instance.CellIntroduceClientToPlayers(client, nnMapCell.ClientNotifyList);
                                     // notify me about all players that are visible here
-                                    PlayerManager.Instance.CellIntroducePlayersToClient(mapChannel, mapClient, nnMapCell.PlayerNotifyList);
+                                    PlayerManager.Instance.CellIntroducePlayersToClient(client, nnMapCell.ClientNotifyList);
                                 }
                                 //if (nMapCell.ObjectList > 0)
                                 //    dynamicObject_cellIntroduceObjectsToClient(mapChannel, client, &nMapCell->ht_objectList[0], nMapCell->ht_objectList.size());
@@ -291,23 +293,23 @@
                         }
                     }
                     // move the player entry
-                    var mapCell = GetCell(mapChannel, mapClient.Player.Actor.CellLocation.CellPosX, mapClient.Player.Actor.CellLocation.CellPosX);
+                    var mapCell = GetCell(mapChannel, client.MapClient.Player.Actor.CellLocation.CellPosX, client.MapClient.Player.Actor.CellLocation.CellPosX);
+
                     if (mapCell != null)
                     {
-                        var count = mapCell.PlayerNotifyList.Count;
-                        for (var k = 0; k < count; k++)
-                        {
-                            if (mapCell.PlayerNotifyList[k] == mapClient)
+                        var count = mapCell.ClientNotifyList.Count;
+
+                        for (int k = count - 1; i >= 0; i--)
+                            if (mapCell.ClientNotifyList[k] == client)
                             {
-                                mapCell.PlayerNotifyList.RemoveAt(k);
+                                mapCell.ClientNotifyList.RemoveAt(k);
                                 break;
                             }
-                        }
                     }
 
                     // update location
-                    mapClient.Player.Actor.CellLocation.CellPosX = cellPosX;
-                    mapClient.Player.Actor.CellLocation.CellPosY = cellPosY;
+                    client.MapClient.Player.Actor.CellLocation.CellPosX = cellPosX;
+                    client.MapClient.Player.Actor.CellLocation.CellPosY = cellPosY;
                 }
             }
         }

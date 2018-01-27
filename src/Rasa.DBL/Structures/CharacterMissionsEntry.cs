@@ -5,7 +5,7 @@ namespace Rasa.Structures
 {
     public class CharacterMissionsEntry
     {
-        public int Characterid { get; set; }
+        public int CharacterSlot { get; set; }
         public int MissionId { get; set; }
         public short MissionState { get; set; }
 
@@ -13,7 +13,7 @@ namespace Rasa.Structures
         {
             return new CharacterMissionsEntry
             {
-                Characterid = reader.GetInt32("characterid"),
+                CharacterSlot = reader.GetInt32("characterSlot"),
                 MissionId = reader.GetInt32("missionId"),
                 MissionState = reader.GetInt16("missionState")
             };

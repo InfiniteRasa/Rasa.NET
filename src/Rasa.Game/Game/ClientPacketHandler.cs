@@ -98,10 +98,29 @@
             Logger.WriteLog(LogType.Debug, "ToDo ClearTargetId");
         }
 
+        [PacketHandler(GameOpcode.ClearTrackingTarget)]
+        private void ClearTrackingTarget(ClearTrackingTargetPacket packet)
+        {
+            PlayerManager.Instance.ClearTrackingTarget(Client, packet);
+        }
+
+
         [PacketHandler(GameOpcode.GetCustomizationChoices)]
         private void GetCustomizationChoices(GetCustomizationChoicesPacket packet)
         {
             PlayerManager.Instance.GetCustomizationChoices(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.HomeInventory_DestroyItem)]
+        private void HomeInventory_DestroyItem(HomeInventory_DestroyItemPacket packet)
+        {
+            InventoryManager.Instance.HomeInventory_DestroyItem(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.HomeInventory_MoveItem)]
+        private void HomeInventory_MoveItem(HomeInventory_MoveItemPacket packet)
+        {
+            InventoryManager.Instance.HomeInventory_MoveItem(Client, packet);
         }
 
         [PacketHandler(GameOpcode.LevelSkills)]
@@ -134,10 +153,22 @@
             MapChannelManager.Instance.Ping(Client, packet.Ping);
         }
 
+        [PacketHandler(GameOpcode.PurchaseLockboxTab)]
+        private void PurchaseLockboxTab(PurchaseLockboxTabPacket packet)
+        {
+            PlayerManager.Instance.PurchaseLockboxTab(Client, packet);
+        }
+
         [PacketHandler(GameOpcode.RadialChat)]
         private void RadialChat(RadialChatPacket packet)
         {
             CommunicatorManager.Instance.Recv_RadialChat(Client, packet.TextMsg);
+        }
+
+        [PacketHandler(GameOpcode.RequestActionInterrupt)]
+        private void RequestActionInterrupt(RequestActionInterruptPacket packet)
+        {
+            PlayerManager.Instance.RequestActionInterrupt(Client, packet);
         }
 
         [PacketHandler(GameOpcode.RequestArmAbility)]
@@ -176,10 +207,22 @@
             InventoryManager.Instance.RequestEquipWeapon(Client, packet);
         }
 
+        [PacketHandler(GameOpcode.RequestLockboxTabPermissions)]
+        private void RequestLockboxTabPermissions(RequestLockboxTabPermissionsPacket packet)
+        {
+            InventoryManager.Instance.RequestLockboxTabPermissions(Client);
+        }
+
         [PacketHandler(GameOpcode.RequestLogout)]
         private void RequestLogout(RequestLogoutPacket packet)
         {
             MapChannelManager.Instance.RequestLogout(Client);
+        }
+
+        [PacketHandler(GameOpcode.RequestMoveItemToHomeInventory)]
+        private void RequRequestMoveItemToHomeInventoryestLogout(RequestMoveItemToHomeInventoryPacket packet)
+        {
+            InventoryManager.Instance.RequestMoveItemToHomeInventory(Client, packet);
         }
 
         [PacketHandler(GameOpcode.RequestNPCConverse)]
@@ -206,10 +249,22 @@
             PlayerManager.Instance.RequestPerformAbility(Client, packet);
         }
 
+        [PacketHandler(GameOpcode.RequestSetAbilitySlot)]
+        private void RequestSetAbilitySlot(RequestSetAbilitySlotPacket packet)
+        {
+            PlayerManager.Instance.RequestSetAbilitySlot(Client, packet);
+        }
+
         [PacketHandler(GameOpcode.RequestSwapAbilitySlots)]
         private void RequestSwapAbilitySlots(RequestSwapAbilitySlotsPacket packet)
         {
             PlayerManager.Instance.RequestSwapAbilitySlots(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.RequestTakeItemFromHomeInventory)]
+        private void RequestTakeItemFromHomeInventory(RequestTakeItemFromHomeInventoryPacket packet)
+        {
+            InventoryManager.Instance.RequestTakeItemFromHomeInventory(Client, packet);
         }
 
         [PacketHandler(GameOpcode.RequestToggleRun)]
@@ -230,10 +285,10 @@
             InventoryManager.Instance.RequestTooltipForModuleId(Client, packet.ModuleId);
         }
 
-        [PacketHandler(GameOpcode.RequestSetAbilitySlot)]
-        private void RequestSetAbilitySlot(RequestSetAbilitySlotPacket packet)
+        [PacketHandler(GameOpcode.RequestUseObject)]
+        private void RequestUseObject(RequestUseObjectPacket packet)
         {
-            PlayerManager.Instance.RequestSetAbilitySlot(Client, packet);
+            DynamicObjectManager.Instance.RequestUseObjectPacket(Client, packet);
         }
 
         [PacketHandler(GameOpcode.RequestVendorBuyback)]
@@ -314,6 +369,12 @@
             Logger.WriteLog(LogType.Debug, "ToDo SetTargetId");
         }
 
+        [PacketHandler(GameOpcode.SetTrackingTarget)]
+        private void SetTrackingTarget(SetTrackingTargetPacket packet)
+        {
+            PlayerManager.Instance.SetTrackingTarget(Client, packet);
+        }
+
         [PacketHandler(GameOpcode.StartAutoFire)]
         private void StartAutoFire(StartAutoFirePacket packet)
         {
@@ -324,6 +385,12 @@
         private void StopAutoFire(StopAutoFirePacket packet)
         {
             Logger.WriteLog(LogType.Debug, "ToDo StopAutoFire");
+        }
+
+        [PacketHandler(GameOpcode.TransferCreditToLockbox)]
+        private void TransferCreditToLockbox(TransferCreditToLockboxPacket packet)
+        {
+            InventoryManager.Instance.TransferCreditToLockbox(Client, packet.Ammount);
         }
 
         [PacketHandler(GameOpcode.WeaponDrawerInventory_MoveItem)]

@@ -55,7 +55,7 @@ namespace Rasa.Managers
                 client.SendPacket(5, new CreatePhysicalEntityPacket(101 + (uint)i, 3543));
 
             for (var i = 0; i < 16; ++i)
-                SendCharacterInfo(client, i);
+                SendCharacterInfo(client, (uint)i);
         }
 
         public void RequestCharacterName(Client client, int gender)
@@ -77,41 +77,42 @@ namespace Rasa.Managers
         public void RequestCreateCharacterInSlot(Client client, RequestCreateCharacterInSlotPacket packet)
         {
             var result = CheckName(client, packet);
+
             if (result != CreateCharacterResult.Success)
             {
                 SendCharacterCreateFailed(client, result);
                 return;
             }
             // insert character into DB
-            var characterId = CharacterTable.CreateCharacter(client.Entry.Id, packet.CharacterName, packet.FamilyName, packet.SlotNum, packet.Gender, packet.Scale, packet.RaceId);
+            CharacterTable.CreateCharacter(client.Entry.Id, packet.SlotNum, packet.CharacterName, packet.FamilyName, packet.Gender, packet.Scale, packet.RaceId);
             // Give character basic items
-            CharacterInventoryTable.AddInvItem(characterId, 50, ItemsTable.CreateItem(28, 100, EntityClassManager.Instance.LoadedEntityClasses[ItemManager.Instance.ItemTemplateItemClass[28]].ItemClassInfo.MaxHitPoints, -2139062144));
-            CharacterInventoryTable.AddInvItem(characterId, 251, ItemsTable.CreateItem(13126, 1, EntityClassManager.Instance.LoadedEntityClasses[ItemManager.Instance.ItemTemplateItemClass[13126]].ItemClassInfo.MaxHitPoints, -2139062144));
-            CharacterInventoryTable.AddInvItem(characterId, 252, ItemsTable.CreateItem(13066, 1, EntityClassManager.Instance.LoadedEntityClasses[ItemManager.Instance.ItemTemplateItemClass[13066]].ItemClassInfo.MaxHitPoints, -2139062144));
-            CharacterInventoryTable.AddInvItem(characterId, 253, ItemsTable.CreateItem(13096, 1, EntityClassManager.Instance.LoadedEntityClasses[ItemManager.Instance.ItemTemplateItemClass[13096]].ItemClassInfo.MaxHitPoints, -2139062144));
-            CharacterInventoryTable.AddInvItem(characterId, 265, ItemsTable.CreateItem(13186, 1, EntityClassManager.Instance.LoadedEntityClasses[ItemManager.Instance.ItemTemplateItemClass[13186]].ItemClassInfo.MaxHitPoints, -2139062144));
-            CharacterInventoryTable.AddInvItem(characterId, 266, ItemsTable.CreateItem(13156, 1, EntityClassManager.Instance.LoadedEntityClasses[ItemManager.Instance.ItemTemplateItemClass[13156]].ItemClassInfo.MaxHitPoints, -2139062144));
-            CharacterInventoryTable.AddInvItem(characterId, 0, ItemsTable.CreateItem(17131, 1, EntityClassManager.Instance.LoadedEntityClasses[ItemManager.Instance.ItemTemplateItemClass[17131]].ItemClassInfo.MaxHitPoints, -2139062144));
+            CharacterInventoryTable.AddInvItem(client.Entry.Id, packet.SlotNum, (int)InventoryType.Personal, 0, ItemsTable.CreateItem(17131, 1, EntityClassManager.Instance.LoadedEntityClasses[ItemManager.Instance.ItemTemplateItemClass[17131]].ItemClassInfo.MaxHitPoints, -2139062144));
+            CharacterInventoryTable.AddInvItem(client.Entry.Id, packet.SlotNum, (int)InventoryType.Personal, 50, ItemsTable.CreateItem(28, 100, EntityClassManager.Instance.LoadedEntityClasses[ItemManager.Instance.ItemTemplateItemClass[28]].ItemClassInfo.MaxHitPoints, -2139062144));
+            CharacterInventoryTable.AddInvItem(client.Entry.Id, packet.SlotNum, (int)InventoryType.EquipedInventory, 1, ItemsTable.CreateItem(13126, 1, EntityClassManager.Instance.LoadedEntityClasses[ItemManager.Instance.ItemTemplateItemClass[13126]].ItemClassInfo.MaxHitPoints, -2139062144));
+            CharacterInventoryTable.AddInvItem(client.Entry.Id, packet.SlotNum, (int)InventoryType.EquipedInventory, 2, ItemsTable.CreateItem(13066, 1, EntityClassManager.Instance.LoadedEntityClasses[ItemManager.Instance.ItemTemplateItemClass[13066]].ItemClassInfo.MaxHitPoints, -2139062144));
+            CharacterInventoryTable.AddInvItem(client.Entry.Id, packet.SlotNum, (int)InventoryType.EquipedInventory, 3, ItemsTable.CreateItem(13096, 1, EntityClassManager.Instance.LoadedEntityClasses[ItemManager.Instance.ItemTemplateItemClass[13096]].ItemClassInfo.MaxHitPoints, -2139062144));
+            CharacterInventoryTable.AddInvItem(client.Entry.Id, packet.SlotNum, (int)InventoryType.EquipedInventory, 15, ItemsTable.CreateItem(13186, 1, EntityClassManager.Instance.LoadedEntityClasses[ItemManager.Instance.ItemTemplateItemClass[13186]].ItemClassInfo.MaxHitPoints, -2139062144));
+            CharacterInventoryTable.AddInvItem(client.Entry.Id, packet.SlotNum, (int)InventoryType.EquipedInventory, 16, ItemsTable.CreateItem(13156, 1, EntityClassManager.Instance.LoadedEntityClasses[ItemManager.Instance.ItemTemplateItemClass[13156]].ItemClassInfo.MaxHitPoints, -2139062144));
             // Set character appearance
-            CharacterAppearanceTable.SetAppearance(characterId, (int)EquipmentSlots.Helmet, 10908, -2139062144);
-            CharacterAppearanceTable.SetAppearance(characterId, (int)EquipmentSlots.Shoes, 7054, -2139062144);
-            CharacterAppearanceTable.SetAppearance(characterId, (int)EquipmentSlots.Gloves, 10909, -2139062144);
-            CharacterAppearanceTable.SetAppearance(characterId, (int)EquipmentSlots.Torso, 7052, -2139062144);
-            CharacterAppearanceTable.SetAppearance(characterId, (int)EquipmentSlots.Legs, 7053, -2139062144);
+            CharacterAppearanceTable.SetAppearance(client.Entry.Id, packet.SlotNum, (int)EquipmentSlots.Helmet, 10908, -2139062144);
+            CharacterAppearanceTable.SetAppearance(client.Entry.Id, packet.SlotNum, (int)EquipmentSlots.Shoes, 7054, -2139062144);
+            CharacterAppearanceTable.SetAppearance(client.Entry.Id, packet.SlotNum, (int)EquipmentSlots.Gloves, 10909, -2139062144);
+            CharacterAppearanceTable.SetAppearance(client.Entry.Id, packet.SlotNum, (int)EquipmentSlots.Torso, 7052, -2139062144);
+            CharacterAppearanceTable.SetAppearance(client.Entry.Id, packet.SlotNum, (int)EquipmentSlots.Legs, 7053, -2139062144);
             foreach (var t in packet.AppearanceData)
             {
                 var v = t.Value;
-                CharacterAppearanceTable.SetAppearance(characterId, (int)v.SlotId, StarterItemsTable.GetClassId(v.ClassId), v.Color.Hue);
+                CharacterAppearanceTable.SetAppearance(client.Entry.Id, packet.SlotNum, (int)v.SlotId, StarterItemsTable.GetClassId(v.ClassId), v.Color.Hue);
             }
             // Create default entry in CharacterAbilitiesTable
             for (var i = 0; i < 25; i++)
-                CharacterAbilityDrawerTable.SetCharacterAbility(characterId, i, 0, 0);
+                CharacterAbilityDrawerTable.SetCharacterAbility(client.Entry.Id, packet.SlotNum, i, 0, 0);
 
             SendCharacterCreateSuccess(client, packet.SlotNum, packet.FamilyName);
             UpdateCharacterSelection(client, packet.SlotNum);
         }
 
-        public void RequestDeleteCharacterInSlot(Client client, int slotNum )
+        public void RequestDeleteCharacterInSlot(Client client, uint slotNum )
         {
             CharacterTable.DeleteCharacter(client.Entry.Id, slotNum);
 
@@ -120,7 +121,7 @@ namespace Rasa.Managers
             UpdateCharacterSelection(client, slotNum);
         }
 
-        public void RequestSwitchToCharacterInSlot(Client client, int slotNum)
+        public void RequestSwitchToCharacterInSlot(Client client, uint slotNum)
         {
             if (slotNum < 1 || slotNum > 16)
                 return;
@@ -149,26 +150,27 @@ namespace Rasa.Managers
             MapChannelManager.Instance.PassClientToMapChannel(client, mapChannel);
         }
 
-        private void SendCharacterInfo(Client client, int slotNum)
+        private void SendCharacterInfo(Client client, uint slotNum)
         {
             var data = CharacterTable.GetCharacterData(client.Entry.Id, slotNum + 1);
+
             if (data != null)
             {
                 var tempAppearanceData = new List<AppearanceData>();
-                var appearance = CharacterAppearanceTable.GetAppearance(data.CharacterId);
+                var appearance = CharacterAppearanceTable.GetAppearance(client.Entry.Id, slotNum + 1);
                 foreach (var t in appearance)
                     tempAppearanceData.Add(new AppearanceData { SlotId = (EquipmentSlots)t.SlotId, ClassId = t.ClassId, Color = new Color(t.Color) });
 
-                client.SendPacket(101 + (uint)slotNum, new CharacterInfoPacket
-                {
-                    SlotId = data.SlotId,
-                    IsSelected = 1,
-                    BodyData = new BodyDataTuple
+                client.SendPacket(101U + slotNum, new CharacterInfoPacket
+                (
+                    slotNum + 1,
+                    1,
+                    new BodyDataTuple
                     {
                         GenderClassId = data.Gender == 0 ? 692 : 691,
                         Scale = data.Scale
                     },
-                    CharacterData = new CharacterDataTuple
+                    new CharacterDataTuple
                     {
                         Name = data.Name,
                         MapContextId = data.MapContextId,
@@ -181,24 +183,24 @@ namespace Rasa.Managers
                         CloneCredits = data.CloneCredits,
                         RaceId = data.RaceId
                     },
-                    AppearanceData = tempAppearanceData,
-                    UserName = data.FamilyName,
-                    GameContextId = data.MapContextId,
-                    LoginData = new LoginDataTupple
+                    tempAppearanceData,
+                    data.FamilyName,
+                    data.MapContextId,
+                    new LoginDataTupple
                     {
                         NumLogins = data.NumLogins,
                         TotalTimePlayed = data.TotalTimePlayed,
                         TimeSinceLastPlayed = data.TimeSinceLastPlayed
                     },
-                    ClanData = new ClanDataTupple
+                    new ClanDataTupple
                     {
                         ClanId = data.ClanId,
                         ClanName = data.ClanName
                     }
-                });
+                ));
             }
             else
-                client.SendPacket(101 + (uint)slotNum, new CharacterInfoPacket { SlotId = slotNum + 1, IsSelected = 0 });
+                client.SendPacket(101 + slotNum, new CharacterInfoPacket(slotNum + 1, 0));
         }
 
         private void SendCharacterCreateFailed(Client client, CreateCharacterResult result)
@@ -206,7 +208,7 @@ namespace Rasa.Managers
             client.SendPacket(5, new UserCreationFailedPacket(result));
         }
 
-        private void SendCharacterCreateSuccess(Client client, int slotNum, string familyName)
+        private void SendCharacterCreateSuccess(Client client, uint slotNum, string familyName)
         {
             client.SendPacket(5, new CharacterCreateSuccessPacket(slotNum, familyName));
         }
@@ -222,7 +224,7 @@ namespace Rasa.Managers
             if (CharacterTable.IsNameAvailable(packet.CharacterName) == packet.CharacterName)
                 return CreateCharacterResult.NameInUse;
             
-            if (CharacterTable.IsSlotAvailable(client.Entry.Id, packet.SlotNum) == packet.SlotNum)
+            if (CharacterTable.IsSlotAvailable(client.Entry.Id, packet.SlotNum) == false)
                 return CreateCharacterResult.CharacterSlotInUse;
 
             if (CharacterTable.GetCharacterCount(client.Entry.Id) == 0)
@@ -234,7 +236,7 @@ namespace Rasa.Managers
             return !NameRegex.IsMatch(packet.CharacterName) ? CreateCharacterResult.NameFormatInvalid : CreateCharacterResult.Success;
         }
 
-        public void UpdateCharacterSelection(Client client, int slotNum)
+        public void UpdateCharacterSelection(Client client, uint slotNum)
         {
             SendCharacterInfo(client, slotNum - 1);
         }
@@ -242,26 +244,34 @@ namespace Rasa.Managers
         #endregion
 
         #region InGame
-        public void UpdateCharacter(PlayerData player, int job)
+        public void UpdateCharacter(Client client, int job)
         {
             switch (job)
             {
                 case 1: // update level
                     break;
                 case 2: // updarte credits
-                    CharacterTable.UpdateCharacterCredits(player.CharacterId, player.Credits);
+                    CharacterTable.UpdateCharacterCredits(client.Entry.Id, client.MapClient.Player.CharacterSlot, client.MapClient.Player.Credits);
                     break;
                 case 3: // update prestige
                     break;
                 case 4: // update experience
                     break;
                 case 5: // update possition
-                    CharacterTable.UpdateCharacterPos(player.CharacterId, player.Actor.Position.PosX, player.Actor.Position.PosY, player.Actor.Position.PosZ, 1 , player.Actor.MapContextId);   // ToDo rotation
+                    CharacterTable.UpdateCharacterPos(
+                        client.Entry.Id,
+                        client.MapClient.Player.CharacterSlot,
+                        client.MapClient.Player.Actor.Position.PosX,
+                        client.MapClient.Player.Actor.Position.PosY,
+                        client.MapClient.Player.Actor.Position.PosZ,
+                        client.MapClient.Player.Actor.Rotation.W ,  // ToDo rotation
+                        client.MapClient.Player.Actor.MapContextId
+                        );   
                     break;
                 case 6: // update stats
                     break;
                 case 7: // update login
-                    CharacterTable.UpdateCharacterLogin(player.CharacterId, player.LoginTime); // ToDO LoginTime need to be changed with proper value
+                    CharacterTable.UpdateCharacterLogin(client.Entry.Id, client.MapClient.Player.CharacterSlot, client.MapClient.Player.LoginTime); // ToDO LoginTime need to be changed with proper value
                     break;
                 case 8: // update logos
                     break;

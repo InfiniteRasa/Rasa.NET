@@ -4,11 +4,8 @@ namespace Rasa.Structures
 {
     public class CharacterEntry
     {
-        public uint CharacterId { get; set; }
         public string Name { get; set; }
         public string FamilyName { get; set; }
-        public uint AccountId { get; set; }
-        public int SlotId { get; set; }
         public int Gender { get; set; }
         public double Scale { get; set; }
         public int RaceId { get; set; }
@@ -32,7 +29,6 @@ namespace Rasa.Structures
         public int Credits { get; set; }
         public int Prestige { get; set; }
         public string Logos { get; set; }
-        public string Skills { get; set; } 
         public int CurrentAbilityDrawer { get; set; }
 
         public static CharacterEntry Read(MySqlDataReader reader)
@@ -42,11 +38,8 @@ namespace Rasa.Structures
 
             return new CharacterEntry
             {
-                CharacterId = reader.GetUInt32("characterId"),
                 Name = reader.GetString("name"),
                 FamilyName = reader.GetString("familyName"),
-                AccountId = reader.GetUInt32("accountId"),
-                SlotId = reader.GetInt32("slotId"),
                 Gender = reader.GetInt32("gender"),
                 Scale = reader.GetDouble("scale"),
                 RaceId = reader.GetInt32("raceId"),

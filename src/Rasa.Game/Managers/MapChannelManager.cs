@@ -49,24 +49,12 @@ namespace Rasa.Managers
             client.MapClient.RemoveFromMap = true;
         }
 
-        public MapChannelClient CreateNewMapClient(MapChannel mapChannel, Client client)
+        public void CreatePlayerCharacter(Client client)
         {
-            var mapClient = new MapChannelClient
-            {
-                Client = client,
-                MapChannel = mapChannel
-            };
-            // register mapChannelClient
-            EntityManager.Instance.RegisterEntity(mapClient.ClientEntityId, EntityType.Player);
-            EntityManager.Instance.RegisterPlayer(mapClient.ClientEntityId, mapClient);
-            return mapClient;
-        }
-
-        public void CreatePlayerCharacter(MapChannelClient mapClient)
-        {
-            var data = CharacterTable.GetCharacterData(mapClient.Client.Entry.Id, mapClient.Client.LoadingSlot);
-            var appearances = CharacterAppearanceTable.GetAppearance(data.CharacterId);
-            var missions = CharacterMissionsTable.GetMissions(data.CharacterId);
+            var data = CharacterTable.GetCharacterData(client.Entry.Id, client.LoadingSlot);
+            var lockboxInfo = CharacterLockboxTable.GetLockboxInfo(client.Entry.Id);
+            var appearances = CharacterAppearanceTable.GetAppearance(client.Entry.Id, client.LoadingSlot);
+            var missions = CharacterMissionsTable.GetMissions(client.Entry.Id, client.LoadingSlot);
 
             var appearanceData = new Dictionary<EquipmentSlots, AppearanceData>();
             var missionData = new Dictionary<int, MissionLog>();
@@ -76,8 +64,7 @@ namespace Rasa.Managers
 
             foreach (var mission in missions)
                 missionData.Add(mission.MissionId, new MissionLog{ MissionId = mission.MissionId, MissionState = mission.MissionState });
-
-
+            
             var player = new PlayerData
             {
                 Actor = new Actor
@@ -104,11 +91,10 @@ namespace Rasa.Managers
                         { Attributes.Regen, new ActorAttributes(Attributes.Regen, 0, 0, 0, 0, 0) }
                     }
                 },
-                ControllerUser = mapClient,
+                ControllerUser = client.MapClient,
                 AppearanceData = appearanceData,
-                CharacterId = data.CharacterId,
-                AccountId = data.AccountId,
-                SlotId = data.SlotId,
+                AccountId = client.Entry.Id,
+                CharacterSlot = client.LoadingSlot,
                 Gender = data.Gender,
                 Scale = data.Scale,
                 RaceId = data.RaceId,
@@ -124,24 +110,25 @@ namespace Rasa.Managers
                 TimeSinceLastPlayed = data.TimeSinceLastPlayed,
                 ClanId = data.ClanId,
                 ClanName = data.ClanName,
+                LockboxCredits = lockboxInfo[0],
+                LockboxTabs = lockboxInfo[1],
                 Credits = data.Credits,
                 Prestige = data.Prestige,
-                Skills = GetPlayerSkills(data.CharacterId),
-                Titles = CharacterTitlesTable.GetCharacterTitles(data.CharacterId),
-                Abilities = GetPlayerAbilities(data.CharacterId),
+                Skills = GetPlayerSkills(client),
+                Titles = CharacterTitlesTable.GetCharacterTitles(client.Entry.Id, client.LoadingSlot),
+                Abilities = GetPlayerAbilities(client.Entry.Id, client.LoadingSlot),
                 CurrentAbilityDrawer = data.CurrentAbilityDrawer,
                 Missions = missionData,
                 LoginTime = 0,
-                Logos = CharacterLogosTable.GetLogos(data.CharacterId)
+                Logos = CharacterLogosTable.GetLogos(client.Entry.Id, client.LoadingSlot)
             };
             // register new Player
             EntityManager.Instance.RegisterEntity(player.Actor.EntityId, EntityType.Player);
             EntityManager.Instance.RegisterActor(player.Actor.EntityId, player.Actor);
-            mapClient.Player = player;
-            mapClient.Player.Client = mapClient.Client;
-            CommunicatorManager.Instance.LoginOk(mapClient, mapClient.MapChannel);
-            CellManager.Instance.AddToWorld(mapClient); // will introduce the player to all clients, including the current owner
-            PlayerManager.Instance.AssignPlayer(mapClient);
+            client.MapClient.Player = player;
+            CommunicatorManager.Instance.LoginOk(client);
+            CellManager.Instance.AddToWorld(client); // will introduce the player to all clients, including the current owner
+            PlayerManager.Instance.AssignPlayer(client);
         }
         
         public MapChannel FindByContextId(int contextId)
@@ -149,32 +136,22 @@ namespace Rasa.Managers
             return MapChannelArray[contextId];
         }
 
-        public MapChannelClient GetMapClientFromMapChannel(Client client)
-        {
-            var mapChannel = FindByContextId(client.LoadingMap);
-            foreach (var mapClient in mapChannel.PlayerList)
-                if (mapClient.Client == client)
-                    return mapClient;
-
-            return null;
-        }
-
-        public Dictionary<int, AbilityDrawerData> GetPlayerAbilities(uint characterId)
+        public Dictionary<int, AbilityDrawerData> GetPlayerAbilities(uint accountId, uint characterSlot)
         {
             var abilities = new Dictionary<int, AbilityDrawerData>();
-            var abilitiesData = CharacterAbilityDrawerTable.GetCharacterAbilities(characterId);
+            var abilitiesData = CharacterAbilityDrawerTable.GetCharacterAbilities(accountId, characterSlot);
+
             for (var i = 0; i < 25; i++)
-            {
                 if (abilitiesData[i * 3 + 1] > 0)   // don't insert if there is no ablility in slot
                     abilities.Add(abilitiesData[i * 3], new AbilityDrawerData { AbilitySlotId = abilitiesData[i * 3],  AbilityId = abilitiesData[i * 3 + 1], AbilityLevel = abilitiesData[i * 3 + 2] });
-            }
+
             return abilities;
         }
 
-        public Dictionary<int, SkillsData> GetPlayerSkills(uint characterId)
+        public Dictionary<int, SkillsData> GetPlayerSkills(Client client)
         {
             var skills = new Dictionary<int, SkillsData>();
-            var skillsData = CharacterSkillsTable.GetCharacterSkills(characterId);
+            var skillsData = CharacterSkillsTable.GetCharacterSkills(client.Entry.Id, client.LoadingSlot);
 
             foreach (var skill in skillsData)
                 skills.Add(skill.SkillId, new SkillsData(skill.SkillId, skill.AbilityId, skill.SkillLevel));
@@ -184,8 +161,8 @@ namespace Rasa.Managers
 
         public void MapChannelInit()
         {
-            MapChannelsByContextId.Add(1220, new MapChannel { MapInfo = new MapInfo { BaseRegionId = 0, MapId = 1220, MapName = "adv_foreas_concordia_wilderness", MapVersion = 1556 } });
-            MapChannelsByContextId.Add(1148, new MapChannel { MapInfo = new MapInfo { BaseRegionId = 10, MapId = 1148, MapName = "adv_foreas_concordia_divide", MapVersion = 1584 } });
+            MapChannelsByContextId.Add(1220, new MapChannel { MapInfo = new MapInfo( 1220, "adv_foreas_concordia_wilderness", 1556, 0) });
+            MapChannelsByContextId.Add(1148, new MapChannel { MapInfo = new MapInfo( 1148, "adv_foreas_concordia_divide", 1584 , 0) });
             
             foreach (var t in MapChannelsByContextId)
             {  
@@ -194,7 +171,6 @@ namespace Rasa.Managers
                 var newMapChannel = new MapChannel
                 {
                     MapInfo = MapChannelsByContextId[id].MapInfo,
-                    SocketToClient = new Dictionary<int, MapChannelClient>(),
                     //TimerClientEffectUpdate = Environment.TickCount,
                     //TimerMissileUpdate = Environment.TickCount,
                     //TimerDynObjUpdate = Environment.TickCount,
@@ -203,7 +179,7 @@ namespace Rasa.Managers
                     //TimerPlayerUpdate = Environment.TickCount,
                     //PlayerCount = 0,
                     PlayerLimit = 128,
-                    PlayerList = new List<MapChannelClient>()
+                    ClientList = new List<Client>()
                 };
                 // register mapChannel
                 MapChannelArray.Add(id, newMapChannel);
@@ -245,13 +221,17 @@ namespace Rasa.Managers
                 if (Timer.IsTriggered("CheckForLogingClients"))
                     if (mapChannel.QueuedClients.Count > 0)
                     {
-                        // create new player
-                        var newMapCLient = CreateNewMapClient(mapChannel, mapChannel.QueuedClients.Dequeue());
-                        // add it to list, but dont increase list count yet
-                        mapChannel.PlayerList.Add(newMapCLient);
+                        // create new mapClient
+                        var dequedClient = mapChannel.QueuedClients.Dequeue();
+                        var mapClient = new MapChannelClient{ MapChannel = mapChannel };
+
+                        dequedClient.MapClient = mapClient;
+                       
+                        // add it to list
+                        mapChannel.ClientList.Add(dequedClient);
                     }
 
-                if (mapChannel.PlayerList.Count > 0)
+                if (mapChannel.ClientList.Count > 0)
                 {
                     ActorActionManager.Instance.DoWork(delta);
 
@@ -275,11 +255,11 @@ namespace Rasa.Managers
                     // check for creatures
 
                     // chack for player LogOut
-                    foreach (var mapClient in mapChannel.PlayerList)
-                        if (mapClient != null)
-                            if (mapClient.RemoveFromMap == true)
+                    foreach (var client in mapChannel.ClientList)
+                        if (client != null)
+                            if (client.MapClient.RemoveFromMap == true)
                             {
-                                RemovePlayer(mapClient.Client, true);
+                                RemovePlayer(client, true);
                                 break;
                             }
 
@@ -369,14 +349,11 @@ namespace Rasa.Managers
 
         public void MapLoaded(Client client)
         {
-            var mapClient = GetMapClientFromMapChannel(client);
-            client.MapClient = mapClient;
-
-            CreatePlayerCharacter(mapClient);
-            CommunicatorManager.Instance.RegisterPlayer(mapClient);
-            CommunicatorManager.Instance.PlayerEnterMap(mapClient);
-            InventoryManager.Instance.InitForClient(mapClient);
-            PlayerManager.Instance.UpdateStatsValues(mapClient, true);
+            CreatePlayerCharacter(client);
+            CommunicatorManager.Instance.RegisterPlayer(client);
+            CommunicatorManager.Instance.PlayerEnterMap(client);
+            InventoryManager.Instance.InitForClient(client);
+            PlayerManager.Instance.UpdateStatsValues(client, true);
             //mission_initForClient(cm);
         }
 
@@ -408,10 +385,10 @@ namespace Rasa.Managers
         public void RemovePlayer(Client client, bool logout)
         {
             // unregister Communicator
-            CommunicatorManager.Instance.PlayerExitMap(client.MapClient);
+            CommunicatorManager.Instance.PlayerExitMap(client);
             // unregister mapChannelClient
-            EntityManager.Instance.UnregisterEntity(client.MapClient.ClientEntityId);
-            EntityManager.Instance.UnregisterPlayer(client.MapClient.ClientEntityId);
+            EntityManager.Instance.UnregisterEntity(client.MapClient.Player.Actor.EntityId);
+            EntityManager.Instance.UnregisterPlayer(client.MapClient.Player.Actor.EntityId);
             // unregister Actor
             EntityManager.Instance.UnregisterEntity(client.MapClient.Player.Actor.EntityId);
             EntityManager.Instance.UnregisterActor(client.MapClient.Player.Actor.EntityId);
@@ -435,18 +412,18 @@ namespace Rasa.Managers
                 }
 
             // unregister from chat
-            CommunicatorManager.Instance.UnregisterPlayer(client.MapClient);
-            CellManager.Instance.RemoveFromWorld(client.MapClient);
-            PlayerManager.Instance.RemovePlayerCharacter(client.MapClient.MapChannel, client.MapClient);
+            CommunicatorManager.Instance.UnregisterPlayer(client);
+            CellManager.Instance.RemoveFromWorld(client);
+            PlayerManager.Instance.RemovePlayerCharacter(client);
             if (logout)
                 if (client.MapClient.Disconected == false)
                     PassClientToCharacterSelection(client);
             // remove from list
-            for (var i = 0; i < client.MapClient.MapChannel.PlayerList.Count; i++)
+            for (var i = 0; i < client.MapClient.MapChannel.ClientList.Count; i++)
             {
-                if (client.MapClient == client.MapClient.MapChannel.PlayerList[i])
+                if (client == client.MapClient.MapChannel.ClientList[i])
                 {
-                    client.MapClient.MapChannel.PlayerList.RemoveAt(i);
+                    client.MapClient.MapChannel.ClientList.RemoveAt(i);
                     //mapClient.MapChannel.PlayerCount--;
                     break;
                 }

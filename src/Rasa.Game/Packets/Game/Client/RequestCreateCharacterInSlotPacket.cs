@@ -11,7 +11,7 @@ namespace Rasa.Packets.Game.Client
     {
         public override GameOpcode Opcode { get; } = GameOpcode.RequestCreateCharacterInSlot;
         
-        public int SlotNum { get; set; }
+        public uint SlotNum { get; set; }
         public string FamilyName { get; set; }
         public string CharacterName { get; set; }
         public int Gender { get; set; }
@@ -24,7 +24,7 @@ namespace Rasa.Packets.Game.Client
         {
             pr.ReadTuple();
 
-            SlotNum = pr.ReadInt();
+            SlotNum = pr.ReadUInt();
             FamilyName = pr.ReadUnicodeString();
             CharacterName = pr.ReadUnicodeString();
             Gender = pr.ReadInt();

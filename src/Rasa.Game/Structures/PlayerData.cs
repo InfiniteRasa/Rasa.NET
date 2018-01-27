@@ -3,19 +3,16 @@
 namespace Rasa.Structures
 {
     using Data;
-    using Game;
 
     public class PlayerData
     {
         public Actor Actor { get; set; }
-        public Client Client { get; set; }
         public Dictionary<EquipmentSlots, AppearanceData> AppearanceData { get; set; }
         public MapChannelClient ControllerUser { get; set; }
-        public uint CharacterId { get; set; }
+        public uint AccountId { get; set; }
+        public uint CharacterSlot { get; set; }
         public string Name { get; set; }
         public string FamilyName { get; set; }
-        public uint AccountId { get; set; }
-        public int SlotId { get; set; }
         public int Gender { get; set; }
         public double Scale { get; set; }
         public int RaceId { get; set; }
@@ -31,6 +28,8 @@ namespace Rasa.Structures
         public int TimeSinceLastPlayed { get; set; }
         public int ClanId { get; set; }
         public string ClanName { get; set; }
+        public uint LockboxCredits { get; set; }
+        public uint LockboxTabs { get; set; }
         public int Credits { get; set; }
         public int Prestige { get; set; }
         public int SpentBody { get; set; }
