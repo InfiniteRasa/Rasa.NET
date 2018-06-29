@@ -11,14 +11,14 @@ namespace Rasa.Packets.Communicator
 
         public uint Id { get; set; }
         public string Username { get; set; }
-        public byte Level { get; set; }
+        public string Email { get; set; }
         public uint OneTimeKey { get; set; }
 
         public void Read(BinaryReader br)
         {
             Id = br.ReadUInt32();
             Username = br.ReadLengthedString();
-            Level = br.ReadByte();
+            Email = br.ReadLengthedString();
             OneTimeKey = br.ReadUInt32();
         }
 
@@ -27,7 +27,7 @@ namespace Rasa.Packets.Communicator
             bw.Write((byte) Opcode);
             bw.Write(Id);
             bw.WriteLengthedString(Username);
-            bw.Write(Level);
+            bw.WriteLengthedString(Email);
             bw.Write(OneTimeKey);
         }
     }

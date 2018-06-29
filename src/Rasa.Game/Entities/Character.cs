@@ -2,10 +2,17 @@
 
 namespace Rasa.Entities
 {
+    using Data;
+    using Game;
     using Structures;
 
     public class Character
     {
+        public Client Client { get; }
+
+        public string Name { get; private set; }
+        public string FamilyName { get; private set; }
+
         public int StilyeCount { get; set; }
         public int ErrorCode { get; set; }
         public ulong UserId { get; set; }
@@ -15,6 +22,11 @@ namespace Rasa.Entities
         public double PosZ { get; set; }
         public double Rotation { get; set; }
         public int MapContextId { get; set; }
+
+        public Character(Client client)
+        {
+            Client = client;
+        }
 
         private void SetStartUpData()
         {
@@ -28,31 +40,31 @@ namespace Rasa.Entities
             Console.WriteLine("userID is => {0}", UserId);
             var helm = new AppearanceData
             {
-                SlotId = 1,
+                SlotId = EquipmentData.Helmet,
                 ClassId = 10908,
                 Color = new Color(0x80, 0x80, 0x80)
             };
             var boots = new AppearanceData
             {
-                SlotId = 2,
+                SlotId = EquipmentData.Shoes,
                 ClassId = 7054,
                 Color = new Color(0x80, 0x80, 0x80),
             };
             var gloves = new AppearanceData
             {
-                SlotId = 3,
+                SlotId = EquipmentData.Gloves,
                 ClassId = 10909,
                 Color = new Color(0x80, 0x80, 0x80),
             };
             var torso = new AppearanceData
             {
-                SlotId = 15,
+                SlotId = EquipmentData.Torso,
                 ClassId = 7082,
                 Color = new Color(0x80, 0x80, 0x80),
             };
             var legs = new AppearanceData
             {
-                SlotId = 16,
+                SlotId = EquipmentData.Legs,
                 ClassId = 7053,
                 Color = new Color(0x80, 0x80, 0x80),
             };

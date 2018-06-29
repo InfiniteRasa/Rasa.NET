@@ -11,15 +11,15 @@ namespace Rasa.Packets.Game.Server
 
         public string FamilyName { get; set; }
         public bool HasCharacters { get; set; }
-        public uint UserId { get; set; }
+        public uint AccountId { get; set; }
         public List<Race> EnabledRaceList { get; } = new List<Race>();
         public bool CanSkipBootcamp { get; set; }
 
-        public BeginCharacterSelectionPacket(string familyName, bool hasCharacters, uint userId, bool canSkipBootcamp = true)
+        public BeginCharacterSelectionPacket(string familyName, bool hasCharacters, uint accountId, bool canSkipBootcamp = true)
         {
             FamilyName = familyName;
             HasCharacters = hasCharacters;
-            UserId = userId;
+            AccountId = accountId;
             CanSkipBootcamp = canSkipBootcamp;
 
             EnabledRaceList.Add(Race.Human);
@@ -33,7 +33,7 @@ namespace Rasa.Packets.Game.Server
             pr.ReadTuple();
             FamilyName = pr.ReadUnicodeString();
             HasCharacters = pr.ReadBool();
-            UserId = (uint) pr.ReadInt();
+            AccountId = pr.ReadUInt();
 
             var raceCount = pr.ReadTuple();
             for (var i = 0; i < raceCount; ++i)
@@ -47,7 +47,7 @@ namespace Rasa.Packets.Game.Server
             pw.WriteTuple(5);
             pw.WriteUnicodeString(FamilyName);
             pw.WriteBool(HasCharacters);
-            pw.WriteUInt(UserId);
+            pw.WriteUInt(AccountId);
 
             pw.WriteTuple(EnabledRaceList.Count);
 

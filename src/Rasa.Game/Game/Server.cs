@@ -211,6 +211,21 @@ namespace Rasa.Game
             }
         }
 
+        public bool IsBanned(uint accountId)
+        {
+            return false; // TODO
+        }
+
+        public bool IsAlreadyLoggedIn(uint accountId)
+        {
+            lock (Clients)
+                foreach (var client in Clients)
+                    if (client.IsAuthenticated() && client.AccountEntry.Id == accountId)
+                        return true;
+
+            return false;
+        }
+
         public void Shutdown()
         {
             AuthCommunicator?.Close();

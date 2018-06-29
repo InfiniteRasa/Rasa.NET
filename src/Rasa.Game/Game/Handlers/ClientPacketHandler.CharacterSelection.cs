@@ -1,22 +1,16 @@
-﻿// ReSharper disable UnusedMember.Local
-using System;
+﻿using System;
+using System.Collections.Generic;
+using System.Text;
 
-namespace Rasa.Game
+namespace Rasa.Game.Handlers
 {
     using Data;
     using Managers;
     using Packets;
     using Packets.Game.Client;
 
-    public class ClientPacketHandler
+    public partial class ClientPacketHandler
     {
-        public Client Client { get; }
-
-        public ClientPacketHandler(Client client)
-        {
-            Client = client;
-        }
-
         [PacketHandler(GameOpcode.RequestCharacterName)]
         private void RequestCharacterName(RequestCharacterNamePacket packet)
         {

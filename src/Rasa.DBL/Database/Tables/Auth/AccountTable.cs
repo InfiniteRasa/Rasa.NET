@@ -8,8 +8,8 @@ namespace Rasa.Database.Tables.Auth
 
     public static class AccountTable
     {
-        private static readonly MySqlCommand GetAccountByNameCommand = new MySqlCommand("SELECT `id`, `username`, `password`, `salt`, `level`, `last_server_id`, `locked`, `validated` FROM `account` WHERE `username` = @AccountName;");
-        private static readonly MySqlCommand GetAccountByIdCommand = new MySqlCommand("SELECT `id`, `username`, `password`, `salt`, `level`, `last_server_id` FROM `account` WHERE `id` = @AccountId;");
+        private static readonly MySqlCommand GetAccountByNameCommand = new MySqlCommand("SELECT `id`, `email`, `username`, `password`, `salt`, `level`, `last_server_id`, `locked`, `validated` FROM `account` WHERE `username` = @AccountName;");
+        private static readonly MySqlCommand GetAccountByIdCommand = new MySqlCommand("SELECT `id`, `email`, `username`, `password`, `salt`, `level`, `last_server_id` FROM `account` WHERE `id` = @AccountId;");
         private static readonly MySqlCommand UpdateLoginDataCommand = new MySqlCommand("UPDATE `account` SET `last_login` = NOW(), `last_ip` = @LastIP WHERE `id` = @AccountId;");
         private static readonly MySqlCommand UpdateLastServerCommand = new MySqlCommand("UPDATE `account` SET `last_server_id` = @LastServerId WHERE `id` = @AccountId;");
         private static readonly MySqlCommand InsertAccountCommand = new MySqlCommand("INSERT INTO `account` (`email`, `username`, `password`, `salt`, `validated`) VALUES (@Email, @Username, @Password, @Salt, 1);");
@@ -42,25 +42,25 @@ namespace Rasa.Database.Tables.Auth
             InsertAccountCommand.Prepare();
         }
 
-        public static AccountEntry GetAccount(string accountName)
+        public static AuthAccountEntry GetAccount(string accountName)
         {
             lock (AuthDatabaseAccess.Lock)
             {
                 GetAccountByNameCommand.Parameters["@AccountName"].Value = accountName;
 
                 using (var reader = GetAccountByNameCommand.ExecuteReader())
-                    return AccountEntry.Read(reader);
+                    return AuthAccountEntry.Read(reader);
             }
         }
 
-        public static AccountEntry GetAccount(uint accountId)
+        public static AuthAccountEntry GetAccount(uint accountId)
         {
             lock (AuthDatabaseAccess.Lock)
             {
                 GetAccountByIdCommand.Parameters["@AccountId"].Value = accountId;
 
                 using (var reader = GetAccountByIdCommand.ExecuteReader())
-                    return AccountEntry.Read(reader);
+                    return AuthAccountEntry.Read(reader);
             }
         }
 
@@ -84,7 +84,7 @@ namespace Rasa.Database.Tables.Auth
             }
         }
 
-        public static void InsertAccount(AccountEntry entry)
+        public static void InsertAccount(AuthAccountEntry entry)
         {
             lock (AuthDatabaseAccess.Lock)
             {

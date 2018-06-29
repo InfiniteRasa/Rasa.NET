@@ -2,9 +2,9 @@
 
 namespace Rasa.Database.Tables.World
 {
-    public class RandomNameTable
+    public class PlayerRandomNameTable
     {
-        private static readonly MySqlCommand GetRandomName = new MySqlCommand("SELECT `name` FROM `random_name` WHERE `type` = @Type AND (`gender` = 'neutral' OR `gender` = @Gender) ORDER BY RAND() LIMIT 1;");
+        private static readonly MySqlCommand GetRandomName = new MySqlCommand("SELECT `name` FROM `player_random_name` WHERE `type` = @Type AND (`gender` = 'neutral' OR `gender` = @Gender) ORDER BY RAND() LIMIT 1;");
 
         public static void Initialize()
         {

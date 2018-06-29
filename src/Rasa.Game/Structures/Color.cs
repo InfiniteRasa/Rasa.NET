@@ -11,13 +11,13 @@ namespace Rasa.Structures
         public byte Blue { get; set; }
         public byte Alpha { get; set; }
 
-        public int Hue => (Alpha << 24) | (Blue << 16) | (Green << 8) | Red;
+        public uint Hue => (uint) ((Alpha << 24) | (Blue << 16) | (Green << 8) | Red);
 
         public Color()
         {
         }
 
-        public Color(int hue)
+        public Color(uint hue)
             : this((byte) (hue & 0xFF), (byte) ((hue >> 8) & 0xFF), (byte) ((hue >> 16) & 0xFF), (byte) ((hue >> 24) & 0xFF))
         {
         }
@@ -64,6 +64,15 @@ namespace Rasa.Structures
             pw.WriteInt(Green);
             pw.WriteInt(Blue);
             pw.WriteInt(Alpha);
+        }
+
+        public static void WriteEmpty(PythonWriter pw)
+        {
+            pw.WriteTuple(4);
+            pw.WriteNoneStruct();
+            pw.WriteNoneStruct();
+            pw.WriteNoneStruct();
+            pw.WriteNoneStruct();
         }
     }
 }
