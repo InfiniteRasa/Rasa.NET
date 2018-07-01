@@ -171,8 +171,6 @@ namespace Rasa.Game
 
                     GameAccountTable.CreateAccountDataIfNeeded(loginEntry.Id, loginEntry.Name, loginEntry.Email);
 
-                    AccountEntry = GameAccountTable.GetAccount(loginEntry.Id);
-
                     if (Server.IsBanned(loginMsg.AccountId))
                     {
                         Logger.WriteLog(LogType.Error, "Client with ip: {0} tried to log in while the account is banned! User Id: {1}", Socket.RemoteAddress, loginMsg.AccountId);
@@ -198,8 +196,6 @@ namespace Rasa.Game
 
                         return;
                     }
-
-                    GameAccountTable.CreateAccountDataIfNeeded(loginEntry.Id, loginEntry.Name, loginEntry.Email);
 
                     AccountEntry = GameAccountTable.GetAccount(loginEntry.Id);
                     AccountEntry.LastIP = Socket.RemoteAddress.ToString();

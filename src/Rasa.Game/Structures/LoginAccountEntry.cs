@@ -14,7 +14,7 @@ namespace Rasa.Structures
 
         public LoginAccountEntry(RedirectRequestPacket packet)
         {
-            Id = packet.Id;
+            Id = packet.AccountId;
             Email = packet.Email;
             Name = packet.Username;
             OneTimeKey = packet.OneTimeKey;

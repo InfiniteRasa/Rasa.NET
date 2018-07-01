@@ -352,15 +352,15 @@ namespace Rasa.Game
         {
             lock (IncomingClients)
             {
-                if (IncomingClients.ContainsKey(packet.Id))
-                    IncomingClients.Remove(packet.Id);
+                if (IncomingClients.ContainsKey(packet.AccountId))
+                    IncomingClients.Remove(packet.AccountId);
 
-                IncomingClients.Add(packet.Id, new LoginAccountEntry(packet));
+                IncomingClients.Add(packet.AccountId, new LoginAccountEntry(packet));
             }
 
             AuthCommunicator.Send(new RedirectResponsePacket
             {
-                AccountId = packet.Id,
+                AccountId = packet.AccountId,
                 Response = RedirectResult.Success
             });
         }
