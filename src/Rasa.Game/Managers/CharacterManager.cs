@@ -89,12 +89,6 @@
 
             lock (CreateLock)
             {
-                if (string.IsNullOrWhiteSpace(client.AccountEntry.FamilyName) && false) // TODO: check if family name is reserved!
-                {
-                    SendCharacterCreateFailed(client, CreateCharacterResult.FamilyNameReserved);
-                    return;
-                }
-
                 if (!string.IsNullOrWhiteSpace(client.AccountEntry.FamilyName) && packet.FamilyName != client.AccountEntry.FamilyName)
                 {
                     if (client.AccountEntry.CharacterCount == 0)
@@ -106,6 +100,18 @@
                         SendCharacterCreateFailed(client, CreateCharacterResult.InvalidCharacterName);
                         return;
                     }
+                }
+
+                if ((string.IsNullOrWhiteSpace(client.AccountEntry.FamilyName) || packet.FamilyName != client.AccountEntry.FamilyName))
+                {
+                    var familyNameOwnerAccount = GameAccountTable.GetAccountByFamilyName(packet.FamilyName);
+
+                    if (familyNameOwnerAccount != null && client.AccountEntry.Id != familyNameOwnerAccount.Id)
+                    {
+                        SendCharacterCreateFailed(client, CreateCharacterResult.FamilyNameReserved);
+                        return;
+                    }
+                    
                 }
 
                 entry = new CharacterEntry
@@ -147,6 +153,7 @@
             }
 
             client.CallMethod(SysEntity.ClientMethodId, new CharacterCreateSuccessPacket(packet.SlotNum, packet.FamilyName));
+            ++client.AccountEntry.CharacterCount;
 
             SendCharacterInfo(client, packet.SlotNum, entry, false);
         }

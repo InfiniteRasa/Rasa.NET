@@ -1,13 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace Rasa.Game.Handlers
+﻿namespace Rasa.Game.Handlers
 {
     using Data;
     using Managers;
     using Packets;
     using Packets.Game.Client;
+    using Packets.Game.Server;
 
     public partial class ClientPacketHandler
     {
@@ -37,7 +34,7 @@ namespace Rasa.Game.Handlers
         }
 
         [PacketHandler(GameOpcode.RequestSwitchToCharacterInSlot)]
-        private void RequestSwitchToCharacterInSlot(object packet)
+        private void RequestSwitchToCharacterInSlot(RequestSwitchToCharacterInSlotPacket packet)
         {
         }
     }

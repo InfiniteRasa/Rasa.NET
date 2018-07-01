@@ -17,7 +17,7 @@ namespace Rasa.Structures
         public DateTime LastLogin { get; set; }
         public byte CharacterCount { get; set; }
 
-        public static GameAccountEntry Read(MySqlDataReader reader)
+        public static GameAccountEntry Read(MySqlDataReader reader, bool charCount = true)
         {
             if (!reader.Read())
                 return null;
@@ -32,9 +32,13 @@ namespace Rasa.Structures
                 SelectedSlot = reader.GetByte("selected_slot"),
                 CanSkipBootcamp = reader.GetBoolean("can_skip_bootcamp"),
                 LastIP = reader.GetString("last_ip"),
-                LastLogin = reader.GetDateTime("last_login"),
-                CharacterCount = (byte) reader.GetInt64("character_count")
+                LastLogin = reader.GetDateTime("last_login")
             };
+
+            if (charCount)
+            {
+                entry.CharacterCount = (byte)reader.GetInt64("character_count");
+            }
 
             if (string.IsNullOrWhiteSpace(entry.FamilyName))
                 entry.FamilyName = null;

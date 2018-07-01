@@ -8,6 +8,7 @@ namespace Rasa.Database.Tables.Character
     {
         private static readonly MySqlCommand CreateAccountIfNeededCommand = new MySqlCommand("INSERT INTO `account` (`id`, `name`, `email`) VALUE (@Id, @Name, @Email) ON DUPLICATE KEY UPDATE `name` = @Name, `email` = @Email");
         private static readonly MySqlCommand GetAccountCommand = new MySqlCommand("SELECT *, (SELECT COUNT(`id`) FROM `character` WHERE `account_id` = @Id) AS `character_count` FROM `account` WHERE `id` = @Id");
+        private static readonly MySqlCommand GetAccountByFamilyNameCommand = new MySqlCommand("SELECT * FROM `account` WHERE `family_name` = @FamilyName");
         private static readonly MySqlCommand UpdateAccountCommand = new MySqlCommand("UPDATE `account` SET `level` = @Level, `family_name` = @FamilyName, `selected_slot` = @SelectedSlot, `can_skip_bootcamp` = @CanSkipBootcamp, `last_ip` = @LastIP, `last_login` = @LastLogin WHERE `id` = @Id");
 
         public static void Initialize()
@@ -21,6 +22,10 @@ namespace Rasa.Database.Tables.Character
             GetAccountCommand.Connection = GameDatabaseAccess.CharConnection;
             GetAccountCommand.Parameters.Add("@Id", MySqlDbType.UInt32);
             GetAccountCommand.Prepare();
+
+            GetAccountByFamilyNameCommand.Connection = GameDatabaseAccess.CharConnection;
+            GetAccountByFamilyNameCommand.Parameters.Add("@FamilyName", MySqlDbType.VarChar);
+            GetAccountByFamilyNameCommand.Prepare();
 
             UpdateAccountCommand.Connection = GameDatabaseAccess.CharConnection;
             UpdateAccountCommand.Parameters.Add("@Id", MySqlDbType.UInt32);
@@ -52,6 +57,16 @@ namespace Rasa.Database.Tables.Character
 
                 using (var reader = GetAccountCommand.ExecuteReader())
                     return GameAccountEntry.Read(reader);
+            }
+        }
+        public static GameAccountEntry GetAccountByFamilyName(string familyName)
+        {
+            lock (GameDatabaseAccess.CharLock)
+            {
+                GetAccountByFamilyNameCommand.Parameters["@FamilyName"].Value = familyName;
+
+                using (var reader = GetAccountByFamilyNameCommand.ExecuteReader())
+                    return GameAccountEntry.Read(reader, false);
             }
         }
 
