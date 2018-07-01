@@ -5,7 +5,7 @@ namespace Rasa.Packets.Game.Server
     using Data;
     using Memory;
 
-    public class BeginCharacterSelectionPacket : PythonPacket
+    public class BeginCharacterSelectionPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.BeginCharacterSelection;
 
@@ -26,20 +26,6 @@ namespace Rasa.Packets.Game.Server
             EnabledRaceList.Add(Race.Forean);
             EnabledRaceList.Add(Race.Brann);
             EnabledRaceList.Add(Race.Thrax);
-        }
-
-        public override void Read(PythonReader pr)
-        {
-            pr.ReadTuple();
-            FamilyName = pr.ReadUnicodeString();
-            HasCharacters = pr.ReadBool();
-            AccountId = pr.ReadUInt();
-
-            var raceCount = pr.ReadTuple();
-            for (var i = 0; i < raceCount; ++i)
-                EnabledRaceList.Add((Race) pr.ReadInt());
-
-            CanSkipBootcamp = pr.ReadBool();
         }
 
         public override void Write(PythonWriter pw)

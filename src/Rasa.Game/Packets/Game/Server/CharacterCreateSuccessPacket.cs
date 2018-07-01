@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class CharacterCreateSuccessPacket : PythonPacket
+    public class CharacterCreateSuccessPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.CharacterCreateSuccess;
 
@@ -14,10 +14,6 @@
         {
             SlotNum = slotNum;
             FamilyName = familyName;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class RequestFamilyNamePacket : PythonPacket
+    public class RequestFamilyNamePacket : ClientPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.RequestFamilyName;
 
@@ -13,12 +13,6 @@
         {
             pr.ReadTuple();
             LangId = pr.ReadInt();
-        }
-
-        public override void Write(PythonWriter pw)
-        {
-            pw.WriteTuple(1);
-            pw.WriteInt(LangId);
         }
     }
 }

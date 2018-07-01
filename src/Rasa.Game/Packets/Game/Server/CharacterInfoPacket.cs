@@ -7,7 +7,7 @@ namespace Rasa.Packets.Game.Server
     using Memory;
     using Structures;
 
-    public class CharacterInfoPacket : PythonPacket
+    public class CharacterInfoPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.CharacterInfo;
 
@@ -51,11 +51,6 @@ namespace Rasa.Packets.Game.Server
                 if (clanEntry != null)
                     ClanData = new ClanData(clanEntry);
             }
-        }
-
-        public override void Read(PythonReader pr)
-        {
-            throw new System.NotImplementedException();
         }
 
         public override void Write(PythonWriter pw)

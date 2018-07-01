@@ -8,7 +8,7 @@ namespace Rasa.Packets.Game.Client
     using Packets;
     using Structures;
 
-    public class RequestCreateCharacterInSlotPacket : PythonPacket
+    public class RequestCreateCharacterInSlotPacket : ClientPythonPacket
     {
         public const double MinHeight = 0.90000000000000002;
         public const double MaxHeight = 1.0600000000000001;
@@ -45,10 +45,6 @@ namespace Rasa.Packets.Game.Client
             }
 
             RaceId = (Race) pr.ReadInt();
-        }
-
-        public override void Write(PythonWriter pw)
-        {
         }
 
         public CreateCharacterResult Validate()
