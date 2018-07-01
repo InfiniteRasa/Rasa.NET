@@ -153,13 +153,24 @@
 
         public void RequestDeleteCharacterInSlot(Client client, RequestDeleteCharacterInSlotPacket packet)
         {
-            var charactersBySlot = CharacterTable.ListCharactersBySlot(client.AccountEntry.Id);
-            if (charactersBySlot.ContainsKey(packet.Slot))
-                CharacterTable.DeleteCharacter(charactersBySlot[packet.Slot].Id);
+            try
+            {
+                var charactersBySlot = CharacterTable.ListCharactersBySlot(client.AccountEntry.Id);
+                if (charactersBySlot.ContainsKey(packet.Slot))
+                {
+                    CharacterTable.DeleteCharacter(charactersBySlot[packet.Slot].Id);
 
-            client.CallMethod(SysEntity.ClientMethodId, new CharacterDeleteSuccessPacket(--client.AccountEntry.CharacterCount > 0));
+                    client.CallMethod(SysEntity.ClientMethodId, new CharacterDeleteSuccessPacket(--client.AccountEntry.CharacterCount > 0));
 
-            SendCharacterInfo(client, packet.Slot, null, false);
+                    SendCharacterInfo(client, packet.Slot, null, false);
+
+                    return;
+                }
+            }
+            catch
+            {
+                client.CallMethod(SysEntity.ClientMethodId, new DeleteCharacterFailedPacket());
+            }
         }
 
         private void SendCharacterCreateFailed(Client client, CreateCharacterResult result)
