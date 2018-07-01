@@ -117,5 +117,16 @@ namespace Rasa.Database.Tables.Character
                     return CharacterEntry.Read(reader);
             }
         }
+
+        public static void DeleteCharacter(uint characterId)
+        {
+            CharacterAppearanceTable.DeleteCharacterAppearances(characterId);
+
+            lock (GameDatabaseAccess.CharLock)
+            {
+                DeleteCharacterCommand.Parameters["@Id"].Value = characterId;
+                DeleteCharacterCommand.ExecuteNonQuery();
+            }
+        }
     }
 }

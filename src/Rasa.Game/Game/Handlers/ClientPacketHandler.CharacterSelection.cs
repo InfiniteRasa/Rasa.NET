@@ -31,8 +31,9 @@ namespace Rasa.Game.Handlers
         }
 
         [PacketHandler(GameOpcode.RequestDeleteCharacterInSlot)]
-        private void RequestDeleteCharacterInSlot(object packet)
+        private void RequestDeleteCharacterInSlot(RequestDeleteCharacterInSlotPacket packet)
         {
+            CharacterManager.Instance.RequestDeleteCharacterInSlot(Client, packet);
         }
 
         [PacketHandler(GameOpcode.RequestSwitchToCharacterInSlot)]

@@ -85,6 +85,7 @@
             }
 
             CharacterEntry entry;
+            bool changeFamilyName = false;
 
             lock (CreateLock)
             {
@@ -96,8 +97,15 @@
 
                 if (!string.IsNullOrWhiteSpace(client.AccountEntry.FamilyName) && packet.FamilyName != client.AccountEntry.FamilyName)
                 {
-                    SendCharacterCreateFailed(client, CreateCharacterResult.InvalidCharacterName);
-                    return;
+                    if (client.AccountEntry.CharacterCount == 0)
+                    {
+                        changeFamilyName = true;
+                    }
+                    else
+                    {
+                        SendCharacterCreateFailed(client, CreateCharacterResult.InvalidCharacterName);
+                        return;
+                    }
                 }
 
                 entry = new CharacterEntry
@@ -130,7 +138,7 @@
                 foreach (var data in packet.AppearanceData)
                     CharacterAppearanceTable.AddAppearance(entry.Id, data.Value.GetDatabaseEntry());
 
-                if (string.IsNullOrWhiteSpace(client.AccountEntry.FamilyName))
+                if (string.IsNullOrWhiteSpace(client.AccountEntry.FamilyName) || changeFamilyName)
                 {
                     client.AccountEntry.FamilyName = packet.FamilyName;
 
@@ -138,19 +146,25 @@
                 }
             }
 
-            SendCharacterCreateSuccess(client, packet.SlotNum, packet.FamilyName);
+            client.CallMethod(SysEntity.ClientMethodId, new CharacterCreateSuccessPacket(packet.SlotNum, packet.FamilyName));
 
             SendCharacterInfo(client, packet.SlotNum, entry, false);
+        }
+
+        public void RequestDeleteCharacterInSlot(Client client, RequestDeleteCharacterInSlotPacket packet)
+        {
+            var charactersBySlot = CharacterTable.ListCharactersBySlot(client.AccountEntry.Id);
+            if (charactersBySlot.ContainsKey(packet.Slot))
+                CharacterTable.DeleteCharacter(charactersBySlot[packet.Slot].Id);
+
+            client.CallMethod(SysEntity.ClientMethodId, new CharacterDeleteSuccessPacket(--client.AccountEntry.CharacterCount > 0));
+
+            SendCharacterInfo(client, packet.Slot, null, false);
         }
 
         private void SendCharacterCreateFailed(Client client, CreateCharacterResult result)
         {
             client.CallMethod(SysEntity.ClientMethodId, new UserCreationFailedPacket(result));
-        }
-
-        private void SendCharacterCreateSuccess(Client client, byte slotNum, string familyName)
-        {
-            client.CallMethod(SysEntity.ClientMethodId, new CharacterCreateSuccessPacket(slotNum, familyName));
         }
 
         private void SendCharacterInfo(Client client, byte slot, CharacterEntry data, bool sendPodCreate)

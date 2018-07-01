@@ -15,7 +15,7 @@ namespace Rasa.Structures
         public bool CanSkipBootcamp { get; set; }
         public string LastIP { get; set; }
         public DateTime LastLogin { get; set; }
-        public byte CharacterCount { get; private set; }
+        public byte CharacterCount { get; set; }
 
         public static GameAccountEntry Read(MySqlDataReader reader)
         {

@@ -10,6 +10,7 @@ namespace Rasa.Database.Tables.Character
     {
         private static readonly MySqlCommand GetCharacterAppearancesCommand = new MySqlCommand("SELECT * FROM `character_appearance` WHERE `character_id` = @CharacterId");
         private static readonly MySqlCommand AddCharacterAppearanceCommand = new MySqlCommand("INSERT INTO `character_appearance` (`character_id`, `slot`, `class`, `color`) VALUE (@CharacterId, @Slot, @Class, @Color)");
+        private static readonly MySqlCommand DeleteCharacterAppearancesCommand = new MySqlCommand("DELETE FROM `character_appearance` WHERE `character_id` = @CharacterId");
 
         public static void Initialize()
         {
@@ -23,6 +24,10 @@ namespace Rasa.Database.Tables.Character
             AddCharacterAppearanceCommand.Parameters.Add("@Class", MySqlDbType.UInt32);
             AddCharacterAppearanceCommand.Parameters.Add("@Color", MySqlDbType.UInt32);
             AddCharacterAppearanceCommand.Prepare();
+
+            DeleteCharacterAppearancesCommand.Connection = GameDatabaseAccess.CharConnection;
+            DeleteCharacterAppearancesCommand.Parameters.Add("@CharacterId", MySqlDbType.UInt32);
+            DeleteCharacterAppearancesCommand.Prepare();
         }
 
         public static Dictionary<uint, CharacterAppearanceEntry> GetAppearances(uint characterId)
@@ -57,7 +62,6 @@ namespace Rasa.Database.Tables.Character
                     AddCharacterAppearanceCommand.Parameters["@Slot"].Value = entry.Slot;
                     AddCharacterAppearanceCommand.Parameters["@Class"].Value = entry.Class;
                     AddCharacterAppearanceCommand.Parameters["@Color"].Value = entry.Color;
-
                     AddCharacterAppearanceCommand.ExecuteNonQuery();
                 }
             }
@@ -67,6 +71,15 @@ namespace Rasa.Database.Tables.Character
             }
 
             return true;
+        }
+
+        public static void DeleteCharacterAppearances(uint characterId)
+        {
+            lock (GameDatabaseAccess.CharLock)
+            {
+                DeleteCharacterAppearancesCommand.Parameters["@CharacterId"].Value = characterId;
+                DeleteCharacterAppearancesCommand.ExecuteNonQuery();
+            }
         }
     }
 }
