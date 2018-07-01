@@ -63,7 +63,7 @@
         {
             client.CallMethod(SysEntity.ClientMethodId, new GeneratedCharacterNamePacket
             {
-                Name = PlayerRandomNameTable.GetRandom(gender == 0 ? "male" : "female", "first") ?? (gender == 0 ? "Richard" : "Rachel")
+                Name = PlayerRandomNameTable.GetRandom((PlayerRandomNameTable.Gender) gender, PlayerRandomNameTable.NameType.First) ?? (gender == 0 ? "Richard" : "Rachel")
             });
         }
 
@@ -71,7 +71,7 @@
         {
             client.CallMethod(SysEntity.ClientMethodId, new GeneratedFamilyNamePacket
             {
-                Name = PlayerRandomNameTable.GetRandom("neutral", "last") ?? "Garriott"
+                Name = PlayerRandomNameTable.GetRandom(PlayerRandomNameTable.Gender.Neutral, PlayerRandomNameTable.NameType.Last) ?? "Garriott"
             });
         }
 

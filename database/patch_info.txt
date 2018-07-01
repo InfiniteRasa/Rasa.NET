@@ -1,0 +1,20 @@
+If you have to change something in the database, you'll have to apply the changes to the full database structure in the full folder and create a patch representing that change in the patches folder.
+
+Patches must be named the following way:
+<date>_<hour>_<short_description>.sql
+
+For example:
+20180701_170000_add_applied_patches_table.sql
+
+These names can't be longer than 128 characters!
+
+At the end of every patch, there must be an INSERT statement that inserts the current patch to the applied_patches table, so the user can keep track of what patches was applied.
+For example:
+INSERT INTO `applied_patches` (`patch_name`) VALUE ('20180701_170000_add_applied_patches_table');
+
+In the full database script, you must add the INSERT statement too, so if someone applies the full database at any given time, the current applied patches will be known.
+
+The patch_name must match the file name WITHOUT the extension.
+The apply_time column can be skipped, as it's default value on insertion is the current timestamp.
+
+Every once in a while the patches will be deleted when there are too many. In this case, the user can go back to the commit that deletes the patches and fast-forward the database with those patches until the point where new patches are available.
