@@ -16,7 +16,7 @@ CREATE TABLE `player_exp_for_level` (
 )
 ENGINE=InnoDB
 DEFAULT CHARACTER SET=utf8
-COLLATE = utf8_general_ci;;
+COLLATE = utf8_general_ci;
 
 INSERT INTO `player_exp_for_level` (`level`, `experience`) VALUES
 (1, 0),
