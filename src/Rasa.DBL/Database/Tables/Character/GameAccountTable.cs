@@ -61,7 +61,7 @@ namespace Rasa.Database.Tables.Character
             {
                 UpdateAccountCommand.Parameters["@Id"].Value = entry.Id;
                 UpdateAccountCommand.Parameters["@Level"].Value = entry.Level;
-                UpdateAccountCommand.Parameters["@FamilyName"].Value = entry.FamilyName;
+                UpdateAccountCommand.Parameters["@FamilyName"].Value = entry.FamilyName ?? "";
                 UpdateAccountCommand.Parameters["@SelectedSlot"].Value = entry.SelectedSlot;
                 UpdateAccountCommand.Parameters["@CanSkipBootcamp"].Value = entry.CanSkipBootcamp;
                 UpdateAccountCommand.Parameters["@LastIP"].Value = entry.LastIP;
