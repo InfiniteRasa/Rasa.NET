@@ -69,6 +69,7 @@ namespace Rasa.Managers
 
         public void RegisterChatCommands()
         {
+            RegisterCommand(".addtitle", AddTitleCommand);
             RegisterCommand(".createobj", CreateObjectCommand);
             RegisterCommand(".creature", CreateCreatureCommand);
             RegisterCommand(".creatureappearance", SetCreatureAppearanceCommand);
@@ -92,6 +93,24 @@ namespace Rasa.Managers
         #endregion
 
         #region GM
+
+        private void AddTitleCommand(string[] parts)
+        {
+            if (parts.Length == 1)
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, "usage: .addtitle titleId");
+                return;
+            }
+
+            if (parts.Length == 2)
+            {
+                if (uint.TryParse(parts[1], out uint titleId))
+                {
+                    _client.SendPacket(_client.MapClient.Player.Actor.EntityId, new TitleAddedPacket(titleId));
+                }
+            }
+        }
+
         private void CreateCreatureCommand(string[] parts)
         {
             if (parts.Length == 1)
@@ -130,8 +149,7 @@ namespace Rasa.Managers
             if (parts.Length == 2)
             {
                 var _entityId = EntityManager.Instance.GetEntityId;
-                int entityClassId;
-                if (int.TryParse(parts[1], out entityClassId))
+                if (int.TryParse(parts[1], out int entityClassId))
                 {
                     // create object entity
                     _client.SendPacket(5, new CreatePhysicalEntityPacket(_entityId, entityClassId));

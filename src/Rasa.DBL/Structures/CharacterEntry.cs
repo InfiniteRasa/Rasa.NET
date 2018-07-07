@@ -30,6 +30,7 @@ namespace Rasa.Structures
         public int Prestige { get; set; }
         public string Logos { get; set; }
         public int CurrentAbilityDrawer { get; set; }
+        public uint CurrentTitle { get; set; }
 
         public static CharacterEntry Read(MySqlDataReader reader)
         {

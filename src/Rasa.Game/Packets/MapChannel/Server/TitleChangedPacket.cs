@@ -3,13 +3,13 @@
     using Data;
     using Memory;
 
-    public class TitleRemovedPacket : PythonPacket
+    public class TitleChangedPacket : PythonPacket
     {
-        public override GameOpcode Opcode { get; } = GameOpcode.TitleRemoved;
+        public override GameOpcode Opcode { get; } = GameOpcode.TitleChanged;
 
         public uint TitleId { get; set; }
 
-        public TitleRemovedPacket(uint titleId)
+        public TitleChangedPacket(uint titleId)
         {
             TitleId = titleId;
         }

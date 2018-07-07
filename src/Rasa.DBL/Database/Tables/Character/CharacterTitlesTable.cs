@@ -16,18 +16,18 @@ namespace Rasa.Database.Tables.Character
             CharacterTitles.Prepare();
         }
 
-        public static List<int> GetCharacterTitles(uint accountId, uint characterSlot)
+        public static List<uint> GetCharacterTitles(uint accountId, uint characterSlot)
         {
             lock (GameDatabaseAccess.CharLock)
             {
                 CharacterTitles.Parameters["@AccountId"].Value = accountId;
                 CharacterTitles.Parameters["@CharacterSlot"].Value = characterSlot;
 
-                var titles = new List<int>();
+                var titles = new List<uint>();
 
                 using (var reader = CharacterTitles.ExecuteReader())
                     while (reader.Read())
-                        titles.Add(reader.GetInt32("titleId"));
+                        titles.Add(reader.GetUInt32("titleId"));
 
                 return titles;
             }

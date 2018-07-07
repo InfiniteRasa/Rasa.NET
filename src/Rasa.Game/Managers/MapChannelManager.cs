@@ -116,6 +116,7 @@ namespace Rasa.Managers
                 Prestige = data.Prestige,
                 Skills = GetPlayerSkills(client),
                 Titles = CharacterTitlesTable.GetCharacterTitles(client.Entry.Id, client.LoadingSlot),
+                CurrentTitle = data.CurrentTitle,
                 Abilities = GetPlayerAbilities(client.Entry.Id, client.LoadingSlot),
                 CurrentAbilityDrawer = data.CurrentAbilityDrawer,
                 Missions = missionData,

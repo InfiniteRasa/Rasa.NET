@@ -9,9 +9,9 @@ namespace Rasa.Packets.MapChannel.Server
     {
         public override GameOpcode Opcode { get; } = GameOpcode.Titles;
 
-        public List<int> Titles { get; set; }
+        public List<uint> Titles { get; set; }
 
-        public TitlesPacket(List<int> titles)
+        public TitlesPacket(List<uint> titles)
         {
             Titles = titles;
         }
@@ -25,7 +25,7 @@ namespace Rasa.Packets.MapChannel.Server
             pw.WriteTuple(1);
             pw.WriteList(Titles.Count);
             foreach (var title in Titles)
-                pw.WriteInt(title);
+                pw.WriteUInt(title);
         }
     }
 }

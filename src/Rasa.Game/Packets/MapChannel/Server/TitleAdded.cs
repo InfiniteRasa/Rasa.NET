@@ -7,11 +7,11 @@
     {
         public override GameOpcode Opcode { get; } = GameOpcode.TitleAdded;
 
-        public int Titles { get; set; }
+        public uint TitleId { get; set; }
 
-        public TitleAddedPacket(int titleId)
+        public TitleAddedPacket(uint titleId)
         {
-            Titles = titleId;
+            TitleId = titleId;
         }
 
         public override void Read(PythonReader pr)
@@ -21,7 +21,7 @@
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(1);
-            pw.WriteInt(Titles);
+            pw.WriteUInt(TitleId);
         }
     }
 }

@@ -200,12 +200,20 @@ namespace Rasa.Managers
             }
         }
 
-        public void ChangeTitle(Client client, int titleId)
+        public void ChangeTitle(Client client, uint titleId)
         {
-            if (titleId != 0)
-                client.SendPacket(client.MapClient.Player.Actor.EntityId, new ChangeTitlePacket { TitleId = titleId });
+            //if (titleId != 0)
+            //{
+                client.MapClient.Player.CurrentTitle = titleId;
+                client.SendPacket(client.MapClient.Player.Actor.EntityId, new TitleChangedPacket(titleId));
+            /*}
             else
-                client.SendPacket(client.MapClient.Player.Actor.EntityId, new TitleRemovedPacket());
+            {
+                client.SendPacket(client.MapClient.Player.Actor.EntityId, new TitleRemovedPacket(client.MapClient.Player.CurrentTitle));
+                client.MapClient.Player.CurrentTitle = titleId;
+            }
+
+            client.MapClient.Player.CurentTitle = titleId;*/
         }
 
         public void ClearTrackingTarget(Client client, ClearTrackingTargetPacket packet)
