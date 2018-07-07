@@ -20,9 +20,9 @@ namespace Rasa.Structures
         public int MapContextId { get; set; }
         public bool IsRunning { get; set; }
         public bool InCombatMode { get; set; }
-        //public char State { get; set; }
+        public ActorState State { get; set; }
         // action data
-        public ActorCurrentAction CurrentAction { get; set; }
+        public int CurrentAction { get; set; }
         public Dictionary<Attributes, ActorAttributes> Attributes = new Dictionary<Attributes, ActorAttributes>();
         public Dictionary<int, GameEffect> ActiveEffects { get; set; } = new Dictionary<int, GameEffect>();
         public MapCellLocation CellLocation { get; set; } = new MapCellLocation();

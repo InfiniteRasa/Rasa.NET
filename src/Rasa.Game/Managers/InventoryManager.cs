@@ -80,7 +80,7 @@ namespace Rasa.Managers
             if (item == null)
                 return null;
 
-            var itemClassInfo = EntityClassManager.Instance.LoadedEntityClasses[item.ItemTemplate.ClassId].ItemClassInfo;
+            var itemClassInfo = EntityClassManager.Instance.GetItemClassInfo(item);
 
             // get item category offset
             var itemCategoryOffset = (int)item.ItemTemplate.InventoryCategory - 1;
@@ -422,10 +422,13 @@ namespace Rasa.Managers
                 return;
             if (packet.DestSlot < 0 || packet.DestSlot > 22)
                 return;
+
             var entityIdEquippedItem = client.MapClient.Inventory.EquippedInventory[packet.DestSlot]; // the old equipped item (can be none)
             var entityIdInventoryItem = client.MapClient.Inventory.PersonalInventory[packet.SrcSlot]; // the new equipped item (can be none)
+            
             // can we equip the item?
             Item itemToEquip = null;
+
             if (entityIdInventoryItem != 0)
             {
                 itemToEquip = EntityManager.Instance.GetItem(entityIdInventoryItem);
@@ -438,23 +441,26 @@ namespace Rasa.Managers
                         return;
                     }
             }
+
             // swap items on the client and server
             if (client.MapClient.Inventory.PersonalInventory[packet.SrcSlot] != 0)
                 RemoveItemBySlot(client, InventoryType.Personal, packet.SrcSlot);
+
             if (client.MapClient.Inventory.EquippedInventory[packet.DestSlot] != 0)
                 RemoveItemBySlot(client, InventoryType.EquipedInventory, packet.DestSlot);
+
             if (entityIdEquippedItem != 0)
-            {
                 AddItemBySlot(client, InventoryType.Personal, entityIdEquippedItem, packet.SrcSlot, true);
-            }
+
             if (entityIdInventoryItem != 0)
                 AddItemBySlot(client, InventoryType.EquipedInventory, entityIdInventoryItem, packet.DestSlot, true);
+            
             // update appearance
             if (itemToEquip == null)
             {
                 // remove item graphic if dequipped
                 var prevEquippedItem = EntityManager.Instance.GetItem(entityIdEquippedItem);
-                var equipableClassInfo = EntityClassManager.Instance.LoadedEntityClasses[prevEquippedItem.ItemTemplate.ClassId].EquipableClassInfo;
+                var equipableClassInfo = EntityClassManager.Instance.GetEquipableClassInfo(prevEquippedItem);
                 PlayerManager.Instance.RemoveAppearanceItem(client, equipableClassInfo.EquipmentSlotId);
             }
             else
@@ -470,21 +476,26 @@ namespace Rasa.Managers
             var srcSlot = packet.SrcSlot;
             var invType = packet.InventoryType;
             var destSlot = packet.DestSlot;
+
             if (invType != InventoryType.Personal)
             {
                 Console.WriteLine("unsuported inventory");
                 return;
             }
+
             if (srcSlot < 0 || srcSlot > 50)
                 return;
+
             if (destSlot < 0 || destSlot >= 5)
                 return;
-           
+
             // equip item
             var entityIdEquippedItem = client.MapClient.Inventory.WeaponDrawer[destSlot]; // the old equipped item (can be none)
             var entityIdInventoryItem = client.MapClient.Inventory.PersonalInventory[srcSlot]; // the new equipped item (can be none)
+            
             // can we equip the item?
             Item itemToEquip = null;
+
             if (entityIdInventoryItem != 0)
             {
                 itemToEquip = EntityManager.Instance.GetItem(entityIdInventoryItem);
@@ -497,6 +508,7 @@ namespace Rasa.Managers
                         return;
                     }
             }
+            
             // swap items on the client and server
             if (client.MapClient.Inventory.PersonalInventory[srcSlot] != 0)
                 RemoveItemBySlot(client, InventoryType.Personal, srcSlot);
@@ -506,25 +518,23 @@ namespace Rasa.Managers
                 AddItemBySlot(client, InventoryType.Personal, entityIdEquippedItem, srcSlot, true);
             if (entityIdInventoryItem != 0)
                 AddItemBySlot(client, InventoryType.WeaponDrawerInventory, entityIdInventoryItem, destSlot, true);
-            
+
             // Tell client that he have new weapon
             PlayerManager.Instance.NotifyEquipmentUpdate(client);
 
             if (destSlot == client.MapClient.Inventory.ActiveWeaponDrawer)
-            {
                 if (itemToEquip == null)
                 {
                     // remove item graphic if dequipped
                     var prevEquippedItem = EntityManager.Instance.GetItem(entityIdEquippedItem);
-                    var equipableClassInfo = EntityClassManager.Instance.LoadedEntityClasses[prevEquippedItem.ItemTemplate.ClassId].EquipableClassInfo;
+                    var equipableClassInfo = EntityClassManager.Instance.GetEquipableClassInfo(prevEquippedItem);
+
                     PlayerManager.Instance.RemoveAppearanceItem(client, equipableClassInfo.EquipmentSlotId);
                 }
                 else
-                {
                     PlayerManager.Instance.SetAppearanceItem(client, itemToEquip);
-                }
-                PlayerManager.Instance.UpdateAppearance(client);
-            }
+
+            PlayerManager.Instance.UpdateAppearance(client);
         }
 
         public void RequestLockboxTabPermissions(Client client)
@@ -580,7 +590,7 @@ namespace Rasa.Managers
         {
 
             var itemTemplate = ItemManager.Instance.GetItemTemplateById(itemTemplateId);
-            var classInfo = EntityClassManager.Instance.LoadedEntityClasses[itemTemplate.ClassId];
+            var classInfo = EntityClassManager.Instance.GetClassInfo(itemTemplate.ClassId);
 
             if (itemTemplate == null)
             {

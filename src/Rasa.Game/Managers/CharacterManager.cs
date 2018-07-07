@@ -85,6 +85,7 @@ namespace Rasa.Managers
             }
             // insert character into DB
             CharacterTable.CreateCharacter(client.Entry.Id, packet.SlotNum, packet.CharacterName, packet.FamilyName, packet.Gender, packet.Scale, packet.RaceId);
+            
             // Give character basic items
             CharacterInventoryTable.AddInvItem(client.Entry.Id, packet.SlotNum, (int)InventoryType.Personal, 0, ItemsTable.CreateItem(17131, 1, EntityClassManager.Instance.LoadedEntityClasses[ItemManager.Instance.ItemTemplateItemClass[17131]].ItemClassInfo.MaxHitPoints, -2139062144));
             CharacterInventoryTable.AddInvItem(client.Entry.Id, packet.SlotNum, (int)InventoryType.Personal, 50, ItemsTable.CreateItem(28, 100, EntityClassManager.Instance.LoadedEntityClasses[ItemManager.Instance.ItemTemplateItemClass[28]].ItemClassInfo.MaxHitPoints, -2139062144));
@@ -93,6 +94,7 @@ namespace Rasa.Managers
             CharacterInventoryTable.AddInvItem(client.Entry.Id, packet.SlotNum, (int)InventoryType.EquipedInventory, 3, ItemsTable.CreateItem(13096, 1, EntityClassManager.Instance.LoadedEntityClasses[ItemManager.Instance.ItemTemplateItemClass[13096]].ItemClassInfo.MaxHitPoints, -2139062144));
             CharacterInventoryTable.AddInvItem(client.Entry.Id, packet.SlotNum, (int)InventoryType.EquipedInventory, 15, ItemsTable.CreateItem(13186, 1, EntityClassManager.Instance.LoadedEntityClasses[ItemManager.Instance.ItemTemplateItemClass[13186]].ItemClassInfo.MaxHitPoints, -2139062144));
             CharacterInventoryTable.AddInvItem(client.Entry.Id, packet.SlotNum, (int)InventoryType.EquipedInventory, 16, ItemsTable.CreateItem(13156, 1, EntityClassManager.Instance.LoadedEntityClasses[ItemManager.Instance.ItemTemplateItemClass[13156]].ItemClassInfo.MaxHitPoints, -2139062144));
+            
             // Set character appearance
             CharacterAppearanceTable.SetAppearance(client.Entry.Id, packet.SlotNum, (int)EquipmentSlots.Helmet, 10908, -2139062144);
             CharacterAppearanceTable.SetAppearance(client.Entry.Id, packet.SlotNum, (int)EquipmentSlots.Shoes, 7054, -2139062144);
@@ -104,9 +106,14 @@ namespace Rasa.Managers
                 var v = t.Value;
                 CharacterAppearanceTable.SetAppearance(client.Entry.Id, packet.SlotNum, (int)v.SlotId, StarterItemsTable.GetClassId(v.ClassId), v.Color.Hue);
             }
+            
             // Create default entry in CharacterAbilitiesTable
             for (var i = 0; i < 25; i++)
                 CharacterAbilityDrawerTable.SetCharacterAbility(client.Entry.Id, packet.SlotNum, i, 0, 0);
+            
+            // Give character first lockbox tab, if dont exist already
+            if (CharacterLockboxTable.GetLockboxInfo(client.Entry.Id).Count < 2)
+                CharacterLockboxTable.AddLockboxInfo(client.Entry.Id);
 
             SendCharacterCreateSuccess(client, packet.SlotNum, packet.FamilyName);
             UpdateCharacterSelection(client, packet.SlotNum);
@@ -158,6 +165,7 @@ namespace Rasa.Managers
             {
                 var tempAppearanceData = new List<AppearanceData>();
                 var appearance = CharacterAppearanceTable.GetAppearance(client.Entry.Id, slotNum + 1);
+
                 foreach (var t in appearance)
                     tempAppearanceData.Add(new AppearanceData { SlotId = (EquipmentSlots)t.SlotId, ClassId = t.ClassId, Color = new Color(t.Color) });
 

@@ -324,7 +324,7 @@
         [PacketHandler(GameOpcode.RequestWeaponAttack)]
         private void RequestWeaponAttack(RequestWeaponAttackPacket packet)
         {
-            Logger.WriteLog(LogType.Debug, "ToDo RequestWeaponAttack");
+            MissileManager.Instance.RequestWeaponAttack(Client, packet);
         }
 
         [PacketHandler(GameOpcode.RequestWeaponDraw)]
@@ -366,7 +366,7 @@
         [PacketHandler(GameOpcode.SetTargetId)]
         private void SetTargetId(SetTargetIdPacket packet)
         {
-            Logger.WriteLog(LogType.Debug, "ToDo SetTargetId");
+            PlayerManager.Instance.SetTargetId(Client, packet.EntityId);
         }
 
         [PacketHandler(GameOpcode.SetTrackingTarget)]
@@ -384,7 +384,7 @@
         [PacketHandler(GameOpcode.StopAutoFire)]
         private void StopAutoFire(StopAutoFirePacket packet)
         {
-            Logger.WriteLog(LogType.Debug, "ToDo StopAutoFire");
+            PlayerManager.Instance.StopAutoFire(Client);
         }
 
         [PacketHandler(GameOpcode.TransferCreditToLockbox)]

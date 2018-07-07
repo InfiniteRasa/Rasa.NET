@@ -21,7 +21,8 @@ namespace Rasa.Structures
         public List<Client> ClientList { get; set; }
         // queue
         public readonly Queue<Client> QueuedClients = new Queue<Client>();
-        public readonly Queue<PerformAbilityData> QueuedPerformAbilities = new Queue<PerformAbilityData>();
+        // action
+        public readonly List<ActionData> PerformActions = new List<ActionData>();
         // cell
         public MapCellInfo MapCellInfo = new MapCellInfo();
         // effect

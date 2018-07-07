@@ -11,9 +11,9 @@ namespace Rasa.Packets.MapChannel.Server
 
         public int MsgId { get; set; }                          // from playermessagelanguage.pyo
         public Dictionary<string, string> Args { get; set; }     
-        public int Filterid { get; set; }                       // from clientmessagefilterlanguage
+        public MsgFilterId Filterid { get; set; }
 
-        public DisplayClientMessagePacket(int msgId, Dictionary<string, string> args, int filterId)
+        public DisplayClientMessagePacket(int msgId, Dictionary<string, string> args, MsgFilterId filterId)
         {
             MsgId = msgId;
             Args = args;
@@ -34,7 +34,7 @@ namespace Rasa.Packets.MapChannel.Server
                 pw.WriteString(arg.Key);
                 pw.WriteString(arg.Value);
             }
-            pw.WriteInt(Filterid);
+            pw.WriteInt((int)Filterid);
         }
     }
 }

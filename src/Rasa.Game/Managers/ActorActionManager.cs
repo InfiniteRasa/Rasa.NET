@@ -2,6 +2,7 @@
 
 namespace Rasa.Managers
 {
+    using Data;
     using Database.Tables.Character;
     using Game;
     using Packets.MapChannel.Server;
@@ -14,7 +15,6 @@ namespace Rasa.Managers
         private static ActorActionManager _instance;
         private static readonly object InstanceLock = new object();
         public readonly Timer Timer = new Timer();
-        public List<ActionsData> QueuedActions { get; set; } = new List<ActionsData>();
         public static ActorActionManager Instance
         {
             get
@@ -37,42 +37,71 @@ namespace Rasa.Managers
         {
         }
 
-        public void RequestWeaponReload(Client client, Actor actor, Item weapon, int foundAmmo)
+        public bool HasActiveAction(Client client)
         {
-            weapon.CurrentAmmo = foundAmmo;
-            // update ammo in database
-            ItemsTable.UpdateItemCurrentAmmo(weapon.ItemId, foundAmmo);
-            // send action complete packet
-            QueuedActions.Add(new ActionsData
-            {
-                Client = client,
-                EntityId = actor.EntityId,
-                Packet = new PerformRecoveryPacket(134, 1, new List<int>{foundAmmo}),
-                WaitTime = weapon.ItemTemplate.WeaponInfo.ReloadTime
-            });
+            if (client.MapClient.Player.Actor.CurrentAction == 0)
+                return false;
+
+            CommunicatorManager.Instance.SystemMessage(client, "Player is busy.");
+            return true;
         }
 
-        public void DoWork(long delta)
+        public void DoWork(MapChannel mapChannel, long delta)
         {
-            foreach (var action in QueuedActions)
+            if (mapChannel.PerformActions.Count > 0)
             {
-                action.PassedTime += delta;
-                if (action.WaitTime <= action.PassedTime)
+                Logger.WriteLog(LogType.Debug, $"PerformActions count = { mapChannel.PerformActions.Count}");
+                // iterate backwards through list
+                for (var i = mapChannel.PerformActions.Count - 1; i >= 0; i--)
                 {
-                    action.Client.CellSendPacket(action.Client, action.EntityId, action.Packet);
-                    QueuedActions.Remove(action);
-                    break;
+                    var action = mapChannel.PerformActions[i];
+
+                    // skip if client is busy
+                    if (HasActiveAction(action.Client))
+                        continue;
+
+                    action.PassedTime += delta;
+
+                    if (action.WaitTime <= action.PassedTime)
+                    {
+                        // perform action
+                        PerformAction(action);
+                        // remove action
+                        mapChannel.PerformActions.Remove(action);
+                    }
                 }
             }
         }
 
-        public class ActionsData
+        public void PerformAction(ActionData action)
         {
-            public Client Client { get; set; }
-            public uint EntityId { get; set; }
-            public PythonPacket Packet { get; set; }
-            public long WaitTime { get; set; }
-            public long PassedTime { get; set; }
+            switch (action.ActionId)
+            {
+                case ActionId.WeaponAttack:
+                    PlayerManager.Instance.StartAutoFire(action.Client, 0D);
+                    action.Client.CellSendPacket(action.Client, action.Client.MapClient.Player.Actor.EntityId, new PerformRecoveryPacket(action.ActionId, action.ActionArgId, new List<int> { 1 }));
+                    break;
+                case ActionId.WeaponStow:
+                    action.Client.CellSendPacket(action.Client, action.Client.MapClient.Player.Actor.EntityId, new PerformRecoveryPacket(action.ActionId, action.ActionArgId));
+                    action.Client.MapClient.Player.WeaponReady = false;
+                    break;
+                case ActionId.WeaponDraw:
+                    action.Client.CellSendPacket(action.Client, action.Client.MapClient.Player.Actor.EntityId, new PerformRecoveryPacket(action.ActionId, action.ActionArgId));
+                    action.Client.MapClient.Player.WeaponReady = true;
+                    break;
+                case ActionId.WeaponReload:
+                    PlayerManager.Instance.WeaponReload(action);
+                    break;
+                case ActionId.AaRecruitLightning:
+                    action.Client.CellSendPacket(action.Client, action.Client.MapClient.Player.Actor.EntityId, new PerformWindupPacket(action.ActionId, action.ActionArgId));
+                    break;
+                case ActionId.AaRecruitSprint:
+                    GameEffectManager.Instance.AttachSprint(action.Client, action.Client.MapClient.Player.Actor, action.ActionArgId, 500);
+                    break;
+                default:
+                    Logger.WriteLog(LogType.Error, $"PerformAction: unsuported {action.ActionId}");
+                    break;
+            };
         }
     }
 }

@@ -633,7 +633,7 @@ namespace Rasa.Managers
             foreach( var itemEntityId in packet.ItemEntitesId)
             {
                 var item = EntityManager.Instance.GetItem((uint)itemEntityId);
-                var classInfo = EntityClassManager.Instance.LoadedEntityClasses[item.ItemTemplate.ClassId];
+                var classInfo = EntityClassManager.Instance.GetClassInfo(item.ItemTemplate.ClassId);
 
                 // calculate cost
                 var cost = (double)((classInfo.ItemClassInfo.MaxHitPoints - item.CurrentHitPoints) * item.ItemTemplate.SellPrice) / 100;

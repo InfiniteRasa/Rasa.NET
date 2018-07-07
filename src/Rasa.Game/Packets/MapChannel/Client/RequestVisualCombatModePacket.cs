@@ -11,6 +11,7 @@
 
         public override void Read(PythonReader pr)
         {
+            Logger.WriteLog(LogType.Debug, $"RequestVisualCombatMode:\n {pr.ToString()}");
             pr.ReadTuple();
             CombatMode = pr.ReadInt();
         }

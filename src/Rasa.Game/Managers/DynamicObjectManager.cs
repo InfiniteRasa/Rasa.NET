@@ -2,6 +2,7 @@
 
 namespace Rasa.Managers
 {
+    using Data;
     using Database.Tables.Character;
     using Packets.MapChannel.Server;
     using Packets;
@@ -37,7 +38,7 @@ namespace Rasa.Managers
         {
         }
 
-        public void ForceState(Client client, uint entityId, int state)
+        public void ForceState(Client client, uint entityId, ActorState state)
         {
             client.SendPacket(entityId, new ForceStatePacket(state));
         }

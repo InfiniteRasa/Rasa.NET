@@ -201,8 +201,8 @@ namespace Rasa.Managers
 
             Console.WriteLine("\nMapChannels Started...");
 
+            Timer.Add("AutoFire", 100, true, null);
             Timer.Add("CheckForLogingClients", 1000, true, null);
-            Timer.Add("PerformAbilities", 500, true, null);
             Timer.Add("ClientEffectUpdate", 500, true, null);
             Timer.Add("CellUpdateVisibility", 300, true, null);
             Timer.Add("CheckForCreatures", 1000, true, null);
@@ -233,7 +233,9 @@ namespace Rasa.Managers
 
                 if (mapChannel.ClientList.Count > 0)
                 {
-                    ActorActionManager.Instance.DoWork(delta);
+                    ActorActionManager.Instance.DoWork(mapChannel, delta);
+                    MissileManager.Instance.DoWork(delta);
+                    PlayerManager.Instance.AutoFireTimerDoWork(delta);
 
                     // CellManager worker
                     if (Timer.IsTriggered("CellUpdateVisibility"))
@@ -243,17 +245,10 @@ namespace Rasa.Managers
                     if (Timer.IsTriggered("CheckForCreatures"))
                         SpawnPoolManager.Instance.SpawnPoolWorker(mapChannel, delta);
 
-                    // check for abilities
-                    if (Timer.IsTriggered("PerformAbilities"))
-                        if (mapChannel.QueuedPerformAbilities.Count > 0)
-                            PlayerManager.Instance.PerformAbilitie(mapChannel, mapChannel.QueuedPerformAbilities.Dequeue());
-                    
                     // check for effects (buffs)
                     if (Timer.IsTriggered("ClientEffectUpdate"))
                         GameEffectManager.Instance.DoWork(mapChannel, delta);
-
-                    // check for creatures
-
+                    
                     // chack for player LogOut
                     foreach (var client in mapChannel.ClientList)
                         if (client != null)
@@ -380,6 +375,16 @@ namespace Rasa.Managers
         public void Ping(Client client, double ping)
         {
             client.SendPacket(5, new AckPingPacket(ping));
+        }
+
+        public void RegisterAutoFireTimer(Client client)
+        {
+            var weapon = InventoryManager.Instance.CurrentWeapon(client.MapClient);
+
+            if (weapon == null || weapon.ItemTemplate.WeaponInfo == null)
+                return; // invalid entity or incorrect item type
+
+            Timer.Add("CheckForLogingClients", 1000, true, null);
         }
 
         public void RemovePlayer(Client client, bool logout)

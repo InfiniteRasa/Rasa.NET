@@ -232,15 +232,16 @@
                     var oldX2 = client.MapClient.Player.Actor.CellLocation.CellPosX + CellViewRange;
                     var oldY1 = client.MapClient.Player.Actor.CellLocation.CellPosY - CellViewRange;
                     var oldY2 = client.MapClient.Player.Actor.CellLocation.CellPosY + CellViewRange;
+
                     // find players that leave visibility range
                     for (var ix = oldX1; ix <= oldX2; ix++)
-                    {
                         for (var iy = oldY1; iy <= oldY2; iy++)
                         {
                             if ((ix >= (cellPosX - CellViewRange) && ix <= (cellPosX + CellViewRange)) && (iy >= (cellPosY - CellViewRange) && iy <= (cellPosY + CellViewRange)))
                                 continue;
 
                             var nMapCell = GetCell(mapChannel, ix, iy);
+
                             if (nMapCell != null)
                             {
                                 // remove notify entry
@@ -257,23 +258,27 @@
                                     PlayerManager.Instance.CellDiscardClientToPlayers(client, nMapCell.ClientNotifyList);
                                     PlayerManager.Instance.CellDiscardPlayersToClient(client, nMapCell.ClientNotifyList);
                                 }
+                                
                                 // remove object visibility
-                               // if (nMapCell->ht_objectList.empty() == false)
-                               //     dynamicObject_cellDiscardObjectsToClient(mapChannel, client, &nMapCell->ht_objectList[0], nMapCell->ht_objectList.size());
+                                // if (nMapCell->ht_objectList.empty() == false)
+                                //     dynamicObject_cellDiscardObjectsToClient(mapChannel, client, &nMapCell->ht_objectList[0], nMapCell->ht_objectList.size());
+                                
                                 // remove creature visibility
-                               // if (nMapCell->ht_creatureList.empty() == false)
-                               //     creature_cellDiscardCreaturesToClient(mapChannel, client, &nMapCell->ht_creatureList[0], nMapCell->ht_creatureList.size());
+                                //if (nMapCell.CreatureList.Count > 0)
+                                //   CreatureManager.Instance.CellDiscardCreaturesToClient(mapChannel, client, nMapCell.CreatureList);
                             }
                         }
-                    }
+                    
+                    
                     // find players that enter visibility range
                     for (var ix = cellPosX - CellViewRange; ix <= CellPosX + CellViewRange; ix++)
-                    {
-                        for(var iy = cellPosY - CellViewRange; iy <= cellPosY + CellViewRange; iy++)
+                        for (var iy = cellPosY - CellViewRange; iy <= cellPosY + CellViewRange; iy++)
                         {
                             if ((ix >= oldX1 && ix <= oldX2) && (iy >= oldY1 && iy <= oldY2))
                                 continue;
+
                             var nnMapCell = GetCell(mapChannel, ix, iy);
+
                             if (nnMapCell != null)
                             {
                                 // add player visibility client-side
@@ -287,11 +292,11 @@
                                 //if (nMapCell.ObjectList > 0)
                                 //    dynamicObject_cellIntroduceObjectsToClient(mapChannel, client, &nMapCell->ht_objectList[0], nMapCell->ht_objectList.size());
                                 // add creature visibility client-side
-                                //if (nMapCell.CcreatureList > 0)
-                                //    creature_cellIntroduceCreaturesToClient(mapChannel, client, &nMapCell->ht_creatureList[0], nMapCell->ht_creatureList.size());
+                                if (nnMapCell.CreatureList.Count > 0)
+                                    CreatureManager.Instance.CellIntroduceCreaturesToClient(mapChannel, client, nnMapCell.CreatureList);
                             }
                         }
-                    }
+                    
                     // move the player entry
                     var mapCell = GetCell(mapChannel, client.MapClient.Player.Actor.CellLocation.CellPosX, client.MapClient.Player.Actor.CellLocation.CellPosX);
 

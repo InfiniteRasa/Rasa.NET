@@ -9,9 +9,22 @@ namespace Rasa.Packets.MapChannel.Server
     {
         public override GameOpcode Opcode { get; } = GameOpcode.PerformWindup;
 
-        public int ActionId { get; set; }
+        public ActionId ActionId { get; set; }
         public int ActionArgId { get; set; }
-        public List<int> Args { get; set; }
+        public List<int> Args = new List<int>();
+
+        public PerformWindupPacket(ActionId actionId, int actionArgId)
+        {
+            ActionId = ActionId;
+            ActionArgId = actionArgId;
+        }
+
+        public PerformWindupPacket(ActionId actionId, int actionArgId, List<int> args)
+        {
+            ActionId = ActionId;
+            ActionArgId = actionArgId;
+            Args = args;
+        }
 
         public override void Read(PythonReader pr)
         {
@@ -19,17 +32,11 @@ namespace Rasa.Packets.MapChannel.Server
 
         public override void Write(PythonWriter pw)
         {
-            pw.WriteTuple(3);
-            pw.WriteInt(ActionId);
+            pw.WriteTuple(2 + Args.Count);
+            pw.WriteInt((int)ActionId);
             pw.WriteInt(ActionArgId);
-            if (Args != null)
-            {
-                pw.WriteList(Args.Count);
-                foreach (var arg in Args)
-                    pw.WriteInt(arg);
-            }
-            else
-                pw.WriteNoneStruct();
+            foreach (var arg in Args)
+                pw.WriteInt(arg);
         }
     }
 }

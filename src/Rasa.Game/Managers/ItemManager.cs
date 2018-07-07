@@ -56,7 +56,7 @@ namespace Rasa.Managers
             if (itemTemplate == null)
                 return null;
 
-            var classInfo = EntityClassManager.Instance.LoadedEntityClasses[itemTemplate.ClassId];
+            var classInfo = EntityClassManager.Instance.GetClassInfo(itemTemplate.ClassId);
 
             // dont create more then max stackSize
             if (classInfo.ItemClassInfo.StackSize < stackSize)
@@ -88,7 +88,7 @@ namespace Rasa.Managers
         public Item CreateVendorItem(Client client, int itemTemplateId)
         {
             var itemTemplate = GetItemTemplateById(itemTemplateId);
-            var classInfo = EntityClassManager.Instance.LoadedEntityClasses[itemTemplate.ClassId];
+            var classInfo = EntityClassManager.Instance.GetClassInfo(itemTemplate.ClassId);
 
             var item = new Item
             {
@@ -144,10 +144,11 @@ namespace Rasa.Managers
             if (ItemTemplateItemClass.ContainsKey(itemTemplateId))
             {
                 var classId = ItemTemplateItemClass[itemTemplateId];
+
                 return EntityClassManager.Instance.LoadedEntityClasses[classId].ItemTemplates[itemTemplateId];
             }
 
-            Logger.WriteLog(LogType.Error, $"Unknown temTemplateId = {itemTemplateId}");
+            Logger.WriteLog(LogType.Error, $"Unknown itemTemplateId = {itemTemplateId}");
 
             return null;
         }
@@ -237,7 +238,7 @@ namespace Rasa.Managers
             if(!updateOnly)
                 client.SendPacket(5, new CreatePhysicalEntityPacket( item.EntityId, item.ItemTemplate.ClassId));
 
-            var classInfo = EntityClassManager.Instance.LoadedEntityClasses[item.ItemTemplate.ClassId];
+            var classInfo = EntityClassManager.Instance.GetClassInfo(item.ItemTemplate.ClassId);
             // ItemInfo
             client.SendPacket(item.EntityId, new ItemInfoPacket
             {

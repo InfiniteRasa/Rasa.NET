@@ -91,7 +91,7 @@ namespace Rasa.Managers
             Logger.WriteLog(LogType.Initialize, $"Loaded {weaponClassList.Count} WeaponClasses");
         }
 
-        public EntityClass GetEntityClass(int entityClassId)
+        public EntityClass GetClassInfo(int entityClassId)
         {
             if (LoadedEntityClasses.ContainsKey(entityClassId))
                 return LoadedEntityClasses[entityClassId];
@@ -99,6 +99,26 @@ namespace Rasa.Managers
             Logger.WriteLog(LogType.Error, $"entityClassId  {entityClassId} is not present in LoadedEntityClasses");
 
             return null;
+        }
+
+        public ArmorClassInfo GetArmorClassInfo(Item armor)
+        {
+            return LoadedEntityClasses[armor.ItemTemplate.ClassId].ArmorClassInfo;
+        }
+
+        public EquipableClassInfo GetEquipableClassInfo(Item equipment)
+        {
+            return LoadedEntityClasses[equipment.ItemTemplate.ClassId].EquipableClassInfo;
+        }
+
+        public ItemClassInfo GetItemClassInfo(Item item)
+        {
+            return LoadedEntityClasses[item.ItemTemplate.ClassId].ItemClassInfo;
+        }
+
+        public WeaponClassInfo GetWeaponClassInfo(Item weapon)
+        {
+            return LoadedEntityClasses[weapon.ItemTemplate.ClassId].WeaponClassInfo;
         }
     }
 }

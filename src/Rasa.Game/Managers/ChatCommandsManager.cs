@@ -160,7 +160,7 @@ namespace Rasa.Managers
             // if only item template, give max stack size
             if (parts.Length == 3)
                 if (uint.TryParse(parts[1], out uint entityId))
-                    if (int.TryParse(parts[1], out int state))
+                    if (ActorState.TryParse(parts[1], out ActorState state))
                         _client.SendPacket(entityId, new ForceStatePacket(state));
 
             return;
@@ -177,7 +177,7 @@ namespace Rasa.Managers
             if (parts.Length == 2)
                 if (int.TryParse(parts[1], out int itemTemplateId))
                 {
-                    var classInfo = EntityClassManager.Instance.LoadedEntityClasses[ItemManager.Instance.ItemTemplateItemClass[itemTemplateId]];
+                    var classInfo = EntityClassManager.Instance.GetClassInfo(ItemManager.Instance.ItemTemplateItemClass[itemTemplateId]);
                     var item = ItemManager.Instance.CreateFromTemplateId(itemTemplateId, classInfo.ItemClassInfo.StackSize, _client.MapClient.Player.Actor.FamilyName);
                     item.CrafterName = _client.MapClient.Player.Actor.FamilyName;
                     InventoryManager.Instance.AddItemToInventory(_client, item);

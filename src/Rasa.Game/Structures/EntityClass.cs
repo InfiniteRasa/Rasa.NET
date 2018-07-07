@@ -96,7 +96,7 @@ namespace Rasa.Structures
     {
         //public int ClassId { get; set; }
         public short WeaponTemplateid { get; set; }
-        public short WeaponAttackActionId { get; set; }
+        public ActionId WeaponAttackActionId { get; set; }
         public short WeaponAttackArgId { get; set; }
         public short DrawActionId { get; set; }
         public short StowActionId { get; set; }
@@ -125,8 +125,8 @@ namespace Rasa.Structures
         public WeaponClassInfo(WeaponClassEntry weaponInfo)
         {
             WeaponTemplateid = weaponInfo.WeaponTemplateid;
-            WeaponAttackActionId = weaponInfo.WeaponAttackArgId;
-            WeaponAttackArgId = weaponInfo.WeaponAttackActionId;
+            WeaponAttackActionId = (ActionId)weaponInfo.WeaponAttackActionId;
+            WeaponAttackArgId = weaponInfo.WeaponAttackArgId;
             DrawActionId = weaponInfo.DrawActionId;
             StowActionId = weaponInfo.StowActionId;
             ReloadActionId = weaponInfo.ReloadActionId;

@@ -9,11 +9,17 @@ namespace Rasa.Packets.MapChannel.Server
     {
         public override GameOpcode Opcode { get; } = GameOpcode.PerformRecovery;
 
-        public int ActionId { get; set; }
+        public ActionId ActionId { get; set; }
         public int ActionArgId { get; set; }
-        public List<int> Args { get; set; }
+        public List<int> Args = new List<int>();
 
-        public PerformRecoveryPacket(int actionId, int actionArgId, List<int> args)
+        public PerformRecoveryPacket(ActionId actionId, int actionArgId)
+        {
+            ActionId = actionId;
+            ActionArgId = actionArgId;
+        }
+
+        public PerformRecoveryPacket(ActionId actionId, int actionArgId, List<int> args)
         {
             ActionId = actionId;
             ActionArgId = actionArgId;
@@ -26,17 +32,11 @@ namespace Rasa.Packets.MapChannel.Server
 
         public override void Write(PythonWriter pw)
         {
-            pw.WriteTuple(3);
-            pw.WriteInt(ActionId);
+            pw.WriteTuple(2 + Args.Count);
+            pw.WriteInt((int)ActionId);
             pw.WriteInt(ActionArgId);
-            if (Args.Count > 0)
-            {
-                pw.WriteList(Args.Count);
-                foreach (var arg in Args)
-                    pw.WriteInt(arg);
-            }
-            else
-                pw.WriteNoneStruct();
+            foreach (var arg in Args)
+                pw.WriteInt(arg);
         }
     }
 }

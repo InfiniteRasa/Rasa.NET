@@ -204,7 +204,7 @@ namespace Rasa.Game
         }
 
         // Cell Domain ignore self
-        public void CellIgnoreSelfSendPacket(Client client, uint entityId, PythonPacket packet)
+        public void CellIgnoreSelfSendPacket(Client client, PythonPacket packet)
         {
             var mapCell = CellManager.Instance.GetCell(client.MapClient.MapChannel, client.MapClient.Player.Actor.CellLocation.CellPosX, client.MapClient.Player.Actor.CellLocation.CellPosY);
             var clientCount = mapCell.ClientNotifyList.Count;
@@ -218,7 +218,7 @@ namespace Rasa.Game
                 if (tempClient == client)
                     return;
 
-                tempClient.SendPacket(entityId, packet);
+                tempClient.SendPacket(client.MapClient.Player.Actor.EntityId, packet);
             }
         }
 
