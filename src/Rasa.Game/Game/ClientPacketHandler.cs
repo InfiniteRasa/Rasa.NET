@@ -348,7 +348,7 @@
         [PacketHandler(GameOpcode.SaveUserOptions)]
         private void SaveUserOptions(SaveUserOptionsPacket packet)
         {
-            Logger.WriteLog(LogType.Debug, "ToDo SaveUserOptions");
+            PlayerManager.Instance.SaveUserOptions(Client, packet);
         }
 
         [PacketHandler(GameOpcode.SetAutoLootThreshold)]
@@ -385,6 +385,12 @@
         private void StopAutoFire(StopAutoFirePacket packet)
         {
             PlayerManager.Instance.StopAutoFire(Client);
+        }
+
+        [PacketHandler(GameOpcode.StoreUserClientInformation)]
+        private void StoreUserClientInformation(StoreUserClientInformationPacket packet)
+        {
+            Logger.WriteLog(LogType.Debug, "ToDo StoreUserClientInformation");
         }
 
         [PacketHandler(GameOpcode.TransferCreditToLockbox)]

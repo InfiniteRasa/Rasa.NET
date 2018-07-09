@@ -9,6 +9,7 @@ namespace Rasa.Managers
     using Game;
     using Packets.Game.Client;
     using Packets.Game.Server;
+    using Packets.MapChannel.Server;
     using Structures;
 
     public class CharacterManager
@@ -56,6 +57,14 @@ namespace Rasa.Managers
 
             for (var i = 0; i < 16; ++i)
                 SendCharacterInfo(client, (uint)i);
+            
+            // get userOptions
+            var optionsList = UserOptionsTable.GetUserOptions(client.Entry.Id);
+
+            foreach (var userOption in optionsList)
+                client.UserOptions.Add(new UserOptions((UserOption)userOption.OptionId, userOption.Value));
+
+            client.SendPacket(5, new UserOptionsPacket(client.UserOptions));
         }
 
         public void RequestCharacterName(Client client, int gender)

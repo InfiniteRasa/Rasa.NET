@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Rasa.Managers
 {
@@ -625,6 +626,24 @@ namespace Rasa.Managers
 
             client.MapClient.MapChannel.PerformActions.Add(new ActionData(client, ActionId.WeaponStow, weaponClassInfo.StowActionId));
         }
+        
+        // maybe move this to other manager becose it's account related
+        public void SaveUserOptions(Client client, SaveUserOptionsPacket packet)
+        {
+            client.UserOptions = packet.OptionsList;
+
+            var value = "";
+
+            foreach (var option in client.UserOptions)
+                value = value + $" ('{client.Entry.Id}', '{(uint)option.OptionId}', '{option.Value}'),";
+            
+            // remove last comma
+            value = value.Remove(value.Length - 1);
+
+            UserOptionsTable.DeleteUserOptions(client.Entry.Id);
+            UserOptionsTable.AddUserOption(value + ";");
+            
+        }
 
         public void SetAppearanceItem(Client client, Item item)
         {
@@ -750,7 +769,7 @@ namespace Rasa.Managers
 
             client.MapClient.MapChannel.PerformActions.Add(new ActionData(client, weaponClassInfo.WeaponAttackActionId, weaponClassInfo.WeaponAttackArgId, 0, weapon.ItemTemplate.WeaponInfo.RefireTime));
         }
-
+        
         public void UpdateAppearance(Client client)
         {
             if (client.MapClient.Player == null)

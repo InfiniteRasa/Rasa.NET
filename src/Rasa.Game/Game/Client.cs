@@ -25,6 +25,7 @@ namespace Rasa.Game
         public int LoadingMap { get; set; }
         public uint LoadingSlot { get; set; }
         public MapChannelClient MapClient { get; set; }
+        public List<UserOptions> UserOptions = new List<UserOptions>();
         private readonly ClientPacketHandler _handler;
 
         private static PacketRouter<ClientPacketHandler, GameOpcode> PacketRouter { get; } = new PacketRouter<ClientPacketHandler, GameOpcode>();
