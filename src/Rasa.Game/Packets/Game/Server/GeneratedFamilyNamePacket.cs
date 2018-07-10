@@ -3,17 +3,11 @@
     using Data;
     using Memory;
 
-    public class GeneratedFamilyNamePacket : PythonPacket
+    public class GeneratedFamilyNamePacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.GeneratedFamilyName;
 
         public string Name { get; set; }
-
-        public override void Read(PythonReader pr)
-        {
-            pr.ReadTuple();
-            Name = pr.ReadUnicodeString();
-        }
 
         public override void Write(PythonWriter pw)
         {

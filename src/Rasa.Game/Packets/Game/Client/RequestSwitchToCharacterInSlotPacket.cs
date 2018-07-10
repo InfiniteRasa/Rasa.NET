@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class RequestSwitchToCharacterInSlotPacket : PythonPacket
+    public class RequestSwitchToCharacterInSlotPacket : ClientPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.RequestSwitchToCharacterInSlot;
 
@@ -14,10 +14,6 @@
             pr.ReadTuple();
             SlotNum = pr.ReadUInt();
             pr.ReadZeroStruct();
-        }
-
-        public override void Write(PythonWriter pw)
-        {
         }
     }
 }

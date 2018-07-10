@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 
 namespace Rasa.Packets
 {
@@ -23,5 +24,21 @@ namespace Rasa.Packets
 
         public abstract void Read(PythonReader pr);
         public abstract void Write(PythonWriter pw);
+    }
+
+    public abstract class ClientPythonPacket : PythonPacket
+    {
+        public override sealed void Write(PythonWriter pw)
+        {
+            throw new InvalidOperationException();
+        }
+    }
+
+    public abstract class ServerPythonPacket : PythonPacket
+    {
+        public override sealed void Read(PythonReader pw)
+        {
+            throw new InvalidOperationException();
+        }
     }
 }

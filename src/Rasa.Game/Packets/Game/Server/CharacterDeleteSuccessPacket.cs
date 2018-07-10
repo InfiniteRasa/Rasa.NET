@@ -3,19 +3,15 @@
     using Data;
     using Memory;
 
-    public class CharacterDeleteSuccessPacket : PythonPacket
+    public class CharacterDeleteSuccessPacket : ServerPythonPacket
     {
-        public override GameOpcode Opcode { get; } = GameOpcode.CharacterDeleteSuccess;
+        public override GameOpcode Opcode => GameOpcode.CharacterDeleteSuccess;
 
-        public bool HasCharacters { get; set; }
+        public bool HasCharacters { get; }
 
         public CharacterDeleteSuccessPacket(bool hasCharacters)
         {
             HasCharacters = hasCharacters;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

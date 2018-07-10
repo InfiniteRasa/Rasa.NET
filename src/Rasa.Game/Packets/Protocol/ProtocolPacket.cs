@@ -42,7 +42,11 @@ namespace Rasa.Packets.Protocol
             br.ReadByte(); // padding
 
             if (Size > br.BaseStream.Length)
-                throw new Exception("Fragmented receive, should not happen!");
+            {
+                Debugger.Break();
+
+                throw new Exception($"Fragmented receive, should not happen! Packet size: {Size} <-> Buffer length: {br.BaseStream.Length}");
+            }
 
             if (Channel == 0xFF) // Internal channel: Send timeout checking, ignore the packet
                 return;
@@ -62,10 +66,8 @@ namespace Rasa.Packets.Protocol
             {
                 reader.ReadProtocolFlags();
 
-                ushort type;
-                bool compress;
 
-                reader.ReadPacketType(out type, out compress);
+                reader.ReadPacketType(out ushort type, out bool compress);
 
                 Type = (ClientMessageOpcode) type;
                 Compress = compress;

@@ -6,77 +6,79 @@ namespace Rasa.Database.Tables.Character
 {
     using Structures;
 
-    public class CharacterAppearanceTable
+    public static class CharacterAppearanceTable
     {
-        private static readonly MySqlCommand GetAppearanceCommand = new MySqlCommand("SELECT slotId, classId, color FROM character_appearance WHERE accountId = @AccountId AND characterSlot = @CharacterSlot");
-        private static readonly MySqlCommand SetAppearanceCommand = new MySqlCommand("INSERT INTO character_appearance (accountId, characterSlot, slotId, classId, color) VALUES (@AccountId, @CharacterSlot, @SlotId, @ClassId, @Color)");
-        private static readonly MySqlCommand UpdateAppearanceCommand = new MySqlCommand("UPDATE character_appearance SET classId = @ClassId, color = @Color WHERE accountId = @AccountId AND characterSlot = @CharacterSlot AND slotId = @SlotId");
-        
+        private static readonly MySqlCommand GetCharacterAppearancesCommand = new MySqlCommand("SELECT * FROM `character_appearance` WHERE `character_id` = @CharacterId");
+        private static readonly MySqlCommand AddCharacterAppearanceCommand = new MySqlCommand("INSERT INTO `character_appearance` (`character_id`, `slot`, `class`, `color`) VALUE (@CharacterId, @Slot, @Class, @Color)");
+        private static readonly MySqlCommand DeleteCharacterAppearancesCommand = new MySqlCommand("DELETE FROM `character_appearance` WHERE `character_id` = @CharacterId");
+
         public static void Initialize()
         {
-            GetAppearanceCommand.Connection = GameDatabaseAccess.CharConnection;
-            GetAppearanceCommand.Parameters.Add("@AccountId", MySqlDbType.UInt32);
-            GetAppearanceCommand.Parameters.Add("@CharacterSlot", MySqlDbType.UInt32);
-            GetAppearanceCommand.Parameters.Add("@SlodId", MySqlDbType.Int32);
-            GetAppearanceCommand.Prepare();
+            GetCharacterAppearancesCommand.Connection = GameDatabaseAccess.CharConnection;
+            GetCharacterAppearancesCommand.Parameters.Add("@CharacterId", MySqlDbType.UInt32);
+            GetCharacterAppearancesCommand.Prepare();
 
-            SetAppearanceCommand.Connection = GameDatabaseAccess.CharConnection;
-            SetAppearanceCommand.Parameters.Add("@AccountId", MySqlDbType.UInt32);
-            SetAppearanceCommand.Parameters.Add("@CharacterSlot", MySqlDbType.UInt32);
-            SetAppearanceCommand.Parameters.Add("@SlotId", MySqlDbType.Int32);
-            SetAppearanceCommand.Parameters.Add("@ClassId", MySqlDbType.Int32);
-            SetAppearanceCommand.Parameters.Add("@Color", MySqlDbType.Int32);
-            SetAppearanceCommand.Prepare();
+            AddCharacterAppearanceCommand.Connection = GameDatabaseAccess.CharConnection;
+            AddCharacterAppearanceCommand.Parameters.Add("@CharacterId", MySqlDbType.UInt32);
+            AddCharacterAppearanceCommand.Parameters.Add("@Slot", MySqlDbType.UInt32);
+            AddCharacterAppearanceCommand.Parameters.Add("@Class", MySqlDbType.UInt32);
+            AddCharacterAppearanceCommand.Parameters.Add("@Color", MySqlDbType.UInt32);
+            AddCharacterAppearanceCommand.Prepare();
 
-            UpdateAppearanceCommand.Connection = GameDatabaseAccess.CharConnection;
-            UpdateAppearanceCommand.Parameters.Add("@AccountId", MySqlDbType.UInt32);
-            UpdateAppearanceCommand.Parameters.Add("@CharacterSlot", MySqlDbType.UInt32);
-            UpdateAppearanceCommand.Parameters.Add("@SlotId", MySqlDbType.Int32);
-            UpdateAppearanceCommand.Parameters.Add("@ClassId", MySqlDbType.Int32);
-            UpdateAppearanceCommand.Parameters.Add("@Color", MySqlDbType.Int32);
-            UpdateAppearanceCommand.Prepare();            
+            DeleteCharacterAppearancesCommand.Connection = GameDatabaseAccess.CharConnection;
+            DeleteCharacterAppearancesCommand.Parameters.Add("@CharacterId", MySqlDbType.UInt32);
+            DeleteCharacterAppearancesCommand.Prepare();
         }
 
-        public static List<AppearanceEntry> GetAppearance(uint accountId, uint characterSlot)
+        public static Dictionary<uint, CharacterAppearanceEntry> GetAppearances(uint characterId)
         {
+            var dict = new Dictionary<uint, CharacterAppearanceEntry>();
+
             lock (GameDatabaseAccess.CharLock)
             {
-                var playerAppearance = new List<AppearanceEntry>();
+                GetCharacterAppearancesCommand.Parameters["@CharacterId"].Value = characterId;
 
-                GetAppearanceCommand.Parameters["@AccountId"].Value = accountId;
-                GetAppearanceCommand.Parameters["@CharacterSlot"].Value = characterSlot;
-
-                using (var reader = GetAppearanceCommand.ExecuteReader())
+                using (var reader = GetCharacterAppearancesCommand.ExecuteReader())
+                {
                     while (reader.Read())
-                        playerAppearance.Add(AppearanceEntry.Read(reader));
+                    {
+                        var appearanceEntry = CharacterAppearanceEntry.Read(reader, false);
 
-                return playerAppearance;
+                        dict.Add(appearanceEntry.Slot, appearanceEntry);
+                    }
+                }
             }
+
+            return dict;
         }
 
-        public static void SetAppearance(uint accountId, uint characterSlot, int slotId, int classId, int color)
+        public static bool AddAppearance(uint characterId, CharacterAppearanceEntry entry)
+        {
+            try
+            {
+                lock (GameDatabaseAccess.CharLock)
+                {
+                    AddCharacterAppearanceCommand.Parameters["@CharacterId"].Value = characterId;
+                    AddCharacterAppearanceCommand.Parameters["@Slot"].Value = entry.Slot;
+                    AddCharacterAppearanceCommand.Parameters["@Class"].Value = entry.Class;
+                    AddCharacterAppearanceCommand.Parameters["@Color"].Value = entry.Color;
+                    AddCharacterAppearanceCommand.ExecuteNonQuery();
+                }
+            }
+            catch
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        public static void DeleteCharacterAppearances(uint characterId)
         {
             lock (GameDatabaseAccess.CharLock)
             {
-                SetAppearanceCommand.Parameters["@AccountId"].Value = accountId;
-                SetAppearanceCommand.Parameters["@CharacterSlot"].Value = characterSlot;
-                SetAppearanceCommand.Parameters["@SlotId"].Value = slotId;
-                SetAppearanceCommand.Parameters["@ClassId"].Value = classId;
-                SetAppearanceCommand.Parameters["@Color"].Value = color;
-                SetAppearanceCommand.ExecuteNonQuery();
-            }
-        }
-
-        public static void UpdateCharacterAppearance(uint accountId, uint characterSlot, int slotId, int classId, int color)
-        {
-            lock (GameDatabaseAccess.CharLock)
-            {
-                UpdateAppearanceCommand.Parameters["@AccountId"].Value = accountId;
-                UpdateAppearanceCommand.Parameters["@CharacterSlot"].Value = characterSlot;
-                UpdateAppearanceCommand.Parameters["@SlotId"].Value =  slotId;
-                UpdateAppearanceCommand.Parameters["@ClassId"].Value = classId;
-                UpdateAppearanceCommand.Parameters["@Color"].Value = color;
-                UpdateAppearanceCommand.ExecuteNonQuery();
+                DeleteCharacterAppearancesCommand.Parameters["@CharacterId"].Value = characterId;
+                DeleteCharacterAppearancesCommand.ExecuteNonQuery();
             }
         }
     }

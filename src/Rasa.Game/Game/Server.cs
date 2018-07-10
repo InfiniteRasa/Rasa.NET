@@ -52,11 +52,9 @@ namespace Rasa.Game
 
             PublicAddress = IPAddress.Parse(Config.GameConfig.PublicAddress);
 
-            LengthedSocket.InitializeEventArgsPool(Config.SocketAsyncConfig.MaxClients*
-                                                   Config.SocketAsyncConfig.ConcurrentOperationsByClient);
+            LengthedSocket.InitializeEventArgsPool(Config.SocketAsyncConfig.MaxClients * Config.SocketAsyncConfig.ConcurrentOperationsByClient);
 
-            BufferManager.Initialize(Config.SocketAsyncConfig.BufferSize, Config.SocketAsyncConfig.MaxClients,
-                Config.SocketAsyncConfig.ConcurrentOperationsByClient);
+            BufferManager.Initialize(Config.SocketAsyncConfig.BufferSize, Config.SocketAsyncConfig.MaxClients, Config.SocketAsyncConfig.ConcurrentOperationsByClient);
 
             GameDatabaseAccess.Initialize(Config.WorldDatabaseConnectionString, Config.CharDatabaseConnectionString);
 
@@ -70,7 +68,6 @@ namespace Rasa.Game
         }
 
         #region Configuration
-
         private static void ConfigReLoaded()
         {
             Logger.WriteLog(LogType.Initialize, "Config file reloaded by external change!");
@@ -86,7 +83,6 @@ namespace Rasa.Game
 
             Logger.UpdateConfig(Config.LoggerConfig);
         }
-
         #endregion
 
         public void Disconnect(Client client)
@@ -121,7 +117,6 @@ namespace Rasa.Game
         }
 
         #region Socketing
-
         public bool Start()
         {
             // If no config file has been found, these values are 0 by default
@@ -225,6 +220,21 @@ namespace Rasa.Game
 
                 return entry;
             }
+        }
+
+        public bool IsBanned(uint accountId)
+        {
+            return false; // TODO
+        }
+
+        public bool IsAlreadyLoggedIn(uint accountId)
+        {
+            lock (Clients)
+                foreach (var client in Clients)
+                    if (client.IsAuthenticated() && client.AccountEntry.Id == accountId)
+                        return true;
+
+            return false;
         }
 
         public void Shutdown()
@@ -353,15 +363,15 @@ namespace Rasa.Game
         {
             lock (IncomingClients)
             {
-                if (IncomingClients.ContainsKey(packet.Id))
-                    IncomingClients.Remove(packet.Id);
+                if (IncomingClients.ContainsKey(packet.AccountId))
+                    IncomingClients.Remove(packet.AccountId);
 
-                IncomingClients.Add(packet.Id, new LoginAccountEntry(packet));
+                IncomingClients.Add(packet.AccountId, new LoginAccountEntry(packet));
             }
 
             AuthCommunicator.Send(new RedirectResponsePacket
             {
-                AccountId = packet.Id,
+                AccountId = packet.AccountId,
                 Response = RedirectResult.Success
             });
         }

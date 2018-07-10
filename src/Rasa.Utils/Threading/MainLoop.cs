@@ -5,11 +5,8 @@ namespace Rasa.Threading
 {
     public class MainLoop
     {
-        public const int MinSleepInternal = 10; // Milliseconds
-
         public int LoopTime { get; }
         public bool Running { get; private set; }
-        public bool ContinuousUnderLoad { get; private set; }
         public ILoopable Object { get; }
         public Thread LoopThread { get; private set; }
 
@@ -18,11 +15,10 @@ namespace Rasa.Threading
             return (DateTime.UtcNow - new DateTime(1970, 1, 1)).Ticks / TimeSpan.TicksPerMillisecond;
         }
 
-        public MainLoop(ILoopable obj, int loopTime, bool continuousUnderLoad = false)
+        public MainLoop(ILoopable obj, int loopTime)
         {
             Object = obj;
             LoopTime = loopTime;
-            ContinuousUnderLoad = continuousUnderLoad;
         }
 
         public void Start()
@@ -62,17 +58,12 @@ namespace Rasa.Threading
 
                 if (delta <= LoopTime + prevSleepTime)
                 {
-                    prevSleepTime = LoopTime + prevSleepTime - (int) delta;
-                    if (prevSleepTime < MinSleepInternal)
-                        prevSleepTime = MinSleepInternal;
+                    prevSleepTime = LoopTime + prevSleepTime - (int)delta;
+                    if (prevSleepTime < 10)
+                        prevSleepTime = 10;
                 }
-                else if (!ContinuousUnderLoad)
-                    prevSleepTime = MinSleepInternal;
                 else
-                {
-                    prevSleepTime = 0;
-                    continue;
-                }
+                    prevSleepTime = 10;
 
                 Thread.Sleep(prevSleepTime);
             }

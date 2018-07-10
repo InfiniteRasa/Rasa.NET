@@ -21,7 +21,7 @@ namespace Rasa.Database
             CharConnection = new MySqlConnection(charConnectionString);
             CharConnection.Open();
 
-            foreach (var type in typeof(AuthDatabaseAccess).GetTypeInfo().Assembly.GetTypes().Where(c => c.Namespace == "Rasa.Database.Tables.World" || c.Namespace == "Rasa.Database.Tables.Character"))
+            foreach (var type in typeof(AuthDatabaseAccess).GetTypeInfo().Assembly.GetTypes().Where(c => (c.Namespace == "Rasa.Database.Tables.World" || c.Namespace == "Rasa.Database.Tables.Character") && !c.IsNested && c.GetTypeInfo().IsClass))
             {
                 var method = type.GetMethod("Initialize", BindingFlags.Public | BindingFlags.Static);
                 if (method == null)

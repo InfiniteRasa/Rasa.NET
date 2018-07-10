@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class RequestCharacterNamePacket : PythonPacket
+    public class RequestCharacterNamePacket : ClientPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.RequestCharacterName;
 
@@ -15,13 +15,6 @@
             pr.ReadTuple();
             Gender = pr.ReadInt();
             LangId = pr.ReadInt();
-        }
-
-        public override void Write(PythonWriter pw)
-        {
-            pw.WriteTuple(2);
-            pw.WriteInt(Gender);
-            pw.WriteInt(LangId);
         }
     }
 }

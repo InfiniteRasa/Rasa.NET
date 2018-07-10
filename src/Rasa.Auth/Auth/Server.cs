@@ -50,11 +50,9 @@ namespace Rasa.Auth
 
             SetupServerList();
 
-            LengthedSocket.InitializeEventArgsPool(Config.SocketAsyncConfig.MaxClients*
-                                                   Config.SocketAsyncConfig.ConcurrentOperationsByClient);
+            LengthedSocket.InitializeEventArgsPool(Config.SocketAsyncConfig.MaxClients * Config.SocketAsyncConfig.ConcurrentOperationsByClient);
 
-            BufferManager.Initialize(Config.SocketAsyncConfig.BufferSize, Config.SocketAsyncConfig.MaxClients,
-                Config.SocketAsyncConfig.ConcurrentOperationsByClient);
+            BufferManager.Initialize(Config.SocketAsyncConfig.BufferSize, Config.SocketAsyncConfig.MaxClients, Config.SocketAsyncConfig.ConcurrentOperationsByClient);
 
             AuthDatabaseAccess.Initialize(Config.DatabaseConnectionString);
 
@@ -69,7 +67,6 @@ namespace Rasa.Auth
         }
 
         #region Configuration
-
         private static void ConfigReLoaded()
         {
             Logger.WriteLog(LogType.Initialize, "Config file reloaded by external change!");
@@ -98,7 +95,6 @@ namespace Rasa.Auth
                 GenerateServerList();
             }
         }
-
         #endregion
 
         public void Disconnect(Client client)
@@ -133,7 +129,6 @@ namespace Rasa.Auth
         }
 
         #region Socketing
-
         public bool Start()
         {
             // If no config file has been found, these values are 0 by default
@@ -462,7 +457,7 @@ namespace Rasa.Auth
             using (var rng = RandomNumberGenerator.Create())
                 rng.GetBytes(salt);
 
-            var data = new AccountEntry
+            var data = new AuthAccountEntry
             {
                 Email = parts[1],
                 Username = parts[2],

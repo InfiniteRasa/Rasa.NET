@@ -25,7 +25,7 @@ namespace Rasa.Auth
         public uint OneTimeKey { get; }
         public uint SessionId1 { get; }
         public uint SessionId2 { get; }
-        public AccountEntry AccountEntry { get; private set; }
+        public AuthAccountEntry AccountEntry { get; private set; }
         public ClientState State { get; private set; }
         public Timer Timer { get; }
 
@@ -53,7 +53,6 @@ namespace Rasa.Auth
             SessionId1 = rnd.NextUInt();
             SessionId2 = rnd.NextUInt();
 
-            // This packet must not be encrypted, so call Socket.Send instead of SendPacket
             SendPacket(new ProtocolVersionPacket(OneTimeKey));
 
             // This is here (after ProtocolVersionPacket), so it won't get encrypted
@@ -132,7 +131,7 @@ namespace Rasa.Auth
                     {
                         OneTimeKey = OneTimeKey,
                         ServerId = info.ServerId,
-                        UserId = AccountEntry.Id
+                        AccountId = AccountEntry.Id
                     });
 
                     AccountTable.UpdateLastServer(AccountEntry.Id, info.ServerId);
