@@ -50,11 +50,9 @@ namespace Rasa.Auth
 
             SetupServerList();
 
-            LengthedSocket.InitializeEventArgsPool(Config.SocketAsyncConfig.MaxClients*
-                                                   Config.SocketAsyncConfig.ConcurrentOperationsByClient);
+            LengthedSocket.InitializeEventArgsPool(Config.SocketAsyncConfig.MaxClients * Config.SocketAsyncConfig.ConcurrentOperationsByClient);
 
-            BufferManager.Initialize(Config.SocketAsyncConfig.BufferSize, Config.SocketAsyncConfig.MaxClients,
-                Config.SocketAsyncConfig.ConcurrentOperationsByClient);
+            BufferManager.Initialize(Config.SocketAsyncConfig.BufferSize, Config.SocketAsyncConfig.MaxClients, Config.SocketAsyncConfig.ConcurrentOperationsByClient);
 
             AuthDatabaseAccess.Initialize(Config.DatabaseConnectionString);
 

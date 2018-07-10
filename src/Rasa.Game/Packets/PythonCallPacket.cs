@@ -175,8 +175,6 @@ namespace Rasa.Packets
 
         public void Write(BinaryWriter bw)
         {
-            bw.Write((byte) 1); // align byte
-
             var lenBegin = (int) bw.BaseStream.Position;
 
             bw.Write((ushort) 41); // Subsize
@@ -274,11 +272,6 @@ namespace Rasa.Packets
 
             bw.Write((byte) 0x06); // Checksum 2
             bw.Write((byte) 0x06); // Checksum 2
-
-            var lenNow = (int) bw.BaseStream.Position - lenBegin;
-            var paddingNeeded = (8 - (lenNow + 1) % 8) % 8;
-            for (var i = 0; i < paddingNeeded; ++i)
-                bw.Write((byte) 0x3F);
 
             currentPos = (int) bw.BaseStream.Position;
 

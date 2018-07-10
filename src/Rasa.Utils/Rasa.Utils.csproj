@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <AssemblyTitle>Rasa.NET Utils</AssemblyTitle>
-    <TargetFramework>netstandard1.6</TargetFramework>
+    <TargetFramework>netstandard2.0</TargetFramework>
     <AssemblyName>Rasa.Utils</AssemblyName>
     <PackageId>Rasa.Utils</PackageId>
     <NetStandardImplicitPackageVersion>1.6.0</NetStandardImplicitPackageVersion>

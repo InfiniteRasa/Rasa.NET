@@ -10,26 +10,21 @@ namespace Rasa.Packets.Game.Server
         public override GameOpcode Opcode { get; } = GameOpcode.CreatePhysicalEntity;
 
         public uint EntityId { get; set; }
-        public int ClassId { get; set; }
+        public EntityClass ClassId { get; set; }
         public List<PythonPacket> EntityData { get; } = new List<PythonPacket>();
 
-        public CreatePhysicalEntityPacket(uint entityId, int classId)
+        public CreatePhysicalEntityPacket(uint entityId, EntityClass classId)
         {
             EntityId = entityId;
             ClassId = classId;
         }
 
-        public CreatePhysicalEntityPacket(uint entityId, int classId, List<PythonPacket> entityData)
-        {
-            EntityId = entityId;
-            ClassId = classId;
-            EntityData = entityData;
-        }
         public override void Read(PythonReader pr)
         {
             pr.ReadTuple();
             EntityId = pr.ReadUInt();
-            ClassId = pr.ReadInt();
+            ClassId = (EntityClass) pr.ReadInt();
+
             // todo
         }
 
@@ -37,7 +32,7 @@ namespace Rasa.Packets.Game.Server
         {
             pw.WriteTuple(3);
             pw.WriteUInt(EntityId);
-            pw.WriteInt(ClassId);
+            pw.WriteInt((int) ClassId);
 
             /*
              * These packets will be called on the newly created entity. It behaves the same as if we've sent them separately. Order matters!

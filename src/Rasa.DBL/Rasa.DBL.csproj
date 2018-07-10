@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <AssemblyTitle>Rasa.NET DBL</AssemblyTitle>
-    <TargetFramework>netstandard1.6</TargetFramework>
+    <TargetFramework>netstandard2.0</TargetFramework>
     <AssemblyName>Rasa.DBL</AssemblyName>
     <PackageId>Rasa.DBL</PackageId>
     <NetStandardImplicitPackageVersion>1.6.0</NetStandardImplicitPackageVersion>
@@ -18,6 +18,10 @@
 
   <ItemGroup>
     <PackageReference Include="MySql.Data" Version="7.0.5-IR21" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Database\Tables\Character\" />
   </ItemGroup>
 
 </Project>

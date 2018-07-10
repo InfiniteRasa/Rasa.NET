@@ -27,6 +27,9 @@ namespace Rasa.Threading
 
         public void Start()
         {
+            if (Running)
+                throw new Exception("Unable to start a running MainLoop!");
+
             Running = true;
 
             LoopThread = new Thread(Loop);
@@ -35,6 +38,9 @@ namespace Rasa.Threading
 
         public void Stop()
         {
+            if (!Running)
+                throw new Exception("Unable to stop a not running MainLoop!");
+
             // No need to join the thread, setting Running to false will eventually stop the thread
             Running = false;
         }

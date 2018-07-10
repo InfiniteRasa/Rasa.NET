@@ -5,32 +5,9 @@ namespace Rasa.Cryptography
 {
     using Game;
 
-    public class GameCryptManager : ICryptoManager
+    public static class GameCryptManager
     {
-        public static GameCryptManager Instance
-        {
-            get
-            {
-                // ReSharper disable once InvertIf - To avoid another warning about double checked locking
-                if (_instance == null)
-                {
-                    lock (InstLock)
-                    {
-                        if (_instance == null)
-                            _instance = new GameCryptManager();
-                    }
-                }
-
-                return _instance;
-            }
-        }
-
-        private static GameCryptManager _instance;
-        private static readonly object InstLock = new object();
-
-        private GameCryptManager() { }
-
-        public void Initialize(ClientCryptData cryptData, byte[] inputK)
+        public static void Initialize(ClientCryptData cryptData, byte[] inputK)
         {
             Blowfish.SetKey(inputK, cryptData.Key);
 
@@ -40,7 +17,7 @@ namespace Rasa.Cryptography
             Array.Copy(inputK, cryptData.K, 0x40);
         }
 
-        public void Encrypt(byte[] data, int offset, ref int length, int maxLength, ClientCryptData cryptData)
+        public static void Encrypt(byte[] data, int offset, ref int length, int maxLength, ClientCryptData cryptData)
         {
             var oldLen = length;
 
@@ -83,7 +60,7 @@ namespace Rasa.Cryptography
             Buffer.BlockCopy(uintData, 0, data, offset, length);
         }
 
-        public bool Decrypt(byte[] data, int offset, int length, ClientCryptData cryptData)
+        public static bool Decrypt(byte[] data, int offset, int length, ClientCryptData cryptData)
         {
             if (length % 8 != 0)
                 throw new ArgumentOutOfRangeException(nameof(length), "The lenght must be a multiple of 8!");

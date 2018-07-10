@@ -21,15 +21,21 @@ namespace Rasa.Game
         public LengthedSocket Socket { get; }
         public ClientCryptData Data { get; }
         public Server Server { get; }
-        public LoginAccountEntry AccountEntry { get; private set; }
-        public ClientState State { get; set; }
-        public uint[] SendSequence { get; } = new uint[256];
-        public uint[] ReceiveSequence { get; } = new uint[256];
+<<<<<<< HEAD
+        public LoginAccountEntry Entry { get; private set; }
+        public ClientState State { get; private set; }
         public int LoadingMap { get; set; }
         public uint LoadingSlot { get; set; }
         public MapChannelClient MapClient { get; set; }
         public List<UserOptions> UserOptions = new List<UserOptions>();
+=======
+        public LoginAccountEntry AccountEntry { get; private set; }
+        public ClientState State { get; set; }
+        public uint[] SendSequence { get; } = new uint[256];
+        public uint[] ReceiveSequence { get; } = new uint[256];
+
         private readonly object _clientLock = new object();
+>>>>>>> 1aed0524b7723d24ea289f337bebdc6d776db27c
         private readonly ClientPacketHandler _handler;
         private readonly PacketQueue _packetQueue = new PacketQueue();
 
@@ -346,7 +352,7 @@ namespace Rasa.Game
                         Server.PacketQueue.EnqueueIncoming(this, pythonPacket);
                     }
                     else
-                        Logger.WriteLog(LogType.Error, $"Unhandled game opcode: {packet.Opcode}");
+                        Logger.WriteLog(LogType.Error, $"Unhandled game opcode:\n{packet.Opcode}\n");
                 }
                 else
                     Logger.WriteLog(LogType.Error, $"Invalid data found in Python method call! Off: {br.BaseStream.Position} | Len: {packet.DataSize} | Array len: {br.BaseStream.Length}");
@@ -354,6 +360,8 @@ namespace Rasa.Game
 
             return true;
         }
+<<<<<<< HEAD
+
         // Cell Domain
         public void CellSendPacket(Client client, uint entityId, PythonPacket packet)
         {
@@ -403,6 +411,25 @@ namespace Rasa.Game
         }*/
 
         // Client
+        public void SendPacket(uint entityId, PythonPacket packet)
+        {
+            SendPacket(new PythonCallPacket(packet, entityId));
+        }
+
+        // Clients
+        public void SendPackets(List<Client> clientList, uint entityId, PythonPacket packet)
+        {
+            foreach (var client in clientList)
+                client.SendPacket(entityId, packet);
+        }
+        
+        // netMgr_sendEntityMovement    // ToDo
+        public void SendMovement(uint entityId, NetCompressedMovement movement)
+        {
+            SendPacket(new MovementCallPacket(entityId, movement));
+        }
+=======
+>>>>>>> 1aed0524b7723d24ea289f337bebdc6d776db27c
         #endregion
     }
 }

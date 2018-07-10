@@ -74,9 +74,9 @@ namespace Rasa.Auth
         {
             Socket.Send(new RedirectRequestPacket
             {
-                Id = client.Entry.Id,
-                Username = client.Entry.Username,
-                Level = client.Entry.Level,
+                Id = client.AccountEntry.Id,
+                Username = client.AccountEntry.Username,
+                Level = client.AccountEntry.Level,
                 OneTimeKey = client.OneTimeKey
             });
         }

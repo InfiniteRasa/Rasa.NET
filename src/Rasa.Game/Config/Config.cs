@@ -10,5 +10,6 @@
         public Logger.LoggerConfig LoggerConfig { get; set; }
         public ServerInfoConfig ServerInfoConfig { get; set; }
         public QueueConfig QueueConfig { get; set; }
+        public GameDataConfig GameDataConfig { get; set; }
     }
 }

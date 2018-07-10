@@ -1,11 +1,10 @@
 ﻿namespace Rasa.Packets
 {
-    using Networking;
-
     public interface IPacketQueue
     {
-        void EnqueueIncoming(INetworkClient client, IBasePacket data);
-
-        void EnqueueOutgoing(INetworkClient client, IBasePacket data);
+        void EnqueueIncoming(IBasePacket data);
+        void EnqueueOutgoing(IBasePacket data);
+        IBasePacket PopIncoming();
+        IBasePacket PopOutgoing();
     }
 }

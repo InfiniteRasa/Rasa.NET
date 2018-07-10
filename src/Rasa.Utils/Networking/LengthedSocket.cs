@@ -94,7 +94,7 @@ namespace Rasa.Networking
                 case SocketAsyncOperation.Send:
                     var data = BufferManager.RequestBuffer();
 
-                    args.SetBuffer(BufferManager.Buffer, data.BaseOffset, data.Length);
+                    args.SetBuffer(BufferManager.Buffer, data.BaseOffset, data.MaxLength);
                     args.UserToken = data;
                     args.AcceptSocket = Socket;
                     break;
@@ -115,9 +115,7 @@ namespace Rasa.Networking
             {
                 case SocketAsyncOperation.Receive:
                 case SocketAsyncOperation.Send:
-                    var data = args.GetUserToken<BufferData>();
-                    if (data != null)
-                        BufferManager.FreeBuffer(data);
+                    BufferManager.FreeBuffer(args.GetUserToken<BufferData>());
 
                     args.SetBuffer(null, 0, 0);
                     args.UserToken = null;
@@ -149,10 +147,9 @@ namespace Rasa.Networking
                         data.ByteCount += args.BytesTransferred;
 
                         // We've transferred less bytes than we should have
-                        if (data.Missing > 0)
+                        if (data.Length > data.ByteCount)
                         {
-                            // TODO: Needs testing!
-                            args.SetBuffer(data.BaseOffset + data.ByteCount, data.Missing);
+                            args.SetBuffer(data.BaseOffset + data.ByteCount, data.Length - data.ByteCount);
 
                             // TODO: test if multiple send operations will collide (if the packet was only sent partially, and another packet is getting sent between the two parts)
                             // TODO: create a queue for sending async, if it collides?
@@ -164,60 +161,8 @@ namespace Rasa.Networking
                         break;
 
                     case SocketAsyncOperation.Receive:
-                        data.ByteCount += args.BytesTransferred;
-                        data.Offset = 0;
-
-                        while (data.Remaining > 0)
-                        {
-                            var length = -1;
-
-                            if (data.Remaining >= LengthSize)
-                                length = ReadSize(data);
-
-                            if (length > data.MaxLength)
-                                throw new OutOfMemoryException($"Packet is bigger than the max packet size! Packet size: {length} | Max size: {data.MaxLength}");
-
-                            if (length != -1)
-                                data.Length = length;
-
-                            if (length == -1 || data.Remaining < length)
-                            {
-                                // First packet, no need to move
-                                if (data.Offset == 0)
-                                    args.SetBuffer(data.ByteOffset, data.Missing);
-                                else
-                                {
-                                    var args2 = SetupEventArgs(SocketAsyncOperation.Receive);
-                                    var newData = args2.GetUserToken<BufferData>();
-
-                                    newData.ByteCount = data.Remaining;
-
-                                    if (length != -1)
-                                        newData.Length = length;
-
-                                    args2.SetBuffer(newData.ByteOffset, newData.Missing);
-
-                                    data.MoveTo(newData, data.Offset, newData.ByteCount);
-
-                                    TeardownEventArgs(args);
-
-                                    args = args2;
-                                }
-
-                                ReceiveAsync(args);
-                                return;
-                            }
-
-                            var currentOff = data.Offset;
-
-                            data.Offset += LengthSize;
-                            data.Length = length - LengthSize;
-
-                            OnDecrypt?.Invoke(data);
-                            OnReceive?.Invoke(data);
-
-                            data.Offset = currentOff + length;
-                        }
+                        if (ProcessInputBuffer(data, args))
+                            return;
 
                         if (AutoReceive)
                             ReceiveAsync();
@@ -244,17 +189,67 @@ namespace Rasa.Networking
             switch (SizeHeaderLength)
             {
                 case SizeType.Char:
-                    return headerSize + data.Buffer[data.BaseOffset + data.Offset];
+                    return headerSize + data[0];
 
                 case SizeType.Word:
-                    return headerSize + BitConverter.ToUInt16(data.Buffer, data.BaseOffset + data.Offset);
+                    return headerSize + BitConverter.ToInt16(data.Buffer, data.BaseOffset);
 
                 case SizeType.Dword:
-                    return headerSize + BitConverter.ToInt32(data.Buffer, data.BaseOffset + data.Offset);
+                    return headerSize + BitConverter.ToInt32(data.Buffer, data.BaseOffset);
 
                 default:
                     throw new NotImplementedException($"Only 1, 2 and 4 byte headers are supported! {SizeHeaderLength} is not!");
             }
+        }
+
+        private bool ProcessInputBuffer(BufferData data, SocketAsyncEventArgs args)
+        {
+            data.ByteCount += args.BytesTransferred;
+
+            while (true)
+            {
+                var length = -1;
+
+                if (data.ByteCount >= LengthSize)
+                    length = ReadSize(data);
+
+                if (length != -1)
+                {
+                    data.Length = length;
+
+                    if (data.Length > data.MaxLength)
+                        throw new OutOfMemoryException($"Packet is bigger than the max packet size! Packet size: {length} | Max buffer size: {data.MaxLength}");
+                }
+
+                if (length == -1 || data.ByteCount < length)
+                {
+                    args.SetBuffer(data.BaseOffset + data.ByteCount, data.Length - data.ByteCount);
+
+                    ReceiveAsync(args);
+                    return true;
+                }
+
+                data.Offset = LengthSize;
+                data.Length = length;
+
+                OnDecrypt?.Invoke(data);
+                OnReceive?.Invoke(data);
+
+                if (data.ByteCount == length)
+                    break;
+
+                data.ByteCount -= length;
+                data.BaseOffset += length;
+                data.Offset = 0;
+                data.Length = data.MaxLength;
+            }
+
+            return false;
+        }
+
+        private void CopyToOtherBuffer(BufferData source, BufferData desti)
+        {
+            
         }
         #endregion
 
@@ -321,11 +316,11 @@ namespace Rasa.Networking
             data.Offset = 0;
             data.Length = length + LengthSize;
 
-            var sizeLen = CountSize ? data.Length : length;
+            var sizeLen = CountSize ? length + LengthSize : length;
 
             // Copy the size header into the buffer
             for (var i = 0; i < LengthSize; ++i)
-                args.Buffer[data.BaseOffset + i] = (byte) ((sizeLen >> (i * 8)) & 0xFF);
+                data[i] = (byte) ((sizeLen >> (i * 8)) & 0xFF);
 
             args.SetBuffer(data.BaseOffset, data.Length);
 

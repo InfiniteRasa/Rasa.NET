@@ -29,7 +29,6 @@ namespace Rasa.Game
         public IPAddress PublicAddress { get; }
         public LengthedSocket AuthCommunicator { get; private set; }
         public LengthedSocket ListenerSocket { get; private set; }
-        public PacketQueue PacketQueue { get; } = new PacketQueue();
         public QueueManager QueueManager { get; private set; }
         public LoginManager LoginManager { get; set; } = new LoginManager();
         public List<Client> Clients { get; } = new List<Client>();
@@ -40,6 +39,7 @@ namespace Rasa.Game
         public bool IsFull => CurrentPlayers >= Config.ServerInfoConfig.MaxPlayers;
         public ushort CurrentPlayers { get; set; }
 
+        private readonly List<Client> _clientsToRemove = new List<Client>();
         private readonly PacketRouter<Server, CommOpcode> _router = new PacketRouter<Server, CommOpcode>();
 
         public Server()
@@ -91,23 +91,33 @@ namespace Rasa.Game
 
         public void Disconnect(Client client)
         {
-            lock (Clients)
-                Clients.Remove(client);
+            lock (_clientsToRemove)
+                _clientsToRemove.Add(client);
         }
 
         public void MainLoop(long delta)
         {
+            if (Clients.Count == 0)
+                return;
             MapChannelManager.Instance.MapChannelWorker(delta);
 
-            QueuedPacket packet;
 
-            while ((packet = PacketQueue.PopIncoming()) != null)
-                packet.Client.HandlePacket(packet.Packet);
+            lock (Clients)
+            {
+                foreach (var client in Clients)
+                    client.Update(delta);
 
-            Timer.Update(delta);
+                if (_clientsToRemove.Count > 0)
+                {
+                    lock (_clientsToRemove)
+                    {
+                        foreach (var client in _clientsToRemove)
+                            Clients.Remove(client);
 
-            while ((packet = PacketQueue.PopOutgoing()) != null)
-                packet.Client.SendPacket(packet.Packet);
+                        _clientsToRemove.Clear();
+                    }
+                }
+            }
         }
 
         #region Socketing
@@ -137,6 +147,7 @@ namespace Rasa.Game
             {
                 Logger.WriteLog(LogType.Error, "Unable to create or start listening on the client socket! Exception:");
                 Logger.WriteLog(LogType.Error, e);
+
                 return false;
             }
 
@@ -207,6 +218,8 @@ namespace Rasa.Game
                     return null;
 
                 var entry = IncomingClients[accountId];
+                if (entry == null || entry.OneTimeKey != oneTimeKey)
+                    return null;
 
                 IncomingClients.Remove(accountId);
 

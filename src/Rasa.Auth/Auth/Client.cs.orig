@@ -53,7 +53,6 @@ namespace Rasa.Auth
             SessionId1 = rnd.NextUInt();
             SessionId2 = rnd.NextUInt();
 
-            // This packet must not be encrypted, so call Socket.Send instead of SendPacket
             SendPacket(new ProtocolVersionPacket(OneTimeKey));
 
             // This is here (after ProtocolVersionPacket), so it won't get encrypted
@@ -135,9 +134,15 @@ namespace Rasa.Auth
                         UserId = AccountEntry.Id
                     });
 
+<<<<<<< HEAD
+                    AccountTable.UpdateLastServer(Entry.Id, info.ServerId);
+
+                    Logger.WriteLog(LogType.Debug, $"Account  ({Entry.Username}, {Entry.Id}) was redirected to the queue of the server: {info.ServerId}!");
+=======
                     AccountTable.UpdateLastServer(AccountEntry.Id, info.ServerId);
 
                     Logger.WriteLog(LogType.Network, $"Account ({AccountEntry.Username}, {AccountEntry.Id}) was redirected to the queue of the server: {info.ServerId}!");
+>>>>>>> 1aed0524b7723d24ea289f337bebdc6d776db27c
                     break;
 
                 default:
