@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace Rasa.Managers
 {
@@ -84,19 +83,20 @@ namespace Rasa.Managers
         {
             var player = client.MapClient.Player;
             var actor = player.Actor;
-            client.SendPacket(5, new SetControlledActorIdPacket { EntetyId = actor.EntityId });
 
-            client.SendPacket(7, new SetSkyTimePacket { RunningTime = 6666666 });   // ToDo add actual time how long map is running
+            client.CallMethod(SysEntity.ClientMethodId, new SetControlledActorIdPacket(actor.EntityId));
 
-            client.SendPacket(5, new SetCurrentContextIdPacket { MapContextId = client.MapClient.MapChannel.MapInfo.MapId });
+            client.CallMethod(SysEntity.ClientGameMapId, new SetSkyTimePacket { RunningTime = 6666666 });   // ToDo add actual time how long map is running
 
-            client.SendPacket(actor.EntityId, new UpdateRegionsPacket { RegionIdList = client.MapClient.MapChannel.MapInfo.BaseRegionId });  // ToDo this should be list of regions? or just curent region wher player is
+            client.CallMethod(SysEntity.ClientMethodId, new SetCurrentContextIdPacket { MapContextId = client.MapClient.MapChannel.MapInfo.MapId });
 
-            client.SendPacket(actor.EntityId, new AllCreditsPacket(player.Credits, player.Prestige));
+            client.CallMethod(actor.EntityId, new UpdateRegionsPacket { RegionIdList = client.MapClient.MapChannel.MapInfo.BaseRegionId });  // ToDo this should be list of regions? or just curent region wher player is
 
-            client.SendPacket(actor.EntityId, new LockboxFundsPacket(client.MapClient.Player.LockboxCredits));
+            client.CallMethod(actor.EntityId, new AllCreditsPacket(player.Credits, player.Prestige));
 
-            client.SendPacket(actor.EntityId, new AdvancementStatsPacket(
+            client.CallMethod(actor.EntityId, new LockboxFundsPacket(client.MapClient.Player.LockboxCredits));
+
+            client.CallMethod(actor.EntityId, new AdvancementStatsPacket(
                 player.Level,
                 player.Experience,
                 GetAvailableAttributePoints(player),
@@ -104,19 +104,19 @@ namespace Rasa.Managers
                 GetSkillPointsAvailable(player)
             ));
 
-            client.SendPacket(actor.EntityId, new SkillsPacket(player.Skills));
+            client.CallMethod(actor.EntityId, new SkillsPacket(player.Skills));
 
-            client.SendPacket(actor.EntityId, new AbilitiesPacket(player.Skills));
+            client.CallMethod(actor.EntityId, new AbilitiesPacket(player.Skills));
 
             // don't send this packet if abilityDrawer is empty
             if (player.Abilities.Count > 0)
-                client.SendPacket(actor.EntityId, new AbilityDrawerPacket(player.Abilities));
+                client.CallMethod(actor.EntityId, new AbilityDrawerPacket(player.Abilities));
 
-            client.SendPacket(actor.EntityId, new TitlesPacket(player.Titles));
+            client.CallMethod(actor.EntityId, new TitlesPacket(player.Titles));
 
-            client.SendPacket(actor.EntityId, new UpdateAttributesPacket(actor.Attributes, 0));
+            client.CallMethod(actor.EntityId, new UpdateAttributesPacket(actor.Attributes, 0));
 
-            client.SendPacket(actor.EntityId, new LogosStoneTabulaPacket(player.Logos));
+            client.CallMethod(actor.EntityId, new LogosStoneTabulaPacket(player.Logos));
         }
 
         public void AutoFireKeepAlive(Client client, int keepAliveDelay)
@@ -131,7 +131,7 @@ namespace Rasa.Managers
                 if (tempClient == client)
                     continue;
 
-                tempClient.SendPacket(5, new DestroyPhysicalEntityPacket(client.MapClient.Player.Actor.EntityId));
+                tempClient.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(client.MapClient.Player.Actor.EntityId));
             }
         }
 
@@ -145,7 +145,7 @@ namespace Rasa.Managers
                 if (tempClient == client)
                     continue;
 
-                client.SendPacket(5, new DestroyPhysicalEntityPacket(tempClient.MapClient.Player.Actor.EntityId));
+                client.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(tempClient.MapClient.Player.Actor.EntityId));
             }
 
         }
@@ -166,7 +166,7 @@ namespace Rasa.Managers
             {
                 Logger.WriteLog(LogType.Debug, $"ClientToPlayers:\n {tempClient.MapClient.Player.Actor.EntityId} is reciving data about {player.Actor.EntityId}");
 
-                tempClient.SendPacket(5, new CreatePhysicalEntityPacket(player.Actor.EntityId, player.Actor.EntityClassId, CreatePlayerEntityData(client)));
+                tempClient.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(player.Actor.EntityId, player.Actor.EntityClassId, CreatePlayerEntityData(client)));
 
                 //tempPlayer.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, netMovement);
             }
@@ -187,7 +187,7 @@ namespace Rasa.Managers
                     continue;
 
                 Logger.WriteLog(LogType.Debug, $"PlayersToClient:\n {client.MapClient.Player.Actor.EntityId} is reciving data about {tempClient.MapClient.Player.Actor.EntityId}");
-                client.SendPacket(5, new CreatePhysicalEntityPacket(tempClient.MapClient.Player.Actor.EntityId, (int)tempClient.MapClient.Player.Actor.EntityClassId, CreatePlayerEntityData(tempClient)));
+                client.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(tempClient.MapClient.Player.Actor.EntityId, tempClient.MapClient.Player.Actor.EntityClassId, CreatePlayerEntityData(tempClient)));
                 
                 // ToDo
                 // send inital movement packet
@@ -206,7 +206,7 @@ namespace Rasa.Managers
             //if (titleId != 0)
             //{
                 client.MapClient.Player.CurrentTitle = titleId;
-                client.SendPacket(client.MapClient.Player.Actor.EntityId, new TitleChangedPacket(titleId));
+                client.CallMethod(client.MapClient.Player.Actor.EntityId, new TitleChangedPacket(titleId));
             /*}
             else
             {
@@ -219,7 +219,7 @@ namespace Rasa.Managers
 
         public void ClearTrackingTarget(Client client, ClearTrackingTargetPacket packet)
         {
-            client.SendPacket(client.MapClient.Player.Actor.EntityId, new SetTrackingTargetPacket { EntityId = 0 });
+            client.CallMethod(client.MapClient.Player.Actor.EntityId, new SetTrackingTargetPacket { EntityId = 0 });
         }
 
         public List<PythonPacket> CreatePlayerEntityData(Client client)
@@ -232,8 +232,8 @@ namespace Rasa.Managers
                     new AppearanceDataPacket(player.AppearanceData),
                     new ActorControllerInfoPacket(true),
                     new LevelPacket(player.Level),
-                    new CharacterClassPacket { CharacterClass = player.ClassId },
-                    new CharacterNamePacket { CharacterName = player.Actor.Name },
+                    new CharacterClassPacket(player.Class),
+                    new CharacterNamePacket(player.Actor.Name),
                     new ActorNamePacket(player.Actor.FamilyName),
                     new IsRunningPacket(player.Actor.IsRunning),
                     new WorldLocationDescriptorPacket(player.Actor.Position, player.Actor.Rotation),
@@ -250,11 +250,11 @@ namespace Rasa.Managers
             // update database with new character credits amount
             CharacterManager.Instance.UpdateCharacter(client, 2);
             // inform owner
-            client.SendPacket(client.MapClient.Player.Actor.EntityId, new UpdateCreditsPacket(CurencyType.Credits, client.MapClient.Player.Credits, credits));
+            client.CallMethod(client.MapClient.Player.Actor.EntityId, new UpdateCreditsPacket(CurencyType.Credits, client.MapClient.Player.Credits, credits));
             // send player message
             if (credits > 0)
             {
-                client.SendPacket(8, new DisplayClientMessagePacket(262, new Dictionary<string, string> { { "amount", credits.ToString() } }, MsgFilterId.LootObtained));
+                client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(262, new Dictionary<string, string> { { "amount", credits.ToString() } }, MsgFilterId.LootObtained));
             }
         }
 
@@ -295,7 +295,7 @@ namespace Rasa.Managers
                 { 3672, 42 },
                 { 3812, 60 }
             };
-            client.SendPacket(5, new CustomizationChoicesPacket((uint)packet.EntityId, testChoices));
+            client.CallMethod(SysEntity.ClientMethodId, new CustomizationChoicesPacket((uint)packet.EntityId, testChoices));
         }
 
         public int GetSkillIndexById(int skillId)
@@ -321,8 +321,8 @@ namespace Rasa.Managers
         public void GiveLogos(Client client, int logosId)
         {
             client.MapClient.Player.Logos.Add(logosId);
-            CharacterLogosTable.SetLogos(client.Entry.Id, client.MapClient.Player.CharacterSlot, logosId);
-            client.SendPacket(client.MapClient.Player.Actor.EntityId, new LogosStoneTabulaPacket(client.MapClient.Player.Logos));
+            CharacterLogosTable.SetLogos(client.AccountEntry.Id, client.MapClient.Player.CharacterSlot, logosId);
+            client.CallMethod(client.MapClient.Player.Actor.EntityId, new LogosStoneTabulaPacket(client.MapClient.Player.Logos));
         }
 
         public void LevelSkills(Client client, LevelSkillsPacket packet)
@@ -347,7 +347,7 @@ namespace Rasa.Managers
                 {
                     // create new entry in character skils and db
                     mapClient.Player.Skills.Add(skillId, new SkillsData(skillId, abilityId, 0));
-                    CharacterSkillsTable.SetCharacterSkill(client.Entry.Id, mapClient.Player.CharacterSlot, skillId, abilityId, 0);
+                    CharacterSkillsTable.SetCharacterSkill(client.AccountEntry.Id, mapClient.Player.CharacterSlot, skillId, abilityId, 0);
                 }
 
                 var newSkillLevel = packet.SkillLevels[i];
@@ -368,11 +368,11 @@ namespace Rasa.Managers
             foreach (var skill in skillLevelupArray)
                 mapClient.Player.Skills[skill.Value.SkillId].SkillLevel += skillLevelupArray[skill.Value.SkillId].SkillLevel;
             // send skill update to client
-            client.SendPacket(mapClient.Player.Actor.EntityId, new SkillsPacket(mapClient.Player.Skills));
+            client.CallMethod(mapClient.Player.Actor.EntityId, new SkillsPacket(mapClient.Player.Skills));
             // set abilities
-            client.SendPacket(mapClient.Player.Actor.EntityId, new AbilitiesPacket(mapClient.Player.Skills));   // ToDo
+            client.CallMethod(mapClient.Player.Actor.EntityId, new AbilitiesPacket(mapClient.Player.Skills));   // ToDo
             // update allocation points
-            client.SendPacket(mapClient.Player.Actor.EntityId, new AvailableAllocationPointsPacket
+            client.CallMethod(mapClient.Player.Actor.EntityId, new AvailableAllocationPointsPacket
             {
                 AvailableAttributePoints = GetAvailableAttributePoints(mapClient.Player),
                 TrainPoints = 0,        // not used?
@@ -380,12 +380,12 @@ namespace Rasa.Managers
             });
             // update database with new character skills
             foreach (var skill in skillLevelupArray)
-                CharacterSkillsTable.UpdateCharacterSkill(client.Entry.Id, mapClient.Player.CharacterSlot, mapClient.Player.Skills[skill.Key].SkillId, mapClient.Player.Skills[skill.Key].SkillLevel);
+                CharacterSkillsTable.UpdateCharacterSkill(client.AccountEntry.Id, mapClient.Player.CharacterSlot, mapClient.Player.Skills[skill.Key].SkillId, mapClient.Player.Skills[skill.Key].SkillLevel);
         }
 
         public void NotifyEquipmentUpdate(Client client)
         {
-            client.SendPacket(client.MapClient.Player.Actor.EntityId, new EquipmentInfoPacket(client.MapClient.Inventory.EquippedInventory));
+            client.CallMethod(client.MapClient.Player.Actor.EntityId, new EquipmentInfoPacket(client.MapClient.Inventory.EquippedInventory));
         }
 
         public void PurchaseLockboxTab(Client client, PurchaseLockboxTabPacket packet)
@@ -407,9 +407,9 @@ namespace Rasa.Managers
             // update Player
             client.MapClient.Player.LockboxTabs = packet.TabId;
             // update Db
-            CharacterLockboxTable.UpdatePurashedTabs(client.Entry.Id, packet.TabId);
+            CharacterLockboxTable.UpdatePurashedTabs(client.AccountEntry.Id, packet.TabId);
             // send data to client
-            client.SendPacket(9, new LockboxTabPermissionsPacket(packet.TabId));
+            client.CallMethod(SysEntity.ClientInventoryManagerId, new LockboxTabPermissionsPacket(packet.TabId));
         }
 
         public void RegisterAutoFire(Client client, Item weapon)
@@ -428,33 +428,33 @@ namespace Rasa.Managers
             // ToDo do we need remove something, or it's done already 
         }
 
-        public void RemoveAppearanceItem(Client client, EquipmentSlots equipmentSlotId)
+        public void RemoveAppearanceItem(Client client, EquipmentData equipmentSlotId)
         {
             if (equipmentSlotId == 0)
                 return;
 
-            client.MapClient.Player.AppearanceData[equipmentSlotId].ClassId = 0;
+            client.MapClient.Player.AppearanceData[equipmentSlotId].Class = 0;
             // update appearance data in database
-            CharacterAppearanceTable.UpdateCharacterAppearance(client.Entry.Id, client.MapClient.Player.CharacterSlot, (int)equipmentSlotId, 0, 0);
+            CharacterAppearanceTable.UpdateCharacterAppearance(client.AccountEntry.Id, client.MapClient.Player.CharacterSlot, (uint)equipmentSlotId, 0, 0);
         }
 
         public void RequestActionInterrupt(Client client, RequestActionInterruptPacket packet)
         {
-            client.SendPacket(client.MapClient.Player.Actor.EntityId, new PerformRecoveryPacket(packet.ActionId, packet.ActionArgId));
+            client.CallMethod(client.MapClient.Player.Actor.EntityId, new PerformRecoveryPacket(packet.ActionId, packet.ActionArgId));
         }
 
         public void RequestArmAbility(Client client, int abilityDrawerSlot)
         {
             client.MapClient.Player.CurrentAbilityDrawer = abilityDrawerSlot;
             // ToDo do we need upate Database???
-            client.SendPacket(client.MapClient.Player.Actor.EntityId, new AbilityDrawerSlotPacket(abilityDrawerSlot));
+            client.CallMethod(client.MapClient.Player.Actor.EntityId, new AbilityDrawerSlotPacket(abilityDrawerSlot));
         }
 
         public void RequestArmWeapon(Client client, int requestedWeaponDrawerSlot)
         {
             client.MapClient.Inventory.ActiveWeaponDrawer = requestedWeaponDrawerSlot;
 
-            client.SendPacket(client.MapClient.Player.Actor.EntityId, new WeaponDrawerSlotPacket(requestedWeaponDrawerSlot, true));
+            client.CallMethod(client.MapClient.Player.Actor.EntityId, new WeaponDrawerSlotPacket(requestedWeaponDrawerSlot, true));
 
             var weapon = EntityManager.Instance.GetItem(client.MapClient.Inventory.WeaponDrawer[client.MapClient.Inventory.ActiveWeaponDrawer]);
 
@@ -468,7 +468,7 @@ namespace Rasa.Managers
             SetAppearanceItem(client, weapon);
             UpdateAppearance(client);
             // update ammo info
-            client.SendPacket(weapon.EntityId, new WeaponAmmoInfoPacket(weapon.CurrentAmmo));
+            client.CallMethod(weapon.EntityId, new WeaponAmmoInfoPacket(weapon.CurrentAmmo));
         }
 
         public void RequestCustomization(Client client, RequestCustomizationPacket packet)
@@ -493,8 +493,7 @@ namespace Rasa.Managers
             else
             {
                 // added new ability
-                AbilityDrawerData ability;
-                client.MapClient.Player.Abilities.TryGetValue(packet.SlotId, out ability);
+                client.MapClient.Player.Abilities.TryGetValue(packet.SlotId, out AbilityDrawerData ability);
                 if (ability == null)
                 {
                     client.MapClient.Player.Abilities.Add(packet.SlotId, new AbilityDrawerData { AbilitySlotId = packet.SlotId, AbilityId = (int)packet.AbilityId, AbilityLevel = (int)packet.AbilityLevel });
@@ -507,9 +506,9 @@ namespace Rasa.Managers
                 }
             }
             // update database with new drawer slot ability
-            CharacterAbilityDrawerTable.UpdateCharacterAbility(client.Entry.Id, client.MapClient.Player.CharacterSlot, packet.SlotId, (int)packet.AbilityId, (int)packet.AbilityLevel);
+            CharacterAbilityDrawerTable.UpdateCharacterAbility(client.AccountEntry.Id, client.MapClient.Player.CharacterSlot, packet.SlotId, (int)packet.AbilityId, (int)packet.AbilityLevel);
             // send packet
-            client.SendPacket(client.MapClient.Player.Actor.EntityId, new AbilityDrawerPacket(client.MapClient.Player.Abilities));
+            client.CallMethod(client.MapClient.Player.Actor.EntityId, new AbilityDrawerPacket(client.MapClient.Player.Abilities));
         }
 
         public void RequestSwapAbilitySlots(Client client, RequestSwapAbilitySlotsPacket packet)
@@ -531,32 +530,31 @@ namespace Rasa.Managers
             // Do we need to update database here ???
             // update database with new drawer slot ability
             CharacterAbilityDrawerTable.UpdateCharacterAbility(
-                client.Entry.Id,
+                client.AccountEntry.Id,
                 client.MapClient.Player.CharacterSlot,
                 abilities[packet.ToSlot].AbilitySlotId,
                 abilities[packet.ToSlot].AbilityId,
                 abilities[packet.ToSlot].AbilityLevel);
             // check if fromSlot isn't empty now
-            AbilityDrawerData tempSlot;
-            abilities.TryGetValue(packet.FromSlot, out tempSlot);
+            abilities.TryGetValue(packet.FromSlot, out AbilityDrawerData tempSlot);
             if (tempSlot != null)
                 CharacterAbilityDrawerTable.UpdateCharacterAbility(
-                    client.Entry.Id,
+                    client.AccountEntry.Id,
                     client.MapClient.Player.CharacterSlot,
                     abilities[packet.FromSlot].AbilitySlotId,
                     abilities[packet.FromSlot].AbilityId,
                     abilities[packet.FromSlot].AbilityLevel);
             else
-                CharacterAbilityDrawerTable.UpdateCharacterAbility(client.Entry.Id, client.MapClient.Player.CharacterSlot, packet.FromSlot, 0, 0);
+                CharacterAbilityDrawerTable.UpdateCharacterAbility(client.AccountEntry.Id, client.MapClient.Player.CharacterSlot, packet.FromSlot, 0, 0);
             // send packet
-            client.SendPacket(client.MapClient.Player.Actor.EntityId, new AbilityDrawerPacket(abilities));
+            client.CallMethod(client.MapClient.Player.Actor.EntityId, new AbilityDrawerPacket(abilities));
         }
 
         public void RequestToggleRun(Client client)
         {
             client.MapClient.Player.Actor.IsRunning = !client.MapClient.Player.Actor.IsRunning;
 
-            client.SendPacket(client.MapClient.Player.Actor.EntityId, new IsRunningPacket(client.MapClient.Player.Actor.IsRunning));
+            client.CallMethod(client.MapClient.Player.Actor.EntityId, new IsRunningPacket(client.MapClient.Player.Actor.IsRunning));
         }
 
         public void RequestVisualCombatMode(Client client, int combatMode)
@@ -564,12 +562,12 @@ namespace Rasa.Managers
             if (combatMode > 0)
             {
                 client.MapClient.Player.Actor.InCombatMode = true;
-                client.CellSendPacket(client, client.MapClient.Player.Actor.EntityId, new RequestVisualCombatModePacket { CombatMode = 1 });
+                client.CellCallMethod(client, client.MapClient.Player.Actor.EntityId, new RequestVisualCombatModePacket { CombatMode = 1 });
             }
             else
             {
                 client.MapClient.Player.Actor.InCombatMode = false;
-                client.CellSendPacket(client, client.MapClient.Player.Actor.EntityId, new RequestVisualCombatModePacket { CombatMode = 0 });
+                client.CellCallMethod(client, client.MapClient.Player.Actor.EntityId, new RequestVisualCombatModePacket { CombatMode = 0 });
             }
         }
 
@@ -600,7 +598,7 @@ namespace Rasa.Managers
                 if (weaponAmmo == null)
                     return;
 
-                if (weaponAmmo.ItemTemplate.ClassId == weaponClassInfo.AmmoClassId)
+                if (weaponAmmo.ItemTemplate.Class == weaponClassInfo.AmmoClassId)
                 {
                     // consume ammo
                     var ammoToGrab = Math.Min(weaponClassInfo.ClipSize - foundAmmo - weapon.CurrentAmmo, weaponAmmo.Stacksize);
@@ -635,12 +633,12 @@ namespace Rasa.Managers
             var value = "";
 
             foreach (var option in client.UserOptions)
-                value = value + $" ('{client.Entry.Id}', '{(uint)option.OptionId}', '{option.Value}'),";
+                value = value + $" ('{client.AccountEntry.Id}', '{(uint)option.OptionId}', '{option.Value}'),";
             
             // remove last comma
             value = value.Remove(value.Length - 1);
 
-            UserOptionsTable.DeleteUserOptions(client.Entry.Id);
+            UserOptionsTable.DeleteUserOptions(client.AccountEntry.Id);
             UserOptionsTable.AddUserOption(value + ";");
             
         }
@@ -654,18 +652,27 @@ namespace Rasa.Managers
             {
                 // Add new appearance slot to character and db
                 player.AppearanceData.Add(equipmentSlotId, new AppearanceData { SlotId = equipmentSlotId });
-                CharacterAppearanceTable.SetAppearance(client.Entry.Id, player.CharacterSlot, (int)equipmentSlotId, 0, 0);
+                var newAppearence = new CharacterAppearanceEntry
+                {
+                    CharacterId = player.CharacterId,
+                    Slot = (uint)equipmentSlotId,
+                    Class = 0,
+                    Color = 0
+                };
+
+                CharacterAppearanceTable.AddAppearance(player.CharacterId, newAppearence);
             }
 
-            player.AppearanceData[equipmentSlotId].ClassId = item.ItemTemplate.ClassId;
+            player.AppearanceData[equipmentSlotId].Class = item.ItemTemplate.Class;
             player.AppearanceData[equipmentSlotId].Color = new Color(item.Color);
+            
             // update appearance data in database
-            CharacterAppearanceTable.UpdateCharacterAppearance(client.Entry.Id, player.CharacterSlot, (int)equipmentSlotId, item.ItemTemplate.ClassId, item.Color);
+            CharacterAppearanceTable.UpdateCharacterAppearance(client.AccountEntry.Id, player.CharacterSlot, (uint)equipmentSlotId, (uint)item.ItemTemplate.Class, item.Color);
         }
 
         public void SetDesiredCrouchState(Client client, ActorState state)
         {
-            client.CellIgnoreSelfSendPacket(client, new SetDesiredCrouchStatePacket { DesiredStateId = state });
+            client.CellIgnoreSelfCallMethod(client, new SetDesiredCrouchStatePacket { DesiredStateId = state });
         }
 
         public void SetTargetId(Client client, long entityId)
@@ -675,7 +682,7 @@ namespace Rasa.Managers
 
         public void SetTrackingTarget(Client client, SetTrackingTargetPacket packet)
         {
-            client.SendPacket(client.MapClient.Player.Actor.EntityId, new SetTrackingTargetPacket { EntityId = packet.EntityId });
+            client.CallMethod(client.MapClient.Player.Actor.EntityId, new SetTrackingTargetPacket { EntityId = packet.EntityId });
         }
 
         public void StartAutoFire(Client client, double yaw)
@@ -769,13 +776,13 @@ namespace Rasa.Managers
 
             client.MapClient.MapChannel.PerformActions.Add(new ActionData(client, weaponClassInfo.WeaponAttackActionId, weaponClassInfo.WeaponAttackArgId, 0, weapon.ItemTemplate.WeaponInfo.RefireTime));
         }
-        
+
         public void UpdateAppearance(Client client)
         {
             if (client.MapClient.Player == null)
                 return;
 
-            client.CellSendPacket(client, client.MapClient.Player.Actor.EntityId, new AppearanceDataPacket(client.MapClient.Player.AppearanceData));
+            client.CellCallMethod(client, client.MapClient.Player.Actor.EntityId, new AppearanceDataPacket(client.MapClient.Player.AppearanceData));
         }
 
         /*
@@ -840,7 +847,7 @@ namespace Rasa.Managers
                     continue;
 
                 var equipmentItem = EntityManager.Instance.GetItem(entry.Value);
-                var classInfo = EntityClassManager.Instance.GetClassInfo(equipmentItem.ItemTemplate.ClassId);
+                var classInfo = EntityClassManager.Instance.GetClassInfo(equipmentItem.ItemTemplate.Class);
 
                 if (equipmentItem == null)
                 {
@@ -877,7 +884,7 @@ namespace Rasa.Managers
                 attribute[Attributes.Power].Current = Math.Min(attribute[Attributes.Power].Current, attribute[Attributes.Power].CurrentMax);
 
             // Send Data to client
-            client.SendPacket(client.MapClient.Player.Actor.EntityId, new AttributeInfoPacket(client.MapClient.Player.Actor.Attributes));
+            client.CallMethod(client.MapClient.Player.Actor.EntityId, new AttributeInfoPacket(client.MapClient.Player.Actor.Attributes));
         }
 
         public void WeaponReload(ActionData action)
@@ -903,7 +910,7 @@ namespace Rasa.Managers
                 if (weaponAmmo == null)
                     return;
 
-                if (weaponAmmo.ItemTemplate.ClassId == weaponClassInfo.AmmoClassId)
+                if (weaponAmmo.ItemTemplate.Class == weaponClassInfo.AmmoClassId)
                 {
                     // consume ammo
                     var ammoToGrab = Math.Min(weaponClassInfo.ClipSize - foundAmmo - weapon.CurrentAmmo, weaponAmmo.Stacksize);
@@ -925,7 +932,7 @@ namespace Rasa.Managers
             client.MapClient.Player.Actor.CurrentAction = 0;
 
             // send data to client
-            client.CellSendPacket(client, client.MapClient.Player.Actor.EntityId, new PerformRecoveryPacket(action.ActionId, action.ActionArgId, new List<int> { foundAmmo }));
+            client.CellCallMethod(client, client.MapClient.Player.Actor.EntityId, new PerformRecoveryPacket(action.ActionId, action.ActionArgId, new List<int> { foundAmmo }));
         }
 
     }

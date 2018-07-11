@@ -6,7 +6,7 @@ namespace Rasa.Structures
 
     public class EntityClass
     {
-        public int ClassId { get; set; }                            // entityClass.pyo
+        public uint ClassId { get; set; }                           // entityClass.pyo
         public string ClassName { get; set; }                       // entityClass.pyo
         public int MeshId { get; set; }                             // entityClass.pyo
         public int LodMeshId { get; set; }                          // entityClass.pyo for all entityClasses LodMeshId is none (null)
@@ -25,13 +25,13 @@ namespace Rasa.Structures
         public int TargetPickOverride { get; set; }
         public int HasServerSkeleton { get; set; }
 
-        public Dictionary<int, ItemTemplate> ItemTemplates = new Dictionary<int, ItemTemplate>();
+        public Dictionary<uint, ItemTemplate> ItemTemplates = new Dictionary<uint, ItemTemplate>();
         public ItemClassInfo ItemClassInfo { get; set; }
         public ArmorClassInfo ArmorClassInfo { get; set; }
         public EquipableClassInfo EquipableClassInfo { get; set; }
         public WeaponClassInfo WeaponClassInfo { get; set; }
 
-        public EntityClass(int classId, string className, int meshId, short classCollisionRole, List<AugmentationType> augList, bool targetFlag)
+        public EntityClass(uint classId, string className, int meshId, short classCollisionRole, List<AugmentationType> augList, bool targetFlag)
         {
             ClassId = classId;
             ClassName = className;
@@ -60,11 +60,11 @@ namespace Rasa.Structures
 
     public class EquipableClassInfo
     {
-        public EquipmentSlots EquipmentSlotId { get; set; }
+        public EquipmentData EquipmentSlotId { get; set; }
 
-        public EquipableClassInfo(int slotId)
+        public EquipableClassInfo(EquipmentData slotId)
         {
-            EquipmentSlotId = (EquipmentSlots)slotId;
+            EquipmentSlotId = slotId;
         }
     }
 
@@ -101,7 +101,7 @@ namespace Rasa.Structures
         public short DrawActionId { get; set; }
         public short StowActionId { get; set; }
         public short ReloadActionId { get; set; }
-        public int AmmoClassId { get; set; }
+        public EntityClassId AmmoClassId { get; set; }
         public short ClipSize { get; set; }
         public int MinDamage { get; set; }
         public int MaxDamage { get; set; }
@@ -130,7 +130,7 @@ namespace Rasa.Structures
             DrawActionId = weaponInfo.DrawActionId;
             StowActionId = weaponInfo.StowActionId;
             ReloadActionId = weaponInfo.ReloadActionId;
-            AmmoClassId = weaponInfo.AmmoClassId;
+            AmmoClassId = (EntityClassId)weaponInfo.AmmoClassId;
             ClipSize = weaponInfo.ClipSize;
             MinDamage = weaponInfo.MinDamage;
             MaxDamage = weaponInfo.MaxDamage;

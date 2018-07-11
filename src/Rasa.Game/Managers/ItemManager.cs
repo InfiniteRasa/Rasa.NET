@@ -16,7 +16,7 @@ namespace Rasa.Managers
     {
         private static ItemManager _instance;
         private static readonly object InstanceLock = new object();
-        public Dictionary<int, int> ItemTemplateItemClass = new Dictionary<int, int>();
+        public Dictionary<uint, EntityClassId> ItemTemplateItemClass = new Dictionary<uint, EntityClassId>();
 
         public static ItemManager Instance
         {
@@ -40,7 +40,7 @@ namespace Rasa.Managers
         {
         }
 
-        public Item CreateFromTemplateId(int itemTemplateId, int stackSize, string crafter)
+        public Item CreateFromTemplateId(uint itemTemplateId, int stackSize, string crafter)
         {
             var itemTemplate = GetItemTemplateById(itemTemplateId);
             if (itemTemplate == null)
@@ -56,7 +56,7 @@ namespace Rasa.Managers
             if (itemTemplate == null)
                 return null;
 
-            var classInfo = EntityClassManager.Instance.GetClassInfo(itemTemplate.ClassId);
+            var classInfo = EntityClassManager.Instance.GetClassInfo(itemTemplate.Class);
 
             // dont create more then max stackSize
             if (classInfo.ItemClassInfo.StackSize < stackSize)
@@ -66,9 +66,9 @@ namespace Rasa.Managers
             var itemId = 0U;
 
             if (crafter != "")
-                itemId = ItemsTable.CraftItem(itemTemplate.ItemTemplateId, stackSize, classInfo.ItemClassInfo.MaxHitPoints, crafter, -2139062144);
+                itemId = ItemsTable.CraftItem(itemTemplate.ItemTemplateId, stackSize, classInfo.ItemClassInfo.MaxHitPoints, crafter, 2139062144);
             else
-                itemId = ItemsTable.CreateItem(itemTemplate.ItemTemplateId, stackSize, classInfo.ItemClassInfo.MaxHitPoints, -2139062144);
+                itemId = ItemsTable.CreateItem(itemTemplate.ItemTemplateId, stackSize, classInfo.ItemClassInfo.MaxHitPoints, 2139062144);
             
             // create physical copy of item
             var item = new Item
@@ -76,7 +76,7 @@ namespace Rasa.Managers
                 ItemId = itemId,
                 ItemTemplate = itemTemplate,
                 Stacksize = stackSize,
-                Color = -2139062144     // ToDo we will have to find color in game client files
+                Color = 2139062144     // ToDo we will have to find color in game client files
             };
             // register item
             EntityManager.Instance.RegisterEntity(item.EntityId, EntityType.Item);
@@ -85,10 +85,10 @@ namespace Rasa.Managers
             return item;
         }
 
-        public Item CreateVendorItem(Client client, int itemTemplateId)
+        public Item CreateVendorItem(Client client, uint itemTemplateId)
         {
             var itemTemplate = GetItemTemplateById(itemTemplateId);
-            var classInfo = EntityClassManager.Instance.GetClassInfo(itemTemplate.ClassId);
+            var classInfo = EntityClassManager.Instance.GetClassInfo(itemTemplate.Class);
 
             var item = new Item
             {
@@ -118,7 +118,7 @@ namespace Rasa.Managers
             return item;
         }
 
-        public Item GetItemFromTemplateId(uint itemId, uint characterSlot, int slotId, int itemTemplateId, int stackSize)
+        public Item GetItemFromTemplateId(uint itemId, uint characterSlot, int slotId, uint itemTemplateId, int stackSize)
         {
             var itemTemplate = GetItemTemplateById(itemTemplateId);
 
@@ -139,7 +139,7 @@ namespace Rasa.Managers
             return item;
         }
         
-        public ItemTemplate GetItemTemplateById(int itemTemplateId)
+        public ItemTemplate GetItemTemplateById(uint itemTemplateId)
         {
             if (ItemTemplateItemClass.ContainsKey(itemTemplateId))
             {
@@ -157,14 +157,14 @@ namespace Rasa.Managers
         {
             Logger.WriteLog(LogType.Initialize, "Loading ItemTemplates from db...");
 
-            var LoadedItemTemplates = new Dictionary<int, ItemTemplate>();
+            var LoadedItemTemplates = new Dictionary<uint, ItemTemplate>();
             
             // load item templates
             var itemTemplates = ItemTemplateItemClassTable.GetItemTemplateItemClass();
             foreach (var itemTemplate in itemTemplates)
             {
                 LoadedItemTemplates.Add(itemTemplate.ItemTemplateId, new ItemTemplate(itemTemplate));
-                ItemTemplateItemClass.Add(itemTemplate.ItemTemplateId, itemTemplate.ItemClassId);
+                ItemTemplateItemClass.Add(itemTemplate.ItemTemplateId, (EntityClassId)itemTemplate.ItemClass);
             }
 
             // add race requirements to itemTemplate
@@ -225,7 +225,7 @@ namespace Rasa.Managers
             foreach (var entry in LoadedItemTemplates)
             {
                 var itemTemplate = entry.Value;
-                EntityClassManager.Instance.LoadedEntityClasses[itemTemplate.ClassId].ItemTemplates.Add(itemTemplate.ItemTemplateId, itemTemplate);
+                EntityClassManager.Instance.LoadedEntityClasses[itemTemplate.Class].ItemTemplates.Add(itemTemplate.ItemTemplateId, itemTemplate);
             }
 
             Logger.WriteLog(LogType.Initialize, $"Loaded {weaponTemplates.Count} WeaponTemplates.");
@@ -236,11 +236,11 @@ namespace Rasa.Managers
         {
             // CreatePhysicalEntity
             if(!updateOnly)
-                client.SendPacket(5, new CreatePhysicalEntityPacket( item.EntityId, item.ItemTemplate.ClassId));
+                client.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket( item.EntityId, item.ItemTemplate.Class));
 
-            var classInfo = EntityClassManager.Instance.GetClassInfo(item.ItemTemplate.ClassId);
+            var classInfo = EntityClassManager.Instance.GetClassInfo(item.ItemTemplate.Class);
             // ItemInfo
-            client.SendPacket(item.EntityId, new ItemInfoPacket
+            client.CallMethod(item.EntityId, new ItemInfoPacket
             {
                 CurrentHitPoints = item.CurrentHitPoints,
                 MaxHitPoints = classInfo.ItemClassInfo.MaxHitPoints,
@@ -260,12 +260,12 @@ namespace Rasa.Managers
             } );
 
             // isConsumable
-            client.SendPacket(item.EntityId, new SetConsumablePacket(classInfo.ItemClassInfo.IsConsumableFlag));
+            client.CallMethod(item.EntityId, new SetConsumablePacket(classInfo.ItemClassInfo.IsConsumableFlag));
 
             if (item.ItemTemplate.WeaponInfo != null)    // weapon
             {
                 // WeaponInfo
-                client.SendPacket(item.EntityId, new WeaponInfoPacket
+                client.CallMethod(item.EntityId, new WeaponInfoPacket
                 {
                     WeaponName = item.ItemTemplate.WeaponInfo.WeaponName,
                     ClipSize = classInfo.WeaponClassInfo.ClipSize,
@@ -287,14 +287,14 @@ namespace Rasa.Managers
                 } );
 
                 // WeaponAmmoInfo
-                client.SendPacket(item.EntityId, new WeaponAmmoInfoPacket(item.CurrentAmmo));
+                client.CallMethod(item.EntityId, new WeaponAmmoInfoPacket(item.CurrentAmmo));
             }
             // ArmorInfo
             if (classInfo.ArmorClassInfo != null)
-                client.SendPacket(item.EntityId, new ArmorInfoPacket(item.CurrentHitPoints, classInfo.ItemClassInfo.MaxHitPoints));
+                client.CallMethod(item.EntityId, new ArmorInfoPacket(item.CurrentHitPoints, classInfo.ItemClassInfo.MaxHitPoints));
             
             // SetStackCount
-            client.SendPacket(item.EntityId, new SetStackCountPacket(item.Stacksize));
+            client.CallMethod(item.EntityId, new SetStackCountPacket(item.Stacksize));
         }
     }
 }

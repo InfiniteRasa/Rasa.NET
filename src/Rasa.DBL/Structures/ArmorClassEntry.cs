@@ -4,7 +4,7 @@ namespace Rasa.Structures
 {
     public class ArmorClassEntry
     {
-        public int ClassId { get; set; }
+        public uint ClassId { get; set; }
         public int MinDamageAbsorbed { get; set; }
         public int MaxDamageAbsorbed { get; set; }
         public int RegenRate { get; set; }
@@ -13,7 +13,7 @@ namespace Rasa.Structures
         {
             return new ArmorClassEntry
             {
-                ClassId = reader.GetInt32("classId"),
+                ClassId = reader.GetUInt32("classId"),
                 MinDamageAbsorbed = reader.GetInt32("minDamageAbsorbed"),
                 MaxDamageAbsorbed = reader.GetInt32("maxDamageAbsorbed"),
                 RegenRate = reader.GetInt32("regenRate")

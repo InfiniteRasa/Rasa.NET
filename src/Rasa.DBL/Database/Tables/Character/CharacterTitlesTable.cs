@@ -12,11 +12,11 @@ namespace Rasa.Database.Tables.Character
         {
             CharacterTitles.Connection = GameDatabaseAccess.CharConnection;
             CharacterTitles.Parameters.Add("@AccountId", MySqlDbType.UInt32);
-            CharacterTitles.Parameters.Add("@CharacterSlot", MySqlDbType.UInt32);
+            CharacterTitles.Parameters.Add("@CharacterSlot", MySqlDbType.Byte);
             CharacterTitles.Prepare();
         }
 
-        public static List<uint> GetCharacterTitles(uint accountId, uint characterSlot)
+        public static List<uint> GetCharacterTitles(uint accountId, byte characterSlot)
         {
             lock (GameDatabaseAccess.CharLock)
             {

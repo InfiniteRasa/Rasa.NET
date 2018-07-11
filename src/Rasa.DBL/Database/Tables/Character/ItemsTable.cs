@@ -17,18 +17,18 @@ namespace Rasa.Database.Tables.Character
         public static void Initialize()
         {
             CraftItemCommand.Connection = GameDatabaseAccess.CharConnection;
-            CraftItemCommand.Parameters.Add("@ItemTemplateId", MySqlDbType.Int32);
+            CraftItemCommand.Parameters.Add("@ItemTemplateId", MySqlDbType.UInt32);
             CraftItemCommand.Parameters.Add("@StackSize", MySqlDbType.Int32);
             CraftItemCommand.Parameters.Add("@CurrentHitPoints", MySqlDbType.Int32);
             CraftItemCommand.Parameters.Add("@CrafterName", MySqlDbType.VarChar);
-            CraftItemCommand.Parameters.Add("@Color", MySqlDbType.Int32);
+            CraftItemCommand.Parameters.Add("@Color", MySqlDbType.UInt32);
             CraftItemCommand.Prepare();
 
             CreateItemCommand.Connection = GameDatabaseAccess.CharConnection;
-            CreateItemCommand.Parameters.Add("@ItemTemplateId", MySqlDbType.Int32);
+            CreateItemCommand.Parameters.Add("@ItemTemplateId", MySqlDbType.UInt32);
             CreateItemCommand.Parameters.Add("@StackSize", MySqlDbType.Int32);
             CreateItemCommand.Parameters.Add("@CurrentHitPoints", MySqlDbType.Int32);
-            CreateItemCommand.Parameters.Add("@Color", MySqlDbType.Int32);
+            CreateItemCommand.Parameters.Add("@Color", MySqlDbType.UInt32);
             CreateItemCommand.Prepare();
 
             DeleteItemCommand.Connection = GameDatabaseAccess.CharConnection;
@@ -55,7 +55,7 @@ namespace Rasa.Database.Tables.Character
             UpdateItemStackSizeCommand.Prepare();
         }
 
-        public static uint CraftItem(int itemTemplateId, int stackSize, int currentHitPoints, string crafterName, int color)
+        public static uint CraftItem(uint itemTemplateId, int stackSize, int currentHitPoints, string crafterName, uint color)
         {
             lock (GameDatabaseAccess.CharLock)
             {
@@ -69,7 +69,7 @@ namespace Rasa.Database.Tables.Character
             }
         }
 
-        public static uint CreateItem(int itemTemplateId, int stackSize, int currentHitPoints, int color)
+        public static uint CreateItem(uint itemTemplateId, int stackSize, int currentHitPoints, uint color)
         {
             lock (GameDatabaseAccess.CharLock)
             {

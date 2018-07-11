@@ -10,9 +10,9 @@ namespace Rasa.Packets.MapChannel.Server
     {
         public override GameOpcode Opcode { get; } = GameOpcode.AppearanceData;
 
-        public Dictionary<EquipmentSlots, AppearanceData> AppearanceData { get; set; }
+        public Dictionary<EquipmentData, AppearanceData> AppearanceData { get; set; }
 
-        public AppearanceDataPacket(Dictionary<EquipmentSlots, AppearanceData> appearanceData)
+        public AppearanceDataPacket(Dictionary<EquipmentData, AppearanceData> appearanceData)
         {
             AppearanceData = appearanceData;
         }
@@ -30,7 +30,7 @@ namespace Rasa.Packets.MapChannel.Server
                 var appearance = t.Value;
                 pw.WriteInt((int)appearance.SlotId);
                 pw.WriteTuple(2);
-                pw.WriteInt(appearance.ClassId);
+                pw.WriteUInt((uint)appearance.Class);
                 pw.WriteTuple(4);
                 pw.WriteInt(appearance.Color.Red);
                 pw.WriteInt(appearance.Color.Green);

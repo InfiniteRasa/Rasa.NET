@@ -11,7 +11,7 @@ namespace Rasa.Managers
     {
         private static EntityClassManager _instance;
         private static readonly object InstanceLock = new object();
-        public Dictionary<int, EntityClass> LoadedEntityClasses = new Dictionary<int, EntityClass>();
+        public Dictionary<EntityClassId, EntityClass> LoadedEntityClasses = new Dictionary<EntityClassId, EntityClass>();
 
         public static EntityClassManager Instance
         {
@@ -51,7 +51,7 @@ namespace Rasa.Managers
                     if (int.TryParse(value, out int augmentation))
                         augList.Add((AugmentationType)augmentation);
 
-                LoadedEntityClasses.Add(entityClass.ClassId, new EntityClass(
+                LoadedEntityClasses.Add((EntityClassId)entityClass.ClassId, new EntityClass(
                     entityClass.ClassId,
                     entityClass.ClassName,
                     entityClass.MeshId,
@@ -64,22 +64,22 @@ namespace Rasa.Managers
             // Load itemClasses
             var itemClassList = ItemClassTable.LoadItemClasses();
             foreach (var itemClass in itemClassList)
-                LoadedEntityClasses[itemClass.ClassId].ItemClassInfo = new ItemClassInfo(itemClass);
+                LoadedEntityClasses[(EntityClassId)itemClass.ClassId].ItemClassInfo = new ItemClassInfo(itemClass);
 
             // Load ArmorClasses
             var armorClassList = ArmorClassTable.LoadArmorClasses();
             foreach (var armorClass in armorClassList)
-                LoadedEntityClasses[armorClass.ClassId].ArmorClassInfo = new ArmorClassInfo(armorClass);
+                LoadedEntityClasses[(EntityClassId)armorClass.ClassId].ArmorClassInfo = new ArmorClassInfo(armorClass);
 
             // Load WeaponClasses
             var weaponClassList = WeaponClassTable.LoadWeaponClasses();
             foreach (var weaponClass in weaponClassList)
-                LoadedEntityClasses[weaponClass.ClassId].WeaponClassInfo = new WeaponClassInfo(weaponClass);
+                LoadedEntityClasses[(EntityClassId)weaponClass.ClassId].WeaponClassInfo = new WeaponClassInfo(weaponClass);
 
             // Load WeaponClasses
             var equipableClassList = EquipableClassTable.LoadEquipableClasses();
             foreach (var equipableClass in equipableClassList)
-                LoadedEntityClasses[equipableClass.ClassId].EquipableClassInfo = new EquipableClassInfo(equipableClass.SlotId);
+                LoadedEntityClasses[(EntityClassId)equipableClass.ClassId].EquipableClassInfo = new EquipableClassInfo((EquipmentData)equipableClass.SlotId);
             
             // Load ItemTemplates
             ItemManager.Instance.LoadItemTemplates();
@@ -91,7 +91,7 @@ namespace Rasa.Managers
             Logger.WriteLog(LogType.Initialize, $"Loaded {weaponClassList.Count} WeaponClasses");
         }
 
-        public EntityClass GetClassInfo(int entityClassId)
+        public EntityClass GetClassInfo(EntityClassId entityClassId)
         {
             if (LoadedEntityClasses.ContainsKey(entityClassId))
                 return LoadedEntityClasses[entityClassId];
@@ -103,22 +103,22 @@ namespace Rasa.Managers
 
         public ArmorClassInfo GetArmorClassInfo(Item armor)
         {
-            return LoadedEntityClasses[armor.ItemTemplate.ClassId].ArmorClassInfo;
+            return LoadedEntityClasses[armor.ItemTemplate.Class].ArmorClassInfo;
         }
 
         public EquipableClassInfo GetEquipableClassInfo(Item equipment)
         {
-            return LoadedEntityClasses[equipment.ItemTemplate.ClassId].EquipableClassInfo;
+            return LoadedEntityClasses[equipment.ItemTemplate.Class].EquipableClassInfo;
         }
 
         public ItemClassInfo GetItemClassInfo(Item item)
         {
-            return LoadedEntityClasses[item.ItemTemplate.ClassId].ItemClassInfo;
+            return LoadedEntityClasses[item.ItemTemplate.Class].ItemClassInfo;
         }
 
         public WeaponClassInfo GetWeaponClassInfo(Item weapon)
         {
-            return LoadedEntityClasses[weapon.ItemTemplate.ClassId].WeaponClassInfo;
+            return LoadedEntityClasses[weapon.ItemTemplate.Class].WeaponClassInfo;
         }
     }
 }

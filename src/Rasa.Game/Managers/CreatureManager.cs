@@ -18,7 +18,7 @@ namespace Rasa.Managers
         private static CreatureManager _instance;
         private static readonly object InstanceLock = new object();
         public const int CreatureLocationUpdateTime = 1500;
-        public readonly Dictionary<int, Creature> LoadedCreatures = new Dictionary<int, Creature>();
+        public readonly Dictionary<uint, Creature> LoadedCreatures = new Dictionary<uint, Creature>();
 
         public static CreatureManager Instance
         {
@@ -56,7 +56,7 @@ namespace Rasa.Managers
                 CreateCreatureOnClient(client, creature);
         }
 
-        public Creature CreateCreature(int dbId, SpawnPool spawnPool)
+        public Creature CreateCreature(uint dbId, SpawnPool spawnPool)
         {
             // check is creature in database
             if (!LoadedCreatures.ContainsKey(dbId))
@@ -66,7 +66,7 @@ namespace Rasa.Managers
             }
             var isCreature = false;
             // check if classId have creature Augmentation
-            foreach (var aug in EntityClassManager.Instance.LoadedEntityClasses[LoadedCreatures[dbId].ClassId].Augmentations)
+            foreach (var aug in EntityClassManager.Instance.LoadedEntityClasses[LoadedCreatures[dbId].Class].Augmentations)
                 if (aug == AugmentationType.Creature)
                     isCreature = true;
             if(!isCreature)
@@ -81,7 +81,7 @@ namespace Rasa.Managers
                 Actor = new Actor(),
                 AppearanceData = LoadedCreatures[dbId].AppearanceData,
                 DbId = LoadedCreatures[dbId].DbId,
-                ClassId = LoadedCreatures[dbId].ClassId,
+                Class = LoadedCreatures[dbId].Class,
                 Faction = LoadedCreatures[dbId].Faction,
                 Level = LoadedCreatures[dbId].Level,
                 MaxHitPoints = LoadedCreatures[dbId].MaxHitPoints,
@@ -134,14 +134,14 @@ namespace Rasa.Managers
                 new IsRunningPacket(false)
         };
 
-            client.SendPacket(5, new CreatePhysicalEntityPacket(creature.Actor.EntityId, creature.ClassId, entityData));
+            client.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(creature.Actor.EntityId, creature.Class, entityData));
 
             // NPC  & Vendor augmentation
             if (creature.NpcData != null || creature.VendorData != null)
                 UpdateConversationStatus(client, creature);
         }
 
-        public Creature FindCreature(int creatureId)
+        public Creature FindCreature(uint creatureId)
         {
             return LoadedCreatures[creatureId];
         }
@@ -152,16 +152,16 @@ namespace Rasa.Managers
             foreach (var data in creatureList)
             {
                 var appearanceData = CreatureAppearanceTable.GetCreatureAppearance(data.DbId);
-                var tempAppearanceData = new Dictionary<EquipmentSlots, AppearanceData>();
+                var tempAppearanceData = new Dictionary<EquipmentData, AppearanceData>();
 
-                if (appearanceData != null)
+                if (appearanceData != null && appearanceData.Count > 0)
                     foreach (var t in appearanceData)
-                        tempAppearanceData.Add((EquipmentSlots)t.SlotId, new AppearanceData { SlotId = (EquipmentSlots)t.SlotId, ClassId = t.ClassId, Color = new Color(t.Color) });
+                        tempAppearanceData.Add((EquipmentData)t.Slot, new AppearanceData { SlotId = (EquipmentData)t.Slot, Class = (EntityClassId)t.Class, Color = new Color(t.Color) });
 
                 var creature = new Creature
                 {
                     DbId = data.DbId,
-                    ClassId = data.ClassId,
+                    Class = (EntityClassId)data.ClassId,
                     Faction = data.Faction,
                     Level = data.Level,
                     MaxHitPoints = data.MaxHitPoints,
@@ -196,7 +196,7 @@ namespace Rasa.Managers
             {
                 if (LoadedCreatures.ContainsKey(package.CreatureDbId))
                 {
-                    foreach (var aug in EntityClassManager.Instance.LoadedEntityClasses[LoadedCreatures[package.CreatureDbId].ClassId].Augmentations)
+                    foreach (var aug in EntityClassManager.Instance.LoadedEntityClasses[LoadedCreatures[package.CreatureDbId].Class].Augmentations)
                         if (aug == AugmentationType.NPC)
                             if (LoadedCreatures[package.CreatureDbId].NpcData == null)
                             {
@@ -219,7 +219,7 @@ namespace Rasa.Managers
             {
                 if (LoadedCreatures.ContainsKey(vendor.CreatureDbId))
                 {
-                    foreach (var aug in EntityClassManager.Instance.LoadedEntityClasses[LoadedCreatures[vendor.CreatureDbId].ClassId].Augmentations)
+                    foreach (var aug in EntityClassManager.Instance.LoadedEntityClasses[LoadedCreatures[vendor.CreatureDbId].Class].Augmentations)
                         if (aug == AugmentationType.Vendor || aug == AugmentationType.NPC)
                             LoadedCreatures[vendor.CreatureDbId].VendorData = new CreatureVendorData { VendorPackageId = vendor.PackageId };
                 }
@@ -266,7 +266,7 @@ namespace Rasa.Managers
                 return;
             }
 
-            client.SendPacket(client.MapClient.Player.Actor.EntityId, new MissionGainedPacket(mission.MissionId, mission.MissionInfo));
+            client.CallMethod(client.MapClient.Player.Actor.EntityId, new MissionGainedPacket(mission.MissionId, mission.MissionInfo));
         }
 
         public void RequestNpcConverse(Client client, RequestNPCConversePacket packet)
@@ -407,7 +407,7 @@ namespace Rasa.Managers
             };
             */
 
-            client.SendPacket(creature.Actor.EntityId, new ConversePacket(testConvoDataDict));
+            client.CallMethod(creature.Actor.EntityId, new ConversePacket(testConvoDataDict));
         }
 
         public void UpdateConversationStatus(Client client, Creature creature)
@@ -426,9 +426,9 @@ namespace Rasa.Managers
             {
                 if (npcData.NpcPackageIds.Count > 0)
                     foreach (var packageId in npcData.NpcPackageIds)
-                        client.SendPacket(creature.Actor.EntityId, new NPCInfoPacket(packageId));
+                        client.CallMethod(creature.Actor.EntityId, new NPCInfoPacket(packageId));
 
-                client.SendPacket(creature.Actor.EntityId, new NPCConversationStatusPacket(ConversationStatus.ObjectivComplete, new List<int>())); // complete objective
+                client.CallMethod(creature.Actor.EntityId, new NPCConversationStatusPacket(ConversationStatus.ObjectivComplete, new List<int>())); // complete objective
                 statusSet = true;
             }
             /*
@@ -506,14 +506,14 @@ namespace Rasa.Managers
             if (creature.VendorData != null && statusSet == false)
             {
                 // creature->npcData.isVendor
-                client.SendPacket(creature.Actor.EntityId, new NPCConversationStatusPacket(ConversationStatus.Vending, new List<int> { creature.VendorData.VendorPackageId })); // status - vending
+                client.CallMethod(creature.Actor.EntityId, new NPCConversationStatusPacket(ConversationStatus.Vending, new List<int> { creature.VendorData.VendorPackageId })); // status - vending
                 statusSet = true;
             }
             // no status set yet? Send NONE conversation status
             if (statusSet == false)
             {
                 // no other status, set NONE status
-                client.SendPacket(creature.Actor.EntityId, new NPCConversationStatusPacket(ConversationStatus.None, null));// status - none
+                client.CallMethod(creature.Actor.EntityId, new NPCConversationStatusPacket(ConversationStatus.None, null));// status - none
 
                 statusSet = true;
             }
@@ -523,7 +523,7 @@ namespace Rasa.Managers
         #region Auctioneer
         public void RequestNPCOpenAuctionHouse(Client client, long entityId)
         {
-            client.SendPacket((uint)entityId, new OpenAuctionHousePacket());
+            client.CallMethod((uint)entityId, new OpenAuctionHousePacket());
         }
         #endregion
 
@@ -557,7 +557,7 @@ namespace Rasa.Managers
                 EntityManager.Instance.RegisterVendorItem((uint)packet.EntityId, entityList);
             }
 
-            client.SendPacket((uint)packet.EntityId, new VendPacket(itemList));
+            client.CallMethod((uint)packet.EntityId, new VendPacket(itemList));
         }
 
         public void RequestCancelVendor(Client client, long entityId)
@@ -567,7 +567,7 @@ namespace Rasa.Managers
 
         public void RequestVendorBuyback(Client client, RequestVendorBuybackPacket packet)
         {
-            client.SendPacket(9, new RemoveBuybackItemPacket((uint)packet.ItemEntityId));
+            client.CallMethod(SysEntity.ClientInventoryManagerId, new RemoveBuybackItemPacket((uint)packet.ItemEntityId));
 
             var buyBackItem = EntityManager.Instance.GetItem((uint)packet.ItemEntityId);
             var buyedItem = InventoryManager.Instance.AddItemToInventory(client, buyBackItem);
@@ -633,7 +633,7 @@ namespace Rasa.Managers
             foreach( var itemEntityId in packet.ItemEntitesId)
             {
                 var item = EntityManager.Instance.GetItem((uint)itemEntityId);
-                var classInfo = EntityClassManager.Instance.GetClassInfo(item.ItemTemplate.ClassId);
+                var classInfo = EntityClassManager.Instance.GetClassInfo(item.ItemTemplate.Class);
 
                 // calculate cost
                 var cost = (double)((classInfo.ItemClassInfo.MaxHitPoints - item.CurrentHitPoints) * item.ItemTemplate.SellPrice) / 100;
@@ -687,11 +687,11 @@ namespace Rasa.Managers
             // remove item
             // todo: Handle stacksizes correctly and only decrease item by quantity parameter
             InventoryManager.Instance.RemoveItemBySlot(client, InventoryType.Personal, slotIndex);
-            CharacterInventoryTable.DeleteInvItem(client.Entry.Id, client.MapClient.Player.CharacterSlot, (int)InventoryType.Personal, slotIndex);
+            CharacterInventoryTable.DeleteInvItem(client.AccountEntry.Id, client.MapClient.Player.CharacterSlot, (int)InventoryType.Personal, slotIndex);
             // add credits to player
             PlayerManager.Instance.GainCredits(client, (int)sellPrice);
             // add item to buyback list
-            client.SendPacket(9, new AddBuybackItemPacket((uint)packet.ItemEntityId, (int)sellPrice, 1));
+            client.CallMethod(SysEntity.ClientInventoryManagerId, new AddBuybackItemPacket((uint)packet.ItemEntityId, (int)sellPrice, 1));
         }
         #endregion
     }

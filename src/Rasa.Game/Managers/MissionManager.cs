@@ -53,12 +53,12 @@ namespace Rasa.Managers
                         break;
                     case MissionScriptCommand.RewardItem:
                         {
-                            var itemTemplate = ItemManager.Instance.GetItemTemplateById(line.Var1);
+                            var itemTemplate = ItemManager.Instance.GetItemTemplateById((uint)line.Var1);
 
                             var rewardItem = new RewardItem
                             {
-                                ItemTemplateId = line.Var1,
-                                ClassId = itemTemplate.ClassId,
+                                ItemTemplateId = (uint)line.Var1,
+                                Class = itemTemplate.Class,
                                 Quantity = line.Var2,
                                 ModuleIds = itemTemplate.ModuleIds,
                                 QualityId = itemTemplate.QualityId

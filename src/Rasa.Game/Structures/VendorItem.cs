@@ -2,7 +2,7 @@
 {
     public class VendorItem
     {
-        public int ItemTemplateId { get; set; }
+        public uint ItemTemplateId { get; set; }
 
         public VendorItem(VendorItemsEntry item)
         {

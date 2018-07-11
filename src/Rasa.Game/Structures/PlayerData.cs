@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 namespace Rasa.Structures
 {
@@ -7,25 +8,25 @@ namespace Rasa.Structures
     public class PlayerData
     {
         public Actor Actor { get; set; }
-        public Dictionary<EquipmentSlots, AppearanceData> AppearanceData { get; set; }
+        public Dictionary<EquipmentData, AppearanceData> AppearanceData { get; set; }
         public MapChannelClient ControllerUser { get; set; }
+        public uint CharacterId { get; set; }
         public uint AccountId { get; set; }
         public uint CharacterSlot { get; set; }
-        public string Name { get; set; }
         public string FamilyName { get; set; }
         public int Gender { get; set; }
         public double Scale { get; set; }
-        public int RaceId { get; set; }
-        public int ClassId { get; set; }
-        public int Experience { get; set; }
-        public int Level { get; set; }
-        public int Body { get; set; }
-        public int Mind { get; set; }
-        public int Spirit { get; set; }
-        public int CloneCredits { get; set; }
-        public int NumLogins { get; set; }
-        public int TotalTimePlayed { get; set; }
-        public int TimeSinceLastPlayed { get; set; }
+        public int Race { get; set; }
+        public uint Class { get; set; }
+        public uint Experience { get; set; }
+        public byte Level { get; set; }
+        public uint Body { get; set; }
+        public uint Mind { get; set; }
+        public uint Spirit { get; set; }
+        public uint CloneCredits { get; set; }
+        public uint NumLogins { get; set; }
+        public uint TotalTimePlayed { get; set; }
+        public DateTime? TimeSinceLastPlayed { get; set; }
         public int ClanId { get; set; }
         public string ClanName { get; set; }
         public uint LockboxCredits { get; set; }

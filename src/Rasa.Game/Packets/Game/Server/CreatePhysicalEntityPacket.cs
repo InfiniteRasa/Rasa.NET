@@ -10,13 +10,20 @@ namespace Rasa.Packets.Game.Server
         public override GameOpcode Opcode { get; } = GameOpcode.CreatePhysicalEntity;
 
         public uint EntityId { get; set; }
-        public EntityClass ClassId { get; set; }
+        public EntityClassId ClassId { get; set; }
         public List<PythonPacket> EntityData { get; } = new List<PythonPacket>();
 
-        public CreatePhysicalEntityPacket(uint entityId, EntityClass classId)
+        public CreatePhysicalEntityPacket(uint entityId, EntityClassId classId)
         {
             EntityId = entityId;
             ClassId = classId;
+        }
+
+        public CreatePhysicalEntityPacket(uint entityId, EntityClassId classId, List<PythonPacket> entityData)
+        {
+            EntityId = entityId;
+            ClassId = classId;
+            EntityData = entityData;
         }
 
         public override void Write(PythonWriter pw)

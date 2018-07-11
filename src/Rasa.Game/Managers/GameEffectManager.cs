@@ -43,16 +43,18 @@
             // typeId -> The id used to lookup the effect class and animation
             // level -> The sub id of the effect, some effects have multiple levels (especially the ones linked with player abilities)
             // create effect struct
-            var gameEffect = new GameEffect();
-            // setup struct
-            gameEffect.Duration = duration; // 5 seconds (test)
-            gameEffect.EffectTime = 0; // reset timer
-            gameEffect.TypeId = 247;    // EFFECT_TYPE_SPRINT;
-            gameEffect.EffectId = effectId;
-            gameEffect.EffectLevel = effectLevel;
+            var gameEffect = new GameEffect
+            {
+                // setup struct
+                Duration = duration, // 5 seconds (test)
+                EffectTime = 0, // reset timer
+                TypeId = 247,    // EFFECT_TYPE_SPRINT;
+                EffectId = effectId,
+                EffectLevel = effectLevel
+            };
             // add to list
             AddToList(actor, gameEffect);
-            client.CellSendPacket(client, actor.EntityId, new GameEffectAttachedPacket
+            client.CellCallMethod(client, actor.EntityId, new GameEffectAttachedPacket
             {
                 EffectTypeId = gameEffect.TypeId,
                 EffectId = gameEffect.EffectId,
@@ -74,7 +76,7 @@
         public void DettachEffect(Client client, Actor actor, GameEffect gameEffect)
         {
             // inform clients (Recv_GameEffectDetached 75)
-            client.CellSendPacket(client, actor.EntityId, new GameEffectDetachedPacket { EffectId = gameEffect.EffectId });
+            client.CellCallMethod(client, actor.EntityId, new GameEffectDetachedPacket { EffectId = gameEffect.EffectId });
             // remove from list
             RemoveFromList(actor, gameEffect);
             // do ability specific work
@@ -130,7 +132,7 @@
                 }
             }
             // todo: other modificators?
-            client.CellSendPacket(client, actor.EntityId, new MovementModChangePacket(movementMod));
+            client.CellCallMethod(client, actor.EntityId, new MovementModChangePacket(movementMod));
         }
     }
 }

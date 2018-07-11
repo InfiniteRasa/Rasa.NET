@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Net.Sockets;
 
@@ -27,7 +28,6 @@ namespace Rasa.Game
         public uint[] SendSequence { get; } = new uint[256];
         public uint[] ReceiveSequence { get; } = new uint[256];
         public int LoadingMap { get; set; }
-        public uint LoadingSlot { get; set; }
         public MapChannelClient MapClient { get; set; }
         public List<UserOptions> UserOptions = new List<UserOptions>();
         private readonly object _clientLock = new object();
@@ -103,6 +103,39 @@ namespace Rasa.Game
         public void CallMethod(SysEntity entityId, PythonPacket packet)
         {
             SendMessage(new CallMethodMessage((uint) entityId, packet));
+        }
+        
+        // Cell Domain
+        public void CellCallMethod(Client client, uint entityId, PythonPacket packet)
+        {
+            var mapCell = CellManager.Instance.GetCell(client.MapClient.MapChannel, client.MapClient.Player.Actor.CellLocation.CellPosX, client.MapClient.Player.Actor.CellLocation.CellPosY);
+            var clientCount = mapCell.ClientNotifyList.Count;
+            var clientList = mapCell.ClientNotifyList;
+
+            if (clientList == null || clientCount == 0)
+                return;
+
+            foreach (var tempClient in clientList)
+                tempClient.CallMethod(entityId, packet);
+        }
+
+        // Cell Domain ignore self
+        public void CellIgnoreSelfCallMethod(Client client, PythonPacket packet)
+        {
+            var mapCell = CellManager.Instance.GetCell(client.MapClient.MapChannel, client.MapClient.Player.Actor.CellLocation.CellPosX, client.MapClient.Player.Actor.CellLocation.CellPosY);
+            var clientCount = mapCell.ClientNotifyList.Count;
+            var clientList = mapCell.ClientNotifyList;
+
+            if (clientList == null || clientCount == 0)
+                return;
+
+            foreach (var tempClient in clientList)
+            {
+                if (tempClient == client)
+                    return;
+
+                tempClient.CallMethod(client.MapClient.Player.Actor.EntityId, packet);
+            }
         }
 
         public void SendMessage(IClientMessage message, bool compress = false, byte channel = 0, bool delay = true)
@@ -406,7 +439,7 @@ namespace Rasa.Game
                 return;
 
             foreach (var tempClient in clientList)
-                tempClient.SendPacket(entityId, packet);
+                tempClient.CallMethod(entityId, packet);
         }
 
         // Cell Domain ignore self
@@ -424,7 +457,7 @@ namespace Rasa.Game
                 if (tempClient == client)
                     return;
 
-                tempClient.SendPacket(client.MapClient.Player.Actor.EntityId, packet);
+                tempClient.CallMethod(client.MapClient.Player.Actor.EntityId, packet);
             }
         }
 

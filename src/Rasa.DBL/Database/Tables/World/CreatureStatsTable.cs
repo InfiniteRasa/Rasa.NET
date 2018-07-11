@@ -11,11 +11,11 @@ namespace Rasa.Database.Tables.World
         public static void Initialize()
         {
             GetCreatureStatsCommand.Connection = GameDatabaseAccess.WorldConnection;
-            GetCreatureStatsCommand.Parameters.Add("@CreatureDbId", MySqlDbType.Int32);
+            GetCreatureStatsCommand.Parameters.Add("@CreatureDbId", MySqlDbType.UInt32);
             GetCreatureStatsCommand.Prepare();
         }
 
-        public static CreatureStatsEntry GetCreatureStats(int creatureDbId)
+        public static CreatureStatsEntry GetCreatureStats(uint creatureDbId)
         {
             lock (GameDatabaseAccess.WorldLock)
             {

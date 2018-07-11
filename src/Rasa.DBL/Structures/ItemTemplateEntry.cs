@@ -4,7 +4,7 @@ namespace Rasa.Structures
 {
     public class ItemTemplateEntry
     {
-        public int ItemTemplateId { get; set; }
+        public uint ItemTemplateId { get; set; }
         public int QualityId { get; set; }
         public bool HasSellableFlag { get; set; }
         public bool NotTradableFlag { get; set; }
@@ -21,7 +21,7 @@ namespace Rasa.Structures
         {
             return new ItemTemplateEntry
             {
-                ItemTemplateId = reader.GetInt32("itemTemplateId"),
+                ItemTemplateId = reader.GetUInt32("itemTemplateId"),
                 QualityId = reader.GetInt32("qualityId"),
                 HasSellableFlag = reader.GetBoolean("hasSellableFlag"),
                 NotTradableFlag = reader.GetBoolean("notTradableFlag"),

@@ -79,21 +79,21 @@ namespace Rasa.Managers
             {
                 case ActionId.WeaponAttack:
                     PlayerManager.Instance.StartAutoFire(action.Client, 0D);
-                    action.Client.CellSendPacket(action.Client, action.Client.MapClient.Player.Actor.EntityId, new PerformRecoveryPacket(action.ActionId, action.ActionArgId, new List<int> { 1 }));
+                    action.Client.CellCallMethod(action.Client, action.Client.MapClient.Player.Actor.EntityId, new PerformRecoveryPacket(action.ActionId, action.ActionArgId, new List<int> { 1 }));
                     break;
                 case ActionId.WeaponStow:
-                    action.Client.CellSendPacket(action.Client, action.Client.MapClient.Player.Actor.EntityId, new PerformRecoveryPacket(action.ActionId, action.ActionArgId));
+                    action.Client.CellCallMethod(action.Client, action.Client.MapClient.Player.Actor.EntityId, new PerformRecoveryPacket(action.ActionId, action.ActionArgId));
                     action.Client.MapClient.Player.WeaponReady = false;
                     break;
                 case ActionId.WeaponDraw:
-                    action.Client.CellSendPacket(action.Client, action.Client.MapClient.Player.Actor.EntityId, new PerformRecoveryPacket(action.ActionId, action.ActionArgId));
+                    action.Client.CellCallMethod(action.Client, action.Client.MapClient.Player.Actor.EntityId, new PerformRecoveryPacket(action.ActionId, action.ActionArgId));
                     action.Client.MapClient.Player.WeaponReady = true;
                     break;
                 case ActionId.WeaponReload:
                     PlayerManager.Instance.WeaponReload(action);
                     break;
                 case ActionId.AaRecruitLightning:
-                    action.Client.CellSendPacket(action.Client, action.Client.MapClient.Player.Actor.EntityId, new PerformWindupPacket(action.ActionId, action.ActionArgId));
+                    action.Client.CellCallMethod(action.Client, action.Client.MapClient.Player.Actor.EntityId, new PerformWindupPacket(action.ActionId, action.ActionArgId));
                     break;
                 case ActionId.AaRecruitSprint:
                     GameEffectManager.Instance.AttachSprint(action.Client, action.Client.MapClient.Player.Actor, action.ActionArgId, 500);

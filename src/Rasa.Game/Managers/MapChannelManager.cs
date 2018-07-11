@@ -51,16 +51,19 @@ namespace Rasa.Managers
 
         public void CreatePlayerCharacter(Client client)
         {
-            var data = CharacterTable.GetCharacterData(client.Entry.Id, client.LoadingSlot);
-            var lockboxInfo = CharacterLockboxTable.GetLockboxInfo(client.Entry.Id);
-            var appearances = CharacterAppearanceTable.GetAppearance(client.Entry.Id, client.LoadingSlot);
-            var missions = CharacterMissionsTable.GetMissions(client.Entry.Id, client.LoadingSlot);
-
-            var appearanceData = new Dictionary<EquipmentSlots, AppearanceData>();
+            var data = CharacterTable.GetCharacter(client.AccountEntry.Id, client.AccountEntry.SelectedSlot);
+            var lockboxInfo = CharacterLockboxTable.GetLockboxInfo(client.AccountEntry.Id);
+            var appearances = CharacterAppearanceTable.GetAppearances(data.Id);
+            var missions = CharacterMissionsTable.GetMissions(client.AccountEntry.Id, client.AccountEntry.SelectedSlot);
+            var appearanceData = new Dictionary<EquipmentData, AppearanceData>();
             var missionData = new Dictionary<int, MissionLog>();
 
-            foreach (var appearance in appearances)
-                appearanceData.Add((EquipmentSlots)appearance.SlotId, new AppearanceData { SlotId = (EquipmentSlots)appearance.SlotId, ClassId = appearance.ClassId, Color = new Color(appearance.Color) });
+            foreach (var appearanceEntry in appearances)
+            {
+                var appearance = new AppearanceData(appearanceEntry.Value);
+
+                appearanceData.Add(appearance.SlotId, appearance);
+            }
 
             foreach (var mission in missions)
                 missionData.Add(mission.MissionId, new MissionLog{ MissionId = mission.MissionId, MissionState = mission.MissionState });
@@ -69,10 +72,10 @@ namespace Rasa.Managers
             {
                 Actor = new Actor
                 {
-                    EntityClassId = data.Gender == 0 ? 692 : 691,
+                    EntityClassId = data.Gender == 0 ? EntityClassId.HumanBaseMale : EntityClassId.HumanBaseFemale,
                     Name = data.Name,
-                    FamilyName = data.FamilyName,
-                    Position = new Position(data.PosX, data.PosY, data.PosZ),
+                    FamilyName = client.AccountEntry.FamilyName,
+                    Position = new Position(data.CoordX, data.CoordY, data.CoordZ),
                     Rotation = new Quaternion(0D, 0D, 0D, 0D),    // ToDo
                     MapContextId = data.MapContextId,
                     IsRunning = true,
@@ -91,14 +94,14 @@ namespace Rasa.Managers
                         { Attributes.Regen, new ActorAttributes(Attributes.Regen, 0, 0, 0, 0, 0) }
                     }
                 },
+                CharacterId = data.Id,
                 ControllerUser = client.MapClient,
                 AppearanceData = appearanceData,
-                AccountId = client.Entry.Id,
-                CharacterSlot = client.LoadingSlot,
+                CharacterSlot = client.AccountEntry.SelectedSlot,
                 Gender = data.Gender,
                 Scale = data.Scale,
-                RaceId = data.RaceId,
-                ClassId = data.ClassId,
+                Race = data.Race,
+                Class = data.Class,
                 Experience = data.Experience,
                 Level = data.Level,
                 Body = data.Body,
@@ -107,21 +110,21 @@ namespace Rasa.Managers
                 CloneCredits = data.CloneCredits,
                 NumLogins = data.NumLogins + 1,
                 TotalTimePlayed = data.TotalTimePlayed,
-                TimeSinceLastPlayed = data.TimeSinceLastPlayed,
-                ClanId = data.ClanId,
-                ClanName = data.ClanName,
+                TimeSinceLastPlayed = data.LastLogin,
+                //ClanId = data.ClanId,
+                //ClanName = data.ClanName,
                 LockboxCredits = lockboxInfo[0],
                 LockboxTabs = lockboxInfo[1],
-                Credits = data.Credits,
-                Prestige = data.Prestige,
+                //Credits = data.Credits,
+                //Prestige = data.Prestige,
                 Skills = GetPlayerSkills(client),
-                Titles = CharacterTitlesTable.GetCharacterTitles(client.Entry.Id, client.LoadingSlot),
-                CurrentTitle = data.CurrentTitle,
-                Abilities = GetPlayerAbilities(client.Entry.Id, client.LoadingSlot),
-                CurrentAbilityDrawer = data.CurrentAbilityDrawer,
+                Titles = CharacterTitlesTable.GetCharacterTitles(client.AccountEntry.Id, client.AccountEntry.SelectedSlot),
+                //CurrentTitle = data.CurrentTitle,
+                Abilities = GetPlayerAbilities(client.AccountEntry.Id, client.AccountEntry.SelectedSlot),
+                //CurrentAbilityDrawer = data.CurrentAbilityDrawer,
                 Missions = missionData,
                 LoginTime = 0,
-                Logos = CharacterLogosTable.GetLogos(client.Entry.Id, client.LoadingSlot)
+                Logos = CharacterLogosTable.GetLogos(client.AccountEntry.Id, client.AccountEntry.SelectedSlot)
             };
             // register new Player
             EntityManager.Instance.RegisterEntity(player.Actor.EntityId, EntityType.Player);
@@ -152,7 +155,7 @@ namespace Rasa.Managers
         public Dictionary<int, SkillsData> GetPlayerSkills(Client client)
         {
             var skills = new Dictionary<int, SkillsData>();
-            var skillsData = CharacterSkillsTable.GetCharacterSkills(client.Entry.Id, client.LoadingSlot);
+            var skillsData = CharacterSkillsTable.GetCharacterSkills(client.AccountEntry.Id, client.AccountEntry.SelectedSlot);
 
             foreach (var skill in skillsData)
                 skills.Add(skill.SkillId, new SkillsData(skill.SkillId, skill.AbilityId, skill.SkillLevel));
@@ -375,7 +378,7 @@ namespace Rasa.Managers
 
         public void Ping(Client client, double ping)
         {
-            client.SendPacket(5, new AckPingPacket(ping));
+            client.CallMethod(SysEntity.ClientMethodId, new AckPingPacket(ping));
         }
 
         public void RegisterAutoFireTimer(Client client)
@@ -439,7 +442,7 @@ namespace Rasa.Managers
 
         public void RequestLogout(Client client)
         {           
-            client.SendPacket(5, new LogoutTimeRemainingPacket());
+            client.CallMethod(SysEntity.ClientMethodId, new LogoutTimeRemainingPacket());
             client.MapClient.LogoutRequestedLast = Environment.TickCount;
             client.MapClient.LogoutActive = true;
         }

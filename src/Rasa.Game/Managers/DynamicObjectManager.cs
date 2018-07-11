@@ -40,12 +40,12 @@ namespace Rasa.Managers
 
         public void ForceState(Client client, uint entityId, ActorState state)
         {
-            client.SendPacket(entityId, new ForceStatePacket(state));
+            client.CallMethod(entityId, new ForceStatePacket(state));
         }
 
         public void RequestUseObjectPacket(Client client, RequestUseObjectPacket packet)
         {
-            client.SendPacket((uint)packet.EntityId, new UsePacket(client.MapClient.Player.Actor.EntityId, 1, 0));
+            client.CallMethod((uint)packet.EntityId, new UsePacket(client.MapClient.Player.Actor.EntityId, 1, 0));
         }
     }
 }

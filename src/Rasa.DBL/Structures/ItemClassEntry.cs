@@ -4,7 +4,7 @@ namespace Rasa.Structures
 {
     public class ItemClassEntry
     {
-        public int ClassId { get; set; }
+        public uint ClassId { get; set; }
         public int InventoryIconStringId { get; set; }
         public int LootValue { get; set; }
         public bool HiddenInventoryFlag { get; set; }
@@ -18,7 +18,7 @@ namespace Rasa.Structures
         {
             return new ItemClassEntry
             {
-                ClassId = reader.GetInt32("classId"),
+                ClassId = reader.GetUInt32("classId"),
                 InventoryIconStringId = reader.GetInt32("inventoryIconStringId"),
                 LootValue = reader.GetInt32("lootValue"),
                 HiddenInventoryFlag = reader.GetBoolean("hiddenInventoryFlag"),

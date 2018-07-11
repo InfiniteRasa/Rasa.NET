@@ -41,31 +41,31 @@ namespace Rasa.Entities
             var helm = new AppearanceData
             {
                 SlotId = EquipmentData.Helmet,
-                ClassId = 10908,
+                Class = (EntityClassId)10908,
                 Color = new Color(0x80, 0x80, 0x80)
             };
             var boots = new AppearanceData
             {
                 SlotId = EquipmentData.Shoes,
-                ClassId = 7054,
+                Class = (EntityClassId)7054,
                 Color = new Color(0x80, 0x80, 0x80),
             };
             var gloves = new AppearanceData
             {
                 SlotId = EquipmentData.Gloves,
-                ClassId = 10909,
+                Class = (EntityClassId)10909,
                 Color = new Color(0x80, 0x80, 0x80),
             };
             var torso = new AppearanceData
             {
                 SlotId = EquipmentData.Torso,
-                ClassId = 7082,
+                Class = (EntityClassId)7082,
                 Color = new Color(0x80, 0x80, 0x80),
             };
             var legs = new AppearanceData
             {
                 SlotId = EquipmentData.Legs,
-                ClassId = 7053,
+                Class = (EntityClassId)7053,
                 Color = new Color(0x80, 0x80, 0x80),
             };
             // todo: save default items to the db

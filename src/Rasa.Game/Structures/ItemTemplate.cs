@@ -6,8 +6,8 @@ namespace Rasa.Structures
 
     public class ItemTemplate
     {
-        public int ClassId { get; set; }
-        public int ItemTemplateId { get; set; }
+        public EntityClassId Class { get; set; }
+        public uint ItemTemplateId { get; set; }
         public ItemInfo ItemInfo = new ItemInfo();
         public EquipableInfo EquipableInfo { get; set; }
         public WeaponInfo WeaponInfo { get; set; }
@@ -31,7 +31,7 @@ namespace Rasa.Structures
         public ItemTemplate(ItemTemplateItemClassEntry template)
         {
             ItemTemplateId = template.ItemTemplateId;
-            ClassId = template.ItemClassId;
+            Class = (EntityClassId)template.ItemClass;
         }
     }
 }

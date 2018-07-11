@@ -4,15 +4,15 @@ namespace Rasa.Structures
 {
     public class ItemTemplateItemClassEntry
     {
-        public int ItemTemplateId { get; set; }
-        public int ItemClassId { get; set; }
+        public uint ItemTemplateId { get; set; }
+        public uint ItemClass { get; set; }
 
         public static ItemTemplateItemClassEntry Read(MySqlDataReader reader)
         {
             return new ItemTemplateItemClassEntry
             {
-                ItemTemplateId = reader.GetInt32("itemTemplateid"),
-                ItemClassId = reader.GetInt32("itemClassId")
+                ItemTemplateId = reader.GetUInt32("itemTemplateid"),
+                ItemClass = reader.GetUInt32("itemClassId")
             };
         }
     }

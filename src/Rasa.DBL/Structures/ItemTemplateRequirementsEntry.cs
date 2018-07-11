@@ -4,7 +4,7 @@ namespace Rasa.Structures
 {
     public class ItemTemplateRequirementsEntry
     {
-        public int ItemTemplateId { get; set; }
+        public uint ItemTemplateId { get; set; }
         public short ReqType { get; set; }
         public short ReqValue { get; set; }
 
@@ -12,7 +12,7 @@ namespace Rasa.Structures
         {
             return new ItemTemplateRequirementsEntry
             {
-                ItemTemplateId = reader.GetInt32("itemTemplateid"),
+                ItemTemplateId = reader.GetUInt32("itemTemplateid"),
                 ReqType = reader.GetInt16("reqType"),
                 ReqValue  = reader.GetInt16("reqValue")
             };

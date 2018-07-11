@@ -4,7 +4,7 @@
     using Memory;
     using Structures;
 
-    public class ItemTemplateTooltipInfoPacket : PythonPacket
+    public class ItemTemplateTooltipInfoPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.ItemTemplateTooltipInfo;
 
@@ -17,15 +17,11 @@
             EntityClass = entityClass;
         }
 
-        public override void Read(PythonReader pr)
-        {
-        }
-
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(3);
-            pw.WriteInt(ItemTemplate.ItemTemplateId);
-            pw.WriteInt(ItemTemplate.ClassId);
+            pw.WriteUInt(ItemTemplate.ItemTemplateId);
+            pw.WriteUInt((uint)ItemTemplate.Class);
             pw.WriteDictionary(EntityClass.Augmentations.Count);
             foreach (var augumentation in EntityClass.Augmentations)
             {
@@ -36,7 +32,7 @@
                         pw.WriteTuple(16);
                         pw.WriteInt(EntityClass.WeaponClassInfo.MinDamage);
                         pw.WriteInt(EntityClass.WeaponClassInfo.MaxDamage);
-                        pw.WriteInt(EntityClass.WeaponClassInfo.AmmoClassId);
+                        pw.WriteUInt((uint)EntityClass.WeaponClassInfo.AmmoClassId);
                         pw.WriteInt(EntityClass.WeaponClassInfo.ClipSize);
                         pw.WriteInt(ItemTemplate.WeaponInfo.AmmoPerShot);
                         pw.WriteInt(EntityClass.WeaponClassInfo.DamageType);

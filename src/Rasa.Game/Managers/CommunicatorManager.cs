@@ -2,6 +2,7 @@
 
 namespace Rasa.Managers
 {
+    using Data;
     using Game;
     using Packets.MapChannel.Client;
     using Packets.MapChannel.Server;
@@ -39,8 +40,7 @@ namespace Rasa.Managers
 
         public void AddClientToChannel(Client client, int cHash)
         {
-            ChatChannel chatChannel;
-            if (ChannelsBySeed.TryGetValue(cHash, out chatChannel))
+            if (ChannelsBySeed.TryGetValue(cHash, out ChatChannel chatChannel))
             {
                 var newLink = new ChatChannelPlayerLink
                 {
@@ -104,17 +104,17 @@ namespace Rasa.Managers
             client.MapClient.JoinedChannels++;
             // add client to channel
             AddClientToChannel(client, cHash);
-            client.SendPacket(8, new ChatChannelJoinedPacket { ChannelId = channelId, MapContextId = client.MapClient.MapChannel.MapInfo.MapId });
+            client.CallMethod(SysEntity.CommunicatorId, new ChatChannelJoinedPacket { ChannelId = channelId, MapContextId = client.MapClient.MapChannel.MapInfo.MapId });
         }
 
         public void LoginOk(Client client)
         {
             // send LoginOk (despite the original description in the python files, this will only show 'You have arrived at ....' msg in chat)
-            client.SendPacket(8, new LoginOkPacket(client.MapClient.Player.Actor.Name));
+            client.CallMethod(SysEntity.CommunicatorId, new LoginOkPacket(client.MapClient.Player.Actor.Name));
             // send MOTD ( Recv_SendMOTD - receives MOTDDict {languageId: text} )
             // SendMOTD = 770		// Displayed only if different
             // PreviewMOTD = 769	// Displayed always
-            client.SendPacket(8, new PreviewMOTDPacket("Welcome to the Infinite Rasa server."));
+            client.CallMethod(SysEntity.CommunicatorId, new PreviewMOTDPacket("Welcome to the Infinite Rasa server."));
         }
 
         public void PlayerEnterMap(Client client)
@@ -169,7 +169,7 @@ namespace Rasa.Managers
             if (textMsg[0] == '.')
             {
                 // it's GM command, check if client is GM
-                if (client.Entry.Level > 0)
+                if (client.AccountEntry.Level > 0)
                 {
                     // Client is GM
                     ChatCommandsManager.Instance.ProcessCommand(client, textMsg);
@@ -187,7 +187,7 @@ namespace Rasa.Managers
                 {
                     var distance = Position.Distance(client.MapClient.Player.Actor.Position, tempClient.MapClient.Player.Actor.Position);
                     if (distance <= 70.0) // 70 is about the range the client is visible
-                    client.SendPacket(8, new RadialChatPacket
+                    client.CallMethod(SysEntity.CommunicatorId, new RadialChatPacket
                         {
                             FamilyName = client.MapClient.Player.Actor.FamilyName,
                             TextMsg = textMsg,
@@ -206,7 +206,7 @@ namespace Rasa.Managers
 
         public void SystemMessage(Client client, string textMsg)
         {
-            client.SendPacket(8, new SystemMessagePacket { TextMessage = textMsg });
+            client.CallMethod(SysEntity.CommunicatorId, new SystemMessagePacket { TextMessage = textMsg });
         }
 
         public void UnregisterPlayer(Client client)

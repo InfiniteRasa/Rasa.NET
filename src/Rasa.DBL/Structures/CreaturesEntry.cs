@@ -4,7 +4,7 @@ namespace Rasa.Structures
 {
     public class CreaturesEntry
     {
-        public int DbId { get; set; }
+        public uint DbId { get; set; }
         public int ClassId { get; set; }
         public int Faction { get; set; }
         public int Level { get; set; }
@@ -15,7 +15,7 @@ namespace Rasa.Structures
         {
             return new CreaturesEntry
             {
-                DbId = reader.GetInt32("dbId"),
+                DbId = reader.GetUInt32("dbId"),
                 ClassId = reader.GetInt32("classId"),
                 Faction = reader.GetInt32("faction"),
                 Level = reader.GetInt32("level"),                

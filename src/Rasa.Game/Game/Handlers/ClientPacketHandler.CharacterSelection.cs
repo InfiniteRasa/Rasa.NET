@@ -1,10 +1,13 @@
-﻿namespace Rasa.Game.Handlers
+﻿using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace Rasa.Game.Handlers
 {
     using Data;
     using Managers;
     using Packets;
     using Packets.Game.Client;
-    using Packets.Game.Server;
 
     public partial class ClientPacketHandler
     {

@@ -17,7 +17,7 @@
         public uint OwnerId { get; set; }
         public int OwnerSlotId { get; set; }
         // item instance specific
-        public int Color { get; set; }
+        public uint Color { get; set; }
         public string CrafterName { get; set; }
         public int CurrentHitPoints { get; set; }
         public int Stacksize { get; set; }

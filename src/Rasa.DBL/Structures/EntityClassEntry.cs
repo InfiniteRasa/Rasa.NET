@@ -4,7 +4,7 @@ namespace Rasa.Structures
 {
     public class EntityClassEntry
     {
-        public int ClassId { get; set; }
+        public uint ClassId { get; set; }
         public string ClassName { get; set; }
         public int MeshId { get; set; }
         public short ClassCollisionRole { get; set; }
@@ -15,7 +15,7 @@ namespace Rasa.Structures
         {
             return new EntityClassEntry
             {
-                ClassId = reader.GetInt32("classId"),
+                ClassId = reader.GetUInt32("classId"),
                 ClassName = reader.GetString("className"),
                 MeshId = reader.GetInt32("meshId"),
                 ClassCollisionRole = reader.GetInt16("classCollisionRole"),

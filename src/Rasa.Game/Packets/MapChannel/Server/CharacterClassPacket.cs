@@ -3,20 +3,21 @@
     using Data;
     using Memory;
 
-    public class CharacterClassPacket : PythonPacket
+    public class CharacterClassPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.CharacterClass;
 
-        public int CharacterClass { get; set; }
+        public uint CharacterClass { get; set; }
 
-        public override void Read(PythonReader pr)
+        public CharacterClassPacket(uint characterClass)
         {
+            CharacterClass = characterClass;
         }
 
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(1);
-            pw.WriteInt(CharacterClass);
+            pw.WriteUInt(CharacterClass);
         }
     }
 }

@@ -48,7 +48,7 @@ namespace Rasa.Managers
         // All Entities (everything in game)
         public void DestroyPhysicalEntity(Client client, uint entityId, EntityType entityType)
         {
-            client.SendPacket(5, new DestroyPhysicalEntityPacket(entityId));
+            client.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(entityId));
             //free entity
             switch (entityType)
             {

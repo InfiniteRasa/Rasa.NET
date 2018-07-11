@@ -3,14 +3,15 @@
     using Data;
     using Memory;
 
-    public class CharacterNamePacket : PythonPacket
+    public class CharacterNamePacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.CharacterName;
 
         public string CharacterName { get; set; }
 
-        public override void Read(PythonReader pr)
+        public CharacterNamePacket(string characterName)
         {
+            CharacterName = characterName;
         }
 
         public override void Write(PythonWriter pw)

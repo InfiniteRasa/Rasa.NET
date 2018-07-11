@@ -60,6 +60,8 @@ namespace Rasa.Memory
                 case 0x11: // Int 1
                     return true;
 
+                case 0x02:  // ZeroStruct
+
                 default:
                     throw new Exception($"Expected 0x00, 0x10 or 0x01, 0x11. Got: {val:X2}");
             }

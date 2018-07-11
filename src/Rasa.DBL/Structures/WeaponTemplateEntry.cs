@@ -4,7 +4,7 @@ namespace Rasa.Structures
 {
     public class WeaponTemplateEntry
     {
-        public int ItemTemplateId { get; set; }
+        public uint ItemTemplateId { get; set; }
         public double AimRate { get; set; }
         public int ReloadTime { get; set; }
         public int AEType { get; set; }
@@ -32,7 +32,7 @@ namespace Rasa.Structures
         {
             return new WeaponTemplateEntry
             {
-                ItemTemplateId = reader.GetInt32("itemTemplateId"),
+                ItemTemplateId = reader.GetUInt32("itemTemplateId"),
                 AimRate = reader.GetDouble("aimRate"),
                 ReloadTime = reader.GetInt32("reloadTime"),
                 AEType = reader.GetInt32("aeType"),

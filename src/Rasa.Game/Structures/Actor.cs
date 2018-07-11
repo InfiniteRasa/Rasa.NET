@@ -12,12 +12,12 @@ namespace Rasa.Structures
             EntityId = EntityManager.Instance.GetEntityId;
         }
         public uint EntityId { get; set; }
-        public int EntityClassId { get; set; }
+        public EntityClassId EntityClassId { get; set; }
         public string Name { get; set; }
         public string FamilyName { get; set; }
         public Position Position { get; set; }
         public Quaternion Rotation { get; set; }
-        public int MapContextId { get; set; }
+        public uint MapContextId { get; set; }
         public bool IsRunning { get; set; }
         public bool InCombatMode { get; set; }
         public ActorState State { get; set; }

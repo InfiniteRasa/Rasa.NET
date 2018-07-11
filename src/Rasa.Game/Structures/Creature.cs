@@ -6,8 +6,8 @@ namespace Rasa.Structures
 
     public class Creature
     {
-        public int DbId { get; set; }
-        public int ClassId { get; set; }
+        public uint DbId { get; set; }
+        public EntityClassId Class { get; set; }
         // npc data (only if creature is a NPC)
         public CreatureNpcData NpcData { get; set; }
         // loot data (only if creature is harvestable)
@@ -20,7 +20,7 @@ namespace Rasa.Structures
         public int MaxHitPoints { get; set; }
         public int NameId { get; set; }
         public int UpdatePositionCounter;                                       // decreases, when it hits 0 and the cell position changed, call creature_updateCellLocation()
-        public Dictionary<EquipmentSlots, AppearanceData> AppearanceData { get; set; }
+        public Dictionary<EquipmentData, AppearanceData> AppearanceData { get; set; }
         //sint32 lastattack;
         //sint32 lastresttime;
         //float velocity;

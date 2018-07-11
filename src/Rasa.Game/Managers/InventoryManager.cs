@@ -63,7 +63,7 @@ namespace Rasa.Managers
                     break;
             }
             // send inventoryAddItem
-            client.SendPacket(9, new InventoryAddItemPacket(inventoryType, tempItem.EntityId, slotId));
+            client.CallMethod(SysEntity.ClientInventoryManagerId, new InventoryAddItemPacket(inventoryType, tempItem.EntityId, slotId));
 
             var characterSlot = client.MapClient.Player.CharacterSlot;
 
@@ -72,7 +72,7 @@ namespace Rasa.Managers
 
             // update item in database
             if (updateDB)
-                CharacterInventoryTable.MoveInvItem(client.Entry.Id, characterSlot, (int)inventoryType, slotId, tempItem.ItemId);
+                CharacterInventoryTable.MoveInvItem(client.AccountEntry.Id, characterSlot, (int)inventoryType, slotId, tempItem.ItemId);
         }
 
         public Item AddItemToInventory(Client client, Item item)
@@ -118,7 +118,7 @@ namespace Rasa.Managers
                     stackSizeChanged = true;
 
                     // notify client of changed stack count
-                    client.SendPacket(slotItem.EntityId, new SetStackCountPacket(slotItem.Stacksize));
+                    client.CallMethod(slotItem.EntityId, new SetStackCountPacket(slotItem.Stacksize));
 
                     if (item.Stacksize == 0)
                     {
@@ -134,7 +134,7 @@ namespace Rasa.Managers
 
             // item have new stackSize?
             if (stackSizeChanged)
-                client.SendPacket(item.EntityId, new SetStackCountPacket(item.Stacksize));
+                client.CallMethod(item.EntityId, new SetStackCountPacket(item.Stacksize));
 
             // find free slot
             for (var i = 0; i < 50; i++)
@@ -148,7 +148,7 @@ namespace Rasa.Managers
                     ItemManager.Instance.SendItemDataToClient(client, item, false);
                     // add item to empty slot
                     AddItemBySlot(client, InventoryType.Personal, item.EntityId, itemCategoryOffset + i, true);
-                    CharacterInventoryTable.AddInvItem(client.Entry.Id, item.OwnerId, (int)InventoryType.Personal, item.OwnerSlotId, item.ItemId);
+                    CharacterInventoryTable.AddInvItem(client.AccountEntry.Id, item.OwnerId, (int)InventoryType.Personal, item.OwnerSlotId, item.ItemId);
                     return item;
                 }
             }
@@ -224,17 +224,17 @@ namespace Rasa.Managers
 
         public void InitForClient(Client client)
         {
-            client.SendPacket( 9, new InventoryCreatePacket { InventoryType = (int)InventoryType.Personal, InventorySize = 250 });
-            client.SendPacket( 9, new InventoryCreatePacket { InventoryType = (int)InventoryType.HomeInventory, InventorySize = 480 });
-            client.SendPacket( 9, new InventoryCreatePacket { InventoryType = (int)InventoryType.WeaponDrawerInventory, InventorySize = 5 });
-            client.SendPacket( 9, new InventoryCreatePacket { InventoryType = (int)InventoryType.EquipedInventory, InventorySize = 22 });
+            client.CallMethod(SysEntity.ClientInventoryManagerId, new InventoryCreatePacket { InventoryType = (int)InventoryType.Personal, InventorySize = 250 });
+            client.CallMethod(SysEntity.ClientInventoryManagerId, new InventoryCreatePacket { InventoryType = (int)InventoryType.HomeInventory, InventorySize = 480 });
+            client.CallMethod(SysEntity.ClientInventoryManagerId, new InventoryCreatePacket { InventoryType = (int)InventoryType.WeaponDrawerInventory, InventorySize = 5 });
+            client.CallMethod(SysEntity.ClientInventoryManagerId, new InventoryCreatePacket { InventoryType = (int)InventoryType.EquipedInventory, InventorySize = 22 });
             
             InitCharacterInventory(client);
         }
 
         public void InitCharacterInventory(Client client)
         {
-            var getInventoryData = CharacterInventoryTable.GetItems(client.Entry.Id);
+            var getInventoryData = CharacterInventoryTable.GetItems(client.AccountEntry.Id);
             
             // init for server inventory
             for (int i = 0; i < 480; i++)
@@ -357,7 +357,7 @@ namespace Rasa.Managers
 
                 // destroy item
                 EntityManager.Instance.DestroyPhysicalEntity(client, tempItem.EntityId, EntityType.Item);
-                client.SendPacket(9, new InventoryRemoveItemPacket { InventoryType = InventoryType.Personal, EntityId = (int)tempItem.EntityId });
+                client.CallMethod(SysEntity.ClientInventoryManagerId, new InventoryRemoveItemPacket { InventoryType = InventoryType.Personal, EntityId = (int)tempItem.EntityId });
                 // free slot
                 FreeSlotIndex(client.MapClient, inventoryType, tempItem.OwnerSlotId);
                 // Update db
@@ -366,7 +366,7 @@ namespace Rasa.Managers
                 if (inventoryType == InventoryType.HomeInventory)
                     characterSlot = 0U;
 
-                CharacterInventoryTable.DeleteInvItem(client.Entry.Id, characterSlot, (int)InventoryType.Personal, tempItem.OwnerSlotId);
+                CharacterInventoryTable.DeleteInvItem(client.AccountEntry.Id, characterSlot, (int)InventoryType.Personal, tempItem.OwnerSlotId);
                 // ToDo will we delete items from db, or we will let tham stay, so thay can be retrived
                 //ItemsTable.DeleteItem(tempItem.ItemId);
             }
@@ -375,7 +375,7 @@ namespace Rasa.Managers
                 // update stack count
                 tempItem.Stacksize = newStackCount;
                 // set stackcount
-                client.SendPacket(tempItem.EntityId, new SetStackCountPacket(newStackCount));
+                client.CallMethod(tempItem.EntityId, new SetStackCountPacket(newStackCount));
                 // update stack count in database
                 ItemsTable.UpdateItemStackSize(tempItem.ItemId, tempItem.Stacksize);
             }
@@ -408,7 +408,7 @@ namespace Rasa.Managers
                     return;
             }
 
-            client.SendPacket(9, new InventoryRemoveItemPacket { InventoryType = inventoryType, EntityId = (int)entityId });
+            client.CallMethod(SysEntity.ClientInventoryManagerId, new InventoryRemoveItemPacket { InventoryType = inventoryType, EntityId = (int)entityId });
         }
 
         public void RequestEquipArmor(Client client, RequestEquipArmorPacket packet)
@@ -539,7 +539,7 @@ namespace Rasa.Managers
 
         public void RequestLockboxTabPermissions(Client client)
         {
-            client.SendPacket(9, new LockboxTabPermissionsPacket(client.MapClient.Player.LockboxTabs));
+            client.CallMethod(SysEntity.ClientInventoryManagerId, new LockboxTabPermissionsPacket(client.MapClient.Player.LockboxTabs));
         }
 
         public void RequestMoveItemToHomeInventory(Client client, RequestMoveItemToHomeInventoryPacket packet)
@@ -586,18 +586,18 @@ namespace Rasa.Managers
             AddItemBySlot(client, InventoryType.Personal, entityId, packet.DestSlot, true);
         }
 
-        public void RequestTooltipForItemTemplateId(Client client, int itemTemplateId)
+        public void RequestTooltipForItemTemplateId(Client client, uint itemTemplateId)
         {
 
             var itemTemplate = ItemManager.Instance.GetItemTemplateById(itemTemplateId);
-            var classInfo = EntityClassManager.Instance.GetClassInfo(itemTemplate.ClassId);
+            var classInfo = EntityClassManager.Instance.GetClassInfo(itemTemplate.Class);
 
             if (itemTemplate == null)
             {
                 Logger.WriteLog(LogType.Error, $"RequestTooltipForItemTemplateId: Unknown itemTemplateId {itemTemplateId}");
                 return; // todo: even answer on a unknown template, else the client will continue to spam us with requests
             }
-            client.SendPacket(12, new ItemTemplateTooltipInfoPacket(itemTemplate, classInfo));
+            client.CallMethod(SysEntity.ClientGameUIManagerId, new ItemTemplateTooltipInfoPacket(itemTemplate, classInfo));
         }
 
         public void RequestTooltipForModuleId(Client client, int moduleId)
@@ -627,10 +627,10 @@ namespace Rasa.Managers
 
                     PlayerManager.Instance.GainCredits(client, -amount);
 
-                    client.SendPacket(client.MapClient.Player.Actor.EntityId, new LockboxFundsPacket(deposit));
+                    client.CallMethod(client.MapClient.Player.Actor.EntityId, new LockboxFundsPacket(deposit));
 
                     client.MapClient.Player.LockboxCredits = (uint)deposit;
-                    CharacterLockboxTable.UpdateCredits(client.Entry.Id, (uint)deposit);
+                    CharacterLockboxTable.UpdateCredits(client.AccountEntry.Id, (uint)deposit);
                 }
                 else
                     CommunicatorManager.Instance.SystemMessage(client, "Not enof credit's in inventory\nP.S. Go earn some credits :)");
@@ -643,10 +643,10 @@ namespace Rasa.Managers
                     var withdraw = client.MapClient.Player.LockboxCredits + amount;
 
                     PlayerManager.Instance.GainCredits(client, -amount);
-                    client.SendPacket(client.MapClient.Player.Actor.EntityId, new LockboxFundsPacket(withdraw));
+                    client.CallMethod(client.MapClient.Player.Actor.EntityId, new LockboxFundsPacket(withdraw));
 
                     client.MapClient.Player.LockboxCredits = (uint)withdraw;
-                    CharacterLockboxTable.UpdateCredits(client.Entry.Id, (uint)withdraw);
+                    CharacterLockboxTable.UpdateCredits(client.AccountEntry.Id, (uint)withdraw);
                 }
                 else
                     CommunicatorManager.Instance.SystemMessage(client, "Not enof credit's in Lockbox\nP.S. Dont be greedy :)");

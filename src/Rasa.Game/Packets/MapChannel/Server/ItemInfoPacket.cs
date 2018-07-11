@@ -5,14 +5,14 @@ namespace Rasa.Packets.MapChannel.Server
     using Data;
     using Memory;
 
-    public class ItemInfoPacket : PythonPacket
+    public class ItemInfoPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.ItemInfo;
 
         public int CurrentHitPoints { get; set; }
         public int MaxHitPoints { get; set; }
         public string CrafterName { get; set; }
-        public int ItemTemplateId { get; set; }
+        public uint ItemTemplateId { get; set; }
         public bool HasSellableFlag { get; set; }
         public bool HasCharacterUniqueFlag { get; set; }
         public bool HasAccountUniqueFlag { get; set; }
@@ -24,11 +24,7 @@ namespace Rasa.Packets.MapChannel.Server
         public bool NotTradable { get; set; }
         public bool NotPlaceableInLockbox { get; set; }
         public InventoryCategory InventoryCategory { get; set; }
-
-        public override void Read(PythonReader pr)
-        {
-        }
-
+        
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(15);
@@ -38,7 +34,7 @@ namespace Rasa.Packets.MapChannel.Server
                 pw.WriteString(CrafterName);
             else
                 pw.WriteNoneStruct();
-            pw.WriteInt(ItemTemplateId);
+            pw.WriteUInt(ItemTemplateId);
             pw.WriteBool(HasSellableFlag);
             pw.WriteBool(HasCharacterUniqueFlag);
             pw.WriteBool(HasAccountUniqueFlag);

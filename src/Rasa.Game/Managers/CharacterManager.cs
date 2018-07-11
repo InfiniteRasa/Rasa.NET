@@ -6,6 +6,7 @@
     using Game;
     using Packets.Game.Client;
     using Packets.Game.Server;
+    using Packets.MapChannel.Server;
     using Structures;
 
     public class CharacterManager
@@ -59,12 +60,12 @@
             client.State = ClientState.CharacterSelection;
 			
 			// get userOptions
-            var optionsList = UserOptionsTable.GetUserOptions(client.Entry.Id);
+            var optionsList = UserOptionsTable.GetUserOptions(client.AccountEntry.Id);
 
             foreach (var userOption in optionsList)
                 client.UserOptions.Add(new UserOptions((UserOption)userOption.OptionId, userOption.Value));
 
-            client.SendPacket(5, new UserOptionsPacket(client.UserOptions));
+            client.CallMethod(SysEntity.ClientMethodId, new UserOptionsPacket(client.UserOptions));
         }
 
         public void RequestCharacterName(Client client, int gender)
@@ -201,11 +202,52 @@
                 return;
             }
 
-            var newEntityPacket = new CreatePhysicalEntityPacket(SelectionPodStartEntityId + slot, EntityClass.CharacterSelectionPod);
+            var newEntityPacket = new CreatePhysicalEntityPacket(SelectionPodStartEntityId + slot, EntityClassId.CharacterSelectionPod);
 
             newEntityPacket.EntityData.Add(new CharacterInfoPacket(slot, slot == client.AccountEntry.SelectedSlot, client.AccountEntry.FamilyName, data));
 
             client.CallMethod(SysEntity.ClientMethodId, newEntityPacket);
         }
+
+        #region InGame
+        public void UpdateCharacter(Client client, int job)
+        {
+            switch (job)
+            {
+                case 1: // update level
+                    break;
+                case 2: // updarte credits
+                    //CharacterTable.UpdateCharacterCredits(client.AccountEntry.Id, client.MapClient.Player.CharacterSlot, client.MapClient.Player.Credits);
+                    break;
+                case 3: // update prestige
+                    break;
+                case 4: // update experience
+                    break;
+                case 5: // update possition
+                        /*CharacterTable.UpdateCharacterPos(
+                            client.AccountEntry.Id,
+                            client.MapClient.Player.CharacterSlot,
+                            client.MapClient.Player.Actor.Position.PosX,
+                            client.MapClient.Player.Actor.Position.PosY,
+                            client.MapClient.Player.Actor.Position.PosZ,
+                            client.MapClient.Player.Actor.Rotation.W ,  // ToDo rotation
+                            client.MapClient.Player.Actor.MapContextId
+                            ); */
+                    break;
+                case 6: // update stats
+                    break;
+                case 7: // update login
+                    //CharacterTable.UpdateCharacterLogin(client.AccountEntry.Id, client.MapClient.Player.CharacterSlot, client.MapClient.Player.LoginTime); // ToDO LoginTime need to be changed with proper value
+                    break;
+                case 8: // update logos
+                    break;
+                case 9: // update class
+                    break;
+                default:
+                    break;
+
+            }
+        }
+        #endregion
     }
 }

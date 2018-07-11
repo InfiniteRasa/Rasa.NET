@@ -4,13 +4,14 @@ using MySql.Data.MySqlClient;
 
 namespace Rasa.Database.Tables.Character
 {
+    using System;
     using Structures;
 
     public class CharacterTable
     {
         private static readonly MySqlCommand CreateCharacterCommand = new MySqlCommand("INSERT INTO `character` (`account_id`, `slot`, `name`, `race`, `class`, `scale`, `gender`, `experience`, `level`, `body`, `mind`, `spirit`, `map_context_id`, `coord_x`, `coord_y`, `coord_z`, `rotation`) VALUES (@AccountId, @Slot, @Name, @Race, @Class, @Scale, @Gender, @Experience, @Level, @Body, @Mind, @Spirit, @MapContextId, @CoordX, @CoordY, @CoordZ, @Rotation)");
         private static readonly MySqlCommand ListCharactersCommand = new MySqlCommand("SELECT * FROM `character` WHERE `account_id` = @AccountId");
-        private static readonly MySqlCommand GetCharacterCommand = new MySqlCommand("SELECT * FROM `character` WHERE `id` = @Id");
+        private static readonly MySqlCommand GetCharacterCommand = new MySqlCommand("SELECT * FROM `character` WHERE `account_id` = @AccountId AND character_slot = @CharacterSlot");
         private static readonly MySqlCommand DeleteCharacterCommand = new MySqlCommand("DELETE FROM `character` WHERE `id` = @Id");
 
 
@@ -41,7 +42,8 @@ namespace Rasa.Database.Tables.Character
             ListCharactersCommand.Prepare();
 
             GetCharacterCommand.Connection = GameDatabaseAccess.CharConnection;
-            GetCharacterCommand.Parameters.Add("@Id", MySqlDbType.UInt32);
+            GetCharacterCommand.Parameters.Add("@AccountId", MySqlDbType.UInt32);
+            GetCharacterCommand.Parameters.Add("@CharacterSlot", MySqlDbType.UInt32);
             GetCharacterCommand.Prepare();
 
             DeleteCharacterCommand.Connection = GameDatabaseAccess.CharConnection;
@@ -107,11 +109,12 @@ namespace Rasa.Database.Tables.Character
             return dict;
         }
 
-        public static CharacterEntry GetCharacter(uint characterId)
+        public static CharacterEntry GetCharacter(uint accountId, byte characterSlot)
         {
             lock (GameDatabaseAccess.CharLock)
             {
-                GetCharacterCommand.Parameters["@Id"].Value = characterId;
+                GetCharacterCommand.Parameters["@AccountId"].Value = accountId;
+                GetCharacterCommand.Parameters["@CharacterSlot"].Value = characterSlot;
 
                 using (var reader = GetCharacterCommand.ExecuteReader())
                     return CharacterEntry.Read(reader);
@@ -127,6 +130,11 @@ namespace Rasa.Database.Tables.Character
                 DeleteCharacterCommand.Parameters["@Id"].Value = characterId;
                 DeleteCharacterCommand.ExecuteNonQuery();
             }
+        }
+
+        public static void UpdateCharacterPosition(uint characterId, double posX, double posY, double posZ, int v, int mapId)
+        {
+            throw new NotImplementedException();
         }
     }
 }

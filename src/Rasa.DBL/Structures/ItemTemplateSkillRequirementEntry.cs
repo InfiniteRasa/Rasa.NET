@@ -4,7 +4,7 @@ namespace Rasa.Structures
 {
     public class ItemTemplateSkillRequirementEntry
     {
-        public int ItemTemplateId { get; set; }
+        public uint ItemTemplateId { get; set; }
         public short SkillId { get; set; }
         public short SkillLevel { get; set; }
 
@@ -12,7 +12,7 @@ namespace Rasa.Structures
         {
             return new ItemTemplateSkillRequirementEntry
             {
-                ItemTemplateId = reader.GetInt32("itemTemplateid"),
+                ItemTemplateId = reader.GetUInt32("itemTemplateid"),
                 SkillId = reader.GetInt16("skillId"),
                 SkillLevel = reader.GetInt16("skillLevel")
             };
