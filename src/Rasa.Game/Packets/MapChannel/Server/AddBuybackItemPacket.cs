@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class AddBuybackItemPacket : PythonPacket
+    public class AddBuybackItemPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.AddBuybackItem;
 
@@ -16,11 +16,6 @@
             EntityId = entityId;
             BuyBackPrice = buybackPrice;
             Sequence = sequence;
-        }
-
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

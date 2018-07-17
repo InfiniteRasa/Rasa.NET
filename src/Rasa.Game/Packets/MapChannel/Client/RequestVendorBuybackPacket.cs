@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class RequestVendorBuybackPacket : PythonPacket
+    public class RequestVendorBuybackPacket : ClientPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.RequestVendorBuyback;
 
@@ -12,14 +12,9 @@
 
         public override void Read(PythonReader pr)
         {
-            Logger.WriteLog(LogType.Debug, $"RequestVendorBuybackPacket: {pr.ToString()}");
             pr.ReadTuple();
             VendorEntityId = pr.ReadLong();
             ItemEntityId = pr.ReadInt();
-        }
-
-        public override void Write(PythonWriter pw)
-        {
         }
     }
 }

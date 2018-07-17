@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class BodyAttributesPacket : PythonPacket
+    public class BodyAttributesPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.BodyAttributes;
 
@@ -20,10 +20,6 @@
             IgnoreABVs = ignoreABVs;
             IgnoreWS = IgnoreWS;
             Hue2 = hue2;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

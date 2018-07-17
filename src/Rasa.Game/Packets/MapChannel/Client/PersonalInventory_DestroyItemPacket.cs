@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class PersonalInventory_DestroyItemPacket : PythonPacket
+    public class PersonalInventory_DestroyItemPacket : ClientPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.PersonalInventory_DestroyItem;
 
@@ -15,10 +15,6 @@
             pr.ReadTuple();
             EntityId = pr.ReadLong();
             Quantity = pr.ReadLong();
-        }
-
-        public override void Write(PythonWriter pw)
-        {
         }
     }
 }

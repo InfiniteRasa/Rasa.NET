@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class GetCustomizationChoicesPacket : PythonPacket
+    public class GetCustomizationChoicesPacket : ClientPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.GetCustomizationChoices;
 
@@ -13,10 +13,6 @@
         {
             pr.ReadTuple();
             EntityId = pr.ReadLong();
-        }
-
-        public override void Write(PythonWriter pw)
-        {
         }
     }
 }

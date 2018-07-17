@@ -6,7 +6,7 @@ namespace Rasa.Packets.MapChannel.Server
     using Memory;
     using Structures;
 
-    public class SkillsPacket : PythonPacket
+    public class SkillsPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.Skills;
 
@@ -15,10 +15,6 @@ namespace Rasa.Packets.MapChannel.Server
         public SkillsPacket(Dictionary<int, SkillsData> skillsData)
         {
             SkillsData = skillsData;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

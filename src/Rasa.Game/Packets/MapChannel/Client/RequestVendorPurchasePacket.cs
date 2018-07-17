@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class RequestVendorPurchasePacket : PythonPacket
+    public class RequestVendorPurchasePacket : ClientPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.RequestVendorPurchase;
 
@@ -17,10 +17,6 @@
             VendorEntityId = pr.ReadLong();
             ItemEntityId = pr.ReadInt();
             Quantity = pr.ReadInt();
-        }
-
-        public override void Write(PythonWriter pw)
-        {
         }
     }
 }

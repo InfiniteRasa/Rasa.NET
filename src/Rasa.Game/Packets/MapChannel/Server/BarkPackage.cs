@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class BarkPackage : PythonPacket
+    public class BarkPackage : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.Bark;
 
@@ -12,10 +12,6 @@
         public BarkPackage(int barkId)
         {
             BarkId = barkId;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

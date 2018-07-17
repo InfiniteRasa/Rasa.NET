@@ -5,7 +5,7 @@ namespace Rasa.Packets.MapChannel.Server
     using Data;
     using Memory;
 
-    public class EquipmentInfoPacket : PythonPacket
+    public class EquipmentInfoPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.EquipmentInfo;
 
@@ -14,10 +14,6 @@ namespace Rasa.Packets.MapChannel.Server
         public EquipmentInfoPacket(Dictionary<int, uint> equipmentInfo)
         {
             EquipmentInfo = equipmentInfo;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

@@ -5,7 +5,7 @@ namespace Rasa.Packets.MapChannel.Server
     using Data;
     using Memory;
 
-    public class NPCConversationStatusPacket : PythonPacket
+    public class NPCConversationStatusPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.NPCConversationStatus;
 
@@ -16,10 +16,6 @@ namespace Rasa.Packets.MapChannel.Server
         {
             ConvoStatusId = convoStatusId;
             Data = data;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

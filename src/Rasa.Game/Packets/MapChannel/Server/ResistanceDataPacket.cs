@@ -5,7 +5,7 @@ namespace Rasa.Packets.MapChannel.Server
     using Data;
     using Memory;
 
-    public class ResistanceDataPacket : PythonPacket
+    public class ResistanceDataPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.ResistanceData;
 
@@ -15,10 +15,6 @@ namespace Rasa.Packets.MapChannel.Server
         {
             ResistDataDict = ResistDataDict;
         }*/
-
-        public override void Read(PythonReader pr)
-        {
-        }
 
         public override void Write(PythonWriter pw)
         {

@@ -27,7 +27,7 @@ namespace Rasa.Game
         public ClientState State { get; set; }
         public uint[] SendSequence { get; } = new uint[256];
         public uint[] ReceiveSequence { get; } = new uint[256];
-        public int LoadingMap { get; set; }
+        public uint LoadingMap { get; set; }
         public MapChannelClient MapClient { get; set; }
         public List<UserOptions> UserOptions = new List<UserOptions>();
         private readonly object _clientLock = new object();

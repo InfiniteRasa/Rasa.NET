@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace Rasa.Game.Handlers
+﻿namespace Rasa.Game.Handlers
 {
     using Data;
     using Managers;
@@ -39,6 +35,7 @@ namespace Rasa.Game.Handlers
         [PacketHandler(GameOpcode.RequestSwitchToCharacterInSlot)]
         private void RequestSwitchToCharacterInSlot(RequestSwitchToCharacterInSlotPacket packet)
         {
+            CharacterManager.Instance.RequestSwitchToCharacterInSlot(Client, packet);
         }
     }
 }

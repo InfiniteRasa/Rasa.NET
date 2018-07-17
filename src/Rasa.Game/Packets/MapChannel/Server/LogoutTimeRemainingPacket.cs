@@ -3,14 +3,11 @@
     using Data;
     using Memory;
 
-    public class LogoutTimeRemainingPacket : PythonPacket
+    public class LogoutTimeRemainingPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.LogoutTimeRemaining;
 
         public int LogoutType { get; set; }
-        public override void Read(PythonReader pr)
-        {
-        }
 
         public override void Write(PythonWriter pw)
         {

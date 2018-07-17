@@ -150,8 +150,18 @@
                     return;
                 }
 
+                // Set character appearance
+                CharacterAppearanceTable.AddAppearance(entry.Id, new CharacterAppearanceEntry(entry.Id, (uint)EquipmentData.Helmet, 10908, 2139062144));
+                CharacterAppearanceTable.AddAppearance(entry.Id, new CharacterAppearanceEntry(entry.Id, (uint)EquipmentData.Shoes, 7054, 2139062144));
+                CharacterAppearanceTable.AddAppearance(entry.Id, new CharacterAppearanceEntry(entry.Id, (uint)EquipmentData.Gloves, 10909, 2139062144));
+                CharacterAppearanceTable.AddAppearance(entry.Id, new CharacterAppearanceEntry(entry.Id, (uint)EquipmentData.Torso, 7052, 2139062144));
+                CharacterAppearanceTable.AddAppearance(entry.Id, new CharacterAppearanceEntry(entry.Id, (uint)EquipmentData.Legs, 7053, 2139062144));
+
                 foreach (var data in packet.AppearanceData)
-                    CharacterAppearanceTable.AddAppearance(entry.Id, data.Value.GetDatabaseEntry());
+                {
+                    data.Value.Class = (EntityClassId)StarterItemsTable.GetClassId((uint)data.Value.Class);
+                    CharacterAppearanceTable.AddAppearance(entry.Id, data.Value.GetDatabaseEntry(entry.Id));
+                }
 
                 if (string.IsNullOrWhiteSpace(client.AccountEntry.FamilyName) || changeFamilyName)
                 {
@@ -160,6 +170,23 @@
                     GameAccountTable.UpdateAccount(client.AccountEntry);
                 }
             }
+
+            // Give character basic items
+            CharacterInventoryTable.AddInvItem(client.AccountEntry.Id, packet.SlotNum, (int)InventoryType.Personal, 0, ItemsTable.CreateItem(17131, 1, EntityClassManager.Instance.LoadedEntityClasses[ItemManager.Instance.ItemTemplateItemClass[17131]].ItemClassInfo.MaxHitPoints, 2139062144));
+            CharacterInventoryTable.AddInvItem(client.AccountEntry.Id, packet.SlotNum, (int)InventoryType.Personal, 50, ItemsTable.CreateItem(28, 100, EntityClassManager.Instance.LoadedEntityClasses[ItemManager.Instance.ItemTemplateItemClass[28]].ItemClassInfo.MaxHitPoints, 2139062144));
+            CharacterInventoryTable.AddInvItem(client.AccountEntry.Id, packet.SlotNum, (int)InventoryType.EquipedInventory, 1, ItemsTable.CreateItem(13126, 1, EntityClassManager.Instance.LoadedEntityClasses[ItemManager.Instance.ItemTemplateItemClass[13126]].ItemClassInfo.MaxHitPoints, 2139062144));
+            CharacterInventoryTable.AddInvItem(client.AccountEntry.Id, packet.SlotNum, (int)InventoryType.EquipedInventory, 2, ItemsTable.CreateItem(13066, 1, EntityClassManager.Instance.LoadedEntityClasses[ItemManager.Instance.ItemTemplateItemClass[13066]].ItemClassInfo.MaxHitPoints, 2139062144));
+            CharacterInventoryTable.AddInvItem(client.AccountEntry.Id, packet.SlotNum, (int)InventoryType.EquipedInventory, 3, ItemsTable.CreateItem(13096, 1, EntityClassManager.Instance.LoadedEntityClasses[ItemManager.Instance.ItemTemplateItemClass[13096]].ItemClassInfo.MaxHitPoints, 2139062144));
+            CharacterInventoryTable.AddInvItem(client.AccountEntry.Id, packet.SlotNum, (int)InventoryType.EquipedInventory, 15, ItemsTable.CreateItem(13186, 1, EntityClassManager.Instance.LoadedEntityClasses[ItemManager.Instance.ItemTemplateItemClass[13186]].ItemClassInfo.MaxHitPoints, 2139062144));
+            CharacterInventoryTable.AddInvItem(client.AccountEntry.Id, packet.SlotNum, (int)InventoryType.EquipedInventory, 16, ItemsTable.CreateItem(13156, 1, EntityClassManager.Instance.LoadedEntityClasses[ItemManager.Instance.ItemTemplateItemClass[13156]].ItemClassInfo.MaxHitPoints, 2139062144));
+
+            // Create default entry in CharacterAbilitiesTable
+            for (var i = 0; i < 25; i++)
+                CharacterAbilityDrawerTable.SetCharacterAbility(client.AccountEntry.Id, packet.SlotNum, i, 0, 0);
+
+            // Give character first lockbox tab, if dont exist already
+            if (CharacterLockboxTable.GetLockboxInfo(client.AccountEntry.Id).Count < 2)
+                CharacterLockboxTable.AddLockboxInfo(client.AccountEntry.Id);
 
             client.CallMethod(SysEntity.ClientMethodId, new CharacterCreateSuccessPacket(packet.SlotNum, packet.FamilyName));
             ++client.AccountEntry.CharacterCount;
@@ -187,6 +214,43 @@
             {
                 client.CallMethod(SysEntity.ClientMethodId, new DeleteCharacterFailedPacket());
             }
+        }
+
+        public void RequestSwitchToCharacterInSlot(Client client, RequestSwitchToCharacterInSlotPacket packet)
+        {
+            if (packet.SlotNum < 1 || packet.SlotNum > 16)
+                return;
+
+            client.CallMethod(SysEntity.ClientMethodId, new SetIsGMPacket(client.AccountEntry.Level > 0));
+
+            client.CallMethod(SysEntity.ClientMethodId, new PreWonkavatePacket());
+
+            var data = CharacterTable.GetCharacter(client.AccountEntry.Id, packet.SlotNum);
+
+            // can character skip boot camp?    -- ToDo
+            if (packet.SkipBootcamp)
+                data.MapContextId = 1220;
+            else
+                data.MapContextId = 1220;
+
+            var mapData = MapChannelManager.Instance.MapChannelArray[data.MapContextId];
+
+            client.CallMethod(SysEntity.CurrentInputStateId, new WonkavatePacket
+                (
+                    mapData.MapInfo.MapContextId,
+                    0,                          // ToDo MapInstanceId
+                    mapData.MapInfo.MapVersion,
+                    new Position(data.CoordX, data.CoordY, data.CoordZ),
+                    data.Rotation
+                )
+                );
+
+            client.AccountEntry.SelectedSlot = packet.SlotNum;
+            client.LoadingMap = mapData.MapInfo.MapContextId;
+            
+            // early pass client to mapChannel
+            var mapChannel = MapChannelManager.Instance.FindByContextId(mapData.MapInfo.MapContextId);
+            MapChannelManager.Instance.PassClientToMapChannel(client, mapChannel);
         }
 
         private void SendCharacterCreateFailed(Client client, CreateCharacterResult result)

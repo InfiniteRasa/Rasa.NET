@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class RequestWeaponAttackPacket : PythonPacket
+    public class RequestWeaponAttackPacket : ClientPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.RequestWeaponAttack;
 
@@ -14,7 +14,6 @@
 
         public override void Read(PythonReader pr)
         {
-            Logger.WriteLog(LogType.Debug, $"RequestWeaponAttack:\n {pr.ToString()}");
             pr.ReadTuple();
             ActionId = pr.ReadInt();
             ActionArgId = pr.ReadInt();
@@ -23,10 +22,6 @@
             else
                 pr.ReadNoneStruct();                // no target
             pr.ReadZeroStruct();
-        }
-
-        public override void Write(PythonWriter pw)
-        {
         }
     }
 }

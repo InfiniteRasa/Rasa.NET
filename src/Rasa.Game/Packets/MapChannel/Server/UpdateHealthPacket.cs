@@ -4,7 +4,7 @@
     using Memory;
     using Structures;
 
-    public class UpdateHealthPacket : PythonPacket
+    public class UpdateHealthPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.UpdateHealth;
 
@@ -15,10 +15,6 @@
         {
             Health = health;
             WhoId = whoId;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

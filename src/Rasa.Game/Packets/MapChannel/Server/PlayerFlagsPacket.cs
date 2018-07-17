@@ -3,15 +3,11 @@
     using Data;
     using Memory;
 
-    public class PlayerFlagsPacket : PythonPacket
+    public class PlayerFlagsPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.PlayerFlags;
 
-        public int PlayerFlags { get; set; } 
-
-        public override void Read(PythonReader pr)
-        {
-        }
+        public int PlayerFlags { get; set; }
 
         public override void Write(PythonWriter pw)
         {

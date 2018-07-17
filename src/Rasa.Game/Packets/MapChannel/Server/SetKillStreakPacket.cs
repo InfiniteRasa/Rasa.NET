@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class SetKillStreakPacket : PythonPacket
+    public class SetKillStreakPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.SetKillStreak;
 
@@ -12,10 +12,6 @@
         public SetKillStreakPacket(int count)
         {
             Count = count;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

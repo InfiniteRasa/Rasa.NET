@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class ActorControllerInfoPacket : PythonPacket
+    public class ActorControllerInfoPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.ActorControllerInfo;
 
@@ -12,10 +12,6 @@
         public ActorControllerInfoPacket(bool isPlayer)
         {
             IsPlayer = IsPlayer;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

@@ -4,7 +4,7 @@
     using Memory;
     using Structures;
 
-    public class UpdateChiPacket : PythonPacket
+    public class UpdateChiPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.UpdateChi;
 
@@ -15,10 +15,6 @@
         {
             Chi = chi;
             WhoId = whoId;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

@@ -3,18 +3,14 @@
     using Data;
     using Memory;
 
-    public class MapLoadedPacket : PythonPacket
+    public class MapLoadedPacket : ClientPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.MapLoaded;
         
-
         // 0 Elements
         public override void Read(PythonReader pr)
         {
-        }
-
-        public override void Write(PythonWriter pw)
-        {
+            pr.ReadTuple();
         }
     }
 }

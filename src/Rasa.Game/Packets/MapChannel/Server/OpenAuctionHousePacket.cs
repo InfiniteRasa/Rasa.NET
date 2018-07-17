@@ -3,13 +3,9 @@
     using Data;
     using Memory;
 
-    public class OpenAuctionHousePacket : PythonPacket
+    public class OpenAuctionHousePacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.OpenAuctionHouse;
-        
-        public override void Read(PythonReader pr)
-        {
-        }
 
         public override void Write(PythonWriter pw)
         {

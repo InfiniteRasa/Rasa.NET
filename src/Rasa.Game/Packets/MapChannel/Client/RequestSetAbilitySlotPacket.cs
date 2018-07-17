@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class RequestSetAbilitySlotPacket : PythonPacket
+    public class RequestSetAbilitySlotPacket : ClientPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.RequestSetAbilitySlot;
 
@@ -26,10 +26,6 @@
             else
                 pr.ReadNoneStruct();
             pr.ReadNoneStruct();
-        }
-
-        public override void Write(PythonWriter pw)
-        {
         }
     }
 }

@@ -4,7 +4,7 @@
     using Memory;
     using Structures;
 
-    public class MissionGainedPacket : PythonPacket
+    public class MissionGainedPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.MissionGained;
 
@@ -15,10 +15,6 @@
         {
             MissionId = missionId;
             MissionInfo = missionInfo;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

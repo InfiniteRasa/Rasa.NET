@@ -88,7 +88,7 @@ namespace Rasa.Managers
 
             client.CallMethod(SysEntity.ClientGameMapId, new SetSkyTimePacket { RunningTime = 6666666 });   // ToDo add actual time how long map is running
 
-            client.CallMethod(SysEntity.ClientMethodId, new SetCurrentContextIdPacket { MapContextId = client.MapClient.MapChannel.MapInfo.MapId });
+            client.CallMethod(SysEntity.ClientMethodId, new SetCurrentContextIdPacket(client.MapClient.MapChannel.MapInfo.MapContextId));
 
             client.CallMethod(actor.EntityId, new UpdateRegionsPacket { RegionIdList = client.MapClient.MapChannel.MapInfo.BaseRegionId });  // ToDo this should be list of regions? or just curent region wher player is
 
@@ -652,13 +652,8 @@ namespace Rasa.Managers
             {
                 // Add new appearance slot to character and db
                 player.AppearanceData.Add(equipmentSlotId, new AppearanceData { SlotId = equipmentSlotId });
-                var newAppearence = new CharacterAppearanceEntry
-                {
-                    CharacterId = player.CharacterId,
-                    Slot = (uint)equipmentSlotId,
-                    Class = 0,
-                    Color = 0
-                };
+
+                var newAppearence = new CharacterAppearanceEntry(player.CharacterId, (uint)equipmentSlotId, 0, 0);
 
                 CharacterAppearanceTable.AddAppearance(player.CharacterId, newAppearence);
             }

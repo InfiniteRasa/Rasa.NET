@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class RemoveBuybackItemPacket : PythonPacket
+    public class RemoveBuybackItemPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.RemoveBuybackItem;
 
@@ -12,11 +12,6 @@
         public RemoveBuybackItemPacket(uint entityId)
         {
             EntityId = entityId;
-        }
-
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

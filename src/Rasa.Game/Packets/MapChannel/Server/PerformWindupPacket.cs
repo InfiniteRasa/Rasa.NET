@@ -5,7 +5,7 @@ namespace Rasa.Packets.MapChannel.Server
     using Data;
     using Memory;
 
-    public class PerformWindupPacket : PythonPacket
+    public class PerformWindupPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.PerformWindup;
 
@@ -24,10 +24,6 @@ namespace Rasa.Packets.MapChannel.Server
             ActionId = ActionId;
             ActionArgId = actionArgId;
             Args = args;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

@@ -6,7 +6,7 @@ namespace Rasa.Packets.MapChannel.Server
     using Memory;
     using Structures;
 
-    public class AbilityDrawerPacket : PythonPacket
+    public class AbilityDrawerPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.AbilityDrawer;
 
@@ -15,10 +15,6 @@ namespace Rasa.Packets.MapChannel.Server
         public AbilityDrawerPacket(Dictionary<int, AbilityDrawerData> abilities)
         {
             Abilities = abilities;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

@@ -4,7 +4,7 @@
     using Memory;
     using Structures;
 
-    public class WorldLocationDescriptorPacket : PythonPacket
+    public class WorldLocationDescriptorPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.WorldLocationDescriptor;
 
@@ -15,10 +15,6 @@
         {
             Position = position;
             Rotation = rotation;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

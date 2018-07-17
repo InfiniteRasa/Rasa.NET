@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class ArmorInfoPacket : PythonPacket
+    public class ArmorInfoPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.ArmorInfo;
 
@@ -14,10 +14,6 @@
         {
             CurrentHitPoints = current;
             MaxHitPoints = max;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

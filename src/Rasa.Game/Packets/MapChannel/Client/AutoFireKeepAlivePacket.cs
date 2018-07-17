@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class AutoFireKeepAlivePacket : PythonPacket
+    public class AutoFireKeepAlivePacket : ClientPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.AutoFireKeepAlive;
 
@@ -13,10 +13,6 @@
         {
             pr.ReadTuple();
             KeepAliveDelay = pr.ReadInt();
-        }
-
-        public override void Write(PythonWriter pw)
-        {
         }
     }
 }

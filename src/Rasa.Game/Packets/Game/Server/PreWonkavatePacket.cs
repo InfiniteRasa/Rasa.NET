@@ -3,13 +3,9 @@
     using Data;
     using Memory;
     // PreWonkavatePacket initialize loading screen
-    public class PreWonkavatePacket : PythonPacket
+    public class PreWonkavatePacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.PreWonkavate;
-
-        public override void Read(PythonReader pr)
-        {
-        }
 
         public override void Write(PythonWriter pw)
         {

@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class RequestNPCVendingPacket : PythonPacket
+    public class RequestNPCVendingPacket : ClientPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.RequestNPCVending;
 
@@ -15,10 +15,6 @@
             pr.ReadTuple();
             EntityId = pr.ReadLong();
             ChosenVendorPackage = pr.ReadInt();
-        }
-
-        public override void Write(PythonWriter pw)
-        {
         }
     }
 }

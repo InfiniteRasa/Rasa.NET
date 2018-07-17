@@ -3,17 +3,14 @@
     using Data;
     using Memory;
 
-    public class CancelLogoutRequestPacket : PythonPacket
+    public class CancelLogoutRequestPacket : ClientPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.CancelLogoutRequest;
 
         // 0 Elements
         public override void Read(PythonReader pr)
         {
-        }
-
-        public override void Write(PythonWriter pw)
-        {
+            pr.ReadTuple();
         }
     }
 }

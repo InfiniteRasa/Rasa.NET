@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class SetAutoLootThresholdPacket : PythonPacket
+    public class SetAutoLootThresholdPacket : ClientPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.SetAutoLootThreshold;
 
@@ -13,10 +13,6 @@
         {
             pr.ReadTuple();
             LootLevel = pr.ReadInt();
-        }
-
-        public override void Write(PythonWriter pw)
-        {
         }
     }
 }

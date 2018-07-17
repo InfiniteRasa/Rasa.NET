@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class AssignNPCMissionPacket : PythonPacket
+    public class AssignNPCMissionPacket : ClientPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.AssignNPCMission;
 
@@ -15,10 +15,6 @@
             pr.ReadTuple();
             NpcEntityId = pr.ReadLong();
             MissionId = pr.ReadInt();
-        }
-
-        public override void Write(PythonWriter pw)
-        {
         }
     }
 }

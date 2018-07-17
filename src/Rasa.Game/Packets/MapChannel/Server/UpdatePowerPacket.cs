@@ -4,7 +4,7 @@
     using Memory;
     using Structures;
 
-    public class UpdatePowerPacket : PythonPacket
+    public class UpdatePowerPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.UpdatePower;
 
@@ -15,10 +15,6 @@
         {
             Power = power;
             WhoId = whoId;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

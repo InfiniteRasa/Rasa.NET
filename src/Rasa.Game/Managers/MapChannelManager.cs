@@ -6,6 +6,7 @@ namespace Rasa.Managers
     using Data;
     using Database.Tables.Character;
     using Game;
+    using Packets.Game.Server;
     using Packets.MapChannel.Server;
     using Structures;
     using Timer;
@@ -16,8 +17,8 @@ namespace Rasa.Managers
         private static MapChannelManager _instance;
         private static readonly object InstanceLock = new object();
         public const int MapChannel_PlayerQueue = 32;
-        private readonly Dictionary<int,MapChannel> MapChannelsByContextId = new Dictionary<int, MapChannel>();     // list of maps that need to be loaded
-        public readonly Dictionary<int, MapChannel> MapChannelArray = new Dictionary<int, MapChannel>();           // list of loaded maps
+        private readonly Dictionary<uint,MapChannel> MapChannelsByContextId = new Dictionary<uint, MapChannel>();     // list of maps that need to be loaded
+        public readonly Dictionary<uint, MapChannel> MapChannelArray = new Dictionary<uint, MapChannel>();           // list of loaded maps
         public readonly Timer Timer = new Timer();
 
         public static MapChannelManager Instance
@@ -135,7 +136,7 @@ namespace Rasa.Managers
             PlayerManager.Instance.AssignPlayer(client);
         }
         
-        public MapChannel FindByContextId(int contextId)
+        public MapChannel FindByContextId(uint contextId)
         {
             return MapChannelArray[contextId];
         }
@@ -230,7 +231,7 @@ namespace Rasa.Managers
                         var mapClient = new MapChannelClient{ MapChannel = mapChannel };
 
                         dequedClient.MapClient = mapClient;
-                       
+
                         // add it to list
                         mapChannel.ClientList.Add(dequedClient);
                     }

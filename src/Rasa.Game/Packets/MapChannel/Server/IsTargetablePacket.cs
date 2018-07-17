@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class IsTargetablePacket : PythonPacket
+    public class IsTargetablePacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.IsTargetable;
 
@@ -12,10 +12,6 @@
         public IsTargetablePacket(bool isTargetable)
         {
             IsTargetable = isTargetable;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

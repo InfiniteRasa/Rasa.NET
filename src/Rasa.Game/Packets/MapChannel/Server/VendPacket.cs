@@ -6,7 +6,7 @@ namespace Rasa.Packets.MapChannel.Server
     using Memory;
     using Structures;
 
-    public class VendPacket : PythonPacket
+    public class VendPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.Vend;
 
@@ -15,10 +15,6 @@ namespace Rasa.Packets.MapChannel.Server
         public VendPacket(List<Item> vendorItems)
         {
             VendorItems = vendorItems;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

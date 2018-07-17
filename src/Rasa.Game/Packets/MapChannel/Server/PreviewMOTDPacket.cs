@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class PreviewMOTDPacket : PythonPacket
+    public class PreviewMOTDPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.PreviewMOTD;
 
@@ -12,10 +12,6 @@
         public PreviewMOTDPacket(string motd)
         {
             Motd = motd;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

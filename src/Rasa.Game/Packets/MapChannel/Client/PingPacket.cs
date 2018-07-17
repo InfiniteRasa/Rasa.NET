@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class PingPacket : PythonPacket
+    public class PingPacket : ClientPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.Ping;
 
@@ -13,10 +13,6 @@
         {
             pr.ReadTuple();
             Ping = pr.ReadDouble();
-        }
-
-        public override void Write(PythonWriter pw)
-        {
         }
     }
 }

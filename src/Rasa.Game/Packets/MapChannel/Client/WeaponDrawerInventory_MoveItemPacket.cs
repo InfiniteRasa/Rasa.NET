@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class WeaponDrawerInventory_MoveItemPacket : PythonPacket
+    public class WeaponDrawerInventory_MoveItemPacket : ClientPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.WeaponDrawerInventory_MoveItem;
         
@@ -15,10 +15,6 @@
             pr.ReadTuple();
             SrcSlot = pr.ReadInt();
             DestSlot = pr.ReadInt();
-        }
-
-        public override void Write(PythonWriter pw)
-        {
         }
     }
 }

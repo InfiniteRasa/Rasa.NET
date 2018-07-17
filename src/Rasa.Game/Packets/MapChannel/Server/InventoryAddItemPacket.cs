@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class InventoryAddItemPacket : PythonPacket
+    public class InventoryAddItemPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.InventoryAddItem;
         
@@ -16,10 +16,6 @@
             Type = type;
             EntityId = entityId;
             SlotId = slotId;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

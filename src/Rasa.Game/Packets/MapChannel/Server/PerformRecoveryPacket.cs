@@ -5,7 +5,7 @@ namespace Rasa.Packets.MapChannel.Server
     using Data;
     using Memory;
 
-    public class PerformRecoveryPacket : PythonPacket
+    public class PerformRecoveryPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.PerformRecovery;
 
@@ -24,10 +24,6 @@ namespace Rasa.Packets.MapChannel.Server
             ActionId = actionId;
             ActionArgId = actionArgId;
             Args = args;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class AcceptPartyInvitesChangedPacket : PythonPacket
+    public class AcceptPartyInvitesChangedPacket : ClientPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.AcceptPartyInvitesChanged;
         
@@ -11,10 +11,6 @@
         {
             pr.ReadTuple();
             pr.ReadTrueStruct();
-        }
-
-        public override void Write(PythonWriter pw)
-        {
         }
     }
 }

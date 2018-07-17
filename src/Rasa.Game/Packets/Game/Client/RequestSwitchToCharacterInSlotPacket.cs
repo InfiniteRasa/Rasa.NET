@@ -7,13 +7,14 @@
     {
         public override GameOpcode Opcode { get; } = GameOpcode.RequestSwitchToCharacterInSlot;
 
-        public uint SlotNum { get; set; }
+        public byte SlotNum { get; set; }
+        public bool SkipBootcamp { get; set; }
 
         public override void Read(PythonReader pr)
         {
             pr.ReadTuple();
-            SlotNum = pr.ReadUInt();
-            pr.ReadZeroStruct();
+            SlotNum = (byte)pr.ReadUInt();
+            pr.ReadBool();
         }
     }
 }

@@ -46,14 +46,9 @@ namespace Rasa.Structures
             Color.WriteEmpty(pw);
         }
 
-        public CharacterAppearanceEntry GetDatabaseEntry()
+        public CharacterAppearanceEntry GetDatabaseEntry(uint characterId)
         {
-            return new CharacterAppearanceEntry
-            {
-                Slot = (uint) SlotId,
-                Class = (uint) Class,
-                Color = Color.Hue
-            };
+            return new CharacterAppearanceEntry(characterId, (uint)SlotId, (uint)Class, Color.Hue);
         }
     }
 }

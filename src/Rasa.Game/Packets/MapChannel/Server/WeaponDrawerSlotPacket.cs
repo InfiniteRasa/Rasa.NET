@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class WeaponDrawerSlotPacket : PythonPacket
+    public class WeaponDrawerSlotPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.WeaponDrawerSlot;
 
@@ -14,10 +14,6 @@
         {
             SlotNum = slotNum;
             Requested = requested;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

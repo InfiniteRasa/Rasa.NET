@@ -5,7 +5,7 @@ namespace Rasa.Packets.MapChannel.Server
     using Data;
     using Memory;
 
-    public class UsableInfoPacket : PythonPacket
+    public class UsableInfoPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.UsableInfo;
 
@@ -23,10 +23,6 @@ namespace Rasa.Packets.MapChannel.Server
             NameOverrideId = nameOverrideId;
             WindupTime = windupTime;
             MissionActivated = missionActivated;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

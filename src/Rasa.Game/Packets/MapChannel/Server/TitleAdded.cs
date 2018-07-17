@@ -2,8 +2,10 @@
 {
     using Data;
     using Memory;
+
     //ToDo: This packet send notify to character when gets a new Title (Need System Title work, exploring zones, kill xxx mobs)
-    public class TitleAddedPacket : PythonPacket
+
+    public class TitleAddedPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.TitleAdded;
 
@@ -12,10 +14,6 @@
         public TitleAddedPacket(uint titleId)
         {
             TitleId = titleId;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

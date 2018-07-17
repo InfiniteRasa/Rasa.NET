@@ -5,7 +5,7 @@ namespace Rasa.Packets.MapChannel.Client
     using Data;
     using Memory;
 
-    public class HomeInventory_MoveItemPacket : PythonPacket
+    public class HomeInventory_MoveItemPacket : ClientPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.HomeInventory_MoveItem;
 
@@ -24,10 +24,6 @@ namespace Rasa.Packets.MapChannel.Client
                 Quantity = (int)pr.ReadLong();
             else
                 throw new Exception("HomeInventory_MoveItem: unsuported PythonType");
-        }
-
-        public override void Write(PythonWriter pw)
-        {
         }
     }
 }

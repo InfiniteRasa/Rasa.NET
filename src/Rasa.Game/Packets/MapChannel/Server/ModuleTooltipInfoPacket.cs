@@ -4,7 +4,7 @@
     using Memory;
     using Structures;
 
-    public class ModuleTooltipInfoPacket : PythonPacket
+    public class ModuleTooltipInfoPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.ModuleTooltipInfo;
 
@@ -17,10 +17,6 @@
             ModuleId = module.ModuleId;
             ModuleLevel = module.ModuleLevel;
             ModuleInfo = module.ModuleInfo;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         // ToDo find data types (not working curently)

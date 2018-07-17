@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class TitleRemovedPacket : PythonPacket
+    public class TitleRemovedPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.TitleRemoved;
 
@@ -12,10 +12,6 @@
         public TitleRemovedPacket(uint titleId)
         {
             TitleId = titleId;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

@@ -5,7 +5,7 @@ namespace Rasa.Packets.MapChannel.Server
     using Data;
     using Memory;
 
-    public class CreatureInfoPacket : PythonPacket
+    public class CreatureInfoPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.CreatureInfo;
 
@@ -19,10 +19,6 @@ namespace Rasa.Packets.MapChannel.Server
             CreatureNameId = creatureNameId;
             IsFlyer = isFlyer;
             CreatureFlags = creatureFlags;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

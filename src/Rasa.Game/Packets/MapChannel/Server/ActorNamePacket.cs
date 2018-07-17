@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class ActorNamePacket : PythonPacket
+    public class ActorNamePacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.ActorName;
 
@@ -12,10 +12,6 @@
         public ActorNamePacket(string characterFamily)
         {
             CharacterFamily = characterFamily;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

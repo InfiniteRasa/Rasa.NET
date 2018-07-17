@@ -4,7 +4,7 @@
     using Data;
     using Memory;
 
-    public class GameEffectAttachedPacket : PythonPacket
+    public class GameEffectAttachedPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.GameEffectAttached;
 
@@ -21,11 +21,7 @@
         public bool IsBuff { get; set; }
         public bool IsDebuff { get; set; }
         public bool IsNegativeEffect { get; set; }
-
-        public override void Read(PythonReader pr)
-        {
-        }
-
+        
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(7);

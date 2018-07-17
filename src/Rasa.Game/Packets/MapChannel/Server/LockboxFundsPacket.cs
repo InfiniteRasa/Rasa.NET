@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class LockboxFundsPacket : PythonPacket
+    public class LockboxFundsPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.LockboxFunds;
 
@@ -12,10 +12,6 @@
         public LockboxFundsPacket(long amount)
         {
             Amount = (uint)amount;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

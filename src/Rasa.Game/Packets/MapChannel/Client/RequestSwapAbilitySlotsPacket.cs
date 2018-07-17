@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class RequestSwapAbilitySlotsPacket : PythonPacket
+    public class RequestSwapAbilitySlotsPacket : ClientPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.RequestSwapAbilitySlots;
         
@@ -15,10 +15,6 @@
             pr.ReadTuple();
             FromSlot = (int)pr.ReadLong();
             ToSlot = pr.ReadInt();
-        }
-
-        public override void Write(PythonWriter pw)
-        {
         }
     }
 }

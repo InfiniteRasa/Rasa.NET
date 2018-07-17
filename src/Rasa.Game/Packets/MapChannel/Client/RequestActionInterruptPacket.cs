@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class RequestActionInterruptPacket : PythonPacket
+    public class RequestActionInterruptPacket : ClientPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.RequestActionInterrupt;
 
@@ -15,10 +15,6 @@
             pr.ReadTuple();
             ActionId = (ActionId)pr.ReadInt();
             ActionArgId = pr.ReadInt();
-        }
-
-        public override void Write(PythonWriter pw)
-        {
         }
     }
 }

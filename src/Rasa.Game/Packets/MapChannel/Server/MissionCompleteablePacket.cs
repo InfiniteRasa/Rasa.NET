@@ -4,7 +4,7 @@
     using Memory;
     using Structures;
 
-    public class MissionCompleteablePacket : PythonPacket
+    public class MissionCompleteablePacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.MissionCompleteable;
 
@@ -15,10 +15,6 @@
         {
             MissionId = missionId;
             MissionInfo = missionInfo;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

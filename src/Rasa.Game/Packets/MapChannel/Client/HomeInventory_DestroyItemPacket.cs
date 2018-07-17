@@ -4,7 +4,7 @@ namespace Rasa.Packets.MapChannel.Client
     using Data;
     using Memory;
 
-    public class HomeInventory_DestroyItemPacket : PythonPacket
+    public class HomeInventory_DestroyItemPacket : ClientPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.HomeInventory_DestroyItem;
 
@@ -16,10 +16,6 @@ namespace Rasa.Packets.MapChannel.Client
             pr.ReadTuple();
             EntityId = pr.ReadLong();
             Quantity = pr.ReadLong();
-        }
-
-        public override void Write(PythonWriter pw)
-        {
         }
     }
 }

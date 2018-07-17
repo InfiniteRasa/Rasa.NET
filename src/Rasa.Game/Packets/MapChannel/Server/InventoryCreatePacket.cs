@@ -3,17 +3,13 @@
     using Data;
     using Memory;
 
-    public class InventoryCreatePacket : PythonPacket
+    public class InventoryCreatePacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.InventoryCreate;
 
         public int InventoryType { get; set; }
         public int ListOfItems { get; set; }    // ToDo, rewrite to list later
         public int InventorySize { get; set; }
-
-        public override void Read(PythonReader pr)
-        {
-        }
 
         public override void Write(PythonWriter pw)
         {

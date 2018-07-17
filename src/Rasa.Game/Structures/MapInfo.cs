@@ -2,14 +2,14 @@
 {
     public class MapInfo
     {
-        public int MapId { get; set; }
+        public uint MapContextId { get; set; }
         public string MapName { get; set; }
-        public int MapVersion { get; set; }
+        public uint MapVersion { get; set; }
         public int BaseRegionId { get; set; }
 
-        public MapInfo(int mapId, string mapName, int mapVersion, int baseRegionId)
+        public MapInfo(uint mapContextId, string mapName, uint mapVersion, int baseRegionId)
         {
-            MapId = mapId;
+            MapContextId = mapContextId;
             MapName = mapName;
             MapVersion = mapVersion;
             BaseRegionId = baseRegionId;

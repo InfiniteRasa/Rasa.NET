@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class PurchaseLockboxTabPacket : PythonPacket
+    public class PurchaseLockboxTabPacket : ClientPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.PurchaseLockboxTab;
 
@@ -11,13 +11,8 @@
 
         public override void Read(PythonReader pr)
         {
-            Logger.WriteLog(LogType.Debug, $"PurchaseLockboxTab:\n {pr.ToString()}");
             pr.ReadTuple();
             TabId = pr.ReadUInt();
-        }
-
-        public override void Write(PythonWriter pw)
-        {
         }
     }
 }

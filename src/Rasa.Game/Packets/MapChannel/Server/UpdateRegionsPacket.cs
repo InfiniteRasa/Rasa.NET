@@ -4,16 +4,12 @@ namespace Rasa.Packets.MapChannel.Server
 {
     using Data;
     using Memory;
-    public class UpdateRegionsPacket : PythonPacket
+    public class UpdateRegionsPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.UpdateRegions;
 
         public List<int> RegionsList { get; set; }
         public int RegionIdList { get; set; }
-
-        public override void Read(PythonReader pr)
-        {
-        }
 
         public override void Write(PythonWriter pw)
         {

@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class AllCreditsPacket : PythonPacket
+    public class AllCreditsPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.AllCredits;
 
@@ -14,10 +14,6 @@
         {
             Credits = creadits;
             Prestige = prestige;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

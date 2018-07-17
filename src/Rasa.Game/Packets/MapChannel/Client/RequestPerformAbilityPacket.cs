@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class RequestPerformAbilityPacket : PythonPacket
+    public class RequestPerformAbilityPacket : ClientPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.RequestPerformAbility;
 
@@ -22,10 +22,6 @@
                 ItemId = pr.ReadInt();
             else
                 pr.ReadNoneStruct();
-        }
-
-        public override void Write(PythonWriter pw)
-        {
         }
     }
 }

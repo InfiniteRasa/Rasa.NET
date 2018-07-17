@@ -114,7 +114,7 @@ namespace Rasa.Managers
             {
                 var spawnPool = key.Value;
 
-                if (spawnPool.ContextId != mapChannel.MapInfo.MapId)
+                if (spawnPool.ContextId != mapChannel.MapInfo.MapContextId)
                     continue; // spawnpool is not for this map
 
                 var totalCreaturesActive = spawnPool.AliveCreatures + spawnPool.QueuedCreatures;

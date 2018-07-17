@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class StartAutoFirePacket : PythonPacket
+    public class StartAutoFirePacket : ClientPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.StartAutoFire;
 
@@ -13,10 +13,6 @@
         {
             pr.ReadTuple();
             FromUi = pr.ReadDouble();
-        }
-
-        public override void Write(PythonWriter pw)
-        {
         }
     }
 }

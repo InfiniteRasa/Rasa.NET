@@ -272,7 +272,7 @@ namespace Rasa.Managers
                 if (double.TryParse(parts[1], out double posX))
                     if (double.TryParse(parts[2], out double posY))
                         if (double.TryParse(parts[3], out double posZ))
-                            if (int.TryParse(parts[4], out int mapId))
+                            if (uint.TryParse(parts[4], out uint mapId))
                             {
                                 // init loading screen
                                 _client.CallMethod(SysEntity.ClientMethodId, new PreWonkavatePacket());
@@ -281,14 +281,13 @@ namespace Rasa.Managers
                                 // send Wonkavate
                                 var mapChannel = MapChannelManager.Instance.MapChannelArray[mapId];
                                 _client.LoadingMap = mapId;
-                                _client.CallMethod(SysEntity.CurrentInputStateId, new WonkavatePacket
-                                {
-                                    MapContextId = mapChannel.MapInfo.MapId,
-                                    MapInstanceId = 0,                  // ToDo MapInstanceId
-                                    MapVersion = mapChannel.MapInfo.MapVersion,
-                                    Position = new Position(posX, posY, posZ),
-                                    Rotation = 1
-                                });
+                                _client.CallMethod(SysEntity.CurrentInputStateId, new WonkavatePacket(
+                                    mapChannel.MapInfo.MapContextId,
+                                    0,                  // ToDo MapInstanceId
+                                    mapChannel.MapInfo.MapVersion,
+                                    new Position(posX, posY, posZ),
+                                    1
+                                ));
                                 // Update Db, this position will be loaded in MapLoadedPacket
                                 CharacterTable.UpdateCharacterPosition(_client.MapClient.Player.CharacterId, posX, posY, posZ, 1, mapId);
                                 mapChannel.ClientList.Add(_client);

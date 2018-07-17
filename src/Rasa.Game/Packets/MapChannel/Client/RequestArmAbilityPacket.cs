@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class RequestArmAbilityPacket : PythonPacket
+    public class RequestArmAbilityPacket : ClientPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.RequestArmAbility;
 
@@ -11,13 +11,8 @@
 
         public override void Read(PythonReader pr)
         {
-            Logger.WriteLog(LogType.Debug, $"RequestArmAbility:\n{pr.ToString()}");
             pr.ReadTuple();
             AbilityDrawerSlot = pr.ReadInt();
-        }
-
-        public override void Write(PythonWriter pw)
-        {
         }
     }
 }

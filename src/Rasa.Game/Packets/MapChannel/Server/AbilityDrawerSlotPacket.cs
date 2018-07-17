@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class AbilityDrawerSlotPacket : PythonPacket
+    public class AbilityDrawerSlotPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.AbilityDrawerSlot;
 
@@ -12,10 +12,6 @@
         public AbilityDrawerSlotPacket(int abilityDrawerSlot)
         {
             AbilityDrawerSlot = abilityDrawerSlot;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

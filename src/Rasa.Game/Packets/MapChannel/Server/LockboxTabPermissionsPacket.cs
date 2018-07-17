@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class LockboxTabPermissionsPacket : PythonPacket
+    public class LockboxTabPermissionsPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.LockboxTabPermissions;
         
@@ -12,10 +12,6 @@
         public LockboxTabPermissionsPacket(uint unlockedNum)
         {
             UnlockedNum = unlockedNum;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

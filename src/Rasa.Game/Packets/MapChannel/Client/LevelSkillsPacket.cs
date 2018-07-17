@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class LevelSkillsPacket : PythonPacket
+    public class LevelSkillsPacket : ClientPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.LevelSkills;
         
@@ -13,7 +13,6 @@
 
         public override void Read(PythonReader pr)
         {
-            Logger.WriteLog(LogType.Debug, $"LevelSkills:\n{pr.ToString()}");
             pr.ReadTuple();
             ListLenght = pr.ReadList();
             SkillIds = new int[ListLenght];
@@ -24,10 +23,6 @@
                 SkillIds[i] = pr.ReadInt();
                 SkillLevels[i] = pr.ReadInt();
             }
-        }
-
-        public override void Write(PythonWriter pw)
-        {
         }
     }
 }

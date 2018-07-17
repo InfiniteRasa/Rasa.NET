@@ -2,15 +2,11 @@
 {
     using Data;
     using Memory;
-    public class SetSkyTimePacket : PythonPacket
+    public class SetSkyTimePacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.SetSkyTime;
 
         public int RunningTime { get; set; }
-
-        public override void Read(PythonReader pr)
-        {
-        }
 
         public override void Write(PythonWriter pw)
         {

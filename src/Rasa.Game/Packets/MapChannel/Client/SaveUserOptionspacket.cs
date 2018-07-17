@@ -6,7 +6,7 @@ namespace Rasa.Packets.MapChannel.Client
     using Memory;
     using Structures;
 
-    public class SaveUserOptionsPacket :PythonPacket
+    public class SaveUserOptionsPacket : ClientPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.SaveUserOptions;
 
@@ -24,10 +24,6 @@ namespace Rasa.Packets.MapChannel.Client
                 OptionsList.Add(new UserOptions(option.OptionId, option.Value));
             }
                 
-        }
-
-        public override void Write(PythonWriter pw)
-        {
         }
     }
 }

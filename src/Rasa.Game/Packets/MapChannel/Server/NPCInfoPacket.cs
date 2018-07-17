@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class NPCInfoPacket : PythonPacket
+    public class NPCInfoPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.NPCInfo;
 
@@ -12,10 +12,6 @@
         public NPCInfoPacket(int npcPackageId)
         {
             NpcPackageId = npcPackageId;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

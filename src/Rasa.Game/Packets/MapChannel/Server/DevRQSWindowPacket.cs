@@ -3,14 +3,10 @@
     using Data;
     using Memory;
 
-    public class DevRQSWindowPacket : PythonPacket
+    public class DevRQSWindowPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.DevRQSWindow;
-
-        public override void Read(PythonReader pr)
-        {
-        }
-
+        
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(0);

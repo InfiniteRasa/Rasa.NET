@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class RequestVendorSalePacket : PythonPacket
+    public class RequestVendorSalePacket : ClientPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.RequestVendorSale;
 
@@ -13,7 +13,6 @@
 
         public override void Read(PythonReader pr)
         {
-            Logger.WriteLog(LogType.Debug, $"RequestVendorSalePacket:\n{pr.ToString()}");
             pr.ReadTuple();
             VendorEntityId = pr.ReadLong();
             if (pr.PeekType() == PythonType.Long)
@@ -24,10 +23,6 @@
                 Quantity = pr.ReadLong();
             else
             Quantity = pr.ReadInt();
-        }
-
-        public override void Write(PythonWriter pw)
-        {
         }
     }
 }

@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class LevelPacket : PythonPacket
+    public class LevelPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.Level;
 
@@ -12,10 +12,6 @@
         public LevelPacket(int level)
         {
             Level = level;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

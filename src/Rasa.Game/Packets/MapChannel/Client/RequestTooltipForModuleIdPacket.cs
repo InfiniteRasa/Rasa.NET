@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class RequestTooltipForModuleIdPacket : PythonPacket
+    public class RequestTooltipForModuleIdPacket : ClientPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.RequestTooltipForModuleId;
 
@@ -13,10 +13,6 @@
         {
             pr.ReadTuple();
             ModuleId = pr.ReadInt();
-        }
-
-        public override void Write(PythonWriter pw)
-        {
         }
     }
 }

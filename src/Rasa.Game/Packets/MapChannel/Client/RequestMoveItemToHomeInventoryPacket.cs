@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class RequestMoveItemToHomeInventoryPacket : PythonPacket
+    public class RequestMoveItemToHomeInventoryPacket : ClientPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.RequestMoveItemToHomeInventory;
 
@@ -17,10 +17,6 @@
             SrcSlot = pr.ReadInt();
             DestSlot = pr.ReadInt();
             Quantity = pr.ReadInt();
-        }
-
-        public override void Write(PythonWriter pw)
-        {
         }
     }
 }

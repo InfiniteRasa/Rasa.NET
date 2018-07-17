@@ -13,7 +13,7 @@ namespace Rasa.Database.Tables.World
             GetItemTemplateIdCommand.Prepare();            
         }
 
-        public static int GetClassId(int itemTemplateId)
+        public static uint GetClassId(uint itemTemplateId)
         {
             lock (GameDatabaseAccess.WorldLock)
             {
@@ -21,7 +21,7 @@ namespace Rasa.Database.Tables.World
 
                 using (var reader = GetItemTemplateIdCommand.ExecuteReader())
                     if (reader.Read())
-                        return reader.GetInt32("classId");
+                        return reader.GetUInt32("classId");
                
             }
 

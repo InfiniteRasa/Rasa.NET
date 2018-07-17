@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class ForceStatePacket : PythonPacket
+    public class ForceStatePacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.ForceState;
         
@@ -13,10 +13,6 @@
         public ForceStatePacket(ActorState state)
         {
             State = state;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

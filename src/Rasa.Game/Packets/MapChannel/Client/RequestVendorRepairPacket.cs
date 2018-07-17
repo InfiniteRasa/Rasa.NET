@@ -5,7 +5,7 @@ namespace Rasa.Packets.MapChannel.Client
     using Data;
     using Memory;
 
-    public class RequestVendorRepairPacket : PythonPacket
+    public class RequestVendorRepairPacket : ClientPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.RequestVendorRepair;
 
@@ -19,10 +19,6 @@ namespace Rasa.Packets.MapChannel.Client
             var count = pr.ReadList();
             for (var i = 0; i < count; i++)
                 ItemEntitesId.Add(pr.ReadInt());
-        }
-
-        public override void Write(PythonWriter pw)
-        {
         }
     }
 }

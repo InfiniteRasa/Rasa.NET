@@ -5,7 +5,7 @@ namespace Rasa.Packets.MapChannel.Server
     using Data;
     using Memory;
 
-    public class LogosStoneTabulaPacket : PythonPacket
+    public class LogosStoneTabulaPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.LogosStoneTabula;
 
@@ -14,10 +14,6 @@ namespace Rasa.Packets.MapChannel.Server
         public LogosStoneTabulaPacket(List<int> logos)
         {
             Logos = logos;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

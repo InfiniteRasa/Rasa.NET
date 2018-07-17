@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class TransferCreditToLockboxPacket : PythonPacket
+    public class TransferCreditToLockboxPacket : ClientPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.TransferCreditToLockbox;
 
@@ -11,13 +11,8 @@
 
         public override void Read(PythonReader pr)
         {
-            Logger.WriteLog(LogType.Debug, $"TransferCreditToLockbox: \n {pr.ToString()}");
             pr.ReadTuple();
             Ammount = pr.ReadInt();
-        }
-
-        public override void Write(PythonWriter pw)
-        {
         }
     }
 }

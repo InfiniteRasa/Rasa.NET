@@ -95,6 +95,7 @@ namespace Rasa.Game
         {
             if (Clients.Count == 0)
                 return;
+
             MapChannelManager.Instance.MapChannelWorker(delta);
 
 

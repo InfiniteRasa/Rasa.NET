@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class AckPingPacket : PythonPacket
+    public class AckPingPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.AckPing;
 
@@ -12,10 +12,6 @@
         public AckPingPacket(double clientTime)
         {
             ClientTime = clientTime;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

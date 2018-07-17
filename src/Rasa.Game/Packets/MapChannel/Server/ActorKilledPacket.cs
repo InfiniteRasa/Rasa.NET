@@ -3,14 +3,10 @@
     using Data;
     using Memory;
 
-    public class ActorKilledPacket : PythonPacket
+    public class ActorKilledPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.ActorKilled;
-
-        public override void Read(PythonReader pr)
-        {
-        }
-
+        
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(0);

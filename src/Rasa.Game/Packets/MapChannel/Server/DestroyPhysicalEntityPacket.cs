@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class DestroyPhysicalEntityPacket : PythonPacket
+    public class DestroyPhysicalEntityPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.DestroyPhysicalEntity;
 
@@ -12,10 +12,6 @@
         public DestroyPhysicalEntityPacket(uint entityId)
         {
             EntityId = entityId;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

@@ -3,20 +3,21 @@
     using Data;
     using Memory;
 
-    public class SetCurrentContextIdPacket : PythonPacket
+    public class SetCurrentContextIdPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.SetCurrentContextId;
 
-        public int MapContextId { get; set; }
+        public uint MapContextId { get; set; }
 
-        public override void Read(PythonReader pr)
+        public SetCurrentContextIdPacket(uint mapContextId)
         {
+            MapContextId = mapContextId;
         }
 
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(1);
-            pw.WriteInt(MapContextId);
+            pw.WriteUInt(MapContextId);
         }
     }
 }

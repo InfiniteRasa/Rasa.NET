@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class IsRunningPacket : PythonPacket
+    public class IsRunningPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.IsRunning;
 
@@ -12,10 +12,6 @@
         public IsRunningPacket(bool isRunning)
         {
             IsRunning = isRunning;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

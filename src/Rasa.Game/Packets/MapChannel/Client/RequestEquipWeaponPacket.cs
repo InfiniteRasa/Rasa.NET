@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class RequestEquipWeaponPacket : PythonPacket
+    public class RequestEquipWeaponPacket : ClientPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.RequestEquipWeapon;
 
@@ -17,10 +17,6 @@
             SrcSlot = pr.ReadInt();
             InventoryType = (InventoryType)pr.ReadInt();
             DestSlot = pr.ReadInt();
-        }
-
-        public override void Write(PythonWriter pw)
-        {
         }
     }
 }

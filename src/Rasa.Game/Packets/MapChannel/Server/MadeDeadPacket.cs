@@ -3,14 +3,10 @@
     using Data;
     using Memory;
 
-    public class MadeDeadPacket : PythonPacket
+    public class MadeDeadPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.MadeDead;
-
-        public override void Read(PythonReader pr)
-        {
-        }
-
+        
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(0);

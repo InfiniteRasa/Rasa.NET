@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class ChannelChatPacket : PythonPacket
+    public class ChannelChatPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.ChannelChat;
 
@@ -12,11 +12,7 @@
         public uint MapEntityId { get; set; }
         public int MapContextId { get; set; }
         public string Message { get; set; }
-
-        public override void Read(PythonReader pr)
-        {
-        }
-
+        
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(3);

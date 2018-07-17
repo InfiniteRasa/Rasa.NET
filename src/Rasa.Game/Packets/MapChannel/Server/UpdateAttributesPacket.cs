@@ -6,7 +6,7 @@ namespace Rasa.Packets.MapChannel.Server
     using Memory;
     using Structures;
 
-    public class UpdateAttributesPacket : PythonPacket
+    public class UpdateAttributesPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.UpdateAttributes;
 
@@ -17,10 +17,6 @@ namespace Rasa.Packets.MapChannel.Server
         {
             AttributeDataList = attributesDataList;
             WhoId = whoId;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

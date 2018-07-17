@@ -5,7 +5,7 @@ namespace Rasa.Packets.MapChannel.Server
     using Data;
     using Memory;
 
-    public class CustomizationChoicesPacket : PythonPacket
+    public class CustomizationChoicesPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.CustomizationChoices;
 
@@ -16,10 +16,6 @@ namespace Rasa.Packets.MapChannel.Server
         {
             EntityId = entityId;
             Choices = choices;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

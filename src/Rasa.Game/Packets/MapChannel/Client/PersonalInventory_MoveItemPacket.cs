@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class PersonalInventory_MoveItemPacket : PythonPacket
+    public class PersonalInventory_MoveItemPacket : ClientPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.PersonalInventory_MoveItem;
 
@@ -20,10 +20,6 @@
                 Quantity = pr.ReadInt();
             else
                 Quantity = (int)pr.ReadLong();
-        }
-
-        public override void Write(PythonWriter pw)
-        {
         }
     }
 }

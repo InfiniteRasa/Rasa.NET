@@ -75,12 +75,12 @@ namespace Rasa.Managers
             return v;
         }
 
-        public void JoinDefaultLocalChannel(Client client, int channelId)
+        public void JoinDefaultLocalChannel(Client client, uint channelId)
         {
             if (client.MapClient.JoinedChannels >= 14)
                 return; // todo, send error to client
             // generate channel hash
-            var cHash = GenerateDefaultChannelHash(channelId, client.MapClient.MapChannel.MapInfo.MapId, 0);
+            var cHash = GenerateDefaultChannelHash((int)channelId, (int)client.MapClient.MapChannel.MapInfo.MapContextId, 0);
             // find channel
             ChatChannel chatChannel;
             if (ChannelsBySeed.TryGetValue(cHash, out chatChannel))
@@ -93,7 +93,7 @@ namespace Rasa.Managers
                 chatChannel.Name[0] = '\0';
                 chatChannel.InstanceId = 0;
                 chatChannel.ChannelId = channelId;
-                chatChannel.MapContextId = client.MapClient.MapChannel.MapInfo.MapId;
+                chatChannel.MapContextId = client.MapClient.MapChannel.MapInfo.MapContextId;
                 chatChannel.IsDefaultChannel = true;
                 chatChannel.FirstPlayer = null;
                 // register it
@@ -104,7 +104,7 @@ namespace Rasa.Managers
             client.MapClient.JoinedChannels++;
             // add client to channel
             AddClientToChannel(client, cHash);
-            client.CallMethod(SysEntity.CommunicatorId, new ChatChannelJoinedPacket { ChannelId = channelId, MapContextId = client.MapClient.MapChannel.MapInfo.MapId });
+            client.CallMethod(SysEntity.CommunicatorId, new ChatChannelJoinedPacket(channelId, client.MapClient.MapChannel.MapInfo.MapContextId));
         }
 
         public void LoginOk(Client client)

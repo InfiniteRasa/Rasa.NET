@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class TargetCategoryPacket : PythonPacket
+    public class TargetCategoryPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.TargetCategory;
 
@@ -12,10 +12,6 @@
         public TargetCategoryPacket(int targetCategory)
         {
             TargetCategory = targetCategory;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

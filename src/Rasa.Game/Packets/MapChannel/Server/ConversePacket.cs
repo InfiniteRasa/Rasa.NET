@@ -6,7 +6,7 @@ namespace Rasa.Packets.MapChannel.Server
     using Memory;
     using Structures;
 
-    public class ConversePacket : PythonPacket
+    public class ConversePacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.Converse;
 
@@ -15,10 +15,6 @@ namespace Rasa.Packets.MapChannel.Server
         public ConversePacket(Dictionary<ConversationType, ConvoData> convoDataDict)
         {
             ConvoDataDict = convoDataDict;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

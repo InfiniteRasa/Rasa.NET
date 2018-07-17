@@ -3,7 +3,6 @@
     using Data;
     using Managers;
     using Packets;
-    using Packets.Game.Client;
     using Packets.MapChannel.Client;    
 
     public partial class ClientPacketHandler

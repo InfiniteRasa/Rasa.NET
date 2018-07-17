@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class ToPerceiveModifierPacket : PythonPacket
+    public class ToPerceiveModifierPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.ToPerceiveModifier;
 
@@ -12,10 +12,6 @@
         public ToPerceiveModifierPacket(int mod)
         {
             Mod = mod;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

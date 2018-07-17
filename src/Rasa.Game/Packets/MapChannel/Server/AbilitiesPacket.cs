@@ -6,7 +6,7 @@ namespace Rasa.Packets.MapChannel.Server
     using Memory;
     using Structures;
 
-    public class AbilitiesPacket : PythonPacket
+    public class AbilitiesPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.Abilities;
 
@@ -17,10 +17,6 @@ namespace Rasa.Packets.MapChannel.Server
             foreach (var ability in abilityList)
                 if (abilityList[ability.Key].AbilityId != -1)   // don't insert if there is no ablilityId
                     AbilityList.Add(ability.Key, new SkillsData(ability.Value.SkillId, ability.Value.AbilityId, ability.Value.SkillLevel));
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

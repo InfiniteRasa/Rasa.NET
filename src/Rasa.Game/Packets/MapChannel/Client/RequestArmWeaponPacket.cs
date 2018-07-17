@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class RequestArmWeaponPacket : PythonPacket
+    public class RequestArmWeaponPacket : ClientPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.RequestArmWeapon;
 
@@ -13,10 +13,6 @@
         {
             pr.ReadTuple();
             RequestedWeaponDrawerSlot = pr.ReadInt();
-        }
-
-        public override void Write(PythonWriter pw)
-        {
         }
     }
 }

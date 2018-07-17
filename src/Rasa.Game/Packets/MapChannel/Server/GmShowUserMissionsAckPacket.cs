@@ -4,7 +4,7 @@
     using Memory;
     using Structures;
 
-    public class GmShowUserMissionsAckPacket : PythonPacket
+    public class GmShowUserMissionsAckPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.GmShowUserMissionsAck;
 
@@ -17,10 +17,6 @@
             UserId = userId;
             DisplayName = displayName;
             MissionInfo = missionInfo;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

@@ -3,16 +3,12 @@
     using Data;
     using Memory;
 
-    public class InventoryRemoveItemPacket : PythonPacket
+    public class InventoryRemoveItemPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.InventoryRemoveItem;
 
         public InventoryType InventoryType { get; set; }
         public int EntityId { get; set; }
-
-        public override void Read(PythonReader pr)
-        {
-        }
 
         public override void Write(PythonWriter pw)
         {

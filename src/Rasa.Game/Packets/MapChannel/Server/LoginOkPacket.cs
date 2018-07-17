@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class LoginOkPacket : PythonPacket
+    public class LoginOkPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.LoginOk;
 
@@ -12,10 +12,6 @@
         public LoginOkPacket(string playerName)
         {
             PlayerName = playerName;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

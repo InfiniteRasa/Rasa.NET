@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class UpdateEscortStatusPacket : PythonPacket
+    public class UpdateEscortStatusPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.UpdateEscortStatus;
 
@@ -12,10 +12,6 @@
         public UpdateEscortStatusPacket(bool isEscort)
         {
             IsEscort = isEscort;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

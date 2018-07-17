@@ -6,7 +6,7 @@ namespace Rasa.Packets.MapChannel.Server
     using Memory;
     using Structures;
 
-    public class MissionStatusInfoPacket : PythonPacket
+    public class MissionStatusInfoPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.MissionStatusInfo;
         
@@ -15,10 +15,6 @@ namespace Rasa.Packets.MapChannel.Server
         public MissionStatusInfoPacket(Dictionary<int, MissionInfo> missionStatusDict)
         {
             MissionStatusDict = missionStatusDict;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

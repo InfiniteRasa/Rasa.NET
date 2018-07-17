@@ -5,7 +5,7 @@ namespace Rasa.Packets.MapChannel.Client
     using Data;
     using Memory;
 
-    public class RequestTooltipForItemTemplateIdPacket : PythonPacket
+    public class RequestTooltipForItemTemplateIdPacket : ClientPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.RequestTooltipForItemTemplateId;
 
@@ -20,10 +20,6 @@ namespace Rasa.Packets.MapChannel.Client
                 ItemTemplateId = (uint)pr.ReadLong();
             else
                throw new Exception($"RequestTooltipForItemTemplateId:\n unsuported PythonType = {pr.PeekType()}");
-        }
-
-        public override void Write(PythonWriter pw)
-        {
         }
     }
 }

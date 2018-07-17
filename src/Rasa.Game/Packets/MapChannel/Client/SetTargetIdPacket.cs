@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class SetTargetIdPacket : PythonPacket
+    public class SetTargetIdPacket : ClientPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.SetTargetId;
 
@@ -14,10 +14,6 @@
             pr.ReadTuple();
             EntityId = pr.ReadLong();
             Logger.WriteLog(LogType.Debug, $"SetTargetId = {EntityId}");
-        }
-
-        public override void Write(PythonWriter pw)
-        {
         }
     }
 }

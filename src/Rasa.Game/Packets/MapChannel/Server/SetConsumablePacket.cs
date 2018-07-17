@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class SetConsumablePacket : PythonPacket
+    public class SetConsumablePacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.SetConsumable;
 
@@ -12,10 +12,6 @@
         public SetConsumablePacket(bool isConsumable)
         {
             IsConsumable = isConsumable;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

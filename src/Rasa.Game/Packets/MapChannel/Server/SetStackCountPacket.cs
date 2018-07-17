@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class SetStackCountPacket : PythonPacket
+    public class SetStackCountPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.SetStackCount;
 
@@ -12,10 +12,6 @@
         public SetStackCountPacket(int stackSize)
         {
             StackSize = stackSize;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

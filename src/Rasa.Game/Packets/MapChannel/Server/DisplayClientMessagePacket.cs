@@ -5,7 +5,7 @@ namespace Rasa.Packets.MapChannel.Server
     using Data;
     using Memory;
 
-    public class DisplayClientMessagePacket : PythonPacket
+    public class DisplayClientMessagePacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.DisplayClientMessage;
 
@@ -18,10 +18,6 @@ namespace Rasa.Packets.MapChannel.Server
             MsgId = msgId;
             Args = args;
             Filterid = filterId;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class BattlecryNotificationPacket : PythonPacket
+    public class BattlecryNotificationPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.BattlecryNotification;
 
@@ -16,10 +16,6 @@
             PackageId = packageId;
             TypeId = typeId;
             Seed = seed;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

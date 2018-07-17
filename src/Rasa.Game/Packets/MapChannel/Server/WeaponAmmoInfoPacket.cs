@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class WeaponAmmoInfoPacket : PythonPacket
+    public class WeaponAmmoInfoPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.WeaponAmmoInfo;
 
@@ -12,10 +12,6 @@
         public WeaponAmmoInfoPacket(int ammoInfo)
         {
             AmmoInfo = ammoInfo;
-        }
-
-        public override void Read(PythonReader pr)
-        {
         }
 
         public override void Write(PythonWriter pw)

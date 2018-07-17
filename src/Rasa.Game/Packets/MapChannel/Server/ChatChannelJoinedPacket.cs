@@ -3,22 +3,24 @@
     using Data;
     using Memory;
 
-    public class ChatChannelJoinedPacket : PythonPacket
+    public class ChatChannelJoinedPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.ChatChannelJoined;
 
-        public int ChannelId { get; set; }
-        public int MapContextId { get; set; }
+        public uint ChannelId { get; set; }
+        public uint MapContextId { get; set; }
 
-        public override void Read(PythonReader pr)
+        public ChatChannelJoinedPacket(uint channelId, uint mapContextId)
         {
+            ChannelId = channelId;
+            MapContextId = mapContextId;
         }
 
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(2);
-            pw.WriteInt(ChannelId);
-            pw.WriteInt(MapContextId);
+            pw.WriteUInt(ChannelId);
+            pw.WriteUInt(MapContextId);
         }
     }
 }

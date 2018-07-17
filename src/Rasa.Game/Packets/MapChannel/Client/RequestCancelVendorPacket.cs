@@ -3,7 +3,7 @@
     using Data;
     using Memory;
 
-    public class RequestCancelVendorPacket : PythonPacket
+    public class RequestCancelVendorPacket : ClientPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.RequestCancelVendor;
 
@@ -13,10 +13,6 @@
         {
             pr.ReadTuple();
             EntityId = pr.ReadLong();
-        }
-
-        public override void Write(PythonWriter pw)
-        {
         }
     }
 }
