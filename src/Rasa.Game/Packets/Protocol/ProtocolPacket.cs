@@ -53,7 +53,8 @@ namespace Rasa.Packets.Protocol
 
             if (Channel != 0) // 0 == ReliableStreamChannel (no extra data), Move message uses channels
             {
-                Debugger.Break();
+                Console.WriteLine($"ProtocolPacket.Read: channel = {Channel}, movement packet received");
+                //Debugger.Break();
 
                 SequenceNumber = br.ReadUInt32(); // Sequence number? if (previousValue - newValue < 0) { process packet; previousValue = newValue; }
                 br.ReadInt32(); // 0xDEADBEEF
