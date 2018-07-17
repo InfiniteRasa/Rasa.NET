@@ -61,6 +61,7 @@ namespace Rasa.Memory
                     return true;
 
                 case 0x02:  // ZeroStruct
+                    return false;
 
                 default:
                     throw new Exception($"Expected 0x00, 0x10 or 0x01, 0x11. Got: {val:X2}");
