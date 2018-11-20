@@ -1,10 +1,10 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 using MySql.Data.MySqlClient;
 
 namespace Rasa.Database.Tables.Character
 {
-    using System;
     using Structures;
 
     public class CharacterTable

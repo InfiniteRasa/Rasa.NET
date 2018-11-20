@@ -8,9 +8,9 @@ namespace Rasa.Database.Tables.World
 
     public class CreatureAppearanceTable
     {
-        private static readonly MySqlCommand GetCreatureAppearanceCommand = new MySqlCommand("SELECT creature_id, slot, class, color FROM creature_appearance WHERE creature_id = @CreatureId");
-        private static readonly MySqlCommand SetCreatureAppearanceCommand = new MySqlCommand("INSERT INTO creature_appearance (creature_id, slot, classId, color) VALUES (@CreatureId, @Slot, @Class, @Color)");
-        private static readonly MySqlCommand UpdateCreatureAppearanceCommand = new MySqlCommand("Update creature_appearance SET class = @Class, color = @Color WHERE creature_id = @CreatureId AND slot = @Slot");
+        private static readonly MySqlCommand GetCreatureAppearanceCommand = new MySqlCommand("SELECT creature_id, slot_id, class_id, color FROM creature_appearance WHERE creature_id = @CreatureId");
+        private static readonly MySqlCommand SetCreatureAppearanceCommand = new MySqlCommand("INSERT INTO creature_appearance (creature_id, slot_id, class_id, color) VALUES (@CreatureId, @Slot, @Class, @Color)");
+        private static readonly MySqlCommand UpdateCreatureAppearanceCommand = new MySqlCommand("Update creature_appearance SET class_id = @Class, color = @Color WHERE creature_id = @CreatureId AND slot_id = @Slot");
 
         public static void Initialize()
         {

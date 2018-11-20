@@ -17,6 +17,11 @@ namespace Rasa.Structures
         {
         }
 
+        public Color(int hue)
+            : this((byte)(hue & 0xFF), (byte)((hue >> 8) & 0xFF), (byte)((hue >> 16) & 0xFF), (byte)((hue >> 24) & 0xFF))
+        {
+        }
+
         public Color(uint hue)
             : this((byte) (hue & 0xFF), (byte) ((hue >> 8) & 0xFF), (byte) ((hue >> 16) & 0xFF), (byte) ((hue >> 24) & 0xFF))
         {
