@@ -321,7 +321,7 @@ namespace Rasa.Managers
         public void GiveLogos(Client client, int logosId)
         {
             client.MapClient.Player.Logos.Add(logosId);
-            CharacterLogosTable.SetLogos(client.AccountEntry.Id, client.MapClient.Player.CharacterSlot, logosId);
+            CharacterLogosTable.SetLogos(client.AccountEntry.Id, client.AccountEntry.SelectedSlot, logosId);
             client.CallMethod(client.MapClient.Player.Actor.EntityId, new LogosStoneTabulaPacket(client.MapClient.Player.Logos));
         }
 
@@ -347,7 +347,7 @@ namespace Rasa.Managers
                 {
                     // create new entry in character skils and db
                     mapClient.Player.Skills.Add(skillId, new SkillsData(skillId, abilityId, 0));
-                    CharacterSkillsTable.SetCharacterSkill(client.AccountEntry.Id, mapClient.Player.CharacterSlot, skillId, abilityId, 0);
+                    CharacterSkillsTable.SetCharacterSkill(client.AccountEntry.Id, client.AccountEntry.SelectedSlot, skillId, abilityId, 0);
                 }
 
                 var newSkillLevel = packet.SkillLevels[i];
@@ -380,7 +380,7 @@ namespace Rasa.Managers
             });
             // update database with new character skills
             foreach (var skill in skillLevelupArray)
-                CharacterSkillsTable.UpdateCharacterSkill(client.AccountEntry.Id, mapClient.Player.CharacterSlot, mapClient.Player.Skills[skill.Key].SkillId, mapClient.Player.Skills[skill.Key].SkillLevel);
+                CharacterSkillsTable.UpdateCharacterSkill(client.AccountEntry.Id, client.AccountEntry.SelectedSlot, mapClient.Player.Skills[skill.Key].SkillId, mapClient.Player.Skills[skill.Key].SkillLevel);
         }
 
         public void NotifyEquipmentUpdate(Client client)
@@ -435,7 +435,7 @@ namespace Rasa.Managers
 
             client.MapClient.Player.AppearanceData[equipmentSlotId].Class = 0;
             // update appearance data in database
-            CharacterAppearanceTable.UpdateCharacterAppearance(client.AccountEntry.Id, client.MapClient.Player.CharacterSlot, (uint)equipmentSlotId, 0, 0);
+            CharacterAppearanceTable.UpdateCharacterAppearance(client.AccountEntry.Id, client.AccountEntry.SelectedSlot, (uint)equipmentSlotId, 0, 0);
         }
 
         public void RequestActionInterrupt(Client client, RequestActionInterruptPacket packet)
@@ -506,7 +506,7 @@ namespace Rasa.Managers
                 }
             }
             // update database with new drawer slot ability
-            CharacterAbilityDrawerTable.UpdateCharacterAbility(client.AccountEntry.Id, client.MapClient.Player.CharacterSlot, packet.SlotId, (int)packet.AbilityId, (int)packet.AbilityLevel);
+            CharacterAbilityDrawerTable.UpdateCharacterAbility(client.AccountEntry.Id, client.AccountEntry.SelectedSlot, packet.SlotId, (int)packet.AbilityId, (int)packet.AbilityLevel);
             // send packet
             client.CallMethod(client.MapClient.Player.Actor.EntityId, new AbilityDrawerPacket(client.MapClient.Player.Abilities));
         }
@@ -531,7 +531,7 @@ namespace Rasa.Managers
             // update database with new drawer slot ability
             CharacterAbilityDrawerTable.UpdateCharacterAbility(
                 client.AccountEntry.Id,
-                client.MapClient.Player.CharacterSlot,
+                client.AccountEntry.SelectedSlot,
                 abilities[packet.ToSlot].AbilitySlotId,
                 abilities[packet.ToSlot].AbilityId,
                 abilities[packet.ToSlot].AbilityLevel);
@@ -540,12 +540,12 @@ namespace Rasa.Managers
             if (tempSlot != null)
                 CharacterAbilityDrawerTable.UpdateCharacterAbility(
                     client.AccountEntry.Id,
-                    client.MapClient.Player.CharacterSlot,
+                    client.AccountEntry.SelectedSlot,
                     abilities[packet.FromSlot].AbilitySlotId,
                     abilities[packet.FromSlot].AbilityId,
                     abilities[packet.FromSlot].AbilityLevel);
             else
-                CharacterAbilityDrawerTable.UpdateCharacterAbility(client.AccountEntry.Id, client.MapClient.Player.CharacterSlot, packet.FromSlot, 0, 0);
+                CharacterAbilityDrawerTable.UpdateCharacterAbility(client.AccountEntry.Id, client.AccountEntry.SelectedSlot, packet.FromSlot, 0, 0);
             // send packet
             client.CallMethod(client.MapClient.Player.Actor.EntityId, new AbilityDrawerPacket(abilities));
         }
@@ -662,7 +662,7 @@ namespace Rasa.Managers
             player.AppearanceData[equipmentSlotId].Color = new Color(item.Color);
             
             // update appearance data in database
-            CharacterAppearanceTable.UpdateCharacterAppearance(client.AccountEntry.Id, player.CharacterSlot, (uint)equipmentSlotId, (uint)item.ItemTemplate.Class, item.Color);
+            CharacterAppearanceTable.UpdateCharacterAppearance(client.AccountEntry.Id, client.AccountEntry.SelectedSlot, (uint)equipmentSlotId, (uint)item.ItemTemplate.Class, item.Color);
         }
 
         public void SetDesiredCrouchState(Client client, ActorState state)

@@ -687,7 +687,7 @@ namespace Rasa.Managers
             // remove item
             // todo: Handle stacksizes correctly and only decrease item by quantity parameter
             InventoryManager.Instance.RemoveItemBySlot(client, InventoryType.Personal, slotIndex);
-            CharacterInventoryTable.DeleteInvItem(client.AccountEntry.Id, client.MapClient.Player.CharacterSlot, (int)InventoryType.Personal, slotIndex);
+            CharacterInventoryTable.DeleteInvItem(client.AccountEntry.Id, client.AccountEntry.SelectedSlot, (int)InventoryType.Personal, slotIndex);
             // add credits to player
             PlayerManager.Instance.GainCredits(client, (int)sellPrice);
             // add item to buyback list

@@ -137,10 +137,10 @@
                     Body = 0,
                     Mind = 0,
                     Spirit = 0,
-                    MapContextId = 0,
-                    CoordX = 0,
-                    CoordY = 0,
-                    CoordZ = 0,
+                    MapContextId = 1220,
+                    CoordX = 894.9,
+                    CoordY = 347.1,
+                    CoordZ = 307.9,
                     Rotation = 0
                 };
 

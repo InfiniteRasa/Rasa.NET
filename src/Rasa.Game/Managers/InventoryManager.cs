@@ -65,10 +65,10 @@ namespace Rasa.Managers
             // send inventoryAddItem
             client.CallMethod(SysEntity.ClientInventoryManagerId, new InventoryAddItemPacket(inventoryType, tempItem.EntityId, slotId));
 
-            var characterSlot = client.MapClient.Player.CharacterSlot;
+            var characterSlot = client.AccountEntry.SelectedSlot;
 
             if (inventoryType == InventoryType.HomeInventory)
-                characterSlot = 0U;
+                characterSlot = 0;
 
             // update item in database
             if (updateDB)
@@ -141,7 +141,7 @@ namespace Rasa.Managers
             {
                 if (client.MapClient.Inventory.PersonalInventory[itemCategoryOffset + i] == 0)
                 {
-                    item.OwnerId = client.MapClient.Player.CharacterSlot;
+                    item.OwnerId = client.AccountEntry.SelectedSlot;
                     item.OwnerSlotId = itemCategoryOffset + i;
                     item.CurrentHitPoints = itemClassInfo.MaxHitPoints;
                     // send data to client
@@ -274,7 +274,7 @@ namespace Rasa.Managers
                 // fill invenoty slot
                 ItemManager.Instance.SendItemDataToClient(client, newItem, false);
 
-                if (item.CharacterSlot == client.MapClient.Player.CharacterSlot)
+                if (item.CharacterSlot == client.AccountEntry.SelectedSlot)
                 {
                     if ((InventoryType)item.InventoryType == InventoryType.Personal)
                     {
@@ -347,7 +347,7 @@ namespace Rasa.Managers
 
         public void ReduceStackCount(Client client, InventoryType inventoryType, Item tempItem, int stackDecreaseCount)
         {
-            if (tempItem.OwnerId != client.MapClient.Player.CharacterSlot)
+            if (tempItem.OwnerId != client.AccountEntry.SelectedSlot)
                 return; // item is not on this client's inventory
 
             var newStackCount = tempItem.Stacksize - stackDecreaseCount;
@@ -361,10 +361,10 @@ namespace Rasa.Managers
                 // free slot
                 FreeSlotIndex(client.MapClient, inventoryType, tempItem.OwnerSlotId);
                 // Update db
-                var characterSlot = client.MapClient.Player.CharacterSlot;
+                var characterSlot = client.AccountEntry.SelectedSlot;
 
                 if (inventoryType == InventoryType.HomeInventory)
-                    characterSlot = 0U;
+                    characterSlot = 0;
 
                 CharacterInventoryTable.DeleteInvItem(client.AccountEntry.Id, characterSlot, (int)InventoryType.Personal, tempItem.OwnerSlotId);
                 // ToDo will we delete items from db, or we will let tham stay, so thay can be retrived

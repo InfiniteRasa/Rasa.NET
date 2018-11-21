@@ -47,14 +47,15 @@ namespace Rasa.Managers
         {
             if (client.MapClient.LogoutActive == false)
                 return;
+
             client.MapClient.RemoveFromMap = true;
         }
 
         public void CreatePlayerCharacter(Client client)
         {
-            var data = CharacterTable.GetCharacter(client.AccountEntry.Id, client.AccountEntry.SelectedSlot);
+            var character = CharacterTable.GetCharacter(client.AccountEntry.Id, client.AccountEntry.SelectedSlot);
             var lockboxInfo = CharacterLockboxTable.GetLockboxInfo(client.AccountEntry.Id);
-            var appearances = CharacterAppearanceTable.GetAppearances(data.Id);
+            var appearances = CharacterAppearanceTable.GetAppearances(character.Id);
             var missions = CharacterMissionsTable.GetMissions(client.AccountEntry.Id, client.AccountEntry.SelectedSlot);
             var appearanceData = new Dictionary<EquipmentData, AppearanceData>();
             var missionData = new Dictionary<int, MissionLog>();
@@ -69,16 +70,16 @@ namespace Rasa.Managers
             foreach (var mission in missions)
                 missionData.Add(mission.MissionId, new MissionLog{ MissionId = mission.MissionId, MissionState = mission.MissionState });
             
-            var player = new PlayerData
+            var player = new PlayerData(character, appearanceData)
             {
                 Actor = new Actor
                 {
-                    EntityClassId = data.Gender == 0 ? EntityClassId.HumanBaseMale : EntityClassId.HumanBaseFemale,
-                    Name = data.Name,
+                    EntityClassId = character.Gender == 0 ? EntityClassId.HumanBaseMale : EntityClassId.HumanBaseFemale,
+                    Name = character.Name,
                     FamilyName = client.AccountEntry.FamilyName,
-                    Position = new Position(data.CoordX, data.CoordY, data.CoordZ),
+                    Position = new Position(character.CoordX, character.CoordY, character.CoordZ),
                     Rotation = new Quaternion(0D, 0D, 0D, 0D),    // ToDo
-                    MapContextId = data.MapContextId,
+                    MapContextId = character.MapContextId,
                     IsRunning = true,
                     InCombatMode = false,
                     Attributes = new Dictionary<Attributes, ActorAttributes>
@@ -95,23 +96,6 @@ namespace Rasa.Managers
                         { Attributes.Regen, new ActorAttributes(Attributes.Regen, 0, 0, 0, 0, 0) }
                     }
                 },
-                CharacterId = data.Id,
-                ControllerUser = client.MapClient,
-                AppearanceData = appearanceData,
-                CharacterSlot = client.AccountEntry.SelectedSlot,
-                Gender = data.Gender,
-                Scale = data.Scale,
-                Race = data.Race,
-                Class = data.Class,
-                Experience = data.Experience,
-                Level = data.Level,
-                Body = data.Body,
-                Mind = data.Mind,
-                Spirit = data.Spirit,
-                CloneCredits = data.CloneCredits,
-                NumLogins = data.NumLogins + 1,
-                TotalTimePlayed = data.TotalTimePlayed,
-                TimeSinceLastPlayed = data.LastLogin,
                 //ClanId = data.ClanId,
                 //ClanName = data.ClanName,
                 LockboxCredits = lockboxInfo[0],

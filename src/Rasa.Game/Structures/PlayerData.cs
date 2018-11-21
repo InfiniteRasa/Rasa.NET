@@ -9,20 +9,13 @@ namespace Rasa.Structures
     {
         public Actor Actor { get; set; }
         public Dictionary<EquipmentData, AppearanceData> AppearanceData { get; set; }
-        public MapChannelClient ControllerUser { get; set; }
         public uint CharacterId { get; set; }
-        public uint AccountId { get; set; }
-        public uint CharacterSlot { get; set; }
         public string FamilyName { get; set; }
-        public int Gender { get; set; }
         public double Scale { get; set; }
         public int Race { get; set; }
         public uint Class { get; set; }
         public uint Experience { get; set; }
         public byte Level { get; set; }
-        public uint Body { get; set; }
-        public uint Mind { get; set; }
-        public uint Spirit { get; set; }
         public uint CloneCredits { get; set; }
         public uint NumLogins { get; set; }
         public uint TotalTimePlayed { get; set; }
@@ -46,5 +39,22 @@ namespace Rasa.Structures
         public List<int> Logos = new List<int>();
         public bool WeaponReady { get; set; }
         public uint TargetEntityId { get; set; }
+
+        public PlayerData(CharacterEntry character, Dictionary<EquipmentData, AppearanceData> appearence)
+        {
+            // CharacterData
+            CharacterId = character.Id;
+            Scale = character.Scale;
+            Race = character.Race;
+            Class = character.Class;
+            Experience = character.Experience;
+            Level = character.Level;
+            CloneCredits = character.CloneCredits;
+            NumLogins = character.NumLogins + 1;
+            TotalTimePlayed = character.TotalTimePlayed;
+            TimeSinceLastPlayed = character.LastLogin;
+            // AppearanceData
+            AppearanceData = appearence;
+        }
     }
 }
