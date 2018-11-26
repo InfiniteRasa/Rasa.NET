@@ -78,8 +78,11 @@ namespace Rasa.Managers
             switch (action.ActionId)
             {
                 case ActionId.WeaponAttack:
+                    Logger.WriteLog(LogType.Debug, $"PerformAction {action.ActionArgId} {action.ActionId} {action.Args}");
+                    /*
                     PlayerManager.Instance.StartAutoFire(action.Client, 0D);
                     action.Client.CellCallMethod(action.Client, action.Client.MapClient.Player.Actor.EntityId, new PerformRecoveryPacket(action.ActionId, action.ActionArgId, new List<int> { 1 }));
+                    */
                     break;
                 case ActionId.WeaponStow:
                     action.Client.CellCallMethod(action.Client, action.Client.MapClient.Player.Actor.EntityId, new PerformRecoveryPacket(action.ActionId, action.ActionArgId));

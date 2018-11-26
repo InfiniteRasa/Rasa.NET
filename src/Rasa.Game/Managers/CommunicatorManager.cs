@@ -175,6 +175,8 @@ namespace Rasa.Managers
                     ChatCommandsManager.Instance.ProcessCommand(client, textMsg);
                     return;
                 }
+                else
+                    Logger.WriteLog(LogType.Security, $"AccountId = {client.AccountEntry.Id} tryed to use GM Command = {textMsg}");
             } 
             if (client.MapClient.Player == null)
                 return;

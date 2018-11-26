@@ -184,7 +184,7 @@
         }
 
         [PacketHandler(GameOpcode.RequestMoveItemToHomeInventory)]
-        private void RequRequestMoveItemToHomeInventoryestLogout(RequestMoveItemToHomeInventoryPacket packet)
+        private void RequestMoveItemToHomeInventory(RequestMoveItemToHomeInventoryPacket packet)
         {
             InventoryManager.Instance.RequestMoveItemToHomeInventory(Client, packet);
         }
@@ -309,10 +309,16 @@
             PlayerManager.Instance.RequestWeaponStow(Client);
         }
 
+        [PacketHandler(GameOpcode.SaveCharacterOptions)]
+        private void SaveCharacterOptions(SaveCharacterOptionsPacket packet)
+        {
+            PlayerManager.Instance.SaveCharacterOptions(Client, packet);
+        }
+
         [PacketHandler(GameOpcode.SaveUserOptions)]
         private void SaveUserOptions(SaveUserOptionsPacket packet)
         {
-            Logger.WriteLog(LogType.Debug, "ToDo SaveUserOptions");
+            PlayerManager.Instance.SaveUserOptions(Client, packet);
         }
 
         [PacketHandler(GameOpcode.SetAutoLootThreshold)]
@@ -342,7 +348,8 @@
         [PacketHandler(GameOpcode.StartAutoFire)]
         private void StartAutoFire(StartAutoFirePacket packet)
         {
-            PlayerManager.Instance.StartAutoFire(Client, packet.FromUi);
+            //PlayerManager.Instance.StartAutoFire(Client, packet.FromUi);
+            Logger.WriteLog(LogType.Debug, $"StartAutoFirePacket {packet.FromUi}");
         }
 
         [PacketHandler(GameOpcode.StopAutoFire)]

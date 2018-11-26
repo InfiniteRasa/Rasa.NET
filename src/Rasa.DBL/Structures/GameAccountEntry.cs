@@ -25,7 +25,7 @@ namespace Rasa.Structures
             var entry = new GameAccountEntry
             {
                 Id = reader.GetUInt32("id"),
-                Email = reader.GetString("name"),
+                Email = reader.GetString("email"),
                 Name = reader.GetString("name"),
                 Level = reader.GetByte("level"),
                 FamilyName = reader.GetString("family_name"),

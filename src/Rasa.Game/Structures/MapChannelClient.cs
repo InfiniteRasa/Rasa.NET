@@ -8,7 +8,6 @@
         public PlayerData Player { get; set; }
         public bool Disconected { get; set; }
         public bool LogoutActive { get; set; }
-        public long LogoutRequestedLast { get; set; }
         public bool RemoveFromMap {get;set;}
         // chat
         public int JoinedChannels { get; set; }

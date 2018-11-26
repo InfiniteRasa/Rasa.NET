@@ -44,7 +44,7 @@ namespace Rasa.Database.Tables.Character
         {
             lock (GameDatabaseAccess.CharLock)
             {
-                SetLogosCommand.Parameters["@AccoutnId"].Value = accountId;
+                SetLogosCommand.Parameters["@AccountId"].Value = accountId;
                 SetLogosCommand.Parameters["@CharacterSlot"].Value = characterSlot;
                 SetLogosCommand.Parameters["@LogosId"].Value = logosId;
                 SetLogosCommand.ExecuteNonQuery();

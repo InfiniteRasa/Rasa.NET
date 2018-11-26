@@ -10,6 +10,7 @@
         // 0 element's
         public override void Read(PythonReader pr)
         {
+            pr.ReadTuple();
         }
     }
 }

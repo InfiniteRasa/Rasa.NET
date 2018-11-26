@@ -428,7 +428,6 @@ namespace Rasa.Managers
         public void RequestLogout(Client client)
         {           
             client.CallMethod(SysEntity.ClientMethodId, new LogoutTimeRemainingPacket());
-            client.MapClient.LogoutRequestedLast = Environment.TickCount;
             client.MapClient.LogoutActive = true;
         }
     }

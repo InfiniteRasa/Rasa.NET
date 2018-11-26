@@ -1,4 +1,5 @@
-﻿using MySql.Data.MySqlClient;
+﻿// This is used for CharacterOptions and UserOptions
+using MySql.Data.MySqlClient;
 
 namespace Rasa.Structures
 {

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 namespace Rasa.Managers
 {
     using Data;
+    using Database.Tables.Auth;
     using Database.Tables.Character;
     using Game;
     using Packets;
@@ -83,6 +84,14 @@ namespace Rasa.Managers
         {
             var player = client.MapClient.Player;
             var actor = player.Actor;
+            
+            // get charaterOptions
+            var optionsList = CharacterOptionsTable.GetCharacterOptions(player.CharacterId);
+
+            foreach (var characterOption in optionsList)
+                player.CharacterOptions.Add(new CharacterOptions((CharacterOption)characterOption.OptionId, characterOption.Value));
+
+            client.CallMethod(SysEntity.ClientMethodId, new CharacterOptionsPacket(player.CharacterOptions));
 
             client.CallMethod(SysEntity.ClientMethodId, new SetControlledActorIdPacket(actor.EntityId));
 
@@ -225,6 +234,7 @@ namespace Rasa.Managers
         public List<PythonPacket> CreatePlayerEntityData(Client client)
         {
             var player = client.MapClient.Player;
+
             var entityData = new List<PythonPacket>
                 {
                     new AttributeInfoPacket(player.Actor.Attributes),
@@ -435,7 +445,7 @@ namespace Rasa.Managers
 
             client.MapClient.Player.AppearanceData[equipmentSlotId].Class = 0;
             // update appearance data in database
-            CharacterAppearanceTable.UpdateCharacterAppearance(client.AccountEntry.Id, client.AccountEntry.SelectedSlot, (uint)equipmentSlotId, 0, 0);
+            CharacterAppearanceTable.UpdateCharacterAppearance(client.MapClient.Player.CharacterId, (uint)equipmentSlotId, 0, 0);
         }
 
         public void RequestActionInterrupt(Client client, RequestActionInterruptPacket packet)
@@ -624,7 +634,23 @@ namespace Rasa.Managers
 
             client.MapClient.MapChannel.PerformActions.Add(new ActionData(client, ActionId.WeaponStow, weaponClassInfo.StowActionId));
         }
-        
+
+        public void SaveCharacterOptions(Client client, SaveCharacterOptionsPacket packet)
+        {
+            client.MapClient.Player.CharacterOptions = packet.OptionsList;
+
+            var value = "";
+
+            foreach (var option in client.MapClient.Player.CharacterOptions)
+                value = value + $" ('{client.MapClient.Player.CharacterId}', '{(uint)option.OptionId}', '{option.Value}'),";
+
+            // remove last comma
+            value = value.Remove(value.Length - 1);
+
+            CharacterOptionsTable.DeleteCharacterOptions(client.MapClient.Player.CharacterId);
+            CharacterOptionsTable.AddCharacterOption(value + ";");
+        }
+
         // maybe move this to other manager becose it's account related
         public void SaveUserOptions(Client client, SaveUserOptionsPacket packet)
         {
@@ -662,7 +688,7 @@ namespace Rasa.Managers
             player.AppearanceData[equipmentSlotId].Color = new Color(item.Color);
             
             // update appearance data in database
-            CharacterAppearanceTable.UpdateCharacterAppearance(client.AccountEntry.Id, client.AccountEntry.SelectedSlot, (uint)equipmentSlotId, (uint)item.ItemTemplate.Class, item.Color);
+            CharacterAppearanceTable.UpdateCharacterAppearance(client.MapClient.Player.CharacterId, (uint)equipmentSlotId, (uint)item.ItemTemplate.Class, item.Color);
         }
 
         public void SetDesiredCrouchState(Client client, ActorState state)

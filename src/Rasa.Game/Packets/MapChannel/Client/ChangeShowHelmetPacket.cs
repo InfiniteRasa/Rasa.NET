@@ -11,6 +11,8 @@
 
         public override void Read(PythonReader pr)
         {
+            pr.ReadTuple();
+            ShowHelmet = pr.ReadBool();
         }
     }
 }

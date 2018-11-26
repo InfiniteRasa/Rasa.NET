@@ -142,7 +142,7 @@ namespace Rasa.Managers
 
         public void PlayerTryFireWeapon(Client client)
         {
-            throw new NotImplementedException();
+            Logger.WriteLog(LogType.Debug, "PlayerTryFireWeapon");
         }
     }
 }

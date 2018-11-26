@@ -27,8 +27,10 @@ namespace Rasa.Database.Tables.Character
         {
             lock (GameDatabaseAccess.CharLock)
             {
-                MySqlCommand AddUserOptionsCommand = new MySqlCommand("INSERT INTO user_options (account_id, option_id, value) VALUES" + value);
-                AddUserOptionsCommand.Connection = GameDatabaseAccess.CharConnection;
+                MySqlCommand AddUserOptionsCommand = new MySqlCommand("INSERT INTO user_options (account_id, option_id, value) VALUES" + value)
+                {
+                    Connection = GameDatabaseAccess.CharConnection
+                };
                 AddUserOptionsCommand.ExecuteNonQuery();
             }
         }

@@ -10,6 +10,7 @@ namespace Rasa.Structures
         public Actor Actor { get; set; }
         public Dictionary<EquipmentData, AppearanceData> AppearanceData { get; set; }
         public uint CharacterId { get; set; }
+        public List<CharacterOptions> CharacterOptions = new List<CharacterOptions>();
         public string FamilyName { get; set; }
         public double Scale { get; set; }
         public int Race { get; set; }
