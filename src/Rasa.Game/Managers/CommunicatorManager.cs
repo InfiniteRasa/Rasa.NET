@@ -124,9 +124,9 @@ namespace Rasa.Managers
 
         public void PlayerExitMap(Client client)
         {            
-            CharacterManager.Instance.UpdateCharacter(client, 5);
+            CharacterManager.Instance.UpdateCharacter(client, CharacterUpdate.Position, null);
             // save player time
-            CharacterManager.Instance.UpdateCharacter(client, 7);
+            CharacterManager.Instance.UpdateCharacter(client, CharacterUpdate.Login, null);
             // remove client from all channels
             for (var i = 0; i < client.MapClient.JoinedChannels; i++)
             {

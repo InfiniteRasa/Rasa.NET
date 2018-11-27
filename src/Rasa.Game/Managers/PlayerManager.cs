@@ -4,7 +4,6 @@ using System.Collections.Generic;
 namespace Rasa.Managers
 {
     using Data;
-    using Database.Tables.Auth;
     using Database.Tables.Character;
     using Game;
     using Packets;
@@ -258,7 +257,7 @@ namespace Rasa.Managers
         {
             client.MapClient.Player.Credits += credits;
             // update database with new character credits amount
-            CharacterManager.Instance.UpdateCharacter(client, 2);
+            CharacterManager.Instance.UpdateCharacter(client, CharacterUpdate.Credits, null);
             // inform owner
             client.CallMethod(client.MapClient.Player.Actor.EntityId, new UpdateCreditsPacket(CurencyType.Credits, client.MapClient.Player.Credits, credits));
             // send player message
@@ -326,13 +325,6 @@ namespace Rasa.Managers
                 pointsAvailable -= requiredSkillLevelPoints[skillLevel];
             }
             return Math.Max(0, pointsAvailable);
-        }
-
-        public void GiveLogos(Client client, int logosId)
-        {
-            client.MapClient.Player.Logos.Add(logosId);
-            CharacterLogosTable.SetLogos(client.AccountEntry.Id, client.AccountEntry.SelectedSlot, logosId);
-            client.CallMethod(client.MapClient.Player.Actor.EntityId, new LogosStoneTabulaPacket(client.MapClient.Player.Logos));
         }
 
         public void LevelSkills(Client client, LevelSkillsPacket packet)
@@ -637,6 +629,9 @@ namespace Rasa.Managers
 
         public void SaveCharacterOptions(Client client, SaveCharacterOptionsPacket packet)
         {
+            if (packet.OptionsList.Count == 0)
+                return;
+
             client.MapClient.Player.CharacterOptions = packet.OptionsList;
 
             var value = "";

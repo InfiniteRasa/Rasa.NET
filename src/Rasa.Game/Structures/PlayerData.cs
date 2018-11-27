@@ -36,7 +36,7 @@ namespace Rasa.Structures
         public uint CurrentTitle { get; set; }
         public int CurrentAbilityDrawer { get; set; }
         public Dictionary<int, MissionLog> Missions { get; set; } = new Dictionary<int, MissionLog>();
-        public int LoginTime { get; set; }
+        public DateTime LoginTime { get; set; }
         public List<int> Logos = new List<int>();
         public bool WeaponReady { get; set; }
         public uint TargetEntityId { get; set; }

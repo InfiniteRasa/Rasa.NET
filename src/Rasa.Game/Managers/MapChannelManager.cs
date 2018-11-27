@@ -49,6 +49,7 @@ namespace Rasa.Managers
                 return;
 
             client.MapClient.RemoveFromMap = true;
+            client.State = ClientState.LoggedIn;
         }
 
         public void CreatePlayerCharacter(Client client)
@@ -108,7 +109,7 @@ namespace Rasa.Managers
                 Abilities = GetPlayerAbilities(client.AccountEntry.Id, client.AccountEntry.SelectedSlot),
                 //CurrentAbilityDrawer = data.CurrentAbilityDrawer,
                 Missions = missionData,
-                LoginTime = 0,
+                LoginTime = DateTime.Now,
                 Logos = CharacterLogosTable.GetLogos(client.AccountEntry.Id, client.AccountEntry.SelectedSlot)
             };
             // register new Player
@@ -333,6 +334,7 @@ namespace Rasa.Managers
 
         public void MapLoaded(Client client)
         {
+            client.State = ClientState.Ingame;
             CreatePlayerCharacter(client);
             CommunicatorManager.Instance.RegisterPlayer(client);
             CommunicatorManager.Instance.PlayerEnterMap(client);
@@ -343,6 +345,7 @@ namespace Rasa.Managers
 
         public void PassClientToMapChannel(Client client, MapChannel mapChannel)
         {
+            client.State = ClientState.Loading;
             mapChannel.QueuedClients.Enqueue(client);
         }
 

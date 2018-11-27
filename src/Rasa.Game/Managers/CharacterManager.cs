@@ -1,4 +1,6 @@
-﻿namespace Rasa.Managers
+﻿using System;
+
+namespace Rasa.Managers
 {
     using Data;
     using Database.Tables.Character;
@@ -274,38 +276,45 @@
         }
 
         #region InGame
-        public void UpdateCharacter(Client client, int job)
+        public void UpdateCharacter(Client client, CharacterUpdate job, object value)
         {
             switch (job)
             {
-                case 1: // update level
+                case CharacterUpdate.Level:
                     break;
-                case 2: // updarte credits
+                case CharacterUpdate.Credits:
                     //CharacterTable.UpdateCharacterCredits(client.AccountEntry.Id, client.MapClient.Player.CharacterSlot, client.MapClient.Player.Credits);
                     break;
-                case 3: // update prestige
+                case CharacterUpdate.Prestige:
                     break;
-                case 4: // update experience
+                case CharacterUpdate.Expirience:
                     break;
-                case 5: // update possition
-                        /*CharacterTable.UpdateCharacterPos(
-                            client.AccountEntry.Id,
-                            client.MapClient.Player.CharacterSlot,
-                            client.MapClient.Player.Actor.Position.PosX,
-                            client.MapClient.Player.Actor.Position.PosY,
-                            client.MapClient.Player.Actor.Position.PosZ,
-                            client.MapClient.Player.Actor.Rotation.W ,  // ToDo rotation
-                            client.MapClient.Player.Actor.MapContextId
-                            ); */
+                case CharacterUpdate.Position:
+                    /*CharacterTable.UpdateCharacterPos(
+                        client.AccountEntry.Id,
+                        client.MapClient.Player.CharacterSlot,
+                        client.MapClient.Player.Actor.Position.PosX,
+                        client.MapClient.Player.Actor.Position.PosY,
+                        client.MapClient.Player.Actor.Position.PosZ,
+                        client.MapClient.Player.Actor.Rotation.W ,  // ToDo rotation
+                        client.MapClient.Player.Actor.MapContextId
+                        ); */
                     break;
-                case 6: // update stats
+                case CharacterUpdate.Stats:
                     break;
-                case 7: // update login
-                    //CharacterTable.UpdateCharacterLogin(client.AccountEntry.Id, client.MapClient.Player.CharacterSlot, client.MapClient.Player.LoginTime); // ToDO LoginTime need to be changed with proper value
+                case CharacterUpdate.Login:
+                    var totalTimePlayed = (DateTime.Now - client.MapClient.Player.LoginTime).Minutes + client.MapClient.Player.TotalTimePlayed;
+
+                    CharacterTable.UpdateCharacterLogin(client.MapClient.Player.CharacterId, (uint)totalTimePlayed, client.MapClient.Player.NumLogins);
                     break;
-                case 8: // update logos
+                case CharacterUpdate.Logos:
+                    client.MapClient.Player.Logos.Add((int)value);
+                    CharacterLogosTable.SetLogos(client.AccountEntry.Id, client.AccountEntry.SelectedSlot, (int)value);
+                    client.CallMethod(client.MapClient.Player.Actor.EntityId, new LogosStoneTabulaPacket(client.MapClient.Player.Logos));
                     break;
-                case 9: // update class
+                case CharacterUpdate.Class:
+                    break;
+                case CharacterUpdate.FullUpdate:
                     break;
                 default:
                     break;

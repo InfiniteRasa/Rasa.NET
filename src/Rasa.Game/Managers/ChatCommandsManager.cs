@@ -219,12 +219,9 @@ namespace Rasa.Managers
                 return;
             }
             if (parts.Length == 2)
-            {
                 if (int.TryParse(parts[1], out int logosId))
-                {
-                    PlayerManager.Instance.GiveLogos(_client, logosId);
-                }
-            }
+                    CharacterManager.Instance.UpdateCharacter(_client, CharacterUpdate.Logos, logosId);
+
             return;
         }
 

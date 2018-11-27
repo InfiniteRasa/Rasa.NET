@@ -32,7 +32,7 @@ namespace Rasa.Structures
             pw.WriteUInt(TotalTimePlayed);
 
             if (LastLogin.HasValue)
-                pw.WriteUInt((uint) Math.Floor((LastLogin.Value - DateTime.Now).TotalMinutes));
+                pw.WriteUInt((uint)Math.Floor((DateTime.Now - LastLogin.Value).TotalMinutes));
             else
                 pw.WriteUInt(0);
         }
