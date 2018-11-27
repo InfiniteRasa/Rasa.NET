@@ -18,7 +18,7 @@ namespace Rasa.Packets.Game.Server
         public Dictionary<EquipmentData, AppearanceData> AppearanceData { get; set; } = new Dictionary<EquipmentData, AppearanceData>();
         public CharacterData CharacterData { get; set; }
         public string FamilyName { get; set; }
-        public int GameContextId { get; set; }
+        public uint GameContextId { get; set; }
         public LoginData LoginData { get; set; }
         public ClanData ClanData { get; set; }
 
@@ -39,6 +39,7 @@ namespace Rasa.Packets.Game.Server
                 CharacterData = new CharacterData(Entry);
                 BodyData = new BodyData(Entry);
                 LoginData = new LoginData(Entry);
+                GameContextId = CharacterData.MapContextId;
 
                 foreach (var appearanceEntry in CharacterAppearanceTable.GetAppearances(entry.Id))
                 {
@@ -86,7 +87,7 @@ namespace Rasa.Packets.Game.Server
             if (GameContextId == 0)
                 pw.WriteNoneStruct();
             else
-                pw.WriteInt(GameContextId);
+                pw.WriteUInt(GameContextId);
 
             pw.WriteString("LoginData");
             pw.WriteStruct(LoginData);
