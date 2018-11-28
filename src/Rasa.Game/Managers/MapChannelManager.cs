@@ -389,24 +389,23 @@ namespace Rasa.Managers
             // unregister Actor
             EntityManager.Instance.UnregisterEntity(client.MapClient.Player.Actor.EntityId);
             EntityManager.Instance.UnregisterActor(client.MapClient.Player.Actor.EntityId);
+           
             // unregister character Inventory
-            for (var i = 0; i < 250; i++)
-                if (client.MapClient.Inventory.PersonalInventory[i] != 0)
-                {
-                    EntityManager.Instance.DestroyPhysicalEntity(client, client.MapClient.Inventory.PersonalInventory[i], EntityType.Item);
-                    client.MapClient.Inventory.PersonalInventory[i] = 0;
-                }
+            foreach (var item in client.MapClient.Inventory.EquippedInventory)
+                if (item.Value != 0)
+                    EntityManager.Instance.DestroyPhysicalEntity(client, item.Value, EntityType.Item);
 
-            foreach (var entry in client.MapClient.Inventory.EquippedInventory)
-                if (entry.Value != 0)
-                    EntityManager.Instance.DestroyPhysicalEntity(client, entry.Value, EntityType.Item);
+            foreach (var item in client.MapClient.Inventory.HomeInventory)
+                if (item.Value != 0)
+                    EntityManager.Instance.DestroyPhysicalEntity(client, item.Value, EntityType.Item);
 
-            for (var i = 0; i < 5; i++)
-                if (client.MapClient.Inventory.WeaponDrawer[i] != 0)
-                {
-                    EntityManager.Instance.DestroyPhysicalEntity(client, client.MapClient.Inventory.WeaponDrawer[i], EntityType.Item);
-                    client.MapClient.Inventory.WeaponDrawer[i] = 0;
-                }
+            foreach (var item in client.MapClient.Inventory.PersonalInventory)
+                if (item.Value != 0)
+                    EntityManager.Instance.DestroyPhysicalEntity(client, item.Value, EntityType.Item);
+
+            foreach (var item in client.MapClient.Inventory.WeaponDrawer)
+                if (item.Value != 0)
+                    EntityManager.Instance.DestroyPhysicalEntity(client, item.Value, EntityType.Item);
 
             // unregister from chat
             CommunicatorManager.Instance.UnregisterPlayer(client);

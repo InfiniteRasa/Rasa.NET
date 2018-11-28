@@ -7,7 +7,7 @@ namespace Rasa.Structures
         public uint CharacterSlot { get; set; }
         public int InventoryType { get; set; }
         public uint ItemId { get; set; }
-        public int SlotId { get; set; }
+        public uint SlotId { get; set; }
 
         public static CharacterInventoryEntry Read(MySqlDataReader reader)
         {
@@ -16,7 +16,7 @@ namespace Rasa.Structures
                 CharacterSlot = reader.GetUInt32("characterSlot"),
                 InventoryType = reader.GetInt32("inventoryType"),
                 ItemId = reader.GetUInt32("itemId"),
-                SlotId = reader.GetInt32("slotId")
+                SlotId = reader.GetUInt32("slotId")
             };
         }
     }

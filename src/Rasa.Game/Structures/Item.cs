@@ -15,7 +15,7 @@
         public uint ItemId { get; set; }
         // location info
         public uint OwnerId { get; set; }
-        public int OwnerSlotId { get; set; }
+        public uint OwnerSlotId { get; set; }
         // item instance specific
         public uint Color { get; set; }
         public string CrafterName { get; set; }

@@ -7,10 +7,10 @@
     {
         public override GameOpcode Opcode { get; } = GameOpcode.WeaponDrawerSlot;
 
-        public int SlotNum { get; set; }
+        public uint SlotNum { get; set; }
         public bool Requested { get; set;}
 
-        public WeaponDrawerSlotPacket(int slotNum, bool requested)
+        public WeaponDrawerSlotPacket(uint slotNum, bool requested)
         {
             SlotNum = slotNum;
             Requested = requested;
@@ -19,7 +19,7 @@
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(2);
-            pw.WriteInt(SlotNum);
+            pw.WriteUInt(SlotNum);
             pw.WriteBool(Requested);
         }
     }

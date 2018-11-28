@@ -36,7 +36,7 @@ namespace Rasa.Managers
         {
         }
 
-        public void AddItemBySlot(Client client, InventoryType inventoryType, uint entityId, int slotId, bool updateDB)
+        public void AddItemBySlot(Client client, InventoryType inventoryType, uint entityId, uint slotId, bool updateDB)
         {
             var tempItem = EntityManager.Instance.GetItem(entityId);
 
@@ -83,7 +83,7 @@ namespace Rasa.Managers
             var itemClassInfo = EntityClassManager.Instance.GetItemClassInfo(item);
 
             // get item category offset
-            var itemCategoryOffset = (int)item.ItemTemplate.InventoryCategory - 1;
+            var itemCategoryOffset = (uint)item.ItemTemplate.InventoryCategory - 1;
             if (itemCategoryOffset < 0 || itemCategoryOffset >= 5)
             {
                 Logger.WriteLog(LogType.Error, $"AddItemToInventory: ItemTemplateId = {item.ItemTemplate.ItemTemplateId} inventory category = {item.ItemTemplate.InventoryCategory} is invalid");
@@ -93,7 +93,7 @@ namespace Rasa.Managers
             itemCategoryOffset *= 50;
             var stackSizeChanged = false;
             // see if we can merge the item into an already existing item
-            for (var i = 0; i < 50; i++)
+            for (uint i = 1; i <= 50; i++)
                 if (client.MapClient.Inventory.PersonalInventory[itemCategoryOffset + i] != 0)
                 {
                     // get item
@@ -137,7 +137,7 @@ namespace Rasa.Managers
                 client.CallMethod(item.EntityId, new SetStackCountPacket(item.Stacksize));
 
             // find free slot
-            for (var i = 0; i < 50; i++)
+            for (uint i = 1; i <= 50; i++)
             {
                 if (client.MapClient.Inventory.PersonalInventory[itemCategoryOffset + i] == 0)
                 {
@@ -161,7 +161,7 @@ namespace Rasa.Managers
             return EntityManager.Instance.GetItem(mapClient.Inventory.WeaponDrawer[mapClient.Inventory.ActiveWeaponDrawer]);
         }
 
-        public int FreeSlotIndex(MapChannelClient mapClient, InventoryType inventoryType, int slotIndex)
+        public uint FreeSlotIndex(MapChannelClient mapClient, InventoryType inventoryType, uint slotIndex)
         {
             switch (inventoryType)
             {
@@ -224,24 +224,32 @@ namespace Rasa.Managers
 
         public void InitForClient(Client client)
         {
-            client.CallMethod(SysEntity.ClientInventoryManagerId, new InventoryCreatePacket { InventoryType = (int)InventoryType.Personal, InventorySize = 250 });
-            client.CallMethod(SysEntity.ClientInventoryManagerId, new InventoryCreatePacket { InventoryType = (int)InventoryType.HomeInventory, InventorySize = 480 });
-            client.CallMethod(SysEntity.ClientInventoryManagerId, new InventoryCreatePacket { InventoryType = (int)InventoryType.WeaponDrawerInventory, InventorySize = 5 });
-            client.CallMethod(SysEntity.ClientInventoryManagerId, new InventoryCreatePacket { InventoryType = (int)InventoryType.EquipedInventory, InventorySize = 22 });
-            
             InitCharacterInventory(client);
+
+            client.CallMethod(SysEntity.ClientInventoryManagerId, new InventoryCreatePacket(InventoryType.Personal, client.MapClient.Inventory.PersonalInventory, 250));
+            client.CallMethod(SysEntity.ClientInventoryManagerId, new InventoryCreatePacket(InventoryType.HomeInventory, client.MapClient.Inventory.HomeInventory, 480));
+            client.CallMethod(SysEntity.ClientInventoryManagerId, new InventoryCreatePacket(InventoryType.WeaponDrawerInventory, client.MapClient.Inventory.WeaponDrawer, 5));
+            client.CallMethod(SysEntity.ClientInventoryManagerId, new InventoryCreatePacket(InventoryType.EquipedInventory, client.MapClient.Inventory.EquippedInventory, 22));
+            
+            
         }
 
         public void InitCharacterInventory(Client client)
         {
             var getInventoryData = CharacterInventoryTable.GetItems(client.AccountEntry.Id);
-            
+
             // init for server inventory
-            for (int i = 0; i < 480; i++)
+            for (uint i = 1; i <= 21; i++)
+                client.MapClient.Inventory.EquippedInventory.Add(i, 0);
+
+            for (uint i = 1; i <= 480; i++)
                 client.MapClient.Inventory.HomeInventory.Add(i, 0);
 
-            for (int i = 1; i <= 21; i++)
-                client.MapClient.Inventory.EquippedInventory.Add(i, 0);
+            for (uint i = 1; i <= 250; i++)
+                client.MapClient.Inventory.PersonalInventory.Add(i, 0);
+
+            for (uint i = 1; i <= 5; i++)
+                client.MapClient.Inventory.WeaponDrawer.Add(i, 0);
 
             foreach (var item in getInventoryData)
             {
@@ -381,7 +389,7 @@ namespace Rasa.Managers
             }
         }
 
-        public void RemoveItemBySlot(Client client, InventoryType inventoryType, int slotIndex)
+        public void RemoveItemBySlot(Client client, InventoryType inventoryType, uint slotIndex)
         {
             var entityId = 0U;
 

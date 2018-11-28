@@ -9,15 +9,15 @@ namespace Rasa.Packets.MapChannel.Client
     {
         public override GameOpcode Opcode { get; } = GameOpcode.HomeInventory_MoveItem;
 
-        public int SrcSlot { get; set; }
-        public int DestSlot { get; set; }
+        public uint SrcSlot { get; set; }
+        public uint DestSlot { get; set; }
         public int Quantity { get; set; }
 
         public override void Read(PythonReader pr)
         {
             pr.ReadTuple();
-            SrcSlot = pr.ReadInt();
-            DestSlot = pr.ReadInt();
+            SrcSlot = pr.ReadUInt();
+            DestSlot = pr.ReadUInt();
             if (pr.PeekType() == PythonType.Int)
                 Quantity = pr.ReadInt();
             else if (pr.PeekType() == PythonType.Long)

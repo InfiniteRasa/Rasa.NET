@@ -7,16 +7,16 @@
     {
         public override GameOpcode Opcode { get; } = GameOpcode.RequestEquipArmor;
 
-        public int SrcSlot { get; set; }        // Source Slot
-        public int SrcInventory { get; set; }   // Source Inventory
-        public int DestSlot { get; set; }       // Destination Slot
+        public uint SrcSlot { get; set; }        // Source Slot
+        public uint SrcInventory { get; set; }   // Source Inventory
+        public uint DestSlot { get; set; }       // Destination Slot
 
         public override void Read(PythonReader pr)
         {
             pr.ReadTuple();
-            SrcSlot = pr.ReadInt();
-            SrcInventory = pr.ReadInt();
-            DestSlot = pr.ReadInt();
+            SrcSlot = pr.ReadUInt();
+            SrcInventory = pr.ReadUInt();
+            DestSlot = pr.ReadUInt();
         }
     }
 }

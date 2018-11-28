@@ -1,4 +1,6 @@
-﻿namespace Rasa.Packets.MapChannel.Server
+﻿using System.Collections.Generic;
+
+namespace Rasa.Packets.MapChannel.Server
 {
     using Data;
     using Memory;
@@ -7,15 +9,28 @@
     {
         public override GameOpcode Opcode { get; } = GameOpcode.InventoryCreate;
 
-        public int InventoryType { get; set; }
-        public int ListOfItems { get; set; }    // ToDo, rewrite to list later
+        public InventoryType InventoryType { get; set; }
+        public Dictionary<uint, uint> ListOfItems = new Dictionary<uint, uint>();
         public int InventorySize { get; set; }
+
+        public InventoryCreatePacket(InventoryType inventoryType, Dictionary<uint, uint> listOfItems, int inventorySize)
+        {
+            InventoryType = inventoryType;
+            ListOfItems = listOfItems;
+            InventorySize = inventorySize;
+        }
 
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(3);
-            pw.WriteInt(InventoryType);
-            pw.WriteList(0);    // ToDo
+            pw.WriteInt((int)InventoryType);
+            pw.WriteList(ListOfItems.Count);
+            foreach (var entry in ListOfItems)
+            {
+                pw.WriteUInt(entry.Value);
+                pw.WriteUInt(entry.Key);
+            }
+
             pw.WriteInt(InventorySize);
         }
     }

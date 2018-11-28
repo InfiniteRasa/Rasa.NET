@@ -9,9 +9,9 @@ namespace Rasa.Packets.MapChannel.Server
     {
         public override GameOpcode Opcode { get; } = GameOpcode.EquipmentInfo;
 
-        public Dictionary<int, uint> EquipmentInfo { get; set; }
+        public Dictionary<uint,uint> EquipmentInfo { get; set; }
 
-        public EquipmentInfoPacket(Dictionary<int, uint> equipmentInfo)
+        public EquipmentInfoPacket(Dictionary<uint,uint> equipmentInfo)
         {
             EquipmentInfo = equipmentInfo;
         }
@@ -20,11 +20,11 @@ namespace Rasa.Packets.MapChannel.Server
         {
             pw.WriteTuple(1);
             pw.WriteList(EquipmentInfo.Count);
-            foreach (var equipment in EquipmentInfo)
+            foreach (var entry in EquipmentInfo)
             {
                 pw.WriteTuple(2);
-                pw.WriteInt(equipment.Key);
-                pw.WriteUInt(equipment.Value);
+                pw.WriteUInt(entry.Key);
+                pw.WriteUInt(entry.Value);
             }
 
         }

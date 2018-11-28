@@ -20,7 +20,7 @@ namespace Rasa.Database.Tables.Character
             AddInvItemCommand.Parameters.Add("@AccountId", MySqlDbType.UInt32);
             AddInvItemCommand.Parameters.Add("@CharacterSlot", MySqlDbType.UInt32);
             AddInvItemCommand.Parameters.Add("@InventoryType", MySqlDbType.Int32);
-            AddInvItemCommand.Parameters.Add("@SlotId", MySqlDbType.Int32);
+            AddInvItemCommand.Parameters.Add("@SlotId", MySqlDbType.UInt32);
             AddInvItemCommand.Parameters.Add("@ItemId", MySqlDbType.UInt32);
             AddInvItemCommand.Prepare();
 
@@ -28,7 +28,7 @@ namespace Rasa.Database.Tables.Character
             DeleteInvItemCommand.Parameters.Add("@AccountId", MySqlDbType.UInt32);
             DeleteInvItemCommand.Parameters.Add("@CharacterSlot", MySqlDbType.UInt32);
             DeleteInvItemCommand.Parameters.Add("@InventoryType", MySqlDbType.Int32);
-            DeleteInvItemCommand.Parameters.Add("@SlotId", MySqlDbType.Int32);
+            DeleteInvItemCommand.Parameters.Add("@SlotId", MySqlDbType.UInt32);
             DeleteInvItemCommand.Prepare();
 
             GetInvItemsCommand.Connection = GameDatabaseAccess.CharConnection;
@@ -39,12 +39,12 @@ namespace Rasa.Database.Tables.Character
             MoveInvItemCommand.Parameters.Add("@AccountId", MySqlDbType.UInt32);
             MoveInvItemCommand.Parameters.Add("@CharacterSlot", MySqlDbType.UInt32);
             MoveInvItemCommand.Parameters.Add("@InventoryType", MySqlDbType.Int32);
-            MoveInvItemCommand.Parameters.Add("@SlotId", MySqlDbType.Int32);
+            MoveInvItemCommand.Parameters.Add("@SlotId", MySqlDbType.UInt32);
             MoveInvItemCommand.Parameters.Add("@ItemId", MySqlDbType.UInt32);
             MoveInvItemCommand.Prepare();
         }
 
-        public static void AddInvItem(uint accountId, uint characterSlot, int inventoryType, int slotId, uint itemId)
+        public static void AddInvItem(uint accountId, uint characterSlot, int inventoryType, uint slotId, uint itemId)
         {
             
             lock (GameDatabaseAccess.CharLock)
@@ -58,7 +58,7 @@ namespace Rasa.Database.Tables.Character
             }
         }
 
-        public static void DeleteInvItem(uint accountId, uint characterSlot, int inventoryType, int slotId)
+        public static void DeleteInvItem(uint accountId, uint characterSlot, int inventoryType, uint slotId)
         {
             lock (GameDatabaseAccess.CharLock)
             {
@@ -84,7 +84,7 @@ namespace Rasa.Database.Tables.Character
             }
         }
 
-        public static void MoveInvItem(uint accountId, uint characterSlot, int inventoryType, int slotId, uint itemId)
+        public static void MoveInvItem(uint accountId, uint characterSlot, int inventoryType, uint slotId, uint itemId)
         {
             lock (GameDatabaseAccess.CharLock)
             {

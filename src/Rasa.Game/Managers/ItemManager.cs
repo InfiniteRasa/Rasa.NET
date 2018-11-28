@@ -2,7 +2,6 @@
 
 namespace Rasa.Managers
 {
-    using System;
     using Data;
     using Database.Tables.Character;
     using Database.Tables.World;
@@ -118,7 +117,7 @@ namespace Rasa.Managers
             return item;
         }
 
-        public Item GetItemFromTemplateId(uint itemId, uint characterSlot, int slotId, uint itemTemplateId, int stackSize)
+        public Item GetItemFromTemplateId(uint itemId, uint characterSlot, uint slotId, uint itemTemplateId, int stackSize)
         {
             var itemTemplate = GetItemTemplateById(itemTemplateId);
 
