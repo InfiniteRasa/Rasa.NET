@@ -20,6 +20,12 @@
             CharacterManager.Instance.RequestFamilyName(Client);
         }
 
+        [PacketHandler(GameOpcode.RequestCloneCharacterToSlot)]
+        private void RequestCloneCharacterToSlot(RequestCloneCharacterToSlotPacket packet)
+        {
+            CharacterManager.Instance.RequestCloneCharacterToSlot(Client, packet);
+        }
+
         [PacketHandler(GameOpcode.RequestCreateCharacterInSlot)]
         private void RequestCreateCharacterInSlot(RequestCreateCharacterInSlotPacket packet)
         {

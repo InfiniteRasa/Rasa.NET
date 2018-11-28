@@ -60,8 +60,8 @@ namespace Rasa.Managers
             }
 
             client.State = ClientState.CharacterSelection;
-			
-			// get userOptions
+
+            // get userOptions
             var optionsList = UserOptionsTable.GetUserOptions(client.AccountEntry.Id);
 
             foreach (var userOption in optionsList)
@@ -74,7 +74,7 @@ namespace Rasa.Managers
         {
             client.CallMethod(SysEntity.ClientMethodId, new GeneratedCharacterNamePacket
             {
-                Name = PlayerRandomNameTable.GetRandom((PlayerRandomNameTable.Gender) gender, PlayerRandomNameTable.NameType.First) ?? (gender == 0 ? "Richard" : "Rachel")
+                Name = PlayerRandomNameTable.GetRandom((PlayerRandomNameTable.Gender)gender, PlayerRandomNameTable.NameType.First) ?? (gender == 0 ? "Richard" : "Rachel")
             });
         }
 
@@ -84,6 +84,87 @@ namespace Rasa.Managers
             {
                 Name = PlayerRandomNameTable.GetRandom(PlayerRandomNameTable.Gender.Neutral, PlayerRandomNameTable.NameType.Last) ?? "Garriott"
             });
+        }
+
+        public void RequestCloneCharacterToSlot(Client client, RequestCloneCharacterToSlotPacket packet)
+        {
+            var result = packet.Validate();
+            if (result != CreateCharacterResult.Success)
+            {
+                SendCharacterCreateFailed(client, result);
+                return;
+            }
+
+            CharacterEntry entry;
+            var clonedCharacter = CharacterTable.GetCharacter(client.AccountEntry.Id, packet.CloneSlotNum);
+
+            lock (CreateLock)
+            {
+                entry = new CharacterEntry
+                {
+                    AccountId = client.AccountEntry.Id,
+                    Slot = packet.SlotNum,
+                    Name = packet.CharacterName,
+                    Race = (byte)packet.RaceId,
+                    Class = clonedCharacter.Class,
+                    Scale = packet.Scale,
+                    Gender = packet.Gender,
+                    Experience = clonedCharacter.Experience,
+                    Level = clonedCharacter.Level,
+                    Body = clonedCharacter.Body,
+                    Mind = clonedCharacter.Mind,
+                    Spirit = clonedCharacter.Spirit,
+                    MapContextId = clonedCharacter.MapContextId,
+                    CoordX = clonedCharacter.CoordX,
+                    CoordY = clonedCharacter.CoordY,
+                    CoordZ = clonedCharacter.CoordZ,
+                    Rotation = clonedCharacter.Rotation
+                };
+
+                if (!CharacterTable.CreateCharacter(entry))
+                {
+                    SendCharacterCreateFailed(client, CreateCharacterResult.TechnicalDifficulty);
+                    return;
+                }
+
+                // Set character appearance
+                CharacterAppearanceTable.AddAppearance(entry.Id, new CharacterAppearanceEntry(entry.Id, (uint)EquipmentData.Helmet, 10908, 2139062144));
+                CharacterAppearanceTable.AddAppearance(entry.Id, new CharacterAppearanceEntry(entry.Id, (uint)EquipmentData.Shoes, 7054, 2139062144));
+                CharacterAppearanceTable.AddAppearance(entry.Id, new CharacterAppearanceEntry(entry.Id, (uint)EquipmentData.Gloves, 10909, 2139062144));
+                CharacterAppearanceTable.AddAppearance(entry.Id, new CharacterAppearanceEntry(entry.Id, (uint)EquipmentData.Torso, 7052, 2139062144));
+                CharacterAppearanceTable.AddAppearance(entry.Id, new CharacterAppearanceEntry(entry.Id, (uint)EquipmentData.Legs, 7053, 2139062144));
+
+                foreach (var data in packet.AppearanceData)
+                {
+                    data.Value.Class = (EntityClassId)StarterItemsTable.GetClassId((uint)data.Value.Class);
+                    CharacterAppearanceTable.AddAppearance(entry.Id, data.Value.GetDatabaseEntry(entry.Id));
+                }
+            }
+
+            // Give character basic items
+            CharacterInventoryTable.AddInvItem(client.AccountEntry.Id, packet.SlotNum, (int)InventoryType.Personal, 0, ItemsTable.CreateItem(17131, 1, EntityClassManager.Instance.LoadedEntityClasses[ItemManager.Instance.ItemTemplateItemClass[17131]].ItemClassInfo.MaxHitPoints, 2139062144));
+            CharacterInventoryTable.AddInvItem(client.AccountEntry.Id, packet.SlotNum, (int)InventoryType.Personal, 50, ItemsTable.CreateItem(28, 100, EntityClassManager.Instance.LoadedEntityClasses[ItemManager.Instance.ItemTemplateItemClass[28]].ItemClassInfo.MaxHitPoints, 2139062144));
+            CharacterInventoryTable.AddInvItem(client.AccountEntry.Id, packet.SlotNum, (int)InventoryType.EquipedInventory, 1, ItemsTable.CreateItem(13126, 1, EntityClassManager.Instance.LoadedEntityClasses[ItemManager.Instance.ItemTemplateItemClass[13126]].ItemClassInfo.MaxHitPoints, 2139062144));
+            CharacterInventoryTable.AddInvItem(client.AccountEntry.Id, packet.SlotNum, (int)InventoryType.EquipedInventory, 2, ItemsTable.CreateItem(13066, 1, EntityClassManager.Instance.LoadedEntityClasses[ItemManager.Instance.ItemTemplateItemClass[13066]].ItemClassInfo.MaxHitPoints, 2139062144));
+            CharacterInventoryTable.AddInvItem(client.AccountEntry.Id, packet.SlotNum, (int)InventoryType.EquipedInventory, 3, ItemsTable.CreateItem(13096, 1, EntityClassManager.Instance.LoadedEntityClasses[ItemManager.Instance.ItemTemplateItemClass[13096]].ItemClassInfo.MaxHitPoints, 2139062144));
+            CharacterInventoryTable.AddInvItem(client.AccountEntry.Id, packet.SlotNum, (int)InventoryType.EquipedInventory, 15, ItemsTable.CreateItem(13186, 1, EntityClassManager.Instance.LoadedEntityClasses[ItemManager.Instance.ItemTemplateItemClass[13186]].ItemClassInfo.MaxHitPoints, 2139062144));
+            CharacterInventoryTable.AddInvItem(client.AccountEntry.Id, packet.SlotNum, (int)InventoryType.EquipedInventory, 16, ItemsTable.CreateItem(13156, 1, EntityClassManager.Instance.LoadedEntityClasses[ItemManager.Instance.ItemTemplateItemClass[13156]].ItemClassInfo.MaxHitPoints, 2139062144));
+
+            // Create default entry in CharacterAbilitiesTable
+            for (var i = 0; i < 25; i++)
+                CharacterAbilityDrawerTable.SetCharacterAbility(client.AccountEntry.Id, packet.SlotNum, i, 0, 0);
+
+            client.CallMethod(SysEntity.ClientMethodId, new CharacterCreateSuccessPacket(packet.SlotNum, client.AccountEntry.FamilyName));
+            ++client.AccountEntry.CharacterCount;
+
+            SendCharacterInfo(client, packet.SlotNum, entry, false);
+
+            // reduce cloneCredit on cloned character
+            clonedCharacter.CloneCredits--;
+            CharacterTable.UpdateCharacterCloneCredits(clonedCharacter.Id, clonedCharacter.CloneCredits);
+
+            // update character selection pod
+            SendCharacterInfo(client, clonedCharacter.Slot, clonedCharacter, false);
         }
 
         public void RequestCreateCharacterInSlot(Client client, RequestCreateCharacterInSlotPacket packet)
@@ -280,15 +361,35 @@ namespace Rasa.Managers
         {
             switch (job)
             {
-                case CharacterUpdate.Level:
+                case CharacterUpdate.Class:
                     break;
+
+                case CharacterUpdate.CloneCredits:
+                    CharacterTable.UpdateCharacterCloneCredits(client.MapClient.Player.CharacterId, client.MapClient.Player.CloneCredits);
+                    break;
+
                 case CharacterUpdate.Credits:
                     //CharacterTable.UpdateCharacterCredits(client.AccountEntry.Id, client.MapClient.Player.CharacterSlot, client.MapClient.Player.Credits);
                     break;
-                case CharacterUpdate.Prestige:
-                    break;
+
                 case CharacterUpdate.Expirience:
                     break;
+
+                case CharacterUpdate.Level:
+                    break;
+
+                case CharacterUpdate.Login:
+                    var totalTimePlayed = (DateTime.Now - client.MapClient.Player.LoginTime).Minutes + client.MapClient.Player.TotalTimePlayed;
+
+                    CharacterTable.UpdateCharacterLogin(client.MapClient.Player.CharacterId, (uint)totalTimePlayed, client.MapClient.Player.NumLogins);
+                    break;
+
+                case CharacterUpdate.Logos:
+                    client.MapClient.Player.Logos.Add((int)value);
+                    CharacterLogosTable.SetLogos(client.AccountEntry.Id, client.AccountEntry.SelectedSlot, (int)value);
+                    client.CallMethod(client.MapClient.Player.Actor.EntityId, new LogosStoneTabulaPacket(client.MapClient.Player.Logos));
+                    break;
+
                 case CharacterUpdate.Position:
                     /*CharacterTable.UpdateCharacterPos(
                         client.AccountEntry.Id,
@@ -300,25 +401,15 @@ namespace Rasa.Managers
                         client.MapClient.Player.Actor.MapContextId
                         ); */
                     break;
+
+                case CharacterUpdate.Prestige:
+                    break;
+
                 case CharacterUpdate.Stats:
                     break;
-                case CharacterUpdate.Login:
-                    var totalTimePlayed = (DateTime.Now - client.MapClient.Player.LoginTime).Minutes + client.MapClient.Player.TotalTimePlayed;
 
-                    CharacterTable.UpdateCharacterLogin(client.MapClient.Player.CharacterId, (uint)totalTimePlayed, client.MapClient.Player.NumLogins);
-                    break;
-                case CharacterUpdate.Logos:
-                    client.MapClient.Player.Logos.Add((int)value);
-                    CharacterLogosTable.SetLogos(client.AccountEntry.Id, client.AccountEntry.SelectedSlot, (int)value);
-                    client.CallMethod(client.MapClient.Player.Actor.EntityId, new LogosStoneTabulaPacket(client.MapClient.Player.Logos));
-                    break;
-                case CharacterUpdate.Class:
-                    break;
-                case CharacterUpdate.FullUpdate:
-                    break;
                 default:
                     break;
-
             }
         }
         #endregion
