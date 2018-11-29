@@ -176,6 +176,11 @@ namespace Rasa.Managers
             foreach (var skillReq in itemSkillReq)
                 LoadedItemTemplates[skillReq.ItemTemplateId].EquipableInfo = new EquipableInfo(skillReq.SkillId, skillReq.SkillLevel);
 
+            // add resistance data to itemTemplate
+            var itemTemplateResistance = ItemTemplateResistanceTable.GetItemTemplateResistance();
+            foreach (var resistance in itemTemplateResistance)
+                LoadedItemTemplates[resistance.ItemTemplateId].EquipableInfo.ResistList.Add(new ResistanceData((DamageType)resistance.ResistanceType, resistance.ResistanceValue));
+
             // add item requirements to itemTemplate
             var itemReqs = ItemTemplateRequirementsTable.GetItemTemplateRequirements();
             var loaded = 0;

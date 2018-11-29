@@ -31,7 +31,7 @@ namespace Rasa.Structures
     {
         public int SkillId { get; set; }
         public int SkillLevel { get; set; }
-        public List<int> ResistList { get; set; }
+        public List<ResistanceData> ResistList = new List<ResistanceData>();
 
         public EquipableInfo(int skillId, int skillLevel)
         {

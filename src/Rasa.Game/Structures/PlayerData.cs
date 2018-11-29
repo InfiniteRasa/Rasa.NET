@@ -27,6 +27,7 @@ namespace Rasa.Structures
         public uint LockboxTabs { get; set; }
         public int Credits { get; set; }
         public int Prestige { get; set; }
+        public List<ResistanceData> ResistanceData = new List<ResistanceData>();
         public int SpentBody { get; set; }
         public int SpentMind { get; set; }
         public int SpentSpirit { get; set; }

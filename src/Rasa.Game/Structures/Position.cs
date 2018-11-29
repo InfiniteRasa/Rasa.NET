@@ -1,4 +1,5 @@
 ﻿using System;
+
 namespace Rasa.Structures
 {
     public class Position

@@ -442,19 +442,60 @@ namespace Rasa.Managers
             
             // can we equip the item?
             Item itemToEquip = null;
+            var canEquipItem = true;
 
             if (entityIdInventoryItem != 0)
             {
                 itemToEquip = EntityManager.Instance.GetItem(entityIdInventoryItem);
                 // min level criteria met?
-                if (itemToEquip != null && itemToEquip.ItemTemplate.ItemInfo.Requirements.ContainsKey(RequirementsType.ReqXpLevel))
-                    if (client.MapClient.Player.Level < itemToEquip.ItemTemplate.ItemInfo.Requirements[RequirementsType.ReqXpLevel])
+                if (itemToEquip != null)
+                    foreach (var requirement in itemToEquip.ItemTemplate.ItemInfo.Requirements)
                     {
-                        // level too low, cannot equip item
-                        CommunicatorManager.Instance.SystemMessage(client, "Level too low, cannot equip item.");
-                        return;
+                        switch (requirement.Key)
+                        {
+                            case RequirementsType.ReqXpLevel:
+                                if (client.MapClient.Player.Level < itemToEquip.ItemTemplate.ItemInfo.Requirements[RequirementsType.ReqXpLevel])
+                                    CommunicatorManager.Instance.SystemMessage(client, "Level too low, cannot equip item.");
+
+                                canEquipItem = false;
+                                break;
+
+                            case RequirementsType.ReqBody:
+                                if (client.MapClient.Player.Actor.Attributes[Attributes.Body].Current < itemToEquip.ItemTemplate.ItemInfo.Requirements[RequirementsType.ReqBody])
+                                    CommunicatorManager.Instance.SystemMessage(client, "Body attribute too low, cannot equip item.");
+
+                                canEquipItem = false;
+                                break;
+
+                            case RequirementsType.ReqMind:
+                                if (client.MapClient.Player.Actor.Attributes[Attributes.Mind].Current < itemToEquip.ItemTemplate.ItemInfo.Requirements[RequirementsType.ReqMind])
+                                    CommunicatorManager.Instance.SystemMessage(client, "Mind attribute too low, cannot equip item.");
+
+                                canEquipItem = false;
+                                break;
+
+                            case RequirementsType.ReqSpirit:
+                                if (client.MapClient.Player.Actor.Attributes[Attributes.Spirit].Current < itemToEquip.ItemTemplate.ItemInfo.Requirements[RequirementsType.ReqSpirit])
+                                    CommunicatorManager.Instance.SystemMessage(client, "Spirit attribute too low, cannot equip item.");
+
+                                canEquipItem = false;
+                                break;
+
+                            case RequirementsType.ReqXpLevelMax:
+                                if (client.MapClient.Player.Level > itemToEquip.ItemTemplate.ItemInfo.Requirements[RequirementsType.ReqXpLevelMax])
+                                    CommunicatorManager.Instance.SystemMessage(client, "Level too high, cannot equip item.");
+                                canEquipItem = false;
+                                break;
+
+                            default:
+                                Logger.WriteLog(LogType.Error, $"Unknown RequirementsType {requirement.Key}");
+                                break;
+                        }
                     }
             }
+
+            if (!canEquipItem)
+                return;
             
             // swap items on the client and server
             if (client.MapClient.Inventory.PersonalInventory[(int)packet.SrcSlot] != 0)

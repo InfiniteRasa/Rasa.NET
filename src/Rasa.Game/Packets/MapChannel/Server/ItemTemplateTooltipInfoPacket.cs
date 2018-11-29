@@ -68,7 +68,7 @@
                     case AugmentationType.Equipable:
                         pw.WriteInt((int)AugmentationType.Equipable);
                         pw.WriteTuple(2);
-                        if (ItemTemplate.EquipableInfo != null)
+                        if (ItemTemplate.EquipableInfo != null)                             // skillRequirement data
                         {
                             pw.WriteTuple(2);
                             pw.WriteInt(ItemTemplate.EquipableInfo.SkillId);
@@ -76,10 +76,20 @@
                         }
                         else
                             pw.WriteNoneStruct();
-                        pw.WriteList(1);
-                        pw.WriteTuple(2);
-                            pw.WriteInt(2);         // resitType
-                            pw.WriteInt(5);         // resitValue
+
+                        if (ItemTemplate.EquipableInfo != null)                             // resistance data
+                        {
+                            pw.WriteList(ItemTemplate.EquipableInfo.ResistList.Count);
+                            foreach (var resistance in ItemTemplate.EquipableInfo.ResistList)
+                            {
+                                pw.WriteTuple(2);
+                                pw.WriteInt((int)resistance.ResistanceType);
+                                pw.WriteInt(resistance.ResistanceAmmount);
+                            }
+                        }
+                        else
+                            pw.WriteNoneStruct();
+
                         break;
 
                     case AugmentationType.Item:

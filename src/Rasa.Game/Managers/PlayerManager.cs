@@ -251,6 +251,7 @@ namespace Rasa.Managers
                     new AttributeInfoPacket(player.Actor.Attributes),
                     new PreloadDataPacket(),   // ToDo
                     new AppearanceDataPacket(player.AppearanceData),
+                    new ResistanceDataPacket(player.ResistanceData),
                     new ActorControllerInfoPacket(true),
                     new LevelPacket(player.Level),
                     new CharacterClassPacket(player.Class),
