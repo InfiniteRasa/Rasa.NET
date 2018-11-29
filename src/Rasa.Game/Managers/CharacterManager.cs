@@ -361,6 +361,10 @@ namespace Rasa.Managers
         {
             switch (job)
             {
+                case CharacterUpdate.Attributes:
+                    CharacterTable.UpdateCharacterAttributes(client.MapClient.Player.CharacterId, client.MapClient.Player.SpentBody, client.MapClient.Player.SpentMind, client.MapClient.Player.SpentSpirit);
+                    break;
+
                 case CharacterUpdate.Class:
                     break;
 

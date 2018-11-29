@@ -13,11 +13,17 @@
         {
             Client = client;
         }
-       
+
         [PacketHandler(GameOpcode.AcceptPartyInvitesChanged)]
         private void AcceptPartyInvitesChanged(AcceptPartyInvitesChangedPacket packet)
         {
             Logger.WriteLog(LogType.Debug, "ToDo AcceptPartyInvitesChanged");
+        }
+
+        [PacketHandler(GameOpcode.AllocateAttributePoints)]
+        private void AllocateAttributePoints(AllocateAttributePointsPacket packet)
+        {
+            PlayerManager.Instance.AllocateAttributePoints(Client, packet);
         }
 
         [PacketHandler(GameOpcode.AssignNPCMission)]

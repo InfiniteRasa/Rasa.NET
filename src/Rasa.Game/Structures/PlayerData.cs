@@ -50,6 +50,9 @@ namespace Rasa.Structures
             Class = character.Class;
             Experience = character.Experience;
             Level = character.Level;
+            SpentBody = character.Body;
+            SpentMind = character.Mind;
+            SpentSpirit = character.Spirit;
             CloneCredits = character.CloneCredits;
             NumLogins = character.NumLogins + 1;
             TotalTimePlayed = character.TotalTimePlayed;

@@ -657,11 +657,12 @@ namespace Rasa.Managers
             // note: Players can only sell items directly from their personal inventory
             //       so we only have to scan there for the item entityId
             var slotIndex = 0U;
-            for (uint i = 1; i <= 250; i++)
+
+            for (var i = 0; i < 250; i++)
             {
                 if (client.MapClient.Inventory.PersonalInventory[i] == itemEntityId)
                 {
-                    slotIndex = i;
+                    slotIndex = (uint)i;
                     break;
                 }
             }

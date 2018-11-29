@@ -13,6 +13,7 @@ namespace Rasa.Database.Tables.Character
         private static readonly MySqlCommand ListCharactersCommand = new MySqlCommand("SELECT * FROM `character` WHERE `account_id` = @AccountId");
         private static readonly MySqlCommand GetCharacterCommand = new MySqlCommand("SELECT * FROM `character` WHERE `account_id` = @AccountId AND slot = @Slot");
         private static readonly MySqlCommand DeleteCharacterCommand = new MySqlCommand("DELETE FROM `character` WHERE `id` = @Id");
+        private static readonly MySqlCommand UpdateCharacterAttributesCommand = new MySqlCommand("UPDATE `character` SET `body` = @Body, `mind` = @Mind, `spirit` = @Spirit WHERE `id` = @Id");
         private static readonly MySqlCommand UpdateCharacterCloneCreditsCommand = new MySqlCommand("UPDATE `character` SET `clone_credits` = @CloneCredits WHERE `id` = @Id");
         private static readonly MySqlCommand UpdateCharacterLoginCommand = new MySqlCommand("UPDATE `character` SET `num_logins` = @NumLogins, `last_login` = NOW(), `total_time_played` = @TotalTimePlayed WHERE `id` = @Id");
 
@@ -50,6 +51,13 @@ namespace Rasa.Database.Tables.Character
             DeleteCharacterCommand.Connection = GameDatabaseAccess.CharConnection;
             DeleteCharacterCommand.Parameters.Add("@Id", MySqlDbType.UInt32);
             DeleteCharacterCommand.Prepare();
+
+            UpdateCharacterAttributesCommand.Connection = GameDatabaseAccess.CharConnection;
+            UpdateCharacterAttributesCommand.Parameters.Add("@Id", MySqlDbType.UInt32);
+            UpdateCharacterAttributesCommand.Parameters.Add("@Body", MySqlDbType.Int32);
+            UpdateCharacterAttributesCommand.Parameters.Add("@Mind", MySqlDbType.Int32);
+            UpdateCharacterAttributesCommand.Parameters.Add("@Spirit", MySqlDbType.Int32);
+            UpdateCharacterAttributesCommand.Prepare();
 
             UpdateCharacterCloneCreditsCommand.Connection = GameDatabaseAccess.CharConnection;
             UpdateCharacterCloneCreditsCommand.Parameters.Add("@Id", MySqlDbType.UInt32);
@@ -148,6 +156,18 @@ namespace Rasa.Database.Tables.Character
         public static void UpdateCharacterPosition(uint characterId, double posX, double posY, double posZ, double rotation, uint mapId)
         {
             throw new NotImplementedException();
+        }
+
+        public static void UpdateCharacterAttributes(uint characterId, int body, int mind, int spirit)
+        {
+            lock (GameDatabaseAccess.CharLock)
+            {
+                UpdateCharacterAttributesCommand.Parameters["@Id"].Value = characterId;
+                UpdateCharacterAttributesCommand.Parameters["@Body"].Value = body;
+                UpdateCharacterAttributesCommand.Parameters["@Mind"].Value = mind;
+                UpdateCharacterAttributesCommand.Parameters["@Spirit"].Value = spirit;
+                UpdateCharacterAttributesCommand.ExecuteNonQuery();
+            }
         }
 
         public static void UpdateCharacterCloneCredits(uint characterId, uint cloneCredits)

@@ -2,16 +2,16 @@
 {
     public enum CharacterUpdate
     {
-        Class           = 1,
-        CloneCredits    = 2,
-        Credits         = 3,
-        Expirience      = 4,
-        Level           = 5,
-        Login           = 6,
-        Logos           = 7,
-        Position        = 8,
-        Prestige        = 9,
-        Stats           = 10
+        Attributes      = 1,
+        Class           = 2,
+        CloneCredits    = 3,
+        Credits         = 4,
+        Expirience      = 5,
+        Level           = 6,
+        Login           = 7,
+        Logos           = 8,
+        Position        = 9,
+        Prestige        = 10,
+        Stats           = 11
     }
 }
-       

@@ -9,9 +9,9 @@
         public uint MapContextId { get; set; }
         public uint ExpPoints { get; set; }
         public byte ExpLevel { get; set; }
-        public uint Body { get; set; }
-        public uint Mind { get; set; }
-        public uint Spirit { get; set; }
+        public int Body { get; set; }
+        public int Mind { get; set; }
+        public int Spirit { get; set; }
         public uint Class { get; set; }
         public uint CloneCredits { get; set; }
         public Race RaceId { get; set; }
@@ -37,9 +37,9 @@
             MapContextId = pr.ReadUInt();
             ExpPoints = pr.ReadUInt();
             ExpLevel = (byte) pr.ReadInt();
-            Body = pr.ReadUInt();
-            Mind = pr.ReadUInt();
-            Spirit = pr.ReadUInt();
+            Body = pr.ReadInt();
+            Mind = pr.ReadInt();
+            Spirit = pr.ReadInt();
             Class = pr.ReadUInt();
             CloneCredits = pr.ReadUInt();
             RaceId = (Race) pr.ReadInt();
@@ -52,9 +52,9 @@
             pw.WriteUInt(MapContextId);
             pw.WriteUInt(ExpPoints);
             pw.WriteInt(ExpLevel);
-            pw.WriteUInt(Body);
-            pw.WriteUInt(Mind);
-            pw.WriteUInt(Spirit);
+            pw.WriteInt(Body);
+            pw.WriteInt(Mind);
+            pw.WriteInt(Spirit);
             pw.WriteUInt(Class);
             pw.WriteUInt(CloneCredits);
             pw.WriteInt((int) RaceId);

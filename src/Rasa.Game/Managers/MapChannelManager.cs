@@ -391,21 +391,21 @@ namespace Rasa.Managers
             EntityManager.Instance.UnregisterActor(client.MapClient.Player.Actor.EntityId);
            
             // unregister character Inventory
-            foreach (var item in client.MapClient.Inventory.EquippedInventory)
-                if (item.Value != 0)
-                    EntityManager.Instance.DestroyPhysicalEntity(client, item.Value, EntityType.Item);
+            foreach (var entityId in client.MapClient.Inventory.EquippedInventory)
+                if (entityId != 0)
+                    EntityManager.Instance.DestroyPhysicalEntity(client, entityId, EntityType.Item);
 
-            foreach (var item in client.MapClient.Inventory.HomeInventory)
-                if (item.Value != 0)
-                    EntityManager.Instance.DestroyPhysicalEntity(client, item.Value, EntityType.Item);
+            foreach (var entityId in client.MapClient.Inventory.HomeInventory)
+                if (entityId != 0)
+                    EntityManager.Instance.DestroyPhysicalEntity(client, entityId, EntityType.Item);
 
-            foreach (var item in client.MapClient.Inventory.PersonalInventory)
-                if (item.Value != 0)
-                    EntityManager.Instance.DestroyPhysicalEntity(client, item.Value, EntityType.Item);
+            foreach (var entityId in client.MapClient.Inventory.PersonalInventory)
+                if (entityId != 0)
+                    EntityManager.Instance.DestroyPhysicalEntity(client, entityId, EntityType.Item);
 
-            foreach (var item in client.MapClient.Inventory.WeaponDrawer)
-                if (item.Value != 0)
-                    EntityManager.Instance.DestroyPhysicalEntity(client, item.Value, EntityType.Item);
+            foreach (var entityId in client.MapClient.Inventory.WeaponDrawer)
+                if (entityId != 0)
+                    EntityManager.Instance.DestroyPhysicalEntity(client, entityId, EntityType.Item);
 
             // unregister from chat
             CommunicatorManager.Instance.UnregisterPlayer(client);

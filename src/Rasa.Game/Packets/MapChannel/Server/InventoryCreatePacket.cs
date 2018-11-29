@@ -10,10 +10,10 @@ namespace Rasa.Packets.MapChannel.Server
         public override GameOpcode Opcode { get; } = GameOpcode.InventoryCreate;
 
         public InventoryType InventoryType { get; set; }
-        public Dictionary<uint, uint> ListOfItems = new Dictionary<uint, uint>();
+        public List<uint> ListOfItems = new List<uint>();
         public int InventorySize { get; set; }
 
-        public InventoryCreatePacket(InventoryType inventoryType, Dictionary<uint, uint> listOfItems, int inventorySize)
+        public InventoryCreatePacket(InventoryType inventoryType, List<uint> listOfItems, int inventorySize)
         {
             InventoryType = inventoryType;
             ListOfItems = listOfItems;
@@ -27,8 +27,12 @@ namespace Rasa.Packets.MapChannel.Server
             pw.WriteList(ListOfItems.Count);
             foreach (var entry in ListOfItems)
             {
-                pw.WriteUInt(entry.Value);
-                pw.WriteUInt(entry.Key);
+                uint count = 0;
+
+                pw.WriteUInt(entry);
+                pw.WriteUInt(count);
+
+                count++;
             }
 
             pw.WriteInt(InventorySize);

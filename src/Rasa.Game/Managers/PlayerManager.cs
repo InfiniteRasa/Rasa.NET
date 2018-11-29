@@ -78,7 +78,19 @@ namespace Rasa.Managers
         };
 
         public readonly int[] requiredSkillLevelPoints = { 0, 1, 3, 6, 10, 15 };
-        
+
+        public void AllocateAttributePoints(Client client, AllocateAttributePointsPacket packet)
+        {
+            client.MapClient.Player.SpentBody += packet.Body;
+            client.MapClient.Player.SpentMind += packet.Mind;
+            client.MapClient.Player.SpentSpirit += packet.Spirit;
+
+            UpdateStatsValues(client, false);
+
+            // update DB
+            CharacterManager.Instance.UpdateCharacter(client, CharacterUpdate.Attributes, null);
+        }
+
         public void AssignPlayer(Client client)
         {
             var player = client.MapClient.Player;
@@ -458,7 +470,7 @@ namespace Rasa.Managers
 
             client.CallMethod(client.MapClient.Player.Actor.EntityId, new WeaponDrawerSlotPacket(requestedWeaponDrawerSlot, true));
 
-            var weapon = EntityManager.Instance.GetItem(client.MapClient.Inventory.WeaponDrawer[client.MapClient.Inventory.ActiveWeaponDrawer]);
+            var weapon = EntityManager.Instance.GetItem(client.MapClient.Inventory.WeaponDrawer[(int)client.MapClient.Inventory.ActiveWeaponDrawer]);
 
             if (weapon == null)
                 return;
@@ -589,12 +601,12 @@ namespace Rasa.Managers
             var weaponClassInfo = EntityClassManager.Instance.GetWeaponClassInfo(weapon);
             var foundAmmo = 0;
 
-            for (uint i = 1; i <= 50; i++)
+            for (var i = 0; i < 50; i++)
             {
-                if (client.MapClient.Inventory.PersonalInventory[(uint)InventoryOffset.CategoryConsumable + i] == 0)
+                if (client.MapClient.Inventory.PersonalInventory[(int)InventoryOffset.CategoryConsumable + i] == 0)
                     continue;
 
-                var weaponAmmo = EntityManager.Instance.GetItem(client.MapClient.Inventory.PersonalInventory[(uint)InventoryOffset.CategoryConsumable + i]);
+                var weaponAmmo = EntityManager.Instance.GetItem(client.MapClient.Inventory.PersonalInventory[(int)InventoryOffset.CategoryConsumable + i]);
 
                 // check is empty slot
                 if (weaponAmmo == null)
@@ -853,16 +865,16 @@ namespace Rasa.Managers
             var armorBonusPct = player.Actor.Attributes[Attributes.Body].CurrentMax * 0.0066666d;
             var armorRegenRate = 0;
 
-            foreach (var entry in client.MapClient.Inventory.EquippedInventory)
+            for (var i = 1; i < 21; i++)
             {
-                if (entry.Value == 0)
+                if (client.MapClient.Inventory.EquippedInventory[i] == 0)
                     continue;
 
                 // skip weapon slot
-                if (entry.Key == 13)
+                if (i == 13)
                     continue;
 
-                var equipmentItem = EntityManager.Instance.GetItem(entry.Value);
+                var equipmentItem = EntityManager.Instance.GetItem(client.MapClient.Inventory.EquippedInventory[i]);
                 var classInfo = EntityClassManager.Instance.GetClassInfo(equipmentItem.ItemTemplate.Class);
 
                 if (equipmentItem == null)
@@ -879,6 +891,7 @@ namespace Rasa.Managers
                 }
                 armorMax += equipmentItem.ItemTemplate.ArmorValue;      // ToDo
                 armorRegenRate += classInfo.ArmorClassInfo.RegenRate;
+                
                 // what about damage absorbed? Was it used at all?
             }
             armorMax = armorMax * (1.0d + armorBonusPct);
@@ -915,12 +928,12 @@ namespace Rasa.Managers
             var ammoClassId = weaponClassInfo.AmmoClassId;
             var foundAmmo = 0;
 
-            for (uint i = 1; i <= 50; i++)
+            for (var i = 0; i < 50; i++)
             {
-                if (client.MapClient.Inventory.PersonalInventory[(uint)InventoryOffset.CategoryConsumable + i] == 0)
+                if (client.MapClient.Inventory.PersonalInventory[(int)InventoryOffset.CategoryConsumable + i] == 0)
                     continue;
 
-                var weaponAmmo = EntityManager.Instance.GetItem(client.MapClient.Inventory.PersonalInventory[(uint)InventoryOffset.CategoryConsumable + i]);
+                var weaponAmmo = EntityManager.Instance.GetItem(client.MapClient.Inventory.PersonalInventory[(int)InventoryOffset.CategoryConsumable + i]);
 
                 // check is empty slot
                 if (weaponAmmo == null)

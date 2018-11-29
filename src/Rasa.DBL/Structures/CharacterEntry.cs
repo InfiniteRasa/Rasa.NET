@@ -16,9 +16,9 @@ namespace Rasa.Structures
         public double Scale { get; set; }
         public uint Experience { get; set; }
         public byte Level { get; set; }
-        public uint Body { get; set; }
-        public uint Mind { get; set; }
-        public uint Spirit { get; set; }
+        public int Body { get; set; }
+        public int Mind { get; set; }
+        public int Spirit { get; set; }
         public uint CloneCredits { get; set; }
         public uint MapContextId { get; set; }
         public double CoordX { get; set; }
@@ -48,9 +48,9 @@ namespace Rasa.Structures
                 Scale = reader.GetDouble("scale"),
                 Experience = reader.GetUInt32("experience"),
                 Level = reader.GetByte("level"),
-                Body = reader.GetUInt32("body"),
-                Mind = reader.GetUInt32("mind"),
-                Spirit = reader.GetUInt32("spirit"),
+                Body = reader.GetInt32("body"),
+                Mind = reader.GetInt32("mind"),
+                Spirit = reader.GetInt32("spirit"),
                 CloneCredits = reader.GetUInt32("clone_credits"),
                 MapContextId = reader.GetUInt32("map_context_id"),
                 CoordX = reader.GetDouble("coord_x"),
