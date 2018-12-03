@@ -13,4 +13,4 @@ INSERT INTO `itemtemplate_resistance` (`itemtemplate_id`, `resistance_type`, `re
 ('13186', '7', '7'),
 ('13186', '13', '13');
 
-INSERT INTO `applied_patches` (`patch_name`) VALUES ('rasaworld_2018_29_11_15_26_added_itemtemplate_resistance');
+INSERT INTO `applied_patches` (`patch_name`) VALUES ('rasaworld_2018_11_29_15_26_added_itemtemplate_resistance');
