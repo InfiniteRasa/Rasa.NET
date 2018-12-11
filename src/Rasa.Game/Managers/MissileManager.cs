@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Numerics;
 
 namespace Rasa.Managers
 {
@@ -108,7 +109,7 @@ namespace Rasa.Managers
                     return; ;
             }
 
-            var distance = Position.Distance(client.MapClient.Player.Actor.Position, target.Position);
+            var distance = Vector3.Distance(client.MapClient.Player.Actor.Position, target.Position);
             var triggerTime = (int)Math.Round(distance, 0);
 
             var missile = new Missile

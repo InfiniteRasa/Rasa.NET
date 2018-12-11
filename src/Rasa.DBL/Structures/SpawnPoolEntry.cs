@@ -8,10 +8,10 @@ namespace Rasa.Structures
         public short Mode { get; set; }
         public short AnimType { get; set; }
         public int RespawnTime { get; set; }
-        public double PosX { get; set; }
-        public double PosY { get; set; }
-        public double PosZ { get; set; }
-        public double Rotation { get; set; }
+        public float PosX { get; set; }
+        public float PosY { get; set; }
+        public float PosZ { get; set; }
+        public float Rotation { get; set; }
         public int ContextId { get; set; }
         public uint CreatureId1 { get; set; }
         public short CreatureMinCount1 { get; set; }
@@ -40,10 +40,10 @@ namespace Rasa.Structures
                 Mode = reader.GetInt16("mode"),
                 AnimType = reader.GetInt16("animType"),
                 RespawnTime = reader.GetInt32("respawnTime"),
-                PosX = reader.GetDouble("posX"),
-                PosY = reader.GetDouble("posY"),
-                PosZ = reader.GetDouble("posZ"),
-                Rotation = reader.GetDouble("rotation"),
+                PosX = reader.GetFloat("posX"),
+                PosY = reader.GetFloat("posY"),
+                PosZ = reader.GetFloat("posZ"),
+                Rotation = reader.GetFloat("rotation"),
                 ContextId = reader.GetInt32("contextId"),
                 CreatureId1 = reader.GetUInt32("creatureId1"),
                 CreatureMinCount1 = reader.GetInt16("creatureMinCount1"),

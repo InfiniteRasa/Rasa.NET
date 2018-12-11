@@ -65,13 +65,13 @@
         [PacketHandler(GameOpcode.ClearTargetId)]
         private void ClearTargetId(ClearTargetIdPacket packet)
         {
-            Logger.WriteLog(LogType.Debug, "ToDo ClearTargetId");
+            PlayerManager.Instance.SetTargetId(Client, 0);
         }
 
         [PacketHandler(GameOpcode.ClearTrackingTarget)]
         private void ClearTrackingTarget(ClearTrackingTargetPacket packet)
         {
-            PlayerManager.Instance.ClearTrackingTarget(Client, packet);
+            PlayerManager.Instance.SetTrackingTarget(Client, 0);
         }
 
 
@@ -348,7 +348,7 @@
         [PacketHandler(GameOpcode.SetTrackingTarget)]
         private void SetTrackingTarget(SetTrackingTargetPacket packet)
         {
-            PlayerManager.Instance.SetTrackingTarget(Client, packet);
+            PlayerManager.Instance.SetTrackingTarget(Client, packet.EntityId);
         }
 
         [PacketHandler(GameOpcode.StartAutoFire)]

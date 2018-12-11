@@ -7,7 +7,7 @@ namespace Rasa.Structures
     public class Creature
     {
         public uint DbId { get; set; }
-        public EntityClassId Class { get; set; }
+        public EntityClassId EntityClassId { get; set; }
         // npc data (only if creature is a NPC)
         public CreatureNpcData NpcData { get; set; }
         // loot data (only if creature is harvestable)

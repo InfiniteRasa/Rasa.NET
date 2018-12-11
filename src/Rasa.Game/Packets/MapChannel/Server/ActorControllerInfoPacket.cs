@@ -11,7 +11,7 @@
 
         public ActorControllerInfoPacket(bool isPlayer)
         {
-            IsPlayer = IsPlayer;
+            IsPlayer = isPlayer;
         }
 
         public override void Write(PythonWriter pw)

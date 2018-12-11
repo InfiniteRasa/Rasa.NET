@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Numerics;
 
 namespace Rasa.Managers
 {
@@ -74,11 +75,13 @@ namespace Rasa.Managers
             RegisterCommand(".creature", CreateCreatureCommand);
             RegisterCommand(".creatureappearance", SetCreatureAppearanceCommand);
             RegisterCommand(".creatureloc", SetCreatureLocation);
+            RegisterCommand(".getdistance", GetDistanceCommand);
             RegisterCommand(".giveitem", GiveItemCommand);
             RegisterCommand(".givelogos", GiveLogosCommand);
             RegisterCommand(".gm", EnterGmModCommand);
             RegisterCommand(".forcestate", ForceStateCommand);
             RegisterCommand(".help", HelpGmCommand);
+            RegisterCommand(".npcinfo", NpcInfoCommand);
             RegisterCommand(".rqs", RqsWindowCommand);
             RegisterCommand(".teleport", TeleportCommand);
             RegisterCommand(".setkillstreak", SetKillStreakCommand);
@@ -183,6 +186,37 @@ namespace Rasa.Managers
             return;
         }
 
+        private void GetDistanceCommand(string[] parts)
+        {
+            if (parts.Length == 1)
+            {
+                var msg = "Distance between you and target ";
+
+                var entityId = _client.MapClient.Player.TargetEntityId;
+
+                if (entityId == 0)
+                {
+                    CommunicatorManager.Instance.SystemMessage(_client, "Please select target to use .getdistance command");
+                    return;
+                }
+
+                var entityType = EntityManager.Instance.GetEntityType(entityId);
+
+                if (entityType == EntityType.Creature)
+                    msg += $"\nEntityId = {entityId} is {Vector3.Distance(_client.MapClient.Player.Actor.Position, EntityManager.Instance.GetCreature(entityId).SpawnPool.HomePosition)}\n";
+
+                if (entityType == EntityType.Player)
+                    msg += $"\nEntityId = {entityId} is {Vector3.Distance(_client.MapClient.Player.Actor.Position, EntityManager.Instance.GetActor(entityId).Position)}\n";
+
+                if (entityType == EntityType.Object)
+                    msg = $"EntityId = {entityId} is object, ToDo\n";
+
+                CommunicatorManager.Instance.SystemMessage(_client, msg);
+
+                return;
+            }
+        }
+
         private void GiveItemCommand(string[] parts)
         {
             if (parts.Length == 1)
@@ -234,6 +268,44 @@ namespace Rasa.Managers
             return;
         }
 
+        private void NpcInfoCommand(string[] parts)
+        {
+            if (parts.Length == 1)
+            {
+                var msg = "target = (\n";
+
+                var entityId = _client.MapClient.Player.TargetEntityId;
+
+                if (entityId == 0)
+                {
+                    CommunicatorManager.Instance.SystemMessage(_client, "Please select target to use .npcinfo command");
+                    return;
+                }
+
+                var entityType = EntityManager.Instance.GetEntityType(entityId);
+
+                if (entityId != 0)
+                    msg += $"EntityId = {entityId}\nEntityType = {entityType}\n";
+
+                if (entityType == EntityType.Creature)
+                {
+                    var creature = EntityManager.Instance.GetCreature(entityId);
+                    msg += $"CreatureDbId = {creature.DbId}\n";
+                    msg += $"SpawnPoolDbId = {creature.SpawnPool.DbId}\n";
+                    msg += $"PosX = {creature.Actor.Position.X}\n";
+                    msg += $"PosY = {creature.Actor.Position.Y}\n";
+                    msg += $"PosZ = {creature.Actor.Position.Z}\n";
+                }
+
+                msg += ")\n";
+
+                Logger.WriteLog(LogType.Debug, msg);
+                CommunicatorManager.Instance.SystemMessage(_client, msg);
+
+                return;
+            }
+        }
+
         private void RqsWindowCommand(string[] parts)
         {
             if (parts.Length == 1)
@@ -266,9 +338,9 @@ namespace Rasa.Managers
             }
             if (parts.Length == 5)
             {
-                if (double.TryParse(parts[1], out double posX))
-                    if (double.TryParse(parts[2], out double posY))
-                        if (double.TryParse(parts[3], out double posZ))
+                if (float.TryParse(parts[1], out float posX))
+                    if (float.TryParse(parts[2], out float posY))
+                        if (float.TryParse(parts[3], out float posZ))
                             if (uint.TryParse(parts[4], out uint mapId))
                             {
                                 // init loading screen
@@ -278,20 +350,26 @@ namespace Rasa.Managers
                                 // send Wonkavate
                                 var mapChannel = MapChannelManager.Instance.MapChannelArray[mapId];
                                 _client.LoadingMap = mapId;
-                                _client.CallMethod(SysEntity.CurrentInputStateId, new WonkavatePacket(
+
+                                var packet = new WonkavatePacket(
                                     mapChannel.MapInfo.MapContextId,
                                     0,                  // ToDo MapInstanceId
                                     mapChannel.MapInfo.MapVersion,
-                                    new Position(posX, posY, posZ),
-                                    1
-                                ));
+                                    new Vector3(posX, posY, posZ),
+                                    _client.MapClient.Player.Actor.Rotation
+                                    );
+
+                                _client.CallMethod(SysEntity.CurrentInputStateId, packet);
                                 // Update Db, this position will be loaded in MapLoadedPacket
-                                CharacterTable.UpdateCharacterPosition(_client.MapClient.Player.CharacterId, posX, posY, posZ, 1, mapId);
+                                CharacterManager.Instance.UpdateCharacter(_client, CharacterUpdate.Position, packet);
                                 mapChannel.ClientList.Add(_client);
                             }
+
             }
+
             return;
         }
+
         private void SetCreatureAppearanceCommand(string[] parts)
         {
             if (parts.Length == 1)
@@ -406,8 +484,8 @@ namespace Rasa.Managers
 
         private void WhereCommand(string[] parts)
         {
-            CommunicatorManager.Instance.SystemMessage(_client, $"PosX = {_client.MapClient.Player.Actor.Position.PosX}\nPosY = "
-                +$"{_client.MapClient.Player.Actor.Position.PosY}\nPosZ = {_client.MapClient.Player.Actor.Position.PosZ}\nMapId = {_client.MapClient.Player.Actor.MapContextId}");
+            CommunicatorManager.Instance.SystemMessage(_client, $"PosX = {_client.MapClient.Player.Actor.Position.X}\nPosY = "
+                +$"{_client.MapClient.Player.Actor.Position.Y}\nPosZ = {_client.MapClient.Player.Actor.Position.Z}\nMapId = {_client.MapClient.Player.Actor.MapContextId}");
             return;
         }
         

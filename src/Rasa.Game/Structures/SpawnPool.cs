@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Numerics;
 
 namespace Rasa.Structures
 {
@@ -6,7 +7,7 @@ namespace Rasa.Structures
     {
         public int DbId { get; set; }         // id of the spawnpool
 
-        public Position HomePosition { get; set; }
+        public Vector3 HomePosition { get; set; }
         public Quaternion HomeRotation { get; set; }
         public List<SpawnPoolSlot> SpawnSlot { get; set; }
         // different spawn points

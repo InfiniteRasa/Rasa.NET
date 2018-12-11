@@ -21,10 +21,10 @@ namespace Rasa.Structures
         public int Spirit { get; set; }
         public uint CloneCredits { get; set; }
         public uint MapContextId { get; set; }
-        public double CoordX { get; set; }
-        public double CoordY { get; set; }
-        public double CoordZ { get; set; }
-        public double Rotation { get; set; }
+        public float CoordX { get; set; }
+        public float CoordY { get; set; }
+        public float CoordZ { get; set; }
+        public float Rotation { get; set; }
         public uint NumLogins { get; set; }
         public DateTime? LastLogin { get; set; }
         public uint TotalTimePlayed { get; set; }
@@ -53,10 +53,10 @@ namespace Rasa.Structures
                 Spirit = reader.GetInt32("spirit"),
                 CloneCredits = reader.GetUInt32("clone_credits"),
                 MapContextId = reader.GetUInt32("map_context_id"),
-                CoordX = reader.GetDouble("coord_x"),
-                CoordY = reader.GetDouble("coord_y"),
-                CoordZ = reader.GetDouble("coord_z"),
-                Rotation = reader.GetDouble("rotation"),
+                CoordX = reader.GetFloat("coord_x"),
+                CoordY = reader.GetFloat("coord_y"),
+                CoordZ = reader.GetFloat("coord_z"),
+                Rotation = reader.GetFloat("rotation"),
                 NumLogins = reader.GetUInt32("num_logins"),
                 LastLogin = reader.IsDBNull(lastLoginOrdinal) ? (DateTime?) null : reader.GetDateTime(lastLoginOrdinal),
                 TotalTimePlayed = reader.GetUInt32("total_time_played")

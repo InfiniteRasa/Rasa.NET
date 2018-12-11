@@ -100,6 +100,37 @@ namespace Rasa.Managers
             }
         }
 
+        public EntityClassId GetEntityClassId(uint entityId)
+        {
+            switch (GetEntityType(entityId))
+            {
+                case EntityType.Player:
+                    return Players[entityId].Player.Actor.EntityClassId;
+
+                case EntityType.Creature:
+                    return Creatures[entityId].EntityClassId;
+
+                case EntityType.Npc:
+                    Logger.WriteLog(LogType.Error, $"Not implemented, {GetEntityType(entityId)} ToDo");
+                    return 0;
+
+                case EntityType.Item:
+                    return Items[entityId].ItemTemplate.Class;
+
+                case EntityType.Object:
+                    Logger.WriteLog(LogType.Error, $"Not implemented, {GetEntityType(entityId)} ToDo");
+                    return 0;
+
+                case EntityType.VendorItem:
+                    Logger.WriteLog(LogType.Error, $"Not implemented, {GetEntityType(entityId)} ToDo");
+                    return 0;
+
+                default:
+                    Logger.WriteLog(LogType.Error, $"Unknown entityType {GetEntityType(entityId)}");
+                    return 0;
+            }
+        }
+
         public EntityType GetEntityType(uint entityId)
         {
             return RegisteredEntities[entityId];

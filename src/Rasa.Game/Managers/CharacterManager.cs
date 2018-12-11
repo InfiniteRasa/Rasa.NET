@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Numerics;
 
 namespace Rasa.Managers
 {
@@ -221,9 +222,9 @@ namespace Rasa.Managers
                     Mind = 0,
                     Spirit = 0,
                     MapContextId = 1220,
-                    CoordX = 894.9,
-                    CoordY = 347.1,
-                    CoordZ = 307.9,
+                    CoordX = 894.9f,
+                    CoordY = 307.9f,
+                    CoordZ = 347.1f,
                     Rotation = 0
                 };
 
@@ -323,8 +324,8 @@ namespace Rasa.Managers
                     mapData.MapInfo.MapContextId,
                     0,                          // ToDo MapInstanceId
                     mapData.MapInfo.MapVersion,
-                    new Position(data.CoordX, data.CoordY, data.CoordZ),
-                    data.Rotation
+                    new Vector3(data.CoordX, data.CoordY, data.CoordZ),
+                    Quaternion.CreateFromYawPitchRoll(data.Rotation,0,0)
                 )
                 );
 
@@ -395,15 +396,23 @@ namespace Rasa.Managers
                     break;
 
                 case CharacterUpdate.Position:
-                    /*CharacterTable.UpdateCharacterPos(
-                        client.AccountEntry.Id,
-                        client.MapClient.Player.CharacterSlot,
-                        client.MapClient.Player.Actor.Position.PosX,
-                        client.MapClient.Player.Actor.Position.PosY,
-                        client.MapClient.Player.Actor.Position.PosZ,
-                        client.MapClient.Player.Actor.Rotation.W ,  // ToDo rotation
+                    var data = (WonkavatePacket)value;
+
+                    if (data != null)
+                    {
+                        client.MapClient.Player.Actor.Position = data.Position;
+                        client.MapClient.Player.Actor.Rotation = data.Rotation;
+                        client.MapClient.Player.Actor.MapContextId = data.MapContextId;
+                    }
+
+                    CharacterTable.UpdateCharacterPosition(
+                        client.MapClient.Player.CharacterId,
+                        client.MapClient.Player.Actor.Position.X,
+                        client.MapClient.Player.Actor.Position.Y,
+                        client.MapClient.Player.Actor.Position.Z,
+                        client.MapClient.Player.Actor.Rotation.X,
                         client.MapClient.Player.Actor.MapContextId
-                        ); */
+                        );
                     break;
 
                 case CharacterUpdate.Prestige:

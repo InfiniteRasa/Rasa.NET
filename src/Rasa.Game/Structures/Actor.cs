@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Numerics;
 
 namespace Rasa.Structures
 {
@@ -15,7 +16,7 @@ namespace Rasa.Structures
         public EntityClassId EntityClassId { get; set; }
         public string Name { get; set; }
         public string FamilyName { get; set; }
-        public Position Position { get; set; }
+        public Vector3 Position { get; set; }
         public Quaternion Rotation { get; set; }
         public uint MapContextId { get; set; }
         public bool IsRunning { get; set; }

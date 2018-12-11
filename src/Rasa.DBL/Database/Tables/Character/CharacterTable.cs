@@ -15,6 +15,7 @@ namespace Rasa.Database.Tables.Character
         private static readonly MySqlCommand DeleteCharacterCommand = new MySqlCommand("DELETE FROM `character` WHERE `id` = @Id");
         private static readonly MySqlCommand UpdateCharacterAttributesCommand = new MySqlCommand("UPDATE `character` SET `body` = @Body, `mind` = @Mind, `spirit` = @Spirit WHERE `id` = @Id");
         private static readonly MySqlCommand UpdateCharacterCloneCreditsCommand = new MySqlCommand("UPDATE `character` SET `clone_credits` = @CloneCredits WHERE `id` = @Id");
+        private static readonly MySqlCommand UpdateCharacterLocationCommand = new MySqlCommand("UPDATE `character` SET `map_context_id` = @MapContextId, `coord_x` = @CoordX, `coord_y` = @CoordY, `coord_z` = @CoordZ, `rotation` = @Rotation WHERE `id` = @Id");
         private static readonly MySqlCommand UpdateCharacterLoginCommand = new MySqlCommand("UPDATE `character` SET `num_logins` = @NumLogins, `last_login` = NOW(), `total_time_played` = @TotalTimePlayed WHERE `id` = @Id");
 
         public static void Initialize()
@@ -33,10 +34,10 @@ namespace Rasa.Database.Tables.Character
             CreateCharacterCommand.Parameters.Add("@Mind", MySqlDbType.UInt32);
             CreateCharacterCommand.Parameters.Add("@Spirit", MySqlDbType.UInt32);
             CreateCharacterCommand.Parameters.Add("@MapContextId", MySqlDbType.UInt32);
-            CreateCharacterCommand.Parameters.Add("@CoordX", MySqlDbType.Double);
-            CreateCharacterCommand.Parameters.Add("@CoordY", MySqlDbType.Double);
-            CreateCharacterCommand.Parameters.Add("@CoordZ", MySqlDbType.Double);
-            CreateCharacterCommand.Parameters.Add("@Rotation", MySqlDbType.Double);
+            CreateCharacterCommand.Parameters.Add("@CoordX", MySqlDbType.Float);
+            CreateCharacterCommand.Parameters.Add("@CoordY", MySqlDbType.Float);
+            CreateCharacterCommand.Parameters.Add("@CoordZ", MySqlDbType.Float);
+            CreateCharacterCommand.Parameters.Add("@Rotation", MySqlDbType.Float);
             CreateCharacterCommand.Prepare();
 
             ListCharactersCommand.Connection = GameDatabaseAccess.CharConnection;
@@ -63,7 +64,15 @@ namespace Rasa.Database.Tables.Character
             UpdateCharacterCloneCreditsCommand.Parameters.Add("@Id", MySqlDbType.UInt32);
             UpdateCharacterCloneCreditsCommand.Parameters.Add("@CloneCredits", MySqlDbType.UInt32);
             UpdateCharacterCloneCreditsCommand.Prepare();
-            
+
+            UpdateCharacterLocationCommand.Connection = GameDatabaseAccess.CharConnection;
+            UpdateCharacterLocationCommand.Parameters.Add("@Id", MySqlDbType.UInt32);
+            UpdateCharacterLocationCommand.Parameters.Add("@MapContextId", MySqlDbType.UInt32);
+            UpdateCharacterLocationCommand.Parameters.Add("@CoordX", MySqlDbType.Float);
+            UpdateCharacterLocationCommand.Parameters.Add("@CoordY", MySqlDbType.Float);
+            UpdateCharacterLocationCommand.Parameters.Add("@CoordZ", MySqlDbType.Float);
+            UpdateCharacterLocationCommand.Parameters.Add("@Rotation", MySqlDbType.Float);
+            UpdateCharacterLocationCommand.Prepare();
 
             UpdateCharacterLoginCommand.Connection = GameDatabaseAccess.CharConnection;
             UpdateCharacterLoginCommand.Parameters.Add("@Id", MySqlDbType.UInt32);
@@ -153,9 +162,18 @@ namespace Rasa.Database.Tables.Character
             }
         }
 
-        public static void UpdateCharacterPosition(uint characterId, double posX, double posY, double posZ, double rotation, uint mapId)
+        public static void UpdateCharacterPosition(uint characterId, float coordX, float coordY, float coordZ, float rotation, uint mapContextId)
         {
-            throw new NotImplementedException();
+            lock (GameDatabaseAccess.CharLock)
+            {
+                UpdateCharacterLocationCommand.Parameters["@Id"].Value = characterId;
+                UpdateCharacterLocationCommand.Parameters["@CoordX"].Value = coordX;
+                UpdateCharacterLocationCommand.Parameters["@CoordY"].Value = coordY;
+                UpdateCharacterLocationCommand.Parameters["@CoordZ"].Value = coordZ;
+                UpdateCharacterLocationCommand.Parameters["@Rotation"].Value = rotation;
+                UpdateCharacterLocationCommand.Parameters["@MapContextId"].Value = mapContextId;
+                UpdateCharacterLocationCommand.ExecuteNonQuery();
+            }
         }
 
         public static void UpdateCharacterAttributes(uint characterId, int body, int mind, int spirit)

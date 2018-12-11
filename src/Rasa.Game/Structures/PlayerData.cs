@@ -41,6 +41,7 @@ namespace Rasa.Structures
         public List<int> Logos = new List<int>();
         public bool WeaponReady { get; set; }
         public uint TargetEntityId { get; set; }
+        public uint TrackingTargetEntityId { get; set; }
 
         public PlayerData(CharacterEntry character, Dictionary<EquipmentData, AppearanceData> appearence)
         {

@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Numerics;
 
 namespace Rasa.Managers
 {
@@ -187,7 +188,7 @@ namespace Rasa.Managers
                 var tempClient = mapChannel.ClientList[i];
                 if (tempClient.MapClient.Player != null)
                 {
-                    var distance = Position.Distance(client.MapClient.Player.Actor.Position, tempClient.MapClient.Player.Actor.Position);
+                    var distance = Vector3.Distance(client.MapClient.Player.Actor.Position, tempClient.MapClient.Player.Actor.Position);
                     if (distance <= 70.0) // 70 is about the range the client is visible
                     client.CallMethod(SysEntity.CommunicatorId, new RadialChatPacket
                         {

@@ -1,8 +1,9 @@
-﻿namespace Rasa.Packets.Game.Server
+﻿using System.Numerics;
+
+namespace Rasa.Packets.Game.Server
 {
     using Data;
     using Memory;
-    using Structures;
 
     public class WonkavatePacket : ServerPythonPacket
     {
@@ -11,10 +12,10 @@
         public uint MapContextId { get; set; }
         public uint MapInstanceId { get; set; }
         public uint MapVersion { get; set; }
-        public Position Position { get; set; }
-        public double Rotation { get; set; }
+        public Vector3 Position { get; set; }
+        public Quaternion Rotation { get; set; }
 
-        public WonkavatePacket(uint mapContextId, uint mapInstanceId, uint mapVersion, Position position, double rotation)
+        public WonkavatePacket(uint mapContextId, uint mapInstanceId, uint mapVersion, Vector3 position, Quaternion rotation)
         {
             MapContextId = mapContextId;
             MapInstanceId = mapInstanceId;
@@ -30,10 +31,10 @@
             pw.WriteUInt(MapInstanceId);
             pw.WriteUInt(MapVersion);
             pw.WriteTuple(3);
-            pw.WriteDouble(Position.PosX);
-            pw.WriteDouble(Position.PosZ);
-            pw.WriteDouble(Position.PosY);
-            pw.WriteDouble(Rotation);
+            pw.WriteDouble(Position.X);
+            pw.WriteDouble(Position.Y);
+            pw.WriteDouble(Position.Z);
+            pw.WriteDouble(Rotation.X);
         }
     }
 }

@@ -13,7 +13,6 @@
         {
             pr.ReadTuple();
             EntityId = pr.ReadLong();
-            Logger.WriteLog(LogType.Debug, $"SetTargetId = {EntityId}");
         }
     }
 }

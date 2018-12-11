@@ -177,9 +177,9 @@ namespace Rasa.Managers
             {
                 EntityId = player.Actor.EntityId,
                 Flag = 0,
-                PosX24b = (uint)player.Actor.Position.PosX * 256,
-                PosY24b = (uint)player.Actor.Position.PosY * 256,
-                PosZ24b = (uint)player.Actor.Position.PosZ * 256
+                PosX24b = (uint)player.Actor.Position.X * 256,
+                PosY24b = (uint)player.Actor.Position.Y * 256,
+                PosZ24b = (uint)player.Actor.Position.Z * 256
             };
 
             foreach (var tempClient in clientList)
@@ -237,31 +237,29 @@ namespace Rasa.Managers
             client.MapClient.Player.CurentTitle = titleId;*/
         }
 
-        public void ClearTrackingTarget(Client client, ClearTrackingTargetPacket packet)
-        {
-            client.CallMethod(client.MapClient.Player.Actor.EntityId, new SetTrackingTargetPacket { EntityId = 0 });
-        }
-
         public List<PythonPacket> CreatePlayerEntityData(Client client)
         {
             var player = client.MapClient.Player;
 
             var entityData = new List<PythonPacket>
-                {
-                    new AttributeInfoPacket(player.Actor.Attributes),
-                    new PreloadDataPacket(),   // ToDo
-                    new AppearanceDataPacket(player.AppearanceData),
-                    new ResistanceDataPacket(player.ResistanceData),
-                    new ActorControllerInfoPacket(true),
-                    new LevelPacket(player.Level),
-                    new CharacterClassPacket(player.Class),
-                    new CharacterNamePacket(player.Actor.Name),
-                    new ActorNamePacket(player.Actor.FamilyName),
-                    new IsRunningPacket(player.Actor.IsRunning),
-                    new WorldLocationDescriptorPacket(player.Actor.Position, player.Actor.Rotation),
-                    new TargetCategoryPacket(0),    // 0 frendly
-                    new PlayerFlagsPacket()
-                };
+            {
+                // PhysicalEntity
+                new IsTargetablePacket(EntityClassManager.Instance.GetClassInfo((EntityClassId)player.Actor.EntityClassId).TargetFlag),
+                new WorldLocationDescriptorPacket(player.Actor.Position, player.Actor.Rotation),
+                // Character
+                new AttributeInfoPacket(player.Actor.Attributes),
+                new PreloadDataPacket(),   // ToDo
+                new AppearanceDataPacket(player.AppearanceData),
+                new ResistanceDataPacket(player.ResistanceData),
+                new ActorControllerInfoPacket(true),
+                new LevelPacket(player.Level),
+                new CharacterClassPacket(player.Class),
+                new CharacterNamePacket(player.Actor.Name),
+                new ActorNamePacket(player.Actor.FamilyName),
+                new IsRunningPacket(player.Actor.IsRunning),
+                new TargetCategoryPacket(0),    // 0 frendly ToDo
+                new PlayerFlagsPacket()
+            };
 
             return entityData;
         }
@@ -709,9 +707,10 @@ namespace Rasa.Managers
             client.MapClient.Player.TargetEntityId = (uint)entityId;
         }
 
-        public void SetTrackingTarget(Client client, SetTrackingTargetPacket packet)
+        public void SetTrackingTarget(Client client, uint entityId)
         {
-            client.CallMethod(client.MapClient.Player.Actor.EntityId, new SetTrackingTargetPacket { EntityId = packet.EntityId });
+            client.MapClient.Player.TrackingTargetEntityId = entityId;
+            //client.CallMethod(client.MapClient.Player.Actor.EntityId, new SetTrackingTargetPacket(packet.EntityId));
         }
 
         public void StartAutoFire(Client client, double yaw)

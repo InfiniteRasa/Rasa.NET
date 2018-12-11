@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Numerics;
 
 namespace Rasa.Managers
 {
@@ -17,7 +18,7 @@ namespace Rasa.Managers
         private static MapChannelManager _instance;
         private static readonly object InstanceLock = new object();
         public const int MapChannel_PlayerQueue = 32;
-        private readonly Dictionary<uint,MapChannel> MapChannelsByContextId = new Dictionary<uint, MapChannel>();     // list of maps that need to be loaded
+        private readonly Dictionary<uint, MapChannel> MapChannelsByContextId = new Dictionary<uint, MapChannel>();     // list of maps that need to be loaded
         public readonly Dictionary<uint, MapChannel> MapChannelArray = new Dictionary<uint, MapChannel>();           // list of loaded maps
         public readonly Timer Timer = new Timer();
 
@@ -78,8 +79,8 @@ namespace Rasa.Managers
                     EntityClassId = character.Gender == 0 ? EntityClassId.HumanBaseMale : EntityClassId.HumanBaseFemale,
                     Name = character.Name,
                     FamilyName = client.AccountEntry.FamilyName,
-                    Position = new Position(character.CoordX, character.CoordY, character.CoordZ),
-                    Rotation = new Quaternion(0D, 0D, 0D, 0D),    // ToDo
+                    Position = new Vector3(character.CoordX, character.CoordY, character.CoordZ),
+                    Rotation = Quaternion.CreateFromYawPitchRoll(character.Rotation, 0f, 0f),   //ToDo
                     MapContextId = character.MapContextId,
                     IsRunning = true,
                     InCombatMode = false,

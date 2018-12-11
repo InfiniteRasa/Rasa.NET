@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Numerics;
 
 namespace Rasa.Managers
 {
@@ -66,7 +67,7 @@ namespace Rasa.Managers
             }
             var isCreature = false;
             // check if classId have creature Augmentation
-            foreach (var aug in EntityClassManager.Instance.LoadedEntityClasses[LoadedCreatures[dbId].Class].Augmentations)
+            foreach (var aug in EntityClassManager.Instance.LoadedEntityClasses[LoadedCreatures[dbId].EntityClassId].Augmentations)
                 if (aug == AugmentationType.Creature)
                     isCreature = true;
             if(!isCreature)
@@ -81,7 +82,7 @@ namespace Rasa.Managers
                 Actor = new Actor(),
                 AppearanceData = LoadedCreatures[dbId].AppearanceData,
                 DbId = LoadedCreatures[dbId].DbId,
-                Class = LoadedCreatures[dbId].Class,
+                EntityClassId = LoadedCreatures[dbId].EntityClassId,
                 Faction = LoadedCreatures[dbId].Faction,
                 Level = LoadedCreatures[dbId].Level,
                 MaxHitPoints = LoadedCreatures[dbId].MaxHitPoints,
@@ -117,12 +118,12 @@ namespace Rasa.Managers
         {
             if (creature == null)
                 return;
-
+            
             var entityData = new List<PythonPacket>
             {
                 // PhysicalEntity
+                new IsTargetablePacket(EntityClassManager.Instance.GetClassInfo((EntityClassId)EntityManager.Instance.GetEntityClassId(creature.Actor.EntityId)).TargetFlag),
                 new WorldLocationDescriptorPacket(creature.Actor.Position, creature.Actor.Rotation),
-                new IsTargetablePacket(true),
                 // Creature augmentation
                 new CreatureInfoPacket(creature.NameId, false, new List<int>()),    // ToDo add creature flags
                 // Actor augmentation
@@ -134,7 +135,7 @@ namespace Rasa.Managers
                 new IsRunningPacket(false)
         };
 
-            client.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(creature.Actor.EntityId, creature.Class, entityData));
+            client.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(creature.Actor.EntityId, creature.EntityClassId, entityData));
 
             // NPC  & Vendor augmentation
             if (creature.NpcData != null || creature.VendorData != null)
@@ -161,7 +162,7 @@ namespace Rasa.Managers
                 var creature = new Creature
                 {
                     DbId = data.DbId,
-                    Class = (EntityClassId)data.ClassId,
+                    EntityClassId = (EntityClassId)data.ClassId,
                     Faction = data.Faction,
                     Level = data.Level,
                     MaxHitPoints = data.MaxHitPoints,
@@ -196,7 +197,7 @@ namespace Rasa.Managers
             {
                 if (LoadedCreatures.ContainsKey(package.CreatureDbId))
                 {
-                    foreach (var aug in EntityClassManager.Instance.LoadedEntityClasses[LoadedCreatures[package.CreatureDbId].Class].Augmentations)
+                    foreach (var aug in EntityClassManager.Instance.LoadedEntityClasses[LoadedCreatures[package.CreatureDbId].EntityClassId].Augmentations)
                         if (aug == AugmentationType.NPC)
                             if (LoadedCreatures[package.CreatureDbId].NpcData == null)
                             {
@@ -219,7 +220,7 @@ namespace Rasa.Managers
             {
                 if (LoadedCreatures.ContainsKey(vendor.CreatureDbId))
                 {
-                    foreach (var aug in EntityClassManager.Instance.LoadedEntityClasses[LoadedCreatures[vendor.CreatureDbId].Class].Augmentations)
+                    foreach (var aug in EntityClassManager.Instance.LoadedEntityClasses[LoadedCreatures[vendor.CreatureDbId].EntityClassId].Augmentations)
                         if (aug == AugmentationType.Vendor || aug == AugmentationType.NPC)
                             LoadedCreatures[vendor.CreatureDbId].VendorData = new CreatureVendorData { VendorPackageId = vendor.PackageId };
                 }
@@ -237,7 +238,7 @@ namespace Rasa.Managers
             }
         }
 
-        public void SetLocation(Creature creature, Position position, Quaternion rotation)
+        public void SetLocation(Creature creature, Vector3 position, Quaternion rotation)
         {
             // set spawnlocation
             creature.Actor.Position = position;
