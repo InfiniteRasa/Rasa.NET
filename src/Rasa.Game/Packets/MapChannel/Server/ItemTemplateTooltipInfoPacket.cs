@@ -34,7 +34,7 @@
                         pw.WriteInt(EntityClass.WeaponClassInfo.MaxDamage);
                         pw.WriteUInt((uint)EntityClass.WeaponClassInfo.AmmoClassId);
                         pw.WriteInt(EntityClass.WeaponClassInfo.ClipSize);
-                        pw.WriteInt(ItemTemplate.WeaponInfo.AmmoPerShot);
+                        pw.WriteUInt(ItemTemplate.WeaponInfo.AmmoPerShot);
                         pw.WriteInt(EntityClass.WeaponClassInfo.DamageType);
                         pw.WriteInt(ItemTemplate.WeaponInfo.WindupTime);
                         pw.WriteInt(ItemTemplate.WeaponInfo.RecoveryTime);

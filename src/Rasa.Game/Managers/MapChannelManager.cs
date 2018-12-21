@@ -53,7 +53,7 @@ namespace Rasa.Managers
             client.State = ClientState.LoggedIn;
         }
 
-        public void CreatePlayerCharacter(Client client)
+        public Manifestation CreatePlayerCharacter(Client client)
         {
             var character = CharacterTable.GetCharacter(client.AccountEntry.Id, client.AccountEntry.SelectedSlot);
             var lockboxInfo = CharacterLockboxTable.GetLockboxInfo(client.AccountEntry.Id);
@@ -71,8 +71,8 @@ namespace Rasa.Managers
 
             foreach (var mission in missions)
                 missionData.Add(mission.MissionId, new MissionLog{ MissionId = mission.MissionId, MissionState = mission.MissionState });
-            
-            var player = new PlayerData(character, appearanceData)
+
+            var player = new Manifestation(character, appearanceData)
             {
                 Actor = new Actor
                 {
@@ -102,8 +102,6 @@ namespace Rasa.Managers
                 //ClanName = data.ClanName,
                 LockboxCredits = lockboxInfo[0],
                 LockboxTabs = lockboxInfo[1],
-                //Credits = data.Credits,
-                //Prestige = data.Prestige,
                 Skills = GetPlayerSkills(client),
                 Titles = CharacterTitlesTable.GetCharacterTitles(client.AccountEntry.Id, client.AccountEntry.SelectedSlot),
                 //CurrentTitle = data.CurrentTitle,
@@ -113,13 +111,8 @@ namespace Rasa.Managers
                 LoginTime = DateTime.Now,
                 Logos = CharacterLogosTable.GetLogos(client.AccountEntry.Id, client.AccountEntry.SelectedSlot)
             };
-            // register new Player
-            EntityManager.Instance.RegisterEntity(player.Actor.EntityId, EntityType.Player);
-            EntityManager.Instance.RegisterActor(player.Actor.EntityId, player.Actor);
-            client.MapClient.Player = player;
-            CommunicatorManager.Instance.LoginOk(client);
-            CellManager.Instance.AddToWorld(client); // will introduce the player to all clients, including the current owner
-            PlayerManager.Instance.AssignPlayer(client);
+
+            return player;
         }
         
         public MapChannel FindByContextId(uint contextId)
@@ -226,7 +219,7 @@ namespace Rasa.Managers
                 {
                     ActorActionManager.Instance.DoWork(mapChannel, delta);
                     MissileManager.Instance.DoWork(delta);
-                    PlayerManager.Instance.AutoFireTimerDoWork(delta);
+                    ManifestationManager.Instance.AutoFireTimerDoWork(delta);
 
                     // CellManager worker
                     if (Timer.IsTriggered("CellUpdateVisibility"))
@@ -336,11 +329,18 @@ namespace Rasa.Managers
         public void MapLoaded(Client client)
         {
             client.State = ClientState.Ingame;
-            CreatePlayerCharacter(client);
+            client.MapClient.Player = CreatePlayerCharacter(client);
+            InventoryManager.Instance.InitForClient(client);
+            ManifestationManager.Instance.UpdateStatsValues(client, true);
+
+            // register new Player
+            EntityManager.Instance.RegisterEntity(client.MapClient.Player.Actor.EntityId, EntityType.Player);
+            EntityManager.Instance.RegisterActor(client.MapClient.Player.Actor.EntityId, client.MapClient.Player.Actor);
+            CommunicatorManager.Instance.LoginOk(client);
+            CellManager.Instance.AddToWorld(client); // will introduce the player to all clients, including the current owner
+            ManifestationManager.Instance.AssignPlayer(client);
             CommunicatorManager.Instance.RegisterPlayer(client);
             CommunicatorManager.Instance.PlayerEnterMap(client);
-            InventoryManager.Instance.InitForClient(client);
-            PlayerManager.Instance.UpdateStatsValues(client, true);
             //mission_initForClient(cm);
         }
 
@@ -411,10 +411,12 @@ namespace Rasa.Managers
             // unregister from chat
             CommunicatorManager.Instance.UnregisterPlayer(client);
             CellManager.Instance.RemoveFromWorld(client);
-            PlayerManager.Instance.RemovePlayerCharacter(client);
+            ManifestationManager.Instance.RemovePlayerCharacter(client);
+
             if (logout)
                 if (client.MapClient.Disconected == false)
                     PassClientToCharacterSelection(client);
+            
             // remove from list
             for (var i = 0; i < client.MapClient.MapChannel.ClientList.Count; i++)
             {

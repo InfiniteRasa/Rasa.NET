@@ -71,6 +71,7 @@ namespace Rasa.Managers
         public void RegisterChatCommands()
         {
             RegisterCommand(".addtitle", AddTitleCommand);
+            RegisterCommand(".bark", BarkCommand);
             RegisterCommand(".createobj", CreateObjectCommand);
             RegisterCommand(".creature", CreateCreatureCommand);
             RegisterCommand(".creatureappearance", SetCreatureAppearanceCommand);
@@ -111,6 +112,20 @@ namespace Rasa.Managers
                     _client.CallMethod(_client.MapClient.Player.Actor.EntityId, new TitleAddedPacket(titleId));
                 }
             }
+        }
+
+        private void BarkCommand(string[] parts)
+        {
+            if (parts.Length == 1)
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, "usage: .bark creatureEntityId barkId");
+                return;
+            }
+
+            if (parts.Length == 3)
+                if (uint.TryParse(parts[1], out uint creatureEntityId))
+                    if (uint.TryParse(parts[2], out uint barkId))
+                        _client.CallMethod(creatureEntityId, new BarkPackage(barkId));
         }
 
         private void CreateCreatureCommand(string[] parts)
@@ -235,7 +250,7 @@ namespace Rasa.Managers
                 }
             if (parts.Length == 3)
                 if (uint.TryParse(parts[1], out uint itemTemplateId))
-                    if (int.TryParse(parts[2], out int quantity))
+                    if (uint.TryParse(parts[2], out uint quantity))
                     {
                         var item = ItemManager.Instance.CreateFromTemplateId(itemTemplateId, quantity, _client.MapClient.Player.Actor.FamilyName);
                         item.CrafterName = _client.MapClient.Player.Actor.FamilyName;

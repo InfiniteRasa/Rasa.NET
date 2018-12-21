@@ -103,9 +103,9 @@
                 if (mapCell.ClientNotifyList.Count > 0)
                 {
                     // notify all players of me, including me
-                    PlayerManager.Instance.CellIntroduceClientToPlayers(client, mapCell.ClientNotifyList);
+                    ManifestationManager.Instance.CellIntroduceClientToPlayers(client, mapCell.ClientNotifyList);
                     // notify me about all players that are visible here
-                    PlayerManager.Instance.CellIntroducePlayersToClient(client, mapCell.ClientNotifyList);
+                    ManifestationManager.Instance.CellIntroducePlayersToClient(client, mapCell.ClientNotifyList);
                 }
             }
         }
@@ -179,8 +179,8 @@
                         // remove player visibility client-side
                         if (nMapCell.ClientNotifyList.Count > 0)
                         {
-                            PlayerManager.Instance.CellDiscardClientToPlayers(client, nMapCell.ClientNotifyList);
-                            PlayerManager.Instance.CellDiscardPlayersToClient(client, nMapCell.ClientNotifyList);
+                            ManifestationManager.Instance.CellDiscardClientToPlayers(client, nMapCell.ClientNotifyList);
+                            ManifestationManager.Instance.CellDiscardPlayersToClient(client, nMapCell.ClientNotifyList);
                         }
                     }
                 }
@@ -255,8 +255,8 @@
                                         }
 
                                     // remove player visibility client-side
-                                    PlayerManager.Instance.CellDiscardClientToPlayers(client, nMapCell.ClientNotifyList);
-                                    PlayerManager.Instance.CellDiscardPlayersToClient(client, nMapCell.ClientNotifyList);
+                                    ManifestationManager.Instance.CellDiscardClientToPlayers(client, nMapCell.ClientNotifyList);
+                                    ManifestationManager.Instance.CellDiscardPlayersToClient(client, nMapCell.ClientNotifyList);
                                 }
 
                                 // remove object visibility
@@ -285,9 +285,9 @@
                                 if (nnMapCell.ClientNotifyList.Count > 0)
                                 {
                                     // notify all players of me
-                                    PlayerManager.Instance.CellIntroduceClientToPlayers(client, nnMapCell.ClientNotifyList);
+                                    ManifestationManager.Instance.CellIntroduceClientToPlayers(client, nnMapCell.ClientNotifyList);
                                     // notify me about all players that are visible here
-                                    PlayerManager.Instance.CellIntroducePlayersToClient(client, nnMapCell.ClientNotifyList);
+                                    ManifestationManager.Instance.CellIntroducePlayersToClient(client, nnMapCell.ClientNotifyList);
                                 }
                                 //if (nMapCell.ObjectList > 0)
                                 //    dynamicObject_cellIntroduceObjectsToClient(mapChannel, client, &nMapCell->ht_objectList[0], nMapCell->ht_objectList.size());

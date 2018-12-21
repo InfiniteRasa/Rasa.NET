@@ -9,9 +9,9 @@
 
         public uint Amount { get; set; }
 
-        public LockboxFundsPacket(long amount)
+        public LockboxFundsPacket(uint amount)
         {
-            Amount = (uint)amount;
+            Amount = amount;
         }
 
         public override void Write(PythonWriter pw)

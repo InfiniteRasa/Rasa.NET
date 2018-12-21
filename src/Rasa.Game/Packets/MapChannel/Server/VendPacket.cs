@@ -25,7 +25,7 @@ namespace Rasa.Packets.MapChannel.Server
             {
                 pw.WriteUInt(VendorItems[i].EntityId);
                 pw.WriteTuple(2);
-                pw.WriteInt(VendorItems[i].ItemTemplate.BuyPrice);
+                pw.WriteUInt(VendorItems[i].ItemTemplate.BuyPrice);
                 pw.WriteInt(i);
             }
         }

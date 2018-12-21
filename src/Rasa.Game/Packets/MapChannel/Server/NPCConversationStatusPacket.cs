@@ -10,9 +10,9 @@ namespace Rasa.Packets.MapChannel.Server
         public override GameOpcode Opcode { get; } = GameOpcode.NPCConversationStatus;
 
         public ConversationStatus ConvoStatusId { get; set; }
-        public List<int> Data { get; set; }
+        public List<uint> Data { get; set; }
 
-        public NPCConversationStatusPacket(ConversationStatus convoStatusId, List<int> data)
+        public NPCConversationStatusPacket(ConversationStatus convoStatusId, List<uint> data)
         {
             ConvoStatusId = convoStatusId;
             Data = data;
@@ -22,14 +22,9 @@ namespace Rasa.Packets.MapChannel.Server
         {
             pw.WriteTuple(2);
             pw.WriteInt((int)ConvoStatusId);
-            if (Data != null)
-            {
-                pw.WriteList(Data.Count);
-                foreach (var data in Data)
-                    pw.WriteInt(data);
-            }
-            else
-                pw.WriteNoneStruct();
+            pw.WriteList(Data.Count);
+            foreach (var data in Data)
+                pw.WriteUInt(data);
         }
     }
 }

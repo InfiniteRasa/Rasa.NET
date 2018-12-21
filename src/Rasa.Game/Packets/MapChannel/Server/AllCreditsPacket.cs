@@ -1,31 +1,33 @@
-﻿namespace Rasa.Packets.MapChannel.Server
+﻿using System.Collections.Generic;
+
+namespace Rasa.Packets.MapChannel.Server
 {
     using Data;
     using Memory;
+    using Structures;
 
     public class AllCreditsPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.AllCredits;
 
-        public int Credits { get; set; }
-        public int Prestige { get; set; }
+        public Dictionary<CurencyType, uint> Credits { get; set; }
+        public uint Prestige { get; set; }
 
-        public AllCreditsPacket(int creadits, int prestige)
+        public AllCreditsPacket(Dictionary<CurencyType, uint> creadits)
         {
             Credits = creadits;
-            Prestige = prestige;
         }
 
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(1);
-            pw.WriteList(2);
-            pw.WriteTuple(2);
-            pw.WriteInt((int)CurencyType.Credits);
-            pw.WriteInt(Credits);
-            pw.WriteTuple(2);
-            pw.WriteInt((int)CurencyType.Prestige);
-            pw.WriteInt(Prestige);
+            pw.WriteList(Credits.Count);
+            foreach (var curency in Credits)
+            {
+                pw.WriteTuple(2);
+                pw.WriteInt((int)curency.Key);
+                pw.WriteUInt(curency.Value);
+            }
         }
     }
 }

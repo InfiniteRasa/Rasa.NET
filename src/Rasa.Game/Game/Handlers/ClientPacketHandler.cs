@@ -23,19 +23,19 @@
         [PacketHandler(GameOpcode.AllocateAttributePoints)]
         private void AllocateAttributePoints(AllocateAttributePointsPacket packet)
         {
-            PlayerManager.Instance.AllocateAttributePoints(Client, packet);
+            ManifestationManager.Instance.AllocateAttributePoints(Client, packet);
         }
 
         [PacketHandler(GameOpcode.AssignNPCMission)]
         private void AssignNPCMission(AssignNPCMissionPacket packet)
         {
-            CreatureManager.Instance.AssignNPCMission(Client, packet);
+            NpcManager.Instance.AssignNPCMission(Client, packet);
         }
 
         [PacketHandler(GameOpcode.AutoFireKeepAlive)]
         private void AutoFireKeepAlive(AutoFireKeepAlivePacket packet)
         {
-            PlayerManager.Instance.AutoFireKeepAlive(Client, packet.KeepAliveDelay);
+            ManifestationManager.Instance.AutoFireKeepAlive(Client, packet.KeepAliveDelay);
         }
 
         [PacketHandler(GameOpcode.CancelLogoutRequest)]
@@ -47,7 +47,7 @@
         [PacketHandler(GameOpcode.ChangeTitle)]
         private void ChangeTitle(ChangeTitlePacket packet)
         {
-            PlayerManager.Instance.ChangeTitle(Client, packet.TitleId);
+            ManifestationManager.Instance.ChangeTitle(Client, packet.TitleId);
         }
 
         [PacketHandler(GameOpcode.ChangeShowHelmet)]
@@ -65,20 +65,25 @@
         [PacketHandler(GameOpcode.ClearTargetId)]
         private void ClearTargetId(ClearTargetIdPacket packet)
         {
-            PlayerManager.Instance.SetTargetId(Client, 0);
+            ManifestationManager.Instance.SetTargetId(Client, 0);
         }
 
         [PacketHandler(GameOpcode.ClearTrackingTarget)]
         private void ClearTrackingTarget(ClearTrackingTargetPacket packet)
         {
-            PlayerManager.Instance.SetTrackingTarget(Client, 0);
+            ManifestationManager.Instance.SetTrackingTarget(Client, 0);
         }
 
+        [PacketHandler(GameOpcode.CompleteNPCMission)]
+        private void CompleteNPCMission(CompleteNPCMissionPacket packet)
+        {
+            NpcManager.Instance.CompleteNPCMission(Client, packet);
+        }
 
         [PacketHandler(GameOpcode.GetCustomizationChoices)]
         private void GetCustomizationChoices(GetCustomizationChoicesPacket packet)
         {
-            PlayerManager.Instance.GetCustomizationChoices(Client, packet);
+            ManifestationManager.Instance.GetCustomizationChoices(Client, packet);
         }
 
         [PacketHandler(GameOpcode.HomeInventory_DestroyItem)]
@@ -96,7 +101,7 @@
         [PacketHandler(GameOpcode.LevelSkills)]
         private void LevelSkills(LevelSkillsPacket packet)
         {
-            PlayerManager.Instance.LevelSkills(Client, packet);
+            ManifestationManager.Instance.LevelSkills(Client, packet);
         }
 
         [PacketHandler(GameOpcode.MapLoaded)]
@@ -126,7 +131,7 @@
         [PacketHandler(GameOpcode.PurchaseLockboxTab)]
         private void PurchaseLockboxTab(PurchaseLockboxTabPacket packet)
         {
-            PlayerManager.Instance.PurchaseLockboxTab(Client, packet);
+            ManifestationManager.Instance.PurchaseLockboxTab(Client, packet);
         }
 
         [PacketHandler(GameOpcode.RadialChat)]
@@ -138,31 +143,37 @@
         [PacketHandler(GameOpcode.RequestActionInterrupt)]
         private void RequestActionInterrupt(RequestActionInterruptPacket packet)
         {
-            PlayerManager.Instance.RequestActionInterrupt(Client, packet);
+            ManifestationManager.Instance.RequestActionInterrupt(Client, packet);
         }
 
         [PacketHandler(GameOpcode.RequestArmAbility)]
         private void RequestArmAbility(RequestArmAbilityPacket packet)
         {
-            PlayerManager.Instance.RequestArmAbility(Client, packet.AbilityDrawerSlot);
+            ManifestationManager.Instance.RequestArmAbility(Client, packet.AbilityDrawerSlot);
         }
 
         [PacketHandler(GameOpcode.RequestArmWeapon)]
         private void RequestArmWeapon(RequestArmWeaponPacket packet)
         {
-            PlayerManager.Instance.RequestArmWeapon(Client, packet.RequestedWeaponDrawerSlot);
+            ManifestationManager.Instance.RequestArmWeapon(Client, packet.RequestedWeaponDrawerSlot);
+        }
+
+        [PacketHandler(GameOpcode.RequestCancelAuctioneer)]
+        private void RequestCancelAuctioneer(RequestCancelAuctioneerPacket packet)
+        {
+            NpcManager.Instance.RequestCancelAuctioneer(Client);
         }
 
         [PacketHandler(GameOpcode.RequestCancelVendor)]
         private void RequestCancelVendor(RequestCancelVendorPacket packet)
         {
-            CreatureManager.Instance.RequestCancelVendor(Client, packet.EntityId);
+            NpcManager.Instance.RequestCancelVendor(Client, packet.EntityId);
         }
 
         [PacketHandler(GameOpcode.RequestCustomization)]
         private void RequestCustomization(RequestCustomizationPacket packet)
         {
-            PlayerManager.Instance.RequestCustomization(Client, packet);
+            ManifestationManager.Instance.RequestCustomization(Client, packet);
         }
 
         [PacketHandler(GameOpcode.RequestEquipArmor)]
@@ -198,37 +209,37 @@
         [PacketHandler(GameOpcode.RequestNPCConverse)]
         private void RequestNPCConverse(RequestNPCConversePacket packet)
         {
-            CreatureManager.Instance.RequestNpcConverse(Client, packet);
+            NpcManager.Instance.RequestNpcConverse(Client, packet);
         }
 
         [PacketHandler(GameOpcode.RequestNPCOpenAuctionHouse)]
         private void RequestNPCOpenAuctionHouse(RequestNPCOpenAuctionHousePacket packet)
         {
-            CreatureManager.Instance.RequestNPCOpenAuctionHouse(Client, packet.EntityId);
+            NpcManager.Instance.RequestNPCOpenAuctionHouse(Client, packet.EntityId);
         }
 
         [PacketHandler(GameOpcode.RequestNPCVending)]
         private void RequestNPCVending(RequestNPCVendingPacket packet)
         {
-            CreatureManager.Instance.RequestNPCVending(Client, packet);
+            NpcManager.Instance.RequestNPCVending(Client, packet);
         }
 
         [PacketHandler(GameOpcode.RequestPerformAbility)]
         private void RequestPerformAbility(RequestPerformAbilityPacket packet)
         {
-            PlayerManager.Instance.RequestPerformAbility(Client, packet);
+            ManifestationManager.Instance.RequestPerformAbility(Client, packet);
         }
 
         [PacketHandler(GameOpcode.RequestSetAbilitySlot)]
         private void RequestSetAbilitySlot(RequestSetAbilitySlotPacket packet)
         {
-            PlayerManager.Instance.RequestSetAbilitySlot(Client, packet);
+            ManifestationManager.Instance.RequestSetAbilitySlot(Client, packet);
         }
 
         [PacketHandler(GameOpcode.RequestSwapAbilitySlots)]
         private void RequestSwapAbilitySlots(RequestSwapAbilitySlotsPacket packet)
         {
-            PlayerManager.Instance.RequestSwapAbilitySlots(Client, packet);
+            ManifestationManager.Instance.RequestSwapAbilitySlots(Client, packet);
         }
 
         [PacketHandler(GameOpcode.RequestTakeItemFromHomeInventory)]
@@ -240,7 +251,7 @@
         [PacketHandler(GameOpcode.RequestToggleRun)]
         private void RequestToggleRun(RequestToggleRunPacket packet)
         {
-            PlayerManager.Instance.RequestToggleRun(Client);
+            ManifestationManager.Instance.RequestToggleRun(Client);
         }
 
         [PacketHandler(GameOpcode.RequestTooltipForItemTemplateId)]
@@ -264,31 +275,31 @@
         [PacketHandler(GameOpcode.RequestVendorBuyback)]
         private void RequestVendorBuyback(RequestVendorBuybackPacket packet)
         {
-            CreatureManager.Instance.RequestVendorBuyback(Client, packet);
+            NpcManager.Instance.RequestVendorBuyback(Client, packet);
         }
 
         [PacketHandler(GameOpcode.RequestVendorPurchase)]
         private void RequestVendorPurchase(RequestVendorPurchasePacket packet)
         {
-            CreatureManager.Instance.RequestVendorPurchase(Client, packet);
+            NpcManager.Instance.RequestVendorPurchase(Client, packet);
         }
 
         [PacketHandler(GameOpcode.RequestVendorRepair)]
         private void RequestVendorRepair(RequestVendorRepairPacket packet)
         {
-            CreatureManager.Instance.RequestVendorRepair(Client, packet);
+            NpcManager.Instance.RequestVendorRepair(Client, packet);
         }
 
         [PacketHandler(GameOpcode.RequestVendorSale)]
         private void RequestVendorSale(RequestVendorSalePacket packet)
         {
-            CreatureManager.Instance.RequestVendorSale(Client, packet);
+            NpcManager.Instance.RequestVendorSale(Client, packet);
         }
 
         [PacketHandler(GameOpcode.RequestVisualCombatMode)]
         private void RequestVisualCombatMode(RequestVisualCombatModePacket packet)
         {
-            PlayerManager.Instance.RequestVisualCombatMode(Client, packet.CombatMode);
+            ManifestationManager.Instance.RequestVisualCombatMode(Client, packet.CombatMode);
         }
 
         [PacketHandler(GameOpcode.RequestWeaponAttack)]
@@ -300,31 +311,31 @@
         [PacketHandler(GameOpcode.RequestWeaponDraw)]
         private void RequestWeaponDraw(RequestWeaponDrawPacket packet)
         {
-            PlayerManager.Instance.RequestWeaponDraw(Client);
+            ManifestationManager.Instance.RequestWeaponDraw(Client);
         }
 
         [PacketHandler(GameOpcode.RequestWeaponReload)]
         private void RequestWeaponReload(RequestWeaponReloadPacket packet)
         {
-            PlayerManager.Instance.RequestWeaponReload(Client);
+            ManifestationManager.Instance.RequestWeaponReload(Client);
         }
 
         [PacketHandler(GameOpcode.RequestWeaponStow)]
         private void RequestWeaponStow(RequestWeaponStowPacket packet)
         {
-            PlayerManager.Instance.RequestWeaponStow(Client);
+            ManifestationManager.Instance.RequestWeaponStow(Client);
         }
 
         [PacketHandler(GameOpcode.SaveCharacterOptions)]
         private void SaveCharacterOptions(SaveCharacterOptionsPacket packet)
         {
-            PlayerManager.Instance.SaveCharacterOptions(Client, packet);
+            ManifestationManager.Instance.SaveCharacterOptions(Client, packet);
         }
 
         [PacketHandler(GameOpcode.SaveUserOptions)]
         private void SaveUserOptions(SaveUserOptionsPacket packet)
         {
-            PlayerManager.Instance.SaveUserOptions(Client, packet);
+            ManifestationManager.Instance.SaveUserOptions(Client, packet);
         }
 
         [PacketHandler(GameOpcode.SetAutoLootThreshold)]
@@ -336,32 +347,32 @@
         [PacketHandler(GameOpcode.SetDesiredCrouchState)]
         private void SetDesiredCrouchState(SetDesiredCrouchStatePacket packet)
         {
-            PlayerManager.Instance.SetDesiredCrouchState(Client, packet.DesiredStateId);
+            ManifestationManager.Instance.SetDesiredCrouchState(Client, packet.DesiredStateId);
         }
 
         [PacketHandler(GameOpcode.SetTargetId)]
         private void SetTargetId(SetTargetIdPacket packet)
         {
-            PlayerManager.Instance.SetTargetId(Client, packet.EntityId);
+            ManifestationManager.Instance.SetTargetId(Client, packet.EntityId);
         }
 
         [PacketHandler(GameOpcode.SetTrackingTarget)]
         private void SetTrackingTarget(SetTrackingTargetPacket packet)
         {
-            PlayerManager.Instance.SetTrackingTarget(Client, packet.EntityId);
+            ManifestationManager.Instance.SetTrackingTarget(Client, packet.EntityId);
         }
 
         [PacketHandler(GameOpcode.StartAutoFire)]
         private void StartAutoFire(StartAutoFirePacket packet)
         {
-            //PlayerManager.Instance.StartAutoFire(Client, packet.FromUi);
+            //ManifestationManager.Instance.StartAutoFire(Client, packet.FromUi);
             Logger.WriteLog(LogType.Debug, $"StartAutoFirePacket {packet.FromUi}");
         }
 
         [PacketHandler(GameOpcode.StopAutoFire)]
         private void StopAutoFire(StopAutoFirePacket packet)
         {
-            PlayerManager.Instance.StopAutoFire(Client);
+            ManifestationManager.Instance.StopAutoFire(Client);
         }
 
         [PacketHandler(GameOpcode.TransferCreditToLockbox)]

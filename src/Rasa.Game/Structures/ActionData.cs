@@ -8,7 +8,7 @@
         public Client Client { get; set; }
         public ActionId ActionId { get; set; }
         public int ActionArgId { get; set; }
-        public int Args { get; set; }
+        public uint Args { get; set; }
         public long TargetId { get; set; }
         public int ItemId { get; set; }
         public long WaitTime { get; set; }
@@ -21,7 +21,7 @@
             ActionArgId = actionArgId;
         }
 
-        public ActionData(Client client, ActionId actionId, int actionArgId, int args)
+        public ActionData(Client client, ActionId actionId, int actionArgId, uint args)
         {
             Client = client;
             ActionId = actionId;
@@ -29,7 +29,7 @@
             Args = args;
         }
 
-        public ActionData(Client client, ActionId actionId, int actionArgId, int args, long waitTime)
+        public ActionData(Client client, ActionId actionId, int actionArgId, uint args, long waitTime)
         {
             Client = client;
             ActionId = actionId;

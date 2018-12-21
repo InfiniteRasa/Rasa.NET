@@ -93,7 +93,7 @@ namespace Rasa.Managers
                     action.Client.MapClient.Player.WeaponReady = true;
                     break;
                 case ActionId.WeaponReload:
-                    PlayerManager.Instance.WeaponReload(action);
+                    ManifestationManager.Instance.WeaponReload(action);
                     break;
                 case ActionId.AaRecruitLightning:
                     action.Client.CellCallMethod(action.Client, action.Client.MapClient.Player.Actor.EntityId, new PerformWindupPacket(action.ActionId, action.ActionArgId));

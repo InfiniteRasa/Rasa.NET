@@ -10,7 +10,7 @@ namespace Rasa.Managers
     {
         private static MissionManager _instance;
         private static readonly object InstanceLock = new object();
-        public readonly Dictionary<int, Mission> LoadedMissions = new Dictionary<int, Mission>();
+        public readonly Dictionary<uint, Mission> LoadedMissions = new Dictionary<uint, Mission>();
 
         public static MissionManager Instance
         {

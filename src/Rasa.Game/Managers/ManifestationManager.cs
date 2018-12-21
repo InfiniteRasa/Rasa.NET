@@ -12,13 +12,76 @@ namespace Rasa.Managers
     using Packets.Game.Server;
     using Structures;
 
-    public class PlayerManager
+    public class ManifestationManager
     {
-        private static PlayerManager _instance;
+        /* Actor: Player "bodies" (ManifestationClass)
+         * 
+         *  - CurrentCharacterId                => implemented
+         *  - AllCredits                        => implemented
+         *  - UpdateCredits                     => implemented
+         *  - LockboxFunds                      => implemented
+         *  - WonBattleground                   => ToDo
+         *  - LostBattleground                  => ToDo
+         *  - WeaponDrawerSlot                  => implemented
+         *  - AbilityDrawerSlot                 => implemented
+         *  - AbilityDrawer                     => implemented
+         *  - ArmWeaponFailed                   => ToDo
+         *  - ArmAbilityFailed                  => ToDo
+         *  - AdvancementStats                  => implemented
+         *  - ExperienceChanged                 => ToDo
+         *  - LevelChanged                      => ToDo
+         *  - CharacterClass                    => implemented
+         *  - AvailableAllocationPoints
+         *  - AvailableCharacterClasses
+         *  - TierAdvancementInfo
+         *  - InvitedToJoinFriend
+         *  - InvitationDeclined
+         *  - InvitationCancelled
+         *  - CannotInvite
+         *  - InvitedToAddAndJoinFriend
+         *  - RequestToJoin
+         *  - JoinFriendDeclined
+         *  - JoinFriendCancelled
+         *  - CannotJoin
+         *  - ForceConverse
+         *  - LogosStoneTabula
+         *  - LogosStoneAdded
+         *  - LogosStoneRemoved
+         *  - ShowHelmetChanged
+         *  - Titles
+         *  - TitleChanged
+         *  - TitleAdded
+         *  - TitleRemoved
+         *  - PlayerFlags
+         *  - CloneCredits
+         *  - WaypointGained
+         *  - GraveyardGained
+         *  - CharacterName
+         *  - RaceId
+         *  - PlayerAfk
+         *  - PlayerInactiveWarning
+         *  - ClanId
+         *  - IsTrialAccount
+         *  - PlayerEnteredCombat
+         *  - PlayerExitedCombat
+         *  - MinionAdded
+         *  - MinionStayAck
+         *  - MinionGoAck
+         *  - MinionFollowMeAck
+         *  - MinionFollowTargetAck
+         *  - MinionTargetMeAck
+         *  - MinionTargetAck
+         *  - MinionAssistMeAck
+         *  - MinionAssistTargetAck
+         *  - MinionTemperamentAck
+         *  - MinionCommandAck
+         */
+
+        private static ManifestationManager _instance;
         private static readonly object InstanceLock = new object();
         private static List<AutoFireTimer> AutoFire = new List<AutoFireTimer>();
 
-        public static PlayerManager Instance
+        public static ManifestationManager Instance
         {
             get
             {
@@ -28,7 +91,7 @@ namespace Rasa.Managers
                     lock (InstanceLock)
                     {
                         if (_instance == null)
-                            _instance = new PlayerManager();
+                            _instance = new ManifestationManager();
                     }
                 }
 
@@ -36,7 +99,7 @@ namespace Rasa.Managers
             }
         }
 
-        private PlayerManager()
+        private ManifestationManager()
         {
         }
 
@@ -89,6 +152,9 @@ namespace Rasa.Managers
 
             // update DB
             CharacterManager.Instance.UpdateCharacter(client, CharacterUpdate.Attributes, null);
+
+            // Send Data to client
+            client.CallMethod(client.MapClient.Player.Actor.EntityId, new AttributeInfoPacket(client.MapClient.Player.Actor.Attributes));
         }
 
         public void AssignPlayer(Client client)
@@ -111,11 +177,7 @@ namespace Rasa.Managers
             client.CallMethod(SysEntity.ClientMethodId, new SetCurrentContextIdPacket(client.MapClient.MapChannel.MapInfo.MapContextId));
 
             client.CallMethod(actor.EntityId, new UpdateRegionsPacket { RegionIdList = client.MapClient.MapChannel.MapInfo.BaseRegionId });  // ToDo this should be list of regions? or just curent region wher player is
-
-            client.CallMethod(actor.EntityId, new AllCreditsPacket(player.Credits, player.Prestige));
-
-            client.CallMethod(actor.EntityId, new LockboxFundsPacket(client.MapClient.Player.LockboxCredits));
-
+            
             client.CallMethod(actor.EntityId, new AdvancementStatsPacket(
                 player.Level,
                 player.Experience,
@@ -135,6 +197,8 @@ namespace Rasa.Managers
             client.CallMethod(actor.EntityId, new TitlesPacket(player.Titles));
 
             client.CallMethod(actor.EntityId, new UpdateAttributesPacket(actor.Attributes, 0));
+
+            client.CallMethod(actor.EntityId, new UpdateHealthPacket(actor.Attributes[Attributes.Health], 0));
 
             client.CallMethod(actor.EntityId, new LogosStoneTabulaPacket(player.Logos));
         }
@@ -246,14 +310,18 @@ namespace Rasa.Managers
                 // PhysicalEntity
                 new IsTargetablePacket(EntityClassManager.Instance.GetClassInfo((EntityClassId)player.Actor.EntityClassId).TargetFlag),
                 new WorldLocationDescriptorPacket(player.Actor.Position, player.Actor.Rotation),
-                // Character
+                // Manifestation
+                new CurrentCharacterIdPacket(player.CharacterId),
+                new AllCreditsPacket(player.Credits),
+                new LockboxFundsPacket(player.LockboxCredits),
+                new CharacterClassPacket(player.Class),
+
                 new AttributeInfoPacket(player.Actor.Attributes),
                 new PreloadDataPacket(),   // ToDo
                 new AppearanceDataPacket(player.AppearanceData),
                 new ResistanceDataPacket(player.ResistanceData),
                 new ActorControllerInfoPacket(true),
                 new LevelPacket(player.Level),
-                new CharacterClassPacket(player.Class),
                 new CharacterNamePacket(player.Actor.Name),
                 new ActorNamePacket(player.Actor.FamilyName),
                 new IsRunningPacket(player.Actor.IsRunning),
@@ -264,21 +332,19 @@ namespace Rasa.Managers
             return entityData;
         }
 
-        public void GainCredits(Client client, int credits)
+        public void GainCredits(Client client, uint credits)
         {
-            client.MapClient.Player.Credits += credits;
-            // update database with new character credits amount
-            CharacterManager.Instance.UpdateCharacter(client, CharacterUpdate.Credits, null);
-            // inform owner
-            client.CallMethod(client.MapClient.Player.Actor.EntityId, new UpdateCreditsPacket(CurencyType.Credits, client.MapClient.Player.Credits, credits));
+            CharacterManager.Instance.UpdateCharacter(client, CharacterUpdate.Credits, (long)credits);
             // send player message
-            if (credits > 0)
-            {
-                client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(262, new Dictionary<string, string> { { "amount", credits.ToString() } }, MsgFilterId.LootObtained));
-            }
+            client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(262, new Dictionary<string, string> { { "amount", credits.ToString() } }, MsgFilterId.LootObtained));
         }
 
-        public int GetAvailableAttributePoints(PlayerData player)
+        public void LossCredits(Client client, uint credits)
+        {
+            CharacterManager.Instance.UpdateCharacter(client, CharacterUpdate.Credits, -credits);
+        }
+
+        public int GetAvailableAttributePoints(Manifestation player)
         {
             var points = player.Level * 2 - 2;
             points -= player.SpentBody;
@@ -323,7 +389,7 @@ namespace Rasa.Managers
             return skillId < 0 ? -1 : skillId >= 200 ? -1 : SkillId2Idx[skillId];
         }
 
-        public int GetSkillPointsAvailable(PlayerData player)
+        public int GetSkillPointsAvailable(Manifestation player)
         {
             var pointsAvailable = (player.Level - 1) * 2;
             pointsAvailable += 5; // add five points because of the recruit skills that start at level 1
@@ -409,13 +475,13 @@ namespace Rasa.Managers
              */
 
             if (packet.TabId == 2)  // price is 100 000
-                GainCredits(client, -100000);
+                LossCredits(client, 100000);
             if (packet.TabId == 3)  // price is 1 000 000
-                GainCredits(client, -1000000);
+                LossCredits(client, 1000000);
             if (packet.TabId == 4)  // price is 10 000 000
-                GainCredits(client, -10000000);
+                LossCredits(client, 10000000);
             if (packet.TabId == 5)  // price is 100 000 000
-                GainCredits(client, -100000000);
+                LossCredits(client, 100000000);
 
             // update Player
             client.MapClient.Player.LockboxTabs = packet.TabId;
@@ -598,7 +664,7 @@ namespace Rasa.Managers
             // actual weapon reload happen if reaload action isn't interupted
             var weapon = InventoryManager.Instance.CurrentWeapon(client.MapClient);
             var weaponClassInfo = EntityClassManager.Instance.GetWeaponClassInfo(weapon);
-            var foundAmmo = 0;
+            var foundAmmo = 0u;
 
             for (var i = 0; i < 50; i++)
             {
@@ -614,7 +680,7 @@ namespace Rasa.Managers
                 if (weaponAmmo.ItemTemplate.Class == weaponClassInfo.AmmoClassId)
                 {
                     // consume ammo
-                    var ammoToGrab = Math.Min(weaponClassInfo.ClipSize - foundAmmo - weapon.CurrentAmmo, weaponAmmo.Stacksize);
+                    var ammoToGrab = (uint)Math.Min(weaponClassInfo.ClipSize - foundAmmo - weapon.CurrentAmmo, weaponAmmo.Stacksize);
                     foundAmmo = ammoToGrab + weapon.CurrentAmmo;
                 }
 
@@ -710,7 +776,6 @@ namespace Rasa.Managers
         public void SetTrackingTarget(Client client, uint entityId)
         {
             client.MapClient.Player.TrackingTargetEntityId = entityId;
-            //client.CallMethod(client.MapClient.Player.Actor.EntityId, new SetTrackingTargetPacket(packet.EntityId));
         }
 
         public void StartAutoFire(Client client, double yaw)
@@ -911,9 +976,6 @@ namespace Rasa.Managers
                 attribute[Attributes.Power].Current = attribute[Attributes.Power].CurrentMax;
             else
                 attribute[Attributes.Power].Current = Math.Min(attribute[Attributes.Power].Current, attribute[Attributes.Power].CurrentMax);
-
-            // Send Data to client
-            client.CallMethod(client.MapClient.Player.Actor.EntityId, new AttributeInfoPacket(client.MapClient.Player.Actor.Attributes));
         }
 
         public void WeaponReload(ActionData action)
@@ -926,7 +988,7 @@ namespace Rasa.Managers
                 return;
             var weaponClassInfo = EntityClassManager.Instance.GetWeaponClassInfo(weapon); ;
             var ammoClassId = weaponClassInfo.AmmoClassId;
-            var foundAmmo = 0;
+            var foundAmmo = 0U;
 
             for (var i = 0; i < 50; i++)
             {
@@ -942,7 +1004,7 @@ namespace Rasa.Managers
                 if (weaponAmmo.ItemTemplate.Class == weaponClassInfo.AmmoClassId)
                 {
                     // consume ammo
-                    var ammoToGrab = Math.Min(weaponClassInfo.ClipSize - foundAmmo - weapon.CurrentAmmo, weaponAmmo.Stacksize);
+                    var ammoToGrab = (uint)Math.Min(weaponClassInfo.ClipSize - foundAmmo - weapon.CurrentAmmo, weaponAmmo.Stacksize);
                     foundAmmo = ammoToGrab + weapon.CurrentAmmo;
                     InventoryManager.Instance.ReduceStackCount(client, InventoryType.Personal, weaponAmmo, ammoToGrab);
                 }
@@ -961,7 +1023,7 @@ namespace Rasa.Managers
             client.MapClient.Player.Actor.CurrentAction = 0;
 
             // send data to client
-            client.CellCallMethod(client, client.MapClient.Player.Actor.EntityId, new PerformRecoveryPacket(action.ActionId, action.ActionArgId, new List<int> { foundAmmo }));
+            client.CellCallMethod(client, client.MapClient.Player.Actor.EntityId, new PerformRecoveryPacket(action.ActionId, action.ActionArgId, new List<uint> { foundAmmo }));
         }
 
     }

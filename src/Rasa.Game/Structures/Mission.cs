@@ -2,12 +2,12 @@
 {
     public class Mission
     {
-        public int MissionId { get; set; }
+        public uint MissionId { get; set; }
         public int MissionGiver { get; set; }
         public int MissionReciver { get; set; }
         public MissionInfo MissionInfo = new MissionInfo();
 
-        public Mission(int missionId)
+        public Mission(uint missionId)
         {
             MissionId = missionId;
         }

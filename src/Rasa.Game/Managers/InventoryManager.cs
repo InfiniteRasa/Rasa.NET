@@ -193,7 +193,7 @@ namespace Rasa.Managers
 
             var tempItem = EntityManager.Instance.GetItem((uint)packet.EntityId);
 
-            ReduceStackCount(client, InventoryType.HomeInventory, tempItem, (int)packet.Quantity);
+            ReduceStackCount(client, InventoryType.HomeInventory, tempItem, packet.Quantity);
 
             // ToDo delete item from db? or we sill keep all items
         }
@@ -305,7 +305,7 @@ namespace Rasa.Managers
                     }
             }
 
-            PlayerManager.Instance.NotifyEquipmentUpdate(client);
+            ManifestationManager.Instance.NotifyEquipmentUpdate(client);
         }
 
         public void PersonalInventory_DestroyItem(Client client, PersonalInventory_DestroyItemPacket packet)
@@ -315,7 +315,7 @@ namespace Rasa.Managers
 
             var tempItem = EntityManager.Instance.GetItem((uint)packet.EntityId);
 
-            ReduceStackCount(client, InventoryType.Personal, tempItem, (int)packet.Quantity);
+            ReduceStackCount(client, InventoryType.Personal, tempItem, packet.Quantity);
 
             // ToDo delete item from db? or we sill keep all items
         }
@@ -351,7 +351,7 @@ namespace Rasa.Managers
             AddItemBySlot(client, InventoryType.Personal, entityId, (uint)packet.DestSlot, true);
         }
 
-        public void ReduceStackCount(Client client, InventoryType inventoryType, Item tempItem, int stackDecreaseCount)
+        public void ReduceStackCount(Client client, InventoryType inventoryType, Item tempItem, uint stackDecreaseCount)
         {
             if (tempItem.OwnerId != client.AccountEntry.SelectedSlot)
                 return; // item is not on this client's inventory
@@ -439,7 +439,7 @@ namespace Rasa.Managers
 
             var entityIdEquippedItem = client.MapClient.Inventory.EquippedInventory[(int)packet.DestSlot]; // the old equipped item (can be none)
             var entityIdInventoryItem = client.MapClient.Inventory.PersonalInventory[(int)packet.SrcSlot]; // the new equipped item (can be none)
-            
+
             // can we equip the item?
             Item itemToEquip = null;
             var canEquipItem = true;
@@ -496,7 +496,7 @@ namespace Rasa.Managers
 
             if (!canEquipItem)
                 return;
-            
+
             // swap items on the client and server
             if (client.MapClient.Inventory.PersonalInventory[(int)packet.SrcSlot] != 0)
                 RemoveItemBySlot(client, InventoryType.Personal, packet.SrcSlot);
@@ -509,21 +509,24 @@ namespace Rasa.Managers
 
             if (entityIdInventoryItem != 0)
                 AddItemBySlot(client, InventoryType.EquipedInventory, entityIdInventoryItem, packet.DestSlot, true);
-            
+
             // update appearance
             if (itemToEquip == null)
             {
                 // remove item graphic if dequipped
                 var prevEquippedItem = EntityManager.Instance.GetItem(entityIdEquippedItem);
                 var equipableClassInfo = EntityClassManager.Instance.GetEquipableClassInfo(prevEquippedItem);
-                PlayerManager.Instance.RemoveAppearanceItem(client, equipableClassInfo.EquipmentSlotId);
+                ManifestationManager.Instance.RemoveAppearanceItem(client, equipableClassInfo.EquipmentSlotId);
             }
             else
-                PlayerManager.Instance.SetAppearanceItem(client, itemToEquip);
-            
-            PlayerManager.Instance.UpdateAppearance(client);
-            PlayerManager.Instance.UpdateStatsValues(client, false);
-            PlayerManager.Instance.NotifyEquipmentUpdate(client);
+                ManifestationManager.Instance.SetAppearanceItem(client, itemToEquip);
+
+            ManifestationManager.Instance.UpdateAppearance(client);
+            ManifestationManager.Instance.UpdateStatsValues(client, false);
+            ManifestationManager.Instance.NotifyEquipmentUpdate(client);
+
+            // Send Data to client
+            client.CallMethod(client.MapClient.Player.Actor.EntityId, new AttributeInfoPacket(client.MapClient.Player.Actor.Attributes));
         }
 
         public void RequestEquipWeapon(Client client, RequestEquipWeaponPacket packet)
@@ -575,7 +578,7 @@ namespace Rasa.Managers
                 AddItemBySlot(client, InventoryType.WeaponDrawerInventory, entityIdInventoryItem, destSlot, true);
 
             // Tell client that he have new weapon
-            PlayerManager.Instance.NotifyEquipmentUpdate(client);
+            ManifestationManager.Instance.NotifyEquipmentUpdate(client);
 
             if (destSlot == client.MapClient.Inventory.ActiveWeaponDrawer)
                 if (itemToEquip == null)
@@ -584,12 +587,12 @@ namespace Rasa.Managers
                     var prevEquippedItem = EntityManager.Instance.GetItem(entityIdEquippedItem);
                     var equipableClassInfo = EntityClassManager.Instance.GetEquipableClassInfo(prevEquippedItem);
 
-                    PlayerManager.Instance.RemoveAppearanceItem(client, equipableClassInfo.EquipmentSlotId);
+                    ManifestationManager.Instance.RemoveAppearanceItem(client, equipableClassInfo.EquipmentSlotId);
                 }
                 else
-                    PlayerManager.Instance.SetAppearanceItem(client, itemToEquip);
+                    ManifestationManager.Instance.SetAppearanceItem(client, itemToEquip);
 
-            PlayerManager.Instance.UpdateAppearance(client);
+            ManifestationManager.Instance.UpdateAppearance(client);
         }
 
         public void RequestLockboxTabPermissions(Client client)
@@ -663,7 +666,7 @@ namespace Rasa.Managers
             //client.SendPacket(12, new ModuleTooltipInfoPacket(moduleInfo));
         }
 
-        public void TransferCreditToLockbox(Client client, int amount)
+        public void TransferCreditToLockbox(Client client, uint amount)
         {
             /*
              * ToDo:
@@ -676,16 +679,16 @@ namespace Rasa.Managers
             //deposit
             if (amount >= 500)
             {
-                if (client.MapClient.Player.Credits >= amount)
+                if (client.MapClient.Player.Credits[CurencyType.Credits] >= amount)
                 {
                     var deposit = client.MapClient.Player.LockboxCredits + amount;
 
-                    PlayerManager.Instance.GainCredits(client, -amount);
+                    ManifestationManager.Instance.LossCredits(client, amount);
 
                     client.CallMethod(client.MapClient.Player.Actor.EntityId, new LockboxFundsPacket(deposit));
 
-                    client.MapClient.Player.LockboxCredits = (uint)deposit;
-                    CharacterLockboxTable.UpdateCredits(client.AccountEntry.Id, (uint)deposit);
+                    client.MapClient.Player.LockboxCredits = deposit;
+                    CharacterLockboxTable.UpdateCredits(client.AccountEntry.Id, deposit);
                 }
                 else
                     CommunicatorManager.Instance.SystemMessage(client, "Not enof credit's in inventory\nP.S. Go earn some credits :)");
@@ -697,11 +700,11 @@ namespace Rasa.Managers
                 {
                     var withdraw = client.MapClient.Player.LockboxCredits + amount;
 
-                    PlayerManager.Instance.GainCredits(client, -amount);
+                    ManifestationManager.Instance.GainCredits(client, amount);
                     client.CallMethod(client.MapClient.Player.Actor.EntityId, new LockboxFundsPacket(withdraw));
 
-                    client.MapClient.Player.LockboxCredits = (uint)withdraw;
-                    CharacterLockboxTable.UpdateCredits(client.AccountEntry.Id, (uint)withdraw);
+                    client.MapClient.Player.LockboxCredits = withdraw;
+                    CharacterLockboxTable.UpdateCredits(client.AccountEntry.Id, withdraw);
                 }
                 else
                     CommunicatorManager.Instance.SystemMessage(client, "Not enof credit's in Lockbox\nP.S. Dont be greedy :)");

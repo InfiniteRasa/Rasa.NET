@@ -15,6 +15,7 @@ namespace Rasa.Database.Tables.Character
         private static readonly MySqlCommand DeleteCharacterCommand = new MySqlCommand("DELETE FROM `character` WHERE `id` = @Id");
         private static readonly MySqlCommand UpdateCharacterAttributesCommand = new MySqlCommand("UPDATE `character` SET `body` = @Body, `mind` = @Mind, `spirit` = @Spirit WHERE `id` = @Id");
         private static readonly MySqlCommand UpdateCharacterCloneCreditsCommand = new MySqlCommand("UPDATE `character` SET `clone_credits` = @CloneCredits WHERE `id` = @Id");
+        private static readonly MySqlCommand UpdateCharacterCreditsCommand = new MySqlCommand("UPDATE `character` SET `credits` = @Credits WHERE `id` = @Id");
         private static readonly MySqlCommand UpdateCharacterLocationCommand = new MySqlCommand("UPDATE `character` SET `map_context_id` = @MapContextId, `coord_x` = @CoordX, `coord_y` = @CoordY, `coord_z` = @CoordZ, `rotation` = @Rotation WHERE `id` = @Id");
         private static readonly MySqlCommand UpdateCharacterLoginCommand = new MySqlCommand("UPDATE `character` SET `num_logins` = @NumLogins, `last_login` = NOW(), `total_time_played` = @TotalTimePlayed WHERE `id` = @Id");
 
@@ -64,6 +65,11 @@ namespace Rasa.Database.Tables.Character
             UpdateCharacterCloneCreditsCommand.Parameters.Add("@Id", MySqlDbType.UInt32);
             UpdateCharacterCloneCreditsCommand.Parameters.Add("@CloneCredits", MySqlDbType.UInt32);
             UpdateCharacterCloneCreditsCommand.Prepare();
+
+            UpdateCharacterCreditsCommand.Connection = GameDatabaseAccess.CharConnection;
+            UpdateCharacterCreditsCommand.Parameters.Add("@Id", MySqlDbType.UInt32);
+            UpdateCharacterCreditsCommand.Parameters.Add("@Credits", MySqlDbType.UInt32);
+            UpdateCharacterCreditsCommand.Prepare();
 
             UpdateCharacterLocationCommand.Connection = GameDatabaseAccess.CharConnection;
             UpdateCharacterLocationCommand.Parameters.Add("@Id", MySqlDbType.UInt32);
@@ -195,6 +201,16 @@ namespace Rasa.Database.Tables.Character
                 UpdateCharacterCloneCreditsCommand.Parameters["@Id"].Value = characterId;
                 UpdateCharacterCloneCreditsCommand.Parameters["@CloneCredits"].Value = cloneCredits;
                 UpdateCharacterCloneCreditsCommand.ExecuteNonQuery();
+            }
+        }
+
+        public static void UpdateCharacterCredits(uint characterId, uint credits)
+        {
+            lock (GameDatabaseAccess.CharLock)
+            {
+                UpdateCharacterCreditsCommand.Parameters["@Id"].Value = characterId;
+                UpdateCharacterCreditsCommand.Parameters["@Credits"].Value = credits;
+                UpdateCharacterCreditsCommand.ExecuteNonQuery();
             }
         }
 

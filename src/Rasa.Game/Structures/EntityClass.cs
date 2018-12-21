@@ -75,7 +75,7 @@ namespace Rasa.Structures
         public bool HiddenInventoryFlag { get; set; }
         public bool IsConsumableFlag { get; set; }
         public int MaxHitPoints { get; set; }
-        public int StackSize { get; set; }
+        public uint StackSize { get; set; }
         public int DragAudioSetId { get; set; }
         public int DropAudioSetId { get; set; }
 

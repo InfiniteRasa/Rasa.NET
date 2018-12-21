@@ -45,10 +45,10 @@ namespace Rasa.Managers
             {
                 // Parse AugmentationList
                 var augList = new List<AugmentationType>();
-                string[] augmentations = Regex.Split(entityClass.Augmentations, @"\D+");
+                var augmentations = Regex.Split(entityClass.Augmentations, @"\D+");
 
-                foreach (string value in augmentations)
-                    if (int.TryParse(value, out int augmentation))
+                foreach (var value in augmentations)
+                    if (int.TryParse(value, out var augmentation))
                         augList.Add((AugmentationType)augmentation);
 
                 LoadedEntityClasses.Add((EntityClassId)entityClass.ClassId, new EntityClass(

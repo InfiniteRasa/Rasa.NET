@@ -7,9 +7,9 @@
     {
         public override GameOpcode Opcode { get; } = GameOpcode.Bark;
 
-        public int BarkId { get; set; }
+        public uint BarkId { get; set; }
 
-        public BarkPackage(int barkId)
+        public BarkPackage(uint barkId)
         {
             BarkId = barkId;
         }
@@ -17,7 +17,7 @@
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(1);
-            pw.WriteInt(BarkId);
+            pw.WriteUInt(BarkId);
         }
     }
 }

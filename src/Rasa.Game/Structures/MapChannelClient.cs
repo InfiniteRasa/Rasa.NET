@@ -5,7 +5,7 @@
     public class MapChannelClient
     {
         public MapChannel MapChannel { get; set; }
-        public PlayerData Player { get; set; }
+        public Manifestation Player { get; set; }
         public bool Disconected { get; set; }
         public bool LogoutActive { get; set; }
         public bool RemoveFromMap {get;set;}

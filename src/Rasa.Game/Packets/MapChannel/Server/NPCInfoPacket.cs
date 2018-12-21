@@ -7,9 +7,9 @@
     {
         public override GameOpcode Opcode { get; } = GameOpcode.NPCInfo;
 
-        public int NpcPackageId { get; set; }
+        public uint NpcPackageId { get; set; }
 
-        public NPCInfoPacket(int npcPackageId)
+        public NPCInfoPacket(uint npcPackageId)
         {
             NpcPackageId = npcPackageId;
         }
@@ -17,7 +17,7 @@
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(1);
-            pw.WriteInt(NpcPackageId);
+            pw.WriteUInt(NpcPackageId);
         }
     }
 }

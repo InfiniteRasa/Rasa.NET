@@ -374,7 +374,17 @@ namespace Rasa.Managers
                     break;
 
                 case CharacterUpdate.Credits:
-                    //CharacterTable.UpdateCharacterCredits(client.AccountEntry.Id, client.MapClient.Player.CharacterSlot, client.MapClient.Player.Credits);
+                    var ammount = (long)value;
+
+                    if (ammount < 0)
+                        client.MapClient.Player.Credits[CurencyType.Credits] -= (uint)Math.Abs(ammount);
+                    else
+                        client.MapClient.Player.Credits[CurencyType.Credits] += (uint)ammount;
+                    
+                    // inform owner
+                    client.CallMethod(client.MapClient.Player.Actor.EntityId, new UpdateCreditsPacket(CurencyType.Credits, client.MapClient.Player.Credits[CurencyType.Credits], 0));
+                    // update db
+                    CharacterTable.UpdateCharacterCredits(client.MapClient.Player.CharacterId, client.MapClient.Player.Credits[CurencyType.Credits]);
                     break;
 
                 case CharacterUpdate.Expirience:

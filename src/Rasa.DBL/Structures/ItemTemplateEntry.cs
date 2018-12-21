@@ -14,8 +14,8 @@ namespace Rasa.Structures
         public bool BoundToCharacterFlag { get; set; }
         public bool NotPlaceableInLockBoxFlag { get; set; }
         public int InventoryCategory { get; set; }
-        public int BuyPrice { get; set; }
-        public int SellPrice { get; set; }
+        public uint BuyPrice { get; set; }
+        public uint SellPrice { get; set; }
 
         public static ItemTemplateEntry Read(MySqlDataReader reader)
         {
@@ -31,8 +31,8 @@ namespace Rasa.Structures
                 BoundToCharacterFlag = reader.GetBoolean("boundToCharacterFlag"),
                 NotPlaceableInLockBoxFlag = reader.GetBoolean("notPlaceableInLockBoxFlag"),
                 InventoryCategory = reader.GetInt32("inventoryCategory"),
-                BuyPrice = reader.GetInt32("buyPrice"),
-                SellPrice = reader.GetInt32("sellPrice")
+                BuyPrice = reader.GetUInt32("buyPrice"),
+                SellPrice = reader.GetUInt32("sellPrice")
             };
         }
     }

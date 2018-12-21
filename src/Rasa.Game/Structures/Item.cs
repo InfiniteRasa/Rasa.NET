@@ -20,9 +20,9 @@
         public uint Color { get; set; }
         public string CrafterName { get; set; }
         public int CurrentHitPoints { get; set; }
-        public int Stacksize { get; set; }
+        public uint Stacksize { get; set; }
         // weapon specific
-        public int CurrentAmmo { get; set; }
+        public uint CurrentAmmo { get; set; }
         public bool IsJammed { get; set; }
         public int CammeraProfile { get; set; }
     }

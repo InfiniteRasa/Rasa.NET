@@ -7,9 +7,9 @@
     {
         public override GameOpcode Opcode { get; } = GameOpcode.WeaponAmmoInfo;
 
-        public int AmmoInfo { get; set; }
+        public uint AmmoInfo { get; set; }
 
-        public WeaponAmmoInfoPacket(int ammoInfo)
+        public WeaponAmmoInfoPacket(uint ammoInfo)
         {
             AmmoInfo = ammoInfo;
         }
@@ -17,7 +17,7 @@
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(1);
-            pw.WriteInt(AmmoInfo);
+            pw.WriteUInt(AmmoInfo);
         }
     }
 }

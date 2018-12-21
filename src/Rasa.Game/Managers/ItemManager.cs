@@ -39,7 +39,7 @@ namespace Rasa.Managers
         {
         }
 
-        public Item CreateFromTemplateId(uint itemTemplateId, int stackSize, string crafter)
+        public Item CreateFromTemplateId(uint itemTemplateId, uint stackSize, string crafter)
         {
             var itemTemplate = GetItemTemplateById(itemTemplateId);
             if (itemTemplate == null)
@@ -50,7 +50,7 @@ namespace Rasa.Managers
             return item;
         }
 
-        public Item CreateItem(ItemTemplate itemTemplate, int stackSize, string crafter)
+        public Item CreateItem(ItemTemplate itemTemplate, uint stackSize, string crafter)
         {
             if (itemTemplate == null)
                 return null;
@@ -117,7 +117,7 @@ namespace Rasa.Managers
             return item;
         }
 
-        public Item GetItemFromTemplateId(uint itemId, uint characterSlot, uint slotId, uint itemTemplateId, int stackSize)
+        public Item GetItemFromTemplateId(uint itemId, uint characterSlot, uint slotId, uint itemTemplateId, uint stackSize)
         {
             var itemTemplate = GetItemTemplateById(itemTemplateId);
 

@@ -10,7 +10,7 @@ namespace Rasa.Structures
         public bool HiddenInventoryFlag { get; set; }
         public bool IsConsumableFlag { get; set; }
         public int MaxHitPoints { get; set; }
-        public int StackSize { get; set; }
+        public uint StackSize { get; set; }
         public int DragAudioSetId { get; set; }
         public int DropAudioSetId { get; set; }
 
@@ -24,7 +24,7 @@ namespace Rasa.Structures
                 HiddenInventoryFlag = reader.GetBoolean("hiddenInventoryFlag"),
                 IsConsumableFlag = reader.GetBoolean("isConsumableFlag"),
                 MaxHitPoints = reader.GetInt32("maxHitPoints"),
-                StackSize = reader.GetInt32("stackSize"),
+                StackSize = reader.GetUInt32("stackSize"),
                 DragAudioSetId = reader.GetInt32("dragAudioSetId"),
                 DropAudioSetId = reader.GetInt32("dropAudioSetId")
             };

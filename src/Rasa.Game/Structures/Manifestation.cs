@@ -5,7 +5,7 @@ namespace Rasa.Structures
 {
     using Data;
 
-    public class PlayerData
+    public class Manifestation
     {
         public Actor Actor { get; set; }
         public Dictionary<EquipmentData, AppearanceData> AppearanceData { get; set; }
@@ -25,8 +25,8 @@ namespace Rasa.Structures
         public string ClanName { get; set; }
         public uint LockboxCredits { get; set; }
         public uint LockboxTabs { get; set; }
-        public int Credits { get; set; }
-        public int Prestige { get; set; }
+        public Dictionary<CurencyType, uint> Credits = new Dictionary<CurencyType, uint>();
+        //public uint Prestige { get; set; }
         public List<ResistanceData> ResistanceData = new List<ResistanceData>();
         public int SpentBody { get; set; }
         public int SpentMind { get; set; }
@@ -43,7 +43,7 @@ namespace Rasa.Structures
         public uint TargetEntityId { get; set; }
         public uint TrackingTargetEntityId { get; set; }
 
-        public PlayerData(CharacterEntry character, Dictionary<EquipmentData, AppearanceData> appearence)
+        public Manifestation(CharacterEntry character, Dictionary<EquipmentData, AppearanceData> appearence)
         {
             // CharacterData
             CharacterId = character.Id;
@@ -56,6 +56,8 @@ namespace Rasa.Structures
             SpentMind = character.Mind;
             SpentSpirit = character.Spirit;
             CloneCredits = character.CloneCredits;
+            Credits.Add(CurencyType.Credits, character.Credits);
+            Credits.Add(CurencyType.Prestige, character.Prestige);
             NumLogins = character.NumLogins + 1;
             TotalTimePlayed = character.TotalTimePlayed;
             TimeSinceLastPlayed = character.LastLogin;

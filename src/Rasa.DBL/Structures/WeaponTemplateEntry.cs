@@ -16,7 +16,7 @@ namespace Rasa.Structures
         public int CoolRate { get; set; }
         public double HeatPerShot { get; set; }
         public int ToolType { get; set; }        
-        public int AmmoPerShot { get; set; }
+        public uint AmmoPerShot { get; set; }
         public int WindupTime { get; set; }
         public int RecoveryTime { get; set; }
         public int RefireTime { get; set; }
@@ -44,7 +44,7 @@ namespace Rasa.Structures
                 CoolRate = reader.GetInt32("coolRate"),
                 HeatPerShot = reader.GetDouble("heatPerShot"),
                 ToolType = reader.GetInt32("toolType"),
-                AmmoPerShot = reader.GetInt32("ammoPerShot"),
+                AmmoPerShot = reader.GetUInt32("ammoPerShot"),
                 WindupTime = reader.GetInt32("windupTime"),
                 RecoveryTime = reader.GetInt32("recoveryTime"),
                 RefireTime = reader.GetInt32("refireTime"),

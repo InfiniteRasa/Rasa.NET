@@ -14,7 +14,6 @@ namespace Rasa.Packets.MapChannel.Server
 
         public WorldLocationDescriptorPacket(Vector3 position, Quaternion rotation)
         {
-            var test = Vector3.Distance(Position, Position);
             Position = position;
             Rotation = rotation;
         }
@@ -27,10 +26,10 @@ namespace Rasa.Packets.MapChannel.Server
             pw.WriteDouble(Position.Y);
             pw.WriteDouble(Position.Z);
             pw.WriteTuple(4);
+            pw.WriteDouble(1.0f);
             pw.WriteDouble(Rotation.X);
             pw.WriteDouble(Rotation.Y);
             pw.WriteDouble(Rotation.Z);
-            pw.WriteDouble(Rotation.W);
         }
     }
 }

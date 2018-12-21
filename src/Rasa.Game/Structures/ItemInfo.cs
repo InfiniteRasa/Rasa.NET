@@ -54,7 +54,7 @@ namespace Rasa.Structures
         public int CoolRate { get; set; }
         public double HeatPerShot { get; set; }
         public int ToolType { get; set; }
-        public int AmmoPerShot { get; set; }
+        public uint AmmoPerShot { get; set; }
         public int WindupTime { get; set; }
         public int RecoveryTime { get; set; }
         public int RefireTime { get; set; }

@@ -9,14 +9,14 @@
 
         public long VendorEntityId { get; set; }
         public int ItemEntityId { get; set; }
-        public int Quantity { get; set; }
+        public uint Quantity { get; set; }
 
         public override void Read(PythonReader pr)
         {
             pr.ReadTuple();
             VendorEntityId = pr.ReadLong();
             ItemEntityId = pr.ReadInt();
-            Quantity = pr.ReadInt();
+            Quantity = pr.ReadUInt();
         }
     }
 }

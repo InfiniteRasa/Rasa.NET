@@ -18,7 +18,7 @@ namespace Rasa.Database.Tables.Character
         {
             CraftItemCommand.Connection = GameDatabaseAccess.CharConnection;
             CraftItemCommand.Parameters.Add("@ItemTemplateId", MySqlDbType.UInt32);
-            CraftItemCommand.Parameters.Add("@StackSize", MySqlDbType.Int32);
+            CraftItemCommand.Parameters.Add("@StackSize", MySqlDbType.UInt32);
             CraftItemCommand.Parameters.Add("@CurrentHitPoints", MySqlDbType.Int32);
             CraftItemCommand.Parameters.Add("@CrafterName", MySqlDbType.VarChar);
             CraftItemCommand.Parameters.Add("@Color", MySqlDbType.UInt32);
@@ -26,7 +26,7 @@ namespace Rasa.Database.Tables.Character
 
             CreateItemCommand.Connection = GameDatabaseAccess.CharConnection;
             CreateItemCommand.Parameters.Add("@ItemTemplateId", MySqlDbType.UInt32);
-            CreateItemCommand.Parameters.Add("@StackSize", MySqlDbType.Int32);
+            CreateItemCommand.Parameters.Add("@StackSize", MySqlDbType.UInt32);
             CreateItemCommand.Parameters.Add("@CurrentHitPoints", MySqlDbType.Int32);
             CreateItemCommand.Parameters.Add("@Color", MySqlDbType.UInt32);
             CreateItemCommand.Prepare();
@@ -41,7 +41,7 @@ namespace Rasa.Database.Tables.Character
 
             UpdateItemCurrentAmmoCommand.Connection = GameDatabaseAccess.CharConnection;
             UpdateItemCurrentAmmoCommand.Parameters.Add("@ItemId", MySqlDbType.UInt32);
-            UpdateItemCurrentAmmoCommand.Parameters.Add("@AmmoCount", MySqlDbType.Int32);
+            UpdateItemCurrentAmmoCommand.Parameters.Add("@AmmoCount", MySqlDbType.UInt32);
             UpdateItemCurrentAmmoCommand.Prepare();
 
             UpdateItemCurrentHitPointsCommand.Connection = GameDatabaseAccess.CharConnection;
@@ -51,11 +51,11 @@ namespace Rasa.Database.Tables.Character
 
             UpdateItemStackSizeCommand.Connection = GameDatabaseAccess.CharConnection;
             UpdateItemStackSizeCommand.Parameters.Add("@ItemId", MySqlDbType.UInt32);
-            UpdateItemStackSizeCommand.Parameters.Add("@StackSize", MySqlDbType.Int32);
+            UpdateItemStackSizeCommand.Parameters.Add("@StackSize", MySqlDbType.UInt32);
             UpdateItemStackSizeCommand.Prepare();
         }
 
-        public static uint CraftItem(uint itemTemplateId, int stackSize, int currentHitPoints, string crafterName, uint color)
+        public static uint CraftItem(uint itemTemplateId, uint stackSize, int currentHitPoints, string crafterName, uint color)
         {
             lock (GameDatabaseAccess.CharLock)
             {
@@ -69,7 +69,7 @@ namespace Rasa.Database.Tables.Character
             }
         }
 
-        public static uint CreateItem(uint itemTemplateId, int stackSize, int currentHitPoints, uint color)
+        public static uint CreateItem(uint itemTemplateId, uint stackSize, int currentHitPoints, uint color)
         {
             lock (GameDatabaseAccess.CharLock)
             {
@@ -102,7 +102,7 @@ namespace Rasa.Database.Tables.Character
             }
         }
 
-        public static void UpdateItemCurrentAmmo(uint itemId, int ammoCount)
+        public static void UpdateItemCurrentAmmo(uint itemId, uint ammoCount)
         {
             lock (GameDatabaseAccess.CharLock)
             {
@@ -122,7 +122,7 @@ namespace Rasa.Database.Tables.Character
             }
         }
 
-        public static void UpdateItemStackSize(uint itemId, int stackSize)
+        public static void UpdateItemStackSize(uint itemId, uint stackSize)
         {
             lock (GameDatabaseAccess.CharLock)
             {

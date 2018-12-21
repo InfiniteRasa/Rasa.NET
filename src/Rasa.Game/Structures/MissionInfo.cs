@@ -77,7 +77,7 @@ namespace Rasa.Structures
 
     public class FixedReward :IPythonDataStruct
     {
-        public List<Curency> Credits = new List<Curency>();
+        public Dictionary<CurencyType, uint> Credits = new Dictionary<CurencyType, uint>();
         public List<RewardItem> FixedItems = new List<RewardItem>();
 
         public void Read(PythonReader pr)
@@ -89,7 +89,11 @@ namespace Rasa.Structures
             pw.WriteTuple(2);
             pw.WriteList(Credits.Count);
             foreach (var credit in Credits)
-                pw.WriteStruct(credit);
+            {
+                pw.WriteTuple(2);
+                pw.WriteInt((int)credit.Key);
+                pw.WriteUInt(credit.Value);
+            }
             pw.WriteList(FixedItems.Count);
             foreach (var item in FixedItems)
                 pw.WriteStruct(item);
