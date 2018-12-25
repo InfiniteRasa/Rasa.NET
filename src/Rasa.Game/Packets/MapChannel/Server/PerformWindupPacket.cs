@@ -28,9 +28,10 @@ namespace Rasa.Packets.MapChannel.Server
 
         public override void Write(PythonWriter pw)
         {
-            pw.WriteTuple(2 + Args.Count);
+            pw.WriteTuple(3);
             pw.WriteInt((int)ActionId);
             pw.WriteInt(ActionArgId);
+            pw.WriteList(Args.Count);
             foreach (var arg in Args)
                 pw.WriteInt(arg);
         }

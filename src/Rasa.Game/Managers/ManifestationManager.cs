@@ -16,6 +16,7 @@ namespace Rasa.Managers
     {
         /* Actor: Player "bodies" (ManifestationClass)
          * 
+         *    Manifestation Packets:
          *  - CurrentCharacterId                => implemented
          *  - AllCredits                        => implemented
          *  - UpdateCredits                     => implemented
@@ -75,6 +76,20 @@ namespace Rasa.Managers
          *  - MinionAssistTargetAck
          *  - MinionTemperamentAck
          *  - MinionCommandAck
+         *  
+         *  Manifestation Handlrs:
+         *  - AutoFireKeepAlive         => ToDo
+         *  - ChangeShowHelmet          => ToDo
+         *  - ChangeTitle               => implemented, but need more work on it
+         *  - RespondToAddAndJoinFriend => ToDo
+         *  - RespondToJoinFriend       => ToDo
+         *  - RespondToRequestToJoin    => ToDo
+         *  - RequestArmAbility         => implemented
+         *  - RequestArmWeapon          => implemented
+         *  - RequestSetAbilitySlot     => implemented
+         *  - RequestSwapAbilitySlots   => implemented
+         *  - StartAutoFire             => implemented, but need more work on it
+         *  - StopAutoFire              => implemented, but need more work on it
          */
 
         private static ManifestationManager _instance;
@@ -142,6 +157,225 @@ namespace Rasa.Managers
 
         public readonly int[] requiredSkillLevelPoints = { 0, 1, 3, 6, 10, 15 };
 
+        #region Handlers
+        public void AutoFireKeepAlive(Client client, int keepAliveDelay)
+        {
+            Logger.WriteLog(LogType.Debug, "ToDo AutoFireKeepAlive");
+        }
+
+        public void ChangeShowHelmet(Client client, ChangeShowHelmetPacket packet)
+        {
+            Logger.WriteLog(LogType.Debug, "ToDo ChangeShowHelmet");
+        }
+
+        public void ChangeTitle(Client client, uint titleId)
+        {
+            //if (titleId != 0)
+            //{
+            client.MapClient.Player.CurrentTitle = titleId;
+            client.CallMethod(client.MapClient.Player.Actor.EntityId, new TitleChangedPacket(titleId));
+            /*}
+            else
+            {
+                client.SendPacket(client.MapClient.Player.Actor.EntityId, new TitleRemovedPacket(client.MapClient.Player.CurrentTitle));
+                client.MapClient.Player.CurrentTitle = titleId;
+            }
+
+            client.MapClient.Player.CurentTitle = titleId;*/
+        }
+
+        public void RequestArmAbility(Client client, int abilityDrawerSlot)
+        {
+            client.MapClient.Player.CurrentAbilityDrawer = abilityDrawerSlot;
+            // ToDo do we need upate Database???
+            client.CallMethod(client.MapClient.Player.Actor.EntityId, new AbilityDrawerSlotPacket(abilityDrawerSlot));
+        }
+
+        public void RequestArmWeapon(Client client, uint requestedWeaponDrawerSlot)
+        {
+            client.MapClient.Inventory.ActiveWeaponDrawer = requestedWeaponDrawerSlot;
+
+            client.CallMethod(client.MapClient.Player.Actor.EntityId, new WeaponDrawerSlotPacket(requestedWeaponDrawerSlot, true));
+
+            var weapon = EntityManager.Instance.GetItem(client.MapClient.Inventory.WeaponDrawer[(int)client.MapClient.Inventory.ActiveWeaponDrawer]);
+
+            if (weapon == null)
+                return;
+
+            client.MapClient.Inventory.EquippedInventory[13] = weapon.EntityId;
+
+            NotifyEquipmentUpdate(client);
+
+            SetAppearanceItem(client, weapon);
+            UpdateAppearance(client);
+            // update ammo info
+            client.CallMethod(weapon.EntityId, new WeaponAmmoInfoPacket(weapon.CurrentAmmo));
+        }
+
+        public void RequestSetAbilitySlot(Client client, RequestSetAbilitySlotPacket packet)
+        {
+            // todo: do we need to check if ability is available ??
+            if (packet.AbilityId == 0)
+            {
+                // remove ability is used
+                client.MapClient.Player.Abilities.Remove(packet.SlotId);
+            }
+            else
+            {
+                // added new ability
+                client.MapClient.Player.Abilities.TryGetValue(packet.SlotId, out AbilityDrawerData ability);
+                if (ability == null)
+                {
+                    client.MapClient.Player.Abilities.Add(packet.SlotId, new AbilityDrawerData { AbilitySlotId = packet.SlotId, AbilityId = (int)packet.AbilityId, AbilityLevel = (int)packet.AbilityLevel });
+                }
+                else
+                {
+                    client.MapClient.Player.Abilities[packet.SlotId].AbilityId = (int)packet.AbilityId;
+                    client.MapClient.Player.Abilities[packet.SlotId].AbilityLevel = (int)packet.AbilityLevel;
+                    client.MapClient.Player.Abilities[packet.SlotId].AbilitySlotId = packet.SlotId;
+                }
+            }
+            // update database with new drawer slot ability
+            CharacterAbilityDrawerTable.UpdateCharacterAbility(client.AccountEntry.Id, client.AccountEntry.SelectedSlot, packet.SlotId, (int)packet.AbilityId, (int)packet.AbilityLevel);
+            // send packet
+            client.CallMethod(client.MapClient.Player.Actor.EntityId, new AbilityDrawerPacket(client.MapClient.Player.Abilities));
+        }
+
+        public void RequestSwapAbilitySlots(Client client, RequestSwapAbilitySlotsPacket packet)
+        {
+            AbilityDrawerData toSlot;
+            var abilities = client.MapClient.Player.Abilities;
+            var fromSlot = abilities[packet.FromSlot];
+            abilities.TryGetValue(packet.ToSlot, out toSlot);
+            if (toSlot == null)
+            {
+                abilities.Add(packet.ToSlot, new AbilityDrawerData { AbilitySlotId = packet.ToSlot, AbilityId = fromSlot.AbilityId, AbilityLevel = fromSlot.AbilityLevel });
+                abilities.Remove(packet.FromSlot);
+            }
+            else
+            {
+                abilities[packet.ToSlot] = abilities[packet.FromSlot];
+                abilities[packet.FromSlot] = toSlot;
+            }
+            // Do we need to update database here ???
+            // update database with new drawer slot ability
+            CharacterAbilityDrawerTable.UpdateCharacterAbility(
+                client.AccountEntry.Id,
+                client.AccountEntry.SelectedSlot,
+                abilities[packet.ToSlot].AbilitySlotId,
+                abilities[packet.ToSlot].AbilityId,
+                abilities[packet.ToSlot].AbilityLevel);
+            // check if fromSlot isn't empty now
+            abilities.TryGetValue(packet.FromSlot, out AbilityDrawerData tempSlot);
+            if (tempSlot != null)
+                CharacterAbilityDrawerTable.UpdateCharacterAbility(
+                    client.AccountEntry.Id,
+                    client.AccountEntry.SelectedSlot,
+                    abilities[packet.FromSlot].AbilitySlotId,
+                    abilities[packet.FromSlot].AbilityId,
+                    abilities[packet.FromSlot].AbilityLevel);
+            else
+                CharacterAbilityDrawerTable.UpdateCharacterAbility(client.AccountEntry.Id, client.AccountEntry.SelectedSlot, packet.FromSlot, 0, 0);
+            // send packet
+            client.CallMethod(client.MapClient.Player.Actor.EntityId, new AbilityDrawerPacket(abilities));
+        }
+
+        public void StartAutoFire(Client client, double yaw)
+        {
+            if (!client.MapClient.Player.WeaponReady)
+            {
+                RequestWeaponDraw(client);
+                return;
+            }
+
+            var weapon = InventoryManager.Instance.CurrentWeapon(client.MapClient);
+
+            if (weapon == null)
+                return; // no weapon armed
+
+            // do we need to reload?
+            if (weapon.CurrentAmmo < weapon.ItemTemplate.WeaponInfo.AmmoPerShot)
+            {
+                RequestWeaponReload(client);
+                return;
+            }
+            // decrease ammo count
+            weapon.CurrentAmmo -= weapon.ItemTemplate.WeaponInfo.AmmoPerShot;
+
+            var weaponClassInfo = EntityClassManager.Instance.GetWeaponClassInfo(weapon);
+
+            // send first hit to cell, ignore self
+            client.CellIgnoreSelfSendPacket(client, new PerformWindupPacket(weaponClassInfo.WeaponAttackActionId, weaponClassInfo.WeaponAttackArgId));
+
+            // start auto fire loop
+            RegisterAutoFire(client, weapon);
+
+            /*
+            client.SendPacket(weapon.EntityId, new WeaponAmmoInfoPacket(weapon.CurrentAmmo));
+
+            // update ammo in Db
+            ItemsTable.UpdateItemCurrentAmmo(weapon.ItemId, weapon.CurrentAmmo);
+
+            if (client.MapClient.Player.TargetEntityId == 0)
+                return; // do not continue if no target
+
+            var targetType = EntityManager.Instance.GetEntityType(client.MapClient.Player.TargetEntityId);
+            
+            if (targetType == EntityType.Player) //1:client-type,0=player-type
+            {
+                var mapCell = CellManager.Instance.TryGetCell(
+                    client.MapClient.MapChannel,
+                    client.MapClient.Player.Actor.CellLocation.CellPosX,
+                    client.MapClient.Player.Actor.CellLocation.CellPosY
+                    );
+
+                if (mapCell != null)
+                {
+                    var clientList = client.MapClient.MapChannel.ClientList;
+
+                    foreach (var targetPlayer in clientList)
+                        if (targetPlayer.MapClient.Player.Actor.EntityId == client.MapClient.Player.TargetEntityId)
+                        {
+                            client.MapClient.Player.TargetEntityId = targetPlayer.MapClient.Player.Actor.EntityId;
+                            break;
+                        }
+                }
+
+            }
+
+            var weaponClassInfo = EntityClassManager.Instance.LoadedEntityClasses[weapon.ItemTemplate.ClassId].WeaponClassInfo;
+
+            var weaponAttack = new RequestWeaponAttackPacket
+            {
+                ActionId = weaponClassInfo.WeaponAttackActionId,
+                ActionArgId = weaponClassInfo.WeaponAttackArgId,
+                TargetId = client.MapClient.Player.TargetEntityId
+            };
+
+            MissileManager.Instance.RequestWeaponAttack(client, weaponAttack);
+            */
+        }
+
+        public void StopAutoFire(Client client)
+        {
+            var weapon = InventoryManager.Instance.CurrentWeapon(client.MapClient);
+            var weaponClassInfo = EntityClassManager.Instance.GetWeaponClassInfo(weapon);
+
+            // remove autoFire timer
+            foreach (var timer in AutoFire)
+                if (timer.Client == client)
+                {
+                    AutoFire.Remove(timer);
+                    break;
+                }
+
+            client.MapClient.MapChannel.PerformActions.Add(new ActionData(client, weaponClassInfo.WeaponAttackActionId, weaponClassInfo.WeaponAttackArgId, 0, weapon.ItemTemplate.WeaponInfo.RefireTime));
+        }
+
+        #endregion
+
+        #region Helper Functions
+
         public void AllocateAttributePoints(Client client, AllocateAttributePointsPacket packet)
         {
             client.MapClient.Player.SpentBody += packet.Body;
@@ -202,12 +436,7 @@ namespace Rasa.Managers
 
             client.CallMethod(actor.EntityId, new LogosStoneTabulaPacket(player.Logos));
         }
-
-        public void AutoFireKeepAlive(Client client, int keepAliveDelay)
-        {
-            // ToDo (after reload continue auto fire????)
-        }
-
+        
         public void CellDiscardClientToPlayers(Client client, List<Client> notifyClients)
         {
             foreach (var tempClient in notifyClients)
@@ -283,22 +512,6 @@ namespace Rasa.Managers
                 //netMovement.posZ24b = tempClient->player->actor->posZ * 256.0f;
                 //netMgr_sendEntityMovement(client->cgm, &netMovement);
             }
-        }
-
-        public void ChangeTitle(Client client, uint titleId)
-        {
-            //if (titleId != 0)
-            //{
-                client.MapClient.Player.CurrentTitle = titleId;
-                client.CallMethod(client.MapClient.Player.Actor.EntityId, new TitleChangedPacket(titleId));
-            /*}
-            else
-            {
-                client.SendPacket(client.MapClient.Player.Actor.EntityId, new TitleRemovedPacket(client.MapClient.Player.CurrentTitle));
-                client.MapClient.Player.CurrentTitle = titleId;
-            }
-
-            client.MapClient.Player.CurentTitle = titleId;*/
         }
 
         public List<PythonPacket> CreatePlayerEntityData(Client client)
@@ -466,31 +679,7 @@ namespace Rasa.Managers
         {
             client.CallMethod(client.MapClient.Player.Actor.EntityId, new EquipmentInfoPacket(client.MapClient.Inventory.EquippedInventory));
         }
-
-        public void PurchaseLockboxTab(Client client, PurchaseLockboxTabPacket packet)
-        {
-            /* ToDo
-             * player credits are checked on client side
-             * should we add server side check too?
-             */
-
-            if (packet.TabId == 2)  // price is 100 000
-                LossCredits(client, 100000);
-            if (packet.TabId == 3)  // price is 1 000 000
-                LossCredits(client, 1000000);
-            if (packet.TabId == 4)  // price is 10 000 000
-                LossCredits(client, 10000000);
-            if (packet.TabId == 5)  // price is 100 000 000
-                LossCredits(client, 100000000);
-
-            // update Player
-            client.MapClient.Player.LockboxTabs = packet.TabId;
-            // update Db
-            CharacterLockboxTable.UpdatePurashedTabs(client.AccountEntry.Id, packet.TabId);
-            // send data to client
-            client.CallMethod(SysEntity.ClientInventoryManagerId, new LockboxTabPermissionsPacket(packet.TabId));
-        }
-
+        
         public void RegisterAutoFire(Client client, Item weapon)
         {
             // create timer
@@ -522,34 +711,6 @@ namespace Rasa.Managers
             client.CallMethod(client.MapClient.Player.Actor.EntityId, new PerformRecoveryPacket(packet.ActionId, packet.ActionArgId));
         }
 
-        public void RequestArmAbility(Client client, int abilityDrawerSlot)
-        {
-            client.MapClient.Player.CurrentAbilityDrawer = abilityDrawerSlot;
-            // ToDo do we need upate Database???
-            client.CallMethod(client.MapClient.Player.Actor.EntityId, new AbilityDrawerSlotPacket(abilityDrawerSlot));
-        }
-
-        public void RequestArmWeapon(Client client, uint requestedWeaponDrawerSlot)
-        {
-            client.MapClient.Inventory.ActiveWeaponDrawer = requestedWeaponDrawerSlot;
-
-            client.CallMethod(client.MapClient.Player.Actor.EntityId, new WeaponDrawerSlotPacket(requestedWeaponDrawerSlot, true));
-
-            var weapon = EntityManager.Instance.GetItem(client.MapClient.Inventory.WeaponDrawer[(int)client.MapClient.Inventory.ActiveWeaponDrawer]);
-
-            if (weapon == null)
-                return;
-
-            client.MapClient.Inventory.EquippedInventory[13] = weapon.EntityId;
-
-            NotifyEquipmentUpdate(client);
-
-            SetAppearanceItem(client, weapon);
-            UpdateAppearance(client);
-            // update ammo info
-            client.CallMethod(weapon.EntityId, new WeaponAmmoInfoPacket(weapon.CurrentAmmo));
-        }
-
         public void RequestCustomization(Client client, RequestCustomizationPacket packet)
         {
             // ToDo
@@ -559,76 +720,8 @@ namespace Rasa.Managers
         {
             // ToDo
             //client.MapClient.MapChannel.PerformActions.Add(new ActionData(client, packet.ActionId, packet.ActionArgId, packet.Target));
-        }
-
-        public void RequestSetAbilitySlot(Client client, RequestSetAbilitySlotPacket packet)
-        {
-            // todo: do we need to check if ability is available ??
-            if (packet.AbilityId == 0)
-            {
-                // remove ability is used
-                client.MapClient.Player.Abilities.Remove(packet.SlotId);
-            }
-            else
-            {
-                // added new ability
-                client.MapClient.Player.Abilities.TryGetValue(packet.SlotId, out AbilityDrawerData ability);
-                if (ability == null)
-                {
-                    client.MapClient.Player.Abilities.Add(packet.SlotId, new AbilityDrawerData { AbilitySlotId = packet.SlotId, AbilityId = (int)packet.AbilityId, AbilityLevel = (int)packet.AbilityLevel });
-                }
-                else
-                {
-                    client.MapClient.Player.Abilities[packet.SlotId].AbilityId = (int)packet.AbilityId;
-                    client.MapClient.Player.Abilities[packet.SlotId].AbilityLevel = (int)packet.AbilityLevel;
-                    client.MapClient.Player.Abilities[packet.SlotId].AbilitySlotId = packet.SlotId;
-                }
-            }
-            // update database with new drawer slot ability
-            CharacterAbilityDrawerTable.UpdateCharacterAbility(client.AccountEntry.Id, client.AccountEntry.SelectedSlot, packet.SlotId, (int)packet.AbilityId, (int)packet.AbilityLevel);
-            // send packet
-            client.CallMethod(client.MapClient.Player.Actor.EntityId, new AbilityDrawerPacket(client.MapClient.Player.Abilities));
-        }
-
-        public void RequestSwapAbilitySlots(Client client, RequestSwapAbilitySlotsPacket packet)
-        {
-            AbilityDrawerData toSlot;
-            var abilities = client.MapClient.Player.Abilities;
-            var fromSlot = abilities[packet.FromSlot];
-            abilities.TryGetValue(packet.ToSlot, out toSlot);
-            if (toSlot == null)
-            {
-                abilities.Add(packet.ToSlot, new AbilityDrawerData { AbilitySlotId = packet.ToSlot, AbilityId = fromSlot.AbilityId, AbilityLevel = fromSlot.AbilityLevel });
-                abilities.Remove(packet.FromSlot);
-            }
-            else
-            {
-                abilities[packet.ToSlot] = abilities[packet.FromSlot];
-                abilities[packet.FromSlot] = toSlot;
-            }
-            // Do we need to update database here ???
-            // update database with new drawer slot ability
-            CharacterAbilityDrawerTable.UpdateCharacterAbility(
-                client.AccountEntry.Id,
-                client.AccountEntry.SelectedSlot,
-                abilities[packet.ToSlot].AbilitySlotId,
-                abilities[packet.ToSlot].AbilityId,
-                abilities[packet.ToSlot].AbilityLevel);
-            // check if fromSlot isn't empty now
-            abilities.TryGetValue(packet.FromSlot, out AbilityDrawerData tempSlot);
-            if (tempSlot != null)
-                CharacterAbilityDrawerTable.UpdateCharacterAbility(
-                    client.AccountEntry.Id,
-                    client.AccountEntry.SelectedSlot,
-                    abilities[packet.FromSlot].AbilitySlotId,
-                    abilities[packet.FromSlot].AbilityId,
-                    abilities[packet.FromSlot].AbilityLevel);
-            else
-                CharacterAbilityDrawerTable.UpdateCharacterAbility(client.AccountEntry.Id, client.AccountEntry.SelectedSlot, packet.FromSlot, 0, 0);
-            // send packet
-            client.CallMethod(client.MapClient.Player.Actor.EntityId, new AbilityDrawerPacket(abilities));
-        }
-
+        }        
+        
         public void RequestToggleRun(Client client)
         {
             client.MapClient.Player.Actor.IsRunning = !client.MapClient.Player.Actor.IsRunning;
@@ -776,98 +869,6 @@ namespace Rasa.Managers
         public void SetTrackingTarget(Client client, uint entityId)
         {
             client.MapClient.Player.TrackingTargetEntityId = entityId;
-        }
-
-        public void StartAutoFire(Client client, double yaw)
-        {
-            if (!client.MapClient.Player.WeaponReady)
-            {
-                RequestWeaponDraw(client);
-                return;
-            }
-
-            var weapon = InventoryManager.Instance.CurrentWeapon(client.MapClient);
-
-            if (weapon == null)
-                return; // no weapon armed
-
-            // do we need to reload?
-            if (weapon.CurrentAmmo < weapon.ItemTemplate.WeaponInfo.AmmoPerShot)
-            {
-                RequestWeaponReload(client);
-                return;
-            }
-            // decrease ammo count
-            weapon.CurrentAmmo -= weapon.ItemTemplate.WeaponInfo.AmmoPerShot;
-
-            var weaponClassInfo = EntityClassManager.Instance.GetWeaponClassInfo(weapon);
-
-            // send first hit to cell, ignore self
-            client.CellIgnoreSelfSendPacket(client, new PerformWindupPacket(weaponClassInfo.WeaponAttackActionId, weaponClassInfo.WeaponAttackArgId));
-
-            // start auto fire loop
-            RegisterAutoFire(client, weapon);
-            
-            /*
-            client.SendPacket(weapon.EntityId, new WeaponAmmoInfoPacket(weapon.CurrentAmmo));
-
-            // update ammo in Db
-            ItemsTable.UpdateItemCurrentAmmo(weapon.ItemId, weapon.CurrentAmmo);
-
-            if (client.MapClient.Player.TargetEntityId == 0)
-                return; // do not continue if no target
-
-            var targetType = EntityManager.Instance.GetEntityType(client.MapClient.Player.TargetEntityId);
-            
-            if (targetType == EntityType.Player) //1:client-type,0=player-type
-            {
-                var mapCell = CellManager.Instance.TryGetCell(
-                    client.MapClient.MapChannel,
-                    client.MapClient.Player.Actor.CellLocation.CellPosX,
-                    client.MapClient.Player.Actor.CellLocation.CellPosY
-                    );
-
-                if (mapCell != null)
-                {
-                    var clientList = client.MapClient.MapChannel.ClientList;
-
-                    foreach (var targetPlayer in clientList)
-                        if (targetPlayer.MapClient.Player.Actor.EntityId == client.MapClient.Player.TargetEntityId)
-                        {
-                            client.MapClient.Player.TargetEntityId = targetPlayer.MapClient.Player.Actor.EntityId;
-                            break;
-                        }
-                }
-
-            }
-
-            var weaponClassInfo = EntityClassManager.Instance.LoadedEntityClasses[weapon.ItemTemplate.ClassId].WeaponClassInfo;
-
-            var weaponAttack = new RequestWeaponAttackPacket
-            {
-                ActionId = weaponClassInfo.WeaponAttackActionId,
-                ActionArgId = weaponClassInfo.WeaponAttackArgId,
-                TargetId = client.MapClient.Player.TargetEntityId
-            };
-
-            MissileManager.Instance.RequestWeaponAttack(client, weaponAttack);
-            */
-        }
-
-        public void StopAutoFire(Client client)
-        {
-            var weapon = InventoryManager.Instance.CurrentWeapon(client.MapClient);
-            var weaponClassInfo = EntityClassManager.Instance.GetWeaponClassInfo(weapon);
-
-            // remove autoFire timer
-            foreach( var timer in AutoFire)
-                if (timer.Client == client)
-                {
-                    AutoFire.Remove(timer);
-                    break;
-                }
-
-            client.MapClient.MapChannel.PerformActions.Add(new ActionData(client, weaponClassInfo.WeaponAttackActionId, weaponClassInfo.WeaponAttackArgId, 0, weapon.ItemTemplate.WeaponInfo.RefireTime));
         }
 
         public void UpdateAppearance(Client client)
@@ -1025,6 +1026,7 @@ namespace Rasa.Managers
             // send data to client
             client.CellCallMethod(client, client.MapClient.Player.Actor.EntityId, new PerformRecoveryPacket(action.ActionId, action.ActionArgId, new List<uint> { foundAmmo }));
         }
-
+        
+        #endregion
     }
 }

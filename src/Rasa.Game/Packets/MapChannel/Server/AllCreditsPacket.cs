@@ -4,14 +4,12 @@ namespace Rasa.Packets.MapChannel.Server
 {
     using Data;
     using Memory;
-    using Structures;
 
     public class AllCreditsPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.AllCredits;
 
         public Dictionary<CurencyType, uint> Credits { get; set; }
-        public uint Prestige { get; set; }
 
         public AllCreditsPacket(Dictionary<CurencyType, uint> creadits)
         {

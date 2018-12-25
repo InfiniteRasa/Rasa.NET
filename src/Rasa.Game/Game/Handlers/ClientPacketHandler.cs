@@ -3,7 +3,7 @@
     using Data;
     using Managers;
     using Packets;
-    using Packets.MapChannel.Client;    
+    using Packets.MapChannel.Client;
 
     public partial class ClientPacketHandler
     {
@@ -53,7 +53,7 @@
         [PacketHandler(GameOpcode.ChangeShowHelmet)]
         private void ChangeShowHelmet(ChangeShowHelmetPacket packet)
         {
-            Logger.WriteLog(LogType.Debug, "ToDo ChangeShowHelmet");
+            ManifestationManager.Instance.ChangeShowHelmet(Client, packet);
         }
 
         [PacketHandler(GameOpcode.CharacterLogout)]
@@ -131,7 +131,7 @@
         [PacketHandler(GameOpcode.PurchaseLockboxTab)]
         private void PurchaseLockboxTab(PurchaseLockboxTabPacket packet)
         {
-            ManifestationManager.Instance.PurchaseLockboxTab(Client, packet);
+            InventoryManager.Instance.PurchaseLockboxTab(Client, packet);
         }
 
         [PacketHandler(GameOpcode.RadialChat)]
@@ -158,16 +158,40 @@
             ManifestationManager.Instance.RequestArmWeapon(Client, packet.RequestedWeaponDrawerSlot);
         }
 
+        [PacketHandler(GameOpcode.RequestAuctionBuyout)]
+        private void RequestAuctionBuyout(RequestAuctionBuyoutPacket packet)
+        {
+            AuctionHouseManager.Instance.RequestAuctionBuyout(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.RequestAuctionStatus)]
+        private void RequestAuctionStatus(RequestAuctionStatusPacket packet)
+        {
+            AuctionHouseManager.Instance.RequestAuctionStatus(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.RequestCancelAuction)]
+        private void RequestCancelAuction(RequestCancelAuctionPacket packet)
+        {
+            AuctionHouseManager.Instance.RequestCancelAuction(Client, packet);
+        }
+
         [PacketHandler(GameOpcode.RequestCancelAuctioneer)]
         private void RequestCancelAuctioneer(RequestCancelAuctioneerPacket packet)
         {
-            NpcManager.Instance.RequestCancelAuctioneer(Client);
+            AuctionHouseManager.Instance.RequestCancelAuctioneer(Client);
         }
 
         [PacketHandler(GameOpcode.RequestCancelVendor)]
         private void RequestCancelVendor(RequestCancelVendorPacket packet)
         {
             NpcManager.Instance.RequestCancelVendor(Client, packet.EntityId);
+        }
+
+        [PacketHandler(GameOpcode.RequestCreateAuction)]
+        private void RequestCreateAuction(RequestCreateAuctionPacket packet)
+        {
+            AuctionHouseManager.Instance.RequestCreateAuction(Client, packet);
         }
 
         [PacketHandler(GameOpcode.RequestCustomization)]
@@ -228,6 +252,12 @@
         private void RequestPerformAbility(RequestPerformAbilityPacket packet)
         {
             ManifestationManager.Instance.RequestPerformAbility(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.RequestQueryAuctions)]
+        private void RequestQueryAuctions(RequestQueryAuctionsPacket packet)
+        {
+            AuctionHouseManager.Instance.RequestQueryAuctions(Client, packet);
         }
 
         [PacketHandler(GameOpcode.RequestSetAbilitySlot)]

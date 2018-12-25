@@ -360,11 +360,6 @@ namespace Rasa.Managers
         {
             client.CallMethod((uint)entityId, new OpenAuctionHousePacket());
         }
-
-        public void RequestCancelAuctioneer(Client client)
-        {
-            Logger.WriteLog(LogType.Debug, $"RequestCancelAuctioneer => ToDo"); // ToDo
-        }
         #endregion
 
         #region Vendor

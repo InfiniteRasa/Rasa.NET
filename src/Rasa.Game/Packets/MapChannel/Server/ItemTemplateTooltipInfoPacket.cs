@@ -98,20 +98,16 @@
                         pw.WriteBool(!ItemTemplate.ItemInfo.Tradable);
                         pw.WriteInt(EntityClass.ItemClassInfo.MaxHitPoints);
                         pw.WriteInt(ItemTemplate.ItemInfo.BuyBackPrice);
-                        if (ItemTemplate.ItemInfo.Requirements.Count > 0)
+                        pw.WriteList(ItemTemplate.ItemInfo.Requirements.Count);
+                        foreach (var requirement in ItemTemplate.ItemInfo.Requirements)
                         {
-                            pw.WriteList(ItemTemplate.ItemInfo.Requirements.Count);
-                            foreach (var requirement in ItemTemplate.ItemInfo.Requirements)
-                            {
-                                pw.WriteTuple(2);
-                                pw.WriteInt((int)requirement.Key);
-                                pw.WriteInt(requirement.Value);
-                            }
+                            pw.WriteTuple(2);
+                            pw.WriteInt((int)requirement.Key);
+                            pw.WriteInt(requirement.Value);
                         }
-                        else
-                            pw.WriteNoneStruct();
                         pw.WriteNoneStruct();                                       // kItemIdx_ModuleIds		= 4
-                        pw.WriteNoneStruct();                                       // kItemIdx_RaceIds			= 5
+                        pw.WriteInt(ItemTemplate.ItemInfo.RaceReq);
+                        //pw.WriteNoneStruct();                                       // kItemIdx_RaceIds			= 5
                         break;
 
                     case AugmentationType.Armor:
