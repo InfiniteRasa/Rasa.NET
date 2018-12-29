@@ -143,7 +143,7 @@
         [PacketHandler(GameOpcode.RequestActionInterrupt)]
         private void RequestActionInterrupt(RequestActionInterruptPacket packet)
         {
-            ManifestationManager.Instance.RequestActionInterrupt(Client, packet);
+            ActorManager.Instance.RequestActionInterrupt(Client, packet);
         }
 
         [PacketHandler(GameOpcode.RequestArmAbility)]
@@ -329,7 +329,7 @@
         [PacketHandler(GameOpcode.RequestVisualCombatMode)]
         private void RequestVisualCombatMode(RequestVisualCombatModePacket packet)
         {
-            ManifestationManager.Instance.RequestVisualCombatMode(Client, packet.CombatMode);
+            ActorManager.Instance.RequestVisualCombatMode(Client, packet.CombatMode);
         }
 
         [PacketHandler(GameOpcode.RequestWeaponAttack)]
@@ -377,7 +377,7 @@
         [PacketHandler(GameOpcode.SetDesiredCrouchState)]
         private void SetDesiredCrouchState(SetDesiredCrouchStatePacket packet)
         {
-            ManifestationManager.Instance.SetDesiredCrouchState(Client, packet.DesiredStateId);
+            ActorManager.Instance.SetDesiredCrouchState(Client, packet.DesiredStateId);
         }
 
         [PacketHandler(GameOpcode.SetTargetId)]

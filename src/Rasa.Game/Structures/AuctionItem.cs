@@ -8,7 +8,7 @@
         public string Sellername { get; set; }
         public uint BidPrice { get; set; }
         public uint BuyoutPrice { get; set; }
-        public uint RemainingDuration { get; set; }
+        public uint RemainingDuration { get; set; }     // in hours
         public uint ItemTemplateId { get; set; }
         public uint StackSize { get; set; }
         public uint LootModuleId1 { get; set; }

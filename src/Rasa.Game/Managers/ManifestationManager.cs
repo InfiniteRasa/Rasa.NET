@@ -210,6 +210,7 @@ namespace Rasa.Managers
             UpdateAppearance(client);
             // update ammo info
             client.CallMethod(weapon.EntityId, new WeaponAmmoInfoPacket(weapon.CurrentAmmo));
+            client.CallMethod(client.MapClient.Player.Actor.EntityId, new WeaponReadyPacket(false));
         }
 
         public void RequestSetAbilitySlot(Client client, RequestSetAbilitySlotPacket packet)
@@ -530,7 +531,7 @@ namespace Rasa.Managers
                 new CharacterClassPacket(player.Class),
 
                 new AttributeInfoPacket(player.Actor.Attributes),
-                new PreloadDataPacket(),   // ToDo
+                new PreloadDataPacket(client.MapClient.Inventory.EquippedInventory[13], player.Abilities),
                 new AppearanceDataPacket(player.AppearanceData),
                 new ResistanceDataPacket(player.ResistanceData),
                 new ActorControllerInfoPacket(true),
@@ -705,12 +706,7 @@ namespace Rasa.Managers
             // update appearance data in database
             CharacterAppearanceTable.UpdateCharacterAppearance(client.MapClient.Player.CharacterId, (uint)equipmentSlotId, 0, 0);
         }
-
-        public void RequestActionInterrupt(Client client, RequestActionInterruptPacket packet)
-        {
-            client.CallMethod(client.MapClient.Player.Actor.EntityId, new PerformRecoveryPacket(packet.ActionId, packet.ActionArgId));
-        }
-
+        
         public void RequestCustomization(Client client, RequestCustomizationPacket packet)
         {
             // ToDo
@@ -728,21 +724,7 @@ namespace Rasa.Managers
 
             client.CallMethod(client.MapClient.Player.Actor.EntityId, new IsRunningPacket(client.MapClient.Player.Actor.IsRunning));
         }
-
-        public void RequestVisualCombatMode(Client client, int combatMode)
-        {
-            if (combatMode > 0)
-            {
-                client.MapClient.Player.Actor.InCombatMode = true;
-                client.CellCallMethod(client, client.MapClient.Player.Actor.EntityId, new RequestVisualCombatModePacket { CombatMode = 1 });
-            }
-            else
-            {
-                client.MapClient.Player.Actor.InCombatMode = false;
-                client.CellCallMethod(client, client.MapClient.Player.Actor.EntityId, new RequestVisualCombatModePacket { CombatMode = 0 });
-            }
-        }
-
+        
         public void RequestWeaponDraw(Client client)
         {
             var weapon = InventoryManager.Instance.CurrentWeapon(client.MapClient);
@@ -854,11 +836,6 @@ namespace Rasa.Managers
             
             // update appearance data in database
             CharacterAppearanceTable.UpdateCharacterAppearance(client.MapClient.Player.CharacterId, (uint)equipmentSlotId, (uint)item.ItemTemplate.Class, item.Color);
-        }
-
-        public void SetDesiredCrouchState(Client client, ActorState state)
-        {
-            client.CellIgnoreSelfCallMethod(client, new SetDesiredCrouchStatePacket { DesiredStateId = state });
         }
 
         public void SetTargetId(Client client, long entityId)

@@ -497,7 +497,7 @@ namespace Rasa.Managers
 
             // note: Players can only sell items directly from their personal inventory
             //       so we only have to scan there for the item entityId
-            var slotIndex = 0U;
+            var slotIndex = 250U;
 
             for (var i = 0; i < 250; i++)
             {
@@ -508,7 +508,7 @@ namespace Rasa.Managers
                 }
             }
 
-            if (slotIndex == 0)
+            if (slotIndex == 250U)
             {
                 Logger.WriteLog(LogType.Error, "RequestVendorSale: Item entity not found in player's inventory\n");
                 return;

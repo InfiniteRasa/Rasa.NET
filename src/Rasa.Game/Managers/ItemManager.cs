@@ -13,6 +13,13 @@ namespace Rasa.Managers
 
     public class ItemManager
     {
+        /*      Item Packets:
+         *  - SetConsumable(self, isConsumable)
+         *  - SetStackCount(self, count)
+         *  - ItemStatus(self, currentHitPoints, maxHitPoints)
+         *  - ItemModuleModified(self, moduleIds)
+         */
+
         private static ItemManager _instance;
         private static readonly object InstanceLock = new object();
         public Dictionary<uint, EntityClassId> ItemTemplateItemClass = new Dictionary<uint, EntityClassId>();

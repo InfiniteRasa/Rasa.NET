@@ -105,9 +105,14 @@
                             pw.WriteInt((int)requirement.Key);
                             pw.WriteInt(requirement.Value);
                         }
-                        pw.WriteNoneStruct();                                       // kItemIdx_ModuleIds		= 4
-                        pw.WriteInt(ItemTemplate.ItemInfo.RaceReq);
-                        //pw.WriteNoneStruct();                                       // kItemIdx_RaceIds			= 5
+                        pw.WriteNoneStruct();                                       // kItemIdx_ModuleIds		= 4      ToDo
+                        if (ItemTemplate.ItemInfo.RaceReq != 0)
+                        {
+                            pw.WriteList(1);
+                            pw.WriteInt(ItemTemplate.ItemInfo.RaceReq);
+                        }
+                        else
+                            pw.WriteNoneStruct();
                         break;
 
                     case AugmentationType.Armor:

@@ -19,7 +19,18 @@
             EntityId = (uint)pr.ReadLong();
             ItemEntityId = pr.ReadUInt();
             Price = pr.ReadUInt();
-            Duration = (uint)pr.ReadLong();
+            switch (pr.PeekType())
+            {
+                case PythonType.Int:
+                    Duration = pr.ReadUInt();
+                    break;
+                case PythonType.Long:
+                    Duration = (uint)pr.ReadLong();
+                    break;
+                default:
+                    Logger.WriteLog(LogType.Error, $"Duration isn't long or int???");
+                    break;
+            }
         }
     }
 }

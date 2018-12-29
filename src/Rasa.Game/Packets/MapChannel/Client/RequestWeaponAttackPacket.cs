@@ -21,7 +21,7 @@
                 TargetId = pr.ReadLong();
             else
                 pr.ReadNoneStruct();                // no target
-            pr.ReadZeroStruct();
+            pr.ReadBool();
         }
     }
 }
