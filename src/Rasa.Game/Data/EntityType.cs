@@ -2,11 +2,11 @@
 {
     public enum EntityType
     {
-        Player      = 0,
-        Creature    = 1,
-        Npc         = 2,
-        Item        = 3,
-        Object      = 4,
-        VendorItem = 5
+        Player      = 1,
+        Creature    = 2,
+        Npc         = 3,
+        Item        = 4,
+        Object      = 5,
+        VendorItem = 6
     }
 }

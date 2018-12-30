@@ -372,7 +372,7 @@ namespace Rasa.Managers
 
         public void RegisterAutoFireTimer(Client client)
         {
-            var weapon = InventoryManager.Instance.CurrentWeapon(client.MapClient);
+            var weapon = InventoryManager.Instance.CurrentWeapon(client);
 
             if (weapon == null || weapon.ItemTemplate.WeaponInfo == null)
                 return; // invalid entity or incorrect item type

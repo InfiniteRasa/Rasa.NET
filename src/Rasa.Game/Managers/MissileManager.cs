@@ -85,9 +85,9 @@ namespace Rasa.Managers
 	            else
 		            printf("missile_playerTryFireWeapon: Unsupported weapon altActionId (action %d/%d)\n", item->itemTemplate->weapon.altActionId, item->itemTemplate->weapon.altActionArg);
 
-            */
+            
 
-            var weapon = InventoryManager.Instance.CurrentWeapon(client.MapClient);
+            var weapon = InventoryManager.Instance.CurrentWeapon(client);
 
             if (weapon == null)
             {
@@ -128,6 +128,7 @@ namespace Rasa.Managers
 
 
             QueuedMissiles.Add(missile);
+            */
         }
 
         public void DoWork(long delta)

@@ -20,10 +20,11 @@ namespace Rasa.Packets.MapChannel.Server
         {
             pw.WriteTuple(1);
             pw.WriteList(EquipmentInfo.Count);
+
+            uint count = 0;
+
             foreach (var entry in EquipmentInfo)
             {
-                uint count = 0;
-
                 pw.WriteTuple(2);
                 pw.WriteUInt(count);
                 pw.WriteUInt(entry);

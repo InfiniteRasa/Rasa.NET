@@ -395,8 +395,7 @@
         [PacketHandler(GameOpcode.StartAutoFire)]
         private void StartAutoFire(StartAutoFirePacket packet)
         {
-            //ManifestationManager.Instance.StartAutoFire(Client, packet.FromUi);
-            Logger.WriteLog(LogType.Debug, $"StartAutoFirePacket {packet.FromUi}");
+            ManifestationManager.Instance.StartAutoFire(Client, packet.FromUi);
         }
 
         [PacketHandler(GameOpcode.StopAutoFire)]

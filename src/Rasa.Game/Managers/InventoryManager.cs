@@ -307,6 +307,7 @@ namespace Rasa.Managers
                     var equipableClassInfo = EntityClassManager.Instance.GetEquipableClassInfo(prevEquippedItem);
 
                     ManifestationManager.Instance.RemoveAppearanceItem(client, equipableClassInfo.EquipmentSlotId);
+
                 }
                 else
                     ManifestationManager.Instance.SetAppearanceItem(client, itemToEquip);
@@ -555,9 +556,9 @@ namespace Rasa.Managers
             return null;
         }
 
-        public Item CurrentWeapon(MapChannelClient mapClient)
+        public Item CurrentWeapon(Client client)
         {
-            return EntityManager.Instance.GetItem(mapClient.Inventory.WeaponDrawer[(int)mapClient.Inventory.ActiveWeaponDrawer]);
+            return EntityManager.Instance.GetItem(client.MapClient.Inventory.EquippedInventory[13]);
         }
 
         public uint FreeSlotIndex(MapChannelClient mapClient, InventoryType inventoryType, uint slotIndex)
@@ -828,7 +829,7 @@ namespace Rasa.Managers
                     foreach (var skill in client.MapClient.Player.Skills)
                         if (skill.Value.SkillId == itemToEquip.ItemTemplate.EquipableInfo.SkillId)
                         {
-                            if (skill.Value.SkillLevel == itemToEquip.ItemTemplate.EquipableInfo.SkillLevel)
+                            if (skill.Value.SkillLevel >= itemToEquip.ItemTemplate.EquipableInfo.SkillLevel)
                             {
                                 canEquip = true;
                                 break;

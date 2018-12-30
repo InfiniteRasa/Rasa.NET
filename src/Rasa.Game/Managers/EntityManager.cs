@@ -133,7 +133,10 @@ namespace Rasa.Managers
 
         public EntityType GetEntityType(uint entityId)
         {
-            return RegisteredEntities[entityId];
+            if (entityId != 0)
+                return RegisteredEntities[entityId];
+
+            return 0;
         }
 
         public void FreeEntity(uint id)

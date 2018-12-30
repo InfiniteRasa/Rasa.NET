@@ -210,7 +210,6 @@ namespace Rasa.Managers
             UpdateAppearance(client);
             // update ammo info
             client.CallMethod(weapon.EntityId, new WeaponAmmoInfoPacket(weapon.CurrentAmmo));
-            client.CallMethod(client.MapClient.Player.Actor.EntityId, new WeaponReadyPacket(false));
         }
 
         public void RequestSetAbilitySlot(Client client, RequestSetAbilitySlotPacket packet)
@@ -289,8 +288,9 @@ namespace Rasa.Managers
                 return;
             }
 
-            var weapon = InventoryManager.Instance.CurrentWeapon(client.MapClient);
+            var weapon = InventoryManager.Instance.CurrentWeapon(client);
 
+            /*
             if (weapon == null)
                 return; // no weapon armed
 
@@ -359,7 +359,7 @@ namespace Rasa.Managers
 
         public void StopAutoFire(Client client)
         {
-            var weapon = InventoryManager.Instance.CurrentWeapon(client.MapClient);
+            /*var weapon = InventoryManager.Instance.CurrentWeapon(client.MapClient);
             var weaponClassInfo = EntityClassManager.Instance.GetWeaponClassInfo(weapon);
 
             // remove autoFire timer
@@ -371,6 +371,7 @@ namespace Rasa.Managers
                 }
 
             client.MapClient.MapChannel.PerformActions.Add(new ActionData(client, weaponClassInfo.WeaponAttackActionId, weaponClassInfo.WeaponAttackArgId, 0, weapon.ItemTemplate.WeaponInfo.RefireTime));
+        */
         }
 
         #endregion
@@ -540,7 +541,8 @@ namespace Rasa.Managers
                 new ActorNamePacket(player.Actor.FamilyName),
                 new IsRunningPacket(player.Actor.IsRunning),
                 new TargetCategoryPacket(0),    // 0 frendly ToDo
-                new PlayerFlagsPacket()
+                new PlayerFlagsPacket(),
+                new EquipmentInfoPacket(client.MapClient.Inventory.EquippedInventory)
             };
 
             return entityData;
@@ -727,17 +729,22 @@ namespace Rasa.Managers
         
         public void RequestWeaponDraw(Client client)
         {
-            var weapon = InventoryManager.Instance.CurrentWeapon(client.MapClient);
+            /*var weapon = InventoryManager.Instance.CurrentWeapon(client.MapClient);
             var weaponClassInfo = EntityClassManager.Instance.GetWeaponClassInfo(weapon);
 
             client.MapClient.MapChannel.PerformActions.Add(new ActionData(client, ActionId.WeaponDraw, weaponClassInfo.DrawActionId));
+            */
+
+            client.MapClient.Player.WeaponReady = true;
+
+            client.CallMethod(client.MapClient.Player.Actor.EntityId, new WeaponReadyPacket(client.MapClient.Player.WeaponReady));
         }
 
         public void RequestWeaponReload(Client client)
         {
             // here we only check, can we reload weapon
             // actual weapon reload happen if reaload action isn't interupted
-            var weapon = InventoryManager.Instance.CurrentWeapon(client.MapClient);
+            var weapon = InventoryManager.Instance.CurrentWeapon(client);
             var weaponClassInfo = EntityClassManager.Instance.GetWeaponClassInfo(weapon);
             var foundAmmo = 0u;
 
@@ -773,10 +780,15 @@ namespace Rasa.Managers
 
         public void RequestWeaponStow(Client client)
         {
-            var weapon = InventoryManager.Instance.CurrentWeapon(client.MapClient);
+            /*var weapon = InventoryManager.Instance.CurrentWeapon(client.MapClient);
             var weaponClassInfo = EntityClassManager.Instance.GetWeaponClassInfo(weapon);
 
             client.MapClient.MapChannel.PerformActions.Add(new ActionData(client, ActionId.WeaponStow, weaponClassInfo.StowActionId));
+            */
+
+            client.MapClient.Player.WeaponReady = false;
+
+            client.CallMethod(client.MapClient.Player.Actor.EntityId, new WeaponReadyPacket(client.MapClient.Player.WeaponReady));
         }
 
         public void SaveCharacterOptions(Client client, SaveCharacterOptionsPacket packet)
@@ -960,10 +972,11 @@ namespace Rasa.Managers
         {
             // we reload weapon here
             var client = action.Client;
-            var weapon = InventoryManager.Instance.CurrentWeapon(client.MapClient);
+            var weapon = InventoryManager.Instance.CurrentWeapon(client);
             
             if (weapon == null)
                 return;
+
             var weaponClassInfo = EntityClassManager.Instance.GetWeaponClassInfo(weapon); ;
             var ammoClassId = weaponClassInfo.AmmoClassId;
             var foundAmmo = 0U;
