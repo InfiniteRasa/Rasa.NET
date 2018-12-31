@@ -6,6 +6,7 @@
     {
         public Client Client { get; set; }
         public int RefireTime { get; set; }
+        public long MaxAliveTime { get; set; }
         public long Delay { get; set; }
 
         public AutoFireTimer(Client client, int refireTime, long delay)

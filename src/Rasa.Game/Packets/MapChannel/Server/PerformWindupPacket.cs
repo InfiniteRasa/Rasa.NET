@@ -7,33 +7,55 @@ namespace Rasa.Packets.MapChannel.Server
 
     public class PerformWindupPacket : ServerPythonPacket
     {
+        /*  PerformWindupPacket have few difrenst structures
+         *  PerformWindupPacket(uint, uint)
+         *  PerformWindupPacket(uint, uint, uint)
+         */
         public override GameOpcode Opcode { get; } = GameOpcode.PerformWindup;
 
+        public PerformType PerformType { get; set; }
         public ActionId ActionId { get; set; }
-        public int ActionArgId { get; set; }
+        public uint ActionArgId { get; set; }
+        public uint Arg { get; set; }
         public List<int> Args = new List<int>();
 
-        public PerformWindupPacket(ActionId actionId, int actionArgId)
+        public PerformWindupPacket(PerformType performType, ActionId actionId, uint actionArgId)
         {
-            ActionId = ActionId;
+            PerformType = performType;
+            ActionId = actionId;
             ActionArgId = actionArgId;
         }
 
-        public PerformWindupPacket(ActionId actionId, int actionArgId, List<int> args)
+        public PerformWindupPacket(PerformType performType, ActionId actionId, uint actionArgId, uint arg)
         {
-            ActionId = ActionId;
+            PerformType = performType;
+            ActionId = actionId;
             ActionArgId = actionArgId;
-            Args = args;
+            Arg = arg;
         }
 
         public override void Write(PythonWriter pw)
         {
-            pw.WriteTuple(3);
-            pw.WriteInt((int)ActionId);
-            pw.WriteInt(ActionArgId);
-            pw.WriteList(Args.Count);
-            foreach (var arg in Args)
-                pw.WriteInt(arg);
+            switch (PerformType)
+            {
+                case PerformType.TwoArgs:
+                    pw.WriteTuple(2);
+                    pw.WriteUInt((uint)ActionId);
+                    pw.WriteUInt(ActionArgId);
+                    break;
+                case PerformType.ThreeArgs:
+                    pw.WriteTuple(3);
+                    pw.WriteUInt((uint)ActionId);
+                    pw.WriteUInt(ActionArgId);
+                    if (Arg != 0)
+                        pw.WriteUInt(Arg);
+                    else
+                        pw.WriteNoneStruct();
+                    break;
+                default:
+                    Logger.WriteLog(LogType.Error, $"Unknown PerformType {PerformType}");
+                    break;
+            }
         }
     }
 }

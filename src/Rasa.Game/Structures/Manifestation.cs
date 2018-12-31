@@ -42,6 +42,7 @@ namespace Rasa.Structures
         public bool WeaponReady { get; set; }
         public uint TargetEntityId { get; set; }
         public uint TrackingTargetEntityId { get; set; }
+        public byte ActiveWeapon { get; set; }
 
         public Manifestation(CharacterEntry character, Dictionary<EquipmentData, AppearanceData> appearence)
         {
@@ -58,6 +59,7 @@ namespace Rasa.Structures
             CloneCredits = character.CloneCredits;
             Credits.Add(CurencyType.Credits, character.Credits);
             Credits.Add(CurencyType.Prestige, character.Prestige);
+            ActiveWeapon = character.ActiveWeapon;
             NumLogins = character.NumLogins + 1;
             TotalTimePlayed = character.TotalTimePlayed;
             TimeSinceLastPlayed = character.LastLogin;

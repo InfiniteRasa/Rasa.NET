@@ -311,10 +311,7 @@ namespace Rasa.Managers
                         ManifestationManager.Instance.WeaponReady(client, false);
                 }
                 else
-                {
-                    AddItemBySlot(client, InventoryType.EquipedInventory, entityIdInventoryItem, 13, true);
                     ManifestationManager.Instance.SetAppearanceItem(client, itemToEquip);
-                }
 
             // Tell client that he have new weapon
             ManifestationManager.Instance.NotifyEquipmentUpdate(client);
@@ -660,9 +657,10 @@ namespace Rasa.Managers
 
                     else if ((InventoryType)item.InventoryType == InventoryType.WeaponDrawerInventory)
                     {
-                        client.MapClient.Inventory.EquippedInventory[13] = newItem.EntityId;
-                        // make the item appear on the client
                         AddItemBySlot(client, InventoryType.WeaponDrawerInventory, newItem.EntityId, newItem.OwnerSlotId, false);
+                        
+                        if (newItem.OwnerSlotId == client.MapClient.Player.ActiveWeapon)
+                            client.MapClient.Inventory.EquippedInventory[13] = newItem.EntityId;
                     }
                 }
                 else if (item.CharacterSlot == 0)
@@ -673,8 +671,6 @@ namespace Rasa.Managers
                         AddItemBySlot(client, InventoryType.HomeInventory, client.MapClient.Inventory.HomeInventory[(int)item.SlotId], item.SlotId, false);
                     }
             }
-
-            ManifestationManager.Instance.NotifyEquipmentUpdate(client);
         }
         
         public void ReduceStackCount(Client client, InventoryType inventoryType, Item tempItem, uint stackDecreaseCount)

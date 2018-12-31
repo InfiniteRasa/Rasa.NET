@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 using MySql.Data.MySqlClient;
 
@@ -14,6 +13,7 @@ namespace Rasa.Database.Tables.Character
         private static readonly MySqlCommand GetCharacterCommand = new MySqlCommand("SELECT * FROM `character` WHERE `account_id` = @AccountId AND slot = @Slot");
         private static readonly MySqlCommand DeleteCharacterCommand = new MySqlCommand("DELETE FROM `character` WHERE `id` = @Id");
         private static readonly MySqlCommand UpdateCharacterAttributesCommand = new MySqlCommand("UPDATE `character` SET `body` = @Body, `mind` = @Mind, `spirit` = @Spirit WHERE `id` = @Id");
+        private static readonly MySqlCommand UpdateCharacterActiveWeaponCommand = new MySqlCommand("UPDATE `character` SET `active_weapon` = @ActiveWeapon WHERE `id` = @Id");
         private static readonly MySqlCommand UpdateCharacterCloneCreditsCommand = new MySqlCommand("UPDATE `character` SET `clone_credits` = @CloneCredits WHERE `id` = @Id");
         private static readonly MySqlCommand UpdateCharacterCreditsCommand = new MySqlCommand("UPDATE `character` SET `credits` = @Credits WHERE `id` = @Id");
         private static readonly MySqlCommand UpdateCharacterLocationCommand = new MySqlCommand("UPDATE `character` SET `map_context_id` = @MapContextId, `coord_x` = @CoordX, `coord_y` = @CoordY, `coord_z` = @CoordZ, `rotation` = @Rotation WHERE `id` = @Id");
@@ -53,6 +53,11 @@ namespace Rasa.Database.Tables.Character
             DeleteCharacterCommand.Connection = GameDatabaseAccess.CharConnection;
             DeleteCharacterCommand.Parameters.Add("@Id", MySqlDbType.UInt32);
             DeleteCharacterCommand.Prepare();
+
+            UpdateCharacterActiveWeaponCommand.Connection = GameDatabaseAccess.CharConnection;
+            UpdateCharacterActiveWeaponCommand.Parameters.Add("@Id", MySqlDbType.UInt32);
+            UpdateCharacterActiveWeaponCommand.Parameters.Add("@ActiveWeapon", MySqlDbType.UByte);
+            UpdateCharacterActiveWeaponCommand.Prepare();
 
             UpdateCharacterAttributesCommand.Connection = GameDatabaseAccess.CharConnection;
             UpdateCharacterAttributesCommand.Parameters.Add("@Id", MySqlDbType.UInt32);
@@ -179,6 +184,16 @@ namespace Rasa.Database.Tables.Character
                 UpdateCharacterLocationCommand.Parameters["@Rotation"].Value = rotation;
                 UpdateCharacterLocationCommand.Parameters["@MapContextId"].Value = mapContextId;
                 UpdateCharacterLocationCommand.ExecuteNonQuery();
+            }
+        }
+
+        public static void UpdateCharacterActiveWeapon(uint characterId, byte activeWeapon)
+        {
+            lock (GameDatabaseAccess.CharLock)
+            {
+                UpdateCharacterActiveWeaponCommand.Parameters["@Id"].Value = characterId;
+                UpdateCharacterActiveWeaponCommand.Parameters["@ActiveWeapon"].Value = activeWeapon;
+                UpdateCharacterActiveWeaponCommand.ExecuteNonQuery();
             }
         }
 

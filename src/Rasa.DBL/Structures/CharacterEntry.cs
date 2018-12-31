@@ -27,6 +27,7 @@ namespace Rasa.Structures
         public float Rotation { get; set; }
         public uint Credits { get; set; }
         public uint Prestige { get; set; }
+        public byte ActiveWeapon { get; set; }
         public uint NumLogins { get; set; }
         public DateTime? LastLogin { get; set; }
         public uint TotalTimePlayed { get; set; }
@@ -61,6 +62,7 @@ namespace Rasa.Structures
                 Rotation = reader.GetFloat("rotation"),
                 Credits = reader.GetUInt32("credits"),
                 Prestige = reader.GetUInt32("prestige"),
+                ActiveWeapon = reader.GetByte("active_weapon"),
                 NumLogins = reader.GetUInt32("num_logins"),
                 LastLogin = reader.IsDBNull(lastLoginOrdinal) ? (DateTime?) null : reader.GetDateTime(lastLoginOrdinal),
                 TotalTimePlayed = reader.GetUInt32("total_time_played")

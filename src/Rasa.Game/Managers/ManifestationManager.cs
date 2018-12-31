@@ -160,7 +160,9 @@ namespace Rasa.Managers
         #region Handlers
         public void AutoFireKeepAlive(Client client, int keepAliveDelay)
         {
-            Logger.WriteLog(LogType.Debug, "ToDo AutoFireKeepAlive");
+            foreach (var timer in AutoFire)
+                if (timer.Client == client)
+                    timer.MaxAliveTime = keepAliveDelay*4; // 10 sec should be enof for all weapons
         }
 
         public void ChangeShowHelmet(Client client, ChangeShowHelmetPacket packet)
@@ -205,9 +207,9 @@ namespace Rasa.Managers
             client.MapClient.Inventory.EquippedInventory[13] = weapon.EntityId;
 
             NotifyEquipmentUpdate(client);
-
             SetAppearanceItem(client, weapon);
             UpdateAppearance(client);
+            CharacterManager.Instance.UpdateCharacter(client, CharacterUpdate.ActiveWeapon, (byte)requestedWeaponDrawerSlot);
             // update ammo info
             client.CallMethod(weapon.EntityId, new WeaponAmmoInfoPacket(weapon.CurrentAmmo));
         }
@@ -290,16 +292,15 @@ namespace Rasa.Managers
 
             var weapon = InventoryManager.Instance.CurrentWeapon(client);
 
-            /*
-            if (weapon == null)
-                return; // no weapon armed
+            RegisterAutoFire(client, weapon);
 
             // do we need to reload?
             if (weapon.CurrentAmmo < weapon.ItemTemplate.WeaponInfo.AmmoPerShot)
             {
-                RequestWeaponReload(client);
+                RequestWeaponReload(client, true);
                 return;
             }
+            /*
             // decrease ammo count
             weapon.CurrentAmmo -= weapon.ItemTemplate.WeaponInfo.AmmoPerShot;
 
@@ -359,7 +360,7 @@ namespace Rasa.Managers
 
         public void StopAutoFire(Client client)
         {
-            /*var weapon = InventoryManager.Instance.CurrentWeapon(client.MapClient);
+            var weapon = InventoryManager.Instance.CurrentWeapon(client);
             var weaponClassInfo = EntityClassManager.Instance.GetWeaponClassInfo(weapon);
 
             // remove autoFire timer
@@ -369,9 +370,7 @@ namespace Rasa.Managers
                     AutoFire.Remove(timer);
                     break;
                 }
-
-            client.MapClient.MapChannel.PerformActions.Add(new ActionData(client, weaponClassInfo.WeaponAttackActionId, weaponClassInfo.WeaponAttackArgId, 0, weapon.ItemTemplate.WeaponInfo.RefireTime));
-        */
+            //client.MapClient.MapChannel.PerformActions.Add(new ActionData(client, weaponClassInfo.WeaponAttackActionId, (uint)weaponClassInfo.WeaponAttackArgId, 0, weapon.ItemTemplate.WeaponInfo.RefireTime));
         }
 
         #endregion
@@ -438,7 +437,30 @@ namespace Rasa.Managers
 
             client.CallMethod(actor.EntityId, new LogosStoneTabulaPacket(player.Logos));
         }
-        
+
+        public void AutoFireTimerDoWork(long delta)
+        {
+            foreach (var timer in AutoFire)
+            {
+                timer.Delay -= (int)delta;
+
+                // we dont want to server keep fireing if client crash 
+                timer.MaxAliveTime -= delta;
+
+                if (timer.MaxAliveTime <= 0)
+                {
+                    AutoFire.Remove(timer);         // ToDo => safely remove timer, without breaking loop
+                    break;
+                }
+
+                if (timer.Delay <= 0)
+                {
+                    MissileManager.Instance.PlayerTryFireWeapon(timer.Client);
+                    timer.Delay = timer.RefireTime;
+                }
+            }
+        }
+
         public void CellDiscardClientToPlayers(Client client, List<Client> notifyClients)
         {
             foreach (var tempClient in notifyClients)
@@ -570,23 +592,6 @@ namespace Rasa.Managers
             return points;
         }
 
-        public void AutoFireTimerDoWork(long delta)
-        {
-            foreach (var timer in AutoFire)
-            {
-                timer.Delay -= (int)delta;
-
-                if (timer.Delay <= 0)
-                {
-                    Logger.WriteLog(LogType.None, "refireing.....");
-
-                    MissileManager.Instance.PlayerTryFireWeapon(timer.Client);
-
-                    timer.Delay = timer.RefireTime;
-                }
-            }
-        }
-
         public void GetCustomizationChoices(Client client, GetCustomizationChoicesPacket packet)
         {
             // ToDo
@@ -691,7 +696,7 @@ namespace Rasa.Managers
             AutoFire.Add(timer);
 
             // launch missile
-            MissileManager.Instance.PlayerTryFireWeapon(timer.Client);
+           // MissileManager.Instance.PlayerTryFireWeapon(timer.Client);
         }
 
         public void RemovePlayerCharacter(Client client)
@@ -737,7 +742,7 @@ namespace Rasa.Managers
             WeaponReady(client, true);
         }
 
-        public void RequestWeaponReload(Client client)
+        public void RequestWeaponReload(Client client, bool isRequested)
         {
             // here we only check, can we reload weapon
             // actual weapon reload happen if reaload action isn't interupted
@@ -770,9 +775,12 @@ namespace Rasa.Managers
             if (foundAmmo == 0)
                 return; // no ammo found -> ToDo: Tell the client?
 
-            client.CellIgnoreSelfSendPacket(client, new PerformWindupPacket(ActionId.WeaponReload, weaponClassInfo.ReloadActionId));
+            if (isRequested)
+                client.CellCallMethod(client, client.MapClient.Player.Actor.EntityId, new PerformWindupPacket(PerformType.TwoArgs, ActionId.WeaponReload, (uint)weaponClassInfo.ReloadActionId));
+            else
+                client.CellIgnoreSelfCallMethod(client, new PerformWindupPacket(PerformType.TwoArgs, ActionId.WeaponReload, (uint)weaponClassInfo.ReloadActionId));
 
-            client.MapClient.MapChannel.PerformActions.Add(new ActionData(client, ActionId.WeaponReload, weaponClassInfo.ReloadActionId, foundAmmo, weapon.ItemTemplate.WeaponInfo.ReloadTime));
+            client.MapClient.MapChannel.PerformActions.Add(new ActionData(client, ActionId.WeaponReload, (uint)weaponClassInfo.ReloadActionId, foundAmmo, weapon.ItemTemplate.WeaponInfo.ReloadTime));
         }
 
         public void RequestWeaponStow(Client client)
@@ -1014,7 +1022,7 @@ namespace Rasa.Managers
             client.MapClient.Player.Actor.CurrentAction = 0;
 
             // send data to client
-            client.CellCallMethod(client, client.MapClient.Player.Actor.EntityId, new PerformRecoveryPacket(action.ActionId, action.ActionArgId, new List<uint> { foundAmmo }));
+            client.CellCallMethod(client, client.MapClient.Player.Actor.EntityId, new PerformRecoveryPacket(PerformType.ThreeArgs ,action.ActionId, action.ActionArgId, foundAmmo));
         }
         
         #endregion

@@ -96,7 +96,7 @@
 
         public void RequestActionInterrupt(Client client, RequestActionInterruptPacket packet)
         {
-            client.CallMethod(client.MapClient.Player.Actor.EntityId, new PerformRecoveryPacket(packet.ActionId, packet.ActionArgId));
+            client.CallMethod(client.MapClient.Player.Actor.EntityId, new PerformRecoveryPacket(PerformType.TwoArgs, packet.ActionId, packet.ActionArgId));
         }
 
         public void RequestVisualCombatMode(Client client, int combatMode)

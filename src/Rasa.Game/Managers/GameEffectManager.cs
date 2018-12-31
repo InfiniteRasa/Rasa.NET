@@ -35,7 +35,7 @@
             actor.ActiveEffects.Add(gameEffect.EffectId, gameEffect);
         }
 
-        public void AttachSprint(Client client, Actor actor, int effectLevel, int duration)
+        public void AttachSprint(Client client, Actor actor, uint effectLevel, int duration)
         {
             client.MapClient.MapChannel.CurrentEffectId++; // generate new effectId
             var effectId = client.MapClient.MapChannel.CurrentEffectId;

@@ -144,7 +144,11 @@ namespace Rasa.Managers
 
         public void PlayerTryFireWeapon(Client client)
         {
-            Logger.WriteLog(LogType.Debug, "PlayerTryFireWeapon");
+            var weapon = InventoryManager.Instance.CurrentWeapon(client);
+            var weaponClassInfo = EntityClassManager.Instance.GetWeaponClassInfo(weapon);
+            var target = client.MapClient.Player.TargetEntityId;
+
+            client.CallMethod(client.MapClient.Player.Actor.EntityId, new PerformWindupPacket(PerformType.ThreeArgs, ActionId.WeaponAttack, 133, target));
         }
     }
 }

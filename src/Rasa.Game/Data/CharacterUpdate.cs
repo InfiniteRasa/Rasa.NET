@@ -12,6 +12,7 @@
         Logos           = 8,
         Position        = 9,
         Prestige        = 10,
-        Stats           = 11
+        Stats           = 11,
+        ActiveWeapon    = 12
     }
 }

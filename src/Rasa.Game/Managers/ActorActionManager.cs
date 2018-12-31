@@ -85,18 +85,18 @@ namespace Rasa.Managers
                     */
                     break;
                 case ActionId.WeaponStow:
-                    action.Client.CellCallMethod(action.Client, action.Client.MapClient.Player.Actor.EntityId, new PerformRecoveryPacket(action.ActionId, action.ActionArgId));
+                    action.Client.CellCallMethod(action.Client, action.Client.MapClient.Player.Actor.EntityId, new PerformRecoveryPacket(PerformType.TwoArgs, action.ActionId, action.ActionArgId));
                     action.Client.MapClient.Player.WeaponReady = false;
                     break;
                 case ActionId.WeaponDraw:
-                    action.Client.CellCallMethod(action.Client, action.Client.MapClient.Player.Actor.EntityId, new PerformRecoveryPacket(action.ActionId, action.ActionArgId));
+                    action.Client.CellCallMethod(action.Client, action.Client.MapClient.Player.Actor.EntityId, new PerformRecoveryPacket(PerformType.TwoArgs, action.ActionId, action.ActionArgId));
                     action.Client.MapClient.Player.WeaponReady = true;
                     break;
                 case ActionId.WeaponReload:
                     ManifestationManager.Instance.WeaponReload(action);
                     break;
                 case ActionId.AaRecruitLightning:
-                    action.Client.CellCallMethod(action.Client, action.Client.MapClient.Player.Actor.EntityId, new PerformWindupPacket(action.ActionId, action.ActionArgId));
+                    action.Client.CellCallMethod(action.Client, action.Client.MapClient.Player.Actor.EntityId, new PerformWindupPacket(PerformType.TwoArgs, action.ActionId, action.ActionArgId));
                     break;
                 case ActionId.AaRecruitSprint:
                     GameEffectManager.Instance.AttachSprint(action.Client, action.Client.MapClient.Player.Actor, action.ActionArgId, 500);

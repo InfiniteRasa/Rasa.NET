@@ -347,7 +347,7 @@
         [PacketHandler(GameOpcode.RequestWeaponReload)]
         private void RequestWeaponReload(RequestWeaponReloadPacket packet)
         {
-            ManifestationManager.Instance.RequestWeaponReload(Client);
+            ManifestationManager.Instance.RequestWeaponReload(Client, false);
         }
 
         [PacketHandler(GameOpcode.RequestWeaponStow)]

@@ -431,6 +431,11 @@ namespace Rasa.Managers
                 case CharacterUpdate.Stats:
                     break;
 
+                case CharacterUpdate.ActiveWeapon:
+                    client.MapClient.Player.ActiveWeapon = (byte)value;
+                    CharacterTable.UpdateCharacterActiveWeapon(client.MapClient.Player.CharacterId, client.MapClient.Player.ActiveWeapon);
+                    break;
+
                 default:
                     break;
             }

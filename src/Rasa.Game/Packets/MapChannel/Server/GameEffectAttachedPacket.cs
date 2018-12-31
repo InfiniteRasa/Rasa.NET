@@ -10,7 +10,7 @@
 
         public int EffectTypeId { get; set; }
         public int EffectId { get; set; }
-        public int EffectLevel { get; set; }
+        public uint EffectLevel { get; set; }
         public int SourceId { get; set; }
         public bool Announced { get; set; }
         // tooltip
@@ -27,7 +27,7 @@
             pw.WriteTuple(7);
             pw.WriteInt(EffectTypeId);      //typeId
             pw.WriteInt(EffectId);          //effectId
-            pw.WriteInt(EffectLevel);       //level
+            pw.WriteUInt(EffectLevel);       //level
             pw.WriteInt(SourceId);          //sourceId
             pw.WriteBool(Announced);        //announce
             pw.WriteDictionary(7);          //tooltipDict
