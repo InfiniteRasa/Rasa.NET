@@ -734,10 +734,7 @@ namespace Rasa.Managers
 
             client.MapClient.MapChannel.PerformActions.Add(new ActionData(client, ActionId.WeaponDraw, weaponClassInfo.DrawActionId));
             */
-
-            client.MapClient.Player.WeaponReady = true;
-
-            client.CallMethod(client.MapClient.Player.Actor.EntityId, new WeaponReadyPacket(client.MapClient.Player.WeaponReady));
+            WeaponReady(client, true);
         }
 
         public void RequestWeaponReload(Client client)
@@ -785,10 +782,7 @@ namespace Rasa.Managers
 
             client.MapClient.MapChannel.PerformActions.Add(new ActionData(client, ActionId.WeaponStow, weaponClassInfo.StowActionId));
             */
-
-            client.MapClient.Player.WeaponReady = false;
-
-            client.CallMethod(client.MapClient.Player.Actor.EntityId, new WeaponReadyPacket(client.MapClient.Player.WeaponReady));
+            WeaponReady(client, false);
         }
 
         public void SaveCharacterOptions(Client client, SaveCharacterOptionsPacket packet)
@@ -966,6 +960,12 @@ namespace Rasa.Managers
                 attribute[Attributes.Power].Current = attribute[Attributes.Power].CurrentMax;
             else
                 attribute[Attributes.Power].Current = Math.Min(attribute[Attributes.Power].Current, attribute[Attributes.Power].CurrentMax);
+        }
+
+        public void WeaponReady(Client client, bool isReady)
+        {
+            client.MapClient.Player.WeaponReady = isReady;
+            client.CallMethod(client.MapClient.Player.Actor.EntityId, new WeaponReadyPacket(isReady));
         }
 
         public void WeaponReload(ActionData action)

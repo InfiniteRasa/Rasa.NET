@@ -296,9 +296,6 @@ namespace Rasa.Managers
             if (entityIdInventoryItem != 0)
                 AddItemBySlot(client, InventoryType.WeaponDrawerInventory, entityIdInventoryItem, destSlot, true);
 
-            // Tell client that he have new weapon
-            ManifestationManager.Instance.NotifyEquipmentUpdate(client);
-
             if (destSlot == client.MapClient.Inventory.ActiveWeaponDrawer)
                 if (itemToEquip == null)
                 {
@@ -306,11 +303,21 @@ namespace Rasa.Managers
                     var prevEquippedItem = EntityManager.Instance.GetItem(entityIdEquippedItem);
                     var equipableClassInfo = EntityClassManager.Instance.GetEquipableClassInfo(prevEquippedItem);
 
+                    RemoveItemBySlot(client, InventoryType.EquipedInventory, 13);
                     ManifestationManager.Instance.RemoveAppearanceItem(client, equipableClassInfo.EquipmentSlotId);
 
+                    // we dont have weapon, set weaponReady to false
+                    if (client.MapClient.Player.WeaponReady)
+                        ManifestationManager.Instance.WeaponReady(client, false);
                 }
                 else
+                {
+                    AddItemBySlot(client, InventoryType.EquipedInventory, entityIdInventoryItem, 13, true);
                     ManifestationManager.Instance.SetAppearanceItem(client, itemToEquip);
+                }
+
+            // Tell client that he have new weapon
+            ManifestationManager.Instance.NotifyEquipmentUpdate(client);
 
             ManifestationManager.Instance.UpdateAppearance(client);
         }

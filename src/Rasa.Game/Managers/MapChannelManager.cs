@@ -80,7 +80,7 @@ namespace Rasa.Managers
                     Name = character.Name,
                     FamilyName = client.AccountEntry.FamilyName,
                     Position = new Vector3(character.CoordX, character.CoordY, character.CoordZ),
-                    Rotation = Quaternion.CreateFromYawPitchRoll(character.Rotation, 0f, 0f),   //ToDo
+                    Rotation = Quaternion.CreateFromYawPitchRoll(character.Rotation, 0f, 0f),
                     MapContextId = character.MapContextId,
                     IsRunning = true,
                     InCombatMode = false,
@@ -215,7 +215,7 @@ namespace Rasa.Managers
                         mapChannel.ClientList.Add(dequedClient);
                     }
 
-                if (mapChannel.ClientList.Count > 0)
+                if (mapChannel.ClientList.Count >= 0)
                 {
                     ActorActionManager.Instance.DoWork(mapChannel, delta);
                     MissileManager.Instance.DoWork(delta);

@@ -24,7 +24,7 @@ namespace Rasa.Managers
         private static CreatureManager _instance;
         private static readonly object InstanceLock = new object();
         public const int CreatureLocationUpdateTime = 1500;
-        public readonly Dictionary<uint, Creature> LoadedCreatures = new Dictionary<uint, Creature>();
+        public readonly Dictionary<uint, Creature> LoadedCreatures = new Dictionary<uint, Creature> { { 0, new Creature() } };
 
         public static CreatureManager Instance
         {
