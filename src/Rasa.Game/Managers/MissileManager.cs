@@ -52,6 +52,8 @@ namespace Rasa.Managers
 
         public void RequestWeaponAttack(Client client, RequestWeaponAttackPacket packet)
         {
+            MissileManager.Instance.PlayerTryFireWeapon(client);
+
             /*
 	            // has ammo?
 	            if( item->weaponData.ammoCount < item->itemTemplate->weapon.ammoPerShot )
@@ -148,7 +150,7 @@ namespace Rasa.Managers
             var weaponClassInfo = EntityClassManager.Instance.GetWeaponClassInfo(weapon);
             var target = client.MapClient.Player.TargetEntityId;
 
-            client.CallMethod(client.MapClient.Player.Actor.EntityId, new PerformWindupPacket(PerformType.ThreeArgs, ActionId.WeaponAttack, 133, target));
+            client.CellCallMethod(client, client.MapClient.Player.Actor.EntityId, new PerformRecoveryPacket(PerformType.ListOfArgs, ActionId.WeaponAttack, 133));
         }
     }
 }

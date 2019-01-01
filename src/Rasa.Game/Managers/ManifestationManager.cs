@@ -291,8 +291,7 @@ namespace Rasa.Managers
             }
 
             var weapon = InventoryManager.Instance.CurrentWeapon(client);
-
-            RegisterAutoFire(client, weapon);
+            var weaponClassInfo = EntityClassManager.Instance.GetWeaponClassInfo(weapon);
 
             // do we need to reload?
             if (weapon.CurrentAmmo < weapon.ItemTemplate.WeaponInfo.AmmoPerShot)
@@ -300,14 +299,15 @@ namespace Rasa.Managers
                 RequestWeaponReload(client, true);
                 return;
             }
+
+            // send first hit to cell, ignore self
+            client.CellIgnoreSelfSendPacket(client, new PerformRecoveryPacket(PerformType.ListOfArgs, weaponClassInfo.WeaponAttackActionId, (uint)weaponClassInfo.WeaponAttackArgId));
+            
+            RegisterAutoFire(client, weapon);
+
             /*
             // decrease ammo count
             weapon.CurrentAmmo -= weapon.ItemTemplate.WeaponInfo.AmmoPerShot;
-
-            var weaponClassInfo = EntityClassManager.Instance.GetWeaponClassInfo(weapon);
-
-            // send first hit to cell, ignore self
-            client.CellIgnoreSelfSendPacket(client, new PerformWindupPacket(weaponClassInfo.WeaponAttackActionId, weaponClassInfo.WeaponAttackArgId));
 
             // start auto fire loop
             RegisterAutoFire(client, weapon);
@@ -360,17 +360,17 @@ namespace Rasa.Managers
 
         public void StopAutoFire(Client client)
         {
-            var weapon = InventoryManager.Instance.CurrentWeapon(client);
-            var weaponClassInfo = EntityClassManager.Instance.GetWeaponClassInfo(weapon);
+            // go backwards through list
+            for (var i = AutoFire.Count - 1; i >= 0; i--)
+            {
+                var timer = AutoFire[i];
 
-            // remove autoFire timer
-            foreach (var timer in AutoFire)
                 if (timer.Client == client)
                 {
-                    AutoFire.Remove(timer);
+                    AutoFire.RemoveAt(i);
                     break;
                 }
-            //client.MapClient.MapChannel.PerformActions.Add(new ActionData(client, weaponClassInfo.WeaponAttackActionId, (uint)weaponClassInfo.WeaponAttackArgId, 0, weapon.ItemTemplate.WeaponInfo.RefireTime));
+            }
         }
 
         #endregion
@@ -440,18 +440,20 @@ namespace Rasa.Managers
 
         public void AutoFireTimerDoWork(long delta)
         {
-            foreach (var timer in AutoFire)
+            // go backwards through list
+            for (var i = AutoFire.Count - 1; i >= 0; i--)
             {
-                timer.Delay -= (int)delta;
-
+                var timer = AutoFire[i];
                 // we dont want to server keep fireing if client crash 
                 timer.MaxAliveTime -= delta;
 
                 if (timer.MaxAliveTime <= 0)
                 {
-                    AutoFire.Remove(timer);         // ToDo => safely remove timer, without breaking loop
-                    break;
+                    AutoFire.RemoveAt(i);
+                    continue;
                 }
+
+                timer.Delay -= delta;
 
                 if (timer.Delay <= 0)
                 {
@@ -734,11 +736,11 @@ namespace Rasa.Managers
         
         public void RequestWeaponDraw(Client client)
         {
-            /*var weapon = InventoryManager.Instance.CurrentWeapon(client.MapClient);
+            var weapon = InventoryManager.Instance.CurrentWeapon(client);
             var weaponClassInfo = EntityClassManager.Instance.GetWeaponClassInfo(weapon);
 
-            client.MapClient.MapChannel.PerformActions.Add(new ActionData(client, ActionId.WeaponDraw, weaponClassInfo.DrawActionId));
-            */
+            client.MapClient.MapChannel.PerformActions.Add(new ActionData(client, ActionId.WeaponDraw, (uint)weaponClassInfo.DrawActionId));
+
             WeaponReady(client, true);
         }
 
@@ -785,11 +787,11 @@ namespace Rasa.Managers
 
         public void RequestWeaponStow(Client client)
         {
-            /*var weapon = InventoryManager.Instance.CurrentWeapon(client.MapClient);
+            var weapon = InventoryManager.Instance.CurrentWeapon(client);
             var weaponClassInfo = EntityClassManager.Instance.GetWeaponClassInfo(weapon);
 
-            client.MapClient.MapChannel.PerformActions.Add(new ActionData(client, ActionId.WeaponStow, weaponClassInfo.StowActionId));
-            */
+            client.MapClient.MapChannel.PerformActions.Add(new ActionData(client, ActionId.WeaponStow, (uint)weaponClassInfo.StowActionId));
+            
             WeaponReady(client, false);
         }
 
@@ -1022,7 +1024,7 @@ namespace Rasa.Managers
             client.MapClient.Player.Actor.CurrentAction = 0;
 
             // send data to client
-            client.CellCallMethod(client, client.MapClient.Player.Actor.EntityId, new PerformRecoveryPacket(PerformType.ThreeArgs ,action.ActionId, action.ActionArgId, foundAmmo));
+            client.CellCallMethod(client, client.MapClient.Player.Actor.EntityId, new PerformRecoveryPacket(PerformType.ThreeArgs, action.ActionId, action.ActionArgId, foundAmmo));
         }
         
         #endregion

@@ -446,16 +446,11 @@ namespace Rasa.Game
         public void CellIgnoreSelfSendPacket(Client client, PythonPacket packet)
         {
             var mapCell = CellManager.Instance.GetCell(client.MapClient.MapChannel, client.MapClient.Player.Actor.CellLocation.CellPosX, client.MapClient.Player.Actor.CellLocation.CellPosY);
-            var clientCount = mapCell.ClientNotifyList.Count;
-            var clientList = mapCell.ClientNotifyList;
-
-            if (clientList == null || clientCount == 0)
-                return;
-
-            foreach (var tempClient in clientList)
+            
+            foreach (var tempClient in mapCell.ClientNotifyList)
             {
                 if (tempClient == client)
-                    return;
+                    continue;
 
                 tempClient.CallMethod(client.MapClient.Player.Actor.EntityId, packet);
             }

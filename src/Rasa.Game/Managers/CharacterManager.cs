@@ -223,7 +223,7 @@ namespace Rasa.Managers
                     Spirit = 0,
                     MapContextId = 1220,
                     CoordX = 894.9f,
-                    CoordY = 307.9f,
+                    CoordY = 306.3f,
                     CoordZ = 347.1f,
                     Rotation = 0
                 };

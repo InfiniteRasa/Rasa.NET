@@ -56,7 +56,10 @@ namespace Rasa.Packets.MapChannel.Server
                     pw.WriteTuple(3);
                     pw.WriteUInt((uint)ActionId);
                     pw.WriteUInt(ActionArgId);
-                    pw.WriteUInt(Arg);
+                    if (Arg != 0)
+                        pw.WriteUInt(Arg);
+                    else
+                        pw.WriteNoneStruct();
                     break;
                 case PerformType.ListOfArgs:
                     pw.WriteTuple(6);
