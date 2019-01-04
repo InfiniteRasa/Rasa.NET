@@ -33,6 +33,8 @@ namespace Rasa.Game
         private readonly object _clientLock = new object();
         private readonly ClientPacketHandler _handler;
         private readonly PacketQueue _packetQueue = new PacketQueue();
+        public MoveMessage MoveMessage { get; set; }
+
 
         private static PacketRouter<ClientPacketHandler, GameOpcode> PacketRouter { get; } = new PacketRouter<ClientPacketHandler, GameOpcode>();
 
@@ -251,6 +253,14 @@ namespace Rasa.Game
                     return;
 
                 case ClientMessageOpcode.Move:
+                    var movePacket = pPacket.Message as MoveMessage;
+                    if (movePacket == null)
+                    {
+                        Close(true);
+                        return;
+                    }
+
+                    MoveMessage = movePacket;
                     break;
 
                 case ClientMessageOpcode.CallServerMethod:

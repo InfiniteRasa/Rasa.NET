@@ -1,4 +1,7 @@
-﻿namespace Rasa.Packets.Protocol
+﻿using System;
+using System.Numerics;
+
+namespace Rasa.Packets.Protocol
 {
     using Data;
     using Memory;
@@ -15,20 +18,66 @@
 
         public byte MinSubtype { get; } = 0;
         public byte MaxSubtype { get; } = 0;
+        
         public ClientMessageSubtypeFlag SubtypeFlags { get; } = ClientMessageSubtypeFlag.None;
 
         public byte UnkByte { get; set; }
+        public byte UnkByte2 { get; set; }
+        public Vector3 Position { get; set; }
+        public float Velocity { get; set; }
+        public byte Flag { get; set; }
+        public float ViewX { get; set; }
+        public float ViewY { get; set; }
 
         public void Read(ProtocolBufferReader reader)
         {
             UnkByte = reader.ReadByte();
-            /*var movementData = */reader.ReadMovement();
+            /*var movementData = reader.ReadMovement();*/
+
+            reader.ReadDebugByte(41);
+
+            reader.ReadDebugByte(3);
+            UnkByte2 = reader.ReadByte();
+            
+            var x = reader.ReadPackedFloat(); // TODO
+            var y = reader.ReadPackedFloat();
+            var z = reader.ReadPackedFloat();
+
+            Position = new Vector3(x, y, z);
+            Velocity = reader.ReadPackedVelocity();
+            Flag = reader.ReadByte();
+
+            reader.ReadPackedViewCoords(out var viewX, out var viewY);
+
+            ViewX = viewX;
+            ViewY = viewY;
+
+            reader.ReadDebugByte(42);
+
+            Logger.WriteLog(LogType.AI, $"MovementData\nUnkByte = {UnkByte}\nUnkByte2 = {UnkByte2}\nposX = {x}\nposY = {y}\nposZ = {z}\nvelocity = {Velocity}\nflag = {Flag}\nvievX = {viewX}\nviewY = {viewY}");
         }
 
         public void Write(ProtocolBufferWriter writer)
         {
             writer.WriteByte(UnkByte);
-            writer.WriteMovementData();
+            //writer.WriteMovementData();
+
+            writer.WriteDebugByte(41);
+
+            writer.WriteDebugByte(3);
+            writer.WriteByte(UnkByte2);
+
+            // pos
+            writer.WritePackedFloat(Position.X);
+            writer.WritePackedFloat(Position.Y);
+            writer.WritePackedFloat(Position.Z);
+
+            writer.WritePackedVelocity(Velocity);
+            writer.WriteByte(Flag);
+
+            writer.WriteViewCoords(ViewX, ViewY);
+
+            writer.WriteDebugByte(42);
         }
     }
 }

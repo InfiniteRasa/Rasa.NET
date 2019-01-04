@@ -246,6 +246,23 @@ namespace Rasa.Packets.Protocol
                 packetSize = compressedSize;
             }
 
+            switch(Type)
+            {
+                case ClientMessageOpcode.CallMethod:
+                    break;
+
+                case ClientMessageOpcode.LoginResponse:
+                    break;
+
+                case ClientMessageOpcode.Move:
+                    Message = new MoveMessage();
+                    break;
+
+                default:
+                    Logger.WriteLog(LogType.Error, $"unsuported Message type {Type}");
+                    break;
+            }
+
             bw.Write(packetBuffer.Buffer, packetBuffer.BaseOffset, packetSize);
 
             BufferManager.FreeBuffer(packetBuffer);

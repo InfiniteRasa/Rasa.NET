@@ -153,6 +153,36 @@ namespace Rasa.Memory
 
         }
 
+        public void WritePackedFloat(float value)
+        {
+            WriteDebugByte(41);
+
+            WriteByte((byte)((ushort)(value * 256.0f) >> 16));
+            WriteByte((byte)((ushort)(value * 256.0f) >> 8));
+            WriteByte((byte)((ushort)(value * 256.0f)));
+
+            WriteDebugByte(42);
+        }
+
+        public void WritePackedVelocity(float value)
+        {
+            WriteDebugByte(41);
+
+            WriteUShort((ushort)(value * 1024.0f));
+
+            WriteDebugByte(42);
+        }
+
+        public void WriteViewCoords(float viewX, float viewY)
+        {
+            WriteDebugByte(41);
+
+            WriteUShort((ushort)(viewX * 10430.378f));
+            WriteUShort((ushort)(viewY * 10430.378f));
+
+            WriteDebugByte(42);
+        }
+
         public void WriteUShortBySevenBits(ushort value)
         {
             int byteCount;
