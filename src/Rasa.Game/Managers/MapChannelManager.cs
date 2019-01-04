@@ -219,7 +219,10 @@ namespace Rasa.Managers
                 {
                     ActorActionManager.Instance.DoWork(mapChannel, delta);
                     MissileManager.Instance.DoWork(delta);
-                    ManifestationManager.Instance.AutoFireTimerDoWork(delta);
+
+                    // check forAutoFIre
+                    if (Timer.IsTriggered("AutoFire"))
+                        ManifestationManager.Instance.AutoFireTimerDoWork(delta);
 
                     // CellManager worker
                     if (Timer.IsTriggered("CellUpdateVisibility"))
@@ -368,16 +371,6 @@ namespace Rasa.Managers
         public void Ping(Client client, double ping)
         {
             client.CallMethod(SysEntity.ClientMethodId, new AckPingPacket(ping));
-        }
-
-        public void RegisterAutoFireTimer(Client client)
-        {
-            var weapon = InventoryManager.Instance.CurrentWeapon(client);
-
-            if (weapon == null || weapon.ItemTemplate.WeaponInfo == null)
-                return; // invalid entity or incorrect item type
-
-            Timer.Add("CheckForLogingClients", 1000, true, null);
         }
 
         public void RemovePlayer(Client client, bool logout)

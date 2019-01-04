@@ -172,6 +172,8 @@ namespace Rasa.Managers
                     _client.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(_entityId, entityClassId));
                     // set position
                     _client.CallMethod(_entityId, new WorldLocationDescriptorPacket(_client.MapClient.Player.Actor.Position, _client.MapClient.Player.Actor.Rotation));
+                    // force state
+                    _client.CallMethod(_entityId, new ForceStatePacket(56, 100));
                     CommunicatorManager.Instance.SystemMessage(_client, $"Created object EntityId = {_entityId}");
                 }
             }
@@ -195,8 +197,8 @@ namespace Rasa.Managers
             // if only item template, give max stack size
             if (parts.Length == 3)
                 if (uint.TryParse(parts[1], out uint entityId))
-                    if (ActorState.TryParse(parts[1], out ActorState state))
-                        _client.CallMethod(entityId, new ForceStatePacket(state));
+                    if (int.TryParse(parts[2], out int state))
+                        _client.CallMethod(entityId, new ForceStatePacket(state, 100));
 
             return;
         }

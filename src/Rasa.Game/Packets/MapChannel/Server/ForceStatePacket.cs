@@ -7,19 +7,20 @@
     {
         public override GameOpcode Opcode { get; } = GameOpcode.ForceState;
         
-        public ActorState State { get; set; }
+        public int State { get; set; }
         public int WindupTimeMs { get; set; }
 
-        public ForceStatePacket(ActorState state)
+        public ForceStatePacket(int state, int windupTimeMs)
         {
             State = state;
+            WindupTimeMs = windupTimeMs;
         }
 
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(2);
-            pw.WriteInt((int)State);
-            pw.WriteInt(1000);     // ToDo WindupTimeMs
+            pw.WriteInt(State);
+            pw.WriteInt(WindupTimeMs);
         }
     }
 }
