@@ -144,7 +144,7 @@ namespace Rasa.Managers
 
                     if (creature != null)
                     {
-                        CreatureManager.Instance.SetLocation(creature, _client.MapClient.Player.Actor.Position, _client.MapClient.Player.Actor.Rotation);
+                        CreatureManager.Instance.SetLocation(creature, _client.MoveMessage.Position, Quaternion.CreateFromYawPitchRoll(_client.MoveMessage.ViewX, 0f, 0f));
                         CellManager.Instance.AddToWorld(_client.MapClient.MapChannel, creature);
                         CommunicatorManager.Instance.SystemMessage(_client, $"Created new creature with EntityId {creature.Actor.EntityId}");
                     }
@@ -171,7 +171,7 @@ namespace Rasa.Managers
                     // create object entity
                     _client.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(_entityId, entityClassId));
                     // set position
-                    _client.CallMethod(_entityId, new WorldLocationDescriptorPacket(_client.MapClient.Player.Actor.Position, _client.MapClient.Player.Actor.Rotation));
+                    _client.CallMethod(_entityId, new WorldLocationDescriptorPacket(_client.MoveMessage.Position, Quaternion.CreateFromYawPitchRoll(_client.MoveMessage.ViewX, 0f, 0f)));
                     // force state
                     _client.CallMethod(_entityId, new ForceStatePacket(56, 100));
                     CommunicatorManager.Instance.SystemMessage(_client, $"Created object EntityId = {_entityId}");
@@ -220,10 +220,10 @@ namespace Rasa.Managers
                 var entityType = EntityManager.Instance.GetEntityType(entityId);
 
                 if (entityType == EntityType.Creature)
-                    msg += $"\nEntityId = {entityId} is {Vector3.Distance(_client.MapClient.Player.Actor.Position, EntityManager.Instance.GetCreature(entityId).SpawnPool.HomePosition)}\n";
+                    msg += $"\nEntityId = {entityId} is {Vector3.Distance(_client.MoveMessage.Position, EntityManager.Instance.GetCreature(entityId).SpawnPool.HomePosition)}\n";
 
                 if (entityType == EntityType.Player)
-                    msg += $"\nEntityId = {entityId} is {Vector3.Distance(_client.MapClient.Player.Actor.Position, EntityManager.Instance.GetActor(entityId).Position)}\n";
+                    msg += $"\nEntityId = {entityId} is {Vector3.Distance(_client.MoveMessage.Position, EntityManager.Instance.GetActor(entityId).Position)}\n";
 
                 if (entityType == EntityType.Object)
                     msg = $"EntityId = {entityId} is object, ToDo\n";

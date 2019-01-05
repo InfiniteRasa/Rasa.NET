@@ -70,7 +70,7 @@ namespace Rasa.Managers
             }
 
             foreach (var mission in missions)
-                missionData.Add(mission.MissionId, new MissionLog{ MissionId = mission.MissionId, MissionState = mission.MissionState });
+                missionData.Add(mission.MissionId, new MissionLog { MissionId = mission.MissionId, MissionState = mission.MissionState });
 
             var player = new Manifestation(character, appearanceData)
             {
@@ -114,7 +114,7 @@ namespace Rasa.Managers
 
             return player;
         }
-        
+
         public MapChannel FindByContextId(uint contextId)
         {
             return MapChannelArray[contextId];
@@ -127,7 +127,7 @@ namespace Rasa.Managers
 
             for (var i = 0; i < 25; i++)
                 if (abilitiesData[i * 3 + 1] > 0)   // don't insert if there is no ablility in slot
-                    abilities.Add(abilitiesData[i * 3], new AbilityDrawerData { AbilitySlotId = abilitiesData[i * 3],  AbilityId = abilitiesData[i * 3 + 1], AbilityLevel = abilitiesData[i * 3 + 2] });
+                    abilities.Add(abilitiesData[i * 3], new AbilityDrawerData { AbilitySlotId = abilitiesData[i * 3], AbilityId = abilitiesData[i * 3 + 1], AbilityLevel = abilitiesData[i * 3 + 2] });
 
             return abilities;
         }
@@ -145,11 +145,11 @@ namespace Rasa.Managers
 
         public void MapChannelInit()
         {
-            MapChannelsByContextId.Add(1220, new MapChannel { MapInfo = new MapInfo( 1220, "adv_foreas_concordia_wilderness", 1556, 0) });
-            MapChannelsByContextId.Add(1148, new MapChannel { MapInfo = new MapInfo( 1148, "adv_foreas_concordia_divide", 1584 , 0) });
-            
+            MapChannelsByContextId.Add(1220, new MapChannel { MapInfo = new MapInfo(1220, "adv_foreas_concordia_wilderness", 1556, 0) });
+            MapChannelsByContextId.Add(1148, new MapChannel { MapInfo = new MapInfo(1148, "adv_foreas_concordia_divide", 1584, 0) });
+
             foreach (var t in MapChannelsByContextId)
-            {  
+            {
                 var id = t.Key;
                 // load all maps
                 var newMapChannel = new MapChannel
@@ -188,7 +188,7 @@ namespace Rasa.Managers
             Timer.Add("AutoFire", 100, true, null);
             Timer.Add("CheckForLogingClients", 1000, true, null);
             Timer.Add("ClientEffectUpdate", 500, true, null);
-            Timer.Add("CellUpdateVisibility", 300, true, null);
+            Timer.Add("CellUpdateVisibility", 1000, true, null);
             Timer.Add("CheckForCreatures", 1000, true, null);
         }
 
@@ -207,7 +207,7 @@ namespace Rasa.Managers
                     {
                         // create new mapClient
                         var dequedClient = mapChannel.QueuedClients.Dequeue();
-                        var mapClient = new MapChannelClient{ MapChannel = mapChannel };
+                        var mapClient = new MapChannelClient { MapChannel = mapChannel };
 
                         dequedClient.MapClient = mapClient;
 
@@ -235,7 +235,7 @@ namespace Rasa.Managers
                     // check for effects (buffs)
                     if (Timer.IsTriggered("ClientEffectUpdate"))
                         GameEffectManager.Instance.DoWork(mapChannel, delta);
-                    
+
                     // chack for player LogOut
                     foreach (var client in mapChannel.ClientList)
                         if (client != null)
@@ -383,7 +383,7 @@ namespace Rasa.Managers
             // unregister Actor
             EntityManager.Instance.UnregisterEntity(client.MapClient.Player.Actor.EntityId);
             EntityManager.Instance.UnregisterActor(client.MapClient.Player.Actor.EntityId);
-           
+
             // unregister character Inventory
             foreach (var entityId in client.MapClient.Inventory.EquippedInventory)
                 if (entityId != 0)
@@ -408,8 +408,11 @@ namespace Rasa.Managers
 
             if (logout)
                 if (client.MapClient.Disconected == false)
+                {
                     PassClientToCharacterSelection(client);
-            
+                    client.MapClient.Disconected = true;
+                }
+
             // remove from list
             for (var i = 0; i < client.MapClient.MapChannel.ClientList.Count; i++)
             {
@@ -420,11 +423,11 @@ namespace Rasa.Managers
                     break;
                 }
             }
-        
+
         }
 
         public void RequestLogout(Client client)
-        {           
+        {
             client.CallMethod(SysEntity.ClientMethodId, new LogoutTimeRemainingPacket());
             client.MapClient.LogoutActive = true;
         }

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Net.Sockets;
+using System.Numerics;
 
 namespace Rasa.Game
 {
@@ -110,12 +111,11 @@ namespace Rasa.Game
         // Cell Domain
         public void CellCallMethod(Client client, uint entityId, PythonPacket packet)
         {
-            var mapCell = CellManager.Instance.GetCell(client.MapClient.MapChannel, client.MapClient.Player.Actor.CellLocation.CellPosX, client.MapClient.Player.Actor.CellLocation.CellPosY);
-            var clientCount = mapCell.ClientNotifyList.Count;
-            var clientList = mapCell.ClientNotifyList;
+            var clientList = new List<Client>();
 
-            if (clientList == null || clientCount == 0)
-                return;
+            foreach (var cellSeed in client.MapClient.Player.Actor.Cells)
+                foreach (var player in client.MapClient.MapChannel.MapCellInfo.Cells[cellSeed].ClientList)
+                    clientList.Add(player);
 
             foreach (var tempClient in clientList)
                 tempClient.CallMethod(entityId, packet);
@@ -124,12 +124,11 @@ namespace Rasa.Game
         // Cell Domain ignore self
         public void CellIgnoreSelfCallMethod(Client client, PythonPacket packet)
         {
-            var mapCell = CellManager.Instance.GetCell(client.MapClient.MapChannel, client.MapClient.Player.Actor.CellLocation.CellPosX, client.MapClient.Player.Actor.CellLocation.CellPosY);
-            var clientCount = mapCell.ClientNotifyList.Count;
-            var clientList = mapCell.ClientNotifyList;
+            var clientList = new List<Client>();
 
-            if (clientList == null || clientCount == 0)
-                return;
+            foreach (var cellSeed in client.MapClient.Player.Actor.Cells)
+                foreach (var player in client.MapClient.MapChannel.MapCellInfo.Cells[cellSeed].ClientList)
+                    clientList.Add(player);
 
             foreach (var tempClient in clientList)
             {
@@ -260,6 +259,8 @@ namespace Rasa.Game
                         return;
                     }
 
+                    MapClient.Player.Actor.Position = movePacket.Position;
+                    MapClient.Player.Actor.Rotation = Quaternion.CreateFromYawPitchRoll(movePacket.ViewX, 0f, 0f);
                     MoveMessage = movePacket;
                     break;
 
@@ -438,50 +439,6 @@ namespace Rasa.Game
 
             return true;
         }
-        // Cell Domain
-        public void CellSendPacket(Client client, uint entityId, PythonPacket packet)
-        {
-            var mapCell = CellManager.Instance.GetCell(client.MapClient.MapChannel, client.MapClient.Player.Actor.CellLocation.CellPosX, client.MapClient.Player.Actor.CellLocation.CellPosY);
-            var clientCount = mapCell.ClientNotifyList.Count;
-            var clientList = mapCell.ClientNotifyList;
-
-            if (clientList == null  || clientCount == 0)
-                return;
-
-            foreach (var tempClient in clientList)
-                tempClient.CallMethod(entityId, packet);
-        }
-
-        // Cell Domain ignore self
-        public void CellIgnoreSelfSendPacket(Client client, PythonPacket packet)
-        {
-            var mapCell = CellManager.Instance.GetCell(client.MapClient.MapChannel, client.MapClient.Player.Actor.CellLocation.CellPosX, client.MapClient.Player.Actor.CellLocation.CellPosY);
-            
-            foreach (var tempClient in mapCell.ClientNotifyList)
-            {
-                if (tempClient == client)
-                    continue;
-
-                tempClient.CallMethod(client.MapClient.Player.Actor.EntityId, packet);
-            }
-        }
-
-        /* MapChannel
-         * we will see, will we neeed this, it's same as CellSendPacket
-        public void MapChannelSendPacket(MapChannel mapChannel, Actor actor, uint entityId, PythonPacket packet)
-        {
-            var mapCell = CellManager.Instance.GetCell(mapChannel, actor.CellLocation.CellPosX, actor.CellLocation.CellPosY);
-            var playerCount = mapCell.PlayerNotifyList.Count;
-            var playerList = mapCell.PlayerNotifyList;
-
-            if (playerList == null || playerCount == 0)
-                return;
-
-            foreach (var t in playerList)
-                t.Player.Client.SendPacket(entityId, packet);
-        }*/
-
-        // Client
         #endregion
     }
 }

@@ -53,8 +53,6 @@ namespace Rasa.Packets.Protocol
             ViewY = viewY;
 
             reader.ReadDebugByte(42);
-
-            Logger.WriteLog(LogType.AI, $"MovementData\nUnkByte = {UnkByte}\nUnkByte2 = {UnkByte2}\nposX = {x}\nposY = {y}\nposZ = {z}\nvelocity = {Velocity}\nflag = {Flag}\nvievX = {viewX}\nviewY = {viewY}");
         }
 
         public void Write(ProtocolBufferWriter writer)

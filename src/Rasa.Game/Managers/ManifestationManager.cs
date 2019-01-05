@@ -113,7 +113,7 @@ namespace Rasa.Managers
                 return _instance;
             }
         }
-
+        
         private ManifestationManager()
         {
         }
@@ -301,7 +301,7 @@ namespace Rasa.Managers
             }
 
             // send first hit to cell, ignore self
-            client.CellIgnoreSelfSendPacket(client, new PerformRecoveryPacket(PerformType.ListOfArgs, weaponClassInfo.WeaponAttackActionId, (uint)weaponClassInfo.WeaponAttackArgId));
+            client.CellIgnoreSelfCallMethod(client, new PerformRecoveryPacket(PerformType.ListOfArgs, weaponClassInfo.WeaponAttackActionId, (uint)weaponClassInfo.WeaponAttackArgId));
             
             RegisterAutoFire(client, weapon);
 
@@ -492,17 +492,13 @@ namespace Rasa.Managers
         public void CellIntroduceClientToPlayers(Client client, List<Client> clientList)
         {
             var player = client.MapClient.Player;
-            var netMovement = new NetCompressedMovement
-            {
-                EntityId = player.Actor.EntityId,
-                Flag = 0,
-                PosX24b = (uint)player.Actor.Position.X * 256,
-                PosY24b = (uint)player.Actor.Position.Y * 256,
-                PosZ24b = (uint)player.Actor.Position.Z * 256
-            };
 
             foreach (var tempClient in clientList)
             {
+                // don't send data about yourself
+                if (tempClient == client)
+                    continue;
+
                 Logger.WriteLog(LogType.Debug, $"ClientToPlayers:\n {tempClient.MapClient.Player.Actor.EntityId} is reciving data about {player.Actor.EntityId}");
 
                 tempClient.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(player.Actor.EntityId, player.Actor.EntityClassId, CreatePlayerEntityData(client)));
@@ -515,6 +511,11 @@ namespace Rasa.Managers
             // Skills -> Everything that the player can learn via the skills menu (Sprint, Firearms...) Abilities -> Every skill gained by logos?
             // Recv_WorldLocationDescriptor
 
+        }
+
+        public void CellIntroduceClientToSefl(Client client)
+        {
+            client.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(client.MapClient.Player.Actor.EntityId, client.MapClient.Player.Actor.EntityClassId, CreatePlayerEntityData(client)));
         }
 
         public void CellIntroducePlayersToClient(Client client, List<Client> clientList)

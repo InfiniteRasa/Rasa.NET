@@ -3,6 +3,7 @@ using System.Numerics;
 
 namespace Rasa.Managers
 {
+    using System;
     using Data;
     using Database.Tables.World;
     using Game;
@@ -276,6 +277,12 @@ namespace Rasa.Managers
 
             
             
+        }
+
+        public void CellDiscardCreaturesToClient(Client client, List<Creature> discardCreatures)
+        {
+            foreach (var creature in discardCreatures)
+                client.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(creature.Actor.EntityId));
         }
 
         public void SetLocation(Creature creature, Vector3 position, Quaternion rotation)

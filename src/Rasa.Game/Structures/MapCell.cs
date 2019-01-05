@@ -6,8 +6,9 @@ namespace Rasa.Structures
 
     public class MapCell
     {
+        public uint CellSeed { get; set; }
         public uint CellPosX { get; set; }
-        public uint CellPosY { get; set; }
+        public uint CellPosZ { get; set; }
         public List<Creature> CreatureList = new List<Creature>();
         public List<Client> ClientList = new List<Client>();
         public List<Client> ClientNotifyList = new List<Client>();

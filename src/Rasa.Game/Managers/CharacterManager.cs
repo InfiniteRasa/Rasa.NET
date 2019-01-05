@@ -417,10 +417,10 @@ namespace Rasa.Managers
 
                     CharacterTable.UpdateCharacterPosition(
                         client.MapClient.Player.CharacterId,
-                        client.MapClient.Player.Actor.Position.X,
-                        client.MapClient.Player.Actor.Position.Y,
-                        client.MapClient.Player.Actor.Position.Z,
-                        client.MapClient.Player.Actor.Rotation.X,
+                        client.MoveMessage.Position.X,
+                        client.MoveMessage.Position.Y,
+                        client.MoveMessage.Position.Z,
+                        client.MoveMessage.ViewX,
                         client.MapClient.Player.Actor.MapContextId
                         );
                     break;
