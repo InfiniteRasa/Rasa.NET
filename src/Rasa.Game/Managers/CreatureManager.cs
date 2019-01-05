@@ -57,7 +57,7 @@ namespace Rasa.Managers
         }
 
         // n creatures to 1 client
-        public void CellIntroduceCreaturesToClient(MapChannel mapChannel, Client client, List<Creature> creaturList)
+        public void CellIntroduceCreaturesToClient(Client client, List<Creature> creaturList)
         {
             foreach (var creature in creaturList)
                 CreateCreatureOnClient(client, creature);
@@ -121,11 +121,10 @@ namespace Rasa.Managers
         }
 
         public void CreateCreatureOnClient(Client client, Creature creature)
-
         {
             if (creature == null)
                 return;
-            
+
             var entityData = new List<PythonPacket>
             {
                 // PhysicalEntity
@@ -140,7 +139,7 @@ namespace Rasa.Managers
                 new TargetCategoryPacket(creature.Faction),
                 new UpdateAttributesPacket(creature.Actor.Attributes, 0),
                 new IsRunningPacket(false)
-        };
+            };
 
             client.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(creature.Actor.EntityId, creature.EntityClassId, entityData));
 

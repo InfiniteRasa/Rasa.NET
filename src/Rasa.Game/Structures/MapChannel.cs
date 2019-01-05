@@ -16,7 +16,6 @@ namespace Rasa.Structures
         //public int TimerController { get; set; }
         //public int TimerPlayerUpdate { get; set; }
         // player
-        //public int PlayerCount { get; set; }
         public int PlayerLimit { get; set; }
         public List<Client> ClientList { get; set; }
         // queue
@@ -27,5 +26,7 @@ namespace Rasa.Structures
         public MapCellInfo MapCellInfo = new MapCellInfo();
         // effect
         public int CurrentEffectId { get; set; } // increases with every spawned game effect
+        // Dynamic Object List
+        public List<DynamicObject> DynamicObjects = new List<DynamicObject>();
     }
 }

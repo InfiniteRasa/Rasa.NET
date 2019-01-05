@@ -180,6 +180,7 @@ namespace Rasa.Game
             SpawnPoolManager.Instance.SpawnPoolInit();
             ChatCommandsManager.Instance.RegisterChatCommands();
             MapChannelManager.Instance.MapChannelInit();
+            DynamicObjectManager.Instance.InitDynamicObjects();
 
             return true;
         }

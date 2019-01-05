@@ -187,6 +187,7 @@ namespace Rasa.Managers
 
             Timer.Add("AutoFire", 100, true, null);
             Timer.Add("CheckForLogingClients", 1000, true, null);
+            Timer.Add("CheckForObjects", 1000, true, null);
             Timer.Add("ClientEffectUpdate", 500, true, null);
             Timer.Add("CellUpdateVisibility", 1000, true, null);
             Timer.Add("CheckForCreatures", 1000, true, null);
@@ -215,7 +216,7 @@ namespace Rasa.Managers
                         mapChannel.ClientList.Add(dequedClient);
                     }
 
-                if (mapChannel.ClientList.Count >= 0)
+                if (mapChannel.ClientList.Count > 0)
                 {
                     ActorActionManager.Instance.DoWork(mapChannel, delta);
                     MissileManager.Instance.DoWork(delta);
@@ -228,9 +229,14 @@ namespace Rasa.Managers
                     if (Timer.IsTriggered("CellUpdateVisibility"))
                         CellManager.Instance.DoWork(mapChannel);
 
+                    // check for objects
+                    if (Timer.IsTriggered("CheckForObjects"))
+                        DynamicObjectManager.Instance.DynamicObjectWorker(mapChannel, delta);
+                    
                     // check for creatures
                     if (Timer.IsTriggered("CheckForCreatures"))
                         SpawnPoolManager.Instance.SpawnPoolWorker(mapChannel, delta);
+
 
                     // check for effects (buffs)
                     if (Timer.IsTriggered("ClientEffectUpdate"))

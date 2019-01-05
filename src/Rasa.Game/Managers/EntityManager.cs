@@ -3,6 +3,7 @@ using System.Diagnostics;
 
 namespace Rasa.Managers
 {
+    using System;
     using Data;
     using Game;
     using Packets.MapChannel.Server;
@@ -21,6 +22,7 @@ namespace Rasa.Managers
         public Dictionary<uint, MapChannelClient> Players = new Dictionary<uint, MapChannelClient>();
         public Dictionary<uint, Actor> Actors = new Dictionary<uint, Actor>();
         public Dictionary<uint, Creature> Creatures = new Dictionary<uint, Creature>();
+        public Dictionary<uint, DynamicObject> DynamicObjects = new Dictionary<uint, DynamicObject>();
         public Dictionary<uint, List<uint>> VendorItems = new Dictionary<uint, List<uint>>();
 
         public static EntityManager Instance
@@ -118,8 +120,7 @@ namespace Rasa.Managers
                     return Items[entityId].ItemTemplate.Class;
 
                 case EntityType.Object:
-                    Logger.WriteLog(LogType.Error, $"Not implemented, {GetEntityType(entityId)} ToDo");
-                    return 0;
+                    return DynamicObjects[entityId].EntityClassId;
 
                 case EntityType.VendorItem:
                     Logger.WriteLog(LogType.Error, $"Not implemented, {GetEntityType(entityId)} ToDo");
@@ -188,6 +189,12 @@ namespace Rasa.Managers
         public void UnregisterItem(uint entityId)
         {
             Items.Remove(entityId);
+        }
+
+        // DynamicObjects
+        public void RegisterDynamicObject(DynamicObject dynamicObject)
+        {
+            DynamicObjects.Add(dynamicObject.EntityId, dynamicObject);
         }
 
         // Players

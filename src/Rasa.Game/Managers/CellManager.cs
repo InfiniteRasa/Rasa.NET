@@ -36,6 +36,7 @@ namespace Rasa.Managers
         {
         }
 
+        // creature
         public void AddToWorld(MapChannel mapChannel, Creature creature)
         {
             if (creature == null)
@@ -64,6 +65,36 @@ namespace Rasa.Managers
             CreatureManager.Instance.CellIntroduceCreatureToClients(mapChannel, creature, ListOfClients);
         }
 
+        // Object
+        public void AddToWorld(MapChannel mapChannel, DynamicObject dynamicObject)
+        {
+            if (dynamicObject == null)
+                return;
+
+            // register creature entity
+            EntityManager.Instance.RegisterEntity(dynamicObject.EntityId, EntityType.Object);
+            EntityManager.Instance.RegisterDynamicObject(dynamicObject);
+
+            // calculate initial cell(x, z)
+            var cellPosX = (uint)(dynamicObject.Position.X / CellSize + CellBias);
+            var cellPosZ = (uint)(dynamicObject.Position.Z / CellSize + CellBias);
+
+            // create matrix
+            var cellMatrix = CreateCellMatrix(mapChannel, cellPosX, cellPosZ);
+
+            // add Object to the cell
+            mapChannel.MapCellInfo.Cells[cellMatrix[2, 2]].DynamicObjectList.Add(dynamicObject);
+
+            // notify client's about new object
+            var ListOfClients = new List<Client>();
+
+            foreach (var cellSeed in cellMatrix)
+                foreach (var client in mapChannel.MapCellInfo.Cells[cellSeed].ClientList)
+                    ListOfClients.Add(client);
+
+            DynamicObjectManager.Instance.CellIntroduceDynamicObjectToClients(dynamicObject, ListOfClients);
+        }
+
         // Player
         public void AddToWorld(Client client)
         {
@@ -87,17 +118,18 @@ namespace Rasa.Managers
             // notify client about players, creatures, objects
             var ListOfClients = new List<Client>();
             var ListOfCreatures = new List<Creature>();
-            //var ListOfObjects = new List<DynamicObject>();    // ToDO
+            var ListOfObjects = new List<DynamicObject>();
+
             foreach (var cellSeed in cellMatrix)
             {
-                foreach (var player in client.MapClient.MapChannel.MapCellInfo.Cells[cellSeed].ClientList)
+                foreach (var player in mapChannel.MapCellInfo.Cells[cellSeed].ClientList)
                     ListOfClients.Add(player);
 
-                foreach (var creature in client.MapClient.MapChannel.MapCellInfo.Cells[cellSeed].CreatureList)
+                foreach (var creature in mapChannel.MapCellInfo.Cells[cellSeed].CreatureList)
                     ListOfCreatures.Add(creature);
 
-                //foreach (var dinamicObject in client.MapClient.MapChannel.MapCellInfo.Cells[cellSeed].DynamicObjectList)
-                //ListOfObjects.Add(dinamicObject);
+                foreach (var dinamicObject in mapChannel.MapCellInfo.Cells[cellSeed].DynamicObjectList)
+                    ListOfObjects.Add(dinamicObject);
 
             }
 
@@ -105,8 +137,8 @@ namespace Rasa.Managers
             ManifestationManager.Instance.CellIntroduceClientToPlayers(client, ListOfClients);
             ManifestationManager.Instance.CellIntroducePlayersToClient(client, ListOfClients);
 
-            CreatureManager.Instance.CellIntroduceCreaturesToClient(mapChannel, client, ListOfCreatures);
-            //DynamicObjectManager.Instance.CellIntroduceDynamicObjectsToClient(mapChannel, client, ListOfObjects);
+            CreatureManager.Instance.CellIntroduceCreaturesToClient(client, ListOfCreatures);
+            DynamicObjectManager.Instance.CellIntroduceDynamicObjectsToClient(client, ListOfObjects);
         }
 
         public void DoWork(MapChannel mapChannel)
@@ -217,7 +249,7 @@ namespace Rasa.Managers
                 // remove players, creatures, object that left visibility range
                 var DiscardClients = new List<Client>();
                 var DiscardCreatures = new List<Creature>();
-                //var DiscardObjects = new List<DynamicObject>();    // ToDO
+                var DiscardObjects = new List<DynamicObject>();
 
                 foreach (var cellSeed in needDelete)
                 {
@@ -227,13 +259,14 @@ namespace Rasa.Managers
                     foreach (var creature in client.MapClient.MapChannel.MapCellInfo.Cells[cellSeed].CreatureList)
                         DiscardCreatures.Add(creature);
 
-                    //foreach (var dinamicObject in client.MapClient.MapChannel.MapCellInfo.Cells[cellSeed].DynamicObjectList)
-                    //DiscardObjects.Add(dinamicObject);
+                    foreach (var dinamicObject in client.MapClient.MapChannel.MapCellInfo.Cells[cellSeed].DynamicObjectList)
+                        DiscardObjects.Add(dinamicObject);
 
                 }
 
                 ManifestationManager.Instance.CellDiscardPlayersToClient(client, DiscardClients);
                 CreatureManager.Instance.CellDiscardCreaturesToClient(client, DiscardCreatures);
+                DynamicObjectManager.Instance.CellDiscardDynamicObjectsToClient(client, DiscardObjects);
 
                 // add player to new cell
                 mapChannel.MapCellInfo.Cells[cellMatrix[2, 2]].ClientList.Add(client);
@@ -243,7 +276,8 @@ namespace Rasa.Managers
                 // notify client about players, creatures, objects
                 var AddClients = new List<Client>();
                 var AddCreatures = new List<Creature>();
-                //var AddObjects = new List<DynamicObject>();    // ToDO
+                var AddObjects = new List<DynamicObject>();
+
                 foreach (var cellSeed in needUpdate)
                 {
                     foreach (var player in client.MapClient.MapChannel.MapCellInfo.Cells[cellSeed].ClientList)
@@ -252,123 +286,17 @@ namespace Rasa.Managers
                     foreach (var creature in client.MapClient.MapChannel.MapCellInfo.Cells[cellSeed].CreatureList)
                         AddCreatures.Add(creature);
 
-                    //foreach (var dinamicObject in client.MapClient.MapChannel.MapCellInfo.Cells[cellSeed].DynamicObjectList)
-                    //ListOfObjects.Add(dinamicObject);
-
+                    foreach (var dinamicObject in client.MapClient.MapChannel.MapCellInfo.Cells[cellSeed].DynamicObjectList)
+                        AddObjects.Add(dinamicObject);
                 }
 
                 ManifestationManager.Instance.CellIntroduceClientToPlayers(client, AddClients);
                 ManifestationManager.Instance.CellIntroducePlayersToClient(client, AddClients);
-                CreatureManager.Instance.CellIntroduceCreaturesToClient(mapChannel, client, AddCreatures);
-                //DynamicObjectManager.Instance.CellIntroduceDynamicObjectsToClient(mapChannel, client,AddObjects);
+                CreatureManager.Instance.CellIntroduceCreaturesToClient(client, AddCreatures);
+                DynamicObjectManager.Instance.CellIntroduceDynamicObjectsToClient(client, AddObjects);
             }
         }
-        /*
-        public void UpdateVisibility(MapChannel mapChannel)
-        {
-            for (var i = 0; i < mapChannel.ClientList.Count; i++)
-            {
-                var client = mapChannel.ClientList[i];
-                if (client.MapClient.Disconected || client.MapClient.Player == null)
-                    continue;
-
-                var cellPosX = (uint)(client.MapClient.Player.Actor.Position.X / CellSize + CellBias);
-                var cellPosZ = (uint)(client.MapClient.Player.Actor.Position.Z / CellSize + CellBias);
-
-                if (client.MapClient.Player.Actor.CellLocation.CellPosX != cellPosX ||
-                    client.MapClient.Player.Actor.CellLocation.CellPosZ != cellPosZ)
-                {
-                    var oldX1 = client.MapClient.Player.Actor.CellLocation.CellPosX - CellViewRange;
-                    var oldX2 = client.MapClient.Player.Actor.CellLocation.CellPosX + CellViewRange;
-                    var oldY1 = client.MapClient.Player.Actor.CellLocation.CellPosZ - CellViewRange;
-                    var oldY2 = client.MapClient.Player.Actor.CellLocation.CellPosZ + CellViewRange;
-
-                    // find players that leave visibility range
-                    for (var ix = oldX1; ix <= oldX2; ix++)
-                        for (var iz = oldY1; iz <= oldY2; iz++)
-                        {
-                            if ((ix >= (cellPosX - CellViewRange) && ix <= (cellPosX + CellViewRange)) && (iz >= (cellPosZ - CellViewRange) && iz <= (cellPosZ + CellViewRange)))
-                                continue;
-
-                            var nMapCell = GetCell(mapChannel, ix, iz);
-
-                            if (nMapCell != null)
-                            {
-                                if (nMapCell.ClientNotifyList.Count > 0)
-                                {
-                                    // remove notify entry
-                                    for (int j = nMapCell.ClientNotifyList.Count - 1; i >= 0; i--)
-                                        if (nMapCell.ClientNotifyList[j] == client)
-                                        {
-                                            nMapCell.ClientNotifyList.RemoveAt(j);
-                                            break;
-                                        }
-
-                                    // remove player visibility client-side
-                                    ManifestationManager.Instance.CellDiscardClientToPlayers(client, nMapCell.ClientNotifyList);
-                                    ManifestationManager.Instance.CellDiscardPlayersToClient(client, nMapCell.ClientNotifyList);
-                                }
-
-                                // remove object visibility
-                                // if (nMapCell->ht_objectList.empty() == false)
-                                //     dynamicObject_cellDiscardObjectsToClient(mapChannel, client, &nMapCell->ht_objectList[0], nMapCell->ht_objectList.size());
-
-                                // remove creature visibility
-                                //if (nMapCell.CreatureList.Count > 0)
-                                //   CreatureManager.Instance.CellDiscardCreaturesToClient(mapChannel, client, nMapCell.CreatureList);
-                            }
-                        }
-
-
-                    // find players that enter visibility range
-                    for (var ix = cellPosX - CellViewRange; ix <= CellPosX + CellViewRange; ix++)
-                        for (var iz = cellPosZ - CellViewRange; iz <= cellPosZ + CellViewRange; iz++)
-                        {
-                            if ((ix >= oldX1 && ix <= oldX2) && (iz >= oldY1 && iz <= oldY2))
-                                continue;
-
-                            var nnMapCell = GetCell(mapChannel, ix, iz);
-
-                            if (nnMapCell != null)
-                            {
-                                // add player visibility client-side
-                                if (nnMapCell.ClientNotifyList.Count > 0)
-                                {
-                                    // notify all players of me
-                                    ManifestationManager.Instance.CellIntroduceClientToPlayers(client, nnMapCell.ClientNotifyList);
-                                    // notify me about all players that are visible here
-                                    ManifestationManager.Instance.CellIntroducePlayersToClient(client, nnMapCell.ClientNotifyList);
-                                }
-                                // add notify entry
-                                nnMapCell.ClientNotifyList.Add(client);
-                                //if (nMapCell.ObjectList > 0)
-                                //    dynamicObject_cellIntroduceObjectsToClient(mapChannel, client, &nMapCell->ht_objectList[0], nMapCell->ht_objectList.size());
-                                // add creature visibility client-side
-                                if (nnMapCell.CreatureList.Count > 0)
-                                    CreatureManager.Instance.CellIntroduceCreaturesToClient(mapChannel, client, nnMapCell.CreatureList);
-                            }
-                        }
-
-                    // move the player entry
-                    var mapCell = GetCell(mapChannel, client.MapClient.Player.Actor.CellLocation.CellPosX, client.MapClient.Player.Actor.CellLocation.CellPosX);
-
-                    if (mapCell != null)
-                        if (mapCell.ClientNotifyList.Count > 0)
-                            for (int k = mapCell.ClientNotifyList.Count - 1; k >= 0; k--)
-                                if (mapCell.ClientNotifyList[k] == client)
-                                {
-                                    mapCell.ClientNotifyList.RemoveAt(k);
-                                    break;
-                                }
-                }
-
-                // update location
-                client.MapClient.Player.Actor.CellLocation.CellPosX = cellPosX;
-                client.MapClient.Player.Actor.CellLocation.CellPosZ = cellPosZ;
-            }
-        }
-        */
-
+        
         public uint[,] CreateCellMatrix(MapChannel mapChannel, uint cellPosX, uint cellPosZ)
         {
             var cellMatrix = new uint[5, 5];
