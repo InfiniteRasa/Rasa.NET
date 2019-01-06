@@ -185,11 +185,14 @@ namespace Rasa.Memory
         {
             ReadDebugByte(41);
 
-            var value = ((ReadByte() << 16)  | (ReadByte() << 8) | ReadByte()) / 256.0f;
+            var value = ((ReadByte() << 16)  | (ReadByte() << 8) | ReadByte());
 
+            if ((value & 0x00800000) > 0)
+                value -= 0xFFFFFF;
+            
             ReadDebugByte(42);
 
-            return value;
+            return value / 256.0f;
         }
 
         public float ReadPackedVelocity()
