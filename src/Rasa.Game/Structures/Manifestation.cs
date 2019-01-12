@@ -43,6 +43,7 @@ namespace Rasa.Structures
         public uint TargetEntityId { get; set; }
         public uint TrackingTargetEntityId { get; set; }
         public byte ActiveWeapon { get; set; }
+        public List<uint> GainedWaypoints = new List<uint>();
 
         public Manifestation(CharacterEntry character, Dictionary<EquipmentData, AppearanceData> appearence)
         {

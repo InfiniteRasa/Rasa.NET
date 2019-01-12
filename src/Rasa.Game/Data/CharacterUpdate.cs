@@ -13,6 +13,7 @@
         Position        = 9,
         Prestige        = 10,
         Stats           = 11,
-        ActiveWeapon    = 12
+        ActiveWeapon    = 12,
+        Teleporter      = 13
     }
 }

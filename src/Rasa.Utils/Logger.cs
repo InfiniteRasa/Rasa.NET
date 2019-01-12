@@ -14,7 +14,8 @@ namespace Rasa
         Command,
         File,
         Security,
-        None
+        None,
+        ExportData
     }
 
     public class Logger
@@ -111,6 +112,11 @@ namespace Rasa
                     desiredColor = ConsoleColor.Black;
                     break;
 
+                case LogType.ExportData: // log data without any prefix
+                    prefix = "";
+                    desiredColor = ConsoleColor.DarkYellow;
+                    break;
+
                 case LogType.Security:
                     prefix = "Security";
                     desiredColor = ConsoleColor.DarkRed;
@@ -119,7 +125,13 @@ namespace Rasa
                 default:
                     throw new ArgumentOutOfRangeException(nameof(type), type, $"Unhandled log type: {type}");
             }
-            var text = $"[{DateTime.Now:yyyy. MM. dd. HH:mm:ss.fff}] [{prefix}] {log}";
+
+            var text = "";
+
+            if (type == LogType.ExportData)
+                text = $"{log}";
+            else
+                text = $"[{DateTime.Now:yyyy. MM. dd. HH:mm:ss.fff}] [{prefix}] {log}";
 
             _logWriter?.WriteLine(text);
 

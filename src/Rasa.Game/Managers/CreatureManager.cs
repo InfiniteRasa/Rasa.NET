@@ -3,7 +3,6 @@ using System.Numerics;
 
 namespace Rasa.Managers
 {
-    using System;
     using Data;
     using Database.Tables.World;
     using Game;

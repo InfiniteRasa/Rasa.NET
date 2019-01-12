@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Numerics;
 
 namespace Rasa.Managers
 {
@@ -171,6 +172,15 @@ namespace Rasa.Managers
 
                 return cell;
             }
+        }
+
+        public uint GetCellSeed(Vector3 position)
+        {
+            var cellPosX = (uint)(position.X / CellSize + CellBias);
+            var cellPosZ = (uint)(position.Z / CellSize + CellBias);
+            var cellSeed = (cellPosX & 0xFFFF) | (cellPosZ << 16);
+
+            return cellSeed;
         }
 
         public void RemoveFromWorld(Client client)

@@ -2,8 +2,9 @@
 {
     public enum EntityClassId
     {
-        HumanBaseFemale         = 691,
-        HumanBaseMale           = 692,
-        CharacterSelectionPod   = 3543
+        HumanBaseFemale                 = 691,
+        HumanBaseMale                   = 692,
+        CharacterSelectionPod           = 3543,
+        UsableTwoStateHumWaypointV01    = 25651
     }
 }

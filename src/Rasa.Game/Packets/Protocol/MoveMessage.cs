@@ -28,6 +28,16 @@ namespace Rasa.Packets.Protocol
         public byte Flag { get; set; }
         public float ViewX { get; set; }
         public float ViewY { get; set; }
+        public uint EntityId { get; set; }
+
+        public MoveMessage(uint entityId)
+        {
+            EntityId = entityId;
+        }
+
+        public MoveMessage()
+        {
+        }
 
         public void Read(ProtocolBufferReader reader)
         {
@@ -38,7 +48,7 @@ namespace Rasa.Packets.Protocol
 
             reader.ReadDebugByte(3);
             UnkByte2 = reader.ReadByte();
-            
+
             var x = reader.ReadPackedFloat(); // TODO
             var y = reader.ReadPackedFloat();
             var z = reader.ReadPackedFloat();
@@ -59,6 +69,8 @@ namespace Rasa.Packets.Protocol
         {
             writer.WriteByte(UnkByte);
             //writer.WriteMovementData();
+
+            writer.WriteUIntBySevenBits(EntityId);
 
             writer.WriteDebugByte(41);
 

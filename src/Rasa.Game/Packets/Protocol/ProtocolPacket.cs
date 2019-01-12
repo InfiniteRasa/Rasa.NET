@@ -254,7 +254,6 @@ namespace Rasa.Packets.Protocol
                     break;
 
                 case ClientMessageOpcode.Move:
-                    Message = new MoveMessage();
                     break;
 
                 default:

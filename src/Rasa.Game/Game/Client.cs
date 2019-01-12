@@ -133,16 +133,34 @@ namespace Rasa.Game
             foreach (var tempClient in clientList)
             {
                 if (tempClient == client)
-                    return;
+                    continue;
 
                 tempClient.CallMethod(client.MapClient.Player.Actor.EntityId, packet);
+            }
+        }
+
+        // Cell Domain ignore self
+        public void CellIgnoreSelfSendMovement(MapChannelClient mapClient, IClientMessage message)
+        {
+            var clientList = new List<Client>();
+
+            foreach (var cellSeed in mapClient.Player.Actor.Cells)
+                foreach (var player in mapClient.MapChannel.MapCellInfo.Cells[cellSeed].ClientList)
+                    clientList.Add(player);
+
+            foreach (var tempClient in clientList)
+            {
+                if (tempClient.MapClient == mapClient)
+                    continue;
+
+                tempClient.SendMessage(message, false, 1);
             }
         }
 
         public void SendMessage(IClientMessage message, bool compress = false, byte channel = 0, bool delay = true)
         {
             var protocolPacket = new ProtocolPacket(message, message.Type, compress, channel);
-
+            
             if (!delay)
                 SendPacket(protocolPacket);
             else
@@ -262,6 +280,11 @@ namespace Rasa.Game
                     MapClient.Player.Actor.Position = movePacket.Position;
                     MapClient.Player.Actor.Rotation = Quaternion.CreateFromYawPitchRoll(movePacket.ViewX, 0f, 0f);
                     MoveMessage = movePacket;
+
+                    // ToDo send data to other players immediately
+                    //MoveMessage.EntityId = MapClient.Player.Actor.EntityId;
+                    //CellIgnoreSelfSendMovement(MapClient, MoveMessage);
+                    
                     break;
 
                 case ClientMessageOpcode.CallServerMethod:

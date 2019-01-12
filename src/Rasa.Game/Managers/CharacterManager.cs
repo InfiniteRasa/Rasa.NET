@@ -435,7 +435,11 @@ namespace Rasa.Managers
                     client.MapClient.Player.ActiveWeapon = (byte)value;
                     CharacterTable.UpdateCharacterActiveWeapon(client.MapClient.Player.CharacterId, client.MapClient.Player.ActiveWeapon);
                     break;
+                case CharacterUpdate.Teleporter:
+                    var teleporterId = (uint)value;
 
+                    CharacterTeleportersTable.AddTeleporter(client.MapClient.Player.CharacterId, teleporterId);
+                    break;
                 default:
                     break;
             }

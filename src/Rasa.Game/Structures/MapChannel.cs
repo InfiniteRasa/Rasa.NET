@@ -28,5 +28,6 @@ namespace Rasa.Structures
         public int CurrentEffectId { get; set; } // increases with every spawned game effect
         // Dynamic Object List
         public List<DynamicObject> DynamicObjects = new List<DynamicObject>();
+        public Dictionary<uint,DynamicObject> Teleporters = new Dictionary<uint, DynamicObject>();
     }
 }

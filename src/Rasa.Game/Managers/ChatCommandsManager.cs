@@ -197,7 +197,7 @@ namespace Rasa.Managers
             // if only item template, give max stack size
             if (parts.Length == 3)
                 if (uint.TryParse(parts[1], out uint entityId))
-                    if (int.TryParse(parts[2], out int state))
+                    if (uint.TryParse(parts[2], out uint state))
                         _client.CallMethod(entityId, new ForceStatePacket(state, 100));
 
             return;
@@ -501,8 +501,9 @@ namespace Rasa.Managers
 
         private void WhereCommand(string[] parts)
         {
-            CommunicatorManager.Instance.SystemMessage(_client, $"PosX = {_client.MapClient.Player.Actor.Position.X}\nPosY = "
-                +$"{_client.MapClient.Player.Actor.Position.Y}\nPosZ = {_client.MapClient.Player.Actor.Position.Z}\nMapId = {_client.MapClient.Player.Actor.MapContextId}");
+            CommunicatorManager.Instance.SystemMessage(_client, $"PosX = {_client.MoveMessage.Position.X}\nPosY = "
+                +$"{_client.MoveMessage.Position.Y}\nPosZ = {_client.MoveMessage.Position.Z}\nRotation = {_client.MoveMessage.ViewX}"
+                +$"\nMapId = {_client.MapClient.Player.Actor.MapContextId}");
             return;
         }
         

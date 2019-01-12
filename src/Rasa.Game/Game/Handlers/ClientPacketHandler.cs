@@ -368,6 +368,12 @@
             ManifestationManager.Instance.SaveUserOptions(Client, packet);
         }
 
+        [PacketHandler(GameOpcode.SelectWaypoint)]
+        private void SelectWaypoint(SelectWaypointPacket packet)
+        {
+            DynamicObjectManager.Instance.SelectWaypoint(Client, packet);
+        }
+
         [PacketHandler(GameOpcode.SetAutoLootThreshold)]
         private void SetAutoLootThreshold(SetAutoLootThresholdPacket packet)
         {
@@ -402,6 +408,12 @@
         private void StopAutoFire(StopAutoFirePacket packet)
         {
             ManifestationManager.Instance.StopAutoFire(Client);
+        }
+
+        [PacketHandler(GameOpcode.TeleportAcknowledge)]
+        private void TeleportAcknowledge(TeleportAcknowledgePacket packet)
+        {
+            DynamicObjectManager.Instance.TeleportAcknowledge(Client);
         }
 
         [PacketHandler(GameOpcode.TransferCreditToLockbox)]
