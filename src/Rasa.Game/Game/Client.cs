@@ -58,6 +58,7 @@ namespace Rasa.Game
             Socket.OnReceive += OnReceive;
             Socket.OnEncrypt += OnEncrypt;
             Socket.OnDecrypt += OnDecrypt;
+            Socket.OnDisconnect += OnDisconnect;
 
             Socket.ReceiveAsync();
 
@@ -316,6 +317,13 @@ namespace Rasa.Game
         }
 
         #region Socketing
+        private void OnDisconnect()
+        {
+            foreach (var client in MapClient.MapChannel.ClientList)
+                if (client.MapClient == MapClient)
+                    MapChannelManager.Instance.RemovePlayer(client, false);
+        }
+
         private void OnEncrypt(BufferData data, ref int length)
         {
             var paddingCount = (byte) (8 - length % 8);
