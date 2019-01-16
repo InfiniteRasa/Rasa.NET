@@ -34,7 +34,7 @@ namespace Rasa.Game
         private readonly object _clientLock = new object();
         private readonly ClientPacketHandler _handler;
         private readonly PacketQueue _packetQueue = new PacketQueue();
-        public MoveMessage MoveMessage { get; set; }
+        public MovementData MovementData { get; set; }
 
 
         private static PacketRouter<ClientPacketHandler, GameOpcode> PacketRouter { get; } = new PacketRouter<ClientPacketHandler, GameOpcode>();
@@ -108,7 +108,31 @@ namespace Rasa.Game
         {
             SendMessage(new CallMethodMessage((uint) entityId, packet));
         }
-        
+
+        internal void SendMovement()
+        {
+            var movementData = new MovementData()
+            {
+                Flags = 8,
+                PosX = 810.9063f,
+                PosY = 292.7109f,
+                PosZ = 352.2461f,
+                ViewX = 0.7963278f,
+                ViewY = 0.1051736f,
+                UnknownByte = 0,
+                Velocity = 6.5f
+            };
+
+            var message = new MoveMessage
+            {
+                UnkByte = 0,
+                EntityId = 1031,
+                MovementData = movementData
+            };
+
+            SendMessage(message, false, 1);
+        }
+
         // Cell Domain
         public void CellCallMethod(Client client, uint entityId, PythonPacket packet)
         {
@@ -278,13 +302,13 @@ namespace Rasa.Game
                         return;
                     }
 
-                    MapClient.Player.Actor.Position = movePacket.Position;
-                    MapClient.Player.Actor.Rotation = Quaternion.CreateFromYawPitchRoll(movePacket.ViewX, 0f, 0f);
-                    MoveMessage = movePacket;
+                    MapClient.Player.Actor.Position = new Vector3(movePacket.MovementData.PosX, movePacket.MovementData.PosY, movePacket.MovementData.PosZ);
+                    MapClient.Player.Actor.Rotation = Quaternion.CreateFromYawPitchRoll(movePacket.MovementData.ViewX, 0f, 0f);
+                    MovementData = movePacket.MovementData;
 
                     // ToDo send data to other players immediately
-                    //MoveMessage.EntityId = MapClient.Player.Actor.EntityId;
-                    //CellIgnoreSelfSendMovement(MapClient, MoveMessage);
+                    movePacket.EntityId = MapClient.Player.Actor.EntityId;
+                    CellIgnoreSelfSendMovement(MapClient, movePacket);
                     
                     break;
 

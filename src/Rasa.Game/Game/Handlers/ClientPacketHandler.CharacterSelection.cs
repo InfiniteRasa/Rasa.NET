@@ -12,6 +12,12 @@
         {
             CharacterManager.Instance.RequestCharacterName(Client, packet.Gender);
         }
+        
+        [PacketHandler(GameOpcode.StoreUserClientInformation)]
+        private void StoreUserClientInformation(StoreUserClientInformationPacket packet)
+        {
+            Logger.WriteLog(LogType.Debug, "StoreUserClientInformationPacket ToDo");
+        }
 
         // ReSharper disable once UnusedParameter.Local
         [PacketHandler(GameOpcode.RequestFamilyName)]

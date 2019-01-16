@@ -272,9 +272,6 @@ namespace Rasa.Managers
                 else
                     Logger.WriteLog(LogType.Error, $"LoadNPCPackages: unknown cratueDbId = {package.CreatureDbId}");
             }
-
-            
-            
         }
 
         public void CellDiscardCreaturesToClient(Client client, List<Creature> discardCreatures)

@@ -325,7 +325,7 @@ namespace Rasa.Managers
                     0,                          // ToDo MapInstanceId
                     mapData.MapInfo.MapVersion,
                     new Vector3(data.CoordX, data.CoordY, data.CoordZ),
-                    Quaternion.CreateFromYawPitchRoll(data.Rotation,0,0)
+                    data.Rotation
                 )
                 );
 
@@ -411,16 +411,16 @@ namespace Rasa.Managers
                     if (data != null)
                     {
                         client.MapClient.Player.Actor.Position = data.Position;
-                        client.MapClient.Player.Actor.Rotation = data.Rotation;
+                        client.MapClient.Player.Actor.Rotation = Quaternion.CreateFromYawPitchRoll(data.ViewX, 0f, 0f);
                         client.MapClient.Player.Actor.MapContextId = data.MapContextId;
                     }
 
                     CharacterTable.UpdateCharacterPosition(
                         client.MapClient.Player.CharacterId,
-                        client.MoveMessage.Position.X,
-                        client.MoveMessage.Position.Y,
-                        client.MoveMessage.Position.Z,
-                        client.MoveMessage.ViewX,
+                        client.MovementData.PosX,
+                        client.MovementData.PosY,
+                        client.MovementData.PosZ,
+                        client.MovementData.ViewX,
                         client.MapClient.Player.Actor.MapContextId
                         );
                     break;

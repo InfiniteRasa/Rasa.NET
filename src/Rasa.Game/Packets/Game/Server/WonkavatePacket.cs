@@ -13,15 +13,15 @@ namespace Rasa.Packets.Game.Server
         public uint MapInstanceId { get; set; }
         public uint MapVersion { get; set; }
         public Vector3 Position { get; set; }
-        public Quaternion Rotation { get; set; }
+        public float ViewX { get; set; }
 
-        public WonkavatePacket(uint mapContextId, uint mapInstanceId, uint mapVersion, Vector3 position, Quaternion rotation)
+        public WonkavatePacket(uint mapContextId, uint mapInstanceId, uint mapVersion, Vector3 position, float viewX)
         {
             MapContextId = mapContextId;
             MapInstanceId = mapInstanceId;
             MapVersion = mapVersion;
             Position = position;
-            Rotation = rotation;
+            ViewX = viewX;
         }
 
         public override void Write(PythonWriter pw)
@@ -34,7 +34,7 @@ namespace Rasa.Packets.Game.Server
             pw.WriteDouble(Position.X);
             pw.WriteDouble(Position.Y);
             pw.WriteDouble(Position.Z);
-            pw.WriteDouble(Rotation.X);
+            pw.WriteDouble(ViewX);
         }
     }
 }

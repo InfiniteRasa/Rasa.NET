@@ -145,6 +145,7 @@ namespace Rasa.Managers
 
         public void MapChannelInit()
         {
+            MapChannelsByContextId.Add(1985, new MapChannel { MapInfo = new MapInfo(1985, "adv_bootcamp", 783, 0) });
             MapChannelsByContextId.Add(1220, new MapChannel { MapInfo = new MapInfo(1220, "adv_foreas_concordia_wilderness", 1556, 0) });
             MapChannelsByContextId.Add(1148, new MapChannel { MapInfo = new MapInfo(1148, "adv_foreas_concordia_divide", 1584, 0) });
 

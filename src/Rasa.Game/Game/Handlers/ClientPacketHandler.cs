@@ -128,6 +128,12 @@
             MapChannelManager.Instance.Ping(Client, packet.Ping);
         }
 
+        [PacketHandler(GameOpcode.PrivilegedCommand)]
+        private void PrivilegedCommand(PrivilegedCommandPacket packet)
+        {
+            // ToDo
+        }
+
         [PacketHandler(GameOpcode.PurchaseLockboxTab)]
         private void PurchaseLockboxTab(PurchaseLockboxTabPacket packet)
         {
@@ -211,6 +217,18 @@
         {
             InventoryManager.Instance.RequestEquipWeapon(Client, packet);
         }
+
+        [PacketHandler(GameOpcode.RequestGesture)]
+        private void RequestGesture(RequestGesturePacket packet)
+        {
+            // ToDo
+        }
+
+        /*[PacketHandler(GameOpcode.RequestGestureWeapon)]
+        private void RequestGestureWeapon(RequestGestureWeaponPacket packet)
+        {
+            // ToDo
+        }*/
 
         [PacketHandler(GameOpcode.RequestLockboxTabPermissions)]
         private void RequestLockboxTabPermissions(RequestLockboxTabPermissionsPacket packet)

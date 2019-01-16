@@ -148,37 +148,52 @@ namespace Rasa.Memory
 
         }
 
-        public void WriteMovementData()
-        {
-
-        }
-
-        public void WritePackedFloat(float value)
+        public void WriteMovementData(MovementData movementData)
         {
             WriteDebugByte(41);
 
-            WriteByte((byte)((ushort)(value * 256.0f) >> 16));
-            WriteByte((byte)((ushort)(value * 256.0f) >> 8));
-            WriteByte((byte)((ushort)(value * 256.0f)));
+            WriteDebugByte(3);
+            WriteByte(movementData.UnknownByte);
+
+            WritePackedFloat((int)(movementData.PosX * 256.0f));
+            WritePackedFloat((int)(movementData.PosY * 256.0f));
+            WritePackedFloat((int)(movementData.PosZ * 256.0f));
+
+            WritePackedVelocity((ushort)(movementData.Velocity * 1024.0f));
+
+            WriteByte(movementData.Flags);
+
+            WriteViewCoords((ushort)(movementData.ViewX * 10430.378f), (ushort)(movementData.ViewY * 10430.378f));
 
             WriteDebugByte(42);
         }
 
-        public void WritePackedVelocity(float value)
+        public void WritePackedFloat(int value)
         {
             WriteDebugByte(41);
 
-            WriteUShort((ushort)(value * 1024.0f));
+            WriteByte((byte) (value >> 16 & 0xFF));
+            WriteByte((byte) (value >> 8 & 0xFF));
+            WriteByte((byte) (value >> 0 & 0xFF));
 
             WriteDebugByte(42);
         }
 
-        public void WriteViewCoords(float viewX, float viewY)
+        public void WritePackedVelocity(ushort value)
         {
             WriteDebugByte(41);
 
-            WriteUShort((ushort)(viewX * 10430.378f));
-            WriteUShort((ushort)(viewY * 10430.378f));
+            WriteUShort(value);
+
+            WriteDebugByte(42);
+        }
+
+        public void WriteViewCoords(ushort viewX, ushort viewY)
+        {
+            WriteDebugByte(41);
+            
+            WriteUShort(viewX);
+            WriteUShort(viewY);
 
             WriteDebugByte(42);
         }

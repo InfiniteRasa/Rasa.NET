@@ -159,37 +159,41 @@ namespace Rasa.Memory
             return new IPEndPoint(addr, port);
         }
 
-        public object ReadMovement()
+        public MovementData ReadMovement()
         {
+            var movement = new MovementData();
+
             ReadDebugByte(41);
 
             ReadDebugByte(3);
-            ReadByte();
-
-            var x = ReadPackedFloat(); // TODO
-            var y = ReadPackedFloat();
-            var z = ReadPackedFloat();
-            var velocity = ReadPackedVelocity();
-            var flags = ReadByte();
+            movement.UnknownByte = ReadByte();
+            
+            movement.PosX = ReadPackedFloat();
+            movement.PosY = ReadPackedFloat();
+            movement.PosZ = ReadPackedFloat();
+            movement.Velocity = ReadPackedVelocity();
+            movement.Flags = ReadByte();
 
             float viewX, viewY;
             ReadPackedViewCoords(out viewX, out viewY);
-            
+
+            movement.ViewX = viewX;
+            movement.ViewY = viewY;
 
             ReadDebugByte(42);
 
-            return null;
+            return movement;
         }
 
         public float ReadPackedFloat()
         {
             ReadDebugByte(41);
 
-            var value = ((ReadByte() << 16)  | (ReadByte() << 8) | ReadByte());
+            var value = (ReadByte() << 16)  | (ReadByte() << 8) | ReadByte();
 
             if ((value & 0x00800000) > 0)
                 value -= 0xFFFFFF;
-            
+
             ReadDebugByte(42);
 
             return value / 256.0f;
@@ -199,11 +203,11 @@ namespace Rasa.Memory
         {
             ReadDebugByte(41);
 
-            var velocity = ReadUShort() / 1024.0f;
+            var velocity = ReadUShort();
 
             ReadDebugByte(42);
 
-            return velocity;
+            return velocity / 1024.0f;
         }
 
         public void ReadPackedViewCoords(out float viewX, out float viewY)
@@ -373,5 +377,17 @@ namespace Rasa.Memory
         public void Dispose()
         {
         }
+    }
+
+    public class MovementData
+    {
+        public float PosX { get; set; }
+        public byte UnknownByte { get; set; }
+        public float PosY { get; set; }
+        public float PosZ { get; set; }
+        public float Velocity { get; set; }
+        public byte Flags { get; set; }
+        public float ViewX { get; set; }
+        public float ViewY { get; set; }
     }
 }

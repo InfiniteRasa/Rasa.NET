@@ -208,7 +208,7 @@ namespace Rasa.Managers
         {
             foreach (var client in mapChannel.ClientList)
             {
-                if (client.MapClient.Disconected || client.MapClient.Player == null)
+                if (client.MapClient.Disconected || client.MapClient.Player == null || client.State == ClientState.Loading)
                     continue;
 
                 var cellPosX = (uint)(client.MapClient.Player.Actor.Position.X / CellSize + CellBias);
