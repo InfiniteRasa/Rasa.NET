@@ -1,10 +1,13 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Numerics;
 
 namespace Rasa.Managers
 {
     using Data;
     using Game;
+    using Packets;
+    using Rasa.Packets.MapChannel.Server;
     using Structures;
 
     public class CellManager
@@ -306,7 +309,22 @@ namespace Rasa.Managers
                 DynamicObjectManager.Instance.CellIntroduceDynamicObjectsToClient(client, AddObjects);
             }
         }
-        
+
+        internal void CellCallMethod(MapChannel mapChannel, DynamicObject obj, PythonPacket packet)
+        {
+            // calculate initial cell(x, z)
+            var cellPosX = (uint)(obj.Position.X / CellSize + CellBias);
+            var cellPosZ = (uint)(obj.Position.Z / CellSize + CellBias);
+
+            // create matrix
+            var cellMatrix = CreateCellMatrix(mapChannel, cellPosX, cellPosZ);
+
+            foreach (var cellSeed in cellMatrix)
+                foreach (var client in mapChannel.MapCellInfo.Cells[cellSeed].ClientList)
+                    client.CallMethod(obj.EntityId, packet);
+
+        }
+
         public uint[,] CreateCellMatrix(MapChannel mapChannel, uint cellPosX, uint cellPosZ)
         {
             var cellMatrix = new uint[5, 5];

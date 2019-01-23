@@ -6,10 +6,11 @@ namespace Rasa.Managers
     using Data;
     using Database.Tables.World;
     using Game;
+    using Packets;
     using Packets.Game.Server;
     using Packets.MapChannel.Client;
     using Packets.MapChannel.Server;
-    using Packets;
+    using Packets.Protocol;
     using Structures;
 
     public class DynamicObjectManager
@@ -152,27 +153,7 @@ namespace Rasa.Managers
                         }
 
                         // check for players that leave range
-                        if (obj.TrigeredByPlayers.Count > 0)
-                        {
-                            for (var i = obj.TrigeredByPlayers.Count - 1; i >= 0; i--)
-                            {
-                                var client = obj.TrigeredByPlayers[i];
-
-                                if (Vector3.Distance(obj.Position, client.MapClient.Player.Actor.Position) > 2.0f)
-                                {
-                                    obj.TrigeredByPlayers.RemoveAt(i);
-
-                                    client.CallMethod(SysEntity.ClientMethodId, new ExitedWaypointPacket());
-
-                                    if (obj.TrigeredByPlayers.Count == 0)
-                                    {
-                                        obj.StateId = 55;
-
-                                        client.CellCallMethod(client, obj.EntityId, new ForceStatePacket(obj.StateId, 100));
-                                    }
-                                }
-                            }
-                        }
+                        RemovePlayerFromWaypoint(obj);
 
                         break;
                     }
@@ -279,18 +260,47 @@ namespace Rasa.Managers
         {
             var teleporter = client.MapClient.MapChannel.Teleporters[packet.WaypointId];
             var objData = teleporter.ObjectData as WaypointInfo;
+            var movementData = new Memory.MovementData
+                (
+                    teleporter.Position.X,
+                    teleporter.Position.Y + 1,
+                    teleporter.Position.Z,
+                    teleporter.Orientation
+                );
 
             client.CellCallMethod(client, client.MapClient.Player.Actor.EntityId, new PreTeleportPacket(TeleportType.Default));
+            client.CallMethod(client.MapClient.Player.Actor.EntityId, new TeleportPacket(teleporter.Position, teleporter.Orientation, TeleportType.Default, 5));
             client.CallMethod(SysEntity.ClientMethodId, new BeginTeleportPacket());
-            
-            //client.CallMethod(client.MapClient.Player.Actor.EntityId, new TeleportPacket(teleporter.Position, client.MoveMessage.ViewX, TeleportType.Default, 4));
+            client.CellMoveObject(client.MapClient, new MoveObjectMessage(0, client.MapClient.Player.Actor.EntityId, movementData), false);
+
+            teleporter.TrigeredByPlayers.Remove(client);    // ToDO: maybe safely remove client
         }
 
         public void TeleportAcknowledge(Client client)
         {
-            Logger.WriteLog(LogType.AI, "teleporting???");
-            //
-            //client.CallMethod(client.MapClient.Player.Actor.EntityId, new TeleportArrivalPacket());
+            client.CallMethod(client.MapClient.Player.Actor.EntityId, new TeleportArrivalPacket());
+        }
+
+        internal void RemovePlayerFromWaypoint(DynamicObject obj)
+        {
+            for (var i = obj.TrigeredByPlayers.Count - 1; i >= 0; i--)
+            {
+                var client = obj.TrigeredByPlayers[i];
+
+                if (Vector3.Distance(obj.Position, client.MapClient.Player.Actor.Position) > 2.0f)
+                {
+                    obj.TrigeredByPlayers.RemoveAt(i);
+
+                    client.CallMethod(SysEntity.ClientMethodId, new ExitedWaypointPacket());
+
+                    if (obj.TrigeredByPlayers.Count == 0)
+                    {
+                        obj.StateId = 55;
+
+                        CellManager.Instance.CellCallMethod(MapChannelManager.Instance.FindByContextId(obj.MapContextId), obj, new ForceStatePacket(obj.StateId, 100));
+                    }
+                }
+            }
         }
 
         #endregion

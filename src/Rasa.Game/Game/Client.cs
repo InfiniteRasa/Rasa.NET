@@ -144,9 +144,9 @@ namespace Rasa.Game
                 tempClient.CallMethod(client.MapClient.Player.Actor.EntityId, packet);
             }
         }
-
-        // Cell Domain ignore self
-        public void CellIgnoreSelfSendMovement(MapChannelClient mapClient, IClientMessage message)
+        
+        // Cell send movement
+        internal void CellMoveObject(MapChannelClient mapClient, MoveObjectMessage moveObjectMessage, bool ignoreSelf)
         {
             var clientList = new List<Client>();
 
@@ -156,10 +156,10 @@ namespace Rasa.Game
 
             foreach (var tempClient in clientList)
             {
-                if (tempClient.MapClient == mapClient)
-                    continue;
+                if (tempClient.MapClient == mapClient && ignoreSelf)
+                        continue;
 
-                tempClient.SendMessage(message, false, 1);
+                tempClient.SendMessage(moveObjectMessage, false, 1);
             }
         }
 
@@ -289,7 +289,7 @@ namespace Rasa.Game
                     
                     // send your movement to other players in visibility range
                     var moveObjectMessage = new MoveObjectMessage(movePacket.UnkByte, MapClient.Player.Actor.EntityId, movePacket.MovementData);
-                    CellIgnoreSelfSendMovement(MapClient, moveObjectMessage);
+                    CellMoveObject(MapClient, moveObjectMessage, true);
 
                     break;
 
