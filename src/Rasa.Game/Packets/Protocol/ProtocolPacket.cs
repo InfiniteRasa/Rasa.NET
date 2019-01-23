@@ -259,7 +259,7 @@ namespace Rasa.Packets.Protocol
                 case ClientMessageOpcode.LoginResponse:
                     break;
 
-                case ClientMessageOpcode.Move:
+                case ClientMessageOpcode.MoveObject:
                     break;
 
                 default:
@@ -284,10 +284,13 @@ namespace Rasa.Packets.Protocol
         {
             var sizePosition = bw.BaseStream.Position;
 
-            bw.Write((ushort)0); // Size placeholder
-
-            bw.Write(Channel);
-            bw.Write((byte)0); // padding
+            bw.Write((byte)0); // Size placeholder
+            bw.Write((byte)0);
+            bw.Write((byte)0);
+            bw.Write((byte)1);
+            bw.Write((byte)0);
+            bw.Write((byte)8);
+            bw.Write((byte)2);
 
             int uncompressedSize;
 
@@ -299,15 +302,10 @@ namespace Rasa.Packets.Protocol
             {
                 using (var packetWriter = new BinaryWriter(ms, Encoding.UTF8, true))
                 {
-                    using (var writer = new ProtocolBufferWriter(packetWriter, ProtocolBufferFlags.Unk08))
+                    using (var writer = new ProtocolBufferWriter(packetWriter, ProtocolBufferFlags.DontFragment))
                     {
-                        writer.WriteProtocolFlags();
-
                         writer.WriteDebugByte(41);
 
-                        if ((Message.SubtypeFlags & ClientMessageSubtypeFlag.Compress) == ClientMessageSubtypeFlag.Compress)
-                            writer.WriteByte(Message.RawSubtype);
-                        
                         Message.Write(writer);
 
                         writer.WriteDebugByte(42);
@@ -315,6 +313,12 @@ namespace Rasa.Packets.Protocol
                         var currentPos = (int)ms.Position;
 
                         writer.WriteXORCheck(currentPos);
+
+                        //Alignment
+                        var PaddingNeeded = (8 - ((ms.Position + 1) % 8)) % 8;
+
+                        for (var x = 0; x < PaddingNeeded; x++)
+                            writer.WriteByte(0xCC);
 
                         uncompressedSize = (int)ms.Position;
                     }
@@ -331,7 +335,7 @@ namespace Rasa.Packets.Protocol
 
             bw.BaseStream.Position = sizePosition;
 
-            bw.Write((ushort)(currentPosition - sizePosition));
+            bw.Write((byte)(currentPosition - sizePosition));
 
             bw.BaseStream.Position = currentPosition;
         }

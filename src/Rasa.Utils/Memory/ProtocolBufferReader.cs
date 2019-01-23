@@ -381,13 +381,25 @@ namespace Rasa.Memory
 
     public class MovementData
     {
-        public float PosX { get; set; }
         public byte UnknownByte { get; set; }
+        public float PosX { get; set; }
         public float PosY { get; set; }
         public float PosZ { get; set; }
         public float Velocity { get; set; }
         public byte Flags { get; set; }
         public float ViewX { get; set; }
         public float ViewY { get; set; }
+
+        public MovementData()
+        {
+        }
+
+        public MovementData(float posX, float posY, float posZ, float viewX)
+        {
+            PosX = posX;
+            PosY = posY;
+            PosZ = posZ;
+            ViewX = viewX;
+        }
     }
 }

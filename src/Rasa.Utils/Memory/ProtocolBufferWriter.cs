@@ -183,7 +183,7 @@ namespace Rasa.Memory
         {
             WriteDebugByte(41);
 
-            WriteUShort(value);
+            WriteUShortBySevenBits(value);
 
             WriteDebugByte(42);
         }
@@ -191,9 +191,9 @@ namespace Rasa.Memory
         public void WriteViewCoords(ushort viewX, ushort viewY)
         {
             WriteDebugByte(41);
-            
-            WriteUShort(viewX);
-            WriteUShort(viewY);
+
+            WriteUShortBySevenBits(viewX);
+            WriteUShortBySevenBits(viewY);
 
             WriteDebugByte(42);
         }

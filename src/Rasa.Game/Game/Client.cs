@@ -106,31 +106,12 @@ namespace Rasa.Game
 
         public void CallMethod(SysEntity entityId, PythonPacket packet)
         {
-            SendMessage(new CallMethodMessage((uint) entityId, packet));
+            SendMessage(new CallMethodMessage((uint)entityId, packet));
         }
 
-        internal void SendMovement()
+        internal void MoveObject(uint entityId, MovementData movementData)
         {
-            var movementData = new MovementData()
-            {
-                Flags = 8,
-                PosX = 810.9063f,
-                PosY = 292.7109f,
-                PosZ = 352.2461f,
-                ViewX = 0.7963278f,
-                ViewY = 0.1051736f,
-                UnknownByte = 0,
-                Velocity = 6.5f
-            };
-
-            var message = new MoveMessage
-            {
-                UnkByte = 0,
-                EntityId = 1031,
-                MovementData = movementData
-            };
-
-            SendMessage(message, false, 1);
+            SendMessage(new MoveObjectMessage(0, entityId, movementData), false, 1);
         }
 
         // Cell Domain
@@ -185,7 +166,7 @@ namespace Rasa.Game
         public void SendMessage(IClientMessage message, bool compress = false, byte channel = 0, bool delay = true)
         {
             var protocolPacket = new ProtocolPacket(message, message.Type, compress, channel);
-            
+
             if (!delay)
                 SendPacket(protocolPacket);
             else
@@ -305,11 +286,11 @@ namespace Rasa.Game
                     MapClient.Player.Actor.Position = new Vector3(movePacket.MovementData.PosX, movePacket.MovementData.PosY, movePacket.MovementData.PosZ);
                     MapClient.Player.Actor.Rotation = Quaternion.CreateFromYawPitchRoll(movePacket.MovementData.ViewX, 0f, 0f);
                     MovementData = movePacket.MovementData;
-
-                    // ToDo send data to other players immediately
-                    movePacket.EntityId = MapClient.Player.Actor.EntityId;
-                    CellIgnoreSelfSendMovement(MapClient, movePacket);
                     
+                    // send your movement to other players in visibility range
+                    var moveObjectMessage = new MoveObjectMessage(movePacket.UnkByte, MapClient.Player.Actor.EntityId, movePacket.MovementData);
+                    CellIgnoreSelfSendMovement(MapClient, moveObjectMessage);
+
                     break;
 
                 case ClientMessageOpcode.CallServerMethod:
@@ -332,7 +313,6 @@ namespace Rasa.Game
                 case ClientMessageOpcode.Ping:
                     break;
             }
-
         }
 
         public bool IsAuthenticated()
@@ -350,7 +330,7 @@ namespace Rasa.Game
 
         private void OnEncrypt(BufferData data, ref int length)
         {
-            var paddingCount = (byte) (8 - length % 8);
+            var paddingCount = (byte)(8 - length % 8);
 
             var tempArray = BufferManager.RequestBuffer();
 
@@ -434,7 +414,7 @@ namespace Rasa.Game
 
                 length = rawPacket.Size;
 
-                data.Offset += (int) br.BaseStream.Position;
+                data.Offset += (int)br.BaseStream.Position;
 
                 if (rawPacket.Type == ClientMessageOpcode.None)
                 {

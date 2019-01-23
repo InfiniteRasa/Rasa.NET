@@ -1,4 +1,6 @@
-﻿namespace Rasa.Packets.Protocol
+﻿using System;
+
+namespace Rasa.Packets.Protocol
 {
     using Data;
     using Memory;
@@ -20,11 +22,9 @@
 
         public byte UnkByte { get; set; }
         public MovementData MovementData { get; set; }
-        public uint EntityId { get; set; }
 
         public MoveMessage(uint entityId, MovementData movement)
         {
-            EntityId = entityId;
             MovementData = movement;
         }
 
@@ -40,12 +40,7 @@
 
         public void Write(ProtocolBufferWriter writer)
         {
-            writer.WriteByte(UnkByte);
-
-            writer.WriteByte(2);
-            writer.WriteUIntBySevenBits(EntityId);
-
-            writer.WriteMovementData(MovementData);
+            throw new NotImplementedException();
         }
     }
 }

@@ -5,9 +5,9 @@ using System.Numerics;
 namespace Rasa.Managers
 {
     using Data;
-    using Database.Tables.Character;
     using Database.Tables.World;
     using Game;
+    using Packets.Protocol;
     using Packets.Game.Server;
     using Packets.MapChannel.Server;
     using Structures;
@@ -72,6 +72,7 @@ namespace Rasa.Managers
         {
             RegisterCommand(".addtitle", AddTitleCommand);
             RegisterCommand(".bark", BarkCommand);
+            RegisterCommand(".comehere", ComeHere);
             RegisterCommand(".createobj", CreateObjectCommand);
             RegisterCommand(".creature", CreateCreatureCommand);
             RegisterCommand(".creatureappearance", SetCreatureAppearanceCommand);
@@ -80,7 +81,6 @@ namespace Rasa.Managers
             RegisterCommand(".giveitem", GiveItemCommand);
             RegisterCommand(".givelogos", GiveLogosCommand);
             RegisterCommand(".gm", EnterGmModCommand);
-            RegisterCommand(".go", StartWalking);
             RegisterCommand(".forcestate", ForceStateCommand);
             RegisterCommand(".help", HelpGmCommand);
             RegisterCommand(".npcinfo", NpcInfoCommand);
@@ -90,15 +90,6 @@ namespace Rasa.Managers
             RegisterCommand(".setregion", SetRegionCommand);
             RegisterCommand(".speed", SpeedCommand);
             RegisterCommand(".where", WhereCommand);
-        }
-
-        private void StartWalking(string[] parts)
-        {
-            CommunicatorManager.Instance.SystemMessage(_client, "LET'S GO!!!");
-
-            _client.SendMovement();
-
-            return;
         }
 
         #region RegularUser
@@ -136,6 +127,30 @@ namespace Rasa.Managers
                 if (uint.TryParse(parts[1], out uint creatureEntityId))
                     if (uint.TryParse(parts[2], out uint barkId))
                         _client.CallMethod(creatureEntityId, new BarkPackage(barkId));
+        }
+
+        private void ComeHere(string[] parts)
+        {
+            if (parts.Length == 1)
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, "usage: .comehere creatureEntityId");
+                return;
+            }
+
+            if (parts.Length == 2)
+                if (uint.TryParse(parts[1], out var entityId))
+                {
+                    var test = new Memory.MovementData(
+                        _client.MovementData.PosX,
+                        _client.MovementData.PosY,
+                        _client.MovementData.PosZ,
+                        _client.MovementData.ViewX)
+                    {
+                        Velocity = 6.5f
+                    };
+
+                    _client.MoveObject(entityId, test);
+                }
         }
 
         private void CreateCreatureCommand(string[] parts)
