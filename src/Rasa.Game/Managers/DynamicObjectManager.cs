@@ -50,12 +50,15 @@ namespace Rasa.Managers
 
             foreach (var teleporter in teleporters)
             {
+                if (teleporter.MapContextId == 0)
+                    continue;
+
                 var mapChannel = MapChannelManager.Instance.FindByContextId(teleporter.MapContextId);
 
                 var newTeleporter = new DynamicObject
                 {
                     Position = new Vector3(teleporter.CoordX, teleporter.CoordY, teleporter.CoordZ),
-                    Rotation = Quaternion.CreateFromYawPitchRoll(teleporter.Rotation, 0f, 0f),
+                    Orientation = teleporter.Orientation,
                     MapContextId = teleporter.MapContextId,
                     EntityClassId = (EntityClassId)teleporter.EntityClassId,
                     ObjectData = new WaypointInfo(teleporter.Id, false, teleporter.Type)
@@ -201,7 +204,7 @@ namespace Rasa.Managers
             {
                 // PhysicalEntity
                 new IsTargetablePacket(EntityClassManager.Instance.GetClassInfo((EntityClassId)EntityManager.Instance.GetEntityClassId(dynamicObject.EntityId)).TargetFlag),
-                new WorldLocationDescriptorPacket(dynamicObject.Position, dynamicObject.Rotation)
+                new WorldLocationDescriptorPacket(dynamicObject.Position, dynamicObject.Orientation)
             };
 
             client.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(dynamicObject.EntityId, dynamicObject.EntityClassId, entityData));

@@ -7,6 +7,7 @@ namespace Rasa.Managers
     using Database.Tables.World;
     using Game;
     using Packets;
+    using Packets.Protocol;
     using Packets.Game.Server;
     using Packets.MapChannel.Server;
     using Structures;
@@ -128,7 +129,7 @@ namespace Rasa.Managers
             {
                 // PhysicalEntity
                 new IsTargetablePacket(EntityClassManager.Instance.GetClassInfo((EntityClassId)EntityManager.Instance.GetEntityClassId(creature.Actor.EntityId)).TargetFlag),
-                new WorldLocationDescriptorPacket(creature.Actor.Position, creature.Actor.Rotation),
+                new WorldLocationDescriptorPacket(creature.Actor.Position, creature.Actor.Orientation),
                 // Creature augmentation
                 new CreatureInfoPacket(creature.NameId, false, new List<int>()),    // ToDo add creature flags
                 // Actor augmentation
@@ -145,6 +146,8 @@ namespace Rasa.Managers
             // NPC  & Vendor augmentation
             if (creature.Npc != null)
                 NpcManager.Instance.UpdateConversationStatus(client, creature);
+
+            // send initial movement
         }
 
         public Creature FindCreature(uint creatureId)
@@ -280,11 +283,11 @@ namespace Rasa.Managers
                 client.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(creature.Actor.EntityId));
         }
 
-        public void SetLocation(Creature creature, Vector3 position, Quaternion rotation)
+        public void SetLocation(Creature creature, Vector3 position, float orientation)
         {
             // set spawnlocation
             creature.Actor.Position = position;
-            creature.Actor.Rotation = rotation;
+            creature.Actor.Orientation = orientation;
             //allocate pathnodes
             //creature->pathnodes = (baseBehavior_baseNode*)malloc(sizeof(baseBehavior_baseNode));
             //memset(creature->pathnodes, 0x00, sizeof(baseBehavior_baseNode));

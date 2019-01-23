@@ -7,7 +7,6 @@ namespace Rasa.Managers
     using Data;
     using Database.Tables.World;
     using Game;
-    using Packets.Protocol;
     using Packets.Game.Server;
     using Packets.MapChannel.Server;
     using Structures;
@@ -72,7 +71,7 @@ namespace Rasa.Managers
         {
             RegisterCommand(".addtitle", AddTitleCommand);
             RegisterCommand(".bark", BarkCommand);
-            RegisterCommand(".comehere", ComeHere);
+            RegisterCommand(".comehere", ComeHereCommand);
             RegisterCommand(".createobj", CreateObjectCommand);
             RegisterCommand(".creature", CreateCreatureCommand);
             RegisterCommand(".creatureappearance", SetCreatureAppearanceCommand);
@@ -84,6 +83,7 @@ namespace Rasa.Managers
             RegisterCommand(".forcestate", ForceStateCommand);
             RegisterCommand(".help", HelpGmCommand);
             RegisterCommand(".npcinfo", NpcInfoCommand);
+            RegisterCommand(".reloadcreatures", ReloadCreaturesCommand);
             RegisterCommand(".rqs", RqsWindowCommand);
             RegisterCommand(".teleport", TeleportCommand);
             RegisterCommand(".setkillstreak", SetKillStreakCommand);
@@ -129,7 +129,7 @@ namespace Rasa.Managers
                         _client.CallMethod(creatureEntityId, new BarkPackage(barkId));
         }
 
-        private void ComeHere(string[] parts)
+        private void ComeHereCommand(string[] parts)
         {
             if (parts.Length == 1)
             {
@@ -169,7 +169,7 @@ namespace Rasa.Managers
 
                     if (creature != null)
                     {
-                        CreatureManager.Instance.SetLocation(creature, new Vector3(_client.MovementData.PosX, _client.MovementData.PosY, _client.MovementData.PosZ), Quaternion.CreateFromYawPitchRoll(_client.MovementData.ViewX, 0f, 0f));
+                        CreatureManager.Instance.SetLocation(creature, new Vector3(_client.MovementData.PosX, _client.MovementData.PosY, _client.MovementData.PosZ), _client.MovementData.ViewX);
                         CellManager.Instance.AddToWorld(_client.MapClient.MapChannel, creature);
                         CommunicatorManager.Instance.SystemMessage(_client, $"Created new creature with EntityId {creature.Actor.EntityId}");
                     }
@@ -196,7 +196,7 @@ namespace Rasa.Managers
                     // create object entity
                     _client.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(_entityId, entityClassId));
                     // set position
-                    _client.CallMethod(_entityId, new WorldLocationDescriptorPacket(new Vector3(_client.MovementData.PosX, _client.MovementData.PosY, _client.MovementData.PosZ), Quaternion.CreateFromYawPitchRoll(_client.MovementData.ViewX, 0f, 0f)));
+                    _client.CallMethod(_entityId, new WorldLocationDescriptorPacket(new Vector3(_client.MovementData.PosX, _client.MovementData.PosY, _client.MovementData.PosZ), _client.MovementData.ViewX));
                     // force state
                     _client.CallMethod(_entityId, new ForceStatePacket(56, 100));
                     CommunicatorManager.Instance.SystemMessage(_client, $"Created object EntityId = {_entityId}");
@@ -346,6 +346,13 @@ namespace Rasa.Managers
 
                 return;
             }
+        }
+
+        private void ReloadCreaturesCommand(string[] obj)
+        {
+            CreatureManager.Instance.LoadedCreatures.Clear();
+            CreatureManager.Instance.CreatureInit();
+            CommunicatorManager.Instance.SystemMessage(_client, "Creatures Reloaded.");
         }
 
         private void RqsWindowCommand(string[] parts)
@@ -528,7 +535,7 @@ namespace Rasa.Managers
         private void WhereCommand(string[] parts)
         {
             CommunicatorManager.Instance.SystemMessage(_client, $"PosX = {_client.MovementData.PosX}\nPosY = "
-                +$"{_client.MovementData.PosY}\nPosZ = {_client.MovementData.PosZ}\nRotation = {_client.MovementData.ViewX}"
+                +$"{_client.MovementData.PosY}\nPosZ = {_client.MovementData.PosZ}\nOrientation = {_client.MovementData.ViewX}"
                 +$"\nMapId = {_client.MapClient.Player.Actor.MapContextId}");
             return;
         }

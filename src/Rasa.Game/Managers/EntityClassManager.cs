@@ -76,7 +76,7 @@ namespace Rasa.Managers
             foreach (var weaponClass in weaponClassList)
                 LoadedEntityClasses[(EntityClassId)weaponClass.ClassId].WeaponClassInfo = new WeaponClassInfo(weaponClass);
 
-            // Load WeaponClasses
+            // Load EquipableClasses
             var equipableClassList = EquipableClassTable.LoadEquipableClasses();
             foreach (var equipableClass in equipableClassList)
                 LoadedEntityClasses[(EntityClassId)equipableClass.ClassId].EquipableClassInfo = new EquipableClassInfo((EquipmentData)equipableClass.SlotId);

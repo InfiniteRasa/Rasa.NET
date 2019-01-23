@@ -119,7 +119,7 @@ namespace Rasa.Managers
                     CoordX = clonedCharacter.CoordX,
                     CoordY = clonedCharacter.CoordY,
                     CoordZ = clonedCharacter.CoordZ,
-                    Rotation = clonedCharacter.Rotation
+                    Orientation = clonedCharacter.Orientation
                 };
 
                 if (!CharacterTable.CreateCharacter(entry))
@@ -225,7 +225,7 @@ namespace Rasa.Managers
                     CoordX = 894.9f,
                     CoordY = 306.3f,
                     CoordZ = 347.1f,
-                    Rotation = 0
+                    Orientation = 0
                 };
 
                 if (!CharacterTable.CreateCharacter(entry))
@@ -325,7 +325,7 @@ namespace Rasa.Managers
                     0,                          // ToDo MapInstanceId
                     mapData.MapInfo.MapVersion,
                     new Vector3(data.CoordX, data.CoordY, data.CoordZ),
-                    data.Rotation
+                    data.Orientation
                 )
                 );
 
@@ -411,7 +411,7 @@ namespace Rasa.Managers
                     if (data != null)
                     {
                         client.MapClient.Player.Actor.Position = data.Position;
-                        client.MapClient.Player.Actor.Rotation = Quaternion.CreateFromYawPitchRoll(data.ViewX, 0f, 0f);
+                        client.MapClient.Player.Actor.Orientation = data.Orientation;
                         client.MapClient.Player.Actor.MapContextId = data.MapContextId;
                     }
 

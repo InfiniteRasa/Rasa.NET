@@ -11,7 +11,7 @@ namespace Rasa.Structures
         public float CoordX { get; set; }
         public float CoordY { get; set; }
         public float CoordZ { get; set; }
-        public float Rotation { get; set; }
+        public float Orientation { get; set; }
         public uint MapContextId { get; set; }
 
         public static TeleporterEntry Read(MySqlDataReader reader)
@@ -25,7 +25,7 @@ namespace Rasa.Structures
                 CoordX = reader.GetFloat("coord_x"),
                 CoordY = reader.GetFloat("coord_y"),
                 CoordZ = reader.GetFloat("coord_z"),
-                Rotation = reader.GetFloat("rotation"),
+                Orientation = reader.GetFloat("orientation"),
                 MapContextId = reader.GetUInt32("map_context_id")
             };
         }

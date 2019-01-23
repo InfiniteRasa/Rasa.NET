@@ -97,7 +97,7 @@ namespace Rasa.Managers
                     ContextId = data.ContextId,
                     DbId = data.DbId,
                     HomePosition = new Vector3(data.PosX, data.PosY, data.PosZ),
-                    HomeRotation = Quaternion.CreateFromYawPitchRoll(data.Rotation, 0f, 0f),    // ToDo
+                    HomeOrientation = data.Orientation,
                     Mode = data.Mode,
                     RespawnTime = data.RespawnTime * 100,  //convert to ms
                     SpawnSlot = spawnPoolSlots
@@ -169,12 +169,12 @@ namespace Rasa.Managers
                         {
                             //CreatureManager.Instance.SetLocation(creature, new Position(spawnPool.HomePosition.PosX, spawnPool.HomePosition.PosY, spawnPool.HomePosition.PosZ), new Quaternion(0D, 0D, 0D, 0D));
                             creature.Actor.Position = new Vector3(spawnPool.HomePosition.X, spawnPool.HomePosition.Y, spawnPool.HomePosition.Z);
-                            creature.Actor.Rotation = new Quaternion(spawnPool.HomeRotation.X, spawnPool.HomeRotation.Y, spawnPool.HomeRotation.Z, spawnPool.HomeRotation.W);
+                            creature.Actor.Orientation = spawnPool.HomeOrientation;
                         }
                         else
                         {
                             creature.Actor.Position = new Vector3(spawnPool.HomePosition.X + (float)new Random().Next(-10, 10), spawnPool.HomePosition.Y, spawnPool.HomePosition.Z + (float)new Random().Next(-10, 10));
-                            creature.Actor.Rotation = new Quaternion(spawnPool.HomeRotation.X, spawnPool.HomeRotation.Y, spawnPool.HomeRotation.Z, spawnPool.HomeRotation.W);
+                            creature.Actor.Orientation = spawnPool.HomeOrientation;
                         }
 
                         CellManager.Instance.AddToWorld(mapChannel, creature);

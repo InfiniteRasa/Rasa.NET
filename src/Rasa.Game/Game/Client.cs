@@ -284,7 +284,7 @@ namespace Rasa.Game
                     }
 
                     MapClient.Player.Actor.Position = new Vector3(movePacket.MovementData.PosX, movePacket.MovementData.PosY, movePacket.MovementData.PosZ);
-                    MapClient.Player.Actor.Rotation = Quaternion.CreateFromYawPitchRoll(movePacket.MovementData.ViewX, 0f, 0f);
+                    MapClient.Player.Actor.Orientation = movePacket.MovementData.ViewX;
                     MovementData = movePacket.MovementData;
                     
                     // send your movement to other players in visibility range

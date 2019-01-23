@@ -549,7 +549,7 @@ namespace Rasa.Managers
             {
                 // PhysicalEntity
                 new IsTargetablePacket(EntityClassManager.Instance.GetClassInfo((EntityClassId)player.Actor.EntityClassId).TargetFlag),
-                new WorldLocationDescriptorPacket(player.Actor.Position, player.Actor.Rotation),
+                new WorldLocationDescriptorPacket(player.Actor.Position, player.Actor.Orientation),
                 // Manifestation
                 new CurrentCharacterIdPacket(player.CharacterId),
                 new AllCreditsPacket(player.Credits),

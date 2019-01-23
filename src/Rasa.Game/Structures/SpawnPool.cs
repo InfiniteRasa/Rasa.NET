@@ -8,7 +8,7 @@ namespace Rasa.Structures
         public int DbId { get; set; }         // id of the spawnpool
 
         public Vector3 HomePosition { get; set; }
-        public Quaternion HomeRotation { get; set; }
+        public float HomeOrientation { get; set; }
         public List<SpawnPoolSlot> SpawnSlot { get; set; }
         // different spawn points
         //public int LocationCount { get; set; }

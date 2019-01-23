@@ -18,7 +18,7 @@ namespace Rasa.Structures
         public EntityClassId EntityClassId { get; set; }
         public object ObjectData { get; set; }
         public Vector3 Position { get; set; }
-        public Quaternion Rotation { get; set; }
+        public float Orientation { get; set; }
         public uint MapContextId { get; set; }
         public uint Faction { get; set; }
         public long RespawnTime { get; set; }

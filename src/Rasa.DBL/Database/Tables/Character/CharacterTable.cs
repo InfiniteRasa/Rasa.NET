@@ -8,7 +8,7 @@ namespace Rasa.Database.Tables.Character
 
     public class CharacterTable
     {
-        private static readonly MySqlCommand CreateCharacterCommand = new MySqlCommand("INSERT INTO `character` (`account_id`, `slot`, `name`, `race`, `class`, `scale`, `gender`, `experience`, `level`, `body`, `mind`, `spirit`, `map_context_id`, `coord_x`, `coord_y`, `coord_z`, `rotation`) VALUES (@AccountId, @Slot, @Name, @Race, @Class, @Scale, @Gender, @Experience, @Level, @Body, @Mind, @Spirit, @MapContextId, @CoordX, @CoordY, @CoordZ, @Rotation)");
+        private static readonly MySqlCommand CreateCharacterCommand = new MySqlCommand("INSERT INTO `character` (`account_id`, `slot`, `name`, `race`, `class`, `scale`, `gender`, `experience`, `level`, `body`, `mind`, `spirit`, `map_context_id`, `coord_x`, `coord_y`, `coord_z`, `orientation`) VALUES (@AccountId, @Slot, @Name, @Race, @Class, @Scale, @Gender, @Experience, @Level, @Body, @Mind, @Spirit, @MapContextId, @CoordX, @CoordY, @CoordZ, @Orientation)");
         private static readonly MySqlCommand ListCharactersCommand = new MySqlCommand("SELECT * FROM `character` WHERE `account_id` = @AccountId");
         private static readonly MySqlCommand GetCharacterCommand = new MySqlCommand("SELECT * FROM `character` WHERE `account_id` = @AccountId AND slot = @Slot");
         private static readonly MySqlCommand DeleteCharacterCommand = new MySqlCommand("DELETE FROM `character` WHERE `id` = @Id");
@@ -16,7 +16,7 @@ namespace Rasa.Database.Tables.Character
         private static readonly MySqlCommand UpdateCharacterActiveWeaponCommand = new MySqlCommand("UPDATE `character` SET `active_weapon` = @ActiveWeapon WHERE `id` = @Id");
         private static readonly MySqlCommand UpdateCharacterCloneCreditsCommand = new MySqlCommand("UPDATE `character` SET `clone_credits` = @CloneCredits WHERE `id` = @Id");
         private static readonly MySqlCommand UpdateCharacterCreditsCommand = new MySqlCommand("UPDATE `character` SET `credits` = @Credits WHERE `id` = @Id");
-        private static readonly MySqlCommand UpdateCharacterLocationCommand = new MySqlCommand("UPDATE `character` SET `map_context_id` = @MapContextId, `coord_x` = @CoordX, `coord_y` = @CoordY, `coord_z` = @CoordZ, `rotation` = @Rotation WHERE `id` = @Id");
+        private static readonly MySqlCommand UpdateCharacterLocationCommand = new MySqlCommand("UPDATE `character` SET `map_context_id` = @MapContextId, `coord_x` = @CoordX, `coord_y` = @CoordY, `coord_z` = @CoordZ, `orientation` = @Orientation WHERE `id` = @Id");
         private static readonly MySqlCommand UpdateCharacterLoginCommand = new MySqlCommand("UPDATE `character` SET `num_logins` = @NumLogins, `last_login` = NOW(), `total_time_played` = @TotalTimePlayed WHERE `id` = @Id");
 
         public static void Initialize()
@@ -38,7 +38,7 @@ namespace Rasa.Database.Tables.Character
             CreateCharacterCommand.Parameters.Add("@CoordX", MySqlDbType.Float);
             CreateCharacterCommand.Parameters.Add("@CoordY", MySqlDbType.Float);
             CreateCharacterCommand.Parameters.Add("@CoordZ", MySqlDbType.Float);
-            CreateCharacterCommand.Parameters.Add("@Rotation", MySqlDbType.Float);
+            CreateCharacterCommand.Parameters.Add("@Orientation", MySqlDbType.Float);
             CreateCharacterCommand.Prepare();
 
             ListCharactersCommand.Connection = GameDatabaseAccess.CharConnection;
@@ -82,7 +82,7 @@ namespace Rasa.Database.Tables.Character
             UpdateCharacterLocationCommand.Parameters.Add("@CoordX", MySqlDbType.Float);
             UpdateCharacterLocationCommand.Parameters.Add("@CoordY", MySqlDbType.Float);
             UpdateCharacterLocationCommand.Parameters.Add("@CoordZ", MySqlDbType.Float);
-            UpdateCharacterLocationCommand.Parameters.Add("@Rotation", MySqlDbType.Float);
+            UpdateCharacterLocationCommand.Parameters.Add("@Orientation", MySqlDbType.Float);
             UpdateCharacterLocationCommand.Prepare();
 
             UpdateCharacterLoginCommand.Connection = GameDatabaseAccess.CharConnection;
@@ -114,7 +114,7 @@ namespace Rasa.Database.Tables.Character
                     CreateCharacterCommand.Parameters["@CoordX"].Value = entry.CoordX;
                     CreateCharacterCommand.Parameters["@CoordY"].Value = entry.CoordY;
                     CreateCharacterCommand.Parameters["@CoordZ"].Value = entry.CoordZ;
-                    CreateCharacterCommand.Parameters["@Rotation"].Value = entry.Rotation;
+                    CreateCharacterCommand.Parameters["@Orientation"].Value = entry.Orientation;
                     CreateCharacterCommand.ExecuteNonQuery();
 
                     entry.Id = (uint) CreateCharacterCommand.LastInsertedId;
@@ -173,7 +173,7 @@ namespace Rasa.Database.Tables.Character
             }
         }
 
-        public static void UpdateCharacterPosition(uint characterId, float coordX, float coordY, float coordZ, float rotation, uint mapContextId)
+        public static void UpdateCharacterPosition(uint characterId, float coordX, float coordY, float coordZ, float orientation, uint mapContextId)
         {
             lock (GameDatabaseAccess.CharLock)
             {
@@ -181,7 +181,7 @@ namespace Rasa.Database.Tables.Character
                 UpdateCharacterLocationCommand.Parameters["@CoordX"].Value = coordX;
                 UpdateCharacterLocationCommand.Parameters["@CoordY"].Value = coordY;
                 UpdateCharacterLocationCommand.Parameters["@CoordZ"].Value = coordZ;
-                UpdateCharacterLocationCommand.Parameters["@Rotation"].Value = rotation;
+                UpdateCharacterLocationCommand.Parameters["@Orientation"].Value = orientation;
                 UpdateCharacterLocationCommand.Parameters["@MapContextId"].Value = mapContextId;
                 UpdateCharacterLocationCommand.ExecuteNonQuery();
             }

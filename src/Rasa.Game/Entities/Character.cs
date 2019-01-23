@@ -17,10 +17,10 @@ namespace Rasa.Entities
         public int ErrorCode { get; set; }
         public ulong UserId { get; set; }
         public int ClassId { get; set; }
-        public double PosX { get; set; }
-        public double PosY { get; set; }
-        public double PosZ { get; set; }
-        public double Rotation { get; set; }
+        public float PosX { get; set; }
+        public float PosY { get; set; }
+        public float PosZ { get; set; }
+        public float Orientation { get; set; }
         public int MapContextId { get; set; }
 
         public Character(Client client)
@@ -30,10 +30,10 @@ namespace Rasa.Entities
 
         private void SetStartUpData()
         {
-            PosX = 894.9;
-            PosY = 307.9;
-            PosZ = 347.1;
-            Rotation = 1;
+            PosX = 894.9f;
+            PosY = 307.9f;
+            PosZ = 347.1f;
+            Orientation = 1f;
             MapContextId = 1220;
             ClassId = 1; // recruit, maybe we need to chage this and get data from game client
             //UserId = CharacterTable.GetHigherId() + 1;

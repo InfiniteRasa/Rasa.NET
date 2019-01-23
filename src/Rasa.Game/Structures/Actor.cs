@@ -17,7 +17,7 @@ namespace Rasa.Structures
         public string Name { get; set; }
         public string FamilyName { get; set; }
         public Vector3 Position { get; set; }
-        public Quaternion Rotation { get; set; }
+        public float Orientation { get; set; }
         public uint MapContextId { get; set; }
         public bool IsRunning { get; set; }
         public bool InCombatMode { get; set; }

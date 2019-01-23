@@ -3,7 +3,6 @@ using System.Diagnostics;
 
 namespace Rasa.Managers
 {
-    using System;
     using Data;
     using Game;
     using Packets.MapChannel.Server;

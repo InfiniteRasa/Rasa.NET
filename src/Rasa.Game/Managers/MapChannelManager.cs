@@ -79,7 +79,7 @@ namespace Rasa.Managers
                     Name = character.Name,
                     FamilyName = client.AccountEntry.FamilyName,
                     Position = new Vector3(character.CoordX, character.CoordY, character.CoordZ),
-                    Rotation = Quaternion.CreateFromYawPitchRoll(character.Rotation, 0f, 0f),
+                    Orientation = character.Orientation,
                     MapContextId = character.MapContextId,
                     IsRunning = true,
                     InCombatMode = false,
