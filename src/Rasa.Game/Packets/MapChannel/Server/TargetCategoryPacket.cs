@@ -7,9 +7,9 @@
     {
         public override GameOpcode Opcode { get; } = GameOpcode.TargetCategory;
 
-        public int TargetCategory { get; set; }
+        public Factions TargetCategory { get; set; }
 
-        public TargetCategoryPacket(int targetCategory)
+        public TargetCategoryPacket(Factions targetCategory)
         {
             TargetCategory = targetCategory;
         }
@@ -17,7 +17,7 @@
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(1);
-            pw.WriteInt(TargetCategory);
+            pw.WriteInt((int)TargetCategory);
         }
     }
 }

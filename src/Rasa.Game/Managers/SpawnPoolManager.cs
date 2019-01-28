@@ -94,7 +94,7 @@ namespace Rasa.Managers
                 var spawnPool = new SpawnPool
                 {
                     AnimType = data.AnimType,
-                    ContextId = data.ContextId,
+                    MapContextId = data.MapContextId,
                     DbId = data.DbId,
                     HomePosition = new Vector3(data.PosX, data.PosY, data.PosZ),
                     HomeOrientation = data.Orientation,
@@ -115,7 +115,7 @@ namespace Rasa.Managers
             {
                 var spawnPool = key.Value;
 
-                if (spawnPool.ContextId != mapChannel.MapInfo.MapContextId)
+                if (spawnPool.MapContextId != mapChannel.MapInfo.MapContextId)
                     continue; // spawnpool is not for this map
 
                 var totalCreaturesActive = spawnPool.AliveCreatures + spawnPool.QueuedCreatures;
@@ -162,20 +162,27 @@ namespace Rasa.Managers
 
                         // set ai path if spawnpool has any
                         //if (spawnPool->pathCount > 0)
-                        //creature->controller.aiPathFollowing.generalPath = spawnPool->pathList[rand() % spawnPool->pathCount]; // select random path
+                        //creature.Controller.aiPathFollowing.generalPath = spawnPool->pathList[rand() % spawnPool->pathCount]; // select random path
 
                         // no random location if we spawn only one creature
                         if (creatureList.Count == 1)
-                        {
-                            //CreatureManager.Instance.SetLocation(creature, new Position(spawnPool.HomePosition.PosX, spawnPool.HomePosition.PosY, spawnPool.HomePosition.PosZ), new Quaternion(0D, 0D, 0D, 0D));
-                            creature.Actor.Position = new Vector3(spawnPool.HomePosition.X, spawnPool.HomePosition.Y, spawnPool.HomePosition.Z);
-                            creature.Actor.Orientation = spawnPool.HomeOrientation;
-                        }
+                            CreatureManager.Instance.SetLocation(
+                                creature,
+                                new Vector3(
+                                    spawnPool.HomePosition.X,
+                                    spawnPool.HomePosition.Y,
+                                    spawnPool.HomePosition.Z),
+                                spawnPool.HomeOrientation,
+                                spawnPool.MapContextId);
                         else
-                        {
-                            creature.Actor.Position = new Vector3(spawnPool.HomePosition.X + (float)new Random().Next(-10, 10), spawnPool.HomePosition.Y, spawnPool.HomePosition.Z + (float)new Random().Next(-10, 10));
-                            creature.Actor.Orientation = spawnPool.HomeOrientation;
-                        }
+                            CreatureManager.Instance.SetLocation(
+                                creature,
+                                new Vector3(
+                                    spawnPool.HomePosition.X + (new Random().Next() % 5) - 2,
+                                    spawnPool.HomePosition.Y,
+                                    spawnPool.HomePosition.Z + (new Random().Next() % 5) - 2),
+                                spawnPool.HomeOrientation,
+                                spawnPool.MapContextId);
 
                         CellManager.Instance.AddToWorld(mapChannel, creature);
                     }

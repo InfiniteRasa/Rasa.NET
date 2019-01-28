@@ -169,7 +169,7 @@ namespace Rasa.Managers
 
                     if (creature != null)
                     {
-                        CreatureManager.Instance.SetLocation(creature, new Vector3(_client.MovementData.PosX, _client.MovementData.PosY, _client.MovementData.PosZ), _client.MovementData.ViewX);
+                        CreatureManager.Instance.SetLocation(creature, new Vector3(_client.MovementData.PosX, _client.MovementData.PosY, _client.MovementData.PosZ), _client.MovementData.ViewX, _client.MapClient.Player.Actor.MapContextId);
                         CellManager.Instance.AddToWorld(_client.MapClient.MapChannel, creature);
                         CommunicatorManager.Instance.SystemMessage(_client, $"Created new creature with EntityId {creature.Actor.EntityId}");
                     }

@@ -48,7 +48,7 @@ namespace Rasa.Managers
             if (client.State != ClientState.LoggedIn)
                 return;
 
-            client.CallMethod(SysEntity.ClientMethodId, new BeginCharacterSelectionPacket(client.AccountEntry.FamilyName, client.AccountEntry.CharacterCount > 0, client.AccountEntry.Id));
+            client.CallMethod(SysEntity.ClientMethodId, new BeginCharacterSelectionPacket(client.AccountEntry.FamilyName, client.AccountEntry.CharacterCount > 0, client.AccountEntry.Id, client.AccountEntry.CanSkipBootcamp));
 
             var charactersBySlot = CharacterTable.ListCharactersBySlot(client.AccountEntry.Id);
 
@@ -305,6 +305,8 @@ namespace Rasa.Managers
             if (packet.SlotNum < 1 || packet.SlotNum > 16)
                 return;
 
+            client.AccountEntry.SelectedSlot = packet.SlotNum;
+
             client.CallMethod(SysEntity.ClientMethodId, new SetIsGMPacket(client.AccountEntry.Level > 0));
 
             client.CallMethod(SysEntity.ClientMethodId, new PreWonkavatePacket());
@@ -312,11 +314,17 @@ namespace Rasa.Managers
             var data = CharacterTable.GetCharacter(client.AccountEntry.Id, packet.SlotNum);
 
             // can character skip boot camp?    -- ToDo
-            if (packet.SkipBootcamp)
-                data.MapContextId = 1220;
-            else
-                data.MapContextId = 1220;
+            /*if (!packet.SkipBootcamp)
+            {
+                data.MapContextId = 1985;
+                data.CoordX = -237.1f;
+                data.CoordY = 101.96f;
+                data.CoordZ = -87.43f;
+                data.Orientation = 3.8f;
 
+                UpdateCharacter(client, CharacterUpdate.Position, new WonkavatePacket(data.MapContextId, 0, 0, new Vector3(data.CoordX, data.CoordY, data.CoordZ), data.Orientation));
+            }
+            */
             var mapData = MapChannelManager.Instance.MapChannelArray[data.MapContextId];
 
             client.CallMethod(SysEntity.CurrentInputStateId, new WonkavatePacket
@@ -326,12 +334,9 @@ namespace Rasa.Managers
                     mapData.MapInfo.MapVersion,
                     new Vector3(data.CoordX, data.CoordY, data.CoordZ),
                     data.Orientation
-                )
-                );
+                ));
 
-            client.AccountEntry.SelectedSlot = packet.SlotNum;
             client.LoadingMap = mapData.MapInfo.MapContextId;
-            
             // early pass client to mapChannel
             var mapChannel = MapChannelManager.Instance.FindByContextId(mapData.MapInfo.MapContextId);
             MapChannelManager.Instance.PassClientToMapChannel(client, mapChannel);
@@ -406,23 +411,24 @@ namespace Rasa.Managers
                     break;
 
                 case CharacterUpdate.Position:
-                    var data = (WonkavatePacket)value;
+                    var data = value as WonkavatePacket;
 
                     if (data != null)
                     {
-                        client.MapClient.Player.Actor.Position = data.Position;
-                        client.MapClient.Player.Actor.Orientation = data.Orientation;
-                        client.MapClient.Player.Actor.MapContextId = data.MapContextId;
-                    }
+                        var character =  CharacterTable.GetCharacter(client.AccountEntry.Id, client.AccountEntry.SelectedSlot);
 
-                    CharacterTable.UpdateCharacterPosition(
-                        client.MapClient.Player.CharacterId,
-                        client.MovementData.PosX,
-                        client.MovementData.PosY,
-                        client.MovementData.PosZ,
-                        client.MovementData.ViewX,
-                        client.MapClient.Player.Actor.MapContextId
-                        );
+                        CharacterTable.UpdateCharacterPosition(character.Id, data.Position.X, data.Position.Y, data.Position.Z, data.Orientation, data.MapContextId);
+                    }
+                    else
+                        CharacterTable.UpdateCharacterPosition(
+                            client.MapClient.Player.CharacterId,
+                            client.MovementData.PosX,
+                            client.MovementData.PosY,
+                            client.MovementData.PosZ,
+                            client.MovementData.ViewX,
+                            client.MapClient.Player.Actor.MapContextId
+                            );
+
                     break;
 
                 case CharacterUpdate.Prestige:

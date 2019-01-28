@@ -14,5 +14,7 @@
         public int[] ChannelHashes = new int[14];
         // inventory data
         public Inventory Inventory { get; set; } = new Inventory();
+        // gm flags
+        public bool GmFlagAlwaysFriendly { get; set; }
     }
 }

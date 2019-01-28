@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Numerics;
 
 namespace Rasa.Managers
@@ -7,7 +6,7 @@ namespace Rasa.Managers
     using Data;
     using Game;
     using Packets;
-    using Rasa.Packets.MapChannel.Server;
+    using Rasa.Memory;
     using Structures;
 
     public class CellManager
@@ -58,6 +57,8 @@ namespace Rasa.Managers
 
             // add creature to the cell
             mapChannel.MapCellInfo.Cells[cellMatrix[2, 2]].CreatureList.Add(creature);
+            // add cellMatrix to creature
+            creature.Actor.Cells = cellMatrix;
 
             // notify client's about new creatures
             var ListOfClients = new List<Client>();
@@ -69,6 +70,36 @@ namespace Rasa.Managers
             CreatureManager.Instance.CellIntroduceCreatureToClients(mapChannel, creature, ListOfClients);
         }
 
+        internal void CellMoveObject(Creature creature, MovementData movementData)
+        {
+            // calculate initial cell(x, z)
+            var cellPosX = (uint)(creature.Actor.Position.X / CellSize + CellBias);
+            var cellPosZ = (uint)(creature.Actor.Position.Z / CellSize + CellBias);
+            var mapChannel = MapChannelManager.Instance.FindByContextId(creature.Actor.MapContextId);
+
+            // create matrix
+            var cellMatrix = CreateCellMatrix(mapChannel, cellPosX, cellPosZ);
+
+            foreach (var cellSeed in cellMatrix)
+                foreach (var client in mapChannel.MapCellInfo.Cells[cellSeed].ClientList)
+                    client.MoveObject(creature.Actor.EntityId, movementData);
+        }
+
+        internal void CellCallMethod(DynamicObject obj, PythonPacket packet)
+        {
+            // calculate initial cell(x, z)
+            var cellPosX = (uint)(obj.Position.X / CellSize + CellBias);
+            var cellPosZ = (uint)(obj.Position.Z / CellSize + CellBias);
+            var mapChannel = MapChannelManager.Instance.FindByContextId(obj.MapContextId);
+            
+            // create matrix
+            var cellMatrix = CreateCellMatrix(mapChannel, cellPosX, cellPosZ);
+
+            foreach (var cellSeed in cellMatrix)
+                foreach (var client in mapChannel.MapCellInfo.Cells[cellSeed].ClientList)
+                    client.CallMethod(obj.EntityId, packet);
+
+        }
         // Object
         public void AddToWorld(MapChannel mapChannel, DynamicObject dynamicObject)
         {
@@ -145,6 +176,11 @@ namespace Rasa.Managers
             DynamicObjectManager.Instance.CellIntroduceDynamicObjectsToClient(client, ListOfObjects);
         }
 
+        internal void RemoveCreatureFromWorld(MapChannel mapChannel, Creature creature)
+        {
+            Logger.WriteLog(LogType.Debug, "ToDO RemoveFromWorld: creature");
+        }
+
         public void DoWork(MapChannel mapChannel)
         {
             // 2 times per sec, do we need check more often?
@@ -175,6 +211,11 @@ namespace Rasa.Managers
 
                 return cell;
             }
+        }
+
+        internal static void RemoveFromWorld(MapChannel mapChannel, DynamicObject dynObject)
+        {
+            Logger.WriteLog(LogType.Debug, "ToDO RemoveFromWorld: dynObject");
         }
 
         public uint GetCellSeed(Vector3 position)
@@ -224,37 +265,7 @@ namespace Rasa.Managers
                 var needUpdate = new List<uint>();
                 var needDelete = new List<uint>();
 
-                // find all cells that need to be removed
-                foreach (var oldCell in client.MapClient.Player.Actor.Cells)
-                {
-                    var found = false;
-
-                    foreach (var newCell in cellMatrix)
-                        if (newCell == oldCell)
-                        {
-                            found = true;
-                            break;
-                        }
-
-                    if (!found)
-                        needDelete.Add(oldCell);
-                }
-
-                // find all cells that need to be added
-                foreach (var newCell in cellMatrix)
-                {
-                    var found = false;
-
-                    foreach (var oldCell in client.MapClient.Player.Actor.Cells)
-                        if (oldCell == newCell)
-                        {
-                            found = true;
-                            break;
-                        }
-
-                    if (!found)
-                        needUpdate.Add(newCell);
-                }
+                GetCellMatrixDiff(client.MapClient.Player.Actor.Cells, cellMatrix, out needUpdate, out needDelete);
 
                 // remove Player from old cell
                 mapChannel.MapCellInfo.Cells[client.MapClient.Player.Actor.Cells[2, 2]].ClientList.Remove(client);
@@ -310,19 +321,45 @@ namespace Rasa.Managers
             }
         }
 
-        internal void CellCallMethod(MapChannel mapChannel, DynamicObject obj, PythonPacket packet)
+        public void GetCellMatrixDiff(uint[,] oldCellMatrix, uint[,] newCellMatrix, out List<uint> needUpdate, out List<uint> needDelete)
         {
-            // calculate initial cell(x, z)
-            var cellPosX = (uint)(obj.Position.X / CellSize + CellBias);
-            var cellPosZ = (uint)(obj.Position.Z / CellSize + CellBias);
+            var oldCells = new List<uint>();
+            var newCells = new List<uint>();
+            
+            // find all cells that need to be removed
+            foreach (var oldCell in oldCellMatrix)
+            {
+                var found = false;
 
-            // create matrix
-            var cellMatrix = CreateCellMatrix(mapChannel, cellPosX, cellPosZ);
+                foreach (var newCell in newCellMatrix)
+                    if (newCell == oldCell)
+                    {
+                        found = true;
+                        break;
+                    }
 
-            foreach (var cellSeed in cellMatrix)
-                foreach (var client in mapChannel.MapCellInfo.Cells[cellSeed].ClientList)
-                    client.CallMethod(obj.EntityId, packet);
+                if (!found)
+                    oldCells.Add(oldCell);
+            }
 
+            // find all cells that need to be added
+            foreach (var newCell in newCellMatrix)
+            {
+                var found = false;
+
+                foreach (var oldCell in oldCellMatrix)
+                    if (oldCell == newCell)
+                    {
+                        found = true;
+                        break;
+                    }
+
+                if (!found)
+                    newCells.Add(newCell);
+            }
+
+            needDelete = oldCells;
+            needUpdate = newCells;
         }
 
         public uint[,] CreateCellMatrix(MapChannel mapChannel, uint cellPosX, uint cellPosZ)

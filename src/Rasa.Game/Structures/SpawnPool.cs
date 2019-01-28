@@ -17,7 +17,7 @@ namespace Rasa.Structures
         // spawn settings
         public short Mode { get; set; }     // automatic spawning, CP spawn, scripted spawn (manual trigger)
         public short AnimType { get; set; } // which effect is used to spawn creatures (bane dropship, no effect, human dropship)   // ToDo
-        public int ContextId { get; set; }
+        public uint MapContextId { get; set; }
         // spawn runtime info
         public int DropshipQueue { get; set; } // number of dropships that are currently delivering units
         public int QueuedCreatures { get; set; } // number of creatures that are spawning right now (i.e. delivered via dropship)

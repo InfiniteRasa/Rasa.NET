@@ -14,7 +14,7 @@
         {
             pr.ReadTuple();
             SlotNum = (byte)pr.ReadUInt();
-            pr.ReadBool();
+            SkipBootcamp = pr.ReadBool();
         }
     }
 }

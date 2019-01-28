@@ -388,7 +388,7 @@ namespace Rasa.Memory
         public float Velocity { get; set; }
         public byte Flags { get; set; }
         public float ViewX { get; set; }
-        public float ViewY { get; set; }
+        public float ViewY = 0;
 
         public MovementData()
         {

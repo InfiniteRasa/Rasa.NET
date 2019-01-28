@@ -12,7 +12,7 @@ namespace Rasa.Structures
         public float PosY { get; set; }
         public float PosZ { get; set; }
         public float Orientation { get; set; }
-        public int ContextId { get; set; }
+        public uint MapContextId { get; set; }
         public uint CreatureId1 { get; set; }
         public short CreatureMinCount1 { get; set; }
         public short CreatureMaxCount1 { get; set; }
@@ -44,7 +44,7 @@ namespace Rasa.Structures
                 PosY = reader.GetFloat("posY"),
                 PosZ = reader.GetFloat("posZ"),
                 Orientation = reader.GetFloat("orientation"),
-                ContextId = reader.GetInt32("contextId"),
+                MapContextId = reader.GetUInt32("contextId"),
                 CreatureId1 = reader.GetUInt32("creatureId1"),
                 CreatureMinCount1 = reader.GetInt16("creatureMinCount1"),
                 CreatureMaxCount1 = reader.GetInt16("creatureMaxCount1"),

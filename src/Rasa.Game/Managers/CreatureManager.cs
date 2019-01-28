@@ -11,6 +11,7 @@ namespace Rasa.Managers
     using Packets.Game.Server;
     using Packets.MapChannel.Server;
     using Structures;
+    using System;
 
     public class CreatureManager
     {
@@ -24,7 +25,7 @@ namespace Rasa.Managers
 
         private static CreatureManager _instance;
         private static readonly object InstanceLock = new object();
-        public const int CreatureLocationUpdateTime = 1500;
+        public const long CreatureLocationUpdateTime = 1500;
         public readonly Dictionary<uint, Creature> LoadedCreatures = new Dictionary<uint, Creature> { { 0, new Creature() } };
 
         public static CreatureManager Instance
@@ -114,10 +115,49 @@ namespace Rasa.Managers
                 creature.Actor.Attributes.Add(Attributes.Regen, new ActorAttributes(Attributes.Regen, 0, 0, 0, 0, 0));
             }
 
+            creature.Controller.CurrentAction = BehaviorManager.BehaviorActionWander;
+            creature.Controller.ActionWander.State = BehaviorManager.WanderIdle; //wanderstate: calc new position
+
             if (spawnPool != null)
                 SpawnPoolManager.Instance.IncreaseAliveCreatureCount(spawnPool);
 
             return creature;
+        }
+
+        internal void CellUpdateLocation(MapChannel mapChannel, Creature creature, uint newLocX, uint newLocZ)
+        {
+            // get old and new cell matrix
+            var oldCellMatrix = creature.Actor.Cells;
+            var newCellMatrix = CellManager.Instance.CreateCellMatrix(mapChannel, newLocX, newLocZ);
+            
+            // get info about cell we need to update
+            var needUpdate = new List<uint>();
+            var needDelete = new List<uint>();
+
+            CellManager.Instance.GetCellMatrixDiff(oldCellMatrix, newCellMatrix, out needUpdate, out needDelete);
+
+            mapChannel.MapCellInfo.Cells[oldCellMatrix[2, 2]].CreatureList.Remove(creature);
+            
+            // remove creature for player that are not in visibility range anymore
+            foreach (var cellSeed in needDelete)
+                foreach (var client in mapChannel.MapCellInfo.Cells[cellSeed].ClientList)
+                    client.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(creature.Actor.EntityId));
+
+            // add creature to new cell
+            mapChannel.MapCellInfo.Cells[newCellMatrix[2, 2]].CreatureList.Add(creature);
+            
+            // set new creature visibility
+            creature.Actor.Cells = newCellMatrix;
+            
+            // notify clients about creature
+            foreach (var cellSeed in needUpdate)
+                foreach (var client in mapChannel.MapCellInfo.Cells[cellSeed].ClientList)
+                    CreateCreatureOnClient(client, creature);
+        }
+
+        internal void CreatureDestroy(Creature creature)
+        {
+            EntityManager.Instance.UnregisterEntity(creature.Actor.EntityId);
         }
 
         public void CreateCreatureOnClient(Client client, Creature creature)
@@ -147,7 +187,11 @@ namespace Rasa.Managers
             if (creature.Npc != null)
                 NpcManager.Instance.UpdateConversationStatus(client, creature);
 
-            // send initial movement
+            // send inital movement packet
+            var movementData = new Memory.MovementData(creature.Actor.Position.X + 1, creature.Actor.Position.Y, creature.Actor.Position.Z + 1, creature.Actor.Orientation);
+
+            client.MoveObject(creature.Actor.EntityId, movementData);
+            Logger.WriteLog(LogType.AI, $"moved {creature.Actor.EntityId}");
         }
 
         public Creature FindCreature(uint creatureId)
@@ -205,7 +249,7 @@ namespace Rasa.Managers
                 {
                     DbId = data.DbId,
                     EntityClassId = (EntityClassId)data.ClassId,
-                    Faction = data.Faction,
+                    Faction = (Factions)data.Faction,
                     Level = data.Level,
                     MaxHitPoints = data.MaxHitPoints,
                     NameId = data.NameId,
@@ -283,11 +327,17 @@ namespace Rasa.Managers
                 client.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(creature.Actor.EntityId));
         }
 
-        public void SetLocation(Creature creature, Vector3 position, float orientation)
+        public void SetLocation(Creature creature, Vector3 position, float orientation, uint mapContextId)
         {
             // set spawnlocation
             creature.Actor.Position = position;
             creature.Actor.Orientation = orientation;
+            creature.Actor.MapContextId = mapContextId;
+            // set home location
+            creature.HomePos.X = position.X;
+            creature.HomePos.Y = position.Y;
+            creature.HomePos.Z = position.Z;
+            creature.HomePos.MapContextid = mapContextId;
             //allocate pathnodes
             //creature->pathnodes = (baseBehavior_baseNode*)malloc(sizeof(baseBehavior_baseNode));
             //memset(creature->pathnodes, 0x00, sizeof(baseBehavior_baseNode));

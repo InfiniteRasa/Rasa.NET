@@ -197,6 +197,20 @@ namespace Rasa.Managers
                 client.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(dynamicObject.EntityId));
         }
 
+        /* Destroys an object on client and serverside
+         * Frees the memory and informs clients about removal
+         */
+        public void DynamicObjectDestroy(MapChannel mapChannel, DynamicObject dynObject)
+        {
+            // TODO, check timers
+            // remove from world
+            EntityManager.Instance.UnregisterEntity(dynObject.EntityId);
+            CellManager.RemoveFromWorld(mapChannel, dynObject);
+            
+            // destroy callback
+            Logger.WriteLog(LogType.Debug, "ToDO remove dynamic object from server");
+        }
+
         #region Waypoint
 
         public void PlayerHasWaypoint(Client client, WaypointInfo objectData)
@@ -297,7 +311,7 @@ namespace Rasa.Managers
                     {
                         obj.StateId = 55;
 
-                        CellManager.Instance.CellCallMethod(MapChannelManager.Instance.FindByContextId(obj.MapContextId), obj, new ForceStatePacket(obj.StateId, 100));
+                        CellManager.Instance.CellCallMethod(obj, new ForceStatePacket(obj.StateId, 100));
                     }
                 }
             }

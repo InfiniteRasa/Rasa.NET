@@ -221,6 +221,7 @@ namespace Rasa.Managers
                 {
                     ActorActionManager.Instance.DoWork(mapChannel, delta);
                     MissileManager.Instance.DoWork(delta);
+                    BehaviorManager.Instance.MapChannelThink(mapChannel, delta);
 
                     // check forAutoFIre
                     if (Timer.IsTriggered("AutoFire"))
@@ -237,7 +238,6 @@ namespace Rasa.Managers
                     // check for creatures
                     if (Timer.IsTriggered("CheckForCreatures"))
                         SpawnPoolManager.Instance.SpawnPoolWorker(mapChannel, delta);
-
 
                     // check for effects (buffs)
                     if (Timer.IsTriggered("ClientEffectUpdate"))
@@ -345,6 +345,7 @@ namespace Rasa.Managers
 
             // register new Player
             EntityManager.Instance.RegisterEntity(client.MapClient.Player.Actor.EntityId, EntityType.Player);
+            EntityManager.Instance.RegisterPlayer(client.MapClient.Player.Actor.EntityId, client.MapClient);
             EntityManager.Instance.RegisterActor(client.MapClient.Player.Actor.EntityId, client.MapClient.Player.Actor);
             CommunicatorManager.Instance.LoginOk(client);
             CellManager.Instance.AddToWorld(client); // will introduce the player to all clients, including the current owner
@@ -387,8 +388,6 @@ namespace Rasa.Managers
             // unregister mapChannelClient
             EntityManager.Instance.UnregisterEntity(client.MapClient.Player.Actor.EntityId);
             EntityManager.Instance.UnregisterPlayer(client.MapClient.Player.Actor.EntityId);
-            // unregister Actor
-            EntityManager.Instance.UnregisterEntity(client.MapClient.Player.Actor.EntityId);
             EntityManager.Instance.UnregisterActor(client.MapClient.Player.Actor.EntityId);
 
             // unregister character Inventory

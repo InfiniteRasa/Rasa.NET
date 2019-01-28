@@ -191,6 +191,12 @@ namespace Rasa.Managers
         }
 
         // DynamicObjects
+
+        internal DynamicObject GetObject(uint entityId)
+        {
+            return DynamicObjects[entityId];
+        }
+
         public void RegisterDynamicObject(DynamicObject dynamicObject)
         {
             DynamicObjects.Add(dynamicObject.EntityId, dynamicObject);
