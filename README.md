@@ -1,5 +1,5 @@
 # Rasa.NET
-A C# implementation of a game and authentication server for Tabula Rasa running on .NET Core.
+A C# implementation of a game and authentication server for the game running on .NET Core.
 
 ![Screenshot](images/screenshot.jpg)
 
