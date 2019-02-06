@@ -103,9 +103,10 @@ You should be ready to compile Rasa.NET and run the servers.
 - Run the `Rasa.Game` project via `Debug > Start Debugging`
 
 ### Create a game user
-The authentication server can be used to create a user. 
+The authentication server can be used to create a user by running a command in the terminal. The usage is: `create <email> <username> <password>`. Running this command will create a new user in the database that you can use to login with the game client.
 
-- Run the command `create test@test.com test test` in the Authentication server terminal to create a new user
+- Run the command in the authentication termain. i.e. `create test@test.com test test`
+  - You can use any username / password that you want to create an account.
 
 ## Launch the game
 If the server consoles launched correctly, you should be ready to start the game client. 
