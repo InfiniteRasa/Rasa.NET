@@ -1,12 +1,12 @@
 # Setup Guide
-This guide will help you install and setup the required tools to run Tabula Rasa using Rasa.NET. There are a few steps:
+This guide will help you install and setup the required tools to run Rasa.NET. There are a few steps:
 
 1. Download, install, and setup the required tooling
-2. Download and install Tabula Rasa
-3. Patch Tabula Rasa using a custom patcher
+2. Download and install the game
+3. Patch the game using a custom patcher
 4. Download or clone the code
 5. Build and run the code from Visual Studio
-6. Launch Tabula Rasa
+6. Launch the game
 
 ## Download, install, and setup the required tooling
 The following tools are required to setup, build, and run Rasa.NET:
@@ -45,8 +45,8 @@ Git is a version control system and will allow you to download the code. Alterna
 - Download [Git](https://git-scm.com/downloads)
 - Run the installer. If you're not sure of what options to select, choose the defaults
 
-## Download and install Tabula Rasa
-You'll need the Tabula Rasa game client. Below is the demo version which was made freely available. 
+## Download and install the game
+You'll need the game client. Below is the demo version which was made freely available. 
 
 - [Download and install the demo game client](http://infiniterasa.org/tools/tabularasa_demo.exe).
 - Create a shortcut to the game client on the desktop. You'll need to find the executable in the path where you installed the game. i.e. `C:\ProgramFiles (x86)\TabulaRasa\NCSoft\TabulaRasa\tabula_rasa.exe`
@@ -55,7 +55,7 @@ You'll need the Tabula Rasa game client. Below is the demo version which was mad
   - Select the `Shortcut` tab
   - Edit the `Target` box to include `/NoPatch /AuthServer=localhost:2106` to the end of the file path. So the entire textbox should have `C:\ProgramFiles (x86)\TabulaRasa\NCSoft\TabulaRasa\tabula_rasa.exe /NoPatch /AuthServer=localhost:2106`
 
-## Patch Tabula Rasa using the custom patcher
+## Patch the game using the custom patcher
 The game client needs to be patched to a specific version that is compatible with Rasa.NET. 
 
 - [Download and run the custom patcher](http://infiniterasa.org/tools/tabularasa_patcher.exe)
@@ -108,7 +108,7 @@ You should be ready to compile Rasa.NET and run the servers.
 - Run the `Rasa.Auth` project via `Debug > Start without Debugging`
 - Run the `Rasa.Game` project via `Debug > Start Debugging`
 
-## Launch Tabula Rasa
+## Launch the game
 If the server consoles launched correctly, you should be ready to start the game client. 
 
 - Start the game client using the shortcut you created earlier
