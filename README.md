@@ -1,7 +1,5 @@
 # Rasa.NET
-A C# implementation of a game and authentication server for Tabula Rasa running on .NET Core.
-
-![Screenshot](images/screenshot.jpg)
+A C# implementation of a game and authentication server for the game running on .NET Core.
 
 ## Before you start
 This project is in development and not complete. You may not be able to play the game in any capacity. For the latest information, we recommend [joining our Discord](https://discord.gg/Ph68FmA) chat. 

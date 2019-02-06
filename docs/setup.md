@@ -1,12 +1,12 @@
 # Setup Guide
-This guide will help you install and setup the required tools to run Tabula Rasa using Rasa.NET. There are a few steps:
+This guide will help you install and setup the required tools to run Rasa.NET. There are a few steps:
 
 1. Download, install, and setup the required tooling
-2. Download and install Tabula Rasa
-3. Patch Tabula Rasa using a custom patcher
+2. Download and install the game
+3. Patch the game using a custom patcher
 4. Download or clone the code
 5. Build and run the code from Visual Studio
-6. Launch Tabula Rasa
+6. Launch the game
 
 ## Download, install, and setup the required tooling
 The following tools are required to setup, build, and run Rasa.NET:
@@ -45,8 +45,8 @@ Git is a version control system and will allow you to download the code. Alterna
 - Download [Git](https://git-scm.com/downloads)
 - Run the installer. If you're not sure of what options to select, choose the defaults
 
-## Download and install Tabula Rasa
-You'll need the Tabula Rasa game client. Below is the demo version which was made freely available. 
+## Download and install the game
+You'll need the game client. Below is the demo version which was made freely available. 
 
 - [Download and install the demo game client](http://infiniterasa.org/tools/tabularasa_demo.exe).
 - Create a shortcut to the game client on the desktop. You'll need to find the executable in the path where you installed the game. i.e. `C:\ProgramFiles (x86)\TabulaRasa\NCSoft\TabulaRasa\tabula_rasa.exe`
@@ -55,7 +55,7 @@ You'll need the Tabula Rasa game client. Below is the demo version which was mad
   - Select the `Shortcut` tab
   - Edit the `Target` box to include `/NoPatch /AuthServer=localhost:2106` to the end of the file path. So the entire textbox should have `C:\ProgramFiles (x86)\TabulaRasa\NCSoft\TabulaRasa\tabula_rasa.exe /NoPatch /AuthServer=localhost:2106`
 
-## Patch Tabula Rasa using the custom patcher
+## Patch the game using the custom patcher
 The game client needs to be patched to a specific version that is compatible with Rasa.NET. 
 
 - [Download and run the custom patcher](http://infiniterasa.org/tools/tabularasa_patcher.exe)
@@ -82,12 +82,6 @@ Before you can build and run the code, there are some configuration steps for th
   - Repeat this process for the `Rasa.NET\database\full\char_database.sql` and `Rasa.NET\database\full\world_database.sql` files - **but first double-click the matching schema on the left to make it the active selection**
 - Next, you'll have to execute each of the sql files in the `Rasa.NET\database\patches` folder
   - Follow similar steps as above, making sure to make the correct schema active and execute each patch script against the matching schema in sequential order. 
-- Select the `rasaauth` schema and doubl-click it to make it active
-- Select `File > New Query Tab` and execte this statement to create a test account:
-
-```
-INSERT INTO `account` (`email`, `username`, `password`, `salt`, `level`, `last_ip`, `last_server_id`, `last_login`, `join_date`, `locked`, `validated`, `validation_token`) VALUES ('test@test.com', 'test', 'cb82594cf66f17acc074c9fd5e6d602b62faadf7b9364f0c95996de45f3eeaec', '0bae44ea0d4d284f9cd451f97100475b0603a8be', 1, '127.0.0.1', 0, '2017-01-21 12:14:11', '2017-01-19 23:00:15', b'0', b'1', NULL);
-```
 
 ### Add a database user for the servers
 The auth and game servers are pre-configured to use the user `rasa` to connect. You'll need to add this user to your database instance.
@@ -108,11 +102,17 @@ You should be ready to compile Rasa.NET and run the servers.
 - Run the `Rasa.Auth` project via `Debug > Start without Debugging`
 - Run the `Rasa.Game` project via `Debug > Start Debugging`
 
-## Launch Tabula Rasa
+### Create a game user
+The authentication server can be used to create a user by running a command in the terminal. The usage is: `create <email> <username> <password>`. Running this command will create a new user in the database that you can use to login with the game client.
+
+- Run the command in the authentication termain. i.e. `create test@test.com test test`
+  - You can use any username / password that you want to create an account.
+
+## Launch the game
 If the server consoles launched correctly, you should be ready to start the game client. 
 
 - Start the game client using the shortcut you created earlier
-- Login with user `test` and password `test`
+- Login with the user you created for the game above
 
 > Note* The game server will crash the first time you try to login due to a bug that is not fixed at the time of writing. Go back to Visual Studio and run the `Rasa.Game` project again. Once it's running, switch back to the game client and log back in.
 
