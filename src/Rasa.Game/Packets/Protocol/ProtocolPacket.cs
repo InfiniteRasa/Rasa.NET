@@ -223,7 +223,7 @@ namespace Rasa.Packets.Protocol
 
                 writer.WritePacketType((ushort) Message.Type, compress);
 
-                writer.WriteXORCheck((int) bw.BaseStream.Position - packetBeginPosition);
+                writer.WriteXORCheck((int) (bw.BaseStream.Position - packetBeginPosition));
 
             }
 

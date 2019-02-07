@@ -17,16 +17,16 @@
         public byte MaxSubtype { get; } = 0;
         public ClientMessageSubtypeFlag SubtypeFlags { get; } = ClientMessageSubtypeFlag.None;
 
-        public uint Unknown { get; set; }
+        public uint ClientTime { get; set; }
 
         public void Read(ProtocolBufferReader reader)
         {
-            Unknown = reader.ReadUInt();
+            ClientTime = reader.ReadUInt();
         }
 
         public void Write(ProtocolBufferWriter writer)
         {
-            writer.WriteUInt(Unknown);
+            writer.WriteUInt(ClientTime);
         }
     }
 }

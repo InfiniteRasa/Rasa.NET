@@ -1,25 +1,23 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <AssemblyTitle>Rasa.NET Auth</AssemblyTitle>
+    <AssemblyTitle>Rasa.NET Game</AssemblyTitle>
     <TargetFramework>netcoreapp3.0</TargetFramework>
-    <AssemblyName>Rasa.Auth</AssemblyName>
+    <AssemblyName>Rasa.Game</AssemblyName>
     <OutputType>Exe</OutputType>
-    <PackageId>Rasa.Auth</PackageId>
+    <PackageId>Rasa.Game</PackageId>
+<<<<<<< HEAD
     <RuntimeIdentifiers>win10-x64;osx.10.10-x64;ubuntu.14.04-x64</RuntimeIdentifiers>
     <PackageTargetFallback>$(PackageTargetFallback);dnxcore50</PackageTargetFallback>
+=======
+    <PackageTargetFallback>$(PackageTargetFallback)</PackageTargetFallback>
+>>>>>>> c67255543e6e3ec7659249ba1a2aba9a98eb8645
     <GenerateAssemblyConfigurationAttribute>false</GenerateAssemblyConfigurationAttribute>
     <GenerateAssemblyCompanyAttribute>false</GenerateAssemblyCompanyAttribute>
     <GenerateAssemblyProductAttribute>false</GenerateAssemblyProductAttribute>
     <RootNamespace>Rasa</RootNamespace>
-    <StartupObject>Rasa.AuthProgram</StartupObject>
+    <StartupObject>Rasa.GameProgram</StartupObject>
   </PropertyGroup>
-
-  <ItemGroup>
-    <None Update="appsettings.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Rasa.DBL\Rasa.DBL.csproj" />
@@ -28,7 +26,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Portable.BouncyCastle" Version="1.8.1.1" />
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>
