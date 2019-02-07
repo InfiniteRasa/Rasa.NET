@@ -286,7 +286,7 @@ namespace Rasa.Game
                     MapClient.Player.Actor.Position = new Vector3(movePacket.MovementData.PosX, movePacket.MovementData.PosY, movePacket.MovementData.PosZ);
                     MapClient.Player.Actor.Orientation = movePacket.MovementData.ViewX;
                     MovementData = movePacket.MovementData;
-                    
+
                     // send your movement to other players in visibility range
                     var moveObjectMessage = new MoveObjectMessage(movePacket.UnkByte, MapClient.Player.Actor.EntityId, movePacket.MovementData);
                     CellMoveObject(MapClient, moveObjectMessage, true);
@@ -311,6 +311,14 @@ namespace Rasa.Game
                     break;
 
                 case ClientMessageOpcode.Ping:
+                    var pingMessage = pPacket.Message as PingMessage;
+                    if (pingMessage == null)
+                    {
+                        Close(true);
+                        return;
+                    }
+
+                    SendMessage(pingMessage, delay: false);
                     break;
             }
         }
