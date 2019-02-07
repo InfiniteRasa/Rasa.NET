@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Numerics;
 
 namespace Rasa.Managers
@@ -7,11 +8,9 @@ namespace Rasa.Managers
     using Database.Tables.World;
     using Game;
     using Packets;
-    using Packets.Protocol;
     using Packets.Game.Server;
     using Packets.MapChannel.Server;
     using Structures;
-    using System;
 
     public class CreatureManager
     {
@@ -27,6 +26,7 @@ namespace Rasa.Managers
         private static readonly object InstanceLock = new object();
         public const long CreatureLocationUpdateTime = 1500;
         public readonly Dictionary<uint, Creature> LoadedCreatures = new Dictionary<uint, Creature> { { 0, new Creature() } };
+        public readonly Dictionary<uint, CreatureAction> CreatureActions = new Dictionary<uint, CreatureAction>();
 
         public static CreatureManager Instance
         {
@@ -64,6 +64,50 @@ namespace Rasa.Managers
                 CreateCreatureOnClient(client, creature);
         }
 
+        internal void HandleCreatureKill(MapChannel mapChannel, Creature creature, Actor killedBy)
+        {
+            if (creature.Actor.State == ActorState.Dead)
+                return; // creature already dead
+
+            var stateIds = new List<uint> { 5 };
+            CellManager.Instance.CellCallMethod(mapChannel, creature.Actor, new StateChangePacket(stateIds));
+
+            // tell spawnpool if set
+            if (creature.SpawnPool != null)
+            {
+                //SpawnPoolManager.Instance.DecreaseAliveCreatureCount(mapChannel, creature.SpawnPool);
+                //SpawnPoolManager.Instance.IncreaseDeadCreatureCount(mapChannel, creature.SpawnPool);
+            }
+
+            // todo: How were credits and experience calculated when multiple players attacked the same creature? Did only the player with the first strike get experience?
+
+            Client client = null;
+
+            // get client if it's killed by player
+            foreach (var cellSeed in killedBy.Cells)
+                foreach (var tempClient in mapChannel.MapCellInfo.Cells[cellSeed].ClientList)
+                    if (tempClient.MapClient.Player.Actor == killedBy)
+                    {
+                        client = tempClient;
+                        break;
+                    }
+            
+            if (client != null)
+            {
+                // give experience
+                var experience = creature.Level * 100; // base experience
+                var experienceRange = creature.Level * 10;
+                experience += ((new Random().Next() % (experienceRange * 2 + 1)) - experienceRange);
+                
+                // todo: Depending on level difference reduce experience
+                //ManifestationManager.Instance.GainExperience(client, experience);
+
+                // spawn loot
+                //var lootDispenserObject = LootDispenserManager.instance.CreateLootObject(mapChannel, creature, client);
+                //creature.LootDispenserObjectEntityId = lootDispenserObject.EntityId;
+            }
+        }
+
         public Creature CreateCreature(uint dbId, SpawnPool spawnPool)
         {
             // check is creature in database
@@ -77,7 +121,10 @@ namespace Rasa.Managers
             // check if classId have creature Augmentation
             foreach (var aug in EntityClassManager.Instance.LoadedEntityClasses[LoadedCreatures[dbId].EntityClassId].Augmentations)
                 if (aug == AugmentationType.Creature)
+                {
                     isCreature = true;
+                    break;
+                }
 
             if (!isCreature)
             {
@@ -86,19 +133,14 @@ namespace Rasa.Managers
             }
 
             // crate creature
-            var creature = new Creature
+            var creature = new Creature(LoadedCreatures[dbId])
             {
-                Actor = new Actor(),
-                AppearanceData = LoadedCreatures[dbId].AppearanceData,
-                DbId = LoadedCreatures[dbId].DbId,
-                EntityClassId = LoadedCreatures[dbId].EntityClassId,
-                Faction = LoadedCreatures[dbId].Faction,
-                Level = LoadedCreatures[dbId].Level,
-                MaxHitPoints = LoadedCreatures[dbId].MaxHitPoints,
-                NameId = LoadedCreatures[dbId].NameId,
-                Npc = LoadedCreatures[dbId].Npc,
                 SpawnPool = spawnPool
             };
+
+            creature.Actor.State = ActorState.Idle;
+            creature.Actor.Name = EntityClassManager.Instance.LoadedEntityClasses[(EntityClassId)creature.EntityClassId].ClassName;
+
             // set creature stats
             var creatureStats = CreatureStatsTable.GetCreatureStats(dbId);
             if (creatureStats != null)
@@ -117,7 +159,7 @@ namespace Rasa.Managers
 
             creature.Controller.CurrentAction = BehaviorManager.BehaviorActionWander;
             creature.Controller.ActionWander.State = BehaviorManager.WanderIdle; //wanderstate: calc new position
-
+            
             if (spawnPool != null)
                 SpawnPoolManager.Instance.IncreaseAliveCreatureCount(spawnPool);
 
@@ -155,11 +197,6 @@ namespace Rasa.Managers
                     CreateCreatureOnClient(client, creature);
         }
 
-        internal void CreatureDestroy(Creature creature)
-        {
-            EntityManager.Instance.UnregisterEntity(creature.Actor.EntityId);
-        }
-
         public void CreateCreatureOnClient(Client client, Creature creature)
         {
             if (creature == null)
@@ -191,7 +228,6 @@ namespace Rasa.Managers
             var movementData = new Memory.MovementData(creature.Actor.Position.X + 1, creature.Actor.Position.Y, creature.Actor.Position.Z + 1, creature.Actor.Orientation);
 
             client.MoveObject(creature.Actor.EntityId, movementData);
-            Logger.WriteLog(LogType.AI, $"moved {creature.Actor.EntityId}");
         }
 
         public Creature FindCreature(uint creatureId)
@@ -202,14 +238,19 @@ namespace Rasa.Managers
         public void CreatureInit()
         {
             var creatureList = CreatureTable.LoadCreatures();
+            var cratureActions = CreatureActionTable.GetCreatureActions();
             var vendorsList = VendorsTable.LoadVendors();
             var vendorItemList = VendorItemsTable.LoadVendorItems();
+
+            foreach (var action in cratureActions)
+                CreatureActions.Add(action.Id, new CreatureAction(action));
 
             foreach (var data in creatureList)
             {
                 var appearanceData = CreatureAppearanceTable.GetCreatureAppearance(data.DbId);
                 var tempAppearanceData = new Dictionary<EquipmentData, AppearanceData>();
                 var augmentationsList = EntityClassManager.Instance.LoadedEntityClasses[(EntityClassId)data.ClassId].Augmentations;
+                var actions = new List<CreatureAction>();
                 Npc isNpc = null;
                 var isVendor = false;
                 var isAuctioneer = false;
@@ -245,15 +286,28 @@ namespace Rasa.Managers
                     foreach (var t in appearanceData)
                         tempAppearanceData.Add((EquipmentData)t.Slot, new AppearanceData { SlotId = (EquipmentData)t.Slot, Class = (EntityClassId)t.Class, Color = new Color(t.Color) });
 
-                var creature = new Creature
+                // load Creature Actions
+                if (data.Action1 != 0)
+                    actions.Add(CreatureActions[data.Action1]);
+                if (data.Action2 != 0)
+                    actions.Add(CreatureActions[data.Action2]);
+                if (data.Action3 != 0)
+                    actions.Add(CreatureActions[data.Action3]);
+                if (data.Action4 != 0)
+                    actions.Add(CreatureActions[data.Action4]);
+                if (data.Action5 != 0)
+                    actions.Add(CreatureActions[data.Action5]);
+                if (data.Action6 != 0)
+                    actions.Add(CreatureActions[data.Action6]);
+                if (data.Action7 != 0)
+                    actions.Add(CreatureActions[data.Action7]);
+                if (data.Action8 != 0)
+                    actions.Add(CreatureActions[data.Action8]);
+
+                var creature = new Creature(data)
                 {
-                    DbId = data.DbId,
-                    EntityClassId = (EntityClassId)data.ClassId,
-                    Faction = (Factions)data.Faction,
-                    Level = data.Level,
-                    MaxHitPoints = data.MaxHitPoints,
-                    NameId = data.NameId,
-                    AppearanceData = tempAppearanceData
+                    AppearanceData = tempAppearanceData,
+                    Actions = actions
                 };
 
                 if (isNpc != null)
@@ -334,9 +388,7 @@ namespace Rasa.Managers
             creature.Actor.Orientation = orientation;
             creature.Actor.MapContextId = mapContextId;
             // set home location
-            creature.HomePos.X = position.X;
-            creature.HomePos.Y = position.Y;
-            creature.HomePos.Z = position.Z;
+            creature.HomePos.Position = position;
             creature.HomePos.MapContextid = mapContextId;
             //allocate pathnodes
             //creature->pathnodes = (baseBehavior_baseNode*)malloc(sizeof(baseBehavior_baseNode));

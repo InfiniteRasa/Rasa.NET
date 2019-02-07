@@ -4,6 +4,7 @@ namespace Rasa.Packets.MapChannel.Server
 {
     using Data;
     using Memory;
+    using Structures;
 
     public class PerformRecoveryPacket : ServerPythonPacket
     {
@@ -18,7 +19,7 @@ namespace Rasa.Packets.MapChannel.Server
         public ActionId ActionId { get; set; }
         public uint ActionArgId { get; set; }
         public uint Arg { get; set; }
-        public List<uint> Args = new List<uint>();
+        public MissileArgs MissileArgs { get; set; }
 
         public PerformRecoveryPacket(PerformType performType, ActionId actionId, uint actionArgId)
         {
@@ -27,12 +28,12 @@ namespace Rasa.Packets.MapChannel.Server
             ActionArgId = actionArgId;
         }
 
-        public PerformRecoveryPacket(PerformType performType, ActionId actionId, uint actionArgId, List<uint> args)
+        public PerformRecoveryPacket(PerformType performType, ActionId actionId, uint actionArgId, MissileArgs args)
         {
             PerformType = performType;
             ActionId = actionId;
             ActionArgId = actionArgId;
-            Args = args;
+            MissileArgs = args;
         }
 
         public PerformRecoveryPacket(PerformType performType, ActionId actionId, uint actionArgId, uint arg)
@@ -63,12 +64,35 @@ namespace Rasa.Packets.MapChannel.Server
                     break;
                 case PerformType.ListOfArgs:
                     pw.WriteTuple(6);
-                    pw.WriteUInt((uint)ActionId);           // actionId
-                    pw.WriteUInt(ActionArgId);              // actionargId
-                    pw.WriteList(0);                        // List of hited entities
-                    pw.WriteList(0);                        // List of missed entities
-                    pw.WriteList(0);                        // List of misses data
-                    pw.WriteList(0);                        // List of hits data
+                    pw.WriteUInt((uint)ActionId);                   // actionId
+                    pw.WriteUInt(ActionArgId);                      // actionargId
+                    pw.WriteList(MissileArgs.HitEntities.Count);    // List of hited entities
+                    foreach (var entity in MissileArgs.HitEntities)
+                        pw.WriteUInt(entity);
+                    pw.WriteList(MissileArgs.MisstEntities.Count);  // List of missed entities
+                    foreach (var entity in MissileArgs.MisstEntities)
+                        pw.WriteUInt(entity);
+                    pw.WriteList(0);                                // ToDo: List of misses data
+                    pw.WriteList(MissileArgs.HitData.Count);        // List of hits data
+                    foreach (var hit in MissileArgs.HitData)
+                    {
+                        pw.WriteTuple(3);
+                            pw.WriteUInt(hit.EntityId);         // target entityId
+                            pw.WriteTuple(12);                   // rawInfo start
+                                pw.WriteUInt((uint)hit.DamageType); // self.damageType
+                                pw.WriteUInt(hit.Reflected);        // self.reflected
+                                pw.WriteUInt(hit.Filtered);         // self.filtered
+                                pw.WriteUInt(hit.Absorbed);         // self.absorbed
+                                pw.WriteUInt(hit.Resisted);         // self.resisted
+                                pw.WriteLong(hit.FinalAmt);         // self.finalAmt
+                                pw.WriteBool(hit.IsCritical);       // self.isCrit
+                                pw.WriteUInt(hit.DeathBlow);        // self.deathBlow    ToDo => maybe bool
+                                pw.WriteUInt(hit.CoverModifier);    // self.coverModifier
+                                pw.WriteBool(hit.WasImune);         // self.wasImmune
+                                pw.WriteList(0);                    // ToDo: targetEffectIds
+                                pw.WriteList(0);                    // ToDo: sourceEffectIds
+                            pw.WriteNoneStruct();               // OnHitData
+                    }
                     break;
                 default:
                     Logger.WriteLog(LogType.Error, $"Unknown PerformType {PerformType}");

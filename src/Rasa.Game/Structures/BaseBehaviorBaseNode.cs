@@ -1,10 +1,10 @@
-﻿namespace Rasa.Structures
+﻿using System.Numerics;
+
+namespace Rasa.Structures
 {
     public class BaseBehaviorBaseNode
     {
-        public float X { get; set; }
-        public float Y { get; set; }
-        public float Z { get; set; }
+        public Vector3 Position { get; set; }
         public uint MapContextid { get; set; }
         public uint Index { get; set; } //-- postition of pathnode
     }

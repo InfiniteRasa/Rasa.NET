@@ -26,8 +26,17 @@ namespace Rasa.Structures
         public MapCellInfo MapCellInfo = new MapCellInfo();
         // effect
         public int CurrentEffectId { get; set; } // increases with every spawned game effect
+        
         // Dynamic Object List
         public List<DynamicObject> DynamicObjects = new List<DynamicObject>();
+        
+        // Dictionary<uniqueTeleporterId, dataAboutdynamicObject> Teleporters
         public Dictionary<uint,DynamicObject> Teleporters = new Dictionary<uint, DynamicObject>();
+
+        // Dictionary<uniqueTriggerId, TriggerData> MapTriggers
+        public Dictionary<uint, MapTrigger> MapTriggers = new Dictionary<uint, MapTrigger>();
+
+        // Missiles on this mapChannel
+        public List<Missile> QueuedMissiles = new List<Missile>();
     }
 }

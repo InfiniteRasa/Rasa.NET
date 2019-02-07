@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Numerics;
 
 namespace Rasa.Managers
 {
@@ -17,7 +18,6 @@ namespace Rasa.Managers
         private static MissileManager _instance;
         private static readonly object InstanceLock = new object();
         public readonly Timer Timer = new Timer();
-        public List<Missile> QueuedMissiles = new List<Missile>();
 
         public static MissileManager Instance
         {
@@ -40,13 +40,49 @@ namespace Rasa.Managers
         {
         }
 
-        public void DoDamage(Creature creature, int damage, Client client)
+        private void DoDamageToCreature(MapChannel mapChannel, Missile missile)
         {
+            var creature = EntityManager.Instance.GetCreature(missile.TargetEntityId);
+
             if (creature.Actor.State == ActorState.Dead)
                 return;
 
             // decrease armor first
-            var armorDecrease = Math.Min(damage, creature.Actor.Attributes[Attributes.Armor].Current);
+            var armorDecrease = (int)Math.Min(missile.DamageA, creature.Actor.Attributes[Attributes.Armor].Current);
+
+            creature.Actor.Attributes[Attributes.Armor].Current -= armorDecrease;
+
+            // decrease health (if armor is depleted)
+            creature.Actor.Attributes[Attributes.Health].Current -= (int)(missile.DamageA - armorDecrease);
+
+            if (creature.Actor.Attributes[Attributes.Health].Current <= 0)
+            {
+                // fix health
+                missile.TargetActor.Attributes[Attributes.Health].Current = 0;
+                // kill craeture
+                CreatureManager.Instance.HandleCreatureKill(mapChannel, creature, missile.Source);
+            }
+            else
+            {
+                // shooting at wandering creatures makes them ANGRY
+                if (creature.Controller.CurrentAction == BehaviorManager.BehaviorActionWander || creature.Controller.CurrentAction == BehaviorManager.BehaviorActionFollowingPath)
+                    BehaviorManager.Instance.SetActionFighting(creature, missile.Source.EntityId);
+            }
+            
+            // update health (Recv_UpdateHealth 380)
+            if (armorDecrease != missile.DamageA)
+                CellManager.Instance.CellCallMethod(mapChannel, creature.Actor, new UpdateHealthPacket(creature.Actor.Attributes[Attributes.Health], missile.Source.EntityId));
+            
+            // update armor (Recv_UpdateArmor 380)
+            if (armorDecrease > 0)
+                CellManager.Instance.CellCallMethod(mapChannel, creature.Actor, new UpdateArmorPacket(creature.Actor.Attributes[Attributes.Armor], missile.Source.EntityId));
+
+
+        }
+
+        private void DoDamageToPlayer()
+        {
+            // ToDo
         }
 
         public void RequestWeaponAttack(Client client, RequestWeaponAttackPacket packet)
@@ -132,15 +168,14 @@ namespace Rasa.Managers
             */
         }
 
-        public void DoWork(long delta)
+        public void DoWork(MapChannel mapChannel, long delta)
         {
-            foreach (var missile in QueuedMissiles)
-            {
-                // do work
-            }
+            // ToDo: add check for triggerMissile timer
+            foreach (var missile in mapChannel.QueuedMissiles)
+                MissileTrigger(mapChannel, missile);
 
             // empty List
-            QueuedMissiles.Clear();
+            mapChannel.QueuedMissiles.Clear();
         }
 
         public void PlayerTryFireWeapon(Client client)
@@ -151,5 +186,145 @@ namespace Rasa.Managers
 
             client.CellCallMethod(client, client.MapClient.Player.Actor.EntityId, new PerformRecoveryPacket(PerformType.ListOfArgs, ActionId.WeaponAttack, 133));
         }
+
+        public void MissileLaunch(MapChannel mapChannel, Actor origin, uint targetEntityId, long damage, ActionId actionId, uint actionArgId)
+        {
+            var missile = new Missile
+            {
+                DamageA = damage,
+                Source = origin
+            };
+
+            // get distance between actors
+            Actor targetActor = null;
+            var triggerTime = 0; // time between windup and recovery
+
+            if (targetEntityId != 0)
+            {
+                // target on entity
+                var targetType = EntityManager.Instance.GetEntityType(targetEntityId);
+
+                if (targetType == 0)
+                {
+                    Logger.WriteLog(LogType.Error, $"The missile target doesnt exist: {targetEntityId}");
+                    // entity does not exist
+                    return;
+                }
+                switch (targetType)
+                {
+                    case EntityType.Creature:
+                        {
+                            var creature = EntityManager.Instance.GetCreature(targetEntityId);
+                            targetActor = creature.Actor;
+                            missile.TargetEntityId = targetEntityId;
+                        }
+                        break;
+                    case EntityType.Player:
+                        {
+                            var player = EntityManager.Instance.GetPlayer(targetEntityId);
+                            targetActor = player.Player.Actor;
+                            missile.TargetEntityId = targetEntityId;
+                        }
+                        break;
+                    default:
+                        Logger.WriteLog(LogType.Error, $"Can't shoot that object");
+                        return;
+                };
+
+                if (targetActor.State == ActorState.Dead)
+                    return; // actor is dead, cannot be shot at
+
+                var distance = Vector3.Distance(targetActor.Position, origin.Position);
+                triggerTime = (int)(distance * 0.5f);
+            }
+            else
+            {
+                // has no target -> Shoot towards looking angle
+                targetActor = null;
+                triggerTime = 0;
+            }
+
+            // is the missile/action an ability that need needs to use Recv_PerformAbility?
+            var isAbility = false;
+            if (actionId == ActionId.AaRecruitLightning) // recruit lighting ability
+                isAbility = true;
+            
+            missile.TargetActor = targetActor;
+            missile.TriggerTime = triggerTime;
+            missile.ActionId = actionId;
+            missile.ActionArgId = actionArgId;
+            missile.IsAbility = isAbility;
+
+            // send windup and append to queue (only for non-abilities)
+            if (isAbility == false)
+            {
+                CellManager.Instance.CellCallMethod(mapChannel, origin, new PerformWindupPacket(PerformType.ThreeArgs, missile.ActionId, missile.ActionArgId, missile.TargetActor.EntityId));
+                
+                // add to list
+                mapChannel.QueuedMissiles.Add(missile);
+            }
+            else
+            {
+                // abilities get applied directly without delay
+                MissileTrigger(mapChannel, missile);
+            }
+        }
+
+        public void MissileTrigger(MapChannel mapChannel, Missile missile)
+        {
+            switch (missile.ActionId)
+            {
+                case ActionId.WeaponAttack:
+                    WeaponAttack(mapChannel, missile);
+                    break;
+                //else if (missile->actionId == 174)
+                //    missile_ActionRecoveryHandler_WeaponMelee(mapChannel, missile);
+                //else if (missile->actionId == 194)
+                //    missile_ActionHandler_Lighting(mapChannel, missile);
+                //else if (missile->actionId == 203)
+                //    missile_ActionHandler_CR_FOREAN_LIGHTNING(mapChannel, missile);
+                //else if (missile->actionId == 211)
+                //    missile_ActionHandler_CR_AMOEBOID_SLIME(mapChannel, missile);
+                //else if (missile->actionId == 397)
+                //    missile_ActionRecoveryHandler_ThraxKick(mapChannel, missile);
+                default:
+                    Logger.WriteLog(LogType.Debug, $"unsupported missile actionId {missile.ActionId} - using default: WeaponAttack");
+                    WeaponAttack(mapChannel, missile);
+                    break;
+            }
+        }
+
+        #region MissileHandler
+        private void WeaponAttack(MapChannel mapChannel, Missile missile)
+        {
+            // ToDo: Some weapons can hit multiple targets
+            var targetType = EntityManager.Instance.GetEntityType(missile.TargetEntityId);
+            var missileArgs = new MissileArgs();
+            var hitData = new HitData
+            {
+                DamageType = DamageType.Physical,
+                FinalAmt = missile.DamageA
+            };
+
+            missileArgs.HitEntities.Add(missile.TargetEntityId);
+            missileArgs.HitData = new List<HitData> { hitData };     // ToDo: add suport for multiple targets
+
+            /* Execute action */
+            CellManager.Instance.CellCallMethod(mapChannel, missile.Source, new PerformRecoveryPacket(PerformType.ListOfArgs, missile.ActionId, missile.ActionArgId, missileArgs));
+
+            switch (targetType)
+            {
+                case EntityType.Creature:
+                    DoDamageToCreature(mapChannel, missile);
+                    break;
+                case EntityType.Player:
+                    DoDamageToPlayer();
+                    break;
+                default:
+                    Logger.WriteLog(LogType.Error, $"unsuported targetType {targetType}.");
+                    break;
+            }
+        }
+        #endregion
     }
 }

@@ -7,13 +7,14 @@ namespace Rasa.Managers
     using Game;
     using Packets;
     using Rasa.Memory;
+    using Rasa.Packets.MapChannel.Server;
     using Structures;
 
     public class CellManager
     {
         private static CellManager _instance;
         private static readonly object InstanceLock = new object();
-        public const float CellSize = 25.0f;
+        public const float CellSize = 25.6f;
         public const float CellBias = 32768.0f;
         public const uint CellViewRange = 2;   // view 2 cell's in every direction
 
@@ -69,37 +70,7 @@ namespace Rasa.Managers
 
             CreatureManager.Instance.CellIntroduceCreatureToClients(mapChannel, creature, ListOfClients);
         }
-
-        internal void CellMoveObject(Creature creature, MovementData movementData)
-        {
-            // calculate initial cell(x, z)
-            var cellPosX = (uint)(creature.Actor.Position.X / CellSize + CellBias);
-            var cellPosZ = (uint)(creature.Actor.Position.Z / CellSize + CellBias);
-            var mapChannel = MapChannelManager.Instance.FindByContextId(creature.Actor.MapContextId);
-
-            // create matrix
-            var cellMatrix = CreateCellMatrix(mapChannel, cellPosX, cellPosZ);
-
-            foreach (var cellSeed in cellMatrix)
-                foreach (var client in mapChannel.MapCellInfo.Cells[cellSeed].ClientList)
-                    client.MoveObject(creature.Actor.EntityId, movementData);
-        }
-
-        internal void CellCallMethod(DynamicObject obj, PythonPacket packet)
-        {
-            // calculate initial cell(x, z)
-            var cellPosX = (uint)(obj.Position.X / CellSize + CellBias);
-            var cellPosZ = (uint)(obj.Position.Z / CellSize + CellBias);
-            var mapChannel = MapChannelManager.Instance.FindByContextId(obj.MapContextId);
-            
-            // create matrix
-            var cellMatrix = CreateCellMatrix(mapChannel, cellPosX, cellPosZ);
-
-            foreach (var cellSeed in cellMatrix)
-                foreach (var client in mapChannel.MapCellInfo.Cells[cellSeed].ClientList)
-                    client.CallMethod(obj.EntityId, packet);
-
-        }
+        
         // Object
         public void AddToWorld(MapChannel mapChannel, DynamicObject dynamicObject)
         {
@@ -178,7 +149,16 @@ namespace Rasa.Managers
 
         internal void RemoveCreatureFromWorld(MapChannel mapChannel, Creature creature)
         {
-            Logger.WriteLog(LogType.Debug, "ToDO RemoveFromWorld: creature");
+            if (creature == null)
+                return;
+
+            // destroy crature and notify players
+            foreach (var cellSeed in creature.Actor.Cells)
+                foreach (var player in mapChannel.MapCellInfo.Cells[cellSeed].ClientList)
+                    EntityManager.Instance.DestroyPhysicalEntity(player, creature.Actor.EntityId, EntityType.Creature);
+
+            // remove creature from cell
+            mapChannel.MapCellInfo.Cells[creature.Actor.Cells[2, 2]].CreatureList.Remove(creature);
         }
 
         public void DoWork(MapChannel mapChannel)
@@ -393,5 +373,46 @@ namespace Rasa.Managers
 
             return cellMatrix;
         }
+
+        #region SendPackets
+        internal void CellMoveObject(Creature creature, MovementData movementData)
+        {
+            // calculate initial cell(x, z)
+            var cellPosX = (uint)(creature.Actor.Position.X / CellSize + CellBias);
+            var cellPosZ = (uint)(creature.Actor.Position.Z / CellSize + CellBias);
+            var mapChannel = MapChannelManager.Instance.FindByContextId(creature.Actor.MapContextId);
+
+            // create matrix
+            var cellMatrix = CreateCellMatrix(mapChannel, cellPosX, cellPosZ);
+
+            foreach (var cellSeed in cellMatrix)
+                foreach (var client in mapChannel.MapCellInfo.Cells[cellSeed].ClientList)
+                    client.MoveObject(creature.Actor.EntityId, movementData);
+        }
+
+        internal void CellCallMethod(DynamicObject obj, PythonPacket packet)
+        {
+            // calculate initial cell(x, z)
+            var cellPosX = (uint)(obj.Position.X / CellSize + CellBias);
+            var cellPosZ = (uint)(obj.Position.Z / CellSize + CellBias);
+            var mapChannel = MapChannelManager.Instance.FindByContextId(obj.MapContextId);
+
+            // create matrix
+            var cellMatrix = CreateCellMatrix(mapChannel, cellPosX, cellPosZ);
+
+            foreach (var cellSeed in cellMatrix)
+                foreach (var client in mapChannel.MapCellInfo.Cells[cellSeed].ClientList)
+                    client.CallMethod(obj.EntityId, packet);
+
+        }
+
+        internal void CellCallMethod(MapChannel mapChannel, Actor origin, PythonPacket packet)
+        {
+            foreach (var cellSeed in origin.Cells)
+                foreach (var client in mapChannel.MapCellInfo.Cells[cellSeed].ClientList)
+                    client.CallMethod(origin.EntityId, packet);
+
+        }
+        #endregion
     }
 }

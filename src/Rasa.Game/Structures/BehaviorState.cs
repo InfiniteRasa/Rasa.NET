@@ -18,7 +18,7 @@
         public AiPathFollowing AiPathFollowing = new AiPathFollowing();
         public ActionFighting ActionFighting = new ActionFighting();
         public ActionWander ActionWander = new ActionWander();
-        public long[] ActionLockTime { get; set; }
+        //public long[] ActionLockTime { get; set; }
     }
 
     public class ActionFighting

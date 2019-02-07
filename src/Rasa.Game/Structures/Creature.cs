@@ -46,10 +46,40 @@ namespace Rasa.Structures
         // loot dispenser
         public uint LootDispenserObjectEntityId { get; internal set; }
         // creature actions
-        public CreatureMissile[] Actions { get; set; }
+        public List<CreatureAction> Actions = new List<CreatureAction>();
 
         // creature tumers
         public long LastAgression { get; internal set; }
         public long LastRestTime { get; internal set; }
+
+        public Creature(CreaturesEntry data)
+        {
+            DbId = data.DbId;
+            EntityClassId = (EntityClassId)data.ClassId;
+            Faction = (Factions)data.Faction;
+            Level = data.Level;
+            MaxHitPoints = data.MaxHitPoints;
+            NameId = data.NameId;
+            RunSpeed = data.RunSpeed;
+            Walkspeed = data.WalkSpeed;
+        }
+
+        public Creature()
+        {
+        }
+
+        public Creature(Creature creature)
+        {
+            Actor = new Actor();
+            AppearanceData = creature.AppearanceData;
+            DbId = creature.DbId;
+            EntityClassId = creature.EntityClassId;
+            Faction = creature.Faction;
+            Level = creature.Level;
+            MaxHitPoints = creature.MaxHitPoints;
+            NameId = creature.NameId;
+            Npc = creature.Npc;
+            Actions = creature.Actions;
+        }
     }
 }

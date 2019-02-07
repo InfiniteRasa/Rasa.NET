@@ -1,16 +1,17 @@
 ﻿namespace Rasa.Structures
 {
-    using Game;
+    using Data;
 
     public class Missile
     {
-        public int DamageA { get; set; }
+        public long DamageA { get; set; }
         public int DamageB { get; set; }
-        public int ActionId { get; set; }
-        public int ActionArgId { get; set; }
+        public ActionId ActionId { get; set; }
+        public uint ActionArgId { get; set; }
         public bool IsAbility { get; set; }         // set to true to use PerformAbility instead of Windup/Recovery
         public uint TargetEntityId { get; set; }    // the entityId of the destination (it is possible that the object does no more exist on arrival)
-        public Client Source { get; set; }
-        public int TriggerTime { get; set; }       // amount of milliseconds left before the missile is triggered, is decreased on every tick
+        public Actor TargetActor { get; set; }
+        public Actor Source { get; set; }
+        public long TriggerTime { get; set; }       // amount of milliseconds left before the missile is triggered, is decreased on every tick
     }
 }

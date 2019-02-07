@@ -220,7 +220,7 @@ namespace Rasa.Managers
                 if (mapChannel.ClientList.Count > 0)
                 {
                     ActorActionManager.Instance.DoWork(mapChannel, delta);
-                    MissileManager.Instance.DoWork(delta);
+                    MissileManager.Instance.DoWork(mapChannel, delta);
                     BehaviorManager.Instance.MapChannelThink(mapChannel, delta);
 
                     // check forAutoFIre
