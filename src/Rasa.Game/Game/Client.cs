@@ -235,6 +235,14 @@ namespace Rasa.Game
                     break;
 
                 case ClientMessageOpcode.Ping:
+                    var pingMessage = pPacket.Message as PingMessage;
+                    if (pingMessage == null)
+                    {
+                        Close(true);
+                        return;
+                    }
+
+                    SendMessage(pingMessage, delay: false);
                     break;
             }
 
