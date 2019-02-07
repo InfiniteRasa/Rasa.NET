@@ -164,12 +164,6 @@ namespace Rasa.Packets.Protocol
 
         public void Write(BinaryWriter bw)
         {
-            /*if (Channel != 0)
-            {
-                WriteMovement(bw);
-                return;
-            }*/
-             
             var sizePosition = bw.BaseStream.Position;
 
             bw.Write((ushort) 0); // Size placeholder
@@ -260,66 +254,6 @@ namespace Rasa.Packets.Protocol
             bw.BaseStream.Position = sizePosition;
 
             bw.Write((ushort) (currentPosition - sizePosition));
-
-            bw.BaseStream.Position = currentPosition;
-        }
-
-        private void WriteMovement(BinaryWriter bw)
-        {
-            var sizePosition = bw.BaseStream.Position;
-
-            bw.Write((byte)0); // Size placeholder
-            bw.Write((byte)0);
-            bw.Write((byte)0);
-            bw.Write((byte)1);
-            bw.Write((byte)0);
-            bw.Write((byte)8);
-            bw.Write((byte)2);
-
-            int uncompressedSize;
-
-            var packetBeginPosition = (int)bw.BaseStream.Position;
-
-            var packetBuffer = BufferManager.RequestBuffer();
-
-            using (var ms = new MemoryStream(packetBuffer.Buffer, packetBuffer.BaseOffset, packetBuffer.MaxLength, true))
-            {
-                using (var packetWriter = new BinaryWriter(ms, Encoding.UTF8, true))
-                {
-                    using (var writer = new ProtocolBufferWriter(packetWriter, ProtocolBufferFlags.DontFragment))
-                    {
-                        writer.WriteDebugByte(41);
-
-                        Message.Write(writer);
-
-                        writer.WriteDebugByte(42);
-
-                        var currentPos = (int)ms.Position;
-
-                        writer.WriteXORCheck(currentPos);
-
-                        //Alignment
-                        var PaddingNeeded = (8 - ((ms.Position + 1) % 8)) % 8;
-
-                        for (var x = 0; x < PaddingNeeded; x++)
-                            writer.WriteByte(0xCC);
-
-                        uncompressedSize = (int)ms.Position;
-                    }
-                }
-            }
-
-            int packetSize = uncompressedSize;
-
-            bw.Write(packetBuffer.Buffer, packetBuffer.BaseOffset, packetSize);
-
-            BufferManager.FreeBuffer(packetBuffer);
-
-            var currentPosition = bw.BaseStream.Position;
-
-            bw.BaseStream.Position = sizePosition;
-
-            bw.Write((byte)(currentPosition - sizePosition));
 
             bw.BaseStream.Position = currentPosition;
         }

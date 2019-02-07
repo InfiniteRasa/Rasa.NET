@@ -183,7 +183,7 @@ namespace Rasa.Memory
         {
             WriteDebugByte(41);
 
-            WriteUShortBySevenBits(value);
+            WriteUShort(value);
 
             WriteDebugByte(42);
         }
@@ -192,8 +192,8 @@ namespace Rasa.Memory
         {
             WriteDebugByte(41);
 
-            WriteUShortBySevenBits(viewX);
-            WriteUShortBySevenBits(viewY);
+            WriteUShort(viewX);
+            WriteUShort(viewY);
 
             WriteDebugByte(42);
         }

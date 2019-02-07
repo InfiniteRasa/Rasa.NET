@@ -50,11 +50,11 @@
             switch (Subtype)
             {
                 case MoveObjectSubtype.Subtype2:
-                    UnkByte = reader.ReadByte();
+                    EntityId = reader.ReadULong();
                     break;
 
                 case MoveObjectSubtype.Subtype3:
-                    EntityId = reader.ReadULong();
+                    UnkByte = reader.ReadByte();
                     break;
             }
 
@@ -66,11 +66,11 @@
             switch (Subtype)
             {
                 case MoveObjectSubtype.Subtype2:
-                    writer.WriteByte(UnkByte);
+                    writer.WriteULong(EntityId);
                     break;
 
                 case MoveObjectSubtype.Subtype3:
-                    writer.WriteULong(EntityId);
+                    writer.WriteByte(UnkByte);
                     break;
             }
 
