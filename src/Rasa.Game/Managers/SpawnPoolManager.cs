@@ -35,19 +35,29 @@ namespace Rasa.Managers
         {
         }
 
+        public void IncreaseQueueCount(SpawnPool spawnPool)
+        {
+            spawnPool.DropshipQueue++;
+        }
+
         public void DecreaseQueueCount(SpawnPool spawnPool)
         {
             spawnPool.DropshipQueue--;
 
             if ((spawnPool.DropshipQueue + spawnPool.QueuedCreatures + spawnPool.AliveCreatures) == 0)
-                spawnPool.UpdateTimer = spawnPool.RespawnTime;
+                spawnPool.UpdateTimer = 0;
+        }
+
+        public void IncreaseQueuedCreatureCount(SpawnPool spawnPool, int count)
+        {
+            spawnPool.QueuedCreatures += count;
         }
 
         private void DecreaseQueuedCreatureCount(SpawnPool spawnPool, int count)
         {
             spawnPool.QueuedCreatures -= count;
             if ((spawnPool.DropshipQueue + spawnPool.QueuedCreatures + spawnPool.AliveCreatures) == 0)
-                spawnPool.UpdateTimer = spawnPool.RespawnTime;
+                spawnPool.UpdateTimer = 0;
         }
 
         public void IncreaseAliveCreatureCount(SpawnPool spawnPool)
@@ -55,19 +65,21 @@ namespace Rasa.Managers
             spawnPool.AliveCreatures++;
         }
 
+        internal void DecreaseAliveCreatureCount(MapChannel mapChannel, SpawnPool spawnPool)
+        {
+            spawnPool.AliveCreatures--;
+            if ((spawnPool.DropshipQueue + spawnPool.QueuedCreatures + spawnPool.AliveCreatures) == 0)
+                spawnPool.UpdateTimer = 0;
+        }
+
         public void IncreaseDeadCreatureCount(SpawnPool spawnPool)
         {
             spawnPool.DeadCreatures++;
         }
 
-        public void IncreaseQueueCount(SpawnPool spawnPool)
+        internal void DecreaseDeadCreatureCount(SpawnPool spawnPool)
         {
-            spawnPool.DropshipQueue++;
-        }
-
-        public void IncreaseQueuedCreatureCount(SpawnPool spawnPool, int count)
-        {
-            spawnPool.QueuedCreatures += count;
+            spawnPool.DeadCreatures--;
         }
 
         public void SpawnPoolInit()
@@ -123,13 +135,10 @@ namespace Rasa.Managers
                 if (totalCreaturesActive > 0)
                    continue; // there is still active creatures
 
-                spawnPool.UpdateTimer = spawnPool.UpdateTimer + timePassed;
+                spawnPool.UpdateTimer += timePassed;
 
                 if (spawnPool.UpdateTimer < spawnPool.RespawnTime)
                     continue; // spawnpool is still on cooldown
-
-                //reset timer
-                spawnPool.UpdateTimer = 0;
 
                 // create list of creatures to spawn
                 var creatureList = new List<Creature>();

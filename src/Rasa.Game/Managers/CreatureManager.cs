@@ -69,14 +69,17 @@ namespace Rasa.Managers
             if (creature.Actor.State == ActorState.Dead)
                 return; // creature already dead
 
-            var stateIds = new List<uint> { 5 };
+            // kill creature
+            var stateIds = new List<ActorState> { ActorState.Dead };
+
+            creature.Actor.State = ActorState.Dead;
             CellManager.Instance.CellCallMethod(mapChannel, creature.Actor, new StateChangePacket(stateIds));
 
             // tell spawnpool if set
             if (creature.SpawnPool != null)
             {
-                //SpawnPoolManager.Instance.DecreaseAliveCreatureCount(mapChannel, creature.SpawnPool);
-                //SpawnPoolManager.Instance.IncreaseDeadCreatureCount(mapChannel, creature.SpawnPool);
+                SpawnPoolManager.Instance.DecreaseAliveCreatureCount(mapChannel, creature.SpawnPool);
+                SpawnPoolManager.Instance.IncreaseDeadCreatureCount(creature.SpawnPool);
             }
 
             // todo: How were credits and experience calculated when multiple players attacked the same creature? Did only the player with the first strike get experience?

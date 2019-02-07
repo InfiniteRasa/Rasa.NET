@@ -9,9 +9,9 @@ namespace Rasa.Packets.MapChannel.Server
     {
         public override GameOpcode Opcode { get; } = GameOpcode.StateChange;
 
-        public List<uint> StateIds { get; set; }
+        public List<ActorState> StateIds { get; set; }
 
-        public StateChangePacket(List<uint> stateIds)
+        public StateChangePacket(List<ActorState> stateIds)
         {
             StateIds = stateIds;
         }
@@ -21,7 +21,7 @@ namespace Rasa.Packets.MapChannel.Server
             pw.WriteTuple(1);
             pw.WriteList(StateIds.Count);
             foreach (var stateId in StateIds)
-                pw.WriteUInt(stateId);
+                pw.WriteUInt((uint)stateId);
         }
     }
 }
