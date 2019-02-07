@@ -111,7 +111,7 @@ namespace Rasa.Game
 
         internal void MoveObject(uint entityId, MovementData movementData)
         {
-            SendMessage(new MoveObjectMessage(0, entityId, movementData), false, 1);
+            SendMessage(new MoveObjectMessage(entityId, movementData), false, 1);
         }
 
         // Cell Domain
@@ -120,8 +120,7 @@ namespace Rasa.Game
             var clientList = new List<Client>();
 
             foreach (var cellSeed in client.MapClient.Player.Actor.Cells)
-                foreach (var player in client.MapClient.MapChannel.MapCellInfo.Cells[cellSeed].ClientList)
-                    clientList.Add(player);
+                clientList.AddRange(client.MapClient.MapChannel.MapCellInfo.Cells[cellSeed].ClientList);
 
             foreach (var tempClient in clientList)
                 tempClient.CallMethod(entityId, packet);
@@ -133,8 +132,7 @@ namespace Rasa.Game
             var clientList = new List<Client>();
 
             foreach (var cellSeed in client.MapClient.Player.Actor.Cells)
-                foreach (var player in client.MapClient.MapChannel.MapCellInfo.Cells[cellSeed].ClientList)
-                    clientList.Add(player);
+                clientList.AddRange(client.MapClient.MapChannel.MapCellInfo.Cells[cellSeed].ClientList);
 
             foreach (var tempClient in clientList)
             {
@@ -151,8 +149,7 @@ namespace Rasa.Game
             var clientList = new List<Client>();
 
             foreach (var cellSeed in mapClient.Player.Actor.Cells)
-                foreach (var player in mapClient.MapChannel.MapCellInfo.Cells[cellSeed].ClientList)
-                    clientList.Add(player);
+                clientList.AddRange(mapClient.MapChannel.MapCellInfo.Cells[cellSeed].ClientList);
 
             foreach (var tempClient in clientList)
             {
@@ -288,7 +285,7 @@ namespace Rasa.Game
                     MovementData = movePacket.MovementData;
 
                     // send your movement to other players in visibility range
-                    var moveObjectMessage = new MoveObjectMessage(movePacket.UnkByte, MapClient.Player.Actor.EntityId, movePacket.MovementData);
+                    var moveObjectMessage = new MoveObjectMessage(MapClient.Player.Actor.EntityId, movePacket.MovementData);
                     CellMoveObject(MapClient, moveObjectMessage, true);
 
                     break;

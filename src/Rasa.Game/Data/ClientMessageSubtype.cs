@@ -47,4 +47,11 @@ namespace Rasa.Data
         WorldMsgById        = 9,
         WorldMsgByName      = 10
     }
+
+    public enum MoveObjectSubtype : byte
+    {
+        Subtype1 = 1,
+        Subtype2 = 2,
+        Subtype3 = 3
+    }
 }

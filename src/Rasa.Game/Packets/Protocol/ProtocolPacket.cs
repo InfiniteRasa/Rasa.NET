@@ -164,11 +164,11 @@ namespace Rasa.Packets.Protocol
 
         public void Write(BinaryWriter bw)
         {
-            if (Channel != 0)
+            /*if (Channel != 0)
             {
                 WriteMovement(bw);
                 return;
-            }
+            }*/
              
             var sizePosition = bw.BaseStream.Position;
 

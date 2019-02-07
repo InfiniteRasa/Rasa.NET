@@ -1,42 +1,78 @@
-﻿using System;
-
-namespace Rasa.Packets.Protocol
+﻿namespace Rasa.Packets.Protocol
 {
     using Data;
     using Memory;
 
-    public class MoveObjectMessage : IClientMessage
+    public class MoveObjectMessage : ISubtypedPacket<MoveObjectSubtype>
     {
         public ClientMessageOpcode Type { get; set; } = ClientMessageOpcode.MoveObject;
         public byte RawSubtype { get; set; }
+
+        public MoveObjectSubtype Subtype
+        {
+            get { return (MoveObjectSubtype) RawSubtype; }
+            set { RawSubtype = (byte) value; }
+        }
 
         public byte MinSubtype { get; } = 1;
         public byte MaxSubtype { get; } = 3;
         public ClientMessageSubtypeFlag SubtypeFlags { get; } = ClientMessageSubtypeFlag.HasSubtype;
 
         public byte UnkByte { get; set; }
-        public uint EntityId { get; set; }
+        public ulong EntityId { get; set; }
         public MovementData MovementData { get; set; }
 
-        public MoveObjectMessage(byte unkByte, uint entityId, MovementData movementData)
+        public MoveObjectMessage(MovementData movementData)
         {
-            UnkByte = unkByte;
+            Subtype = MoveObjectSubtype.Subtype1;
+
+            MovementData = movementData;
+        }
+
+        public MoveObjectMessage(ulong entityId, MovementData movementData)
+        {
+            Subtype = MoveObjectSubtype.Subtype2;
+
             EntityId = entityId;
+            MovementData = movementData;
+        }
+
+        public MoveObjectMessage(byte unkByte, MovementData movementData)
+        {
+            Subtype = MoveObjectSubtype.Subtype3;
+
+            UnkByte = unkByte;
             MovementData = movementData;
         }
 
         public void Read(ProtocolBufferReader reader)
         {
-            throw new NotImplementedException();
+            switch (Subtype)
+            {
+                case MoveObjectSubtype.Subtype2:
+                    UnkByte = reader.ReadByte();
+                    break;
+
+                case MoveObjectSubtype.Subtype3:
+                    EntityId = reader.ReadULong();
+                    break;
+            }
+
+            MovementData = reader.ReadMovement();
         }
 
         public void Write(ProtocolBufferWriter writer)
         {
-            writer.WriteByte(UnkByte);
+            switch (Subtype)
+            {
+                case MoveObjectSubtype.Subtype2:
+                    writer.WriteByte(UnkByte);
+                    break;
 
-            writer.WriteByte(2);
-            
-            writer.WriteUIntBySevenBits(EntityId);
+                case MoveObjectSubtype.Subtype3:
+                    writer.WriteULong(EntityId);
+                    break;
+            }
 
             writer.WriteMovementData(MovementData);
         }

@@ -285,7 +285,7 @@ namespace Rasa.Managers
             client.CellCallMethod(client, client.MapClient.Player.Actor.EntityId, new PreTeleportPacket(TeleportType.Default));
             client.CallMethod(client.MapClient.Player.Actor.EntityId, new TeleportPacket(teleporter.Position, teleporter.Orientation, TeleportType.Default, 5));
             client.CallMethod(SysEntity.ClientMethodId, new BeginTeleportPacket());
-            client.CellMoveObject(client.MapClient, new MoveObjectMessage(0, client.MapClient.Player.Actor.EntityId, movementData), false);
+            client.CellMoveObject(client.MapClient, new MoveObjectMessage(client.MapClient.Player.Actor.EntityId, movementData), false);
 
             teleporter.TrigeredByPlayers.Remove(client);    // ToDO: maybe safely remove client
         }
