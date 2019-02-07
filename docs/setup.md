@@ -48,17 +48,17 @@ Git is a version control system and will allow you to download the code. Alterna
 ## Download and install the game
 You'll need the game client. Below is the demo version which was made freely available. 
 
-- [Download and install the demo game client](http://infiniterasa.org/tools/tabularasa_demo.exe).
-- Create a shortcut to the game client on the desktop. You'll need to find the executable in the path where you installed the game. i.e. `C:\ProgramFiles (x86)\TabulaRasa\NCSoft\TabulaRasa\tabula_rasa.exe`
-  - Right-click on `tabular_rasa.exe` and choose `Send to > Desktop (create shortcut)`
+- Refer to the forums to [download and install the game client](https://infiniterasa.org/viewtopic.php?f=15&t=8).
+- Create a shortcut to the game client on the desktop. You'll need to find the executable in the path where you installed the game
+  - Right-click on the `.exe` and choose `Send to > Desktop (create shortcut)`
   - Go to the desktop and right-click on the newly created shortcut and choose `Properties`
   - Select the `Shortcut` tab
-  - Edit the `Target` box to include `/NoPatch /AuthServer=localhost:2106` to the end of the file path. So the entire textbox should have `C:\ProgramFiles (x86)\TabulaRasa\NCSoft\TabulaRasa\tabula_rasa.exe /NoPatch /AuthServer=localhost:2106`
+  - Edit the `Target` box to append `/NoPatch /AuthServer=localhost:2106` to the end of the file path. 
 
 ## Patch the game using the custom patcher
 The game client needs to be patched to a specific version that is compatible with Rasa.NET. 
 
-- [Download and run the custom patcher](http://infiniterasa.org/tools/tabularasa_patcher.exe)
+- [Download and run the custom patcher](https://infiniterasa.org/viewtopic.php?f=15&t=8)
 
 ## Download or clone the code
 Download Rasa.NET from GitHub or use Git to clone the project (recommended). 
