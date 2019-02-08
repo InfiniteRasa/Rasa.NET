@@ -30,7 +30,7 @@ namespace Rasa.Structures
         public float AggroRange = 18.0f; // how far away the creature can detect enemies, usually 24.0f but can be increased by having high-range attacks
         public long AggressionTime = 5000; // ToDo
         //sint32 wanderstate;
-        public float WanderDistance { get; internal set; }
+        public float WanderDistance = 10;
         public float WalkSpeed { get; set; }
         public float RunSpeed { get; set; }
         //sint32 movestate;

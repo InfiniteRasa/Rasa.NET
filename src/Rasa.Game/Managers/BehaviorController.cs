@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Numerics;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Rasa.Managers
 {
@@ -31,7 +32,7 @@ namespace Rasa.Managers
         public const byte WanderMoving = 1;
 
         private long PassedTime = 0;
-        private readonly long CreatureRestTime = 3500;
+        private readonly long CreatureRestTime = 10000;
 
         private static BehaviorManager _instance;
         private static readonly object InstanceLock = new object();
@@ -105,7 +106,7 @@ namespace Rasa.Managers
             //       this function. (check player updating as a reference)
 
             // mapChannel.MapCellInfo.Cells can be modified, so we create temp list;
-            var tempCells = mapChannel.MapCellInfo.Cells;
+            var tempCells = mapChannel.MapCellInfo.Cells.ToList();
 
             foreach (var entry in tempCells)
             {
@@ -354,6 +355,7 @@ namespace Rasa.Managers
                     // enemy found!
                     return;
                 }
+
                 if (creature.Controller.ActionWander.State == WanderIdle)
                 {
                     //--- idle for int time before get new wander position
@@ -374,12 +376,38 @@ namespace Rasa.Managers
                         var srndx = (float)(new Random().Next() % 1000) * 0.001f * creature.WanderDistance;
                         var srndz = (float)(new Random().Next() % 1000) * 0.001f * creature.WanderDistance;
 
-                        creature.Controller.ActionWander.WanderDestination[0] = creature.HomePos.Position.X + srndx;
+                        char[] operators = { '+', '-' };
+                        char op = operators[new Random().Next(operators.Length)];
+                        char op1 = operators[new Random().Next(operators.Length)];
+
+                        switch (op)
+                        {
+                            case '+':
+                                creature.Controller.ActionWander.WanderDestination[0] = creature.HomePos.Position.X + srndx;
+                                break;
+
+                            case '-':
+                                creature.Controller.ActionWander.WanderDestination[0] = creature.HomePos.Position.X - srndx;
+                                break;
+                        }
+
                         creature.Controller.ActionWander.WanderDestination[1] = creature.HomePos.Position.Y + 1.0f;
-                        creature.Controller.ActionWander.WanderDestination[2] = creature.HomePos.Position.Z + srndz;
+
+                        switch (op1)
+                        {
+                            case '+':
+                                creature.Controller.ActionWander.WanderDestination[2] = creature.HomePos.Position.Z + srndz;
+                                break;
+
+                            case '-':
+                                creature.Controller.ActionWander.WanderDestination[2] = creature.HomePos.Position.Z - srndz;
+                                break;
+                        }
+                        
 
                         // next step approaching
                         creature.Controller.ActionWander.State = WanderMoving;
+                        creature.LastRestTime = 0;
                     }
                 }
                 if (creature.Controller.ActionWander.State == WanderMoving)
