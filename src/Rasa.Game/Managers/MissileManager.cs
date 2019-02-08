@@ -183,8 +183,9 @@ namespace Rasa.Managers
             var weapon = InventoryManager.Instance.CurrentWeapon(client);
             var weaponClassInfo = EntityClassManager.Instance.GetWeaponClassInfo(weapon);
             var target = client.MapClient.Player.TargetEntityId;
+            var missileArgs = new MissileArgs();
 
-            client.CellCallMethod(client, client.MapClient.Player.Actor.EntityId, new PerformRecoveryPacket(PerformType.ListOfArgs, ActionId.WeaponAttack, 133));
+            client.CellCallMethod(client, client.MapClient.Player.Actor.EntityId, new PerformRecoveryPacket(PerformType.ListOfArgs, weaponClassInfo.WeaponAttackActionId, (uint)weaponClassInfo.WeaponAttackArgId, missileArgs));
         }
 
         public void MissileLaunch(MapChannel mapChannel, Actor origin, uint targetEntityId, long damage, ActionId actionId, uint actionArgId)

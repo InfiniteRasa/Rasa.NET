@@ -40,7 +40,7 @@ namespace Rasa.Structures
                 AltActionArg = reader.GetInt32("altActionArg"),
                 AERadius = reader.GetInt32("aeRadius"),
                 RecoilAmount = reader.GetInt32("recoilAmount"),
-                ReuseOverride = reader.GetInt32("ReuseOverride"),
+                ReuseOverride = reader.GetInt32("reuseOverride"),
                 CoolRate = reader.GetInt32("coolRate"),
                 HeatPerShot = reader.GetDouble("heatPerShot"),
                 ToolType = reader.GetInt32("toolType"),

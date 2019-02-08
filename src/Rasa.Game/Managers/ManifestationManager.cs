@@ -301,7 +301,8 @@ namespace Rasa.Managers
             }
 
             // send first hit to cell, ignore self
-            client.CellIgnoreSelfCallMethod(client, new PerformRecoveryPacket(PerformType.ListOfArgs, weaponClassInfo.WeaponAttackActionId, (uint)weaponClassInfo.WeaponAttackArgId));
+            var missileArgs = new MissileArgs();
+            client.CellIgnoreSelfCallMethod(client, new PerformRecoveryPacket(PerformType.ListOfArgs, weaponClassInfo.WeaponAttackActionId, (uint)weaponClassInfo.WeaponAttackArgId, missileArgs));
             
             RegisterAutoFire(client, weapon);
 
@@ -499,18 +500,9 @@ namespace Rasa.Managers
                 if (tempClient == client)
                     continue;
 
-                Logger.WriteLog(LogType.Debug, $"ClientToPlayers:\n {tempClient.MapClient.Player.Actor.EntityId} is reciving data about {player.Actor.EntityId}");
-
                 tempClient.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(player.Actor.EntityId, player.Actor.EntityClassId, CreatePlayerEntityData(client)));
-
-                //tempPlayer.Player.Client.SendPacket(mapClient.Player.Actor.EntityId, netMovement);
+                
             }
-
-            // Recv_Abilities (id: 10, desc: must only be sent for the local manifestation)
-            // We dont need to send ability data to every client, but only the owner (which is done in PlayerManager.AssignPlayer)
-            // Skills -> Everything that the player can learn via the skills menu (Sprint, Firearms...) Abilities -> Every skill gained by logos?
-            // Recv_WorldLocationDescriptor
-
         }
 
         public void CellIntroduceClientToSefl(Client client)
@@ -525,19 +517,8 @@ namespace Rasa.Managers
                 // don't send data about yourself
                 if (client == tempClient)
                     continue;
-
-                Logger.WriteLog(LogType.Debug, $"PlayersToClient:\n {client.MapClient.Player.Actor.EntityId} is reciving data about {tempClient.MapClient.Player.Actor.EntityId}");
-                client.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(tempClient.MapClient.Player.Actor.EntityId, tempClient.MapClient.Player.Actor.EntityClassId, CreatePlayerEntityData(tempClient)));
                 
-                // ToDo
-                // send inital movement packet
-                //netCompressedMovement_t netMovement = { 0 };
-                //var netMovement = new NetCompressedMovement();
-                //netMovement.entityId = tempClient->player->actor->entityId;
-                //netMovement.posX24b = tempClient->player->actor->posX * 256.0f;
-                //netMovement.posY24b = tempClient->player->actor->posY * 256.0f;
-                //netMovement.posZ24b = tempClient->player->actor->posZ * 256.0f;
-                //netMgr_sendEntityMovement(client->cgm, &netMovement);
+                client.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(tempClient.MapClient.Player.Actor.EntityId, tempClient.MapClient.Player.Actor.EntityClassId, CreatePlayerEntityData(tempClient)));
             }
         }
 
@@ -565,7 +546,7 @@ namespace Rasa.Managers
                 new CharacterNamePacket(player.Actor.Name),
                 new ActorNamePacket(player.Actor.FamilyName),
                 new IsRunningPacket(player.Actor.IsRunning),
-                new TargetCategoryPacket(0),    // 0 frendly ToDo
+                new TargetCategoryPacket(Factions.AFS),
                 new PlayerFlagsPacket(),
                 new EquipmentInfoPacket(client.MapClient.Inventory.EquippedInventory)
             };
