@@ -31,8 +31,8 @@ namespace Rasa.Structures
         public long AggressionTime = 5000; // ToDo
         //sint32 wanderstate;
         public float WanderDistance { get; internal set; }
-        public float Walkspeed = 4f;
-        public float RunSpeed = 6.5f;
+        public float WalkSpeed { get; set; }
+        public float RunSpeed { get; set; }
         //sint32 movestate;
         //float wx,wy,wz; // target destination (can be far away)
         public BaseBehaviorBaseNode HomePos = new BaseBehaviorBaseNode();  //--- spawn location (used for wander)
@@ -61,7 +61,7 @@ namespace Rasa.Structures
             MaxHitPoints = data.MaxHitPoints;
             NameId = data.NameId;
             RunSpeed = data.RunSpeed;
-            Walkspeed = data.WalkSpeed;
+            WalkSpeed = data.WalkSpeed;
         }
 
         public Creature()
@@ -79,6 +79,8 @@ namespace Rasa.Structures
             MaxHitPoints = creature.MaxHitPoints;
             NameId = creature.NameId;
             Npc = creature.Npc;
+            RunSpeed = creature.RunSpeed;
+            WalkSpeed = creature.WalkSpeed;
             Actions = creature.Actions;
         }
     }

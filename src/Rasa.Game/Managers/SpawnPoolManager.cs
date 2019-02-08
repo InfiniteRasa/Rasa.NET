@@ -112,6 +112,8 @@ namespace Rasa.Managers
                     HomeOrientation = data.Orientation,
                     Mode = data.Mode,
                     RespawnTime = data.RespawnTime * 100,  //convert to ms
+                    // to spawn all cretures at server start, we set UpdateTimer to RespawnTime
+                    UpdateTimer = data.RespawnTime * 100, //convert to ms
                     SpawnSlot = spawnPoolSlots
                 };
 

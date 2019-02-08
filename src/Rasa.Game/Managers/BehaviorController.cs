@@ -103,38 +103,39 @@ namespace Rasa.Managers
             var queue_creatureCellUpdate = new List<Creature>();
             // todo: When on heavy load, the server should increase the time between calls to
             //       this function. (check player updating as a reference)
-            lock (mapChannel.MapCellInfo.Cells)
+
+            // mapChannel.MapCellInfo.Cells can be modified, so we create temp list;
+            var tempCells = mapChannel.MapCellInfo.Cells;
+
+            foreach (var entry in tempCells)
             {
-                foreach (var entry in mapChannel.MapCellInfo.Cells)
+                var mapCell = entry.Value;
+
+                if (mapCell == null) // should never happen, but still do a check for safety
+                    continue;
+                // creatures
+                if (mapCell.CreatureList.Count > 0)
                 {
-                    var mapCell = entry.Value;
 
-                    if (mapCell == null) // should never happen, but still do a check for safety
-                        continue;
-                    // creatures
-                    if (mapCell.CreatureList.Count > 0)
+                    for (var f = 0; f < mapCell.CreatureList.Count; f++)
                     {
+                        CreatureThink(mapChannel, mapCell.CreatureList[f], PassedTime, out var needDeletion, out var needCellUpdate); // update time hardcoded, see todo
 
-                        for (var f = 0; f < mapCell.CreatureList.Count; f++)
-                        {
-                            CreatureThink(mapChannel, mapCell.CreatureList[f], PassedTime, out var needDeletion, out var needCellUpdate); // update time hardcoded, see todo
+                        if (needDeletion)
+                            queue_creatureDeletion.Add(mapCell.CreatureList[f]);
 
-                            if (needDeletion)
-                                queue_creatureDeletion.Add(mapCell.CreatureList[f]);
+                        if (needCellUpdate) // update cell (even when creature is also deleted)
+                            queue_creatureCellUpdate.Add(mapCell.CreatureList[f]);
 
-                            if (needCellUpdate) // update cell (even when creature is also deleted)
-                                queue_creatureCellUpdate.Add(mapCell.CreatureList[f]);
-
-                            // need to delete creature & we still have a free space in the deletion queue
-                            // not so nice hack to remove creatures from the map cell when creature_cellUpdateLocation is called
-                            /*std::swap(mapCell->ht_creatureList.at(f), mapCell->ht_creatureList.at(creatureCount-1));
-                            mapCell->ht_creatureList.pop_back();
-                            creatureCount = mapCell->ht_creatureList.size();
-                            if( creatureCount == 0 )
-                                break;
-                            creatureList = &mapCell->ht_creatureList[0];
-                            f--;*/
-                        }
+                        // need to delete creature & we still have a free space in the deletion queue
+                        // not so nice hack to remove creatures from the map cell when creature_cellUpdateLocation is called
+                        /*std::swap(mapCell->ht_creatureList.at(f), mapCell->ht_creatureList.at(creatureCount-1));
+                        mapCell->ht_creatureList.pop_back();
+                        creatureCount = mapCell->ht_creatureList.size();
+                        if( creatureCount == 0 )
+                            break;
+                        creatureList = &mapCell->ht_creatureList[0];
+                        f--;*/
                     }
                 }
             }
@@ -421,7 +422,7 @@ namespace Rasa.Managers
                     // wander target location reached
                     if (dist > 0.01f) // to avoid division by zero
                     {
-                        var distanceMoved = UpdateEntityMovement(difX, difY, difZ, creature, mapChannel, creature.Walkspeed, true);
+                        var distanceMoved = UpdateEntityMovement(difX, difY, difZ, creature, mapChannel, creature.WalkSpeed, true);
                         // sometimes it is possible the creature walks past the pathnode a tiny bit,
                         // which will force him to move back a step, it does look ugly so here is a tiny workaround
                         if (distanceMoved > dist) // distance moved greater than distance left?
@@ -471,7 +472,7 @@ namespace Rasa.Managers
                 var dist = difX * difX + difZ * difZ;
                 // wander target location reached
                 if (dist > 0.01f) // to avoid division by zero
-                    UpdateEntityMovement(difX, difY, difZ, creature, mapChannel, creature.Walkspeed, true);
+                    UpdateEntityMovement(difX, difY, difZ, creature, mapChannel, creature.WalkSpeed, true);
                 if (dist < 0.8f)
                 {
                     creature.Controller.AiPathFollowing.GeneralPathCurrentNodeIndex++; // goto next node
