@@ -7,18 +7,27 @@
     {
         public override GameOpcode Opcode { get; } = GameOpcode.RequestVisualCombatMode;
 
-        public int CombatMode { get; set; }
+        public bool CombatMode { get; set; }
+
+        public RequestVisualCombatModePacket()
+        {
+        }
+
+        public RequestVisualCombatModePacket(bool combatMode)
+        {
+            CombatMode = combatMode;
+        }
 
         public override void Read(PythonReader pr)
         {
             pr.ReadTuple();
-            CombatMode = pr.ReadInt();
+            CombatMode = pr.ReadBool();
         }
 
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(1);
-            pw.WriteInt(CombatMode);
+            pw.WriteBool(CombatMode);
         }
     }
 }

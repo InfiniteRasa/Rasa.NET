@@ -99,18 +99,10 @@
             client.CallMethod(client.MapClient.Player.Actor.EntityId, new PerformRecoveryPacket(PerformType.TwoArgs, packet.ActionId, packet.ActionArgId));
         }
 
-        public void RequestVisualCombatMode(Client client, int combatMode)
+        public void RequestVisualCombatMode(Client client, bool combatMode)
         {
-            if (combatMode > 0)
-            {
-                client.MapClient.Player.Actor.InCombatMode = true;
-                client.CellCallMethod(client, client.MapClient.Player.Actor.EntityId, new RequestVisualCombatModePacket { CombatMode = 1 });
-            }
-            else
-            {
-                client.MapClient.Player.Actor.InCombatMode = false;
-                client.CellCallMethod(client, client.MapClient.Player.Actor.EntityId, new RequestVisualCombatModePacket { CombatMode = 0 });
-            }
+            client.MapClient.Player.Actor.InCombatMode = combatMode;
+            client.CellCallMethod(client, client.MapClient.Player.Actor.EntityId, new RequestVisualCombatModePacket(combatMode));
         }
 
         public void SetDesiredCrouchState(Client client, ActorState state)

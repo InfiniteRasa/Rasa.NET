@@ -6,12 +6,8 @@ using System.Linq;
 namespace Rasa.Managers
 {
     using Data;
-    using Managers;
     using Memory;
-    using Database.Tables.Character;
-    using Game;
-    using Packets.MapChannel.Server;
-    using Packets;
+    using Packets.MapChannel.Client;
     using Structures;
 
     public class BehaviorManager
@@ -571,8 +567,12 @@ namespace Rasa.Managers
                 else if (target == EntityType.Creature)
                 {
                     var targetCreature = EntityManager.Instance.GetCreature(creature.Controller.ActionFighting.TargetEntityId);
+
                     if (targetCreature.Actor.Attributes[Attributes.Health].Current <= 0 || targetCreature.Actor.State == ActorState.Dead)
                     {
+                        // exit visual combat mode
+                        CellManager.Instance.CellCallMethod(mapChannel, creature.Actor, new RequestVisualCombatModePacket(false));
+
                         SetActionWander(creature);
                         return;
                     }
