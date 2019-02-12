@@ -80,10 +80,22 @@
             NpcManager.Instance.CompleteNPCMission(Client, packet);
         }
 
+        [PacketHandler(GameOpcode.CreateClan)]
+        private void CreateClan(CreateClanPacket packet)
+        {
+            ClanManager.Instance.CreateClan(Client, packet);
+        }
+
         [PacketHandler(GameOpcode.GetCustomizationChoices)]
         private void GetCustomizationChoices(GetCustomizationChoicesPacket packet)
         {
             ManifestationManager.Instance.GetCustomizationChoices(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.GetPvPClanMembershipStatus)]
+        private void GetPvPClanMembershipStatus(GetPvPClanMembershipStatusPacket packet)
+        {
+            ClanManager.Instance.GetPvPClanMembershipStatus(Client);    // packet have 0 argumenst, no need to pass it
         }
 
         [PacketHandler(GameOpcode.HomeInventory_DestroyItem)]

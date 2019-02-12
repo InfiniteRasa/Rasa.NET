@@ -257,7 +257,7 @@ namespace Rasa.Managers
                 Npc isNpc = null;
                 var isVendor = false;
                 var isAuctioneer = false;
-                //var isClanManager = false;
+                var isClanManager = data.NameId == 8838 ? true : false;
 
                 foreach (var aug in augmentationsList)
                 {
@@ -318,6 +318,9 @@ namespace Rasa.Managers
 
                 if (isAuctioneer)
                     creature.Npc.NpcIsAuctioneer = true;
+
+                if (isClanManager)
+                    creature.Npc.NpcIsClanMaster = true;
 
                 if (isVendor)
                 {

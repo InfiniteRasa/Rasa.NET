@@ -115,7 +115,10 @@ namespace Rasa.Managers
 
             // Auctioner = 14
             if (creature.Npc.NpcIsAuctioneer)
-                convoDataDict.Add(ConversationType.Auctioneer, true); 
+                convoDataDict.Add(ConversationType.Auctioneer, true);
+
+            if (creature.Npc.NpcIsClanMaster)
+                convoDataDict.Add(ConversationType.Clan, true);
 
             /*
             // Greeting = 0
@@ -341,6 +344,13 @@ namespace Rasa.Managers
             if (creature.Npc.NpcIsAuctioneer && statusSet == false)
             {
                 client.CallMethod(creature.Actor.EntityId, new NPCConversationStatusPacket(ConversationStatus.Auctioneer, new List<uint>())); // status - none
+                statusSet = true;
+            }
+
+            // is NPC clan master?
+            if (creature.Npc.NpcIsClanMaster && statusSet == false)
+            {
+                client.CallMethod(creature.Actor.EntityId, new NPCConversationStatusPacket(ConversationStatus.Clan, new List<uint>())); // status - none
                 statusSet = true;
             }
 

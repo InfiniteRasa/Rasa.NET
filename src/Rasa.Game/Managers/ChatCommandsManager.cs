@@ -332,8 +332,12 @@ namespace Rasa.Managers
                 if (entityType == EntityType.Creature)
                 {
                     var creature = EntityManager.Instance.GetCreature(entityId);
+
                     msg += $"CreatureDbId = {creature.DbId}\n";
-                    msg += $"SpawnPoolDbId = {creature.SpawnPool.DbId}\n";
+
+                    if (creature.SpawnPool != null)
+                        msg += $"SpawnPoolDbId = {creature.SpawnPool.DbId}\n";
+
                     msg += $"PosX = {creature.Actor.Position.X}\n";
                     msg += $"PosY = {creature.Actor.Position.Y}\n";
                     msg += $"PosZ = {creature.Actor.Position.Z}\n";
@@ -351,6 +355,7 @@ namespace Rasa.Managers
         private void ReloadCreaturesCommand(string[] obj)
         {
             CreatureManager.Instance.LoadedCreatures.Clear();
+            CreatureManager.Instance.CreatureActions.Clear();
             CreatureManager.Instance.CreatureInit();
             CommunicatorManager.Instance.SystemMessage(_client, "Creatures Reloaded.");
         }

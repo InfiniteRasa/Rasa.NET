@@ -158,7 +158,8 @@ namespace Rasa.Packets.MapChannel.Server
                         break;
 
                     case ConversationType.Clan:
-                        Logger.WriteLog(LogType.Debug, $"ConversationType resived = {entry.Key}");
+                        var isClanMaster = (bool)entry.Value;
+                        pw.WriteBool(isClanMaster);
                         break;
 
                     case ConversationType.Auctioneer:
