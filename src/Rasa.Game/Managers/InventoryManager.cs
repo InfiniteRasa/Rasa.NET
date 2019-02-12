@@ -296,7 +296,7 @@ namespace Rasa.Managers
             if (entityIdInventoryItem != 0)
                 AddItemBySlot(client, InventoryType.WeaponDrawerInventory, entityIdInventoryItem, destSlot, true);
 
-            if (destSlot == client.MapClient.Inventory.ActiveWeaponDrawer)
+            if (destSlot == client.MapClient.Player.ActiveWeapon)
                 if (itemToEquip == null)
                 {
                     // remove item graphic if dequipped

@@ -195,11 +195,11 @@ namespace Rasa.Managers
 
         public void RequestArmWeapon(Client client, uint requestedWeaponDrawerSlot)
         {
-            client.MapClient.Inventory.ActiveWeaponDrawer = requestedWeaponDrawerSlot;
+            client.MapClient.Player.ActiveWeapon = (byte)requestedWeaponDrawerSlot;
 
             client.CallMethod(client.MapClient.Player.Actor.EntityId, new WeaponDrawerSlotPacket(requestedWeaponDrawerSlot, true));
 
-            var weapon = EntityManager.Instance.GetItem(client.MapClient.Inventory.WeaponDrawer[(int)client.MapClient.Inventory.ActiveWeaponDrawer]);
+            var weapon = EntityManager.Instance.GetItem(client.MapClient.Inventory.WeaponDrawer[client.MapClient.Player.ActiveWeapon]);
 
             if (weapon == null)
                 return;
@@ -437,6 +437,8 @@ namespace Rasa.Managers
             client.CallMethod(actor.EntityId, new UpdateHealthPacket(actor.Attributes[Attributes.Health], 0));
 
             client.CallMethod(actor.EntityId, new LogosStoneTabulaPacket(player.Logos));
+
+            client.CallMethod(actor.EntityId, new WeaponDrawerSlotPacket(player.ActiveWeapon, false));
         }
 
         public void AutoFireTimerDoWork(long delta)
@@ -680,7 +682,7 @@ namespace Rasa.Managers
             AutoFire.Add(timer);
 
             // launch missile
-           // MissileManager.Instance.PlayerTryFireWeapon(timer.Client);
+            //MissileManager.Instance.PlayerTryFireWeapon(timer.Client);
         }
 
         public void RemovePlayerCharacter(Client client)

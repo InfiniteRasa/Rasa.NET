@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Numerics;
 
 namespace Rasa.Managers
@@ -11,7 +12,6 @@ namespace Rasa.Managers
     using Structures;
     using Rasa.Game;
     using Rasa.Packets.MapChannel.Client;
-    using System;
 
     public class MissileManager
     {
@@ -87,7 +87,7 @@ namespace Rasa.Managers
 
         public void RequestWeaponAttack(Client client, RequestWeaponAttackPacket packet)
         {
-            MissileManager.Instance.PlayerTryFireWeapon(client);
+            PlayerTryFireWeapon(client);
 
             /*
 	            // has ammo?
@@ -183,8 +183,7 @@ namespace Rasa.Managers
             var weapon = InventoryManager.Instance.CurrentWeapon(client);
             var weaponClassInfo = EntityClassManager.Instance.GetWeaponClassInfo(weapon);
             var target = client.MapClient.Player.TargetEntityId;
-            var missileArgs = new MissileArgs();
-
+            var missileArgs = new MissileArgs();    // ToDo
             client.CellCallMethod(client, client.MapClient.Player.Actor.EntityId, new PerformRecoveryPacket(PerformType.ListOfArgs, weaponClassInfo.WeaponAttackActionId, (uint)weaponClassInfo.WeaponAttackArgId, missileArgs));
         }
 
@@ -289,7 +288,7 @@ namespace Rasa.Managers
                 //else if (missile->actionId == 397)
                 //    missile_ActionRecoveryHandler_ThraxKick(mapChannel, missile);
                 default:
-                    Logger.WriteLog(LogType.Debug, $"unsupported missile actionId {missile.ActionId} - using default: WeaponAttack");
+                    Logger.WriteLog(LogType.Debug, $"MissileLaunch: unsupported missile actionId {missile.ActionId} - using default: WeaponAttack");
                     WeaponAttack(mapChannel, missile);
                     break;
             }

@@ -16,7 +16,5 @@ namespace Rasa.Structures
         // 272 weapondrawer1, 273 weapondrawer2, 274 weapondrawer3, 275 weapondrawer4, 276 weapondrawer5
         // 277 weapondrawer1ammo, 278 weapondrawer2ammo, 279 weapondrawer3ammo, 280 weapondrawer4ammo, 281 weapondrawer5ammo
         public List<uint> WeaponDrawer = new List<uint>();
-        //public uint[] slot { get; set; } = new uint[250 + 22 + 5];
-        public uint ActiveWeaponDrawer { get; set; }
     }
 }
