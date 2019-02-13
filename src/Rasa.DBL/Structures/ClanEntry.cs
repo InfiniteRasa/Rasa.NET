@@ -1,4 +1,5 @@
 ﻿using MySql.Data.MySqlClient;
+using System.Collections.Generic;
 
 namespace Rasa.Structures
 {
@@ -6,6 +7,7 @@ namespace Rasa.Structures
     {
         public uint Id { get; set; }
         public string Name { get; set; }
+        public bool IsPvP { get; set; }
 
         public static ClanEntry Read(MySqlDataReader reader, bool newReader = true)
         {

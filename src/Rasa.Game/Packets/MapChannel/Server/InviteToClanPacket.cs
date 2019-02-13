@@ -22,12 +22,7 @@
         {
             pw.WriteTuple(2);
             pw.WriteString(Name);
-            pw.WriteTuple(5);
-            pw.WriteString(Data.InviterFamilyName);
-            pw.WriteUInt(Data.ClanId);
-            pw.WriteString(Data.ClanName);
-            pw.WriteBool(Data.IsPvP);
-            pw.WriteUInt(Data.InvitedCharacterId); 
+            pw.WriteStruct(Data);
         }
     }
 }

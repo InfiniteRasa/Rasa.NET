@@ -439,6 +439,10 @@ namespace Rasa.Managers
             client.CallMethod(actor.EntityId, new LogosStoneTabulaPacket(player.Logos));
 
             client.CallMethod(actor.EntityId, new WeaponDrawerSlotPacket(player.ActiveWeapon, false));
+
+            // TODO: Not working, debugging.
+            client.CallMethod(actor.EntityId, new ClanIdPacket(1));
+            client.CallMethod(actor.EntityId, new SetClanDataPacket("ClanData", new ClanData(new ClanEntry() { Id = 1, Name = "Contributors" })));
         }
 
         public void AutoFireTimerDoWork(long delta)

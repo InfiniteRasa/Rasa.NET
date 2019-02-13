@@ -22,7 +22,6 @@
             pw.WriteTuple(2);
             pw.WriteString(Name);
             pw.WriteStruct(Data);            
-            pw.WriteBool(Data.IsPvP);
         }
     }
 }
