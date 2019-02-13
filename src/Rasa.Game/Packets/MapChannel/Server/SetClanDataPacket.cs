@@ -21,15 +21,7 @@
         {
             pw.WriteTuple(2);
             pw.WriteString(Name);
-            pw.WriteTuple(4);
-            pw.WriteString(Data.Name);
-            pw.WriteUInt(Data.Id);
-
-            foreach (string rankTitle in Data.RankTitles)
-            {
-                pw.WriteString(rankTitle);
-            }
-
+            pw.WriteStruct(Data);            
             pw.WriteBool(Data.IsPvP);
         }
     }

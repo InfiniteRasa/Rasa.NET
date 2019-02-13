@@ -41,7 +41,7 @@ namespace Rasa.Structures
             pw.WriteTuple(4);
             pw.WriteUInt(Id);
             pw.WriteUnicodeString(Name);
-            pw.WriteTuple(RankTitles.Count);
+            pw.WriteList(RankTitles.Count);
 
             foreach(string title in RankTitles)
             {
