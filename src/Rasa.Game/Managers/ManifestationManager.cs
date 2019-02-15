@@ -186,6 +186,42 @@ namespace Rasa.Managers
             client.MapClient.Player.CurentTitle = titleId;*/
         }
 
+        public bool PlayerTryFireWeapon(Client client)
+        {
+            // ToDo: isOverheated, isJammed, and some other checks
+            if (!client.MapClient.Player.WeaponReady)
+            {
+                RequestWeaponDraw(client);
+                return false;
+            }
+
+            var weapon = InventoryManager.Instance.CurrentWeapon(client);
+            var weaponClassInfo = EntityClassManager.Instance.GetWeaponClassInfo(weapon);
+
+            // do we need to reload?
+            if (weapon.CurrentAmmo < weapon.ItemTemplate.WeaponInfo.AmmoPerShot)
+            {
+                RequestWeaponReload(client, true);
+                return false;
+            }
+
+            // decrease ammo count
+            weapon.CurrentAmmo -= weapon.ItemTemplate.WeaponInfo.AmmoPerShot;
+            client.CallMethod(weapon.EntityId, new WeaponAmmoInfoPacket(weapon.CurrentAmmo));
+
+            // should we update db per shot? it will be a lot of db calls
+            ItemsTable.UpdateItemCurrentAmmo(weapon.ItemId, weapon.CurrentAmmo);
+
+            // let's calculate damage
+            var damageRange = weaponClassInfo.MaxDamage - weaponClassInfo.MinDamage;
+            var damage = weaponClassInfo.MinDamage + new Random().Next(0, damageRange + 1);
+
+            // launch correct missile type depending on weapon type
+            MissileManager.Instance.MissileLaunch(client.MapClient.MapChannel, client.MapClient.Player.Actor, client.MapClient.Player.TargetEntityId, damage, weaponClassInfo.WeaponAttackActionId, (uint)weaponClassInfo.WeaponAttackArgId);
+            
+            return true;
+        }
+
         public void RequestArmAbility(Client client, int abilityDrawerSlot)
         {
             client.MapClient.Player.CurrentAbilityDrawer = abilityDrawerSlot;
@@ -284,49 +320,15 @@ namespace Rasa.Managers
 
         public void StartAutoFire(Client client, double yaw)
         {
-            if (!client.MapClient.Player.WeaponReady)
+            // ToDo:
+            // yaw is probobly used to mach player and target orientation,
+            // some creatures recive more damage from back then from front
+
+            if (PlayerTryFireWeapon(client))
             {
-                RequestWeaponDraw(client);
-                return;
+                ActorManager.Instance.RequestVisualCombatMode(client, true);
+                RegisterAutoFire(client);
             }
-
-            var weapon = InventoryManager.Instance.CurrentWeapon(client);
-            var weaponClassInfo = EntityClassManager.Instance.GetWeaponClassInfo(weapon);
-
-            // do we need to reload?
-            if (weapon.CurrentAmmo < weapon.ItemTemplate.WeaponInfo.AmmoPerShot)
-            {
-                RequestWeaponReload(client, true);
-                return;
-            }
-
-            ActorManager.Instance.RequestVisualCombatMode(client, true);
-
-            // send first hit to cell, ignore self
-            var missileArgs = new MissileArgs();
-            client.CellIgnoreSelfCallMethod(client, new PerformRecoveryPacket(PerformType.ListOfArgs, weaponClassInfo.WeaponAttackActionId, (uint)weaponClassInfo.WeaponAttackArgId, missileArgs));
-            
-            RegisterAutoFire(client, weapon);
-            
-            // decrease ammo count
-            weapon.CurrentAmmo -= weapon.ItemTemplate.WeaponInfo.AmmoPerShot;
-            client.CallMethod(weapon.EntityId, new WeaponAmmoInfoPacket(weapon.CurrentAmmo));
-            
-            // update ammo in Db
-            ItemsTable.UpdateItemCurrentAmmo(weapon.ItemId, weapon.CurrentAmmo);
-
-            if (client.MapClient.Player.TargetEntityId == 0)
-                return; // do not continue if no target
-
-            var weaponAttack = new RequestWeaponAttackPacket
-            {
-                ActionId = weaponClassInfo.WeaponAttackActionId,
-                ActionArgId = weaponClassInfo.WeaponAttackArgId,
-                TargetId = client.MapClient.Player.TargetEntityId
-            };
-
-            MissileManager.Instance.RequestWeaponAttack(client, weaponAttack);
-            
         }
 
         public void StopAutoFire(Client client)
@@ -410,7 +412,7 @@ namespace Rasa.Managers
 
             client.CallMethod(actor.EntityId, new LogosStoneTabulaPacket(player.Logos));
 
-            client.CallMethod(actor.EntityId, new WeaponDrawerSlotPacket(player.ActiveWeapon, true));
+            client.CallMethod(actor.EntityId, new WeaponDrawerSlotPacket(player.ActiveWeapon, false));
 
             client.CallMethod(actor.EntityId, new AllCreditsPacket(player.Credits));
         }
@@ -434,7 +436,7 @@ namespace Rasa.Managers
 
                 if (timer.Delay <= 0)
                 {
-                    MissileManager.Instance.PlayerTryFireWeapon(timer.Client);
+                    PlayerTryFireWeapon(timer.Client);
                     timer.Delay = timer.RefireTime;
                 }
             }
@@ -508,7 +510,7 @@ namespace Rasa.Managers
                 new IsTargetablePacket(EntityClassManager.Instance.GetClassInfo(player.Actor.EntityClassId).TargetFlag),
                 new WorldLocationDescriptorPacket(player.Actor.Position, player.Actor.Orientation),
                 // Manifestation
-                new CurrentCharacterIdPacket(player.CharacterId),
+                new CurrentCharacterIdPacket(player.Actor.EntityId),
                 new LockboxFundsPacket(player.LockboxCredits),
                 new CharacterClassPacket(player.Class),
 
@@ -647,9 +649,10 @@ namespace Rasa.Managers
             client.CallMethod(client.MapClient.Player.Actor.EntityId, new EquipmentInfoPacket(client.MapClient.Inventory.EquippedInventory));
         }
         
-        public void RegisterAutoFire(Client client, Item weapon)
+        public void RegisterAutoFire(Client client)
         {
             // create timer
+            var weapon = InventoryManager.Instance.CurrentWeapon(client);
             var timer = new AutoFireTimer(client, weapon.ItemTemplate.WeaponInfo.RefireTime, weapon.ItemTemplate.WeaponInfo.RefireTime);
             
             AutoFire.Add(timer);
