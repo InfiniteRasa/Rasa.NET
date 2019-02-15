@@ -8,12 +8,12 @@
         public override GameOpcode Opcode { get; } = GameOpcode.BodyAttributes;
 
         public double Scale { get; set; }
-        public int Hue { get; set; }
-        public int IgnoreABVs { get; set; }
-        public int IgnoreWS { get; set; }      // WS is WalkableSurfaces
-        public int Hue2 { get; set; }
+        public uint Hue { get; set; }
+        public bool IgnoreABVs { get; set; }
+        public bool IgnoreWS { get; set; }      // WS is WalkableSurfaces
+        public uint Hue2 { get; set; }
 
-        public BodyAttributesPacket(double scale, int hue, int ignoreABVs, int ignoreWS, int hue2)
+        public BodyAttributesPacket(double scale, uint hue, bool ignoreABVs, bool ignoreWS, uint hue2)
         {
             Scale = scale;
             Hue = hue;
@@ -24,12 +24,12 @@
 
         public override void Write(PythonWriter pw)
         {
-            pw.WriteTuple(1);
+            pw.WriteTuple(5);
             pw.WriteDouble(Scale);
-            pw.WriteInt(Hue);
-            pw.WriteInt(IgnoreABVs);
-            pw.WriteInt(IgnoreWS);
-            pw.WriteInt(Hue2);
+            pw.WriteUInt(Hue);
+            pw.WriteBool(IgnoreABVs);
+            pw.WriteBool(IgnoreWS);
+            pw.WriteUInt(Hue2);
         }
     }
 }

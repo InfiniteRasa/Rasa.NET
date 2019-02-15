@@ -300,53 +300,23 @@ namespace Rasa.Managers
                 return;
             }
 
+            ActorManager.Instance.RequestVisualCombatMode(client, true);
+
             // send first hit to cell, ignore self
             var missileArgs = new MissileArgs();
             client.CellIgnoreSelfCallMethod(client, new PerformRecoveryPacket(PerformType.ListOfArgs, weaponClassInfo.WeaponAttackActionId, (uint)weaponClassInfo.WeaponAttackArgId, missileArgs));
             
             RegisterAutoFire(client, weapon);
-
-            /*
+            
             // decrease ammo count
             weapon.CurrentAmmo -= weapon.ItemTemplate.WeaponInfo.AmmoPerShot;
-
-            // start auto fire loop
-            RegisterAutoFire(client, weapon);
-
-            /*
-            client.SendPacket(weapon.EntityId, new WeaponAmmoInfoPacket(weapon.CurrentAmmo));
-
+            client.CallMethod(weapon.EntityId, new WeaponAmmoInfoPacket(weapon.CurrentAmmo));
+            
             // update ammo in Db
             ItemsTable.UpdateItemCurrentAmmo(weapon.ItemId, weapon.CurrentAmmo);
 
             if (client.MapClient.Player.TargetEntityId == 0)
                 return; // do not continue if no target
-
-            var targetType = EntityManager.Instance.GetEntityType(client.MapClient.Player.TargetEntityId);
-            
-            if (targetType == EntityType.Player) //1:client-type,0=player-type
-            {
-                var mapCell = CellManager.Instance.TryGetCell(
-                    client.MapClient.MapChannel,
-                    client.MapClient.Player.Actor.CellLocation.CellPosX,
-                    client.MapClient.Player.Actor.CellLocation.CellPosY
-                    );
-
-                if (mapCell != null)
-                {
-                    var clientList = client.MapClient.MapChannel.ClientList;
-
-                    foreach (var targetPlayer in clientList)
-                        if (targetPlayer.MapClient.Player.Actor.EntityId == client.MapClient.Player.TargetEntityId)
-                        {
-                            client.MapClient.Player.TargetEntityId = targetPlayer.MapClient.Player.Actor.EntityId;
-                            break;
-                        }
-                }
-
-            }
-
-            var weaponClassInfo = EntityClassManager.Instance.LoadedEntityClasses[weapon.ItemTemplate.ClassId].WeaponClassInfo;
 
             var weaponAttack = new RequestWeaponAttackPacket
             {
@@ -356,11 +326,13 @@ namespace Rasa.Managers
             };
 
             MissileManager.Instance.RequestWeaponAttack(client, weaponAttack);
-            */
+            
         }
 
         public void StopAutoFire(Client client)
         {
+            ActorManager.Instance.RequestVisualCombatMode(client, false);
+
             // go backwards through list
             for (var i = AutoFire.Count - 1; i >= 0; i--)
             {
@@ -438,7 +410,9 @@ namespace Rasa.Managers
 
             client.CallMethod(actor.EntityId, new LogosStoneTabulaPacket(player.Logos));
 
-            client.CallMethod(actor.EntityId, new WeaponDrawerSlotPacket(player.ActiveWeapon, false));
+            client.CallMethod(actor.EntityId, new WeaponDrawerSlotPacket(player.ActiveWeapon, true));
+
+            client.CallMethod(actor.EntityId, new AllCreditsPacket(player.Credits));
         }
 
         public void AutoFireTimerDoWork(long delta)
@@ -531,11 +505,10 @@ namespace Rasa.Managers
             var entityData = new List<PythonPacket>
             {
                 // PhysicalEntity
-                new IsTargetablePacket(EntityClassManager.Instance.GetClassInfo((EntityClassId)player.Actor.EntityClassId).TargetFlag),
+                new IsTargetablePacket(EntityClassManager.Instance.GetClassInfo(player.Actor.EntityClassId).TargetFlag),
                 new WorldLocationDescriptorPacket(player.Actor.Position, player.Actor.Orientation),
                 // Manifestation
                 new CurrentCharacterIdPacket(player.CharacterId),
-                new AllCreditsPacket(player.Credits),
                 new LockboxFundsPacket(player.LockboxCredits),
                 new CharacterClassPacket(player.Class),
 
@@ -560,7 +533,7 @@ namespace Rasa.Managers
         {
             CharacterManager.Instance.UpdateCharacter(client, CharacterUpdate.Credits, (long)credits);
             // send player message
-            client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(262, new Dictionary<string, string> { { "amount", credits.ToString() } }, MsgFilterId.LootObtained));
+            client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(PlayerMessage.PmGotMoneyLootFromUnknown, new Dictionary<string, string> { { "amount", credits.ToString() } }, MsgFilterId.LootObtained));
         }
 
         public void LossCredits(Client client, uint credits)

@@ -26,7 +26,7 @@ namespace Rasa.Structures
             pw.WriteInt((int)MissionState);         // missionStatus
             pw.WriteBool(Completeable);             // bCompleteable
             pw.WriteStruct(MissionConstantData);    // constantData = (missionLevel, groupType, missionCategoryId, bShareable, bRadioCompleteable, rewardInfo)
-            pw.WriteInt(0);                         // changeTime ToDo: sims that client dont use 'changeTime'
+            pw.WriteInt(0);                         // changeTime ToDo: seems that client dont use 'changeTime'
             pw.WriteList(0);                        // ToDo
         }
     }

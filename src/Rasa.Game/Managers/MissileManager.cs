@@ -47,6 +47,9 @@ namespace Rasa.Managers
             if (creature.Actor.State == ActorState.Dead)
                 return;
 
+            if (missile.ActionArgId != 133)
+                Logger.WriteLog(LogType.AI, "test");
+
             // decrease armor first
             var armorDecrease = (int)Math.Min(missile.DamageA, creature.Actor.Attributes[Attributes.Armor].Current);
 
@@ -57,8 +60,15 @@ namespace Rasa.Managers
 
             if (creature.Actor.Attributes[Attributes.Health].Current <= 0)
             {
-                // fix health
+                // fix health so it dont regenerate after death
                 missile.TargetActor.Attributes[Attributes.Health].Current = 0;
+                missile.TargetActor.Attributes[Attributes.Health].RefreshAmount = 0;
+                missile.TargetActor.Attributes[Attributes.Health].RefreshPeriod = 0;
+
+                // fix armor so it dont regenerate after death
+                missile.TargetActor.Attributes[Attributes.Armor].Current = 0;
+                missile.TargetActor.Attributes[Attributes.Armor].RefreshAmount = 0;
+                missile.TargetActor.Attributes[Attributes.Armor].RefreshPeriod = 0;
                 // kill craeture
                 CreatureManager.Instance.HandleCreatureKill(mapChannel, creature, missile.Source);
             }
@@ -68,16 +78,12 @@ namespace Rasa.Managers
                 if (creature.Controller.CurrentAction == BehaviorManager.BehaviorActionWander || creature.Controller.CurrentAction == BehaviorManager.BehaviorActionFollowingPath)
                     BehaviorManager.Instance.SetActionFighting(creature, missile.Source.EntityId);
             }
-            
-            // update health (Recv_UpdateHealth 380)
-            if (armorDecrease != missile.DamageA)
-                CellManager.Instance.CellCallMethod(mapChannel, creature.Actor, new UpdateHealthPacket(creature.Actor.Attributes[Attributes.Health], missile.Source.EntityId));
-            
-            // update armor (Recv_UpdateArmor 380)
-            if (armorDecrease > 0)
-                CellManager.Instance.CellCallMethod(mapChannel, creature.Actor, new UpdateArmorPacket(creature.Actor.Attributes[Attributes.Armor], missile.Source.EntityId));
 
+            // update health
+            CellManager.Instance.CellCallMethod(mapChannel, creature.Actor, new UpdateHealthPacket(creature.Actor.Attributes[Attributes.Health], missile.Source.EntityId));
 
+            // update armor
+            CellManager.Instance.CellCallMethod(mapChannel, creature.Actor, new UpdateArmorPacket(creature.Actor.Attributes[Attributes.Armor], missile.Source.EntityId));
         }
 
         private void DoDamageToPlayer()
@@ -87,7 +93,7 @@ namespace Rasa.Managers
 
         public void RequestWeaponAttack(Client client, RequestWeaponAttackPacket packet)
         {
-            PlayerTryFireWeapon(client);
+            //PlayerTryFireWeapon(client);
 
             /*
 	            // has ammo?
