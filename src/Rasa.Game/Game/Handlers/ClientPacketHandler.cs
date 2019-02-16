@@ -86,6 +86,12 @@
             ClanManager.Instance.CreateClan(Client, packet);
         }
 
+        [PacketHandler(GameOpcode.ClanChangeRankTitle)]
+        private void ClanChangeRankTitle(ClanChangeRankTitlePacket packet)
+        {
+            ClanManager.Instance.ClanChangeRankTitle(Client, packet);
+        }
+
         [PacketHandler(GameOpcode.GetCustomizationChoices)]
         private void GetCustomizationChoices(GetCustomizationChoicesPacket packet)
         {

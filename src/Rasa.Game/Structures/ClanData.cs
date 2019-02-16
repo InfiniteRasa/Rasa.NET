@@ -20,12 +20,10 @@ namespace Rasa.Structures
             Id = entry.Id;
             Name = entry.Name;
             IsPvP = entry.IsPvP;
-
-            // TODO: Remove hardcoded values
-            RankTitles.Add(0, "Rank 0");
-            RankTitles.Add(1, "Rank 1");
-            RankTitles.Add(2, "Rank 2");
-            RankTitles.Add(3, "Rank 3");
+            RankTitles.Add(0, entry.RankTitle0);
+            RankTitles.Add(1, entry.RankTitle1);
+            RankTitles.Add(2, entry.RankTitle2);
+            RankTitles.Add(3, entry.RankTitle3);
         }
 
         public void Read(PythonReader pr)
@@ -60,8 +58,6 @@ namespace Rasa.Structures
             }
 
             pw.WriteBool(IsPvP);
-
-            System.Console.WriteLine($"{pw.ToString()}");
         }
     }
 }

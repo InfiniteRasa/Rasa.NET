@@ -16,6 +16,10 @@
         public bool IsAfk { get; set; }
         public uint CharacterId { get; set; }
 
+        public ClanMemberData()
+        {
+        }
+
         public ClanMemberData(uint userId, uint characterId, string characterName, string familyName, uint clanId, uint level, uint contextId, uint rank, bool isOnline, bool isAfk, string note)
         {
             UserId = userId;

@@ -5,7 +5,10 @@
     using Structures;
 
     public class SetClanDataPacket : ServerPythonPacket
-    {        
+    {
+        // A special key value expected by the client that indicates how it handles the Data
+        public static readonly string NameKey = "ClanData";
+
         public override GameOpcode Opcode => GameOpcode.SetClanData;
 
         public string Name { get; set;  }

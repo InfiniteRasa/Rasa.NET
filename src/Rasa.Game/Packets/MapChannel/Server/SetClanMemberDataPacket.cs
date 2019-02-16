@@ -6,6 +6,8 @@
 
     public class SetClanMemberDataPacket : ServerPythonPacket
     {
+        // A special key value expected by the client that indicates how it handles the Data
+        public static readonly string NameKey = "ClanMemberData";
         public override GameOpcode Opcode => GameOpcode.SetClanMemberData;
 
         public string Name { get; set; }

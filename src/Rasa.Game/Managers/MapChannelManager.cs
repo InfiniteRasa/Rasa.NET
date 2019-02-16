@@ -351,6 +351,10 @@ namespace Rasa.Managers
             CellManager.Instance.AddToWorld(client); // will introduce the player to all clients, including the current owner
             ManifestationManager.Instance.AssignPlayer(client);
             CommunicatorManager.Instance.RegisterPlayer(client);
+
+            // Must be called after AssignPlayer and RegisterPlayer so that IsOnline status can be accurately checked
+            ClanManager.Instance.InitializePlayerClanData(client);
+
             CommunicatorManager.Instance.PlayerEnterMap(client);
             //mission_initForClient(cm);
         }
