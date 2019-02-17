@@ -337,6 +337,9 @@ namespace Rasa.Managers
                 ));
 
             client.LoadingMap = mapData.MapInfo.MapContextId;
+
+            GameAccountTable.UpdateAccount(client.AccountEntry);
+
             // early pass client to mapChannel
             var mapChannel = MapChannelManager.Instance.FindByContextId(mapData.MapInfo.MapContextId);
             MapChannelManager.Instance.PassClientToMapChannel(client, mapChannel);
