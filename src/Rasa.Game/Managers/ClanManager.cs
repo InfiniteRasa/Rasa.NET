@@ -479,6 +479,18 @@ namespace Rasa.Managers
             }
         }
 
+        internal void MakePlayerClanLeader(Client client, MakePlayerClanLeaderPacket packet)
+        {
+            ClanMemberEntry leader = GetClanMembers(client.Player.ClanId).FirstOrDefault(x => x.Rank == ClanTable.ClankRankLeader);
+
+            // Only the leader can assign a new leader
+            if(leader?.CharacterId == client.Player.CharacterId)
+            {
+                ClanMemberEntry member = GetClanMember(client.Player.ClanId, packet.CharacterId);
+                UpdateClanLeader(member, leader);                
+            }
+        }
+
         #endregion
 
         #region Helper Functions
@@ -526,7 +538,6 @@ namespace Rasa.Managers
 
             client.CallMethod(SysEntity.ClientClanManagerId, new ClanMembersRosterEndPacket(clanData.Id));
         }
-
         private void SetClanData(Client client, ClanData clanData)
         {
             Manifestation player = client.Player;            
@@ -719,6 +730,36 @@ namespace Rasa.Managers
             // Refresh the cached member
             member.Rank = newRank;
             RegisterClanMember(member.ClanId, member);
+        }
+
+        private void UpdateClanLeader(ClanMemberEntry member, ClanMemberEntry leaderMember)
+        {
+            ClanTable.UpdateRankByCharacterId(ClanTable.ClankRankLeader, member.CharacterId);
+            ClanTable.UpdateRankByCharacterId(ClanTable.ClankRankLeader - 1, leaderMember.CharacterId);
+            CharacterEntry memberCharacter = CharacterTable.GetCharacterById(member.CharacterId);
+            GameAccountEntry account = GameAccountTable.GetAccountByCharacterId(member.CharacterId);
+
+            // Update the game clients 
+            SetMemberDataForOnlineMembers(member.ClanId);
+
+            string leaderTitle = GetRankTitleForRank(member.ClanId, ClanTable.ClankRankLeader);
+
+            var messageArgs = new Dictionary<string, string>
+            {
+                { "leadername", $"{memberCharacter.Name} {account.FamilyName}" },
+                { "clanname", GetClan(member.ClanId).Name },
+            };
+
+            CallMethodForOnlineMembers(member.ClanId, (uint)SysEntity.ClientClanManagerId,
+                new DisplayClanMessagePacket((int)PlayerMessage.PmClanNewLeader, messageArgs));
+
+            // Refresh the cached member
+            member.Rank = ClanTable.ClankRankLeader;
+            RegisterClanMember(member.ClanId, member);
+
+            // Refresh the old leader
+            leaderMember.Rank = ClanTable.ClankRankLeader - 1;
+            RegisterClanMember(leaderMember.ClanId, leaderMember);
         }
 
         private string GetRankTitleForRank(uint clanId, uint newRank)

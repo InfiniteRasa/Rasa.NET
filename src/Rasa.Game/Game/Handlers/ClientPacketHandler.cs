@@ -104,6 +104,12 @@
             ClanManager.Instance.ClanDemotePlayer(Client, packet);
         }
 
+        [PacketHandler(GameOpcode.MakePlayerClanLeader)]
+        private void MakePlayerClanLeader(MakePlayerClanLeaderPacket packet)
+        {
+            ClanManager.Instance.MakePlayerClanLeader(Client, packet);
+        }
+
         [PacketHandler(GameOpcode.InviteToClanById)]
         private void InviteToClanById(InviteToClanByIdPacket packet)
         {
