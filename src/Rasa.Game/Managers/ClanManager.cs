@@ -742,8 +742,6 @@ namespace Rasa.Managers
             // Update the game clients 
             SetMemberDataForOnlineMembers(member.ClanId);
 
-            string leaderTitle = GetRankTitleForRank(member.ClanId, ClanTable.ClankRankLeader);
-
             var messageArgs = new Dictionary<string, string>
             {
                 { "leadername", $"{memberCharacter.Name} {account.FamilyName}" },
