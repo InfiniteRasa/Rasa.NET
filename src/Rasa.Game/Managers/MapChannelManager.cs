@@ -109,7 +109,8 @@ namespace Rasa.Managers
                 //CurrentAbilityDrawer = data.CurrentAbilityDrawer,
                 Missions = missionData,
                 LoginTime = DateTime.Now,
-                Logos = CharacterLogosTable.GetLogos(client.AccountEntry.Id, client.AccountEntry.SelectedSlot)
+                Logos = CharacterLogosTable.GetLogos(client.AccountEntry.Id, client.AccountEntry.SelectedSlot),
+                FamilyName = client.AccountEntry.FamilyName
             };
 
             return player;
@@ -415,6 +416,7 @@ namespace Rasa.Managers
             CommunicatorManager.Instance.UnregisterPlayer(client);
             CellManager.Instance.RemoveFromWorld(client);
             ManifestationManager.Instance.RemovePlayerCharacter(client);
+            ClanManager.Instance.RemovePlayer(client);
 
             if (logout)
                 if (client.MapClient.Disconected == false)

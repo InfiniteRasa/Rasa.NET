@@ -6,6 +6,8 @@
 
     public class InviteToClanPacket : ServerPythonPacket
     {
+        public static readonly string NameKey = "ClanInviteData";
+
         public override GameOpcode Opcode => GameOpcode.InviteToClan;
 
         public string Name { get; set; }

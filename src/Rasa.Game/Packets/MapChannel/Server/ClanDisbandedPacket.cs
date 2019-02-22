@@ -9,6 +9,11 @@
         
         public uint ClanId { get; set; }
 
+        public ClanDisbandedPacket(uint clanId)
+        {
+            ClanId = clanId;
+        }
+
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(1);

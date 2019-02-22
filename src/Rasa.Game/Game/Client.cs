@@ -480,5 +480,13 @@ namespace Rasa.Game
             return true;
         }
         #endregion
+
+        public Manifestation Player
+        {
+            get
+            {
+                return MapClient?.Player;
+            }
+        }
     }
 }

@@ -13,11 +13,11 @@
         public uint ClanId { get; }
         public bool WasKicked { get; }
 
-        public PlayerLeftClanPacket(uint characterId, string firstName, string lastName, uint clanId, bool wasKicked)
+        public PlayerLeftClanPacket(uint characterId, string firstName, string familyName, uint clanId, bool wasKicked)
         {
             CharacterId = characterId;
             FirstName = firstName;
-            LastName = lastName;
+            LastName = familyName;
             ClanId = clanId;
             WasKicked = wasKicked;
         }

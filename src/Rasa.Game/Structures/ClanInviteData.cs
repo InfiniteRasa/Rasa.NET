@@ -10,6 +10,11 @@
         public bool IsPvP { get; set; }
         public uint InvitedCharacterId { get; set; }
 
+        public ClanInviteData()
+        {
+
+        }
+
         public ClanInviteData(string inviterFamilyName, uint clanId, string clanName, bool isPvP, uint invitedCharacterId)
         {
             InviterFamilyName = inviterFamilyName;

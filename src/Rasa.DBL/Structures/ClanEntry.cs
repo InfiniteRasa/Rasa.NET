@@ -1,5 +1,6 @@
-﻿using MySql.Data.MySqlClient;
-using System;
+﻿using System;
+
+using MySql.Data.MySqlClient;
 
 namespace Rasa.Structures
 {

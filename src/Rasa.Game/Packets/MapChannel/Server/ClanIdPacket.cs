@@ -17,7 +17,12 @@
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(1);
-            pw.WriteUInt(ClanId);
+
+            // The client expects None if there is no ClanId
+            if (ClanId <= 0)
+                pw.WriteNoneStruct();
+            else
+                pw.WriteUInt(ClanId);
         }
     }
 }

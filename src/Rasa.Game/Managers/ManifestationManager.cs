@@ -438,7 +438,11 @@ namespace Rasa.Managers
 
             client.CallMethod(actor.EntityId, new LogosStoneTabulaPacket(player.Logos));
 
-            client.CallMethod(actor.EntityId, new WeaponDrawerSlotPacket(player.ActiveWeapon, false));            
+            client.CallMethod(actor.EntityId, new WeaponDrawerSlotPacket(player.ActiveWeapon, false));
+
+            ClanEntry clan = ClanTable.GetClanByCharacterId(player.CharacterId);
+            client.Player.ClanId = clan?.Id ?? 0;
+            client.Player.ClanName = clan?.Name;
         }
 
         public void AutoFireTimerDoWork(long delta)

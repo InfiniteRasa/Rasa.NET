@@ -31,6 +31,7 @@ namespace Rasa.Structures
         public uint NumLogins { get; set; }
         public DateTime? LastLogin { get; set; }
         public uint TotalTimePlayed { get; set; }
+        public DateTime? LastPvPClan { get; set; }
 
         public static CharacterEntry Read(MySqlDataReader reader, bool newReader = true)
         {
@@ -38,6 +39,7 @@ namespace Rasa.Structures
                 return null;
 
             var lastLoginOrdinal = reader.GetOrdinal("last_login");
+            var lastPvPClanOrdinal = reader.GetOrdinal("last_pvp_clan");
 
             return new CharacterEntry
             {
@@ -47,7 +49,7 @@ namespace Rasa.Structures
                 Name = reader.GetString("name"),
                 Race = reader.GetByte("race"),
                 Class = reader.GetUInt32("class"),
-                Gender = (byte) (reader.GetBoolean("gender") ? 1 : 0),
+                Gender = (byte)(reader.GetBoolean("gender") ? 1 : 0),
                 Scale = reader.GetDouble("scale"),
                 Experience = reader.GetUInt32("experience"),
                 Level = reader.GetByte("level"),
@@ -64,8 +66,9 @@ namespace Rasa.Structures
                 Prestige = reader.GetUInt32("prestige"),
                 ActiveWeapon = reader.GetByte("active_weapon"),
                 NumLogins = reader.GetUInt32("num_logins"),
-                LastLogin = reader.IsDBNull(lastLoginOrdinal) ? (DateTime?) null : reader.GetDateTime(lastLoginOrdinal),
-                TotalTimePlayed = reader.GetUInt32("total_time_played")
+                LastLogin = reader.IsDBNull(lastLoginOrdinal) ? (DateTime?)null : reader.GetDateTime(lastLoginOrdinal),
+                TotalTimePlayed = reader.GetUInt32("total_time_played"),
+                LastPvPClan = reader.IsDBNull(lastPvPClanOrdinal) ? (DateTime?)null : reader.GetDateTime(lastPvPClanOrdinal)
             };
         }
     }

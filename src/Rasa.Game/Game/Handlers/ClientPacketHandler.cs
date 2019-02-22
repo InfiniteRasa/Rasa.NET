@@ -92,6 +92,42 @@
             ClanManager.Instance.ClanChangeRankTitle(Client, packet);
         }
 
+        [PacketHandler(GameOpcode.ClanPromotePlayer)]
+        private void ClanPromotePlayer(ClanPromotePlayerPacket packet)
+        {
+            ClanManager.Instance.ClanPromotePlayer(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.ClanDemotePlayer)]
+        private void CreateClan(ClanDemotePlayerPacket packet)
+        {
+            ClanManager.Instance.ClanDemotePlayer(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.InviteToClanById)]
+        private void InviteToClanById(InviteToClanByIdPacket packet)
+        {
+            ClanManager.Instance.InviteToClanById(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.InviteToClanByName)]
+        private void InviteToClanByName(InviteToClanByNamePacket packet)
+        {
+            ClanManager.Instance.InviteToClanByName(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.ClanInvitationResponse)]
+        private void ClanInvitationResponse(ClanInvitationResponsePacket packet)
+        {
+            ClanManager.Instance.ClanInvitationResponse(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.LeaveClan)]
+        private void LeaveClan(LeaveClanPacket packet)
+        {
+            ClanManager.Instance.LeaveClan(Client, packet);
+        }
+
         [PacketHandler(GameOpcode.GetCustomizationChoices)]
         private void GetCustomizationChoices(GetCustomizationChoicesPacket packet)
         {
@@ -102,6 +138,18 @@
         private void GetPvPClanMembershipStatus(GetPvPClanMembershipStatusPacket packet)
         {
             ClanManager.Instance.GetPvPClanMembershipStatus(Client);    // packet have 0 argumenst, no need to pass it
+        }
+
+        [PacketHandler(GameOpcode.DisbandClan)]
+        private void DisbandClan(DisbandClanPacket packet)
+        {
+            ClanManager.Instance.DisbandClan(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.KickPlayerFromClan)]
+        private void KickPlayerFromClan(KickPlayerFromClanPacket packet)
+        {
+            ClanManager.Instance.KickPlayerFromClan(Client, packet);
         }
 
         [PacketHandler(GameOpcode.HomeInventory_DestroyItem)]

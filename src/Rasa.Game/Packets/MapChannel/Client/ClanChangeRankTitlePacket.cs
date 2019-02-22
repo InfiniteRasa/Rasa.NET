@@ -1,11 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using Rasa.Data;
-using Rasa.Memory;
-
-namespace Rasa.Packets.MapChannel.Client
+﻿namespace Rasa.Packets.MapChannel.Client
 {
+    using Data;
+    using Memory;
+
     public class ClanChangeRankTitlePacket : ClientPythonPacket
     {
         public override GameOpcode Opcode => GameOpcode.ClanChangeRankTitle;
