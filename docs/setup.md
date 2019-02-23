@@ -3,10 +3,9 @@ This guide will help you install and setup the required tools to run Rasa.NET. T
 
 1. Download, install, and setup the required tooling
 2. Download and install the game
-3. Patch the game using a custom patcher
-4. Download or clone the code
-5. Build and run the code from Visual Studio
-6. Launch the game
+3. Download or clone the code
+4. Build and run the code from Visual Studio
+5. Launch the game
 
 ## Download, install, and setup the required tooling
 The following tools are required to setup, build, and run Rasa.NET:
@@ -55,10 +54,8 @@ You'll need the game client. Below is the demo version which was made freely ava
   - Select the `Shortcut` tab
   - Edit the `Target` box to append `/NoPatch /AuthServer=localhost:2106` to the end of the file path. 
 
-## Patch the game using the custom patcher
-The game client needs to be patched to a specific version that is compatible with Rasa.NET. 
-
-- [Download and run the custom patcher](https://infiniterasa.org/viewtopic.php?f=15&t=8)
+### Version 1.16.5.0 Required
+The game client needs to be version 1.16.5.0. If you have questions, [join the Discord](https://discord.gg/Ph68FmA). 
 
 ## Download or clone the code
 Download Rasa.NET from GitHub or use Git to clone the project (recommended). 
