@@ -132,20 +132,20 @@ namespace Rasa.Managers
                 throw new ArgumentNullException(nameof(client));
 
             ClanEntry clan = ClanTable.GetClanByCharacterId(client.Player.CharacterId);
+
+            string clanName = clan?.Name;
             uint pvpTimeoutSeconds = 0;
 
-            if(clan != null)
+            CharacterEntry character = CharacterTable.GetCharacterById(client.Player.CharacterId);
+            var now = DateTime.UtcNow;
+            var maxCooldownTime = now.AddDays(-7);
+
+            if (character.LastPvPClan.HasValue && character.LastPvPClan.Value > maxCooldownTime)
             {
-                CharacterEntry character = CharacterTable.GetCharacterById(client.Player.CharacterId);
-                var now = DateTime.UtcNow;
-
-                if (character.LastPvPClan.HasValue && character.LastPvPClan.Value > now)
-                {
-                    pvpTimeoutSeconds = (uint)(now - character.LastPvPClan.Value).TotalSeconds;
-                }
-
-                client.CallMethod(SysEntity.ClientClanManagerId, new GetPvPClanStatusPacket(clan.IsPvP ? clan.Name : null, pvpTimeoutSeconds));
+                pvpTimeoutSeconds = (uint)(now - character.LastPvPClan.Value).TotalSeconds;
             }
+
+            client.CallMethod(SysEntity.ClientClanManagerId, new GetPvPClanStatusPacket(clanName, pvpTimeoutSeconds));
         }
 
         /// <summary>

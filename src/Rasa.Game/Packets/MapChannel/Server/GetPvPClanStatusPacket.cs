@@ -19,7 +19,17 @@
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(2);
-            pw.WriteString(PvpClanName);
+
+            if (string.IsNullOrEmpty(PvpClanName))
+            {
+                // Client expects == None when empty
+                pw.WriteNoneStruct();
+            }
+            else
+            {
+                pw.WriteString(PvpClanName);
+            }
+
             pw.WriteUInt(PvpTimeoutSeconds);
         }
     }
