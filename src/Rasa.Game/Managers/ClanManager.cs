@@ -78,14 +78,8 @@ namespace Rasa.Managers
 
         #region Caching
 
-        /// <summary>
-        /// A threadsafe cache for all of the clans in the game with the clan ID as the key.
-        /// </summary>
         public ConcurrentDictionary<uint, Lazy<ClanEntry>> Clans { get; set; } = new ConcurrentDictionary<uint, Lazy<ClanEntry>>();
         
-        /// <summary>
-        /// A threadsafe cache for all of the members to a clan with the clan ID as the key.
-        /// </summary>
         public ConcurrentDictionary<uint, Lazy<List<ClanMemberEntry>>> ClanMembers { get; set; } = new ConcurrentDictionary<uint, Lazy<List<ClanMemberEntry>>>();
 
         #endregion
@@ -121,11 +115,7 @@ namespace Rasa.Managers
         }        
 
         #region Client Packet Handlers
-
-        /// <summary>
-        /// Client packet handler for <see cref="GameOpcode.GetPvPClanMembershipStatus". Gets the any remaining time that the player must wait
-        /// before joining a PvP clan (max 7 days)./>
-        /// </summary>        
+    
         internal void GetPvPClanMembershipStatus(Client client)
         {
             if (client == null)
@@ -148,9 +138,6 @@ namespace Rasa.Managers
             client.CallMethod(SysEntity.ClientClanManagerId, new GetPvPClanStatusPacket(clanName, pvpTimeoutSeconds));
         }
 
-        /// <summary>
-        /// Client packet handler for <see cref="GameOpcode.CreateClan"./>
-        /// </summary>
         internal void CreateClan(Client client, CreateClanPacket packet)
         {
             if (client == null)
@@ -225,9 +212,6 @@ namespace Rasa.Managers
             }
         }
 
-        /// <summary>
-        /// Client packet handler for <see cref="GameOpcode.ClanInvitationResponse"/>.
-        /// </summary>
         internal void ClanInvitationResponse(Client client, ClanInvitationResponsePacket packet)
         {
             if (client == null)
@@ -398,9 +382,6 @@ namespace Rasa.Managers
             }
         }
 
-        /// <summary>
-        /// Client packet handler for <see cref="GameOpcode.DisbandClan"/>.
-        /// </summary>
         internal void DisbandClan(Client client, DisbandClanPacket packet)
         {
             if (client == null)
@@ -443,10 +424,6 @@ namespace Rasa.Managers
             }
         }
 
-        /// <summary>
-        /// Removes the <paramref name="client"/> player - useful for when they are disconnected.
-        /// </summary>
-        /// <param name="client"></param>
         internal void RemovePlayer(Client client)
         {
             if (client.Player.ClanId > 0)
