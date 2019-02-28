@@ -191,8 +191,14 @@ namespace Rasa.Managers
             // The leader and the rank below them can kick players
             if (member.Rank >= ClanTable.ClankRankLeader - 1 && client.Player.ClanId == packet.ClanId)
             {
-                if(ClanTable.DeleteClanMember(memberToBeKicked))
+                if (clan.IsPvP)
                 {
+                    // Save the time they were last in a PvP clan to start the 7 day cooldown.
+                    ClanTable.UpdateLastPvPClanTimeForMembers(clan.Id, DateTime.UtcNow);
+                }
+
+                if (ClanTable.DeleteClanMember(memberToBeKicked))
+                {                    
                     UnregisterClanMember(memberToBeKicked);
 
                     SetMemberDataForOnlineMembers(member.ClanId, packet.CharacterId);
@@ -365,9 +371,16 @@ namespace Rasa.Managers
                 throw new ArgumentNullException(nameof(packet));
 
             ClanMemberEntry member = GetClanMember(packet.ClanId, client.Player.CharacterId);
+            ClanEntry clan = GetClan(packet.ClanId);
 
-            if(ClanTable.DeleteClanMember(member))
+            if (clan.IsPvP)
             {
+                // Save the time they were last in a PvP clan to start the 7 day cooldown.
+                ClanTable.UpdateLastPvPClanTimeForMembers(clan.Id, DateTime.UtcNow);
+            }
+
+            if (ClanTable.DeleteClanMember(member))
+            {                
                 UnregisterClanMember(member);
 
                 // Notifies other players still in the clan that we left
