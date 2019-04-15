@@ -94,6 +94,7 @@ namespace Rasa.Managers
                 List<ClanMemberEntry> clanMembers = ClanTable.GetAllClanMembersByClanId(clan.Id);
                 ClanMembers.AddOrUpdate(clan.Id, new Lazy<List<ClanMemberEntry>>(clanMembers), (x, y) => new Lazy<List<ClanMemberEntry>>(clanMembers));
             }
+            InitCurrentClanInventories(ClanTable.GetClans());
         }
 
         internal void InitializePlayerClanData(Client client)
@@ -112,7 +113,42 @@ namespace Rasa.Managers
                 SetClanDataForOnlineMembers(clanData.Id, client.Player.CharacterId);
                 SetMemberDataForOnlineMembers(clanData.Id, client.Player.CharacterId);                
             }
-        }        
+        }
+
+        internal void InitCurrentClanInventories(List<ClanEntry> clans)
+        {
+            foreach (ClanEntry clan in clans)
+            {
+                List<ClanInventoryEntry> getClanInventoryData = ClanInventoryTable.GetItems(clan.Id);
+
+                foreach (var item in getClanInventoryData)
+                {
+                    var itemData = ItemsTable.GetItem(item.ItemId);
+                    var itemTemplate = ItemManager.Instance.GetItemTemplateById(itemData.ItemTemplateId);
+
+                    if (itemTemplate == null)
+                        return;
+
+                    Item newItem = new Item
+                    {
+                        OwnerSlotId = item.SlotId,
+                        ItemTemplate = itemTemplate,
+                        Stacksize = itemData.StackSize,
+                        CurrentHitPoints = itemData.CurrentHitPoints,
+                        Color = itemData.Color,
+                        ItemId = item.ItemId,
+                        CrafterName = itemData.CrafterName
+                    };
+
+                    // check if item is weapon
+                    if (newItem.ItemTemplate.WeaponInfo != null)
+                        newItem.CurrentAmmo = itemData.AmmoCount;
+
+                    EntityManager.Instance.RegisterEntity(newItem.EntityId, EntityType.Item);
+                    EntityManager.Instance.RegisterItem(newItem.EntityId, newItem);
+                }
+            }
+        }
 
         #region Client Packet Handlers
     
@@ -169,8 +205,14 @@ namespace Rasa.Managers
                     SetClanData(client, clanData);
                     SetClanMemberData(client, clanData);
 
+                    client.MapClient.Player.ClanId = clan.Id;
+
                     // Cache the newly created clan
                     RegisterClan(clan);
+
+                    // Add new db row for clan currency
+                    if (ClanLockboxTable.GetLockboxInfo(clanData.Id).Count < 2)
+                        ClanLockboxTable.AddLockboxInfo(clanData.Id);
                 }
             }
         }
@@ -244,11 +286,24 @@ namespace Rasa.Managers
 
             CallMethodForOnlineMembers(packet.ClanId, (uint)SysEntity.ClientClanManagerId,
                 new PlayerJoinedClanPacket(SetClanMemberDataPacket.NameKey, memberData),
-                packet.InvitedCharacterId);            
+                packet.InvitedCharacterId);
 
             // Update the joined players clan window
             SetClanData(client, clanData);
             SetClanMemberData(client, clanData);
+
+            client.Player.ClanId = clanData.Id;
+
+            //update clan inventory from db
+            InventoryManager.Instance.SetupLocalClanInventory(client);
+        }
+
+        internal void CleanupClan(Client client)
+        {
+            for (int i = 0; i < 500; i++)
+                client.MapClient.Inventory.ClanInventory[i] = 0;
+
+            client.Player.ClanId = 0;
         }
 
         internal void InviteToClanByName(Client client, InviteToClanByNamePacket packet)
@@ -434,6 +489,8 @@ namespace Rasa.Managers
 
                 UnregisterClan(clan);
                 UnregisterClanMembers(clan.Id);
+
+                //TODO: Clear clan lockbox db inventory?
             }
         }
 
@@ -648,7 +705,7 @@ namespace Rasa.Managers
             CallMethodForOnlineMembers(clanId, (client) => SetClanData(client, clanData), skipCharacterId);
         }
 
-        private void CallMethodForOnlineMembers(uint clanId, uint entityId, ServerPythonPacket packet, uint skipCharacterId = 0)
+        public void CallMethodForOnlineMembers(uint clanId, uint entityId, ServerPythonPacket packet, uint skipCharacterId = 0, uint onlyThisCharacterId = 0)
         {
             foreach (ClanMemberEntry member in GetClanMembers(clanId))
             {                
@@ -656,7 +713,8 @@ namespace Rasa.Managers
                 if (CommunicatorManager.PlayersByCharacterId.TryGetValue(member.CharacterId, out Client memberClient))
                 {
                     // Don't send a message to this player
-                    if (skipCharacterId != 0 && skipCharacterId == memberClient.Player.CharacterId)
+                    if ((skipCharacterId != 0 && skipCharacterId == memberClient.Player.CharacterId) ||
+                        onlyThisCharacterId != 0 && onlyThisCharacterId != memberClient.Player.CharacterId)
                         continue;
 
                     memberClient.CallMethod(entityId, packet);
@@ -664,7 +722,7 @@ namespace Rasa.Managers
             }
         }
 
-        private void CallMethodForOnlineMembers(uint clanId, Action<Client> methodToCall, uint skipCharacterId = 0)
+        public void CallMethodForOnlineMembers(uint clanId, Action<Client> methodToCall, uint skipCharacterId = 0, uint onlyThisCharacterId = 0)
         {
             foreach (ClanMemberEntry member in GetClanMembers(clanId))
             {
@@ -672,7 +730,8 @@ namespace Rasa.Managers
                 if (CommunicatorManager.PlayersByCharacterId.TryGetValue(member.CharacterId, out Client memberClient))
                 {
                     // Don't send a message to this player
-                    if (skipCharacterId != 0 && skipCharacterId == memberClient.Player.CharacterId)
+                    if ((skipCharacterId != 0 && skipCharacterId == memberClient.Player.CharacterId) ||
+                        onlyThisCharacterId != 0 && onlyThisCharacterId != memberClient.Player.CharacterId)
                         continue;
 
                     methodToCall.Invoke(memberClient);
@@ -780,6 +839,7 @@ namespace Rasa.Managers
 
         private void UnregisterClan(ClanEntry clan)
         {
+            CallMethodForOnlineMembers(clan.Id, (client) => CleanupClan(client));
             Clans.Remove(clan.Id, out _);
         }
 
@@ -817,11 +877,12 @@ namespace Rasa.Managers
 
             if (existingMember != null)
             {
+                CallMethodForOnlineMembers(member.ClanId, (client) => CleanupClan(client), 0, member.CharacterId);
                 members.Remove(existingMember);
                 ClanMembers.AddOrUpdate(member.ClanId, new Lazy<List<ClanMemberEntry>>(members), (x, y) => new Lazy<List<ClanMemberEntry>>(members));
             }
         }
-
+        
         private void UnregisterClanMembers(uint clanId)
         {
             _ = ClanMembers.Remove(clanId, out _);        
@@ -834,7 +895,7 @@ namespace Rasa.Managers
             return clanMembers.Value ?? ClanTable.GetAllClanMembersByClanId(clanId);
         }
 
-        private ClanMemberEntry GetClanMember(uint clanId, uint characterId)
+        public ClanMemberEntry GetClanMember(uint clanId, uint characterId)
         {
             Lazy<List<ClanMemberEntry>> clanMembers = ClanMembers.GetValueOrDefault(clanId);
 
