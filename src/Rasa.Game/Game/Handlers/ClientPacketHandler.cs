@@ -158,6 +158,42 @@
             ClanManager.Instance.KickPlayerFromClan(Client, packet);
         }
 
+        [PacketHandler(GameOpcode.ClanLockbox_DepositItemInSlot)]
+        private void ClanLockbox_DepositItemInSlot(ClanLockbox_DepositItemInSlotPacket packet)
+        {
+            InventoryManager.Instance.ClanLockbox_DepositItemInSlot(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.ClanLockbox_WithdrawItem)]
+        private void ClanLockbox_WithdrawItem(ClanLockbox_WithdrawItemPacket packet)
+        {
+            InventoryManager.Instance.ClanLockbox_WithdrawItem(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.ClanLockbox_DestroyItem)]
+        private void ClanLockbox_DestroyItem(ClanLockbox_DestroyItemPacket packet)
+        {
+            InventoryManager.Instance.ClanLockbox_DestroyItem(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.ClanLockbox_MoveItem)]
+        private void ClanLockbox_MoveItem(ClanLockbox_MoveItemPacket packet)
+        {
+            InventoryManager.Instance.ClanLockbox_MoveItem(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.ClanLockbox_DepositItemInTab)]
+        private void ClanLockbox_MoveItem(ClanLockbox_DepositItemInTabPacket packet)
+        {
+            InventoryManager.Instance.ClanLockbox_DepositItemInTab(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.ClanCreditTransfer)]
+        private void ClanCreditTransfer(ClanCreditTransferPacket packet)
+        {
+            InventoryManager.Instance.ClanCreditTransfer(Client, packet.Ammount, packet.CreditsType);
+        }
+
         [PacketHandler(GameOpcode.HomeInventory_DestroyItem)]
         private void HomeInventory_DestroyItem(HomeInventory_DestroyItemPacket packet)
         {

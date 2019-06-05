@@ -44,6 +44,27 @@ CREATE TABLE IF NOT EXISTS `character_lockbox` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- Data exporting was unselected.
+-- Dumping structure for table rasachar.clan_lockbox
+DROP TABLE IF EXISTS `clan_lockbox`;
+CREATE TABLE IF NOT EXISTS `clan_lockbox` (
+  `clanId` int(10) unsigned NOT NULL,
+  `credits` int(10) unsigned NOT NULL DEFAULT '0',
+  `prestige` int(10) unsigned NOT NULL DEFAULT '0',
+  `purchasedTabs` int(10) unsigned NOT NULL DEFAULT '1',
+  PRIMARY KEY (`clanId`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+-- Data exporting was unselected.
+-- Dumping structure for table rasachar.clan_inventory
+DROP TABLE IF EXISTS `clan_inventory`;
+CREATE TABLE IF NOT EXISTS `clan_inventory` (
+  `clanid` int(10) unsigned NOT NULL,
+  `slotId` int(10) NOT NULL,
+  `itemId` int(10) unsigned NOT NULL, 
+  UNIQUE KEY `itemId` (`itemId`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+-- Data exporting was unselected.
 -- Dumping structure for table rasachar.character_logos
 DROP TABLE IF EXISTS `character_logos`;
 CREATE TABLE IF NOT EXISTS `character_logos` (
@@ -109,7 +130,7 @@ CREATE TABLE IF NOT EXISTS `user_options` (
 
 -- Data exporting was unselected.
 
-INSERT INTO `applied_patches` (`patch_name`) VALUES ('rasachar_2018_11_20_16_35');
+INSERT INTO `applied_patches` (`patch_name`) VALUES ('rasachar_2018_11_20_16_39');
 
 /*!40101 SET SQL_MODE=IFNULL(@OLD_SQL_MODE, '') */;
 /*!40014 SET FOREIGN_KEY_CHECKS=IF(@OLD_FOREIGN_KEY_CHECKS IS NULL, 1, @OLD_FOREIGN_KEY_CHECKS) */;
