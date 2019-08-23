@@ -96,7 +96,14 @@
 
         public void RequestActionInterrupt(Client client, RequestActionInterruptPacket packet)
         {
-            client.CallMethod(client.MapClient.Player.Actor.EntityId, new PerformRecoveryPacket(PerformType.TwoArgs, packet.ActionId, packet.ActionArgId));
+            foreach (var action in client.MapClient.MapChannel.PerformRecovery)
+                if (action.Actor == client.MapClient.Player.Actor)
+                    if (action.ActionId == packet.ActionId)
+                        if (action.ActionArgId == packet.ActionArgId)
+                        {
+                            action.IsInrerrupted = true;
+                            break;
+                        }
         }
 
         public void RequestVisualCombatMode(Client client, bool combatMode)

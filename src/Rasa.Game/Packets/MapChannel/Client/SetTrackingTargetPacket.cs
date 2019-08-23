@@ -9,6 +9,10 @@
 
         public uint EntityId { get; set; }
 
+        public SetTrackingTargetPacket()
+        {
+        }
+
         public SetTrackingTargetPacket(uint entityId)
         {
             EntityId = entityId;

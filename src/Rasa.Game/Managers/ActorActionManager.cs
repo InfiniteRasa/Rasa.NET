@@ -1,12 +1,7 @@
-﻿using System.Collections.Generic;
-
-namespace Rasa.Managers
+﻿namespace Rasa.Managers
 {
     using Data;
-    using Database.Tables.Character;
-    using Game;
     using Packets.MapChannel.Server;
-    using Packets;
     using Timer;
     using Structures;
 
@@ -37,69 +32,78 @@ namespace Rasa.Managers
         {
         }
 
-        public bool HasActiveAction(Client client)
+        public bool HasActiveAction(Actor actor)
         {
-            if (client.MapClient.Player.Actor.CurrentAction == 0)
+            if (actor.CurrentAction == 0)
                 return false;
-
-            CommunicatorManager.Instance.SystemMessage(client, "Player is busy.");
+            
             return true;
         }
 
         public void DoWork(MapChannel mapChannel, long delta)
         {
-            if (mapChannel.PerformActions.Count > 0)
+            if (mapChannel.PerformRecovery.Count > 0)
             {
-                Logger.WriteLog(LogType.Debug, $"PerformActions count = { mapChannel.PerformActions.Count}");
+                if (mapChannel.PerformRecovery.Count > 1)
+                    Logger.WriteLog(LogType.Debug, $"PerformRecovery count = { mapChannel.PerformRecovery.Count}");
+
                 // iterate backwards through list
-                for (var i = mapChannel.PerformActions.Count - 1; i >= 0; i--)
+                for (var i = mapChannel.PerformRecovery.Count - 1; i >= 0; i--)
                 {
-                    var action = mapChannel.PerformActions[i];
+                    var action = mapChannel.PerformRecovery[i];
 
                     // skip if client is busy
-                    if (HasActiveAction(action.Client))
+                    if (HasActiveAction(action.Actor))
                         continue;
+
+                    // if action is interrupted recover immediately
+                    if (action.IsInrerrupted)
+                        action.PassedTime = action.WaitTime;
 
                     action.PassedTime += delta;
 
                     if (action.WaitTime <= action.PassedTime)
                     {
                         // perform action
-                        PerformAction(action);
+                        PerformRecovery(mapChannel, action);
                         // remove action
-                        mapChannel.PerformActions.Remove(action);
+                        mapChannel.PerformRecovery.Remove(action);
                     }
                 }
             }
         }
 
-        public void PerformAction(ActionData action)
+        public void PerformRecovery(MapChannel mapChannel, ActionData action)
         {
             switch (action.ActionId)
             {
+                case ActionId.AaRecruitLightning:
+                    CellManager.Instance.CellCallMethod(mapChannel, action.Actor, new PerformRecoveryPacket(PerformType.TwoArgs, action.ActionId, action.ActionArgId));
+                    // ToDo: do damage
+                    break;
+                case ActionId.AaRecruitSprint:
+                    GameEffectManager.Instance.AttachSprint(mapChannel, action.Actor, action.ActionArgId, 500);
+                    break;
+                case ActionId.UseObject:
+                    CellManager.Instance.CellCallMethod(mapChannel, action.Actor, new PerformRecoveryPacket(PerformType.TwoArgs, action.ActionId, action.ActionArgId));
+                    break;
                 case ActionId.WeaponAttack:
-                    Logger.WriteLog(LogType.Debug, $"PerformAction {action.ActionArgId} {action.ActionId} {action.Args}");
+                    Logger.WriteLog(LogType.Debug, $"PerformRecovery {action.ActionArgId} {action.ActionId} {action.Args}");
                     /*
                     PlayerManager.Instance.StartAutoFire(action.Client, 0D);
                     action.Client.CellCallMethod(action.Client, action.Client.MapClient.Player.Actor.EntityId, new PerformRecoveryPacket(action.ActionId, action.ActionArgId, new List<int> { 1 }));
                     */
                     break;
-                case ActionId.WeaponStow:
-                    action.Client.CellCallMethod(action.Client, action.Client.MapClient.Player.Actor.EntityId, new PerformRecoveryPacket(PerformType.TwoArgs, action.ActionId, action.ActionArgId));
-                    action.Client.MapClient.Player.WeaponReady = false;
-                    break;
                 case ActionId.WeaponDraw:
-                    action.Client.CellCallMethod(action.Client, action.Client.MapClient.Player.Actor.EntityId, new PerformRecoveryPacket(PerformType.TwoArgs, action.ActionId, action.ActionArgId));
-                    action.Client.MapClient.Player.WeaponReady = true;
+                    CellManager.Instance.CellCallMethod(mapChannel, action.Actor, new PerformRecoveryPacket(PerformType.TwoArgs, action.ActionId, action.ActionArgId));
+                    action.Actor.WeaponReady = true;
                     break;
                 case ActionId.WeaponReload:
                     ManifestationManager.Instance.WeaponReload(action);
                     break;
-                case ActionId.AaRecruitLightning:
-                    action.Client.CellCallMethod(action.Client, action.Client.MapClient.Player.Actor.EntityId, new PerformWindupPacket(PerformType.TwoArgs, action.ActionId, action.ActionArgId));
-                    break;
-                case ActionId.AaRecruitSprint:
-                    GameEffectManager.Instance.AttachSprint(action.Client, action.Client.MapClient.Player.Actor, action.ActionArgId, 500);
+                case ActionId.WeaponStow:
+                    CellManager.Instance.CellCallMethod(mapChannel, action.Actor, new PerformRecoveryPacket(PerformType.TwoArgs, action.ActionId, action.ActionArgId));
+                    action.Actor.WeaponReady = false;
                     break;
                 default:
                     Logger.WriteLog(LogType.Error, $"PerformAction: unsuported {action.ActionId}");

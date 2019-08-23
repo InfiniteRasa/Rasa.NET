@@ -21,12 +21,12 @@ namespace Rasa.Structures
         // queue
         public readonly Queue<Client> QueuedClients = new Queue<Client>();
         // action
-        public readonly List<ActionData> PerformActions = new List<ActionData>();
+        public readonly List<ActionData> PerformRecovery = new List<ActionData>();
         // cell
         public MapCellInfo MapCellInfo = new MapCellInfo();
         // effect
         public int CurrentEffectId { get; set; } // increases with every spawned game effect
-        
+
         // Dynamic Object List
         public List<DynamicObject> DynamicObjects = new List<DynamicObject>();
         

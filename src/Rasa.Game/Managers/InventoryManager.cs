@@ -307,7 +307,7 @@ namespace Rasa.Managers
                     ManifestationManager.Instance.RemoveAppearanceItem(client, equipableClassInfo.EquipmentSlotId);
 
                     // we dont have weapon, set weaponReady to false
-                    if (client.MapClient.Player.WeaponReady)
+                    if (client.MapClient.Player.Actor.WeaponReady)
                         ManifestationManager.Instance.WeaponReady(client, false);
                 }
                 else

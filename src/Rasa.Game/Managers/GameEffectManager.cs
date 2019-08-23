@@ -35,10 +35,10 @@
             actor.ActiveEffects.Add(gameEffect.EffectId, gameEffect);
         }
 
-        public void AttachSprint(Client client, Actor actor, uint effectLevel, int duration)
+        public void AttachSprint(MapChannel mapChannel, Actor actor, uint effectLevel, int duration)
         {
-            client.MapClient.MapChannel.CurrentEffectId++; // generate new effectId
-            var effectId = client.MapClient.MapChannel.CurrentEffectId;
+            mapChannel.CurrentEffectId++; // generate new effectId
+            var effectId = mapChannel.CurrentEffectId;
             // effectId -> The id used to identify the effect when sending/receiving effect related data (similiar to entityId, just for effects)
             // typeId -> The id used to lookup the effect class and animation
             // level -> The sub id of the effect, some effects have multiple levels (especially the ones linked with player abilities)
@@ -54,7 +54,7 @@
             };
             // add to list
             AddToList(actor, gameEffect);
-            client.CellCallMethod(client, actor.EntityId, new GameEffectAttachedPacket
+            CellManager.Instance.CellCallMethod(mapChannel, actor, new GameEffectAttachedPacket
             {
                 EffectTypeId = gameEffect.TypeId,
                 EffectId = gameEffect.EffectId,
@@ -70,18 +70,18 @@
                 IsNegativeEffect = false
             });
             // do ability specific work
-            UpdateMovementMod(client, actor);
+            UpdateMovementMod(mapChannel, actor);
         }
 
-        public void DettachEffect(Client client, Actor actor, GameEffect gameEffect)
+        public void DettachEffect(MapChannel mapChannel, Actor actor, GameEffect gameEffect)
         {
             // inform clients (Recv_GameEffectDetached 75)
-            client.CellCallMethod(client, actor.EntityId, new GameEffectDetachedPacket { EffectId = gameEffect.EffectId });
+            CellManager.Instance.CellCallMethod(mapChannel, actor, new GameEffectDetachedPacket { EffectId = gameEffect.EffectId });
             // remove from list
             RemoveFromList(actor, gameEffect);
             // do ability specific work
             if (gameEffect.TypeId == 247)
-                UpdateMovementMod(client, actor);
+                UpdateMovementMod(mapChannel, actor);
             // more todo..
         }
 
@@ -103,7 +103,7 @@
                     // stop effect if too old
                     if (effect.EffectTime >= effect.Duration)
                     {
-                        DettachEffect(client, actor, effect);
+                        DettachEffect(mapChannel, actor, effect);
                         break;
                     }
                 }
@@ -116,7 +116,7 @@
             actor.ActiveEffects.Remove(gameEffect.EffectId);
         }
 
-        public void UpdateMovementMod(Client client, Actor actor)
+        public void UpdateMovementMod(MapChannel mapChannel, Actor actor)
         {
             var movementMod = 1.0d;
             // check for sprint
@@ -132,7 +132,7 @@
                 }
             }
             // todo: other modificators?
-            client.CellCallMethod(client, actor.EntityId, new MovementModChangePacket(movementMod));
+            CellManager.Instance.CellCallMethod(mapChannel, actor, new MovementModChangePacket(movementMod));
         }
     }
 }

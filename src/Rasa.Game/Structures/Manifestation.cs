@@ -39,7 +39,6 @@ namespace Rasa.Structures
         public Dictionary<int, MissionLog> Missions { get; set; } = new Dictionary<int, MissionLog>();
         public DateTime LoginTime { get; set; }
         public List<int> Logos = new List<int>();
-        public bool WeaponReady { get; set; }
         public uint TargetEntityId { get; set; }
         public uint TrackingTargetEntityId { get; set; }
         public byte ActiveWeapon { get; set; }

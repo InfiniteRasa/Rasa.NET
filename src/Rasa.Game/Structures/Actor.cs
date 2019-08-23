@@ -22,6 +22,7 @@ namespace Rasa.Structures
         public bool IsRunning { get; set; }
         public bool InCombatMode { get; set; }
         public ActorState State { get; set; }
+        public bool WeaponReady { get; set; }
         // action data
         public int CurrentAction { get; set; }
         public Dictionary<Attributes, ActorAttributes> Attributes = new Dictionary<Attributes, ActorAttributes>();

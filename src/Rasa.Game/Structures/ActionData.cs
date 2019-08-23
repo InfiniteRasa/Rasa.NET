@@ -1,11 +1,10 @@
 ﻿namespace Rasa.Structures
 {
     using Data;
-    using Game;
 
     public class ActionData
     {
-        public Client Client { get; set; }
+        public Actor Actor { get; set; }
         public ActionId ActionId { get; set; }
         public uint ActionArgId { get; set; }
         public uint Args { get; set; }
@@ -14,24 +13,19 @@
         public long WaitTime { get; set; }
         public long PassedTime { get; set; }
 
-        public ActionData(Client client, ActionId actionId, uint actionArgId)
+        public bool IsInrerrupted = false;
+
+        public ActionData(Actor actor, ActionId actionId, uint actionArgId, long waitTime)
         {
-            Client = client;
+            Actor = actor;
             ActionId = actionId;
             ActionArgId = actionArgId;
+            WaitTime = waitTime;
         }
 
-        public ActionData(Client client, ActionId actionId, uint actionArgId, uint args)
+        public ActionData(Actor actor, ActionId actionId, uint actionArgId, uint args, long waitTime)
         {
-            Client = client;
-            ActionId = actionId;
-            ActionArgId = actionArgId;
-            Args = args;
-        }
-
-        public ActionData(Client client, ActionId actionId, uint actionArgId, uint args, long waitTime)
-        {
-            Client = client;
+            Actor = actor;
             ActionId = actionId;
             ActionArgId = actionArgId;
             Args = args;
