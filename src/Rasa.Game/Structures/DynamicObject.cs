@@ -20,11 +20,15 @@ namespace Rasa.Structures
         public Vector3 Position { get; set; }
         public float Orientation { get; set; }
         public uint MapContextId { get; set; }
-        public uint Faction { get; set; }
+        public Factions Faction { get; set; }
         public long RespawnTime { get; set; }
+        public DynamicObjectType DynamicObjectType { get; set; }
         public List<Client> TrigeredByPlayers = new List<Client>();
 
         public bool IsInWorld = false;
         public UseObjectState StateId = 0;
+        public bool IsEnabled = true;
+        public uint WindupTime { get; internal set; }
+        public uint ActivateMission { get; internal set; }
     }
 }

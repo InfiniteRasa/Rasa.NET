@@ -9,14 +9,14 @@ namespace Rasa.Packets.MapChannel.Server
     {
         public override GameOpcode Opcode { get; } = GameOpcode.UsableInfo;
 
-        public int Enabled { get; set; }
-        public int CurState { get; set; }
-        public int NameOverrideId { get; set; }
-        public int WindupTime { get; set; }
-        public int MissionActivated { get; set; }
+        public bool Enabled { get; set; }
+        public UseObjectState CurState { get; set; }
+        public uint NameOverrideId { get; set; }
+        public uint WindupTime { get; set; }
+        public uint MissionActivated { get; set; }
         public List<int> Args = new List<int>();
 
-        public UsableInfoPacket(int enabled, int curState, int nameOverrideId, int windupTime, int missionActivated)
+        public UsableInfoPacket(bool enabled, UseObjectState curState, uint nameOverrideId, uint windupTime, uint missionActivated)
         {
             Enabled = enabled;
             CurState = curState;
@@ -28,11 +28,14 @@ namespace Rasa.Packets.MapChannel.Server
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(6);
-            pw.WriteInt(Enabled);
-            pw.WriteInt(CurState);
-            pw.WriteInt(NameOverrideId);
-            pw.WriteInt(WindupTime);
-            pw.WriteInt(MissionActivated);
+            pw.WriteBool(Enabled);
+            pw.WriteUInt((uint)CurState);
+            if (NameOverrideId != 0)
+                pw.WriteUInt(NameOverrideId);
+            else
+                pw.WriteNoneStruct();
+            pw.WriteUInt(WindupTime);
+            pw.WriteUInt(MissionActivated);
             pw.WriteList(Args.Count);
             foreach (var arg in Args)
                 pw.WriteInt(arg);
