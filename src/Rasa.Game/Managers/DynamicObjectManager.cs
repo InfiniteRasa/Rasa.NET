@@ -69,7 +69,7 @@ namespace Rasa.Managers
             }
         }
 
-        public void ForceState(Client client, uint entityId, uint state)
+        internal void ForceState(Client client, uint entityId, UseObjectState state)
         {
             client.CallMethod(entityId, new ForceStatePacket(state, 200));
         }
@@ -142,9 +142,9 @@ namespace Rasa.Managers
 
                                     client.CallMethod(SysEntity.ClientMethodId, new EnteredWaypointPacket(obj.MapContextId, obj.MapContextId, waypointInfoList, objectData.WaypointType, objectData.WaypointId));
 
-                                    if (obj.StateId == 0 || obj.StateId == 55)
+                                    if (obj.StateId == 0 || obj.StateId == UseObjectState.TsState0)
                                     {
-                                        obj.StateId = 56;
+                                        obj.StateId = UseObjectState.TsState1;
 
                                         client.CellCallMethod(client, obj.EntityId, new ForceStatePacket(obj.StateId, 100));
                                     }
@@ -309,7 +309,7 @@ namespace Rasa.Managers
 
                     if (obj.TrigeredByPlayers.Count == 0)
                     {
-                        obj.StateId = 55;
+                        obj.StateId = UseObjectState.TsState0;
 
                         CellManager.Instance.CellCallMethod(obj, new ForceStatePacket(obj.StateId, 100));
                     }

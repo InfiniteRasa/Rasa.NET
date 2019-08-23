@@ -25,6 +25,6 @@ namespace Rasa.Structures
         public List<Client> TrigeredByPlayers = new List<Client>();
 
         public bool IsInWorld = false;
-        public uint StateId = 0;
+        public UseObjectState StateId = 0;
     }
 }
