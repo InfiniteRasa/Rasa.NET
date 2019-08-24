@@ -86,6 +86,15 @@
                     break;
                 case ActionId.UseObject:
                     CellManager.Instance.CellCallMethod(mapChannel, action.Actor, new PerformRecoveryPacket(PerformType.TwoArgs, action.ActionId, action.ActionArgId));
+                    switch (action.ActionArgId)
+                    {
+                        case 7:
+                            DynamicObjectManager.Instance.CaptureControlPointRecovery(mapChannel, action);
+                            break;
+                        default:
+                            Logger.WriteLog(LogType.Debug, $"PerformRecovery.UseObject: unsuported actionArgId {action.ActionArgId}");
+                            break;
+                    }
                     break;
                 case ActionId.WeaponAttack:
                     Logger.WriteLog(LogType.Debug, $"PerformRecovery {action.ActionArgId} {action.ActionId} {action.Args}");

@@ -43,6 +43,7 @@ namespace Rasa.Managers
         internal void InitDynamicObjects()
         {
             InitTeleporters();
+            InitControlPoints();
         }
 
         internal void ForceState(DynamicObject obj, UseObjectState state, int delta)
@@ -56,6 +57,15 @@ namespace Rasa.Managers
 
             switch (obj.DynamicObjectType)
             {
+                case DynamicObjectType.ControlPoint:
+                    {
+                        client.CallMethod(client.MapClient.Player.Actor.EntityId, new PerformWindupPacket(PerformType.TwoArgs, packet.ActionId, packet.ActionArgId));
+                        client.CallMethod(packet.EntityId, new UsePacket(client.MapClient.Player.Actor.EntityId, obj.StateId, 10000));
+                        client.MapClient.MapChannel.PerformRecovery.Add(new ActionData(client.MapClient.Player.Actor, packet.ActionId, packet.ActionArgId, 10000));
+
+                        obj.TrigeredByPlayers.Add(client);
+                        break;
+                    }
                 default:
                     Logger.WriteLog(LogType.Debug, $"ToDo: RequestUseObjectPacket: unsuported object type {obj.DynamicObjectType}");
                     break;
@@ -69,6 +79,27 @@ namespace Rasa.Managers
             // footlockers
             // etc...
 
+            // controlPoints
+            foreach (var entry in mapChannel.ControlPoints)
+            {
+                var controlPoint = entry.Value;
+                // spawn object
+                if (!controlPoint.IsInWorld)
+                {
+                    controlPoint.RespawnTime -= delta;
+
+                    if (controlPoint.RespawnTime <= 0)
+                    {
+                        CellManager.Instance.AddToWorld(mapChannel, controlPoint);
+                        controlPoint.IsInWorld = true;
+                        controlPoint.StateId = UseObjectState.CpointStateUnclaimed;
+                        controlPoint.WindupTime = 10000;
+                    }
+                }
+
+                // check for players neer object
+                DynamicObjectProximityWorker(mapChannel, controlPoint, delta);
+            }
             // teleporters
             foreach (var entry  in mapChannel.Teleporters)
             {
@@ -164,6 +195,57 @@ namespace Rasa.Managers
             // destroy callback
             Logger.WriteLog(LogType.Debug, "ToDO remove dynamic object from server");
         }
+
+        #region ControlPoint
+
+        internal void InitControlPoints()
+        {
+            //var contolPoints = ControlPointTable.GetControlPoints();
+            var mapChannel = MapChannelManager.Instance.FindByContextId(1220);
+
+            var newControlPoint = new DynamicObject
+            {
+                Position = new Vector3(197.66f, 162.27f, -54.08f),
+                Orientation = 3.05f,
+                MapContextId = 1220,
+                EntityClassId = (EntityClassId)26486,
+                ObjectData = new ControlPointStatus(215, 1, 1, 30000)
+            };
+
+            newControlPoint.DynamicObjectType = DynamicObjectType.ControlPoint;
+
+            mapChannel.ControlPoints.Add(1, newControlPoint);
+        }
+
+        internal void CaptureControlPointRecovery(MapChannel mapChannel, ActionData action)
+        {
+            foreach (var entry in mapChannel.ControlPoints)
+            {
+                var controlpoint = entry.Value;
+
+                foreach (var client in controlpoint.TrigeredByPlayers)
+                    if (client.MapClient.Player.Actor == action.Actor)
+                    {
+                        if (action.IsInrerrupted)
+                        {
+                            Logger.WriteLog(LogType.Debug, $"Action is interupted");
+                            controlpoint.TrigeredByPlayers.Remove(client);
+                            break;
+                        }
+
+                        Logger.WriteLog(LogType.Debug, $"Action Exicuted");
+                        controlpoint.TrigeredByPlayers.Remove(client);
+                        controlpoint.Faction = controlpoint.Faction == Factions.AFS ? Factions.Bane : Factions.AFS;
+                        controlpoint.StateId = controlpoint.StateId == UseObjectState.CpointStateFactionAOwned ? UseObjectState.CpointStateFactionBOwned : UseObjectState.CpointStateFactionAOwned;
+                        
+                        CellManager.Instance.CellCallMethod(controlpoint, new ForceStatePacket(controlpoint.StateId, 100));
+                        CellManager.Instance.CellCallMethod(controlpoint, new UsableInfoPacket(true, controlpoint.StateId, 0, 10000, 0));
+                        break;
+                    }
+            }
+        }
+
+        #endregion
 
         #region Waypoint
 

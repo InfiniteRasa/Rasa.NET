@@ -33,6 +33,9 @@ namespace Rasa.Structures
         // Dictionary<uniqueTeleporterId, dataAboutdynamicObject> Teleporters
         public Dictionary<uint,DynamicObject> Teleporters = new Dictionary<uint, DynamicObject>();
 
+        // Dictionary<uniqueControlPointId, dataAboutdynamicObject> ControlPoints
+        public Dictionary<uint, DynamicObject> ControlPoints = new Dictionary<uint, DynamicObject>();
+
         // Dictionary<uniqueTriggerId, TriggerData> MapTriggers
         public Dictionary<uint, MapTrigger> MapTriggers = new Dictionary<uint, MapTrigger>();
 
