@@ -173,6 +173,9 @@ namespace Rasa.Game
                 QueueManager.Update(Config.ServerInfoConfig.MaxPlayers - CurrentPlayers);
             });
 
+            // Verify database
+            VerifyDatabaseManager.Instance.VerifyDatabase();
+
             // Load items from db
             EntityClassManager.Instance.LoadEntityClasses();
             MissionManager.Instance.LoadMissions();
