@@ -470,7 +470,7 @@ namespace Rasa.Managers
             }
 
             // send player message
-            client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(261, new Dictionary<string, string> { { "quantity", itemQuantity.ToString() }, { "loot", boughtItem.ItemTemplate.Class.ToString() } }, MsgFilterId.LootObtained));
+            client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(PlayerMessage.PmGotLootFromUnknown, new Dictionary<string, string> { { "quantity", itemQuantity.ToString() }, { "loot", boughtItem.ItemTemplate.Class.ToString() } }, MsgFilterId.LootObtained));
 
             // get correct buy price
             buyPrice = boughtItem.ItemTemplate.BuyPrice * itemQuantity;

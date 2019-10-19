@@ -9,11 +9,11 @@ namespace Rasa.Packets.MapChannel.Server
     {
         public override GameOpcode Opcode { get; } = GameOpcode.DisplayClientMessage;
 
-        public int MsgId { get; set; }                          // from playermessagelanguage.pyo
+        public PlayerMessage MsgId { get; set; }                          // from playermessagelanguage.pyo
         public Dictionary<string, string> Args { get; set; }     
         public MsgFilterId Filterid { get; set; }
 
-        public DisplayClientMessagePacket(int msgId, Dictionary<string, string> args, MsgFilterId filterId)
+        public DisplayClientMessagePacket(PlayerMessage msgId, Dictionary<string, string> args, MsgFilterId filterId)
         {
             MsgId = msgId;
             Args = args;
@@ -23,7 +23,7 @@ namespace Rasa.Packets.MapChannel.Server
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(3);
-            pw.WriteInt(MsgId);
+            pw.WriteUInt((uint)MsgId);
             pw.WriteDictionary(Args.Count);
             foreach (var arg in Args)
             {

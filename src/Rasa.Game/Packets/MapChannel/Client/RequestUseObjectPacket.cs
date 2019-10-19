@@ -7,16 +7,16 @@
     {
         public override GameOpcode Opcode { get; } = GameOpcode.RequestUseObject;
 
-        public int ActionId { get; set; }
-        public int ActionArgId { get; set; }
-        public long EntityId { get; set; }
+        public ActionId ActionId { get; set; }
+        public uint ActionArgId { get; set; }
+        public uint EntityId { get; set; }
 
         public override void Read(PythonReader pr)
         {
             pr.ReadTuple();
-            ActionId = pr.ReadInt();
-            ActionArgId = pr.ReadInt();
-            EntityId = pr.ReadLong();
+            ActionId = (ActionId)pr.ReadInt();
+            ActionArgId = pr.ReadUInt();
+            EntityId = (uint)pr.ReadLong();
         }
     }
 }

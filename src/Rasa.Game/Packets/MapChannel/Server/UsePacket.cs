@@ -10,11 +10,11 @@ namespace Rasa.Packets.MapChannel.Server
         public override GameOpcode Opcode { get; } = GameOpcode.Use;
 
         public uint PlayerEntityId { get; set; }
-        public int CurState { get; set; }
+        public UseObjectState CurState { get; set; }
         public int WindupTimeMs { get; set; }
         public List<int> Args = new List<int>();
 
-        public UsePacket(uint playerEntityId, int curState, int windupTimeMs)
+        public UsePacket(uint playerEntityId, UseObjectState curState, int windupTimeMs)
         {
             PlayerEntityId = playerEntityId;
             CurState = curState;
@@ -25,7 +25,7 @@ namespace Rasa.Packets.MapChannel.Server
         {
             pw.WriteTuple(3);
             pw.WriteUInt(PlayerEntityId);
-            pw.WriteInt(CurState);
+            pw.WriteUInt((uint)CurState);
             pw.WriteInt(WindupTimeMs);
         }
     }

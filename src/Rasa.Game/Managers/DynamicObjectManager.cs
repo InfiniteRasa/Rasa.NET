@@ -40,12 +40,216 @@ namespace Rasa.Managers
         {
         }
 
-        public void InitDynamicObjects()
+        internal void InitDynamicObjects()
         {
             InitTeleporters();
+            InitControlPoints();
         }
 
-        public void InitTeleporters()
+        internal void ForceState(DynamicObject obj, UseObjectState state, int delta)
+        {
+            CellManager.Instance.CellCallMethod(obj, new ForceStatePacket(state, delta));
+        }
+
+        internal void RequestUseObjectPacket(Client client, RequestUseObjectPacket packet)
+        {
+            var obj = EntityManager.Instance.GetObject(packet.EntityId);
+
+            switch (obj.DynamicObjectType)
+            {
+                case DynamicObjectType.ControlPoint:
+                    {
+                        client.CallMethod(client.MapClient.Player.Actor.EntityId, new PerformWindupPacket(PerformType.TwoArgs, packet.ActionId, packet.ActionArgId));
+                        client.CallMethod(packet.EntityId, new UsePacket(client.MapClient.Player.Actor.EntityId, obj.StateId, 10000));
+                        client.MapClient.MapChannel.PerformRecovery.Add(new ActionData(client.MapClient.Player.Actor, packet.ActionId, packet.ActionArgId, 10000));
+
+                        obj.TrigeredByPlayers.Add(client);
+                        break;
+                    }
+                default:
+                    Logger.WriteLog(LogType.Debug, $"ToDo: RequestUseObjectPacket: unsuported object type {obj.DynamicObjectType}");
+                    break;
+            }
+        }
+
+        internal void DynamicObjectWorker(MapChannel mapChannel, long delta)
+        {
+            // dynamicObjects
+            // dropShips
+            // footlockers
+            // etc...
+
+            // controlPoints
+            foreach (var entry in mapChannel.ControlPoints)
+            {
+                var controlPoint = entry.Value;
+                // spawn object
+                if (!controlPoint.IsInWorld)
+                {
+                    controlPoint.RespawnTime -= delta;
+
+                    if (controlPoint.RespawnTime <= 0)
+                    {
+                        CellManager.Instance.AddToWorld(mapChannel, controlPoint);
+                        controlPoint.IsInWorld = true;
+                        controlPoint.StateId = UseObjectState.CpointStateUnclaimed;
+                        controlPoint.WindupTime = 10000;
+                    }
+                }
+
+                // check for players neer object
+                DynamicObjectProximityWorker(mapChannel, controlPoint, delta);
+            }
+            // teleporters
+            foreach (var entry  in mapChannel.Teleporters)
+            {
+                var teleporter = entry.Value;
+                // spawn object
+                if (!teleporter.IsInWorld)
+                {
+                    teleporter.RespawnTime -= delta;
+
+                    if (teleporter.RespawnTime <= 0)
+                    {
+                        CellManager.Instance.AddToWorld(mapChannel, teleporter);
+                        teleporter.IsInWorld = true;
+                        teleporter.StateId = UseObjectState.TsState1;
+                    }
+                }
+
+                // check for players neer object
+                DynamicObjectProximityWorker(mapChannel, teleporter, delta);
+            }
+        }
+
+        internal void DynamicObjectProximityWorker(MapChannel mapChannel, DynamicObject obj, long delta)
+        {
+            switch (obj.EntityClassId)
+            {
+                // Human waypoint
+                case EntityClassId.UsableTwoStateHumWaypointV01:
+                    {
+                        // check for players that enter range
+                        PlayerEnterWaypoint(obj);
+
+                        // check for players that leave range
+                        PlayerExitWaypoint(obj);
+
+                        break;
+                    }
+                // Control point
+                case (EntityClassId)3814:
+                    break;
+                default:
+                    break;
+            }
+        }
+        
+        // 1 object to n client's
+        internal void CellIntroduceDynamicObjectToClients(DynamicObject dynamicObject, List<Client> listOfClients)
+        {
+            foreach (var client in listOfClients)
+                CreateDynamicObjectOnClient(client, dynamicObject);
+        }
+
+        // n objects to 1 client
+        internal void CellIntroduceDynamicObjectsToClient(Client client, List<DynamicObject> listOfObjects)
+        {
+            foreach (var dynamicObject in listOfObjects)
+                CreateDynamicObjectOnClient(client, dynamicObject);
+        }
+
+        internal void CreateDynamicObjectOnClient(Client client, DynamicObject dynamicObject)
+        {
+            if (dynamicObject == null)
+                return;
+
+            var entityData = new List<PythonPacket>
+            {
+                // PhysicalEntity
+                new IsTargetablePacket(EntityClassManager.Instance.GetClassInfo(EntityManager.Instance.GetEntityClassId(dynamicObject.EntityId)).TargetFlag),
+                new WorldLocationDescriptorPacket(dynamicObject.Position, dynamicObject.Orientation),
+                // set state
+                new UsableInfoPacket(dynamicObject.IsEnabled, dynamicObject.StateId, 0, dynamicObject.WindupTime, dynamicObject.ActivateMission)
+        };
+
+            client.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(dynamicObject.EntityId, dynamicObject.EntityClassId, entityData));
+        }
+
+        internal void CellDiscardDynamicObjectsToClient(Client client, List<DynamicObject> discardObjects)
+        {
+            foreach (var dynamicObject in discardObjects)
+                client.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(dynamicObject.EntityId));
+        }
+
+        /* Destroys an object on client and serverside
+         * Frees the memory and informs clients about removal
+         */
+        internal void DynamicObjectDestroy(MapChannel mapChannel, DynamicObject dynObject)
+        {
+            // TODO, check timers
+            // remove from world
+            EntityManager.Instance.UnregisterEntity(dynObject.EntityId);
+            CellManager.RemoveFromWorld(mapChannel, dynObject);
+            
+            // destroy callback
+            Logger.WriteLog(LogType.Debug, "ToDO remove dynamic object from server");
+        }
+
+        #region ControlPoint
+
+        internal void InitControlPoints()
+        {
+            //var contolPoints = ControlPointTable.GetControlPoints();
+            var mapChannel = MapChannelManager.Instance.FindByContextId(1220);
+
+            var newControlPoint = new DynamicObject
+            {
+                Position = new Vector3(197.66f, 162.27f, -54.08f),
+                Orientation = 3.05f,
+                MapContextId = 1220,
+                EntityClassId = (EntityClassId)26486,
+                ObjectData = new ControlPointStatus(215, 1, 1, 30000)
+            };
+
+            newControlPoint.DynamicObjectType = DynamicObjectType.ControlPoint;
+
+            mapChannel.ControlPoints.Add(1, newControlPoint);
+        }
+
+        internal void CaptureControlPointRecovery(MapChannel mapChannel, ActionData action)
+        {
+            foreach (var entry in mapChannel.ControlPoints)
+            {
+                var controlpoint = entry.Value;
+
+                foreach (var client in controlpoint.TrigeredByPlayers)
+                    if (client.MapClient.Player.Actor == action.Actor)
+                    {
+                        if (action.IsInrerrupted)
+                        {
+                            Logger.WriteLog(LogType.Debug, $"Action is interupted");
+                            controlpoint.TrigeredByPlayers.Remove(client);
+                            break;
+                        }
+
+                        Logger.WriteLog(LogType.Debug, $"Action Exicuted");
+                        controlpoint.TrigeredByPlayers.Remove(client);
+                        controlpoint.Faction = controlpoint.Faction == Factions.AFS ? Factions.Bane : Factions.AFS;
+                        controlpoint.StateId = controlpoint.StateId == UseObjectState.CpointStateFactionAOwned ? UseObjectState.CpointStateFactionBOwned : UseObjectState.CpointStateFactionAOwned;
+                        
+                        CellManager.Instance.CellCallMethod(controlpoint, new ForceStatePacket(controlpoint.StateId, 100));
+                        CellManager.Instance.CellCallMethod(controlpoint, new UsableInfoPacket(true, controlpoint.StateId, 0, 10000, 0));
+                        break;
+                    }
+            }
+        }
+
+        #endregion
+
+        #region Waypoint
+
+        internal void InitTeleporters()
         {
             var teleporters = TeleporterTable.GetTeleporters();
 
@@ -65,155 +269,26 @@ namespace Rasa.Managers
                     ObjectData = new WaypointInfo(teleporter.Id, false, teleporter.Type)
                 };
 
+                switch(teleporter.Type)
+                {
+                    case 1:
+                        newTeleporter.DynamicObjectType = DynamicObjectType.LocalTeleporter;
+                        break;
+                    case 2:
+                        newTeleporter.DynamicObjectType = DynamicObjectType.Waypoint;
+                        break;
+                    case 3:
+                        newTeleporter.DynamicObjectType = DynamicObjectType.Wormhole;
+                        break;
+                    default:
+                        Logger.WriteLog(LogType.Error, $"InitTeleporters: unsuported teleporter type {teleporter.Type}");
+                        break;
+                }
                 mapChannel.Teleporters.Add(teleporter.Id, newTeleporter);
             }
         }
 
-        public void ForceState(Client client, uint entityId, uint state)
-        {
-            client.CallMethod(entityId, new ForceStatePacket(state, 200));
-        }
-
-        public void RequestUseObjectPacket(Client client, RequestUseObjectPacket packet)
-        {
-            client.CallMethod((uint)packet.EntityId, new UsePacket(client.MapClient.Player.Actor.EntityId, 1, 0));
-        }
-
-        public void DynamicObjectWorker(MapChannel mapChannel, long delta)
-        {
-            // dynamicObjects
-            // dropShips
-            // footlockers
-            // etc...
-
-            // teleporters
-            foreach (var entry  in mapChannel.Teleporters)
-            {
-                var teleporter = entry.Value;
-                // spawn object
-                if (!teleporter.IsInWorld)
-                {
-                    teleporter.RespawnTime -= delta;
-
-                    if (teleporter.RespawnTime <= 0)
-                    {
-                        CellManager.Instance.AddToWorld(mapChannel, teleporter);
-                        teleporter.IsInWorld = true;
-                    }
-                }
-
-                // check for players neer object
-                DynamicObjectProximityWorker(mapChannel, teleporter, delta);
-            }
-        }
-
-        private void DynamicObjectProximityWorker(MapChannel mapChannel, DynamicObject obj, long delta)
-        {
-            switch (obj.EntityClassId)
-            {
-                // Human waypoint
-                case EntityClassId.UsableTwoStateHumWaypointV01:
-                    {
-                        var cellSeed = CellManager.Instance.GetCellSeed(obj.Position);
-
-                        // check for players that enter range
-                        foreach (var client in mapChannel.MapCellInfo.Cells[cellSeed].ClientList)
-                        {
-                            if (Vector3.Distance(obj.Position, client.MapClient.Player.Actor.Position) < 2.0f)
-                            {
-                                var alreadyInList = false;
-
-                                foreach (var player in obj.TrigeredByPlayers)
-                                    if (client == player)
-                                    {
-                                        alreadyInList = true;
-                                        break;
-                                    }
-
-                                if (!alreadyInList)
-                                {
-                                    obj.TrigeredByPlayers.Add(client);
-
-                                    var objectData = (WaypointInfo)obj.ObjectData;
-
-                                    PlayerHasWaypoint(client, objectData);
-
-                                    var waypointInfoList = CreateListOfWaypoints(client, mapChannel);
-
-                                    client.CallMethod(SysEntity.ClientMethodId, new EnteredWaypointPacket(obj.MapContextId, obj.MapContextId, waypointInfoList, objectData.WaypointType, objectData.WaypointId));
-
-                                    if (obj.StateId == 0 || obj.StateId == 55)
-                                    {
-                                        obj.StateId = 56;
-
-                                        client.CellCallMethod(client, obj.EntityId, new ForceStatePacket(obj.StateId, 100));
-                                    }
-                                }
-                            }
-                        }
-
-                        // check for players that leave range
-                        RemovePlayerFromWaypoint(obj);
-
-                        break;
-                    }
-                default:
-                    break;
-            }
-        }
-
-        // 1 object to n client's
-        public void CellIntroduceDynamicObjectToClients(DynamicObject dynamicObject, List<Client> listOfClients)
-        {
-            foreach (var client in listOfClients)
-                CreateDynamicObjectOnClient(client, dynamicObject);
-        }
-
-        // n creatures to 1 client
-        public void CellIntroduceDynamicObjectsToClient(Client client, List<DynamicObject> listOfObjects)
-        {
-            foreach (var dynamicObject in listOfObjects)
-                CreateDynamicObjectOnClient(client, dynamicObject);
-        }
-
-        public void CreateDynamicObjectOnClient(Client client, DynamicObject dynamicObject)
-        {
-            if (dynamicObject == null)
-                return;
-
-            var entityData = new List<PythonPacket>
-            {
-                // PhysicalEntity
-                new IsTargetablePacket(EntityClassManager.Instance.GetClassInfo((EntityClassId)EntityManager.Instance.GetEntityClassId(dynamicObject.EntityId)).TargetFlag),
-                new WorldLocationDescriptorPacket(dynamicObject.Position, dynamicObject.Orientation)
-            };
-
-            client.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(dynamicObject.EntityId, dynamicObject.EntityClassId, entityData));
-        }
-
-        public void CellDiscardDynamicObjectsToClient(Client client, List<DynamicObject> discardObjects)
-        {
-            foreach (var dynamicObject in discardObjects)
-                client.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(dynamicObject.EntityId));
-        }
-
-        /* Destroys an object on client and serverside
-         * Frees the memory and informs clients about removal
-         */
-        public void DynamicObjectDestroy(MapChannel mapChannel, DynamicObject dynObject)
-        {
-            // TODO, check timers
-            // remove from world
-            EntityManager.Instance.UnregisterEntity(dynObject.EntityId);
-            CellManager.RemoveFromWorld(mapChannel, dynObject);
-            
-            // destroy callback
-            Logger.WriteLog(LogType.Debug, "ToDO remove dynamic object from server");
-        }
-
-        #region Waypoint
-
-        public void PlayerHasWaypoint(Client client, WaypointInfo objectData)
+        internal void PlayerHasWaypoint(Client client, WaypointInfo objectData)
         {
             var hasWaypoint = false;
             var waypointInfoList = new List<MapWaypointInfoList>();
@@ -241,7 +316,7 @@ namespace Rasa.Managers
             }
         }
 
-        public List<MapWaypointInfoList> CreateListOfWaypoints(Client client, MapChannel mapChannel)
+        internal List<MapWaypointInfoList> CreateListOfWaypoints(Client client, MapChannel mapChannel)
         {
             var listOfWaypoints = new List<MapWaypointInfoList>();
             var waypointInfo = new List<WaypointInfo>();
@@ -270,7 +345,7 @@ namespace Rasa.Managers
             return listOfWaypoints;
         }
 
-        public void SelectWaypoint(Client client, SelectWaypointPacket packet)
+        internal void SelectWaypoint(Client client, SelectWaypointPacket packet)
         {
             var teleporter = client.MapClient.MapChannel.Teleporters[packet.WaypointId];
             var objData = teleporter.ObjectData as WaypointInfo;
@@ -290,12 +365,46 @@ namespace Rasa.Managers
             teleporter.TrigeredByPlayers.Remove(client);    // ToDO: maybe safely remove client
         }
 
-        public void TeleportAcknowledge(Client client)
+        internal void TeleportAcknowledge(Client client)
         {
             client.CallMethod(client.MapClient.Player.Actor.EntityId, new TeleportArrivalPacket());
         }
 
-        internal void RemovePlayerFromWaypoint(DynamicObject obj)
+        internal void PlayerEnterWaypoint(DynamicObject obj)
+        {
+            var cellSeed = CellManager.Instance.GetCellSeed(obj.Position);
+            var mapChannel = MapChannelManager.Instance.FindByContextId(obj.MapContextId);
+
+            foreach (var client in mapChannel.MapCellInfo.Cells[cellSeed].ClientList)
+            {
+                if (Vector3.Distance(obj.Position, client.MapClient.Player.Actor.Position) < 2.0f)
+                {
+                    var alreadyInList = false;
+
+                    foreach (var player in obj.TrigeredByPlayers)
+                        if (client == player)
+                        {
+                            alreadyInList = true;
+                            break;
+                        }
+
+                    if (!alreadyInList)
+                    {
+                        obj.TrigeredByPlayers.Add(client);
+
+                        var objectData = (WaypointInfo)obj.ObjectData;
+
+                        PlayerHasWaypoint(client, objectData);
+
+                        var waypointInfoList = CreateListOfWaypoints(client, mapChannel);
+
+                        client.CallMethod(SysEntity.ClientMethodId, new EnteredWaypointPacket(obj.MapContextId, obj.MapContextId, waypointInfoList, objectData.WaypointType, objectData.WaypointId));                        
+                    }
+                }
+            }
+        }
+
+        internal void PlayerExitWaypoint(DynamicObject obj)
         {
             for (var i = obj.TrigeredByPlayers.Count - 1; i >= 0; i--)
             {
@@ -306,13 +415,6 @@ namespace Rasa.Managers
                     obj.TrigeredByPlayers.RemoveAt(i);
 
                     client.CallMethod(SysEntity.ClientMethodId, new ExitedWaypointPacket());
-
-                    if (obj.TrigeredByPlayers.Count == 0)
-                    {
-                        obj.StateId = 55;
-
-                        CellManager.Instance.CellCallMethod(obj, new ForceStatePacket(obj.StateId, 100));
-                    }
                 }
             }
         }

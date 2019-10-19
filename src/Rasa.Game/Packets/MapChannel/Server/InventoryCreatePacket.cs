@@ -25,14 +25,13 @@ namespace Rasa.Packets.MapChannel.Server
             pw.WriteTuple(3);
             pw.WriteInt((int)InventoryType);
             pw.WriteList(ListOfItems.Count);
-            foreach (var entry in ListOfItems)
+            for (var i = 0; i < ListOfItems.Count; i++)
             {
-                uint count = 0;
+                pw.WriteTuple(2);
+                pw.WriteInt(i);
+                pw.WriteUInt(ListOfItems[i]);
 
-                pw.WriteUInt(entry);
-                pw.WriteUInt(count);
-
-                count++;
+                // ToDo: it seems that we need to send data about item, not only itemEntityId
             }
 
             pw.WriteInt(InventorySize);

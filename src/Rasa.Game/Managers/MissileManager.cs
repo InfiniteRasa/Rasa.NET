@@ -5,9 +5,7 @@ using System.Numerics;
 namespace Rasa.Managers
 {
     using Data;
-    using Database.Tables.Character;
     using Packets.MapChannel.Server;
-    using Packets;
     using Timer;
     using Structures;
     using Rasa.Game;
@@ -57,8 +55,15 @@ namespace Rasa.Managers
 
             if (creature.Actor.Attributes[Attributes.Health].Current <= 0)
             {
-                // fix health
+                // fix health so it dont regenerate after death
                 missile.TargetActor.Attributes[Attributes.Health].Current = 0;
+                missile.TargetActor.Attributes[Attributes.Health].RefreshAmount = 0;
+                missile.TargetActor.Attributes[Attributes.Health].RefreshPeriod = 0;
+
+                // fix armor so it dont regenerate after death
+                missile.TargetActor.Attributes[Attributes.Armor].Current = 0;
+                missile.TargetActor.Attributes[Attributes.Armor].RefreshAmount = 0;
+                missile.TargetActor.Attributes[Attributes.Armor].RefreshPeriod = 0;
                 // kill craeture
                 CreatureManager.Instance.HandleCreatureKill(mapChannel, creature, missile.Source);
             }
@@ -68,16 +73,12 @@ namespace Rasa.Managers
                 if (creature.Controller.CurrentAction == BehaviorManager.BehaviorActionWander || creature.Controller.CurrentAction == BehaviorManager.BehaviorActionFollowingPath)
                     BehaviorManager.Instance.SetActionFighting(creature, missile.Source.EntityId);
             }
-            
-            // update health (Recv_UpdateHealth 380)
-            if (armorDecrease != missile.DamageA)
-                CellManager.Instance.CellCallMethod(mapChannel, creature.Actor, new UpdateHealthPacket(creature.Actor.Attributes[Attributes.Health], missile.Source.EntityId));
-            
-            // update armor (Recv_UpdateArmor 380)
-            if (armorDecrease > 0)
-                CellManager.Instance.CellCallMethod(mapChannel, creature.Actor, new UpdateArmorPacket(creature.Actor.Attributes[Attributes.Armor], missile.Source.EntityId));
 
+            // update health
+            CellManager.Instance.CellCallMethod(mapChannel, creature.Actor, new UpdateHealthPacket(creature.Actor.Attributes[Attributes.Health], creature.Actor.EntityId));
 
+            // update armor
+            CellManager.Instance.CellCallMethod(mapChannel, creature.Actor, new UpdateArmorPacket(creature.Actor.Attributes[Attributes.Armor], creature.Actor.EntityId));
         }
 
         private void DoDamageToPlayer()
@@ -87,85 +88,52 @@ namespace Rasa.Managers
 
         public void RequestWeaponAttack(Client client, RequestWeaponAttackPacket packet)
         {
-            PlayerTryFireWeapon(client);
+            ManifestationManager.Instance.PlayerTryFireWeapon(client);
 
-            /*
-	            // has ammo?
-	            if( item->weaponData.ammoCount < item->itemTemplate->weapon.ammoPerShot )
-		            return; // not enough ammo for a single shot
-	            // decrease ammo
-	            item->weaponData.ammoCount -= item->itemTemplate->weapon.ammoPerShot;
-	            // update ammo in database
-	            DataInterface_Character_updateCharacterAmmo(cm->tempCharacterData->characterID, item->locationSlotIndex, item->weaponData.ammoCount);
-	            // weapon ammo info
-	            pym_init(&pms);
-	            pym_tuple_begin(&pms);
-	            pym_addInt(&pms, item->weaponData.ammoCount);
-	            pym_tuple_end(&pms);
-	            netMgr_pythonAddMethodCallRaw(cm->cgm, item->entityId, WeaponAmmoInfo, pym_getData(&pms), pym_getLen(&pms));
-	            // calculate damage
-	            sint32 damageRange = item->itemTemplate->weapon.maxDamage-item->itemTemplate->weapon.minDamage;
-	            damageRange = max(damageRange, 1); // to avoid division by zero in the next line
-	            sint32 damage = item->itemTemplate->weapon.minDamage+(rand()%damageRange);
-	            // for now we just ignore no-target attacks
-	            //if( cm->player->targetEntityId == 0 )
-	            //	return;
-	            // launch correct missile type depending on weapon type
-	            if( item->itemTemplate->weapon.altActionId == 1 )
-	            {
-		            // weapon range attacks
-		            if( item->itemTemplate->weapon.altActionArg == 133 ) // physical pistol
-			            missile_launch(cm->mapChannel, cm->player->actor, cm->player->targetEntityId, damage, item->itemTemplate->weapon.altActionId, item->itemTemplate->weapon.altActionArg); // pistol
-		            else
-			            printf("missile_playerTryFireWeapon: Unsupported weapon altActionArg (action %d/%d)\n", item->itemTemplate->weapon.altActionId, item->itemTemplate->weapon.altActionArg);
-	            }
-	            else
-		            printf("missile_playerTryFireWeapon: Unsupported weapon altActionId (action %d/%d)\n", item->itemTemplate->weapon.altActionId, item->itemTemplate->weapon.altActionArg);
+                /*
 
-            
+                var weapon = InventoryManager.Instance.CurrentWeapon(client);
 
-            var weapon = InventoryManager.Instance.CurrentWeapon(client);
+                if (weapon == null)
+                {
+                    Logger.WriteLog(LogType.Error, "no weapon armed but player tries to shoot");
+                    return;
+                }
 
-            if (weapon == null)
-            {
-                Logger.WriteLog(LogType.Error, "no weapon armed but player tries to shoot");
-                return;
-            }
+                var weaponClassInfo = EntityClassManager.Instance.GetWeaponClassInfo(weapon);
+                var targetType = EntityManager.Instance.GetEntityType((uint)packet.TargetId);
+                var target = new Actor();
 
-            var weaponClassInfo = EntityClassManager.Instance.GetWeaponClassInfo(weapon);
-            var targetType = EntityManager.Instance.GetEntityType((uint)packet.TargetId);
-            var target = new Actor();
+                switch (targetType)
+                {
+                    case EntityType.Creature:
+                        target = EntityManager.Instance.GetCreature((uint)packet.TargetId).Actor;
+                        break;
+                    default:
+                        Logger.WriteLog(LogType.Error, $"RequestWeaponAttack:\nUnsuported targetType = {targetType}");
+                        return; ;
+                }
 
-            switch (targetType)
-            {
-                case EntityType.Creature:
-                    target = EntityManager.Instance.GetCreature((uint)packet.TargetId).Actor;
-                    break;
-                default:
-                    Logger.WriteLog(LogType.Error, $"RequestWeaponAttack:\nUnsuported targetType = {targetType}");
-                    return; ;
-            }
+                var distance = Vector3.Distance(client.MapClient.Player.Actor.Position, target.Position);
+                var triggerTime = (int)Math.Round(distance, 0);
 
-            var distance = Vector3.Distance(client.MapClient.Player.Actor.Position, target.Position);
-            var triggerTime = (int)Math.Round(distance, 0);
-
-            var missile = new Missile
-            {
-                ActionId = packet.ActionId,
-                ActionArgId = packet.ActionArgId,
-                TargetEntityId = (uint)packet.TargetId,
-                DamageA = weaponClassInfo.DamageType,
-                IsAbility = false,
-                Source = client,
-                TriggerTime = triggerTime
-            };
-
-            
-            missile.TriggerTime = triggerTime;
+                var missile = new Missile
+                {
+                    ActionId = packet.ActionId,
+                    ActionArgId = packet.ActionArgId,
+                    TargetEntityId = (uint)packet.TargetId,
+                    DamageA = weaponClassInfo.DamageType,
+                    IsAbility = false,
+                    Source = client,
+                    TriggerTime = triggerTime
+                };
 
 
-            QueuedMissiles.Add(missile);
-            */
+                missile.TriggerTime = triggerTime;
+
+
+                QueuedMissiles.Add(missile);
+                */
         }
 
         public void DoWork(MapChannel mapChannel, long delta)
@@ -176,15 +144,6 @@ namespace Rasa.Managers
 
             // empty List
             mapChannel.QueuedMissiles.Clear();
-        }
-
-        public void PlayerTryFireWeapon(Client client)
-        {
-            var weapon = InventoryManager.Instance.CurrentWeapon(client);
-            var weaponClassInfo = EntityClassManager.Instance.GetWeaponClassInfo(weapon);
-            var target = client.MapClient.Player.TargetEntityId;
-            var missileArgs = new MissileArgs();    // ToDo
-            client.CellCallMethod(client, client.MapClient.Player.Actor.EntityId, new PerformRecoveryPacket(PerformType.ListOfArgs, weaponClassInfo.WeaponAttackActionId, (uint)weaponClassInfo.WeaponAttackArgId, missileArgs));
         }
 
         public void MissileLaunch(MapChannel mapChannel, Actor origin, uint targetEntityId, long damage, ActionId actionId, uint actionArgId)
@@ -258,7 +217,7 @@ namespace Rasa.Managers
             // send windup and append to queue (only for non-abilities)
             if (isAbility == false)
             {
-                CellManager.Instance.CellCallMethod(mapChannel, origin, new PerformWindupPacket(PerformType.ThreeArgs, missile.ActionId, missile.ActionArgId, missile.TargetActor.EntityId));
+                CellManager.Instance.CellCallMethod(mapChannel, origin, new PerformWindupPacket(PerformType.ThreeArgs, missile.ActionId, missile.ActionArgId, missile.TargetEntityId));
                 
                 // add to list
                 mapChannel.QueuedMissiles.Add(missile);
@@ -314,6 +273,9 @@ namespace Rasa.Managers
 
             switch (targetType)
             {
+                case 0:
+                    // no target => ToDo
+                    break;
                 case EntityType.Creature:
                     DoDamageToCreature(mapChannel, missile);
                     break;
@@ -321,7 +283,7 @@ namespace Rasa.Managers
                     DoDamageToPlayer();
                     break;
                 default:
-                    Logger.WriteLog(LogType.Error, $"unsuported targetType {targetType}.");
+                    Logger.WriteLog(LogType.Error, $"WeaponAttack: Unsuported targetType {targetType}.");
                     break;
             }
         }

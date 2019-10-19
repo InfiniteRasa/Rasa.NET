@@ -21,17 +21,20 @@ namespace Rasa.Structures
         // queue
         public readonly Queue<Client> QueuedClients = new Queue<Client>();
         // action
-        public readonly List<ActionData> PerformActions = new List<ActionData>();
+        public readonly List<ActionData> PerformRecovery = new List<ActionData>();
         // cell
         public MapCellInfo MapCellInfo = new MapCellInfo();
         // effect
         public int CurrentEffectId { get; set; } // increases with every spawned game effect
-        
+
         // Dynamic Object List
         public List<DynamicObject> DynamicObjects = new List<DynamicObject>();
         
         // Dictionary<uniqueTeleporterId, dataAboutdynamicObject> Teleporters
         public Dictionary<uint,DynamicObject> Teleporters = new Dictionary<uint, DynamicObject>();
+
+        // Dictionary<uniqueControlPointId, dataAboutdynamicObject> ControlPoints
+        public Dictionary<uint, DynamicObject> ControlPoints = new Dictionary<uint, DynamicObject>();
 
         // Dictionary<uniqueTriggerId, TriggerData> MapTriggers
         public Dictionary<uint, MapTrigger> MapTriggers = new Dictionary<uint, MapTrigger>();

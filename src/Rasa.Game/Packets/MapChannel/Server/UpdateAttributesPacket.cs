@@ -11,9 +11,9 @@ namespace Rasa.Packets.MapChannel.Server
         public override GameOpcode Opcode { get; } = GameOpcode.UpdateAttributes;
 
         public Dictionary<Attributes, ActorAttributes> AttributeDataList { get; set; }
-        public int WhoId { get; set; }
+        public uint WhoId { get; set; }
 
-        public UpdateAttributesPacket(Dictionary<Attributes, ActorAttributes> attributesDataList, int whoId)
+        public UpdateAttributesPacket(Dictionary<Attributes, ActorAttributes> attributesDataList, uint whoId)
         {
             AttributeDataList = attributesDataList;
             WhoId = whoId;
@@ -33,7 +33,7 @@ namespace Rasa.Packets.MapChannel.Server
                 pw.WriteInt(attribute.CurrentMax);
                 pw.WriteInt(attribute.RefreshAmount);
             }
-            pw.WriteInt(WhoId);
+            pw.WriteUInt(WhoId);
         }
     }
 }
