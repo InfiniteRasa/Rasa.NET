@@ -25,9 +25,9 @@ There is a single Visual Studio solution that contains the projects needed for R
 - Continue the installation and let it finish
 
 ### Install .NET Core
-Rasa.NET is set to build and run with .NET Core 3.0.0-preview, which is currently in Preview. 
+Rasa.NET is set to build and run with .NET Core.
 
-- [Download the .NET Core SDK and Runtime Preview](https://dotnet.microsoft.com/download/dotnet-core/3.0) and install it
+- [Download the .NET Core SDK and Runtime](https://dotnet.microsoft.com/download/dotnet-core/3.0) and install it
 
 ### Install MySQL Server and MySQL Workbench
 Rasa.NET uses MySQL to store game data. Download and install MySQL Community Server following these steps:
