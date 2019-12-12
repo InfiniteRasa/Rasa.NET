@@ -191,12 +191,17 @@ namespace Rasa.Managers
             if (parts.Length == 2)
             {
                 var _entityId = EntityManager.Instance.GetEntityId;
-                if (Enum.TryParse(parts[1], out Data.EntityClassId entityClassId))
+                if (Enum.TryParse(parts[1], out EntityClassId entityClassId))
                 {
-                    // create object entity
-                    _client.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(_entityId, entityClassId));
-                    // set position
-                    _client.CallMethod(_entityId, new WorldLocationDescriptorPacket(new Vector3(_client.MovementData.PosX, _client.MovementData.PosY, _client.MovementData.PosZ), _client.MovementData.ViewX));
+                    var newObject = new DynamicObject
+                    {
+                        Position = new Vector3(_client.MovementData.PosX, _client.MovementData.PosY, _client.MovementData.PosZ),
+                        Orientation = _client.MovementData.ViewX,
+                        MapContextId = _client.MapClient.Player.Actor.MapContextId,
+                        EntityClassId = entityClassId
+                    };
+
+                    CellManager.Instance.AddToWorld(_client.MapClient.MapChannel, newObject);
                     CommunicatorManager.Instance.SystemMessage(_client, $"Created object EntityId = {_entityId}");
                 }
             }

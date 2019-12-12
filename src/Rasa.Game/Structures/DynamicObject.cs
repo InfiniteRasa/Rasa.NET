@@ -24,6 +24,7 @@ namespace Rasa.Structures
         public long RespawnTime { get; set; }
         public DynamicObjectType DynamicObjectType { get; set; }
         public List<Client> TrigeredByPlayers = new List<Client>();
+        public string Comment { get; set; }
 
         public bool IsInWorld = false;
         public UseObjectState StateId = 0;

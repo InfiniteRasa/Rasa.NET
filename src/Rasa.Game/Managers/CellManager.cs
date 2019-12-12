@@ -77,7 +77,7 @@ namespace Rasa.Managers
             if (dynamicObject == null)
                 return;
 
-            // register creature entity
+            // register object entity
             EntityManager.Instance.RegisterEntity(dynamicObject.EntityId, EntityType.Object);
             EntityManager.Instance.RegisterDynamicObject(dynamicObject);
 

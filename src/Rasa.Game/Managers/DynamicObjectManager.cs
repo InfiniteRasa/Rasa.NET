@@ -42,8 +42,9 @@ namespace Rasa.Managers
 
         internal void InitDynamicObjects()
         {
-            InitTeleporters();
             InitControlPoints();
+            InitFootlockers();
+            InitTeleporters();
         }
 
         internal void ForceState(DynamicObject obj, UseObjectState state, int delta)
@@ -66,6 +67,15 @@ namespace Rasa.Managers
                         obj.TrigeredByPlayers.Add(client);
                         break;
                     }
+                case DynamicObjectType.Lockbox:
+                    {
+                        client.CallMethod(client.MapClient.Player.Actor.EntityId, new PerformWindupPacket(PerformType.TwoArgs, packet.ActionId, packet.ActionArgId));
+                        client.CallMethod(packet.EntityId, new UsePacket(client.MapClient.Player.Actor.EntityId, obj.StateId, 100));
+                        client.MapClient.MapChannel.PerformRecovery.Add(new ActionData(client.MapClient.Player.Actor, packet.ActionId, packet.ActionArgId, 100));
+
+                        obj.TrigeredByPlayers.Add(client);
+                        break;
+                    }
                 default:
                     Logger.WriteLog(LogType.Debug, $"ToDo: RequestUseObjectPacket: unsuported object type {obj.DynamicObjectType}");
                     break;
@@ -76,7 +86,6 @@ namespace Rasa.Managers
         {
             // dynamicObjects
             // dropShips
-            // footlockers
             // etc...
 
             // controlPoints
@@ -100,8 +109,28 @@ namespace Rasa.Managers
                 // check for players neer object
                 DynamicObjectProximityWorker(mapChannel, controlPoint, delta);
             }
+
+            // footlocker
+            foreach (var entry in mapChannel.FootLockers)
+            {
+                var footlocker = entry.Value;
+                // spawn object
+                if (!footlocker.IsInWorld)
+                {
+                    footlocker.RespawnTime -= delta;
+
+                    if (footlocker.RespawnTime <= 0)
+                    {
+                        CellManager.Instance.AddToWorld(mapChannel, footlocker);
+                        footlocker.IsInWorld = true;
+                        footlocker.StateId = UseObjectState.CpointStateUnclaimed;
+                        footlocker.WindupTime = 10000;
+                    }
+                }
+            }
+
             // teleporters
-            foreach (var entry  in mapChannel.Teleporters)
+            foreach (var entry in mapChannel.Teleporters)
             {
                 var teleporter = entry.Value;
                 // spawn object
@@ -144,7 +173,7 @@ namespace Rasa.Managers
                     break;
             }
         }
-        
+
         // 1 object to n client's
         internal void CellIntroduceDynamicObjectToClients(DynamicObject dynamicObject, List<Client> listOfClients)
         {
@@ -191,7 +220,7 @@ namespace Rasa.Managers
             // remove from world
             EntityManager.Instance.UnregisterEntity(dynObject.EntityId);
             CellManager.RemoveFromWorld(mapChannel, dynObject);
-            
+
             // destroy callback
             Logger.WriteLog(LogType.Debug, "ToDO remove dynamic object from server");
         }
@@ -209,6 +238,7 @@ namespace Rasa.Managers
                 Orientation = 3.05f,
                 MapContextId = 1220,
                 EntityClassId = (EntityClassId)26486,
+                DynamicObjectType = DynamicObjectType.ControlPoint,
                 ObjectData = new ControlPointStatus(215, 1, 1, 30000)
             };
 
@@ -237,11 +267,37 @@ namespace Rasa.Managers
                         controlpoint.TrigeredByPlayers.Remove(client);
                         controlpoint.Faction = controlpoint.Faction == Factions.AFS ? Factions.Bane : Factions.AFS;
                         controlpoint.StateId = controlpoint.StateId == UseObjectState.CpointStateFactionAOwned ? UseObjectState.CpointStateFactionBOwned : UseObjectState.CpointStateFactionAOwned;
-                        
+
                         CellManager.Instance.CellCallMethod(controlpoint, new ForceStatePacket(controlpoint.StateId, 100));
                         CellManager.Instance.CellCallMethod(controlpoint, new UsableInfoPacket(true, controlpoint.StateId, 0, 10000, 0));
                         break;
                     }
+            }
+        }
+
+        #endregion
+
+        #region Footlocker
+
+        internal void InitFootlockers()
+        {
+            var footlockers = FootlockersTable.LoadFootlockers();
+
+            foreach (var footlocker in footlockers)
+            {
+                var mapChannel = MapChannelManager.Instance.FindByContextId(footlocker.MapContextId);
+
+                var newFootlocker = new DynamicObject
+                {
+                    Position = new Vector3(footlocker.CoordX, footlocker.CoordY, footlocker.CoordZ),
+                    Orientation = footlocker.Orientation,
+                    MapContextId = footlocker.MapContextId,
+                    EntityClassId = (EntityClassId)footlocker.EntityClassId,
+                    DynamicObjectType = DynamicObjectType.Lockbox,
+                    Comment = footlocker.Comment
+                };
+
+                mapChannel.FootLockers.Add(footlocker.Id, newFootlocker);
             }
         }
 
@@ -266,10 +322,11 @@ namespace Rasa.Managers
                     Orientation = teleporter.Orientation,
                     MapContextId = teleporter.MapContextId,
                     EntityClassId = (EntityClassId)teleporter.EntityClassId,
+                    Comment = teleporter.Description,
                     ObjectData = new WaypointInfo(teleporter.Id, false, teleporter.Type)
                 };
 
-                switch(teleporter.Type)
+                switch (teleporter.Type)
                 {
                     case 1:
                         newTeleporter.DynamicObjectType = DynamicObjectType.LocalTeleporter;
@@ -398,7 +455,7 @@ namespace Rasa.Managers
 
                         var waypointInfoList = CreateListOfWaypoints(client, mapChannel);
 
-                        client.CallMethod(SysEntity.ClientMethodId, new EnteredWaypointPacket(obj.MapContextId, obj.MapContextId, waypointInfoList, objectData.WaypointType, objectData.WaypointId));                        
+                        client.CallMethod(SysEntity.ClientMethodId, new EnteredWaypointPacket(obj.MapContextId, obj.MapContextId, waypointInfoList, objectData.WaypointType, objectData.WaypointId));
                     }
                 }
             }

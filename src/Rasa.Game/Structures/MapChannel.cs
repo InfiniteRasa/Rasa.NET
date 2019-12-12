@@ -29,12 +29,15 @@ namespace Rasa.Structures
 
         // Dynamic Object List
         public List<DynamicObject> DynamicObjects = new List<DynamicObject>();
-        
-        // Dictionary<uniqueTeleporterId, dataAboutdynamicObject> Teleporters
-        public Dictionary<uint,DynamicObject> Teleporters = new Dictionary<uint, DynamicObject>();
 
         // Dictionary<uniqueControlPointId, dataAboutdynamicObject> ControlPoints
         public Dictionary<uint, DynamicObject> ControlPoints = new Dictionary<uint, DynamicObject>();
+
+        // Dictionary<uniqueFootlockerId, dataAboutdynamicObject> Footlockers
+        public Dictionary<uint, DynamicObject> FootLockers = new Dictionary<uint, DynamicObject>();
+
+        // Dictionary<uniqueTeleporterId, dataAboutdynamicObject> Teleporters
+        public Dictionary<uint,DynamicObject> Teleporters = new Dictionary<uint, DynamicObject>();
 
         // Dictionary<uniqueTriggerId, TriggerData> MapTriggers
         public Dictionary<uint, MapTrigger> MapTriggers = new Dictionary<uint, MapTrigger>();
