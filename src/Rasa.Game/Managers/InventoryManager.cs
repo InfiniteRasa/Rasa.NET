@@ -368,7 +368,7 @@ namespace Rasa.Managers
             AddItemBySlot(client, InventoryType.Personal, entityId, packet.DestSlot, true);
         }
 
-        public void TransferCreditToLockbox(Client client, uint amount)
+        public void TransferCreditToLockbox(Client client, int amount)
         {
             /*
              * ToDo:
@@ -385,7 +385,7 @@ namespace Rasa.Managers
                 {
                     var deposit = client.MapClient.Player.LockboxCredits + amount;
 
-                    ManifestationManager.Instance.LossCredits(client, amount);
+                    ManifestationManager.Instance.LossCredits(client, -amount);
 
                     client.CallMethod(client.MapClient.Player.Actor.EntityId, new LockboxFundsPacket(deposit));
 
@@ -396,13 +396,13 @@ namespace Rasa.Managers
                     CommunicatorManager.Instance.SystemMessage(client, "Not enof credit's in inventory\nP.S. Go earn some credits :)");
             }
             // withdraw
-            else if (amount < 0)
+            else if (amount <= -500)
             {
                 if (client.MapClient.Player.LockboxCredits >= -amount)
                 {
                     var withdraw = client.MapClient.Player.LockboxCredits + amount;
 
-                    ManifestationManager.Instance.GainCredits(client, amount);
+                    ManifestationManager.Instance.GainCredits(client, -amount);
                     client.CallMethod(client.MapClient.Player.Actor.EntityId, new LockboxFundsPacket(withdraw));
 
                     client.MapClient.Player.LockboxCredits = withdraw;
@@ -592,6 +592,9 @@ namespace Rasa.Managers
         public void InitForClient(Client client)
         {
             InitCharacterInventory(client);
+
+            // init LockboxTabPermissions
+            client.CallMethod(SysEntity.ClientInventoryManagerId, new LockboxTabPermissionsPacket(client.MapClient.Player.LockboxTabs));
 
             // it seems  that InventoryCreatePacket dont need to be called, ToDo; investigate more
             //client.CallMethod(SysEntity.ClientInventoryManagerId, new InventoryCreatePacket(InventoryType.Personal, client.MapClient.Inventory.PersonalInventory, 250));

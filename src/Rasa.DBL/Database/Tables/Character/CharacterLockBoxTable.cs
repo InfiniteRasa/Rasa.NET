@@ -23,12 +23,12 @@ namespace Rasa.Database.Tables.Character
 
             UpdateCreditsCommand.Connection = GameDatabaseAccess.CharConnection;
             UpdateCreditsCommand.Parameters.Add("@AccountId", MySqlDbType.UInt32);
-            UpdateCreditsCommand.Parameters.Add("@Credits", MySqlDbType.UInt32);
+            UpdateCreditsCommand.Parameters.Add("@Credits", MySqlDbType.Int32);
             UpdateCreditsCommand.Prepare();
 
             UpdatePurashedTabsCommand.Connection = GameDatabaseAccess.CharConnection;
             UpdatePurashedTabsCommand.Parameters.Add("@AccountId", MySqlDbType.UInt32);
-            UpdatePurashedTabsCommand.Parameters.Add("@PurashedTabs", MySqlDbType.UInt32);
+            UpdatePurashedTabsCommand.Parameters.Add("@PurashedTabs", MySqlDbType.Int32);
             UpdatePurashedTabsCommand.Prepare();
         }
 
@@ -41,26 +41,26 @@ namespace Rasa.Database.Tables.Character
             }
         }
 
-        public static List<uint> GetLockboxInfo(uint accountId)
+        public static List<int> GetLockboxInfo(uint accountId)
         {
             lock (GameDatabaseAccess.CharLock)
             {
-                var lockboxInfo = new List<uint>();
+                var lockboxInfo = new List<int>();
 
                 GetLockboxInfoCommand.Parameters["@AccountId"].Value = accountId;
 
                 using (var reader = GetLockboxInfoCommand.ExecuteReader())
                     while (reader.Read())
                     {
-                        lockboxInfo.Add(reader.GetUInt32("credits"));
-                        lockboxInfo.Add(reader.GetUInt32("purashedTabs"));
+                        lockboxInfo.Add(reader.GetInt32("credits"));
+                        lockboxInfo.Add(reader.GetInt32("purashedTabs"));
                     }
 
                 return lockboxInfo;
             }
         }
 
-        public static void UpdateCredits(uint accountId, uint credits)
+        public static void UpdateCredits(uint accountId, int credits)
         {
             lock (GameDatabaseAccess.CharLock)
             {
@@ -70,7 +70,7 @@ namespace Rasa.Database.Tables.Character
             }
         }
 
-        public static void UpdatePurashedTabs(uint accountId, uint purashedTabs)
+        public static void UpdatePurashedTabs(uint accountId, int purashedTabs)
         {
             lock (GameDatabaseAccess.CharLock)
             {

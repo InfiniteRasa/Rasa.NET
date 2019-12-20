@@ -415,6 +415,8 @@ namespace Rasa.Managers
             client.CallMethod(actor.EntityId, new WeaponDrawerSlotPacket(player.ActiveWeapon, false));
 
             client.CallMethod(actor.EntityId, new AllCreditsPacket(player.Credits));
+
+            client.CallMethod(actor.EntityId, new LockboxFundsPacket(player.LockboxCredits));
         }
 
         public void AutoFireTimerDoWork(long delta)
@@ -511,7 +513,6 @@ namespace Rasa.Managers
                 new WorldLocationDescriptorPacket(player.Actor.Position, player.Actor.Orientation),
                 // Manifestation
                 new CurrentCharacterIdPacket(player.Actor.EntityId),
-                new LockboxFundsPacket(player.LockboxCredits),
                 new CharacterClassPacket(player.Class),
 
                 new AttributeInfoPacket(player.Actor.Attributes),
@@ -531,16 +532,16 @@ namespace Rasa.Managers
             return entityData;
         }
 
-        public void GainCredits(Client client, uint credits)
+        public void GainCredits(Client client, int credits)
         {
-            CharacterManager.Instance.UpdateCharacter(client, CharacterUpdate.Credits, (long)credits);
+            CharacterManager.Instance.UpdateCharacter(client, CharacterUpdate.Credits, credits);
             // send player message
             client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(PlayerMessage.PmGotMoneyLootFromUnknown, new Dictionary<string, string> { { "amount", credits.ToString() } }, MsgFilterId.LootObtained));
         }
 
-        public void LossCredits(Client client, uint credits)
+        public void LossCredits(Client client, int credits)
         {
-            CharacterManager.Instance.UpdateCharacter(client, CharacterUpdate.Credits, -credits);
+            CharacterManager.Instance.UpdateCharacter(client, CharacterUpdate.Credits, credits);
         }
 
         public int GetAvailableAttributePoints(Manifestation player)

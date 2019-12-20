@@ -7,12 +7,12 @@
     {
         public override GameOpcode Opcode { get; } = GameOpcode.TransferCreditToLockbox;
 
-        public uint Ammount { get; set; }
+        public int Ammount { get; set; }
 
         public override void Read(PythonReader pr)
         {
             pr.ReadTuple();
-            Ammount = pr.ReadUInt();
+            Ammount = pr.ReadInt();
         }
     }
 }

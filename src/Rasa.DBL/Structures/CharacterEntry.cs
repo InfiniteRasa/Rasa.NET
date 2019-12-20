@@ -25,8 +25,8 @@ namespace Rasa.Structures
         public float CoordY { get; set; }
         public float CoordZ { get; set; }
         public float Orientation { get; set; }
-        public uint Credits { get; set; }
-        public uint Prestige { get; set; }
+        public int Credits { get; set; }
+        public int Prestige { get; set; }
         public byte ActiveWeapon { get; set; }
         public uint NumLogins { get; set; }
         public DateTime? LastLogin { get; set; }
@@ -60,8 +60,8 @@ namespace Rasa.Structures
                 CoordY = reader.GetFloat("coord_y"),
                 CoordZ = reader.GetFloat("coord_z"),
                 Orientation = reader.GetFloat("orientation"),
-                Credits = reader.GetUInt32("credits"),
-                Prestige = reader.GetUInt32("prestige"),
+                Credits = reader.GetInt32("credits"),
+                Prestige = reader.GetInt32("prestige"),
                 ActiveWeapon = reader.GetByte("active_weapon"),
                 NumLogins = reader.GetUInt32("num_logins"),
                 LastLogin = reader.IsDBNull(lastLoginOrdinal) ? (DateTime?) null : reader.GetDateTime(lastLoginOrdinal),

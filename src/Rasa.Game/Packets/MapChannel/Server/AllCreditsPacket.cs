@@ -9,9 +9,9 @@ namespace Rasa.Packets.MapChannel.Server
     {
         public override GameOpcode Opcode { get; } = GameOpcode.AllCredits;
 
-        public Dictionary<CurencyType, uint> Credits { get; set; }
+        public Dictionary<CurencyType, int> Credits { get; set; }
 
-        public AllCreditsPacket(Dictionary<CurencyType, uint> creadits)
+        public AllCreditsPacket(Dictionary<CurencyType, int> creadits)
         {
             Credits = creadits;
         }
@@ -24,7 +24,7 @@ namespace Rasa.Packets.MapChannel.Server
             {
                 pw.WriteTuple(2);
                 pw.WriteInt((int)curency.Key);
-                pw.WriteUInt(curency.Value);
+                pw.WriteInt(curency.Value);
             }
         }
     }

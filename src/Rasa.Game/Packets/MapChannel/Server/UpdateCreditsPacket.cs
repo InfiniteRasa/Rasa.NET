@@ -8,10 +8,10 @@
         public override GameOpcode Opcode { get; } = GameOpcode.UpdateCredits;
 
         public CurencyType Type { get; set; }
-        public uint Amount { get; set; }
+        public int Amount { get; set; }
         public uint Delta { get; set; }
 
-        public UpdateCreditsPacket(CurencyType type, uint amount, uint delta)
+        public UpdateCreditsPacket(CurencyType type, int amount, uint delta)
         {
             Type = type;
             Amount = amount;
@@ -22,7 +22,7 @@
         {
             pw.WriteTuple(3);
             pw.WriteInt((int)Type);
-            pw.WriteUInt(Amount);
+            pw.WriteInt(Amount);
             pw.WriteUInt(0u);     // ToDo
         }
     }

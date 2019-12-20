@@ -416,10 +416,10 @@ namespace Rasa.Managers
 
             var buyBackItem = EntityManager.Instance.GetItem((uint)packet.ItemEntityId);
             var buyedItem = InventoryManager.Instance.AddItemToInventory(client, buyBackItem);
-            var buyPrice = buyedItem.Stacksize * buyedItem.ItemTemplate.SellPrice;
+            var buyPrice = (int)buyedItem.Stacksize * buyedItem.ItemTemplate.SellPrice;
 
             // remove credits
-            ManifestationManager.Instance.LossCredits(client, buyPrice);
+            ManifestationManager.Instance.LossCredits(client, -buyPrice);
         }
 
         public void RequestVendorPurchase(Client client, RequestVendorPurchasePacket packet)
@@ -437,7 +437,7 @@ namespace Rasa.Managers
                 return;
             }
             // has the player enough credits?
-            var buyPrice = selectedVendorItem.ItemTemplate.BuyPrice * itemQuantity;
+            var buyPrice = selectedVendorItem.ItemTemplate.BuyPrice * (int)itemQuantity;
 
             if (client.MapClient.Player.Credits[CurencyType.Credits] < buyPrice)
                 return; // not enough credits
@@ -473,10 +473,10 @@ namespace Rasa.Managers
             client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(PlayerMessage.PmGotLootFromUnknown, new Dictionary<string, string> { { "quantity", itemQuantity.ToString() }, { "loot", boughtItem.ItemTemplate.Class.ToString() } }, MsgFilterId.LootObtained));
 
             // get correct buy price
-            buyPrice = boughtItem.ItemTemplate.BuyPrice * itemQuantity;
+            buyPrice = boughtItem.ItemTemplate.BuyPrice * (int)itemQuantity;
 
             // remove credits
-            ManifestationManager.Instance.LossCredits(client, buyPrice);
+            ManifestationManager.Instance.LossCredits(client, -buyPrice);
         }
 
         public void RequestVendorRepair(Client client, RequestVendorRepairPacket packet)
@@ -491,7 +491,7 @@ namespace Rasa.Managers
                 // set itemHit points to full
                 item.CurrentHitPoints = classInfo.ItemClassInfo.MaxHitPoints;
                 // remove player credits
-                ManifestationManager.Instance.LossCredits(client, (uint)Math.Round(cost, 0));
+                ManifestationManager.Instance.LossCredits(client, -(int)Math.Round(cost, 0));
                 // updateItem on client
                 ItemManager.Instance.SendItemDataToClient(client, item, true);
                 // updare item in db
@@ -535,7 +535,7 @@ namespace Rasa.Managers
 
             // get sell price
             var realItemQuantity = Math.Min(itemQuantity, soldItem.Stacksize);
-            var sellPrice = soldItem.ItemTemplate.SellPrice * realItemQuantity;
+            var sellPrice = soldItem.ItemTemplate.SellPrice * (int)realItemQuantity;
             // remove item
             // todo: Handle stacksizes correctly and only decrease item by quantity parameter
             InventoryManager.Instance.RemoveItemBySlot(client, InventoryType.Personal, slotIndex);

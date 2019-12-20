@@ -7,9 +7,9 @@
     {
         public override GameOpcode Opcode { get; } = GameOpcode.LockboxTabPermissions;
         
-        public uint UnlockedNum { get; set; }
+        public int UnlockedNum { get; set; }
 
-        public LockboxTabPermissionsPacket(uint unlockedNum)
+        public LockboxTabPermissionsPacket(int unlockedNum)
         {
             UnlockedNum = unlockedNum;
         }
@@ -18,9 +18,9 @@
         {
             pw.WriteTuple(1);
             pw.WriteDictionary(5);
-            for (uint i = 1; i < 6; i++)
+            for (int i = 1; i < 6; i++)
             {
-                pw.WriteUInt(i);
+                pw.WriteInt(i);
 
                 if (i <= UnlockedNum)
                     pw.WriteBool(true);

@@ -25,8 +25,8 @@ namespace Rasa.Structures
         public bool NotPlaceableInLockbox { get; set; }
         public InventoryCategory InventoryCategory { get; set; }
 
-        public uint BuyPrice { get; set; }
-        public uint SellPrice { get; set; }
+        public int BuyPrice { get; set; }
+        public int SellPrice { get; set; }
        
         public ItemTemplate(ItemTemplateItemClassEntry template)
         {

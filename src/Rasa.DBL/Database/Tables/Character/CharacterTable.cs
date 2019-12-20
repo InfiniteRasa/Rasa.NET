@@ -73,7 +73,7 @@ namespace Rasa.Database.Tables.Character
 
             UpdateCharacterCreditsCommand.Connection = GameDatabaseAccess.CharConnection;
             UpdateCharacterCreditsCommand.Parameters.Add("@Id", MySqlDbType.UInt32);
-            UpdateCharacterCreditsCommand.Parameters.Add("@Credits", MySqlDbType.UInt32);
+            UpdateCharacterCreditsCommand.Parameters.Add("@Credits", MySqlDbType.Int32);
             UpdateCharacterCreditsCommand.Prepare();
 
             UpdateCharacterLocationCommand.Connection = GameDatabaseAccess.CharConnection;
@@ -219,7 +219,7 @@ namespace Rasa.Database.Tables.Character
             }
         }
 
-        public static void UpdateCharacterCredits(uint characterId, uint credits)
+        public static void UpdateCharacterCredits(uint characterId, int credits)
         {
             lock (GameDatabaseAccess.CharLock)
             {

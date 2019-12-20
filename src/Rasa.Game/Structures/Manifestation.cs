@@ -11,7 +11,6 @@ namespace Rasa.Structures
         public Dictionary<EquipmentData, AppearanceData> AppearanceData { get; set; }
         public uint CharacterId { get; set; }
         public List<CharacterOptions> CharacterOptions = new List<CharacterOptions>();
-        public string FamilyName { get; set; }
         public double Scale { get; set; }
         public int Race { get; set; }
         public uint Class { get; set; }
@@ -23,9 +22,9 @@ namespace Rasa.Structures
         public DateTime? TimeSinceLastPlayed { get; set; }
         public int ClanId { get; set; }
         public string ClanName { get; set; }
-        public uint LockboxCredits { get; set; }
-        public uint LockboxTabs { get; set; }
-        public Dictionary<CurencyType, uint> Credits = new Dictionary<CurencyType, uint>();
+        public int LockboxCredits { get; set; }
+        public int LockboxTabs { get; set; }
+        public Dictionary<CurencyType, int> Credits = new Dictionary<CurencyType, int>();
         //public uint Prestige { get; set; }
         public List<ResistanceData> ResistanceData = new List<ResistanceData>();
         public int SpentBody { get; set; }

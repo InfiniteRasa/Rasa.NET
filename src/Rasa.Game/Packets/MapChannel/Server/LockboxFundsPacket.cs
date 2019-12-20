@@ -7,9 +7,9 @@
     {
         public override GameOpcode Opcode { get; } = GameOpcode.LockboxFunds;
 
-        public uint Amount { get; set; }
+        public int Amount { get; set; }
 
-        public LockboxFundsPacket(uint amount)
+        public LockboxFundsPacket(int amount)
         {
             Amount = amount;
         }
@@ -17,7 +17,7 @@
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(1);
-            pw.WriteUInt(Amount);
+            pw.WriteInt(Amount);
         }
     }
 }
