@@ -1,4 +1,6 @@
-﻿namespace Rasa.Packets.MapChannel.Client
+﻿using System;
+
+namespace Rasa.Packets.MapChannel.Client
 {
     using Data;
     using Memory;
@@ -16,7 +18,12 @@
             pr.ReadTuple();
             SrcSlot = pr.ReadUInt();
             DestSlot = pr.ReadUInt();
-            Quantity = pr.ReadInt();
+            if (pr.PeekType() == PythonType.Int)
+                Quantity = pr.ReadInt();
+            else if (pr.PeekType() == PythonType.Long)
+                Quantity = (int)pr.ReadLong();
+            else
+                throw new Exception("RequestMoveItemToHomeInventory: unsuported PythonType");
         }
     }
 }

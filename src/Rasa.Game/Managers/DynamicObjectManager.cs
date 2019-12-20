@@ -279,6 +279,11 @@ namespace Rasa.Managers
 
         #region Footlocker
 
+        internal void FootlockerRecovery(MapChannel mapChannel, ActionData action)
+        {
+            Logger.WriteLog(LogType.Debug, $"ToDo: FootlockerRecovery, ActionId = {action.ActionId} ActionArgId = {action.ActionArgId}");
+        }
+
         internal void InitFootlockers()
         {
             var footlockers = FootlockersTable.LoadFootlockers();
