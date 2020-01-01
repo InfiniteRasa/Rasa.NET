@@ -6,7 +6,7 @@ using MySql.Data.MySqlClient;
 
 namespace Rasa.Structures
 {
-    public class AuthAccountEntry
+    public partial class AuthAccountEntry
     {
         public uint Id { get; set; }
         public string Email { get; set; }
@@ -14,9 +14,13 @@ namespace Rasa.Structures
         public string Password { get; set; }
         public string Salt { get; set; }
         public byte Level { get; set; }
+        public string LastIp { get; set; }
         public byte LastServerId { get; set; }
+        public DateTime? LastLogin { get; set; }
+        public DateTime JoinDate { get; set; }
         public bool Locked { get; set; }
         public bool Validated { get; set; }
+        public string ValidationToken { get; set; }
 
         public static AuthAccountEntry Read(MySqlDataReader reader)
         {
