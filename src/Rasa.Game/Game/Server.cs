@@ -6,12 +6,12 @@ using System.Net.Sockets;
 
 namespace Rasa.Game
 {
-    using Managers;
     using Commands;
     using Config;
     using Data;
     using Database;
     using Login;
+    using Managers;
     using Memory;
     using Networking;
     using Packets;
@@ -39,11 +39,15 @@ namespace Rasa.Game
         public bool IsFull => CurrentPlayers >= Config.ServerInfoConfig.MaxPlayers;
         public ushort CurrentPlayers { get; set; }
 
+        private readonly Action _stopHost;
+
         private readonly List<Client> _clientsToRemove = new List<Client>();
         private readonly PacketRouter<Server, CommOpcode> _router = new PacketRouter<Server, CommOpcode>();
 
-        public Server()
+        public Server(WorldContext worldContext, Action stopHost)
         {
+            _stopHost = stopHost ?? throw new ArgumentNullException(nameof(stopHost));
+
             Configuration.OnLoad += ConfigLoaded;
             Configuration.OnReLoad += ConfigReLoaded;
             Configuration.Load();
@@ -56,7 +60,7 @@ namespace Rasa.Game
 
             BufferManager.Initialize(Config.SocketAsyncConfig.BufferSize, Config.SocketAsyncConfig.MaxClients, Config.SocketAsyncConfig.ConcurrentOperationsByClient);
 
-            GameDatabaseAccess.Initialize(Config.WorldDatabaseConnectionString, Config.CharDatabaseConnectionString);
+            GameDatabaseAccess.Initialize(worldContext, Config.CharDatabaseConnectionString);
 
             CommandProcessor.RegisterCommand("exit", ProcessExitCommand);
             CommandProcessor.RegisterCommand("reload", ProcessReloadCommand);
@@ -392,9 +396,7 @@ namespace Rasa.Game
 
             Timer.Add("exit", minutes * 60000, false, () =>
             {
-                Shutdown();
-
-                Environment.Exit(0);
+                _stopHost();
             });
 
             Logger.WriteLog(LogType.Command, $"Exiting the server in {minutes} minute(s).");

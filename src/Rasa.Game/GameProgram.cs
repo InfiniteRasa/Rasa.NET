@@ -1,42 +1,30 @@
-﻿using System;
-using System.Diagnostics;
+﻿using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace Rasa
 {
-    using Commands;
-    using Game;
+    using Database;
     using Misc;
 
-    public class GameProgram : ProgramBase
+    public class GameProgram
     {
-        private const string Type = "Game";
-
-        private static Server _server;
-
-        public static void Main(string[] args)
+        public static async Task Main(string[] args)
         {
-            _server = new Server();
+            await CreateHostBuilder(args).RunConsoleAsync();
+        }
 
-            Logger.WriteLog(LogType.File, "Application startup!");
-
-            InitConsole(Type);
-
-            Logger.WriteLog(LogType.Initialize, "*** Initialized Game Server...");
-
-            if (!_server.Start())
-            {
-                Logger.WriteLog(LogType.Error, "Unable to start server!");
-                return;
-            }
-
-            while (_server.Running)
-            {
-                CommandProcessor.ProcessCommand();
-            }
-
-            GC.Collect();
-
-            Process.GetCurrentProcess().WaitForExit();
+        public static IHostBuilder CreateHostBuilder(string[] args)
+        {
+            return RasaHost.CreateDefaultRasaHost<GameHostedService>(args)
+                .ConfigureServices((hostingContext, services) =>
+                {
+                    services.AddDbContext<WorldContext>(options =>
+                    {
+                        options.UseMySql(hostingContext.Configuration.GetSection("WorldDatabaseConnectionString").Value);
+                    });
+                });
         }
     }
 }

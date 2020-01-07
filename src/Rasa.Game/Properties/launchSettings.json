@@ -1,7 +1,10 @@
 {
   "profiles": {
     "Rasa.Game": {
-      "commandName": "Project"
+      "commandName": "Project",
+      "environmentVariables": {
+        "RASA_Environment": "Development"
+      }
     }
   }
 }
