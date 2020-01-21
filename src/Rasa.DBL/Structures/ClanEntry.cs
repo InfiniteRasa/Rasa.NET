@@ -1,22 +1,19 @@
-﻿using MySql.Data.MySqlClient;
+﻿using System;
+using System.Collections.Generic;
 
 namespace Rasa.Structures
 {
-    public class ClanEntry
+    public partial class ClanEntry
     {
         public uint Id { get; set; }
         public string Name { get; set; }
+        public DateTime CreatedAt { get; set; }
 
-        public static ClanEntry Read(MySqlDataReader reader, bool newReader = true)
+        public virtual ICollection<ClanMemberEntry> ClanMember { get; set; }
+
+        public ClanEntry()
         {
-            if (newReader && !reader.Read())
-                return null;
-
-            return new ClanEntry
-            {
-                Id = reader.GetUInt32("id"),
-                Name = reader.GetString("name"),
-            };
+            ClanMember = new HashSet<ClanMemberEntry>();
         }
     }
 }

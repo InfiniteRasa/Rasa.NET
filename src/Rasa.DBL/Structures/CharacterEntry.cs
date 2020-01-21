@@ -1,10 +1,9 @@
 ﻿using System;
-
-using MySql.Data.MySqlClient;
+using System.Collections.Generic;
 
 namespace Rasa.Structures
 {
-    public class CharacterEntry
+    public partial class CharacterEntry
     {
         public uint Id { get; set; }
         public uint AccountId { get; set; }
@@ -31,42 +30,16 @@ namespace Rasa.Structures
         public uint NumLogins { get; set; }
         public DateTime? LastLogin { get; set; }
         public uint TotalTimePlayed { get; set; }
+        public DateTime CreatedAt { get; set; }
 
-        public static CharacterEntry Read(MySqlDataReader reader, bool newReader = true)
+        public virtual GameAccountEntry Account { get; set; }
+        public virtual ClanMemberEntry ClanMember { get; set; }
+        public virtual ICollection<CharacterAppearanceEntry> CharacterAppearance { get; set; }
+
+        public CharacterEntry()
         {
-            if (newReader && !reader.Read())
-                return null;
-
-            var lastLoginOrdinal = reader.GetOrdinal("last_login");
-
-            return new CharacterEntry
-            {
-                Id = reader.GetUInt32("id"),
-                AccountId = reader.GetUInt32("account_id"),
-                Slot = reader.GetByte("slot"),
-                Name = reader.GetString("name"),
-                Race = reader.GetByte("race"),
-                Class = reader.GetUInt32("class"),
-                Gender = (byte) (reader.GetBoolean("gender") ? 1 : 0),
-                Scale = reader.GetDouble("scale"),
-                Experience = reader.GetUInt32("experience"),
-                Level = reader.GetByte("level"),
-                Body = reader.GetInt32("body"),
-                Mind = reader.GetInt32("mind"),
-                Spirit = reader.GetInt32("spirit"),
-                CloneCredits = reader.GetUInt32("clone_credits"),
-                MapContextId = reader.GetUInt32("map_context_id"),
-                CoordX = reader.GetFloat("coord_x"),
-                CoordY = reader.GetFloat("coord_y"),
-                CoordZ = reader.GetFloat("coord_z"),
-                Orientation = reader.GetFloat("orientation"),
-                Credits = reader.GetInt32("credits"),
-                Prestige = reader.GetInt32("prestige"),
-                ActiveWeapon = reader.GetByte("active_weapon"),
-                NumLogins = reader.GetUInt32("num_logins"),
-                LastLogin = reader.IsDBNull(lastLoginOrdinal) ? (DateTime?) null : reader.GetDateTime(lastLoginOrdinal),
-                TotalTimePlayed = reader.GetUInt32("total_time_played")
-            };
+            CharacterAppearance = new HashSet<CharacterAppearanceEntry>();
         }
+
     }
 }
