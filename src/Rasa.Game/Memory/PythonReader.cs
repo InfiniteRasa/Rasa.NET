@@ -356,10 +356,10 @@ namespace Rasa.Memory
                 var type = Reader.ReadByte();
                 if (type == 0x66)
                 {
-                    if (Reader.ReadByte() == 0x2A)
+                    //if (Reader.ReadByte() == 0x2A)
                         break;
 
-                    --Reader.BaseStream.Position;
+                    //--Reader.BaseStream.Position;
                 }
 
                 --Reader.BaseStream.Position;
