@@ -44,7 +44,7 @@
             if (client.State != ClientState.LoggedIn)
                 return;
 
-            client.CallMethod(SysEntity.ClientMethodId, new BeginCharacterSelectionPacket(client.AccountEntry.FamilyName, client.AccountEntry.CharacterCount > 0, client.AccountEntry.Id));
+            client.CallMethod(SysEntity.ClientMethodId, new BeginCharacterSelectionPacket(client.AccountEntry.FamilyName, client.AccountEntry.CharacterCount > 0, client.AccountEntry.Id, client.AccountEntry.CanSkipBootcamp));
 
             var charactersBySlot = CharacterTable.ListCharactersBySlot(client.AccountEntry.Id);
 
@@ -63,7 +63,7 @@
         {
             client.CallMethod(SysEntity.ClientMethodId, new GeneratedCharacterNamePacket
             {
-                Name = PlayerRandomNameTable.GetRandom((PlayerRandomNameTable.Gender) gender, PlayerRandomNameTable.NameType.First) ?? (gender == 0 ? "Richard" : "Rachel")
+                Name = PlayerRandomNameTable.GetRandom((PlayerRandomNameTable.Gender)gender, PlayerRandomNameTable.NameType.First) ?? (gender == 0 ? "Richard" : "Rachel")
             });
         }
 
@@ -111,7 +111,7 @@
                         SendCharacterCreateFailed(client, CreateCharacterResult.FamilyNameReserved);
                         return;
                     }
-                    
+
                 }
 
                 entry = new CharacterEntry
@@ -119,7 +119,7 @@
                     AccountId = client.AccountEntry.Id,
                     Slot = packet.SlotNum,
                     Name = packet.CharacterName,
-                    Race = (byte) packet.RaceId,
+                    Race = (byte)packet.RaceId,
                     Class = 1,
                     Scale = packet.Scale,
                     Gender = packet.Gender,
@@ -142,7 +142,10 @@
                 }
 
                 foreach (var data in packet.AppearanceData)
+                {
+                    data.Value.ClassId = ItemTemplateItemClassTable.GetItemClassId(data.Value.ClassId);
                     CharacterAppearanceTable.AddAppearance(entry.Id, data.Value.GetDatabaseEntry());
+                }
 
                 if (string.IsNullOrWhiteSpace(client.AccountEntry.FamilyName) || changeFamilyName)
                 {
