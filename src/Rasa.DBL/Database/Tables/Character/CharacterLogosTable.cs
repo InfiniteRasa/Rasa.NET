@@ -1,42 +1,19 @@
 ﻿using System.Collections.Generic;
-
-using MySql.Data.MySqlClient;
+using System.Linq;
 
 namespace Rasa.Database.Tables.Character
 {
+    using Structures;
+
     public class CharacterLogosTable
     {
-        private static readonly MySqlCommand GetLogosCommand = new MySqlCommand("SELECT logosId FROM character_logos WHERE accountId = @AccountId And characterSlot = @CharacterSlot");
-        private static readonly MySqlCommand SetLogosCommand = new MySqlCommand("INSERT INTO character_logos (accountId, characterSlot, logosId) VALUES (@AccountId, @CharacterSlot, @LogosId)");
-
-        public static void Initialize()
-        {
-            GetLogosCommand.Connection = GameDatabaseAccess.CharConnection;
-            GetLogosCommand.Parameters.Add("@AccountId", MySqlDbType.UInt32);
-            GetLogosCommand.Parameters.Add("@CharacterSlot", MySqlDbType.UInt32);
-            GetLogosCommand.Prepare();
-
-            SetLogosCommand.Connection = GameDatabaseAccess.CharConnection;
-            SetLogosCommand.Parameters.Add("@AccountId", MySqlDbType.UInt32);
-            SetLogosCommand.Parameters.Add("@CharacterSlot", MySqlDbType.UInt32);
-            SetLogosCommand.Parameters.Add("@LogosId", MySqlDbType.Int32);
-            SetLogosCommand.Prepare();
-        }
-
         public static List<int> GetLogos(uint accountId, uint characterSlot)
         {
             lock (GameDatabaseAccess.CharLock)
             {
-                var playerLogos = new List<int>();
-
-                GetLogosCommand.Parameters["@AccountId"].Value = accountId;
-                GetLogosCommand.Parameters["@CharacterSlot"].Value = characterSlot;
-
-                using (var reader = GetLogosCommand.ExecuteReader())
-                    while (reader.Read())
-                        playerLogos.Add(reader.GetInt32("logosId"));
-
-                return playerLogos;
+                return (from characterLogos in GameDatabaseAccess.CharConnection.CharacterLogos
+                    where characterLogos.AccountId == accountId && characterLogos.CharacterSlot == characterSlot
+                    select characterLogos.LogosId).ToList();
             }
         }
 
@@ -44,10 +21,13 @@ namespace Rasa.Database.Tables.Character
         {
             lock (GameDatabaseAccess.CharLock)
             {
-                SetLogosCommand.Parameters["@AccountId"].Value = accountId;
-                SetLogosCommand.Parameters["@CharacterSlot"].Value = characterSlot;
-                SetLogosCommand.Parameters["@LogosId"].Value = logosId;
-                SetLogosCommand.ExecuteNonQuery();
+                GameDatabaseAccess.CharConnection.CharacterLogos.Add(new CharacterLogosEntry
+                {
+                    AccountId = accountId,
+                    CharacterSlot = characterSlot,
+                    LogosId = logosId
+                });
+                GameDatabaseAccess.CharConnection.SaveChanges();
             }
         }
     }

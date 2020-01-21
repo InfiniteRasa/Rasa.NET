@@ -24,6 +24,10 @@ namespace Rasa
                     {
                         options.UseMySql(hostingContext.Configuration.GetSection("WorldDatabaseConnectionString").Value);
                     });
+                    services.AddDbContext<CharacterContext>(options =>
+                    {
+                        options.UseMySql(hostingContext.Configuration.GetSection("GameDatabaseConnectionString").Value);
+                    });
                 });
         }
     }

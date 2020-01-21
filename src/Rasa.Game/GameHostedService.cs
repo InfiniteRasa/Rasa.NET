@@ -16,17 +16,19 @@ namespace Rasa
         private const string Type = "Game";
         private Server _server;
         private readonly WorldContext _worldContext;
+        private readonly CharacterContext _charContext;
         private readonly IHostApplicationLifetime _appLifetime;
 
-        public GameHostedService(WorldContext worldContext, IHostApplicationLifetime appLifetime)
+        public GameHostedService(WorldContext worldContext, CharacterContext charContext, IHostApplicationLifetime appLifetime)
         {
             _worldContext = worldContext ?? throw new ArgumentNullException(nameof(worldContext));
+            _charContext = charContext ?? throw new ArgumentNullException(nameof(charContext));
             _appLifetime = appLifetime ?? throw new ArgumentNullException(nameof(appLifetime));
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            _server = new Server(_worldContext, _appLifetime.StopApplication);
+            _server = new Server(_worldContext, _charContext, _appLifetime.StopApplication);
 
             Logger.WriteLog(LogType.File, "Application startup!");
 

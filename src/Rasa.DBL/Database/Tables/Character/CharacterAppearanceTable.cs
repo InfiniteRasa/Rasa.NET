@@ -1,6 +1,5 @@
 ﻿using System.Collections.Generic;
-
-using MySql.Data.MySqlClient;
+using System.Linq;
 
 namespace Rasa.Database.Tables.Character
 {
@@ -8,56 +7,13 @@ namespace Rasa.Database.Tables.Character
 
     public static class CharacterAppearanceTable
     {
-        private static readonly MySqlCommand GetCharacterAppearancesCommand = new MySqlCommand("SELECT * FROM `character_appearance` WHERE `character_id` = @CharacterId");
-        private static readonly MySqlCommand AddCharacterAppearanceCommand = new MySqlCommand("INSERT INTO `character_appearance` (`character_id`, `slot`, `class`, `color`) VALUE (@CharacterId, @Slot, @Class, @Color)");
-        private static readonly MySqlCommand DeleteCharacterAppearancesCommand = new MySqlCommand("DELETE FROM `character_appearance` WHERE `character_id` = @CharacterId");
-        private static readonly MySqlCommand UpdateCharacterAppearanceCommand = new MySqlCommand("Update `character_appearance` SET class = @Class, color = @Color WHERE character_id = @CharacterId AND slot = @Slot");
-
-        public static void Initialize()
-        {
-            GetCharacterAppearancesCommand.Connection = GameDatabaseAccess.CharConnection;
-            GetCharacterAppearancesCommand.Parameters.Add("@CharacterId", MySqlDbType.UInt32);
-            GetCharacterAppearancesCommand.Prepare();
-
-            AddCharacterAppearanceCommand.Connection = GameDatabaseAccess.CharConnection;
-            AddCharacterAppearanceCommand.Parameters.Add("@CharacterId", MySqlDbType.UInt32);
-            AddCharacterAppearanceCommand.Parameters.Add("@Slot", MySqlDbType.UInt32);
-            AddCharacterAppearanceCommand.Parameters.Add("@Class", MySqlDbType.UInt32);
-            AddCharacterAppearanceCommand.Parameters.Add("@Color", MySqlDbType.UInt32);
-            AddCharacterAppearanceCommand.Prepare();
-
-            DeleteCharacterAppearancesCommand.Connection = GameDatabaseAccess.CharConnection;
-            DeleteCharacterAppearancesCommand.Parameters.Add("@CharacterId", MySqlDbType.UInt32);
-            DeleteCharacterAppearancesCommand.Prepare();
-
-            UpdateCharacterAppearanceCommand.Connection = GameDatabaseAccess.CharConnection;
-            UpdateCharacterAppearanceCommand.Parameters.Add("@CharacterId", MySqlDbType.UInt32);
-            UpdateCharacterAppearanceCommand.Parameters.Add("@Slot", MySqlDbType.UInt32);
-            UpdateCharacterAppearanceCommand.Parameters.Add("@Class", MySqlDbType.UInt32);
-            UpdateCharacterAppearanceCommand.Parameters.Add("@Color", MySqlDbType.UInt32);
-            UpdateCharacterAppearanceCommand.Prepare();
-        }
-
         public static Dictionary<uint, CharacterAppearanceEntry> GetAppearances(uint characterId)
         {
-            var dict = new Dictionary<uint, CharacterAppearanceEntry>();
-
             lock (GameDatabaseAccess.CharLock)
             {
-                GetCharacterAppearancesCommand.Parameters["@CharacterId"].Value = characterId;
-
-                using (var reader = GetCharacterAppearancesCommand.ExecuteReader())
-                {
-                    while (reader.Read())
-                    {
-                        var appearanceEntry = CharacterAppearanceEntry.Read(reader, false);
-
-                        dict.Add(appearanceEntry.Slot, appearanceEntry);
-                    }
-                }
+                return GameDatabaseAccess.CharConnection.CharacterAppearance.Where(ca => ca.CharacterId == characterId)
+                    .ToDictionary(charAppearance => charAppearance.Slot);
             }
-
-            return dict;
         }
 
         public static bool AddAppearance(uint characterId, CharacterAppearanceEntry entry)
@@ -66,11 +22,13 @@ namespace Rasa.Database.Tables.Character
             {
                 lock (GameDatabaseAccess.CharLock)
                 {
-                    AddCharacterAppearanceCommand.Parameters["@CharacterId"].Value = characterId;
-                    AddCharacterAppearanceCommand.Parameters["@Slot"].Value = entry.Slot;
-                    AddCharacterAppearanceCommand.Parameters["@Class"].Value = entry.Class;
-                    AddCharacterAppearanceCommand.Parameters["@Color"].Value = entry.Color;
-                    AddCharacterAppearanceCommand.ExecuteNonQuery();
+                    GameDatabaseAccess.CharConnection.CharacterAppearance.Add(new CharacterAppearanceEntry(
+                        characterId,
+                        entry.Slot,
+                        entry.Class,
+                        entry.Color
+                    ));
+                    GameDatabaseAccess.CharConnection.SaveChanges();
                 }
             }
             catch
@@ -85,8 +43,9 @@ namespace Rasa.Database.Tables.Character
         {
             lock (GameDatabaseAccess.CharLock)
             {
-                DeleteCharacterAppearancesCommand.Parameters["@CharacterId"].Value = characterId;
-                DeleteCharacterAppearancesCommand.ExecuteNonQuery();
+                var characterAppearance = GameDatabaseAccess.CharConnection.CharacterAppearance.First(ca => ca.CharacterId == characterId);
+                GameDatabaseAccess.CharConnection.Remove(characterAppearance);
+                GameDatabaseAccess.CharConnection.SaveChanges();
             }
         }
 
@@ -94,11 +53,12 @@ namespace Rasa.Database.Tables.Character
         {
             lock (GameDatabaseAccess.CharLock)
             {
-                UpdateCharacterAppearanceCommand.Parameters["@CharacterId"].Value = characterId;
-                UpdateCharacterAppearanceCommand.Parameters["@Slot"].Value = slot;
-                UpdateCharacterAppearanceCommand.Parameters["@Class"].Value = classId;
-                UpdateCharacterAppearanceCommand.Parameters["@Color"].Value = color;
-                UpdateCharacterAppearanceCommand.ExecuteNonQuery();
+                var characterAppearance =
+                    GameDatabaseAccess.CharConnection.CharacterAppearance.First(ca =>
+                        ca.CharacterId == characterId && ca.Slot == slot);
+                characterAppearance.Class = classId;
+                characterAppearance.Color = color;
+                GameDatabaseAccess.CharConnection.SaveChanges();
             }
         }
     }

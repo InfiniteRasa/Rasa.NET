@@ -44,7 +44,7 @@ namespace Rasa.Game
         private readonly List<Client> _clientsToRemove = new List<Client>();
         private readonly PacketRouter<Server, CommOpcode> _router = new PacketRouter<Server, CommOpcode>();
 
-        public Server(WorldContext worldContext, Action stopHost)
+        public Server(WorldContext worldContext, CharacterContext charContext, Action stopHost)
         {
             _stopHost = stopHost ?? throw new ArgumentNullException(nameof(stopHost));
 
@@ -60,7 +60,7 @@ namespace Rasa.Game
 
             BufferManager.Initialize(Config.SocketAsyncConfig.BufferSize, Config.SocketAsyncConfig.MaxClients, Config.SocketAsyncConfig.ConcurrentOperationsByClient);
 
-            GameDatabaseAccess.Initialize(worldContext, Config.CharDatabaseConnectionString);
+            GameDatabaseAccess.Initialize(worldContext, charContext);
 
             CommandProcessor.RegisterCommand("exit", ProcessExitCommand);
             CommandProcessor.RegisterCommand("reload", ProcessReloadCommand);

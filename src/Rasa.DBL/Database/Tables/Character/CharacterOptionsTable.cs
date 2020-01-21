@@ -1,7 +1,5 @@
 ﻿using System.Collections.Generic;
-
-using MySql.Data.MySqlClient;
-
+using System.Linq;
 
 namespace Rasa.Database.Tables.Character
 {
@@ -9,29 +7,12 @@ namespace Rasa.Database.Tables.Character
 
     public static class CharacterOptionsTable
     {
-        private static readonly MySqlCommand DeleteCharacterOptionsCommand = new MySqlCommand("DELETE FROM character_options WHERE character_id = @CharacterId");
-        private static readonly MySqlCommand GetCharacterOptionsCommand = new MySqlCommand("SELECT * FROM character_options WHERE character_id = @CharacterId");
-
-        public static void Initialize()
-        {
-            GetCharacterOptionsCommand.Connection = GameDatabaseAccess.CharConnection;
-            GetCharacterOptionsCommand.Parameters.Add("@CharacterId", MySqlDbType.UInt32);
-            GetCharacterOptionsCommand.Prepare();
-
-            DeleteCharacterOptionsCommand.Connection = GameDatabaseAccess.CharConnection;
-            DeleteCharacterOptionsCommand.Parameters.Add("@CharacterId", MySqlDbType.UInt32);
-            DeleteCharacterOptionsCommand.Prepare();
-        }
-
-        public static void AddCharacterOption(string value)
+        public static void AddCharacterOption(IEnumerable<CharacterOptionsEntry> characterOptions)
         {
             lock (GameDatabaseAccess.CharLock)
             {
-                MySqlCommand AddCharacterOptionsCommand = new MySqlCommand("INSERT INTO character_options (character_id, option_id, value) VALUES" + value)
-                {
-                    Connection = GameDatabaseAccess.CharConnection
-                };
-                AddCharacterOptionsCommand.ExecuteNonQuery();
+                GameDatabaseAccess.CharConnection.CharacterOptions.AddRange(characterOptions);
+                GameDatabaseAccess.CharConnection.SaveChanges();
             }
         }
 
@@ -39,8 +20,10 @@ namespace Rasa.Database.Tables.Character
         {
             lock (GameDatabaseAccess.CharLock)
             {
-                DeleteCharacterOptionsCommand.Parameters["@CharacterId"].Value = characterId;
-                DeleteCharacterOptionsCommand.ExecuteNonQuery();
+                var characterOptions = GameDatabaseAccess.CharConnection.CharacterOptions.Where(charOption =>
+                    charOption.CharacterId == characterId);
+                GameDatabaseAccess.CharConnection.RemoveRange(characterOptions);
+                GameDatabaseAccess.CharConnection.SaveChanges();
             }
         }
 
@@ -48,15 +31,14 @@ namespace Rasa.Database.Tables.Character
         {
             lock (GameDatabaseAccess.CharLock)
             {
-                GetCharacterOptionsCommand.Parameters["@CharacterId"].Value = characterId;
-
-                var characterOptions = new List<UserOptionsEntry>();
-
-                using (var reader = GetCharacterOptionsCommand.ExecuteReader())
-                    while (reader.Read())
-                        characterOptions.Add(UserOptionsEntry.Read(reader));
-
-                return characterOptions;
+                return (from characterOptions in GameDatabaseAccess.CharConnection.CharacterOptions
+                    where characterOptions.CharacterId == characterId
+                    select new UserOptionsEntry
+                    {
+                        AccountId = characterOptions.CharacterId,
+                        OptionId = (uint)characterOptions.OptionId,
+                        Value = characterOptions.Value
+                    }).ToList();
             }
         }
 

@@ -551,7 +551,7 @@ namespace Rasa.Managers
                     // send data to client
                     ItemManager.Instance.SendItemDataToClient(client, item, false);
                     // add item to empty slot
-                    AddItemBySlot(client, InventoryType.Personal, item.EntityId, (uint)(itemCategoryOffset + i), true);
+                    AddItemBySlot(client, InventoryType.Personal, item.EntityId, (uint)(itemCategoryOffset + i), false);
                     CharacterInventoryTable.AddInvItem(client.AccountEntry.Id, item.OwnerId, (int)InventoryType.Personal, item.OwnerSlotId, item.ItemId);
                     return item;
                 }

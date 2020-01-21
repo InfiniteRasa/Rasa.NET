@@ -1,43 +1,21 @@
 ﻿using System.Collections.Generic;
-
-using MySql.Data.MySqlClient;
+using System.Linq;
 
 namespace Rasa.Database.Tables.Character
 {
+    using Structures;
+
     public class CharacterLockboxTable
     {
-        private static readonly MySqlCommand AddLockboxInfoCommand = new MySqlCommand("INSERT INTO character_lockbox (accountId) VALUES (@AccountId)");
-        private static readonly MySqlCommand GetLockboxInfoCommand = new MySqlCommand("SELECT credits, purashedTabs FROM character_lockbox WHERE accountId = @AccountId");
-        private static readonly MySqlCommand UpdateCreditsCommand = new MySqlCommand("UPDATE character_lockbox SET credits = @Credits WHERE accountId = @AccountId");
-        private static readonly MySqlCommand UpdatePurashedTabsCommand = new MySqlCommand("UPDATE character_lockbox SET purashedTabs = @PurashedTabs WHERE accountId = @AccountId");
-
-        public static void Initialize()
-        {
-            AddLockboxInfoCommand.Connection = GameDatabaseAccess.CharConnection;
-            AddLockboxInfoCommand.Parameters.Add("@AccountId", MySqlDbType.UInt32);
-            AddLockboxInfoCommand.Prepare();
-
-            GetLockboxInfoCommand.Connection = GameDatabaseAccess.CharConnection;
-            GetLockboxInfoCommand.Parameters.Add("@AccountId", MySqlDbType.UInt32);
-            GetLockboxInfoCommand.Prepare();
-
-            UpdateCreditsCommand.Connection = GameDatabaseAccess.CharConnection;
-            UpdateCreditsCommand.Parameters.Add("@AccountId", MySqlDbType.UInt32);
-            UpdateCreditsCommand.Parameters.Add("@Credits", MySqlDbType.Int32);
-            UpdateCreditsCommand.Prepare();
-
-            UpdatePurashedTabsCommand.Connection = GameDatabaseAccess.CharConnection;
-            UpdatePurashedTabsCommand.Parameters.Add("@AccountId", MySqlDbType.UInt32);
-            UpdatePurashedTabsCommand.Parameters.Add("@PurashedTabs", MySqlDbType.Int32);
-            UpdatePurashedTabsCommand.Prepare();
-        }
-
         public static void AddLockboxInfo(uint accountId)
         {
             lock (GameDatabaseAccess.CharLock)
             {
-                AddLockboxInfoCommand.Parameters["@AccountId"].Value = accountId;
-                AddLockboxInfoCommand.ExecuteNonQuery();
+                GameDatabaseAccess.CharConnection.CharacterLockbox.Add(new CharacterLockboxEntry
+                {
+                    AccountId = accountId
+                });
+                GameDatabaseAccess.CharConnection.SaveChanges();
             }
         }
 
@@ -45,18 +23,18 @@ namespace Rasa.Database.Tables.Character
         {
             lock (GameDatabaseAccess.CharLock)
             {
-                var lockboxInfo = new List<int>();
+                List<int> lockBoxInfo = new List<int>();
+                var lockBox = (from charLockBox in GameDatabaseAccess.CharConnection.CharacterLockbox
+                    where charLockBox.AccountId == accountId
+                    select new[] {charLockBox.Credits, charLockBox.PurashedTabs});
 
-                GetLockboxInfoCommand.Parameters["@AccountId"].Value = accountId;
+                foreach (var lockb in lockBox)
+                {
+                    lockBoxInfo.Add(lockb[0]);
+                    lockBoxInfo.Add(lockb[1]);
+                }
 
-                using (var reader = GetLockboxInfoCommand.ExecuteReader())
-                    while (reader.Read())
-                    {
-                        lockboxInfo.Add(reader.GetInt32("credits"));
-                        lockboxInfo.Add(reader.GetInt32("purashedTabs"));
-                    }
-
-                return lockboxInfo;
+                return lockBoxInfo;
             }
         }
 
@@ -64,9 +42,10 @@ namespace Rasa.Database.Tables.Character
         {
             lock (GameDatabaseAccess.CharLock)
             {
-                UpdateCreditsCommand.Parameters["@AccountId"].Value = accountId;
-                UpdateCreditsCommand.Parameters["@Credits"].Value = credits;
-                UpdateCreditsCommand.ExecuteNonQuery();
+                var characterLockBox = GameDatabaseAccess.CharConnection.CharacterLockbox.First(charLockBox =>
+                    charLockBox.AccountId == accountId);
+                characterLockBox.Credits = credits;
+                GameDatabaseAccess.CharConnection.SaveChanges();
             }
         }
 
@@ -74,9 +53,9 @@ namespace Rasa.Database.Tables.Character
         {
             lock (GameDatabaseAccess.CharLock)
             {
-                UpdatePurashedTabsCommand.Parameters["@AccountId"].Value = accountId;
-                UpdatePurashedTabsCommand.Parameters["@PurashedTabs"].Value = purashedTabs;
-                UpdatePurashedTabsCommand.ExecuteNonQuery();
+                var characterLockBox = GameDatabaseAccess.CharConnection.CharacterLockbox.First(charLockBox =>
+                    charLockBox.AccountId == accountId);
+                characterLockBox.PurashedTabs = purashedTabs;
             }
         }
     }

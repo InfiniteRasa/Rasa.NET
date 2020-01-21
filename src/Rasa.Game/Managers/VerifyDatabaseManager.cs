@@ -66,22 +66,24 @@ namespace Rasa.Managers
 
         internal void VerifyCharacter()
         {
-            var appliedPatches = Database.Tables.Character.AppliedPatchesTable.GetAppliedPatches();
+            Logger.WriteLog(LogType.Debug, "TODO: Use ef core to check if the Character database is up to date");
+            /*var appliedPatches = Database.Tables.Character.AppliedPatchesTable.GetAppliedPatches();
 
             if (VerifyMore(Character, appliedPatches, "rasachar"))
                 if (VerifyLess(Character, appliedPatches, "rasachar"))
                     if (VerifyEqual(Character, appliedPatches, "rasachar"))
-                        Logger.WriteLog(LogType.Initialize, $"<rasachar> database OK");
+                        Logger.WriteLog(LogType.Initialize, $"<rasachar> database OK");*/
         }
 
         internal void VerifyWorld()
         {
-/*            var appliedPatches = Database.Tables.World.AppliedPatchesTable.GetAppliedPatches();
+            Logger.WriteLog(LogType.Debug, "TODO: Use ef core to check if the World database is up to date");
+            /*var appliedPatches = Database.Tables.World.AppliedPatchesTable.GetAppliedPatches();
 
-            if (VerifyMore(World, appliedPatches, "rasaworld"))
-                if (VerifyLess(World, appliedPatches, "rasaworld"))
-                    if (VerifyEqual(World, appliedPatches, "rasaworld"))
-                        Logger.WriteLog(LogType.Initialize, $"<rasaworld> database OK");*/
+                        if (VerifyMore(World, appliedPatches, "rasaworld"))
+                            if (VerifyLess(World, appliedPatches, "rasaworld"))
+                                if (VerifyEqual(World, appliedPatches, "rasaworld"))
+                                    Logger.WriteLog(LogType.Initialize, $"<rasaworld> database OK");*/
         }
 
         internal bool VerifyMore(List<string> server, List<string> database, string source)

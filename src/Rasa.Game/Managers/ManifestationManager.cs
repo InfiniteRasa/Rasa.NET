@@ -763,16 +763,18 @@ namespace Rasa.Managers
 
             client.MapClient.Player.CharacterOptions = packet.OptionsList;
 
-            var value = "";
+            var characterOptions = new List<CharacterOptionsEntry>();
 
             foreach (var option in client.MapClient.Player.CharacterOptions)
-                value = value + $" ('{client.MapClient.Player.CharacterId}', '{(uint)option.OptionId}', '{option.Value}'),";
-
-            // remove last comma
-            value = value.Remove(value.Length - 1);
+                characterOptions.Add(new CharacterOptionsEntry
+                {
+                    CharacterId = (int) client.MapClient.Player.CharacterId,
+                    OptionId = (int) option.OptionId,
+                    Value = option.Value
+                });
 
             CharacterOptionsTable.DeleteCharacterOptions(client.MapClient.Player.CharacterId);
-            CharacterOptionsTable.AddCharacterOption(value + ";");
+            CharacterOptionsTable.AddCharacterOption(characterOptions);
         }
 
         // maybe move this to other manager becose it's account related
@@ -780,17 +782,18 @@ namespace Rasa.Managers
         {
             client.UserOptions = packet.OptionsList;
 
-            var value = "";
+            var userOptions = new List<UserOptionsEntry>();
 
             foreach (var option in client.UserOptions)
-                value = value + $" ('{client.AccountEntry.Id}', '{(uint)option.OptionId}', '{option.Value}'),";
-
-            // remove last comma
-            value = value.Remove(value.Length - 1);
+                userOptions.Add(new UserOptionsEntry
+                {
+                    AccountId = (int)client.AccountEntry.Id,
+                    OptionId = (uint) option.OptionId,
+                    Value = option.Value
+                });
 
             UserOptionsTable.DeleteUserOptions(client.AccountEntry.Id);
-            UserOptionsTable.AddUserOption(value + ";");
-
+            UserOptionsTable.AddUserOption(userOptions);
         }
 
         public void SetAppearanceItem(Client client, Item item)
