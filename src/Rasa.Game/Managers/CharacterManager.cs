@@ -128,7 +128,7 @@
                     Body = 0,
                     Mind = 0,
                     Spirit = 0,
-                    MapContextId = 1220,
+                    ContextId = 1220,
                     CoordX = 894.9d,
                     CoordY = 307.9d,
                     CoordZ = 347.1d,

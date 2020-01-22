@@ -67,7 +67,7 @@ namespace Rasa.Database.Tables.Character
                     CreateCharacterCommand.Parameters["@Body"].Value = entry.Body;
                     CreateCharacterCommand.Parameters["@Mind"].Value = entry.Mind;
                     CreateCharacterCommand.Parameters["@Spirit"].Value = entry.Spirit;
-                    CreateCharacterCommand.Parameters["@MapContextId"].Value = entry.MapContextId;
+                    CreateCharacterCommand.Parameters["@MapContextId"].Value = entry.ContextId;
                     CreateCharacterCommand.Parameters["@CoordX"].Value = entry.CoordX;
                     CreateCharacterCommand.Parameters["@CoordY"].Value = entry.CoordY;
                     CreateCharacterCommand.Parameters["@CoordZ"].Value = entry.CoordZ;

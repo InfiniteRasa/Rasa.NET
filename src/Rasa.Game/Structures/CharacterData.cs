@@ -19,6 +19,7 @@
         public CharacterData(CharacterEntry entry)
         {
             Name = entry.Name;
+            ContextId = entry.ContextId;
             ExpPoints = entry.Experience;
             ExpLevel = entry.Level;
             Body = entry.Body;
