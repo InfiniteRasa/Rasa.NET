@@ -188,6 +188,13 @@
             }
         }
 
+        public void RequestSwitchToCharacterInSlot(Client client, RequestSwitchToCharacterInSlotPacket packet)
+        {
+            Logger.WriteLog(LogType.Debug, "Ready to enter world => ToDo");
+
+            client.CallMethod(SysEntity.ClientMethodId, new PreWonkavatePacket());
+        }
+
         private void SendCharacterCreateFailed(Client client, CreateCharacterResult result)
         {
             client.CallMethod(SysEntity.ClientMethodId, new UserCreationFailedPacket(result));

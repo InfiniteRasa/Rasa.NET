@@ -10,6 +10,7 @@ namespace Rasa.Database.Tables.Character
     {
         private static readonly MySqlCommand CreateCharacterCommand = new MySqlCommand("INSERT INTO `character` (`account_id`, `slot`, `name`, `race`, `class`, `scale`, `gender`, `experience`, `level`, `body`, `mind`, `spirit`, `map_context_id`, `coord_x`, `coord_y`, `coord_z`, `rotation`) VALUES (@AccountId, @Slot, @Name, @Race, @Class, @Scale, @Gender, @Experience, @Level, @Body, @Mind, @Spirit, @MapContextId, @CoordX, @CoordY, @CoordZ, @Rotation)");
         private static readonly MySqlCommand ListCharactersCommand = new MySqlCommand("SELECT * FROM `character` WHERE `account_id` = @AccountId");
+        private static readonly MySqlCommand GetCharacterBySlotCommand = new MySqlCommand("SELECT * FROM `character` WHERE `account_id` = @AccountId AND slot = @Slot");
         private static readonly MySqlCommand GetCharacterCommand = new MySqlCommand("SELECT * FROM `character` WHERE `id` = @Id");
         private static readonly MySqlCommand DeleteCharacterCommand = new MySqlCommand("DELETE FROM `character` WHERE `id` = @Id");
 
@@ -39,6 +40,11 @@ namespace Rasa.Database.Tables.Character
             ListCharactersCommand.Connection = GameDatabaseAccess.CharConnection;
             ListCharactersCommand.Parameters.Add("@AccountId", MySqlDbType.UInt32);
             ListCharactersCommand.Prepare();
+
+            GetCharacterBySlotCommand.Connection = GameDatabaseAccess.CharConnection;
+            GetCharacterBySlotCommand.Parameters.Add("@AccountId", MySqlDbType.UInt32);
+            GetCharacterBySlotCommand.Parameters.Add("@Slot", MySqlDbType.UInt32);
+            GetCharacterBySlotCommand.Prepare();
 
             GetCharacterCommand.Connection = GameDatabaseAccess.CharConnection;
             GetCharacterCommand.Parameters.Add("@Id", MySqlDbType.UInt32);
@@ -105,6 +111,18 @@ namespace Rasa.Database.Tables.Character
             }
 
             return dict;
+        }
+
+        public static CharacterEntry GetCharacter(uint accountId, byte slot)
+        {
+            lock (GameDatabaseAccess.CharLock)
+            {
+                GetCharacterBySlotCommand.Parameters["@AccountId"].Value = accountId;
+                GetCharacterBySlotCommand.Parameters["@Slot"].Value = slot;
+
+                using (var reader = GetCharacterBySlotCommand.ExecuteReader())
+                    return CharacterEntry.Read(reader);
+            }
         }
 
         public static CharacterEntry GetCharacter(uint characterId)
