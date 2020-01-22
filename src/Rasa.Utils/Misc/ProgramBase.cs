@@ -14,7 +14,7 @@ namespace Rasa.Misc
             Logger.WriteLog(LogType.Initialize, @" |  _  // _` / __|/ _` | | . ` |  __|    | |   ");
             Logger.WriteLog(LogType.Initialize, @" | | \ \ (_| \__ \ (_| |_| |\  | |____   | |   ");
             Logger.WriteLog(LogType.Initialize, @" |_|  \_\__,_|___/\__,_(_)_| \_|______|  |_|   ");
-            Logger.WriteLog(LogType.Initialize, $@" Tabula Rasa server - Rasa.NET - {type}");
+            Logger.WriteLog(LogType.Initialize, $@" Rasa.NET - {type} Server");
             Logger.WriteLog(LogType.Initialize, "");
         }
     }
