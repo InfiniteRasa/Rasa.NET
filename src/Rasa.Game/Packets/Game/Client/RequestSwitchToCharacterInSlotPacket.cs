@@ -7,13 +7,28 @@
     {
         public override GameOpcode Opcode { get; } = GameOpcode.RequestSwitchToCharacterInSlot;
 
-        public uint SlotNum { get; set; }
+        public byte SlotNum { get; set; }
+        public bool SkipBootCamp { get; set; }
 
         public override void Read(PythonReader pr)
         {
             pr.ReadTuple();
-            SlotNum = pr.ReadUInt();
-            pr.ReadZeroStruct();
+            SlotNum = (byte)pr.ReadUInt();
+
+            var skipBootCamp = pr.ReadUnkStruct();
+
+            switch (skipBootCamp)
+            {
+                case PythonType.TrueStruct:
+                    SkipBootCamp = true;
+                    break;
+                case PythonType.ZeroStruct:
+                    SkipBootCamp = false;
+                    break;
+                default:
+                    Logger.WriteLog(LogType.Error, $"RequestSwitchToCharacterInSlotPacket:\nExpected TrueStruct or ZeroStruct, got {skipBootCamp}");
+                    break;
+            }
         }
     }
 }

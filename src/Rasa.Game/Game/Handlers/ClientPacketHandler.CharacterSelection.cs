@@ -36,6 +36,7 @@
         [PacketHandler(GameOpcode.RequestSwitchToCharacterInSlot)]
         private void RequestSwitchToCharacterInSlot(RequestSwitchToCharacterInSlotPacket packet)
         {
+            CharacterManager.Instance.RequestSwitchToCharacterInSlot(Client, packet);
         }
     }
 }
