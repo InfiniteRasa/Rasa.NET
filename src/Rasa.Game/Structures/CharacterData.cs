@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace Rasa.Structures
+﻿namespace Rasa.Structures
 {
     using Data;
     using Memory;
@@ -10,7 +6,7 @@ namespace Rasa.Structures
     public class CharacterData : IPythonDataStruct
     {
         public string Name { get; set; }
-        public int Pos { get; set; }
+        public uint ContextId { get; set; }
         public uint ExpPoints { get; set; }
         public byte ExpLevel { get; set; }
         public uint Body { get; set; }
@@ -37,7 +33,7 @@ namespace Rasa.Structures
         {
             pr.ReadTuple();
             Name = pr.ReadUnicodeString();
-            Pos = pr.ReadInt();
+            ContextId = pr.ReadUInt();
             ExpPoints = pr.ReadUInt();
             ExpLevel = (byte) pr.ReadInt();
             Body = pr.ReadUInt();
@@ -52,7 +48,7 @@ namespace Rasa.Structures
         {
             pw.WriteTuple(10);
             pw.WriteUnicodeString(Name);
-            pw.WriteInt(Pos);
+            pw.WriteUInt(ContextId);
             pw.WriteUInt(ExpPoints);
             pw.WriteInt(ExpLevel);
             pw.WriteUInt(Body);
