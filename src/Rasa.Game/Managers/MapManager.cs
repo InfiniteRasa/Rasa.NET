@@ -73,5 +73,10 @@ namespace Rasa.Managers
 
             client.State = ClientState.Loading;
         }
+
+        internal void Ping(Client client, double ping)
+        {
+            client.CallMethod(SysEntity.ClientMethodId, new AckPingPacket(ping));
+        }
     }
 }
