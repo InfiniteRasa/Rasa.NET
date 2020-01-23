@@ -4,6 +4,7 @@
     using Database.Tables.Character;
     using Database.Tables.World;
     using Game;
+    using Managers;
     using Packets.Game.Client;
     using Packets.Game.Server;
     using Structures;
@@ -190,9 +191,20 @@
 
         public void RequestSwitchToCharacterInSlot(Client client, RequestSwitchToCharacterInSlotPacket packet)
         {
-            Logger.WriteLog(LogType.Debug, "Ready to enter world => ToDo");
+            if (packet.SlotNum < 1 || packet.SlotNum > 16)
+                return;
 
-            client.CallMethod(SysEntity.ClientMethodId, new PreWonkavatePacket());
+            client.AccountEntry.SelectedSlot = packet.SlotNum;
+            GameAccountTable.UpdateAccount(client.AccountEntry);
+
+            var character = CharacterTable.GetCharacter(client.AccountEntry.Id, packet.SlotNum);
+
+            client.MapClient = new MapClient
+            {
+                Player = character
+            };
+
+            MapManager.Instance.PassClientToMap(client);
         }
 
         private void SendCharacterCreateFailed(Client client, CreateCharacterResult result)
