@@ -19,6 +19,13 @@ namespace Rasa.Packets.Game.Server
             ClassId = classId;
         }
 
+        public CreatePhysicalEntityPacket(uint entityId, EntityClass classId, List<PythonPacket> entityData)
+        {
+            EntityId = entityId;
+            ClassId = classId;
+            EntityData = entityData;
+        }
+
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(3);

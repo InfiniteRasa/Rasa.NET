@@ -194,6 +194,24 @@ namespace Rasa.Managers
             }
         }
 
+        public void RequestSwitchToCharacterInSlot(Client client, RequestSwitchToCharacterInSlotPacket packet)
+        {
+            if (packet.SlotNum < 1 || packet.SlotNum > 16)
+                return;
+
+            client.AccountEntry.SelectedSlot = packet.SlotNum;
+            GameAccountTable.UpdateAccount(client.AccountEntry);
+
+            var character = CharacterTable.GetCharacter(client.AccountEntry.Id, packet.SlotNum);
+
+            client.MapClient = new MapClient
+            {
+                Player = character
+            };
+
+            MapManager.Instance.PassClientToMap(client);
+        }
+
         private void SendCharacterCreateFailed(Client client, CreateCharacterResult result)
         {
             client.CallMethod(SysEntity.ClientMethodId, new UserCreationFailedPacket(result));
