@@ -4,7 +4,6 @@
     using Managers;
     using Packets;
     using Packets.Game.Client;
-    using Packets.Game.Server;
 
     public partial class ClientPacketHandler
     {
