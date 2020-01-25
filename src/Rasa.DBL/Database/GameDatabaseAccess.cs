@@ -7,16 +7,15 @@ namespace Rasa.Database
 {
     public class GameDatabaseAccess
     {
-        public static MySqlConnection WorldConnection { get; private set; }
+        public static WorldContext WorldConnection { get; private set; }
         public static MySqlConnection CharConnection { get; private set; }
 
         public static object WorldLock { get; } = new object();
         public static object CharLock { get; } = new object();
 
-        public static void Initialize(string worldConnectionString, string charConnectionString)
+        public static void Initialize(WorldContext worldContext, string charConnectionString)
         {
-            WorldConnection = new MySqlConnection(worldConnectionString);
-            WorldConnection.Open();
+            WorldConnection = worldContext;
 
             CharConnection = new MySqlConnection(charConnectionString);
             CharConnection.Open();

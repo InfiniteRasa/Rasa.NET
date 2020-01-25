@@ -1,31 +1,17 @@
-﻿using MySql.Data.MySqlClient;
+﻿using System.Linq;
 
 namespace Rasa.Database.Tables.World
 {
     public class StarterItemsTable
     {
-        private static readonly MySqlCommand GetItemTemplateIdCommand = new MySqlCommand("SELECT classId FROM starter_items WHERE itemTemplateid = @ItemTemplateid");
-
-        public static void Initialize()
-        {
-            GetItemTemplateIdCommand.Connection = GameDatabaseAccess.WorldConnection;
-            GetItemTemplateIdCommand.Parameters.Add("@ItemTemplateid", MySqlDbType.Int32);
-            GetItemTemplateIdCommand.Prepare();            
-        }
-
         public static uint GetClassId(uint itemTemplateId)
         {
             lock (GameDatabaseAccess.WorldLock)
             {
-                GetItemTemplateIdCommand.Parameters["@ItemTemplateid"].Value = itemTemplateId;
-
-                using (var reader = GetItemTemplateIdCommand.ExecuteReader())
-                    if (reader.Read())
-                        return reader.GetUInt32("classId");
-               
+                return (from sti in GameDatabaseAccess.WorldConnection.StarterItems
+                        where sti.ItemTemplateId == itemTemplateId
+                        select sti.ClassId).First();
             }
-
-            return 0;
         }       
     }
 }

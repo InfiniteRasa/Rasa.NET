@@ -6,8 +6,5 @@ namespace Rasa.Database.Tables.World
 {
     public static class PlayerExpForLevelTable
     {
-        public static void Initialize()
-        {
-        }
     }
 }

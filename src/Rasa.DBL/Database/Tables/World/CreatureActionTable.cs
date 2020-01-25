@@ -1,6 +1,5 @@
 ﻿using System.Collections.Generic;
-
-using MySql.Data.MySqlClient;
+using System.Linq;
 
 namespace Rasa.Database.Tables.World
 {
@@ -8,26 +7,12 @@ namespace Rasa.Database.Tables.World
 
     public class CreatureActionTable
     {
-        private static readonly MySqlCommand GetCreatureActionsCommand = new MySqlCommand("SELECT * FROM creature_action");
-
-        public static void Initialize()
-        {
-
-            GetCreatureActionsCommand.Connection = GameDatabaseAccess.WorldConnection;
-            GetCreatureActionsCommand.Prepare();
-        }
 
         public static List<CreatureActionEntry> GetCreatureActions()
         {
             lock (GameDatabaseAccess.WorldLock)
             {
-                var creatureActions = new List<CreatureActionEntry>();
-
-                using (var reader = GetCreatureActionsCommand.ExecuteReader())
-                    while (reader.Read())
-                        creatureActions.Add(CreatureActionEntry.Read(reader));
-
-                return creatureActions;
+                return GameDatabaseAccess.WorldConnection.CreatureAction.Where(_ => true).ToList();
             }
         }
     }

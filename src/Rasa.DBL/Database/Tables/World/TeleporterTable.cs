@@ -1,6 +1,5 @@
 ﻿using System.Collections.Generic;
-
-using MySql.Data.MySqlClient;
+using System.Linq;
 
 namespace Rasa.Database.Tables.World
 {
@@ -8,26 +7,11 @@ namespace Rasa.Database.Tables.World
 
     public class TeleporterTable
     {
-        private static readonly MySqlCommand GetTeleportersCommand = new MySqlCommand("SELECT * FROM teleporter");
-
-        public static void Initialize()
-        {
-
-            GetTeleportersCommand.Connection = GameDatabaseAccess.WorldConnection;
-            GetTeleportersCommand.Prepare();
-        }
-
         public static List<TeleporterEntry> GetTeleporters()
         { 
             lock (GameDatabaseAccess.WorldLock)
             {
-                var teleporters = new List<TeleporterEntry>();
-
-                using (var reader = GetTeleportersCommand.ExecuteReader())
-                    while (reader.Read())
-                        teleporters.Add(TeleporterEntry.Read(reader));
-
-                return teleporters;
+                return GameDatabaseAccess.WorldConnection.Teleporter.Where(_ => true).ToList();
             }
         }
     }

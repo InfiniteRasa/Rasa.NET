@@ -1,19 +1,12 @@
-﻿using MySql.Data.MySqlClient;
+﻿using System;
+using System.Collections.Generic;
 
 namespace Rasa.Structures
 {
-    public class NPCPackagesEntry
+    public partial class NPCPackagesEntry
     {
         public uint CreatureDbId { get; set; }
         public uint NpcPackageId { get; set; }
-
-        public static NPCPackagesEntry Read(MySqlDataReader reader)
-        {
-            return new NPCPackagesEntry
-            {
-                CreatureDbId = reader.GetUInt32("creatureDbId"),
-                NpcPackageId = reader.GetUInt32("packageId")
-            };
-        }
+        public string Comment { get; set; }
     }
 }

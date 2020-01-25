@@ -1,8 +1,9 @@
-﻿using MySql.Data.MySqlClient;
+﻿using System;
+using System.Collections.Generic;
 
 namespace Rasa.Structures
 {
-    public class ItemTemplateEntry
+    public partial class ItemTemplateEntry
     {
         public uint ItemTemplateId { get; set; }
         public int QualityId { get; set; }
@@ -16,24 +17,5 @@ namespace Rasa.Structures
         public int InventoryCategory { get; set; }
         public int BuyPrice { get; set; }
         public int SellPrice { get; set; }
-
-        public static ItemTemplateEntry Read(MySqlDataReader reader)
-        {
-            return new ItemTemplateEntry
-            {
-                ItemTemplateId = reader.GetUInt32("itemTemplateId"),
-                QualityId = reader.GetInt32("qualityId"),
-                HasSellableFlag = reader.GetBoolean("hasSellableFlag"),
-                NotTradableFlag = reader.GetBoolean("notTradableFlag"),
-                HasCharacterUniqueFlag = reader.GetBoolean("hasCharacterUniqueFlag"),
-                HasAccountUniqueFlag = reader.GetBoolean("hasAccountUniqueFlag"),
-                HasBoEFlag = reader.GetBoolean("hasBoEFlag"),
-                BoundToCharacterFlag = reader.GetBoolean("boundToCharacterFlag"),
-                NotPlaceableInLockBoxFlag = reader.GetBoolean("notPlaceableInLockBoxFlag"),
-                InventoryCategory = reader.GetInt32("inventoryCategory"),
-                BuyPrice = reader.GetInt32("buyPrice"),
-                SellPrice = reader.GetInt32("sellPrice")
-            };
-        }
     }
 }

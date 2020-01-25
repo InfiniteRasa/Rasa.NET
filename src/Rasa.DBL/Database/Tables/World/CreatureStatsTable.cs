@@ -1,4 +1,4 @@
-﻿using MySql.Data.MySqlClient;
+﻿using System.Linq;
 
 namespace Rasa.Database.Tables.World
 {
@@ -6,26 +6,11 @@ namespace Rasa.Database.Tables.World
 
     public class CreatureStatsTable
     {
-        private static readonly MySqlCommand GetCreatureStatsCommand = new MySqlCommand("SELECT * FROM creature_stats WHERE creatureDbId = @CreatureDbId");
-
-        public static void Initialize()
-        {
-            GetCreatureStatsCommand.Connection = GameDatabaseAccess.WorldConnection;
-            GetCreatureStatsCommand.Parameters.Add("@CreatureDbId", MySqlDbType.UInt32);
-            GetCreatureStatsCommand.Prepare();
-        }
-
         public static CreatureStatsEntry GetCreatureStats(uint creatureDbId)
         {
             lock (GameDatabaseAccess.WorldLock)
             {
-                GetCreatureStatsCommand.Parameters["@CreatureDbId"].Value = creatureDbId;
-
-                using (var reader = GetCreatureStatsCommand.ExecuteReader())
-                    if (reader.Read())
-                        return CreatureStatsEntry.Read(reader);
-
-                return null;
+                return GameDatabaseAccess.WorldConnection.CreatureStats.FirstOrDefault(cs => cs.CreatureDbId == creatureDbId);
             }
         }
     }

@@ -1,6 +1,5 @@
 ﻿using System.Collections.Generic;
-
-using MySql.Data.MySqlClient;
+using System.Linq;
 
 namespace Rasa.Database.Tables.World
 {
@@ -8,26 +7,12 @@ namespace Rasa.Database.Tables.World
 
     public class ArmorClassTable
     {
-        private static readonly MySqlCommand LoadArmorClassesCommand = new MySqlCommand("SELECT * FROM armorClass");
-
-        public static void Initialize()
-        {
-
-            LoadArmorClassesCommand.Connection = GameDatabaseAccess.WorldConnection;
-            LoadArmorClassesCommand.Prepare();
-        }
 
         public static List<ArmorClassEntry> LoadArmorClasses()
         {
             lock (GameDatabaseAccess.WorldLock)
             {
-                var armorClasses = new List<ArmorClassEntry>();
-
-                using (var reader = LoadArmorClassesCommand.ExecuteReader())
-                    while (reader.Read())
-                        armorClasses.Add(ArmorClassEntry.Read(reader));
-
-                return armorClasses;
+                return GameDatabaseAccess.WorldConnection.ArmorClass.Where(_ => true).ToList();
             }
         }
     }

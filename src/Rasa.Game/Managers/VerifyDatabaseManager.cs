@@ -76,12 +76,12 @@ namespace Rasa.Managers
 
         internal void VerifyWorld()
         {
-            var appliedPatches = Database.Tables.World.AppliedPatchesTable.GetAppliedPatches();
+/*            var appliedPatches = Database.Tables.World.AppliedPatchesTable.GetAppliedPatches();
 
             if (VerifyMore(World, appliedPatches, "rasaworld"))
                 if (VerifyLess(World, appliedPatches, "rasaworld"))
                     if (VerifyEqual(World, appliedPatches, "rasaworld"))
-                        Logger.WriteLog(LogType.Initialize, $"<rasaworld> database OK");
+                        Logger.WriteLog(LogType.Initialize, $"<rasaworld> database OK");*/
         }
 
         internal bool VerifyMore(List<string> server, List<string> database, string source)

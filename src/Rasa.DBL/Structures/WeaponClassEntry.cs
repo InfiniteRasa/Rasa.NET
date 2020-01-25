@@ -1,8 +1,9 @@
-﻿using MySql.Data.MySqlClient;
+﻿using System;
+using System.Collections.Generic;
 
 namespace Rasa.Structures
 {
-    public class WeaponClassEntry
+    public partial class WeaponClassEntry
     {
         public uint ClassId { get; set; }
         public short WeaponTemplateid { get; set; }
@@ -31,39 +32,5 @@ namespace Rasa.Structures
         public short UnkArg6 { get; set; }
         public bool UnkArg7 { get; set; }
         public short UnkArg8 { get; set; }
-
-        public static WeaponClassEntry Read(MySqlDataReader reader)
-        {
-            return new WeaponClassEntry
-            {
-                ClassId = reader.GetUInt32("classId"),
-                WeaponTemplateid = reader.GetInt16("weaponTemplateid"),
-                WeaponAttackActionId = reader.GetInt16("weaponAttackActionId"),
-                WeaponAttackArgId = reader.GetInt16("weaponAttackArgId"),
-                DrawActionId = reader.GetInt16("drawActionId"),
-                StowActionId = reader.GetInt16("stowActionId"),
-                ReloadActionId = reader.GetInt16("reloadActionId"),
-                AmmoClassId = reader.GetInt32("ammoClassId"),
-                ClipSize = reader.GetInt16("clipSize"),
-                MinDamage = reader.GetInt32("minDamage"),
-                MaxDamage = reader.GetInt32("maxDamage"),
-                DamageType = reader.GetInt16("damageType"),
-                Velocity = reader.GetInt16("velocity"),
-                WeaponAnimConditionCode = reader.GetInt16("weaponAnimConditionCode"),
-                WindupOverride = reader.GetBoolean("windupOverride"),
-                RecoveryOverride = reader.GetBoolean("recoveryOverride"),
-                ReuseOverride = reader.GetBoolean("reuseOverride"),
-                ReloadOverride = reader.GetBoolean("reloadOverride"),
-                RangeType = reader.GetBoolean("rangeType"),
-                UnkArg1 = reader.GetBoolean("unkArg1"),
-                UnkArg2 = reader.GetBoolean("unkArg2"),
-                UnkArg3 = reader.GetBoolean("unkArg3"),
-                UnkArg4 = reader.GetBoolean("unkArg4"),
-                UnkArg5 = reader.GetBoolean("unkArg5"),
-                UnkArg6 = reader.GetInt16("unkArg6"),
-                UnkArg7 = reader.GetBoolean("unkArg7"),
-                UnkArg8 = reader.GetInt16("unkArg8"),
-            };
-        }
     }
 }

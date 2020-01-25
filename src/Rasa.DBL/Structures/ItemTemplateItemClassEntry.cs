@@ -1,19 +1,11 @@
-﻿using MySql.Data.MySqlClient;
+﻿using System;
+using System.Collections.Generic;
 
 namespace Rasa.Structures
 {
-    public class ItemTemplateItemClassEntry
+    public partial class ItemTemplateItemClassEntry
     {
         public uint ItemTemplateId { get; set; }
         public uint ItemClass { get; set; }
-
-        public static ItemTemplateItemClassEntry Read(MySqlDataReader reader)
-        {
-            return new ItemTemplateItemClassEntry
-            {
-                ItemTemplateId = reader.GetUInt32("itemTemplateid"),
-                ItemClass = reader.GetUInt32("itemClassId")
-            };
-        }
     }
 }

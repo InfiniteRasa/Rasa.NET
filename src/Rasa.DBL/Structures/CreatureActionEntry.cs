@@ -1,8 +1,9 @@
-﻿using MySql.Data.MySqlClient;
+﻿using System;
+using System.Collections.Generic;
 
 namespace Rasa.Structures
 {
-    public class CreatureActionEntry
+    public partial class CreatureActionEntry
     {
         public uint Id { get; set; }
         public string Description { get; set; }
@@ -14,22 +15,5 @@ namespace Rasa.Structures
         public uint WindupTime { get; set; }
         public uint MinDamage { get; set; }
         public uint MaxDamage { get; set; }
-
-        public static CreatureActionEntry Read(MySqlDataReader reader)
-        {
-            return new CreatureActionEntry
-            {
-                Id = reader.GetUInt32("id"),
-                Description = reader.GetString("description"),
-                ActionId = reader.GetUInt32("action_id"),
-                ActionArgId = reader.GetUInt32("action_arg_id"),
-                RangeMin = reader.GetFloat("range_min"),
-                RangeMax = reader.GetFloat("range_max"),
-                Cooldown = reader.GetUInt32("cooldown"),
-                WindupTime = reader.GetUInt32("windup_time"),
-                MinDamage = reader.GetUInt32("min_damage"),
-                MaxDamage = reader.GetUInt32("max_damage")
-            };
-        }
     }
 }
