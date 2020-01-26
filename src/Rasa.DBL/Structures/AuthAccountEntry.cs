@@ -2,8 +2,6 @@
 using System.Security.Cryptography;
 using System.Text;
 
-using MySql.Data.MySqlClient;
-
 namespace Rasa.Structures
 {
     public partial class AuthAccountEntry
@@ -21,25 +19,6 @@ namespace Rasa.Structures
         public bool Locked { get; set; }
         public bool Validated { get; set; }
         public string ValidationToken { get; set; }
-
-        public static AuthAccountEntry Read(MySqlDataReader reader)
-        {
-            if (!reader.Read())
-                return null;
-
-            return new AuthAccountEntry
-            {
-                Id = reader.GetUInt32("id"),
-                Email = reader.GetString("email"),
-                Username = reader.GetString("username"),
-                Password = reader.GetString("password"),
-                Salt = reader.GetString("salt"),
-                Level = reader.GetByte("level"),
-                LastServerId = reader.GetByte("last_server_id"),
-                Locked = reader.GetBoolean("locked"),
-                Validated = reader.GetBoolean("validated")
-            };
-        }
 
         public void HashPassword()
         {
