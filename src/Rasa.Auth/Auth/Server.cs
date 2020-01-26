@@ -14,9 +14,8 @@ namespace Rasa.Auth
     using Database.Tables.Auth;
     using Memory;
     using Networking;
-    using Packets;
-    using Packets.Communicator;
     using Packets.Auth.Server;
+    using Packets.Communicator;
     using Structures;
     using Threading;
     using Timer;
@@ -39,8 +38,12 @@ namespace Rasa.Auth
         private List<CommunicatorClient> GameServerQueue { get; } = new List<CommunicatorClient>();
         private Dictionary<byte, CommunicatorClient> GameServers { get; } = new Dictionary<byte, CommunicatorClient>();
 
-        public Server()
+        private readonly Action _stopHost;
+
+        public Server(AuthContext authContext, Action stopHost)
         {
+            _stopHost = stopHost ?? throw new ArgumentNullException(nameof(stopHost));
+
             Configuration.OnLoad += ConfigLoaded;
             Configuration.OnReLoad += ConfigReLoaded;
             Configuration.Load();
@@ -54,7 +57,7 @@ namespace Rasa.Auth
 
             BufferManager.Initialize(Config.SocketAsyncConfig.BufferSize, Config.SocketAsyncConfig.MaxClients, Config.SocketAsyncConfig.ConcurrentOperationsByClient);
 
-            AuthDatabaseAccess.Initialize(Config.DatabaseConnectionString);
+            AuthDatabaseAccess.Initialize(authContext);
 
             CommandProcessor.RegisterCommand("exit", ProcessExitCommand);
             CommandProcessor.RegisterCommand("reload", ProcessReloadCommand);
@@ -425,9 +428,7 @@ namespace Rasa.Auth
 
             Timer.Add("exit", minutes * 60000, false, () =>
             {
-                Shutdown();
-
-                Environment.Exit(0);
+                _stopHost();
             });
 
             Logger.WriteLog(LogType.Command, $"Exiting the server in {minutes} minute(s).");

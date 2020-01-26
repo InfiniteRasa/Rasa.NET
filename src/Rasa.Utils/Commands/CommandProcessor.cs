@@ -1,11 +1,33 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Threading.Tasks;
 
 namespace Rasa.Commands
 {
     public static class CommandProcessor
     {
         private static readonly Dictionary<string, Action<string[]>> Commands = new Dictionary<string, Action<string[]>>();
+
+        public static async Task ProcessCommandAsync(StreamReader input)
+        {
+            var command = await input.ReadLineAsync();
+
+            if (string.IsNullOrWhiteSpace(command))
+                return;
+
+            var parts = command.Split(' ');
+            if (parts.Length < 1)
+                return;
+
+            if (Commands.ContainsKey(parts[0]))
+            {
+                Commands[parts[0]](parts);
+                return;
+            }
+
+            Logger.WriteLog(LogType.Command, $"Invalid command: {command}");
+        }
 
         public static void ProcessCommand()
         {

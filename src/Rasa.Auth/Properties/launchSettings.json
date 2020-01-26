@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "Rasa.Auth": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "RASA_Environment": "Development"
+      }
+    }
+  }
+}
