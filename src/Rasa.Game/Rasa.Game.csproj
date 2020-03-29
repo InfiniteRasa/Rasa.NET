@@ -3,6 +3,7 @@
   <PropertyGroup>
     <AssemblyTitle>Rasa.NET Game</AssemblyTitle>
     <TargetFramework>netcoreapp3.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
     <AssemblyName>Rasa.Game</AssemblyName>
     <OutputType>Exe</OutputType>
     <PackageId>Rasa.Game</PackageId>

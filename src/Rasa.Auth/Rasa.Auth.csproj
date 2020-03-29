@@ -3,6 +3,7 @@
   <PropertyGroup>
     <AssemblyTitle>Rasa.NET Auth</AssemblyTitle>
     <TargetFramework>netcoreapp3.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
     <AssemblyName>Rasa.Auth</AssemblyName>
     <OutputType>Exe</OutputType>
     <PackageId>Rasa.Auth</PackageId>

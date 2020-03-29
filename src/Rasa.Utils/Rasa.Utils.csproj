@@ -3,6 +3,7 @@
   <PropertyGroup>
     <AssemblyTitle>Rasa.NET Utils</AssemblyTitle>
     <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
     <AssemblyName>Rasa.Utils</AssemblyName>
     <PackageId>Rasa.Utils</PackageId>
     <PackageTargetFallback>$(PackageTargetFallback);dnxcore50</PackageTargetFallback>

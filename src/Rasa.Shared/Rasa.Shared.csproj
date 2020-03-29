@@ -3,6 +3,7 @@
   <PropertyGroup>
     <AssemblyTitle>Rasa.NET Shared</AssemblyTitle>
     <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
     <AssemblyName>Rasa.Shared</AssemblyName>
     <PackageId>Rasa.Shared</PackageId>
     <PackageTargetFallback>$(PackageTargetFallback);dnxcore50</PackageTargetFallback>
