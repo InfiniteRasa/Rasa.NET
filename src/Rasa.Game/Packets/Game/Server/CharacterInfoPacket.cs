@@ -48,7 +48,7 @@ namespace Rasa.Packets.Game.Server
                     AppearanceData.Add(appearanceData.SlotId, appearanceData);
                 }
 
-                var clanEntry = ClanTable.GetClanData(Entry.Id);
+                var clanEntry = ClanTable.GetClanByCharacterId(Entry.Id);
                 if (clanEntry != null)
                     ClanData = new ClanData(clanEntry);
             }

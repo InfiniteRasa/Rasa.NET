@@ -109,7 +109,8 @@ namespace Rasa.Managers
                 //CurrentAbilityDrawer = data.CurrentAbilityDrawer,
                 Missions = missionData,
                 LoginTime = DateTime.Now,
-                Logos = CharacterLogosTable.GetLogos(client.AccountEntry.Id, client.AccountEntry.SelectedSlot)
+                Logos = CharacterLogosTable.GetLogos(client.AccountEntry.Id, client.AccountEntry.SelectedSlot),
+                FamilyName = client.AccountEntry.FamilyName
             };
 
             return player;
@@ -351,6 +352,10 @@ namespace Rasa.Managers
             CellManager.Instance.AddToWorld(client); // will introduce the player to all clients, including the current owner
             ManifestationManager.Instance.AssignPlayer(client);
             CommunicatorManager.Instance.RegisterPlayer(client);
+
+            // Must be called after AssignPlayer and RegisterPlayer so that IsOnline status can be accurately checked
+            ClanManager.Instance.InitializePlayerClanData(client);
+            InventoryManager.Instance.InitClanInventory(client);
             CommunicatorManager.Instance.PlayerEnterMap(client);
             //mission_initForClient(cm);
         }
@@ -411,6 +416,7 @@ namespace Rasa.Managers
             CommunicatorManager.Instance.UnregisterPlayer(client);
             CellManager.Instance.RemoveFromWorld(client);
             ManifestationManager.Instance.RemovePlayerCharacter(client);
+            ClanManager.Instance.RemovePlayer(client);
 
             if (logout)
                 if (client.MapClient.Disconected == false)

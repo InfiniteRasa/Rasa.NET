@@ -3,13 +3,13 @@
     using Data;
     using Memory;
 
-    public class ClanDisbandedPacket : ServerPythonPacket
+    public class ClanMembersRosterEndPacket : ServerPythonPacket
     {
-        public override GameOpcode Opcode { get; } = GameOpcode.ClanDisbanded;
-        
-        public uint ClanId { get; set; }
+        public override GameOpcode Opcode => GameOpcode.ClanMembersRosterEnd;
 
-        public ClanDisbandedPacket(uint clanId)
+        public uint ClanId { get; }
+
+        public ClanMembersRosterEndPacket(uint clanId)
         {
             ClanId = clanId;
         }

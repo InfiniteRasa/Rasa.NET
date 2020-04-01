@@ -20,7 +20,7 @@ namespace Rasa.Structures
         public uint NumLogins { get; set; }
         public uint TotalTimePlayed { get; set; }
         public DateTime? TimeSinceLastPlayed { get; set; }
-        public int ClanId { get; set; }
+        public uint ClanId { get; set; }
         public string ClanName { get; set; }
         public int LockboxCredits { get; set; }
         public int LockboxTabs { get; set; }

@@ -15,6 +15,7 @@ namespace Rasa.Managers
         private static readonly object InstanceLock = new object();
         public static Dictionary<string, Client> PlayersByName = new Dictionary<string, Client>();
         public static Dictionary<uint, Client> PlayersByEntityId = new Dictionary<uint, Client>();
+        public static Dictionary<uint, Client> PlayersByCharacterId = new Dictionary<uint, Client>();
         public static Dictionary<int, ChatChannel> ChannelsBySeed = new Dictionary<int, ChatChannel>();
 
         public static CommunicatorManager Instance
@@ -205,6 +206,7 @@ namespace Rasa.Managers
         {
             PlayersByName.Add(client.MapClient.Player.Actor.Name, client);
             PlayersByEntityId.Add(client.MapClient.Player.Actor.EntityId, client);
+            PlayersByCharacterId.Add(client.MapClient.Player.CharacterId, client);
         }
 
         public void SystemMessage(Client client, string textMsg)
@@ -233,6 +235,7 @@ namespace Rasa.Managers
                 //upperCase[from.Length] = '\0';
                 PlayersByName.Remove(client.MapClient.Player.Actor.Name);
                 PlayersByEntityId.Remove(client.MapClient.Player.Actor.EntityId);
+                PlayersByCharacterId.Remove(client.MapClient.Player.CharacterId);
             }
         }
     }

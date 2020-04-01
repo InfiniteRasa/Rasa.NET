@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace Rasa.Managers
 {    
@@ -36,11 +37,11 @@ namespace Rasa.Managers
          *  - ResetWagerInventory
          *  
          *    Inventory Handlers:
-         *  - ClanLockbox_DepositItemInSlot         => ToDo
-         *  - ClanLockbox_DepositItemInTab          => ToDo
-         *  - ClanLockbox_DestroyItem               => ToDo
-         *  - ClanLockbox_MoveItem                  => ToDo
-         *  - ClanLockbox_WithdrawItem              => ToDo
+         *  - ClanLockbox_DepositItemInSlot         => implemented
+         *  - ClanLockbox_DepositItemInTab          => implemented
+         *  - ClanLockbox_DestroyItem               => implemented
+         *  - ClanLockbox_MoveItem                  => implemented
+         *  - ClanLockbox_WithdrawItem              => implemented
          *  - HomeInventory_DestroyItem             => implemented
          *  - HomeInventory_MoveItem                => implemented
          *  - OverflowTransfer                      => ToDo
@@ -346,6 +347,198 @@ namespace Rasa.Managers
             AddItemBySlot(client, InventoryType.HomeInventory, entityId, packet.DestSlot, true);
         }
 
+        public void ClanLockbox_DepositItemInSlot(Client client, ClanLockbox_DepositItemInSlotPacket packet)
+        {
+            if (client.Player.ClanId == 0)
+                return;
+
+            if (packet.SrcSlot < 0 || packet.SrcSlot >= 250)
+                return;
+
+            if (packet.DestSlot < 0 || packet.DestSlot >= 500)
+                return;
+
+            var entityId = client.MapClient.Inventory.PersonalInventory[(int)packet.SrcSlot];
+
+            if (entityId == 0)
+                return;
+
+            RemoveItemBySlot(client, InventoryType.Personal, packet.SrcSlot);
+
+            // If DestSlot is not empty, move current item to SrcSlot (item swap)
+            bool wasSwap = client.MapClient.Inventory.ClanInventory[(int)packet.DestSlot] != 0;
+            if (wasSwap)
+            {
+                CharacterInventoryTable.DeleteInvItem(client.AccountEntry.Id, client.AccountEntry.SelectedSlot, (int)InventoryType.Personal, packet.SrcSlot);
+                AddItemBySlot(client, InventoryType.Personal, client.MapClient.Inventory.ClanInventory[(int)packet.DestSlot], packet.SrcSlot, true, true);
+
+                RemoveItemBySlotForClan(client.Player.ClanId, packet.DestSlot, 0);
+                ClanInventoryTable.DeleteInvItem(client.Player.ClanId, packet.DestSlot);
+            }
+
+            AddItemBySlot(client, InventoryType.ClanInventory, entityId, packet.DestSlot, true, true);
+
+            if (!wasSwap)
+                CharacterInventoryTable.DeleteInvItem(client.AccountEntry.Id, client.AccountEntry.SelectedSlot, (int)InventoryType.Personal, packet.SrcSlot);
+
+            EntityManager.Instance.GetItem(entityId).OwnerSlotId = packet.DestSlot;
+            RefreshClanLockbox(client.Player.ClanId, entityId, client.Player.CharacterId, packet.DestSlot, ref client.MapClient.Inventory.ClanInventory, true);
+        }
+
+        public void ClanLockbox_DepositItemInTab(Client client, ClanLockbox_DepositItemInTabPacket packet)
+        {
+            if (client.Player.ClanId == 0)
+                return;
+
+            if (packet.SrcSlot < 0 || packet.SrcSlot > 250)
+                return;
+
+            if (packet.DestSlot < 0 || packet.DestSlot > 500)
+                return;
+
+            var entityId = client.MapClient.Inventory.PersonalInventory[(int)packet.SrcSlot];
+
+            if (entityId == 0)
+                return;
+
+            var tempItem = EntityManager.Instance.GetItem(entityId);
+
+            RemoveItemBySlot(client, InventoryType.Personal, (uint)packet.SrcSlot);
+
+            Item item = AddItemToClanInventory(client, tempItem);
+            ItemsTable.UpdateItemStackSize(tempItem.ItemId, tempItem.Stacksize);
+            if (item == null)
+            {
+                client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket((int)PlayerMessage.PmInventoryFull, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
+                return;
+            }
+
+            CharacterInventoryTable.DeleteInvItem(client.AccountEntry.Id, client.AccountEntry.SelectedSlot, (int)InventoryType.Personal, (uint)packet.SrcSlot);
+
+            if (EntityManager.Instance.GetItem(entityId) == null)
+                return;
+
+            RefreshClanLockbox(client.Player.ClanId, entityId, client.Player.CharacterId, item.OwnerSlotId, ref client.MapClient.Inventory.ClanInventory, true);
+        }
+
+        public void ClanLockbox_MoveItem(Client client, ClanLockbox_MoveItemPacket packet)
+        {
+            if (client.Player.ClanId == 0)
+                return;
+
+            if (packet.SrcSlot == packet.DestSlot)
+                return;
+
+            if (packet.SrcSlot < 0 || packet.SrcSlot >= 500)
+                return;
+
+            if (packet.DestSlot < 0 || packet.DestSlot >= 500)
+                return;
+
+            var entityId = client.MapClient.Inventory.ClanInventory[(int)packet.SrcSlot];
+
+            if (entityId == 0)
+                return;
+          
+            // If DestSlot is not empty, move current item to SrcSlot (item swap)
+            if (client.MapClient.Inventory.ClanInventory[(int)packet.DestSlot] != 0)
+            {
+                // Todo swap items
+                return;
+            }
+            RemoveItemBySlot(client, InventoryType.ClanInventory, packet.SrcSlot); // Put this above swap if check once swap is implemented
+
+            EntityManager.Instance.GetItem(entityId).OwnerSlotId = packet.DestSlot;
+            AddItemBySlot(client, InventoryType.ClanInventory, entityId, packet.DestSlot, true, false);
+
+            RemoveItemBySlotForClan(client.Player.ClanId, packet.SrcSlot, client.Player.CharacterId);
+            RefreshClanLockbox(client.Player.ClanId, entityId, client.Player.CharacterId, packet.DestSlot, ref client.MapClient.Inventory.ClanInventory, true);
+        }
+
+        public void ClanLockbox_WithdrawItem(Client client, ClanLockbox_WithdrawItemPacket packet)
+        {
+            if (client.Player.ClanId == 0)
+                return;
+
+            // Only the leader and the rank below them can withdraw items from the clan lockbox.
+            ClanMemberEntry member = ClanManager.Instance.GetClanMember(client.Player.ClanId, client.Player.CharacterId);
+            if (member.Rank < ClanTable.ClankRankLeader - 1)
+            {
+                client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket((int)PlayerMessage.PmClanInsufficientPermissions, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
+                return;
+            }
+
+            if (packet.SrcSlot < 0 || packet.SrcSlot > 500)
+                return;
+
+            if (packet.DestSlot < 0 || packet.DestSlot > 250)
+                return;
+
+            var entityId = client.MapClient.Inventory.ClanInventory[(int)packet.SrcSlot];
+
+            if (entityId == 0)
+                return;
+
+            var tempItem = EntityManager.Instance.GetItem(entityId);
+            bool wasSwap = client.MapClient.Inventory.PersonalInventory[(int)packet.DestSlot] != 0;
+            if (packet.ManagePersonalSlot)
+            {
+                wasSwap = false;
+                Item item = AddItemToInventory(client, tempItem);
+                ItemsTable.UpdateItemStackSize(tempItem.ItemId, tempItem.Stacksize);
+                if (item == null)
+                {
+                    RefreshClanLockbox(client.Player.ClanId, entityId, client.Player.CharacterId, 0, ref client.MapClient.Inventory.ClanInventory, false);
+                    client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket((int)PlayerMessage.PmInventoryFull, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
+                    return;
+                }
+            }
+            else
+            {
+                if (wasSwap)
+                {
+                    RemoveItemBySlot(client, InventoryType.ClanInventory, packet.SrcSlot);
+                    ClanInventoryTable.DeleteInvItem(client.Player.ClanId, packet.SrcSlot);
+                    AddItemBySlot(client, InventoryType.ClanInventory, client.MapClient.Inventory.PersonalInventory[(int)packet.DestSlot], packet.SrcSlot, true, true);
+
+                    var newEntityId = client.MapClient.Inventory.ClanInventory[(int)packet.SrcSlot];
+                    RefreshClanLockbox(client.Player.ClanId, newEntityId, client.Player.CharacterId, packet.SrcSlot, ref client.MapClient.Inventory.ClanInventory, true);
+
+                    RemoveItemBySlot(client, InventoryType.Personal, packet.DestSlot);
+                    CharacterInventoryTable.DeleteInvItem(client.AccountEntry.Id, client.AccountEntry.SelectedSlot, (int)InventoryType.Personal, packet.DestSlot);
+                }
+                AddItemBySlot(client, InventoryType.Personal, entityId, packet.DestSlot, true, true);
+            }
+
+            if (!wasSwap)
+            {
+                RemoveItemBySlotForClan(client.Player.ClanId, packet.SrcSlot, 0);
+                ClanInventoryTable.DeleteInvItem(client.Player.ClanId, packet.SrcSlot);
+
+                RefreshClanLockbox(client.Player.ClanId, entityId, client.Player.CharacterId, 0, ref client.MapClient.Inventory.ClanInventory, false);
+            }
+        }
+
+        public void ClanLockbox_DestroyItem(Client client, ClanLockbox_DestroyItemPacket packet)
+        {
+            if (client.Player.ClanId == 0)
+                return;
+
+            if (packet.EntityId == 0)
+                return;
+
+            var tempItem = EntityManager.Instance.GetItem((uint)packet.EntityId);
+
+            //TODO: Support deleting portions
+            if ((tempItem.Stacksize - packet.Quantity) > 0)
+                return;
+
+            RemoveItemBySlotForClan(client.Player.ClanId, tempItem.OwnerSlotId, 0);
+            ClanInventoryTable.DeleteInvItem(client.Player.ClanId, tempItem.OwnerSlotId);
+
+            RefreshClanLockbox(client.Player.ClanId, (uint)packet.EntityId, client.Player.CharacterId, 0, ref client.MapClient.Inventory.ClanInventory, false);
+        }
+
         public void RequestTakeItemFromHomeInventory(Client client, RequestTakeItemFromHomeInventoryPacket packet)
         {
             // remove item
@@ -416,6 +609,54 @@ namespace Rasa.Managers
 
         }
 
+        public void ClanCreditTransfer(Client client, long amount, uint creditType)
+        {
+            if (client.Player.ClanId == 0)
+                return;
+
+            //-amount means withdraw from lockbox +amount means deposit to lockbox
+
+            List<uint> clanLockboxInfo = ClanLockboxTable.GetLockboxInfo(client.Player.ClanId);
+
+            uint clanCredits = clanLockboxInfo[0];
+            uint clanPrestige = clanLockboxInfo[1];
+            long remainderOfCredits = (creditType == 1 ? (long)clanCredits : (long)clanPrestige) + amount;
+
+            if (amount >= 500 || amount <= -500)
+            {
+                if ((creditType == 1 && client.MapClient.Player.Credits[Rasa.Data.CurencyType.Credits] < amount) ||
+                    (creditType == 2 && client.MapClient.Player.Credits[Rasa.Data.CurencyType.Prestige] < amount))
+                {
+                    if (amount > 0)
+                        client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket((int)PlayerMessage.PmInsufficientDepositFunds, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
+                    return;
+                }
+
+                if (remainderOfCredits >= 0)
+                {
+                    if (creditType == 1)
+                        ClanLockboxTable.UpdateCredits(client.Player.ClanId, (uint)remainderOfCredits);
+                    else
+                        ClanLockboxTable.UpdatePrestige(client.Player.ClanId, (uint)remainderOfCredits);
+
+                    CharacterManager.Instance.UpdateCharacter(client, CharacterUpdate.Credits, (long)amount * -1);
+                    var augmentationsList = EntityClassManager.Instance.LoadedEntityClasses[EntityClassId.lootBoxClan].Augmentations;
+
+                    foreach (var dynamicObj in EntityManager.Instance.DynamicObjects)
+                    {
+                        DynamicObject dynamicObject = dynamicObj.Value;
+
+                        if (dynamicObject.EntityClassId == EntityClassId.lootBoxClan)
+                            ClanManager.Instance.CallMethodForOnlineMembers(client.Player.ClanId, dynamicObject.EntityId, new UpdateClanLockboxCreditsPacket(creditType == 1 ? (uint)remainderOfCredits : clanCredits, creditType == 2 ? (uint)remainderOfCredits : clanPrestige));
+                    }
+                }
+                else
+                    CommunicatorManager.Instance.SystemMessage(client, "Not enough credit's");
+            }
+            else
+                CommunicatorManager.Instance.SystemMessage(client, "Minimum transfer value is 500 credits");
+        }
+
         public void WeaponDrawerInventory_MoveItem(Client client, WeaponDrawerInventory_MoveItemPacket packet)
         {
             var srcEntityId = client.MapClient.Inventory.WeaponDrawer[(int)packet.SrcSlot];
@@ -439,7 +680,13 @@ namespace Rasa.Managers
 
         #region Helper Functions
 
-        public void AddItemBySlot(Client client, InventoryType inventoryType, uint entityId, uint slotId, bool updateDB)
+        public void UpdateItemSlot(Client client, uint entityId)
+        {
+            Item tempItem = EntityManager.Instance.GetItem(entityId);
+            ItemManager.Instance.SendItemDataToClient(client, tempItem, false);
+        }
+
+        public void AddItemBySlot(Client client, InventoryType inventoryType, uint entityId, uint slotId, bool updateDB, bool actuallyAdd = false)
         {
             var tempItem = EntityManager.Instance.GetItem(entityId);
 
@@ -461,6 +708,9 @@ namespace Rasa.Managers
                 case InventoryType.WeaponDrawerInventory:
                     client.MapClient.Inventory.WeaponDrawer[(int)slotId] = tempItem.EntityId; // update slot
                     break;
+                case InventoryType.ClanInventory:
+                    client.MapClient.Inventory.ClanInventory[(int)slotId] = tempItem.EntityId; // update slot
+                    break;
                 default:
                     Console.WriteLine("Unsuported inventory type");
                     break;
@@ -475,7 +725,30 @@ namespace Rasa.Managers
 
             // update item in database
             if (updateDB)
-                CharacterInventoryTable.MoveInvItem(client.AccountEntry.Id, characterSlot, (int)inventoryType, slotId, tempItem.ItemId);
+            {
+                if (inventoryType == InventoryType.ClanInventory)
+                {
+                    if (actuallyAdd)
+                    {
+                        ClanInventoryTable.AddInvItem(client.Player.ClanId, slotId, tempItem.ItemId);
+                    }
+                    else
+                    {
+                        ClanInventoryTable.MoveInvItem(client.Player.ClanId, slotId, tempItem.ItemId);
+                    }
+                }
+                else
+                {
+                    if (actuallyAdd)
+                    {
+                        CharacterInventoryTable.AddInvItem(client.AccountEntry.Id, characterSlot, (int)inventoryType, slotId, tempItem.ItemId);
+                    }
+                    else
+                    {
+                        CharacterInventoryTable.MoveInvItem(client.AccountEntry.Id, characterSlot, (int)inventoryType, slotId, tempItem.ItemId);
+                    }
+                }
+            }
         }
 
         public Item AddItemToInventory(Client client, Item item)
@@ -560,6 +833,78 @@ namespace Rasa.Managers
             return null;
         }
 
+        public Item AddItemToClanInventory(Client client, Item item)
+        {
+            if (item == null)
+                return null;
+
+            var itemClassInfo = EntityClassManager.Instance.GetItemClassInfo(item);
+
+            var stackSizeChanged = false;
+            // see if we can merge the item into an already existing item
+            for (var i = 0; i < 500; i++)
+                if (client.MapClient.Inventory.ClanInventory[i] != 0)
+                {
+                    // get item
+                    var slotItem = EntityManager.Instance.GetItem(client.MapClient.Inventory.ClanInventory[i]);
+
+                    // same item template?
+                    if (slotItem.ItemTemplate.ItemTemplateId != item.ItemTemplate.ItemTemplateId)
+                        continue;
+
+                    // calculate how many items we can add to the stack
+                    var stackAdd = itemClassInfo.StackSize - slotItem.Stacksize;
+                    if (stackAdd == 0)
+                        continue;
+
+                    // add item to existing stack
+                    var stackMove = Math.Min(stackAdd, item.Stacksize);
+                    slotItem.Stacksize += stackMove;
+                    ItemsTable.UpdateItemStackSize(slotItem.ItemId, slotItem.Stacksize);
+
+                    // remove stack's from source item
+                    item.Stacksize -= stackMove;
+                    stackSizeChanged = true;
+
+                    // notify client of changed stack count
+                    //client.CallMethod(slotItem.EntityId, new SetStackCountPacket(slotItem.Stacksize));
+                    ClanManager.Instance.CallMethodForOnlineMembers(client.Player.ClanId, slotItem.EntityId, new SetStackCountPacket(slotItem.Stacksize));
+
+                    if (item.Stacksize == 0)
+                    {
+                        // destroy the item
+                        EntityManager.Instance.DestroyPhysicalEntity(client, item.EntityId, EntityType.Item);
+                        // remove from DB
+                        ItemsTable.DeleteItem(item.ItemId);
+                        // return the 'new' item instead
+                        return slotItem;
+                    }
+
+                }
+
+            // item have new stackSize?
+            if (stackSizeChanged)
+                client.CallMethod(item.EntityId, new SetStackCountPacket(item.Stacksize));
+
+            // find free slot
+            for (var i = 0; i < 500; i++)
+            {
+                if (client.MapClient.Inventory.ClanInventory[i] == 0)
+                {
+                    item.OwnerId = client.AccountEntry.SelectedSlot;
+                    item.OwnerSlotId = (uint)(i);
+                    item.CurrentHitPoints = itemClassInfo.MaxHitPoints;
+                    // send data to client
+                    ItemManager.Instance.SendItemDataToClient(client, item, false);
+                    // add item to empty slot
+                    AddItemBySlot(client, InventoryType.ClanInventory, item.EntityId, (uint)(i), true, true);
+                    return item;
+                }
+            }
+
+            return null;
+        }
+
         public Item CurrentWeapon(Client client)
         {
             return EntityManager.Instance.GetItem(client.MapClient.Inventory.EquippedInventory[13]);
@@ -601,6 +946,54 @@ namespace Rasa.Managers
             //client.CallMethod(SysEntity.ClientInventoryManagerId, new InventoryCreatePacket(InventoryType.HomeInventory, client.MapClient.Inventory.HomeInventory, 480));
             //client.CallMethod(SysEntity.ClientInventoryManagerId, new InventoryCreatePacket(InventoryType.WeaponDrawerInventory, client.MapClient.Inventory.WeaponDrawer, 5));
             //client.CallMethod(SysEntity.ClientInventoryManagerId, new InventoryCreatePacket(InventoryType.EquipedInventory, client.MapClient.Inventory.EquippedInventory, 22));
+        }
+
+        public void SetupLocalClanInventory(Client client)
+        {
+            if (client.Player.ClanId == 0)
+                return;
+
+            List<ClanInventoryEntry> getClanInventoryData = ClanInventoryTable.GetItems(client.Player.ClanId);
+
+            foreach (var item in getClanInventoryData)
+            {
+                var itemData = ItemsTable.GetItem(item.ItemId);
+                var itemTemplate = ItemManager.Instance.GetItemTemplateById(itemData.ItemTemplateId);
+
+                if (itemTemplate == null)
+                    return;
+
+                Item tempItem = null;
+
+                foreach (var entities in EntityManager.Instance.Items)
+                {
+                    Item existingItem = entities.Value;
+
+                    if (existingItem.ItemId == item.ItemId)
+                    {
+                        tempItem = existingItem;
+                    }
+                }
+
+                // check if item is weapon
+                if (tempItem.ItemTemplate.WeaponInfo != null)
+                    tempItem.CurrentAmmo = itemData.AmmoCount;
+
+                // fill invenoty slot
+                ItemManager.Instance.SendItemDataToClient(client, tempItem, false);
+
+                AddItemBySlot(client, InventoryType.ClanInventory, tempItem.EntityId, tempItem.OwnerSlotId, false);
+            }
+
+            client.CallMethod(SysEntity.ClientInventoryManagerId, new InventoryCreatePacket(InventoryType.ClanInventory, client.MapClient.Inventory.ClanInventory, 500));
+        }
+
+        public void InitClanInventory(Client client)
+        {
+            for (uint i = 0; i < 500; i++)
+                client.MapClient.Inventory.ClanInventory.Add(0);
+
+            SetupLocalClanInventory(client);
         }
 
         public void InitCharacterInventory(Client client)
@@ -668,15 +1061,18 @@ namespace Rasa.Managers
                     }
                 }
                 else if (item.CharacterSlot == 0)
+                {
                     if ((InventoryType)item.InventoryType == InventoryType.HomeInventory)
                     {
                         client.MapClient.Inventory.HomeInventory[(int)item.SlotId] = newItem.EntityId;
                         // make the item appear on the client
                         AddItemBySlot(client, InventoryType.HomeInventory, client.MapClient.Inventory.HomeInventory[(int)item.SlotId], item.SlotId, false);
                     }
+                }
+
             }
         }
-        
+
         public void ReduceStackCount(Client client, InventoryType inventoryType, Item tempItem, uint stackDecreaseCount)
         {
             if (tempItem.OwnerId != client.AccountEntry.SelectedSlot)
@@ -734,6 +1130,10 @@ namespace Rasa.Managers
                 case InventoryType.WeaponDrawerInventory:
                     entityId = client.MapClient.Inventory.WeaponDrawer[(int)slotIndex];
                     client.MapClient.Inventory.WeaponDrawer[(int)slotIndex] = 0;
+                    break;
+                case InventoryType.ClanInventory:
+                    entityId = client.MapClient.Inventory.ClanInventory[(int)slotIndex];
+                    client.MapClient.Inventory.ClanInventory[(int)slotIndex] = 0;
                     break;
                 default:
                     Logger.WriteLog(LogType.Error, $"RemoveItemBySlot: Unsuported Inventory type {inventoryType}");
@@ -853,6 +1253,20 @@ namespace Rasa.Managers
             }
 
             return canEquip;
+        }
+
+        public void RefreshClanLockbox(uint clanId, uint entityId, uint characterId, uint slotId, ref List<uint> clanInventory, bool addBySlot)
+        {
+            if (addBySlot)
+                ClanManager.Instance.CallMethodForOnlineMembers(clanId, (client) => AddItemBySlot(client, InventoryType.ClanInventory, entityId, slotId, false), characterId);
+
+            ClanManager.Instance.CallMethodForOnlineMembers(clanId, (client) => UpdateItemSlot(client, entityId), characterId);
+            ClanManager.Instance.CallMethodForOnlineMembers(clanId, (uint)SysEntity.ClientInventoryManagerId, new ClanInventoryReload(InventoryType.ClanInventory, clanInventory, 500));
+        }
+
+        public void RemoveItemBySlotForClan(uint clanId, uint slotId, uint skipThisCharacter)
+        {
+            ClanManager.Instance.CallMethodForOnlineMembers(clanId, (client) => RemoveItemBySlot(client, InventoryType.ClanInventory, slotId), skipThisCharacter);
         }
 
         #endregion
