@@ -409,7 +409,7 @@ namespace Rasa.Managers
             ItemsTable.UpdateItemStackSize(tempItem.ItemId, tempItem.Stacksize);
             if (item == null)
             {
-                client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket((int)PlayerMessage.PmInventoryFull, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
+                client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(PlayerMessage.PmInventoryFull, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
                 return;
             }
 
@@ -464,7 +464,7 @@ namespace Rasa.Managers
             ClanMemberEntry member = ClanManager.Instance.GetClanMember(client.Player.ClanId, client.Player.CharacterId);
             if (member.Rank < ClanTable.ClankRankLeader - 1)
             {
-                client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket((int)PlayerMessage.PmClanInsufficientPermissions, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
+                client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(PlayerMessage.PmClanInsufficientPermissions, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
                 return;
             }
 
@@ -489,7 +489,7 @@ namespace Rasa.Managers
                 if (item == null)
                 {
                     RefreshClanLockbox(client.Player.ClanId, entityId, client.Player.CharacterId, 0, ref client.MapClient.Inventory.ClanInventory, false);
-                    client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket((int)PlayerMessage.PmInventoryFull, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
+                    client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(PlayerMessage.PmInventoryFull, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
                     return;
                 }
             }
@@ -628,7 +628,7 @@ namespace Rasa.Managers
                     (creditType == 2 && client.MapClient.Player.Credits[Rasa.Data.CurencyType.Prestige] < amount))
                 {
                     if (amount > 0)
-                        client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket((int)PlayerMessage.PmInsufficientDepositFunds, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
+                        client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(PlayerMessage.PmInsufficientDepositFunds, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
                     return;
                 }
 

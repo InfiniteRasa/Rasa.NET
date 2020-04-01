@@ -109,8 +109,7 @@ namespace Rasa.Managers
                 //CurrentAbilityDrawer = data.CurrentAbilityDrawer,
                 Missions = missionData,
                 LoginTime = DateTime.Now,
-                Logos = CharacterLogosTable.GetLogos(client.AccountEntry.Id, client.AccountEntry.SelectedSlot),
-                FamilyName = client.AccountEntry.FamilyName
+                Logos = CharacterLogosTable.GetLogos(client.AccountEntry.Id, client.AccountEntry.SelectedSlot)
             };
 
             return player;

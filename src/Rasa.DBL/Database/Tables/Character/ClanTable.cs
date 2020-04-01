@@ -27,7 +27,7 @@ namespace Rasa.Database.Tables.Character
         public static readonly uint MinClanNameLength = 3;
         public static readonly uint MaxClanNameLength = 20;
         public static readonly uint ClankRankLeader = 3;
-        public static readonly uint RequiredCreditsForClanCreation = 10000;
+        public static readonly int RequiredCreditsForClanCreation = 10000;
 
         // Arbitrary limit right now
         public static readonly uint MaxClanMembers = 100;

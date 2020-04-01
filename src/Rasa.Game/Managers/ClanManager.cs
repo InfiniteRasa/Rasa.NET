@@ -253,7 +253,7 @@ namespace Rasa.Managers
                     // The client expects the characterId to be the entityId for this message
                     if (CommunicatorManager.PlayersByCharacterId.TryGetValue(memberToBeKicked.CharacterId, out Client memberClient))
                     {
-                        memberClient.CallMethod(SysEntity.ClientClanManagerId, new PlayerLeftClanPacket(memberClient.Player.Actor.EntityId, memberClient.Player.Actor.Name, memberClient.Player.FamilyName, packet.ClanId, true));
+                        memberClient.CallMethod(SysEntity.ClientClanManagerId, new PlayerLeftClanPacket(memberClient.Player.Actor.EntityId, memberClient.Player.Actor.Name, memberClient.Player.Actor.FamilyName, packet.ClanId, true));
                         memberClient.CallMethod(memberClient.Player.Actor.EntityId, new ClanIdPacket(0));
                     }
                 }
@@ -440,12 +440,12 @@ namespace Rasa.Managers
 
                 // Notifies other players still in the clan that we left
                 CallMethodForOnlineMembers(packet.ClanId, (uint)SysEntity.ClientClanManagerId,
-                    new PlayerLeftClanPacket(client.Player.CharacterId, client.Player.Actor.Name, client.Player.FamilyName, packet.ClanId, false),
+                    new PlayerLeftClanPacket(client.Player.CharacterId, client.Player.Actor.Name, client.Player.Actor.FamilyName, packet.ClanId, false),
                     client.Player.CharacterId);
 
                 // Notfies the leavers client that we succesfully left and clears out the clan data
                 // The client expects the characterId to be the entityId for this message
-                client.CallMethod(SysEntity.ClientClanManagerId, new PlayerLeftClanPacket(client.Player.Actor.EntityId, client.Player.Actor.Name, client.Player.FamilyName, packet.ClanId, false));
+                client.CallMethod(SysEntity.ClientClanManagerId, new PlayerLeftClanPacket(client.Player.Actor.EntityId, client.Player.Actor.Name, client.Player.Actor.FamilyName, packet.ClanId, false));
                 client.CallMethod(client.Player.Actor.EntityId, new ClanIdPacket(0));
             }
         }
@@ -675,7 +675,7 @@ namespace Rasa.Managers
             }
 
             // Pay for the clan creation
-            uint currentCredits = client.MapClient.Player.Credits[CurencyType.Credits];
+            var currentCredits = client.MapClient.Player.Credits[CurencyType.Credits];
             client.MapClient.Player.Credits[CurencyType.Credits] -= ClanTable.RequiredCreditsForClanCreation;
             client.CallMethod(client.Player.Actor.EntityId, new UpdateCreditsPacket(CurencyType.Credits, client.Player.Credits[CurencyType.Credits], (uint)Math.Abs(currentCredits - ClanTable.RequiredCreditsForClanCreation)));
             CharacterTable.UpdateCharacterCredits(client.Player.CharacterId, client.Player.Credits[CurencyType.Credits]);

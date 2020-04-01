@@ -12,7 +12,8 @@ namespace Rasa.Managers
             "rasachar_2018_12_31_15_40_added_active_weapon",
             "rasachar_2019_01_06_21_04_added_character_teleporters",
             "rasachar_2019_01_23_13_44_orientation_fix",
-            "rasachar_2019_12_20_14_05_changed_all_credits_to_int"
+            "rasachar_2019_12_20_14_05_changed_all_credits_to_int",
+            "rasachar_2020_04_01_21_00_add_clan_data"
         };
         private static readonly List<string> World = new List<string> {
             "rasaworld_2018_11_20_16_35",
