@@ -92,6 +92,8 @@ namespace Rasa.Game
 
         public void MainLoop(long delta)
         {
+            Timer.Update(delta);
+
             if (Clients.Count == 0)
                 return;
 
