@@ -20,7 +20,7 @@ namespace Rasa.Structures
         public uint Mind { get; set; }
         public uint Spirit { get; set; }
         public uint CloneCredits { get; set; }
-        public uint MapContextId { get; set; }
+        public uint ContextId { get; set; }
         public double CoordX { get; set; }
         public double CoordY { get; set; }
         public double CoordZ { get; set; }
@@ -52,7 +52,7 @@ namespace Rasa.Structures
                 Mind = reader.GetUInt32("mind"),
                 Spirit = reader.GetUInt32("spirit"),
                 CloneCredits = reader.GetUInt32("clone_credits"),
-                MapContextId = reader.GetUInt32("map_context_id"),
+                ContextId = reader.GetUInt32("map_context_id"),
                 CoordX = reader.GetDouble("coord_x"),
                 CoordY = reader.GetDouble("coord_y"),
                 CoordZ = reader.GetDouble("coord_z"),

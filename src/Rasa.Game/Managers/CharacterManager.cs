@@ -4,6 +4,7 @@
     using Database.Tables.Character;
     using Database.Tables.World;
     using Game;
+    using Managers;
     using Packets.Game.Client;
     using Packets.Game.Server;
     using Structures;
@@ -128,11 +129,11 @@
                     Body = 0,
                     Mind = 0,
                     Spirit = 0,
-                    MapContextId = 0,
-                    CoordX = 0,
-                    CoordY = 0,
-                    CoordZ = 0,
-                    Rotation = 0
+                    ContextId = 1220,
+                    CoordX = 894.9d,
+                    CoordY = 307.9d,
+                    CoordZ = 347.1d,
+                    Rotation = 0,
                 };
 
                 if (!CharacterTable.CreateCharacter(entry))
@@ -141,10 +142,15 @@
                     return;
                 }
 
+                // Set character default appearance
+                CharacterAppearanceTable.AddAppearance(entry.Id, new CharacterAppearanceEntry(entry.Id, (uint)EquipmentData.Shoes, 10000068, new Color(255, 255, 255, 255).Hue));
+                CharacterAppearanceTable.AddAppearance(entry.Id, new CharacterAppearanceEntry(entry.Id, (uint)EquipmentData.Legs, 10000069, new Color(255, 255, 255, 255).Hue));
+                CharacterAppearanceTable.AddAppearance(entry.Id, new CharacterAppearanceEntry(entry.Id, (uint)EquipmentData.Torso, 10000070, new Color(255, 255, 255, 255).Hue));
+
                 foreach (var data in packet.AppearanceData)
                 {
                     data.Value.ClassId = ItemTemplateItemClassTable.GetItemClassId(data.Value.ClassId);
-                    CharacterAppearanceTable.AddAppearance(entry.Id, data.Value.GetDatabaseEntry());
+                    CharacterAppearanceTable.AddAppearance(entry.Id, data.Value.GetDatabaseEntry(entry.Id));
                 }
 
                 if (string.IsNullOrWhiteSpace(client.AccountEntry.FamilyName) || changeFamilyName)
@@ -181,6 +187,24 @@
             {
                 client.CallMethod(SysEntity.ClientMethodId, new DeleteCharacterFailedPacket());
             }
+        }
+
+        public void RequestSwitchToCharacterInSlot(Client client, RequestSwitchToCharacterInSlotPacket packet)
+        {
+            if (packet.SlotNum < 1 || packet.SlotNum > 16)
+                return;
+
+            client.AccountEntry.SelectedSlot = packet.SlotNum;
+            GameAccountTable.UpdateAccount(client.AccountEntry);
+
+            var character = CharacterTable.GetCharacter(client.AccountEntry.Id, packet.SlotNum);
+
+            client.MapClient = new MapClient
+            {
+                Player = character
+            };
+
+            MapManager.Instance.PassClientToMap(client);
         }
 
         private void SendCharacterCreateFailed(Client client, CreateCharacterResult result)

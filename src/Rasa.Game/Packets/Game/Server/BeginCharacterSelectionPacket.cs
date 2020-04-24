@@ -15,7 +15,7 @@ namespace Rasa.Packets.Game.Server
         public List<Race> EnabledRaceList { get; } = new List<Race>();
         public bool CanSkipBootcamp { get; set; }
 
-        public BeginCharacterSelectionPacket(string familyName, bool hasCharacters, uint accountId, bool canSkipBootcamp = true)
+        public BeginCharacterSelectionPacket(string familyName, bool hasCharacters, uint accountId, bool canSkipBootcamp)
         {
             FamilyName = familyName;
             HasCharacters = hasCharacters;
