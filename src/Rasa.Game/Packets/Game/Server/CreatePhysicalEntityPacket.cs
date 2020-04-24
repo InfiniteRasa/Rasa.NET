@@ -5,7 +5,7 @@ namespace Rasa.Packets.Game.Server
     using Data;
     using Memory;
 
-    public class CreatePhysicalEntityPacket : PythonPacket
+    public class CreatePhysicalEntityPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.CreatePhysicalEntity;
 
@@ -17,15 +17,6 @@ namespace Rasa.Packets.Game.Server
         {
             EntityId = entityId;
             ClassId = classId;
-        }
-
-        public override void Read(PythonReader pr)
-        {
-            pr.ReadTuple();
-            EntityId = pr.ReadUInt();
-            ClassId = (EntityClass) pr.ReadInt();
-
-            // todo
         }
 
         public override void Write(PythonWriter pw)

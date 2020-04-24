@@ -7,7 +7,7 @@ namespace Rasa.Packets.Auth.Server
     public class HandoffToQueuePacket : IOpcodedPacket<ServerOpcode>
     {
         public uint OneTimeKey { get; set; }
-        public uint UserId { get; set; }
+        public uint AccountId { get; set; }
         public byte ServerId { get; set; }
 
         public ServerOpcode Opcode { get; } = ServerOpcode.HandOffToQueue;
@@ -15,7 +15,7 @@ namespace Rasa.Packets.Auth.Server
         public void Read(BinaryReader reader)
         {
             OneTimeKey = reader.ReadUInt32();
-            UserId = reader.ReadUInt32();
+            AccountId = reader.ReadUInt32();
             ServerId = reader.ReadByte();
         }
 
@@ -23,13 +23,13 @@ namespace Rasa.Packets.Auth.Server
         {
             writer.Write((byte) Opcode);
             writer.Write(OneTimeKey);
-            writer.Write(UserId);
+            writer.Write(AccountId);
             writer.Write(ServerId);
         }
 
         public override string ToString()
         {
-            return $"HandoffToQueuePacket({OneTimeKey}, {UserId}, {ServerId})";
+            return $"HandoffToQueuePacket({OneTimeKey}, {AccountId}, {ServerId})";
         }
     }
 }

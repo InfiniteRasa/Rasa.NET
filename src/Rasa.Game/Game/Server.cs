@@ -213,6 +213,21 @@ namespace Rasa.Game
             }
         }
 
+        public bool IsBanned(uint accountId)
+        {
+            return false; // TODO
+        }
+
+        public bool IsAlreadyLoggedIn(uint accountId)
+        {
+            lock (Clients)
+                foreach (var client in Clients)
+                    if (client.IsAuthenticated() && client.AccountEntry.Id == accountId)
+                        return true;
+
+            return false;
+        }
+
         public void Shutdown()
         {
             AuthCommunicator?.Close();
@@ -339,15 +354,15 @@ namespace Rasa.Game
         {
             lock (IncomingClients)
             {
-                if (IncomingClients.ContainsKey(packet.Id))
-                    IncomingClients.Remove(packet.Id);
+                if (IncomingClients.ContainsKey(packet.AccountId))
+                    IncomingClients.Remove(packet.AccountId);
 
-                IncomingClients.Add(packet.Id, new LoginAccountEntry(packet));
+                IncomingClients.Add(packet.AccountId, new LoginAccountEntry(packet));
             }
 
             AuthCommunicator.Send(new RedirectResponsePacket
             {
-                AccountId = packet.Id,
+                AccountId = packet.AccountId,
                 Response = RedirectResult.Success
             });
         }

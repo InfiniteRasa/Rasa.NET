@@ -1,22 +1,13 @@
-﻿// ReSharper disable UnusedMember.Local
-using System;
-
-namespace Rasa.Game
+﻿namespace Rasa.Game.Handlers
 {
     using Data;
     using Managers;
     using Packets;
     using Packets.Game.Client;
+    using Packets.Game.Server;
 
-    public class ClientPacketHandler
+    public partial class ClientPacketHandler
     {
-        public Client Client { get; }
-
-        public ClientPacketHandler(Client client)
-        {
-            Client = client;
-        }
-
         [PacketHandler(GameOpcode.RequestCharacterName)]
         private void RequestCharacterName(RequestCharacterNamePacket packet)
         {
@@ -37,12 +28,13 @@ namespace Rasa.Game
         }
 
         [PacketHandler(GameOpcode.RequestDeleteCharacterInSlot)]
-        private void RequestDeleteCharacterInSlot(object packet)
+        private void RequestDeleteCharacterInSlot(RequestDeleteCharacterInSlotPacket packet)
         {
+            CharacterManager.Instance.RequestDeleteCharacterInSlot(Client, packet);
         }
 
         [PacketHandler(GameOpcode.RequestSwitchToCharacterInSlot)]
-        private void RequestSwitchToCharacterInSlot(object packet)
+        private void RequestSwitchToCharacterInSlot(RequestSwitchToCharacterInSlotPacket packet)
         {
         }
     }

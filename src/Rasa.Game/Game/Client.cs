@@ -6,6 +6,8 @@ namespace Rasa.Game
 {
     using Cryptography;
     using Data;
+    using Database.Tables.Character;
+    using Handlers;
     using Managers;
     using Memory;
     using Networking;
@@ -20,7 +22,7 @@ namespace Rasa.Game
         public LengthedSocket Socket { get; }
         public ClientCryptData Data { get; }
         public Server Server { get; }
-        public LoginAccountEntry AccountEntry { get; private set; }
+        public GameAccountEntry AccountEntry { get; private set; }
         public ClientState State { get; set; }
         public uint[] SendSequence { get; } = new uint[256];
         public uint[] ReceiveSequence { get; } = new uint[256];
@@ -153,8 +155,8 @@ namespace Rasa.Game
                         return;
                     }
 
-                    AccountEntry = Server.AuthenticateClient(this, loginMsg.AccountId, loginMsg.OneTimeKey); // TODO: implement ban system and check if the account is banned
-                    if (AccountEntry == null)
+                    var loginEntry = Server.AuthenticateClient(this, loginMsg.AccountId, loginMsg.OneTimeKey);
+                    if (loginEntry == null)
                     {
                         Logger.WriteLog(LogType.Error, "Client with ip: {0} tried to log in with invalid session data! User Id: {1} | OneTimeKey: {2}", Socket.RemoteAddress, loginMsg.AccountId, loginMsg.OneTimeKey);
 
@@ -163,8 +165,43 @@ namespace Rasa.Game
                             ErrorCode = LoginErrorCodes.AuthenticationFailed,
                             Subtype = LoginResponseMessageSubtype.Failed
                         }, delay: false);
+
                         return;
                     }
+
+                    GameAccountTable.CreateAccountDataIfNeeded(loginEntry.Id, loginEntry.Name, loginEntry.Email);
+
+                    if (Server.IsBanned(loginMsg.AccountId))
+                    {
+                        Logger.WriteLog(LogType.Error, "Client with ip: {0} tried to log in while the account is banned! User Id: {1}", Socket.RemoteAddress, loginMsg.AccountId);
+
+                        SendMessage(new LoginResponseMessage
+                        {
+                            ErrorCode = LoginErrorCodes.AccountLocked,
+                            Subtype = LoginResponseMessageSubtype.Failed
+                        }, delay: false);
+
+                        return;
+                    }
+
+                    if (Server.IsAlreadyLoggedIn(loginMsg.AccountId))
+                    {
+                        Logger.WriteLog(LogType.Error, "Client with ip: {0} tried to log in while the account is being played on! User Id: {1}", Socket.RemoteAddress, loginMsg.AccountId);
+
+                        SendMessage(new LoginResponseMessage
+                        {
+                            ErrorCode = LoginErrorCodes.AlreadyLoggedIn,
+                            Subtype = LoginResponseMessageSubtype.Failed
+                        }, delay: false);
+
+                        return;
+                    }
+
+                    AccountEntry = GameAccountTable.GetAccount(loginEntry.Id);
+                    AccountEntry.LastIP = Socket.RemoteAddress.ToString();
+                    AccountEntry.LastLogin = DateTime.Now;
+
+                    GameAccountTable.UpdateAccount(AccountEntry);
 
                     SendMessage(new LoginResponseMessage
                     {
@@ -198,9 +235,22 @@ namespace Rasa.Game
                     break;
 
                 case ClientMessageOpcode.Ping:
+                    var pingMessage = pPacket.Message as PingMessage;
+                    if (pingMessage == null)
+                    {
+                        Close(true);
+                        return;
+                    }
+
+                    SendMessage(pingMessage, delay: false);
                     break;
             }
 
+        }
+
+        public bool IsAuthenticated()
+        {
+            return State != ClientState.Connected && State != ClientState.Disconnected;
         }
 
         #region Socketing

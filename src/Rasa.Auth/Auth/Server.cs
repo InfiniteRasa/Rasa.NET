@@ -457,7 +457,7 @@ namespace Rasa.Auth
             using (var rng = RandomNumberGenerator.Create())
                 rng.GetBytes(salt);
 
-            var data = new AccountEntry
+            var data = new AuthAccountEntry
             {
                 Email = parts[1],
                 Username = parts[2],

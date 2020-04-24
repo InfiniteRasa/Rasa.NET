@@ -9,25 +9,25 @@ namespace Rasa.Packets.Communicator
     {
         public CommOpcode Opcode { get; } = CommOpcode.RedirectRequest;
 
-        public uint Id { get; set; }
+        public uint AccountId { get; set; }
         public string Username { get; set; }
-        public byte Level { get; set; }
+        public string Email { get; set; }
         public uint OneTimeKey { get; set; }
 
         public void Read(BinaryReader br)
         {
-            Id = br.ReadUInt32();
+            AccountId = br.ReadUInt32();
             Username = br.ReadLengthedString();
-            Level = br.ReadByte();
+            Email = br.ReadLengthedString();
             OneTimeKey = br.ReadUInt32();
         }
 
         public void Write(BinaryWriter bw)
         {
             bw.Write((byte) Opcode);
-            bw.Write(Id);
+            bw.Write(AccountId);
             bw.WriteLengthedString(Username);
-            bw.Write(Level);
+            bw.WriteLengthedString(Email);
             bw.Write(OneTimeKey);
         }
     }

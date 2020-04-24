@@ -23,7 +23,7 @@ namespace Rasa.Memory
 
             --Reader.BaseStream.Position;
 
-            return (PythonType) (type & 0xF0);
+            return (PythonType)(type & 0xF0);
         }
 
         public void ReadNoneStruct()
@@ -45,6 +45,23 @@ namespace Rasa.Memory
             var val = Reader.ReadByte();
             if (val != 0x02)
                 throw new Exception($"Expected ZeroStruct, found data: {val:X2}");
+        }
+
+        public PythonType ReadUnkStruct()
+        {
+            var val = Reader.ReadByte();
+
+            switch (val)
+            {
+                case 0x00:
+                    return PythonType.NoneStruct;
+                case 0x01:
+                    return PythonType.TrueStruct;
+                case 0x02:
+                    return PythonType.ZeroStruct;
+                default:
+                    throw new Exception($"Expected NoneStruct, TrueStruct or ZeroStruct, found data: {val:X2}");
+            }
         }
 
         public bool ReadBool()
@@ -97,7 +114,7 @@ namespace Rasa.Memory
                 throw new Exception($"Expected 0x1_. Got: {type:X2}");
 
             if (type <= 0x1C)
-                return (uint) (type & 0xF);
+                return (uint)(type & 0xF);
 
             switch (type)
             {
@@ -339,37 +356,18 @@ namespace Rasa.Memory
                 var type = Reader.ReadByte();
                 if (type == 0x66)
                 {
-                    if (Reader.ReadByte() == 0x2A)
+                    //if (Reader.ReadByte() == 0x2A)
                         break;
-                        
-                    --Reader.BaseStream.Position;
+
+                    //--Reader.BaseStream.Position;
                 }
 
                 --Reader.BaseStream.Position;
 
-                switch ((PythonType) (type & 0xF0))
+                switch ((PythonType)(type & 0xF0))
                 {
-                    case PythonType.Structs:
-                        switch (type & 0x0F)
-                        {
-                            case 0x00:
-                                ReadNoneStruct();
-                                sb.AppendLine("NoneStruct");
-                                break;
-
-                            case 0x01:
-                                ReadTrueStruct();
-                                sb.AppendLine("TrueStruct");
-                                break;
-
-                            case 0x02:
-                                ReadZeroStruct();
-                                sb.AppendLine("ZeroStruct");
-                                break;
-
-                            default:
-                                throw new Exception($"Invalid type read! Type: {type:X}");
-                        }
+                    case 0x00:
+                        sb.Append("").AppendLine($"{ReadUnkStruct()}");
                         break;
 
                     case PythonType.Int:
@@ -416,7 +414,7 @@ namespace Rasa.Memory
 
         public void Dispose()
         {
-            
+
         }
     }
 }
