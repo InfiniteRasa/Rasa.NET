@@ -2,16 +2,19 @@
 
   <PropertyGroup>
     <AssemblyTitle>Rasa.NET Auth</AssemblyTitle>
-    <TargetFramework>netcoreapp3.0</TargetFramework>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
     <AssemblyName>Rasa.Auth</AssemblyName>
     <OutputType>Exe</OutputType>
     <PackageId>Rasa.Auth</PackageId>
-    <PackageTargetFallback>$(PackageTargetFallback)</PackageTargetFallback>
+    <RuntimeIdentifiers>win10-x64;osx.10.10-x64;ubuntu.14.04-x64</RuntimeIdentifiers>
+    <RuntimeFrameworkVersion>3.1.0</RuntimeFrameworkVersion>
+    <PackageTargetFallback>$(PackageTargetFallback);dnxcore50</PackageTargetFallback>
     <GenerateAssemblyConfigurationAttribute>false</GenerateAssemblyConfigurationAttribute>
     <GenerateAssemblyCompanyAttribute>false</GenerateAssemblyCompanyAttribute>
     <GenerateAssemblyProductAttribute>false</GenerateAssemblyProductAttribute>
     <RootNamespace>Rasa</RootNamespace>
     <StartupObject>Rasa.AuthProgram</StartupObject>
+    <LangVersion>8.0</LangVersion>
   </PropertyGroup>
 
   <ItemGroup>
