@@ -1,9 +1,12 @@
-﻿using System.Numerics;
+﻿using System.Collections.Generic;
+using System.Numerics;
 
 namespace Rasa.Managers
 {
     using Data;
+    using Database.Tables.Character;
     using Game;
+    using Packets;
     using Packets.Game.Server;
     using Structures;
     using Timer;
@@ -41,15 +44,23 @@ namespace Rasa.Managers
         {
             var player = client.MapClient.Player;
 
+            // default enetiyId, until we implement EntityManager
+            var entityId = 10001u;
+
+            var entityData = new List<PythonPacket>
+            {
+                new WorldLocationDescriptorPacket(new Vector3((float)player.CoordX, (float)player.CoordY, (float)player.CoordZ), (float)player.Rotation),
+                new AppearanceDataPacket(CharacterAppearanceTable.GetAppearances(player.Id))
+            };
+
             var map = new Map
             {
                 MapInfo = new MapInfo(1220, "adv_foreas_concordia_wilderness", 1556, 0)
             };
 
-            client.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(10001, (EntityClass)player.Gender == 0 ? (EntityClass)692 : (EntityClass)691));
-            client.CallMethod(10001, new WorldLocationDescriptorPacket(new Vector3((float)player.CoordX, (float)player.CoordY, (float)player.CoordZ), (float)player.Rotation));
+            client.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(entityId, (EntityClass)player.Gender == 0 ? (EntityClass)692 : (EntityClass)691, entityData));
             client.CallMethod(SysEntity.ClientMethodId, new SetCurrentContextIdPacket(map.MapInfo.ContextId));
-            client.CallMethod(SysEntity.ClientMethodId, new SetControlledActorIdPacket(10001));
+            client.CallMethod(SysEntity.ClientMethodId, new SetControlledActorIdPacket(entityId));
 
             client.State = ClientState.Ingame;
         }
