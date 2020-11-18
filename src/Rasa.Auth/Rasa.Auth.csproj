@@ -18,8 +18,15 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Update="appsettings.env.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Update="appsettings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="appsettings.env.json" Condition="Exists('appsettings.env.json')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <DependentUpon>appsettings.json</DependentUpon>
     </None>
   </ItemGroup>
 
