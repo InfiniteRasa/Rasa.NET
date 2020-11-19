@@ -97,6 +97,8 @@ namespace Rasa.Game
             if (Clients.Count == 0)
                 return;
 
+            MapChannelManager.Instance.MapChannelWorker(delta);
+
             lock (Clients)
             {
                 foreach (var client in Clients)
