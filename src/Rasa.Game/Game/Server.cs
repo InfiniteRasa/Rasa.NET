@@ -288,7 +288,7 @@ namespace Rasa.Game
             Logger.WriteLog(LogType.Network, $"*** Connecting to auth server! Address: {Config.CommunicatorConfig.Address}:{Config.CommunicatorConfig.Port}");
         }
 
-        private void OnCommunicatorError( SocketAsyncEventArgs args )
+        private void OnCommunicatorError(SocketAsyncEventArgs args)
         {
             Timer.Add("CommReconnect", 10000, false, () =>
             {
