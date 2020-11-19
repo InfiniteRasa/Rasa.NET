@@ -303,7 +303,7 @@ namespace Rasa.Game
         {
             if (args.SocketError != SocketError.Success)
             {
-                OnCommunicatorConnect(args);
+                OnCommunicatorError(args);
                 return;
             }
 
