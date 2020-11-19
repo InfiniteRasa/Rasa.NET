@@ -1,10 +1,12 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 
 namespace Rasa.Managers
 {
     using Data;
     using Database.Tables.World;
+    using Extensions;
     using Game;
     using Packets;
     using Packets.Game.Server;
@@ -350,32 +352,20 @@ namespace Rasa.Managers
             }
         }
 
-        internal void PlayerHasWaypoint(Client client, WaypointInfo objectData)
+        internal void CheckPlayerWaypoint(Client client, WaypointInfo objectData)
         {
-            var hasWaypoint = false;
-            var waypointInfoList = new List<MapWaypointInfoList>();
-
-            // check if player have curent waypoint
-            foreach (var waypointId in client.MapClient.Player.GainedWaypoints)
+            // check if player has requested waypoint
+            if (client.MapClient.Player.GainedWaypoints.Contains(objectData.WaypointId))
             {
-                if (waypointId == objectData.WaypointId)
-                {
-                    hasWaypoint = true;
-                    break;
-                }
+                return;
             }
 
-            if (!hasWaypoint)
-            {
-                // add waypoint to player if he etered first time
-                client.CallMethod(client.MapClient.Player.Actor.EntityId, new WaypointGainedPacket(objectData.WaypointId, objectData.WaypointType));
-                client.MapClient.Player.GainedWaypoints.Add(objectData.WaypointId);
+            // add waypoint to player as he entered for the first time
+            client.CallMethod(client.MapClient.Player.Actor.EntityId, new WaypointGainedPacket(objectData.WaypointId, objectData.WaypointType));
+            client.MapClient.Player.GainedWaypoints.Add(objectData.WaypointId);
 
-                // update Db
-                CharacterManager.Instance.UpdateCharacter(client, CharacterUpdate.Teleporter, objectData.WaypointId);
-
-                hasWaypoint = true;
-            }
+            // update Db
+            CharacterManager.Instance.UpdateCharacter(client, CharacterUpdate.Teleporter, objectData.WaypointId);
         }
 
         internal List<MapWaypointInfoList> CreateListOfWaypoints(Client client, MapChannel mapChannel)
@@ -439,30 +429,30 @@ namespace Rasa.Managers
 
             foreach (var client in mapChannel.MapCellInfo.Cells[cellSeed].ClientList)
             {
-                if (Vector3.Distance(obj.Position, client.MapClient.Player.Actor.Position) < 2.0f)
+                // check if player is near waypoint
+                if (!client.MapClient.Player.Actor.IsNear(obj))
                 {
-                    var alreadyInList = false;
-
-                    foreach (var player in obj.TrigeredByPlayers)
-                        if (client == player)
-                        {
-                            alreadyInList = true;
-                            break;
-                        }
-
-                    if (!alreadyInList)
-                    {
-                        obj.TrigeredByPlayers.Add(client);
-
-                        var objectData = (WaypointInfo)obj.ObjectData;
-
-                        PlayerHasWaypoint(client, objectData);
-
-                        var waypointInfoList = CreateListOfWaypoints(client, mapChannel);
-
-                        client.CallMethod(SysEntity.ClientMethodId, new EnteredWaypointPacket(obj.MapContextId, obj.MapContextId, waypointInfoList, objectData.WaypointType, objectData.WaypointId));
-                    }
+                    continue;
                 }
+
+                // check if already added
+                if (obj.TrigeredByPlayers.Any(p => p == client))
+                {
+                    continue;
+                }
+
+                // if not add him and send enter packet
+                obj.TrigeredByPlayers.Add(client);
+
+                var objectData = (WaypointInfo)obj.ObjectData;
+
+                CheckPlayerWaypoint(client, objectData);
+
+                var waypointInfoList = CreateListOfWaypoints(client, mapChannel);
+
+                client.CallMethod(SysEntity.ClientMethodId, new EnteredWaypointPacket(obj.MapContextId, obj.MapContextId, waypointInfoList, objectData.WaypointType, objectData.WaypointId));
+
+                // check if we already added him to the waypoint
             }
         }
 
@@ -472,7 +462,7 @@ namespace Rasa.Managers
             {
                 var client = obj.TrigeredByPlayers[i];
 
-                if (Vector3.Distance(obj.Position, client.MapClient.Player.Actor.Position) > 2.0f)
+                if (!client.MapClient.Player.Actor.IsNear(obj))
                 {
                     obj.TrigeredByPlayers.RemoveAt(i);
 

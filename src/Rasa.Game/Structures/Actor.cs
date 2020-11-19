@@ -5,8 +5,9 @@ namespace Rasa.Structures
 {
     using Data;
     using Managers;
+    using Positioning;
 
-    public class Actor
+    public class Actor : IHasPosition
     {
         public Actor()
         {
