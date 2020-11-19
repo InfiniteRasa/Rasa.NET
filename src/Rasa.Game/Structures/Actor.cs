@@ -1,11 +1,11 @@
 ﻿using System.Collections.Generic;
 using System.Numerics;
-using Rasa.Structures.Positioning;
 
 namespace Rasa.Structures
 {
     using Data;
     using Managers;
+    using Positioning;
 
     public class Actor : IHasPosition
     {

@@ -1,12 +1,12 @@
 ﻿using System.Collections.Generic;
 using System.Numerics;
-using Rasa.Structures.Positioning;
 
 namespace Rasa.Structures
 {
     using Data;
     using Game;
     using Managers;
+    using Positioning;
 
     public class DynamicObject : IHasPosition
     {

@@ -1,8 +1,8 @@
 ﻿using System.Numerics;
-using Rasa.Structures.Positioning;
 
 namespace Rasa.Extensions
 {
+    using Structures.Positioning;
     public static class HasPositionExtensions
     {
         public static bool IsNear(this IHasPosition first, IHasPosition second)

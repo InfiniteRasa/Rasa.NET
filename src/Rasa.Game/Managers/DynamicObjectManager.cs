@@ -1,12 +1,12 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
-using Rasa.Extensions;
 
 namespace Rasa.Managers
 {
     using Data;
     using Database.Tables.World;
+    using Extensions;
     using Game;
     using Packets;
     using Packets.Game.Server;
