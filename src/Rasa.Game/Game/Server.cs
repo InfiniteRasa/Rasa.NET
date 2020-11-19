@@ -276,28 +276,34 @@ namespace Rasa.Game
             {
                 AuthCommunicator = new LengthedSocket(SizeType.Word);
                 AuthCommunicator.OnConnect += OnCommunicatorConnect;
+                AuthCommunicator.OnError += OnCommunicatorError;
                 AuthCommunicator.ConnectAsync(new IPEndPoint(IPAddress.Parse(Config.CommunicatorConfig.Address), Config.CommunicatorConfig.Port));
             }
             catch (Exception e)
             {
-                Logger.WriteLog(LogType.Error, "Unable to create or start listening on the client socket! Retrying soon... Exception:");
+                Logger.WriteLog(LogType.Error, "Unable to create or start listening on the Auth server socket! Retrying soon... Exception:");
                 Logger.WriteLog(LogType.Error, e);
             }
 
             Logger.WriteLog(LogType.Network, $"*** Connecting to auth server! Address: {Config.CommunicatorConfig.Address}:{Config.CommunicatorConfig.Port}");
         }
 
+        private void OnCommunicatorError(SocketAsyncEventArgs args)
+        {
+            Timer.Add("CommReconnect", 10000, false, () =>
+            {
+                if (!AuthCommunicator?.Connected ?? true)
+                    ConnectCommunicator();
+            });
+
+            Logger.WriteLog(LogType.Error, "Could not connect to the Auth server! Trying again in a few seconds...");
+        }
+
         private void OnCommunicatorConnect(SocketAsyncEventArgs args)
         {
             if (args.SocketError != SocketError.Success)
             {
-                Timer.Add("CommReconnect", 10000, false, () =>
-                {
-                    if (AuthCommunicator?.Connected ?? true)
-                        ConnectCommunicator();
-                });
-
-                Logger.WriteLog(LogType.Error, "Could not connect to the Auth server! Trying again in a few seconds...");
+                OnCommunicatorError(args);
                 return;
             }
 
