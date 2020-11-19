@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Numerics;
+using Rasa.Structures.Positioning;
 
 namespace Rasa.Structures
 {
@@ -7,7 +8,7 @@ namespace Rasa.Structures
     using Game;
     using Managers;
 
-    public class DynamicObject
+    public class DynamicObject : IHasPosition
     {
         public DynamicObject()
         {
