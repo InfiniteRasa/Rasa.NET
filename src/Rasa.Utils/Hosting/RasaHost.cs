@@ -53,7 +53,8 @@ namespace Rasa.Hosting
 
             while (_rasaServer.Running && !stoppingToken.IsCancellationRequested)
             {
-                await Task.Run(CommandProcessor.ProcessCommand, stoppingToken);
+                CommandProcessor.ProcessCommand(stoppingToken);
+                await Task.Delay(25, stoppingToken);
             }
         }
 

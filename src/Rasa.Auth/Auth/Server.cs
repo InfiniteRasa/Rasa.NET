@@ -433,7 +433,7 @@ namespace Rasa.Auth
             {
                 Shutdown();
 
-                _stopTokenSource.Cancel(false);
+                _stopTokenSource.Cancel(true);
                 //Environment.Exit(0);
             });
 
