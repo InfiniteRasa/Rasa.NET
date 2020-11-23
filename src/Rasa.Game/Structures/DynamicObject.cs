@@ -6,8 +6,9 @@ namespace Rasa.Structures
     using Data;
     using Game;
     using Managers;
+    using Positioning;
 
-    public class DynamicObject
+    public class DynamicObject : IHasPosition
     {
         public DynamicObject()
         {
