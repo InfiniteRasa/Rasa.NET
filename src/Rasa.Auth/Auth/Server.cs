@@ -7,22 +7,25 @@ using System.Security.Cryptography;
 
 namespace Rasa.Auth
 {
+    using System.Threading;
     using Commands;
     using Config;
     using Data;
     using Database;
     using Database.Tables.Auth;
+    using Hosting;
     using Memory;
     using Networking;
-    using Packets;
     using Packets.Communicator;
     using Packets.Auth.Server;
     using Structures;
     using Threading;
-    using Timer;
+    using Timer = Timer.Timer;
 
-    public class Server : ILoopable
+    public class Server : ILoopable, IRasaServer
     {
+        public string ServerType { get; } = "Authentication";
+
         public const int MainLoopTime = 100; // Milliseconds
 
         public Config Config { get; private set; }
@@ -38,6 +41,8 @@ namespace Rasa.Auth
         private readonly List<Client> _clientsToRemove = new List<Client>();
         private List<CommunicatorClient> GameServerQueue { get; } = new List<CommunicatorClient>();
         private Dictionary<byte, CommunicatorClient> GameServers { get; } = new Dictionary<byte, CommunicatorClient>();
+
+        private CancellationTokenSource _stopTokenSource;
 
         public Server()
         {
@@ -129,8 +134,9 @@ namespace Rasa.Auth
         }
 
         #region Socketing
-        public bool Start()
+        public bool Start(CancellationTokenSource stopToken)
         {
+            _stopTokenSource = stopToken;
             // If no config file has been found, these values are 0 by default
             if (Config.AuthConfig.Port == 0 || Config.AuthConfig.Backlog == 0)
             {
@@ -427,7 +433,8 @@ namespace Rasa.Auth
             {
                 Shutdown();
 
-                Environment.Exit(0);
+                _stopTokenSource.Cancel(false);
+                //Environment.Exit(0);
             });
 
             Logger.WriteLog(LogType.Command, $"Exiting the server in {minutes} minute(s).");
