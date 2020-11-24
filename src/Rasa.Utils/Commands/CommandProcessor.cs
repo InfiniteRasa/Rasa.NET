@@ -1,10 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading;
 
 namespace Rasa.Commands
 {
-    using System.Threading;
-
     public static class CommandProcessor
     {
         private static readonly Dictionary<string, Action<string[]>> Commands = new Dictionary<string, Action<string[]>>();

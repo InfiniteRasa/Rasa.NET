@@ -20,7 +20,7 @@ namespace Rasa.Auth
     using Packets.Auth.Server;
     using Structures;
     using Threading;
-    using Timer = Timer.Timer;
+    using Timer;
 
     public class Server : ILoopable, IRasaServer
     {

@@ -7,7 +7,6 @@ using Microsoft.Extensions.Hosting;
 
 namespace Rasa.Game
 {
-    using System.Threading;
     using Managers;
     using Commands;
     using Config;
@@ -22,7 +21,7 @@ namespace Rasa.Game
     using Queue;
     using Structures;
     using Threading;
-    using Timer = Timer.Timer;
+    using Timer;
 
     public class Server : ILoopable, IRasaServer
     {
@@ -410,8 +409,6 @@ namespace Rasa.Game
             Timer.Add("exit", minutes * 60000, false, () =>
             {
                 Shutdown();
-
-                //_stopTokenSource.Cancel(false);
                 _hostApplicationLifetime.StopApplication();
             });
 

@@ -1,11 +1,10 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
 namespace Rasa
 {
-    using System;
-
     public class AuthProgram
     {
         public static async Task<int> Main(string[] args)
