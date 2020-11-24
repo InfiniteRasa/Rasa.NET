@@ -4,10 +4,10 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
+using Microsoft.Extensions.Hosting;
 
 namespace Rasa.Auth
 {
-    using System.Threading;
     using Commands;
     using Config;
     using Data;
@@ -24,6 +24,8 @@ namespace Rasa.Auth
 
     public class Server : ILoopable, IRasaServer
     {
+        private readonly IHostApplicationLifetime _hostApplicationLifetime;
+
         public string ServerType { get; } = "Authentication";
 
         public const int MainLoopTime = 100; // Milliseconds
@@ -42,10 +44,9 @@ namespace Rasa.Auth
         private List<CommunicatorClient> GameServerQueue { get; } = new List<CommunicatorClient>();
         private Dictionary<byte, CommunicatorClient> GameServers { get; } = new Dictionary<byte, CommunicatorClient>();
 
-        private CancellationTokenSource _stopTokenSource;
-
-        public Server()
+        public Server(IHostApplicationLifetime hostApplicationLifetime)
         {
+            _hostApplicationLifetime = hostApplicationLifetime;
             Configuration.OnLoad += ConfigLoaded;
             Configuration.OnReLoad += ConfigReLoaded;
             Configuration.Load();
@@ -134,9 +135,8 @@ namespace Rasa.Auth
         }
 
         #region Socketing
-        public bool Start(CancellationTokenSource stopToken)
+        public bool Start()
         {
-            _stopTokenSource = stopToken;
             // If no config file has been found, these values are 0 by default
             if (Config.AuthConfig.Port == 0 || Config.AuthConfig.Backlog == 0)
             {
@@ -432,9 +432,7 @@ namespace Rasa.Auth
             Timer.Add("exit", minutes * 60000, false, () =>
             {
                 Shutdown();
-
-                _stopTokenSource.Cancel(true);
-                //Environment.Exit(0);
+                _hostApplicationLifetime.StopApplication();
             });
 
             Logger.WriteLog(LogType.Command, $"Exiting the server in {minutes} minute(s).");

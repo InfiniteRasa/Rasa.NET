@@ -1,11 +1,13 @@
-﻿namespace Rasa
+﻿using Microsoft.Extensions.Hosting;
+
+namespace Rasa
 {
     using Auth;
     using Hosting;
 
     public class AuthHost : RasaHost
     {
-        public AuthHost() : base(new Server())
+        public AuthHost(IHostApplicationLifetime hostApplicationLifetime) : base(new Server(hostApplicationLifetime))
         {
         }
     }

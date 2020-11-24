@@ -18,22 +18,19 @@ namespace Rasa.Hosting
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            var stopTokenSource = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
             Logger.WriteLog(LogType.File, "Application startup!");
 
             InitConsole(_rasaServer.ServerType);
 
             Logger.WriteLog(LogType.Initialize, "*** Initialized {0} Server...", _rasaServer.ServerType);
 
-            if (stoppingToken.IsCancellationRequested || !_rasaServer.Start(stopTokenSource))
+            if (!_rasaServer.Start())
             {
                 Logger.WriteLog(LogType.Error, "Unable to start server!");
                 return;
             }
 
-            await ProcessCommandsSafe(stopTokenSource.Token);
-
-            GC.Collect();
+            await ProcessCommandsSafe(stoppingToken);
         }
 
         private async Task ProcessCommandsSafe(CancellationToken stoppingToken)

@@ -4,14 +4,27 @@ using Microsoft.Extensions.Hosting;
 
 namespace Rasa
 {
+    using System;
+
     public class GameProgram
     {
-        public static async Task Main(string[] args)
+        public static async Task<int> Main(string[] args)
         {
             var hostBuilder = new HostBuilder()
                 .ConfigureServices(ConfigureServices);
+            var host = hostBuilder.Build();
 
-            await hostBuilder.RunConsoleAsync();
+            try
+            {
+                await host.RunAsync();
+                return 0;
+            }
+            catch (Exception e)
+            {
+                Logger.WriteLog(LogType.Error, "Game server ended unexpectedly. Exception:");
+                Logger.WriteLog(LogType.Error, e);
+                return e.HResult;
+            }
         }
 
         private static void ConfigureServices(HostBuilderContext context, IServiceCollection services)

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using Microsoft.Extensions.Hosting;
 
 namespace Rasa.Game
 {
@@ -25,6 +26,8 @@ namespace Rasa.Game
 
     public class Server : ILoopable, IRasaServer
     {
+        private readonly IHostApplicationLifetime _hostApplicationLifetime;
+
         public string ServerType { get; } = "Game";
 
         public const int MainLoopTime = 100; // Milliseconds
@@ -46,10 +49,10 @@ namespace Rasa.Game
         private readonly List<Client> _clientsToRemove = new List<Client>();
         private readonly PacketRouter<Server, CommOpcode> _router = new PacketRouter<Server, CommOpcode>();
 
-        private CancellationTokenSource _stopTokenSource;
-
-        public Server()
+        public Server(IHostApplicationLifetime hostApplicationLifetime)
         {
+            _hostApplicationLifetime = hostApplicationLifetime;
+
             Configuration.OnLoad += ConfigLoaded;
             Configuration.OnReLoad += ConfigReLoaded;
             Configuration.Load();
@@ -126,9 +129,8 @@ namespace Rasa.Game
 
         #region Socketing
 
-        public bool Start(CancellationTokenSource stopToken)
+        public bool Start()
         {
-            _stopTokenSource = stopToken;
             // If no config file has been found, these values are 0 by default
             if (Config.GameConfig.Port == 0 || Config.GameConfig.Backlog == 0)
             {
@@ -409,7 +411,8 @@ namespace Rasa.Game
             {
                 Shutdown();
 
-                _stopTokenSource.Cancel(false);
+                //_stopTokenSource.Cancel(false);
+                _hostApplicationLifetime.StopApplication();
             });
 
             Logger.WriteLog(LogType.Command, $"Exiting the server in {minutes} minute(s).");
