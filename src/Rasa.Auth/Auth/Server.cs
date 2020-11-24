@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
+using Microsoft.Extensions.Hosting;
 
 namespace Rasa.Auth
 {
@@ -12,17 +13,21 @@ namespace Rasa.Auth
     using Data;
     using Database;
     using Database.Tables.Auth;
+    using Hosting;
     using Memory;
     using Networking;
-    using Packets;
     using Packets.Communicator;
     using Packets.Auth.Server;
     using Structures;
     using Threading;
     using Timer;
 
-    public class Server : ILoopable
+    public class Server : ILoopable, IRasaServer
     {
+        private readonly IHostApplicationLifetime _hostApplicationLifetime;
+
+        public string ServerType { get; } = "Authentication";
+
         public const int MainLoopTime = 100; // Milliseconds
 
         public Config Config { get; private set; }
@@ -39,8 +44,9 @@ namespace Rasa.Auth
         private List<CommunicatorClient> GameServerQueue { get; } = new List<CommunicatorClient>();
         private Dictionary<byte, CommunicatorClient> GameServers { get; } = new Dictionary<byte, CommunicatorClient>();
 
-        public Server()
+        public Server(IHostApplicationLifetime hostApplicationLifetime)
         {
+            _hostApplicationLifetime = hostApplicationLifetime;
             Configuration.OnLoad += ConfigLoaded;
             Configuration.OnReLoad += ConfigReLoaded;
             Configuration.Load();
@@ -426,8 +432,7 @@ namespace Rasa.Auth
             Timer.Add("exit", minutes * 60000, false, () =>
             {
                 Shutdown();
-
-                Environment.Exit(0);
+                _hostApplicationLifetime.StopApplication();
             });
 
             Logger.WriteLog(LogType.Command, $"Exiting the server in {minutes} minute(s).");
