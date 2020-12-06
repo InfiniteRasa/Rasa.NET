@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading;
 
 namespace Rasa.Commands
 {
@@ -7,9 +8,9 @@ namespace Rasa.Commands
     {
         private static readonly Dictionary<string, Action<string[]>> Commands = new Dictionary<string, Action<string[]>>();
 
-        public static void ProcessCommand()
+        public static void ProcessCommand(CancellationToken stopToken)
         {
-            var command = Console.ReadLine();
+            var command = ReadCommand(stopToken);
             if (string.IsNullOrWhiteSpace(command))
                 return;
 
@@ -24,6 +25,27 @@ namespace Rasa.Commands
             }
 
             Logger.WriteLog(LogType.Command, $"Invalid command: {command}");
+        }
+
+        private static string ReadCommand(CancellationToken stopToken)
+        {
+            var command = string.Empty;
+            while (!stopToken.IsCancellationRequested)
+            {
+                if (Console.KeyAvailable)
+                {
+                    var key = Console.ReadKey();
+                    switch (key.Key)
+                    {
+                        case ConsoleKey.Enter:
+                            return command;
+                        default:
+                            command += key.KeyChar;
+                            break;
+                    }
+                }
+            }
+            return null;
         }
 
         public static void RegisterCommand(string name, Action<string[]> handler)
