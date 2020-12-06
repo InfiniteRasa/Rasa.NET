@@ -18,6 +18,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="5.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Rasa.DBL\Rasa.DBL.csproj" />
     <ProjectReference Include="..\Rasa.Shared\Rasa.Shared.csproj" />
     <ProjectReference Include="..\Rasa.Utils\Rasa.Utils.csproj" />

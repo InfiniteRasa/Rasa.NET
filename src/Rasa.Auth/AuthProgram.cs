@@ -1,42 +1,34 @@
 ﻿using System;
-using System.Diagnostics;
+using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace Rasa
 {
-    using Auth;
-    using Commands;
-    using Misc;
-
-    public class AuthProgram : ProgramBase
+    public class AuthProgram
     {
-        private const string Type = "Authentication";
-
-        private static Server _server;
-
-        public static void Main(string[] args)
+        public static async Task<int> Main(string[] args)
         {
-            _server = new Server();
+            var hostBuilder = new HostBuilder()
+                .ConfigureServices(ConfigureServices);
+            var host = hostBuilder.Build();
 
-            Logger.WriteLog(LogType.File, "Application startup!");
-
-            InitConsole(Type);
-
-            Logger.WriteLog(LogType.Initialize, "*** Initialized Authentication Server...");
-
-            if (!_server.Start())
+            try
             {
-                Logger.WriteLog(LogType.Error, "Unable to start server!");
-                return;
+                await host.RunAsync();
+                return 0;
             }
-
-            while (_server.Running)
+            catch (Exception e)
             {
-                CommandProcessor.ProcessCommand();
+                Logger.WriteLog(LogType.Error, "Auth server ended unexpectedly. Exception:");
+                Logger.WriteLog(LogType.Error, e);
+                return e.HResult;
             }
+        }
 
-            GC.Collect();
-
-            Process.GetCurrentProcess().WaitForExit();
+        private static void ConfigureServices(HostBuilderContext context, IServiceCollection services)
+        {
+            services.AddHostedService<AuthHost>();
         }
     }
 }

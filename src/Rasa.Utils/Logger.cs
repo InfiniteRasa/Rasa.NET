@@ -119,7 +119,10 @@ namespace Rasa
                 default:
                     throw new ArgumentOutOfRangeException(nameof(type), type, $"Unhandled log type: {type}");
             }
-            var text = $"[{DateTime.Now:yyyy. MM. dd. HH:mm:ss.fff}] [{prefix}] {log}";
+
+            var text = type == LogType.ExportData
+                ? $"{log}"
+                : $"[{DateTime.Now:yyyy. MM. dd. HH:mm:ss.fff}] [{prefix}] {log}";
 
             _logWriter?.WriteLine(text);
 
