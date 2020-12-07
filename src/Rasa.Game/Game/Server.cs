@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using Microsoft.Extensions.Hosting;
 
 namespace Rasa.Game
 {
@@ -10,6 +11,7 @@ namespace Rasa.Game
     using Config;
     using Data;
     using Database;
+    using Hosting;
     using Login;
     using Memory;
     using Networking;
@@ -20,8 +22,12 @@ namespace Rasa.Game
     using Threading;
     using Timer;
 
-    public class Server : ILoopable
+    public class Server : ILoopable, IRasaServer
     {
+        private readonly IHostApplicationLifetime _hostApplicationLifetime;
+
+        public string ServerType { get; } = "Game";
+
         public const int MainLoopTime = 100; // Milliseconds
 
         public Config Config { get; private set; }
@@ -41,8 +47,10 @@ namespace Rasa.Game
         private readonly List<Client> _clientsToRemove = new List<Client>();
         private readonly PacketRouter<Server, CommOpcode> _router = new PacketRouter<Server, CommOpcode>();
 
-        public Server()
+        public Server(IHostApplicationLifetime hostApplicationLifetime)
         {
+            _hostApplicationLifetime = hostApplicationLifetime;
+
             Configuration.OnLoad += ConfigLoaded;
             Configuration.OnReLoad += ConfigReLoaded;
             Configuration.Load();
@@ -116,6 +124,7 @@ namespace Rasa.Game
         }
 
         #region Socketing
+
         public bool Start()
         {
             // If no config file has been found, these values are 0 by default
@@ -261,28 +270,34 @@ namespace Rasa.Game
             {
                 AuthCommunicator = new LengthedSocket(SizeType.Word);
                 AuthCommunicator.OnConnect += OnCommunicatorConnect;
+                AuthCommunicator.OnError += OnCommunicatorError;
                 AuthCommunicator.ConnectAsync(new IPEndPoint(IPAddress.Parse(Config.CommunicatorConfig.Address), Config.CommunicatorConfig.Port));
             }
             catch (Exception e)
             {
-                Logger.WriteLog(LogType.Error, "Unable to create or start listening on the client socket! Retrying soon... Exception:");
+                Logger.WriteLog(LogType.Error, "Unable to create or start listening on the Auth server socket! Retrying soon... Exception:");
                 Logger.WriteLog(LogType.Error, e);
             }
 
             Logger.WriteLog(LogType.Network, $"*** Connecting to auth server! Address: {Config.CommunicatorConfig.Address}:{Config.CommunicatorConfig.Port}");
         }
 
+        private void OnCommunicatorError(SocketAsyncEventArgs args)
+        {
+            Timer.Add("CommReconnect", 10000, false, () =>
+            {
+                if (!AuthCommunicator?.Connected ?? true)
+                    ConnectCommunicator();
+            });
+
+            Logger.WriteLog(LogType.Error, "Could not connect to the Auth server! Trying again in a few seconds...");
+        }
+
         private void OnCommunicatorConnect(SocketAsyncEventArgs args)
         {
             if (args.SocketError != SocketError.Success)
             {
-                Timer.Add("CommReconnect", 10000, false, () =>
-                {
-                    if (AuthCommunicator?.Connected ?? true)
-                        ConnectCommunicator();
-                });
-
-                Logger.WriteLog(LogType.Error, "Could not connect to the Auth server! Trying again in a few seconds...");
+                OnCommunicatorError(args);
                 return;
             }
 
@@ -379,8 +394,7 @@ namespace Rasa.Game
             Timer.Add("exit", minutes * 60000, false, () =>
             {
                 Shutdown();
-
-                Environment.Exit(0);
+                _hostApplicationLifetime.StopApplication();
             });
 
             Logger.WriteLog(LogType.Command, $"Exiting the server in {minutes} minute(s).");

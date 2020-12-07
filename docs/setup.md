@@ -95,9 +95,15 @@ The auth and game servers are pre-configured to use the user `rasa` to connect. 
 You should be ready to compile Rasa.NET and run the servers. 
 
 - Launch Visual Studio and open the `Rasa.NET.sln` file in the code repository
+- If you have to overwrite the default connection strings from the appsettings.json, see "Custom configuration" down below
 - Build the solution
 - Run the `Rasa.Auth` project via `Debug > Start without Debugging`
 - Run the `Rasa.Game` project via `Debug > Start Debugging`
+- Alternatively, define multiple start projects as follows:
+-- Right click on the solution
+-- Click "Set StartUp Projects"
+-- Choose "Multiple startup projects"
+-- Set "Action" for both projects wether you want to start with or without debugging
 
 ### Create a game user
 The authentication server can be used to create a user by running a command in the terminal. The usage is: `create <email> <username> <password>`. Running this command will create a new user in the database that you can use to login with the game client.
@@ -105,6 +111,22 @@ The authentication server can be used to create a user by running a command in t
 - Run the command in the authentication termain. i.e. `create test@test.com test test`
   - You can use any username / password that you want to create an account.
 
+## Custom configuration
+If you have to overwrite one or multiple settings from the appsettings.json of `Rasa.Auth` or `Rasa.Game`, do the following:
+
+- Create a file named "appsettings.env.json" in the root of the respective project or copy and rename the existing appsettings.json
+- The new file will be shown as subelement of the original appsettings.json
+- Use the new file to overwrite settings from appsettings.json. Keep property naming and structure, you don't need to add settings that you don't want to change. For example, to overwrite GameConfig.PublicAddress in the Rasa.Game settings, use 
+- The "appsettings.env.json" is ignored in git. Keep it that way.
+
+```json
+{
+  "GameConfig":{
+    "PublicAddress": "<new value>"
+  }
+}
+```
+  
 ## Launch the game
 If the server consoles launched correctly, you should be ready to start the game client. 
 
