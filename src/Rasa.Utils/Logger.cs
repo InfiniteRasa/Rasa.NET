@@ -14,7 +14,8 @@ namespace Rasa
         Command,
         File,
         Security,
-        None
+        None,
+        ExportData
     }
 
     public class Logger
