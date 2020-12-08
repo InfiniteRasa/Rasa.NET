@@ -17,7 +17,7 @@ The following tools are required to setup, build, and run Rasa.NET:
 - Git
 
 ### Install Visual Studio
-There is a single Visual Studio solution that contains the projects needed for Rasa.NET. Use Visual Studio 2017 or higher to compile and build these projects. 
+There is a single Visual Studio solution that contains the projects needed for Rasa.NET. Use Visual Studio 2017 or higher to compile and build these projects.
 
 - Download [Visual Studio](https://visualstudio.microsoft.com/). Choose the license that works for you
 - Run the installer after it's downloaded
@@ -27,14 +27,14 @@ There is a single Visual Studio solution that contains the projects needed for R
 ### Install .NET Core
 Rasa.NET is set to build and run with .NET Core.
 
-- [Download the .NET Core SDK and Runtime](https://dotnet.microsoft.com/download/dotnet-core/3.0) and install it
+- [Download the .NET Core 5 SDK and Runtime](https://dotnet.microsoft.com/download/dotnet/5.0) and install it
 
 ### Install MySQL Server and MySQL Workbench
 Rasa.NET uses MySQL to store game data. Download and install MySQL Community Server following these steps:
 
 - Download the [MySQL Installer for Windows](https://dev.mysql.com/downloads/windows/installer/8.0.html)
 - Run the installer after it's downloaded
-- The default options are fine, but you can customize the install and choose only MySQL Sever and MySQL Workbench. 
+- The default options are fine, but you can customize the install and choose only MySQL Sever and MySQL Workbench.
 - For help, follow [the documentation](https://dev.mysql.com/doc/refman/5.7/en/mysql-installer-setup.html)
 - Set the `root` user password to something unique when prompted after installation
 
@@ -45,27 +45,27 @@ Git is a version control system and will allow you to download the code. Alterna
 - Run the installer. If you're not sure of what options to select, choose the defaults
 
 ## Download and install the game
-You'll need the game client. Below is the demo version which was made freely available. 
+You'll need the game client. Below is the demo version which was made freely available.
 
 - Refer to the forums to [download and install the game client](https://infiniterasa.org/viewtopic.php?f=15&t=8).
 - Create a shortcut to the game client on the desktop. You'll need to find the executable in the path where you installed the game
   - Right-click on the `.exe` and choose `Send to > Desktop (create shortcut)`
   - Go to the desktop and right-click on the newly created shortcut and choose `Properties`
   - Select the `Shortcut` tab
-  - Edit the `Target` box to append `/NoPatch /AuthServer=localhost:2106` to the end of the file path. 
+  - Edit the `Target` box to append `/NoPatch /AuthServer=localhost:2106` to the end of the file path.
 
 ### Version 1.16.5.0 Required
-The game client needs to be version 1.16.5.0. If you have questions, [join the Discord](https://discord.gg/Ph68FmA). 
+The game client needs to be version 1.16.5.0. If you have questions, [join the Discord](https://discord.gg/Ph68FmA).
 
 ## Download or clone the code
-Download Rasa.NET from GitHub or use Git to clone the project (recommended). 
+Download Rasa.NET from GitHub or use Git to clone the project (recommended).
 
 - Launch a command prompt or Git bash terminal
 - Change directories to where you want the source to download to, i.e. `cd C:\Projects`
 - Run the command `git clone https://github.com/InfiniteRasa/Rasa.NET.git`
 
 ### Setup the database
-Before you can build and run the code, there are some configuration steps for the database. 
+Before you can build and run the code, there are some configuration steps for the database.
 
 - Launch MySQL Workbench and select your `Local instance MySQL80` under `MySQL Connections` that was created during install
 - Enter your root password that you created to connect to it
@@ -78,7 +78,7 @@ Before you can build and run the code, there are some configuration steps for th
 - Execute the script to create the required tables by clicking the icon that looks like a lightning bolt
   - Repeat this process for the `Rasa.NET\database\full\char_database.sql` and `Rasa.NET\database\full\world_database.sql` files - **but first double-click the matching schema on the left to make it the active selection**
 - Next, you'll have to execute each of the sql files in the `Rasa.NET\database\patches` folder
-  - Follow similar steps as above, making sure to make the correct schema active and execute each patch script against the matching schema in sequential order. 
+  - Follow similar steps as above, making sure to make the correct schema active and execute each patch script against the matching schema in sequential order.
 
 ### Add a database user for the servers
 The auth and game servers are pre-configured to use the user `rasa` to connect. You'll need to add this user to your database instance.
@@ -92,7 +92,7 @@ The auth and game servers are pre-configured to use the user `rasa` to connect. 
 - Click `Apply`
 
 ## Build and run the code from Visual Studio
-You should be ready to compile Rasa.NET and run the servers. 
+You should be ready to compile Rasa.NET and run the servers.
 
 - Launch Visual Studio and open the `Rasa.NET.sln` file in the code repository
 - If you have to overwrite the default connection strings from the appsettings.json, see "Custom configuration" down below
@@ -116,7 +116,7 @@ If you have to overwrite one or multiple settings from the appsettings.json of `
 
 - Create a file named "appsettings.env.json" in the root of the respective project or copy and rename the existing appsettings.json
 - The new file will be shown as subelement of the original appsettings.json
-- Use the new file to overwrite settings from appsettings.json. Keep property naming and structure, you don't need to add settings that you don't want to change. For example, to overwrite GameConfig.PublicAddress in the Rasa.Game settings, use 
+- Use the new file to overwrite settings from appsettings.json. Keep property naming and structure, you don't need to add settings that you don't want to change. For example, to overwrite GameConfig.PublicAddress in the Rasa.Game settings, use
 - The "appsettings.env.json" is ignored in git. Keep it that way.
 
 ```json
@@ -126,13 +126,11 @@ If you have to overwrite one or multiple settings from the appsettings.json of `
   }
 }
 ```
-  
+
 ## Launch the game
-If the server consoles launched correctly, you should be ready to start the game client. 
+If the server consoles launched correctly, you should be ready to start the game client.
 
 - Start the game client using the shortcut you created earlier
 - Login with the user you created for the game above
 
 > Note* The game server will crash the first time you try to login due to a bug that is not fixed at the time of writing. Go back to Visual Studio and run the `Rasa.Game` project again. Once it's running, switch back to the game client and log back in.
-
-
