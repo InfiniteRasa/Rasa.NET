@@ -6,7 +6,6 @@
     <AssemblyName>Rasa.Utils</AssemblyName>
     <PackageId>Rasa.Utils</PackageId>
     <NetStandardImplicitPackageVersion>2.1.0</NetStandardImplicitPackageVersion>
-    <PackageTargetFallback>$(PackageTargetFallback);dnxcore50</PackageTargetFallback>
     <GenerateAssemblyConfigurationAttribute>false</GenerateAssemblyConfigurationAttribute>
     <GenerateAssemblyCompanyAttribute>false</GenerateAssemblyCompanyAttribute>
     <GenerateAssemblyProductAttribute>false</GenerateAssemblyProductAttribute>

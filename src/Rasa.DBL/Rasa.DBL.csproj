@@ -6,7 +6,6 @@
     <AssemblyName>Rasa.DBL</AssemblyName>
     <PackageId>Rasa.DBL</PackageId>
     <NetStandardImplicitPackageVersion>2.1.0</NetStandardImplicitPackageVersion>
-    <PackageTargetFallback>$(PackageTargetFallback);dnxcore50</PackageTargetFallback>
     <GenerateAssemblyConfigurationAttribute>false</GenerateAssemblyConfigurationAttribute>
     <GenerateAssemblyCompanyAttribute>false</GenerateAssemblyCompanyAttribute>
     <GenerateAssemblyProductAttribute>false</GenerateAssemblyProductAttribute>
