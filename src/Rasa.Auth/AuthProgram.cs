@@ -1,10 +1,17 @@
 ﻿using System;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
 namespace Rasa
 {
+    using Auth;
+    using Context;
+    using Hosting;
+    using Repositories.AuthAccount;
+    using Services;
+
     public class AuthProgram
     {
         public static async Task<int> Main(string[] args)
@@ -29,6 +36,12 @@ namespace Rasa
         private static void ConfigureServices(HostBuilderContext context, IServiceCollection services)
         {
             services.AddHostedService<AuthHost>();
+            services.AddSingleton<IRasaServer, Server>();
+
+            services.AddDbContext<AuthContext>(optionsAction => 
+                optionsAction.UseSqlite("Data Source=:memory:;Version=3;New=True;"));
+            services.AddSingleton<IAuthAccountRepository, AuthAccountRepository>();
+            services.AddSingleton<IRandomNumberService, RandomNumberService>();
         }
     }
 }

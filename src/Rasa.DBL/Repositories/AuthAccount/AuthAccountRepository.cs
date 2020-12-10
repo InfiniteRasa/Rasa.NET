@@ -1,10 +1,13 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
 using System.Net;
+using System.Security.Cryptography;
+using System.Text;
+
 using Microsoft.EntityFrameworkCore;
 
 namespace Rasa.Repositories.AuthAccount
 {
-    using System;
     using Context;
     using Services;
     using Structures;
@@ -22,22 +25,50 @@ namespace Rasa.Repositories.AuthAccount
 
         public void Create(string email, string userName, string password)
         {
+            if (string.IsNullOrEmpty(email))
+            {
+                throw new ArgumentNullException(nameof(email));
+            }
+            if (string.IsNullOrEmpty(userName))
+            {
+                throw new ArgumentNullException(nameof(userName));
+            }
+
+            var salt = CreateSalt();
+            var hashedPassword = Hash(password ?? string.Empty, salt);
+
             var entry = new AuthAccountEntry
             {
                 Email = email,
                 Username = userName,
-                Password = password,
-                Salt = CreateSalt()
+                Password = hashedPassword,
+                Salt = salt
             };
 
             _dbContext.AuthAccountEntries.Add(entry);
             _dbContext.SaveChanges();
         }
 
-        public AuthAccountEntry GetByUserName(string name)
+        public AuthAccountEntry GetByUserName(string name, string password)
         {
-            return _dbContext.AuthAccountEntries.AsNoTracking()
+            var entry = _dbContext.AuthAccountEntries.AsNoTracking()
                 .FirstOrDefault(e => e.Username == name);
+            if (entry == null)
+            {
+                throw new EntityNotFoundException(AuthAccountEntry.TableName, nameof(AuthAccountEntry.Username), name);
+            }
+
+            if (CheckPassword(entry, password))
+            {
+                throw new PasswordCheckFailedException(name);
+            }
+
+            if (entry.Locked)
+            {
+                throw new AccountLockedException(name);
+            }
+
+            return entry;
         }
 
         public void UpdateLoginData(uint id, IPAddress remoteAddress)
@@ -70,9 +101,21 @@ namespace Rasa.Repositories.AuthAccount
 
             if (entry == null)
             {
-                throw new EntityNotFoundException(nameof(AuthAccountEntry), id);
+                throw new EntityNotFoundException(AuthAccountEntry.TableName, nameof(AuthAccountEntry.Id), id);
             }
             return entry;
+        }
+
+        public bool CheckPassword(AuthAccountEntry entry, string password)
+        {
+            var expectedPasswordHash = Hash(password, entry.Salt);
+            return expectedPasswordHash == entry.Password;
+        }
+
+        public static string Hash(string password, string salt)
+        {
+            using var sha = SHA256.Create();
+            return BitConverter.ToString(sha.ComputeHash(Encoding.UTF8.GetBytes($"{salt}:{password}"))).Replace("-", "").ToLower();
         }
     }
 }

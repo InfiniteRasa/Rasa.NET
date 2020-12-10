@@ -5,18 +5,21 @@ namespace Rasa.Auth
 {
     using Cryptography;
     using Data;
-    using Database.Tables.Auth;
     using Extensions;
     using Memory;
     using Networking;
     using Packets;
     using Packets.Auth.Client;
     using Packets.Auth.Server;
+    using Repositories;
+    using Repositories.AuthAccount;
     using Structures;
     using Timer;
 
     public class Client
     {
+        private readonly IAuthAccountRepository _authAccountRepository;
+
         public const int LengthSize = 2;
 
         public LengthedSocket Socket { get; }
@@ -33,8 +36,10 @@ namespace Rasa.Auth
 
         private static PacketRouter<Client, ClientOpcode> PacketRouter { get; } = new PacketRouter<Client, ClientOpcode>();
 
-        public Client(LengthedSocket socket, Server server)
+        public Client(LengthedSocket socket, Server server, IAuthAccountRepository authAccountRepository)
         {
+            _authAccountRepository = authAccountRepository;
+
             Socket = socket;
             Server = server;
             State = ClientState.Connected;
@@ -134,7 +139,7 @@ namespace Rasa.Auth
                         AccountId = AccountEntry.Id
                     });
 
-                    AccountTable.UpdateLastServer(AccountEntry.Id, info.ServerId);
+                    _authAccountRepository.UpdateLastServer(AccountEntry.Id, info.ServerId);
 
                     Logger.WriteLog(LogType.Network, $"Account ({AccountEntry.Username}, {AccountEntry.Id}) was redirected to the queue of the server: {info.ServerId}!");
                     break;
@@ -182,25 +187,25 @@ namespace Rasa.Auth
         [PacketHandler(ClientOpcode.Login)]
         private void MsgLogin(LoginPacket packet)
         {
-
-            AccountEntry = AccountTable.GetAccount(packet.UserName);
-            if (AccountEntry == null)
+            try
+            {
+                AccountEntry = _authAccountRepository.GetByUserName(packet.UserName, packet.Password);
+            }
+            catch (EntityNotFoundException)
             {
                 SendPacket(new LoginFailPacket(FailReason.UserNameOrPassword));
                 Close(false);
                 Logger.WriteLog(LogType.Security, $"User ({packet.UserName}) tried to log in with an invalid username!");
                 return;
             }
-
-            if (!AccountEntry.CheckPassword(packet.Password))
+            catch (PasswordCheckFailedException)
             {
                 SendPacket(new LoginFailPacket(FailReason.UserNameOrPassword));
                 Close(false);
                 Logger.WriteLog(LogType.Security, $"User ({AccountEntry.Username}, {AccountEntry.Id}) tried to log in with an invalid password!");
                 return;
             }
-
-            if (AccountEntry.Locked)
+            catch (AccountLockedException)
             {
                 SendPacket(new BlockedAccountPacket());
                 Close(false);
@@ -208,7 +213,7 @@ namespace Rasa.Auth
                 return;
             }
 
-            AccountTable.UpdateLoginData(AccountEntry.Id, Socket.RemoteAddress);
+            _authAccountRepository.UpdateLoginData(AccountEntry.Id, Socket.RemoteAddress);
 
             State = ClientState.LoggedIn;
 

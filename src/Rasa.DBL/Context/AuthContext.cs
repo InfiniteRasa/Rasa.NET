@@ -6,6 +6,15 @@ namespace Rasa.Context
 
     public class AuthContext : DbContext
     {
+        public AuthContext(DbContextOptions options) : base(options)
+        {
+        }
+
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        {
+            optionsBuilder.
+        }
+
         public DbSet<AuthAccountEntry> AuthAccountEntries { get; set; }
     }
 }

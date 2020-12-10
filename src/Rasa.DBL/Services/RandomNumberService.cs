@@ -1,8 +1,8 @@
-﻿namespace Rasa.Services
-{
-    using System;
-    using System.Security.Cryptography;
+﻿using System;
+using System.Security.Cryptography;
 
+namespace Rasa.Services
+{
     public class RandomNumberService : IRandomNumberService, IDisposable
     {
         private readonly RandomNumberGenerator _randomNumberGenerator;

@@ -26,4 +26,14 @@
     <PackageReference Include="MySql.Data" Version="8.0.22" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="databasesettings.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="databasesettings.env.json" Condition="Exists('databasesettings.env.json')">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <DependentUpon>databasesettings.json</DependentUpon>
+    </None>
+  </ItemGroup>
+
 </Project>
