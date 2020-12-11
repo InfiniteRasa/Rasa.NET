@@ -1,11 +1,9 @@
-﻿using System;
-
-using MySqlConnector;
-
-namespace Rasa.Configuration
+﻿namespace Rasa.Configuration.ConnectionStrings
 {
+    using System;
+    using MySqlConnector;
 
-    public class ConnectionStringFactory
+    public class MySqlConnectionStringFactory : IConnectionStringFactory
     {
         public string Create(DatabaseConnectionConfiguration configuration)
         {

@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 namespace Rasa.Context
 {
     using Configuration;
+    using Configuration.ConnectionStrings;
 
     public class DesignTimeAuthContextFactory : IDesignTimeDbContextFactory<AuthContext>
     {
@@ -16,10 +17,10 @@ namespace Rasa.Context
                 .Build();
 
             var authConnection = configuration
-                .GetSection("Auth")
+                .GetSection("Databases:Auth")
                 .Get<DatabaseConnectionConfiguration>();
 
-            var connectionStringFactory = new ConnectionStringFactory();
+            var connectionStringFactory = new MySqlConnectionStringFactory();
             var connectionString = connectionStringFactory.Create(authConnection);
 
             var optionsBuilder = new DbContextOptionsBuilder();

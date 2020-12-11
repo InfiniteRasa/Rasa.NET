@@ -1,13 +1,42 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace Rasa.Context
 {
+    using Configuration;
+    using Configuration.ContextSetup;
     using Structures;
 
     public class AuthContext : DbContext
     {
-        public AuthContext(DbContextOptions options) : base(options)
+        private readonly IOptions<DatabaseConnectionConfiguration> _databaseConnectionConfiguration;
+        private readonly IDbContextConfigurationService _dbContextConfigurationService;
+
+        /// <summary>
+        /// Constructor for DI
+        /// </summary>
+        public AuthContext(IOptions<DatabaseConnectionConfiguration> databaseConnectionConfiguration, 
+            IDbContextConfigurationService dbContextConfigurationService)
         {
+            _databaseConnectionConfiguration = databaseConnectionConfiguration;
+            _dbContextConfigurationService = dbContextConfigurationService;
+        }
+
+        /// <summary>
+        /// Constructor for migration tools
+        /// </summary>
+        internal AuthContext(DbContextOptions options) : base(options)
+        {
+        }
+
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        {
+            if (optionsBuilder.IsConfigured)
+            {
+                return;
+            }
+
+            _dbContextConfigurationService.Configure(optionsBuilder, _databaseConnectionConfiguration.Value);
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

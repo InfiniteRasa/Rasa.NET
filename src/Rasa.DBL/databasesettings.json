@@ -1,11 +1,13 @@
 {
-  "Auth": {
+  "Databases": {
     "Provider": "MySql", //valid values: MySql, Sqlite
-    "Host": "localhost",
-    "Port": 3306,
-    "Database": "rasaauth",
-    "User": "rasa",
-    "Password": "rasa",
-    "TimeoutInMilliseconds": 5000
+    "Auth": {
+      "Host": "localhost",
+      "Port": 3306,
+      "Database": "rasaauth",
+      "User": "rasa",
+      "Password": "rasa",
+      "TimeoutInMilliseconds": 5000
+    }
   }
 }
