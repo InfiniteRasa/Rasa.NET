@@ -8,7 +8,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Rasa.Repositories.AuthAccount
 {
-    using Context;
     using Context.Auth;
     using Services;
     using Structures;
@@ -59,14 +58,14 @@ namespace Rasa.Repositories.AuthAccount
                 throw new EntityNotFoundException(AuthAccountEntry.TableName, nameof(AuthAccountEntry.Username), name);
             }
 
-            if (CheckPassword(entry, password))
+            if (!CheckPassword(entry, password))
             {
-                throw new PasswordCheckFailedException(name);
+                throw new PasswordCheckFailedException(entry);
             }
 
             if (entry.Locked)
             {
-                throw new AccountLockedException(name);
+                throw new AccountLockedException(entry);
             }
 
             return entry;

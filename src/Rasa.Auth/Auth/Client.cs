@@ -198,18 +198,18 @@ namespace Rasa.Auth
                 Logger.WriteLog(LogType.Security, $"User ({packet.UserName}) tried to log in with an invalid username!");
                 return;
             }
-            catch (PasswordCheckFailedException)
+            catch (PasswordCheckFailedException e)
             {
                 SendPacket(new LoginFailPacket(FailReason.UserNameOrPassword));
                 Close(false);
-                Logger.WriteLog(LogType.Security, $"User ({AccountEntry.Username}, {AccountEntry.Id}) tried to log in with an invalid password!");
+                Logger.WriteLog(LogType.Security, e.Message);
                 return;
             }
-            catch (AccountLockedException)
+            catch (AccountLockedException e)
             {
                 SendPacket(new BlockedAccountPacket());
                 Close(false);
-                Logger.WriteLog(LogType.Security, $"User ({AccountEntry.Username}, {AccountEntry.Id}) tried to log in, but he/she is locked.");
+                Logger.WriteLog(LogType.Security, e.Message);
                 return;
             }
 
