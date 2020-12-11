@@ -95,7 +95,7 @@ The auth and game servers are pre-configured to use the user `rasa` to connect. 
 You should be ready to compile Rasa.NET and run the servers.
 
 - Launch Visual Studio and open the `Rasa.NET.sln` file in the code repository
-- If you have to overwrite the default connection strings from the appsettings.json, see "Custom configuration" down below
+- If you have to overwrite the default database connection parameters, see "Custom configuration" and "Database configuration" down below
 - Build the solution
 - Run the `Rasa.Auth` project via `Debug > Start without Debugging`
 - Run the `Rasa.Game` project via `Debug > Start Debugging`
@@ -112,12 +112,12 @@ The authentication server can be used to create a user by running a command in t
   - You can use any username / password that you want to create an account.
 
 ## Custom configuration
-If you have to overwrite one or multiple settings from the appsettings.json of `Rasa.Auth` or `Rasa.Game`, do the following:
+If you have to overwrite one or multiple settings from the appsettings.json of `Rasa.Auth` or `Rasa.Game` or the databasesettings.json of Rasa.DBL, do the following:
 
-- Create a file named "appsettings.env.json" in the root of the respective project or copy and rename the existing appsettings.json
-- The new file will be shown as subelement of the original appsettings.json
-- Use the new file to overwrite settings from appsettings.json. Keep property naming and structure, you don't need to add settings that you don't want to change. For example, to overwrite GameConfig.PublicAddress in the Rasa.Game settings, use
-- The "appsettings.env.json" is ignored in git. Keep it that way.
+- Create a file named "appsettings.env.json"/"databasesettings.env.json" in the root of the respective project or copy and rename the existing file
+- The new file will be shown as subelement of the original file
+- Use the new file to overwrite settings from appsettings.json/databasesettings.json. Keep property naming and structure, you don't need to add settings that you don't want to change. For example, to overwrite GameConfig.PublicAddress in the Rasa.Game settings, use
+- The env.json files is ignored in git. Keep it that way, this configuration applies only for your development enviroment.
 
 ```json
 {
@@ -126,6 +126,70 @@ If you have to overwrite one or multiple settings from the appsettings.json of `
   }
 }
 ```
+
+### Database configuration
+As of now, we use three databases: Auth (Accounting), Char (everything related to characters) and World (mainly common settings regarding the game world). The Auth database is connected via EF Core and supports MySql and Sqlite as database providers. Connection information is provided in the form of a defined data structure in the file `Rasa.DBL\databasesettings.json`. Char and World only support MySql and are connected via connection strings in `Rasa.Game\appsettings.json` as of now. EF Core and Sqlite support are in progress for these databases. For a quick jump into development and small servers, Sqlite works fine and totally out of the box.
+
+To setup your database settings, have a look in "Custom configuration" to learn how to create an enviroment specific settings file.
+
+To access a MySql server with EF Core, set `Provider` to `MySql`. You need to provide host, port, database, user, password and timeout in the config file. Keep in mind that we fall back to the values in databasesettings.json, if  your enviroment file does not overwrite a value. For MySql, you have to apply any pending migrations yourself. See "Working with migrations" for a quick start.
+
+To use Sqlite with EF Core, set `Provider` to `Sqlite`. Sqlite uses only the value _database_ of the configuration to create a file named `<database>.db`. For Sqlite, any pending migrations will be applied __automatically__ at startup of the corresponding project to make usage even easier.
+
+If you want to add additional migrations, see "Working with migrations".
+
+### Working with migrations
+This section describes how to apply migrations to your MySql database as well as how to add additional migrations if you changed the data model in a way that requires an update to the database.
+
+First, if not already done, install dotnet-ef (see also https://docs.microsoft.com/en-GB/ef/core/cli/dotnet):
+
+- Open powershell
+- `dotnet tool install --global dotnet-ef`
+
+Now navigate to the folder of the Rasa.DBL project:
+
+- `cd Path\to\Rasa.Net\src\Rasa.DBL`
+
+To apply any pending migrations, execute the following command:
+
+- `dotnet ef database update --context=MySqlAuthContext`
+
+Explicitly providing the context is required as we have to work with different contexts according to database and provider.
+
+You can also migrate to any specific migration (forward or backward) by passing the migration name or the index/number of the migration as an argument:
+
+- `dotnet ef database update MigrationName --context=MySqlAuthContext` migrates MySqlAuthContext to "MigrationName".
+- `dotnet ef database update 6 --context=MySqlAuthContext` migrates MySqlAuthContext to the sixth migration.
+- `dotnet ef database update 0 --context=MySqlAuthContext` rollback any migration on MySqlAuthContext, essentially resetting the database to an empty state.
+
+To see existing migrations and if they are applied to your database, use:
+
+- `dotnet ef migrations list --context=MySqlAuthContext`
+
+If you're developing some functionality that requires an update to one of the databases, execute the following commands:
+
+- `dotnet ef migrations add <Name_of_the_Migration> --context==MySqlAuthContext` 
+- `dotnet ef migrations add <Name_of_the_Migration> --context==SqliteAuthContext`
+
+To remove the last migration, execute the following commands:
+- `dotnet ef migrations remove --context==MySqlAuthContext` 
+- `dotnet ef migrations remove --context==SqliteAuthContext`
+
+As the code generated by migrations is database provider specific, seperate migrations for MySql and Sqlite are required. Examples for such differences are:
+- Autoincrementing a primary key in Sqlite only works with the type `integer`
+- Sqlite does not know unsigned integers
+- Sqlite does not know an explicit datetime type but instead uses `TEXT`
+
+As we use code first approach, **do not** change the generated migration or model snapshot files. Instead, use one of the following methods to manipulate the output of the migration generator (in order of priority):
+
+- Try to work with Annotations in the Entry classes as much as possible. Examples:
+-- `[Column("column_name", TypeName = "varchar(40)")]` sets a columns name and data type
+-- `[Required]` makes a column "not null"
+- If no annotation exists for your use case but the changes work for MySql and Sqlite, use the OnModelCreating method in the corresponding abstract base DbContext (AuthContext). Examples:
+-- `.HasDefaultValue(<some value>)` sets a default value for a column
+- If the change of the model needs to distinguish between MySql and Sqlite, put it in the OnModelCreating methods of the corresponding derived DbContexts (MySqlAuthContext, SqliteAuthContext). Examples:
+-- `.HasDefaultValueSql("CURRENT_TIMESTAMP")` sets a datetime column to use the time of insert as a default value for MySql
+-- `.HasDefaultValueSql("date('now'")` sets a datetime column to use the time of insert as a default value for Sqlite
 
 ## Launch the game
 If the server consoles launched correctly, you should be ready to start the game client.
