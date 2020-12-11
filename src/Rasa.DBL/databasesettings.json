@@ -1,6 +1,6 @@
 {
   "Databases": {
-    "Provider": "MySql", //valid values: MySql, Sqlite
+    "Provider": "MySql",
     "Auth": {
       "Host": "localhost",
       "Port": 3306,
