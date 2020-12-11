@@ -1,24 +1,25 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
-namespace Rasa.Context
+namespace Rasa.Context.Auth
 {
     using Configuration;
     using Configuration.ContextSetup;
+    using Initialization;
     using Structures;
 
-    public class AuthContext : DbContext
+    public abstract class AuthContext : DbContext, IInitializable
     {
-        private readonly IOptions<DatabaseConnectionConfiguration> _databaseConnectionConfiguration;
+        private readonly IOptions<DatabaseConfiguration> _databaseConfiguration;
         private readonly IDbContextConfigurationService _dbContextConfigurationService;
 
         /// <summary>
         /// Constructor for DI
         /// </summary>
-        public AuthContext(IOptions<DatabaseConnectionConfiguration> databaseConnectionConfiguration, 
+        protected AuthContext(IOptions<DatabaseConfiguration> databaseConfiguration, 
             IDbContextConfigurationService dbContextConfigurationService)
         {
-            _databaseConnectionConfiguration = databaseConnectionConfiguration;
+            _databaseConfiguration = databaseConfiguration;
             _dbContextConfigurationService = dbContextConfigurationService;
         }
 
@@ -29,6 +30,8 @@ namespace Rasa.Context
         {
         }
 
+        public DbSet<AuthAccountEntry> AuthAccountEntries { get; set; }
+
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             if (optionsBuilder.IsConfigured)
@@ -36,27 +39,15 @@ namespace Rasa.Context
                 return;
             }
 
-            _dbContextConfigurationService.Configure(optionsBuilder, _databaseConnectionConfiguration.Value);
+            _dbContextConfigurationService.Configure(optionsBuilder, _databaseConfiguration.Value.Auth);
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<AuthAccountEntry>()
-                .Property(e => e.Level)
-                .HasDefaultValue(0);
-
-            modelBuilder.Entity<AuthAccountEntry>()
                 .Property(e => e.LastIp)
                 .HasDefaultValue("0.0.0.0");
-
-            modelBuilder.Entity<AuthAccountEntry>()
-                .Property(e => e.LastServerId)
-                .HasDefaultValue(0);
-
-            modelBuilder.Entity<AuthAccountEntry>()
-                .Property(e => e.JoinDate)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
+            
             modelBuilder.Entity<AuthAccountEntry>()
                 .Property(e => e.Locked)
                 .HasDefaultValue(false);
@@ -65,7 +56,12 @@ namespace Rasa.Context
                 .Property(e => e.Validated)
                 .HasDefaultValue(false);
         }
-
-        public DbSet<AuthAccountEntry> AuthAccountEntries { get; set; }
+        public void Initialize()
+        {
+            if (_databaseConfiguration.Value.GetDatabaseProvider() == DatabaseProvider.Sqlite)
+            {
+                this.Database.Migrate();
+            }
+        }
     }
 }

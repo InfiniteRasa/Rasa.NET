@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Rasa.Repositories.AuthAccount
 {
     using Context;
+    using Context.Auth;
     using Services;
     using Structures;
 

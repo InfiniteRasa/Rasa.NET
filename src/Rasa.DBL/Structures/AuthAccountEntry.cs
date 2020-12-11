@@ -15,7 +15,7 @@ namespace Rasa.Structures
         public const string TableName = "account";
 
         [Key]
-        [Column("id", TypeName = "int(11) unsigned")]
+        [Column("id")]
         public uint Id { get; set; }
 
         [Column("email", TypeName = "varchar(255)")]
@@ -34,7 +34,7 @@ namespace Rasa.Structures
         [Required]
         public string Salt { get; set; }
 
-        [Column("level", TypeName = "tinyint(3) unsigned")]
+        [Column("level")]
         [Required]
         public byte Level { get; set; }
 
@@ -42,7 +42,7 @@ namespace Rasa.Structures
         [Required]
         public string LastIp { get; set; }
 
-        [Column("last_server_id", TypeName = "tinyint(3) unsigned")]
+        [Column("last_server_id")]
         public byte LastServerId { get; set; }
 
         [Column("last_login")]

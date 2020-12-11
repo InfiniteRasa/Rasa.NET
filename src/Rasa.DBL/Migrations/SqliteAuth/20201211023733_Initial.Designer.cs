@@ -4,26 +4,25 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using Rasa.Context;
+using Rasa.Context.Auth;
 
-namespace Rasa.Migrations
+namespace Rasa.Migrations.SqliteAuth
 {
-    [DbContext(typeof(AuthContext))]
-    [Migration("20201211002049_Initial")]
+    [DbContext(typeof(SqliteAuthContext))]
+    [Migration("20201211023733_Initial")]
     partial class Initial
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("Relational:MaxIdentifierLength", 64)
                 .HasAnnotation("ProductVersion", "5.0.1");
 
             modelBuilder.Entity("Rasa.Structures.AuthAccountEntry", b =>
                 {
                     b.Property<uint>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int(11) unsigned")
+                        .HasColumnType("integer")
                         .HasColumnName("id");
 
                     b.Property<string>("Email")
@@ -33,9 +32,9 @@ namespace Rasa.Migrations
 
                     b.Property<DateTime>("JoinDate")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime(6)")
+                        .HasColumnType("TEXT")
                         .HasColumnName("join_date")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
+                        .HasDefaultValueSql("datetime('now')");
 
                     b.Property<string>("LastIp")
                         .IsRequired()
@@ -45,25 +44,25 @@ namespace Rasa.Migrations
                         .HasColumnName("last_ip");
 
                     b.Property<DateTime?>("LastLogin")
-                        .HasColumnType("datetime(6)")
+                        .HasColumnType("TEXT")
                         .HasColumnName("last_login");
 
                     b.Property<byte>("LastServerId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(3) unsigned")
+                        .HasColumnType("tinyint(3)")
                         .HasDefaultValue((byte)0)
                         .HasColumnName("last_server_id");
 
                     b.Property<byte>("Level")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(3) unsigned")
+                        .HasColumnType("tinyint(3)")
                         .HasDefaultValue((byte)0)
                         .HasColumnName("level");
 
-                    b.Property<ulong>("Locked")
+                    b.Property<bool>("Locked")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
-                        .HasDefaultValue(0ul)
+                        .HasDefaultValue(false)
                         .HasColumnName("locked");
 
                     b.Property<string>("Password")
@@ -81,10 +80,10 @@ namespace Rasa.Migrations
                         .HasColumnType("varchar(64)")
                         .HasColumnName("username");
 
-                    b.Property<ulong>("Validated")
+                    b.Property<bool>("Validated")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
-                        .HasDefaultValue(0ul)
+                        .HasDefaultValue(false)
                         .HasColumnName("validated");
 
                     b.Property<string>("ValidationToken")

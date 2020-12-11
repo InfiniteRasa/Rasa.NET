@@ -8,7 +8,7 @@
         {
             var builder = new SqliteConnectionStringBuilder
             {
-                DataSource = configuration.Database
+                DataSource = $"{configuration.Database}.db"
             };
 
             return builder.ConnectionString;

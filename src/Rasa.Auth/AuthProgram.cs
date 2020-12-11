@@ -9,10 +9,10 @@ namespace Rasa
 {
     using Auth;
     using Binding;
-    using Config;
     using Configuration;
-    using Context;
+    using Context.Auth;
     using Hosting;
+    using Initialization;
     using Repositories.AuthAccount;
     using Services;
 
@@ -27,6 +27,7 @@ namespace Rasa
 
             try
             {
+                host.Services.GetService<IInitializer>().Execute();
                 await host.RunAsync();
                 return 0;
             }
@@ -50,19 +51,36 @@ namespace Rasa
             services.AddHostedService<AuthHost>();
             services.AddSingleton<IRasaServer, Server>();
 
-            var databaseSection = context.Configuration
-                .GetSection("Databases");
+            services.AddSingleton<IInitializer, Initializer>();
 
-            var databaseProvider = databaseSection.GetValue<DatabaseProvider>("Provider");
-            services.AddDatabaseProviderSpecificBindings(databaseProvider);
-
-            var configSection = databaseSection.GetSection("Auth");
-            services.Configure<DatabaseConnectionConfiguration>(configSection);
-
-            services.AddDbContext<AuthContext>();
+            AddDatabase(context, services);
 
             services.AddSingleton<IAuthAccountRepository, AuthAccountRepository>();
             services.AddSingleton<IRandomNumberService, RandomNumberService>();
+        }
+
+        private static void AddDatabase(HostBuilderContext context, IServiceCollection services)
+        {
+
+            var databaseConfigSection = context.Configuration
+                .GetSection("Databases");
+            services.Configure<DatabaseConfiguration>(databaseConfigSection);
+
+            var databaseProvider = services.AddDatabaseProviderSpecificBindings(databaseConfigSection.GetValue<string>("Provider"));
+
+            switch (databaseProvider)
+            {
+
+                case DatabaseProvider.MySql:
+                    services.AddDbContext<AuthContext, MySqlAuthContext>();
+                    break;
+                case DatabaseProvider.Sqlite:
+                    services.AddDbContext<AuthContext, SqliteAuthContext>();
+                    services.AddSingleton<IInitializable>(ctx => ctx.GetService<AuthContext>());
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
         }
     }
 }
