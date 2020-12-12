@@ -5,13 +5,14 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Rasa.Context
 {
     using Binding;
+    using Configuration;
 
     public abstract class DesignTimeContextFactoryBase
     {
-        protected static T CreateDbContext<T>()
+        protected static T CreateDbContext<T>(DatabaseProvider overwriteDatabaseProvider)
             where T : DbContext
         {
-            var databaseSection = LoadConfiguration<T>();
+            var databaseSection = LoadConfiguration(overwriteDatabaseProvider);
 
             var serviceCollection = new ServiceCollection();
             serviceCollection.AddDatabaseProviderSpecificBindings(databaseSection);
@@ -20,7 +21,7 @@ namespace Rasa.Context
             return serviceCollection.BuildServiceProvider().GetService<T>();
         }
 
-        private static IConfigurationSection LoadConfiguration<T>() where T : DbContext
+        private static IConfigurationSection LoadConfiguration(DatabaseProvider overwriteDatabaseProvider)
         {
             var configuration = new ConfigurationBuilder()
                 .AddJsonFile("databasesettings.json", false, false)
@@ -29,6 +30,9 @@ namespace Rasa.Context
 
             var databaseSection = configuration
                 .GetSection("Databases");
+
+            databaseSection[nameof(DatabaseConfiguration.Provider)] = overwriteDatabaseProvider.ToString();
+
             return databaseSection;
         }
     }

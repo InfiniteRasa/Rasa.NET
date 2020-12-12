@@ -4,6 +4,8 @@ using JetBrains.Annotations;
 
 namespace Rasa.Context.Auth
 {
+    using Configuration;
+
     /// <summary>
     /// Used by EF Core to create and execute migrations.
     /// </summary>
@@ -12,7 +14,7 @@ namespace Rasa.Context.Auth
     {
         public MySqlAuthContext CreateDbContext(string[] args)
         {
-            return CreateDbContext<MySqlAuthContext>();
+            return CreateDbContext<MySqlAuthContext>(DatabaseProvider.MySql);
         }
     }
 }
