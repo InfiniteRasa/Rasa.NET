@@ -1,16 +1,18 @@
 ﻿using Microsoft.EntityFrameworkCore.Design;
 
+using JetBrains.Annotations;
+
 namespace Rasa.Context.Auth
 {
-    using Configuration;
-
+    /// <summary>
+    /// Used by EF Core to create and execute migrations.
+    /// </summary>
+    [UsedImplicitly]
     public class DesignTimeSqliteAuthContextFactory : DesignTimeContextFactoryBase, IDesignTimeDbContextFactory<SqliteAuthContext>
     {
         public SqliteAuthContext CreateDbContext(string[] args)
         {
-            var options = CreateDbContextOptions("Auth", DatabaseProvider.Sqlite);
-
-            return new SqliteAuthContext(options);
+            return CreateDbContext<SqliteAuthContext>();
         }
     }
 }

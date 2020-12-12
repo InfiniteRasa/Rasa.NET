@@ -5,12 +5,22 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Rasa.Context
 {
     using Binding;
-    using Configuration;
-    using Configuration.ContextSetup;
 
     public abstract class DesignTimeContextFactoryBase
     {
-        protected static DbContextOptions CreateDbContextOptions(string databaseConnectionSectionName, DatabaseProvider databaseProvider)
+        protected static T CreateDbContext<T>()
+            where T : DbContext
+        {
+            var databaseSection = LoadConfiguration<T>();
+
+            var serviceCollection = new ServiceCollection();
+            serviceCollection.AddDatabaseProviderSpecificBindings(databaseSection);
+            serviceCollection.AddDbContext<T>();
+
+            return serviceCollection.BuildServiceProvider().GetService<T>();
+        }
+
+        private static IConfigurationSection LoadConfiguration<T>() where T : DbContext
         {
             var configuration = new ConfigurationBuilder()
                 .AddJsonFile("databasesettings.json", false, false)
@@ -19,20 +29,7 @@ namespace Rasa.Context
 
             var databaseSection = configuration
                 .GetSection("Databases");
-
-            var databaseConnectionConfiguration = databaseSection
-                .GetSection(databaseConnectionSectionName)
-                .Get<DatabaseConnectionConfiguration>();
-
-            var serviceCollection = new ServiceCollection();
-            serviceCollection.AddDatabaseProviderSpecificBindings(databaseProvider);
-
-            var setupService = serviceCollection.BuildServiceProvider()
-                .GetService<IDbContextConfigurationService>();
-
-            var optionsBuilder = new DbContextOptionsBuilder();
-            setupService.Configure(optionsBuilder, databaseConnectionConfiguration);
-            return optionsBuilder.Options;
+            return databaseSection;
         }
     }
 }

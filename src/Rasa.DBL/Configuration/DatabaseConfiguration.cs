@@ -11,10 +11,10 @@ namespace Rasa.Configuration
 
         public DatabaseProvider GetDatabaseProvider()
         {
-            return ConvertProvider(Provider);
+            return ConvertDatabaseProvider(Provider);
         }
-        
-        public static DatabaseProvider ConvertProvider(string databaseProviderStr)
+
+        public static DatabaseProvider ConvertDatabaseProvider(string databaseProviderStr)
         {
             if (Enum.TryParse(databaseProviderStr, true, out DatabaseProvider databaseProvider))
             {
