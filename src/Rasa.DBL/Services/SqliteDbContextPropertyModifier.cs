@@ -17,7 +17,7 @@
 
         public PropertyBuilder<T> AsCurrentDateTime<T>(PropertyBuilder<T> builder)
         {
-            return builder.HasDefaultValueSql("date('now')");
+            return builder.HasDefaultValueSql("datetime('now')");
         }
     }
 }
