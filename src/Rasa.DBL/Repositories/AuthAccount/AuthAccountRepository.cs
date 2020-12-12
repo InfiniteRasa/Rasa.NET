@@ -51,7 +51,9 @@ namespace Rasa.Repositories.AuthAccount
 
         public AuthAccountEntry GetByUserName(string name, string password)
         {
-            var entry = _dbContext.AuthAccountEntries.AsNoTracking()
+            var entry = _dbContext
+                .AuthAccountEntries
+                .AsNoTracking()
                 .FirstOrDefault(e => e.Username == name);
             if (entry == null)
             {
@@ -73,14 +75,15 @@ namespace Rasa.Repositories.AuthAccount
 
         public void UpdateLoginData(uint id, IPAddress remoteAddress)
         {
-            var entry = GetWritable(id);
+            var entry = _dbContext.GetWritableEnsuring(_dbContext.AuthAccountEntries, id);
             entry.LastIp = remoteAddress.ToString();
+            entry.LastLogin = DateTime.UtcNow;
             _dbContext.SaveChanges();
         }
 
         public void UpdateLastServer(uint id, byte lastServerId)
         {
-            var entry = GetWritable(id);
+            var entry = _dbContext.GetWritableEnsuring(_dbContext.AuthAccountEntries, id);
             entry.LastServerId = lastServerId;
             _dbContext.SaveChanges();
         }
@@ -91,19 +94,6 @@ namespace Rasa.Repositories.AuthAccount
             return BitConverter.ToString(salt)
                 .Replace("-", "")
                 .ToLower();
-        }
-
-        private AuthAccountEntry GetWritable(uint id)
-        {
-            var entry = _dbContext.AuthAccountEntries
-                .AsTracking()
-                .FirstOrDefault(e => e.Id == id);
-
-            if (entry == null)
-            {
-                throw new EntityNotFoundException(AuthAccountEntry.TableName, nameof(AuthAccountEntry.Id), id);
-            }
-            return entry;
         }
 
         public bool CheckPassword(AuthAccountEntry entry, string password)

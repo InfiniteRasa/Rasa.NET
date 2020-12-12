@@ -6,8 +6,10 @@ using MySql.Data.MySqlClient;
 
 namespace Rasa.Structures
 {
+    using Interfaces;
+
     [Table(GameAccountEntry.TableName)]
-    public class GameAccountEntry
+    public class GameAccountEntry : IHasId
     {
         public const string TableName = "account";
 

@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using System.Linq;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
 namespace Rasa.Context.Char
@@ -8,6 +9,7 @@ namespace Rasa.Context.Char
     using Extensions;
     using Services;
     using Structures;
+    using Structures.Interfaces;
 
     public abstract class CharContext : RasaDbContextBase
     {
@@ -46,7 +48,7 @@ namespace Rasa.Context.Char
                 .HasDefaultValue(0);
 
             modelBuilder.Entity<GameAccountEntry>()
-                .Property(e => e.SelectedSlot)
+                .Property(e => e.CanSkipBootcamp)
                 .HasDefaultValue(false);
 
             modelBuilder.Entity<GameAccountEntry>()
