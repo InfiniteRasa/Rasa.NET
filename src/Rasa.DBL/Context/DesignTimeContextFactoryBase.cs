@@ -6,11 +6,22 @@ namespace Rasa.Context
 {
     using Binding;
     using Configuration;
-    using Configuration.ContextSetup;
 
     public abstract class DesignTimeContextFactoryBase
     {
-        protected static DbContextOptions CreateDbContextOptions(string databaseConnectionSectionName, DatabaseProvider databaseProvider)
+        protected static T CreateDbContext<T>(DatabaseProvider overwriteDatabaseProvider)
+            where T : DbContext
+        {
+            var databaseSection = LoadConfiguration(overwriteDatabaseProvider);
+
+            var serviceCollection = new ServiceCollection();
+            serviceCollection.AddDatabaseProviderSpecificBindings(databaseSection);
+            serviceCollection.AddDbContext<T>();
+
+            return serviceCollection.BuildServiceProvider().GetService<T>();
+        }
+
+        private static IConfigurationSection LoadConfiguration(DatabaseProvider overwriteDatabaseProvider)
         {
             var configuration = new ConfigurationBuilder()
                 .AddJsonFile("databasesettings.json", false, false)
@@ -20,19 +31,9 @@ namespace Rasa.Context
             var databaseSection = configuration
                 .GetSection("Databases");
 
-            var databaseConnectionConfiguration = databaseSection
-                .GetSection(databaseConnectionSectionName)
-                .Get<DatabaseConnectionConfiguration>();
+            databaseSection[nameof(DatabaseConfiguration.Provider)] = overwriteDatabaseProvider.ToString();
 
-            var serviceCollection = new ServiceCollection();
-            serviceCollection.AddDatabaseProviderSpecificBindings(databaseProvider);
-
-            var setupService = serviceCollection.BuildServiceProvider()
-                .GetService<IDbContextConfigurationService>();
-
-            var optionsBuilder = new DbContextOptionsBuilder();
-            setupService.Configure(optionsBuilder, databaseConnectionConfiguration);
-            return optionsBuilder.Options;
+            return databaseSection;
         }
     }
 }

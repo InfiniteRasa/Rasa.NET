@@ -1,4 +1,6 @@
 ﻿using System;
+
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Rasa.Binding
@@ -6,17 +8,22 @@ namespace Rasa.Binding
     using Configuration;
     using Configuration.ConnectionStrings;
     using Configuration.ContextSetup;
+    using Services;
 
     public static class ServiceCollectionExtensions
     {
-        public static DatabaseProvider AddDatabaseProviderSpecificBindings(this IServiceCollection services, string databaseProviderStr)
+        public static DatabaseProvider AddDatabaseProviderSpecificBindings(this IServiceCollection services, IConfigurationSection databaseConfigurationSection)
         {
-            var databaseProvider = DatabaseConfiguration.ConvertProvider(databaseProviderStr);
-            services.AddDatabaseProviderSpecificBindings(databaseProvider);
+            services.Configure<DatabaseConfiguration>(databaseConfigurationSection);
+
+            var databaseProviderStr = databaseConfigurationSection.GetValue<string>(nameof(DatabaseConfiguration.Provider));
+            var databaseProvider = DatabaseConfiguration.ConvertDatabaseProvider(databaseProviderStr);
+            services.AddDependenciesByDatabaseProvider(databaseProvider);
+
             return databaseProvider;
         }
 
-        public static void AddDatabaseProviderSpecificBindings(this IServiceCollection services, DatabaseProvider databaseProvider)
+        private static void AddDependenciesByDatabaseProvider(this IServiceCollection services, DatabaseProvider databaseProvider)
         {
             switch (databaseProvider)
             {
@@ -35,12 +42,14 @@ namespace Rasa.Binding
         {
             services.AddSingleton<IConnectionStringFactory, MySqlConnectionStringFactory>();
             services.AddSingleton<IDbContextConfigurationService, MySqlDbContextConfigurationService>();
+            services.AddSingleton<IDbContextPropertyModifier, MySqlDbContextPropertyModifier>();
         }
 
         private static void AddSqlite(IServiceCollection services)
         {
             services.AddSingleton<IConnectionStringFactory, SqliteConnectionStringFactory>();
             services.AddSingleton<IDbContextConfigurationService, SqliteDbContextConfigurationService>();
+            services.AddSingleton<IDbContextPropertyModifier, SqliteDbContextPropertyModifier>();
         }
     }
 }

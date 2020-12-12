@@ -61,12 +61,10 @@ namespace Rasa
 
         private static void AddDatabase(HostBuilderContext context, IServiceCollection services)
         {
-
             var databaseConfigSection = context.Configuration
                 .GetSection("Databases");
-            services.Configure<DatabaseConfiguration>(databaseConfigSection);
 
-            var databaseProvider = services.AddDatabaseProviderSpecificBindings(databaseConfigSection.GetValue<string>("Provider"));
+            var databaseProvider = services.AddDatabaseProviderSpecificBindings(databaseConfigSection);
 
             switch (databaseProvider)
             {
