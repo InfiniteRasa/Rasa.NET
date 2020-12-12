@@ -15,7 +15,7 @@ namespace Rasa.Context.Char
         private readonly IDbContextPropertyModifier _dbContextPropertyModifier;
 
         protected CharContext(IOptions<DatabaseConfiguration> databaseConfiguration,
-            IDbContextConfigurationService dbContextConfigurationService, IDbContextPropertyModifier dbContextPropertyModifier) 
+            IDbContextConfigurationService dbContextConfigurationService, IDbContextPropertyModifier dbContextPropertyModifier)
             : base(databaseConfiguration, dbContextConfigurationService)
         {
             _databaseConfiguration = databaseConfiguration;

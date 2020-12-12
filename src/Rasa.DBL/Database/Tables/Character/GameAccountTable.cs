@@ -79,7 +79,7 @@ namespace Rasa.Database.Tables.Character
                 UpdateAccountCommand.Parameters["@FamilyName"].Value = entry.FamilyName ?? "";
                 UpdateAccountCommand.Parameters["@SelectedSlot"].Value = entry.SelectedSlot;
                 UpdateAccountCommand.Parameters["@CanSkipBootcamp"].Value = entry.CanSkipBootcamp;
-                UpdateAccountCommand.Parameters["@LastIP"].Value = entry.LastIP;
+                UpdateAccountCommand.Parameters["@LastIP"].Value = entry.LastIp;
                 UpdateAccountCommand.Parameters["@LastLogin"].Value = entry.LastLogin;
                 UpdateAccountCommand.ExecuteNonQuery();
             }
