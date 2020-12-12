@@ -29,6 +29,7 @@ namespace Rasa.Structures
         [Required]
 
         public string Password { get; set; }
+
         [Column("salt", TypeName = "varchar(40)")]
         [Required]
         public string Salt { get; set; }

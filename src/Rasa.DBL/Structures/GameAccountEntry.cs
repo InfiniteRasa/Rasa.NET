@@ -1,21 +1,59 @@
 ﻿using System;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 using MySql.Data.MySqlClient;
 
 namespace Rasa.Structures
 {
+    [Table(GameAccountEntry.TableName)]
     public class GameAccountEntry
     {
-        public uint Id { get; private set; }
-        public string Email { get; private set; }
-        public string Name { get; private set; }
+        public const string TableName = "account";
+
+        [Key]
+        [Column("id")]
+        public uint Id { get; set; }
+
+        [Column("email", TypeName = "varchar(255)")]
+        [Required]
+        public string Email { get; set; }
+
+        [Column("name", TypeName = "varchar(64)")]
+        [Required]
+        public string Name { get; set; }
+
+        [Column("level")]
+        [Required]
         public byte Level { get; set; }
-        public byte SelectedSlot { get; set; }
+
+        [Column("family_name", TypeName = "varchar(64)")]
+        [Required]
         public string FamilyName { get; set; }
+
+        [Column("selected_slot")]
+        [Required]
+        public byte SelectedSlot { get; set; }
+
+        [Column("can_skip_bootcamp", TypeName = "bit")]
+        [Required]
         public bool CanSkipBootcamp { get; set; }
-        public string LastIP { get; set; }
+
+        [Column("last_ip", TypeName = "varchar(15)")]
+        [Required]
+        public string LastIp { get; set; }
+
+        [Column("last_login")]
+        [Required]
         public DateTime LastLogin { get; set; }
+
+        [Column("character_count")]
+        [Required]
         public byte CharacterCount { get; set; }
+
+        [Column("created_at")]
+        [Required]
+        public DateTime CreatedAt { get; set; }
 
         public static GameAccountEntry Read(MySqlDataReader reader, bool charCount = true)
         {
@@ -31,7 +69,7 @@ namespace Rasa.Structures
                 FamilyName = reader.GetString("family_name"),
                 SelectedSlot = reader.GetByte("selected_slot"),
                 CanSkipBootcamp = reader.GetBoolean("can_skip_bootcamp"),
-                LastIP = reader.GetString("last_ip"),
+                LastIp = reader.GetString("last_ip"),
                 LastLogin = reader.GetDateTime("last_login")
             };
 

@@ -198,7 +198,7 @@ namespace Rasa.Game
                     }
 
                     AccountEntry = GameAccountTable.GetAccount(loginEntry.Id);
-                    AccountEntry.LastIP = Socket.RemoteAddress.ToString();
+                    AccountEntry.LastIp = Socket.RemoteAddress.ToString();
                     AccountEntry.LastLogin = DateTime.Now;
 
                     GameAccountTable.UpdateAccount(AccountEntry);

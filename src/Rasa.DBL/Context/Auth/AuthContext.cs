@@ -6,33 +6,36 @@ namespace Rasa.Context.Auth
     using Configuration;
     using Configuration.ContextSetup;
     using Extensions;
-    using Initialization;
     using Services;
     using Structures;
 
-    public abstract class AuthContext : DbContext, IInitializable
+    public abstract class AuthContext : RasaDbContextBase
     {
         private readonly IOptions<DatabaseConfiguration> _databaseConfiguration;
-        private readonly IDbContextConfigurationService _dbContextConfigurationService;
         private readonly IDbContextPropertyModifier _dbContextPropertyModifier;
 
         protected AuthContext(IOptions<DatabaseConfiguration> databaseConfiguration, 
             IDbContextConfigurationService dbContextConfigurationService,
             IDbContextPropertyModifier dbContextPropertyModifier)
+        : base(databaseConfiguration, dbContextConfigurationService)
         {
             _databaseConfiguration = databaseConfiguration;
-            _dbContextConfigurationService = dbContextConfigurationService;
             _dbContextPropertyModifier = dbContextPropertyModifier;
         }
 
         public DbSet<AuthAccountEntry> AuthAccountEntries { get; set; }
 
-        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        protected override DatabaseConnectionConfiguration GetDatabaseConnectionConfiguration()
         {
-            _dbContextConfigurationService.Configure(optionsBuilder, _databaseConfiguration.Value.Auth);
+            return _databaseConfiguration.Value.Auth;
         }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            CreateAuthAccountEntries(modelBuilder);
+        }
+
+        private void CreateAuthAccountEntries(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<AuthAccountEntry>()
                 .Property(e => e.Id)
@@ -55,7 +58,7 @@ namespace Rasa.Context.Auth
             modelBuilder.Entity<AuthAccountEntry>()
                 .Property(e => e.LastIp)
                 .HasDefaultValue("0.0.0.0");
-            
+
             modelBuilder.Entity<AuthAccountEntry>()
                 .Property(e => e.Locked)
                 .HasDefaultValue(false);
@@ -63,13 +66,6 @@ namespace Rasa.Context.Auth
             modelBuilder.Entity<AuthAccountEntry>()
                 .Property(e => e.Validated)
                 .HasDefaultValue(false);
-        }
-        public void Initialize()
-        {
-            if (_databaseConfiguration.Value.GetDatabaseProvider() == DatabaseProvider.Sqlite)
-            {
-                this.Database.Migrate();
-            }
         }
     }
 }
