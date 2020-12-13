@@ -7,6 +7,7 @@ namespace Rasa.Context.Auth
     using Configuration.ContextSetup;
     using Extensions;
     using Services;
+    using Services.DbContext;
     using Structures;
 
     public abstract class AuthContext : RasaDbContextBase

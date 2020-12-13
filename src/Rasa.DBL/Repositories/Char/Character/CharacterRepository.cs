@@ -1,8 +1,8 @@
-﻿using System;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 
-namespace Rasa.Repositories.Character
+namespace Rasa.Repositories.Char.Character
 {
+    using System;
     using Context.Char;
     using Structures;
 
@@ -44,7 +44,9 @@ namespace Rasa.Repositories.Character
         public CharacterEntry Get(uint id)
         {
             var query = _charContext.CreateNoTrackingQuery(_charContext.CharacterEntries);
-            query = query.Include(e => e.GameAccount);
+            query = query
+                .Include(e => e.GameAccount)
+                .Include(e => e.CharacterAppearance);
             return _charContext.FindEnsuring(query, id);
         }
 
@@ -52,14 +54,12 @@ namespace Rasa.Repositories.Character
         {
             var entry = _charContext.GetWritableEnsuring(_charContext.CharacterEntries, id);
             _charContext.Remove(entry);
-            _charContext.SaveChanges();
         }
 
         public void UpdateLoginData(uint id)
         {
             var entry = _charContext.GetWritableEnsuring(_charContext.CharacterEntries, id);
             entry.LastLogin = DateTime.UtcNow;
-            _charContext.SaveChanges();
         }
     }
 }

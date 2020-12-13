@@ -3,22 +3,22 @@
     using Cryptography;
     using Managers;
     using Networking;
-    using Repositories.GameAccount;
+    using Repositories.Char;
 
     public class ClientFactory : IClientFactory
     {
-        private readonly IGameAccountRepository _gameAccountRepository;
+        private readonly IUnitOfWorkFactory _unitOfWorkFactory;
         private readonly ICharacterManager _characterManager;
 
-        public ClientFactory(IGameAccountRepository gameAccountRepository, ICharacterManager characterManager)
+        public ClientFactory(IUnitOfWorkFactory unitOfWorkFactory, ICharacterManager characterManager)
         {
-            _gameAccountRepository = gameAccountRepository;
+            _unitOfWorkFactory = unitOfWorkFactory;
             _characterManager = characterManager;
         }
 
         public Client Create(LengthedSocket socket, ClientCryptData data, Server server)
         {
-            return new Client(socket, data, server, _gameAccountRepository, _characterManager);
+            return new Client(socket, data, server, _unitOfWorkFactory, _characterManager);
         }
     }
 }

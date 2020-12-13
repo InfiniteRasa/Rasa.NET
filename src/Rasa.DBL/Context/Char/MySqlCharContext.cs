@@ -5,6 +5,7 @@ namespace Rasa.Context.Char
     using Configuration;
     using Configuration.ContextSetup;
     using Services;
+    using Services.DbContext;
 
     public class MySqlCharContext : CharContext
     {

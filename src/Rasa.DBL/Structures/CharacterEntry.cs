@@ -6,6 +6,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Rasa.Structures
 {
+    using System.Collections.Generic;
+    using System.Linq;
     using Interfaces;
 
     [Table(CharacterEntry.TableName)]
@@ -109,5 +111,12 @@ namespace Rasa.Structures
         [Column("created_at")]
         [Required]
         public DateTime CreatedAt { get; set; }
+
+        public List<CharacterAppearanceEntry> CharacterAppearance { get; set; }
+
+        public IDictionary<uint, CharacterAppearanceEntry> GetCharacterAppearanceWithSlot()
+        {
+            return CharacterAppearance.ToDictionary(e => e.Slot, e => e);
+        }
     }
 }

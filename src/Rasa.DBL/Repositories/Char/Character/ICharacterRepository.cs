@@ -1,10 +1,10 @@
-﻿namespace Rasa.Repositories.Character
+﻿namespace Rasa.Repositories.Char.Character
 {
     using Structures;
 
     public interface ICharacterRepository
     {
-        bool Create(GameAccountEntry account, byte slot, string characterName, byte race, double scale, byte gender);
+        CharacterEntry Create(GameAccountEntry account, byte slot, string characterName, byte race, double scale, byte gender);
 
         CharacterEntry Get(uint id);
 

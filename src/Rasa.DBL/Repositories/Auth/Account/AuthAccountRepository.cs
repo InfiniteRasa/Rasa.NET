@@ -6,10 +6,10 @@ using System.Text;
 
 using Microsoft.EntityFrameworkCore;
 
-namespace Rasa.Repositories.AuthAccount
+namespace Rasa.Repositories.Auth.Account
 {
     using Context.Auth;
-    using Services;
+    using Services.Random;
     using Structures;
 
     public class AuthAccountRepository : IAuthAccountRepository

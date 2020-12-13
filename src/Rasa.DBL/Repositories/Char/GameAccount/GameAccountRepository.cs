@@ -4,7 +4,7 @@ using System.Net;
 
 using Microsoft.EntityFrameworkCore;
 
-namespace Rasa.Repositories.GameAccount
+namespace Rasa.Repositories.Char.GameAccount
 {
     using Context.Char;
     using Structures;
@@ -35,8 +35,6 @@ namespace Rasa.Repositories.GameAccount
                 };
                 _charContext.GameAccountEntries.Add(newEntry);
             }
-
-            _charContext.SaveChanges();
         }
 
         public GameAccountEntry Get(uint id)
@@ -57,7 +55,6 @@ namespace Rasa.Repositories.GameAccount
         {
             var entry = _charContext.GetWritableEnsuring(_charContext.GameAccountEntries, id);
             entry.FamilyName = newFamilyName;
-            _charContext.SaveChanges();
         }
 
         public void UpdateLoginData(uint id, IPAddress remoteAddress)
@@ -65,7 +62,6 @@ namespace Rasa.Repositories.GameAccount
             var entry = _charContext.GetWritableEnsuring(_charContext.GameAccountEntries, id);
             entry.LastIp = remoteAddress.ToString();
             entry.LastLogin = DateTime.UtcNow;
-            _charContext.SaveChanges();
         }
     }
 }

@@ -12,8 +12,11 @@ namespace Rasa
     using Hosting;
     using Initialization;
     using Managers;
-    using Repositories.Character;
-    using Repositories.GameAccount;
+    using Microsoft.EntityFrameworkCore;
+    using Microsoft.EntityFrameworkCore.Internal;
+    using Repositories.Char.Character;
+    using Repositories.Char.CharacterAppearance;
+    using Repositories.Char.GameAccount;
 
     public class GameProgram
     {
@@ -45,11 +48,13 @@ namespace Rasa
             services.AddSingleton<IInitializer, Initializer>();
 
             AddDatabase(context, services);
-
+            
             services.AddSingleton<IClientFactory, ClientFactory>();
-            services.AddSingleton<IGameAccountRepository, GameAccountRepository>();
-            services.AddSingleton<ICharacterRepository, CharacterRepository>();
             services.AddSingleton<ICharacterManager, CharacterManager>();
+
+            services.AddScoped<IGameAccountRepository, GameAccountRepository>();
+            services.AddScoped<ICharacterRepository, CharacterRepository>();
+            services.AddScoped<ICharacterAppearanceRepository, CharacterAppearanceRepository>();
         }
 
         private static void AddDatabase(HostBuilderContext context, IServiceCollection services)
@@ -63,10 +68,10 @@ namespace Rasa
             {
 
                 case DatabaseProvider.MySql:
-                    services.AddDbContext<CharContext, MySqlCharContext>();
+                    services.RegisterDbContextFactory<CharContext, MySqlCharContext>();
                     break;
                 case DatabaseProvider.Sqlite:
-                    services.AddDbContext<CharContext, SqliteCharContext>();
+                    services.RegisterDbContextFactory<CharContext, SqliteCharContext>();
                     services.AddSingleton<IInitializable>(ctx => ctx.GetService<CharContext>());
                     break;
                 default:

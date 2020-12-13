@@ -1,6 +1,6 @@
 ﻿using System.Net;
 
-namespace Rasa.Repositories.GameAccount
+namespace Rasa.Repositories.Char.GameAccount
 {
     using Structures;
 

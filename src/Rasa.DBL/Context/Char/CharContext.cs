@@ -7,6 +7,7 @@ namespace Rasa.Context.Char
     using Configuration.ContextSetup;
     using Extensions;
     using Services;
+    using Services.DbContext;
     using Structures;
 
     public abstract class CharContext : RasaDbContextBase
@@ -15,7 +16,8 @@ namespace Rasa.Context.Char
         private readonly IDbContextPropertyModifier _dbContextPropertyModifier;
 
         protected CharContext(IOptions<DatabaseConfiguration> databaseConfiguration,
-            IDbContextConfigurationService dbContextConfigurationService, IDbContextPropertyModifier dbContextPropertyModifier)
+            IDbContextConfigurationService dbContextConfigurationService, 
+            IDbContextPropertyModifier dbContextPropertyModifier)
             : base(databaseConfiguration, dbContextConfigurationService)
         {
             _databaseConfiguration = databaseConfiguration;
@@ -25,6 +27,8 @@ namespace Rasa.Context.Char
         public DbSet<GameAccountEntry> GameAccountEntries { get; set; }
 
         public DbSet<CharacterEntry> CharacterEntries { get; set; }
+
+        public DbSet<CharacterAppearanceEntry> CharacterAppearanceEntries { get; set; }
 
         public DbSet<ClanEntry> ClanEntries { get; set; }
 
@@ -37,6 +41,7 @@ namespace Rasa.Context.Char
         {
             SetupGameAccountEntryTable(modelBuilder);
             SetupCharacterTable(modelBuilder);
+            SetupCharacterAppearanceTable(modelBuilder);
             SetupClanTable(modelBuilder);
         }
 
@@ -155,6 +160,25 @@ namespace Rasa.Context.Char
             modelBuilder.Entity<CharacterEntry>()
                 .Property(e => e.CreatedAt)
                 .AsCurrentDateTime(_dbContextPropertyModifier);
+        }
+
+        private void SetupCharacterAppearanceTable(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<CharacterAppearanceEntry>()
+                .Property(e => e.CharacterId)
+                .AsIdColumn(_dbContextPropertyModifier);
+
+            modelBuilder.Entity<CharacterAppearanceEntry>()
+                .Property(e => e.Slot)
+                .AsIdColumn(_dbContextPropertyModifier);
+
+            modelBuilder.Entity<CharacterAppearanceEntry>()
+                .Property(e => e.Class)
+                .AsInt(_dbContextPropertyModifier, 11);
+
+            modelBuilder.Entity<CharacterAppearanceEntry>()
+                .Property(e => e.Color)
+                .AsInt(_dbContextPropertyModifier, 11);
         }
 
         private void SetupClanTable(ModelBuilder modelBuilder)

@@ -3,6 +3,7 @@
 namespace Rasa.Extensions
 {
     using Services;
+    using Services.DbContext;
 
     public static class PropertyBuilderExtensions
     {

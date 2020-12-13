@@ -1,34 +1,33 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace Rasa.Services
+namespace Rasa.Services.DbContext
 {
-    public class SqliteDbContextPropertyModifier : IDbContextPropertyModifier
+    public class MySqlDbContextPropertyModifier : IDbContextPropertyModifier
     {
         public PropertyBuilder<T> AsIdColumn<T>(PropertyBuilder<T> builder)
         {
-            return builder.HasColumnType("integer");
+            return builder.HasColumnType("int(11) unsigned");
         }
 
         public PropertyBuilder<T> AsTinyInt<T>(PropertyBuilder<T> builder, in int length)
         {
-            return builder.HasColumnType($"tinyint({length})");
+            return builder.HasColumnType($"tinyint({length}) unsigned");
         }
 
         public PropertyBuilder<T> AsInt<T>(PropertyBuilder<T> builder, in int length)
         {
-            return builder.HasColumnType($"int({length})");
+            return builder.HasColumnType($"int({length}) unsigned");
         }
 
         public PropertyBuilder<T> AsDouble<T>(PropertyBuilder<T> builder, bool unsigned)
         {
-            // sqlite doesn't know unsigned
-            return builder.HasColumnType("double");
+            return builder.HasColumnType($"double{(unsigned ? " unsigned" : string.Empty)}");
         }
 
         public PropertyBuilder<T> AsCurrentDateTime<T>(PropertyBuilder<T> builder)
         {
-            return builder.HasDefaultValueSql("datetime('now')");
+            return builder.HasDefaultValueSql("CURRENT_TIMESTAMP");
         }
     }
 }

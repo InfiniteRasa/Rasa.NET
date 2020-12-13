@@ -1,6 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace Rasa.Services
+namespace Rasa.Services.DbContext
 {
     public interface IDbContextPropertyModifier
     {

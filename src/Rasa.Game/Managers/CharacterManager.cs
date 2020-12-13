@@ -3,13 +3,11 @@
 namespace Rasa.Managers
 {
     using Data;
-    using Database.Tables.Character;
     using Database.Tables.World;
     using Game;
     using Packets.Game.Client;
     using Packets.Game.Server;
-    using Repositories.Character;
-    using Repositories.GameAccount;
+    using Repositories.Char;
     using Structures;
 
     public class CharacterManager : ICharacterManager
@@ -19,14 +17,11 @@ namespace Rasa.Managers
 
         private readonly object _createLock = new object();
 
-        private readonly IGameAccountRepository _gameAccountRepository;
-        private readonly ICharacterRepository _characterRepository;
+        private readonly IUnitOfWorkFactory _unitOfWorkFactory;
 
-        public CharacterManager(IGameAccountRepository gameAccountRepository, 
-            ICharacterRepository characterRepository)
+        public CharacterManager(IUnitOfWorkFactory unitOfWorkFactory)
         {
-            _gameAccountRepository = gameAccountRepository;
-            _characterRepository = characterRepository;
+            _unitOfWorkFactory = unitOfWorkFactory;
         }
 
         public void StartCharacterSelection(Client client)
@@ -75,7 +70,10 @@ namespace Rasa.Managers
             }
 
             bool changeFamilyName = false;
-
+            
+            using var unitOfWork = _unitOfWorkFactory.Create<ICharUnitOfWork>();
+            CharacterEntry characterEntry;
+            // TODO to remove this lock, the family name check and update must be redesigned to be thread safe
             lock (_createLock)
             {
                 if (!string.IsNullOrWhiteSpace(client.AccountEntry.FamilyName) && packet.FamilyName != client.AccountEntry.FamilyName)
@@ -93,14 +91,14 @@ namespace Rasa.Managers
 
                 if ((string.IsNullOrWhiteSpace(client.AccountEntry.FamilyName) || packet.FamilyName != client.AccountEntry.FamilyName))
                 {
-                    if (!_gameAccountRepository.CanChangeFamilyName(client.AccountEntry.Id, packet.FamilyName))
+                    if (!unitOfWork.GameAccounts.CanChangeFamilyName(client.AccountEntry.Id, packet.FamilyName))
                     {
                         SendCharacterCreateFailed(client, CreateCharacterResult.FamilyNameReserved);
                         return;
                     }
                 }
 
-                var characterEntry = _characterRepository.Create(client.AccountEntry, packet.SlotNum,
+                characterEntry = unitOfWork.Characters.Create(client.AccountEntry, packet.SlotNum,
                     packet.CharacterName,
                     (byte)packet.RaceId,
                     packet.Scale,
@@ -111,17 +109,17 @@ namespace Rasa.Managers
                     return;
                 }
 
-                foreach (var data in packet.AppearanceData)
-                {
-                    data.Value.ClassId = ItemTemplateItemClassTable.GetItemClassId(data.Value.ClassId);
-                    CharacterAppearanceTable.AddAppearance(characterEntry.Id, data.Value.GetDatabaseEntry());
-                }
+                var appearances = packet.AppearanceData
+                    .Select(appearanceData => appearanceData.Value.GetDatabaseEntry());
+                unitOfWork.CharacterAppearances.Add(characterEntry, appearances);
 
                 if (string.IsNullOrWhiteSpace(client.AccountEntry.FamilyName) || changeFamilyName)
                 {
-                    _gameAccountRepository.UpdateFamilyName(client.AccountEntry.Id, packet.FamilyName);
+                    unitOfWork.GameAccounts.UpdateFamilyName(client.AccountEntry.Id, packet.FamilyName);
                 }
             }
+
+            unitOfWork.Complete();
 
             client.CallMethod(SysEntity.ClientMethodId, new CharacterCreateSuccessPacket(packet.SlotNum, packet.FamilyName));
             
@@ -140,7 +138,10 @@ namespace Rasa.Managers
                     return;
                 }
 
-                _characterRepository.Delete(charactersBySlot.Id);
+                using (var unitOfWork = _unitOfWorkFactory.Create<ICharUnitOfWork>())
+                {
+                    unitOfWork.Characters.Delete(charactersBySlot.Id);
+                }
 
                 client.ReloadGameAccountEntry();
 
