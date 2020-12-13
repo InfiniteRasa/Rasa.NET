@@ -16,9 +16,19 @@ namespace Rasa.Extensions
             return modifier.AsCurrentDateTime(builder);
         }
 
-        public static PropertyBuilder<T> AsTinyInt<T>(this PropertyBuilder<T> builder, IDbContextPropertyModifier modifier, int length)
+        public static PropertyBuilder<T> AsInt<T>(this PropertyBuilder<T> builder, IDbContextPropertyModifier modifier, in int length)
+        {
+            return modifier.AsInt(builder, length);
+        }
+
+        public static PropertyBuilder<T> AsTinyInt<T>(this PropertyBuilder<T> builder, IDbContextPropertyModifier modifier, in int length)
         {
             return modifier.AsTinyInt(builder, length);
+        }
+
+        public static PropertyBuilder<T> AsDouble<T>(this PropertyBuilder<T> builder, IDbContextPropertyModifier modifier, in bool unsigned)
+        {
+            return modifier.AsDouble(builder, unsigned);
         }
     }
 }

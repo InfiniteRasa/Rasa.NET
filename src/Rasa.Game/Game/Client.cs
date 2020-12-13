@@ -6,17 +6,21 @@ namespace Rasa.Game
 {
     using Cryptography;
     using Data;
-    using Database.Tables.Character;
     using Handlers;
     using Managers;
     using Memory;
     using Networking;
     using Packets;
     using Packets.Protocol;
+    using Repositories.GameAccount;
     using Structures;
 
     public class Client
     {
+        private readonly IGameAccountRepository _gameAccountRepository;
+
+        private readonly ICharacterManager _characterManager;
+
         public const int LengthSize = 2;
 
         public LengthedSocket Socket { get; }
@@ -38,8 +42,15 @@ namespace Rasa.Game
             return PacketRouter.GetPacketType(opcode);
         }
 
-        public Client(LengthedSocket socket, ClientCryptData data, Server server)
+        public Client(LengthedSocket socket,
+            ClientCryptData data, 
+            Server server, 
+            IGameAccountRepository gameAccountRepository, 
+            ICharacterManager characterManager)
         {
+            _gameAccountRepository = gameAccountRepository;
+            _characterManager = characterManager;
+
             _handler = new ClientPacketHandler(this);
 
             Socket = socket;
@@ -169,7 +180,7 @@ namespace Rasa.Game
                         return;
                     }
 
-                    GameAccountTable.CreateAccountDataIfNeeded(loginEntry.Id, loginEntry.Name, loginEntry.Email);
+                    _gameAccountRepository.CreateOrUpdate( loginEntry.Id, loginEntry.Name, loginEntry.Email);
 
                     if (Server.IsBanned(loginMsg.AccountId))
                     {
@@ -197,11 +208,8 @@ namespace Rasa.Game
                         return;
                     }
 
-                    AccountEntry = GameAccountTable.GetAccount(loginEntry.Id);
-                    AccountEntry.LastIp = Socket.RemoteAddress.ToString();
-                    AccountEntry.LastLogin = DateTime.Now;
-
-                    GameAccountTable.UpdateAccount(AccountEntry);
+                    this.LoadGameAccountEntry(loginEntry.Id);
+                    _gameAccountRepository.UpdateLoginData(loginEntry.Id, Socket.RemoteAddress);
 
                     SendMessage(new LoginResponseMessage
                     {
@@ -211,7 +219,7 @@ namespace Rasa.Game
 
                     State = ClientState.LoggedIn;
 
-                    CharacterManager.Instance.StartCharacterSelection(this);
+                    _characterManager.StartCharacterSelection(this);
                     return;
 
                 case ClientMessageOpcode.Move:
@@ -401,5 +409,19 @@ namespace Rasa.Game
             return true;
         }
         #endregion
+
+        public void ReloadGameAccountEntry()
+        {
+            if (AccountEntry == null)
+            {
+                throw new InvalidOperationException("Client must be initialized by handling a login packet first.");
+            }
+            LoadGameAccountEntry(AccountEntry.Id);
+        }
+
+        private void LoadGameAccountEntry(uint id)
+        {
+            AccountEntry = _gameAccountRepository.Get(id);
+        }
     }
 }

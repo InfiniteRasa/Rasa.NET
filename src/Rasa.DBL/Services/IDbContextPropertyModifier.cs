@@ -8,6 +8,10 @@ namespace Rasa.Services
 
         PropertyBuilder<T> AsCurrentDateTime<T>(PropertyBuilder<T> builder);
 
-        PropertyBuilder<T> AsTinyInt<T>(PropertyBuilder<T> builder, int length);
+        PropertyBuilder<T> AsTinyInt<T>(PropertyBuilder<T> builder, in int length);
+
+        PropertyBuilder<T> AsInt<T>(PropertyBuilder<T> builder, in int length);
+
+        PropertyBuilder<T> AsDouble<T>(PropertyBuilder<T> builder, bool unsigned);
     }
 }

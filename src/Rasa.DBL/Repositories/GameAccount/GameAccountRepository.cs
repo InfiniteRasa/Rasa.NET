@@ -2,6 +2,8 @@
 using System.Linq;
 using System.Net;
 
+using Microsoft.EntityFrameworkCore;
+
 namespace Rasa.Repositories.GameAccount
 {
     using Context.Char;
@@ -39,7 +41,10 @@ namespace Rasa.Repositories.GameAccount
 
         public GameAccountEntry Get(uint id)
         {
-            return _charContext.GetReadableEnsuring(_charContext.GameAccountEntries, id);
+            var query =_charContext.CreateNoTrackingQuery(_charContext.GameAccountEntries);
+            query = query
+                .Include(e => e.Characters);
+            return _charContext.FindEnsuring(query, id);
         }
 
         public bool CanChangeFamilyName(uint id, string newFamilyName)
@@ -60,24 +65,6 @@ namespace Rasa.Repositories.GameAccount
             var entry = _charContext.GetWritableEnsuring(_charContext.GameAccountEntries, id);
             entry.LastIp = remoteAddress.ToString();
             entry.LastLogin = DateTime.UtcNow;
-            _charContext.SaveChanges();
-        }
-
-        public void IncrementCharacterCount(uint id)
-        {
-            var entry = _charContext.GetWritableEnsuring(_charContext.GameAccountEntries, id);
-            entry.CharacterCount++;
-            _charContext.SaveChanges();
-        }
-
-        public void DecrementCharacterCount(uint id)
-        {
-            var entry = _charContext.GetWritableEnsuring(_charContext.GameAccountEntries, id);
-            if (entry.CharacterCount <= 0)
-            {
-                return;
-            }
-            entry.CharacterCount--;
             _charContext.SaveChanges();
         }
     }

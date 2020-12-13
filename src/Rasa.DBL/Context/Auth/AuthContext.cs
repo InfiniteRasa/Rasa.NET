@@ -32,10 +32,10 @@ namespace Rasa.Context.Auth
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            CreateAuthAccountEntries(modelBuilder);
+            SetupAuthAccountTable(modelBuilder);
         }
 
-        private void CreateAuthAccountEntries(ModelBuilder modelBuilder)
+        private void SetupAuthAccountTable(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<AuthAccountEntry>()
                 .Property(e => e.Id)

@@ -1,12 +1,13 @@
 ﻿using System;
+using System.Linq;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-
-using MySql.Data.MySqlClient;
 
 namespace Rasa.Structures
 {
     using Interfaces;
+    using JetBrains.Annotations;
 
     [Table(GameAccountEntry.TableName)]
     public class GameAccountEntry : IHasId
@@ -49,41 +50,21 @@ namespace Rasa.Structures
         [Required]
         public DateTime LastLogin { get; set; }
 
-        [Column("character_count")]
-        [Required]
-        public byte CharacterCount { get; set; }
-
         [Column("created_at")]
         [Required]
         public DateTime CreatedAt { get; set; }
 
-        public static GameAccountEntry Read(MySqlDataReader reader, bool charCount = true)
+        public List<CharacterEntry> Characters { get; set; }
+
+        public IDictionary<byte, CharacterEntry> GetCharactersWithSlot()
         {
-            if (!reader.Read())
-                return null;
+            return Characters.ToDictionary(c => c.Slot, c => c);
+        }
 
-            var entry = new GameAccountEntry
-            {
-                Id = reader.GetUInt32("id"),
-                Email = reader.GetString("name"),
-                Name = reader.GetString("name"),
-                Level = reader.GetByte("level"),
-                FamilyName = reader.GetString("family_name"),
-                SelectedSlot = reader.GetByte("selected_slot"),
-                CanSkipBootcamp = reader.GetBoolean("can_skip_bootcamp"),
-                LastIp = reader.GetString("last_ip"),
-                LastLogin = reader.GetDateTime("last_login")
-            };
-
-            if (charCount)
-            {
-                entry.CharacterCount = (byte)reader.GetInt64("character_count");
-            }
-
-            if (string.IsNullOrWhiteSpace(entry.FamilyName))
-                entry.FamilyName = null;
-
-            return entry;
+        [CanBeNull]
+        public CharacterEntry GetCharacterBySlot(byte slot)
+        {
+            return Characters.FirstOrDefault(e => e.Slot == slot);
         }
     }
 }

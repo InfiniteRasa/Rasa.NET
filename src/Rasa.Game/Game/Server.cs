@@ -25,6 +25,7 @@ namespace Rasa.Game
     public class Server : ILoopable, IRasaServer
     {
         private readonly IHostApplicationLifetime _hostApplicationLifetime;
+        private readonly IClientFactory _clientFactory;
 
         public string ServerType { get; } = "Game";
 
@@ -47,9 +48,10 @@ namespace Rasa.Game
         private readonly List<Client> _clientsToRemove = new List<Client>();
         private readonly PacketRouter<Server, CommOpcode> _router = new PacketRouter<Server, CommOpcode>();
 
-        public Server(IHostApplicationLifetime hostApplicationLifetime)
+        public Server(IHostApplicationLifetime hostApplicationLifetime, IClientFactory clientFactory)
         {
             _hostApplicationLifetime = hostApplicationLifetime;
+            _clientFactory = clientFactory;
 
             Configuration.OnLoad += ConfigLoaded;
             Configuration.OnReLoad += ConfigReLoaded;
@@ -186,7 +188,10 @@ namespace Rasa.Game
         private void OnLogin(LoginClient client)
         {
             lock (Clients)
-                Clients.Add(new Client(client.Socket, client.Data, this));
+            {
+                var newClient = _clientFactory.Create(client.Socket, client.Data, this);
+                Clients.Add(newClient);
+            }
         }
 
         private static void OnError(SocketAsyncEventArgs args)
