@@ -9,6 +9,7 @@ namespace Rasa.Structures
     using System.Collections.Generic;
     using System.Linq;
     using Interfaces;
+    using JetBrains.Annotations;
 
     [Table(CharacterEntry.TableName)]
     [Index(nameof(CharacterEntry.AccountId), Name = "character_index_account")]
@@ -111,6 +112,15 @@ namespace Rasa.Structures
         [Column("created_at")]
         [Required]
         public DateTime CreatedAt { get; set; }
+
+        [Column("clan_id")]
+        public uint ClanId { get; set; }
+
+        [CanBeNull]
+        public ClanMemberEntry MemberOfClan { get; set; }
+
+        [CanBeNull]
+        public ClanEntry Clan => MemberOfClan?.Clan;
 
         public List<CharacterAppearanceEntry> CharacterAppearance { get; set; }
 

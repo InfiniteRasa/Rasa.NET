@@ -42,6 +42,7 @@ namespace Rasa.Context.Char
             SetupGameAccountEntryTable(modelBuilder);
             SetupCharacterTable(modelBuilder);
             SetupCharacterAppearanceTable(modelBuilder);
+            SetupClanMemberTable(modelBuilder);
             SetupClanTable(modelBuilder);
         }
 
@@ -160,6 +161,10 @@ namespace Rasa.Context.Char
             modelBuilder.Entity<CharacterEntry>()
                 .Property(e => e.CreatedAt)
                 .AsCurrentDateTime(_dbContextPropertyModifier);
+
+            modelBuilder.Entity<CharacterEntry>()
+                .HasOne(e => e.MemberOfClan)
+                .WithOne(e => e.Character);
         }
 
         private void SetupCharacterAppearanceTable(ModelBuilder modelBuilder)
@@ -181,6 +186,17 @@ namespace Rasa.Context.Char
                 .AsInt(_dbContextPropertyModifier, 11);
         }
 
+        private void SetupClanMemberTable(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<ClanMemberEntry>()
+                .Property(e => e.ClanId)
+                .AsIdColumn(_dbContextPropertyModifier);
+
+            modelBuilder.Entity<ClanMemberEntry>()
+                .Property(e => e.CharacterId)
+                .AsIdColumn(_dbContextPropertyModifier);
+        }
+
         private void SetupClanTable(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<ClanEntry>()
@@ -191,6 +207,9 @@ namespace Rasa.Context.Char
                 .Property(e => e.CreatedAt)
                 .AsCurrentDateTime(_dbContextPropertyModifier);
 
+            modelBuilder.Entity<ClanEntry>()
+                .HasMany(e => e.Members)
+                .WithOne(e => e.Clan);
         }
     }
 }

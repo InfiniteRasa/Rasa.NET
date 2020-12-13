@@ -1,8 +1,8 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using System;
+using Microsoft.EntityFrameworkCore;
 
 namespace Rasa.Repositories.Char.Character
 {
-    using System;
     using Context.Char;
     using Structures;
 
@@ -46,7 +46,9 @@ namespace Rasa.Repositories.Char.Character
             var query = _charContext.CreateNoTrackingQuery(_charContext.CharacterEntries);
             query = query
                 .Include(e => e.GameAccount)
-                .Include(e => e.CharacterAppearance);
+                .Include(e => e.CharacterAppearance)
+                .Include(e => e.MemberOfClan)
+                .ThenInclude(e => e.Clan);
             return _charContext.FindEnsuring(query, id);
         }
 

@@ -1,9 +1,10 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Rasa.Structures
 {
-    using System;
     using Interfaces;
 
     [Table(ClanEntry.TableName)]
@@ -22,16 +23,7 @@ namespace Rasa.Structures
         [Column("created_at")]
         [Required]
         public DateTime CreatedAt { get; set; }
-    }
 
-    public class ClanMemberEntry
-    {
-        [Key]
-        [Column("clan_id")]
-        public uint ClanId { get; set; }
-
-        [Key]
-        [Column("clan_id")]
-        public uint CharacterId { get; set; }
+        public List<ClanMemberEntry> Members { get; set; }
     }
 }
