@@ -8,10 +8,10 @@ namespace Rasa.Services.DbContext
 
         PropertyBuilder<T> AsCurrentDateTime<T>(PropertyBuilder<T> builder);
 
-        PropertyBuilder<T> AsTinyInt<T>(PropertyBuilder<T> builder, in int length);
+        PropertyBuilder<T> AsUnsignedTinyInt<T>(PropertyBuilder<T> builder, in int length);
 
-        PropertyBuilder<T> AsInt<T>(PropertyBuilder<T> builder, in int length);
+        PropertyBuilder<T> AsUnsignedInt<T>(PropertyBuilder<T> builder, in int length);
 
-        PropertyBuilder<T> AsDouble<T>(PropertyBuilder<T> builder, bool unsigned);
+        PropertyBuilder<T> AsUnsignedDouble<T>(PropertyBuilder<T> builder);
     }
 }

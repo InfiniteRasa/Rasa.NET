@@ -51,7 +51,7 @@ namespace Rasa.Game
             _unitOfWorkFactory = unitOfWorkFactory;
             _characterManager = characterManager;
 
-            _handler = new ClientPacketHandler(this);
+            _handler = new ClientPacketHandler(this, _characterManager);
 
             Socket = socket;
             Data = data;
@@ -210,7 +210,7 @@ namespace Rasa.Game
                             return;
                         }
 
-                        this.LoadGameAccountEntry(unitOfWork, loginEntry.Id);
+                        LoadGameAccountEntry(unitOfWork, loginEntry.Id);
                         unitOfWork.GameAccounts.UpdateLoginData(loginEntry.Id, Socket.RemoteAddress);
 
                         unitOfWork.Complete();

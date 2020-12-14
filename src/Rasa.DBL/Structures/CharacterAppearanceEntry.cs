@@ -1,23 +1,24 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Rasa.Structures
 {
-    using System.ComponentModel.DataAnnotations.Schema;
-
+    [Table(CharacterAppearanceEntry.TableName)]
     public class CharacterAppearanceEntry
     {
-        [Key]
+        public const string TableName = "character_appearance";
+
         [Column("character_id")]
         public uint CharacterId { get; set; }
 
-        [Key]
+        [Column("slot")]
         public uint Slot { get; set; }
 
-        [ForeignKey(nameof(CharacterId))]
         public CharacterEntry Character { get; set; }
 
+        [Column("class")]
         public uint Class { get; set; }
 
+        [Column("color")]
         public uint Color { get; set; }
     }
 }

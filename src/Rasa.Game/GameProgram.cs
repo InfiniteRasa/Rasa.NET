@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -12,8 +13,7 @@ namespace Rasa
     using Hosting;
     using Initialization;
     using Managers;
-    using Microsoft.EntityFrameworkCore;
-    using Microsoft.EntityFrameworkCore.Internal;
+    using Repositories.Char;
     using Repositories.Char.Character;
     using Repositories.Char.CharacterAppearance;
     using Repositories.Char.GameAccount;
@@ -23,6 +23,7 @@ namespace Rasa
         public static async Task<int> Main(string[] args)
         {
             var hostBuilder = new HostBuilder()
+                .ConfigureAppConfiguration(ConfigureApp)
                 .ConfigureServices(ConfigureServices);
             var host = hostBuilder.Build();
 
@@ -40,6 +41,13 @@ namespace Rasa
             }
         }
 
+        private static void ConfigureApp(HostBuilderContext context, IConfigurationBuilder configurationBuilder)
+        {
+            configurationBuilder
+                .AddJsonFile("databasesettings.json", false, false)
+                .AddJsonFile("databasesettings.env.json", true, false);
+        }
+
         private static void ConfigureServices(HostBuilderContext context, IServiceCollection services)
         {
             services.AddHostedService<GameHost>();
@@ -48,6 +56,9 @@ namespace Rasa
             services.AddSingleton<IInitializer, Initializer>();
 
             AddDatabase(context, services);
+
+            services.AddSingleton<IUnitOfWorkFactory, UnitOfWorkFactory>();
+            services.AddScoped<ICharUnitOfWork, CharUnitOfWork>();
             
             services.AddSingleton<IClientFactory, ClientFactory>();
             services.AddSingleton<ICharacterManager, CharacterManager>();

@@ -10,17 +10,19 @@ namespace Rasa.Services.DbContext
             return builder.HasColumnType("integer");
         }
 
-        public PropertyBuilder<T> AsTinyInt<T>(PropertyBuilder<T> builder, in int length)
+        public PropertyBuilder<T> AsUnsignedTinyInt<T>(PropertyBuilder<T> builder, in int length)
         {
+            // sqlite doesn't know unsigned
             return builder.HasColumnType($"tinyint({length})");
         }
 
-        public PropertyBuilder<T> AsInt<T>(PropertyBuilder<T> builder, in int length)
+        public PropertyBuilder<T> AsUnsignedInt<T>(PropertyBuilder<T> builder, in int length)
         {
+            // sqlite doesn't know unsigned
             return builder.HasColumnType($"int({length})");
         }
 
-        public PropertyBuilder<T> AsDouble<T>(PropertyBuilder<T> builder, bool unsigned)
+        public PropertyBuilder<T> AsUnsignedDouble<T>(PropertyBuilder<T> builder)
         {
             // sqlite doesn't know unsigned
             return builder.HasColumnType("double");

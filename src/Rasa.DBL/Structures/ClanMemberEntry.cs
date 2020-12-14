@@ -1,25 +1,30 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
+using Microsoft.EntityFrameworkCore;
+
 namespace Rasa.Structures
 {
     [Table(ClanMemberEntry.TableName)]
+    [Index(nameof(ClanMemberEntry.CharacterId), IsUnique = true, Name = "clan_member_index_character")]
     public class ClanMemberEntry
     {
         public const string TableName = "clan_member";
 
-        [Key]
         [Column("clan_id")]
+        [Required]
         public uint ClanId { get; set; }
 
-        [ForeignKey(nameof(ClanId))]
         public ClanEntry Clan { get; set; }
 
-        [Key]
         [Column("character_id")]
+        [Required]
         public uint CharacterId { get; set; }
 
-        [ForeignKey(nameof(CharacterId))]
         public CharacterEntry Character { get; set; }
+
+        [Column("rank")]
+        [Required]
+        public byte Rank { get; set; }
     }
 }

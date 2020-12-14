@@ -6,6 +6,7 @@ namespace Rasa.Context.Char
     using Configuration;
     using Configuration.ContextSetup;
     using Extensions;
+    using Microsoft.EntityFrameworkCore.Metadata;
     using Services;
     using Services.DbContext;
     using Structures;
@@ -50,16 +51,21 @@ namespace Rasa.Context.Char
         {
             modelBuilder.Entity<GameAccountEntry>()
                 .Property(e => e.Id)
-                .AsIdColumn(_dbContextPropertyModifier);
+                .AsIdColumn(_dbContextPropertyModifier)
+                .HasAnnotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.None);
 
             modelBuilder.Entity<GameAccountEntry>()
                 .Property(e => e.Level)
-                .AsTinyInt(_dbContextPropertyModifier, 3)
+                .AsUnsignedTinyInt(_dbContextPropertyModifier, 3)
                 .HasDefaultValue(0);
 
             modelBuilder.Entity<GameAccountEntry>()
+                .Property(e => e.FamilyName)
+                .HasDefaultValue(string.Empty);
+
+            modelBuilder.Entity<GameAccountEntry>()
                 .Property(e => e.SelectedSlot)
-                .AsTinyInt(_dbContextPropertyModifier, 3)
+                .AsUnsignedTinyInt(_dbContextPropertyModifier, 3)
                 .HasDefaultValue(0);
 
             modelBuilder.Entity<GameAccountEntry>()
@@ -91,71 +97,63 @@ namespace Rasa.Context.Char
             
             modelBuilder.Entity<CharacterEntry>()
                 .Property(e => e.Slot)
-                .AsTinyInt(_dbContextPropertyModifier, 3);
+                .AsUnsignedTinyInt(_dbContextPropertyModifier, 3);
             
             modelBuilder.Entity<CharacterEntry>()
                 .Property(e => e.Race)
-                .AsTinyInt(_dbContextPropertyModifier, 3);
+                .AsUnsignedTinyInt(_dbContextPropertyModifier, 3);
             
             modelBuilder.Entity<CharacterEntry>()
                 .Property(e => e.Class)
-                .AsInt(_dbContextPropertyModifier, 11);
+                .AsUnsignedInt(_dbContextPropertyModifier, 11);
             
             modelBuilder.Entity<CharacterEntry>()
                 .Property(e => e.Scale)
-                .AsDouble(_dbContextPropertyModifier, true);
+                .AsUnsignedDouble(_dbContextPropertyModifier);
             
             modelBuilder.Entity<CharacterEntry>()
                 .Property(e => e.Experience)
-                .AsInt(_dbContextPropertyModifier, 11)
+                .AsUnsignedInt(_dbContextPropertyModifier, 11)
                 .HasDefaultValue(0);
 
             modelBuilder.Entity<CharacterEntry>()
                 .Property(e => e.Level)
-                .AsTinyInt(_dbContextPropertyModifier, 3)
+                .AsUnsignedTinyInt(_dbContextPropertyModifier, 3)
                 .HasDefaultValue(1);
 
             modelBuilder.Entity<CharacterEntry>()
                 .Property(e => e.Body)
-                .AsInt(_dbContextPropertyModifier, 11);
+                .AsUnsignedInt(_dbContextPropertyModifier, 11);
 
             modelBuilder.Entity<CharacterEntry>()
                 .Property(e => e.Mind)
-                .AsInt(_dbContextPropertyModifier, 11);
+                .AsUnsignedInt(_dbContextPropertyModifier, 11);
 
             modelBuilder.Entity<CharacterEntry>()
                 .Property(e => e.Spirit)
-                .AsInt(_dbContextPropertyModifier, 11);
+                .AsUnsignedInt(_dbContextPropertyModifier, 11);
 
             modelBuilder.Entity<CharacterEntry>()
                 .Property(e => e.CloneCredits)
-                .AsInt(_dbContextPropertyModifier, 11)
+                .AsUnsignedInt(_dbContextPropertyModifier, 11)
                 .HasDefaultValue(0);
 
             modelBuilder.Entity<CharacterEntry>()
                 .Property(e => e.MapContextId)
-                .AsInt(_dbContextPropertyModifier, 11);
-
-            modelBuilder.Entity<CharacterEntry>()
-                .Property(e => e.CoordX)
-                .AsDouble(_dbContextPropertyModifier, false);
-
-            modelBuilder.Entity<CharacterEntry>()
-                .Property(e => e.CoordY)
-                .AsDouble(_dbContextPropertyModifier, false);
-
-            modelBuilder.Entity<CharacterEntry>()
-                .Property(e => e.CoordZ)
-                .AsDouble(_dbContextPropertyModifier, false);
+                .AsUnsignedInt(_dbContextPropertyModifier, 11);
 
             modelBuilder.Entity<CharacterEntry>()
                 .Property(e => e.NumLogins)
-                .AsInt(_dbContextPropertyModifier, 11)
+                .AsUnsignedInt(_dbContextPropertyModifier, 11)
                 .HasDefaultValue(0);
 
             modelBuilder.Entity<CharacterEntry>()
+                .Property(e => e.LastLogin)
+                .AsCurrentDateTime(_dbContextPropertyModifier);
+
+            modelBuilder.Entity<CharacterEntry>()
                 .Property(e => e.TotalTimePlayed)
-                .AsInt(_dbContextPropertyModifier, 11)
+                .AsUnsignedInt(_dbContextPropertyModifier, 11)
                 .HasDefaultValue(0);
 
             modelBuilder.Entity<CharacterEntry>()
@@ -163,8 +161,11 @@ namespace Rasa.Context.Char
                 .AsCurrentDateTime(_dbContextPropertyModifier);
 
             modelBuilder.Entity<CharacterEntry>()
-                .HasOne(e => e.MemberOfClan)
-                .WithOne(e => e.Character);
+                .HasOne(e => e.GameAccount)
+                .WithMany(e => e.Characters)
+                .IsRequired()
+                .HasForeignKey(nameof(CharacterEntry.AccountId))
+                .OnDelete(DeleteBehavior.Restrict);
         }
 
         private void SetupCharacterAppearanceTable(ModelBuilder modelBuilder)
@@ -179,11 +180,21 @@ namespace Rasa.Context.Char
 
             modelBuilder.Entity<CharacterAppearanceEntry>()
                 .Property(e => e.Class)
-                .AsInt(_dbContextPropertyModifier, 11);
+                .AsUnsignedInt(_dbContextPropertyModifier, 11);
 
             modelBuilder.Entity<CharacterAppearanceEntry>()
                 .Property(e => e.Color)
-                .AsInt(_dbContextPropertyModifier, 11);
+                .AsUnsignedInt(_dbContextPropertyModifier, 11);
+
+            modelBuilder.Entity<CharacterAppearanceEntry>()
+                .HasOne(e => e.Character)
+                .WithMany(e => e.CharacterAppearance)
+                .IsRequired()
+                .HasForeignKey(nameof(CharacterAppearanceEntry.CharacterId))
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<CharacterAppearanceEntry>()
+                .HasKey(e => new { e.CharacterId, e.Slot });
         }
 
         private void SetupClanMemberTable(ModelBuilder modelBuilder)
@@ -195,6 +206,28 @@ namespace Rasa.Context.Char
             modelBuilder.Entity<ClanMemberEntry>()
                 .Property(e => e.CharacterId)
                 .AsIdColumn(_dbContextPropertyModifier);
+
+            modelBuilder.Entity<ClanMemberEntry>()
+                .Property(e => e.Rank)
+                .AsUnsignedTinyInt(_dbContextPropertyModifier, 3)
+                .HasDefaultValue(0);
+
+            modelBuilder.Entity<ClanMemberEntry>()
+                .HasOne(e => e.Character)
+                .WithOne(e => e.MemberOfClan)
+                .IsRequired()
+                .HasForeignKey<ClanMemberEntry>(e => e.CharacterId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ClanMemberEntry>()
+                .HasOne(e => e.Clan)
+                .WithMany(e => e.Members)
+                .IsRequired()
+                .HasForeignKey(nameof(ClanMemberEntry.ClanId))
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ClanMemberEntry>()
+                .HasKey(e => new { e.ClanId, e.CharacterId});
         }
 
         private void SetupClanTable(ModelBuilder modelBuilder)
@@ -206,10 +239,6 @@ namespace Rasa.Context.Char
             modelBuilder.Entity<ClanEntry>()
                 .Property(e => e.CreatedAt)
                 .AsCurrentDateTime(_dbContextPropertyModifier);
-
-            modelBuilder.Entity<ClanEntry>()
-                .HasMany(e => e.Members)
-                .WithOne(e => e.Clan);
         }
     }
 }

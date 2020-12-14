@@ -44,12 +44,12 @@ namespace Rasa.Context.Auth
 
             modelBuilder.Entity<AuthAccountEntry>()
                 .Property(e => e.Level)
-                .AsTinyInt(_dbContextPropertyModifier, 3)
+                .AsUnsignedTinyInt(_dbContextPropertyModifier, 3)
                 .HasDefaultValue(0);
 
             modelBuilder.Entity<AuthAccountEntry>()
                 .Property(e => e.LastServerId)
-                .AsTinyInt(_dbContextPropertyModifier, 3)
+                .AsUnsignedTinyInt(_dbContextPropertyModifier, 3)
                 .HasDefaultValue(0);
 
             modelBuilder.Entity<AuthAccountEntry>()

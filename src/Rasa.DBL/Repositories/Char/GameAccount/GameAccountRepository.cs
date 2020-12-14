@@ -30,10 +30,12 @@ namespace Rasa.Repositories.Char.GameAccount
             {
                 var newEntry = new GameAccountEntry
                 {
+                    Id = id,
                     Name = name,
                     Email = email
                 };
                 _charContext.GameAccountEntries.Add(newEntry);
+                _charContext.SaveChanges();
             }
         }
 
@@ -41,7 +43,8 @@ namespace Rasa.Repositories.Char.GameAccount
         {
             var query =_charContext.CreateNoTrackingQuery(_charContext.GameAccountEntries);
             query = query
-                .Include(e => e.Characters);
+                .Include(e => e.Characters)
+                .ThenInclude(e => e.CharacterAppearance);
             return _charContext.FindEnsuring(query, id);
         }
 

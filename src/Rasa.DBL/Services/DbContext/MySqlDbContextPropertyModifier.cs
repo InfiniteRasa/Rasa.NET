@@ -10,19 +10,19 @@ namespace Rasa.Services.DbContext
             return builder.HasColumnType("int(11) unsigned");
         }
 
-        public PropertyBuilder<T> AsTinyInt<T>(PropertyBuilder<T> builder, in int length)
+        public PropertyBuilder<T> AsUnsignedTinyInt<T>(PropertyBuilder<T> builder, in int length)
         {
             return builder.HasColumnType($"tinyint({length}) unsigned");
         }
 
-        public PropertyBuilder<T> AsInt<T>(PropertyBuilder<T> builder, in int length)
+        public PropertyBuilder<T> AsUnsignedInt<T>(PropertyBuilder<T> builder, in int length)
         {
             return builder.HasColumnType($"int({length}) unsigned");
         }
 
-        public PropertyBuilder<T> AsDouble<T>(PropertyBuilder<T> builder, bool unsigned)
+        public PropertyBuilder<T> AsUnsignedDouble<T>(PropertyBuilder<T> builder)
         {
-            return builder.HasColumnType($"double{(unsigned ? " unsigned" : string.Empty)}");
+            return builder.HasColumnType("double unsigned");
         }
 
         public PropertyBuilder<T> AsCurrentDateTime<T>(PropertyBuilder<T> builder)

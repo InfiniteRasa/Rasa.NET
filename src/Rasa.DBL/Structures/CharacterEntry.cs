@@ -1,21 +1,22 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Linq;
 
 using Microsoft.EntityFrameworkCore;
 
+using JetBrains.Annotations;
+
 namespace Rasa.Structures
 {
-    using System.Collections.Generic;
-    using System.Linq;
     using Interfaces;
-    using JetBrains.Annotations;
 
     [Table(CharacterEntry.TableName)]
     [Index(nameof(CharacterEntry.AccountId), Name = "character_index_account")]
     public class CharacterEntry : IHasId
     {
-        public const string TableName = "characer";
+        public const string TableName = "character";
 
         [Key]
         [Column("id")]
@@ -25,7 +26,6 @@ namespace Rasa.Structures
         [Required]
         public uint AccountId { get; set; }
 
-        [ForeignKey(nameof(AccountId))]
         public GameAccountEntry GameAccount { get; set; }
 
         [Column("slot")]
@@ -81,19 +81,19 @@ namespace Rasa.Structures
         [Required]
         public uint MapContextId { get; set; }
 
-        [Column("coord_x")]
+        [Column("coord_x", TypeName = "double")]
         [Required]
         public double CoordX { get; set; }
 
-        [Column("coord_y")]
+        [Column("coord_y", TypeName = "double")]
         [Required]
         public double CoordY { get; set; }
 
-        [Column("coord_z")]
+        [Column("coord_z", TypeName = "double")]
         [Required]
         public double CoordZ { get; set; }
 
-        [Column("rotation")]
+        [Column("rotation", TypeName = "double")]
         [Required]
         public double Rotation { get; set; }
 
@@ -112,9 +112,6 @@ namespace Rasa.Structures
         [Column("created_at")]
         [Required]
         public DateTime CreatedAt { get; set; }
-
-        [Column("clan_id")]
-        public uint ClanId { get; set; }
 
         [CanBeNull]
         public ClanMemberEntry MemberOfClan { get; set; }
