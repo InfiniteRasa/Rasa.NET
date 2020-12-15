@@ -2,6 +2,7 @@
 
 namespace Rasa.Managers
 {
+    using System.Collections.Generic;
     using Data;
     using Database.Tables.World;
     using Game;
@@ -110,7 +111,7 @@ namespace Rasa.Managers
                 }
 
                 var appearances = packet.AppearanceData
-                    .Select(appearanceData => appearanceData.Value.GetDatabaseEntry());
+                    .Select(CreateCharacterAppearanceEntry);
                 unitOfWork.CharacterAppearances.Add(characterEntry, appearances);
 
                 if (string.IsNullOrWhiteSpace(client.AccountEntry.FamilyName) || changeFamilyName)
@@ -128,6 +129,12 @@ namespace Rasa.Managers
             SendCharacterInfo(client, packet.SlotNum, characterEntry, false);
         }
 
+        private static CharacterAppearanceEntry CreateCharacterAppearanceEntry(KeyValuePair<EquipmentData, AppearanceData> appearanceData)
+        {
+            //appearanceData.Value.ClassId = ItemTemplateItemClassTable.GetItemClassId(appearanceData.Value.ClassId);
+            return appearanceData.Value.GetDatabaseEntry();
+        }
+
         public void RequestDeleteCharacterInSlot(Client client, RequestDeleteCharacterInSlotPacket packet)
         {
             try
@@ -138,7 +145,7 @@ namespace Rasa.Managers
                     return;
                 }
 
-                using (var unitOfWork = _unitOfWorkFactory.Create<ICharUnitOfWork>())
+                using (var unitOfWork = _unitOfWorkFactory.Create<ICharUnitOfWork>(true))
                 {
                     unitOfWork.Characters.Delete(charactersBySlot.Id);
                 }

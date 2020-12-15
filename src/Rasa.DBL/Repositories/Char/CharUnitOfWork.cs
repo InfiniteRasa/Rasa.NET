@@ -38,7 +38,7 @@ namespace Rasa.Repositories.Char
 
     public interface IUnitOfWorkFactory
     {
-        T Create<T>() where T : IUnitOfWork;
+        T Create<T>(bool autoComplete = false) where T : IUnitOfWork;
     }
 
     public class UnitOfWorkFactory : IUnitOfWorkFactory
@@ -50,11 +50,13 @@ namespace Rasa.Repositories.Char
             _serviceProvider = serviceProvider;
         }
 
-        public T Create<T>()
+        public T Create<T>(bool autoComplete = false)
             where T : IUnitOfWork
         {
             var scope = _serviceProvider.CreateScope();
-            return scope.ServiceProvider.GetService<T>();
+            var unitOfWork = scope.ServiceProvider.GetService<T>();
+            unitOfWork.AutoComplete = autoComplete;
+            return unitOfWork;
         }
     }
 }

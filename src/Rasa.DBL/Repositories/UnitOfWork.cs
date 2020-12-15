@@ -11,6 +11,8 @@ namespace Rasa.Repositories
             _dbContext = dbContext;
         }
 
+        public bool AutoComplete { get; set; }
+
         public void Complete()
         {
             if (_dbContext.ChangeTracker.HasChanges())
@@ -21,11 +23,19 @@ namespace Rasa.Repositories
 
         public void Reject()
         {
-            _dbContext.ChangeTracker.Clear();
+            if (_dbContext.ChangeTracker.HasChanges())
+            {
+                _dbContext.ChangeTracker.Clear();
+            }
         }
 
         public void Dispose()
         {
+            if (AutoComplete)
+            {
+                Complete();
+            }
+            Reject();
             _dbContext.Dispose();
         }
     }
