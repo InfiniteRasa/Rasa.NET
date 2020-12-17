@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Rasa.Repositories.Char.Character
 {
     using Context.Char;
-    using Structures;
+    using Structures.Char;
 
     public class CharacterRepository : ICharacterRepository
     {

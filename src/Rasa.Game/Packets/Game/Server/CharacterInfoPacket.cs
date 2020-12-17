@@ -5,6 +5,7 @@ namespace Rasa.Packets.Game.Server
     using Data;
     using Memory;
     using Structures;
+    using Structures.Char;
 
     public class CharacterInfoPacket : ServerPythonPacket
     {

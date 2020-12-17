@@ -12,10 +12,9 @@ namespace Rasa.Game
     using Networking;
     using Packets;
     using Packets.Protocol;
-    using Repositories;
     using Repositories.Char;
     using Repositories.UnitOfWork;
-    using Structures;
+    using Structures.Char;
 
     public class Client
     {

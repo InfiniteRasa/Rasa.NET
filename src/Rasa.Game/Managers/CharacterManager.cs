@@ -8,10 +8,9 @@ namespace Rasa.Managers
     using Game;
     using Packets.Game.Client;
     using Packets.Game.Server;
-    using Repositories;
-    using Repositories.Char;
     using Repositories.UnitOfWork;
     using Structures;
+    using Structures.Char;
 
     public class CharacterManager : ICharacterManager
     {
