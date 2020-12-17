@@ -5,6 +5,7 @@ using MySql.Data.MySqlClient;
 namespace Rasa.Database.Tables.World
 {
     using Structures;
+    using Structures.World;
 
     public class ItemTemplateItemClassTable
     {

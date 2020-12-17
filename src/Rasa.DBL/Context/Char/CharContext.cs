@@ -8,7 +8,7 @@ namespace Rasa.Context.Char
     using Configuration.ContextSetup;
     using Extensions;
     using Services.DbContext;
-    using Structures;
+    using Structures.Char;
 
     public abstract class CharContext : RasaDbContextBase
     {

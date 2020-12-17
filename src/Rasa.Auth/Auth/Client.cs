@@ -14,6 +14,7 @@ namespace Rasa.Auth
     using Repositories;
     using Repositories.Auth.Account;
     using Structures;
+    using Structures.Auth;
     using Timer;
 
     public class Client

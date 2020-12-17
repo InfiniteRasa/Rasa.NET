@@ -1,6 +1,6 @@
 ﻿using MySql.Data.MySqlClient;
 
-namespace Rasa.Structures
+namespace Rasa.Structures.World
 {
     public class ItemTemplateItemClassEntry
     {
