@@ -16,6 +16,14 @@
       "User": "rasa",
       "Password": "rasa",
       "TimeoutInMilliseconds": 5000
+    },
+    "World": {
+      "Host": "localhost",
+      "Port": 3306,
+      "Database": "rasaworld",
+      "User": "rasa",
+      "Password": "rasa",
+      "TimeoutInMilliseconds": 5000
     }
   }
 }

@@ -1,14 +1,14 @@
 ﻿using Microsoft.Extensions.Options;
 
-namespace Rasa.Context.Char
+namespace Rasa.Context.World
 {
     using Configuration;
     using Configuration.ContextSetup;
     using Services.DbContext;
 
-    public class MySqlCharContext : CharContext
+    public class MySqlWorldContext : WorldContext
     {
-        public MySqlCharContext(IOptions<DatabaseConfiguration> databaseConfiguration,
+        public MySqlWorldContext(IOptions<DatabaseConfiguration> databaseConfiguration,
             IDbContextConfigurationService dbContextConfigurationService,
             IDbContextPropertyModifier dbContextPropertyModifier)
             : base(databaseConfiguration, dbContextConfigurationService, dbContextPropertyModifier)
