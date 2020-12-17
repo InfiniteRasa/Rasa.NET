@@ -10,7 +10,7 @@ using Rasa.Context.Char;
 namespace Rasa.Migrations
 {
     [DbContext(typeof(MySqlCharContext))]
-    [Migration("20201215112758_Initial")]
+    [Migration("20201217152216_Initial")]
     partial class Initial
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
