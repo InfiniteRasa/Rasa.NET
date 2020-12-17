@@ -1,7 +1,8 @@
 ﻿using System;
+
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Rasa.Repositories
+namespace Rasa.Repositories.UnitOfWork
 {
     using Char;
 
@@ -16,15 +17,21 @@ namespace Rasa.Repositories
 
         public ICharUnitOfWork CreateCharUnitOfWork()
         {
-            return Create<ICharUnitOfWork>();
+            var scope = CreateServiceScope();
+            var unitOfWork = Create<ICharUnitOfWork>(scope);
+            return new DelegatingCharUnitOfWork(unitOfWork, scope);
         }
 
-        private T Create<T>()
-            where T : IUnitOfWork
+        private IServiceScope CreateServiceScope()
         {
             var scope = _serviceProvider.CreateScope();
-            var unitOfWork = scope.ServiceProvider.GetService<T>();
-            return unitOfWork;
+            return scope;
+        }
+
+        private T Create<T>(IServiceScope scope)
+            where T : IUnitOfWork
+        {
+            return scope.ServiceProvider.GetService<T>();
         }
     }
 }

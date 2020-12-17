@@ -18,6 +18,7 @@ namespace Rasa
     using Repositories.Char.Character;
     using Repositories.Char.CharacterAppearance;
     using Repositories.Char.GameAccount;
+    using Repositories.UnitOfWork;
 
     public class GameProgram
     {

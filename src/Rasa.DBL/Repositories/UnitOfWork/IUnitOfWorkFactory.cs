@@ -1,4 +1,4 @@
-﻿namespace Rasa.Repositories
+﻿namespace Rasa.Repositories.UnitOfWork
 {
     using Char;
 

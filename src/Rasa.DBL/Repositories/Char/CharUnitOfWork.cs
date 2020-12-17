@@ -6,11 +6,12 @@ namespace Rasa.Repositories.Char
     using CharacterAppearance;
     using Context.Char;
     using GameAccount;
+    using UnitOfWork;
 
     public class CharUnitOfWork : UnitOfWork, ICharUnitOfWork
     {
         [SuppressMessage("ReSharper", "SuggestBaseTypeForParameter", Justification = "Required for DI")]
-        public CharUnitOfWork(CharContext dbContext, 
+        public CharUnitOfWork(CharContext dbContext,
             IGameAccountRepository gameAccounts, 
             ICharacterRepository characters, 
             ICharacterAppearanceRepository characterAppearances) : base(dbContext)

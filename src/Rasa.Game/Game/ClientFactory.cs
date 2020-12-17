@@ -3,7 +3,8 @@
     using Cryptography;
     using Managers;
     using Networking;
-    using Repositories.Char;
+    using Repositories;
+    using Repositories.UnitOfWork;
 
     public class ClientFactory : IClientFactory
     {

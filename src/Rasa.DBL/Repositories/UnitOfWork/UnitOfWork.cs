@@ -1,6 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 
-namespace Rasa.Repositories
+namespace Rasa.Repositories.UnitOfWork
 {
     public abstract class UnitOfWork
     {
