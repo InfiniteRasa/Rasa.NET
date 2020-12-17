@@ -74,7 +74,7 @@ namespace Rasa.Managers
 
             bool changeFamilyName = false;
             
-            using var unitOfWork = _unitOfWorkFactory.CreateCharUnitOfWork();
+            using var unitOfWork = _unitOfWorkFactory.CreateChar();
             CharacterEntry characterEntry;
             // TODO to remove this lock, the family name check and update must be redesigned to be thread safe
             lock (_createLock)
@@ -147,7 +147,7 @@ namespace Rasa.Managers
                     return;
                 }
 
-                using (var unitOfWork = _unitOfWorkFactory.CreateCharUnitOfWork())
+                using (var unitOfWork = _unitOfWorkFactory.CreateChar())
                 {
                     unitOfWork.Characters.Delete(charactersBySlot.Id);
                     unitOfWork.Complete();

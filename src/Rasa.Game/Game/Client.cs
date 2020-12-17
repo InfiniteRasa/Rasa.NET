@@ -182,7 +182,7 @@ namespace Rasa.Game
                         return;
                     }
 
-                    using (var unitOfWork = _unitOfWorkFactory.CreateCharUnitOfWork())
+                    using (var unitOfWork = _unitOfWorkFactory.CreateChar())
                     {
                         unitOfWork.GameAccounts.CreateOrUpdate(loginEntry.Id, loginEntry.Name, loginEntry.Email);
 
@@ -424,7 +424,7 @@ namespace Rasa.Game
                 throw new InvalidOperationException("Client must be initialized by handling a login packet first.");
             }
 
-            using var unitOfWork = _unitOfWorkFactory.CreateCharUnitOfWork();
+            using var unitOfWork = _unitOfWorkFactory.CreateChar();
             LoadGameAccountEntry(unitOfWork, AccountEntry.Id);
         }
 
