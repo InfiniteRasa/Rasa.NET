@@ -1,13 +1,14 @@
-﻿using System.Linq;
+﻿using System.Collections.Generic;
+using System.Linq;
 
 namespace Rasa.Managers
 {
-    using System.Collections.Generic;
     using Data;
     using Database.Tables.World;
     using Game;
     using Packets.Game.Client;
     using Packets.Game.Server;
+    using Repositories;
     using Repositories.Char;
     using Structures;
 
@@ -72,7 +73,7 @@ namespace Rasa.Managers
 
             bool changeFamilyName = false;
             
-            using var unitOfWork = _unitOfWorkFactory.Create<ICharUnitOfWork>();
+            using var unitOfWork = _unitOfWorkFactory.CreateCharUnitOfWork();
             CharacterEntry characterEntry;
             // TODO to remove this lock, the family name check and update must be redesigned to be thread safe
             lock (_createLock)
@@ -145,9 +146,10 @@ namespace Rasa.Managers
                     return;
                 }
 
-                using (var unitOfWork = _unitOfWorkFactory.Create<ICharUnitOfWork>(true))
+                using (var unitOfWork = _unitOfWorkFactory.CreateCharUnitOfWork())
                 {
                     unitOfWork.Characters.Delete(charactersBySlot.Id);
+                    unitOfWork.Complete();
                 }
 
                 client.ReloadGameAccountEntry();

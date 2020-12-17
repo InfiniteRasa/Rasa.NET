@@ -13,6 +13,7 @@ namespace Rasa
     using Hosting;
     using Initialization;
     using Managers;
+    using Repositories;
     using Repositories.Char;
     using Repositories.Char.Character;
     using Repositories.Char.CharacterAppearance;

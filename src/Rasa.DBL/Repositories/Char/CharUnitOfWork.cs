@@ -1,6 +1,4 @@
-﻿using System;
-using System.Diagnostics.CodeAnalysis;
-using Microsoft.Extensions.DependencyInjection;
+﻿using System.Diagnostics.CodeAnalysis;
 
 namespace Rasa.Repositories.Char
 {
@@ -8,13 +6,6 @@ namespace Rasa.Repositories.Char
     using CharacterAppearance;
     using Context.Char;
     using GameAccount;
-
-    public interface ICharUnitOfWork : IUnitOfWork
-    {
-        IGameAccountRepository GameAccounts { get; }
-        ICharacterRepository Characters { get; }
-        ICharacterAppearanceRepository CharacterAppearances { get; }
-    }
 
     public class CharUnitOfWork : UnitOfWork, ICharUnitOfWork
     {
@@ -34,29 +25,5 @@ namespace Rasa.Repositories.Char
         public ICharacterRepository Characters { get; }
 
         public ICharacterAppearanceRepository CharacterAppearances { get; }
-    }
-
-    public interface IUnitOfWorkFactory
-    {
-        T Create<T>(bool autoComplete = false) where T : IUnitOfWork;
-    }
-
-    public class UnitOfWorkFactory : IUnitOfWorkFactory
-    {
-        private readonly IServiceProvider _serviceProvider;
-
-        public UnitOfWorkFactory(IServiceProvider serviceProvider)
-        {
-            _serviceProvider = serviceProvider;
-        }
-
-        public T Create<T>(bool autoComplete = false)
-            where T : IUnitOfWork
-        {
-            var scope = _serviceProvider.CreateScope();
-            var unitOfWork = scope.ServiceProvider.GetService<T>();
-            unitOfWork.AutoComplete = autoComplete;
-            return unitOfWork;
-        }
     }
 }

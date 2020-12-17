@@ -12,6 +12,7 @@ namespace Rasa.Game
     using Networking;
     using Packets;
     using Packets.Protocol;
+    using Repositories;
     using Repositories.Char;
     using Structures;
 
@@ -180,7 +181,7 @@ namespace Rasa.Game
                         return;
                     }
 
-                    using (var unitOfWork = _unitOfWorkFactory.Create<ICharUnitOfWork>())
+                    using (var unitOfWork = _unitOfWorkFactory.CreateCharUnitOfWork())
                     {
                         unitOfWork.GameAccounts.CreateOrUpdate(loginEntry.Id, loginEntry.Name, loginEntry.Email);
 
@@ -422,7 +423,7 @@ namespace Rasa.Game
                 throw new InvalidOperationException("Client must be initialized by handling a login packet first.");
             }
 
-            using var unitOfWork = _unitOfWorkFactory.Create<ICharUnitOfWork>();
+            using var unitOfWork = _unitOfWorkFactory.CreateCharUnitOfWork();
             LoadGameAccountEntry(unitOfWork, AccountEntry.Id);
         }
 
