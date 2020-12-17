@@ -7,7 +7,6 @@ namespace Rasa.Context.Char
     using Configuration.ContextSetup;
     using Extensions;
     using Microsoft.EntityFrameworkCore.Metadata;
-    using Services;
     using Services.DbContext;
     using Structures;
 
