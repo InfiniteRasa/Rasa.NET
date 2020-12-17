@@ -12,7 +12,7 @@ namespace Rasa.Auth
     using Packets.Auth.Client;
     using Packets.Auth.Server;
     using Repositories;
-    using Repositories.AuthAccount;
+    using Repositories.Auth.Account;
     using Structures;
     using Timer;
 

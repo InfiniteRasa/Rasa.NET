@@ -9,6 +9,8 @@ namespace Rasa.Configuration
 
         public DatabaseConnectionConfiguration Auth { get; set; }
 
+        public DatabaseConnectionConfiguration Char { get; set; }
+
         public DatabaseProvider GetDatabaseProvider()
         {
             return ConvertDatabaseProvider(Provider);

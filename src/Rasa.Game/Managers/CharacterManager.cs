@@ -1,42 +1,30 @@
-﻿namespace Rasa.Managers
+﻿using System.Collections.Generic;
+using System.Linq;
+
+namespace Rasa.Managers
 {
     using Data;
-    using Database.Tables.Character;
     using Database.Tables.World;
     using Game;
     using Packets.Game.Client;
     using Packets.Game.Server;
+    using Repositories;
+    using Repositories.Char;
+    using Repositories.UnitOfWork;
     using Structures;
 
-    public class CharacterManager
+    public class CharacterManager : ICharacterManager
     {
         public const uint SelectionPodStartEntityId = 100;
         public const byte MaxSelectionPods = 16;
 
-        private static CharacterManager _instance;
-        private static readonly object InstanceLock = new object();
+        private readonly object _createLock = new object();
 
-        private readonly object CreateLock = new object();
+        private readonly IUnitOfWorkFactory _unitOfWorkFactory;
 
-        public static CharacterManager Instance
+        public CharacterManager(IUnitOfWorkFactory unitOfWorkFactory)
         {
-            get
-            {
-                if (_instance != null)
-                    return _instance;
-
-                lock (InstanceLock)
-                {
-                    if (_instance == null)
-                        _instance = new CharacterManager();
-                }
-
-                return _instance;
-            }
-        }
-
-        private CharacterManager()
-        {
+            _unitOfWorkFactory = unitOfWorkFactory;
         }
 
         public void StartCharacterSelection(Client client)
@@ -44,9 +32,9 @@
             if (client.State != ClientState.LoggedIn)
                 return;
 
-            client.CallMethod(SysEntity.ClientMethodId, new BeginCharacterSelectionPacket(client.AccountEntry.FamilyName, client.AccountEntry.CharacterCount > 0, client.AccountEntry.Id, client.AccountEntry.CanSkipBootcamp));
+            client.CallMethod(SysEntity.ClientMethodId, new BeginCharacterSelectionPacket(client.AccountEntry.FamilyName, client.AccountEntry.Characters.Any(), client.AccountEntry.Id, client.AccountEntry.CanSkipBootcamp));
 
-            var charactersBySlot = CharacterTable.ListCharactersBySlot(client.AccountEntry.Id);
+            var charactersBySlot = client.AccountEntry.GetCharactersWithSlot();
 
             for (byte i = 1; i <= MaxSelectionPods; ++i)
             {
@@ -84,14 +72,16 @@
                 return;
             }
 
-            CharacterEntry entry;
             bool changeFamilyName = false;
-
-            lock (CreateLock)
+            
+            using var unitOfWork = _unitOfWorkFactory.CreateCharUnitOfWork();
+            CharacterEntry characterEntry;
+            // TODO to remove this lock, the family name check and update must be redesigned to be thread safe
+            lock (_createLock)
             {
                 if (!string.IsNullOrWhiteSpace(client.AccountEntry.FamilyName) && packet.FamilyName != client.AccountEntry.FamilyName)
                 {
-                    if (client.AccountEntry.CharacterCount == 0)
+                    if (!client.AccountEntry.Characters.Any())
                     {
                         changeFamilyName = true;
                     }
@@ -104,78 +94,70 @@
 
                 if ((string.IsNullOrWhiteSpace(client.AccountEntry.FamilyName) || packet.FamilyName != client.AccountEntry.FamilyName))
                 {
-                    var familyNameOwnerAccount = GameAccountTable.GetAccountByFamilyName(packet.FamilyName);
-
-                    if (familyNameOwnerAccount != null && client.AccountEntry.Id != familyNameOwnerAccount.Id)
+                    if (!unitOfWork.GameAccounts.CanChangeFamilyName(client.AccountEntry.Id, packet.FamilyName))
                     {
                         SendCharacterCreateFailed(client, CreateCharacterResult.FamilyNameReserved);
                         return;
                     }
-
                 }
 
-                entry = new CharacterEntry
-                {
-                    AccountId = client.AccountEntry.Id,
-                    Slot = packet.SlotNum,
-                    Name = packet.CharacterName,
-                    Race = (byte)packet.RaceId,
-                    Class = 1,
-                    Scale = packet.Scale,
-                    Gender = packet.Gender,
-                    Experience = 0,
-                    Level = 1,
-                    Body = 0,
-                    Mind = 0,
-                    Spirit = 0,
-                    MapContextId = 0,
-                    CoordX = 0,
-                    CoordY = 0,
-                    CoordZ = 0,
-                    Rotation = 0
-                };
-
-                if (!CharacterTable.CreateCharacter(entry))
+                characterEntry = unitOfWork.Characters.Create(client.AccountEntry, packet.SlotNum,
+                    packet.CharacterName,
+                    (byte)packet.RaceId,
+                    packet.Scale,
+                    packet.Gender);
+                if (characterEntry == null)
                 {
                     SendCharacterCreateFailed(client, CreateCharacterResult.TechnicalDifficulty);
                     return;
                 }
 
-                foreach (var data in packet.AppearanceData)
-                {
-                    data.Value.ClassId = ItemTemplateItemClassTable.GetItemClassId(data.Value.ClassId);
-                    CharacterAppearanceTable.AddAppearance(entry.Id, data.Value.GetDatabaseEntry());
-                }
+                var appearances = packet.AppearanceData
+                    .Select(CreateCharacterAppearanceEntry);
+                unitOfWork.CharacterAppearances.Add(characterEntry, appearances);
 
                 if (string.IsNullOrWhiteSpace(client.AccountEntry.FamilyName) || changeFamilyName)
                 {
-                    client.AccountEntry.FamilyName = packet.FamilyName;
-
-                    GameAccountTable.UpdateAccount(client.AccountEntry);
+                    unitOfWork.GameAccounts.UpdateFamilyName(client.AccountEntry.Id, packet.FamilyName);
                 }
             }
 
-            client.CallMethod(SysEntity.ClientMethodId, new CharacterCreateSuccessPacket(packet.SlotNum, packet.FamilyName));
-            ++client.AccountEntry.CharacterCount;
+            unitOfWork.Complete();
 
-            SendCharacterInfo(client, packet.SlotNum, entry, false);
+            client.CallMethod(SysEntity.ClientMethodId, new CharacterCreateSuccessPacket(packet.SlotNum, packet.FamilyName));
+            
+            client.ReloadGameAccountEntry();
+
+            SendCharacterInfo(client, packet.SlotNum, characterEntry, false);
+        }
+
+        private static CharacterAppearanceEntry CreateCharacterAppearanceEntry(KeyValuePair<EquipmentData, AppearanceData> appearanceData)
+        {
+            appearanceData.Value.ClassId = ItemTemplateItemClassTable.GetItemClassId(appearanceData.Value.ClassId);
+            return appearanceData.Value.GetDatabaseEntry();
         }
 
         public void RequestDeleteCharacterInSlot(Client client, RequestDeleteCharacterInSlotPacket packet)
         {
             try
             {
-                var charactersBySlot = CharacterTable.ListCharactersBySlot(client.AccountEntry.Id);
-                if (charactersBySlot.ContainsKey(packet.Slot))
+                var charactersBySlot = client.AccountEntry.GetCharacterBySlot(packet.Slot);
+                if (charactersBySlot == null)
                 {
-                    CharacterTable.DeleteCharacter(charactersBySlot[packet.Slot].Id);
-
-                    client.CallMethod(SysEntity.ClientMethodId, new CharacterDeleteSuccessPacket(--client.AccountEntry.CharacterCount > 0));
-
-                    SendCharacterInfo(client, packet.Slot, null, false);
-
                     return;
                 }
+
+                using (var unitOfWork = _unitOfWorkFactory.CreateCharUnitOfWork())
+                {
+                    unitOfWork.Characters.Delete(charactersBySlot.Id);
+                    unitOfWork.Complete();
+                }
+
+                client.ReloadGameAccountEntry();
+
+                client.CallMethod(SysEntity.ClientMethodId, new CharacterDeleteSuccessPacket(client.AccountEntry.Characters.Any()));
+
+                SendCharacterInfo(client, packet.Slot, null, false);
             }
             catch
             {

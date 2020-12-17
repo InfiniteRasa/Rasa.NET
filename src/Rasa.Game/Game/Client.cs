@@ -6,17 +6,23 @@ namespace Rasa.Game
 {
     using Cryptography;
     using Data;
-    using Database.Tables.Character;
     using Handlers;
     using Managers;
     using Memory;
     using Networking;
     using Packets;
     using Packets.Protocol;
+    using Repositories;
+    using Repositories.Char;
+    using Repositories.UnitOfWork;
     using Structures;
 
     public class Client
     {
+        private readonly IUnitOfWorkFactory _unitOfWorkFactory;
+
+        private readonly ICharacterManager _characterManager;
+
         public const int LengthSize = 2;
 
         public LengthedSocket Socket { get; }
@@ -38,9 +44,16 @@ namespace Rasa.Game
             return PacketRouter.GetPacketType(opcode);
         }
 
-        public Client(LengthedSocket socket, ClientCryptData data, Server server)
+        public Client(LengthedSocket socket,
+            ClientCryptData data, 
+            Server server,
+            IUnitOfWorkFactory unitOfWorkFactory,
+            ICharacterManager characterManager)
         {
-            _handler = new ClientPacketHandler(this);
+            _unitOfWorkFactory = unitOfWorkFactory;
+            _characterManager = characterManager;
+
+            _handler = new ClientPacketHandler(this, _characterManager);
 
             Socket = socket;
             Data = data;
@@ -169,39 +182,41 @@ namespace Rasa.Game
                         return;
                     }
 
-                    GameAccountTable.CreateAccountDataIfNeeded(loginEntry.Id, loginEntry.Name, loginEntry.Email);
-
-                    if (Server.IsBanned(loginMsg.AccountId))
+                    using (var unitOfWork = _unitOfWorkFactory.CreateCharUnitOfWork())
                     {
-                        Logger.WriteLog(LogType.Error, "Client with ip: {0} tried to log in while the account is banned! User Id: {1}", Socket.RemoteAddress, loginMsg.AccountId);
+                        unitOfWork.GameAccounts.CreateOrUpdate(loginEntry.Id, loginEntry.Name, loginEntry.Email);
 
-                        SendMessage(new LoginResponseMessage
+                        if (Server.IsBanned(loginMsg.AccountId))
                         {
-                            ErrorCode = LoginErrorCodes.AccountLocked,
-                            Subtype = LoginResponseMessageSubtype.Failed
-                        }, delay: false);
+                            Logger.WriteLog(LogType.Error, "Client with ip: {0} tried to log in while the account is banned! User Id: {1}", Socket.RemoteAddress, loginMsg.AccountId);
 
-                        return;
-                    }
+                            SendMessage(new LoginResponseMessage
+                            {
+                                ErrorCode = LoginErrorCodes.AccountLocked,
+                                Subtype = LoginResponseMessageSubtype.Failed
+                            }, delay: false);
 
-                    if (Server.IsAlreadyLoggedIn(loginMsg.AccountId))
-                    {
-                        Logger.WriteLog(LogType.Error, "Client with ip: {0} tried to log in while the account is being played on! User Id: {1}", Socket.RemoteAddress, loginMsg.AccountId);
+                            return;
+                        }
 
-                        SendMessage(new LoginResponseMessage
+                        if (Server.IsAlreadyLoggedIn(loginMsg.AccountId))
                         {
-                            ErrorCode = LoginErrorCodes.AlreadyLoggedIn,
-                            Subtype = LoginResponseMessageSubtype.Failed
-                        }, delay: false);
+                            Logger.WriteLog(LogType.Error, "Client with ip: {0} tried to log in while the account is being played on! User Id: {1}", Socket.RemoteAddress, loginMsg.AccountId);
 
-                        return;
+                            SendMessage(new LoginResponseMessage
+                            {
+                                ErrorCode = LoginErrorCodes.AlreadyLoggedIn,
+                                Subtype = LoginResponseMessageSubtype.Failed
+                            }, delay: false);
+
+                            return;
+                        }
+
+                        LoadGameAccountEntry(unitOfWork, loginEntry.Id);
+                        unitOfWork.GameAccounts.UpdateLoginData(loginEntry.Id, Socket.RemoteAddress);
+
+                        unitOfWork.Complete();
                     }
-
-                    AccountEntry = GameAccountTable.GetAccount(loginEntry.Id);
-                    AccountEntry.LastIP = Socket.RemoteAddress.ToString();
-                    AccountEntry.LastLogin = DateTime.Now;
-
-                    GameAccountTable.UpdateAccount(AccountEntry);
 
                     SendMessage(new LoginResponseMessage
                     {
@@ -211,7 +226,7 @@ namespace Rasa.Game
 
                     State = ClientState.LoggedIn;
 
-                    CharacterManager.Instance.StartCharacterSelection(this);
+                    _characterManager.StartCharacterSelection(this);
                     return;
 
                 case ClientMessageOpcode.Move:
@@ -401,5 +416,21 @@ namespace Rasa.Game
             return true;
         }
         #endregion
+
+        public void ReloadGameAccountEntry()
+        {
+            if (AccountEntry == null)
+            {
+                throw new InvalidOperationException("Client must be initialized by handling a login packet first.");
+            }
+
+            using var unitOfWork = _unitOfWorkFactory.CreateCharUnitOfWork();
+            LoadGameAccountEntry(unitOfWork, AccountEntry.Id);
+        }
+
+        private void LoadGameAccountEntry(ICharUnitOfWork unitOfWork, uint id)
+        {
+            AccountEntry = unitOfWork.GameAccounts.Get(id);
+        }
     }
 }

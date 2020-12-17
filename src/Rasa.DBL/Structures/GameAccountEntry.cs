@@ -1,49 +1,70 @@
 ﻿using System;
-
-using MySql.Data.MySqlClient;
+using System.Linq;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Rasa.Structures
 {
-    public class GameAccountEntry
+    using Interfaces;
+    using JetBrains.Annotations;
+
+    [Table(GameAccountEntry.TableName)]
+    public class GameAccountEntry : IHasId
     {
-        public uint Id { get; private set; }
-        public string Email { get; private set; }
-        public string Name { get; private set; }
+        public const string TableName = "account";
+
+        [Key]
+        [Column("id")]
+        public uint Id { get; set; }
+
+        [Column("email", TypeName = "varchar(255)")]
+        [Required]
+        public string Email { get; set; }
+
+        [Column("name", TypeName = "varchar(64)")]
+        [Required]
+        public string Name { get; set; }
+
+        [Column("level")]
+        [Required]
         public byte Level { get; set; }
-        public byte SelectedSlot { get; set; }
+
+        [Column("family_name", TypeName = "varchar(64)")]
+        [Required]
         public string FamilyName { get; set; }
+
+        [Column("selected_slot")]
+        [Required]
+        public byte SelectedSlot { get; set; }
+
+        [Column("can_skip_bootcamp", TypeName = "bit")]
+        [Required]
         public bool CanSkipBootcamp { get; set; }
-        public string LastIP { get; set; }
+
+        [Column("last_ip", TypeName = "varchar(15)")]
+        [Required]
+        public string LastIp { get; set; }
+
+        [Column("last_login")]
+        [Required]
         public DateTime LastLogin { get; set; }
-        public byte CharacterCount { get; set; }
 
-        public static GameAccountEntry Read(MySqlDataReader reader, bool charCount = true)
+        [Column("created_at")]
+        [Required]
+        public DateTime CreatedAt { get; set; }
+
+        public List<CharacterEntry> Characters { get; set; }
+
+        public IDictionary<byte, CharacterEntry> GetCharactersWithSlot()
         {
-            if (!reader.Read())
-                return null;
+            return Characters.ToDictionary(c => c.Slot, c => c);
+        }
 
-            var entry = new GameAccountEntry
-            {
-                Id = reader.GetUInt32("id"),
-                Email = reader.GetString("name"),
-                Name = reader.GetString("name"),
-                Level = reader.GetByte("level"),
-                FamilyName = reader.GetString("family_name"),
-                SelectedSlot = reader.GetByte("selected_slot"),
-                CanSkipBootcamp = reader.GetBoolean("can_skip_bootcamp"),
-                LastIP = reader.GetString("last_ip"),
-                LastLogin = reader.GetDateTime("last_login")
-            };
-
-            if (charCount)
-            {
-                entry.CharacterCount = (byte)reader.GetInt64("character_count");
-            }
-
-            if (string.IsNullOrWhiteSpace(entry.FamilyName))
-                entry.FamilyName = null;
-
-            return entry;
+        [CanBeNull]
+        public CharacterEntry GetCharacterBySlot(byte slot)
+        {
+            return Characters.FirstOrDefault(e => e.Slot == slot);
         }
     }
 }

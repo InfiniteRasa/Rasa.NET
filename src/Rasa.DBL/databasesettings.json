@@ -8,6 +8,14 @@
       "User": "rasa",
       "Password": "rasa",
       "TimeoutInMilliseconds": 5000
+    },
+    "Char": {
+      "Host": "localhost",
+      "Port": 3306,
+      "Database": "rasachar",
+      "User": "rasa",
+      "Password": "rasa",
+      "TimeoutInMilliseconds": 5000
     }
   }
 }

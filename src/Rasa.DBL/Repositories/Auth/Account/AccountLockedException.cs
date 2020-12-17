@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Rasa.Repositories.AuthAccount
+namespace Rasa.Repositories.Auth.Account
 {
     using Structures;
 
