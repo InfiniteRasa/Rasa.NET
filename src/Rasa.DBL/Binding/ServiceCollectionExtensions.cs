@@ -1,5 +1,6 @@
 ﻿using System;
 
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -8,10 +9,19 @@ namespace Rasa.Binding
     using Configuration;
     using Configuration.ConnectionStrings;
     using Configuration.ContextSetup;
-    using Services;
+    using Context;
+    using Services.DbContext;
 
     public static class ServiceCollectionExtensions
     {
+        public static void RegisterDbContextFactory<TContext, TContextImplementation>(this IServiceCollection services) 
+            where TContext : RasaDbContextBase
+            where TContextImplementation : TContext
+        {
+            services.AddDbContextFactory<TContextImplementation>();
+            services.AddScoped<TContext>(ctx => ctx.GetService<IDbContextFactory<TContextImplementation>>().CreateDbContext());
+        }
+
         public static DatabaseProvider AddDatabaseProviderSpecificBindings(this IServiceCollection services, IConfigurationSection databaseConfigurationSection)
         {
             services.Configure<DatabaseConfiguration>(databaseConfigurationSection);

@@ -3,7 +3,6 @@
 namespace Rasa.Packets.Game.Server
 {
     using Data;
-    using Database.Tables.Character;
     using Memory;
     using Structures;
 
@@ -40,14 +39,15 @@ namespace Rasa.Packets.Game.Server
                 BodyData = new BodyData(Entry);
                 LoginData = new LoginData(Entry);
 
-                foreach (var appearanceEntry in CharacterAppearanceTable.GetAppearances(entry.Id))
+                foreach (var appearanceEntry in entry.CharacterAppearance)
                 {
-                    var appearanceData = new AppearanceData(appearanceEntry.Value);
-
+                    var appearanceData = new AppearanceData(appearanceEntry);
                     AppearanceData.Add(appearanceData.SlotId, appearanceData);
                 }
 
-                var clanEntry = ClanTable.GetClanData(Entry.Id);
+                var clanEntry = (ClanEntry)null; 
+                // TODO readd clan
+                // ClanTable.GetClanData(Entry.Id);
                 if (clanEntry != null)
                     ClanData = new ClanData(clanEntry);
             }

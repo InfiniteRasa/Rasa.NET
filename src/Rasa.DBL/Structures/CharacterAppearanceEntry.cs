@@ -1,26 +1,24 @@
-﻿using MySql.Data.MySqlClient;
+﻿using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Rasa.Structures
 {
+    [Table(CharacterAppearanceEntry.TableName)]
     public class CharacterAppearanceEntry
     {
+        public const string TableName = "character_appearance";
+
+        [Column("character_id")]
         public uint CharacterId { get; set; }
+
+        [Column("slot")]
         public uint Slot { get; set; }
+
+        public CharacterEntry Character { get; set; }
+
+        [Column("class")]
         public uint Class { get; set; }
+
+        [Column("color")]
         public uint Color { get; set; }
-
-        public static CharacterAppearanceEntry Read(MySqlDataReader reader, bool newReader = true)
-        {
-            if (newReader && !reader.Read())
-                return null;
-
-            return new CharacterAppearanceEntry
-            {
-                CharacterId = reader.GetUInt32("character_id"),
-                Slot = reader.GetUInt32("slot"),
-                Class = reader.GetUInt32("class"),
-                Color = reader.GetUInt32("color")
-            };
-        }
     }
 }

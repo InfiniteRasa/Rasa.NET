@@ -1,7 +1,6 @@
-﻿using System;
-
-namespace Rasa.Repositories.AuthAccount
+﻿namespace Rasa.Repositories.Auth.Account
 {
+    using System;
     using Structures;
 
     public class PasswordCheckFailedException : Exception

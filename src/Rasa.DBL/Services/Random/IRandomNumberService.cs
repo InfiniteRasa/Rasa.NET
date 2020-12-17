@@ -1,4 +1,4 @@
-﻿namespace Rasa.Services
+﻿namespace Rasa.Services.Random
 {
     public interface IRandomNumberService
     {

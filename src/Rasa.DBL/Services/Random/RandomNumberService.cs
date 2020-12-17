@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Security.Cryptography;
 
-namespace Rasa.Services
+namespace Rasa.Services.Random
 {
     public class RandomNumberService : IRandomNumberService, IDisposable
     {

@@ -13,8 +13,9 @@ namespace Rasa
     using Context.Auth;
     using Hosting;
     using Initialization;
-    using Repositories.AuthAccount;
+    using Repositories.Auth.Account;
     using Services;
+    using Services.Random;
 
     public class AuthProgram
     {

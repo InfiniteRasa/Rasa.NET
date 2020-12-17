@@ -17,7 +17,7 @@ namespace Rasa.Auth
     using Networking;
     using Packets.Communicator;
     using Packets.Auth.Server;
-    using Repositories.AuthAccount;
+    using Repositories.Auth.Account;
     using Structures;
     using Threading;
     using Timer;
@@ -63,9 +63,7 @@ namespace Rasa.Auth
             LengthedSocket.InitializeEventArgsPool(Config.SocketAsyncConfig.MaxClients * Config.SocketAsyncConfig.ConcurrentOperationsByClient);
 
             BufferManager.Initialize(Config.SocketAsyncConfig.BufferSize, Config.SocketAsyncConfig.MaxClients, Config.SocketAsyncConfig.ConcurrentOperationsByClient);
-
-            AuthDatabaseAccess.Initialize(Config.DatabaseConnectionString);
-
+            
             CommandProcessor.RegisterCommand("exit", ProcessExitCommand);
             CommandProcessor.RegisterCommand("reload", ProcessReloadCommand);
             CommandProcessor.RegisterCommand("create", ProcessCreateCommand);

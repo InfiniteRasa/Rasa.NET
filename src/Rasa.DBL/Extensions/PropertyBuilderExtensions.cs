@@ -2,7 +2,7 @@
 
 namespace Rasa.Extensions
 {
-    using Services;
+    using Services.DbContext;
 
     public static class PropertyBuilderExtensions
     {
@@ -16,9 +16,19 @@ namespace Rasa.Extensions
             return modifier.AsCurrentDateTime(builder);
         }
 
-        public static PropertyBuilder<T> AsTinyInt<T>(this PropertyBuilder<T> builder, IDbContextPropertyModifier modifier, int length)
+        public static PropertyBuilder<T> AsUnsignedInt<T>(this PropertyBuilder<T> builder, IDbContextPropertyModifier modifier, in int length)
         {
-            return modifier.AsTinyInt(builder, length);
+            return modifier.AsUnsignedInt(builder, length);
+        }
+
+        public static PropertyBuilder<T> AsUnsignedTinyInt<T>(this PropertyBuilder<T> builder, IDbContextPropertyModifier modifier, in int length)
+        {
+            return modifier.AsUnsignedTinyInt(builder, length);
+        }
+
+        public static PropertyBuilder<T> AsUnsignedDouble<T>(this PropertyBuilder<T> builder, IDbContextPropertyModifier modifier)
+        {
+            return modifier.AsUnsignedDouble(builder);
         }
     }
 }

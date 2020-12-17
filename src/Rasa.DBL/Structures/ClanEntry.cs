@@ -1,22 +1,29 @@
-﻿using MySql.Data.MySqlClient;
+﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Rasa.Structures
 {
-    public class ClanEntry
+    using Interfaces;
+
+    [Table(ClanEntry.TableName)]
+    public class ClanEntry : IHasId
     {
+        public const string TableName = "clan";
+
+        [Key]
+        [Column("id")]
         public uint Id { get; set; }
+
+        [Column("name", TypeName = "varchar(100)")]
+        [Required]
         public string Name { get; set; }
 
-        public static ClanEntry Read(MySqlDataReader reader, bool newReader = true)
-        {
-            if (newReader && !reader.Read())
-                return null;
+        [Column("created_at")]
+        [Required]
+        public DateTime CreatedAt { get; set; }
 
-            return new ClanEntry
-            {
-                Id = reader.GetUInt32("id"),
-                Name = reader.GetString("name"),
-            };
-        }
+        public List<ClanMemberEntry> Members { get; set; }
     }
 }

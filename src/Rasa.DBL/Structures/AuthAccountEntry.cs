@@ -6,10 +6,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Rasa.Structures
 {
+    using Interfaces;
+
     [Table(AuthAccountEntry.TableName)]
     [Index(nameof(AuthAccountEntry.Email), IsUnique = true, Name = "email_UNIQUE")]
     [Index(nameof(AuthAccountEntry.Username), IsUnique = true, Name = "username_UNIQUE")]
-    public class AuthAccountEntry
+    public class AuthAccountEntry : IHasId
     {
         public const string TableName = "account";
 
@@ -29,6 +31,7 @@ namespace Rasa.Structures
         [Required]
 
         public string Password { get; set; }
+
         [Column("salt", TypeName = "varchar(40)")]
         [Required]
         public string Salt { get; set; }

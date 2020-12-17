@@ -13,7 +13,6 @@ namespace Rasa.Structures
 
         public AppearanceData()
         {
-
         }
 
         public AppearanceData(CharacterAppearanceEntry entry)
