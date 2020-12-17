@@ -133,7 +133,7 @@ namespace Rasa.Managers
 
         private static CharacterAppearanceEntry CreateCharacterAppearanceEntry(KeyValuePair<EquipmentData, AppearanceData> appearanceData)
         {
-            //appearanceData.Value.ClassId = ItemTemplateItemClassTable.GetItemClassId(appearanceData.Value.ClassId);
+            appearanceData.Value.ClassId = ItemTemplateItemClassTable.GetItemClassId(appearanceData.Value.ClassId);
             return appearanceData.Value.GetDatabaseEntry();
         }
 
