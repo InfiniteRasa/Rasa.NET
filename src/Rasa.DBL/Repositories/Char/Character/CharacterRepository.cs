@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Rasa.Repositories.Char.Character
 {
+    using System.Linq;
     using Context.Char;
     using Structures.Char;
 
@@ -53,13 +54,31 @@ namespace Rasa.Repositories.Char.Character
 
         public CharacterEntry Get(uint id)
         {
+            var query = CreateCharacterQuery();
+            return _charContext.FindEnsuring(query, id);
+        }
+
+        public CharacterEntry GetByAccountId(uint accountEntryId, byte slot)
+        {
+            var query = CreateCharacterQuery();
+            var character = query.FirstOrDefault(e => e.AccountId == accountEntryId && e.Slot == slot);
+            if (character == null)
+            {
+                throw new EntityNotFoundException(nameof(CharacterEntry), $"{nameof(CharacterEntry.AccountId)}.{nameof(CharacterEntry.Slot)}", $"{accountEntryId}-{slot}");
+            }
+            return character;
+        }
+
+        private IQueryable<CharacterEntry> CreateCharacterQuery()
+        {
+
             var query = _charContext.CreateNoTrackingQuery(_charContext.CharacterEntries);
             query = query
                 .Include(e => e.GameAccount)
                 .Include(e => e.CharacterAppearance)
                 .Include(e => e.MemberOfClan)
                 .ThenInclude(e => e.Clan);
-            return _charContext.FindEnsuring(query, id);
+            return query;
         }
 
         public void Delete(uint id)

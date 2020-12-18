@@ -7,11 +7,14 @@
 
     public partial class ClientPacketHandler
     {
+        private readonly ICharacterManager _characterManager;
+
         public Client Client { get; }
 
-        public ClientPacketHandler(Client client)
+        public ClientPacketHandler(Client client, ICharacterManager characterManager)
         {
             Client = client;
+            _characterManager = characterManager;
         }
 
         [PacketHandler(GameOpcode.AcceptPartyInvitesChanged)]

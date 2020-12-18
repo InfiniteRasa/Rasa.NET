@@ -65,5 +65,11 @@ namespace Rasa.Repositories.Char.GameAccount
             entry.LastIp = remoteAddress.ToString();
             entry.LastLogin = DateTime.UtcNow;
         }
+
+        public void UpdateSelectedSlot(uint id, byte selectedSlot)
+        {
+            var entry = _charContext.GetWritableEnsuring(_charContext.GameAccountEntries, id);
+            entry.SelectedSlot = selectedSlot;
+        }
     }
 }

@@ -8,6 +8,8 @@
 
         CharacterEntry Get(uint id);
 
+        CharacterEntry GetByAccountId(uint accountEntryId, byte slot);
+
         void Delete(uint id);
 
         void UpdateLoginData(uint id);

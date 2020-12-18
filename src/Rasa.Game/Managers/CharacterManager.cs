@@ -1,12 +1,12 @@
-﻿using System.Linq;
+﻿using System.Collections.Generic;
+using System.Linq;
+
+using JetBrains.Annotations;
 
 namespace Rasa.Managers
 {
-    using System.Collections.Generic;
     using Data;
     using Game;
-    using JetBrains.Annotations;
-    using Org.BouncyCastle.Crypto.Agreement.JPake;
     using Packets;
     using Packets.Game.Client;
     using Packets.Game.Server;
@@ -199,10 +199,12 @@ namespace Rasa.Managers
             if (packet.SlotNum < 1 || packet.SlotNum > 16)
                 return;
 
-            client.AccountEntry.SelectedSlot = packet.SlotNum;
-            GameAccountTable.UpdateAccount(client.AccountEntry);
+            var unitOfWork = _unitOfWorkFactory.CreateChar();
+            client.AccountEntry.SelectedSlot = (byte)packet.SlotNum;
+            unitOfWork.GameAccounts.UpdateSelectedSlot(client.AccountEntry.Id, (byte)packet.SlotNum);
 
-            var character = CharacterTable.GetCharacter(client.AccountEntry.Id, packet.SlotNum);
+            var character = unitOfWork.Characters.GetByAccountId(client.AccountEntry.Id, (byte)packet.SlotNum);
+            unitOfWork.Complete();
 
             client.MapClient = new MapClient
             {
