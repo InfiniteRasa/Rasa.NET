@@ -20,7 +20,6 @@ namespace Rasa
     using Repositories.Char.GameAccount;
     using Repositories.UnitOfWork;
     using Repositories.World;
-    using Services.Sql;
 
     public class GameProgram
     {

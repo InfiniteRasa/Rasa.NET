@@ -1,14 +1,13 @@
-﻿using System.Collections.Generic;
-using System.Linq;
+﻿using System.Linq;
 
 namespace Rasa.Managers
 {
     using Data;
-    using Database.Tables.World;
     using Game;
     using Packets.Game.Client;
     using Packets.Game.Server;
     using Repositories.UnitOfWork;
+    using Repositories.World;
     using Structures;
     using Structures.Char;
 
@@ -48,17 +47,21 @@ namespace Rasa.Managers
 
         public void RequestCharacterName(Client client, int gender)
         {
+            using var unitOfWork = _unitOfWorkFactory.CreateWorld();
+            var name = unitOfWork.RandomNameRepository.GetFirstName((Gender)gender);
             client.CallMethod(SysEntity.ClientMethodId, new GeneratedCharacterNamePacket
             {
-                Name = PlayerRandomNameTable.GetRandom((PlayerRandomNameTable.Gender)gender, PlayerRandomNameTable.NameType.First) ?? (gender == 0 ? "Richard" : "Rachel")
+                Name = name
             });
         }
 
         public void RequestFamilyName(Client client)
         {
+            using var unitOfWork = _unitOfWorkFactory.CreateWorld();
+            var name = unitOfWork.RandomNameRepository.GetLastName();
             client.CallMethod(SysEntity.ClientMethodId, new GeneratedFamilyNamePacket
             {
-                Name = PlayerRandomNameTable.GetRandom(PlayerRandomNameTable.Gender.Neutral, PlayerRandomNameTable.NameType.Last) ?? "Garriott"
+                Name = name
             });
         }
 
@@ -111,8 +114,10 @@ namespace Rasa.Managers
                     return;
                 }
 
+                using var worldUnitOfWork = _unitOfWorkFactory.CreateWorld();
                 var appearances = packet.AppearanceData
-                    .Select(CreateCharacterAppearanceEntry);
+                    .Select(appearanceData => CreateCharacterAppearanceEntry(appearanceData.Value, worldUnitOfWork))
+                    .ToList();
                 unitOfWork.CharacterAppearances.Add(characterEntry, appearances);
 
                 if (string.IsNullOrWhiteSpace(client.AccountEntry.FamilyName) || changeFamilyName)
@@ -130,10 +135,11 @@ namespace Rasa.Managers
             SendCharacterInfo(client, packet.SlotNum, characterEntry, false);
         }
 
-        private static CharacterAppearanceEntry CreateCharacterAppearanceEntry(KeyValuePair<EquipmentData, AppearanceData> appearanceData)
+        private static CharacterAppearanceEntry CreateCharacterAppearanceEntry(AppearanceData appearanceData, IWorldUnitOfWork unitOfWork)
         {
-            appearanceData.Value.ClassId = ItemTemplateItemClassTable.GetItemClassId(appearanceData.Value.ClassId);
-            return appearanceData.Value.GetDatabaseEntry();
+            var databaseEntry = appearanceData.GetDatabaseEntry();
+            databaseEntry.Class = unitOfWork.ItemTemplateItemClassRepository.GetItemClass(appearanceData.ClassId);
+            return databaseEntry;
         }
 
         public void RequestDeleteCharacterInSlot(Client client, RequestDeleteCharacterInSlotPacket packet)
