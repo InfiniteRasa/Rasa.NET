@@ -91,12 +91,10 @@ namespace Rasa
                 case DatabaseProvider.MySql:
                     services.RegisterDbContextFactory<CharContext, MySqlCharContext>();
                     services.RegisterDbContextFactory<WorldContext, MySqlWorldContext>();
-                    services.AddSingleton<ISqlLanguageProvider, MySqlLanguageProvider>();
                     break;
                 case DatabaseProvider.Sqlite:
                     services.RegisterDbContextFactory<CharContext, SqliteCharContext>();
                     services.RegisterDbContextFactory<WorldContext, SqliteWorldContext>();
-                    services.AddSingleton<ISqlLanguageProvider, SqliteLanguageProvider>();
                     services.AddSingleton<IInitializable>(ctx => ctx.GetService<CharContext>());
                     services.AddSingleton<IInitializable>(ctx => ctx.GetService<WorldContext>());
                     break;
