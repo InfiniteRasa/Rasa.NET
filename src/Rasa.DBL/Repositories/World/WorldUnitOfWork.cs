@@ -1,12 +1,14 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using System.Diagnostics.CodeAnalysis;
 
 namespace Rasa.Repositories.World
 {
+    using Context.World;
     using UnitOfWork;
 
     public class WorldUnitOfWork : UnitOfWork, IWorldUnitOfWork
     {
-        public WorldUnitOfWork(DbContext dbContext,
+        [SuppressMessage("ReSharper", "SuggestBaseTypeForParameter", Justification = "Required for DI")]
+        public WorldUnitOfWork(WorldContext dbContext,
             IItemTemplateItemClassRepository itemTemplateItemClassRepository,
             IPlayerRandomNameRepository randomNameRepository)
                 : base(dbContext)

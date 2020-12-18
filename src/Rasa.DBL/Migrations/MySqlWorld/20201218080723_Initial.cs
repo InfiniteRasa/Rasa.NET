@@ -1,7 +1,10 @@
 ﻿using Microsoft.EntityFrameworkCore.Migrations;
 
+using JetBrains.Annotations;
+
 namespace Rasa.Migrations.MySqlWorld
 {
+    [UsedImplicitly]
     public partial class Initial : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)
