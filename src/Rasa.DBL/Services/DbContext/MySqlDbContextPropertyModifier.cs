@@ -7,7 +7,7 @@ namespace Rasa.Services.DbContext
     {
         public PropertyBuilder<T> AsIdColumn<T>(PropertyBuilder<T> builder)
         {
-            return builder.HasColumnType("int(11) unsigned");
+            return AsUnsignedInt(builder, 11);
         }
 
         public PropertyBuilder<T> AsUnsignedTinyInt<T>(PropertyBuilder<T> builder, in int length)

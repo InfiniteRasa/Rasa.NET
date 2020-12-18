@@ -14,7 +14,7 @@ namespace Rasa.Context.World
     {
         public SqliteWorldContext CreateDbContext(string[] args)
         {
-            return CreateDbContext<SqliteWorldContext>(DatabaseProvider.MySql);
+            return CreateDbContext<SqliteWorldContext>(DatabaseProvider.Sqlite);
         }
     }
 }
