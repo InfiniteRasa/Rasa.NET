@@ -8,6 +8,11 @@ namespace Rasa.Repositories.Char.Character
 
     public class CharacterRepository : ICharacterRepository
     {
+        private const uint DefaultMapContextId = 1220;
+        private const double DefaultCoordX = 894.9d;
+        private const double DefaultCoordY = 307.9d;
+        private const double DefaultCoordZ = 347.1d;
+
         private readonly CharContext _charContext;
 
         public CharacterRepository(CharContext charContext)
@@ -24,7 +29,12 @@ namespace Rasa.Repositories.Char.Character
                 Name = characterName,
                 Race = race,
                 Scale = scale,
-                Gender = gender
+                Gender = gender,
+                MapContextId = DefaultMapContextId,
+                CoordX = DefaultCoordX,
+                CoordY = DefaultCoordY,
+                CoordZ = DefaultCoordZ,
+                Rotation = 0
             };
 
             try
