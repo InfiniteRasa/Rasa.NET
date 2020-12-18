@@ -192,9 +192,9 @@ As we use code first approach, **do not** change the generated migration or mode
 -- `[Required]` makes a column "not null"
 - If no annotation exists for your use case but the changes work for MySql and Sqlite, use the OnModelCreating method in the corresponding abstract base DbContext (AuthContext). Examples:
 -- `.HasDefaultValue(<some value>)` sets a default value for a column
-- If the change of the model needs to distinguish between MySql and Sqlite, put it in the OnModelCreating methods of the corresponding derived DbContexts (MySqlAuthContext, SqliteAuthContext). Examples:
--- `.HasDefaultValueSql("CURRENT_TIMESTAMP")` sets a datetime column to use the time of insert as a default value for MySql
--- `.HasDefaultValueSql("date('now'")` sets a datetime column to use the time of insert as a default value for Sqlite
+- If the change of the model needs to distinguish between MySql and Sqlite, try to move them to the database provider specific implementations of **IDbContextPropertyModifier** 
+
+- If that does not work, put it in the OnModelCreating methods of the corresponding derived DbContexts (MySqlAuthContext, SqliteAuthContext, MySqlCharContext, SqliteCharContext, MySqlWorldContext, SqliteWorldContext).
 
 ## Launch the game
 If the server consoles launched correctly, you should be ready to start the game client.
