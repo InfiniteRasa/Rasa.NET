@@ -38,12 +38,17 @@ namespace Rasa.Managers
 
             var charactersBySlot = client.AccountEntry.GetCharactersWithSlot();
 
+            using var unitOfWork = _unitOfWorkFactory.CreateChar();
+
             for (byte i = 1; i <= MaxSelectionPods; ++i)
             {
+                CharacterEntry fullCharacter = null;
                 if (charactersBySlot.ContainsKey(i))
-                    SendCharacterInfo(client, i, charactersBySlot[i], true);
-                else
-                    SendCharacterInfo(client, i, null, true);
+                {
+                    var characterId = charactersBySlot[i].Id;
+                    fullCharacter = unitOfWork.Characters.Get(characterId);
+                }
+                SendCharacterInfo(client, i, fullCharacter, true);
             }
 
             client.State = ClientState.CharacterSelection;
