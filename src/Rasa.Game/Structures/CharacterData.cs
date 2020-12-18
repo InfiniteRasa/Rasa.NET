@@ -7,7 +7,7 @@
     public class CharacterData : IPythonDataStruct
     {
         public string Name { get; set; }
-        public int Pos { get; set; }
+        public uint MapContextId { get; set; } // called "Pos" in client
         public uint ExpPoints { get; set; }
         public byte ExpLevel { get; set; }
         public uint Body { get; set; }
@@ -20,6 +20,7 @@
         public CharacterData(CharacterEntry entry)
         {
             Name = entry.Name;
+            MapContextId = entry.MapContextId;
             ExpPoints = entry.Experience;
             ExpLevel = entry.Level;
             Body = entry.Body;
@@ -34,7 +35,7 @@
         {
             pr.ReadTuple();
             Name = pr.ReadUnicodeString();
-            Pos = pr.ReadInt();
+            MapContextId = pr.ReadUInt();
             ExpPoints = pr.ReadUInt();
             ExpLevel = (byte) pr.ReadInt();
             Body = pr.ReadUInt();
@@ -49,7 +50,7 @@
         {
             pw.WriteTuple(10);
             pw.WriteUnicodeString(Name);
-            pw.WriteInt(Pos);
+            pw.WriteUInt(MapContextId);
             pw.WriteUInt(ExpPoints);
             pw.WriteInt(ExpLevel);
             pw.WriteUInt(Body);
