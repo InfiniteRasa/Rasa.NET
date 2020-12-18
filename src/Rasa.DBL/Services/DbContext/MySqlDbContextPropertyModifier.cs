@@ -20,6 +20,11 @@ namespace Rasa.Services.DbContext
             return builder.HasColumnType($"int({length}) unsigned");
         }
 
+        public PropertyBuilder<T> AsUnsignedBigInt<T>(PropertyBuilder<T> builder, in int length)
+        {
+            return builder.HasColumnType($"bigint({length}) unsigned");
+        }
+
         public PropertyBuilder<T> AsUnsignedDouble<T>(PropertyBuilder<T> builder)
         {
             return builder.HasColumnType("double unsigned");

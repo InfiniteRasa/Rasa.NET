@@ -21,21 +21,7 @@ namespace Rasa.Database.Tables.World
             GetItemTemplateItemClassCommand.Connection = GameDatabaseAccess.WorldConnection;
             GetItemTemplateItemClassCommand.Prepare();
         }
-
-        public static List<ItemTemplateItemClassEntry> GetItemTemplateItemClass()
-        {
-            lock (GameDatabaseAccess.WorldLock)
-            {
-                var itemTemplateItemClass = new List<ItemTemplateItemClassEntry>();
-
-                using (var reader = GetItemTemplateItemClassCommand.ExecuteReader())
-                    while (reader.Read())
-                        itemTemplateItemClass.Add(ItemTemplateItemClassEntry.Read(reader));
-
-                return itemTemplateItemClass;
-            }
-        }
-
+        
         public static uint GetItemClassId(uint id)
         {
             lock (GameDatabaseAccess.WorldLock)

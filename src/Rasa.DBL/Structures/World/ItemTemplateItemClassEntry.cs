@@ -1,19 +1,20 @@
-﻿using MySql.Data.MySqlClient;
+﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Rasa.Structures.World
 {
+    [Table(TableName)]
     public class ItemTemplateItemClassEntry
     {
-        public uint ItemTemplateId { get; set; }
-        public uint ItemClass { get; set; }
+        public const string TableName = "itemtemplate_itemclass";
 
-        public static ItemTemplateItemClassEntry Read(MySqlDataReader reader)
-        {
-            return new ItemTemplateItemClassEntry
-            {
-                ItemTemplateId = reader.GetUInt32("itemTemplateid"),
-                ItemClass = reader.GetUInt32("itemClassId")
-            };
-        }
+        [Key]
+        [Column("itemTemplateId")]
+        [Required]
+        public uint ItemTemplateId { get; set; }
+
+        [Column("itemClassId")]
+        [Required]
+        public uint ItemClass { get; set; }
     }
 }
