@@ -2,6 +2,7 @@
 
 namespace Rasa.Managers
 {
+    using System.Collections.Generic;
     using Data;
     using Game;
     using Packets.Game.Client;
@@ -114,10 +115,7 @@ namespace Rasa.Managers
                     return;
                 }
 
-                using var worldUnitOfWork = _unitOfWorkFactory.CreateWorld();
-                var appearances = packet.AppearanceData
-                    .Select(appearanceData => CreateCharacterAppearanceEntry(appearanceData.Value, worldUnitOfWork))
-                    .ToList();
+                var appearances = CreateCharacterAppearanceEntries(packet);
                 unitOfWork.CharacterAppearances.Add(characterEntry, appearances);
 
                 if (string.IsNullOrWhiteSpace(client.AccountEntry.FamilyName) || changeFamilyName)
@@ -133,6 +131,24 @@ namespace Rasa.Managers
             client.ReloadGameAccountEntry();
 
             SendCharacterInfo(client, packet.SlotNum, characterEntry, false);
+        }
+
+        private IEnumerable<CharacterAppearanceEntry> CreateCharacterAppearanceEntries(RequestCreateCharacterInSlotPacket packet)
+        {
+            var defaultColor = new Color(255, 255, 255).Hue;
+            yield return new CharacterAppearanceEntry((uint)EquipmentData.Shoes, 10000068, defaultColor);
+            yield return new CharacterAppearanceEntry((uint)EquipmentData.Legs, 10000069, defaultColor);
+            yield return new CharacterAppearanceEntry((uint)EquipmentData.Torso, 10000070, defaultColor);
+
+            using var worldUnitOfWork = _unitOfWorkFactory.CreateWorld();
+            var appearancesFromPacket = packet.AppearanceData
+                .Select(appearanceData => CreateCharacterAppearanceEntry(appearanceData.Value, worldUnitOfWork))
+                .ToList();
+
+            foreach (var characterAppearanceEntry in appearancesFromPacket)
+            {
+                yield return characterAppearanceEntry;
+            }
         }
 
         private static CharacterAppearanceEntry CreateCharacterAppearanceEntry(AppearanceData appearanceData, IWorldUnitOfWork unitOfWork)
