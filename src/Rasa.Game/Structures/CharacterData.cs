@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace Rasa.Structures
+﻿namespace Rasa.Structures
 {
     using Char;
     using Data;
