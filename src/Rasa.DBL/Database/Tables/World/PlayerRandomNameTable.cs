@@ -4,18 +4,7 @@ namespace Rasa.Database.Tables.World
 {
     public class PlayerRandomNameTable
     {
-        public enum Gender : byte
-        {
-            Male    = 0,
-            Female  = 1,
-            Neutral = 2
-        }
 
-        public enum NameType : byte
-        {
-            First = 0,
-            Last  = 1
-        }
 
         private static readonly MySqlCommand GetRandomName = new MySqlCommand("SELECT `name` FROM `player_random_name` WHERE `type` = @Type AND `gender` IN (@Neutral, @Gender) ORDER BY RAND() LIMIT 1;");
 
