@@ -2,7 +2,7 @@
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 
-namespace Rasa.Migrations
+namespace Rasa.Migrations.MySqlChar
 {
     public partial class Initial : Migration
     {

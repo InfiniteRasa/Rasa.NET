@@ -2,13 +2,13 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
+using JetBrains.Annotations;
+
 namespace Rasa.Context
 {
-    using System;
     using Configuration;
     using Configuration.ContextSetup;
     using Initialization;
-    using JetBrains.Annotations;
     using Repositories;
     using Structures.Interfaces;
 

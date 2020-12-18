@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 using Microsoft.EntityFrameworkCore;
 
-namespace Rasa.Structures
+namespace Rasa.Structures.Auth
 {
     using Interfaces;
 

@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.Extensions.Options;
 
 namespace Rasa.Context.Char
@@ -6,9 +7,8 @@ namespace Rasa.Context.Char
     using Configuration;
     using Configuration.ContextSetup;
     using Extensions;
-    using Microsoft.EntityFrameworkCore.Metadata;
     using Services.DbContext;
-    using Structures;
+    using Structures.Char;
 
     public abstract class CharContext : RasaDbContextBase
     {

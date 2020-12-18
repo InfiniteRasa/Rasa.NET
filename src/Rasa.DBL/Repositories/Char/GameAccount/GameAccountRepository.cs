@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Rasa.Repositories.Char.GameAccount
 {
     using Context.Char;
-    using Structures;
+    using Structures.Char;
 
     public class GameAccountRepository : IGameAccountRepository
     {

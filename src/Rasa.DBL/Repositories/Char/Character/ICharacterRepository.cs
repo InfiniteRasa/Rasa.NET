@@ -1,6 +1,6 @@
 ﻿namespace Rasa.Repositories.Char.Character
 {
-    using Structures;
+    using Structures.Char;
 
     public interface ICharacterRepository
     {

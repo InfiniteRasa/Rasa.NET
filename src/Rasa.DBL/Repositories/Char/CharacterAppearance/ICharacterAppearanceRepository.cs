@@ -2,7 +2,7 @@
 
 namespace Rasa.Repositories.Char.CharacterAppearance
 {
-    using Structures;
+    using Structures.Char;
 
     public interface ICharacterAppearanceRepository
     {
