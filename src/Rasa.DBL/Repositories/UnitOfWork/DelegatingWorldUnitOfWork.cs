@@ -12,5 +12,9 @@ namespace Rasa.Repositories.UnitOfWork
         {
             _parent = parent;
         }
+
+        public IItemTemplateItemClassRepository ItemTemplateItemClassRepository => _parent.ItemTemplateItemClassRepository;
+
+        public IPlayerRandomNameRepository RandomNameRepository => _parent.RandomNameRepository;
     }
 }

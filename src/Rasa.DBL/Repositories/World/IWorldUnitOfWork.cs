@@ -4,5 +4,8 @@
 
     public interface IWorldUnitOfWork : IUnitOfWork
     {
+        IItemTemplateItemClassRepository ItemTemplateItemClassRepository { get; }
+
+        IPlayerRandomNameRepository RandomNameRepository { get; }
     }
 }

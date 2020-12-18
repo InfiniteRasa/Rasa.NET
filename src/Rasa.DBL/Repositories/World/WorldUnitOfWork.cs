@@ -6,8 +6,17 @@ namespace Rasa.Repositories.World
 
     public class WorldUnitOfWork : UnitOfWork, IWorldUnitOfWork
     {
-        public WorldUnitOfWork(DbContext dbContext) : base(dbContext)
+        public WorldUnitOfWork(DbContext dbContext,
+            IItemTemplateItemClassRepository itemTemplateItemClassRepository,
+            IPlayerRandomNameRepository randomNameRepository)
+                : base(dbContext)
         {
+            ItemTemplateItemClassRepository = itemTemplateItemClassRepository;
+            RandomNameRepository = randomNameRepository;
         }
+
+        public IItemTemplateItemClassRepository ItemTemplateItemClassRepository { get; }
+
+        public IPlayerRandomNameRepository RandomNameRepository { get; }
     }
 }

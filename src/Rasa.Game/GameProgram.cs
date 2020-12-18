@@ -20,6 +20,7 @@ namespace Rasa
     using Repositories.Char.GameAccount;
     using Repositories.UnitOfWork;
     using Repositories.World;
+    using Services.Sql;
 
     public class GameProgram
     {
@@ -61,15 +62,20 @@ namespace Rasa
             AddDatabase(context, services);
 
             services.AddSingleton<IUnitOfWorkFactory, UnitOfWorkFactory>();
-            services.AddScoped<ICharUnitOfWork, CharUnitOfWork>();
-            services.AddScoped<IWorldUnitOfWork, WorldUnitOfWork>();
             
             services.AddSingleton<IClientFactory, ClientFactory>();
             services.AddSingleton<ICharacterManager, CharacterManager>();
 
+            // Char
+            services.AddScoped<ICharUnitOfWork, CharUnitOfWork>();
             services.AddScoped<IGameAccountRepository, GameAccountRepository>();
             services.AddScoped<ICharacterRepository, CharacterRepository>();
             services.AddScoped<ICharacterAppearanceRepository, CharacterAppearanceRepository>();
+
+            // World
+            services.AddScoped<IWorldUnitOfWork, WorldUnitOfWork>();
+            services.AddScoped<IItemTemplateItemClassRepository, ItemTemplateItemClassRepository>();
+            services.AddScoped<IPlayerRandomNameRepository, PlayerRandomNameRepository>();
         }
 
         private static void AddDatabase(HostBuilderContext context, IServiceCollection services)
@@ -85,10 +91,12 @@ namespace Rasa
                 case DatabaseProvider.MySql:
                     services.RegisterDbContextFactory<CharContext, MySqlCharContext>();
                     services.RegisterDbContextFactory<WorldContext, MySqlWorldContext>();
+                    services.AddSingleton<ISqlLanguageProvider, MySqlLanguageProvider>();
                     break;
                 case DatabaseProvider.Sqlite:
                     services.RegisterDbContextFactory<CharContext, SqliteCharContext>();
                     services.RegisterDbContextFactory<WorldContext, SqliteWorldContext>();
+                    services.AddSingleton<ISqlLanguageProvider, SqliteLanguageProvider>();
                     services.AddSingleton<IInitializable>(ctx => ctx.GetService<CharContext>());
                     services.AddSingleton<IInitializable>(ctx => ctx.GetService<WorldContext>());
                     break;
