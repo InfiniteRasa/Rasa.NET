@@ -26,6 +26,11 @@ namespace Rasa.Extensions
             return modifier.AsUnsignedTinyInt(builder, length);
         }
 
+        public static PropertyBuilder<T> AsUnsignedBigInt<T>(this PropertyBuilder<T> builder, IDbContextPropertyModifier modifier, in int length)
+        {
+            return modifier.AsUnsignedBigInt(builder, length);
+        }
+
         public static PropertyBuilder<T> AsUnsignedDouble<T>(this PropertyBuilder<T> builder, IDbContextPropertyModifier modifier)
         {
             return modifier.AsUnsignedDouble(builder);

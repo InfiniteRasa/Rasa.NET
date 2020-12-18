@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 using Microsoft.EntityFrameworkCore;
 
-namespace Rasa.Structures
+namespace Rasa.Structures.Char
 {
     [Table(ClanMemberEntry.TableName)]
     [Index(nameof(ClanMemberEntry.CharacterId), IsUnique = true, Name = "clan_member_index_character")]

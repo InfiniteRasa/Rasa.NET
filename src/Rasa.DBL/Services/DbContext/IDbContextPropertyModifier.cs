@@ -12,6 +12,8 @@ namespace Rasa.Services.DbContext
 
         PropertyBuilder<T> AsUnsignedInt<T>(PropertyBuilder<T> builder, in int length);
 
+        PropertyBuilder<T> AsUnsignedBigInt<T>(PropertyBuilder<T> builder, in int length);
+
         PropertyBuilder<T> AsUnsignedDouble<T>(PropertyBuilder<T> builder);
     }
 }

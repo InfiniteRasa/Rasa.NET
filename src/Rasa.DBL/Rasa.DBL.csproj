@@ -30,6 +30,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="databasesettings.env.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="databasesettings.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

@@ -5,7 +5,7 @@ namespace Rasa.Repositories.Char.CharacterAppearance
     using System;
     using System.Linq;
     using Context.Char;
-    using Structures;
+    using Structures.Char;
 
     public class CharacterAppearanceRepository : ICharacterAppearanceRepository
     {

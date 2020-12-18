@@ -2,6 +2,7 @@
 
 namespace Rasa.Structures
 {
+    using Char;
     using Data;
     using Memory;
 

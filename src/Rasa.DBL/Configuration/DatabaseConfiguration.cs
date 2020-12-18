@@ -11,6 +11,8 @@ namespace Rasa.Configuration
 
         public DatabaseConnectionConfiguration Char { get; set; }
 
+        public DatabaseConnectionConfiguration World { get; set; }
+
         public DatabaseProvider GetDatabaseProvider()
         {
             return ConvertDatabaseProvider(Provider);

@@ -2,7 +2,7 @@
 
 namespace Rasa.Repositories.Char.GameAccount
 {
-    using Structures;
+    using Structures.Char;
 
     public interface IGameAccountRepository
     {

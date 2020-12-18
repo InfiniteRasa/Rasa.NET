@@ -10,7 +10,6 @@ namespace Rasa.Game
     using Commands;
     using Config;
     using Data;
-    using Database;
     using Hosting;
     using Login;
     using Memory;
@@ -64,8 +63,6 @@ namespace Rasa.Game
             LengthedSocket.InitializeEventArgsPool(Config.SocketAsyncConfig.MaxClients * Config.SocketAsyncConfig.ConcurrentOperationsByClient);
 
             BufferManager.Initialize(Config.SocketAsyncConfig.BufferSize, Config.SocketAsyncConfig.MaxClients, Config.SocketAsyncConfig.ConcurrentOperationsByClient);
-
-            GameDatabaseAccess.Initialize(Config.WorldDatabaseConnectionString, Config.CharDatabaseConnectionString);
 
             CommandProcessor.RegisterCommand("exit", ProcessExitCommand);
             CommandProcessor.RegisterCommand("reload", ProcessReloadCommand);

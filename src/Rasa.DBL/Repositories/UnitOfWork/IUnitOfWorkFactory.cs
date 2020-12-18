@@ -1,9 +1,12 @@
 ﻿namespace Rasa.Repositories.UnitOfWork
 {
     using Char;
+    using World;
 
     public interface IUnitOfWorkFactory
     {
-        ICharUnitOfWork CreateCharUnitOfWork();
+        ICharUnitOfWork CreateChar();
+
+        IWorldUnitOfWork CreateWorld();
     }
 }

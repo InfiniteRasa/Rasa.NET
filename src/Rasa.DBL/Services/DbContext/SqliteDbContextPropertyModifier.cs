@@ -22,6 +22,12 @@ namespace Rasa.Services.DbContext
             return builder.HasColumnType($"int({length})");
         }
 
+        public PropertyBuilder<T> AsUnsignedBigInt<T>(PropertyBuilder<T> builder, in int length)
+        {
+            // sqlite doesn't know unsigned
+            return builder.HasColumnType($"bigint({length})");
+        }
+
         public PropertyBuilder<T> AsUnsignedDouble<T>(PropertyBuilder<T> builder)
         {
             // sqlite doesn't know unsigned

@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 using JetBrains.Annotations;
 
-namespace Rasa.Structures
+namespace Rasa.Structures.Char
 {
     using Interfaces;
 

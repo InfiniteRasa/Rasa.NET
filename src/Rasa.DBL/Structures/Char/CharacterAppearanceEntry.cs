@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations.Schema;
 
-namespace Rasa.Structures
+namespace Rasa.Structures.Char
 {
     [Table(CharacterAppearanceEntry.TableName)]
     public class CharacterAppearanceEntry

@@ -2,6 +2,7 @@
 {
     using System;
     using Structures;
+    using Structures.Auth;
 
     public class PasswordCheckFailedException : Exception
     {

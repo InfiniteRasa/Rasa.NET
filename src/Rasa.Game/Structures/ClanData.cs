@@ -1,5 +1,6 @@
 ﻿namespace Rasa.Structures
 {
+    using Char;
     using Memory;
 
     public class ClanData : IPythonDataStruct

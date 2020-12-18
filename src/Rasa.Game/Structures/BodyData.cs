@@ -1,6 +1,7 @@
 ﻿namespace Rasa.Structures
 {
     using Memory;
+    using Char;
 
     public class BodyData : IPythonDataStruct
     {

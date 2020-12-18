@@ -9,16 +9,17 @@ namespace Rasa
     using Binding;
     using Configuration;
     using Context.Char;
+    using Context.World;
     using Game;
     using Hosting;
     using Initialization;
     using Managers;
-    using Repositories;
     using Repositories.Char;
     using Repositories.Char.Character;
     using Repositories.Char.CharacterAppearance;
     using Repositories.Char.GameAccount;
     using Repositories.UnitOfWork;
+    using Repositories.World;
 
     public class GameProgram
     {
@@ -60,14 +61,20 @@ namespace Rasa
             AddDatabase(context, services);
 
             services.AddSingleton<IUnitOfWorkFactory, UnitOfWorkFactory>();
-            services.AddScoped<ICharUnitOfWork, CharUnitOfWork>();
             
             services.AddSingleton<IClientFactory, ClientFactory>();
             services.AddSingleton<ICharacterManager, CharacterManager>();
 
+            // Char
+            services.AddScoped<ICharUnitOfWork, CharUnitOfWork>();
             services.AddScoped<IGameAccountRepository, GameAccountRepository>();
             services.AddScoped<ICharacterRepository, CharacterRepository>();
             services.AddScoped<ICharacterAppearanceRepository, CharacterAppearanceRepository>();
+
+            // World
+            services.AddScoped<IWorldUnitOfWork, WorldUnitOfWork>();
+            services.AddScoped<IItemTemplateItemClassRepository, ItemTemplateItemClassRepository>();
+            services.AddScoped<IPlayerRandomNameRepository, PlayerRandomNameRepository>();
         }
 
         private static void AddDatabase(HostBuilderContext context, IServiceCollection services)
@@ -82,10 +89,13 @@ namespace Rasa
 
                 case DatabaseProvider.MySql:
                     services.RegisterDbContextFactory<CharContext, MySqlCharContext>();
+                    services.RegisterDbContextFactory<WorldContext, MySqlWorldContext>();
                     break;
                 case DatabaseProvider.Sqlite:
                     services.RegisterDbContextFactory<CharContext, SqliteCharContext>();
+                    services.RegisterDbContextFactory<WorldContext, SqliteWorldContext>();
                     services.AddSingleton<IInitializable>(ctx => ctx.GetService<CharContext>());
+                    services.AddSingleton<IInitializable>(ctx => ctx.GetService<WorldContext>());
                     break;
                 default:
                     throw new ArgumentOutOfRangeException();
