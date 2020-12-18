@@ -5,6 +5,9 @@ namespace Rasa.Managers
     using System.Collections.Generic;
     using Data;
     using Game;
+    using JetBrains.Annotations;
+    using Org.BouncyCastle.Crypto.Agreement.JPake;
+    using Packets;
     using Packets.Game.Client;
     using Packets.Game.Server;
     using Repositories.UnitOfWork;
@@ -191,19 +194,22 @@ namespace Rasa.Managers
             client.CallMethod(SysEntity.ClientMethodId, new UserCreationFailedPacket(result));
         }
 
-        private void SendCharacterInfo(Client client, byte slot, CharacterEntry data, bool sendPodCreate)
+        private void SendCharacterInfo(Client client, byte slot, [CanBeNull] CharacterEntry data, bool sendPodCreate)
         {
-            if (!sendPodCreate)
+            var characterInfo = data == null
+                ? new CharacterInfoPacket(slot, slot == client.AccountEntry.SelectedSlot, client.AccountEntry.FamilyName)
+                : new CharacterInfoPacket(slot, slot == client.AccountEntry.SelectedSlot, client.AccountEntry.FamilyName, data);
+
+            PythonPacket packet = characterInfo;
+
+            if (sendPodCreate)
             {
-                client.CallMethod(SelectionPodStartEntityId + slot, new CharacterInfoPacket(slot, slot == client.AccountEntry.SelectedSlot, client.AccountEntry.FamilyName, data));
-                return;
+                var newEntityPacket = new CreatePhysicalEntityPacket(SelectionPodStartEntityId + slot, EntityClass.CharacterSelectionPod);
+                newEntityPacket.EntityData.Add(characterInfo);
+                packet = newEntityPacket;
             }
 
-            var newEntityPacket = new CreatePhysicalEntityPacket(SelectionPodStartEntityId + slot, EntityClass.CharacterSelectionPod);
-
-            newEntityPacket.EntityData.Add(new CharacterInfoPacket(slot, slot == client.AccountEntry.SelectedSlot, client.AccountEntry.FamilyName, data));
-
-            client.CallMethod(SysEntity.ClientMethodId, newEntityPacket);
+            client.CallMethod(SysEntity.ClientMethodId, packet);
         }
     }
 }
