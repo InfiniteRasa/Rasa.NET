@@ -35,20 +35,18 @@ namespace Rasa.Managers
                 return;
 
             client.CallMethod(SysEntity.ClientMethodId, new BeginCharacterSelectionPacket(client.AccountEntry.FamilyName, client.AccountEntry.Characters.Any(), client.AccountEntry.Id, client.AccountEntry.CanSkipBootcamp));
-
-            var charactersBySlot = client.AccountEntry.GetCharactersWithSlot();
-
+            
             using var unitOfWork = _unitOfWorkFactory.CreateChar();
+            var charactersBySlot = unitOfWork.Characters.GetByAccountId(client.AccountEntry.Id);
 
             for (byte i = 1; i <= MaxSelectionPods; ++i)
             {
-                CharacterEntry fullCharacter = null;
+                CharacterEntry character = null;
                 if (charactersBySlot.ContainsKey(i))
                 {
-                    var characterId = charactersBySlot[i].Id;
-                    fullCharacter = unitOfWork.Characters.Get(characterId);
+                    character = charactersBySlot[i];
                 }
-                SendCharacterInfo(client, i, fullCharacter, true);
+                SendCharacterInfo(client, i, character, true);
             }
 
             client.State = ClientState.CharacterSelection;

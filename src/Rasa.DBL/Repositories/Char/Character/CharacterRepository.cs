@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+
 using Microsoft.EntityFrameworkCore;
 
 namespace Rasa.Repositories.Char.Character
@@ -56,6 +58,13 @@ namespace Rasa.Repositories.Char.Character
         {
             var query = CreateCharacterQuery();
             return _charContext.FindEnsuring(query, id);
+        }
+
+        public IDictionary<byte, CharacterEntry> GetByAccountId(uint accountEntryId)
+        {
+            var query = CreateCharacterQuery();
+            var characters = query.Where(e => e.AccountId == accountEntryId);
+            return characters.ToDictionary(c => c.Slot, c => c);
         }
 
         public CharacterEntry GetByAccountId(uint accountEntryId, byte slot)
