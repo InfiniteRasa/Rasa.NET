@@ -46,7 +46,7 @@ namespace Rasa.Managers
                 {
                     character = charactersBySlot[i];
                 }
-                SendCharacterInfo(client, i, character, true);
+                SendCharacterInfoProdCreate(client, i, character);
             }
 
             client.State = ClientState.CharacterSelection;
@@ -136,7 +136,7 @@ namespace Rasa.Managers
             
             client.ReloadGameAccountEntry();
 
-            SendCharacterInfo(client, packet.SlotNum, characterEntry, false);
+            SendCharacterInfo(client, packet.SlotNum, characterEntry);
         }
 
         private IEnumerable<CharacterAppearanceEntry> CreateCharacterAppearanceEntries(RequestCreateCharacterInSlotPacket packet)
@@ -185,7 +185,7 @@ namespace Rasa.Managers
 
                 client.CallMethod(SysEntity.ClientMethodId, new CharacterDeleteSuccessPacket(client.AccountEntry.Characters.Any()));
 
-                SendCharacterInfo(client, packet.Slot, null, false);
+                SendCharacterInfo(client, packet.Slot, null);
             }
             catch
             {
@@ -218,22 +218,30 @@ namespace Rasa.Managers
             client.CallMethod(SysEntity.ClientMethodId, new UserCreationFailedPacket(result));
         }
 
-        private void SendCharacterInfo(Client client, byte slot, [CanBeNull] CharacterEntry data, bool sendPodCreate)
+        private void SendCharacterInfoProdCreate(Client client, byte slot, [CanBeNull] CharacterEntry data)
+        {
+            var newEntityPacket = new CreatePhysicalEntityPacket(SelectionPodStartEntityId + slot, EntityClass.CharacterSelectionPod);
+
+            var characterInfo = CreateCharacterInfoPacket(client, slot, data);
+
+            newEntityPacket.EntityData.Add(characterInfo);
+
+            client.CallMethod(SysEntity.ClientMethodId, newEntityPacket);
+        }
+
+        private void SendCharacterInfo(Client client, byte slot, [CanBeNull] CharacterEntry data)
+        {
+            var characterInfo = CreateCharacterInfoPacket(client, slot, data);
+
+            client.CallMethod(SelectionPodStartEntityId + slot, characterInfo);
+        }
+
+        private static CharacterInfoPacket CreateCharacterInfoPacket(Client client, byte slot, CharacterEntry data)
         {
             var characterInfo = data == null
                 ? new CharacterInfoPacket(slot, slot == client.AccountEntry.SelectedSlot, client.AccountEntry.FamilyName)
                 : new CharacterInfoPacket(slot, slot == client.AccountEntry.SelectedSlot, client.AccountEntry.FamilyName, data);
-
-            PythonPacket packet = characterInfo;
-
-            if (sendPodCreate)
-            {
-                var newEntityPacket = new CreatePhysicalEntityPacket(SelectionPodStartEntityId + slot, EntityClass.CharacterSelectionPod);
-                newEntityPacket.EntityData.Add(characterInfo);
-                packet = newEntityPacket;
-            }
-
-            client.CallMethod(SysEntity.ClientMethodId, packet);
+            return characterInfo;
         }
     }
 }
