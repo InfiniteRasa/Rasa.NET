@@ -141,10 +141,11 @@ namespace Rasa.Managers
 
         private IEnumerable<CharacterAppearanceEntry> CreateCharacterAppearanceEntries(RequestCreateCharacterInSlotPacket packet)
         {
-            var defaultColor = new Color(255, 255, 255).Hue;
-            yield return new CharacterAppearanceEntry((uint)EquipmentData.Shoes, 10000068, defaultColor);
-            yield return new CharacterAppearanceEntry((uint)EquipmentData.Legs, 10000069, defaultColor);
-            yield return new CharacterAppearanceEntry((uint)EquipmentData.Torso, 10000070, defaultColor);
+            yield return new CharacterAppearanceEntry((uint)EquipmentData.Helmet, 10908, 2139062144);
+            yield return new CharacterAppearanceEntry((uint)EquipmentData.Shoes, 7054, 2139062144);
+            yield return new CharacterAppearanceEntry((uint)EquipmentData.Gloves, 10909, 2139062144);
+            yield return new CharacterAppearanceEntry((uint)EquipmentData.Torso, 7052, 2139062144);
+            yield return new CharacterAppearanceEntry((uint)EquipmentData.Legs, 7053, 2139062144);
 
             using var worldUnitOfWork = _unitOfWorkFactory.CreateWorld();
             var appearancesFromPacket = packet.AppearanceData
