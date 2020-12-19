@@ -1,11 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
 using Microsoft.EntityFrameworkCore;
 
 namespace Rasa.Repositories.Char.Character
 {
-    using System.Linq;
     using Context.Char;
     using Structures.Char;
 
@@ -33,6 +33,7 @@ namespace Rasa.Repositories.Char.Character
                 Race = race,
                 Scale = scale,
                 Gender = gender,
+                Class = 1,
                 MapContextId = DefaultMapContextId,
                 CoordX = DefaultCoordX,
                 CoordY = DefaultCoordY,
