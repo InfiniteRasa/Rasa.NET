@@ -7,7 +7,6 @@ namespace Rasa.Managers
 {
     using Data;
     using Game;
-    using Packets;
     using Packets.Game.Client;
     using Packets.Game.Server;
     using Repositories.UnitOfWork;
@@ -236,7 +235,7 @@ namespace Rasa.Managers
             client.CallMethod(SelectionPodStartEntityId + slot, characterInfo);
         }
 
-        private static CharacterInfoPacket CreateCharacterInfoPacket(Client client, byte slot, CharacterEntry data)
+        private CharacterInfoPacket CreateCharacterInfoPacket(Client client, byte slot, [CanBeNull] CharacterEntry data)
         {
             var characterInfo = data == null
                 ? new CharacterInfoPacket(slot, slot == client.AccountEntry.SelectedSlot, client.AccountEntry.FamilyName)
