@@ -25,7 +25,7 @@ namespace Rasa.Packets.Game.Server
 
         public string FamilyName { get; set; }
 
-        public int GameContextId { get; set; }
+        public uint GameContextId { get; set; }
 
         public LoginData LoginData { get; set; }
 
@@ -44,6 +44,7 @@ namespace Rasa.Packets.Game.Server
             CharacterData = new CharacterData(entry);
             BodyData = new BodyData(entry);
             LoginData = new LoginData(entry);
+            GameContextId = entry.MapContextId;
 
             foreach (var appearanceEntry in entry.CharacterAppearance)
             {
@@ -91,7 +92,7 @@ namespace Rasa.Packets.Game.Server
             if (GameContextId == 0)
                 pw.WriteNoneStruct();
             else
-                pw.WriteInt(GameContextId);
+                pw.WriteUInt(GameContextId);
 
             pw.WriteString("LoginData");
             pw.WriteStruct(LoginData);

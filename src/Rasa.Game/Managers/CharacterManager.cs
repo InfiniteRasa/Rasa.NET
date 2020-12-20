@@ -177,7 +177,7 @@ namespace Rasa.Managers
         private static CharacterAppearanceEntry CreateCharacterAppearanceEntry(AppearanceData appearanceData, IWorldUnitOfWork unitOfWork)
         {
             var databaseEntry = appearanceData.GetDatabaseEntry();
-            databaseEntry.Class = unitOfWork.ItemTemplateItemClassRepository.GetItemClass(appearanceData.ClassId);
+            databaseEntry.Class = unitOfWork.ItemTemplateItemClassRepository.GetItemClass(appearanceData.Class);
             return databaseEntry;
         }
 
