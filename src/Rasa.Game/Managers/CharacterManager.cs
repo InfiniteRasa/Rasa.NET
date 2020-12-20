@@ -7,8 +7,10 @@ namespace Rasa.Managers
 {
     using Data;
     using Game;
+    using Org.BouncyCastle.Crypto.Engines;
     using Packets.Game.Client;
     using Packets.Game.Server;
+    using Repositories.Char;
     using Repositories.UnitOfWork;
     using Repositories.World;
     using Structures;
@@ -80,53 +82,20 @@ namespace Rasa.Managers
                 return;
             }
 
-            bool changeFamilyName = false;
-            
+            uint characterId;
             using var unitOfWork = _unitOfWorkFactory.CreateChar();
-            CharacterEntry characterEntry;
+
             // TODO to remove this lock, the family name check and update must be redesigned to be thread safe
             lock (_createLock)
             {
-                if (!string.IsNullOrWhiteSpace(client.AccountEntry.FamilyName) && packet.FamilyName != client.AccountEntry.FamilyName)
-                {
-                    if (!client.AccountEntry.Characters.Any())
-                    {
-                        changeFamilyName = true;
-                    }
-                    else
-                    {
-                        SendCharacterCreateFailed(client, CreateCharacterResult.InvalidCharacterName);
-                        return;
-                    }
-                }
+                var createdCharacterId = InternalCreate(client, packet, unitOfWork);
 
-                if ((string.IsNullOrWhiteSpace(client.AccountEntry.FamilyName) || packet.FamilyName != client.AccountEntry.FamilyName))
+                if (createdCharacterId == null)
                 {
-                    if (!unitOfWork.GameAccounts.CanChangeFamilyName(client.AccountEntry.Id, packet.FamilyName))
-                    {
-                        SendCharacterCreateFailed(client, CreateCharacterResult.FamilyNameReserved);
-                        return;
-                    }
-                }
-
-                characterEntry = unitOfWork.Characters.Create(client.AccountEntry, packet.SlotNum,
-                    packet.CharacterName,
-                    (byte)packet.RaceId,
-                    packet.Scale,
-                    packet.Gender);
-                if (characterEntry == null)
-                {
-                    SendCharacterCreateFailed(client, CreateCharacterResult.TechnicalDifficulty);
                     return;
                 }
 
-                var appearances = CreateCharacterAppearanceEntries(packet);
-                unitOfWork.CharacterAppearances.Add(characterEntry, appearances);
-
-                if (string.IsNullOrWhiteSpace(client.AccountEntry.FamilyName) || changeFamilyName)
-                {
-                    unitOfWork.GameAccounts.UpdateFamilyName(client.AccountEntry.Id, packet.FamilyName);
-                }
+                characterId = createdCharacterId.Value;
             }
 
             unitOfWork.Complete();
@@ -135,7 +104,55 @@ namespace Rasa.Managers
             
             client.ReloadGameAccountEntry();
 
-            SendCharacterInfo(client, packet.SlotNum, characterEntry);
+            var character = unitOfWork.Characters.Get(characterId);
+            SendCharacterInfo(client, packet.SlotNum, character);
+        }
+
+        private uint? InternalCreate(Client client, RequestCreateCharacterInSlotPacket packet, ICharUnitOfWork unitOfWork)
+        {
+            var changeFamilyName = false;
+            if (!string.IsNullOrWhiteSpace(client.AccountEntry.FamilyName) && packet.FamilyName != client.AccountEntry.FamilyName)
+            {
+                if (!client.AccountEntry.Characters.Any())
+                {
+                    changeFamilyName = true;
+                }
+                else
+                {
+                    SendCharacterCreateFailed(client, CreateCharacterResult.InvalidCharacterName);
+                    return null;
+                }
+            }
+
+            if ((string.IsNullOrWhiteSpace(client.AccountEntry.FamilyName) || packet.FamilyName != client.AccountEntry.FamilyName))
+            {
+                if (!unitOfWork.GameAccounts.CanChangeFamilyName(client.AccountEntry.Id, packet.FamilyName))
+                {
+                    SendCharacterCreateFailed(client, CreateCharacterResult.FamilyNameReserved);
+                    return null;
+                }
+            }
+
+            var characterEntry = unitOfWork.Characters.Create(client.AccountEntry, packet.SlotNum,
+                packet.CharacterName,
+                (byte)packet.RaceId,
+                packet.Scale,
+                packet.Gender);
+            if (characterEntry == null)
+            {
+                SendCharacterCreateFailed(client, CreateCharacterResult.TechnicalDifficulty);
+                return null;
+            }
+
+            var appearances = CreateCharacterAppearanceEntries(packet);
+            unitOfWork.CharacterAppearances.Add(characterEntry, appearances);
+
+            if (string.IsNullOrWhiteSpace(client.AccountEntry.FamilyName) || changeFamilyName)
+            {
+                unitOfWork.GameAccounts.UpdateFamilyName(client.AccountEntry.Id, packet.FamilyName);
+            }
+
+            return characterEntry.Id;
         }
 
         private IEnumerable<CharacterAppearanceEntry> CreateCharacterAppearanceEntries(RequestCreateCharacterInSlotPacket packet)
