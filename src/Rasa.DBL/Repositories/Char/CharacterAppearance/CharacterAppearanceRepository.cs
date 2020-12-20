@@ -38,7 +38,13 @@ namespace Rasa.Repositories.Char.CharacterAppearance
                 _charContext.ChangeTracker.Clear();
                 return false;
             }
+        }
 
+        public void DeleteForChar(uint characterId)
+        {
+            var characterAppearances = _charContext.CreateTrackingQuery(_charContext.CharacterAppearanceEntries)
+                .Where(e => e.CharacterId == characterId);
+            _charContext.CharacterAppearanceEntries.RemoveRange(characterAppearances);
         }
     }
 }

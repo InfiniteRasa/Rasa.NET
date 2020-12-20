@@ -193,6 +193,8 @@ namespace Rasa.Managers
 
                 using (var unitOfWork = _unitOfWorkFactory.CreateChar())
                 {
+                    unitOfWork.CharacterAppearances.DeleteForChar(charactersBySlot.Id);
+                    // TODO delete ClanMember entry
                     unitOfWork.Characters.Delete(charactersBySlot.Id);
                     unitOfWork.Complete();
                 }
@@ -219,6 +221,7 @@ namespace Rasa.Managers
             unitOfWork.GameAccounts.UpdateSelectedSlot(client.AccountEntry.Id, (byte)packet.SlotNum);
 
             var character = unitOfWork.Characters.GetByAccountId(client.AccountEntry.Id, (byte)packet.SlotNum);
+            unitOfWork.Characters.UpdateLoginData(character.Id);
             unitOfWork.Complete();
 
             client.MapClient = new MapClient
