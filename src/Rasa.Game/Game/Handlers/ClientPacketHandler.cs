@@ -4,17 +4,26 @@
     using Managers;
     using Packets;
     using Packets.Game.Client;
+    using Packets.Game.Server;
 
     public partial class ClientPacketHandler
     {
         private readonly ICharacterManager _characterManager;
+        private readonly IMapChannelManager _mapChannelManager;
 
-        public Client Client { get; }
+        public Client Client { get; private set; }
 
-        public ClientPacketHandler(Client client, ICharacterManager characterManager)
+        public ClientPacketHandler(
+            ICharacterManager characterManager, 
+            IMapChannelManager mapChannelManager)
+        {
+            _characterManager = characterManager;
+            _mapChannelManager = mapChannelManager;
+        }
+
+        public void RegisterClient(Client client)
         {
             Client = client;
-            _characterManager = characterManager;
         }
 
         [PacketHandler(GameOpcode.AcceptPartyInvitesChanged)]
@@ -26,13 +35,13 @@
         [PacketHandler(GameOpcode.MapLoaded)]
         private void MapLoaded(MapLoadedPacket packet)
         {
-            MapManager.Instance.MapLoaded(Client);
+            _mapChannelManager.MapLoaded(Client);
         }
 
         [PacketHandler(GameOpcode.Ping)]
         private void Ping(PingPacket packet)
         {
-            MapManager.Instance.Ping(Client, packet.Ping);
+            Client.CallMethod(SysEntity.ClientMethodId, new AckPingPacket(packet.Ping));
         }
 
         [PacketHandler(GameOpcode.RequestVisualCombatMode)]

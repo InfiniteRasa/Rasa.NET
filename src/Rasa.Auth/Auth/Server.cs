@@ -11,7 +11,6 @@ namespace Rasa.Auth
     using Commands;
     using Config;
     using Data;
-    using Database;
     using Hosting;
     using Memory;
     using Networking;

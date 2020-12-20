@@ -7,7 +7,6 @@ namespace Rasa.Managers
 {
     using Data;
     using Game;
-    using Org.BouncyCastle.Crypto.Engines;
     using Packets.Game.Client;
     using Packets.Game.Server;
     using Repositories.Char;
@@ -24,10 +23,12 @@ namespace Rasa.Managers
         private readonly object _createLock = new object();
 
         private readonly IUnitOfWorkFactory _unitOfWorkFactory;
+        private readonly IMapChannelManager _mapChannelManager;
 
-        public CharacterManager(IUnitOfWorkFactory unitOfWorkFactory)
+        public CharacterManager(IUnitOfWorkFactory unitOfWorkFactory, IMapChannelManager mapChannelManager)
         {
             _unitOfWorkFactory = unitOfWorkFactory;
+            _mapChannelManager = mapChannelManager;
         }
 
         public void StartCharacterSelection(Client client)
@@ -229,7 +230,7 @@ namespace Rasa.Managers
                 Player = character
             };
 
-            MapManager.Instance.PassClientToMap(client);
+            _mapChannelManager.PassClientToMap(client);
         }
 
         private void SendCharacterCreateFailed(Client client, CreateCharacterResult result)
