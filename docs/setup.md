@@ -12,8 +12,9 @@ The following tools are required to setup, build, and run Rasa.NET:
 
 - Microsoft Visual Studio 2017 or higher
 - .NET Core SDK and Runtime
-- MySQL Server
-- MySQL Workbench
+- Database System, either:
+  - MySQL Server and Workbench
+  - Sqlite (no tools required, but a Sqlite DB browser might help)
 - Git
 
 ### Install Visual Studio
@@ -30,7 +31,7 @@ Rasa.NET is set to build and run with .NET Core.
 - [Download the .NET Core 5 SDK and Runtime](https://dotnet.microsoft.com/download/dotnet/5.0) and install it
 
 ### Install MySQL Server and MySQL Workbench
-Rasa.NET uses MySQL to store game data. Download and install MySQL Community Server following these steps:
+Rasa.NET uses MySQL or Sqlite to store game data. Sqlite works well for quick jump into development, but if you want to use MySql, download and install MySQL Community Server following these steps:
 
 - Download the [MySQL Installer for Windows](https://dev.mysql.com/downloads/windows/installer/8.0.html)
 - Run the installer after it's downloaded
@@ -65,20 +66,13 @@ Download Rasa.NET from GitHub or use Git to clone the project (recommended).
 - Run the command `git clone https://github.com/InfiniteRasa/Rasa.NET.git`
 
 ### Setup the database
-Before you can build and run the code, there are some configuration steps for the database.
+If you're using MySql, before you can build and run the code, there are some configuration steps required for the database.
 
 - Launch MySQL Workbench and select your `Local instance MySQL80` under `MySQL Connections` that was created during install
 - Enter your root password that you created to connect to it
 - In the Navigator panel on the left, right-click in the blank space and choose `Create Schema`
   - In the new tab, name the first schema `rasaauth` and click `Apply`
   - Repeat this two more times for `rasachar` and `rasaworld`
-- Double-click `rasaauth` in the `SCHEMAS` list which makes it active
-- Go to `File > Open SQL Script`
-- Select `Rasa.NET\database\full\auth_database.sql` file in the code directory that you clone in the above steps
-- Execute the script to create the required tables by clicking the icon that looks like a lightning bolt
-  - Repeat this process for the `Rasa.NET\database\full\char_database.sql` and `Rasa.NET\database\full\world_database.sql` files - **but first double-click the matching schema on the left to make it the active selection**
-- Next, you'll have to execute each of the sql files in the `Rasa.NET\database\patches` folder
-  - Follow similar steps as above, making sure to make the correct schema active and execute each patch script against the matching schema in sequential order.
 
 ### Add a database user for the servers
 The auth and game servers are pre-configured to use the user `rasa` to connect. You'll need to add this user to your database instance.
@@ -100,10 +94,11 @@ You should be ready to compile Rasa.NET and run the servers.
 - Run the `Rasa.Auth` project via `Debug > Start without Debugging`
 - Run the `Rasa.Game` project via `Debug > Start Debugging`
 - Alternatively, define multiple start projects as follows:
--- Right click on the solution
--- Click "Set StartUp Projects"
--- Choose "Multiple startup projects"
--- Set "Action" for both projects wether you want to start with or without debugging
+  - Right click on the solution
+  - Click "Set StartUp Projects"
+  - Choose "Multiple startup projects"
+  - Set "Action" for both projects wether you want to start with or without debugging
+- Of course, you can also build the project and start the Auth server from the bin directory.
 
 ### Create a game user
 The authentication server can be used to create a user by running a command in the terminal. The usage is: `create <email> <username> <password>`. Running this command will create a new user in the database that you can use to login with the game client.
@@ -128,11 +123,11 @@ If you have to overwrite one or multiple settings from the appsettings.json of `
 ```
 
 ### Database configuration
-As of now, we use three databases: Auth (Accounting), Char (everything related to characters) and World (mainly common settings regarding the game world). The Auth database is connected via EF Core and supports MySql and Sqlite as database providers. Connection information is provided in the form of a defined data structure in the file `Rasa.DBL\databasesettings.json`. Char and World only support MySql and are connected via connection strings in `Rasa.Game\appsettings.json` as of now. EF Core and Sqlite support are in progress for these databases. For a quick jump into development and small servers, Sqlite works fine and totally out of the box.
+As of now, we use three databases: Auth (Accounting), Char (everything related to characters) and World (mainly common settings regarding the game world). The databases are accessed via EF Core and support MySql and Sqlite as database providers. Connection information is provided in the form of a defined data structure in the file `Rasa.DBL\databasesettings.json`. For a quick jump into development and small servers, Sqlite works fine and totally out of the box.
 
 To setup your database settings, have a look in "Custom configuration" to learn how to create an enviroment specific settings file.
 
-To access a MySql server with EF Core, set `Provider` to `MySql`. You need to provide host, port, database, user, password and timeout in the config file. Keep in mind that we fall back to the values in databasesettings.json, if  your enviroment file does not overwrite a value. For MySql, you have to apply any pending migrations yourself. See "Working with migrations" for a quick start.
+To access a MySql server with EF Core, set `Provider` to `MySql`. You need to provide host, port, database, user, password and timeout in the config file. Keep in mind that we fall back to the values in databasesettings.json, if your enviroment file does not overwrite a value. For MySql, you have to apply any pending migrations yourself. See "Working with migrations" for a quick start.
 
 To use Sqlite with EF Core, set `Provider` to `Sqlite`. Sqlite uses only the value _database_ of the configuration to create a file named `<database>.db`. For Sqlite, any pending migrations will be applied __automatically__ at startup of the corresponding project to make usage even easier.
 

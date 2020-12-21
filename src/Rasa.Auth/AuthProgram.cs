@@ -13,8 +13,9 @@ namespace Rasa
     using Context.Auth;
     using Hosting;
     using Initialization;
+    using Repositories.Auth;
     using Repositories.Auth.Account;
-    using Services;
+    using Repositories.UnitOfWork;
     using Services.Random;
 
     public class AuthProgram
@@ -56,7 +57,9 @@ namespace Rasa
 
             AddDatabase(context, services);
 
-            services.AddSingleton<IAuthAccountRepository, AuthAccountRepository>();
+            services.AddSingleton<IAuthUnitOfWorkFactory, AuthUnitOfWorkFactory>();
+            services.AddScoped<IAuthUnitOfWork, AuthUnitOfWork>();
+            services.AddScoped<IAuthAccountRepository, AuthAccountRepository>();
             services.AddSingleton<IRandomNumberService, RandomNumberService>();
         }
 

@@ -16,7 +16,7 @@ namespace Rasa.Auth
     using Networking;
     using Packets.Communicator;
     using Packets.Auth.Server;
-    using Repositories.Auth.Account;
+    using Repositories.UnitOfWork;
     using Structures;
     using Threading;
     using Timer;
@@ -24,7 +24,7 @@ namespace Rasa.Auth
     public class Server : ILoopable, IRasaServer
     {
         private readonly IHostApplicationLifetime _hostApplicationLifetime;
-        private readonly IAuthAccountRepository _authAccountRepository;
+        private readonly IAuthUnitOfWorkFactory _authUnitOfWorkFactory;
 
         public string ServerType { get; } = "Authentication";
 
@@ -44,11 +44,10 @@ namespace Rasa.Auth
         private List<CommunicatorClient> GameServerQueue { get; } = new List<CommunicatorClient>();
         private Dictionary<byte, CommunicatorClient> GameServers { get; } = new Dictionary<byte, CommunicatorClient>();
 
-        public Server(IHostApplicationLifetime hostApplicationLifetime, 
-            IAuthAccountRepository authAccountRepository)
+        public Server(IHostApplicationLifetime hostApplicationLifetime, IAuthUnitOfWorkFactory authUnitOfWorkFactory)
         {
             _hostApplicationLifetime = hostApplicationLifetime;
-            _authAccountRepository = authAccountRepository;
+            _authUnitOfWorkFactory = authUnitOfWorkFactory;
 
             Configuration.OnLoad += ConfigLoaded;
             Configuration.OnReLoad += ConfigReLoaded;
@@ -190,7 +189,7 @@ namespace Rasa.Auth
                 return;
 
             lock (Clients)
-                Clients.Add(new Client(newSocket, this, _authAccountRepository));
+                Clients.Add(new Client(newSocket, this, _authUnitOfWorkFactory));
         }
         #endregion
 
@@ -464,7 +463,9 @@ namespace Rasa.Auth
 
             try
             {
-                _authAccountRepository.Create(email, userName, password);
+                using var unitOfWork = _authUnitOfWorkFactory.Create();
+                unitOfWork.AuthAccountRepository.Create(email, userName, password);
+                unitOfWork.Complete();
 
                 Logger.WriteLog(LogType.Command, $"Created account: {parts[2]}! (Password: {parts[3]})");
             }
