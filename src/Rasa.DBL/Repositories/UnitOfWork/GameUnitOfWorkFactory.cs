@@ -1,19 +1,14 @@
 ﻿using System;
 
-using Microsoft.Extensions.DependencyInjection;
-
 namespace Rasa.Repositories.UnitOfWork
 {
     using Char;
     using World;
 
-    public class UnitOfWorkFactory : IUnitOfWorkFactory
+    public class GameUnitOfWorkFactory : UnitOfWorkFactoryBase, IGameUnitOfWorkFactory
     {
-        private readonly IServiceProvider _serviceProvider;
-
-        public UnitOfWorkFactory(IServiceProvider serviceProvider)
+        public GameUnitOfWorkFactory(IServiceProvider serviceProvider) : base(serviceProvider)
         {
-            _serviceProvider = serviceProvider;
         }
 
         public ICharUnitOfWork CreateChar()
@@ -28,18 +23,6 @@ namespace Rasa.Repositories.UnitOfWork
             var scope = CreateServiceScope();
             var unitOfWork = Create<IWorldUnitOfWork>(scope);
             return new DelegatingWorldUnitOfWork(unitOfWork, scope);
-        }
-
-        private IServiceScope CreateServiceScope()
-        {
-            var scope = _serviceProvider.CreateScope();
-            return scope;
-        }
-
-        private T Create<T>(IServiceScope scope)
-            where T : IUnitOfWork
-        {
-            return scope.ServiceProvider.GetService<T>();
         }
     }
 }

@@ -19,7 +19,7 @@ namespace Rasa.Game
 
     public class Client
     {
-        private readonly IUnitOfWorkFactory _unitOfWorkFactory;
+        private readonly IGameUnitOfWorkFactory _gameUnitOfWorkFactory;
 
         private readonly ICharacterManager _characterManager;
 
@@ -46,11 +46,11 @@ namespace Rasa.Game
         }
 
         public Client(
-            IUnitOfWorkFactory unitOfWorkFactory,
+            IGameUnitOfWorkFactory gameUnitOfWorkFactory,
             ICharacterManager characterManager,
             ClientPacketHandler handler)
         {
-            _unitOfWorkFactory = unitOfWorkFactory;
+            _gameUnitOfWorkFactory = gameUnitOfWorkFactory;
             _characterManager = characterManager;
 
             _handler = handler;
@@ -186,7 +186,7 @@ namespace Rasa.Game
                         return;
                     }
 
-                    using (var unitOfWork = _unitOfWorkFactory.CreateChar())
+                    using (var unitOfWork = _gameUnitOfWorkFactory.CreateChar())
                     {
                         unitOfWork.GameAccounts.CreateOrUpdate(loginEntry.Id, loginEntry.Name, loginEntry.Email);
 
@@ -428,7 +428,7 @@ namespace Rasa.Game
                 throw new InvalidOperationException("Client must be initialized by handling a login packet first.");
             }
 
-            using var unitOfWork = _unitOfWorkFactory.CreateChar();
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
             LoadGameAccountEntry(unitOfWork, AccountEntry.Id);
         }
 

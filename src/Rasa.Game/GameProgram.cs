@@ -61,8 +61,8 @@ namespace Rasa
 
             AddDatabase(context, services);
 
-            services.AddSingleton<IUnitOfWorkFactory, UnitOfWorkFactory>();
-            
+            services.AddSingleton<IGameUnitOfWorkFactory, GameUnitOfWorkFactory>();
+
             // Client handling
             services.AddSingleton<IClientFactory, ClientFactory>();
             services.AddTransient<Client>();

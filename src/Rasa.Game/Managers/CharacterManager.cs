@@ -22,12 +22,12 @@ namespace Rasa.Managers
 
         private readonly object _createLock = new object();
 
-        private readonly IUnitOfWorkFactory _unitOfWorkFactory;
+        private readonly IGameUnitOfWorkFactory _gameUnitOfWorkFactory;
         private readonly IMapChannelManager _mapChannelManager;
 
-        public CharacterManager(IUnitOfWorkFactory unitOfWorkFactory, IMapChannelManager mapChannelManager)
+        public CharacterManager(IGameUnitOfWorkFactory gameUnitOfWorkFactory, IMapChannelManager mapChannelManager)
         {
-            _unitOfWorkFactory = unitOfWorkFactory;
+            _gameUnitOfWorkFactory = gameUnitOfWorkFactory;
             _mapChannelManager = mapChannelManager;
         }
 
@@ -38,7 +38,7 @@ namespace Rasa.Managers
 
             client.CallMethod(SysEntity.ClientMethodId, new BeginCharacterSelectionPacket(client.AccountEntry.FamilyName, client.AccountEntry.Characters.Any(), client.AccountEntry.Id, client.AccountEntry.CanSkipBootcamp));
             
-            using var unitOfWork = _unitOfWorkFactory.CreateChar();
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
             var charactersBySlot = unitOfWork.Characters.GetByAccountId(client.AccountEntry.Id);
 
             for (byte i = 1; i <= MaxSelectionPods; ++i)
@@ -56,7 +56,7 @@ namespace Rasa.Managers
 
         public void RequestCharacterName(Client client, int gender)
         {
-            using var unitOfWork = _unitOfWorkFactory.CreateWorld();
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateWorld();
             var name = unitOfWork.RandomNameRepository.GetFirstName((Gender)gender);
             client.CallMethod(SysEntity.ClientMethodId, new GeneratedCharacterNamePacket
             {
@@ -66,7 +66,7 @@ namespace Rasa.Managers
 
         public void RequestFamilyName(Client client)
         {
-            using var unitOfWork = _unitOfWorkFactory.CreateWorld();
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateWorld();
             var name = unitOfWork.RandomNameRepository.GetLastName();
             client.CallMethod(SysEntity.ClientMethodId, new GeneratedFamilyNamePacket
             {
@@ -84,7 +84,7 @@ namespace Rasa.Managers
             }
 
             uint characterId;
-            using var unitOfWork = _unitOfWorkFactory.CreateChar();
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
 
             // TODO to remove this lock, the family name check and update must be redesigned to be thread safe
             lock (_createLock)
@@ -164,7 +164,7 @@ namespace Rasa.Managers
             yield return new CharacterAppearanceEntry((uint)EquipmentData.Torso, 7052, 2139062144);
             yield return new CharacterAppearanceEntry((uint)EquipmentData.Legs, 7053, 2139062144);
 
-            using var worldUnitOfWork = _unitOfWorkFactory.CreateWorld();
+            using var worldUnitOfWork = _gameUnitOfWorkFactory.CreateWorld();
             var appearancesFromPacket = packet.AppearanceData
                 .Select(appearanceData => CreateCharacterAppearanceEntry(appearanceData.Value, worldUnitOfWork))
                 .ToList();
@@ -192,7 +192,7 @@ namespace Rasa.Managers
                     return;
                 }
 
-                using (var unitOfWork = _unitOfWorkFactory.CreateChar())
+                using (var unitOfWork = _gameUnitOfWorkFactory.CreateChar())
                 {
                     unitOfWork.CharacterAppearances.DeleteForChar(charactersBySlot.Id);
                     // TODO delete ClanMember entry
@@ -217,7 +217,7 @@ namespace Rasa.Managers
             if (packet.SlotNum < 1 || packet.SlotNum > 16)
                 return;
 
-            var unitOfWork = _unitOfWorkFactory.CreateChar();
+            var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
             client.AccountEntry.SelectedSlot = (byte)packet.SlotNum;
             unitOfWork.GameAccounts.UpdateSelectedSlot(client.AccountEntry.Id, (byte)packet.SlotNum);
 

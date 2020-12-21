@@ -10,7 +10,6 @@ namespace Rasa.Repositories.Auth.Account
 {
     using Context.Auth;
     using Services.Random;
-    using Structures;
     using Structures.Auth;
 
     public class AuthAccountRepository : IAuthAccountRepository

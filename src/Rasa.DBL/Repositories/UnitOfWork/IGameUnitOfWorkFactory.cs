@@ -3,7 +3,7 @@
     using Char;
     using World;
 
-    public interface IUnitOfWorkFactory
+    public interface IGameUnitOfWorkFactory
     {
         ICharUnitOfWork CreateChar();
 

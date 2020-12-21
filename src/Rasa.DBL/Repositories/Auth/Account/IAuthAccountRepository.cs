@@ -2,7 +2,6 @@
 
 namespace Rasa.Repositories.Auth.Account
 {
-    using Structures;
     using Structures.Auth;
 
     public interface IAuthAccountRepository

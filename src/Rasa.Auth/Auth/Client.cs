@@ -13,13 +13,14 @@ namespace Rasa.Auth
     using Packets.Auth.Server;
     using Repositories;
     using Repositories.Auth.Account;
+    using Repositories.UnitOfWork;
     using Structures;
     using Structures.Auth;
     using Timer;
 
     public class Client
     {
-        private readonly IAuthAccountRepository _authAccountRepository;
+        private readonly IAuthUnitOfWorkFactory _authUnitOfWorkFactory;
 
         public const int LengthSize = 2;
 
@@ -37,9 +38,9 @@ namespace Rasa.Auth
 
         private static PacketRouter<Client, ClientOpcode> PacketRouter { get; } = new PacketRouter<Client, ClientOpcode>();
 
-        public Client(LengthedSocket socket, Server server, IAuthAccountRepository authAccountRepository)
+        public Client(LengthedSocket socket, Server server, IAuthUnitOfWorkFactory authUnitOfWorkFactory)
         {
-            _authAccountRepository = authAccountRepository;
+            _authUnitOfWorkFactory = authUnitOfWorkFactory;
 
             Socket = socket;
             Server = server;
@@ -133,21 +134,28 @@ namespace Rasa.Auth
                     break;
 
                 case RedirectResult.Success:
-                    SendPacket(new HandoffToQueuePacket
-                    {
-                        OneTimeKey = OneTimeKey,
-                        ServerId = info.ServerId,
-                        AccountId = AccountEntry.Id
-                    });
-
-                    _authAccountRepository.UpdateLastServer(AccountEntry.Id, info.ServerId);
-
-                    Logger.WriteLog(LogType.Network, $"Account ({AccountEntry.Username}, {AccountEntry.Id}) was redirected to the queue of the server: {info.ServerId}!");
+                    HandleSuccessfulRedirect(info);
                     break;
 
                 default:
                     throw new ArgumentOutOfRangeException();
             }
+        }
+
+        private void HandleSuccessfulRedirect(ServerInfo info)
+        {
+            SendPacket(new HandoffToQueuePacket
+            {
+                OneTimeKey = OneTimeKey,
+                ServerId = info.ServerId,
+                AccountId = AccountEntry.Id
+            });
+
+            using var unitOfWork = _authUnitOfWorkFactory.Create();
+            unitOfWork.AuthAccountRepository.UpdateLastServer(AccountEntry.Id, info.ServerId);
+            unitOfWork.Complete();
+
+            Logger.WriteLog(LogType.Network, $"Account ({AccountEntry.Username}, {AccountEntry.Id}) was redirected to the queue of the server: {info.ServerId}!");
         }
 
         private void OnError(SocketAsyncEventArgs args)
@@ -188,9 +196,10 @@ namespace Rasa.Auth
         [PacketHandler(ClientOpcode.Login)]
         private void MsgLogin(LoginPacket packet)
         {
+            using var unitOfWork = _authUnitOfWorkFactory.Create();
             try
             {
-                AccountEntry = _authAccountRepository.GetByUserName(packet.UserName, packet.Password);
+                AccountEntry = unitOfWork.AuthAccountRepository.GetByUserName(packet.UserName, packet.Password);
             }
             catch (EntityNotFoundException)
             {
@@ -214,7 +223,8 @@ namespace Rasa.Auth
                 return;
             }
 
-            _authAccountRepository.UpdateLoginData(AccountEntry.Id, Socket.RemoteAddress);
+            unitOfWork.AuthAccountRepository.UpdateLoginData(AccountEntry.Id, Socket.RemoteAddress);
+            unitOfWork.Complete();
 
             State = ClientState.LoggedIn;
 
