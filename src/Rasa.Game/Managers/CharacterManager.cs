@@ -1,4 +1,7 @@
-﻿using System.Linq;
+﻿using System.Collections.Generic;
+using System.Linq;
+
+using JetBrains.Annotations;
 
 namespace Rasa.Managers
 {
@@ -6,6 +9,7 @@ namespace Rasa.Managers
     using Game;
     using Packets.Game.Client;
     using Packets.Game.Server;
+    using Repositories.Char;
     using Repositories.UnitOfWork;
     using Repositories.World;
     using Structures;
@@ -19,10 +23,12 @@ namespace Rasa.Managers
         private readonly object _createLock = new object();
 
         private readonly IUnitOfWorkFactory _unitOfWorkFactory;
+        private readonly IMapChannelManager _mapChannelManager;
 
-        public CharacterManager(IUnitOfWorkFactory unitOfWorkFactory)
+        public CharacterManager(IUnitOfWorkFactory unitOfWorkFactory, IMapChannelManager mapChannelManager)
         {
             _unitOfWorkFactory = unitOfWorkFactory;
+            _mapChannelManager = mapChannelManager;
         }
 
         public void StartCharacterSelection(Client client)
@@ -31,15 +37,18 @@ namespace Rasa.Managers
                 return;
 
             client.CallMethod(SysEntity.ClientMethodId, new BeginCharacterSelectionPacket(client.AccountEntry.FamilyName, client.AccountEntry.Characters.Any(), client.AccountEntry.Id, client.AccountEntry.CanSkipBootcamp));
-
-            var charactersBySlot = client.AccountEntry.GetCharactersWithSlot();
+            
+            using var unitOfWork = _unitOfWorkFactory.CreateChar();
+            var charactersBySlot = unitOfWork.Characters.GetByAccountId(client.AccountEntry.Id);
 
             for (byte i = 1; i <= MaxSelectionPods; ++i)
             {
+                CharacterEntry character = null;
                 if (charactersBySlot.ContainsKey(i))
-                    SendCharacterInfo(client, i, charactersBySlot[i], true);
-                else
-                    SendCharacterInfo(client, i, null, true);
+                {
+                    character = charactersBySlot[i];
+                }
+                SendCharacterInfoProdCreate(client, i, character);
             }
 
             client.State = ClientState.CharacterSelection;
@@ -74,56 +83,20 @@ namespace Rasa.Managers
                 return;
             }
 
-            bool changeFamilyName = false;
-            
+            uint characterId;
             using var unitOfWork = _unitOfWorkFactory.CreateChar();
-            CharacterEntry characterEntry;
+
             // TODO to remove this lock, the family name check and update must be redesigned to be thread safe
             lock (_createLock)
             {
-                if (!string.IsNullOrWhiteSpace(client.AccountEntry.FamilyName) && packet.FamilyName != client.AccountEntry.FamilyName)
-                {
-                    if (!client.AccountEntry.Characters.Any())
-                    {
-                        changeFamilyName = true;
-                    }
-                    else
-                    {
-                        SendCharacterCreateFailed(client, CreateCharacterResult.InvalidCharacterName);
-                        return;
-                    }
-                }
+                var createdCharacterId = InternalCreate(client, packet, unitOfWork);
 
-                if ((string.IsNullOrWhiteSpace(client.AccountEntry.FamilyName) || packet.FamilyName != client.AccountEntry.FamilyName))
+                if (createdCharacterId == null)
                 {
-                    if (!unitOfWork.GameAccounts.CanChangeFamilyName(client.AccountEntry.Id, packet.FamilyName))
-                    {
-                        SendCharacterCreateFailed(client, CreateCharacterResult.FamilyNameReserved);
-                        return;
-                    }
-                }
-
-                characterEntry = unitOfWork.Characters.Create(client.AccountEntry, packet.SlotNum,
-                    packet.CharacterName,
-                    (byte)packet.RaceId,
-                    packet.Scale,
-                    packet.Gender);
-                if (characterEntry == null)
-                {
-                    SendCharacterCreateFailed(client, CreateCharacterResult.TechnicalDifficulty);
                     return;
                 }
 
-                using var worldUnitOfWork = _unitOfWorkFactory.CreateWorld();
-                var appearances = packet.AppearanceData
-                    .Select(appearanceData => CreateCharacterAppearanceEntry(appearanceData.Value, worldUnitOfWork))
-                    .ToList();
-                unitOfWork.CharacterAppearances.Add(characterEntry, appearances);
-
-                if (string.IsNullOrWhiteSpace(client.AccountEntry.FamilyName) || changeFamilyName)
-                {
-                    unitOfWork.GameAccounts.UpdateFamilyName(client.AccountEntry.Id, packet.FamilyName);
-                }
+                characterId = createdCharacterId.Value;
             }
 
             unitOfWork.Complete();
@@ -132,13 +105,80 @@ namespace Rasa.Managers
             
             client.ReloadGameAccountEntry();
 
-            SendCharacterInfo(client, packet.SlotNum, characterEntry, false);
+            var character = unitOfWork.Characters.Get(characterId);
+            SendCharacterInfo(client, packet.SlotNum, character);
+        }
+
+        private uint? InternalCreate(Client client, RequestCreateCharacterInSlotPacket packet, ICharUnitOfWork unitOfWork)
+        {
+            var changeFamilyName = false;
+            if (!string.IsNullOrWhiteSpace(client.AccountEntry.FamilyName) && packet.FamilyName != client.AccountEntry.FamilyName)
+            {
+                if (!client.AccountEntry.Characters.Any())
+                {
+                    changeFamilyName = true;
+                }
+                else
+                {
+                    SendCharacterCreateFailed(client, CreateCharacterResult.InvalidCharacterName);
+                    return null;
+                }
+            }
+
+            if ((string.IsNullOrWhiteSpace(client.AccountEntry.FamilyName) || packet.FamilyName != client.AccountEntry.FamilyName))
+            {
+                if (!unitOfWork.GameAccounts.CanChangeFamilyName(client.AccountEntry.Id, packet.FamilyName))
+                {
+                    SendCharacterCreateFailed(client, CreateCharacterResult.FamilyNameReserved);
+                    return null;
+                }
+            }
+
+            var characterEntry = unitOfWork.Characters.Create(client.AccountEntry, packet.SlotNum,
+                packet.CharacterName,
+                (byte)packet.RaceId,
+                packet.Scale,
+                packet.Gender);
+            if (characterEntry == null)
+            {
+                SendCharacterCreateFailed(client, CreateCharacterResult.TechnicalDifficulty);
+                return null;
+            }
+
+            var appearances = CreateCharacterAppearanceEntries(packet);
+            unitOfWork.CharacterAppearances.Add(characterEntry, appearances);
+
+            if (string.IsNullOrWhiteSpace(client.AccountEntry.FamilyName) || changeFamilyName)
+            {
+                unitOfWork.GameAccounts.UpdateFamilyName(client.AccountEntry.Id, packet.FamilyName);
+            }
+
+            return characterEntry.Id;
+        }
+
+        private IEnumerable<CharacterAppearanceEntry> CreateCharacterAppearanceEntries(RequestCreateCharacterInSlotPacket packet)
+        {
+            yield return new CharacterAppearanceEntry((uint)EquipmentData.Helmet, 10908, 2139062144);
+            yield return new CharacterAppearanceEntry((uint)EquipmentData.Shoes, 7054, 2139062144);
+            yield return new CharacterAppearanceEntry((uint)EquipmentData.Gloves, 10909, 2139062144);
+            yield return new CharacterAppearanceEntry((uint)EquipmentData.Torso, 7052, 2139062144);
+            yield return new CharacterAppearanceEntry((uint)EquipmentData.Legs, 7053, 2139062144);
+
+            using var worldUnitOfWork = _unitOfWorkFactory.CreateWorld();
+            var appearancesFromPacket = packet.AppearanceData
+                .Select(appearanceData => CreateCharacterAppearanceEntry(appearanceData.Value, worldUnitOfWork))
+                .ToList();
+
+            foreach (var characterAppearanceEntry in appearancesFromPacket)
+            {
+                yield return characterAppearanceEntry;
+            }
         }
 
         private static CharacterAppearanceEntry CreateCharacterAppearanceEntry(AppearanceData appearanceData, IWorldUnitOfWork unitOfWork)
         {
             var databaseEntry = appearanceData.GetDatabaseEntry();
-            databaseEntry.Class = unitOfWork.ItemTemplateItemClassRepository.GetItemClass(appearanceData.ClassId);
+            databaseEntry.Class = unitOfWork.ItemTemplateItemClassRepository.GetItemClass(appearanceData.Class);
             return databaseEntry;
         }
 
@@ -154,6 +194,8 @@ namespace Rasa.Managers
 
                 using (var unitOfWork = _unitOfWorkFactory.CreateChar())
                 {
+                    unitOfWork.CharacterAppearances.DeleteForChar(charactersBySlot.Id);
+                    // TODO delete ClanMember entry
                     unitOfWork.Characters.Delete(charactersBySlot.Id);
                     unitOfWork.Complete();
                 }
@@ -162,7 +204,7 @@ namespace Rasa.Managers
 
                 client.CallMethod(SysEntity.ClientMethodId, new CharacterDeleteSuccessPacket(client.AccountEntry.Characters.Any()));
 
-                SendCharacterInfo(client, packet.Slot, null, false);
+                SendCharacterInfo(client, packet.Slot, null);
             }
             catch
             {
@@ -170,24 +212,56 @@ namespace Rasa.Managers
             }
         }
 
+        public void RequestSwitchToCharacterInSlot(Client client, RequestSwitchToCharacterInSlotPacket packet)
+        {
+            if (packet.SlotNum < 1 || packet.SlotNum > 16)
+                return;
+
+            var unitOfWork = _unitOfWorkFactory.CreateChar();
+            client.AccountEntry.SelectedSlot = (byte)packet.SlotNum;
+            unitOfWork.GameAccounts.UpdateSelectedSlot(client.AccountEntry.Id, (byte)packet.SlotNum);
+
+            var character = unitOfWork.Characters.GetByAccountId(client.AccountEntry.Id, (byte)packet.SlotNum);
+            unitOfWork.Characters.UpdateLoginData(character.Id);
+            unitOfWork.Complete();
+
+            client.MapClient = new MapClient
+            {
+                Player = character
+            };
+
+            _mapChannelManager.PassClientToMap(client);
+        }
+
         private void SendCharacterCreateFailed(Client client, CreateCharacterResult result)
         {
             client.CallMethod(SysEntity.ClientMethodId, new UserCreationFailedPacket(result));
         }
 
-        private void SendCharacterInfo(Client client, byte slot, CharacterEntry data, bool sendPodCreate)
+        private void SendCharacterInfoProdCreate(Client client, byte slot, [CanBeNull] CharacterEntry data)
         {
-            if (!sendPodCreate)
-            {
-                client.CallMethod(SelectionPodStartEntityId + slot, new CharacterInfoPacket(slot, slot == client.AccountEntry.SelectedSlot, client.AccountEntry.FamilyName, data));
-                return;
-            }
-
             var newEntityPacket = new CreatePhysicalEntityPacket(SelectionPodStartEntityId + slot, EntityClass.CharacterSelectionPod);
 
-            newEntityPacket.EntityData.Add(new CharacterInfoPacket(slot, slot == client.AccountEntry.SelectedSlot, client.AccountEntry.FamilyName, data));
+            var characterInfo = CreateCharacterInfoPacket(client, slot, data);
+
+            newEntityPacket.EntityData.Add(characterInfo);
 
             client.CallMethod(SysEntity.ClientMethodId, newEntityPacket);
+        }
+
+        private void SendCharacterInfo(Client client, byte slot, [CanBeNull] CharacterEntry data)
+        {
+            var characterInfo = CreateCharacterInfoPacket(client, slot, data);
+
+            client.CallMethod(SelectionPodStartEntityId + slot, characterInfo);
+        }
+
+        private CharacterInfoPacket CreateCharacterInfoPacket(Client client, byte slot, [CanBeNull] CharacterEntry data)
+        {
+            var characterInfo = data == null
+                ? new CharacterInfoPacket(slot, slot == client.AccountEntry.SelectedSlot, client.AccountEntry.FamilyName)
+                : new CharacterInfoPacket(slot, slot == client.AccountEntry.SelectedSlot, client.AccountEntry.FamilyName, data);
+            return characterInfo;
         }
     }
 }

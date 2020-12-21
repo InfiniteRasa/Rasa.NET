@@ -43,8 +43,7 @@ namespace Rasa.Repositories.Char.GameAccount
         {
             var query =_charContext.CreateNoTrackingQuery(_charContext.GameAccountEntries);
             query = query
-                .Include(e => e.Characters)
-                .ThenInclude(e => e.CharacterAppearance);
+                .Include(e => e.Characters);
             return _charContext.FindEnsuring(query, id);
         }
 
@@ -65,6 +64,12 @@ namespace Rasa.Repositories.Char.GameAccount
             var entry = _charContext.GetWritableEnsuring(_charContext.GameAccountEntries, id);
             entry.LastIp = remoteAddress.ToString();
             entry.LastLogin = DateTime.UtcNow;
+        }
+
+        public void UpdateSelectedSlot(uint id, byte selectedSlot)
+        {
+            var entry = _charContext.GetWritableEnsuring(_charContext.GameAccountEntries, id);
+            entry.SelectedSlot = selectedSlot;
         }
     }
 }

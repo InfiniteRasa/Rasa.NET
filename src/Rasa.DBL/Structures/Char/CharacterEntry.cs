@@ -10,6 +10,7 @@ using JetBrains.Annotations;
 
 namespace Rasa.Structures.Char
 {
+    using System.Numerics;
     using Interfaces;
 
     [Table(CharacterEntry.TableName)]
@@ -124,6 +125,11 @@ namespace Rasa.Structures.Char
         public IDictionary<uint, CharacterAppearanceEntry> GetCharacterAppearanceWithSlot()
         {
             return CharacterAppearance.ToDictionary(e => e.Slot, e => e);
+        }
+
+        public Vector3 GetPositionVector()
+        {
+            return new Vector3((float)CoordX, (float)CoordY, (float)CoordZ);
         }
     }
 }

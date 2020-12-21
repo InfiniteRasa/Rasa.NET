@@ -1,4 +1,6 @@
-﻿namespace Rasa.Repositories.Char.Character
+﻿using System.Collections.Generic;
+
+namespace Rasa.Repositories.Char.Character
 {
     using Structures.Char;
 
@@ -7,6 +9,10 @@
         CharacterEntry Create(GameAccountEntry account, byte slot, string characterName, byte race, double scale, byte gender);
 
         CharacterEntry Get(uint id);
+
+        IDictionary<byte, CharacterEntry> GetByAccountId(uint accountEntryId);
+
+        CharacterEntry GetByAccountId(uint accountEntryId, byte slot);
 
         void Delete(uint id);
 

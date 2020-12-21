@@ -15,5 +15,7 @@ namespace Rasa.Repositories.Char.GameAccount
         void UpdateFamilyName(uint id, string newFamilyName);
 
         void UpdateLoginData(uint id, IPAddress remoteAddress);
+
+        void UpdateSelectedSlot(uint id, byte selectedSlot);
     }
 }

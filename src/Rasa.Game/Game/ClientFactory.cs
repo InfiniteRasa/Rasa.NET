@@ -1,25 +1,25 @@
-﻿namespace Rasa.Game
+﻿using System;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace Rasa.Game
 {
     using Cryptography;
-    using Managers;
     using Networking;
-    using Repositories;
-    using Repositories.UnitOfWork;
 
     public class ClientFactory : IClientFactory
     {
-        private readonly IUnitOfWorkFactory _unitOfWorkFactory;
-        private readonly ICharacterManager _characterManager;
+        private readonly IServiceProvider _serviceProvider;
 
-        public ClientFactory(IUnitOfWorkFactory unitOfWorkFactory, ICharacterManager characterManager)
+        public ClientFactory(IServiceProvider serviceProvider)
         {
-            _unitOfWorkFactory = unitOfWorkFactory;
-            _characterManager = characterManager;
+            _serviceProvider = serviceProvider;
         }
 
         public Client Create(LengthedSocket socket, ClientCryptData data, Server server)
         {
-            return new Client(socket, data, server, _unitOfWorkFactory, _characterManager);
+            var client = _serviceProvider.GetService<Client>();
+            client.RegisterAtServer(server, socket, data);
+            return client;
         }
     }
 }
