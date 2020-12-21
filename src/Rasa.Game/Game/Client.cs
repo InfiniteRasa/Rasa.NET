@@ -14,6 +14,7 @@ namespace Rasa.Game
     using Packets.Protocol;
     using Repositories.Char;
     using Repositories.UnitOfWork;
+    using Structures;
     using Structures.Char;
 
     public class Client
@@ -24,11 +25,12 @@ namespace Rasa.Game
 
         public const int LengthSize = 2;
 
-        public LengthedSocket Socket { get; }
-        public ClientCryptData Data { get; }
-        public Server Server { get; }
+        public Server Server { get; private set; }
+        public LengthedSocket Socket { get; private set; }
+        public ClientCryptData Data { get; private set; }
         public GameAccountEntry AccountEntry { get; private set; }
         public ClientState State { get; set; }
+        public MapClient MapClient { get; set; }
         public uint[] SendSequence { get; } = new uint[256];
         public uint[] ReceiveSequence { get; } = new uint[256];
 
@@ -43,19 +45,22 @@ namespace Rasa.Game
             return PacketRouter.GetPacketType(opcode);
         }
 
-        public Client(LengthedSocket socket,
-            ClientCryptData data, 
-            Server server,
+        public Client(
             IUnitOfWorkFactory unitOfWorkFactory,
-            ICharacterManager characterManager)
+            ICharacterManager characterManager,
+            ClientPacketHandler handler)
         {
             _unitOfWorkFactory = unitOfWorkFactory;
             _characterManager = characterManager;
 
-            _handler = new ClientPacketHandler(this, _characterManager);
+            _handler = handler;
+            _handler.RegisterClient(this);
+        }
 
+        public void RegisterAtServer(Server server, LengthedSocket socket, ClientCryptData cryptData)
+        {
             Socket = socket;
-            Data = data;
+            Data = cryptData;
             Server = server;
 
             State = ClientState.Connected;

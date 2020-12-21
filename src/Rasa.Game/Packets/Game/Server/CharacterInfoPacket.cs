@@ -1,5 +1,7 @@
 ﻿using System.Collections.Generic;
 
+using JetBrains.Annotations;
+
 namespace Rasa.Packets.Game.Server
 {
     using Data;
@@ -12,14 +14,21 @@ namespace Rasa.Packets.Game.Server
         public override GameOpcode Opcode { get; } = GameOpcode.CharacterInfo;
 
         public uint SlotId { get; set; }
+
         public bool IsSelected { get; set; }
-        public CharacterEntry Entry { get; set; }
+
         public BodyData BodyData { get; set; }
+
         public Dictionary<EquipmentData, AppearanceData> AppearanceData { get; set; } = new Dictionary<EquipmentData, AppearanceData>();
+
         public CharacterData CharacterData { get; set; }
+
         public string FamilyName { get; set; }
-        public int GameContextId { get; set; }
+
+        public uint GameContextId { get; set; }
+
         public LoginData LoginData { get; set; }
+
         public ClanData ClanData { get; set; }
 
         public CharacterInfoPacket(uint slotId, bool isSelected, string familyName)
@@ -29,28 +38,24 @@ namespace Rasa.Packets.Game.Server
             FamilyName = familyName;
         }
 
-        public CharacterInfoPacket(uint slotId, bool isSelected, string familyName, CharacterEntry entry)
+        public CharacterInfoPacket(uint slotId, bool isSelected, string familyName, [NotNull] CharacterEntry entry)
             : this(slotId, isSelected, familyName)
         {
-            Entry = entry;
-  
-            if (Entry != null)
+            CharacterData = new CharacterData(entry);
+            BodyData = new BodyData(entry);
+            LoginData = new LoginData(entry);
+            GameContextId = entry.MapContextId;
+
+            foreach (var appearanceEntry in entry.CharacterAppearance)
             {
-                CharacterData = new CharacterData(Entry);
-                BodyData = new BodyData(Entry);
-                LoginData = new LoginData(Entry);
+                var appearanceData = new AppearanceData(appearanceEntry);
+                AppearanceData.Add(appearanceData.SlotId, appearanceData);
+            }
 
-                foreach (var appearanceEntry in entry.CharacterAppearance)
-                {
-                    var appearanceData = new AppearanceData(appearanceEntry);
-                    AppearanceData.Add(appearanceData.SlotId, appearanceData);
-                }
-
-                var clanEntry = (ClanEntry)null; 
-                // TODO readd clan
-                // ClanTable.GetClanData(Entry.Id);
-                if (clanEntry != null)
-                    ClanData = new ClanData(clanEntry);
+            var clanEntry = entry.Clan;
+            if (clanEntry != null)
+            {
+                ClanData = new ClanData(clanEntry);
             }
         }
 
@@ -87,7 +92,7 @@ namespace Rasa.Packets.Game.Server
             if (GameContextId == 0)
                 pw.WriteNoneStruct();
             else
-                pw.WriteInt(GameContextId);
+                pw.WriteUInt(GameContextId);
 
             pw.WriteString("LoginData");
             pw.WriteStruct(LoginData);

@@ -11,6 +11,7 @@ namespace Rasa
     using Context.Char;
     using Context.World;
     using Game;
+    using Game.Handlers;
     using Hosting;
     using Initialization;
     using Managers;
@@ -62,8 +63,14 @@ namespace Rasa
 
             services.AddSingleton<IUnitOfWorkFactory, UnitOfWorkFactory>();
             
+            // Client handling
             services.AddSingleton<IClientFactory, ClientFactory>();
+            services.AddTransient<Client>();
+            services.AddTransient<ClientPacketHandler>();
+
+            // Managers
             services.AddSingleton<ICharacterManager, CharacterManager>();
+            services.AddSingleton<IMapChannelManager, MapChannelManager>();
 
             // Char
             services.AddScoped<ICharUnitOfWork, CharUnitOfWork>();
