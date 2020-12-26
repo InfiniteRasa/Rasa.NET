@@ -6,24 +6,31 @@ namespace Rasa.Game
 {
     using Cryptography;
     using Data;
-    using Database.Tables.Character;
     using Handlers;
     using Managers;
     using Memory;
     using Networking;
     using Packets;
     using Packets.Protocol;
+    using Repositories.Char;
+    using Repositories.UnitOfWork;
     using Structures;
+    using Structures.Char;
 
     public class Client
     {
+        private readonly IGameUnitOfWorkFactory _gameUnitOfWorkFactory;
+
+        private readonly ICharacterManager _characterManager;
+
         public const int LengthSize = 2;
 
-        public LengthedSocket Socket { get; }
-        public ClientCryptData Data { get; }
-        public Server Server { get; }
+        public Server Server { get; private set; }
+        public LengthedSocket Socket { get; private set; }
+        public ClientCryptData Data { get; private set; }
         public GameAccountEntry AccountEntry { get; private set; }
         public ClientState State { get; set; }
+        public MapClient MapClient { get; set; }
         public uint[] SendSequence { get; } = new uint[256];
         public uint[] ReceiveSequence { get; } = new uint[256];
 
@@ -38,12 +45,22 @@ namespace Rasa.Game
             return PacketRouter.GetPacketType(opcode);
         }
 
-        public Client(LengthedSocket socket, ClientCryptData data, Server server)
+        public Client(
+            IGameUnitOfWorkFactory gameUnitOfWorkFactory,
+            ICharacterManager characterManager,
+            ClientPacketHandler handler)
         {
-            _handler = new ClientPacketHandler(this);
+            _gameUnitOfWorkFactory = gameUnitOfWorkFactory;
+            _characterManager = characterManager;
 
+            _handler = handler;
+            _handler.RegisterClient(this);
+        }
+
+        public void RegisterAtServer(Server server, LengthedSocket socket, ClientCryptData cryptData)
+        {
             Socket = socket;
-            Data = data;
+            Data = cryptData;
             Server = server;
 
             State = ClientState.Connected;
@@ -169,39 +186,41 @@ namespace Rasa.Game
                         return;
                     }
 
-                    GameAccountTable.CreateAccountDataIfNeeded(loginEntry.Id, loginEntry.Name, loginEntry.Email);
-
-                    if (Server.IsBanned(loginMsg.AccountId))
+                    using (var unitOfWork = _gameUnitOfWorkFactory.CreateChar())
                     {
-                        Logger.WriteLog(LogType.Error, "Client with ip: {0} tried to log in while the account is banned! User Id: {1}", Socket.RemoteAddress, loginMsg.AccountId);
+                        unitOfWork.GameAccounts.CreateOrUpdate(loginEntry.Id, loginEntry.Name, loginEntry.Email);
 
-                        SendMessage(new LoginResponseMessage
+                        if (Server.IsBanned(loginMsg.AccountId))
                         {
-                            ErrorCode = LoginErrorCodes.AccountLocked,
-                            Subtype = LoginResponseMessageSubtype.Failed
-                        }, delay: false);
+                            Logger.WriteLog(LogType.Error, "Client with ip: {0} tried to log in while the account is banned! User Id: {1}", Socket.RemoteAddress, loginMsg.AccountId);
 
-                        return;
-                    }
+                            SendMessage(new LoginResponseMessage
+                            {
+                                ErrorCode = LoginErrorCodes.AccountLocked,
+                                Subtype = LoginResponseMessageSubtype.Failed
+                            }, delay: false);
 
-                    if (Server.IsAlreadyLoggedIn(loginMsg.AccountId))
-                    {
-                        Logger.WriteLog(LogType.Error, "Client with ip: {0} tried to log in while the account is being played on! User Id: {1}", Socket.RemoteAddress, loginMsg.AccountId);
+                            return;
+                        }
 
-                        SendMessage(new LoginResponseMessage
+                        if (Server.IsAlreadyLoggedIn(loginMsg.AccountId))
                         {
-                            ErrorCode = LoginErrorCodes.AlreadyLoggedIn,
-                            Subtype = LoginResponseMessageSubtype.Failed
-                        }, delay: false);
+                            Logger.WriteLog(LogType.Error, "Client with ip: {0} tried to log in while the account is being played on! User Id: {1}", Socket.RemoteAddress, loginMsg.AccountId);
 
-                        return;
+                            SendMessage(new LoginResponseMessage
+                            {
+                                ErrorCode = LoginErrorCodes.AlreadyLoggedIn,
+                                Subtype = LoginResponseMessageSubtype.Failed
+                            }, delay: false);
+
+                            return;
+                        }
+
+                        LoadGameAccountEntry(unitOfWork, loginEntry.Id);
+                        unitOfWork.GameAccounts.UpdateLoginData(loginEntry.Id, Socket.RemoteAddress);
+
+                        unitOfWork.Complete();
                     }
-
-                    AccountEntry = GameAccountTable.GetAccount(loginEntry.Id);
-                    AccountEntry.LastIP = Socket.RemoteAddress.ToString();
-                    AccountEntry.LastLogin = DateTime.Now;
-
-                    GameAccountTable.UpdateAccount(AccountEntry);
 
                     SendMessage(new LoginResponseMessage
                     {
@@ -211,7 +230,7 @@ namespace Rasa.Game
 
                     State = ClientState.LoggedIn;
 
-                    CharacterManager.Instance.StartCharacterSelection(this);
+                    _characterManager.StartCharacterSelection(this);
                     return;
 
                 case ClientMessageOpcode.Move:
@@ -401,5 +420,21 @@ namespace Rasa.Game
             return true;
         }
         #endregion
+
+        public void ReloadGameAccountEntry()
+        {
+            if (AccountEntry == null)
+            {
+                throw new InvalidOperationException("Client must be initialized by handling a login packet first.");
+            }
+
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+            LoadGameAccountEntry(unitOfWork, AccountEntry.Id);
+        }
+
+        private void LoadGameAccountEntry(ICharUnitOfWork unitOfWork, uint id)
+        {
+            AccountEntry = unitOfWork.GameAccounts.Get(id);
+        }
     }
 }

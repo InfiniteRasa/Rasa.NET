@@ -1,12 +1,59 @@
 ﻿namespace Rasa.Game.Handlers
 {
+    using Data;
+    using Managers;
+    using Packets;
+    using Packets.Game.Client;
+    using Packets.Game.Server;
+
     public partial class ClientPacketHandler
     {
-        public Client Client { get; }
+        private readonly ICharacterManager _characterManager;
+        private readonly IMapChannelManager _mapChannelManager;
 
-        public ClientPacketHandler(Client client)
+        public Client Client { get; private set; }
+
+        public ClientPacketHandler(
+            ICharacterManager characterManager, 
+            IMapChannelManager mapChannelManager)
+        {
+            _characterManager = characterManager;
+            _mapChannelManager = mapChannelManager;
+        }
+
+        public void RegisterClient(Client client)
         {
             Client = client;
+        }
+
+        [PacketHandler(GameOpcode.AcceptPartyInvitesChanged)]
+        private void AcceptPartyInvitesChanged(AcceptPartyInvitesChangedPacket packet)
+        {
+            Logger.WriteLog(LogType.Debug, "ToDo AcceptPartyInvitesChanged");
+        }
+
+        [PacketHandler(GameOpcode.MapLoaded)]
+        private void MapLoaded(MapLoadedPacket packet)
+        {
+            _mapChannelManager.MapLoaded(Client);
+        }
+
+        [PacketHandler(GameOpcode.Ping)]
+        private void Ping(PingPacket packet)
+        {
+            Client.CallMethod(SysEntity.ClientMethodId, new AckPingPacket(packet.Ping));
+        }
+
+        [PacketHandler(GameOpcode.RequestVisualCombatMode)]
+        private void RequestVisualCombatMode(RequestVisualCombatModePacket packet)
+        {
+            Logger.WriteLog(LogType.Debug, "ToDo RequestVisualCombatMode");
+        }
+
+        [PacketHandler(GameOpcode.SetAutoLootThreshold)]
+        private void SetAutoLootThreshold(SetAutoLootThresholdPacket packet)
+        {
+            Logger.WriteLog(LogType.Debug, "ToDo SetAutoLootThreshold");
         }
     }
 }

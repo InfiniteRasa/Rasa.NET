@@ -2,6 +2,7 @@
 
 namespace Rasa.Structures
 {
+    using Char;
     using Memory;
 
     public class LoginData : IPythonDataStruct
@@ -31,8 +32,8 @@ namespace Rasa.Structures
             pw.WriteUInt(NumLogins);
             pw.WriteUInt(TotalTimePlayed);
 
-            if (LastLogin.HasValue)
-                pw.WriteUInt((uint) Math.Floor((LastLogin.Value - DateTime.Now).TotalMinutes));
+            if (LastLogin.HasValue && LastLogin.Value < DateTime.UtcNow)
+                pw.WriteUInt((uint) Math.Floor((DateTime.UtcNow - LastLogin.Value).TotalMinutes));
             else
                 pw.WriteUInt(0);
         }

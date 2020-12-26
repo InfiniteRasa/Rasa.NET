@@ -5,18 +5,23 @@ namespace Rasa.Auth
 {
     using Cryptography;
     using Data;
-    using Database.Tables.Auth;
     using Extensions;
     using Memory;
     using Networking;
     using Packets;
     using Packets.Auth.Client;
     using Packets.Auth.Server;
+    using Repositories;
+    using Repositories.Auth.Account;
+    using Repositories.UnitOfWork;
     using Structures;
+    using Structures.Auth;
     using Timer;
 
     public class Client
     {
+        private readonly IAuthUnitOfWorkFactory _authUnitOfWorkFactory;
+
         public const int LengthSize = 2;
 
         public LengthedSocket Socket { get; }
@@ -33,8 +38,10 @@ namespace Rasa.Auth
 
         private static PacketRouter<Client, ClientOpcode> PacketRouter { get; } = new PacketRouter<Client, ClientOpcode>();
 
-        public Client(LengthedSocket socket, Server server)
+        public Client(LengthedSocket socket, Server server, IAuthUnitOfWorkFactory authUnitOfWorkFactory)
         {
+            _authUnitOfWorkFactory = authUnitOfWorkFactory;
+
             Socket = socket;
             Server = server;
             State = ClientState.Connected;
@@ -127,21 +134,28 @@ namespace Rasa.Auth
                     break;
 
                 case RedirectResult.Success:
-                    SendPacket(new HandoffToQueuePacket
-                    {
-                        OneTimeKey = OneTimeKey,
-                        ServerId = info.ServerId,
-                        AccountId = AccountEntry.Id
-                    });
-
-                    AccountTable.UpdateLastServer(AccountEntry.Id, info.ServerId);
-
-                    Logger.WriteLog(LogType.Network, $"Account ({AccountEntry.Username}, {AccountEntry.Id}) was redirected to the queue of the server: {info.ServerId}!");
+                    HandleSuccessfulRedirect(info);
                     break;
 
                 default:
                     throw new ArgumentOutOfRangeException();
             }
+        }
+
+        private void HandleSuccessfulRedirect(ServerInfo info)
+        {
+            SendPacket(new HandoffToQueuePacket
+            {
+                OneTimeKey = OneTimeKey,
+                ServerId = info.ServerId,
+                AccountId = AccountEntry.Id
+            });
+
+            using var unitOfWork = _authUnitOfWorkFactory.Create();
+            unitOfWork.AuthAccountRepository.UpdateLastServer(AccountEntry.Id, info.ServerId);
+            unitOfWork.Complete();
+
+            Logger.WriteLog(LogType.Network, $"Account ({AccountEntry.Username}, {AccountEntry.Id}) was redirected to the queue of the server: {info.ServerId}!");
         }
 
         private void OnError(SocketAsyncEventArgs args)
@@ -182,33 +196,35 @@ namespace Rasa.Auth
         [PacketHandler(ClientOpcode.Login)]
         private void MsgLogin(LoginPacket packet)
         {
-
-            AccountEntry = AccountTable.GetAccount(packet.UserName);
-            if (AccountEntry == null)
+            using var unitOfWork = _authUnitOfWorkFactory.Create();
+            try
+            {
+                AccountEntry = unitOfWork.AuthAccountRepository.GetByUserName(packet.UserName, packet.Password);
+            }
+            catch (EntityNotFoundException)
             {
                 SendPacket(new LoginFailPacket(FailReason.UserNameOrPassword));
                 Close(false);
                 Logger.WriteLog(LogType.Security, $"User ({packet.UserName}) tried to log in with an invalid username!");
                 return;
             }
-
-            if (!AccountEntry.CheckPassword(packet.Password))
+            catch (PasswordCheckFailedException e)
             {
                 SendPacket(new LoginFailPacket(FailReason.UserNameOrPassword));
                 Close(false);
-                Logger.WriteLog(LogType.Security, $"User ({AccountEntry.Username}, {AccountEntry.Id}) tried to log in with an invalid password!");
+                Logger.WriteLog(LogType.Security, e.Message);
                 return;
             }
-
-            if (AccountEntry.Locked)
+            catch (AccountLockedException e)
             {
                 SendPacket(new BlockedAccountPacket());
                 Close(false);
-                Logger.WriteLog(LogType.Security, $"User ({AccountEntry.Username}, {AccountEntry.Id}) tried to log in, but he/she is locked.");
+                Logger.WriteLog(LogType.Security, e.Message);
                 return;
             }
 
-            AccountTable.UpdateLoginData(AccountEntry.Id, Socket.RemoteAddress);
+            unitOfWork.AuthAccountRepository.UpdateLoginData(AccountEntry.Id, Socket.RemoteAddress);
+            unitOfWork.Complete();
 
             State = ClientState.LoggedIn;
 

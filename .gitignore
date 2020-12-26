@@ -235,3 +235,4 @@ $RECYCLE.BIN/
 src/Rasa.Game/log-game.txt
 src/Rasa.Auth/appsettings.env.json
 src/Rasa.Game/appsettings.env.json
+src/Rasa.DBL/databasesettings.env.json
