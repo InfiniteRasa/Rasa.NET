@@ -20,8 +20,8 @@ namespace Rasa.Migrations.MySqlChar
                     selected_slot = table.Column<byte>(type: "tinyint(3) unsigned", nullable: false, defaultValue: (byte)0),
                     can_skip_bootcamp = table.Column<ulong>(type: "bit", nullable: false, defaultValue: 0ul),
                     last_ip = table.Column<string>(type: "varchar(15)", nullable: false, defaultValue: "0.0.0.0"),
-                    last_login = table.Column<DateTime>(type: "datetime(6)", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
-                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP")
+                    last_login = table.Column<DateTime>(type: "timestamp", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
+                    created_at = table.Column<DateTime>(type: "timestamp", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP")
                 },
                 constraints: table =>
                 {
@@ -35,7 +35,7 @@ namespace Rasa.Migrations.MySqlChar
                     id = table.Column<uint>(type: "int(11) unsigned", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
                     name = table.Column<string>(type: "varchar(100)", nullable: false),
-                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP")
+                    created_at = table.Column<DateTime>(type: "timestamp", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP")
                 },
                 constraints: table =>
                 {
@@ -67,9 +67,9 @@ namespace Rasa.Migrations.MySqlChar
                     coord_z = table.Column<double>(type: "double", nullable: false),
                     rotation = table.Column<double>(type: "double", nullable: false),
                     num_logins = table.Column<uint>(type: "int(11) unsigned", nullable: false, defaultValue: 0u),
-                    last_login = table.Column<DateTime>(type: "datetime(6)", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
+                    last_login = table.Column<DateTime>(type: "timestamp", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
                     total_time_played = table.Column<uint>(type: "int(11) unsigned", nullable: false, defaultValue: 0u),
-                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP")
+                    created_at = table.Column<DateTime>(type: "timestamp", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP")
                 },
                 constraints: table =>
                 {
