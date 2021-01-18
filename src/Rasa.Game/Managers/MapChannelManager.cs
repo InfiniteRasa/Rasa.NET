@@ -15,7 +15,7 @@
             var player = client.MapClient.Player;
             var map = GetMap(player.MapContextId);
 
-            client.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(10001, (EntityClass)player.Gender == 0 ? (EntityClass)692 : (EntityClass)691));
+            client.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(10001, (EntityClass)player.Gender == 0 ? EntityClass.HumanBaseMale : EntityClass.HumanBaseFemale));
             client.CallMethod(10001, new WorldLocationDescriptorPacket(player.GetPositionVector(), (float)player.Rotation));
             client.CallMethod(SysEntity.ClientMethodId, new SetCurrentContextIdPacket(map.MapInfo.ContextId));
             client.CallMethod(SysEntity.ClientMethodId, new SetControlledActorIdPacket(10001));

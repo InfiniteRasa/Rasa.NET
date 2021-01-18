@@ -158,11 +158,9 @@ namespace Rasa.Managers
 
         private IEnumerable<CharacterAppearanceEntry> CreateCharacterAppearanceEntries(RequestCreateCharacterInSlotPacket packet)
         {
-            yield return new CharacterAppearanceEntry((uint)EquipmentData.Helmet, 10908, 2139062144);
-            yield return new CharacterAppearanceEntry((uint)EquipmentData.Shoes, 7054, 2139062144);
-            yield return new CharacterAppearanceEntry((uint)EquipmentData.Gloves, 10909, 2139062144);
-            yield return new CharacterAppearanceEntry((uint)EquipmentData.Torso, 7052, 2139062144);
-            yield return new CharacterAppearanceEntry((uint)EquipmentData.Legs, 7053, 2139062144);
+            yield return new CharacterAppearanceEntry((uint)EquipmentData.Shoes, (uint)EntityClass.ArmorRecruitV01CMNBoots, 2139062144);
+            yield return new CharacterAppearanceEntry((uint)EquipmentData.Torso, (uint)EntityClass.ArmorRecruitV01CMNVest, 2139062144);
+            yield return new CharacterAppearanceEntry((uint)EquipmentData.Legs, (uint)EntityClass.ArmorRecruitV01CMNLegs, 2139062144);
 
             using var worldUnitOfWork = _gameUnitOfWorkFactory.CreateWorld();
             var appearancesFromPacket = packet.AppearanceData
