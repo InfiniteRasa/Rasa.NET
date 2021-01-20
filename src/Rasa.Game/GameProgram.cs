@@ -72,6 +72,7 @@ namespace Rasa
             services.AddSingleton<ICharacterManager, CharacterManager>();
             services.AddSingleton<IMapChannelManager, MapChannelManager>();
             services.AddSingleton<IManifestationManager, ManifestationManager>();
+            services.AddSingleton<IEntityManager, EntityManager>();
 
             // Char
             services.AddScoped<ICharUnitOfWork, CharUnitOfWork>();

@@ -109,14 +109,14 @@ namespace Rasa.Game
             }
         }
 
-        public void CallMethod(uint entityId, PythonPacket packet)
+        public void CallMethod(ulong entityId, PythonPacket packet)
         {
             SendMessage(new CallMethodMessage(entityId, packet));
         }
 
         public void CallMethod(SysEntity entityId, PythonPacket packet)
         {
-            SendMessage(new CallMethodMessage((uint) entityId, packet));
+            SendMessage(new CallMethodMessage((ulong)entityId, packet));
         }
 
         public void SendMessage(IClientMessage message, bool compress = false, byte channel = 0, bool delay = true)

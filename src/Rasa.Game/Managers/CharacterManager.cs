@@ -24,11 +24,13 @@ namespace Rasa.Managers
 
         private readonly IGameUnitOfWorkFactory _gameUnitOfWorkFactory;
         private readonly IMapChannelManager _mapChannelManager;
+        private readonly IEntityManager _entityManager;
 
-        public CharacterManager(IGameUnitOfWorkFactory gameUnitOfWorkFactory, IMapChannelManager mapChannelManager)
+        public CharacterManager(IGameUnitOfWorkFactory gameUnitOfWorkFactory, IMapChannelManager mapChannelManager, IEntityManager entityManager)
         {
             _gameUnitOfWorkFactory = gameUnitOfWorkFactory;
             _mapChannelManager = mapChannelManager;
+            _entityManager = entityManager;
         }
 
         public void StartCharacterSelection(Client client)
@@ -264,7 +266,7 @@ namespace Rasa.Managers
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
             var characterAppearances = unitOfWork.CharacterAppearances.GetByCharacterId(character.Id);
 
-            return new Player(character, characterAppearances);
+            return new Player(character, characterAppearances, _entityManager);
         }
     }
 }

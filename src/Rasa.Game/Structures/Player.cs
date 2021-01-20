@@ -1,4 +1,5 @@
 ﻿using Rasa.Data;
+using Rasa.Managers;
 using Rasa.Structures.Char;
 using System;
 using System.Collections.Generic;
@@ -19,7 +20,8 @@ namespace Rasa.Structures
 
         public bool IsRunning { get; set; }
 
-        public Player(CharacterEntry character, List<CharacterAppearanceEntry> appearanceData)            
+        public Player(CharacterEntry character, List<CharacterAppearanceEntry> appearanceData, IEntityManager entityManager)  
+            : base(entityManager)
         {
             this.character = character;
 
