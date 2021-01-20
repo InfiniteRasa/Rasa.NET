@@ -225,10 +225,7 @@ namespace Rasa.Managers
             unitOfWork.Characters.UpdateLoginData(character.Id);
             unitOfWork.Complete();
 
-            client.MapClient = new MapClient
-            {
-                Player = character
-            };
+            client.Player = CreatePlayer(character);
 
             _mapChannelManager.PassClientToMap(client);
         }
@@ -262,6 +259,14 @@ namespace Rasa.Managers
                 ? new CharacterInfoPacket(slot, slot == client.AccountEntry.SelectedSlot, client.AccountEntry.FamilyName)
                 : new CharacterInfoPacket(slot, slot == client.AccountEntry.SelectedSlot, client.AccountEntry.FamilyName, data);
             return characterInfo;
+        }
+
+        private Player CreatePlayer(CharacterEntry character)
+        {
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+            var characterAppearances = unitOfWork.CharacterAppearances.GetByCharacterId(character.Id);
+
+            return new Player(character, characterAppearances);
         }
     }
 }

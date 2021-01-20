@@ -46,5 +46,16 @@ namespace Rasa.Repositories.Char.CharacterAppearance
                 .Where(e => e.CharacterId == characterId);
             _charContext.CharacterAppearanceEntries.RemoveRange(characterAppearances);
         }
+
+        public List<CharacterAppearanceEntry> GetByCharacterId(uint characterId)
+        {
+            var query = _charContext.CreateNoTrackingQuery(_charContext.CharacterAppearanceEntries);
+            var characterAppearances = query.Where(e => e.CharacterId == characterId).ToList();
+            if (characterAppearances == null)
+            {
+                throw new EntityNotFoundException(nameof(CharacterAppearanceEntry), $"{nameof(CharacterEntry.Id)}", $"{characterId}");
+            }
+            return characterAppearances;
+        }
     }
 }

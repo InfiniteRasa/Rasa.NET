@@ -1,4 +1,4 @@
-namespace Rasa.Managers
+﻿namespace Rasa.Managers
 {
     using Data;
     using Game;
@@ -15,18 +15,19 @@ namespace Rasa.Managers
             var player = client.Player;
             var map = GetMap(player.MapContextId);
 
-            client.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(10001, (EntityClass)player.Gender == 0 ? (EntityClass)692 : (EntityClass)691));
-            client.CallMethod(10001, new WorldLocationDescriptorPacket(player.GetPositionVector(), (float)player.Rotation));
+            client.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(player.EntityId, (EntityClass)player.Gender == 0 ? EntityClass.HumanBaseMale : EntityClass.HumanBaseFemale));
+            client.CallMethod(player.EntityId, new WorldLocationDescriptorPacket(player.Position, (float)player.Rotation));
             client.CallMethod(SysEntity.ClientMethodId, new SetCurrentContextIdPacket(map.MapInfo.ContextId));
-            client.CallMethod(SysEntity.ClientMethodId, new SetControlledActorIdPacket(10001));
+            client.CallMethod(SysEntity.ClientMethodId, new SetControlledActorIdPacket(player.EntityId));
             client.CallMethod(player.EntityId, new IsRunningPacket(player.IsRunning));
+            client.CallMethod(player.EntityId, new AppearanceDataPacket(player.AppearanceData));
 
             client.State = ClientState.Ingame;
         }
 
         public void PassClientToMap(Client client)
         {
-            var player = client.MapClient.Player;
+            var player = client.Player;
             var map = GetMap(player.MapContextId);
 
             client.CallMethod(SysEntity.ClientMethodId, new PreWonkavatePacket());
@@ -35,11 +36,16 @@ namespace Rasa.Managers
                    map.MapInfo.ContextId,
                    map.InstanceId,
                    map.MapInfo.Version,
-                    player.GetPositionVector(),
+                    player.Position,
                    (float)player.Rotation
                ));
 
             client.State = ClientState.Loading;
+        }
+
+        public void CharacterLogout(Client client)
+        {            
+            client.State = ClientState.LoggedIn;
         }
 
         private static Map GetMap(uint contextId)

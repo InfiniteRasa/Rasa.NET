@@ -2,6 +2,8 @@
 {
     public enum EntityClass
     {
+        HumanBaseFemale = 691,
+        HumanBaseMale = 692,
         CharacterSelectionPod = 3543
     }
 }

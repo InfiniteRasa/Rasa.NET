@@ -1,4 +1,4 @@
-namespace Rasa.Game.Handlers
+﻿namespace Rasa.Game.Handlers
 {
     using Data;
     using Managers;
@@ -57,6 +57,19 @@ namespace Rasa.Game.Handlers
         private void SetAutoLootThreshold(SetAutoLootThresholdPacket packet)
         {
             Logger.WriteLog(LogType.Debug, "ToDo SetAutoLootThreshold");
+        }
+
+        [PacketHandler(GameOpcode.RequestLogout)]
+        private void RequestLogout(RequestLogoutPacket packet)
+        {
+            Client.CallMethod(SysEntity.ClientMethodId, new LogoutTimeRemainingPacket());
+        }
+
+        [PacketHandler(GameOpcode.CharacterLogout)]
+        private void CharacterLogout(CharacterLogoutPacket packet)
+        {
+            _mapChannelManager.CharacterLogout(Client);
+            _characterManager.StartCharacterSelection(Client);
         }
     }
 }
