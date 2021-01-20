@@ -30,7 +30,7 @@ namespace Rasa.Game
         public ClientCryptData Data { get; private set; }
         public GameAccountEntry AccountEntry { get; private set; }
         public ClientState State { get; set; }
-        public MapClient MapClient { get; set; }
+        public Player Player { get; set; }
         public uint[] SendSequence { get; } = new uint[256];
         public uint[] ReceiveSequence { get; } = new uint[256];
 

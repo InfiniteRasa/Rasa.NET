@@ -1,4 +1,4 @@
-﻿namespace Rasa.Game.Handlers
+namespace Rasa.Game.Handlers
 {
     using Data;
     using Managers;
@@ -10,15 +10,18 @@
     {
         private readonly ICharacterManager _characterManager;
         private readonly IMapChannelManager _mapChannelManager;
+        private readonly IManifestationManager _manifestationManager;
 
         public Client Client { get; private set; }
 
         public ClientPacketHandler(
             ICharacterManager characterManager, 
-            IMapChannelManager mapChannelManager)
+            IMapChannelManager mapChannelManager,
+            IManifestationManager manifestationManager)
         {
             _characterManager = characterManager;
             _mapChannelManager = mapChannelManager;
+            _manifestationManager = manifestationManager;
         }
 
         public void RegisterClient(Client client)
