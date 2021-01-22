@@ -6,7 +6,7 @@
     {
         public EntityGUID EntityGUID { get; set; }
         public ulong EntityId => EntityGUID.Id;
-        public EntityType EntityType { get; set; }
+        public EntityType EntityType => EntityGUID.EntityType;
 
         public void GenerateGUID(EntityType entityType, ulong entityIdCounter)
         {

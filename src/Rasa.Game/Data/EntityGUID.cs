@@ -4,15 +4,14 @@ namespace Rasa.Data
 {
     public struct EntityGUID : IEquatable<EntityGUID>
     {
-        // Lower entity IDs are reserved in the client
-        const ulong _startingIdCounter = 1000;
-
         public ulong Id { get; private set; }
+        public EntityType EntityType { get; private set; }
 
         public EntityGUID(EntityType entityType, ulong entityIdCounter)
         {
-            Id = ((ulong)entityType & 0xFF) << 56 | ((_startingIdCounter + entityIdCounter) & 0x00FFFFFFFFFFFF);
-        }        
+            EntityType = entityType;
+            Id = ((ulong)entityType & 0xFF) << 56 | ((entityIdCounter) & 0x00FFFFFFFFFFFF);
+        }
 
         public bool Equals(EntityGUID other)
         {
