@@ -4,13 +4,15 @@ namespace Rasa.Data
 {
     public struct EntityGUID : IEquatable<EntityGUID>
     {
+        public const ulong CounterMask = 0x00FFFFFFFFFFFFFF;
+
         public ulong Raw { get; private set; }
         public EntityType EntityType => (EntityType)(Raw >> 56);
-        public ulong Counter => Raw & 0x00FFFFFFFFFFFFFF;
+        public ulong Counter => Raw & CounterMask;
 
         public EntityGUID(EntityType entityType, ulong entityIdCounter)
         {
-            Raw = ((ulong)entityType & 0xFF) << 56 | ((entityIdCounter) & 0x00FFFFFFFFFFFF);
+            Raw = ((ulong)entityType & 0xFF) << 56 | ((entityIdCounter) & CounterMask);
         }
 
         public bool Equals(EntityGUID other)
