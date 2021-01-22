@@ -4,18 +4,18 @@ namespace Rasa.Data
 {
     public struct EntityGUID : IEquatable<EntityGUID>
     {
-        public ulong Id { get; private set; }
-        public EntityType EntityType { get; private set; }
+        public ulong Raw { get; private set; }
+        public EntityType EntityType => (EntityType)(Raw >> 56);
+        public ulong Counter => Raw & 0x00FFFFFFFFFFFFFF;
 
         public EntityGUID(EntityType entityType, ulong entityIdCounter)
         {
-            EntityType = entityType;
-            Id = ((ulong)entityType & 0xFF) << 56 | ((entityIdCounter) & 0x00FFFFFFFFFFFF);
+            Raw = ((ulong)entityType & 0xFF) << 56 | ((entityIdCounter) & 0x00FFFFFFFFFFFF);
         }
 
         public bool Equals(EntityGUID other)
         {
-            return other.Id == Id;
+            return other.Raw == Raw;
         }
 
         public override bool Equals(object obj)
@@ -25,7 +25,7 @@ namespace Rasa.Data
 
         public override int GetHashCode()
         {
-            return Id.GetHashCode();
+            return Raw.GetHashCode();
         }
 
         public static bool operator ==(EntityGUID left, EntityGUID right)

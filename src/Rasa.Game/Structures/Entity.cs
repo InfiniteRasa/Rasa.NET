@@ -5,7 +5,7 @@
     public abstract class Entity
     {
         public EntityGUID EntityGUID { get; set; }
-        public ulong EntityId => EntityGUID.Id;
+        public ulong EntityId => EntityGUID.Raw;
         public EntityType EntityType => EntityGUID.EntityType;
 
         public void GenerateGUID(EntityType entityType, ulong entityIdCounter)
