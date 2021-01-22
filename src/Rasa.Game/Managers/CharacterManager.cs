@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 
 using JetBrains.Annotations;
 
@@ -14,7 +15,7 @@ namespace Rasa.Managers
     using Repositories.World;
     using Structures;
     using Structures.Char;
-
+    
     public class CharacterManager : ICharacterManager
     {
         public const uint SelectionPodStartEntityId = 100;
@@ -223,10 +224,7 @@ namespace Rasa.Managers
             unitOfWork.Characters.UpdateLoginData(character.Id);
             unitOfWork.Complete();
 
-            client.MapClient = new MapClient
-            {
-                Player = character
-            };
+            client.Player = CreateCharacterManifestation(character);
 
             _mapChannelManager.PassClientToMap(client);
         }
@@ -260,6 +258,23 @@ namespace Rasa.Managers
                 ? new CharacterInfoPacket(slot, slot == client.AccountEntry.SelectedSlot, client.AccountEntry.FamilyName)
                 : new CharacterInfoPacket(slot, slot == client.AccountEntry.SelectedSlot, client.AccountEntry.FamilyName, data);
             return characterInfo;
+        }
+
+        private Manifestation CreateCharacterManifestation(CharacterEntry character)
+        {
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+            var characterAppearances = unitOfWork.CharacterAppearances.GetByCharacterId(character.Id);
+
+            var newCharacter = new Manifestation()
+            {
+                AppearanceData = characterAppearances,
+                IsRunning = character.RunState == 1,
+                Position = new Vector3((float)character.CoordX, (float)character.CoordY, (float)character.CoordZ)
+            };
+
+            newCharacter.GenerateGUID(EntityType.Character, character.Id);
+
+            return newCharacter;
         }
     }
 }

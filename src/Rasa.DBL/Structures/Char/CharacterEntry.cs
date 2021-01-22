@@ -98,6 +98,10 @@ namespace Rasa.Structures.Char
         [Required]
         public double Rotation { get; set; }
 
+        [Column("run_state", TypeName = "bit")]
+        [Required]
+        public byte RunState { get; set; }
+
         [Column("num_logins")]
         [Required]
         public uint NumLogins { get; set; }

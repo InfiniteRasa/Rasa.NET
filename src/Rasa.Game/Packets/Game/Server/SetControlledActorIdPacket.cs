@@ -7,9 +7,9 @@
     {
         public override GameOpcode Opcode { get; } = GameOpcode.SetControlledActorId;
 
-        public uint EntityId { get; set; }
+        public ulong EntityId { get; set; }
 
-        public SetControlledActorIdPacket(uint entityId)
+        public SetControlledActorIdPacket(ulong entityId)
         {
             EntityId = entityId;
         }
@@ -17,7 +17,7 @@
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(1);
-            pw.WriteUInt(EntityId);
+            pw.WriteULong(EntityId);
         }
     }
 }
