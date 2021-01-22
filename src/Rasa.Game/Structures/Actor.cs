@@ -1,26 +1,12 @@
-﻿using System.Collections.Generic;
-using System.Numerics;
+﻿using System.Numerics;
 
 namespace Rasa.Structures
 {
     using Positioning;
-    using Rasa.Managers;
-    using System;
 
-    public class Actor : IHasPosition
+    public class Actor : Entity, IHasPosition
     {
-        public ulong EntityId { get; set; }
-
-        public Vector3 Position => GetPositionVector();
-
-        public Actor(IEntityManager entityManager)
-        {
-            EntityId = entityManager.GetEntityId();
-        }
-
-        protected virtual Vector3 GetPositionVector()
-        {
-            return new Vector3();
-        }
+        public Vector3 Position { get; set; }
+        public double Rotation { get; set; }
     }
 }

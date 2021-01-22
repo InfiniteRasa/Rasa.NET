@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 
 using JetBrains.Annotations;
 
@@ -14,7 +15,7 @@ namespace Rasa.Managers
     using Repositories.World;
     using Structures;
     using Structures.Char;
-
+    
     public class CharacterManager : ICharacterManager
     {
         public const uint SelectionPodStartEntityId = 100;
@@ -24,13 +25,11 @@ namespace Rasa.Managers
 
         private readonly IGameUnitOfWorkFactory _gameUnitOfWorkFactory;
         private readonly IMapChannelManager _mapChannelManager;
-        private readonly IEntityManager _entityManager;
 
-        public CharacterManager(IGameUnitOfWorkFactory gameUnitOfWorkFactory, IMapChannelManager mapChannelManager, IEntityManager entityManager)
+        public CharacterManager(IGameUnitOfWorkFactory gameUnitOfWorkFactory, IMapChannelManager mapChannelManager)
         {
             _gameUnitOfWorkFactory = gameUnitOfWorkFactory;
             _mapChannelManager = mapChannelManager;
-            _entityManager = entityManager;
         }
 
         public void StartCharacterSelection(Client client)
@@ -225,7 +224,7 @@ namespace Rasa.Managers
             unitOfWork.Characters.UpdateLoginData(character.Id);
             unitOfWork.Complete();
 
-            client.Player = CreatePlayer(character);
+            client.Player = CreateCharacterManifestation(character);
 
             _mapChannelManager.PassClientToMap(client);
         }
@@ -261,12 +260,21 @@ namespace Rasa.Managers
             return characterInfo;
         }
 
-        private Player CreatePlayer(CharacterEntry character)
+        private Manifestation CreateCharacterManifestation(CharacterEntry character)
         {
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
             var characterAppearances = unitOfWork.CharacterAppearances.GetByCharacterId(character.Id);
 
-            return new Player(character, characterAppearances, _entityManager);
+            var newCharacter = new Manifestation()
+            {
+                AppearanceData = characterAppearances,
+                IsRunning = character.RunState == 1,
+                Position = new Vector3((float)character.CoordX, (float)character.CoordY, (float)character.CoordZ)
+            };
+
+            newCharacter.GenerateGUID(EntityType.Character, character.Id);
+
+            return newCharacter;
         }
     }
 }
