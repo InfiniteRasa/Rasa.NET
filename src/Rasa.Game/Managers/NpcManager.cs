@@ -72,7 +72,7 @@ namespace Rasa.Managers
 
         public void RequestNpcConverse(Client client, RequestNPCConversePacket packet)
         {
-            var creature = EntityManager.Instance.GetCreature((uint)packet.EntityId);
+            var creature = EntityManager.Instance.GetCreature(packet.EntityId);
 
             if (creature == null)
                 return;
@@ -366,9 +366,9 @@ namespace Rasa.Managers
         #endregion
 
         #region Auctioneer
-        public void RequestNPCOpenAuctionHouse(Client client, long entityId)
+        public void RequestNPCOpenAuctionHouse(Client client, ulong entityId)
         {
-            client.CallMethod((uint)entityId, new OpenAuctionHousePacket());
+            client.CallMethod(entityId, new OpenAuctionHousePacket());
         }
         #endregion
 
@@ -376,12 +376,12 @@ namespace Rasa.Managers
         public void RequestNPCVending(Client client, RequestNPCVendingPacket packet)
         {
             var itemList = new List<Item>();
-            var entityList = new List<uint>();
+            var entityList = new List<ulong>();
 
-            if (EntityManager.Instance.VendorItems.ContainsKey((uint)packet.EntityId))
+            if (EntityManager.Instance.VendorItems.ContainsKey(packet.EntityId))
             {
                 // store was opened before
-                entityList = EntityManager.Instance.VendorItems[(uint)packet.EntityId];
+                entityList = EntityManager.Instance.VendorItems[packet.EntityId];
 
                 foreach (var entityId in entityList)
                     itemList.Add(EntityManager.Instance.GetItem(entityId));
@@ -389,7 +389,7 @@ namespace Rasa.Managers
             else
             {
                 // opening store first Time, create item
-                var creature = EntityManager.Instance.GetCreature((uint)packet.EntityId);
+                var creature = EntityManager.Instance.GetCreature(packet.EntityId);
 
                 foreach (var itemTemplateId in creature.Npc.Vendor.VendorItems)
                 {
@@ -399,20 +399,20 @@ namespace Rasa.Managers
                     entityList.Add(item.EntityId);
                 }
 
-                EntityManager.Instance.RegisterVendorItem((uint)packet.EntityId, entityList);
+                EntityManager.Instance.RegisterVendorItem(packet.EntityId, entityList);
             }
 
-            client.CallMethod((uint)packet.EntityId, new VendPacket(itemList));
+            client.CallMethod(packet.EntityId, new VendPacket(itemList));
         }
 
-        public void RequestCancelVendor(Client client, long entityId)
+        public void RequestCancelVendor(Client client, ulong entityId)
         {
             Logger.WriteLog(LogType.Debug, $"RequestCancelVendor => ToDo"); // ToDo
         }
 
         public void RequestVendorBuyback(Client client, RequestVendorBuybackPacket packet)
         {
-            client.CallMethod(SysEntity.ClientInventoryManagerId, new RemoveBuybackItemPacket((uint)packet.ItemEntityId));
+            client.CallMethod(SysEntity.ClientInventoryManagerId, new RemoveBuybackItemPacket(packet.ItemEntityId));
 
             var buyBackItem = EntityManager.Instance.GetItem((uint)packet.ItemEntityId);
             var buyedItem = InventoryManager.Instance.AddItemToInventory(client, buyBackItem);
@@ -429,7 +429,7 @@ namespace Rasa.Managers
                 return;
 
             // get the instance of the bought item
-            var selectedVendorItem = EntityManager.Instance.GetItem((uint)packet.ItemEntityId);
+            var selectedVendorItem = EntityManager.Instance.GetItem(packet.ItemEntityId);
 
             if (selectedVendorItem == null)
             {
@@ -483,7 +483,7 @@ namespace Rasa.Managers
         {
             foreach (var itemEntityId in packet.ItemEntitesId)
             {
-                var item = EntityManager.Instance.GetItem((uint)itemEntityId);
+                var item = EntityManager.Instance.GetItem(itemEntityId);
                 var classInfo = EntityClassManager.Instance.GetClassInfo(item.ItemTemplate.Class);
 
                 // calculate cost
@@ -525,7 +525,7 @@ namespace Rasa.Managers
             }
 
             // get item handle
-            var soldItem = EntityManager.Instance.GetItem((uint)itemEntityId);
+            var soldItem = EntityManager.Instance.GetItem(itemEntityId);
 
             if (soldItem == null)
             {
@@ -543,7 +543,7 @@ namespace Rasa.Managers
             // add credits to player
             ManifestationManager.Instance.GainCredits(client, sellPrice);
             // add item to buyback list
-            client.CallMethod(SysEntity.ClientInventoryManagerId, new AddBuybackItemPacket((uint)packet.ItemEntityId, (int)sellPrice, 1));
+            client.CallMethod(SysEntity.ClientInventoryManagerId, new AddBuybackItemPacket(packet.ItemEntityId, (int)sellPrice, 1));
         }
         #endregion
     }

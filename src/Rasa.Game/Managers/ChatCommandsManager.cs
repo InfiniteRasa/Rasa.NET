@@ -108,7 +108,7 @@ namespace Rasa.Managers
 
             if (parts.Length == 2)
             {
-                if (uint.TryParse(parts[1], out uint titleId))
+                if (uint.TryParse(parts[1], out var titleId))
                 {
                     _client.CallMethod(_client.MapClient.Player.Actor.EntityId, new TitleAddedPacket(titleId));
                 }
@@ -124,8 +124,8 @@ namespace Rasa.Managers
             }
 
             if (parts.Length == 3)
-                if (uint.TryParse(parts[1], out uint creatureEntityId))
-                    if (uint.TryParse(parts[2], out uint barkId))
+                if (ulong.TryParse(parts[1], out var creatureEntityId))
+                    if (uint.TryParse(parts[2], out var barkId))
                         _client.CallMethod(creatureEntityId, new BarkPackage(barkId));
         }
 
@@ -138,7 +138,7 @@ namespace Rasa.Managers
             }
 
             if (parts.Length == 2)
-                if (uint.TryParse(parts[1], out var entityId))
+                if (ulong.TryParse(parts[1], out var entityId))
                 {
                     var test = new Memory.MovementData(
                         _client.MovementData.PosX,
@@ -224,7 +224,7 @@ namespace Rasa.Managers
             }
             // if only item template, give max stack size
             if (parts.Length == 3)
-                if (uint.TryParse(parts[1], out uint entityId))
+                if (ulong.TryParse(parts[1], out var entityId))
                     if (Enum.TryParse(parts[2], out UseObjectState state))
                         _client.CallMethod(entityId, new ForceStatePacket(state, 100));
 
@@ -437,7 +437,7 @@ namespace Rasa.Managers
             }
             if (parts.Length == 5)
             {
-                if (uint.TryParse(parts[1], out uint entityId))
+                if (ulong.TryParse(parts[1], out var entityId))
                     if (Enum.TryParse(parts[2], out EquipmentData slotId))
                         if (Enum.TryParse(parts[3], out EntityClassId classId))
                             if (uint.TryParse(parts[4], out uint color))

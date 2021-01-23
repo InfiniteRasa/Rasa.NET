@@ -8,13 +8,13 @@ namespace Rasa.Packets.MapChannel.Client
     {
         public override GameOpcode Opcode { get; } = GameOpcode.ClanLockbox_DestroyItem;
 
-        public long EntityId { get; set; }
+        public ulong EntityId { get; set; }
         public uint Quantity { get; set; }
 
         public override void Read(PythonReader pr)
         {
             pr.ReadTuple();
-            EntityId = pr.ReadLong();
+            EntityId = pr.ReadULong();
             Quantity = (uint)pr.ReadLong();
         }
     }

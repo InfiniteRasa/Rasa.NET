@@ -2,7 +2,7 @@
 {
     public class ChatChannelPlayerLink
     {
-        public uint EntityId { get; set; }
+        public ulong EntityId { get; set; }
         public ChatChannelPlayerLink Previous { get; set; }
         public ChatChannelPlayerLink Next { get; set; }
     }

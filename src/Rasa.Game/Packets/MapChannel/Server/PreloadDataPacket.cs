@@ -10,10 +10,10 @@ namespace Rasa.Packets.MapChannel.Server
     {
         public override GameOpcode Opcode { get; } = GameOpcode.PreloadData;
 
-        public uint WeaponId { get; set; }
+        public ulong WeaponId { get; set; }
         public Dictionary <int, AbilityDrawerData> AbilitiesList { get; set; } = new Dictionary<int, AbilityDrawerData>();
         
-        public PreloadDataPacket(uint weaponId, Dictionary<int, AbilityDrawerData> abilitiesList)
+        public PreloadDataPacket(ulong weaponId, Dictionary<int, AbilityDrawerData> abilitiesList)
         {
             WeaponId = weaponId;
             AbilitiesList = abilitiesList;
@@ -22,7 +22,7 @@ namespace Rasa.Packets.MapChannel.Server
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(2);
-            pw.WriteUInt(WeaponId);
+            pw.WriteULong(WeaponId);
             pw.WriteList(AbilitiesList.Count);
             foreach (var entry in AbilitiesList)
             {

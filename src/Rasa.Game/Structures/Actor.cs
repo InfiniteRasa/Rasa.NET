@@ -13,7 +13,7 @@ namespace Rasa.Structures
         {
             EntityId = EntityManager.Instance.GetEntityId;
         }
-        public uint EntityId { get; set; }
+        public ulong EntityId { get; set; }
         public EntityClassId EntityClassId { get; set; }
         public string Name { get; set; }
         public string FamilyName { get; set; }

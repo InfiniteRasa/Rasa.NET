@@ -23,7 +23,7 @@ namespace Rasa.Packets.MapChannel.Server
             pw.WriteDictionary(VendorItems.Count);
             for (var i = 0; i < VendorItems.Count; i++)
             {
-                pw.WriteUInt(VendorItems[i].EntityId);
+                pw.WriteULong(VendorItems[i].EntityId);
                 pw.WriteTuple(2);
                 pw.WriteInt(VendorItems[i].ItemTemplate.BuyPrice);
                 pw.WriteInt(i);

@@ -6,8 +6,8 @@ namespace Rasa.Structures
 
     public class MissileArgs
     {
-        public List<uint> HitEntities = new List<uint>();
-        public List<uint> MisstEntities = new List<uint>();
+        public List<ulong> HitEntities = new List<ulong>();
+        public List<ulong> MisstEntities = new List<ulong>();
         public List<HitData> HitData = new List<HitData>();
         public List<uint> Missdata = new List<uint>();
 
@@ -18,7 +18,7 @@ namespace Rasa.Structures
 
     public class HitData
     {
-        public uint EntityId { get; set; }
+        public ulong EntityId { get; set; }
         public DamageType DamageType { get; set; }
         public uint Reflected { get; set; }
         public uint Filtered { get; set; }

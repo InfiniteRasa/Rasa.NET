@@ -23,7 +23,7 @@ namespace Rasa.Packets.Protocol
         public byte UnkByte { get; set; }
         public MovementData MovementData { get; set; }
 
-        public MoveMessage(uint entityId, MovementData movement)
+        public MoveMessage(ulong entityId, MovementData movement)
         {
             MovementData = movement;
         }

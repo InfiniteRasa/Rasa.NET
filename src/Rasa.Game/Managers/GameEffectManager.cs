@@ -59,7 +59,7 @@
                 EffectTypeId = gameEffect.TypeId,
                 EffectId = gameEffect.EffectId,
                 EffectLevel = gameEffect.EffectLevel,
-                SourceId = (int)actor.EntityId,
+                SourceId = actor.EntityId,
                 Announced = true,
                 Duration = gameEffect.Duration,
                 DamageType = 0,

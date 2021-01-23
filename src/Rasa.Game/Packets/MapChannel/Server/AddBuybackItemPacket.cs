@@ -7,11 +7,11 @@
     {
         public override GameOpcode Opcode { get; } = GameOpcode.AddBuybackItem;
 
-        public uint EntityId { get; set; }
+        public ulong EntityId { get; set; }
         public int BuyBackPrice { get; set; }
         public int Sequence { get; set; }
 
-        public AddBuybackItemPacket(uint entityId, int buybackPrice, int sequence)
+        public AddBuybackItemPacket(ulong entityId, int buybackPrice, int sequence)
         {
             EntityId = entityId;
             BuyBackPrice = buybackPrice;
@@ -21,7 +21,7 @@
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(3);
-            pw.WriteUInt(EntityId);
+            pw.WriteULong(EntityId);
             pw.WriteInt(BuyBackPrice);
             pw.WriteInt(Sequence);
         }

@@ -113,7 +113,7 @@ namespace Rasa.Managers
 
         public Item DuplicateItem(Client client, RequestVendorPurchasePacket packet)
         {
-            var vendorItem = EntityManager.Instance.GetItem((uint)packet.ItemEntityId);
+            var vendorItem = EntityManager.Instance.GetItem(packet.ItemEntityId);
             var item = CreateFromTemplateId(vendorItem.ItemTemplate.ItemTemplateId, packet.Quantity, "");
 
             item.CurrentHitPoints = vendorItem.CurrentHitPoints;

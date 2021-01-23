@@ -560,14 +560,14 @@ namespace Rasa.Managers
         public void GetCustomizationChoices(Client client, GetCustomizationChoicesPacket packet)
         {
             // ToDo
-            var test = EntityManager.Instance.GetEntityType((uint)packet.EntityId);
+            var test = EntityManager.Instance.GetEntityType(packet.EntityId);
             var testChoices = new Dictionary<int, int>
             {
                 { 3663, 36 },
                 { 3672, 42 },
                 { 3812, 60 }
             };
-            client.CallMethod(SysEntity.ClientMethodId, new CustomizationChoicesPacket((uint)packet.EntityId, testChoices));
+            client.CallMethod(SysEntity.ClientMethodId, new CustomizationChoicesPacket(packet.EntityId, testChoices));
         }
 
         public int GetSkillIndexById(int skillId)
@@ -818,12 +818,12 @@ namespace Rasa.Managers
             CharacterAppearanceTable.UpdateCharacterAppearance(client.MapClient.Player.CharacterId, (uint)equipmentSlotId, (uint)item.ItemTemplate.Class, item.Color);
         }
 
-        public void SetTargetId(Client client, long entityId)
+        public void SetTargetId(Client client, ulong entityId)
         {
-            client.MapClient.Player.TargetEntityId = (uint)entityId;
+            client.MapClient.Player.TargetEntityId = entityId;
         }
 
-        public void SetTrackingTarget(Client client, uint entityId)
+        public void SetTrackingTarget(Client client, ulong entityId)
         {
             client.MapClient.Player.TrackingTargetEntityId = entityId;
         }

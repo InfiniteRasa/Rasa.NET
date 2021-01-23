@@ -8,19 +8,28 @@
         public override GameOpcode Opcode { get; } = GameOpcode.ChannelChat;
 
         public string Name { get; set; }
-        public int Target { get; set; }
-        public uint MapEntityId { get; set; }
-        public int MapContextId { get; set; }
+        public int ChannelId { get; set; }
+        public ulong MapEntityId { get; set; }
+        public uint MapContextId { get; set; }
         public string Message { get; set; }
-        
+
+        public ChannelChatPacket(string name, int channelId, ulong mapEntityId, uint mapContextId, string message)
+        {
+            Name = name;
+            ChannelId = channelId;
+            MapEntityId = mapEntityId;
+            MapContextId = mapContextId;
+            Message = message;
+        }
+
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(3);
             pw.WriteString(Name);
             pw.WriteTuple(3);
-            pw.WriteInt(Target);
-            pw.WriteInt((int)MapEntityId);
-            pw.WriteInt(MapContextId);
+            pw.WriteInt(ChannelId);
+            pw.WriteULong(MapEntityId);
+            pw.WriteUInt(MapContextId);
             pw.WriteString(Message);
         }
     }

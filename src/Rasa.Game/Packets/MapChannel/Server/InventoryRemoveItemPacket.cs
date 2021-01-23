@@ -8,13 +8,19 @@
         public override GameOpcode Opcode { get; } = GameOpcode.InventoryRemoveItem;
 
         public InventoryType InventoryType { get; set; }
-        public int EntityId { get; set; }
+        public ulong EntityId { get; set; }
+
+        public InventoryRemoveItemPacket(InventoryType inventoryType, ulong entityId)
+        {
+            InventoryType = inventoryType;
+            EntityId = entityId;
+        }
 
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(2);
             pw.WriteInt((int)InventoryType);
-            pw.WriteInt(EntityId);
+            pw.WriteULong(EntityId);
         }
     }
 }

@@ -44,7 +44,7 @@ namespace Rasa.Structures
         // behavior controller
         public BehaviorState Controller = new BehaviorState();
         // loot dispenser
-        public uint LootDispenserObjectEntityId { get; internal set; }
+        public ulong LootDispenserObjectEntityId { get; internal set; }
         // creature actions
         public List<CreatureAction> Actions = new List<CreatureAction>();
 

@@ -24,7 +24,7 @@
     public class ActionFighting
     {
         public float[] LockedTargetPosition = new float[3];    // the creature position we are pathing to
-        public uint TargetEntityId { get; set; }
+        public ulong TargetEntityId { get; set; }
     }
 
     public class ActionWander

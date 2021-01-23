@@ -9,7 +9,7 @@
             EntityId = EntityManager.Instance.GetEntityId;
         }
         
-        public uint EntityId { get; }
+        public ulong EntityId { get; }
         public ItemTemplate ItemTemplate { get; set; }
         // uniqe id stored in db
         public uint ItemId { get; set; }

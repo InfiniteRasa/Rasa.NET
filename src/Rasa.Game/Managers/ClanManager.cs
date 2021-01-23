@@ -705,7 +705,7 @@ namespace Rasa.Managers
             CallMethodForOnlineMembers(clanId, (client) => SetClanData(client, clanData), skipCharacterId);
         }
 
-        public void CallMethodForOnlineMembers(uint clanId, uint entityId, ServerPythonPacket packet, uint skipCharacterId = 0, uint onlyThisCharacterId = 0)
+        public void CallMethodForOnlineMembers(uint clanId, ulong entityId, ServerPythonPacket packet, uint skipCharacterId = 0, uint onlyThisCharacterId = 0)
         {
             foreach (ClanMemberEntry member in GetClanMembers(clanId))
             {                

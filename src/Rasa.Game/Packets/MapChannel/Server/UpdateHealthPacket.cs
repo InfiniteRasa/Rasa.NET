@@ -9,9 +9,9 @@
         public override GameOpcode Opcode { get; } = GameOpcode.UpdateHealth;
 
         public ActorAttributes Health { get; set; }
-        public uint WhoId { get; set; }
+        public ulong WhoId { get; set; }
 
-        public UpdateHealthPacket(ActorAttributes health, uint whoId)
+        public UpdateHealthPacket(ActorAttributes health, ulong whoId)
         {
             Health = health;
             WhoId = whoId;
@@ -23,7 +23,7 @@
             pw.WriteInt(Health.Current);
             pw.WriteInt(Health.CurrentMax);
             pw.WriteInt(Health.RefreshAmount);
-            pw.WriteUInt(WhoId);
+            pw.WriteULong(WhoId);
         }
     }
 }

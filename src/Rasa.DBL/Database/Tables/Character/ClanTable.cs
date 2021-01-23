@@ -262,7 +262,7 @@ namespace Rasa.Database.Tables.Character
             return clanMembers;
         }
 
-        public static bool InsertClanMemberData(uint clanId, uint characterid, uint rank, string note)
+        public static bool InsertClanMemberData(uint clanId, ulong characterid, uint rank, string note)
         {
             int result = 0;
 

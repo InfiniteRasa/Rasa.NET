@@ -7,9 +7,9 @@
     {
         public override GameOpcode Opcode { get; } = GameOpcode.DestroyPhysicalEntity;
 
-        public uint EntityId { get; set; }
+        public ulong EntityId { get; set; }
 
-        public DestroyPhysicalEntityPacket(uint entityId)
+        public DestroyPhysicalEntityPacket(ulong entityId)
         {
             EntityId = entityId;
         }
@@ -17,7 +17,7 @@
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(1);
-            pw.WriteInt((int)EntityId);
+            pw.WriteULong(EntityId);
         }
     }
 }

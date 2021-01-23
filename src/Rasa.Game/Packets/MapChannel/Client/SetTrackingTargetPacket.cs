@@ -7,13 +7,13 @@
     {
         public override GameOpcode Opcode { get; } = GameOpcode.SetTrackingTarget;
 
-        public uint EntityId { get; set; }
+        public ulong EntityId { get; set; }
 
         public SetTrackingTargetPacket()
         {
         }
 
-        public SetTrackingTargetPacket(uint entityId)
+        public SetTrackingTargetPacket(ulong entityId)
         {
             EntityId = entityId;
         }
@@ -21,7 +21,7 @@
         public override void Read(PythonReader pr)
         {
             pr.ReadTuple();
-            EntityId = (uint)pr.ReadLong();
+            EntityId = pr.ReadULong();
         }
     }
 }

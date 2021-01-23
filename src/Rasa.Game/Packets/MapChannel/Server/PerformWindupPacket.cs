@@ -16,7 +16,7 @@ namespace Rasa.Packets.MapChannel.Server
         public PerformType PerformType { get; set; }
         public ActionId ActionId { get; set; }
         public uint ActionArgId { get; set; }
-        public uint Arg { get; set; }
+        public ulong Arg { get; set; }
         public List<int> Args = new List<int>();
 
         public PerformWindupPacket(PerformType performType, ActionId actionId, uint actionArgId)
@@ -26,7 +26,7 @@ namespace Rasa.Packets.MapChannel.Server
             ActionArgId = actionArgId;
         }
 
-        public PerformWindupPacket(PerformType performType, ActionId actionId, uint actionArgId, uint arg)
+        public PerformWindupPacket(PerformType performType, ActionId actionId, uint actionArgId, ulong arg)
         {
             PerformType = performType;
             ActionId = actionId;
@@ -48,7 +48,7 @@ namespace Rasa.Packets.MapChannel.Server
                     pw.WriteUInt((uint)ActionId);
                     pw.WriteUInt(ActionArgId);
                     if (Arg != 0)
-                        pw.WriteUInt(Arg);
+                        pw.WriteULong(Arg);
                     else
                         pw.WriteNoneStruct();
                     break;

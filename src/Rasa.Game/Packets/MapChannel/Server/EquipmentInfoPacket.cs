@@ -9,9 +9,9 @@ namespace Rasa.Packets.MapChannel.Server
     {
         public override GameOpcode Opcode { get; } = GameOpcode.EquipmentInfo;
 
-        public List<uint> EquipmentInfo { get; set; }
+        public List<ulong> EquipmentInfo { get; set; }
 
-        public EquipmentInfoPacket(List<uint> equipmentInfo)
+        public EquipmentInfoPacket(List<ulong> equipmentInfo)
         {
             EquipmentInfo = equipmentInfo;
         }
@@ -27,7 +27,7 @@ namespace Rasa.Packets.MapChannel.Server
             {
                 pw.WriteTuple(2);
                 pw.WriteUInt(count);
-                pw.WriteUInt(entry);
+                pw.WriteULong(entry);
 
                 count++;
             }

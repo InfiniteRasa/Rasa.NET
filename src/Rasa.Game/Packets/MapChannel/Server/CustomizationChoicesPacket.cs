@@ -9,10 +9,10 @@ namespace Rasa.Packets.MapChannel.Server
     {
         public override GameOpcode Opcode { get; } = GameOpcode.CustomizationChoices;
 
-        public uint EntityId { get; set; }
+        public ulong EntityId { get; set; }
         public Dictionary<int, int> Choices { get; set; }
 
-        public CustomizationChoicesPacket(uint entityId, Dictionary<int, int> choices)
+        public CustomizationChoicesPacket(ulong entityId, Dictionary<int, int> choices)
         {
             EntityId = entityId;
             Choices = choices;
@@ -21,7 +21,7 @@ namespace Rasa.Packets.MapChannel.Server
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(2);
-            pw.WriteUInt(EntityId);
+            pw.WriteULong(EntityId);
             pw.WriteList(Choices.Count);
             foreach (var choice in Choices)
             {

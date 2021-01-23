@@ -8,10 +8,10 @@
         public override GameOpcode Opcode { get; } = GameOpcode.InventoryAddItem;
         
         public InventoryType Type { get; set; }
-        public uint EntityId { get; set; }
+        public ulong EntityId { get; set; }
         public uint SlotId { get; set; }
 
-        public InventoryAddItemPacket(InventoryType type, uint entityId, uint slotId)
+        public InventoryAddItemPacket(InventoryType type, ulong entityId, uint slotId)
         {
             Type = type;
             EntityId = entityId;
@@ -22,7 +22,7 @@
         {
             pw.WriteTuple(3);
             pw.WriteInt((int)Type);
-            pw.WriteUInt(EntityId);
+            pw.WriteULong(EntityId);
             pw.WriteUInt(SlotId);
 
         }

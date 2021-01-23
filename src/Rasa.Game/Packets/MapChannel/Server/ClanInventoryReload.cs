@@ -11,10 +11,10 @@ namespace Rasa.Packets.MapChannel.Server
         public override GameOpcode Opcode => GameOpcode.InventoryReload;
 
         public InventoryType Type { get; set; }
-        public List<uint> ListOfItems = new List<uint>();
+        public List<ulong> ListOfItems = new List<ulong>();
         public uint MaxSize { get; set; }
 
-        public ClanInventoryReload(InventoryType type, List<uint> itemList, uint maxSize)
+        public ClanInventoryReload(InventoryType type, List<ulong> itemList, uint maxSize)
         {
             Type = type;
             ListOfItems = itemList;
@@ -30,7 +30,7 @@ namespace Rasa.Packets.MapChannel.Server
             foreach (var entry in ListOfItems)
             {
                 pw.WriteTuple(2);
-                pw.WriteUInt(entry);
+                pw.WriteULong(entry);
                 pw.WriteUInt(count);
                 count++;
             }

@@ -68,16 +68,16 @@ namespace Rasa.Packets.MapChannel.Server
                     pw.WriteUInt(ActionArgId);                      // actionargId
                     pw.WriteList(MissileArgs.HitEntities.Count);    // List of hited entities
                     foreach (var entity in MissileArgs.HitEntities)
-                        pw.WriteUInt(entity);
+                        pw.WriteULong(entity);
                     pw.WriteList(MissileArgs.MisstEntities.Count);  // List of missed entities
                     foreach (var entity in MissileArgs.MisstEntities)
-                        pw.WriteUInt(entity);
+                        pw.WriteULong(entity);
                     pw.WriteList(0);                                // ToDo: List of misses data
                     pw.WriteList(MissileArgs.HitData.Count);        // List of hits data
                     foreach (var hit in MissileArgs.HitData)
                     {
                         pw.WriteTuple(3);
-                            pw.WriteUInt(hit.EntityId);         // target entityId
+                            pw.WriteULong(hit.EntityId);         // target entityId
                             pw.WriteTuple(12);                   // rawInfo start
                                 pw.WriteUInt((uint)hit.DamageType); // self.damageType
                                 pw.WriteUInt(hit.Reflected);        // self.reflected

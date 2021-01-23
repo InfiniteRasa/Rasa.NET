@@ -7,9 +7,9 @@
     {
         public override GameOpcode Opcode { get; } = GameOpcode.AuctionCreationSuccess;
 
-        public uint ItemId { get; set; }
+        public ulong ItemId { get; set; }
 
-        public AuctionCreationSuccessPacket(uint itemId)
+        public AuctionCreationSuccessPacket(ulong itemId)
         {
             ItemId = itemId;
         }
@@ -17,7 +17,7 @@
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(1);
-            pw.WriteUInt(ItemId);
+            pw.WriteULong(ItemId);
         }
     }
 }

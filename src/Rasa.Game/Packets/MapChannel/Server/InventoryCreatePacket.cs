@@ -10,10 +10,10 @@ namespace Rasa.Packets.MapChannel.Server
         public override GameOpcode Opcode { get; } = GameOpcode.InventoryCreate;
 
         public InventoryType InventoryType { get; set; }
-        public List<uint> ListOfItems = new List<uint>();
+        public List<ulong> ListOfItems = new List<ulong>();
         public int InventorySize { get; set; }
 
-        public InventoryCreatePacket(InventoryType inventoryType, List<uint> listOfItems, int inventorySize)
+        public InventoryCreatePacket(InventoryType inventoryType, List<ulong> listOfItems, int inventorySize)
         {
             InventoryType = inventoryType;
             ListOfItems = listOfItems;
@@ -29,7 +29,7 @@ namespace Rasa.Packets.MapChannel.Server
             {
                 pw.WriteTuple(2);
                 pw.WriteInt(i);
-                pw.WriteUInt(ListOfItems[i]);
+                pw.WriteULong(ListOfItems[i]);
 
                 // ToDo: it seems that we need to send data about item, not only itemEntityId
             }

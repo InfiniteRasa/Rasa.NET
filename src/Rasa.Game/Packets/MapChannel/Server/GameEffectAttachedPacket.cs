@@ -11,7 +11,7 @@
         public int EffectTypeId { get; set; }
         public int EffectId { get; set; }
         public uint EffectLevel { get; set; }
-        public int SourceId { get; set; }
+        public ulong SourceId { get; set; }
         public bool Announced { get; set; }
         // tooltip
         public int Duration { get; set; }
@@ -28,7 +28,7 @@
             pw.WriteInt(EffectTypeId);      //typeId
             pw.WriteInt(EffectId);          //effectId
             pw.WriteUInt(EffectLevel);       //level
-            pw.WriteInt(SourceId);          //sourceId
+            pw.WriteULong(SourceId);          //sourceId
             pw.WriteBool(Announced);        //announce
             pw.WriteDictionary(7);          //tooltipDict
             pw.WriteString("duration"); // 'duration'

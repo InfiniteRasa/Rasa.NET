@@ -146,7 +146,7 @@ namespace Rasa.Managers
             mapChannel.QueuedMissiles.Clear();
         }
 
-        public void MissileLaunch(MapChannel mapChannel, Actor origin, uint targetEntityId, long damage, ActionId actionId, uint actionArgId)
+        public void MissileLaunch(MapChannel mapChannel, Actor origin, ulong targetEntityId, long damage, ActionId actionId, uint actionArgId)
         {
             var missile = new Missile
             {

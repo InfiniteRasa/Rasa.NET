@@ -185,7 +185,7 @@ namespace Rasa.Managers
         private bool CheckForAttackableEntityInRange(MapChannel mapChannel, Creature creature, float range)
         {
             var foundEntity_distance = range + 100.0f; // value that is guaranteed to be higher than the found creature
-            var foundEntity_entityId = 0U;
+            var foundEntity_entityId = 0ul;
             
             foreach (var cellSeed in creature.Actor.Cells)
             {
@@ -249,7 +249,7 @@ namespace Rasa.Managers
             return false;
         }
 
-        public void SetActionFighting(Creature creature, uint targetEntityId)
+        public void SetActionFighting(Creature creature, ulong targetEntityId)
         {
             creature.Controller.CurrentAction = BehaviorActionFighting;
             creature.Controller.PathIndex = 0;

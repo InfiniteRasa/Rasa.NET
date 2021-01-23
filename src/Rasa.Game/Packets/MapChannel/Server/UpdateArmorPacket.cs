@@ -9,9 +9,9 @@
         public override GameOpcode Opcode { get; } = GameOpcode.UpdateArmor;
 
         public ActorAttributes Armor { get; set; }
-        public uint WhoId { get; set; }
+        public ulong WhoId { get; set; }
 
-        public UpdateArmorPacket(ActorAttributes armor, uint whoId)
+        public UpdateArmorPacket(ActorAttributes armor, ulong whoId)
         {
             Armor = armor;
             WhoId = whoId;
@@ -23,7 +23,7 @@
             pw.WriteInt(Armor.Current);
             pw.WriteInt(Armor.CurrentMax);
             pw.WriteInt(Armor.RefreshAmount);
-            pw.WriteUInt(WhoId);
+            pw.WriteULong(WhoId);
         }
     }
 }

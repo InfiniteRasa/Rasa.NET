@@ -14,8 +14,8 @@ namespace Rasa.Managers
         private static CommunicatorManager _instance;
         private static readonly object InstanceLock = new object();
         public static Dictionary<string, Client> PlayersByName = new Dictionary<string, Client>();
-        public static Dictionary<uint, Client> PlayersByEntityId = new Dictionary<uint, Client>();
-        public static Dictionary<uint, Client> PlayersByCharacterId = new Dictionary<uint, Client>();
+        public static Dictionary<ulong, Client> PlayersByEntityId = new Dictionary<ulong, Client>();
+        public static Dictionary<ulong, Client> PlayersByCharacterId = new Dictionary<ulong, Client>();
         public static Dictionary<int, ChatChannel> ChannelsBySeed = new Dictionary<int, ChatChannel>();
 
         public static CommunicatorManager Instance

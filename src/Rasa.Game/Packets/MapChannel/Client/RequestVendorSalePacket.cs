@@ -7,18 +7,18 @@
     {
         public override GameOpcode Opcode { get; } = GameOpcode.RequestVendorSale;
 
-        public long VendorEntityId { get; set; }
-        public long ItemEntityId { get; set; }
+        public ulong VendorEntityId { get; set; }
+        public ulong ItemEntityId { get; set; }
         public long Quantity { get; set; }
 
         public override void Read(PythonReader pr)
         {
             pr.ReadTuple();
-            VendorEntityId = pr.ReadLong();
+            VendorEntityId = pr.ReadULong();
             if (pr.PeekType() == PythonType.Long)
-                ItemEntityId = pr.ReadLong();
+                ItemEntityId = pr.ReadULong();
             else
-                ItemEntityId = pr.ReadInt();
+                ItemEntityId = pr.ReadUInt();
             if (pr.PeekType() == PythonType.Long)
                 Quantity = pr.ReadLong();
             else

@@ -7,14 +7,14 @@
     {
         public override GameOpcode Opcode { get; } = GameOpcode.RequestVendorBuyback;
 
-        public long VendorEntityId { get; set; }
-        public int ItemEntityId { get; set; }
+        public ulong VendorEntityId { get; set; }
+        public ulong ItemEntityId { get; set; }
 
         public override void Read(PythonReader pr)
         {
             pr.ReadTuple();
-            VendorEntityId = pr.ReadLong();
-            ItemEntityId = pr.ReadInt();
+            VendorEntityId = pr.ReadULong();
+            ItemEntityId = pr.ReadULong();
         }
     }
 }

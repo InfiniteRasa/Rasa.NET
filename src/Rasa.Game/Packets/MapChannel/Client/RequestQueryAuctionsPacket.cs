@@ -7,16 +7,16 @@
     {
         public override GameOpcode Opcode { get; } = GameOpcode.RequestQueryAuctions;
 
-        public uint EntityId { get; set; }      // g_auctioneerId
-        public uint MinLevel { get; set; }      // minLevel
-        public uint MaxLevel { get; set; }      // maxLevel
-        public uint QualityId { get; set; }     // qualityId
-        public uint CategoryId { get; set; }    // categoryId
+        public ulong EntityId { get; set; }
+        public uint MinLevel { get; set; }
+        public uint MaxLevel { get; set; }
+        public uint QualityId { get; set; }
+        public uint CategoryId { get; set; }
 
         public override void Read(PythonReader pr)
         {
             pr.ReadTuple();
-            EntityId = (uint)pr.ReadLong();
+            EntityId = pr.ReadULong();
             MinLevel = pr.ReadUInt();
             MaxLevel = pr.ReadUInt();
             QualityId = pr.ReadUInt();

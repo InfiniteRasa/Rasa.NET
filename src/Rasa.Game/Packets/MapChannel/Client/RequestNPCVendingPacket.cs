@@ -7,13 +7,13 @@
     {
         public override GameOpcode Opcode { get; } = GameOpcode.RequestNPCVending;
 
-        public long EntityId { get; set; }
+        public ulong EntityId { get; set; }
         public int ChosenVendorPackage { get; set; }
 
         public override void Read(PythonReader pr)
         {
             pr.ReadTuple();
-            EntityId = pr.ReadLong();
+            EntityId = pr.ReadULong();
             ChosenVendorPackage = pr.ReadInt();
         }
     }

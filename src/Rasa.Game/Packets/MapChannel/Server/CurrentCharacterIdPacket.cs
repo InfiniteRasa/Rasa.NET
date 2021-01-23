@@ -7,9 +7,9 @@
     {
         public override GameOpcode Opcode { get; } = GameOpcode.CurrentCharacterId;
 
-        public uint CharacterId { get; set; }
+        public ulong CharacterId { get; set; }
 
-        public CurrentCharacterIdPacket(uint characterId)
+        public CurrentCharacterIdPacket(ulong characterId)
         {
             CharacterId = characterId;
         }
@@ -17,7 +17,7 @@
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(1);
-            pw.WriteUInt(CharacterId);
+            pw.WriteULong(CharacterId);
         }
     }
 }

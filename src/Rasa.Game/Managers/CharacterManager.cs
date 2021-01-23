@@ -14,7 +14,7 @@ namespace Rasa.Managers
 
     public class CharacterManager
     {
-        public const uint SelectionPodStartEntityId = 100;
+        public const ulong SelectionPodStartEntityId = 100;
         public const byte MaxSelectionPods = 16;
 
         private static CharacterManager _instance;

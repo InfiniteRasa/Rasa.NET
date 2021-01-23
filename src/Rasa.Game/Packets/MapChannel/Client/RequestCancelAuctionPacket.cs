@@ -7,14 +7,14 @@
     {
         public override GameOpcode Opcode { get; } = GameOpcode.RequestCancelAuction;
         
-        public uint EntityId { get; set; }      // g_auctioneerId
-        public uint ItemEntityId { get; set; }  // itemId
+        public ulong EntityId { get; set; }
+        public ulong ItemEntityId { get; set; }
 
         public override void Read(PythonReader pr)
         {
             pr.ReadTuple();
-            EntityId = (uint)pr.ReadLong();
-            ItemEntityId = pr.ReadUInt();
+            EntityId = pr.ReadULong();
+            ItemEntityId = pr.ReadULong();
         }
     }
 }

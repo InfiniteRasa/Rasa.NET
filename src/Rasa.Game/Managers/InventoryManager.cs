@@ -91,7 +91,7 @@ namespace Rasa.Managers
             if (packet.EntityId == 0)
                 return;
 
-            var tempItem = EntityManager.Instance.GetItem((uint)packet.EntityId);
+            var tempItem = EntityManager.Instance.GetItem(packet.EntityId);
 
             ReduceStackCount(client, InventoryType.HomeInventory, tempItem, packet.Quantity);
 
@@ -128,7 +128,7 @@ namespace Rasa.Managers
             if (packet.EntityId == 0)
                 return;
 
-            var tempItem = EntityManager.Instance.GetItem((uint)packet.EntityId);
+            var tempItem = EntityManager.Instance.GetItem(packet.EntityId);
 
             ReduceStackCount(client, InventoryType.Personal, tempItem, packet.Quantity);
 
@@ -527,7 +527,7 @@ namespace Rasa.Managers
             if (packet.EntityId == 0)
                 return;
 
-            var tempItem = EntityManager.Instance.GetItem((uint)packet.EntityId);
+            var tempItem = EntityManager.Instance.GetItem(packet.EntityId);
 
             //TODO: Support deleting portions
             if ((tempItem.Stacksize - packet.Quantity) > 0)
@@ -536,7 +536,7 @@ namespace Rasa.Managers
             RemoveItemBySlotForClan(client.Player.ClanId, tempItem.OwnerSlotId, 0);
             ClanInventoryTable.DeleteInvItem(client.Player.ClanId, tempItem.OwnerSlotId);
 
-            RefreshClanLockbox(client.Player.ClanId, (uint)packet.EntityId, client.Player.CharacterId, 0, ref client.MapClient.Inventory.ClanInventory, false);
+            RefreshClanLockbox(client.Player.ClanId, packet.EntityId, client.Player.CharacterId, 0, ref client.MapClient.Inventory.ClanInventory, false);
         }
 
         public void RequestTakeItemFromHomeInventory(Client client, RequestTakeItemFromHomeInventoryPacket packet)
@@ -680,20 +680,20 @@ namespace Rasa.Managers
 
         #region Helper Functions
 
-        public void UpdateItemSlot(Client client, uint entityId)
+        public void UpdateItemSlot(Client client, ulong entityId)
         {
             Item tempItem = EntityManager.Instance.GetItem(entityId);
             ItemManager.Instance.SendItemDataToClient(client, tempItem, false);
         }
 
-        public void AddItemBySlot(Client client, InventoryType inventoryType, uint entityId, uint slotId, bool updateDB, bool actuallyAdd = false)
+        public void AddItemBySlot(Client client, InventoryType inventoryType, ulong entityId, uint slotId, bool updateDB, bool actuallyAdd = false)
         {
             var tempItem = EntityManager.Instance.GetItem(entityId);
 
             if (tempItem == null)
                 return;
-            // set entityId in slot
 
+            // set entityId in slot
             switch (inventoryType)
             {
                 case InventoryType.Personal:
@@ -1085,7 +1085,7 @@ namespace Rasa.Managers
 
                 // destroy item
                 EntityManager.Instance.DestroyPhysicalEntity(client, tempItem.EntityId, EntityType.Item);
-                client.CallMethod(SysEntity.ClientInventoryManagerId, new InventoryRemoveItemPacket { InventoryType = InventoryType.Personal, EntityId = (int)tempItem.EntityId });
+                client.CallMethod(SysEntity.ClientInventoryManagerId, new InventoryRemoveItemPacket(InventoryType.Personal, tempItem.EntityId));
                 // free slot
                 FreeSlotIndex(client.MapClient, inventoryType, tempItem.OwnerSlotId);
                 // Update db
@@ -1111,7 +1111,7 @@ namespace Rasa.Managers
 
         public void RemoveItemBySlot(Client client, InventoryType inventoryType, uint slotIndex)
         {
-            var entityId = 0U;
+            var entityId = 0ul;
 
             switch (inventoryType)
             {
@@ -1140,7 +1140,7 @@ namespace Rasa.Managers
                     return;
             }
 
-            client.CallMethod(SysEntity.ClientInventoryManagerId, new InventoryRemoveItemPacket { InventoryType = inventoryType, EntityId = (int)entityId });
+            client.CallMethod(SysEntity.ClientInventoryManagerId, new InventoryRemoveItemPacket(inventoryType,  entityId));
         }
         
         public void RequestTooltipForItemTemplateId(Client client, uint itemTemplateId)
@@ -1255,7 +1255,7 @@ namespace Rasa.Managers
             return canEquip;
         }
 
-        public void RefreshClanLockbox(uint clanId, uint entityId, uint characterId, uint slotId, ref List<uint> clanInventory, bool addBySlot)
+        public void RefreshClanLockbox(uint clanId, ulong entityId, uint characterId, uint slotId, ref List<ulong> clanInventory, bool addBySlot)
         {
             if (addBySlot)
                 ClanManager.Instance.CallMethodForOnlineMembers(clanId, (client) => AddItemBySlot(client, InventoryType.ClanInventory, entityId, slotId, false), characterId);

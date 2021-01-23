@@ -14,13 +14,13 @@
         public uint Rank { get; set; }
         public string Note { get; set; }
         public bool IsAfk { get; set; }
-        public uint CharacterId { get; set; }
+        public ulong CharacterId { get; set; }
 
         public ClanMemberData()
         {
         }
 
-        public ClanMemberData(uint userId, uint characterId, string characterName, string familyName, uint clanId, uint level, uint contextId, uint rank, bool isOnline, bool isAfk, string note)
+        public ClanMemberData(uint userId, ulong characterId, string characterName, string familyName, uint clanId, uint level, uint contextId, uint rank, bool isOnline, bool isAfk, string note)
         {
             UserId = userId;
             CharacterId = characterId;
@@ -39,7 +39,7 @@
         {
             pr.ReadTuple();
             UserId = pr.ReadUInt();
-            CharacterId = pr.ReadUInt();
+            CharacterId = pr.ReadULong();
             CharacterName = pr.ReadString();
             FamilyName = pr.ReadString();
             ClanId = pr.ReadUInt();
@@ -55,7 +55,7 @@
         {
             pw.WriteTuple(11);
             pw.WriteUInt(UserId);
-            pw.WriteUInt(CharacterId);
+            pw.WriteULong(CharacterId);
             pw.WriteString(CharacterName);
             pw.WriteString(FamilyName);
             pw.WriteUInt(ClanId);

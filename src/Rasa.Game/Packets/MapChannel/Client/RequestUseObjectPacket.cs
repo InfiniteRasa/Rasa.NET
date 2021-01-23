@@ -9,14 +9,14 @@
 
         public ActionId ActionId { get; set; }
         public uint ActionArgId { get; set; }
-        public uint EntityId { get; set; }
+        public ulong EntityId { get; set; }
 
         public override void Read(PythonReader pr)
         {
             pr.ReadTuple();
             ActionId = (ActionId)pr.ReadInt();
             ActionArgId = pr.ReadUInt();
-            EntityId = (uint)pr.ReadLong();
+            EntityId = pr.ReadULong();
         }
     }
 }

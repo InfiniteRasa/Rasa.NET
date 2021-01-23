@@ -12,17 +12,17 @@ namespace Rasa.Managers
     {
         private static EntityManager _instance;
         private static readonly object InstanceLock = new object();
-        private uint _entityId = 1000;
+        private ulong _entityId = 1000;
         private object _entityIdLock = new object();
-        private List<uint> _freeEntityIds = new List<uint>();
+        private List<ulong> _freeEntityIds = new List<ulong>();
 
-        public Dictionary<uint, EntityType> RegisteredEntities = new Dictionary<uint, EntityType>();
-        public Dictionary<uint, Item> Items = new Dictionary<uint, Item>();
-        public Dictionary<uint, MapChannelClient> Players = new Dictionary<uint, MapChannelClient>();
-        public Dictionary<uint, Actor> Actors = new Dictionary<uint, Actor>();
-        public Dictionary<uint, Creature> Creatures = new Dictionary<uint, Creature>();
-        public Dictionary<uint, DynamicObject> DynamicObjects = new Dictionary<uint, DynamicObject>();
-        public Dictionary<uint, List<uint>> VendorItems = new Dictionary<uint, List<uint>>();
+        public Dictionary<ulong, EntityType> RegisteredEntities = new Dictionary<ulong, EntityType>();
+        public Dictionary<ulong, Item> Items = new Dictionary<ulong, Item>();
+        public Dictionary<ulong, MapChannelClient> Players = new Dictionary<ulong, MapChannelClient>();
+        public Dictionary<ulong, Actor> Actors = new Dictionary<ulong, Actor>();
+        public Dictionary<ulong, Creature> Creatures = new Dictionary<ulong, Creature>();
+        public Dictionary<ulong, DynamicObject> DynamicObjects = new Dictionary<ulong, DynamicObject>();
+        public Dictionary<ulong, List<ulong>> VendorItems = new Dictionary<ulong, List<ulong>>();
 
         public static EntityManager Instance
         {
@@ -47,7 +47,7 @@ namespace Rasa.Managers
         }
 
         // All Entities (everything in game)
-        public void DestroyPhysicalEntity(Client client, uint entityId, EntityType entityType)
+        public void DestroyPhysicalEntity(Client client, ulong entityId, EntityType entityType)
         {
             client.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(entityId));
             //free entity
@@ -81,7 +81,7 @@ namespace Rasa.Managers
                     
         }
 
-        public uint GetEntityId
+        public ulong GetEntityId
         {
             get
             {
@@ -101,7 +101,7 @@ namespace Rasa.Managers
             }
         }
 
-        public EntityClassId GetEntityClassId(uint entityId)
+        public EntityClassId GetEntityClassId(ulong entityId)
         {
             switch (GetEntityType(entityId))
             {
@@ -131,7 +131,7 @@ namespace Rasa.Managers
             }
         }
 
-        public EntityType GetEntityType(uint entityId)
+        public EntityType GetEntityType(ulong entityId)
         {
             if (entityId != 0)
                 return RegisteredEntities[entityId];
@@ -139,40 +139,40 @@ namespace Rasa.Managers
             return 0;
         }
 
-        public void FreeEntity(uint id)
+        public void FreeEntity(ulong id)
         {
             lock (_entityIdLock)
                 if(!_freeEntityIds.Contains(id))
                     _freeEntityIds.Add(id);
         }
 
-        public void RegisterEntity(uint entityId, EntityType type)
+        public void RegisterEntity(ulong entityId, EntityType type)
         {
             RegisteredEntities.Add(entityId, type);
         }
 
-        public void UnregisterEntity(uint entityId)
+        public void UnregisterEntity(ulong entityId)
         {
             RegisteredEntities.Remove(entityId);
         }
         // Actors
-        public Actor GetActor(uint entityId)
+        public Actor GetActor(ulong entityId)
         {
             return Actors[entityId];
         }
 
-        public void RegisterActor(uint entityId, Actor actor)
+        public void RegisterActor(ulong entityId, Actor actor)
         {
             Actors.Add(entityId, actor);
         }
 
-        public void UnregisterActor(uint entityId)
+        public void UnregisterActor(ulong entityId)
         {
             Actors.Remove(entityId);
         }
 
         // Items
-        public Item GetItem(uint entityId)
+        public Item GetItem(ulong entityId)
         {
             if (Items.ContainsKey(entityId))
                 return Items[entityId];
@@ -180,19 +180,19 @@ namespace Rasa.Managers
             return null;
         }
 
-        public void RegisterItem(uint entityId, Item item)
+        public void RegisterItem(ulong entityId, Item item)
         {
             Items.Add(entityId, item);
         }
 
-        public void UnregisterItem(uint entityId)
+        public void UnregisterItem(ulong entityId)
         {
             Items.Remove(entityId);
         }
 
         // DynamicObjects
 
-        internal DynamicObject GetObject(uint entityId)
+        internal DynamicObject GetObject(ulong entityId)
         {
             return DynamicObjects[entityId];
         }
@@ -203,23 +203,23 @@ namespace Rasa.Managers
         }
 
         // Players
-        public MapChannelClient GetPlayer(uint entityId)
+        public MapChannelClient GetPlayer(ulong entityId)
         {
             return Players[entityId];
         }
 
-        public void RegisterPlayer(uint entityId, MapChannelClient mapClient)
+        public void RegisterPlayer(ulong entityId, MapChannelClient mapClient)
         {
             Players.Add(entityId, mapClient);
         }
 
-        public void UnregisterPlayer(uint entityId)
+        public void UnregisterPlayer(ulong entityId)
         {
             Players.Remove(entityId);
         }
 
         // Creatures
-        public Creature GetCreature(uint entityId)
+        public Creature GetCreature(ulong entityId)
         {
             return Creatures[entityId];
         }
@@ -229,18 +229,18 @@ namespace Rasa.Managers
             Creatures.Add(creature.Actor.EntityId, creature);
         }
 
-        public void UnregisterCreature(uint entityId)
+        public void UnregisterCreature(ulong entityId)
         {
             Creatures.Remove(entityId);
         }
 
         // VendorItems
-        public void RegisterVendorItem(uint vendorEntityId, List<uint> itemEntityIds)
+        public void RegisterVendorItem(ulong vendorEntityId, List<ulong> itemEntityIds)
         {
             VendorItems.Add(vendorEntityId, itemEntityIds);
         }
 
-        public void UnRegisterVendorItem(uint clientEntityId)
+        public void UnRegisterVendorItem(ulong clientEntityId)
         {
             // ToDO
         }

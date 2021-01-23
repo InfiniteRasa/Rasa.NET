@@ -26,7 +26,7 @@ namespace Rasa.Packets.Protocol
         public uint UnknownValue { get; set; }
         public PythonPacket Packet { get; }
 
-        public CallMethodMessage(uint entityId, PythonPacket packet)
+        public CallMethodMessage(ulong entityId, PythonPacket packet)
         {
             EntityId = entityId;
             Packet = packet;

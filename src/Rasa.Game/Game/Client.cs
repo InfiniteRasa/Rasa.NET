@@ -99,23 +99,23 @@ namespace Rasa.Game
             }
         }
 
-        public void CallMethod(uint entityId, PythonPacket packet)
+        public void CallMethod(ulong entityId, PythonPacket packet)
         {
             SendMessage(new CallMethodMessage(entityId, packet));
         }
 
         public void CallMethod(SysEntity entityId, PythonPacket packet)
         {
-            SendMessage(new CallMethodMessage((uint)entityId, packet));
+            SendMessage(new CallMethodMessage((ulong)entityId, packet));
         }
 
-        internal void MoveObject(uint entityId, MovementData movementData)
+        internal void MoveObject(ulong entityId, MovementData movementData)
         {
             SendMessage(new MoveObjectMessage(entityId, movementData), false, 1);
         }
 
         // Cell Domain
-        public void CellCallMethod(Client client, uint entityId, PythonPacket packet)
+        public void CellCallMethod(Client client, ulong entityId, PythonPacket packet)
         {
             var clientList = new List<Client>();
 
