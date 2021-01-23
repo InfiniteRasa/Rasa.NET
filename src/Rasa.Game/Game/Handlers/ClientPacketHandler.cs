@@ -44,22 +44,82 @@
             Logger.WriteLog(LogType.Debug, "ToDo CancelLogoutRequest");  // gues nothing to do here
         }
 
-        [PacketHandler(GameOpcode.ChangeTitle)]
-        private void ChangeTitle(ChangeTitlePacket packet)
-        {
-            ManifestationManager.Instance.ChangeTitle(Client, packet.TitleId);
-        }
-
         [PacketHandler(GameOpcode.ChangeShowHelmet)]
         private void ChangeShowHelmet(ChangeShowHelmetPacket packet)
         {
             ManifestationManager.Instance.ChangeShowHelmet(Client, packet);
         }
 
+        [PacketHandler(GameOpcode.ChangeTitle)]
+        private void ChangeTitle(ChangeTitlePacket packet)
+        {
+            ManifestationManager.Instance.ChangeTitle(Client, packet.TitleId);
+        }
+
         [PacketHandler(GameOpcode.CharacterLogout)]
         private void CharacterLogout(CharacterLogoutPacket packet)
         {
             MapChannelManager.Instance.CharacterLogout(Client);
+        }
+
+        [PacketHandler(GameOpcode.ClanChangeRankTitle)]
+        private void ClanChangeRankTitle(ClanChangeRankTitlePacket packet)
+        {
+            ClanManager.Instance.ClanChangeRankTitle(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.ClanCreditTransfer)]
+        private void ClanCreditTransfer(ClanCreditTransferPacket packet)
+        {
+            InventoryManager.Instance.ClanCreditTransfer(Client, packet.Ammount, packet.CreditsType);
+        }
+
+        [PacketHandler(GameOpcode.ClanDemotePlayer)]
+        private void CreateClan(ClanDemotePlayerPacket packet)
+        {
+            ClanManager.Instance.ClanDemotePlayer(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.ClanInvitationResponse)]
+        private void ClanInvitationResponse(ClanInvitationResponsePacket packet)
+        {
+            ClanManager.Instance.ClanInvitationResponse(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.ClanLockbox_DepositItemInSlot)]
+        private void ClanLockbox_DepositItemInSlot(ClanLockbox_DepositItemInSlotPacket packet)
+        {
+            InventoryManager.Instance.ClanLockbox_DepositItemInSlot(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.ClanLockbox_DepositItemInTab)]
+        private void ClanLockbox_MoveItem(ClanLockbox_DepositItemInTabPacket packet)
+        {
+            InventoryManager.Instance.ClanLockbox_DepositItemInTab(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.ClanLockbox_DestroyItem)]
+        private void ClanLockbox_DestroyItem(ClanLockbox_DestroyItemPacket packet)
+        {
+            InventoryManager.Instance.ClanLockbox_DestroyItem(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.ClanLockbox_MoveItem)]
+        private void ClanLockbox_MoveItem(ClanLockbox_MoveItemPacket packet)
+        {
+            InventoryManager.Instance.ClanLockbox_MoveItem(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.ClanLockbox_WithdrawItem)]
+        private void ClanLockbox_WithdrawItem(ClanLockbox_WithdrawItemPacket packet)
+        {
+            InventoryManager.Instance.ClanLockbox_WithdrawItem(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.ClanPromotePlayer)]
+        private void ClanPromotePlayer(ClanPromotePlayerPacket packet)
+        {
+            ClanManager.Instance.ClanPromotePlayer(Client, packet);
         }
 
         [PacketHandler(GameOpcode.ClearTargetId)]
@@ -86,52 +146,10 @@
             ClanManager.Instance.CreateClan(Client, packet);
         }
 
-        [PacketHandler(GameOpcode.ClanChangeRankTitle)]
-        private void ClanChangeRankTitle(ClanChangeRankTitlePacket packet)
+        [PacketHandler(GameOpcode.DisbandClan)]
+        private void DisbandClan(DisbandClanPacket packet)
         {
-            ClanManager.Instance.ClanChangeRankTitle(Client, packet);
-        }
-
-        [PacketHandler(GameOpcode.ClanPromotePlayer)]
-        private void ClanPromotePlayer(ClanPromotePlayerPacket packet)
-        {
-            ClanManager.Instance.ClanPromotePlayer(Client, packet);
-        }
-
-        [PacketHandler(GameOpcode.ClanDemotePlayer)]
-        private void CreateClan(ClanDemotePlayerPacket packet)
-        {
-            ClanManager.Instance.ClanDemotePlayer(Client, packet);
-        }
-
-        [PacketHandler(GameOpcode.MakePlayerClanLeader)]
-        private void MakePlayerClanLeader(MakePlayerClanLeaderPacket packet)
-        {
-            ClanManager.Instance.MakePlayerClanLeader(Client, packet);
-        }
-
-        [PacketHandler(GameOpcode.InviteToClanById)]
-        private void InviteToClanById(InviteToClanByIdPacket packet)
-        {
-            ClanManager.Instance.InviteToClanById(Client, packet);
-        }
-
-        [PacketHandler(GameOpcode.InviteToClanByName)]
-        private void InviteToClanByName(InviteToClanByNamePacket packet)
-        {
-            ClanManager.Instance.InviteToClanByName(Client, packet);
-        }
-
-        [PacketHandler(GameOpcode.ClanInvitationResponse)]
-        private void ClanInvitationResponse(ClanInvitationResponsePacket packet)
-        {
-            ClanManager.Instance.ClanInvitationResponse(Client, packet);
-        }
-
-        [PacketHandler(GameOpcode.LeaveClan)]
-        private void LeaveClan(LeaveClanPacket packet)
-        {
-            ClanManager.Instance.LeaveClan(Client, packet);
+            ClanManager.Instance.DisbandClan(Client, packet);
         }
 
         [PacketHandler(GameOpcode.GetCustomizationChoices)]
@@ -146,54 +164,6 @@
             ClanManager.Instance.GetPvPClanMembershipStatus(Client);    // packet have 0 argumenst, no need to pass it
         }
 
-        [PacketHandler(GameOpcode.DisbandClan)]
-        private void DisbandClan(DisbandClanPacket packet)
-        {
-            ClanManager.Instance.DisbandClan(Client, packet);
-        }
-
-        [PacketHandler(GameOpcode.KickPlayerFromClan)]
-        private void KickPlayerFromClan(KickPlayerFromClanPacket packet)
-        {
-            ClanManager.Instance.KickPlayerFromClan(Client, packet);
-        }
-
-        [PacketHandler(GameOpcode.ClanLockbox_DepositItemInSlot)]
-        private void ClanLockbox_DepositItemInSlot(ClanLockbox_DepositItemInSlotPacket packet)
-        {
-            InventoryManager.Instance.ClanLockbox_DepositItemInSlot(Client, packet);
-        }
-
-        [PacketHandler(GameOpcode.ClanLockbox_WithdrawItem)]
-        private void ClanLockbox_WithdrawItem(ClanLockbox_WithdrawItemPacket packet)
-        {
-            InventoryManager.Instance.ClanLockbox_WithdrawItem(Client, packet);
-        }
-
-        [PacketHandler(GameOpcode.ClanLockbox_DestroyItem)]
-        private void ClanLockbox_DestroyItem(ClanLockbox_DestroyItemPacket packet)
-        {
-            InventoryManager.Instance.ClanLockbox_DestroyItem(Client, packet);
-        }
-
-        [PacketHandler(GameOpcode.ClanLockbox_MoveItem)]
-        private void ClanLockbox_MoveItem(ClanLockbox_MoveItemPacket packet)
-        {
-            InventoryManager.Instance.ClanLockbox_MoveItem(Client, packet);
-        }
-
-        [PacketHandler(GameOpcode.ClanLockbox_DepositItemInTab)]
-        private void ClanLockbox_MoveItem(ClanLockbox_DepositItemInTabPacket packet)
-        {
-            InventoryManager.Instance.ClanLockbox_DepositItemInTab(Client, packet);
-        }
-
-        [PacketHandler(GameOpcode.ClanCreditTransfer)]
-        private void ClanCreditTransfer(ClanCreditTransferPacket packet)
-        {
-            InventoryManager.Instance.ClanCreditTransfer(Client, packet.Ammount, packet.CreditsType);
-        }
-
         [PacketHandler(GameOpcode.HomeInventory_DestroyItem)]
         private void HomeInventory_DestroyItem(HomeInventory_DestroyItemPacket packet)
         {
@@ -206,10 +176,40 @@
             InventoryManager.Instance.HomeInventory_MoveItem(Client, packet);
         }
 
+        [PacketHandler(GameOpcode.InviteToClanById)]
+        private void InviteToClanById(InviteToClanByIdPacket packet)
+        {
+            ClanManager.Instance.InviteToClanById(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.InviteToClanByName)]
+        private void InviteToClanByName(InviteToClanByNamePacket packet)
+        {
+            ClanManager.Instance.InviteToClanByName(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.KickPlayerFromClan)]
+        private void KickPlayerFromClan(KickPlayerFromClanPacket packet)
+        {
+            ClanManager.Instance.KickPlayerFromClan(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.LeaveClan)]
+        private void LeaveClan(LeaveClanPacket packet)
+        {
+            ClanManager.Instance.LeaveClan(Client, packet);
+        }
+
         [PacketHandler(GameOpcode.LevelSkills)]
         private void LevelSkills(LevelSkillsPacket packet)
         {
             ManifestationManager.Instance.LevelSkills(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.MakePlayerClanLeader)]
+        private void MakePlayerClanLeader(MakePlayerClanLeaderPacket packet)
+        {
+            ClanManager.Instance.MakePlayerClanLeader(Client, packet);
         }
 
         [PacketHandler(GameOpcode.MapLoaded)]
@@ -284,16 +284,16 @@
             AuctionHouseManager.Instance.RequestAuctionStatus(Client, packet);
         }
 
-        [PacketHandler(GameOpcode.RequestCancelAuction)]
-        private void RequestCancelAuction(RequestCancelAuctionPacket packet)
-        {
-            AuctionHouseManager.Instance.RequestCancelAuction(Client, packet);
-        }
-
         [PacketHandler(GameOpcode.RequestCancelAuctioneer)]
         private void RequestCancelAuctioneer(RequestCancelAuctioneerPacket packet)
         {
             AuctionHouseManager.Instance.RequestCancelAuctioneer(Client);
+        }
+
+        [PacketHandler(GameOpcode.RequestCancelAuction)]
+        private void RequestCancelAuction(RequestCancelAuctionPacket packet)
+        {
+            AuctionHouseManager.Instance.RequestCancelAuction(Client, packet);
         }
 
         [PacketHandler(GameOpcode.RequestCancelVendor)]
@@ -348,6 +348,12 @@
         private void RequestLogout(RequestLogoutPacket packet)
         {
             MapChannelManager.Instance.RequestLogout(Client);
+        }
+
+        [PacketHandler(GameOpcode.RequestMoveItemToClanLockbox)]
+        private void RequestMoveItemToClanLockbox(RequestMoveItemToClanLockboxPacket packet)
+        {
+            InventoryManager.Instance.RequestMoveItemToClanLockbox(Client, packet);
         }
 
         [PacketHandler(GameOpcode.RequestMoveItemToHomeInventory)]

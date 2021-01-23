@@ -325,6 +325,11 @@ namespace Rasa.Managers
             client.CallMethod(SysEntity.ClientInventoryManagerId, new LockboxTabPermissionsPacket(client.MapClient.Player.LockboxTabs));
         }
 
+        public void RequestMoveItemToClanLockbox(Client client, RequestMoveItemToClanLockboxPacket packet)
+        {
+            Logger.WriteLog(LogType.Debug, $"ToDO: RequestMoveItemToClanLockboxPacket");
+        }
+
         public void RequestMoveItemToHomeInventory(Client client, RequestMoveItemToHomeInventoryPacket packet)
         {
             // remove item
