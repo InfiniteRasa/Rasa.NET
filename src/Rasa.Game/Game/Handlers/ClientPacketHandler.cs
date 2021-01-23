@@ -10,15 +10,18 @@
     {
         private readonly ICharacterManager _characterManager;
         private readonly IMapChannelManager _mapChannelManager;
+        private readonly IManifestationManager _manifestationManager;
 
         public Client Client { get; private set; }
 
         public ClientPacketHandler(
             ICharacterManager characterManager, 
-            IMapChannelManager mapChannelManager)
+            IMapChannelManager mapChannelManager,
+            IManifestationManager manifestationManager)
         {
             _characterManager = characterManager;
             _mapChannelManager = mapChannelManager;
+            _manifestationManager = manifestationManager;
         }
 
         public void RegisterClient(Client client)
@@ -54,6 +57,19 @@
         private void SetAutoLootThreshold(SetAutoLootThresholdPacket packet)
         {
             Logger.WriteLog(LogType.Debug, "ToDo SetAutoLootThreshold");
+        }
+
+        [PacketHandler(GameOpcode.RequestLogout)]
+        private void RequestLogout(RequestLogoutPacket packet)
+        {
+            Client.CallMethod(SysEntity.ClientMethodId, new LogoutTimeRemainingPacket());
+        }
+
+        [PacketHandler(GameOpcode.CharacterLogout)]
+        private void CharacterLogout(CharacterLogoutPacket packet)
+        {
+            _mapChannelManager.CharacterLogout(Client);
+            _characterManager.StartCharacterSelection(Client);
         }
     }
 }

@@ -9,5 +9,7 @@ namespace Rasa.Repositories.Char.CharacterAppearance
         bool Add(CharacterEntry character, IEnumerable<CharacterAppearanceEntry> newEntries);
 
         void DeleteForChar(uint characterId);
+
+        List<CharacterAppearanceEntry> GetByCharacterId(uint characterId);
     }
 }

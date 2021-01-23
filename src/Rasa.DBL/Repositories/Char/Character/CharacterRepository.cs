@@ -15,6 +15,7 @@ namespace Rasa.Repositories.Char.Character
         private const double DefaultCoordX = 894.9d;
         private const double DefaultCoordY = 307.9d;
         private const double DefaultCoordZ = 347.1d;
+        private const byte DefaultRunState = 1;
 
         private readonly CharContext _charContext;
 
@@ -35,6 +36,7 @@ namespace Rasa.Repositories.Char.Character
                 Gender = gender,
                 Class = 1,
                 MapContextId = DefaultMapContextId,
+                RunState = DefaultRunState,
                 CoordX = DefaultCoordX,
                 CoordY = DefaultCoordY,
                 CoordZ = DefaultCoordZ,
