@@ -318,19 +318,20 @@ namespace Rasa.Game
 
         private void OnCommunicatorReceive(BufferData data)
         {
-            var opcode = (CommOpcode) data.Buffer[data.BaseOffset + data.Offset++];
+            using var br = data.GetReader();
+
+            var opcode = (CommOpcode)br.ReadByte();
 
             var packetType = _router.GetPacketType(opcode);
             if (packetType == null)
                 return;
 
-            var packet = Activator.CreateInstance(packetType) as IOpcodedPacket<CommOpcode>;
-            if (packet == null)
-                return;
+            if (Activator.CreateInstance(packetType) is IOpcodedPacket<CommOpcode> packet)
+            {
+                packet.Read(br);
 
-            packet.Read(data.GetReader());
-
-            _router.RoutePacket(this, packet);
+                _router.RoutePacket(this, packet);
+            }
         }
 
         // ReSharper disable once UnusedMember.Local

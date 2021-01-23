@@ -60,7 +60,7 @@ namespace Rasa.Auth
             SessionId1 = rnd.NextUInt();
             SessionId2 = rnd.NextUInt();
 
-            SendPacket(new ProtocolVersionPacket(OneTimeKey));
+            Socket.Send(new ProtocolVersionPacket(OneTimeKey));
 
             // This is here (after ProtocolVersionPacket), so it won't get encrypted
             Socket.OnEncrypt += OnEncrypt;
@@ -85,10 +85,13 @@ namespace Rasa.Auth
             IBasePacket packet;
 
             while ((packet = _packetQueue.PopIncoming()) != null)
-                HandlePacket(packet);
+            {
+                if (packet is IOpcodedPacket<ClientOpcode> authPacket)
+                    PacketRouter.RoutePacket(this, authPacket);
+            }
 
             while ((packet = _packetQueue.PopOutgoing()) != null)
-                SendPacket(packet);
+                Socket.Send(packet);
         }
         
         public void Close(bool sendPacket = true)
@@ -107,26 +110,12 @@ namespace Rasa.Auth
             Server.Disconnect(this);
         }
 
-        public void SendPacket(IBasePacket packet)
-        {
-            Socket.Send(packet);
-        }
-
-        public void HandlePacket(IBasePacket packet)
-        {
-            var authPacket = packet as IOpcodedPacket<ClientOpcode>;
-            if (authPacket == null)
-                return;
-
-            PacketRouter.RoutePacket(this, authPacket);
-        }
-
         public void RedirectionResult(RedirectResult result, ServerInfo info)
         {
             switch (result)
             {
                 case RedirectResult.Fail:
-                    SendPacket(new PlayFailPacket(FailReason.UnexpectedError));
+                    Socket.Send(new PlayFailPacket(FailReason.UnexpectedError));
 
                     Close(false);
 
@@ -134,28 +123,31 @@ namespace Rasa.Auth
                     break;
 
                 case RedirectResult.Success:
-                    HandleSuccessfulRedirect(info);
+                    Socket.Send(new HandoffToQueuePacket
+                    {
+                        OneTimeKey = OneTimeKey,
+                        ServerId = info.ServerId,
+                        AccountId = AccountEntry.Id
+                    });
+
+                    using (var unitOfWork = _authUnitOfWorkFactory.Create())
+                    {
+                        unitOfWork.AuthAccountRepository.UpdateLastServer(AccountEntry.Id, info.ServerId);
+                        unitOfWork.Complete();
+                    }
+
+                    Logger.WriteLog(LogType.Network, $"Account ({AccountEntry.Username}, {AccountEntry.Id}) was redirected to the queue of the server: {info.ServerId}!");
                     break;
 
                 default:
-                    throw new ArgumentOutOfRangeException();
+                    throw new ArgumentOutOfRangeException(nameof(result));
             }
         }
 
-        private void HandleSuccessfulRedirect(ServerInfo info)
+        public void UpdateServerList()
         {
-            SendPacket(new HandoffToQueuePacket
-            {
-                OneTimeKey = OneTimeKey,
-                ServerId = info.ServerId,
-                AccountId = AccountEntry.Id
-            });
-
-            using var unitOfWork = _authUnitOfWorkFactory.Create();
-            unitOfWork.AuthAccountRepository.UpdateLastServer(AccountEntry.Id, info.ServerId);
-            unitOfWork.Complete();
-
-            Logger.WriteLog(LogType.Network, $"Account ({AccountEntry.Username}, {AccountEntry.Id}) was redirected to the queue of the server: {info.ServerId}!");
+            if (State == ClientState.ServerList)
+                Socket.Send(new SendServerListExtPacket(Server.ServerList, AccountEntry.LastServerId));
         }
 
         private void OnError(SocketAsyncEventArgs args)
@@ -178,21 +170,23 @@ namespace Rasa.Auth
             // Reset the timeout after every action
             Timer.ResetTimer("timeout");
 
-            var packetType = PacketRouter.GetPacketType((ClientOpcode) data.Buffer[data.BaseOffset + data.Offset++]);
+            using var br = data.GetReader();
+
+            var packetType = PacketRouter.GetPacketType((ClientOpcode)br.ReadByte());
             if (packetType == null)
                 return;
 
-            var packet = Activator.CreateInstance(packetType) as IBasePacket;
-            if (packet == null)
-                return;
+            if (Activator.CreateInstance(packetType) is IBasePacket packet)
+            {
+                packet.Read(br);
 
-            packet.Read(data.GetReader());
-
-            _packetQueue.EnqueueIncoming(packet);
+                _packetQueue.EnqueueIncoming(packet);
+            }
         }
 
         #region Handlers
-        // ReSharper disable once UnusedMember.Local - Used by reflection
+        #pragma warning disable IDE0051 // Remove unused private members
+        
         [PacketHandler(ClientOpcode.Login)]
         private void MsgLogin(LoginPacket packet)
         {
@@ -203,22 +197,28 @@ namespace Rasa.Auth
             }
             catch (EntityNotFoundException)
             {
-                SendPacket(new LoginFailPacket(FailReason.UserNameOrPassword));
+                Socket.Send(new LoginFailPacket(FailReason.UserNameOrPassword));
+
                 Close(false);
+
                 Logger.WriteLog(LogType.Security, $"User ({packet.UserName}) tried to log in with an invalid username!");
                 return;
             }
             catch (PasswordCheckFailedException e)
             {
-                SendPacket(new LoginFailPacket(FailReason.UserNameOrPassword));
+                Socket.Send(new LoginFailPacket(FailReason.UserNameOrPassword));
+
                 Close(false);
+
                 Logger.WriteLog(LogType.Security, e.Message);
                 return;
             }
             catch (AccountLockedException e)
             {
-                SendPacket(new BlockedAccountPacket());
+                Socket.Send(new BlockedAccountPacket());
+
                 Close(false);
+
                 Logger.WriteLog(LogType.Security, e.Message);
                 return;
             }
@@ -228,7 +228,7 @@ namespace Rasa.Auth
 
             State = ClientState.LoggedIn;
 
-            SendPacket(new LoginOkPacket
+            Socket.Send(new LoginOkPacket
             {
                 SessionId1 = SessionId1,
                 SessionId2 = SessionId2
@@ -237,33 +237,20 @@ namespace Rasa.Auth
             Logger.WriteLog(LogType.Network, "*** Client logged in from {0}", Socket.RemoteAddress);
         }
 
-        // ReSharper disable once UnusedMember.Local - Used by reflection
-        // ReSharper disable once UnusedParameter.Local
         [PacketHandler(ClientOpcode.Logout)]
         private void MsgLogout(LogoutPacket packet)
         {
             Close(false);
         }
 
-        // ReSharper disable once UnusedMember.Local - Used by reflection
-        // ReSharper disable once UnusedParameter.Local
-        /*[PacketHandler(ClientOpcode.SCCheck)]
-        private void MsgSCCheck(SCCheckPacket packet)
-        {
-            // I'm not sure we have to handle this, seems unused by the client
-        }*/
-
-        // ReSharper disable once UnusedMember.Local - Used by reflection
-        // ReSharper disable once UnusedParameter.Local
         [PacketHandler(ClientOpcode.ServerListExt)]
         private void MsgServerListExt(ServerListExtPacket packet)
         {
             State = ClientState.ServerList;
 
-            SendPacket(new SendServerListExtPacket(Server.ServerList, AccountEntry.LastServerId));
+            UpdateServerList();
         }
 
-        // ReSharper disable once UnusedMember.Local - Used by reflection
         [PacketHandler(ClientOpcode.AboutToPlay)]
         private void MsgAboutToPlay(AboutToPlayPacket packet)
         {
@@ -275,6 +262,7 @@ namespace Rasa.Auth
 
             Server.RequestRedirection(this, packet.ServerId);
         }
+        #pragma warning restore IDE0051 // Remove unused private members
         #endregion
     }
 }

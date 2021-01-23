@@ -41,19 +41,18 @@ namespace Rasa.Auth
 
         private void OnReceive(BufferData data)
         {
-            var opcode = (CommOpcode) data.Buffer[data.BaseOffset + data.Offset++];
+            using var br = data.GetReader();
 
-            var packetType = _router.GetPacketType(opcode);
+            var packetType = _router.GetPacketType((CommOpcode)br.ReadByte());
             if (packetType == null)
                 return;
 
-            var packet = Activator.CreateInstance(packetType) as IOpcodedPacket<CommOpcode>;
-            if (packet == null)
-                return;
+            if (Activator.CreateInstance(packetType) is IOpcodedPacket<CommOpcode> packet)
+            {
+                packet.Read(br);
 
-            packet.Read(data.GetReader());
-
-            _router.RoutePacket(this, packet);
+                _router.RoutePacket(this, packet);
+            }
         }
 
         private void OnError(SocketAsyncEventArgs args)

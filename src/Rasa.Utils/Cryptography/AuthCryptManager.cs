@@ -6,7 +6,7 @@ namespace Rasa.Cryptography
 
     public static class AuthCryptManager
     {
-        public static bool Decrypt(byte[] data, int offset, int length, ClientCryptData cryptData = null)
+        public static bool Decrypt(byte[] data, int offset, int length)
         {
             if (length % 8 != 0)
                 throw new ArgumentOutOfRangeException(nameof(length), "The lenght must be a multiple of 8!");
@@ -16,7 +16,7 @@ namespace Rasa.Cryptography
             return VerifyChecksum(data, offset, length);
         }
 
-        public static void Encrypt(byte[] data, int offset, ref int length, int maxLength, ClientCryptData cryptData = null)
+        public static void Encrypt(byte[] data, int offset, ref int length, int maxLength)
         {
             var oldLen = length;
 

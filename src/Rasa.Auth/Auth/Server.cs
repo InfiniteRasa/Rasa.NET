@@ -416,9 +416,12 @@ namespace Rasa.Auth
         public void BroadcastServerList()
         {
             lock (Clients)
+            {
                 foreach (var c in Clients)
-                    if (c.State == ClientState.ServerList)
-                        c.SendPacket(new SendServerListExtPacket(ServerList, c.AccountEntry.LastServerId));
+                {
+                    c.UpdateServerList();
+                }
+            }
         }
 
         #region Commands
