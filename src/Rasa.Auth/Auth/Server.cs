@@ -276,7 +276,7 @@ namespace Rasa.Auth
             }
         }
 
-        public void UpdateServerInfo(CommunicatorClient client, ServerInfoResponsePacket packet)
+        public void UpdateServerInfo()
         {
             GenerateServerList();
             BroadcastServerList();

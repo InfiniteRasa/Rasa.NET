@@ -107,7 +107,7 @@ namespace Rasa.Game
             lock (Clients)
             {
                 foreach (var client in Clients)
-                    client.Update(delta);
+                    client.Update();
 
                 if (_clientsToRemove.Count > 0)
                 {
@@ -207,7 +207,7 @@ namespace Rasa.Game
             LoginManager.LoginSocket(newSocket);
         }
 
-        public LoginAccountEntry AuthenticateClient(Client client, uint accountId, uint oneTimeKey)
+        public LoginAccountEntry AuthenticateClient(uint accountId, uint oneTimeKey)
         {
             lock (IncomingClients)
             {
@@ -224,10 +224,14 @@ namespace Rasa.Game
             }
         }
 
+#pragma warning disable IDE0060 // Remove unused parameter
+#pragma warning disable CA1822 // Mark members as static
         public bool IsBanned(uint accountId)
         {
             return false; // TODO
         }
+#pragma warning restore CA1822 // Mark members as static
+#pragma warning restore IDE0060 // Remove unused parameter
 
         public bool IsAlreadyLoggedIn(uint accountId)
         {
@@ -334,7 +338,9 @@ namespace Rasa.Game
             }
         }
 
-        // ReSharper disable once UnusedMember.Local
+#pragma warning disable IDE0051 // Remove unused private members
+#pragma warning disable IDE0060 // Remove unused parameter
+
         [PacketHandler(CommOpcode.LoginResponse)]
         private void MsgLoginResponse(LoginResponsePacket packet)
         {
@@ -350,8 +356,6 @@ namespace Rasa.Game
             Logger.WriteLog(LogType.Error, "Could not authenticate with the Auth server! Shutting down internal communication!");
         }
 
-        // ReSharper disable once UnusedMember.Local
-        // ReSharper disable once UnusedParameter.Local
         [PacketHandler(CommOpcode.ServerInfoRequest)]
         private void MsgGameInfoRequest(ServerInfoRequestPacket packet)
         {
@@ -366,7 +370,6 @@ namespace Rasa.Game
             });
         }
 
-        // ReSharper disable once UnusedMember.Local
         [PacketHandler(CommOpcode.RedirectRequest)]
         private void MsgRedirectRequest(RedirectRequestPacket packet)
         {
@@ -384,6 +387,9 @@ namespace Rasa.Game
                 Response = RedirectResult.Success
             });
         }
+
+#pragma warning restore IDE0060 // Remove unused parameter
+#pragma warning restore IDE0051 // Remove unused private members
         #endregion
 
         #region Commands

@@ -34,7 +34,7 @@ namespace Rasa.Auth
         public ClientState State { get; private set; }
         public Timer Timer { get; }
 
-        private PacketQueue _packetQueue = new PacketQueue();
+        private readonly PacketQueue _packetQueue = new PacketQueue();
 
         private static PacketRouter<Client, ClientOpcode> PacketRouter { get; } = new PacketRouter<Client, ClientOpcode>();
 
@@ -69,7 +69,7 @@ namespace Rasa.Auth
             {
                 Logger.WriteLog(LogType.Network, "*** Client timed out! Ip: {0}", Socket.RemoteAddress);
 
-                Close(true);
+                Close();
             });
 
             Logger.WriteLog(LogType.Network, "*** Client connected from {0}", Socket.RemoteAddress);
@@ -94,7 +94,7 @@ namespace Rasa.Auth
                 Socket.Send(packet);
         }
         
-        public void Close(bool sendPacket = true)
+        public void Close()
         {
             if (State == ClientState.Disconnected)
                 return;
@@ -117,7 +117,7 @@ namespace Rasa.Auth
                 case RedirectResult.Fail:
                     Socket.Send(new PlayFailPacket(FailReason.UnexpectedError));
 
-                    Close(false);
+                    Close();
 
                     Logger.WriteLog(LogType.Error, $"Account ({AccountEntry.Username}, {AccountEntry.Id}) couldn't be redirected to server: {info.ServerId}!");
                     break;
@@ -152,7 +152,7 @@ namespace Rasa.Auth
 
         private void OnError(SocketAsyncEventArgs args)
         {
-            Close(false);
+            Close();
         }
 
         private static void OnEncrypt(BufferData data, ref int length)
@@ -185,8 +185,9 @@ namespace Rasa.Auth
         }
 
         #region Handlers
-        #pragma warning disable IDE0051 // Remove unused private members
-        
+#pragma warning disable IDE0051 // Remove unused private members
+#pragma warning disable IDE0060 // Remove unused parameter
+
         [PacketHandler(ClientOpcode.Login)]
         private void MsgLogin(LoginPacket packet)
         {
@@ -199,7 +200,7 @@ namespace Rasa.Auth
             {
                 Socket.Send(new LoginFailPacket(FailReason.UserNameOrPassword));
 
-                Close(false);
+                Close();
 
                 Logger.WriteLog(LogType.Security, $"User ({packet.UserName}) tried to log in with an invalid username!");
                 return;
@@ -208,7 +209,7 @@ namespace Rasa.Auth
             {
                 Socket.Send(new LoginFailPacket(FailReason.UserNameOrPassword));
 
-                Close(false);
+                Close();
 
                 Logger.WriteLog(LogType.Security, e.Message);
                 return;
@@ -217,7 +218,7 @@ namespace Rasa.Auth
             {
                 Socket.Send(new BlockedAccountPacket());
 
-                Close(false);
+                Close();
 
                 Logger.WriteLog(LogType.Security, e.Message);
                 return;
@@ -240,7 +241,7 @@ namespace Rasa.Auth
         [PacketHandler(ClientOpcode.Logout)]
         private void MsgLogout(LogoutPacket packet)
         {
-            Close(false);
+            Close();
         }
 
         [PacketHandler(ClientOpcode.ServerListExt)]
@@ -262,7 +263,9 @@ namespace Rasa.Auth
 
             Server.RequestRedirection(this, packet.ServerId);
         }
-        #pragma warning restore IDE0051 // Remove unused private members
+
+#pragma warning restore IDE0060 // Remove unused parameter
+#pragma warning restore IDE0051 // Remove unused private members
         #endregion
     }
 }

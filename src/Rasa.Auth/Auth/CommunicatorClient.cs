@@ -80,7 +80,10 @@ namespace Rasa.Auth
             });
         }
 
-        // ReSharper disable once UnusedMember.Local
+        #region Handlers
+#pragma warning disable IDE0051 // Remove unused private members
+#pragma warning disable IDE0060 // Remove unused parameter
+
         [PacketHandler(CommOpcode.LoginRequest)]
         private void MsgLoginRequest(LoginRequestPacket packet)
         {
@@ -104,18 +107,19 @@ namespace Rasa.Auth
             RequestServerInfo();
         }
 
-        // ReSharper disable once UnusedMember.Local
         [PacketHandler(CommOpcode.ServerInfoResponse)]
         private void MsgGameInfoResponse(ServerInfoResponsePacket packet)
         {
-            Server.UpdateServerInfo(this, packet);
+            Server.UpdateServerInfo();
         }
 
-        // ReSharper disable once UnusedMember.Local
         [PacketHandler(CommOpcode.RedirectResponse)]
         private void MsgRedirectResponse(RedirectResponsePacket packet)
         {
             Server.RedirectResponse(this, packet);
         }
+#pragma warning restore IDE0060 // Remove unused parameter
+#pragma warning restore IDE0051 // Remove unused private members
+        #endregion
     }
 }

@@ -78,7 +78,7 @@ namespace Rasa.Game
             Logger.WriteLog(LogType.Network, "*** Client connected from {0}", Socket.RemoteAddress);
         }
 
-        public void Update(long delta)
+        public void Update()
         {
             IBasePacket packet;
 
@@ -89,7 +89,7 @@ namespace Rasa.Game
                 SendPacket(packet);
         }
 
-        public void Close(bool sendPacket = true)
+        public void Close()
         {
             if (State == ClientState.Disconnected)
                 return;
@@ -131,8 +131,7 @@ namespace Rasa.Game
 
         public void SendPacket(IBasePacket packet)
         {
-            var pPacket = packet as ProtocolPacket;
-            if (pPacket == null)
+            if (!(packet is ProtocolPacket pPacket))
             {
                 Debugger.Break();
                 return;
@@ -146,17 +145,15 @@ namespace Rasa.Game
 
         public void HandlePacket(IBasePacket packet)
         {
-            var pPacket = packet as ProtocolPacket;
-            if (pPacket == null)
+            if (!(packet is ProtocolPacket pPacket))
                 return;
 
             switch (pPacket.Type)
             {
                 case ClientMessageOpcode.Login:
-                    var loginMsg = pPacket.Message as LoginMessage;
-                    if (loginMsg == null)
+                    if (!(pPacket.Message is LoginMessage loginMsg))
                     {
-                        Close(true);
+                        Close();
                         return;
                     }
 
@@ -172,7 +169,7 @@ namespace Rasa.Game
                         return;
                     }
 
-                    var loginEntry = Server.AuthenticateClient(this, loginMsg.AccountId, loginMsg.OneTimeKey);
+                    var loginEntry = Server.AuthenticateClient(loginMsg.AccountId, loginMsg.OneTimeKey);
                     if (loginEntry == null)
                     {
                         Logger.WriteLog(LogType.Error, "Client with ip: {0} tried to log in with invalid session data! User Id: {1} | OneTimeKey: {2}", Socket.RemoteAddress, loginMsg.AccountId, loginMsg.OneTimeKey);
@@ -237,16 +234,15 @@ namespace Rasa.Game
                     break;
 
                 case ClientMessageOpcode.CallServerMethod:
-                    var csmPacket = pPacket.Message as CallServerMethodMessage;
-                    if (csmPacket == null)
+                    if (!(pPacket.Message is CallServerMethodMessage csmPacket))
                     {
-                        Close(true);
+                        Close();
                         return;
                     }
 
                     if (!csmPacket.ReadPacket())
                     {
-                        Close(true);
+                        Close();
                         return;
                     }
 
@@ -254,10 +250,9 @@ namespace Rasa.Game
                     break;
 
                 case ClientMessageOpcode.Ping:
-                    var pingMessage = pPacket.Message as PingMessage;
-                    if (pingMessage == null)
+                    if (!(pPacket.Message is PingMessage pingMessage))
                     {
-                        Close(true);
+                        Close();
                         return;
                     }
 
@@ -309,7 +304,7 @@ namespace Rasa.Game
 
         private void OnError(SocketAsyncEventArgs args)
         {
-            Close(false);
+            Close();
         }
 
         private void OnReceive(BufferData data)

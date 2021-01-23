@@ -9,8 +9,8 @@ namespace Rasa.Config
 
         public static IConfiguration Config { get; private set; }
         public static IChangeToken Token { get; private set; }
-        public static OnLoadDelegate OnLoad;
-        public static OnLoadDelegate OnReLoad;
+        public static OnLoadDelegate OnLoad { get; set; }
+        public static OnLoadDelegate OnReLoad { get; set; }
 
         public static void Load()
         {
