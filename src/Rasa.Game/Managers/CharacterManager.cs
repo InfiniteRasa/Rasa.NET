@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 
 using JetBrains.Annotations;
 
@@ -14,7 +15,7 @@ namespace Rasa.Managers
     using Repositories.World;
     using Structures;
     using Structures.Char;
-
+    
     public class CharacterManager : ICharacterManager
     {
         public const uint SelectionPodStartEntityId = 100;
@@ -158,11 +159,9 @@ namespace Rasa.Managers
 
         private IEnumerable<CharacterAppearanceEntry> CreateCharacterAppearanceEntries(RequestCreateCharacterInSlotPacket packet)
         {
-            yield return new CharacterAppearanceEntry((uint)EquipmentData.Helmet, 10908, 2139062144);
-            yield return new CharacterAppearanceEntry((uint)EquipmentData.Shoes, 7054, 2139062144);
-            yield return new CharacterAppearanceEntry((uint)EquipmentData.Gloves, 10909, 2139062144);
-            yield return new CharacterAppearanceEntry((uint)EquipmentData.Torso, 7052, 2139062144);
-            yield return new CharacterAppearanceEntry((uint)EquipmentData.Legs, 7053, 2139062144);
+            yield return new CharacterAppearanceEntry((uint)EquipmentData.Shoes, (uint)EntityClass.ArmorRecruitV01CMNBoots, 2139062144);
+            yield return new CharacterAppearanceEntry((uint)EquipmentData.Torso, (uint)EntityClass.ArmorRecruitV01CMNVest, 2139062144);
+            yield return new CharacterAppearanceEntry((uint)EquipmentData.Legs, (uint)EntityClass.ArmorRecruitV01CMNLegs, 2139062144);
 
             using var worldUnitOfWork = _gameUnitOfWorkFactory.CreateWorld();
             var appearancesFromPacket = packet.AppearanceData
@@ -225,10 +224,7 @@ namespace Rasa.Managers
             unitOfWork.Characters.UpdateLoginData(character.Id);
             unitOfWork.Complete();
 
-            client.MapClient = new MapClient
-            {
-                Player = character
-            };
+            client.Player = CreateCharacterManifestation(character);
 
             _mapChannelManager.PassClientToMap(client);
         }
@@ -262,6 +258,23 @@ namespace Rasa.Managers
                 ? new CharacterInfoPacket(slot, slot == client.AccountEntry.SelectedSlot, client.AccountEntry.FamilyName)
                 : new CharacterInfoPacket(slot, slot == client.AccountEntry.SelectedSlot, client.AccountEntry.FamilyName, data);
             return characterInfo;
+        }
+
+        private Manifestation CreateCharacterManifestation(CharacterEntry character)
+        {
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+            var characterAppearances = unitOfWork.CharacterAppearances.GetByCharacterId(character.Id);
+
+            var newCharacter = new Manifestation()
+            {
+                AppearanceData = characterAppearances,
+                IsRunning = character.RunState == 1,
+                Position = new Vector3((float)character.CoordX, (float)character.CoordY, (float)character.CoordZ)
+            };
+
+            newCharacter.GenerateGUID(EntityType.Character, character.Id);
+
+            return newCharacter;
         }
     }
 }

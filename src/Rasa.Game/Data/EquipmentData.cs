@@ -5,7 +5,7 @@
         Helmet = 1,
         Shoes = 2,
         Gloves = 3,
-        Weapon = 4,
+        Weapon = 13,
         Hair = 14,
         Torso = 15,
         Legs = 16,

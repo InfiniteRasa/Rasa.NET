@@ -22,7 +22,7 @@ namespace Rasa.Migrations.MySqlAuth
                     last_ip = table.Column<string>(type: "varchar(45)", nullable: false, defaultValue: "0.0.0.0"),
                     last_server_id = table.Column<byte>(type: "tinyint(3) unsigned", nullable: false, defaultValue: (byte)0),
                     last_login = table.Column<DateTime>(type: "datetime(6)", nullable: true),
-                    join_date = table.Column<DateTime>(type: "datetime(6)", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
+                    join_date = table.Column<DateTime>(type: "timestamp", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
                     locked = table.Column<ulong>(type: "bit", nullable: false, defaultValue: 0ul),
                     validated = table.Column<ulong>(type: "bit", nullable: false, defaultValue: 0ul),
                     validation_token = table.Column<string>(type: "varchar(40)", nullable: true)

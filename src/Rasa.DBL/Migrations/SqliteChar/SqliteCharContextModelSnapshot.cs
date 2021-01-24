@@ -17,7 +17,7 @@ namespace Rasa.Migrations.SqliteChar
             modelBuilder
                 .HasAnnotation("ProductVersion", "5.0.1");
 
-            modelBuilder.Entity("Rasa.Structures.CharacterAppearanceEntry", b =>
+            modelBuilder.Entity("Rasa.Structures.Char.CharacterAppearanceEntry", b =>
                 {
                     b.Property<uint>("CharacterId")
                         .HasColumnType("integer")
@@ -40,7 +40,7 @@ namespace Rasa.Migrations.SqliteChar
                     b.ToTable("character_appearance");
                 });
 
-            modelBuilder.Entity("Rasa.Structures.CharacterEntry", b =>
+            modelBuilder.Entity("Rasa.Structures.Char.CharacterEntry", b =>
                 {
                     b.Property<uint>("Id")
                         .ValueGeneratedOnAdd()
@@ -133,6 +133,12 @@ namespace Rasa.Migrations.SqliteChar
                         .HasColumnType("double")
                         .HasColumnName("rotation");
 
+                    b.Property<byte>("RunState")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(3)")
+                        .HasDefaultValue((byte)1)
+                        .HasColumnName("run_state");
+
                     b.Property<double>("Scale")
                         .HasColumnType("double")
                         .HasColumnName("scale");
@@ -158,7 +164,7 @@ namespace Rasa.Migrations.SqliteChar
                     b.ToTable("character");
                 });
 
-            modelBuilder.Entity("Rasa.Structures.ClanEntry", b =>
+            modelBuilder.Entity("Rasa.Structures.Char.ClanEntry", b =>
                 {
                     b.Property<uint>("Id")
                         .ValueGeneratedOnAdd()
@@ -181,7 +187,7 @@ namespace Rasa.Migrations.SqliteChar
                     b.ToTable("clan");
                 });
 
-            modelBuilder.Entity("Rasa.Structures.ClanMemberEntry", b =>
+            modelBuilder.Entity("Rasa.Structures.Char.ClanMemberEntry", b =>
                 {
                     b.Property<uint>("ClanId")
                         .HasColumnType("integer")
@@ -205,7 +211,7 @@ namespace Rasa.Migrations.SqliteChar
                     b.ToTable("clan_member");
                 });
 
-            modelBuilder.Entity("Rasa.Structures.GameAccountEntry", b =>
+            modelBuilder.Entity("Rasa.Structures.Char.GameAccountEntry", b =>
                 {
                     b.Property<uint>("Id")
                         .ValueGeneratedOnAdd()
@@ -272,9 +278,9 @@ namespace Rasa.Migrations.SqliteChar
                     b.ToTable("account");
                 });
 
-            modelBuilder.Entity("Rasa.Structures.CharacterAppearanceEntry", b =>
+            modelBuilder.Entity("Rasa.Structures.Char.CharacterAppearanceEntry", b =>
                 {
-                    b.HasOne("Rasa.Structures.CharacterEntry", "Character")
+                    b.HasOne("Rasa.Structures.Char.CharacterEntry", "Character")
                         .WithMany("CharacterAppearance")
                         .HasForeignKey("CharacterId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -283,9 +289,9 @@ namespace Rasa.Migrations.SqliteChar
                     b.Navigation("Character");
                 });
 
-            modelBuilder.Entity("Rasa.Structures.CharacterEntry", b =>
+            modelBuilder.Entity("Rasa.Structures.Char.CharacterEntry", b =>
                 {
-                    b.HasOne("Rasa.Structures.GameAccountEntry", "GameAccount")
+                    b.HasOne("Rasa.Structures.Char.GameAccountEntry", "GameAccount")
                         .WithMany("Characters")
                         .HasForeignKey("AccountId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -294,15 +300,15 @@ namespace Rasa.Migrations.SqliteChar
                     b.Navigation("GameAccount");
                 });
 
-            modelBuilder.Entity("Rasa.Structures.ClanMemberEntry", b =>
+            modelBuilder.Entity("Rasa.Structures.Char.ClanMemberEntry", b =>
                 {
-                    b.HasOne("Rasa.Structures.CharacterEntry", "Character")
+                    b.HasOne("Rasa.Structures.Char.CharacterEntry", "Character")
                         .WithOne("MemberOfClan")
-                        .HasForeignKey("Rasa.Structures.ClanMemberEntry", "CharacterId")
+                        .HasForeignKey("Rasa.Structures.Char.ClanMemberEntry", "CharacterId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Rasa.Structures.ClanEntry", "Clan")
+                    b.HasOne("Rasa.Structures.Char.ClanEntry", "Clan")
                         .WithMany("Members")
                         .HasForeignKey("ClanId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -313,19 +319,19 @@ namespace Rasa.Migrations.SqliteChar
                     b.Navigation("Clan");
                 });
 
-            modelBuilder.Entity("Rasa.Structures.CharacterEntry", b =>
+            modelBuilder.Entity("Rasa.Structures.Char.CharacterEntry", b =>
                 {
                     b.Navigation("CharacterAppearance");
 
                     b.Navigation("MemberOfClan");
                 });
 
-            modelBuilder.Entity("Rasa.Structures.ClanEntry", b =>
+            modelBuilder.Entity("Rasa.Structures.Char.ClanEntry", b =>
                 {
                     b.Navigation("Members");
                 });
 
-            modelBuilder.Entity("Rasa.Structures.GameAccountEntry", b =>
+            modelBuilder.Entity("Rasa.Structures.Char.GameAccountEntry", b =>
                 {
                     b.Navigation("Characters");
                 });
