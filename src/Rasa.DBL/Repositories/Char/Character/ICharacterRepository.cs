@@ -17,5 +17,7 @@ namespace Rasa.Repositories.Char.Character
         void Delete(uint id);
 
         void UpdateLoginData(uint id);
+
+        void SaveCharacter(ICharacterChange clientPlayer);
     }
 }
