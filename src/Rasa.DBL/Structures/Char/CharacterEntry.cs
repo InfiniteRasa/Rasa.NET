@@ -131,6 +131,11 @@ namespace Rasa.Structures.Char
             return CharacterAppearance.ToDictionary(e => e.Slot, e => e);
         }
 
+        public bool IsRunning()
+        {
+            return RunState == 1;
+        }
+
         public Vector3 GetPositionVector()
         {
             return new Vector3((float)CoordX, (float)CoordY, (float)CoordZ);
