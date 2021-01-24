@@ -21,23 +21,51 @@ namespace Rasa.Timer
         public void Remove(string name)
         {
             lock (_timedItems)
+            {
                 if (_timedItems.ContainsKey(name))
                     _timedItems.Remove(name);
+            }
         }
 
         public void Update(long delta)
         {
             lock (_timedItems)
+            {
+                List<string> toRemove = null;
+
                 foreach (var item in _timedItems)
+                {
                     if (item.Value.Update(delta))
+                    {
                         item.Value.Action?.Invoke();
+
+                        if (!item.Value.Repeating)
+                        {
+                            if (toRemove == null)
+                                toRemove = new List<string>();
+
+                            toRemove.Add(item.Key);
+                        }
+                    }
+                }
+
+                if (toRemove != null)
+                {
+                    foreach (var key in toRemove)
+                    {
+                        _timedItems.Remove(key);
+                    }
+                }
+            }
         }
 
         public void ResetTimer(string name)
         {
             lock (_timedItems)
+            {
                 if (_timedItems.ContainsKey(name))
                     _timedItems[name].ResetTimer();
+            }
         }
     }
 }
