@@ -51,17 +51,13 @@ namespace Rasa.Memory
         {
             var val = Reader.ReadByte();
 
-            switch (val)
+            return val switch
             {
-                case 0x00:
-                    return PythonType.NoneStruct;
-                case 0x01:
-                    return PythonType.TrueStruct;
-                case 0x02:
-                    return PythonType.ZeroStruct;
-                default:
-                    throw new Exception($"Expected NoneStruct, TrueStruct or ZeroStruct, found data: {val:X2}");
-            }
+                0x00 => PythonType.NoneStruct,
+                0x01 => PythonType.TrueStruct,
+                0x02 => PythonType.ZeroStruct,
+                _ => throw new Exception($"Expected NoneStruct, TrueStruct or ZeroStruct, found data: {val:X2}"),
+            };
         }
 
         public bool ReadBool()
@@ -91,20 +87,13 @@ namespace Rasa.Memory
             if (type <= 0x1C)
                 return type & 0xF;
 
-            switch (type)
+            return type switch
             {
-                case 0x1D:
-                    return Reader.ReadByte();
-
-                case 0x1E:
-                    return Reader.ReadInt16();
-
-                case 0x1F:
-                    return Reader.ReadInt32();
-
-                default:
-                    throw new Exception($"WTF? Int type: {type:X2}");
-            }
+                0x1D => Reader.ReadByte(),
+                0x1E => Reader.ReadInt16(),
+                0x1F => Reader.ReadInt32(),
+                _ => throw new Exception($"WTF? Int type: {type:X2}"),
+            };
         }
 
         public uint ReadUInt()
@@ -116,20 +105,13 @@ namespace Rasa.Memory
             if (type <= 0x1C)
                 return (uint)(type & 0xF);
 
-            switch (type)
+            return type switch
             {
-                case 0x1D:
-                    return Reader.ReadByte();
-
-                case 0x1E:
-                    return Reader.ReadUInt16();
-
-                case 0x1F:
-                    return Reader.ReadUInt32();
-
-                default:
-                    throw new Exception($"WTF? Int type: {type:X2}");
-            }
+                0x1D => Reader.ReadByte(),
+                0x1E => Reader.ReadUInt16(),
+                0x1F => Reader.ReadUInt32(),
+                _ => throw new Exception($"WTF? Int type: {type:X2}"),
+            };
         }
 
         public long ReadLong()
@@ -168,23 +150,14 @@ namespace Rasa.Memory
             if ((type & 0x30) != 0x30)
                 throw new Exception($"Expected 0x3_. Got: {type:X2}");
 
-            switch (type)
+            return type switch
             {
-                case 0x30:
-                    return 0.0D;
-
-                case 0x31:
-                    return 1.0D;
-
-                case 0x3E:
-                    return Reader.ReadDouble();
-
-                case 0x3F:
-                    return Reader.ReadSingle();
-
-                default:
-                    throw new Exception($"WTF? Double type: {type:X2}");
-            }
+                0x30 => 0.0D,
+                0x31 => 1.0D,
+                0x3E => Reader.ReadDouble(),
+                0x3F => Reader.ReadSingle(),
+                _ => throw new Exception($"WTF? Double type: {type:X2}"),
+            };
         }
 
         public string ReadString()
@@ -267,20 +240,13 @@ namespace Rasa.Memory
             if (type <= 0x6C)
                 return type & 0x0F;
 
-            switch (type)
+            return type switch
             {
-                case 0x6D:
-                    return Reader.ReadByte();
-
-                case 0x6E:
-                    return Reader.ReadInt16();
-
-                case 0x6F:
-                    return Reader.ReadInt32();
-
-                default:
-                    throw new Exception($"WTF? Dictionary type: {type:X2}");
-            }
+                0x6D => Reader.ReadByte(),
+                0x6E => Reader.ReadInt16(),
+                0x6F => Reader.ReadInt32(),
+                _ => throw new Exception($"WTF? Dictionary type: {type:X2}"),
+            };
         }
 
         public int ReadList()
@@ -292,20 +258,13 @@ namespace Rasa.Memory
             if (type <= 0x7C)
                 return type & 0x0F;
 
-            switch (type)
+            return type switch
             {
-                case 0x7D:
-                    return Reader.ReadByte();
-
-                case 0x7E:
-                    return Reader.ReadInt16();
-
-                case 0x7F:
-                    return Reader.ReadInt32();
-
-                default:
-                    throw new Exception($"WTF? List type: {type:X2}");
-            }
+                0x7D => Reader.ReadByte(),
+                0x7E => Reader.ReadInt16(),
+                0x7F => Reader.ReadInt32(),
+                _ => throw new Exception($"WTF? List type: {type:X2}"),
+            };
         }
 
         public int ReadTuple()
@@ -317,20 +276,13 @@ namespace Rasa.Memory
             if (type <= 0x8C)
                 return type & 0x0F;
 
-            switch (type)
+            return type switch
             {
-                case 0x8D:
-                    return Reader.ReadByte();
-
-                case 0x8E:
-                    return Reader.ReadInt16();
-
-                case 0x8F:
-                    return Reader.ReadInt32();
-
-                default:
-                    throw new Exception($"WTF? Tuple type: {type:X2}");
-            }
+                0x8D => Reader.ReadByte(),
+                0x8E => Reader.ReadInt16(),
+                0x8F => Reader.ReadInt32(),
+                _ => throw new Exception($"WTF? Tuple type: {type:X2}"),
+            };
         }
 
         public T ReadStruct<T>()
@@ -414,7 +366,7 @@ namespace Rasa.Memory
 
         public void Dispose()
         {
-
+            GC.SuppressFinalize(this);
         }
     }
 }

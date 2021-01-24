@@ -95,11 +95,13 @@
             Logger.WriteLog(LogType.Debug, $"ToDo {nameof(RequestSwapAbilitySlots)}");
         }
 
+#pragma warning disable IDE0060 // Remove unused parameter
         [PacketHandler(GameOpcode.RequestToggleRun)]
         private void RequestToggleRun(RequestToggleRunPacket packet)
         {
             _manifestationManager.RequestToggleRun(Client);
         }
+#pragma warning restore IDE0060 // Remove unused parameter
 
         [PacketHandler(GameOpcode.RequestWeaponDraw)]
         private void RequestWeaponDraw(RequestWeaponDrawPacket packet)
