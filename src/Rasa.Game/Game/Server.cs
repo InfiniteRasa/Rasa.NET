@@ -277,6 +277,7 @@ namespace Rasa.Game
                 AuthCommunicator = new LengthedSocket(SizeType.Word);
                 AuthCommunicator.OnConnect += OnCommunicatorConnect;
                 AuthCommunicator.OnError += OnCommunicatorError;
+                AuthCommunicator.OnReceive += OnCommunicatorReceive;
                 AuthCommunicator.ConnectAsync(new IPEndPoint(IPAddress.Parse(Config.CommunicatorConfig.Address), Config.CommunicatorConfig.Port));
             }
             catch (Exception e)
@@ -309,7 +310,6 @@ namespace Rasa.Game
 
             Logger.WriteLog(LogType.Network, "*** Connected to the Auth Server!");
 
-            AuthCommunicator.OnReceive += OnCommunicatorReceive;
             AuthCommunicator.Send(new LoginRequestPacket
             {
                 ServerId = Config.ServerInfoConfig.Id,
