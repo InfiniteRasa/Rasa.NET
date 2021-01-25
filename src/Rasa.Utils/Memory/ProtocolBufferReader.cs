@@ -5,6 +5,7 @@ using System.Text;
 
 namespace Rasa.Memory
 {
+    using System.Numerics;
     using Models;
 
     [Flags]
@@ -163,7 +164,24 @@ namespace Rasa.Memory
 
         public Movement ReadMovement()
         {
-            return new Movement(this);
+            this.ReadDebugByte(41);
+            this.ReadDebugByte(3);
+            this.ReadByte();
+
+            var x = this.ReadPackedFloat();
+            var y = this.ReadPackedFloat();
+            var z = this.ReadPackedFloat();
+            var position = new Vector3(x, y, z);
+
+            var velocity = this.ReadPackedVelocity();
+            var flags = this.ReadByte();
+
+            var (viewX, viewY) = this.ReadPackedViewCoords();
+            var viewDirection = new Vector2(viewX, viewY);
+
+            this.ReadDebugByte(42);
+
+            return new Movement(position, velocity, flags, viewDirection);
         }
 
         public float ReadPackedFloat()
