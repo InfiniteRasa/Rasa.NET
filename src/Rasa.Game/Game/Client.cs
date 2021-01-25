@@ -106,6 +106,8 @@ namespace Rasa.Game
                 Socket.Close();
 
                 Server.Disconnect(this);
+
+                SaveCharacter();
             }
         }
 
@@ -420,6 +422,19 @@ namespace Rasa.Game
             return true;
         }
         #endregion
+
+        public void SaveCharacter()
+        {
+            var player = Player;
+            if (player == null)
+            {
+                return;
+            }
+
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+            unitOfWork.Characters.SaveCharacter(player);
+            unitOfWork.Complete();
+        }
 
         public void ReloadGameAccountEntry()
         {
