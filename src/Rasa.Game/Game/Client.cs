@@ -152,15 +152,22 @@ namespace Rasa.Game
             if (pPacket == null)
                 return;
 
-            switch (pPacket.Type)
+            try
+            {
+                HandleProtocolPacket(pPacket);
+            }
+            catch (InvalidClientMessageException)
+            {
+                Close();
+            }
+        }
+
+        private void HandleProtocolPacket(ProtocolPacket protocolPacket)
+        {
+            switch (protocolPacket.Type)
             {
                 case ClientMessageOpcode.Login:
-                    var loginMsg = pPacket.Message as LoginMessage;
-                    if (loginMsg == null)
-                    {
-                        Close(true);
-                        return;
-                    }
+                    var loginMsg = GetMessageAs<LoginMessage>(protocolPacket);
 
                     if (loginMsg.Version.Length != 8 || loginMsg.Version != "1.16.5.0")
                     {
@@ -177,7 +184,8 @@ namespace Rasa.Game
                     var loginEntry = Server.AuthenticateClient(this, loginMsg.AccountId, loginMsg.OneTimeKey);
                     if (loginEntry == null)
                     {
-                        Logger.WriteLog(LogType.Error, "Client with ip: {0} tried to log in with invalid session data! User Id: {1} | OneTimeKey: {2}", Socket.RemoteAddress, loginMsg.AccountId, loginMsg.OneTimeKey);
+                        Logger.WriteLog(LogType.Error, "Client with ip: {0} tried to log in with invalid session data! User Id: {1} | OneTimeKey: {2}", Socket.RemoteAddress, loginMsg.AccountId,
+                            loginMsg.OneTimeKey);
 
                         SendMessage(new LoginResponseMessage
                         {
@@ -239,12 +247,7 @@ namespace Rasa.Game
                     break;
 
                 case ClientMessageOpcode.CallServerMethod:
-                    var csmPacket = pPacket.Message as CallServerMethodMessage;
-                    if (csmPacket == null)
-                    {
-                        Close(true);
-                        return;
-                    }
+                    var csmPacket = GetMessageAs<CallServerMethodMessage>(protocolPacket);
 
                     if (!csmPacket.ReadPacket())
                     {
@@ -256,17 +259,20 @@ namespace Rasa.Game
                     break;
 
                 case ClientMessageOpcode.Ping:
-                    var pingMessage = pPacket.Message as PingMessage;
-                    if (pingMessage == null)
-                    {
-                        Close(true);
-                        return;
-                    }
-
+                    var pingMessage = GetMessageAs<PingMessage>(protocolPacket);
                     SendMessage(pingMessage, delay: false);
                     break;
             }
+        }
 
+        private T GetMessageAs<T>(ProtocolPacket protocolPacket)
+            where T : class, IClientMessage
+        {
+            if (protocolPacket.Message is T message)
+            {
+                return message;
+            }
+            throw new InvalidClientMessageException();
         }
 
         public bool IsAuthenticated()
