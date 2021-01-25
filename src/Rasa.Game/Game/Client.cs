@@ -244,6 +244,18 @@ namespace Rasa.Game
                     return;
 
                 case ClientMessageOpcode.Move:
+                    if (Player == null)
+                    {
+                        return;
+                    }
+                    var moveMessage = GetMessageAs<MoveMessage>(protocolPacket);
+                    if (moveMessage.Movement == null)
+                    {
+                        return;
+                    }
+                    Player.Position = moveMessage.Movement.Position;
+                    Player.Rotation = moveMessage.Movement.ViewDirection.X;
+                    
                     break;
 
                 case ClientMessageOpcode.CallServerMethod:
