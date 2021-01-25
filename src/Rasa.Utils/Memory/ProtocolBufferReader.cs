@@ -5,6 +5,8 @@ using System.Text;
 
 namespace Rasa.Memory
 {
+    using Models;
+
     [Flags]
     public enum ProtocolBufferFlags : byte
     {
@@ -159,26 +161,9 @@ namespace Rasa.Memory
             return new IPEndPoint(addr, port);
         }
 
-        public object ReadMovement()
+        public Movement ReadMovement()
         {
-            ReadDebugByte(41);
-
-            ReadDebugByte(3);
-            ReadByte();
-
-            var x = ReadPackedFloat(); // TODO
-            var y = ReadPackedFloat();
-            var z = ReadPackedFloat();
-            var velocity = ReadPackedVelocity();
-            var flags = ReadByte();
-
-            float viewX, viewY;
-            ReadPackedViewCoords(out viewX, out viewY);
-            
-
-            ReadDebugByte(42);
-
-            return null;
+            return new Movement(this);
         }
 
         public float ReadPackedFloat()
@@ -203,14 +188,16 @@ namespace Rasa.Memory
             return velocity;
         }
 
-        public void ReadPackedViewCoords(out float viewX, out float viewY)
+        public (float viewX, float viewY) ReadPackedViewCoords()
         {
             ReadDebugByte(41);
 
-            viewX = ReadUShort() / 10430.378f;
-            viewY = ReadUShort() / 10430.378f;
+            var viewX = ReadUShort() / 10430.378f;
+            var viewY = ReadUShort() / 10430.378f;
 
             ReadDebugByte(42);
+
+            return (viewX, viewY);
         }
 
         public short ReadShortBySevenBits()
