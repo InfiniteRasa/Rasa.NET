@@ -270,6 +270,7 @@ namespace Rasa.Managers
                 AppearanceData = characterAppearances,
                 Gender = character.Gender,
                 IsRunning = character.IsRunning(),
+                IsCrouching = character.IsCrouching(),
                 Position = character.GetPositionVector()
             };
 
