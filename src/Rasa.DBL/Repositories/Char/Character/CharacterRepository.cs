@@ -109,6 +109,11 @@ namespace Rasa.Repositories.Char.Character
         {
             var entry = _charContext.GetWritableEnsuring(_charContext.CharacterEntries, clientPlayer.Id);
             entry.RunState = clientPlayer.IsRunning ? (byte)1 : (byte)0;
+
+            entry.CoordX = clientPlayer.Position.X;
+            entry.CoordY = clientPlayer.Position.Y;
+            entry.CoordZ = clientPlayer.Position.Z;
+            entry.Rotation = clientPlayer.Rotation;
         }
     }
 }
