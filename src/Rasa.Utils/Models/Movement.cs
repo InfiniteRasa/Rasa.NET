@@ -20,7 +20,7 @@ namespace Rasa.Models
             reader.ReadDebugByte(3);
             reader.ReadByte();
 
-            var x = reader.ReadPackedFloat(); // TODO
+            var x = reader.ReadPackedFloat();
             var y = reader.ReadPackedFloat();
             var z = reader.ReadPackedFloat();
             Position = new Vector3(x, y, z);
