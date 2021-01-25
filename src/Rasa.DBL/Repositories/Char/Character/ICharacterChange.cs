@@ -4,5 +4,6 @@
     {
         uint Id { get; }
         bool IsRunning { get; }
+        bool IsCrouching { get; }
     }
 }

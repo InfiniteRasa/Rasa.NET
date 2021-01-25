@@ -140,6 +140,11 @@ namespace Rasa.Structures.Char
             return RunState == 1;
         }
 
+        public bool IsCrouching()
+        {
+            return CrouchState == 1;
+        }
+
         public Vector3 GetPositionVector()
         {
             return new Vector3((float)CoordX, (float)CoordY, (float)CoordZ);
