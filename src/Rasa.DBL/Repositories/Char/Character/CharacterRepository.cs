@@ -104,5 +104,11 @@ namespace Rasa.Repositories.Char.Character
             var entry = _charContext.GetWritableEnsuring(_charContext.CharacterEntries, id);
             entry.LastLogin = DateTime.UtcNow;
         }
+
+        public void SaveCharacter(ICharacterChange clientPlayer)
+        {
+            var entry = _charContext.GetWritableEnsuring(_charContext.CharacterEntries, clientPlayer.Id);
+            entry.RunState = clientPlayer.IsRunning ? (byte)1 : (byte)0;
+        }
     }
 }
