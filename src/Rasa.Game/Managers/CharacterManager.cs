@@ -270,7 +270,8 @@ namespace Rasa.Managers
                 AppearanceData = characterAppearances,
                 Gender = character.Gender,
                 IsRunning = character.IsRunning(),
-                Position = character.GetPositionVector()
+                Position = character.GetPositionVector(),
+                Rotation = character.Rotation
             };
 
             newCharacter.GenerateGUID(EntityType.Character, character.Id);
