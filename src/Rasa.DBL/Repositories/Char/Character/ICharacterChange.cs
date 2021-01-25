@@ -6,7 +6,7 @@
     {
         uint Id { get; }
         bool IsRunning { get; }
+        bool IsCrouching { get; }
         Vector3 Position { get; }
-        double Rotation { get; }
-    }
+        double Rotation { get; }    }
 }

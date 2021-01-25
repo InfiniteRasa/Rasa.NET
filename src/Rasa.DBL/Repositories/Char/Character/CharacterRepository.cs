@@ -105,15 +105,16 @@ namespace Rasa.Repositories.Char.Character
             entry.LastLogin = DateTime.UtcNow;
         }
 
-        public void SaveCharacter(ICharacterChange clientPlayer)
+        public void SaveCharacter(ICharacterChange characterChange)
         {
-            var entry = _charContext.GetWritableEnsuring(_charContext.CharacterEntries, clientPlayer.Id);
-            entry.RunState = clientPlayer.IsRunning ? (byte)1 : (byte)0;
+            var entry = _charContext.GetWritableEnsuring(_charContext.CharacterEntries, characterChange.Id);
+            entry.RunState = characterChange.IsRunning ? (byte)1 : (byte)0;
+            entry.CrouchState = characterChange.IsCrouching ? (byte)1 : (byte)0;
 
-            entry.CoordX = clientPlayer.Position.X;
-            entry.CoordY = clientPlayer.Position.Y;
-            entry.CoordZ = clientPlayer.Position.Z;
-            entry.Rotation = clientPlayer.Rotation;
+            entry.CoordX = characterChange.Position.X;
+            entry.CoordY = characterChange.Position.Y;
+            entry.CoordZ = characterChange.Position.Z;
+            entry.Rotation = characterChange.Rotation;
         }
     }
 }

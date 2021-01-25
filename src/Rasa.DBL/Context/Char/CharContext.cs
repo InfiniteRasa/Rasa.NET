@@ -152,6 +152,11 @@ namespace Rasa.Context.Char
                 .HasDefaultValue(1);
 
             modelBuilder.Entity<CharacterEntry>()
+                .Property(e => e.CrouchState)
+                .AsUnsignedTinyInt(_dbContextPropertyModifier, 3)
+                .HasDefaultValue(0);
+
+            modelBuilder.Entity<CharacterEntry>()
                 .Property(e => e.LastLogin)
                 .AsCurrentDateTime(_dbContextPropertyModifier);
 
