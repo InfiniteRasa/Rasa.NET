@@ -18,6 +18,6 @@ namespace Rasa.Repositories.Char.Character
 
         void UpdateLoginData(uint id);
 
-        void SaveCharacter(ICharacterChange clientPlayer);
+        void SaveCharacter(ICharacterChange characterChange);
     }
 }

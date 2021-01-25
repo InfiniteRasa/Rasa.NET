@@ -19,7 +19,8 @@
             client.CallMethod(player.EntityId, new WorldLocationDescriptorPacket(player.Position, (float)player.Rotation));
             client.CallMethod(SysEntity.ClientMethodId, new SetCurrentContextIdPacket(map.MapInfo.ContextId));
             client.CallMethod(SysEntity.ClientMethodId, new SetControlledActorIdPacket(player.EntityId));
-            client.CallMethod(player.EntityId, new IsRunningPacket(player.IsRunning));
+            client.CallMethod(player.EntityId, new IsRunningPacket(player.IsRunning)); 
+            client.CallMethod(player.EntityId, new ActorInfoPacket(player)); 
             client.CallMethod(player.EntityId, new AppearanceDataPacket(player.AppearanceData));
 
             client.State = ClientState.Ingame;

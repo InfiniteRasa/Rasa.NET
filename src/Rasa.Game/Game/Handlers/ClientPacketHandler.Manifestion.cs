@@ -1,10 +1,8 @@
 ﻿namespace Rasa.Game.Handlers
 {
     using Data;
-    using Managers;
     using Packets;
     using Packets.Game.Client;
-    using Packets.Game.Server;
 
     public partial class ClientPacketHandler
     {
@@ -99,6 +97,12 @@
         private void RequestToggleRun(RequestToggleRunPacket packet)
         {
             _manifestationManager.RequestToggleRun(Client);
+        }
+
+        [PacketHandler(GameOpcode.SetDesiredCrouchState)]
+        private void SetDesiredCrouchState(SetDesiredCrouchStatePacket packet)
+        {
+            _manifestationManager.SetDesiredCrouchState(Client, (Posture)packet.DesiredCrouchState);
         }
 
         [PacketHandler(GameOpcode.RequestWeaponDraw)]
