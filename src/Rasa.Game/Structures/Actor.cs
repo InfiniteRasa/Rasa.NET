@@ -22,7 +22,7 @@ namespace Rasa.Structures
         public uint MapContextId { get; set; }
         public bool IsRunning { get; set; }
         public bool InCombatMode { get; set; }
-        public ActorState State { get; set; }
+        public CharacterState State { get; set; }
         public bool WeaponReady { get; set; }
         // action data
         public int CurrentAction { get; set; }

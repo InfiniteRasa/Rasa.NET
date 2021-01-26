@@ -66,13 +66,13 @@ namespace Rasa.Managers
 
         internal void HandleCreatureKill(MapChannel mapChannel, Creature creature, Actor killedBy)
         {
-            if (creature.Actor.State == ActorState.Dead)
+            if (creature.Actor.State == CharacterState.Dead)
                 return; // creature already dead
 
             // kill creature
-            var stateIds = new List<ActorState> { ActorState.Dead };
+            var stateIds = new List<CharacterState> { CharacterState.Dead };
 
-            creature.Actor.State = ActorState.Dead;
+            creature.Actor.State = CharacterState.Dead;
             CellManager.Instance.CellCallMethod(mapChannel, creature.Actor, new StateChangePacket(stateIds));
 
             // tell spawnpool if set
@@ -141,7 +141,7 @@ namespace Rasa.Managers
                 SpawnPool = spawnPool
             };
 
-            creature.Actor.State = ActorState.Idle;
+            creature.Actor.State = CharacterState.Idle;
             creature.Actor.Name = EntityClassManager.Instance.LoadedEntityClasses[(EntityClassId)creature.EntityClassId].ClassName;
 
             // set creature stats

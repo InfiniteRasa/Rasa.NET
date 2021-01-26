@@ -70,6 +70,7 @@ namespace Rasa.Managers
         public void RegisterChatCommands()
         {
             RegisterCommand(".addtitle", AddTitleCommand);
+            RegisterCommand(".actorstate", ActorStateCommand);
             RegisterCommand(".bark", BarkCommand);
             RegisterCommand(".comehere", ComeHereCommand);
             RegisterCommand(".createobj", CreateObjectCommand);
@@ -112,6 +113,24 @@ namespace Rasa.Managers
                 {
                     _client.CallMethod(_client.MapClient.Player.Actor.EntityId, new TitleAddedPacket(titleId));
                 }
+            }
+        }
+
+        private void ActorStateCommand(string[] parts)
+        {
+            if (parts.Length == 1)
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, "usage: .actorstate stateId speed");
+                return;
+            }
+
+            if (parts.Length == 3)
+            {
+                if (Enum.TryParse(parts[1], out CharacterState stateId))
+                    if (double.TryParse(parts[2], out var speed))
+                    {
+                        _client.CallMethod(_client.MapClient.Player.Actor.EntityId, new ActorInfoPacket(stateId, _client.MapClient.Player.TrackingTargetEntityId, _client.MovementData.ViewX, speed, _client.MapClient.Player.Actor.InCombatMode));
+                    }
             }
         }
 

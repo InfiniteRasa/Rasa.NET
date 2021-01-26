@@ -42,7 +42,7 @@ namespace Rasa.Managers
         {
             var creature = EntityManager.Instance.GetCreature(missile.TargetEntityId);
 
-            if (creature.Actor.State == ActorState.Dead)
+            if (creature.Actor.State == CharacterState.Dead)
                 return;
 
             // decrease armor first
@@ -190,7 +190,7 @@ namespace Rasa.Managers
                         return;
                 };
 
-                if (targetActor.State == ActorState.Dead)
+                if (targetActor.State == CharacterState.Dead)
                     return; // actor is dead, cannot be shot at
 
                 var distance = Vector3.Distance(targetActor.Position, origin.Position);

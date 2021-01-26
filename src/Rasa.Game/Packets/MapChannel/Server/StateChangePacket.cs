@@ -9,9 +9,9 @@ namespace Rasa.Packets.MapChannel.Server
     {
         public override GameOpcode Opcode { get; } = GameOpcode.StateChange;
 
-        public List<ActorState> StateIds { get; set; }
+        public List<CharacterState> StateIds { get; set; }
 
-        public StateChangePacket(List<ActorState> stateIds)
+        public StateChangePacket(List<CharacterState> stateIds)
         {
             StateIds = stateIds;
         }

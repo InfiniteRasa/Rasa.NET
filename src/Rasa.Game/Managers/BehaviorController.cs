@@ -554,7 +554,7 @@ namespace Rasa.Managers
                 {
                     var mapClient = EntityManager.Instance.GetPlayer(creature.Controller.ActionFighting.TargetEntityId);
                     // if target dead, set wander state
-                    if (mapClient.Player.Actor.Attributes[Attributes.Health].Current <= 0 || mapClient.Player.Actor.State == ActorState.Dead)
+                    if (mapClient.Player.Actor.Attributes[Attributes.Health].Current <= 0 || mapClient.Player.Actor.State == CharacterState.Dead)
                     {
                         SetActionWander(creature);
                         return;
@@ -568,7 +568,7 @@ namespace Rasa.Managers
                 {
                     var targetCreature = EntityManager.Instance.GetCreature(creature.Controller.ActionFighting.TargetEntityId);
 
-                    if (targetCreature.Actor.Attributes[Attributes.Health].Current <= 0 || targetCreature.Actor.State == ActorState.Dead)
+                    if (targetCreature.Actor.Attributes[Attributes.Health].Current <= 0 || targetCreature.Actor.State == CharacterState.Dead)
                     {
                         // exit visual combat mode
                         CellManager.Instance.CellCallMethod(mapChannel, creature.Actor, new RequestVisualCombatModePacket(false));

@@ -7,12 +7,12 @@
     {
         public override GameOpcode Opcode { get; } = GameOpcode.SetDesiredCrouchState;
 
-        public ActorState DesiredStateId { get; set; }
+        public CharacterState DesiredStateId { get; set; }
 
         public override void Read(PythonReader pr)
         {
             pr.ReadTuple();
-            DesiredStateId = (ActorState)pr.ReadInt();
+            DesiredStateId = (CharacterState)pr.ReadInt();
         }
 
         public override void Write(PythonWriter pw)

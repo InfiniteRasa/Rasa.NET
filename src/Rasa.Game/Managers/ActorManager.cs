@@ -112,7 +112,7 @@
             client.CellCallMethod(client, client.MapClient.Player.Actor.EntityId, new RequestVisualCombatModePacket(combatMode));
         }
 
-        public void SetDesiredCrouchState(Client client, ActorState state)
+        public void SetDesiredCrouchState(Client client, CharacterState state)
         {
             client.CellIgnoreSelfCallMethod(client, new SetDesiredCrouchStatePacket { DesiredStateId = state });
         }
