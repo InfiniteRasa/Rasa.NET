@@ -2,6 +2,7 @@
 {
     using Data;
     using Memory;
+    using Models;
 
     public class MoveMessage : IClientMessage
     {
@@ -19,16 +20,18 @@
 
         public byte UnkByte { get; set; }
 
+        public Movement Movement { get; private set; }
+
         public void Read(ProtocolBufferReader reader)
         {
             UnkByte = reader.ReadByte();
-            /*var movementData = */reader.ReadMovement();
+            Movement = reader.ReadMovement();
         }
 
         public void Write(ProtocolBufferWriter writer)
         {
             writer.WriteByte(UnkByte);
-            writer.WriteMovementData();
+            writer.WriteMovementData(); // TODO is this required?
         }
     }
 }

@@ -110,6 +110,11 @@ namespace Rasa.Repositories.Char.Character
             var entry = _charContext.GetWritableEnsuring(_charContext.CharacterEntries, characterChange.Id);
             entry.RunState = characterChange.IsRunning ? (byte)1 : (byte)0;
             entry.CrouchState = characterChange.IsCrouching ? (byte)1 : (byte)0;
+
+            entry.CoordX = characterChange.Position.X;
+            entry.CoordY = characterChange.Position.Y;
+            entry.CoordZ = characterChange.Position.Z;
+            entry.Rotation = characterChange.Rotation;
         }
     }
 }
