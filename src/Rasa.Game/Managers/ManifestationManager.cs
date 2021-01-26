@@ -11,6 +11,7 @@ namespace Rasa.Managers
     using Packets.MapChannel.Server;
     using Packets.Game.Server;
     using Structures;
+    using Rasa.Packets.Protocol;
 
     public class ManifestationManager
     {
@@ -414,9 +415,6 @@ namespace Rasa.Managers
 
             client.CallMethod(actor.EntityId, new WeaponDrawerSlotPacket(player.ActiveWeapon, false));
 
-            ClanEntry clan = ClanTable.GetClanByCharacterId(player.CharacterId);
-            client.Player.ClanId = clan?.Id ?? 0;
-            client.Player.ClanName = clan?.Name;
             client.CallMethod(actor.EntityId, new AllCreditsPacket(player.Credits));
 
             client.CallMethod(actor.EntityId, new LockboxFundsPacket(player.LockboxCredits));

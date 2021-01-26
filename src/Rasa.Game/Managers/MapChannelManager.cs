@@ -61,6 +61,8 @@ namespace Rasa.Managers
             var missions = CharacterMissionsTable.GetMissions(client.AccountEntry.Id, client.AccountEntry.SelectedSlot);
             var appearanceData = new Dictionary<EquipmentData, AppearanceData>();
             var missionData = new Dictionary<int, MissionLog>();
+            var clan = ClanTable.GetClanByCharacterId(character.Id);
+
             foreach (var appearanceEntry in appearances)
             {
                 var appearance = new AppearanceData(appearanceEntry.Value);
@@ -97,8 +99,8 @@ namespace Rasa.Managers
                         { Attributes.Regen, new ActorAttributes(Attributes.Regen, 0, 0, 0, 0, 0) }
                     }
                 },
-                //ClanId = data.ClanId,
-                //ClanName = data.ClanName,
+                ClanId = clan?.Id ?? 0,
+                ClanName = clan?.Name,
                 GainedWaypoints = CharacterTeleportersTable.GetTeleporters(character.Id),
                 LockboxCredits = lockboxInfo[0],
                 LockboxTabs = lockboxInfo[1],
