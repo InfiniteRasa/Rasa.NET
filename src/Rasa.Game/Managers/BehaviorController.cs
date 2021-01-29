@@ -28,7 +28,7 @@ namespace Rasa.Managers
         public const byte WanderMoving = 1;
 
         private long PassedTime = 0;
-        private readonly long CreatureRestTime = 10000;
+        private readonly long CreatureRestTime = 15000;
 
         private static BehaviorManager _instance;
         private static readonly object InstanceLock = new object();
@@ -72,6 +72,7 @@ namespace Rasa.Managers
             difX *= velocity;
             difY *= velocity;
             difZ *= velocity;
+
             // move unit
             if (isMoved == true)
                 creature.Actor.Position += new Vector3((float)difX, (float)difY, (float)difZ);
@@ -92,7 +93,7 @@ namespace Rasa.Managers
         {
             PassedTime += delta;
 
-            if (PassedTime < 250)
+            if (PassedTime < 100)
                 return;
 
             // creature deletion and update queue
@@ -328,6 +329,7 @@ namespace Rasa.Managers
                     }
                 }
             }
+
             // do we need to check for updated cell position?
             creature.UpdatePositionCounter -= delta;
 
@@ -346,11 +348,12 @@ namespace Rasa.Managers
             if (creature.Controller.CurrentAction == BehaviorActionWander)
             {
                 // scan for enemy
-                if (CheckForAttackableEntityInRange(mapChannel, creature, creature.AggroRange))
-                {
-                    // enemy found!
-                    return;
-                }
+                if (creature.LastAgression >= 30000)    // 30 sec
+                    if (CheckForAttackableEntityInRange(mapChannel, creature, creature.AggroRange))
+                    {
+                        // enemy found!
+                        return;
+                    }
 
                 if (creature.Controller.ActionWander.State == WanderIdle)
                 {
@@ -387,7 +390,7 @@ namespace Rasa.Managers
                                 break;
                         }
 
-                        creature.Controller.ActionWander.WanderDestination[1] = creature.HomePos.Position.Y + 1.0f;
+                        creature.Controller.ActionWander.WanderDestination[1] = creature.HomePos.Position.Y;
 
                         switch (op1)
                         {
@@ -400,7 +403,6 @@ namespace Rasa.Managers
                                 break;
                         }
                         
-
                         // next step approaching
                         creature.Controller.ActionWander.State = WanderMoving;
                         creature.LastRestTime = 0;
@@ -462,7 +464,6 @@ namespace Rasa.Managers
                             return;
                         }
                     }
-
                 }
             }
             else if (creature.Controller.CurrentAction == BehaviorActionFollowingPath)
@@ -620,7 +621,7 @@ namespace Rasa.Managers
 
                     // execute action and quit
                     var dmg = action.MinDamage + (new Random().Next() % (action.MaxDamage - action.MinDamage + 1));
-                    
+
                     // do damage
                     MissileManager.Instance.MissileLaunch(mapChannel, creature.Actor, creature.Controller.ActionFighting.TargetEntityId, dmg, action.ActionId, action.ActionArgId);
 
@@ -744,7 +745,7 @@ namespace Rasa.Managers
         private void UpdateCreatureTimers(Creature creature, long delta)
         {
             creature.LastAgression += delta;
-            creature.LastRestTime += delta;
+            creature.LastRestTime += delta + new Random().Next(1, 100);
             creature.Controller.TimerPathUpdateLock -= delta;
 
             // update cooldown timer of all actions
