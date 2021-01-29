@@ -645,13 +645,13 @@ namespace Rasa.Managers
                         ClanLockboxTable.UpdatePrestige(client.Player.ClanId, (uint)remainderOfCredits);
 
                     CharacterManager.Instance.UpdateCharacter(client, CharacterUpdate.Credits, (long)amount * -1);
-                    var augmentationsList = EntityClassManager.Instance.LoadedEntityClasses[EntityClassId.lootBoxClan].Augmentations;
+                    var augmentationsList = EntityClassManager.Instance.LoadedEntityClasses[EntityClassId.UsableClanLockboxV01].Augmentations;
 
                     foreach (var dynamicObj in EntityManager.Instance.DynamicObjects)
                     {
                         DynamicObject dynamicObject = dynamicObj.Value;
 
-                        if (dynamicObject.EntityClassId == EntityClassId.lootBoxClan)
+                        if (dynamicObject.EntityClassId == EntityClassId.UsableClanLockboxV01)
                             ClanManager.Instance.CallMethodForOnlineMembers(client.Player.ClanId, dynamicObject.EntityId, new UpdateClanLockboxCreditsPacket(creditType == 1 ? (uint)remainderOfCredits : clanCredits, creditType == 2 ? (uint)remainderOfCredits : clanPrestige));
                     }
                 }
