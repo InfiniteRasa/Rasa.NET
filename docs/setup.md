@@ -13,7 +13,7 @@ The following tools are required to setup, build, and run Rasa.NET:
 - Microsoft Visual Studio 2017 or higher
 - .NET Core SDK and Runtime
 - Database System, either:
-  - MySQL Server and Workbench
+  - MySQL Server and Workbench or
   - Sqlite (no tools required, but a Sqlite DB browser might help)
 - Git
 
@@ -30,8 +30,8 @@ Rasa.NET is set to build and run with .NET Core.
 
 - [Download the .NET Core 5 SDK and Runtime](https://dotnet.microsoft.com/download/dotnet/5.0) and install it
 
-### Install MySQL Server and MySQL Workbench
-Rasa.NET uses MySQL or Sqlite to store game data. Sqlite works well for quick jump into development, but if you want to use MySql, download and install MySQL Community Server following these steps:
+### Optional: Install MySQL Server and MySQL Workbench
+Rasa.NET uses MySQL or Sqlite to store game data. Sqlite works well for quick a jump into development and needs no further setup, but if you want to use MySql, download and install MySQL Community Server following these steps:
 
 - Download the [MySQL Installer for Windows](https://dev.mysql.com/downloads/windows/installer/8.0.html)
 - Run the installer after it's downloaded
@@ -65,6 +65,9 @@ Download Rasa.NET from GitHub or use Git to clone the project (recommended).
 - Change directories to where you want the source to download to, i.e. `cd C:\Projects`
 - Run the command `git clone https://github.com/InfiniteRasa/Rasa.NET.git`
 
+## Optional: Setup MySql
+If you want to use a MySql database, here are the steps required to get things to work.
+
 ### Setup the database
 If you're using MySql, before you can build and run the code, there are some configuration steps required for the database.
 
@@ -85,34 +88,21 @@ The auth and game servers are pre-configured to use the user `rasa` to connect. 
 - Select the `Administrative Roles` tab and check `DBA`
 - Click `Apply`
 
-## Build and run the code from Visual Studio
-You should be ready to compile Rasa.NET and run the servers.
-
-- Launch Visual Studio and open the `Rasa.NET.sln` file in the code repository
-- If you have to overwrite the default database connection parameters, see "Custom configuration" and "Database configuration" down below
-- Build the solution
-- Run the `Rasa.Auth` project via `Debug > Start without Debugging`
-- Run the `Rasa.Game` project via `Debug > Start Debugging`
-- Alternatively, define multiple start projects as follows:
-  - Right click on the solution
-  - Click "Set StartUp Projects"
-  - Choose "Multiple startup projects"
-  - Set "Action" for both projects wether you want to start with or without debugging
-- Of course, you can also build the project and start the Auth server from the bin directory.
-
-### Create a game user
-The authentication server can be used to create a user by running a command in the terminal. The usage is: `create <email> <username> <password>`. Running this command will create a new user in the database that you can use to login with the game client.
-
-- Run the command in the authentication termain. i.e. `create test@test.com test test`
-  - You can use any username / password that you want to create an account.
 
 ## Custom configuration
-If you have to overwrite one or multiple settings from the appsettings.json of `Rasa.Auth` or `Rasa.Game` or the databasesettings.json of Rasa.DBL, do the following:
+RASA.NET uses configuration files for important settings the servers need to work. These files are named
+- appsettings.json for application specific settings
+- databasesettings.json for connection to the database
 
-- Create a file named "appsettings.env.json"/"databasesettings.env.json" in the root of the respective project or copy and rename the existing file
+Changing the configuration is at least required for the database settings.
+
+### How to overwrite configuration for your enviroment
+If you want to overwrite one or multiple settings from the appsettings.json of `Rasa.Auth` or `Rasa.Game` or the databasesettings.json of Rasa.DBL, do the following:
+
+- Launch Visual Studio and open the `Rasa.NET.sln` file in the code repository
+- Create a file named `appsettings.env.json`/`databasesettings.env.json` in the root of the respective project or copy and rename the existing file
 - The new file will be shown as subelement of the original file
-- Use the new file to overwrite settings from appsettings.json/databasesettings.json. Keep property naming and structure, you don't need to add settings that you don't want to change. For example, to overwrite GameConfig.PublicAddress in the Rasa.Game settings, use
-- The env.json files is ignored in git. Keep it that way, this configuration applies only for your development enviroment.
+- Use the new file to overwrite settings from appsettings.json/databasesettings.json. Keep property naming and json structure. You don't need to add settings that you don't want to change. For example, to overwrite GameConfig.PublicAddress in the Rasa.Game settings, use
 
 ```json
 {
@@ -122,18 +112,23 @@ If you have to overwrite one or multiple settings from the appsettings.json of `
 }
 ```
 
+- The env.json files is ignored in git. Keep it that way, this configuration applies only for your development enviroment.
+
 ### Database configuration
 As of now, we use three databases: Auth (Accounting), Char (everything related to characters) and World (mainly common settings regarding the game world). The databases are accessed via EF Core and support MySql and Sqlite as database providers. Connection information is provided in the form of a defined data structure in the file `Rasa.DBL\databasesettings.json`. For a quick jump into development and small servers, Sqlite works fine and totally out of the box.
 
 To setup your database settings, have a look in "Custom configuration" to learn how to create an enviroment specific settings file.
 
-To access a MySql server with EF Core, set `Provider` to `MySql`. You need to provide host, port, database, user, password and timeout in the config file. Keep in mind that we fall back to the values in databasesettings.json, if your enviroment file does not overwrite a value. For MySql, you have to apply any pending migrations yourself. See "Working with migrations" for a quick start.
-
 To use Sqlite with EF Core, set `Provider` to `Sqlite`. Sqlite uses only the value _database_ of the configuration to create a file named `<database>.db`. For Sqlite, any pending migrations will be applied __automatically__ at startup of the corresponding project to make usage even easier.
 
-If you want to add additional migrations, see "Working with migrations".
+To access a MySql server with EF Core, set `Provider` to `MySql`. You need to provide host, port, database, user, password and timeout in the config file. Keep in mind that we fall back to the values in databasesettings.json, if your enviroment file does not overwrite a value. For MySql, you have to apply any pending migrations yourself. See "Applying migrations" for a quick start.
 
-### Working with migrations
+If you want to add additional migrations as part of a feature, see "Creating migrations".
+
+## Working with the databases and EF Core
+The databases are kept up to date with EF core. This process is described here.
+
+### Applying migrations
 This section describes how to apply migrations to your MySql database as well as how to add additional migrations if you changed the data model in a way that requires an update to the database.
 
 First, if not already done, install dotnet-ef (see also https://docs.microsoft.com/en-GB/ef/core/cli/dotnet):
@@ -164,12 +159,18 @@ To see existing migrations and if they are applied to your database, use one of 
 - `dotnet ef migrations list --context=MySqlCharContext`
 - `dotnet ef migrations list --context=MySqlWorldContext`
 
-If you're developing some functionality that requires an update to one of the databases, execute the following commands:
+
+### Creating migrations
+Basically, we differentiate between two types of migrations:
+- Migrations that change the model / schema of the database
+- Migrations that add or remove data to or from the database
+
+Always ensure, that a migration only does one or the other. This is very easy, as we use code first approach. If you're developing a feature that requires an update to the schema of one or more of the databases, change the entry classes in RASA.DBL/Structures or add new entries by creating the class and adding a DbSet<EntryClass> to the respective DbContext. Then, create a migration applying those changes by executing the following commands:
 
 - `dotnet ef migrations add <Name_of_the_Migration> --context==MySqlAuthContext` 
 - `dotnet ef migrations add <Name_of_the_Migration> --context==SqliteAuthContext`
 
-To remove the last migration, execute the following commands:
+If you realize something is wrong with the created migrations and you want to remove and recreate the last migration, execute the following commands:
 - `dotnet ef migrations remove --context==MySqlAuthContext` 
 - `dotnet ef migrations remove --context==SqliteAuthContext`
 
@@ -180,7 +181,7 @@ As the code generated by migrations is database provider specific, seperate migr
 - Sqlite does not know unsigned numbers
 - Sqlite does not know an explicit datetime type but instead uses `TEXT`
 
-As we use code first approach, **do not** change the generated migration or model snapshot files. Instead, use one of the following methods to manipulate the output of the migration generator (in order of priority):
+As already said, we use code first approach, so **do not** change the generated migration or model snapshot files that apply changes to the database model. With code first, you have the following methods to manipulate the output of the migration generator to your disposal (in order of priority):
 
 - Try to work with Annotations in the Entry classes as much as possible. Examples:
 -- `[Column("column_name", TypeName = "varchar(40)")]` sets a columns name and data type
@@ -190,6 +191,30 @@ As we use code first approach, **do not** change the generated migration or mode
 - If the change of the model needs to distinguish between MySql and Sqlite, try to move them to the database provider specific implementations of **IDbContextPropertyModifier**. For examples, see the implementations of this interface and how it is used.
 - If that does not work, put them in the OnModelCreating methods of the corresponding derived DbContexts (MySqlAuthContext, SqliteAuthContext, MySqlCharContext, SqliteCharContext, MySqlWorldContext, SqliteWorldContext).
 
+If, on the other hand, you use a migration to provide default data that needs to be imported into the database, you just create an empty migration. Ensure you didn't change any entry classes and add the migrations as descibed above. The created migration will be empty and you can use them do add data. As an example how this can be implemented for MySql and Sqlite can be seen in `20201218081744_Preload_ItemTemplate_PlayerExp_RandomName`.
+
+## Build and run the code from Visual Studio
+You should be ready to compile Rasa.NET and run the servers.
+
+- Launch Visual Studio and open the `Rasa.NET.sln` file in the code repository
+- If you have to overwrite the default database connection parameters, see "Custom configuration" and "Database configuration"
+- Build the solution
+- Run the `Rasa.Auth` project via `Debug > Start without Debugging`
+- Run the `Rasa.Game` project via `Debug > Start Debugging`
+- Alternatively, define multiple start projects as follows:
+  - Right click on the solution
+  - Click "Set StartUp Projects"
+  - Choose "Multiple startup projects"
+  - Set "Action" for both projects wether you want to start with or without debugging
+- Of course, you can also build the project and start the Auth server from the bin directory.
+
+### Create a game user
+The authentication server can be used to create a user by running a command in the terminal. The usage is: `create <email> <username> <password>`. Running this command will create a new user in the database that you can use to login with the game client.
+
+- Run the command in the authentication termain. i.e. `create test@test.com test test`
+  - You can use any username / password that you want to create an account.
+  
+  
 ## Launch the game
 If the server consoles launched correctly, you should be ready to start the game client.
 
