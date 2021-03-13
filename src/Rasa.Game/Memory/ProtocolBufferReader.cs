@@ -5,6 +5,9 @@ using System.Text;
 
 namespace Rasa.Memory
 {
+    using System.Numerics;
+    using Models;
+
     [Flags]
     public enum ProtocolBufferFlags : byte
     {
@@ -159,26 +162,26 @@ namespace Rasa.Memory
             return new IPEndPoint(addr, port);
         }
 
-        public object ReadMovement()
+        public Movement ReadMovement()
         {
-            ReadDebugByte(41);
+            this.ReadDebugByte(41);
+            this.ReadDebugByte(3);
+            this.ReadByte();
 
-            ReadDebugByte(3);
-            ReadByte();
+            var x = this.ReadPackedFloat();
+            var y = this.ReadPackedFloat();
+            var z = this.ReadPackedFloat();
+            var position = new Vector3(x, y, z);
 
-            var x = ReadPackedFloat(); // TODO
-            var y = ReadPackedFloat();
-            var z = ReadPackedFloat();
-            var velocity = ReadPackedVelocity();
-            var flags = ReadByte();
+            var velocity = this.ReadPackedVelocity();
+            var flags = this.ReadByte();
 
-            float viewX, viewY;
-            ReadPackedViewCoords(out viewX, out viewY);
-            
+            var (viewX, viewY) = this.ReadPackedViewCoords();
+            var viewDirection = new Vector2(viewX, viewY);
 
-            ReadDebugByte(42);
+            this.ReadDebugByte(42);
 
-            return null;
+            return new Movement(position, velocity, flags, viewDirection);
         }
 
         public float ReadPackedFloat()
@@ -203,14 +206,16 @@ namespace Rasa.Memory
             return velocity;
         }
 
-        public void ReadPackedViewCoords(out float viewX, out float viewY)
+        public (float viewX, float viewY) ReadPackedViewCoords()
         {
             ReadDebugByte(41);
 
-            viewX = ReadUShort() / 10430.378f;
-            viewY = ReadUShort() / 10430.378f;
+            var viewX = ReadUShort() / 10430.378f;
+            var viewY = ReadUShort() / 10430.378f;
 
             ReadDebugByte(42);
+
+            return (viewX, viewY);
         }
 
         public short ReadShortBySevenBits()

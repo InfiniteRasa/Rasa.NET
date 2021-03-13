@@ -68,6 +68,7 @@
         [PacketHandler(GameOpcode.CharacterLogout)]
         private void CharacterLogout(CharacterLogoutPacket packet)
         {
+            Client.SaveCharacter();
             _mapChannelManager.CharacterLogout(Client);
             _characterManager.StartCharacterSelection(Client);
         }

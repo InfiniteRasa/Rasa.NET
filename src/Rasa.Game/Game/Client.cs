@@ -106,6 +106,8 @@ namespace Rasa.Game
                 Socket.Close();
 
                 Server.Disconnect(this);
+
+                SaveCharacter();
             }
         }
 
@@ -148,14 +150,22 @@ namespace Rasa.Game
             if (!(packet is ProtocolPacket pPacket))
                 return;
 
-            switch (pPacket.Type)
+            try
+            {
+                HandleProtocolPacket(pPacket);
+            }
+            catch (InvalidClientMessageException)
+            {
+                Close();
+            }
+        }
+
+        private void HandleProtocolPacket(ProtocolPacket protocolPacket)
+        {
+            switch (protocolPacket.Type)
             {
                 case ClientMessageOpcode.Login:
-                    if (!(pPacket.Message is LoginMessage loginMsg))
-                    {
-                        Close();
-                        return;
-                    }
+                    var loginMsg = GetMessageAs<LoginMessage>(protocolPacket);
 
                     if (loginMsg.Version.Length != 8 || loginMsg.Version != "1.16.5.0")
                     {
@@ -172,7 +182,8 @@ namespace Rasa.Game
                     var loginEntry = Server.AuthenticateClient(loginMsg.AccountId, loginMsg.OneTimeKey);
                     if (loginEntry == null)
                     {
-                        Logger.WriteLog(LogType.Error, "Client with ip: {0} tried to log in with invalid session data! User Id: {1} | OneTimeKey: {2}", Socket.RemoteAddress, loginMsg.AccountId, loginMsg.OneTimeKey);
+                        Logger.WriteLog(LogType.Error, "Client with ip: {0} tried to log in with invalid session data! User Id: {1} | OneTimeKey: {2}", Socket.RemoteAddress, loginMsg.AccountId,
+                            loginMsg.OneTimeKey);
 
                         SendMessage(new LoginResponseMessage
                         {
@@ -231,14 +242,22 @@ namespace Rasa.Game
                     return;
 
                 case ClientMessageOpcode.Move:
+                    if (Player == null)
+                    {
+                        return;
+                    }
+                    var moveMessage = GetMessageAs<MoveMessage>(protocolPacket);
+                    if (moveMessage.Movement == null)
+                    {
+                        return;
+                    }
+                    Player.Position = moveMessage.Movement.Position;
+                    Player.Rotation = moveMessage.Movement.ViewDirection.X;
+                    
                     break;
 
                 case ClientMessageOpcode.CallServerMethod:
-                    if (!(pPacket.Message is CallServerMethodMessage csmPacket))
-                    {
-                        Close();
-                        return;
-                    }
+                    var csmPacket = GetMessageAs<CallServerMethodMessage>(protocolPacket);
 
                     if (!csmPacket.ReadPacket())
                     {
@@ -250,16 +269,20 @@ namespace Rasa.Game
                     break;
 
                 case ClientMessageOpcode.Ping:
-                    if (!(pPacket.Message is PingMessage pingMessage))
-                    {
-                        Close();
-                        return;
-                    }
-
+                    var pingMessage = GetMessageAs<PingMessage>(protocolPacket);
                     SendMessage(pingMessage, delay: false);
                     break;
             }
+        }
 
+        private T GetMessageAs<T>(ProtocolPacket protocolPacket)
+            where T : class, IClientMessage
+        {
+            if (protocolPacket.Message is T message)
+            {
+                return message;
+            }
+            throw new InvalidClientMessageException();
         }
 
         public bool IsAuthenticated()
@@ -415,6 +438,19 @@ namespace Rasa.Game
             return true;
         }
         #endregion
+
+        public void SaveCharacter()
+        {
+            var player = Player;
+            if (player == null)
+            {
+                return;
+            }
+
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+            unitOfWork.Characters.SaveCharacter(player);
+            unitOfWork.Complete();
+        }
 
         public void ReloadGameAccountEntry()
         {

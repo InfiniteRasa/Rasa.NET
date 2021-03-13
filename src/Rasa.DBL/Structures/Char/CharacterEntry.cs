@@ -102,6 +102,10 @@ namespace Rasa.Structures.Char
         [Required]
         public byte RunState { get; set; }
 
+        [Column("crouch_state", TypeName = "bit")]
+        [Required]
+        public byte CrouchState { get; set; }
+
         [Column("num_logins")]
         [Required]
         public uint NumLogins { get; set; }
@@ -129,6 +133,16 @@ namespace Rasa.Structures.Char
         public IDictionary<uint, CharacterAppearanceEntry> GetCharacterAppearanceWithSlot()
         {
             return CharacterAppearance.ToDictionary(e => e.Slot, e => e);
+        }
+
+        public bool IsRunning()
+        {
+            return RunState == 1;
+        }
+
+        public bool IsCrouching()
+        {
+            return CrouchState == 1;
         }
 
         public Vector3 GetPositionVector()

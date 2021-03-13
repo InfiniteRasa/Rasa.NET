@@ -265,11 +265,14 @@ namespace Rasa.Managers
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
             var characterAppearances = unitOfWork.CharacterAppearances.GetByCharacterId(character.Id);
 
-            var newCharacter = new Manifestation()
+            var newCharacter = new Manifestation
             {
                 AppearanceData = characterAppearances,
-                IsRunning = character.RunState == 1,
-                Position = new Vector3((float)character.CoordX, (float)character.CoordY, (float)character.CoordZ)
+                Gender = character.Gender,
+                IsRunning = character.IsRunning(),
+                IsCrouching = character.IsCrouching(),
+                Position = character.GetPositionVector(),
+                Rotation = character.Rotation
             };
 
             newCharacter.GenerateGUID(EntityType.Character, character.Id);
