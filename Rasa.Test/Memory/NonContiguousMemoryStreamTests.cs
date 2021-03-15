@@ -1,16 +1,10 @@
 ﻿using System;
 using System.Buffers;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-namespace Rasa.Test.Memory
+namespace Rasa.Memory.Test
 {
-    using Rasa.Memory;
-
     [TestClass]
     public class NonContiguousMemoryStreamTests
     {
@@ -198,10 +192,33 @@ namespace Rasa.Test.Memory
             var throwAwayData = new byte[6];
             stream.Read(throwAwayData, 0, 6);
 
-            stream.RemoveBytes(20);
+            stream.RemoveBytes(10);
 
             Assert.AreEqual(stream.Length, 0);
             Assert.AreEqual(stream.Position, 0);
+        }
+
+        [TestMethod]
+        public void TestRemoveTooManyBytes()
+        {
+            var buffer1 = new byte[5];
+            var buffer2 = new byte[5];
+
+            for (var i = 0; i < 5; ++i)
+            {
+                buffer1[i] = (byte)i;
+                buffer2[i] = (byte)(i * 2);
+            }
+
+            using var stream = new NonContiguousMemoryStream();
+
+            stream.CopyFromArray(buffer1);
+            stream.CopyFromArray(buffer2);
+
+            Assert.ThrowsException<ArgumentOutOfRangeException>(() =>
+            {
+                stream.RemoveBytes(11);
+            });
         }
     }
 }

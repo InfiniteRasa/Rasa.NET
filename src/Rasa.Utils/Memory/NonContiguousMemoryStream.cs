@@ -71,6 +71,9 @@ namespace Rasa.Memory
 
         public void RemoveBytes(int count)
         {
+            if (count > Length)
+                throw new ArgumentOutOfRangeException(nameof(count));
+
             var (index, offset) = GetIndices(count);
 
             if (index > 0)
