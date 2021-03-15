@@ -14,7 +14,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Rasa.Utils", "src\Rasa.Util
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Rasa.Game", "src\Rasa.Game\Rasa.Game.csproj", "{EB59A12A-04D6-44B2-A414-8D25DAFD565D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Rasa.Test", "Rasa.Test\Rasa.Test.csproj", "{42A96BBC-A86C-44F4-BD31-93685CEB773F}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Rasa.Test", "src\Rasa.Test\Rasa.Test.csproj", "{42A96BBC-A86C-44F4-BD31-93685CEB773F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

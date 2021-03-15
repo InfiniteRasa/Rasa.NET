@@ -5,7 +5,7 @@
 
     <IsPackable>false</IsPackable>
 
-    <RootNamespace>Rasa</RootNamespace>
+    <RootNamespace>Rasa.Test</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
