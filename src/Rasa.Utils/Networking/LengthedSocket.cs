@@ -161,10 +161,12 @@ namespace Rasa.Networking
                         break;
 
                     case SocketAsyncOperation.Receive:
+                        // This value may change in the middle of processing, causing odd behavior
+                        var receiveAfter = AutoReceive;
                         if (ProcessInputBuffer(data, args))
                             return;
 
-                        if (AutoReceive)
+                        if (receiveAfter)
                             ReceiveAsync();
 
                         break;
