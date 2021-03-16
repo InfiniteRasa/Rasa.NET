@@ -3,8 +3,10 @@ using System.Buffers;
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-namespace Rasa.Memory.Test
+namespace Rasa.Test.Memory
 {
+    using Rasa.Memory;
+
     [TestClass]
     public class NonContiguousMemoryStreamTests
     {
