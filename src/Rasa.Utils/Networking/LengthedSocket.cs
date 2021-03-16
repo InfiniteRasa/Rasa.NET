@@ -44,6 +44,9 @@ namespace Rasa.Networking
         public EncryptDelegate OnEncrypt;
         public DecryptDelegate OnDecrypt;
 
+        private int prevLength = 0;
+        private bool fragmented = false;
+
         public LengthedSocket(SizeType sizeHeaderLen, bool countSize = true)
            : this(new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp), sizeHeaderLen, countSize)
         {
@@ -161,10 +164,12 @@ namespace Rasa.Networking
                         break;
 
                     case SocketAsyncOperation.Receive:
+                        // This value may change in the middle of processing, causing odd behavior
+                        var receiveAfter = AutoReceive;
                         if (ProcessInputBuffer(data, args))
                             return;
 
-                        if (AutoReceive)
+                        if (receiveAfter)
                             ReceiveAsync();
 
                         break;
@@ -210,8 +215,18 @@ namespace Rasa.Networking
             {
                 var length = -1;
 
-                if (data.ByteCount >= LengthSize)
+                if (fragmented)
+                {
+                    length = prevLength;
+                }
+                else if (data.ByteCount >= LengthSize)
                     length = ReadSize(data);
+
+                var remoteAddrStr = "";
+                if (RemoteAddress != null)
+                {
+                    remoteAddrStr = ((IPEndPoint)Socket.RemoteEndPoint).ToString();
+                }
 
                 if (length != -1)
                 {
@@ -225,9 +240,19 @@ namespace Rasa.Networking
                 {
                     args.SetBuffer(data.BaseOffset + data.ByteCount, data.Length - data.ByteCount);
 
+                    prevLength = length;
+                    fragmented = true;
+
                     ReceiveAsync(args);
                     return true;
                 }
+                else if (fragmented)
+                {
+                    // Restore buffer size
+                }
+
+                fragmented = false;
+                prevLength = -1;
 
                 data.Offset = LengthSize;
                 data.Length = length;
