@@ -17,7 +17,26 @@ namespace Rasa.Networking
         Dword = 4
     }
 
-    public class LengthedSocket
+    public interface IClientSocket
+    {
+        IPAddress RemoteAddress { get; }
+
+        void ReceiveAsync();
+
+        void Send(IBasePacket packet);
+
+        void AddOnErrorCallback(Action<SocketAsyncEventArgs> callback);
+
+        void AddOnReceiveCallback(Action<BufferData> callback);
+
+        void AddOnEncryptCallback(Action<IEncryptData> callback);
+
+        void AddOnDecryptCallback(Func<BufferData, bool> callback);
+
+        void Close();
+    }
+
+    public class LengthedSocket : IClientSocket
     {
         public delegate void AcceptHandler(LengthedSocket acceptedSocket);
         public delegate void AsyncHandler(SocketAsyncEventArgs args);
@@ -346,5 +365,53 @@ namespace Rasa.Networking
                 // ignored
             }
         }
+
+        #region IClientSocket
+
+        public void AddOnErrorCallback(Action<SocketAsyncEventArgs> callback)
+        {
+            OnError += args => callback(args);
+        }
+
+        public void AddOnReceiveCallback(Action<BufferData> callback)
+        {
+            OnReceive += data => callback(data);
+        }
+
+        public void AddOnEncryptCallback(Action<IEncryptData> callback)
+        {
+            OnEncrypt += (BufferData data, ref int length) =>
+            {
+                var wrappedData = new EncryptData(data, length);
+                callback(wrappedData);
+                length = wrappedData.Length;
+            };
+        }
+
+        public void AddOnDecryptCallback(Func<BufferData, bool> callback)
+        {
+            OnDecrypt += data => callback(data);
+        }
+
+        private class EncryptData : IEncryptData
+        {
+            private volatile int length;
+
+            public EncryptData(BufferData data, int length)
+            {
+                Data = data;
+                this.length = length;
+            }
+
+            public BufferData Data { get; }
+            public int Length
+            {
+                get => length;
+                set => length = value;
+            }
+        }
+
+
+        #endregion
     }
 }

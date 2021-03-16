@@ -20,7 +20,7 @@
 
         public byte UnkByte { get; set; }
 
-        public Movement Movement { get; private set; }
+        public Movement Movement { get; set; }
 
         public void Read(ProtocolBufferReader reader)
         {

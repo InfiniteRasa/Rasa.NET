@@ -25,8 +25,8 @@ namespace Rasa.Game
 
         public const int LengthSize = 2;
 
-        public Server Server { get; private set; }
-        public LengthedSocket Socket { get; private set; }
+        public IRasaGameServer Server { get; private set; }
+        public IClientSocket Socket { get; private set; }
         public ClientCryptData Data { get; private set; }
         public GameAccountEntry AccountEntry { get; private set; }
         public ClientState State { get; set; }
@@ -57,7 +57,7 @@ namespace Rasa.Game
             _handler.RegisterClient(this);
         }
 
-        public void RegisterAtServer(Server server, LengthedSocket socket, ClientCryptData cryptData)
+        public void RegisterAtServer(IRasaGameServer server, IClientSocket socket, ClientCryptData cryptData)
         {
             Socket = socket;
             Data = cryptData;
@@ -65,10 +65,10 @@ namespace Rasa.Game
 
             State = ClientState.Connected;
 
-            Socket.OnError += OnError;
-            Socket.OnReceive += OnReceive;
-            Socket.OnEncrypt += OnEncrypt;
-            Socket.OnDecrypt += OnDecrypt;
+            Socket.AddOnErrorCallback(OnError);
+            Socket.AddOnReceiveCallback(OnReceive);
+            Socket.AddOnEncryptCallback(OnEncrypt);
+            Socket.AddOnDecryptCallback(OnDecrypt);
 
             Socket.ReceiveAsync();
 
@@ -105,7 +105,7 @@ namespace Rasa.Game
 
                 Socket.Close();
 
-                Server.Disconnect(this);
+                Server.DisconnectClient(this);
 
                 SaveCharacter();
             }
@@ -198,8 +198,6 @@ namespace Rasa.Game
 
                     using (var unitOfWork = _gameUnitOfWorkFactory.CreateChar())
                     {
-                        unitOfWork.GameAccounts.CreateOrUpdate(loginEntry.Id, loginEntry.Name, loginEntry.Email);
-
                         if (Server.IsBanned(loginMsg.AccountId))
                         {
                             Logger.WriteLog(LogType.Error, "Client with ip: {0} tried to log in while the account is banned! User Id: {1}", Socket.RemoteAddress, loginMsg.AccountId);
@@ -226,6 +224,7 @@ namespace Rasa.Game
                             return;
                         }
 
+                        unitOfWork.GameAccounts.CreateOrUpdate(loginEntry.Id, loginEntry.Name, loginEntry.Email);
                         LoadGameAccountEntry(unitOfWork, loginEntry.Id);
                         unitOfWork.GameAccounts.UpdateLoginData(loginEntry.Id, Socket.RemoteAddress);
 
@@ -293,23 +292,26 @@ namespace Rasa.Game
         }
 
         #region Socketing
-        private void OnEncrypt(BufferData data, ref int length)
+        private void OnEncrypt(IEncryptData encryptData)
         {
+            var length = encryptData.Length;
             var paddingCount = (byte) (8 - length % 8);
 
             var tempArray = BufferManager.RequestBuffer();
 
             tempArray[0] = paddingCount;
 
-            BufferData.Copy(data, data.Offset, tempArray, paddingCount, length);
+            BufferData.Copy( encryptData.Data, encryptData.Data.Offset, tempArray, paddingCount, length);
 
             length += paddingCount;
 
             GameCryptManager.Encrypt(tempArray.Buffer, tempArray.BaseOffset, ref length, length, Data);
 
-            BufferData.Copy(tempArray, 0, data, data.Offset, length);
+            BufferData.Copy(tempArray, 0, encryptData.Data, encryptData.Data.Offset, length);
 
             BufferManager.FreeBuffer(tempArray);
+
+            encryptData.Length = length;
         }
 
         private bool OnDecrypt(BufferData data)
