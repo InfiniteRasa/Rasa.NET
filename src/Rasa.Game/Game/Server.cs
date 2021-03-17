@@ -10,7 +10,6 @@ namespace Rasa.Game
     using Commands;
     using Config;
     using Data;
-    using Hosting;
     using Login;
     using Memory;
     using Networking;
@@ -21,7 +20,7 @@ namespace Rasa.Game
     using Threading;
     using Timer;
 
-    public class Server : ILoopable, IRasaServer
+    public class Server : ILoopable, IRasaGameServer
     {
         private readonly IHostApplicationLifetime _hostApplicationLifetime;
         private readonly IClientFactory _clientFactory;
@@ -91,7 +90,7 @@ namespace Rasa.Game
         }
         #endregion
 
-        public void Disconnect(Client client)
+        public void DisconnectClient(Client client)
         {
             lock (_clientsToRemove)
                 _clientsToRemove.Add(client);
