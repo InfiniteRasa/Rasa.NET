@@ -4,7 +4,7 @@ namespace Rasa.Structures
 {
     public class SpawnPoolEntry
     {
-        public int DbId { get; set; }
+        public uint DbId { get; set; }
         public short Mode { get; set; }
         public short AnimType { get; set; }
         public int RespawnTime { get; set; }
@@ -36,7 +36,7 @@ namespace Rasa.Structures
         {
             return new SpawnPoolEntry
             {
-                DbId = reader.GetInt32("dbId"),
+                DbId = reader.GetUInt32("dbId"),
                 Mode = reader.GetInt16("mode"),
                 AnimType = reader.GetInt16("animType"),
                 RespawnTime = reader.GetInt32("respawnTime"),

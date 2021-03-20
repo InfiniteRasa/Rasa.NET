@@ -207,6 +207,15 @@ namespace Rasa.Managers
             client.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(dynamicObject.EntityId, dynamicObject.EntityClassId, entityData));
         }
 
+        internal void CellDiscardDynamicObjectToClients(DynamicObject discardObject, List<Client> clients)
+        {
+            if (discardObject == null)
+                return;
+
+            foreach (var client in clients)
+                client.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(discardObject.EntityId));
+        }
+
         internal void CellDiscardDynamicObjectsToClient(Client client, List<DynamicObject> discardObjects)
         {
             foreach (var dynamicObject in discardObjects)
@@ -221,7 +230,7 @@ namespace Rasa.Managers
             // TODO, check timers
             // remove from world
             EntityManager.Instance.UnregisterEntity(dynObject.EntityId);
-            CellManager.RemoveFromWorld(mapChannel, dynObject);
+            CellManager.Instance.RemoveFromWorld(mapChannel, dynObject);
 
             // destroy callback
             Logger.WriteLog(LogType.Debug, "ToDO remove dynamic object from server");

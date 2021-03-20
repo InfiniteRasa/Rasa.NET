@@ -30,7 +30,8 @@ namespace Rasa.Managers
             "rasaworld_2019_02_08_11_05_patched_creature_run_walk_speed",
             "rasaworld_2019_02_12_11_43_clan_master_added",
             "rasaworld_2019_08_23_15_44_added_all_waypoints_hospitals",
-            "rasaworld_2019_12_12_23_12_added_footlockers_in_wilderness"
+            "rasaworld_2019_12_12_23_12_added_footlockers_in_wilderness",
+            "rasaworld_2021_03_20_14_00_added_dropships"
         };
 
         private static VerifyDatabaseManager _instance;

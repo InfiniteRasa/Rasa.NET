@@ -7,7 +7,6 @@ namespace Rasa.Managers
     using Game;
     using Packets;
     using Rasa.Memory;
-    using Rasa.Packets.MapChannel.Server;
     using Structures;
 
     public class CellManager
@@ -193,9 +192,23 @@ namespace Rasa.Managers
             }
         }
 
-        internal static void RemoveFromWorld(MapChannel mapChannel, DynamicObject dynObject)
+        public void RemoveFromWorld(MapChannel mapChannel, DynamicObject dynObject)
         {
-            Logger.WriteLog(LogType.Debug, "ToDO RemoveFromWorld: dynObject");
+            if (dynObject == null)
+                return;
+
+            var cellX = (uint)((dynObject.Position.X / CellSize) + CellBias);
+            var cellZ = (uint)((dynObject.Position.Z / CellSize) + CellBias);
+            var cell = GetCell(mapChannel, cellX, cellZ);
+            var ListOfClients = new List<Client>();
+
+            foreach (var player in mapChannel.MapCellInfo.Cells[cell.CellSeed].ClientList)
+                ListOfClients.Add(player);
+
+            DynamicObjectManager.Instance.CellDiscardDynamicObjectToClients(dynObject, ListOfClients);
+
+            // remove object from cell
+            mapChannel.MapCellInfo.Cells[cell.CellSeed].DynamicObjectList.Remove(dynObject);
         }
 
         public uint GetCellSeed(Vector3 position)

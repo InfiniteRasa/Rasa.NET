@@ -224,6 +224,7 @@ namespace Rasa.Managers
                     ActorActionManager.Instance.DoWork(mapChannel, delta);
                     MissileManager.Instance.DoWork(mapChannel, delta);
                     BehaviorManager.Instance.MapChannelThink(mapChannel, delta);
+                    SpawnPoolManager.Instance.DropshipSpawnerWorker(mapChannel, delta);
 
                     // check forAutoFIre
                     if (Timer.IsTriggered("AutoFire"))

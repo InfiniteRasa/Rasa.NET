@@ -4,14 +4,17 @@ using System.Numerics;
 
 namespace Rasa.Managers
 {
+    using Data;
     using Database.Tables.World;
+    using Packets.MapChannel.Server;
     using Structures;
 
     public class SpawnPoolManager
     {
         private static SpawnPoolManager _instance;
         private static readonly object InstanceLock = new object();
-        public readonly Dictionary<int, SpawnPool> LoadedSpawnPools = new Dictionary<int, SpawnPool>();
+        public readonly Dictionary<uint, SpawnPool> LoadedSpawnPools = new Dictionary<uint, SpawnPool>();
+        public readonly Dictionary<ulong, DropshipSpawner> DropshipSpawners = new Dictionary<ulong, DropshipSpawner>();
 
         public static SpawnPoolManager Instance
         {
@@ -161,7 +164,6 @@ namespace Rasa.Managers
 
                 if (spawnPool.AnimType == 0)    // animType==0; spawn without animation
                 {
-                    IncreaseQueueCount(spawnPool);
                     IncreaseQueuedCreatureCount(spawnPool, creatureList.Count);
 
                     foreach (var spawnSlot in creatureList)
@@ -199,22 +201,97 @@ namespace Rasa.Managers
                     }
 
                     DecreaseQueuedCreatureCount(spawnPool, creatureList.Count);
-                    DecreaseQueueCount(spawnPool);
                 }
                 // animType == 1; bane dropship animation
                 else if (spawnPool.AnimType == 1)
                 {
-                    //banedropship_create(mapChannel, location->x, location->y, location->z, spawnTypeCount, spawnTypeList, spawnPool);
-                    Logger.WriteLog(LogType.Error, "spawnPool animType = 1 not supported yet");
-                        }
-                // animTyp e== 2; human dropship animation
+                    // create bane_dropship
+                    var dropship = new DropshipSpawner(spawnPool, Factions.Bane);
+
+                    CellManager.Instance.AddToWorld(mapChannel, dropship);
+
+                    DropshipSpawners.Add(dropship.EntityId, dropship);
+
+                    IncreaseQueueCount(spawnPool);
+                    IncreaseQueuedCreatureCount(spawnPool, creatureList.Count);
+                }
+                // animType == 2; human dropship animation
                 else if (spawnPool.AnimType == 2)
                 {
-                    //humandropship_create(mapChannel, location->x, location->y, location->z, spawnTypeCount, spawnTypeList, spawnPool);
-                    Logger.WriteLog(LogType.Error, "spawnPool animType = 2 not supported yet");
+                    // create human_dropship
+                    var dropship = new DropshipSpawner(spawnPool, Factions.AFS);
+
+                    CellManager.Instance.AddToWorld(mapChannel, dropship);
+
+                    DropshipSpawners.Add(dropship.EntityId, dropship);
+
+                    IncreaseQueueCount(spawnPool);
+                    IncreaseQueuedCreatureCount(spawnPool, creatureList.Count);
                 }
             }
         }
 
+        public void DropshipSpawnerWorker(MapChannel mapChannel, long timePassed)
+        {
+            foreach(var entry in DropshipSpawners)
+            {
+                var dropship = entry.Value;
+
+                dropship.PhaseTimeleft -= timePassed;
+
+                if (dropship.PhaseTimeleft > 0)
+                    continue;
+
+                // init
+                if (dropship.Phase == 0)
+                {
+                    dropship.PhaseTimeleft = 2500;
+                    dropship.Phase = 1;
+                    dropship.StateId = UseObjectState.CsStateSpawn;
+                }
+
+                // spawn creatures
+                else if (dropship.Phase == 1)
+                {
+                    dropship.PhaseTimeleft = 2000;
+                    dropship.Phase = 2;
+
+                    // spawn creatures
+                    for (var i = 0; i < dropship.SpawnPool.QueuedCreatures; i++)
+                    {
+                        var creature = CreatureManager.Instance.CreateCreature(dropship.SpawnPool.DbId, dropship.SpawnPool);
+
+                        if (creature == null)
+                            continue;
+
+                        CreatureManager.Instance.SetLocation(creature, dropship.Position, dropship.SpawnPool.HomeOrientation, dropship.SpawnPool.MapContextId);
+
+                        CellManager.Instance.AddToWorld(mapChannel, creature);
+
+                        DecreaseQueuedCreatureCount(dropship.SpawnPool, 1);
+                    }
+
+                    continue;
+                }
+                else if (dropship.Phase == 2)
+                {
+                    dropship.PhaseTimeleft = 2000;
+                    dropship.Phase = 4;
+                    dropship.StateId = UseObjectState.CsStateEnd;
+                }
+                else if (dropship.Phase == 4)
+                {
+                    DecreaseQueueCount(dropship.SpawnPool);
+
+                    // remove object
+                    CellManager.Instance.RemoveFromWorld(mapChannel, dropship);
+
+                    DropshipSpawners.Remove(dropship.EntityId);
+                    continue;
+                }
+
+                CellManager.Instance.CellCallMethod(dropship, new ForceStatePacket(dropship.StateId, 0));
+            }
+        }
     }
 }

@@ -5,6 +5,8 @@
         HumanBaseFemale                 = 691,
         HumanBaseMale                   = 692,
         CharacterSelectionPod           = 3543,
+        UsableCrSpawnerBaneDropshipV01  = 9268,
+        UsableCrSpawnerHumDropshipV01   = 9269,
         UsableLockBoxHumFootlockerV01   = 21030,
         UsableTwoStateHumWaypointV01    = 25651,
         UsableClanLockboxV01            = 10000063,
