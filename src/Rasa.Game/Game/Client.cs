@@ -341,7 +341,12 @@ namespace Rasa.Game
         {
             Close(false);
         }
-
+		
+        private int ReadExpectedSize(BufferData data)
+        {
+           return BitConverter.ToInt16(data.Buffer, data.BaseOffset);
+        }
+		
         private void OnReceive(BufferData data)
         {
             do
