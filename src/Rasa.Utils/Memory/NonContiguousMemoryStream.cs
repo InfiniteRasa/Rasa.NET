@@ -180,7 +180,7 @@ namespace Rasa.Memory
         {
             if (value > Length)
             {
-                int length = (int)(Length - value);
+                int length = (int)(value - Length);
 
                 _buffers.Add(new ArrayPoolBuffer(ArrayPool<byte>.Shared.Rent(length), length));
             }
