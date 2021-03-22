@@ -37,6 +37,7 @@ namespace Rasa.Game
         public MovementData MovementData { get; set; }
 
 
+        BufferData inboundData = null;
         private static PacketRouter<ClientPacketHandler, GameOpcode> PacketRouter { get; } = new PacketRouter<ClientPacketHandler, GameOpcode>();
 
         public static Type GetPacketType(GameOpcode opcode)
@@ -46,6 +47,8 @@ namespace Rasa.Game
 
         public Client(LengthedSocket socket, ClientCryptData data, Server server)
         {
+            inboundData = BufferManager.RequestBuffer();
+            inboundData.Length = 0;
             _handler = new ClientPacketHandler(this);
 
             Socket = socket;
@@ -66,6 +69,11 @@ namespace Rasa.Game
                 SendSequence[i] = 1;
 
             Logger.WriteLog(LogType.Network, "*** Client connected from {0}", Socket.RemoteAddress);
+        }
+
+        ~Client()
+        {
+            BufferManager.FreeBuffer(inboundData);
         }
 
         public void Update(long delta)
@@ -372,28 +380,41 @@ namespace Rasa.Game
             Close(false);
         }
 
+        private int ReadExpectedSize(BufferData data)
+        {
+            return BitConverter.ToInt16(data.Buffer, data.BaseOffset);
+        }
+
         private void OnReceive(BufferData data)
         {
             do
             {
-                if (data.RemainingLength == 0)
+                inboundData.ShiftProcessedData();
+                inboundData.Append(data);
+
+                var sizeAvailable = inboundData.RemainingLength;
+
+                if (sizeAvailable == 0) { break; }
+                var sizeNeeded = ReadExpectedSize(inboundData);
+
+                if (sizeNeeded > sizeAvailable)
+                {
+                    // Likely a fragmented packet
+                    //Logger.WriteLog(LogType.Network, "===== Fragmented packet =====");
                     break;
+                }
 
-                var startOffset = data.Offset;
+                //Logger.WriteLog(LogType.Network, "[N] > needed : {0}   available : {1}", sizeNeeded, sizeAvailable);
 
-                if (!DecodePacket(data, out ushort subsize))
-                    return;
-
-                if (data.Offset == startOffset + subsize)
-                    continue;
-
-                if (data.Offset < startOffset + subsize)
-                    throw new Exception("ProtocolPacket underread!");
-
-                if (data.Offset > startOffset + subsize)
-                    throw new Exception("ProtocolPacket overread!");
+                if (!DecodePacket(inboundData, out ushort subsize))
+                    break;
             }
             while (true);
+
+            if (data.RemainingLength > 0)
+            {
+                throw new Exception("Did not read all of data from socket, processing will be corrupted!");
+            }
         }
 
         private bool DecodePacket(BufferData data, out ushort length)

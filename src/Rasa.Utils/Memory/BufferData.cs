@@ -42,6 +42,42 @@ namespace Rasa.Memory
             Clear();
         }
 
+        public int Append(BufferData source)
+        {
+            var bytesAvailable = MaxLength - Length;
+            var bytesInSource = source.RemainingLength;
+
+            var bytesToCopy = (bytesInSource > bytesAvailable) ? bytesAvailable : bytesInSource;
+
+            if (bytesToCopy > 0)
+            {
+                Array.Copy(source.Buffer, source.BaseOffset + source.Offset, this.Buffer, this.BaseOffset + this.Length, bytesToCopy);
+                source.Offset += bytesToCopy;
+                Length += bytesToCopy;
+            }
+
+            return bytesToCopy;
+        }
+
+        public int ShiftProcessedData()
+        {
+            if (Offset > 0)
+            {
+                var pos = Offset;
+                var amountToMove = RemainingLength;
+
+                Array.Copy(this.Buffer, this.BaseOffset + pos, this.Buffer, this.BaseOffset + 0, amountToMove);
+
+                ByteCount -= pos;
+                Length -= pos;
+                Offset = 0;
+
+                return pos;
+            }
+
+            return 0;
+        }
+
         public void Clear()
         {
             Clear(0, MaxLength);
