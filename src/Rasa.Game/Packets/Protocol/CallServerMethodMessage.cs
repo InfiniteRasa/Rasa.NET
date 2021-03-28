@@ -26,7 +26,7 @@ namespace Rasa.Packets.Protocol
         public string MethodName { get; set; }
         public PythonPacket Packet { get; set; }
 
-        private byte[] _payload { get; set; }
+        private byte[] Payload { get; set; }
 
         public void Read(ProtocolBufferReader reader)
         {
@@ -51,7 +51,7 @@ namespace Rasa.Packets.Protocol
                     break;
             }
 
-            _payload = reader.ReadArray();
+            Payload = reader.ReadArray();
         }
 
         public void Write(ProtocolBufferWriter writer)
@@ -75,41 +75,40 @@ namespace Rasa.Packets.Protocol
                     break;
             }
 
-            writer.WriteArray(_payload);
+            writer.WriteArray(Payload);
         }
 
         public bool ReadPacket()
         {
-            using (var ms = new MemoryStream(_payload, false))
+            using (var ms = new MemoryStream(Payload, false))
             {
-                using (var br = new BinaryReader(ms, Encoding.UTF8, true))
+                using var br = new BinaryReader(ms, Encoding.UTF8, true);
+
+                if (br.ReadByte() != 0x4F)
                 {
-                    if (br.ReadByte() != 0x4F)
+                    Logger.WriteLog(LogType.Error, $"Invalid payload formatting for: {MethodId}. Skipping packet...");
+                    return false;
+                }
+
+                var packetType = Rasa.Game.Client.GetPacketType(MethodId);
+                if (packetType != null)
+                {
+                    Packet = Activator.CreateInstance(packetType) as PythonPacket;
+                    if (Packet == null)
                     {
-                        Logger.WriteLog(LogType.Error, $"Invalid payload formatting for: {MethodId}. Skipping packet...");
+                        Logger.WriteLog(LogType.Error, $"Unable to create packet instance for opcode: {MethodId}. Skipping packet...");
                         return false;
                     }
 
-                    var packetType = Rasa.Game.Client.GetPacketType(MethodId);
-                    if (packetType != null)
-                    {
-                        Packet = Activator.CreateInstance(packetType) as PythonPacket;
-                        if (Packet == null)
-                        {
-                            Logger.WriteLog(LogType.Error, $"Unable to create packet instance for opcode: {MethodId}. Skipping packet...");
-                            return false;
-                        }
+                    Packet.Read(br);
+                }
+                else
+                    Logger.WriteLog(LogType.Error, $"Unhandled game opcode: {MethodId}");
 
-                        Packet.Read(br);
-                    }
-                    else
-                        Logger.WriteLog(LogType.Error, $"Unhandled game opcode: {MethodId}");
-
-                    if (br.ReadByte() != 0x66)
-                    {
-                        Logger.WriteLog(LogType.Error, $"Invalid payload formatting for: {MethodId}. Skipping packet...");
-                        return false;
-                    }
+                if (br.ReadByte() != 0x66)
+                {
+                    Logger.WriteLog(LogType.Error, $"Invalid payload formatting for: {MethodId}. Skipping packet...");
+                    return false;
                 }
             }
 

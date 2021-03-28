@@ -1,13 +1,11 @@
 ﻿using System;
 using System.IO;
-using System.Runtime.InteropServices.ComTypes;
-using System.Text;
 
 namespace Rasa.Memory
 {
     using Extensions;
 
-    public class PythonWriter : IDisposable
+    public sealed class PythonWriter : IDisposable
     {
         public BinaryWriter Writer { get; }
         public long BeginPositon { get; }
@@ -20,20 +18,20 @@ namespace Rasa.Memory
 
         public void WriteNoneStruct()
         {
-            Writer.Write((byte) 0x00);
+            Writer.Write((byte)PythonStruct.None);
         }
 
         public void WriteTrueStruct()
         {
-            Writer.Write((byte) 0x01);
+            Writer.Write((byte)PythonStruct.True);
         }
 
         public void WriteZeroStruct()
         {
-            Writer.Write((byte) 0x02);
+            Writer.Write((byte)PythonStruct.Zero);
         }
 
-        public void WriteBool(bool value) // TODO: Maybe send 0 and 1 as int
+        public void WriteBool(bool value)
         {
             if (value)
                 WriteTrueStruct();
@@ -258,13 +256,12 @@ namespace Rasa.Memory
             Writer.BaseStream.Read(data, 0, data.Length);
             Writer.BaseStream.Position = currentPosition;
 
-            using (var pr = new PythonReader(new BinaryReader(new MemoryStream(data))))
-                return pr.ToString();
+            using var pr = new PythonReader(new BinaryReader(new MemoryStream(data)));
+            return pr.ToString();
         }
 
         public void Dispose()
         {
-
         }
     }
 }

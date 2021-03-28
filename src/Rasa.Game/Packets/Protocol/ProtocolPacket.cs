@@ -111,29 +111,14 @@ namespace Rasa.Packets.Protocol
                 }
             }
 
-            // ReSharper disable SwitchStatementMissingSomeCases
-            switch (Type)
+            Message = Type switch
             {
-                case ClientMessageOpcode.Login:
-                    Message = new LoginMessage();
-                    break;
-
-                case ClientMessageOpcode.Move:
-                    Message = new MoveMessage();
-                    break;
-
-                case ClientMessageOpcode.CallServerMethod:
-                    Message = new CallServerMethodMessage();
-                    break;
-
-                case ClientMessageOpcode.Ping:
-                    Message = new PingMessage();
-                    break;
-
-                default:
-                    throw new Exception($"Unable to handle packet type {Type}, because it's a Server -> Client packet!");
-            }
-            // ReSharper restore SwitchStatementMissingSomeCases
+                ClientMessageOpcode.Login => new LoginMessage(),
+                ClientMessageOpcode.Move => new MoveMessage(),
+                ClientMessageOpcode.CallServerMethod => new CallServerMethodMessage(),
+                ClientMessageOpcode.Ping => new PingMessage(),
+                _ => throw new Exception($"Unable to handle packet type {Type}, because it's a Server -> Client packet!"),
+            };
 
             using (var reader = new ProtocolBufferReader(readBr, ProtocolBufferFlags.DontFragment))
             {
