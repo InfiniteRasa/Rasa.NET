@@ -1,6 +1,9 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Net.Sockets;
+using System.Text;
 
 namespace Rasa.Game
 {
@@ -34,12 +37,12 @@ namespace Rasa.Game
         public uint[] SendSequence { get; } = new uint[256];
         public uint[] ReceiveSequence { get; } = new uint[256];
 
-        private readonly object _clientLock = new object();
+        private readonly object _clientLock = new();
         private readonly ClientPacketHandler _handler;
-        private readonly PacketQueue _packetQueue = new PacketQueue();
+        private readonly PacketQueue _packetQueue = new();
+        private readonly NonContiguousMemoryStream _incomingDataQueue = new();
 
 
-        BufferData inboundData = null;
         private static PacketRouter<ClientPacketHandler, GameOpcode> PacketRouter { get; } = new PacketRouter<ClientPacketHandler, GameOpcode>();
 
         public static Type GetPacketType(GameOpcode opcode)
@@ -55,16 +58,8 @@ namespace Rasa.Game
             _gameUnitOfWorkFactory = gameUnitOfWorkFactory;
             _characterManager = characterManager;
 
-            inboundData = BufferManager.RequestBuffer();
-            inboundData.Length = 0;
-
             _handler = handler;
             _handler.RegisterClient(this);
-        }
-
-        ~Client()
-        {
-            BufferManager.FreeBuffer(inboundData);
         }
 
         public void RegisterAtServer(Server server, LengthedSocket socket, ClientCryptData cryptData)
@@ -90,10 +85,19 @@ namespace Rasa.Game
 
         public void Update(long delta)
         {
-            IBasePacket packet;
+            foreach (var protocolPacket in DecodeIncomingPackets())
+            {
+                try
+                {
+                    HandleProtocolPacket(protocolPacket);
+                }
+                catch (InvalidClientMessageException)
+                {
+                    Close();
+                }
+            }
 
-            while ((packet = _packetQueue.PopIncoming()) != null)
-                HandlePacket(packet);
+            IBasePacket packet;
 
             while ((packet = _packetQueue.PopOutgoing()) != null)
                 SendPacket(packet);
@@ -156,22 +160,6 @@ namespace Rasa.Game
             Socket.Send(pPacket);
         }
 
-        public void HandlePacket(IBasePacket packet)
-        {
-            var pPacket = packet as ProtocolPacket;
-            if (pPacket == null)
-                return;
-
-            try
-            {
-                HandleProtocolPacket(pPacket);
-            }
-            catch (InvalidClientMessageException)
-            {
-                Close();
-            }
-        }
-
         private void HandleProtocolPacket(ProtocolPacket protocolPacket)
         {
             switch (protocolPacket.Type)
@@ -188,14 +176,14 @@ namespace Rasa.Game
                             ErrorCode = LoginErrorCodes.VersionMismatch,
                             Subtype = LoginResponseMessageSubtype.Failed
                         }, delay: false);
+
                         return;
                     }
 
                     var loginEntry = Server.AuthenticateClient(this, loginMsg.AccountId, loginMsg.OneTimeKey);
                     if (loginEntry == null)
                     {
-                        Logger.WriteLog(LogType.Error, "Client with ip: {0} tried to log in with invalid session data! User Id: {1} | OneTimeKey: {2}", Socket.RemoteAddress, loginMsg.AccountId,
-                            loginMsg.OneTimeKey);
+                        Logger.WriteLog(LogType.Error, "Client with ip: {0} tried to log in with invalid session data! User Id: {1} | OneTimeKey: {2}", Socket.RemoteAddress, loginMsg.AccountId, loginMsg.OneTimeKey);
 
                         SendMessage(new LoginResponseMessage
                         {
@@ -237,8 +225,8 @@ namespace Rasa.Game
                         }
 
                         LoadGameAccountEntry(unitOfWork, loginEntry.Id);
-                        unitOfWork.GameAccounts.UpdateLoginData(loginEntry.Id, Socket.RemoteAddress);
 
+                        unitOfWork.GameAccounts.UpdateLoginData(loginEntry.Id, Socket.RemoteAddress);
                         unitOfWork.Complete();
                     }
 
@@ -251,21 +239,22 @@ namespace Rasa.Game
                     State = ClientState.LoggedIn;
 
                     _characterManager.StartCharacterSelection(this);
-                    return;
+                    break;
 
                 case ClientMessageOpcode.Move:
                     if (Player == null)
                     {
                         return;
                     }
+
                     var moveMessage = GetMessageAs<MoveMessage>(protocolPacket);
                     if (moveMessage.Movement == null)
                     {
                         return;
                     }
+
                     Player.Position = moveMessage.Movement.Position;
                     Player.Rotation = moveMessage.Movement.ViewDirection.X;
-                    
                     break;
 
                 case ClientMessageOpcode.CallServerMethod:
@@ -282,6 +271,7 @@ namespace Rasa.Game
 
                 case ClientMessageOpcode.Ping:
                     var pingMessage = GetMessageAs<PingMessage>(protocolPacket);
+
                     SendMessage(pingMessage, delay: false);
                     break;
             }
@@ -342,125 +332,79 @@ namespace Rasa.Game
             Close(false);
         }
 		
-        private int ReadExpectedSize(BufferData data)
-        {
-           return BitConverter.ToInt16(data.Buffer, data.BaseOffset);
-        }
-		
         private void OnReceive(BufferData data)
         {
-            do
-            {
-                inboundData.ShiftProcessedData();
-                inboundData.Append(data);
-
-                var sizeAvailable = inboundData.RemainingLength;
-
-                if(sizeAvailable == 0) { break;  }
-                var sizeNeeded = ReadExpectedSize(inboundData);
-
-                if(sizeNeeded > sizeAvailable)
-                {
-                    // Likely a fragmented packet
-                    //Logger.WriteLog(LogType.Network, "===== Fragmented packet =====");
-                    break;
-                }
-
-                //Logger.WriteLog(LogType.Network, "[N] > needed : {0}   available : {1}", sizeNeeded, sizeAvailable);
-
-                if (!DecodePacket(inboundData, out ushort subsize))
-                    break;
-            }
-            while (true);
-
-            if(data.RemainingLength > 0)
-            {
-                throw new Exception("Did not read all of data from socket, processing will be corrupted!");
-            }
+            _incomingDataQueue.CopyFromArray(data.Buffer, data.BaseOffset + data.Offset, data.RemainingLength);
         }
 
-        private bool DecodePacket(BufferData data, out ushort length)
+        private IEnumerable<ProtocolPacket> DecodeIncomingPackets()
         {
-            using (var br = data.GetReader(data.Offset, data.RemainingLength))
+            ProtocolPacket packet;
+
+            while ((packet = DecodeNextPacket()) != null)
+                yield return packet;
+
+            yield break;
+        }
+
+        private ProtocolPacket DecodeNextPacket()
+        {
+            // If there is not enough data to read the packet size at all, then stop processing
+            if (_incomingDataQueue.Length < 2)
+                return null;
+
+            using var br = new BinaryReader(_incomingDataQueue, Encoding.UTF8, true);
+
+            // Peek the packet size to determine if the whole packet has arrived
+            var startPosition = _incomingDataQueue.Position;
+
+            // Read the size of the next packet
+            var packetSize = br.ReadUInt16();
+
+            // Rewind the stream to the starting position
+            _incomingDataQueue.Position = startPosition;
+
+            // If the packet is fragmented and not all the fragments has arrived yet, then stop processing
+            if (packetSize > _incomingDataQueue.Length)
+                return null;
+
+            // Construct and the packet
+            var rawPacket = new ProtocolPacket();
+
+            rawPacket.Read(br);
+
+            // Check for overreading or underreading the packet
+            if (_incomingDataQueue.Position != startPosition + packetSize)
+                throw new Exception($"ProtocolPacket over or under read! Start position: ${startPosition} | Packet size: ${packetSize} | End position: ${_incomingDataQueue.Position}!");
+
+            // Advance the stream by removing the already processed data
+            _incomingDataQueue.RemoveBytes(packetSize);
+
+            // Throw away any packet that came out of order, if it came on a channel
+            if (rawPacket.Channel != 0)
             {
-                var rawPacket = new ProtocolPacket();
-
-                rawPacket.Read(br);
-
-                if (rawPacket.Channel != 0)
+                // If an out of sequence packet arrived, then throw it away
+                if (rawPacket.SequenceNumber < ReceiveSequence[rawPacket.Channel])
                 {
-                    if (rawPacket.SequenceNumber < ReceiveSequence[rawPacket.Channel])
-                    {
-                        Debugger.Break();
+                    Debugger.Break(); // todo: test and remove later
 
-                        length = rawPacket.Size; // throw away the packet
-                        return true;
-                    }
-
-                    ReceiveSequence[rawPacket.Channel] = rawPacket.SequenceNumber;
+                    return null;
                 }
 
-                length = rawPacket.Size;
-
-                data.Offset += (int) br.BaseStream.Position;
-
-                if (rawPacket.Type == ClientMessageOpcode.None)
-                {
-                    if (length != 4)
-                        Debugger.Break(); // If it's not send timeout check, let's investigate...
-
-                    return true;
-                }
-
-                _packetQueue.EnqueueIncoming(rawPacket);
+                // Update the receive sequence for the channel
+                ReceiveSequence[rawPacket.Channel] = rawPacket.SequenceNumber;
             }
-            /*var packet = new PythonCallPacket(length);
-            using (var br = data.GetReader())
+
+            // Some internal send timeout check, skip the packet
+            if (rawPacket.Type == ClientMessageOpcode.None)
             {
-                packet.Read(br);
+                if (rawPacket.Size != 4)
+                    Debugger.Break(); // If it's not send timeout check, let's investigate...
 
-                if (packet.Return.HasValue)
-                    return packet.Return.Value;
-
-                if (packet.Type == 2)
-                {
-                    State = ClientState.LoggedIn;
-                    Entry = Server.AuthenticateClient(this, packet.AccountId, packet.OneTimeKey);
-                    if (Entry == null)
-                    {
-                        Logger.WriteLog(LogType.Error, "Client with ip: {0} tried to log in with invalid session data! User Id: {1} | OneTimeKey: {2}", Socket.RemoteAddress, packet.AccountId, packet.OneTimeKey);
-                        Close(false);
-                        return false;
-                    }
-
-                    CharacterManager.Instance.StartCharacterSelection(this);
-                    return true;
-                }
-
-                if (packet.DataSize > 0 && br.BaseStream.Position + packet.DataSize < br.BaseStream.Length)
-                {
-                    if (br.ReadByte() != 0x4F) // 'O' format
-                        throw new Exception("Unsupported serialization format!");
-
-                    var packetType = PacketRouter.GetPacketType(packet.Opcode);
-                    if (packetType != null)
-                    {
-                        var pythonPacket = Activator.CreateInstance(packetType) as IBasePacket;
-                        if (pythonPacket == null)
-                            return false;
-
-                        pythonPacket.Read(br);
-
-                        Server.PacketQueue.EnqueueIncoming(this, pythonPacket);
-                    }
-                    else
-                        Logger.WriteLog(LogType.Error, $"Unhandled game opcode: {packet.Opcode}");
-                }
-                else
-                    Logger.WriteLog(LogType.Error, $"Invalid data found in Python method call! Off: {br.BaseStream.Position} | Len: {packet.DataSize} | Array len: {br.BaseStream.Length}");
-            }*/
-
-            return true;
+                return null;
+            }
+            
+            return rawPacket;
         }
         #endregion
 
