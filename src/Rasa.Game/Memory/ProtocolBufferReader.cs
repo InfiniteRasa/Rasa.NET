@@ -1,11 +1,11 @@
 ﻿using System;
 using System.IO;
 using System.Net;
+using System.Numerics;
 using System.Text;
 
 namespace Rasa.Memory
 {
-    using System.Numerics;
     using Models;
 
     [Flags]
