@@ -4,7 +4,6 @@ namespace Rasa.Structures
 {
     using System;
     using Data;
-    using Positioning;
 
     public class Actor : Entity
     {

@@ -12,7 +12,7 @@ namespace Rasa.Packets.Game.Server
         
         public IReadOnlyCollection<uint> StateIds { get; }
 
-        public double Rotation { get; }
+        public double Yaw { get; }
 
         public ulong TrackingTargetEntityId { get; }
 
@@ -25,7 +25,7 @@ namespace Rasa.Packets.Game.Server
         public ActorInfoPacket(Actor actor)
         {
             StateIds = new List<uint>();
-            Rotation = actor.Rotation;
+            Yaw = actor.Rotation;
             TrackingTargetEntityId = 0;
             MovementModifier = 1;
             DesiredPostureId = (uint)actor.GetPosture();
@@ -42,7 +42,7 @@ namespace Rasa.Packets.Game.Server
                 pw.WriteUInt(stateId);
             }
 
-            pw.WriteDouble(Rotation);
+            pw.WriteDouble(Yaw);
             pw.WriteULong(TrackingTargetEntityId);
             pw.WriteDouble(MovementModifier);
             pw.WriteUInt(DesiredPostureId);
