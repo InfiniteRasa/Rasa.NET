@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 namespace Rasa.Managers
 {
     using Data;
+    using Packets.Game.Both;
     using Packets.Game.Server;
 
     public class ManifestationManager : IManifestationManager
@@ -19,11 +20,11 @@ namespace Rasa.Managers
             client.CallMethod(client.Player.EntityId, new IsRunningPacket(client.Player.IsRunning));
         }
 
-        public void SetDesiredCrouchState(Client client, Posture posture)
+        public void SetDesiredCrouchState(Client client, bool crouching)
         {
-            client.Player.SetIsCrouching(posture);
+            client.Player.IsCrouching = crouching;
 
-            client.CallMethod(client.Player.EntityId, new SetDesiredCrouchStatePacket(client.Player.GetPosture()));
+            client.CallMethod(client.Player.EntityId, new SetDesiredCrouchStatePacket(client.Player.IsCrouching ? CharacterState.Crouched : CharacterState.Standing));
         }
     }
 }

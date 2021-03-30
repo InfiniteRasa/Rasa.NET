@@ -2,6 +2,7 @@
 {
     using Data;
     using Packets;
+    using Packets.Game.Both;
     using Packets.Game.Client;
 
     public partial class ClientPacketHandler
@@ -102,7 +103,7 @@
         [PacketHandler(GameOpcode.SetDesiredCrouchState)]
         private void SetDesiredCrouchState(SetDesiredCrouchStatePacket packet)
         {
-            _manifestationManager.SetDesiredCrouchState(Client, (Posture)packet.DesiredCrouchState);
+            _manifestationManager.SetDesiredCrouchState(Client, packet.DesiredCrouchState == CharacterState.Crouched);
         }
 
         [PacketHandler(GameOpcode.RequestWeaponDraw)]

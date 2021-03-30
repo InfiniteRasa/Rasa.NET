@@ -18,7 +18,7 @@ namespace Rasa.Packets.Game.Server
 
         public double MovementModifier { get; }
 
-        public uint DesiredPostureId { get; }
+        public CharacterState DesiredPostureId { get; }
 
         public bool IsHoldingCombatMode { get; }
 
@@ -28,7 +28,7 @@ namespace Rasa.Packets.Game.Server
             Yaw = actor.Rotation;
             TrackingTargetEntityId = 0;
             MovementModifier = 1;
-            DesiredPostureId = (uint)actor.GetPosture();
+            DesiredPostureId = actor.IsCrouching ? CharacterState.Crouched : CharacterState.Standing;
             IsHoldingCombatMode = false;
         }
 
@@ -45,7 +45,7 @@ namespace Rasa.Packets.Game.Server
             pw.WriteDouble(Yaw);
             pw.WriteULong(TrackingTargetEntityId);
             pw.WriteDouble(MovementModifier);
-            pw.WriteUInt(DesiredPostureId);
+            pw.WriteUInt((uint)DesiredPostureId);
             pw.WriteBool(IsHoldingCombatMode);
         }
     }
