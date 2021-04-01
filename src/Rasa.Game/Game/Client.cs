@@ -375,7 +375,7 @@ namespace Rasa.Game
 
             // Check for overreading or underreading the packet
             if (_incomingDataQueue.Position != startPosition + packetSize)
-                throw new Exception($"ProtocolPacket over or under read! Start position: ${startPosition} | Packet size: ${packetSize} | End position: ${_incomingDataQueue.Position}!");
+                throw new Exception($"ProtocolPacket over or under read! Start position: {startPosition} | Packet size: {packetSize} | End position: {_incomingDataQueue.Position}!");
 
             // Advance the stream by removing the already processed data
             _incomingDataQueue.RemoveBytes(packetSize);
