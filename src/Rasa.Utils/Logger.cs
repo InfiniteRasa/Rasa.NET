@@ -15,7 +15,8 @@ namespace Rasa
         File,
         Security,
         None,
-        ExportData
+        ExportData,
+        Communicator
     }
 
     public class Logger
@@ -115,6 +116,11 @@ namespace Rasa
                 case LogType.Security:
                     prefix = "Security";
                     desiredColor = ConsoleColor.DarkRed;
+                    break;
+
+                case LogType.Communicator:
+                    prefix = "Communicator";
+                    desiredColor = ConsoleColor.DarkGreen;
                     break;
 
                 default:
