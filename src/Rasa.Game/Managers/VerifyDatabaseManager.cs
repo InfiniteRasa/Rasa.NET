@@ -31,8 +31,9 @@ namespace Rasa.Managers
             "rasaworld_2019_02_12_11_43_clan_master_added",
             "rasaworld_2019_08_23_15_44_added_all_waypoints_hospitals",
             "rasaworld_2019_12_12_23_12_added_footlockers_in_wilderness",
-            "rasaworld_2021_03_20_14_00_added_dropships"
-        };
+            "rasaworld_2021_03_20_14_00_added_dropships",
+            "rasaworld_2021_11_11_12_13_added_missing_table"
+    };
 
         private static VerifyDatabaseManager _instance;
         private static readonly object InstanceLock = new object();
