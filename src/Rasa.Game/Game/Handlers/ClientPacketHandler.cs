@@ -5,6 +5,7 @@
     using Packets;
     using Packets.MapChannel.Client;
     using Packets.Clan.Client;
+    using Packets.Inventory.Client;
     using Packets.Social.Client;
 
     public partial class ClientPacketHandler
@@ -64,36 +65,6 @@
             MapChannelManager.Instance.CharacterLogout(Client);
         }
         
-        [PacketHandler(GameOpcode.ClanLockbox_DepositItemInSlot)]
-        private void ClanLockbox_DepositItemInSlot(ClanLockbox_DepositItemInSlotPacket packet)
-        {
-            InventoryManager.Instance.ClanLockbox_DepositItemInSlot(Client, packet);
-        }
-
-        [PacketHandler(GameOpcode.ClanLockbox_DepositItemInTab)]
-        private void ClanLockbox_MoveItem(ClanLockbox_DepositItemInTabPacket packet)
-        {
-            InventoryManager.Instance.ClanLockbox_DepositItemInTab(Client, packet);
-        }
-
-        [PacketHandler(GameOpcode.ClanLockbox_DestroyItem)]
-        private void ClanLockbox_DestroyItem(ClanLockbox_DestroyItemPacket packet)
-        {
-            InventoryManager.Instance.ClanLockbox_DestroyItem(Client, packet);
-        }
-
-        [PacketHandler(GameOpcode.ClanLockbox_MoveItem)]
-        private void ClanLockbox_MoveItem(ClanLockbox_MoveItemPacket packet)
-        {
-            InventoryManager.Instance.ClanLockbox_MoveItem(Client, packet);
-        }
-
-        [PacketHandler(GameOpcode.ClanLockbox_WithdrawItem)]
-        private void ClanLockbox_WithdrawItem(ClanLockbox_WithdrawItemPacket packet)
-        {
-            InventoryManager.Instance.ClanLockbox_WithdrawItem(Client, packet);
-        }
-        
         [PacketHandler(GameOpcode.ClearTargetId)]
         private void ClearTargetId(ClearTargetIdPacket packet)
         {
@@ -129,18 +100,6 @@
         {
             ClanManager.Instance.GetPvPClanMembershipStatus(Client);    // packet have 0 argumenst, no need to pass it
         }
-
-        [PacketHandler(GameOpcode.HomeInventory_DestroyItem)]
-        private void HomeInventory_DestroyItem(HomeInventory_DestroyItemPacket packet)
-        {
-            InventoryManager.Instance.HomeInventory_DestroyItem(Client, packet);
-        }
-
-        [PacketHandler(GameOpcode.HomeInventory_MoveItem)]
-        private void HomeInventory_MoveItem(HomeInventory_MoveItemPacket packet)
-        {
-            InventoryManager.Instance.HomeInventory_MoveItem(Client, packet);
-        }
         
         [PacketHandler(GameOpcode.LevelSkills)]
         private void LevelSkills(LevelSkillsPacket packet)
@@ -153,19 +112,7 @@
         {
             MapChannelManager.Instance.MapLoaded(Client);
         }
-
-        [PacketHandler(GameOpcode.PersonalInventory_DestroyItem)]
-        private void PersonalInventory_DestroyItem(PersonalInventory_DestroyItemPacket packet)
-        {
-            InventoryManager.Instance.PersonalInventory_DestroyItem(Client, packet);
-        }
-
-        [PacketHandler(GameOpcode.PersonalInventory_MoveItem)]
-        private void PersonalInventory_MoveItem(PersonalInventory_MoveItemPacket packet)
-        {
-            InventoryManager.Instance.PersonalInventory_MoveItem(Client, packet);
-        }
-
+        
         [PacketHandler(GameOpcode.Ping)]
         private void Ping(PingPacket packet)
         {
@@ -177,13 +124,7 @@
         {
             // ToDo
         }
-
-        [PacketHandler(GameOpcode.PurchaseLockboxTab)]
-        private void PurchaseLockboxTab(PurchaseLockboxTabPacket packet)
-        {
-            InventoryManager.Instance.PurchaseLockboxTab(Client, packet);
-        }
-
+        
         [PacketHandler(GameOpcode.RadialChat)]
         private void RadialChat(RadialChatPacket packet)
         {
@@ -249,19 +190,7 @@
         {
             ManifestationManager.Instance.RequestCustomization(Client, packet);
         }
-
-        [PacketHandler(GameOpcode.RequestEquipArmor)]
-        private void RequestEquipArmor(RequestEquipArmorPacket packet)
-        {
-            InventoryManager.Instance.RequestEquipArmor(Client, packet);
-        }
-
-        [PacketHandler(GameOpcode.RequestEquipWeapon)]
-        private void RequestEquipWeapon(RequestEquipWeaponPacket packet)
-        {
-            InventoryManager.Instance.RequestEquipWeapon(Client, packet);
-        }
-
+        
         [PacketHandler(GameOpcode.RequestGesture)]
         private void RequestGesture(RequestGesturePacket packet)
         {
@@ -273,13 +202,7 @@
         {
             // ToDo
         }*/
-
-        [PacketHandler(GameOpcode.RequestLockboxTabPermissions)]
-        private void RequestLockboxTabPermissions(RequestLockboxTabPermissionsPacket packet)
-        {
-            InventoryManager.Instance.RequestLockboxTabPermissions(Client);
-        }
-
+        
         [PacketHandler(GameOpcode.RequestLogout)]
         private void RequestLogout(RequestLogoutPacket packet)
         {
@@ -291,13 +214,7 @@
         {
             InventoryManager.Instance.RequestMoveItemToClanLockbox(Client, packet);
         }
-
-        [PacketHandler(GameOpcode.RequestMoveItemToHomeInventory)]
-        private void RequestMoveItemToHomeInventory(RequestMoveItemToHomeInventoryPacket packet)
-        {
-            InventoryManager.Instance.RequestMoveItemToHomeInventory(Client, packet);
-        }
-
+        
         [PacketHandler(GameOpcode.RequestNPCConverse)]
         private void RequestNPCConverse(RequestNPCConversePacket packet)
         {
@@ -339,13 +256,7 @@
         {
             ManifestationManager.Instance.RequestSwapAbilitySlots(Client, packet);
         }
-
-        [PacketHandler(GameOpcode.RequestTakeItemFromHomeInventory)]
-        private void RequestTakeItemFromHomeInventory(RequestTakeItemFromHomeInventoryPacket packet)
-        {
-            InventoryManager.Instance.RequestTakeItemFromHomeInventory(Client, packet);
-        }
-
+        
         [PacketHandler(GameOpcode.RequestToggleRun)]
         private void RequestToggleRun(RequestToggleRunPacket packet)
         {
@@ -484,18 +395,6 @@
             DynamicObjectManager.Instance.TeleportAcknowledge(Client);
         }
 
-        [PacketHandler(GameOpcode.TransferCreditToLockbox)]
-        private void TransferCreditToLockbox(TransferCreditToLockboxPacket packet)
-        {
-            InventoryManager.Instance.TransferCreditToLockbox(Client, packet.Ammount);
-        }
-
-        [PacketHandler(GameOpcode.WeaponDrawerInventory_MoveItem)]
-        private void WeaponDrawerInventory_MoveItem(WeaponDrawerInventory_MoveItemPacket packet)
-        {
-            InventoryManager.Instance.WeaponDrawerInventory_MoveItem(Client, packet);
-        }
-
         #region Clan
 
         [PacketHandler(GameOpcode.ClanChangeRankTitle)]
@@ -569,6 +468,118 @@
         {
             ClanManager.Instance.MakePlayerClanLeader(Client, packet);
         }
+        #endregion
+
+        #region Inventory
+
+        [PacketHandler(GameOpcode.ClanLockbox_DepositItemInSlot)]
+        private void ClanLockbox_DepositItemInSlot(ClanLockbox_DepositItemInSlotPacket packet)
+        {
+            InventoryManager.Instance.ClanLockbox_DepositItemInSlot(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.ClanLockbox_DepositItemInTab)]
+        private void ClanLockbox_MoveItem(ClanLockbox_DepositItemInTabPacket packet)
+        {
+            InventoryManager.Instance.ClanLockbox_DepositItemInTab(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.ClanLockbox_DestroyItem)]
+        private void ClanLockbox_DestroyItem(ClanLockbox_DestroyItemPacket packet)
+        {
+            InventoryManager.Instance.ClanLockbox_DestroyItem(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.ClanLockbox_MoveItem)]
+        private void ClanLockbox_MoveItem(ClanLockbox_MoveItemPacket packet)
+        {
+            InventoryManager.Instance.ClanLockbox_MoveItem(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.ClanLockbox_WithdrawItem)]
+        private void ClanLockbox_WithdrawItem(ClanLockbox_WithdrawItemPacket packet)
+        {
+            InventoryManager.Instance.ClanLockbox_WithdrawItem(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.HomeInventory_DestroyItem)]
+        private void HomeInventory_DestroyItem(HomeInventory_DestroyItemPacket packet)
+        {
+            InventoryManager.Instance.HomeInventory_DestroyItem(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.HomeInventory_MoveItem)]
+        private void HomeInventory_MoveItem(HomeInventory_MoveItemPacket packet)
+        {
+            InventoryManager.Instance.HomeInventory_MoveItem(Client, packet);
+        }
+
+        // ToDo: OverflowTransfer(destType, entityId, quantity, slot)
+
+        [PacketHandler(GameOpcode.PersonalInventory_DestroyItem)]
+        private void PersonalInventory_DestroyItem(PersonalInventory_DestroyItemPacket packet)
+        {
+            InventoryManager.Instance.PersonalInventory_DestroyItem(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.PersonalInventory_MoveItem)]
+        private void PersonalInventory_MoveItem(PersonalInventory_MoveItemPacket packet)
+        {
+            InventoryManager.Instance.PersonalInventory_MoveItem(Client, packet);
+        }
+
+        // ToDo: PurchaseClanLockboxTab(tabId)
+
+        [PacketHandler(GameOpcode.PurchaseLockboxTab)]
+        private void PurchaseLockboxTab(PurchaseLockboxTabPacket packet)
+        {
+            InventoryManager.Instance.PurchaseLockboxTab(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.RequestEquipArmor)]
+        private void RequestEquipArmor(RequestEquipArmorPacket packet)
+        {
+            InventoryManager.Instance.RequestEquipArmor(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.RequestEquipWeapon)]
+        private void RequestEquipWeapon(RequestEquipWeaponPacket packet)
+        {
+            InventoryManager.Instance.RequestEquipWeapon(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.RequestLockboxTabPermissions)]
+        private void RequestLockboxTabPermissions(RequestLockboxTabPermissionsPacket packet)
+        {
+            InventoryManager.Instance.RequestLockboxTabPermissions(Client);
+        }
+
+        [PacketHandler(GameOpcode.RequestMoveItemToHomeInventory)]
+        private void RequestMoveItemToHomeInventory(RequestMoveItemToHomeInventoryPacket packet)
+        {
+            InventoryManager.Instance.RequestMoveItemToHomeInventory(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.RequestTakeItemFromHomeInventory)]
+        private void RequestTakeItemFromHomeInventory(RequestTakeItemFromHomeInventoryPacket packet)
+        {
+            InventoryManager.Instance.RequestTakeItemFromHomeInventory(Client, packet);
+        }
+
+        // ToDo: RequestTakeItemFromInboxInventory(auctioneerId, entityId, destSlot)
+
+        [PacketHandler(GameOpcode.TransferCreditToLockbox)]
+        private void TransferCreditToLockbox(TransferCreditToLockboxPacket packet)
+        {
+            InventoryManager.Instance.TransferCreditToLockbox(Client, packet.Ammount);
+        }
+
+        [PacketHandler(GameOpcode.WeaponDrawerInventory_MoveItem)]
+        private void WeaponDrawerInventory_MoveItem(WeaponDrawerInventory_MoveItemPacket packet)
+        {
+            InventoryManager.Instance.WeaponDrawerInventory_MoveItem(Client, packet);
+        }
+
         #endregion
 
         #region Social

@@ -1,13 +1,13 @@
 ﻿using System;
 
-namespace Rasa.Packets.MapChannel.Client
+namespace Rasa.Packets.Inventory.Client
 {
     using Data;
     using Memory;
 
-    public class ClanLockbox_MoveItemPacket : ClientPythonPacket
+    public class RequestMoveItemToHomeInventoryPacket : ClientPythonPacket
     {
-        public override GameOpcode Opcode { get; } = GameOpcode.ClanLockbox_MoveItem;
+        public override GameOpcode Opcode { get; } = GameOpcode.RequestMoveItemToHomeInventory;
 
         public uint SrcSlot { get; set; }
         public uint DestSlot { get; set; }
@@ -23,7 +23,7 @@ namespace Rasa.Packets.MapChannel.Client
             else if (pr.PeekType() == PythonType.Long)
                 Quantity = (int)pr.ReadLong();
             else
-                throw new Exception("ClanLockbox_MoveItem: unsuported PythonType");
+                throw new Exception("RequestMoveItemToHomeInventory: unsuported PythonType");
         }
     }
 }

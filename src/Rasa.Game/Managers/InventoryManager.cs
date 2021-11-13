@@ -6,6 +6,8 @@ namespace Rasa.Managers
     using Data;
     using Database.Tables.Character;
     using Game;
+    using Packets.Inventory.Client;
+    using Packets.Inventory.Server;
     using Packets.MapChannel.Client;
     using Packets.MapChannel.Server;
     using Structures;
@@ -13,27 +15,30 @@ namespace Rasa.Managers
     public class InventoryManager
     {
         /*    Inventory Packets:
-         *  - InventoryCreate
-         *  - InventoryMoveFailed
-         *  - InventoryDestroy
-         *  - InventoryReload
+         *      Done:
+         *  - AddBuybackItem
          *  - InventoryAddItem
+         *  - InventoryCreate
          *  - InventoryRemoveItem
          *  - LockboxTabPermissions
-         *  - AddOverflowItem
-         *  - RemoveOverflowItem
-         *  - ResetOverflowInventory
-         *  - AddBuybackItem
          *  - RemoveBuybackItem
-         *  - ResetBuybackInventory
-         *  - AddInboxItem
-         *  - RemoveInboxItem
-         *  - ResetInboxInventory
+         *  
+         *      ToDo:
          *  - AddAuctionItem
-         *  - RemoveAuctionItem
-         *  - ResetAuctionInventory
+         *  - AddInboxItem
+         *  - AddOverflowItem
          *  - AddWagerItem
+         *  - InventoryDestroy
+         *  - InventoryMoveFailed
+         *  - InventoryReload
+         *  - RemoveAuctionItem
+         *  - RemoveInboxItem
+         *  - RemoveOverflowItem
          *  - RemoveWagerItem
+         *  - ResetAuctionInventory
+         *  - ResetBuybackInventory
+         *  - ResetInboxInventory
+         *  - ResetOverflowInventory
          *  - ResetWagerInventory
          *  
          *    Inventory Handlers:

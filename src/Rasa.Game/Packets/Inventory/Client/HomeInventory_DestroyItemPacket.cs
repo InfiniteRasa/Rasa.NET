@@ -1,12 +1,11 @@
-﻿using System;
-namespace Rasa.Packets.MapChannel.Client
+﻿namespace Rasa.Packets.Inventory.Client
 {
     using Data;
     using Memory;
 
-    public class ClanLockbox_DestroyItemPacket : ClientPythonPacket
+    public class HomeInventory_DestroyItemPacket : ClientPythonPacket
     {
-        public override GameOpcode Opcode { get; } = GameOpcode.ClanLockbox_DestroyItem;
+        public override GameOpcode Opcode { get; } = GameOpcode.HomeInventory_DestroyItem;
 
         public ulong EntityId { get; set; }
         public uint Quantity { get; set; }

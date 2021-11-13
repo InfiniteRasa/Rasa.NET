@@ -1,24 +1,24 @@
-﻿namespace Rasa.Packets.MapChannel.Client
+﻿namespace Rasa.Packets.Inventory.Client
 {
     using Data;
     using Memory;
 
-    public class ClanLockbox_WithdrawItemPacket : ClientPythonPacket
+    public class ClanLockbox_DepositItemInTabPacket : ClientPythonPacket
     {
-        public override GameOpcode Opcode => GameOpcode.ClanLockbox_WithdrawItem;
+        public override GameOpcode Opcode => GameOpcode.ClanLockbox_DepositItemInTab;
 
-        public uint SrcSlot { get; set; }
-        public uint DestSlot { get; set; }
+        public int SrcSlot { get; set; }
+        public int DestSlot { get; set; }
         public long Quantity { get; set; }
         public bool ManagePersonalSlot { get; set; }
 
         public override void Read(PythonReader pr)
         {
             pr.ReadTuple();
-            SrcSlot = pr.ReadUInt();
+            SrcSlot = pr.ReadInt();
             
             if (pr.PeekType() == PythonType.Int)
-                DestSlot = pr.ReadUInt();
+                DestSlot = pr.ReadInt();
             else
             {
                 ManagePersonalSlot = true;
