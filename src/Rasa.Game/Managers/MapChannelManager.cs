@@ -356,6 +356,7 @@ namespace Rasa.Managers
             CommunicatorManager.Instance.RegisterPlayer(client);
 
             // Must be called after AssignPlayer and RegisterPlayer so that IsOnline status can be accurately checked
+            CharacterManager.Instance.UpdateCharacter(client, CharacterUpdate.OnlineStatus, true);
             ClanManager.Instance.InitializePlayerClanData(client);
             InventoryManager.Instance.InitClanInventory(client);
             CommunicatorManager.Instance.PlayerEnterMap(client);

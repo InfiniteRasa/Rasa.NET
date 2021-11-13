@@ -9,18 +9,20 @@ namespace Rasa.Database.Tables.Character
 
     public class CharacterTable
     {
-        private static readonly MySqlCommand CreateCharacterCommand = new MySqlCommand("INSERT INTO `character` (`account_id`, `slot`, `name`, `race`, `class`, `scale`, `gender`, `experience`, `level`, `body`, `mind`, `spirit`, `map_context_id`, `coord_x`, `coord_y`, `coord_z`, `orientation`) VALUES (@AccountId, @Slot, @Name, @Race, @Class, @Scale, @Gender, @Experience, @Level, @Body, @Mind, @Spirit, @MapContextId, @CoordX, @CoordY, @CoordZ, @Orientation)");
-        private static readonly MySqlCommand ListCharactersCommand = new MySqlCommand("SELECT * FROM `character` WHERE `account_id` = @AccountId");
+        private static readonly MySqlCommand CreateCharacterCommand = new MySqlCommand("INSERT INTO `character` (`account_id`, `slot`, `name`, `race`, `class`, `scale`, `gender`, `experience`, `level`, `body`, `mind`, `spirit`, `map_context_id`, `coord_x`, `coord_y`, `coord_z`, `orientation`, `is_online`) VALUES (@AccountId, @Slot, @Name, @Race, @Class, @Scale, @Gender, @Experience, @Level, @Body, @Mind, @Spirit, @MapContextId, @CoordX, @CoordY, @CoordZ, @Orientation, @IsOnline)");
         private static readonly MySqlCommand GetCharacterCommand = new MySqlCommand("SELECT * FROM `character` WHERE `account_id` = @AccountId AND slot = @Slot");
         private static readonly MySqlCommand GetCharacterByNameCommand = new MySqlCommand("SELECT * FROM `character` WHERE `account_id` = @AccountId AND name = @Name");
         private static readonly MySqlCommand GetCharacterByIdCommand = new MySqlCommand("SELECT * FROM `character` WHERE `id` = @CharacterId");
+        private static readonly MySqlCommand GetCharactersByAccountIdCommand = new MySqlCommand("SELECT * FROM `character` WHERE `account_id` = @AccountId");
         private static readonly MySqlCommand DeleteCharacterCommand = new MySqlCommand("DELETE FROM `character` WHERE `id` = @Id");
+        private static readonly MySqlCommand ListCharactersCommand = new MySqlCommand("SELECT * FROM `character` WHERE `account_id` = @AccountId");
         private static readonly MySqlCommand UpdateCharacterAttributesCommand = new MySqlCommand("UPDATE `character` SET `body` = @Body, `mind` = @Mind, `spirit` = @Spirit WHERE `id` = @Id");
         private static readonly MySqlCommand UpdateCharacterActiveWeaponCommand = new MySqlCommand("UPDATE `character` SET `active_weapon` = @ActiveWeapon WHERE `id` = @Id");
         private static readonly MySqlCommand UpdateCharacterCloneCreditsCommand = new MySqlCommand("UPDATE `character` SET `clone_credits` = @CloneCredits WHERE `id` = @Id");
         private static readonly MySqlCommand UpdateCharacterCreditsCommand = new MySqlCommand("UPDATE `character` SET `credits` = @Credits WHERE `id` = @Id");
         private static readonly MySqlCommand UpdateCharacterLocationCommand = new MySqlCommand("UPDATE `character` SET `map_context_id` = @MapContextId, `coord_x` = @CoordX, `coord_y` = @CoordY, `coord_z` = @CoordZ, `orientation` = @Orientation WHERE `id` = @Id");
         private static readonly MySqlCommand UpdateCharacterLoginCommand = new MySqlCommand("UPDATE `character` SET `num_logins` = @NumLogins, `last_login` = NOW(), `total_time_played` = @TotalTimePlayed WHERE `id` = @Id");
+        private static readonly MySqlCommand UpdateCharacterOnlineStatusCommand = new MySqlCommand("UPDATE `character` SET `is_online` = @IsOnline WHERE `id` = @Id");
 
         public static void Initialize()
         {
@@ -42,6 +44,7 @@ namespace Rasa.Database.Tables.Character
             CreateCharacterCommand.Parameters.Add("@CoordY", MySqlDbType.Float);
             CreateCharacterCommand.Parameters.Add("@CoordZ", MySqlDbType.Float);
             CreateCharacterCommand.Parameters.Add("@Orientation", MySqlDbType.Float);
+            CreateCharacterCommand.Parameters.Add("@IsOnline", MySqlDbType.Bit);
             CreateCharacterCommand.Prepare();
 
             ListCharactersCommand.Connection = GameDatabaseAccess.CharConnection;
@@ -61,6 +64,10 @@ namespace Rasa.Database.Tables.Character
             GetCharacterByIdCommand.Connection = GameDatabaseAccess.CharConnection;
             GetCharacterByIdCommand.Parameters.Add("@CharacterId", MySqlDbType.UInt32);            
             GetCharacterByIdCommand.Prepare();
+
+            GetCharactersByAccountIdCommand.Connection = GameDatabaseAccess.CharConnection;
+            GetCharactersByAccountIdCommand.Parameters.Add("@AccountId", MySqlDbType.UInt32);
+            GetCharactersByAccountIdCommand.Prepare();
 
             DeleteCharacterCommand.Connection = GameDatabaseAccess.CharConnection;
             DeleteCharacterCommand.Parameters.Add("@Id", MySqlDbType.UInt32);
@@ -102,6 +109,11 @@ namespace Rasa.Database.Tables.Character
             UpdateCharacterLoginCommand.Parameters.Add("@NumLogins", MySqlDbType.UInt32);
             UpdateCharacterLoginCommand.Parameters.Add("@TotalTimePlayed", MySqlDbType.UInt32);
             UpdateCharacterLoginCommand.Prepare();
+
+            UpdateCharacterOnlineStatusCommand.Connection = GameDatabaseAccess.CharConnection;
+            UpdateCharacterOnlineStatusCommand.Parameters.Add("@Id", MySqlDbType.UInt32);
+            UpdateCharacterOnlineStatusCommand.Parameters.Add("@IsOnline", MySqlDbType.Bit);
+            UpdateCharacterOnlineStatusCommand.Prepare();
         }        
 
         public static bool CreateCharacter(CharacterEntry entry)
@@ -127,6 +139,7 @@ namespace Rasa.Database.Tables.Character
                     CreateCharacterCommand.Parameters["@CoordY"].Value = entry.CoordY;
                     CreateCharacterCommand.Parameters["@CoordZ"].Value = entry.CoordZ;
                     CreateCharacterCommand.Parameters["@Orientation"].Value = entry.Orientation;
+                    CreateCharacterCommand.Parameters["@IsOnline"].Value = entry.IsOnline;
                     CreateCharacterCommand.ExecuteNonQuery();
 
                     entry.Id = (uint) CreateCharacterCommand.LastInsertedId;
@@ -195,6 +208,28 @@ namespace Rasa.Database.Tables.Character
                 using (var reader = GetCharacterByIdCommand.ExecuteReader())
                     return CharacterEntry.Read(reader);
             }
+        }
+
+        public static List<CharacterEntry> GetCharactersByAccountId(uint accountId)
+        {
+            var characters = new List<CharacterEntry>();
+
+            lock (GameDatabaseAccess.CharLock)
+            {
+                ListCharactersCommand.Parameters["@AccountId"].Value = accountId;
+
+                using (var reader = ListCharactersCommand.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        var charEntry = CharacterEntry.Read(reader, false);
+
+                        characters.Add(charEntry);
+                    }
+                }
+            }
+
+            return characters;
         }
 
         public static void DeleteCharacter(uint characterId)
@@ -272,6 +307,16 @@ namespace Rasa.Database.Tables.Character
                 UpdateCharacterLoginCommand.Parameters["@TotalTimePlayed"].Value = totalTimePlayed;
                 UpdateCharacterLoginCommand.Parameters["@NumLogins"].Value = numLogins;
                 UpdateCharacterLoginCommand.ExecuteNonQuery();
+            }
+        }
+
+        public static void UpdateCharacterOnlineStatus(uint characterId, bool isOnline)
+        {
+            lock (GameDatabaseAccess.CharLock)
+            {
+                UpdateCharacterOnlineStatusCommand.Parameters["@Id"].Value = characterId;
+                UpdateCharacterOnlineStatusCommand.Parameters["@IsOnline"].Value = isOnline;
+                UpdateCharacterOnlineStatusCommand.ExecuteNonQuery();
             }
         }
     }

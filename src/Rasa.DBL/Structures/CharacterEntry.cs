@@ -32,6 +32,7 @@ namespace Rasa.Structures
         public DateTime? LastLogin { get; set; }
         public uint TotalTimePlayed { get; set; }
         public DateTime? LastPvPClan { get; set; }
+        public bool IsOnline { get; set; }
 
         public static CharacterEntry Read(MySqlDataReader reader, bool newReader = true)
         {
@@ -68,7 +69,8 @@ namespace Rasa.Structures
                 NumLogins = reader.GetUInt32("num_logins"),
                 LastLogin = reader.IsDBNull(lastLoginOrdinal) ? (DateTime?)null : reader.GetDateTime(lastLoginOrdinal),
                 TotalTimePlayed = reader.GetUInt32("total_time_played"),
-                LastPvPClan = reader.IsDBNull(lastPvPClanOrdinal) ? (DateTime?)null : reader.GetDateTime(lastPvPClanOrdinal)
+                LastPvPClan = reader.IsDBNull(lastPvPClanOrdinal) ? (DateTime?)null : reader.GetDateTime(lastPvPClanOrdinal),
+                IsOnline = (reader.GetBoolean("is_online")),
             };
         }
     }

@@ -10,6 +10,7 @@ namespace Rasa.Managers
     using Packets.MapChannel.Client;
     using Packets.MapChannel.Server;
     using Packets.Game.Server;
+    using Packets.Social.Server;
     using Structures;
     using Rasa.Packets.Protocol;
 
@@ -386,6 +387,8 @@ namespace Rasa.Managers
             client.CallMethod(SysEntity.ClientGameMapId, new SetSkyTimePacket { RunningTime = 6666666 });   // ToDo add actual time how long map is running
 
             client.CallMethod(SysEntity.ClientMethodId, new SetCurrentContextIdPacket(client.MapClient.MapChannel.MapInfo.MapContextId));
+
+            SocialManager.Instance.SetSocialContactList(client);
 
             client.CallMethod(actor.EntityId, new UpdateRegionsPacket { RegionIdList = client.MapClient.MapChannel.MapInfo.BaseRegionId });  // ToDo this should be list of regions? or just curent region wher player is
 

@@ -7,6 +7,7 @@ namespace Rasa.Managers
     using Game;
     using Packets.MapChannel.Client;
     using Packets.MapChannel.Server;
+    using Packets.Social.Server;
     using Structures;
 
     public class CommunicatorManager
@@ -70,6 +71,16 @@ namespace Rasa.Managers
             }
         }
 
+        internal void AddFriendAck(Client client, string familyName, bool succsess)
+        {
+            client.CallMethod(SysEntity.CommunicatorId, new AddFriendAckPacket(familyName, succsess));
+        }
+
+        internal void AddIgnoreAck(Client client, string familyName, bool succsess)
+        {
+            client.CallMethod(SysEntity.CommunicatorId, new AddIgnoreAckPacket(familyName, succsess));
+        }
+
         public int GenerateDefaultChannelHash(int channelId, int mapContextId, int instanceId)
         {
             var v = 0;
@@ -129,6 +140,8 @@ namespace Rasa.Managers
             CharacterManager.Instance.UpdateCharacter(client, CharacterUpdate.Position, null);
             // save player time
             CharacterManager.Instance.UpdateCharacter(client, CharacterUpdate.Login, null);
+            // set offline status
+            CharacterManager.Instance.UpdateCharacter(client, CharacterUpdate.OnlineStatus, false);
             // remove client from all channels
             for (var i = 0; i < client.MapClient.JoinedChannels; i++)
             {

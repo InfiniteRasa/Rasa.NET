@@ -4,6 +4,7 @@
     using Managers;
     using Packets;
     using Packets.MapChannel.Client;
+    using Packets.Social.Client;
 
     public partial class ClientPacketHandler
     {
@@ -559,5 +560,38 @@
         {
             InventoryManager.Instance.WeaponDrawerInventory_MoveItem(Client, packet);
         }
+
+        #region Social
+
+        [PacketHandler(GameOpcode.AddFriendByName)]
+        private void AddFriendByName(AddFriendByNamePacket packet)
+        {
+            SocialManager.Instance.AddFriendByName(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.AddIgnore)]
+        private void AddIgnore(AddIgnorePacket packet)
+        {
+            SocialManager.Instance.AddIgnore(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.AddIgnoreByName)]
+        private void AddIgnoreByName(AddIgnoreByNamePacket packet)
+        {
+            SocialManager.Instance.AddIgnoreByName(Client, packet);
+        }
+        
+        [PacketHandler(GameOpcode.RemoveFriend)]
+        private void RemoveFriend(RemoveFriendPacket packet)
+        {
+            SocialManager.Instance.RemoveFriend(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.RemoveIgnore)]
+        private void RemoveIgnore(RemoveIgnorePacket packet)
+        {
+            SocialManager.Instance.RemoveIgnore(Client, packet);
+        }
+        #endregion
     }
 }
