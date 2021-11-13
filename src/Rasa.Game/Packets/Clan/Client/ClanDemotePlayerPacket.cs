@@ -1,11 +1,11 @@
-﻿namespace Rasa.Packets.MapChannel.Client
+﻿namespace Rasa.Packets.Clan.Client
 {
     using Data;
     using Memory;
 
-    public class MakePlayerClanLeaderPacket : ClientPythonPacket
+    class ClanDemotePlayerPacket : ClientPythonPacket
     {
-        public override GameOpcode Opcode => GameOpcode.MakePlayerClanLeader;
+        public override GameOpcode Opcode => GameOpcode.ClanDemotePlayer;
 
         public uint CharacterId { get; set; }
 

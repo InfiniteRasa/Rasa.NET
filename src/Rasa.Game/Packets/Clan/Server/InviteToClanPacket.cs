@@ -1,4 +1,4 @@
-﻿namespace Rasa.Packets.MapChannel.Server
+﻿namespace Rasa.Packets.Clan.Server
 {
     using Data;
     using Memory;

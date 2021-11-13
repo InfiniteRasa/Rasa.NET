@@ -9,6 +9,8 @@ namespace Rasa.Managers
     using Database.Tables.Character;
     using Game;
     using Packets;
+    using Packets.Clan.Client;
+    using Packets.Clan.Server;
     using Packets.MapChannel.Client;
     using Packets.MapChannel.Server;
     using Misc;
@@ -43,7 +45,6 @@ namespace Rasa.Managers
          * - LeaveClan
          * - DisbandClan
          * - KickPlayerFromClan
-         * - ClanChangeRankTitle
          * - RemovePlayer
          */
 

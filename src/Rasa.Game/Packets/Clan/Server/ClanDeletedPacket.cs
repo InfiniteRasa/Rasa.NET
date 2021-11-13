@@ -1,15 +1,15 @@
-﻿namespace Rasa.Packets.MapChannel.Server
+﻿namespace Rasa.Packets.Clan.Server
 {
     using Data;
     using Memory;
 
-    public class ClanMembersRosterEndPacket : ServerPythonPacket
+    public class ClanDeletedPacket : ServerPythonPacket
     {
-        public override GameOpcode Opcode => GameOpcode.ClanMembersRosterEnd;
+        public override GameOpcode Opcode => GameOpcode.ClanDeleted;
 
         public uint ClanId { get; }
 
-        public ClanMembersRosterEndPacket(uint clanId)
+        public ClanDeletedPacket(uint clanId)
         {
             ClanId = clanId;
         }
