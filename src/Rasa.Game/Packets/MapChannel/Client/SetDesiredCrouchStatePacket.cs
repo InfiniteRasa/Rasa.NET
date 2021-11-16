@@ -7,18 +7,27 @@
     {
         public override GameOpcode Opcode { get; } = GameOpcode.SetDesiredCrouchState;
 
-        public CharacterState DesiredStateId { get; set; }
+        public CharacterState DesiredCrouchState { get; set; }
+
+        public SetDesiredCrouchStatePacket()
+        {
+        }
+
+        public SetDesiredCrouchStatePacket(CharacterState desiredCrouchState)
+        {
+            DesiredCrouchState = desiredCrouchState;
+        }
 
         public override void Read(PythonReader pr)
         {
             pr.ReadTuple();
-            DesiredStateId = (CharacterState)pr.ReadInt();
+            DesiredCrouchState = (CharacterState)pr.ReadUInt();
         }
 
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(1);
-            pw.WriteInt((int)DesiredStateId);
+            pw.WriteUInt((uint)DesiredCrouchState);
         }
     }
 }

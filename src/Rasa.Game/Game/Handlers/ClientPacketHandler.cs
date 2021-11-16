@@ -362,7 +362,7 @@
         [PacketHandler(GameOpcode.SetDesiredCrouchState)]
         private void SetDesiredCrouchState(SetDesiredCrouchStatePacket packet)
         {
-            ActorManager.Instance.SetDesiredCrouchState(Client, packet.DesiredStateId);
+            ActorManager.Instance.SetDesiredCrouchState(Client, packet.DesiredCrouchState);
         }
 
         [PacketHandler(GameOpcode.SetTargetId)]

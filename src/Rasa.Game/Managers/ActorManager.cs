@@ -114,7 +114,7 @@
 
         public void SetDesiredCrouchState(Client client, CharacterState state)
         {
-            client.CellIgnoreSelfCallMethod(client, new SetDesiredCrouchStatePacket { DesiredStateId = state });
+            client.CellIgnoreSelfCallMethod(client, new SetDesiredCrouchStatePacket(state));
         }
 
         #endregion
