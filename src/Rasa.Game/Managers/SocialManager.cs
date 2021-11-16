@@ -13,7 +13,6 @@ namespace Rasa.Managers
     {
         /*      Social Packets:
          * - AddFriend
-         * - AddFriendAck
          * - AddFriendByName
          * - FriendList
          * - FriendLoggedOff
@@ -23,7 +22,6 @@ namespace Rasa.Managers
          * - JoinFriendCancelled
          * - JoinFriendDeclined 
          * - RemoveFriend
-         * - RemoveFriendAck
          * - RemoveFriendByName
          * - RespondToAddAndJoinFriend
          * - RespondToJoinFriend

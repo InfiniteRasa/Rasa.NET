@@ -1,16 +1,16 @@
-﻿namespace Rasa.Packets.Social.Server
+﻿namespace Rasa.Packets.Communicator.Server
 {
     using Data;
     using Memory;
 
-    public class AddFriendAckPacket : ServerPythonPacket
+    public class RemoveIgnoreAckPacket : ServerPythonPacket
     {
-        public override GameOpcode Opcode { get; } = GameOpcode.AddFriendAck;
+        public override GameOpcode Opcode { get; } = GameOpcode.RemoveIgnoreAck;
 
         public string FamilyName { get; set; }
         public bool Success { get; set; }
 
-        public AddFriendAckPacket(string familyName, bool success)
+        public RemoveIgnoreAckPacket(string familyName, bool success)
         {
             FamilyName = familyName;
             Success = success;

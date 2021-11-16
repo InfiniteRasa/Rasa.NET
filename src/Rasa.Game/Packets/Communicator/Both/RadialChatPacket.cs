@@ -1,4 +1,4 @@
-﻿namespace Rasa.Packets.MapChannel.Client
+﻿namespace Rasa.Packets.Communicator.Both
 {
     using Data;
     using Memory;

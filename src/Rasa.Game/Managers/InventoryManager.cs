@@ -6,6 +6,7 @@ namespace Rasa.Managers
     using Data;
     using Database.Tables.Character;
     using Game;
+    using Packets.Communicator.Server;
     using Packets.Inventory.Client;
     using Packets.Inventory.Server;
     using Packets.MapChannel.Client;

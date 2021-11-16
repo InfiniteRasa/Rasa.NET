@@ -37,7 +37,7 @@ namespace Rasa.Game
         public LengthedSocket ListenerSocket { get; private set; }
         public QueueManager QueueManager { get; private set; }
         public LoginManager LoginManager { get; set; } = new LoginManager();
-        public List<Client> Clients { get; } = new List<Client>();
+        public static List<Client> Clients { get; } = new List<Client>();
         public Dictionary<uint, LoginAccountEntry> IncomingClients { get; } = new Dictionary<uint, LoginAccountEntry>();
         public MainLoop Loop { get; }
         public Timer Timer { get; } = new Timer();

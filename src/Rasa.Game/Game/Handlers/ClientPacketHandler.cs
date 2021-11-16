@@ -5,6 +5,8 @@
     using Packets;
     using Packets.MapChannel.Client;
     using Packets.Clan.Client;
+    using Packets.Communicator.Both;
+    using Packets.Communicator.Client;
     using Packets.Inventory.Client;
     using Packets.Social.Client;
 
@@ -118,19 +120,7 @@
         {
             MapChannelManager.Instance.Ping(Client, packet.Ping);
         }
-
-        [PacketHandler(GameOpcode.PrivilegedCommand)]
-        private void PrivilegedCommand(PrivilegedCommandPacket packet)
-        {
-            // ToDo
-        }
         
-        [PacketHandler(GameOpcode.RadialChat)]
-        private void RadialChat(RadialChatPacket packet)
-        {
-            CommunicatorManager.Instance.Recv_RadialChat(Client, packet.TextMsg);
-        }
-
         [PacketHandler(GameOpcode.RequestActionInterrupt)]
         private void RequestActionInterrupt(RequestActionInterruptPacket packet)
         {
@@ -468,6 +458,149 @@
         {
             ClanManager.Instance.MakePlayerClanLeader(Client, packet);
         }
+        #endregion
+
+        #region Communicator
+
+        [PacketHandler(GameOpcode.ChallengeClanToFeud)]
+        private void ChallengeClanToFeud(ChallengeClanToFeudPacket packet)
+        {
+            Logger.WriteLog(LogType.Debug, "ToDo: ChallengeClanToFeudPacket");
+        }
+
+        [PacketHandler(GameOpcode.ChangeClanName)]
+        private void ChangeClanName(ChangeClanNamePacket packet)
+        {
+            Logger.WriteLog(LogType.Debug, "ToDo: ChangeClanNamePacket");
+        }
+
+        [PacketHandler(GameOpcode.ChangeFirstName)]
+        private void ChangeFirstName(ChangeFirstNamePacket packet)
+        {
+            Logger.WriteLog(LogType.Debug, "ToDo: ChangeFirstNamePacket");
+        }
+
+        [PacketHandler(GameOpcode.ChangeLastName)]
+        private void ChangeLastName(ChangeLastNamePacket packet)
+        {
+            Logger.WriteLog(LogType.Debug, "ToDo: ChangeLastNamePacket");
+        }
+
+        [PacketHandler(GameOpcode.ChannelChat)]
+        private void ChannelChat(ChannelChatPacket packet)
+        {
+            CommunicatorManager.Instance.ChannelChat(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.ClanChat)]
+        private void ClanChat(ClanChatPacket packet)
+        {
+            CommunicatorManager.Instance.ClanChat(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.ClanLeadersChat)]
+        private void ClanLeadersChat(ClanLeadersChatPacket packet)
+        {
+            Logger.WriteLog(LogType.Debug, "ToDo: ClanLeadersChatPacket");
+        }
+
+        [PacketHandler(GameOpcode.Emote)]
+        private void Emote(EmotePacket packet)
+        {
+            Logger.WriteLog(LogType.Debug, "ToDo: EmotePacket");
+        }
+
+        [PacketHandler(GameOpcode.FeudChallengeResponse)]
+        private void FeudChallengeResponse(FeudChallengeResponsePacket packet)
+        {
+            Logger.WriteLog(LogType.Debug, "ToDo: FeudChallengeResponsePacket");
+        }
+
+        [PacketHandler(GameOpcode.GotoMob)]
+        private void GotoMob(GotoMobPacket packet)
+        {
+            Logger.WriteLog(LogType.Debug, "ToDo: GotoMobPacket");
+        }
+
+        [PacketHandler(GameOpcode.GuildChat)]
+        private void GuildChat(GuildChatPacket packet)
+        {
+            Logger.WriteLog(LogType.Debug, "ToDo: GuildChatPacket");
+        }
+        
+        [PacketHandler(GameOpcode.PartyChat)]
+        private void PartyChat(PartyChatPacket packet)
+        {
+            Logger.WriteLog(LogType.Debug, "ToDo: PartyChatPacket");
+        }
+
+        [PacketHandler(GameOpcode.PrivilegedCommand)]
+        private void PrivilegedCommand(PrivilegedCommandPacket packet)
+        {
+            Logger.WriteLog(LogType.Debug, "ToDo: PrivilegedCommandPacket");
+        }
+
+        [PacketHandler(GameOpcode.RadialChat)]
+        private void RadialChat(RadialChatPacket packet)
+        {
+            CommunicatorManager.Instance.RadialChat(Client, packet.TextMsg);
+        }
+
+        [PacketHandler(GameOpcode.Reply)]
+        private void Reply(ReplyPacket packet)
+        {
+            Logger.WriteLog(LogType.Debug, "ToDo: ReplyPacket");
+        }
+
+        [PacketHandler(GameOpcode.RequestLOSReport)]
+        private void RequestLOSReport(RequestLOSReportPacket packet)
+        {
+            Logger.WriteLog(LogType.Debug, "ToDo: RequestLOSReportPacket");
+        }
+
+        [PacketHandler(GameOpcode.RevokeClanFeud)]
+        private void RevokeClanFeud(RevokeClanFeudPacket packet)
+        {
+            Logger.WriteLog(LogType.Debug, "ToDo: RevokeClanFeudPacket");
+        }
+
+        [PacketHandler(GameOpcode.Shout)]
+        private void Shout(ShoutPacket packet)
+        {
+            Logger.WriteLog(LogType.Debug, "ToDo: ShoutPacket");
+        }
+
+        [PacketHandler(GameOpcode.SurrenderClanFeud)]
+        private void SurrenderClanFeud(SurrenderClanFeudPacket packet)
+        {
+            Logger.WriteLog(LogType.Debug, "ToDo: SurrenderClanFeudPacket");
+        }
+
+        [PacketHandler(GameOpcode.SurrenderWargame)]
+        private void SurrenderWargame(SurrenderWargamePacket packet)
+        {
+            Logger.WriteLog(LogType.Debug, "ToDo: SurrenderWargamePacket");
+        }
+
+        [PacketHandler(GameOpcode.ToggleAfk)]
+        private void ToggleAfk(ToggleAfkPacket packet)
+        {
+            Logger.WriteLog(LogType.Debug, "ToDo: ToggleAfkPacket");
+        }
+
+        [PacketHandler(GameOpcode.Whisper)]
+        private void Whisper(WhisperPacket packet)
+        {
+            Logger.WriteLog(LogType.Debug, "ToDo: WhisperPacket");
+        }
+
+        [PacketHandler(GameOpcode.Who)]
+        private void Who(WhoPacket packet)
+        {
+            Logger.WriteLog(LogType.Debug, "ToDo: WhoPacket");
+            CommunicatorManager.Instance.Who(Client, packet);
+        }
+
         #endregion
 
         #region Inventory

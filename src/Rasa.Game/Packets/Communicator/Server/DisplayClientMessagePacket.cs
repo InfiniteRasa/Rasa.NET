@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace Rasa.Packets.MapChannel.Server
+namespace Rasa.Packets.Communicator.Server
 {
     using Data;
     using Memory;

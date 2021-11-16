@@ -7,12 +7,11 @@ namespace Rasa.Managers
     using Database.Tables.Character;
     using Game;
     using Packets;
+    using Packets.Communicator.Server;
     using Packets.MapChannel.Client;
     using Packets.MapChannel.Server;
     using Packets.Game.Server;
-    using Packets.Social.Server;
     using Structures;
-    using Rasa.Packets.Protocol;
 
     public class ManifestationManager
     {

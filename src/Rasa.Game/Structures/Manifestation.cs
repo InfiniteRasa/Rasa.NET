@@ -7,7 +7,7 @@ namespace Rasa.Structures
 
     public class Manifestation
     {
-        public Actor Actor { get; set; }
+        public Actor Actor = new Actor();
         public Dictionary<EquipmentData, AppearanceData> AppearanceData { get; set; }
         public uint CharacterId { get; set; }
         public List<CharacterOptions> CharacterOptions = new List<CharacterOptions>();
@@ -42,6 +42,10 @@ namespace Rasa.Structures
         public ulong TrackingTargetEntityId { get; set; }
         public byte ActiveWeapon { get; set; }
         public List<uint> GainedWaypoints = new List<uint>();
+
+        public Manifestation()
+        {
+        }
 
         public Manifestation(CharacterEntry character, Dictionary<EquipmentData, AppearanceData> appearence)
         {

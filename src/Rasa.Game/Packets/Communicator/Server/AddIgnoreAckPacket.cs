@@ -1,4 +1,4 @@
-﻿namespace Rasa.Packets.Social.Server
+﻿namespace Rasa.Packets.Communicator.Server
 {
     using Data;
     using Memory;

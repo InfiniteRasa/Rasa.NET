@@ -1,17 +1,82 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Numerics;
 
 namespace Rasa.Managers
 {
     using Data;
     using Game;
-    using Packets.MapChannel.Client;
+    using Packets.Communicator.Both;
+    using Packets.Communicator.Client;
+    using Packets.Communicator.Server;
     using Packets.MapChannel.Server;
-    using Packets.Social.Server;
     using Structures;
 
     public class CommunicatorManager
     {
+        /*      Communicator Packets:
+         *      -- WorldMsg
+         * - Who
+         * - ChangeClanName
+         * - ChallengeClanToFeud
+         * - FeudChallengeResponse
+         * - RevokeClanFeud
+         * - SurrenderClanFeud
+         * - SurrenderWargame
+         *      -- UserMethod
+         * - PrivilegedCommand
+         * - Whisper
+         * - PartyChat
+         * - GuildChat
+         * - Shout
+         * - RadialChat
+         * - ChannelChat
+         * - Reply
+         * - ClanLeadersChat
+         * - ChangeLastName
+         * - ChangeFirstName
+         * - Emote
+         *      -- ActorMethod
+         * - RequestLOSReport
+         * - ToggleAfk
+         * - GotoMob
+         * 
+         *      Comunicator Handlers:
+         * - AddFriendAck
+         * - AddIgnoreAck
+         * - AdminMessage
+         * - ChatChannelJoined
+         * - ChatChannelLeft
+         * - DisplayClientMessage
+         * - FriendList
+         * - IgnoreList
+         * - LoginOk
+         * - PlayerCountAck
+         * - PlayerLogin
+         * - PlayerLogout
+         * - PreviewMOTD
+         * - RemoveFriendAck
+         * - RemoveIgnoreAck
+         * - SendMOTD
+         * - SystemMessage
+         * - WhisperAck
+         * - WhisperFailAck
+         * - WhisperSelf
+         * - WhoAck
+         * - WhoFailAck
+         * 
+         *      Client and server packets:
+         * - RadialChat
+         * - ChannelChat
+         * - ClanChat
+         * - ClanLeadersChat
+         * - Emote
+         * - PartyChat
+         * - Radial
+         * - Shout
+         * - Whisper
+         */
+
         private static CommunicatorManager _instance;
         private static readonly object InstanceLock = new object();
         public static Dictionary<string, Client> PlayersByName = new Dictionary<string, Client>();
@@ -40,6 +105,37 @@ namespace Rasa.Managers
         private CommunicatorManager()
         {
         }
+
+        #region Handlers
+
+        internal void ClanChat(Client client, ClanChatPacket packet)
+        {
+            var clanMembers = Server.Clients.FindAll(c => c.MapClient.Player.ClanId == packet.ClanId);
+            
+            foreach(var member in clanMembers)
+                member.CallMethod(SysEntity.CommunicatorId, new ClanChatPacket(client.MapClient.Player.Actor.FamilyName, packet.Message));
+        }
+
+        internal void ChannelChat(Client client, ChannelChatPacket packet)
+        {
+            client.CallMethod(SysEntity.CommunicatorId, new ChannelChatPacket(client.MapClient.Player.Actor.FamilyName, packet.ChannelId, packet.MapEntityId, packet.MapContextId, packet.Message));
+        }
+
+        internal void Emote(Client client, EmotePacket packet)
+        {
+            client.CallMethod(SysEntity.CommunicatorId, new EmotePacket(client.MapClient.Player.Actor.Name, packet.Emote));
+            CellManager.Instance.CellCallMethod(client.MapClient.MapChannel, client.MapClient.Player.Actor, new PerformWindupPacket(PerformType.TwoArgs, ActionId.Gesture, (uint)new Random().Next(1, 100)));   // ToDo: just testing
+        }
+
+        internal void Who(Client client, WhoPacket packet)
+        {
+            // msgId from playermessagelanguage.py
+            var msgId = 7u;
+
+            client.CallMethod(SysEntity.CommunicatorId, new WhoFailAckPacket(packet.FamilyName, msgId));
+        }
+
+        #endregion
 
         public void AddClientToChannel(Client client, int cHash)
         {
@@ -117,7 +213,7 @@ namespace Rasa.Managers
             client.MapClient.JoinedChannels++;
             // add client to channel
             AddClientToChannel(client, cHash);
-            client.CallMethod(SysEntity.CommunicatorId, new ChatChannelJoinedPacket(channelId, client.MapClient.MapChannel.MapInfo.MapContextId));
+            client.CallMethod(SysEntity.CommunicatorId, new ChatChannelJoinedPacket(channelId, client.MapClient.MapChannel.MapInfo.MapContextId, client.MapClient.Player.Actor.EntityId));
         }
 
         public void LoginOk(Client client)
@@ -178,7 +274,7 @@ namespace Rasa.Managers
             client.MapClient.JoinedChannels = 0;
         }
 
-        public void Recv_RadialChat(Client client, string textMsg)
+        public void RadialChat(Client client, string textMsg)
         {
             // check if it's gm command
             if (textMsg[0] == '.')

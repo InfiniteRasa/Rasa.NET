@@ -29,7 +29,7 @@ namespace Rasa.Game
         public uint[] SendSequence { get; } = new uint[256];
         public uint[] ReceiveSequence { get; } = new uint[256];
         public uint LoadingMap { get; set; }
-        public MapChannelClient MapClient { get; set; }
+        public MapChannelClient MapClient = new MapChannelClient();
         public List<UserOptions> UserOptions = new List<UserOptions>();
         private readonly object _clientLock = new object();
         private readonly ClientPacketHandler _handler;
