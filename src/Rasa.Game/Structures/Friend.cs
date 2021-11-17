@@ -1,5 +1,6 @@
 ﻿namespace Rasa.Structures
 {
+    using Game;
     using Memory;
 
     public class Friend : IPythonDataStruct
@@ -15,16 +16,16 @@
         public Friend()
         {
         }
-
-        public Friend(CharacterEntry character, string familyName)
+        
+        public Friend(Client client)
         {
-            CharacterId = character.Id;
-            UserId = character.AccountId;
-            CharacterName = character.Name;
-            FamilyName = familyName;
-            Level = character.Level;
-            ContextId = character.MapContextId;
-            IsOnline = character.IsOnline;
+            CharacterId = client.MapClient.Player.CharacterId;
+            UserId = client.AccountEntry.Id;
+            CharacterName = client.MapClient.Player.Actor.Name;
+            FamilyName = client.MapClient.Player.Actor.FamilyName;
+            Level = client.MapClient.Player.Level;
+            ContextId = client.MapClient.Player.Actor.MapContextId;
+            IsOnline = true;
         }
 
         public void Read(PythonReader pr)

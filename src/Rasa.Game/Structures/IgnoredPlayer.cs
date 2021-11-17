@@ -1,5 +1,6 @@
 ﻿namespace Rasa.Structures
 {
+    using Game;
     using Memory;
 
     public class IgnoredPlayer : IPythonDataStruct
@@ -14,13 +15,13 @@
         {
         }
 
-        public IgnoredPlayer(CharacterEntry character, string familyName)
+        public IgnoredPlayer(Client client)
         {
-            CharacterId = character.Id;
-            UserId = character.AccountId;
-            CharacterName = character.Name;
-            FamilyName = familyName;
-            IsOnline = character.IsOnline;
+            CharacterId = client.MapClient.Player.CharacterId;
+            UserId = client.AccountEntry.Id;
+            CharacterName = client.MapClient.Player.Actor.Name;
+            FamilyName = client.MapClient.Player.Actor.FamilyName;
+            IsOnline = true;
         }
 
         public void Read(PythonReader pr)

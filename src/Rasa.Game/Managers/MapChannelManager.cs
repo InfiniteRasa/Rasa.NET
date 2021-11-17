@@ -7,7 +7,6 @@ namespace Rasa.Managers
     using Data;
     using Database.Tables.Character;
     using Game;
-    using Packets.Game.Server;
     using Packets.MapChannel.Server;
     using Structures;
     using Timer;

@@ -4,13 +4,13 @@
     using Memory;
     using Structures;
 
-    public class FriendStatusUpdatePacket : ServerPythonPacket
+    public class FriendLoggedInPacket : ServerPythonPacket
     {
-        public override GameOpcode Opcode { get; } = GameOpcode.FriendStatusUpdate;
+        public override GameOpcode Opcode { get; } = GameOpcode.FriendLoggedIn;
 
         public Friend Friend { get; set; }
 
-        public FriendStatusUpdatePacket(Friend friend)
+        public FriendLoggedInPacket(Friend friend)
         {
             Friend = friend;
         }

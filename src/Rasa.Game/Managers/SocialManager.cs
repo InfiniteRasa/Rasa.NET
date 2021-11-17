@@ -75,35 +75,16 @@ namespace Rasa.Managers
                 return;
             }
 
-            var friends = FriendTable.GetFriends(client.AccountEntry.Id);
-            var friendAlready = false;
-
-            foreach (var friendId in friends)
-                if (friendId == account.Id)
+            foreach (var friendAccountId in client.MapClient.Player.Friends)
+                if (friendAccountId == account.Id)
                 {
-                    friendAlready = true;
-                    break;
+                    CommunicatorManager.Instance.AddFriendAck(client, packet.FamilyName, false);
+                    return;
                 }
 
-            if (friendAlready)
-            {
-                CommunicatorManager.Instance.AddFriendAck(client, packet.FamilyName, false);
-                return;
-            }
+            AddFriend(client, account.Id);
 
-            var friend = GetFriendById(account.Id);
-
-            client.CallMethod(SysEntity.ClientSocialManagerId, new FriendAddedPacket(friend));
-            FriendTable.AddFriend(client.AccountEntry.Id, account.Id);
-
-            // check and remove player from ignoredPlayers
-            var ignoredPlayer = GetIgnoredById(account.Id);
-
-            if (ignoredPlayer != null)
-            {
-                client.CallMethod(SysEntity.ClientSocialManagerId, new IgnoreRemovedPacket(ignoredPlayer.UserId));
-                IgnoredTable.RemoveIgnored(client.AccountEntry.Id, account.Id);
-            }
+            RemoveIgnoredPlayer(client, account.Id);
         }
 
         internal void AddIgnore(Client client, AddIgnorePacket packet)
@@ -119,17 +100,15 @@ namespace Rasa.Managers
 
             IgnoreById(client, account);
         }
-
+        
         internal void RemoveFriend(Client client, RemoveFriendPacket packet)
         {
-            client.CallMethod(SysEntity.ClientSocialManagerId, new FriendRemovedPacket(packet.AccountId));
-            FriendTable.RemoveFriend(client.AccountEntry.Id, packet.AccountId);
+            RemoveFriend(client, packet.AccountId);
         }
 
         internal void RemoveIgnore(Client client, RemoveIgnorePacket packet)
         {
-            client.CallMethod(SysEntity.ClientSocialManagerId, new IgnoreRemovedPacket(packet.AccountId));
-            IgnoredTable.RemoveIgnored(client.AccountEntry.Id, packet.AccountId);
+            RemoveIgnoredPlayer(client, packet.AccountId);
         }
 
         internal void SetSocialContactList(Client client)
@@ -144,8 +123,11 @@ namespace Rasa.Managers
             {
                 var friend = GetFriendById(id);
 
-                if(friend != null)
+                if (friend != null)
+                {
                     frinedList.Add(friend);
+                    client.MapClient.Player.Friends.Add(id);
+                }
             }
 
             foreach (var id in ignoredIds)
@@ -153,41 +135,79 @@ namespace Rasa.Managers
                 var ignored = GetIgnoredById(id);
 
                 if (ignored != null)
+                {
                     ignoreList.Add(ignored);
+                    client.MapClient.Player.IgnoredPlayers.Add(id);
+                }
             }
 
             client.CallMethod(SysEntity.ClientSocialManagerId, new SetSocialContactListPacket(frinedList, ignoreList));
         }
 
         #region Helper Functions
+
+        internal void AddFriend(Client client, uint accountId)
+        {
+            var friend = GetFriendById(accountId);
+            client.CallMethod(SysEntity.ClientSocialManagerId, new FriendAddedPacket(friend));
+            client.MapClient.Player.Friends.Add(accountId);
+            FriendTable.AddFriend(client.AccountEntry.Id, accountId);
+        }
+        
+        internal void AddIgnoredPlayer(Client client, uint accountId)
+        {
+            var ignored = GetIgnoredById(accountId);
+            client.CallMethod(SysEntity.ClientSocialManagerId, new IgnoreAddedPacket(ignored));
+            client.MapClient.Player.IgnoredPlayers.Add(accountId);
+            IgnoredTable.AddIgnored(client.AccountEntry.Id, accountId);
+        }
+
+        internal void FriendLoggedIn(Client client)
+        {
+            var notifyFriends = Server.Clients.FindAll(c => c.MapClient.Player.Friends.Contains(client.AccountEntry.Id));
+
+            foreach (var notifyClient in notifyFriends)
+            {
+                var friend = new Friend(client);
+
+                notifyClient.CallMethod(SysEntity.ClientSocialManagerId, new FriendLoggedInPacket(friend));
+            }
+        }
+
+        internal void FriendLoggedOut(Client client)
+        {
+            var notifyFriends = Server.Clients.FindAll(c => c.MapClient.Player.Friends.Contains(client.AccountEntry.Id));
+
+            foreach (var notifyClient in notifyFriends)
+            {
+                notifyClient.CallMethod(SysEntity.ClientSocialManagerId, new FriendLoggedOutPacket(client.AccountEntry.Id));
+            }
+        }
+
+        internal void FriendStatusUpdate(Client client, Friend friend)
+        {
+            // ToDo
+        }
+        
         internal Friend GetFriendById(uint accountId)
         {
+            var client = Server.Clients.Find(c => c.AccountEntry.Id == accountId && c.State == ClientState.Ingame);
+
             Friend friend = null;
 
-            var listOfCharacters = CharacterTable.GetCharactersByAccountId(accountId);
-
-            // account have no characters created
-            if (listOfCharacters.Count == 0)
-                return friend;
-
-            var onlineCharacter = false;
-            var familyName = GameAccountTable.GetAccountByCharacterId(accountId).FamilyName;
-
-            foreach (var character in listOfCharacters)
+            if (client != null)
             {
-                if (character.IsOnline == true)
-                {
-                    onlineCharacter = true;
-                    friend = new Friend(character, familyName);
-                    break;
-                }
-            }
-
-            if (onlineCharacter)
+                friend = new Friend(client);
                 return friend;
-
-            // friend is offline, send first character in list
-            friend = new Friend(listOfCharacters[0], familyName);
+            }
+            
+            // friend is offline
+            friend = new Friend
+            {
+                UserId = accountId,
+                FamilyName = GameAccountTable.GetAccount(accountId).FamilyName,
+                IsOnline = false
+            };
 
             return friend;
 
@@ -195,35 +215,24 @@ namespace Rasa.Managers
 
         internal IgnoredPlayer GetIgnoredById(uint accountId)
         {
-            IgnoredPlayer ignored = null;
+            var client = Server.Clients.Find(c => c.AccountEntry.Id == accountId);
+            IgnoredPlayer ignoredPlayer = null;
 
-            var listOfCharacters = CharacterTable.GetCharactersByAccountId(accountId);
-
-            // account have no characters created
-            if (listOfCharacters.Count == 0)
-                return ignored;
-
-            var onlineCharacter = false;
-            var familyName = GameAccountTable.GetAccountByCharacterId(accountId).FamilyName;
-
-            foreach (var character in listOfCharacters)
+            if (client != null)
             {
-                if (character.IsOnline == true)
-                {
-                    onlineCharacter = true;
-                    ignored = new IgnoredPlayer(character, familyName);
-                    break;
-                }
+                ignoredPlayer = new IgnoredPlayer(client);
+                return ignoredPlayer;
             }
 
-            if (onlineCharacter)
-                return ignored;
+            // ignoredPlayer is offline
+            ignoredPlayer = new IgnoredPlayer
+            {
+                UserId = accountId,
+                FamilyName = GameAccountTable.GetAccount(accountId).FamilyName,
+                IsOnline = false
+            };
 
-            // ignoredPlayer is offline, send first character in list
-            ignored = new IgnoredPlayer(listOfCharacters[0], familyName);
-
-            return ignored;
-
+            return ignoredPlayer;
         }
         
         internal void IgnoreById(Client client, GameAccountEntry account)
@@ -233,37 +242,47 @@ namespace Rasa.Managers
                 CommunicatorManager.Instance.AddIgnoreAck(client, account.FamilyName, false);
                 return;
             }
-
-            var ignoredPlayers = IgnoredTable.GetIgnored(client.AccountEntry.Id);
-            var ignoredAlready = false;
-
-            foreach (var ignoredId in ignoredPlayers)
+            
+            foreach (var ignoredId in client.MapClient.Player.IgnoredPlayers)
                 if (ignoredId == account.Id)
                 {
-                    ignoredAlready = true;
-                    break;
+                    CommunicatorManager.Instance.AddIgnoreAck(client, account.FamilyName, false);
+                    return;
                 }
 
-            if (ignoredAlready)
+            AddIgnoredPlayer(client, account.Id);
+
+            RemoveFriend(client, account.Id);
+        }
+
+        internal void RemoveFriend(Client client, uint accountId)
+        {
+            var friend = client.MapClient.Player.Friends.Contains(accountId);
+
+            if (friend)
             {
-                CommunicatorManager.Instance.AddIgnoreAck(client, account.FamilyName, false);
-                return;
-            }
+                client.CallMethod(SysEntity.ClientSocialManagerId, new FriendRemovedPacket(accountId));
 
-            var ignored = GetIgnoredById(account.Id);
+                client.MapClient.Player.Friends.RemoveAll(remove => remove == accountId);
 
-            client.CallMethod(SysEntity.ClientSocialManagerId, new IgnoreAddedPacket(ignored));
-            IgnoredTable.AddIgnored(client.AccountEntry.Id, account.Id);
-
-            // check and remove player from friends
-            var friend = GetFriendById(account.Id);
-
-            if (friend != null)
-            {
-                client.CallMethod(SysEntity.ClientSocialManagerId, new FriendRemovedPacket(friend.UserId));
-                FriendTable.RemoveFriend(client.AccountEntry.Id, account.Id);
+                FriendTable.RemoveFriend(client.AccountEntry.Id, accountId);
             }
         }
+
+        internal void RemoveIgnoredPlayer(Client client, uint accountId)
+        {
+            var ignored = client.MapClient.Player.IgnoredPlayers.Contains(accountId);
+
+            if (ignored)
+            {
+                client.CallMethod(SysEntity.ClientSocialManagerId, new IgnoreRemovedPacket(accountId));
+
+                client.MapClient.Player.IgnoredPlayers.RemoveAll(remove => remove == accountId);
+
+                IgnoredTable.RemoveIgnored(client.AccountEntry.Id, accountId);
+            }
+        }
+        
         #endregion
     }
 }

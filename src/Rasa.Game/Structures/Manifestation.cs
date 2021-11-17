@@ -43,6 +43,10 @@ namespace Rasa.Structures
         public byte ActiveWeapon { get; set; }
         public List<uint> GainedWaypoints = new List<uint>();
 
+        // Social
+        internal List<uint> Friends = new List<uint>();
+        internal List<uint> IgnoredPlayers = new List<uint>();
+
         public Manifestation()
         {
         }

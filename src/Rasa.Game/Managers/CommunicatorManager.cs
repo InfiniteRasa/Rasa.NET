@@ -229,6 +229,8 @@ namespace Rasa.Managers
         public void PlayerEnterMap(Client client)
         {
             JoinDefaultLocalChannel(client, 1); // join general
+
+            SocialManager.Instance.FriendLoggedIn(client);
         }
 
         public void PlayerExitMap(Client client)
@@ -272,6 +274,8 @@ namespace Rasa.Managers
             }
 
             client.MapClient.JoinedChannels = 0;
+
+            SocialManager.Instance.FriendLoggedOut(client);
         }
 
         public void RadialChat(Client client, string textMsg)

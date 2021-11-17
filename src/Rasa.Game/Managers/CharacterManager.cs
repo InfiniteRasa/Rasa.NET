@@ -120,7 +120,6 @@ namespace Rasa.Managers
                     CoordY = clonedCharacter.CoordY,
                     CoordZ = clonedCharacter.CoordZ,
                     Orientation = clonedCharacter.Orientation,
-                    IsOnline = clonedCharacter.IsOnline
                 };
 
                 if (!CharacterTable.CreateCharacter(entry))
@@ -224,8 +223,7 @@ namespace Rasa.Managers
                     CoordX = 894.9f,
                     CoordY = 306.3f,
                     CoordZ = 347.1f,
-                    Orientation = 0,
-                    IsOnline = false
+                    Orientation = 0
                 };
 
                 if (!CharacterTable.CreateCharacter(entry))
@@ -446,11 +444,6 @@ namespace Rasa.Managers
                     var teleporterId = (uint)value;
 
                     CharacterTeleportersTable.AddTeleporter(client.MapClient.Player.CharacterId, teleporterId);
-                    break;
-                case CharacterUpdate.OnlineStatus:
-                    var isOnline = (bool)value;
-
-                    CharacterTable.UpdateCharacterOnlineStatus(client.MapClient.Player.CharacterId, isOnline);
                     break;
                 default:
                     break;
