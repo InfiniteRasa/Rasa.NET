@@ -42,6 +42,11 @@ namespace Rasa.Structures
         public ulong TrackingTargetEntityId { get; set; }
         public byte ActiveWeapon { get; set; }
         public List<uint> GainedWaypoints = new List<uint>();
+        public bool IsAFK { get; set; }
+
+        // Party
+        internal uint PartyId { get; set; }
+        internal ulong PartyInviterId { get; set; }
 
         // Social
         internal List<uint> Friends = new List<uint>();

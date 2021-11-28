@@ -8,6 +8,8 @@
     using Packets.Communicator.Both;
     using Packets.Communicator.Client;
     using Packets.Inventory.Client;
+    using Packets.Party.Both;
+    using Packets.Party.Client;
     using Packets.Social.Client;
 
     public partial class ClientPacketHandler
@@ -18,13 +20,6 @@
         {
             Client = client;
         }
-
-        [PacketHandler(GameOpcode.AcceptPartyInvitesChanged)]
-        private void AcceptPartyInvitesChanged(AcceptPartyInvitesChangedPacket packet)
-        {
-            Logger.WriteLog(LogType.Debug, "ToDo AcceptPartyInvitesChanged");
-        }
-
         [PacketHandler(GameOpcode.AllocateAttributePoints)]
         private void AllocateAttributePoints(AllocateAttributePointsPacket packet)
         {
@@ -711,6 +706,106 @@
         private void WeaponDrawerInventory_MoveItem(WeaponDrawerInventory_MoveItemPacket packet)
         {
             InventoryManager.Instance.WeaponDrawerInventory_MoveItem(Client, packet);
+        }
+
+        #endregion
+
+        #region Party
+
+        [PacketHandler(GameOpcode.AcceptPartyInvitesChanged)]
+        private void AcceptPartyInvitesChanged(AcceptPartyInvitesChangedPacket packet)
+        {
+        }
+
+        [PacketHandler(GameOpcode.CancelSquadInviteRequest)]
+        private void CancelSquadInviteRequest(CancelSquadInviteRequestPacket packet)
+        {
+            PartyManager.Instance.CancelSquadInviteRequest(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.CancelSquadJoinRequest)]
+        private void CancelSquadJoinRequest(CancelSquadJoinRequestPacket packet)
+        {
+            PartyManager.Instance.CancelSquadJoinRequest(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.ChangePartyLootMethod)]
+        private void ChangePartyLootMethod(ChangePartyLootMethodPacket packet)
+        {
+            PartyManager.Instance.ChangePartyLootMethod(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.ChangePartyLootThreshold)]
+        private void ChangePartyLootThreshold(ChangePartyLootThresholdPacket packet)
+        {
+            PartyManager.Instance.ChangePartyLootThreshold(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.DisbandParty)]
+        private void DisbandParty(DisbandPartyPacket packet)
+        {
+            PartyManager.Instance.DisbandParty(Client);
+        }
+
+        [PacketHandler(GameOpcode.InviteUserToPartyByName)]
+        private void InviteUserToPartyByName(InviteUserToPartyByNamePacket packet)
+        {
+            PartyManager.Instance.InviteUserToPartyByName(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.InviteSquad)]
+        private void InviteSquad(InviteSquadPacket packet)
+        {
+            PartyManager.Instance.InviteSquad(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.LeaveParty)]
+        private void LeaveParty(LeavePartyPacket packet)
+        {
+            PartyManager.Instance.LeaveParty(Client);
+        }
+
+        [PacketHandler(GameOpcode.KickUserFromParty)]
+        private void KickUserFromParty(KickUserFromPartyPacket packet)
+        {
+            PartyManager.Instance.KickUserFromParty(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.KickUserFromPartyById)]
+        private void KickUserFromPartyById(KickUserFromPartyByIdPacket packet)
+        {
+            PartyManager.Instance.KickUserFromPartyById(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.MakeUserPartyLeader)]
+        private void MakeUserPartyLeader(MakeUserPartyLeaderPacket packet)
+        {
+        }
+
+        [PacketHandler(GameOpcode.MakeUserPartyLeaderById)]
+        private void MakeUserPartyLeaderById(MakeUserPartyLeaderByIdPacket packet)
+        {
+        }
+
+        [PacketHandler(GameOpcode.PartyInvitationResponse)]
+        private void PartyInvitationResponse(PartyInvitationResponsePacket packet)
+        {
+            PartyManager.Instance.PartyInvitationResponse(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.PartyJoinRequestResponse)]
+        private void PartyJoinRequestResponse(PartyJoinRequestResponsePacket packet)
+        {
+        }
+
+        [PacketHandler(GameOpcode.SendJoinRequestToPartyByName)]
+        private void SendJoinRequestToPartyByName(SendJoinRequestToPartyByNamePacket packet)
+        {
+        }
+
+        [PacketHandler(GameOpcode.SendJoinRequestToSquadLeader)]
+        private void SendJoinRequestToSquadLeader(SendJoinRequestToSquadLeaderPacket packet)
+        {
         }
 
         #endregion
