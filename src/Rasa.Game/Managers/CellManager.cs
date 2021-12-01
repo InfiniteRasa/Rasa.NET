@@ -205,10 +205,20 @@ namespace Rasa.Managers
             foreach (var player in mapChannel.MapCellInfo.Cells[cell.CellSeed].ClientList)
                 ListOfClients.Add(player);
 
-            DynamicObjectManager.Instance.CellDiscardDynamicObjectToClients(dynObject, ListOfClients);
+            DynamicObjectManager.Instance.CellDiscardDynamicObjectToClients(dynObject.EntityId, ListOfClients);
 
             // remove object from cell
             mapChannel.MapCellInfo.Cells[cell.CellSeed].DynamicObjectList.Remove(dynObject);
+        }
+
+        public void RemoveFromWorld(MapChannel mapChannel, ulong entityId)
+        {
+            if (entityId == 0)
+                return;
+
+            var listOfClients = Server.Clients;
+
+            DynamicObjectManager.Instance.CellDiscardDynamicObjectToClients(entityId, listOfClients);
         }
 
         public uint GetCellSeed(Vector3 position)

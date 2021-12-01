@@ -207,13 +207,13 @@ namespace Rasa.Managers
             client.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(dynamicObject.EntityId, dynamicObject.EntityClassId, entityData));
         }
 
-        internal void CellDiscardDynamicObjectToClients(DynamicObject discardObject, List<Client> clients)
+        internal void CellDiscardDynamicObjectToClients(ulong entityId, List<Client> clients)
         {
-            if (discardObject == null)
+            if (entityId == 0)
                 return;
 
             foreach (var client in clients)
-                client.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(discardObject.EntityId));
+                client.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(entityId));
         }
 
         internal void CellDiscardDynamicObjectsToClient(Client client, List<DynamicObject> discardObjects)

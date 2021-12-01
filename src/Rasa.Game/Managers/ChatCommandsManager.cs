@@ -85,6 +85,7 @@ namespace Rasa.Managers
             RegisterCommand(".help", HelpGmCommand);
             RegisterCommand(".npcinfo", NpcInfoCommand);
             RegisterCommand(".reloadcreatures", ReloadCreaturesCommand);
+            RegisterCommand(".removeobj", RemoveObjectCommand);
             RegisterCommand(".rqs", RqsWindowCommand);
             RegisterCommand(".teleport", TeleportCommand);
             RegisterCommand(".setkillstreak", SetKillStreakCommand);
@@ -380,6 +381,24 @@ namespace Rasa.Managers
             CreatureManager.Instance.CreatureActions.Clear();
             CreatureManager.Instance.CreatureInit();
             CommunicatorManager.Instance.SystemMessage(_client, "Creatures Reloaded.");
+        }
+
+        private void RemoveObjectCommand(string[] parts)
+        {
+            if (parts.Length == 1)
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, "usage: .removeobj entityId");
+                return;
+            }
+            if (parts.Length == 2)
+            {
+                if (ulong.TryParse(parts[1], out var entityId))
+                {
+                    CellManager.Instance.RemoveFromWorld(_client.MapClient.MapChannel, entityId);
+                    CommunicatorManager.Instance.SystemMessage(_client, $"Removed object EntityId = {entityId}");
+                }
+            }
+            return;
         }
 
         private void RqsWindowCommand(string[] parts)
