@@ -9,6 +9,11 @@
 
         public string TextMessage { get; set; }
 
+        public SystemMessagePacket(string message)
+        {
+            TextMessage = message;
+        }
+
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(1);

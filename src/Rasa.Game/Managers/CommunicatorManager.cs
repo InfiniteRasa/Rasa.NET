@@ -324,7 +324,7 @@ namespace Rasa.Managers
 
         public void SystemMessage(Client client, string textMsg)
         {
-            client.CallMethod(SysEntity.CommunicatorId, new SystemMessagePacket { TextMessage = textMsg });
+            client.CallMethod(SysEntity.CommunicatorId, new SystemMessagePacket(textMsg));
         }
 
         public void UnregisterPlayer(Client client)
