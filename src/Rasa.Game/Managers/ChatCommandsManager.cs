@@ -210,7 +210,6 @@ namespace Rasa.Managers
             }
             if (parts.Length == 2)
             {
-                var _entityId = EntityManager.Instance.GetEntityId;
                 if (Enum.TryParse(parts[1], out EntityClassId entityClassId))
                 {
                     var newObject = new DynamicObject
@@ -222,7 +221,7 @@ namespace Rasa.Managers
                     };
 
                     CellManager.Instance.AddToWorld(_client.MapClient.MapChannel, newObject);
-                    CommunicatorManager.Instance.SystemMessage(_client, $"Created object EntityId = {_entityId}");
+                    CommunicatorManager.Instance.SystemMessage(_client, $"Created object EntityId = {newObject.EntityId}");
                 }
             }
             return;
