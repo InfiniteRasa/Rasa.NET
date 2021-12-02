@@ -7,6 +7,7 @@ namespace Rasa.Managers
     using Data;
     using Database.Tables.World;
     using Game;
+    using Memory;
     using Packets.Game.Server;
     using Packets.MapChannel.Server;
     using Structures;
@@ -87,6 +88,7 @@ namespace Rasa.Managers
             RegisterCommand(".reloadcreatures", ReloadCreaturesCommand);
             RegisterCommand(".removeobj", RemoveObjectCommand);
             RegisterCommand(".rqs", RqsWindowCommand);
+            RegisterCommand(".tele", TeleCommand);
             RegisterCommand(".teleport", TeleportCommand);
             RegisterCommand(".setkillstreak", SetKillStreakCommand);
             RegisterCommand(".setregion", SetRegionCommand);
@@ -330,6 +332,20 @@ namespace Rasa.Managers
                 CommunicatorManager.Instance.SystemMessage(_client, $"{command.Key}");
 
             return;
+        }
+
+        private void TeleCommand(string[] parts)
+        {
+            if (parts.Length != 4)
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, "usage: .tele posX posY posZ");
+                return;
+            }
+
+            if (float.TryParse(parts[1], out float posX))
+                if (float.TryParse(parts[2], out float posY))
+                    if (float.TryParse(parts[3], out float posZ))
+                        _client.MoveObject(_client.MapClient.Player.Actor.EntityId, new MovementData(posX, posY, posZ, 0));
         }
 
         private void NpcInfoCommand(string[] parts)
