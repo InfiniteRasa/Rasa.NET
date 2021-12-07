@@ -362,7 +362,7 @@ namespace Rasa.Managers
         }
 
         #region InGame
-        public void UpdateCharacter(Client client, CharacterUpdate job, object value)
+        public void UpdateCharacter(Client client, CharacterUpdate job, object value = null)
         {
             switch (job)
             {
@@ -421,10 +421,10 @@ namespace Rasa.Managers
                     else
                         CharacterTable.UpdateCharacterPosition(
                             client.MapClient.Player.CharacterId,
-                            client.MovementData.PosX,
-                            client.MovementData.PosY,
-                            client.MovementData.PosZ,
-                            client.MovementData.ViewX,
+                            client.MapClient.Player.Actor.Position.X,
+                            client.MapClient.Player.Actor.Position.Y,
+                            client.MapClient.Player.Actor.Position.Z,
+                            client.MapClient.Player.Actor.Orientation,
                             client.MapClient.Player.Actor.MapContextId
                             );
 
