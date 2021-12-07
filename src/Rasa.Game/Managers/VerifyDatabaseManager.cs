@@ -34,7 +34,8 @@ namespace Rasa.Managers
             "rasaworld_2019_08_23_15_44_added_all_waypoints_hospitals",
             "rasaworld_2019_12_12_23_12_added_footlockers_in_wilderness",
             "rasaworld_2021_03_20_14_00_added_dropships",
-            "rasaworld_2021_11_11_12_13_added_missing_table"
+            "rasaworld_2021_11_11_12_13_added_missing_table",
+            "rasaworld_2021_12_07_21_30_added_dropship_teleporters"
     };
 
         private static VerifyDatabaseManager _instance;

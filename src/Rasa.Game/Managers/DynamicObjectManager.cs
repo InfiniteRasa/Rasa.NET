@@ -9,6 +9,7 @@ namespace Rasa.Managers
     using Extensions;
     using Game;
     using Packets;
+    using Packets.ClientMethod.Server;
     using Packets.Game.Server;
     using Packets.MapChannel.Client;
     using Packets.MapChannel.Server;
@@ -19,6 +20,7 @@ namespace Rasa.Managers
     {
         private static DynamicObjectManager _instance;
         private static readonly object InstanceLock = new object();
+        public readonly Dictionary<ulong, Dropship> Dropships = new Dictionary<ulong, Dropship>();
 
         public static DynamicObjectManager Instance
         {
@@ -291,6 +293,240 @@ namespace Rasa.Managers
 
         #endregion
 
+        #region Dropship
+        public void DropshipsWorker(MapChannel mapChannel, long timePassed)
+        {
+            foreach (var entry in Dropships)
+            {
+                var dropship = entry.Value;
+
+                if (dropship.DropshipType != DropshipType.Spawner && dropship.DropshipType != DropshipType.Teleporter)
+                {
+                    Logger.WriteLog(LogType.Debug, $"error dropshiptype { dropship.DropshipType}");
+                    return;
+                }
+
+                dropship.PhaseTimeleft -= timePassed;
+
+                if (dropship.PhaseTimeleft > 0)
+                    continue;
+
+                if(dropship.Phase == 0 || dropship.Phase == 1 || dropship.Phase == 4)
+                    CellManager.Instance.CellCallMethod(dropship, new ForceStatePacket(dropship.StateId, 0));
+
+                switch (dropship.Phase)
+                {
+                    case 0:
+                        dropship.Phase = 1;
+                        dropship.StateId = UseObjectState.CsStateSpawn;
+                        break;
+                    case 1:
+                        dropship.Phase = 2;
+                        dropship.PhaseTimeleft = 2000;
+                        break;
+                    case 2:
+                        dropship.Phase = 3;
+
+                        if (dropship.DropshipType == DropshipType.Teleporter)
+                        {
+                            if (dropship.Client.State == ClientState.Ingame)
+                            {
+                                CellManager.Instance.CellCallMethod(dropship.Client.MapClient.MapChannel, dropship.Client.MapClient.Player.Actor, new PreTeleportPacket(TeleportType.Default));
+                                dropship.Client.CallMethod(SysEntity.ClientMethodId, new BeginTeleportPacket());
+                            }
+                        }
+
+                        if (dropship.DropshipType == DropshipType.Spawner)
+                        {
+                            // spawn creatures
+                            for (var i = 0; i < dropship.SpawnPool.QueuedCreatures; i++)
+                            {
+                                var creature = CreatureManager.Instance.CreateCreature(dropship.SpawnPool.DbId, dropship.SpawnPool);
+
+                                if (creature == null)
+                                    continue;
+
+                                CreatureManager.Instance.SetLocation(creature, dropship.Position, dropship.SpawnPool.HomeOrientation, dropship.SpawnPool.MapContextId);
+
+                                CellManager.Instance.AddToWorld(mapChannel, creature);
+
+                                SpawnPoolManager.Instance.DecreaseQueuedCreatureCount(dropship.SpawnPool, 1);
+                            }
+                        }
+
+                        break;
+                    case 3:
+                        dropship.PhaseTimeleft = 3000;
+                        dropship.Phase = 4;
+                        dropship.StateId = UseObjectState.CsStateEnd;
+                        break;
+                    case 4:
+                        dropship.Phase = 5;
+                        dropship.PhaseTimeleft = 5000;
+
+                        if (dropship.DropshipType == DropshipType.Teleporter)
+                            if (dropship.Client.State == ClientState.Teleporting)
+                                dropship.Client.CallMethod(SysEntity.ClientMethodId, new UnrequestMovementBlockPacket());
+                        break;
+                    case 5:
+                        if (dropship.DropshipType == DropshipType.Teleporter)
+                        {
+                            switch (dropship.Client.State)
+                            {
+                                case ClientState.Ingame:
+                                    CellManager.Instance.RemoveFromWorld(dropship.Client);
+                                    dropship.Client.MapClient.MapChannel.ClientList.Remove(dropship.Client);
+                                    dropship.Client.CallMethod(SysEntity.ClientMethodId, new UnrequestMovementBlockPacket());
+                                    dropship.Client.CallMethod(SysEntity.ClientMethodId, new PreWonkavatePacket());
+                                    dropship.Client.CallMethod(SysEntity.CurrentInputStateId, new WonkavatePacket(dropship.DestinationMapId, 1, MapChannelManager.Instance.MapChannelArray[dropship.DestinationMapId].MapInfo.MapVersion, dropship.Destination, 0));
+                                    dropship.Client.MapClient.Player.Actor.Position = dropship.Destination;
+                                    dropship.Client.State = ClientState.Teleporting;
+                                    break;
+                                case ClientState.Teleporting:
+                                    dropship.Client.State = ClientState.Ingame;
+                                    break;
+                                default:
+                                    Logger.WriteLog(LogType.Error, $"Unsupported CLientState {dropship.Client.State}");
+                                    break;
+                            }
+                        }
+
+                        if (dropship.DropshipType == DropshipType.Spawner)
+                            SpawnPoolManager.Instance.DecreaseQueueCount(dropship.SpawnPool);
+
+                        // remove object
+                        CellManager.Instance.RemoveFromWorld(mapChannel, dropship);
+
+                        Dropships.Remove(dropship.EntityId);
+                        break;
+                    default:
+                        Logger.WriteLog(LogType.Error, $"Unsupported phase {dropship.Phase}");
+                        break;
+                }
+            }
+        }
+
+
+        //public void DropshipsWorker(MapChannel mapChannel, long timePassed)
+        //{
+        //    foreach (var entry in Dropships)
+        //    {
+        //        var dropship = entry.Value;
+
+        //        if (dropship.DropshipType != DropshipType.Spawner && dropship.DropshipType != DropshipType.Teleporter)
+        //        {
+        //            Logger.WriteLog(LogType.Debug, $"error dropshiptype { dropship.DropshipType}");
+        //            return;
+        //        }
+
+        //        if (dropship.DropshipType == DropshipType.Teleporter)
+        //            Logger.WriteLog(LogType.Debug, $"{ dropship.Phase} => {dropship.PhaseTimeleft}");
+
+        //            dropship.PhaseTimeleft -= timePassed;
+
+        //        if (dropship.PhaseTimeleft > 0)
+        //            continue;
+
+        //        // init
+        //        if (dropship.Phase == 0)
+        //        {
+                    
+        //            dropship.Phase = 1;
+        //            dropship.StateId = UseObjectState.CsStateSpawn;
+        //            Logger.WriteLog(LogType.AI, $" we hit phase { dropship.Phase} => {dropship.PhaseTimeleft}");
+        //        }
+
+        //        // spawn creatures
+        //        else if (dropship.Phase == 1)
+        //        {
+                    
+        //            dropship.PhaseTimeleft = 2000;
+        //            dropship.Phase = 2;
+        //            Logger.WriteLog(LogType.AI, $" we hit phase { dropship.Phase} => {dropship.PhaseTimeleft}");
+        //            if (dropship.DropshipType == DropshipType.Teleporter)
+        //            {
+        //                if (dropship.Client.State == ClientState.Ingame)
+        //                {
+        //                    dropship.Client.CellCallMethod(dropship.Client, dropship.Client.MapClient.Player.Actor.EntityId, new PreTeleportPacket(TeleportType.Default));
+        //                    dropship.Client.CallMethod(SysEntity.ClientMethodId, new BeginTeleportPacket());
+        //                }
+        //                else if (dropship.Client.State == ClientState.Teleporting)
+        //                {
+        //                    dropship.Client.MapClient.MapChannel.ClientList.Add(dropship.Client);
+        //                    CommunicatorManager.Instance.PlayerEnterMap(dropship.Client);
+        //                    dropship.Client.CellCallMethod(dropship.Client, dropship.Client.MapClient.Player.Actor.EntityId, new TeleportArrivalPacket());
+        //                }
+        //            }
+
+        //            if (dropship.DropshipType == DropshipType.Spawner)
+        //            {
+        //                // spawn creatures
+        //                for (var i = 0; i < dropship.SpawnPool.QueuedCreatures; i++)
+        //                {
+        //                    var creature = CreatureManager.Instance.CreateCreature(dropship.SpawnPool.DbId, dropship.SpawnPool);
+
+        //                    if (creature == null)
+        //                        continue;
+
+        //                    CreatureManager.Instance.SetLocation(creature, dropship.Position, dropship.SpawnPool.HomeOrientation, dropship.SpawnPool.MapContextId);
+
+        //                    CellManager.Instance.AddToWorld(mapChannel, creature);
+
+        //                    SpawnPoolManager.Instance.DecreaseQueuedCreatureCount(dropship.SpawnPool, 1);
+        //                }
+        //            }
+
+        //            continue;
+        //        }
+        //        else if (dropship.Phase == 2)
+        //        {
+        //            dropship.PhaseTimeleft = 6000;
+        //            dropship.Phase = 3;
+        //            dropship.StateId = UseObjectState.CsStateEnd;
+        //            Logger.WriteLog(LogType.AI, $" we hit phase { dropship.Phase} => {dropship.PhaseTimeleft}");
+        //        }
+        //        else if (dropship.Phase == 3)
+        //        {
+        //            if (dropship.DropshipType == DropshipType.Teleporter)
+        //            {
+        //                switch (dropship.Client.State)
+        //                {
+        //                    case ClientState.Ingame:
+        //                        CellManager.Instance.RemoveFromWorld(dropship.Client);
+        //                        dropship.Client.MapClient.MapChannel.ClientList.Remove(dropship.Client);
+        //                        dropship.Client.CallMethod(SysEntity.ClientMethodId, new UnrequestMovementBlockPacket());
+        //                        dropship.Client.CallMethod(SysEntity.ClientMethodId, new PreWonkavatePacket());
+        //                        dropship.Client.CallMethod(SysEntity.CurrentInputStateId, new WonkavatePacket(dropship.DestinationMapId, 1, MapChannelManager.Instance.MapChannelArray[dropship.DestinationMapId].MapInfo.MapVersion, dropship.Destination, 0));
+        //                        dropship.Client.MapClient.Player.Actor.Position = dropship.Destination;
+        //                        dropship.Client.State = ClientState.Teleporting;
+        //                        break;
+        //                    case ClientState.Teleporting:
+        //                        dropship.Client.State = ClientState.Ingame;
+        //                        break;
+        //                    default:
+        //                        Logger.WriteLog(LogType.Error, $"Unsupported CLientState {dropship.Client.State}");
+        //                        break;
+        //                }
+        //            }
+
+        //            if (dropship.DropshipType == DropshipType.Spawner)
+        //                SpawnPoolManager.Instance.DecreaseQueueCount(dropship.SpawnPool);
+
+        //            // remove object
+        //            CellManager.Instance.RemoveFromWorld(mapChannel, dropship);
+
+        //            Dropships.Remove(dropship.EntityId);
+        //            continue;
+        //        }
+
+        //        if (dropship.DropshipType == DropshipType.Teleporter)
+        //            Logger.WriteLog(LogType.AI, $"Dropship {dropship.EntityId} is in {dropship.StateId}");
+
+        //        CellManager.Instance.CellCallMethod(dropship, new ForceStatePacket(dropship.StateId, 0));
+        //    }
+        //}
+        #endregion
+
         #region Footlocker
 
         internal void FootlockerRecovery(MapChannel mapChannel, ActionData action)
@@ -413,8 +649,17 @@ namespace Rasa.Managers
 
         internal void SelectWaypoint(Client client, SelectWaypointPacket packet)
         {
-            if (!client.MapClient.MapChannel.Teleporters.ContainsKey(packet.WaypointId))
+            if (packet.MapInstanceId != client.MapClient.Player.Actor.MapContextId)
+            {
+                var dropship = new Dropship(Factions.AFS, DropshipType.Teleporter, client, MapChannelManager.Instance.MapChannelArray[packet.MapInstanceId].Teleporters[packet.WaypointId].Position, packet.MapInstanceId);
+
+                CellManager.Instance.AddToWorld(client.MapClient.MapChannel, dropship);
+                Dropships.Add(dropship.EntityId, dropship);
+                client.CallMethod(SysEntity.ClientMethodId, new RequestMovementBlockPacket());
+
+                client.LoadingMap = packet.MapInstanceId;
                 return;
+            }
 
             var teleporter = client.MapClient.MapChannel.Teleporters[packet.WaypointId];
             var objData = teleporter.ObjectData as WaypointInfo;

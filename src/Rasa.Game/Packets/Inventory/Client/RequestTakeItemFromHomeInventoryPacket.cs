@@ -16,7 +16,10 @@
             pr.ReadTuple();
             SrcSlot = pr.ReadUInt();
             DestSlot = pr.ReadUInt();
-            Quantity = pr.ReadInt();
+            if (pr.PeekType() ==  PythonType.Int)
+                Quantity = pr.ReadInt();
+            else
+                pr.ReadLong();
         }
     }
 }

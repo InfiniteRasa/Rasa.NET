@@ -7,6 +7,7 @@ namespace Rasa.Managers
     using Data;
     using Database.Tables.Character;
     using Game;
+    using Packets.ClientMethod.Server;
     using Packets.MapChannel.Server;
     using Structures;
     using Timer;
@@ -224,7 +225,7 @@ namespace Rasa.Managers
                     ActorActionManager.Instance.DoWork(mapChannel, delta);
                     MissileManager.Instance.DoWork(mapChannel, delta);
                     BehaviorManager.Instance.MapChannelThink(mapChannel, delta);
-                    SpawnPoolManager.Instance.DropshipSpawnerWorker(mapChannel, delta);
+                    DynamicObjectManager.Instance.DropshipsWorker(mapChannel, delta);
 
                     // check forAutoFIre
                     if (Timer.IsTriggered("AutoFire"))
@@ -345,6 +346,34 @@ namespace Rasa.Managers
 
         public void MapLoaded(Client client)
         {
+            if (client.State == ClientState.Teleporting)
+            {
+                var dropship = new Dropship(Factions.AFS, DropshipType.Teleporter, client);
+                var mapChannel = MapChannelArray[client.LoadingMap];
+
+                client.MapClient.MapChannel = mapChannel;
+                client.MapClient.Player.Actor.MapContextId = dropship.Client.LoadingMap;
+                client.MapClient.MapChannel = MapChannelArray[dropship.Client.LoadingMap];
+
+                mapChannel.ClientList.Add(client);
+
+                CellManager.Instance.AddToWorld(client.MapClient.MapChannel, dropship);
+                DynamicObjectManager.Instance.Dropships.Add(dropship.EntityId, dropship);
+                CommunicatorManager.Instance.LoginOk(dropship.Client);
+
+                InventoryManager.Instance.InitForClient(client);
+                ManifestationManager.Instance.UpdateStatsValues(client, true);
+
+                CellManager.Instance.AddToWorld(dropship.Client); // will introduce the player to all clients, including the current owner
+                CellManager.Instance.CellCallMethod(dropship.Client.MapClient.MapChannel, dropship.Client.MapClient.Player.Actor, new TeleportArrivalPacket());
+                client.CallMethod(SysEntity.ClientMethodId, new RequestMovementBlockPacket());
+                ManifestationManager.Instance.AssignPlayer(client);
+                CharacterManager.Instance.UpdateCharacter(client, CharacterUpdate.Position);
+                CommunicatorManager.Instance.PlayerEnterMap(dropship.Client);
+                
+                return;
+            }
+
             client.State = ClientState.Ingame;
             client.MapClient.Player = CreatePlayerCharacter(client);
             InventoryManager.Instance.InitForClient(client);

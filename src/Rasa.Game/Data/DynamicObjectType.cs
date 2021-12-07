@@ -2,10 +2,12 @@
 {
     public enum DynamicObjectType
     {
-        ControlPoint    = 1,
-        LocalTeleporter = 2,
-        Lockbox         = 3,
-        Waypoint        = 4,
-        Wormhole        = 5
+        ControlPoint        = 1,
+        LocalTeleporter     = 2,
+        Lockbox             = 3,
+        Waypoint            = 4,
+        Wormhole            = 5,
+        MapTrigger          = 6,
+        DropshipTeleporter  = 7
     }
 }

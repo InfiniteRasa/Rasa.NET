@@ -14,7 +14,6 @@ namespace Rasa.Managers
         private static SpawnPoolManager _instance;
         private static readonly object InstanceLock = new object();
         public readonly Dictionary<uint, SpawnPool> LoadedSpawnPools = new Dictionary<uint, SpawnPool>();
-        public readonly Dictionary<ulong, DropshipSpawner> DropshipSpawners = new Dictionary<ulong, DropshipSpawner>();
 
         public static SpawnPoolManager Instance
         {
@@ -56,7 +55,7 @@ namespace Rasa.Managers
             spawnPool.QueuedCreatures += count;
         }
 
-        private void DecreaseQueuedCreatureCount(SpawnPool spawnPool, int count)
+        internal void DecreaseQueuedCreatureCount(SpawnPool spawnPool, int count)
         {
             spawnPool.QueuedCreatures -= count;
             if ((spawnPool.DropshipQueue + spawnPool.QueuedCreatures + spawnPool.AliveCreatures) == 0)
@@ -206,11 +205,11 @@ namespace Rasa.Managers
                 else if (spawnPool.AnimType == 1)
                 {
                     // create bane_dropship
-                    var dropship = new DropshipSpawner(spawnPool, Factions.Bane);
+                    var dropship = new Dropship(Factions.Bane, DropshipType.Spawner, spawnPool);
 
                     CellManager.Instance.AddToWorld(mapChannel, dropship);
 
-                    DropshipSpawners.Add(dropship.EntityId, dropship);
+                    DynamicObjectManager.Instance.Dropships.Add(dropship.EntityId, dropship);
 
                     IncreaseQueueCount(spawnPool);
                     IncreaseQueuedCreatureCount(spawnPool, creatureList.Count);
@@ -219,78 +218,15 @@ namespace Rasa.Managers
                 else if (spawnPool.AnimType == 2)
                 {
                     // create human_dropship
-                    var dropship = new DropshipSpawner(spawnPool, Factions.AFS);
+                    var dropship = new Dropship(Factions.AFS, DropshipType.Spawner, spawnPool);
 
                     CellManager.Instance.AddToWorld(mapChannel, dropship);
 
-                    DropshipSpawners.Add(dropship.EntityId, dropship);
+                    DynamicObjectManager.Instance.Dropships.Add(dropship.EntityId, dropship);
 
                     IncreaseQueueCount(spawnPool);
                     IncreaseQueuedCreatureCount(spawnPool, creatureList.Count);
                 }
-            }
-        }
-
-        public void DropshipSpawnerWorker(MapChannel mapChannel, long timePassed)
-        {
-            foreach(var entry in DropshipSpawners)
-            {
-                var dropship = entry.Value;
-
-                dropship.PhaseTimeleft -= timePassed;
-
-                if (dropship.PhaseTimeleft > 0)
-                    continue;
-
-                // init
-                if (dropship.Phase == 0)
-                {
-                    dropship.PhaseTimeleft = 2500;
-                    dropship.Phase = 1;
-                    dropship.StateId = UseObjectState.CsStateSpawn;
-                }
-
-                // spawn creatures
-                else if (dropship.Phase == 1)
-                {
-                    dropship.PhaseTimeleft = 2000;
-                    dropship.Phase = 2;
-
-                    // spawn creatures
-                    for (var i = 0; i < dropship.SpawnPool.QueuedCreatures; i++)
-                    {
-                        var creature = CreatureManager.Instance.CreateCreature(dropship.SpawnPool.DbId, dropship.SpawnPool);
-
-                        if (creature == null)
-                            continue;
-
-                        CreatureManager.Instance.SetLocation(creature, dropship.Position, dropship.SpawnPool.HomeOrientation, dropship.SpawnPool.MapContextId);
-
-                        CellManager.Instance.AddToWorld(mapChannel, creature);
-
-                        DecreaseQueuedCreatureCount(dropship.SpawnPool, 1);
-                    }
-
-                    continue;
-                }
-                else if (dropship.Phase == 2)
-                {
-                    dropship.PhaseTimeleft = 2000;
-                    dropship.Phase = 4;
-                    dropship.StateId = UseObjectState.CsStateEnd;
-                }
-                else if (dropship.Phase == 4)
-                {
-                    DecreaseQueueCount(dropship.SpawnPool);
-
-                    // remove object
-                    CellManager.Instance.RemoveFromWorld(mapChannel, dropship);
-
-                    DropshipSpawners.Remove(dropship.EntityId);
-                    continue;
-                }
-
-                CellManager.Instance.CellCallMethod(dropship, new ForceStatePacket(dropship.StateId, 0));
             }
         }
     }

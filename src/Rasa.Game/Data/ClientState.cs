@@ -8,6 +8,7 @@
         CharacterSelection = 3,
         Loading            = 4,
         Ingame             = 5,
-        Disconnected       = 6
+        Disconnected       = 6,
+        Teleporting        = 7
     }
 }

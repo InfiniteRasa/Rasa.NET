@@ -444,9 +444,8 @@ namespace Rasa.Managers
             foreach (var cellSeed in cellMatrix)
                 foreach (var client in mapChannel.MapCellInfo.Cells[cellSeed].ClientList)
                     client.CallMethod(obj.EntityId, packet);
-
         }
-
+        
         internal void CellCallMethod(MapChannel mapChannel, Actor origin, PythonPacket packet)
         {
             foreach (var cellSeed in origin.Cells)

@@ -14,7 +14,6 @@
         Prestige        = 10,
         Stats           = 11,
         ActiveWeapon    = 12,
-        Teleporter      = 13,
-        OnlineStatus    = 14
+        Teleporter      = 13
     }
 }

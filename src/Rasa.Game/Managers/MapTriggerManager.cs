@@ -91,8 +91,6 @@ namespace Rasa.Managers
 
         internal void TriggersProximityWorker(MapChannel mapChannel)
         {
-            //foreach( var trigger in mapChannel.DynamicObjects)
-
             foreach (var client in mapChannel.ClientList)
             {
                 if (client.MapClient.Disconected || client.MapClient.Player == null || client.State == ClientState.Loading)
