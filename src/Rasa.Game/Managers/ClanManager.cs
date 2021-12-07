@@ -108,6 +108,10 @@ namespace Rasa.Managers
             if (clan != null)
             {
                 var clanData = new ClanData(clan);
+                var member = ClanTable.GetClanMemberByCharacterId(client.Player.CharacterId);
+
+                RegisterClanMember(member.ClanId, member);
+
                 SetClanData(client, clanData);
                 SetClanMemberData(client, clanData);
 

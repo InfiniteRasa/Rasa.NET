@@ -15,6 +15,7 @@ namespace Rasa.Database.Tables.Character
         private static readonly MySqlCommand GetClansCommand = new MySqlCommand("SELECT * FROM `clan`");
         private static readonly MySqlCommand GetDefaultClanRankTitlesCommand = new MySqlCommand("SELECT * FROM `clan_ranks`");
         private static readonly MySqlCommand GetAllClanMembersByClanIdCommand = new MySqlCommand("SELECT * FROM `clan_member` WHERE `clan_id` = @ClanId");
+        private static readonly MySqlCommand GetClanMemberByCharacterIdCommand = new MySqlCommand("SELECT * FROM `clan_member` WHERE `character_id` = @CharacterId");
         private static readonly MySqlCommand InsertClanCommand = new MySqlCommand("INSERT INTO `clan` (`name`, `created_at`, `ispvp`, `rank_title_0`, `rank_title_1`, `rank_title_2`, `rank_title_3`) VALUES (@Name, @CreatedAt, @IsPvP, @RankTitle0, @RankTitle1, @RankTitle2, @RankTitle3);");
         private static readonly MySqlCommand InsertClanMemberCommand = new MySqlCommand("INSERT INTO `clan_member` (`clan_id`, `character_id`, `rank`, `note`) VALUES (@ClanId, @CharacterId, @Rank, @Note);");
         private static readonly MySqlCommand DeleteClanMemberCommand = new MySqlCommand("DELETE FROM `clan_member` WHERE `character_id` = @CharacterId");
@@ -52,6 +53,10 @@ namespace Rasa.Database.Tables.Character
             GetAllClanMembersByClanIdCommand.Connection = GameDatabaseAccess.CharConnection;
             GetAllClanMembersByClanIdCommand.Parameters.Add("@ClanId", MySqlDbType.UInt32);
             GetAllClanMembersByClanIdCommand.Prepare();
+            
+            GetClanMemberByCharacterIdCommand.Connection = GameDatabaseAccess.CharConnection;
+            GetClanMemberByCharacterIdCommand.Parameters.Add("@CharacterId", MySqlDbType.UInt32);
+            GetClanMemberByCharacterIdCommand.Prepare();
 
             GetClansCommand.Connection = GameDatabaseAccess.CharConnection;
             GetClansCommand.Prepare();
@@ -260,6 +265,17 @@ namespace Rasa.Database.Tables.Character
             }
 
             return clanMembers;
+        }
+
+        public static ClanMemberEntry GetClanMemberByCharacterId(uint characterId)
+        {
+            lock (GameDatabaseAccess.CharLock)
+            {
+                GetClanMemberByCharacterIdCommand.Parameters["@CharacterId"].Value = characterId;
+
+                using (var reader = GetClanMemberByCharacterIdCommand.ExecuteReader())
+                    return ClanMemberEntry.Read(reader);
+            }
         }
 
         public static bool InsertClanMemberData(uint clanId, ulong characterid, uint rank, string note)
