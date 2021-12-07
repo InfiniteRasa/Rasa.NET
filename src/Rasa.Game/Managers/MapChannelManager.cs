@@ -352,14 +352,10 @@ namespace Rasa.Managers
             CommunicatorManager.Instance.LoginOk(client);
             CellManager.Instance.AddToWorld(client); // will introduce the player to all clients, including the current owner
             ManifestationManager.Instance.AssignPlayer(client);
-            CommunicatorManager.Instance.RegisterPlayer(client);
 
-            // Must be called after AssignPlayer and RegisterPlayer so that IsOnline status can be accurately checked
-            CharacterManager.Instance.UpdateCharacter(client, CharacterUpdate.OnlineStatus, true);
             ClanManager.Instance.InitializePlayerClanData(client);
             InventoryManager.Instance.InitClanInventory(client);
             CommunicatorManager.Instance.PlayerEnterMap(client);
-            //mission_initForClient(cm);
         }
 
         public void PassClientToMapChannel(Client client, MapChannel mapChannel)
@@ -414,8 +410,6 @@ namespace Rasa.Managers
                 if (entityId != 0)
                     EntityManager.Instance.DestroyPhysicalEntity(client, entityId, EntityType.Item);
 
-            // unregister from chat
-            CommunicatorManager.Instance.UnregisterPlayer(client);
             CellManager.Instance.RemoveFromWorld(client);
             ManifestationManager.Instance.RemovePlayerCharacter(client);
             ClanManager.Instance.RemovePlayer(client);

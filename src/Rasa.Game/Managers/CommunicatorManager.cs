@@ -79,9 +79,6 @@ namespace Rasa.Managers
 
         private static CommunicatorManager _instance;
         private static readonly object InstanceLock = new object();
-        public static Dictionary<string, Client> PlayersByName = new Dictionary<string, Client>();
-        public static Dictionary<ulong, Client> PlayersByEntityId = new Dictionary<ulong, Client>();
-        public static Dictionary<ulong, Client> PlayersByCharacterId = new Dictionary<ulong, Client>();
         public static Dictionary<int, ChatChannel> ChannelsBySeed = new Dictionary<int, ChatChannel>();
 
         public static CommunicatorManager Instance
@@ -238,8 +235,6 @@ namespace Rasa.Managers
             CharacterManager.Instance.UpdateCharacter(client, CharacterUpdate.Position, null);
             // save player time
             CharacterManager.Instance.UpdateCharacter(client, CharacterUpdate.Login, null);
-            // set offline status
-            CharacterManager.Instance.UpdateCharacter(client, CharacterUpdate.OnlineStatus, false);
             // remove client from all channels
             for (var i = 0; i < client.MapClient.JoinedChannels; i++)
             {
@@ -314,42 +309,10 @@ namespace Rasa.Managers
                 }
             }
         }
-            
-        public void RegisterPlayer(Client client)
-        {
-            PlayersByName.Add(client.MapClient.Player.Actor.Name, client);
-            PlayersByEntityId.Add(client.MapClient.Player.Actor.EntityId, client);
-            PlayersByCharacterId.Add(client.MapClient.Player.CharacterId, client);
-        }
 
         public void SystemMessage(Client client, string textMsg)
         {
             client.CallMethod(SysEntity.CommunicatorId, new SystemMessagePacket(textMsg));
-        }
-
-        public void UnregisterPlayer(Client client)
-        {
-            //var upperCase = new char[mapClient.Player.Actor.Name.Length+1];
-            if (client.MapClient.Player != null)
-            {
-                /*var from = mapClient.Player.Actor.Name;
-                for (var i = 0; i < from.Length; i++)
-                {
-                    var c = from[i];
-                    if (c == '\0')
-                    {
-                        upperCase[i] = '\0';
-                        break;
-                    }
-                    if (c >= 'a' && c <= 'z')
-                        c = Convert.ToChar(c.ToString().ToUpper());
-                    upperCase[i] = c;
-                }*/
-                //upperCase[from.Length] = '\0';
-                PlayersByName.Remove(client.MapClient.Player.Actor.Name);
-                PlayersByEntityId.Remove(client.MapClient.Player.Actor.EntityId);
-                PlayersByCharacterId.Remove(client.MapClient.Player.CharacterId);
-            }
         }
     }
 }

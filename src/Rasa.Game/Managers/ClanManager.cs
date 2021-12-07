@@ -256,7 +256,9 @@ namespace Rasa.Managers
 
                     // Notfies the kicked client that they were kicked and clears out the clan data
                     // The client expects the characterId to be the entityId for this message
-                    if (CommunicatorManager.PlayersByCharacterId.TryGetValue(memberToBeKicked.CharacterId, out Client memberClient))
+                    var memberClient = Server.Clients.Find(c => c.MapClient.Player.CharacterId == memberToBeKicked.CharacterId);
+
+                    if (memberClient != null)
                     {
                         memberClient.CallMethod(SysEntity.ClientClanManagerId, new PlayerLeftClanPacket(memberClient.Player.Actor.EntityId, memberClient.Player.Actor.Name, memberClient.Player.Actor.FamilyName, packet.ClanId, true));
                         memberClient.CallMethod(memberClient.Player.Actor.EntityId, new ClanIdPacket(0));
@@ -346,7 +348,9 @@ namespace Rasa.Managers
                 if (inviteeCharacter != null)
                 {
                     // Make sure the invitee is online
-                    if (CommunicatorManager.PlayersByCharacterId.ContainsKey(inviteeCharacter.Id))
+                    var invitee = Server.Clients.Find(c => c.MapClient.Player.CharacterId == inviteeCharacter.Id);
+
+                    if (invitee != null)
                     {
                         SendInviteToCharacter(client, inviteeCharacter.Id, inviterClan);
                     }
@@ -385,7 +389,9 @@ namespace Rasa.Managers
             }
 
             // Make sure the invitee is online
-            if (CommunicatorManager.PlayersByCharacterId.ContainsKey(packet.CharacterId))
+            var invitee = Server.Clients.Find(c => c.MapClient.Player.CharacterId == packet.CharacterId);
+            
+            if (invitee != null)
             {
                 SendInviteToCharacter(client, packet.CharacterId, inviterClan);
             }
@@ -479,7 +485,9 @@ namespace Rasa.Managers
 
                 foreach (ClanMemberEntry m in members)
                 {
-                    if (CommunicatorManager.PlayersByCharacterId.TryGetValue(m.CharacterId, out Client memberClient))
+                    var memberClient = Server.Clients.Find(c => c.MapClient.Player.CharacterId == m.CharacterId);
+
+                    if (memberClient != null)
                     {
                         // 0 Clears the overhead frame next to the player name
                         memberClient.CallMethod(memberClient.Player.Actor.EntityId, new ClanIdPacket(0));
@@ -501,12 +509,13 @@ namespace Rasa.Managers
 
         internal void RemovePlayer(Client client)
         {
-            if (client.Player.ClanId > 0)
+            var clanId = client.Player.ClanId;
+            if (clanId > 0)
             {
-                ClanMemberEntry member = GetClanMember(client.Player.ClanId, client.Player.CharacterId);
+                ClanMemberEntry member = GetClanMember(clanId, client.Player.CharacterId);
                 UnregisterClanMember(member);
 
-                SetMemberDataForOnlineMembers(client.Player.ClanId, client.Player.CharacterId);
+                SetMemberDataForOnlineMembers(clanId, client.Player.CharacterId);
             }
         }
 
@@ -577,7 +586,7 @@ namespace Rasa.Managers
             foreach (ClanMemberEntry member in clanMemberEntries)
             {
                 ClanMemberData clanMemberData = CreateClanMemberData(clanData, member.CharacterId, member.Rank, member.Note);
-                clanMemberData.IsOnline = CommunicatorManager.PlayersByCharacterId.ContainsKey(member.CharacterId);
+                clanMemberData.IsOnline = Server.Clients.Contains(Server.Clients.Find(c => c.MapClient.Player.CharacterId == member.CharacterId));
                 
                 if (player.CharacterId == member.CharacterId)
                 {
@@ -608,7 +617,7 @@ namespace Rasa.Managers
 
         private void SendInviteToCharacter(Client client, uint characterId, ClanEntry clan)
         {
-            Client inviteeClient = CommunicatorManager.PlayersByCharacterId[characterId];
+            Client inviteeClient = Server.Clients.Find(c => c.MapClient.Player.CharacterId == characterId);
 
             var inviteData = new ClanInviteData
             {
@@ -713,9 +722,11 @@ namespace Rasa.Managers
         public void CallMethodForOnlineMembers(uint clanId, ulong entityId, ServerPythonPacket packet, uint skipCharacterId = 0, uint onlyThisCharacterId = 0)
         {
             foreach (ClanMemberEntry member in GetClanMembers(clanId))
-            {                
+            {
                 // If the member is online get their cached client
-                if (CommunicatorManager.PlayersByCharacterId.TryGetValue(member.CharacterId, out Client memberClient))
+                var memberClient = Server.Clients.Find(c => c.MapClient.Player.CharacterId == member.CharacterId);
+
+                if (memberClient != null)
                 {
                     // Don't send a message to this player
                     if ((skipCharacterId != 0 && skipCharacterId == memberClient.Player.CharacterId) ||
@@ -732,7 +743,9 @@ namespace Rasa.Managers
             foreach (ClanMemberEntry member in GetClanMembers(clanId))
             {
                 // If the member is online get their cached client
-                if (CommunicatorManager.PlayersByCharacterId.TryGetValue(member.CharacterId, out Client memberClient))
+                var memberClient = Server.Clients.Find(c => c.MapClient.Player.CharacterId == member.CharacterId);
+
+                if (memberClient != null)
                 {
                     // Don't send a message to this player
                     if ((skipCharacterId != 0 && skipCharacterId == memberClient.Player.CharacterId) ||

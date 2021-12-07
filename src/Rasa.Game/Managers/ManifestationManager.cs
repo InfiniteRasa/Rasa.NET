@@ -945,7 +945,7 @@ namespace Rasa.Managers
         public void WeaponReload(ActionData action)
         {
             // we reload weapon here
-            var client = CommunicatorManager.PlayersByEntityId[action.Actor.EntityId];
+            var client = Server.Clients.Find(c => c.MapClient.Player.Actor.EntityId == action.Actor.EntityId);
             var weapon = InventoryManager.Instance.CurrentWeapon(client);
             
             if (weapon == null)
