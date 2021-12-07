@@ -90,6 +90,7 @@ namespace Rasa.Managers
             RegisterCommand(".rqs", RqsWindowCommand);
             RegisterCommand(".tele", TeleCommand);
             RegisterCommand(".teleport", TeleportCommand);
+            RegisterCommand(".teleup", TeleUpCommand);
             RegisterCommand(".setkillstreak", SetKillStreakCommand);
             RegisterCommand(".setregion", SetRegionCommand);
             RegisterCommand(".speed", SpeedCommand);
@@ -333,21 +334,7 @@ namespace Rasa.Managers
 
             return;
         }
-
-        private void TeleCommand(string[] parts)
-        {
-            if (parts.Length != 4)
-            {
-                CommunicatorManager.Instance.SystemMessage(_client, "usage: .tele posX posY posZ");
-                return;
-            }
-
-            if (float.TryParse(parts[1], out float posX))
-                if (float.TryParse(parts[2], out float posY))
-                    if (float.TryParse(parts[3], out float posZ))
-                        _client.MoveObject(_client.MapClient.Player.Actor.EntityId, new MovementData(posX, posY, posZ, 0));
-        }
-
+        
         private void NpcInfoCommand(string[] parts)
         {
             if (parts.Length == 1)
@@ -438,6 +425,20 @@ namespace Rasa.Managers
 
             return;
         }
+        
+        private void TeleCommand(string[] parts)
+        {
+            if (parts.Length != 4)
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, "usage: .tele posX posY posZ");
+                return;
+            }
+
+            if (float.TryParse(parts[1], out float posX))
+                if (float.TryParse(parts[2], out float posY))
+                    if (float.TryParse(parts[3], out float posZ))
+                        _client.MoveObject(_client.MapClient.Player.Actor.EntityId, new MovementData(posX, posY, posZ, 0));
+        }
 
         private void TeleportCommand(string[] parts)
         {
@@ -479,6 +480,18 @@ namespace Rasa.Managers
             }
 
             return;
+        }
+
+        private void TeleUpCommand(string[] parts)
+        {
+            if (parts.Length != 2)
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, "usage: .teleup posY");
+                return;
+            }
+
+            if (float.TryParse(parts[1], out float posY))
+                _client.MoveObject(_client.MapClient.Player.Actor.EntityId, new MovementData(_client.MapClient.Player.Actor.Position.X, posY, _client.MapClient.Player.Actor.Position.Z, 0));
         }
 
         private void SetCreatureAppearanceCommand(string[] parts)
