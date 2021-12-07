@@ -10,17 +10,19 @@ namespace Rasa.Packets.MapChannel.Server
     {
         public override GameOpcode Opcode { get; } = GameOpcode.EnteredWaypoint;
 
-        public uint CurrentMapId { get; set; }
-        public uint GameContextId { get; set; }
+        internal uint CurrentMapId { get; set; }
+        internal uint GameContextId { get; set; }
+        internal MapInstanceInfo MapInstanceInfo { get; set; }
         public List<MapWaypointInfoList> MapWaypointInfoList { get; set; }
-        public uint TempWormholes { get; set; }
-        public uint WaypointTypeId { get; set; }
-        public uint CurrentWaypointId { get; set; }
+        internal uint TempWormholes { get; set; }
+        internal uint WaypointTypeId { get; set; }
+        internal uint CurrentWaypointId { get; set; }
         
-        public EnteredWaypointPacket(uint currentMapId, uint gameContextId, List<MapWaypointInfoList> mapWaypointInfoList, uint waypointTypeId, uint currentWaypointId)
+        public EnteredWaypointPacket(uint currentMapId, uint gameContextId, MapInstanceInfo mapInstanceInfo, List<MapWaypointInfoList> mapWaypointInfoList, uint waypointTypeId, uint currentWaypointId = 0)
         {
             CurrentMapId = currentMapId;
             GameContextId = gameContextId;
+            MapInstanceInfo = mapInstanceInfo;
             MapWaypointInfoList = mapWaypointInfoList;
             //TempWormholes = tempWormholes;
             WaypointTypeId = waypointTypeId;
@@ -37,7 +39,8 @@ namespace Rasa.Packets.MapChannel.Server
             {
                 pw.WriteTuple(3);
                 pw.WriteUInt(waypointInfo.GameGontextId);       // gameContextId
-                pw.WriteList(0);                                // mapInstanceList  (we wont use mapInstances)
+                pw.WriteList(1);                                // mapInstances
+                pw.WriteStruct(MapInstanceInfo);
                 pw.WriteList(waypointInfo.WaypointInfo.Count);  // waypoints
                 foreach(var waypoint in waypointInfo.WaypointInfo)
                 {
@@ -50,9 +53,12 @@ namespace Rasa.Packets.MapChannel.Server
                     pw.WriteBool(waypoint.Contested);           // contested
                 }
             }
-            pw.WriteNoneStruct();
+            pw.WriteNoneStruct();       // tempwormhole's
             pw.WriteUInt(WaypointTypeId);
-            pw.WriteUInt(CurrentWaypointId);
+            if (CurrentWaypointId != 0)
+                pw.WriteUInt(CurrentWaypointId);
+            else
+                pw.WriteNoneStruct();
         }
     }
 }

@@ -458,8 +458,9 @@ namespace Rasa.Managers
                 CheckPlayerWaypoint(client, objectData);
 
                 var waypointInfoList = CreateListOfWaypoints(client, mapChannel);
-
-                client.CallMethod(SysEntity.ClientMethodId, new EnteredWaypointPacket(obj.MapContextId, obj.MapContextId, waypointInfoList, objectData.WaypointType, objectData.WaypointId));
+                var mapInstanceInfo = new MapInstanceInfo(1, mapChannel.MapInfo.MapContextId, MapInstanceStatus.Low);   // ToDo: send mapInstanceStatus based on map population
+                
+                client.CallMethod(SysEntity.ClientMethodId, new EnteredWaypointPacket(obj.MapContextId, obj.MapContextId, mapInstanceInfo, waypointInfoList, objectData.WaypointType, objectData.WaypointId));
 
                 // check if we already added him to the waypoint
             }

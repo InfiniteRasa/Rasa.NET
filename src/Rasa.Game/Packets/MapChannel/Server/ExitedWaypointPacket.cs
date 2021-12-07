@@ -3,7 +3,6 @@ namespace Rasa.Packets.MapChannel.Server
 {
     using Data;
     using Memory;
-    using Structures;
 
     public class ExitedWaypointPacket : ServerPythonPacket
     {
