@@ -193,6 +193,7 @@ namespace Rasa.Managers
             Timer.Add("ClientEffectUpdate", 500, true, null);
             Timer.Add("CellUpdateVisibility", 1000, true, null);
             Timer.Add("CheckForCreatures", 1000, true, null);
+            Timer.Add("CheckForMapTriggers", 1000, true, null);
         }
 
         public void MapChannelWorker(long delta)
@@ -240,6 +241,10 @@ namespace Rasa.Managers
                     // check for creatures
                     if (Timer.IsTriggered("CheckForCreatures"))
                         SpawnPoolManager.Instance.SpawnPoolWorker(mapChannel, delta);
+
+                    // check for mapTriggers
+                    if (Timer.IsTriggered("CheckForMapTriggers"))
+                        MapTriggerManager.Instance.TriggersProximityWorker(mapChannel);
 
                     // check for effects (buffs)
                     if (Timer.IsTriggered("ClientEffectUpdate"))

@@ -194,6 +194,7 @@ namespace Rasa.Game
             ChatCommandsManager.Instance.RegisterChatCommands();
             MapChannelManager.Instance.MapChannelInit();
             DynamicObjectManager.Instance.InitDynamicObjects();
+            MapTriggerManager.Instance.MapTriggerInit();
 
             return true;
         }

@@ -69,7 +69,24 @@ namespace Rasa.Managers
 
             CreatureManager.Instance.CellIntroduceCreatureToClients(mapChannel, creature, ListOfClients);
         }
-        
+
+        // mapTrigger
+        public void AddToWorld(MapChannel mapChannel, MapTrigger trigger)
+        {
+            if (trigger == null)
+                return;
+
+            // calculate initial cell(x, z)
+            var cellPosX = (uint)(trigger.Position.X / CellSize + CellBias);
+            var cellPosZ = (uint)(trigger.Position.Z / CellSize + CellBias);
+
+            // create matrix
+            var cellMatrix = CreateCellMatrix(mapChannel, cellPosX, cellPosZ);
+
+            // add mapTrigger to the cell
+            mapChannel.MapCellInfo.Cells[cellMatrix[2, 2]].MapTriggers.Add(trigger);
+        }
+
         // Object
         public void AddToWorld(MapChannel mapChannel, DynamicObject dynamicObject)
         {
@@ -162,7 +179,7 @@ namespace Rasa.Managers
 
         public void DoWork(MapChannel mapChannel)
         {
-            // 2 times per sec, do we need check more often?
+            // 1 time per sec, do we need check more often?
             UpdateVisibility(mapChannel);
             // mob work
 
@@ -199,16 +216,17 @@ namespace Rasa.Managers
 
             var cellX = (uint)((dynObject.Position.X / CellSize) + CellBias);
             var cellZ = (uint)((dynObject.Position.Z / CellSize) + CellBias);
-            var cell = GetCell(mapChannel, cellX, cellZ);
+            var cellMatrix = CreateCellMatrix(mapChannel, cellX, cellZ);
             var ListOfClients = new List<Client>();
 
-            foreach (var player in mapChannel.MapCellInfo.Cells[cell.CellSeed].ClientList)
-                ListOfClients.Add(player);
+            foreach (var cellSeed in cellMatrix)
+                foreach (var client in mapChannel.MapCellInfo.Cells[cellSeed].ClientList)
+                    ListOfClients.Add(client);
 
             DynamicObjectManager.Instance.CellDiscardDynamicObjectToClients(dynObject.EntityId, ListOfClients);
 
             // remove object from cell
-            mapChannel.MapCellInfo.Cells[cell.CellSeed].DynamicObjectList.Remove(dynObject);
+            mapChannel.MapCellInfo.Cells[cellMatrix[2,2]].DynamicObjectList.Remove(dynObject);
         }
 
         public void RemoveFromWorld(MapChannel mapChannel, ulong entityId)

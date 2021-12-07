@@ -13,5 +13,6 @@ namespace Rasa.Structures
         public List<Client> ClientList = new List<Client>();
         public List<Client> ClientNotifyList = new List<Client>();
         public List<DynamicObject> DynamicObjectList = new List<DynamicObject>();
+        public List<MapTrigger> MapTriggers = new List<MapTrigger>();
     }
 }

@@ -195,6 +195,9 @@ namespace Rasa.Managers
             if (dynamicObject == null)
                 return;
 
+            if (dynamicObject.EntityClassId == 0)
+                return;
+
             var entityData = new List<PythonPacket>
             {
                 // PhysicalEntity
@@ -380,6 +383,7 @@ namespace Rasa.Managers
         internal List<MapWaypointInfoList> CreateListOfWaypoints(Client client, MapChannel mapChannel)
         {
             var listOfWaypoints = new List<MapWaypointInfoList>();
+            var listOfMapInstances = new List<MapInstanceInfo>();
             var waypointInfo = new List<WaypointInfo>();
 
             // create waypoint list for player
@@ -401,13 +405,17 @@ namespace Rasa.Managers
                 }
             }
 
-            listOfWaypoints.Add(new MapWaypointInfoList(mapChannel.MapInfo.MapContextId, waypointInfo));
+            listOfMapInstances.Add(new MapInstanceInfo(1, mapChannel.MapInfo.MapContextId, MapInstanceStatus.Low)); // ToDo: send mapInstanceStatus based on map population
+            listOfWaypoints.Add(new MapWaypointInfoList(mapChannel.MapInfo.MapContextId, listOfMapInstances, waypointInfo));
 
             return listOfWaypoints;
         }
 
         internal void SelectWaypoint(Client client, SelectWaypointPacket packet)
         {
+            if (!client.MapClient.MapChannel.Teleporters.ContainsKey(packet.WaypointId))
+                return;
+
             var teleporter = client.MapClient.MapChannel.Teleporters[packet.WaypointId];
             var objData = teleporter.ObjectData as WaypointInfo;
             var movementData = new Memory.MovementData
@@ -439,7 +447,7 @@ namespace Rasa.Managers
             foreach (var client in mapChannel.MapCellInfo.Cells[cellSeed].ClientList)
             {
                 // check if player is near waypoint
-                if (!client.MapClient.Player.Actor.IsNear(obj))
+                if (!client.MapClient.Player.Actor.IsNear2m(obj))
                 {
                     continue;
                 }
@@ -457,10 +465,9 @@ namespace Rasa.Managers
 
                 CheckPlayerWaypoint(client, objectData);
 
-                var waypointInfoList = CreateListOfWaypoints(client, mapChannel);
-                var mapInstanceInfo = new MapInstanceInfo(1, mapChannel.MapInfo.MapContextId, MapInstanceStatus.Low);   // ToDo: send mapInstanceStatus based on map population
+                var waypointInfoList = CreateListOfWaypoints(client, mapChannel);  
                 
-                client.CallMethod(SysEntity.ClientMethodId, new EnteredWaypointPacket(obj.MapContextId, obj.MapContextId, mapInstanceInfo, waypointInfoList, objectData.WaypointType, objectData.WaypointId));
+                client.CallMethod(SysEntity.ClientMethodId, new EnteredWaypointPacket(obj.MapContextId, obj.MapContextId, waypointInfoList, objectData.WaypointType, objectData.WaypointId));
 
                 // check if we already added him to the waypoint
             }
@@ -472,7 +479,7 @@ namespace Rasa.Managers
             {
                 var client = obj.TrigeredByPlayers[i];
 
-                if (!client.MapClient.Player.Actor.IsNear(obj))
+                if (!client.MapClient.Player.Actor.IsNear2m(obj))
                 {
                     obj.TrigeredByPlayers.RemoveAt(i);
 
