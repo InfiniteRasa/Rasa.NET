@@ -63,6 +63,7 @@ namespace Rasa.Managers
             difY *= length;
             difZ *= length;
             var vX = Math.Atan2(-difX, -difZ);
+
             // multiplicate with speed
             if (isMoved == true)
                 velocity = speeddiv;
@@ -254,7 +255,6 @@ namespace Rasa.Managers
         {
             creature.Controller.CurrentAction = BehaviorActionFighting;
             creature.Controller.PathIndex = 0;
-            creature.Controller.PathLength = 0;
             creature.Controller.ActionFighting.TargetEntityId = targetEntityId;
             creature.LastAgression = 0;
         }
@@ -368,12 +368,12 @@ namespace Rasa.Managers
                             return;
                         }
 
-                        if (creature.WanderDistance < 0.01f)
+                        if (creature.WalkSpeed < 0.01f || creature.RunSpeed < 0.01f)
                             return; // creature doesn't wander
 
                         // calc target
-                        var srndx = (float)(new Random().Next() % 1000) * 0.001f * creature.WanderDistance;
-                        var srndz = (float)(new Random().Next() % 1000) * 0.001f * creature.WanderDistance;
+                        var srndx = new Random().Next(3, 12);
+                        var srndz = new Random().Next(3, 12);
 
                         char[] operators = { '+', '-' };
                         char op = operators[new Random().Next(operators.Length)];
@@ -382,54 +382,47 @@ namespace Rasa.Managers
                         switch (op)
                         {
                             case '+':
-                                creature.Controller.ActionWander.WanderDestination[0] = creature.HomePos.Position.X + srndx;
+                                creature.Controller.ActionWander.WanderDestination.X = creature.HomePos.Position.X + srndx;
                                 break;
 
                             case '-':
-                                creature.Controller.ActionWander.WanderDestination[0] = creature.HomePos.Position.X - srndx;
+                                creature.Controller.ActionWander.WanderDestination.X = creature.HomePos.Position.X - srndx;
                                 break;
                         }
 
-                        creature.Controller.ActionWander.WanderDestination[1] = creature.HomePos.Position.Y;
+                        creature.Controller.ActionWander.WanderDestination.Y = creature.HomePos.Position.Y;
 
                         switch (op1)
                         {
                             case '+':
-                                creature.Controller.ActionWander.WanderDestination[2] = creature.HomePos.Position.Z + srndz;
+                                creature.Controller.ActionWander.WanderDestination.Z = creature.HomePos.Position.Z + srndz;
                                 break;
 
                             case '-':
-                                creature.Controller.ActionWander.WanderDestination[2] = creature.HomePos.Position.Z - srndz;
+                                creature.Controller.ActionWander.WanderDestination.Z = creature.HomePos.Position.Z - srndz;
                                 break;
                         }
-                        
+
                         // next step approaching
                         creature.Controller.ActionWander.State = WanderMoving;
                         creature.LastRestTime = 0;
                     }
                 }
+
                 if (creature.Controller.ActionWander.State == WanderMoving)
                 {
                     // following path (short path)
-                    if (creature.Controller.PathLength == 0)
+                    if (creature.Controller.Path.Count == 0)
                     {
                         // no path, generate new one
-                        var startPos = new float[3];
-                        var endPos = new float[3];
-                        startPos[0] = creature.Actor.Position.X;
-                        startPos[1] = creature.Actor.Position.Y;
-                        startPos[2] = creature.Actor.Position.Z;
-                        endPos[0] = creature.Controller.ActionWander.WanderDestination[0];
-                        endPos[1] = creature.Controller.ActionWander.WanderDestination[1];
-                        endPos[2] = creature.Controller.ActionWander.WanderDestination[2];
+                        var destination = creature.Controller.ActionWander.WanderDestination;
                         creature.Controller.PathIndex = 0;
 
                         // later we can implement "navmesh" so creature move more acurate on terrain
-                        //creature.Controller.PathLength = navmesh_getPath(mapChannel, startPos, endPos, creature.Controller.path, false);
-                        creature.Controller.PathLength = 1;
-                        creature.Controller.Path = endPos;
+                        //creature.Controller.PathLength = navmesh_getPath(mapChannel, startPos, destination, creature.Controller.path, false);
+                        creature.Controller.Path.Add(destination);
 
-                        if (creature.Controller.PathLength == 0)
+                        if (creature.Controller.Path.Count == 0)
                         {
                             // path could not be generated or too short
                             // leave state and go idle mode
@@ -439,27 +432,29 @@ namespace Rasa.Managers
                         }
                     }
                     // get distance
-                    //var nextPathNodePos = creature.Controller.Path + (creature.Controller.PathIndex * 3);
-                    var nextPathNodePos = creature.Controller.Path;
-                    var difX = nextPathNodePos[0] - creature.Actor.Position.X;
-                    var difY = nextPathNodePos[1] - creature.Actor.Position.Y;
-                    var difZ = nextPathNodePos[2] - creature.Actor.Position.Z;
-                    var dist = difX * difX + difZ * difZ;
+                    var nextPathNodePos = creature.Controller.Path[0];
+                    var difX = nextPathNodePos.X - creature.Actor.Position.X;
+                    var difY = nextPathNodePos.Y - creature.Actor.Position.Y;
+                    var difZ = nextPathNodePos.Z - creature.Actor.Position.Z;
+                    var dist = GetDistanceSqr(nextPathNodePos, creature.Actor.Position);
+
                     // wander target location reached
                     if (dist > 0.01f) // to avoid division by zero
                     {
                         var distanceMoved = UpdateEntityMovement(difX, difY, difZ, creature, mapChannel, creature.WalkSpeed, true);
+                        creature.Controller.Path.RemoveAt(0);
                         // sometimes it is possible the creature walks past the pathnode a tiny bit,
                         // which will force him to move back a step, it does look ugly so here is a tiny workaround
                         if (distanceMoved > dist) // distance moved greater than distance left?
                             dist = 0.0f; // mark pathnode reached
                     }
+
                     if (dist < 0.8f)
                     {
                         creature.Controller.PathIndex++; // goto next node
-                        if (creature.Controller.PathIndex >= creature.Controller.PathLength)
+
+                        if (creature.Controller.PathIndex >= creature.Controller.Path.Count)
                         {
-                            creature.Controller.PathLength = 0;
                             creature.Controller.ActionWander.State = WanderIdle;
                             return;
                         }
@@ -475,6 +470,7 @@ namespace Rasa.Managers
                     // enemy found!
                     return;
                 }
+
                 // following path (to next node)
                 if (creature.Controller.AiPathFollowing.GeneralPathCurrentNodeIndex >= creature.Controller.AiPathFollowing.GeneralPath.NumberOfPathNodes)
                     return; // no more nodes in the path
@@ -495,9 +491,11 @@ namespace Rasa.Managers
                 var difY = currentTargetNodePos[1] - creature.Actor.Position.Y;
                 var difZ = currentTargetNodePos[2] - creature.Actor.Position.Z;
                 var dist = difX * difX + difZ * difZ;
+                
                 // wander target location reached
                 if (dist > 0.01f) // to avoid division by zero
                     UpdateEntityMovement(difX, difY, difZ, creature, mapChannel, creature.WalkSpeed, true);
+                
                 if (dist < 0.8f)
                 {
                     creature.Controller.AiPathFollowing.GeneralPathCurrentNodeIndex++; // goto next node
@@ -540,31 +538,31 @@ namespace Rasa.Managers
                     SetActionWander(creature);
                     return;
                 }
+                
                 // leave combat after 
                 if (creature.LastAgression > creature.AggressionTime)
                 {
                     SetActionWander(creature);
                     return;
                 }
+                
                 // get position of target
-                var targetX = 0.0f;
-                var targetY = 0.0f;
-                var targetZ = 0.0f;
-                var targetName = "";
+                var targetPosition = new Vector3();
+                
                 if (target == EntityType.Player)
                 {
                     var mapClient = EntityManager.Instance.GetPlayer(creature.Controller.ActionFighting.TargetEntityId);
+                    
                     // if target dead, set wander state
                     if (mapClient.Player.Actor.Attributes[Attributes.Health].Current <= 0 || mapClient.Player.Actor.State == CharacterState.Dead)
                     {
                         SetActionWander(creature);
                         return;
                     }
-                    targetX = mapClient.Player.Actor.Position.X;
-                    targetY = mapClient.Player.Actor.Position.Y;
-                    targetZ = mapClient.Player.Actor.Position.Z;
-                    targetName = mapClient.Player.Actor.Name;
+
+                    targetPosition = mapClient.Player.Actor.Position;
                 }
+                
                 else if (target == EntityType.Creature)
                 {
                     var targetCreature = EntityManager.Instance.GetCreature(creature.Controller.ActionFighting.TargetEntityId);
@@ -577,22 +575,20 @@ namespace Rasa.Managers
                         SetActionWander(creature);
                         return;
                     }
-                    targetX = targetCreature.Actor.Position.X;
-                    targetY = targetCreature.Actor.Position.Y;
-                    targetZ = targetCreature.Actor.Position.Z;
-                    targetName = targetCreature.Actor.Name;
+
+                    targetPosition = targetCreature.Actor.Position;
                 }
                 else
                     Logger.WriteLog(LogType.Error, $"CreatureThink: unsuported Traget type {target}"); // todo
 
-                var targetDistX = (targetX - creature.Actor.Position.X);
-                var targetDistY = (targetY - creature.Actor.Position.Y);
-                var targetDistZ = (targetZ - creature.Actor.Position.Z);
+                var targetDistX = (targetPosition.X - creature.Actor.Position.X);
+                var targetDistY = (targetPosition.Y - creature.Actor.Position.Y);
+                var targetDistZ = (targetPosition.Z - creature.Actor.Position.Z);
                 var targetDistSqr = (targetDistX * targetDistX + targetDistY * targetDistY + targetDistZ * targetDistZ);
                 // stop tracking target after target exceeds a certain distance to home pos
                 // Note: For patrolling creatures the homePos is the last arrived path node 
-                var homeLocDistX = (creature.HomePos.Position.X - targetX);
-                var homeLocDistZ = (creature.HomePos.Position.Z - targetZ);
+                var homeLocDistX = (creature.HomePos.Position.X - targetPosition.X);
+                var homeLocDistZ = (creature.HomePos.Position.Z - targetPosition.Z);
                 var homeLocDist = homeLocDistX * homeLocDistX + homeLocDistZ * homeLocDistZ;
 
                 if (homeLocDist >= 60.0f * 60.0f)
@@ -640,30 +636,25 @@ namespace Rasa.Managers
 
                 // after checking for melee and range attack without success, do pathing
                 // invalidate path if the target moved away too far from the original path destination
-                var tempPos = new float[3];
-                tempPos[0] = targetX;
-                tempPos[1] = targetY;
-                tempPos[2] = targetZ;
+                var tempPos = targetPosition;
+
                 // generate path if there is no current
                 if (creature.Controller.TimerPathUpdateLock <= 0)
                 {
-                    if (creature.Controller.PathLength > 0 && GetDistanceSqr(creature.Controller.ActionFighting.LockedTargetPosition, tempPos) > 1.0f)
-                        creature.Controller.PathLength = 0;
-
-                    if (creature.Controller.PathLength == 0)
+                    if (creature.Controller.Path.Count == 0)
                     {
                         // update path update lock timer
                         creature.Controller.TimerPathUpdateLock = 5000;
 
-                        var pathTarget = new float[3];
+                        var pathTarget = new Vector3();
                         if (targetDistSqr < 0.1f)
                         {
                             // if too near, move out of enemy by running to random point somewhere x units around the creature
                             var angle = (new Random().Next() / 32767.0f) * 6.28318f; // random angle
                             var distance = 2.5f; // keep 2.5 meter distance
-                            pathTarget[0] = targetX + (float)Math.Cos(angle) * distance;
-                            pathTarget[1] = targetY;
-                            pathTarget[2] = targetZ + (float)Math.Sin(angle) * distance;
+                            pathTarget.X = targetPosition.X + (float)Math.Cos(angle) * distance;
+                            pathTarget.Y = targetPosition.Y;
+                            pathTarget.Z = targetPosition.Z + (float)Math.Sin(angle) * distance;
                         }
                         else
                         {
@@ -677,41 +668,34 @@ namespace Rasa.Managers
                             vecV2A[1] /= vecV2ALen;
                             // use vector to calculate nearest melee point from our current position
                             var distance = 2.5f; // keep 2.5 meter distance
-                            pathTarget[0] = targetX + vecV2A[0] * distance;
-                            pathTarget[1] = targetY;
-                            pathTarget[2] = targetZ + vecV2A[1] * distance;
+                            pathTarget.X = targetPosition.X + vecV2A[0] * distance;
+                            pathTarget.Y = targetPosition.Y;
+                            pathTarget.Z = targetPosition.Z + vecV2A[1] * distance;
                         }
 
-                        var startPos = new float[3];
-                        var endPos = new float[3];
-                        startPos[0] = creature.Actor.Position.X;
-                        startPos[1] = creature.Actor.Position.Y;
-                        startPos[2] = creature.Actor.Position.Z;
-                        endPos[0] = pathTarget[0];
-                        endPos[1] = pathTarget[1];
-                        endPos[2] = pathTarget[2];
+                        var endPos = pathTarget;
+
                         creature.Controller.PathIndex = 0;
-                        creature.Controller.PathLength = 1;
-                        creature.Controller.Path = endPos;
+                        creature.Controller.Path.Add(endPos);
+
                         if (creature.Controller.Path == null)
                         {
                             Logger.WriteLog(LogType.Error, "Cannot find path");
                             return;
                         }
+
                         // also update path target variable (using creature position, not path target position)
-                        creature.Controller.ActionFighting.LockedTargetPosition[0] = targetX;
-                        creature.Controller.ActionFighting.LockedTargetPosition[1] = targetY;
-                        creature.Controller.ActionFighting.LockedTargetPosition[2] = targetZ;
+                        creature.Controller.ActionFighting.LockedTargetPosition = targetPosition;
                     }
                 }
                 // follow path
-                if (creature.Controller.PathIndex < creature.Controller.PathLength)
+                if (creature.Controller.PathIndex < creature.Controller.Path.Count)
                 {
                     // get distance
-                    var nextPathNodePos = creature.Controller.Path;
-                    var difX = nextPathNodePos[0] - creature.Actor.Position.X;
-                    var difY = nextPathNodePos[1] - creature.Actor.Position.Y;
-                    var difZ = nextPathNodePos[2] - creature.Actor.Position.Z;
+                    var nextPathNodePos = creature.Controller.Path[creature.Controller.PathIndex];
+                    var difX = nextPathNodePos.X - creature.Actor.Position.X;
+                    var difY = nextPathNodePos.Y - creature.Actor.Position.Y;
+                    var difZ = nextPathNodePos.Z - creature.Actor.Position.Z;
                     var dist = difX * difX + difZ * difZ;
                     var skipDetected = false;
 
@@ -719,9 +703,9 @@ namespace Rasa.Managers
                     {
                         UpdateEntityMovement(difX, difY, difZ, creature, mapChannel, creature.RunSpeed, true);
                         // on high movement speeds the movement steps can be large, check if creature didn't run too far
-                        difX = nextPathNodePos[0] - creature.Actor.Position.X;
-                        difY = nextPathNodePos[1] - creature.Actor.Position.Y;
-                        difZ = nextPathNodePos[2] - creature.Actor.Position.Z;
+                        difX = nextPathNodePos.X - creature.Actor.Position.X;
+                        difY = nextPathNodePos.Y - creature.Actor.Position.Y;
+                        difZ = nextPathNodePos.Z - creature.Actor.Position.Z;
 
                         var dist2 = difX * difX + difZ * difZ;
 
@@ -732,11 +716,8 @@ namespace Rasa.Managers
                     if (dist < 0.9f || skipDetected)
                     {
                         creature.Controller.PathIndex++; // goto next node
-                        if (creature.Controller.PathIndex >= creature.Controller.PathLength)
-                        {
-                            creature.Controller.PathLength = 0;
+                        if (creature.Controller.PathIndex >= creature.Controller.Path.Count)
                             creature.Controller.PathIndex = 0;
-                        }
                     }
                 }
             }//---fighting
@@ -753,12 +734,13 @@ namespace Rasa.Managers
                 action.CooldownTimer -= delta;
         }
 
-        private float GetDistanceSqr(float[] p1, float[] p2)
+        private double GetDistanceSqr(Vector3 p1, Vector3 p2)
         {
-            float dx = p1[0] - p2[0];
-            float dy = p1[1] - p2[1];
-            float dz = p1[2] - p2[2];
-            return dx * dx + dy * dy + dz * dz;
+            float dx = p2.X - p1.X;
+            float dy = p2.Y - p1.Y;
+            float dz = p2.Z - p1.Z;
+
+            return Math.Sqrt(dx * dx + dy * dy + dz * dz);
         }
 
         private void SetActionWander(Creature creature)
@@ -766,7 +748,6 @@ namespace Rasa.Managers
             creature.Controller.CurrentAction = BehaviorActionWander;
             creature.Controller.ActionWander.State = WanderIdle;
             creature.Controller.PathIndex = 0;
-            creature.Controller.PathLength = 0;
         }
 
         private void SetActionPathFollowing(Creature creature)

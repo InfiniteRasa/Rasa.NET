@@ -1,7 +1,9 @@
-﻿namespace Rasa.Structures
+﻿using System.Collections.Generic;
+using System.Numerics;
+
+namespace Rasa.Structures
 {
     using Data;
-    using Managers;
 
     public class BehaviorState
     {
@@ -11,10 +13,9 @@
         // combat info
         public long TimerPathUpdateLock = 5000; // avoids path-update-spamming for permanently moving units => ToDo: see to we need to increase or decrease value
         // path info
-        public float[] Path = new float[3 * BehaviorManager.PathLengthLimit]; // calculate path nodes
+        public List<Vector3> Path = new List<Vector3>(); // calculate path nodes
         // maybe we can optimize this to not waste as much memory?
-        public uint PathIndex { get; set; }     // the path node we are currently at
-        public uint PathLength { get; set; }    // how many nodes the current path has, 0 means no active path
+        public int PathIndex { get; set; }     // the path node we are currently at
         public AiPathFollowing AiPathFollowing = new AiPathFollowing();
         public ActionFighting ActionFighting = new ActionFighting();
         public ActionWander ActionWander = new ActionWander();
@@ -23,14 +24,14 @@
 
     public class ActionFighting
     {
-        public float[] LockedTargetPosition = new float[3];    // the creature position we are pathing to
+        public Vector3 LockedTargetPosition = new Vector3();    // the creature position we are pathing to
         public ulong TargetEntityId { get; set; }
     }
 
     public class ActionWander
     {
         public byte State { get; set; }
-        public float[] WanderDestination = new float[3];
+        public Vector3 WanderDestination = new Vector3();
     }
     
     public class AiPathFollowing
