@@ -12,6 +12,7 @@ namespace Rasa.Managers
 
     public class BehaviorManager
     {
+        public const byte WanderDistance = 20;
         public const byte PathLengthLimit = 72;
 
         private const byte PathModeOneShot  = 0; // creature will walk along the path once
@@ -54,133 +55,6 @@ namespace Rasa.Managers
         {
         }
 
-        // returns the distance moved
-        float UpdateEntityMovement(double difX, double difY, double difZ, Creature creature, MapChannel mapChannel, float speeddiv, bool isMoved)
-        {
-            var length = 1.0d / Math.Sqrt(difX * difX + difY * difY + difZ * difZ);
-            var velocity = 0.0f;
-            difX *= length;
-            difY *= length;
-            difZ *= length;
-            var vX = Math.Atan2(-difX, -difZ);
-
-            // multiplicate with speed
-            if (isMoved == true)
-                velocity = speeddiv;
-            else
-                velocity = 0.0f;
-            velocity /= 4.0f;
-            difX *= velocity;
-            difY *= velocity;
-            difZ *= velocity;
-
-            // move unit
-            if (isMoved == true)
-                creature.Actor.Position += new Vector3((float)difX, (float)difY, (float)difZ);
-
-            // send movement update
-            var movementData = new MovementData(creature.Actor.Position.X, creature.Actor.Position.Y, creature.Actor.Position.Z, (float)vX)
-            {
-                Flags = 0x08,
-                Velocity = velocity * 4.0f
-            };
-
-            CellManager.Instance.CellMoveObject(creature, movementData);
-
-            return velocity;
-        }
-
-        internal void MapChannelThink(MapChannel mapChannel, long delta)
-        {
-            PassedTime += delta;
-
-            if (PassedTime < 100)
-                return;
-
-            // creature deletion and update queue
-            var queue_creatureDeletion = new List<Creature>();
-            var queue_creatureCellUpdate = new List<Creature>();
-            // todo: When on heavy load, the server should increase the time between calls to
-            //       this function. (check player updating as a reference)
-
-            // mapChannel.MapCellInfo.Cells can be modified, so we create temp list;
-            var tempCells = mapChannel.MapCellInfo.Cells.ToList();
-
-            foreach (var entry in tempCells)
-            {
-                var mapCell = entry.Value;
-
-                if (mapCell == null) // should never happen, but still do a check for safety
-                    continue;
-                // creatures
-                if (mapCell.CreatureList.Count > 0)
-                {
-
-                    for (var f = 0; f < mapCell.CreatureList.Count; f++)
-                    {
-                        CreatureThink(mapChannel, mapCell.CreatureList[f], PassedTime, out var needDeletion, out var needCellUpdate); // update time hardcoded, see todo
-
-                        if (needDeletion)
-                            queue_creatureDeletion.Add(mapCell.CreatureList[f]);
-
-                        if (needCellUpdate) // update cell (even when creature is also deleted)
-                            queue_creatureCellUpdate.Add(mapCell.CreatureList[f]);
-
-                        // need to delete creature & we still have a free space in the deletion queue
-                        // not so nice hack to remove creatures from the map cell when creature_cellUpdateLocation is called
-                        /*std::swap(mapCell->ht_creatureList.at(f), mapCell->ht_creatureList.at(creatureCount-1));
-                        mapCell->ht_creatureList.pop_back();
-                        creatureCount = mapCell->ht_creatureList.size();
-                        if( creatureCount == 0 )
-                            break;
-                        creatureList = &mapCell->ht_creatureList[0];
-                        f--;*/
-                    }
-                }
-            }
-            
-            //update logic for creatures (same like for deletion below, moving creatures to different vectors is not good)
-            if (queue_creatureCellUpdate.Count > 0)
-            {
-                var creatureList = queue_creatureCellUpdate;
-                var creatureCount = queue_creatureCellUpdate.Count;
-                for (var f = 0; f < creatureCount; f++)
-                {
-                    // calculate new cell position
-                    var newLocX = (uint)((creatureList[f].Actor.Position.X / CellManager.CellSize) + CellManager.CellBias);
-                    var newLocZ = (uint)((creatureList[f].Actor.Position.Z / CellManager.CellSize) + CellManager.CellBias);
-
-                    CreatureManager.Instance.CellUpdateLocation(mapChannel, creatureList[f], newLocX, newLocZ);
-                }
-            }
-
-            // deletion logic for creatures (we have to do it here, since deleting creatures while iterating them is not so nice...)
-            // do we need to delete some creatures?
-            if (queue_creatureDeletion.Count > 0)
-            {
-                var creatureList = queue_creatureDeletion;
-                var creatureCount = queue_creatureDeletion.Count;
-
-                for (var f = 0; f < creatureCount; f++)
-                {
-                    // did the creature have an active loot dispenser?
-                    if (creatureList[f].LootDispenserObjectEntityId != 0)
-                    {
-                        var lootDispenserObject = EntityManager.Instance.GetObject(creatureList[f].LootDispenserObjectEntityId);
-
-                        if (lootDispenserObject != null)
-                            DynamicObjectManager.Instance.DynamicObjectDestroy(mapChannel, lootDispenserObject);
-
-                        creatureList[f].LootDispenserObjectEntityId = 0;
-                    }
-                    // remove creature from world
-                    CellManager.Instance.RemoveCreatureFromWorld(mapChannel, creatureList[f]);
-                }
-            }
-
-            PassedTime = 0;
-        }
-
         /// <CheckForAttackableEntityInRange>
         /// Checks for enemy creatures and players within the given range
         /// </CheckForAttackableEntityInRange>
@@ -188,7 +62,7 @@ namespace Rasa.Managers
         {
             var foundEntity_distance = range + 100.0f; // value that is guaranteed to be higher than the found creature
             var foundEntity_entityId = 0ul;
-            
+
             foreach (var cellSeed in creature.Actor.Cells)
             {
                 foreach (var client in mapChannel.MapCellInfo.Cells[cellSeed].ClientList)
@@ -248,15 +122,8 @@ namespace Rasa.Managers
                 SetActionFighting(creature, foundEntity_entityId);
                 return true;
             }
-            return false;
-        }
 
-        public void SetActionFighting(Creature creature, ulong targetEntityId)
-        {
-            creature.Controller.CurrentAction = BehaviorActionFighting;
-            creature.Controller.PathIndex = 0;
-            creature.Controller.ActionFighting.TargetEntityId = targetEntityId;
-            creature.LastAgression = 0;
+            return false;
         }
 
         /// <CreatureThink>
@@ -371,37 +238,8 @@ namespace Rasa.Managers
                         if (creature.WalkSpeed < 0.01f || creature.RunSpeed < 0.01f)
                             return; // creature doesn't wander
 
-                        // calc target
-                        var srndx = new Random().Next(3, 12);
-                        var srndz = new Random().Next(3, 12);
-
-                        char[] operators = { '+', '-' };
-                        char op = operators[new Random().Next(operators.Length)];
-                        char op1 = operators[new Random().Next(operators.Length)];
-
-                        switch (op)
-                        {
-                            case '+':
-                                creature.Controller.ActionWander.WanderDestination.X = creature.HomePos.Position.X + srndx;
-                                break;
-
-                            case '-':
-                                creature.Controller.ActionWander.WanderDestination.X = creature.HomePos.Position.X - srndx;
-                                break;
-                        }
-
-                        creature.Controller.ActionWander.WanderDestination.Y = creature.HomePos.Position.Y;
-
-                        switch (op1)
-                        {
-                            case '+':
-                                creature.Controller.ActionWander.WanderDestination.Z = creature.HomePos.Position.Z + srndz;
-                                break;
-
-                            case '-':
-                                creature.Controller.ActionWander.WanderDestination.Z = creature.HomePos.Position.Z - srndz;
-                                break;
-                        }
+                        // set destination
+                        creature.Controller.ActionWander.WanderDestination = GetDestiantion(creature);
 
                         // next step approaching
                         creature.Controller.ActionWander.State = WanderMoving;
@@ -491,11 +329,11 @@ namespace Rasa.Managers
                 var difY = currentTargetNodePos[1] - creature.Actor.Position.Y;
                 var difZ = currentTargetNodePos[2] - creature.Actor.Position.Z;
                 var dist = difX * difX + difZ * difZ;
-                
+
                 // wander target location reached
                 if (dist > 0.01f) // to avoid division by zero
                     UpdateEntityMovement(difX, difY, difZ, creature, mapChannel, creature.WalkSpeed, true);
-                
+
                 if (dist < 0.8f)
                 {
                     creature.Controller.AiPathFollowing.GeneralPathCurrentNodeIndex++; // goto next node
@@ -538,21 +376,21 @@ namespace Rasa.Managers
                     SetActionWander(creature);
                     return;
                 }
-                
+
                 // leave combat after 
                 if (creature.LastAgression > creature.AggressionTime)
                 {
                     SetActionWander(creature);
                     return;
                 }
-                
+
                 // get position of target
                 var targetPosition = new Vector3();
-                
+
                 if (target == EntityType.Player)
                 {
                     var mapClient = EntityManager.Instance.GetPlayer(creature.Controller.ActionFighting.TargetEntityId);
-                    
+
                     // if target dead, set wander state
                     if (mapClient.Player.Actor.Attributes[Attributes.Health].Current <= 0 || mapClient.Player.Actor.State == CharacterState.Dead)
                     {
@@ -562,7 +400,7 @@ namespace Rasa.Managers
 
                     targetPosition = mapClient.Player.Actor.Position;
                 }
-                
+
                 else if (target == EntityType.Creature)
                 {
                     var targetCreature = EntityManager.Instance.GetCreature(creature.Controller.ActionFighting.TargetEntityId);
@@ -723,15 +561,21 @@ namespace Rasa.Managers
             }//---fighting
         }
 
-        private void UpdateCreatureTimers(Creature creature, long delta)
+        private Vector3 GetDestiantion(Creature creature)
         {
-            creature.LastAgression += delta;
-            creature.LastRestTime += delta + new Random().Next(1, 100);
-            creature.Controller.TimerPathUpdateLock -= delta;
+            var dest = new Vector3();
 
-            // update cooldown timer of all actions
-            foreach (var action in creature.Actions)
-                action.CooldownTimer -= delta;
+            while (true)
+            {
+                var rndVector = GetRandomVector();
+                dest = creature.HomePos.Position + rndVector;
+                var distance = GetDistanceSqr(creature.Actor.Position, dest);
+
+                if (distance > WanderDistance / 3 && distance < WanderDistance)
+                    break;
+            }
+
+            return dest;
         }
 
         private double GetDistanceSqr(Vector3 p1, Vector3 p2)
@@ -743,13 +587,116 @@ namespace Rasa.Managers
             return Math.Sqrt(dx * dx + dy * dy + dz * dz);
         }
 
-        private void SetActionWander(Creature creature)
+        private Vector3 GetRandomVector()
         {
-            creature.Controller.CurrentAction = BehaviorActionWander;
-            creature.Controller.ActionWander.State = WanderIdle;
-            creature.Controller.PathIndex = 0;
-        }
+            var rnd1 = new Random().Next(1, WanderDistance);
+            var rnd2 = new Random().Next(1, WanderDistance);
+            var rndX = rnd1 * Math.Cos(Math.PI * 2 * rnd1 / rnd2);
+            var rndY = rnd2 * Math.Sin(Math.PI * 2 * rnd1 / rnd2);
+            var rndVector = new Vector3((float)rndX, 0.0f, (float)rndY);
 
+            return rndVector;
+        }
+        
+        public void MapChannelThink(MapChannel mapChannel, long delta)
+        {
+            PassedTime += delta;
+
+            if (PassedTime < 100)
+                return;
+
+            // creature deletion and update queue
+            var queue_creatureDeletion = new List<Creature>();
+            var queue_creatureCellUpdate = new List<Creature>();
+            // todo: When on heavy load, the server should increase the time between calls to
+            //       this function. (check player updating as a reference)
+
+            // mapChannel.MapCellInfo.Cells can be modified, so we create temp list;
+            var tempCells = mapChannel.MapCellInfo.Cells.ToList();
+
+            foreach (var entry in tempCells)
+            {
+                var mapCell = entry.Value;
+
+                if (mapCell == null) // should never happen, but still do a check for safety
+                    continue;
+                // creatures
+                if (mapCell.CreatureList.Count > 0)
+                {
+
+                    for (var f = 0; f < mapCell.CreatureList.Count; f++)
+                    {
+                        CreatureThink(mapChannel, mapCell.CreatureList[f], PassedTime, out var needDeletion, out var needCellUpdate); // update time hardcoded, see todo
+
+                        if (needDeletion)
+                            queue_creatureDeletion.Add(mapCell.CreatureList[f]);
+
+                        if (needCellUpdate) // update cell (even when creature is also deleted)
+                            queue_creatureCellUpdate.Add(mapCell.CreatureList[f]);
+
+                        // need to delete creature & we still have a free space in the deletion queue
+                        // not so nice hack to remove creatures from the map cell when creature_cellUpdateLocation is called
+                        /*std::swap(mapCell->ht_creatureList.at(f), mapCell->ht_creatureList.at(creatureCount-1));
+                        mapCell->ht_creatureList.pop_back();
+                        creatureCount = mapCell->ht_creatureList.size();
+                        if( creatureCount == 0 )
+                            break;
+                        creatureList = &mapCell->ht_creatureList[0];
+                        f--;*/
+                    }
+                }
+            }
+            
+            //update logic for creatures (same like for deletion below, moving creatures to different vectors is not good)
+            if (queue_creatureCellUpdate.Count > 0)
+            {
+                var creatureList = queue_creatureCellUpdate;
+                var creatureCount = queue_creatureCellUpdate.Count;
+                for (var f = 0; f < creatureCount; f++)
+                {
+                    // calculate new cell position
+                    var newLocX = (uint)((creatureList[f].Actor.Position.X / CellManager.CellSize) + CellManager.CellBias);
+                    var newLocZ = (uint)((creatureList[f].Actor.Position.Z / CellManager.CellSize) + CellManager.CellBias);
+
+                    CreatureManager.Instance.CellUpdateLocation(mapChannel, creatureList[f], newLocX, newLocZ);
+                }
+            }
+
+            // deletion logic for creatures (we have to do it here, since deleting creatures while iterating them is not so nice...)
+            // do we need to delete some creatures?
+            if (queue_creatureDeletion.Count > 0)
+            {
+                var creatureList = queue_creatureDeletion;
+                var creatureCount = queue_creatureDeletion.Count;
+
+                for (var f = 0; f < creatureCount; f++)
+                {
+                    // did the creature have an active loot dispenser?
+                    if (creatureList[f].LootDispenserObjectEntityId != 0)
+                    {
+                        var lootDispenserObject = EntityManager.Instance.GetObject(creatureList[f].LootDispenserObjectEntityId);
+
+                        if (lootDispenserObject != null)
+                            DynamicObjectManager.Instance.DynamicObjectDestroy(mapChannel, lootDispenserObject);
+
+                        creatureList[f].LootDispenserObjectEntityId = 0;
+                    }
+                    // remove creature from world
+                    CellManager.Instance.RemoveCreatureFromWorld(mapChannel, creatureList[f]);
+                }
+            }
+
+            PassedTime = 0;
+        }
+        
+        private void SetActionFighting(Creature creature, ulong targetEntityId)
+        {
+            creature.Controller.CurrentAction = BehaviorActionFighting;
+            creature.Controller.PathIndex = 0;
+            creature.Controller.ActionFighting.TargetEntityId = targetEntityId;
+            creature.LastAgression = 0;
+        }
+        
         private void SetActionPathFollowing(Creature creature)
         {
             creature.Controller.CurrentAction = BehaviorActionFollowingPath;
@@ -759,6 +706,60 @@ namespace Rasa.Managers
 
             Logger.WriteLog(LogType.AI, $"path 0{creature.Controller.AiPathFollowing.RandomPathNodeBiasXZ[0]}");
             Logger.WriteLog(LogType.AI, $"path 1{creature.Controller.AiPathFollowing.RandomPathNodeBiasXZ[1]}");
+        }
+
+        private void SetActionWander(Creature creature)
+        {
+            creature.Controller.CurrentAction = BehaviorActionWander;
+            creature.Controller.ActionWander.State = WanderIdle;
+            creature.Controller.PathIndex = 0;
+        }
+
+        private void UpdateCreatureTimers(Creature creature, long delta)
+        {
+            creature.LastAgression += delta;
+            creature.LastRestTime += delta + new Random().Next(1, 100);
+            creature.Controller.TimerPathUpdateLock -= delta;
+
+            // update cooldown timer of all actions
+            foreach (var action in creature.Actions)
+                action.CooldownTimer -= delta;
+        }
+        
+        // returns the distance moved
+        float UpdateEntityMovement(double difX, double difY, double difZ, Creature creature, MapChannel mapChannel, float speeddiv, bool isMoved)
+        {
+            var length = 1.0d / Math.Sqrt(difX * difX + difY * difY + difZ * difZ);
+            var velocity = 0.0f;
+            difX *= length;
+            difY *= length;
+            difZ *= length;
+            var vX = Math.Atan2(-difX, -difZ);
+
+            // multiplicate with speed
+            if (isMoved == true)
+                velocity = speeddiv;
+            else
+                velocity = 0.0f;
+            velocity /= 4.0f;
+            difX *= velocity;
+            difY *= velocity;
+            difZ *= velocity;
+
+            // move unit
+            if (isMoved == true)
+                creature.Actor.Position += new Vector3((float)difX, (float)difY, (float)difZ);
+
+            // send movement update
+            var movementData = new MovementData(creature.Actor.Position.X, creature.Actor.Position.Y, creature.Actor.Position.Z, (float)vX)
+            {
+                Flags = 0x08,
+                Velocity = velocity * 4.0f
+            };
+
+            CellManager.Instance.CellMoveObject(creature, movementData);
+
+            return velocity;
         }
     }
 }
