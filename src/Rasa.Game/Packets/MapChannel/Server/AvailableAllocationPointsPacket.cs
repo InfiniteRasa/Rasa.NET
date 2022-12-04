@@ -10,7 +10,14 @@
         public int AvailableAttributePoints { get; set; }
         public int TrainPoints { get; set; }        // not used by client??
         public int AvailableSkillPoints { get; set; }
-        
+
+        public AvailableAllocationPointsPacket(int availableAttributePoints, int trainPoints, int availableSkillPoints)
+        {
+            AvailableAttributePoints = availableAttributePoints;
+            TrainPoints = trainPoints;
+            AvailableSkillPoints = availableSkillPoints;
+        }
+
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(3);

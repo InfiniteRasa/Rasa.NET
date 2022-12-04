@@ -20,6 +20,8 @@ namespace Rasa.Database.Tables.Character
         private static readonly MySqlCommand UpdateCharacterActiveWeaponCommand = new MySqlCommand("UPDATE `character` SET `active_weapon` = @ActiveWeapon WHERE `id` = @Id");
         private static readonly MySqlCommand UpdateCharacterCloneCreditsCommand = new MySqlCommand("UPDATE `character` SET `clone_credits` = @CloneCredits WHERE `id` = @Id");
         private static readonly MySqlCommand UpdateCharacterCreditsCommand = new MySqlCommand("UPDATE `character` SET `credits` = @Credits WHERE `id` = @Id");
+        private static readonly MySqlCommand UpdateCharacterExperienceCommand = new MySqlCommand("UPDATE `character` SET `experience` = @Experience WHERE `id` = @Id");
+        private static readonly MySqlCommand UpdateCharacterLevelCommand = new MySqlCommand("UPDATE `character` SET `level` = @Level WHERE `id` = @Id");
         private static readonly MySqlCommand UpdateCharacterLocationCommand = new MySqlCommand("UPDATE `character` SET `map_context_id` = @MapContextId, `coord_x` = @CoordX, `coord_y` = @CoordY, `coord_z` = @CoordZ, `orientation` = @Orientation WHERE `id` = @Id");
         private static readonly MySqlCommand UpdateCharacterLoginCommand = new MySqlCommand("UPDATE `character` SET `num_logins` = @NumLogins, `last_login` = NOW(), `total_time_played` = @TotalTimePlayed WHERE `id` = @Id");
         
@@ -92,6 +94,16 @@ namespace Rasa.Database.Tables.Character
             UpdateCharacterCreditsCommand.Parameters.Add("@Id", MySqlDbType.UInt32);
             UpdateCharacterCreditsCommand.Parameters.Add("@Credits", MySqlDbType.Int32);
             UpdateCharacterCreditsCommand.Prepare();
+
+            UpdateCharacterExperienceCommand.Connection = GameDatabaseAccess.CharConnection;
+            UpdateCharacterExperienceCommand.Parameters.Add("@Id", MySqlDbType.UInt32);
+            UpdateCharacterExperienceCommand.Parameters.Add("@Experience", MySqlDbType.Int32);
+            UpdateCharacterExperienceCommand.Prepare();
+
+            UpdateCharacterLevelCommand.Connection = GameDatabaseAccess.CharConnection;
+            UpdateCharacterLevelCommand.Parameters.Add("@Id", MySqlDbType.UInt32);
+            UpdateCharacterLevelCommand.Parameters.Add("@Level", MySqlDbType.Int32);
+            UpdateCharacterLevelCommand.Prepare();
 
             UpdateCharacterLocationCommand.Connection = GameDatabaseAccess.CharConnection;
             UpdateCharacterLocationCommand.Parameters.Add("@Id", MySqlDbType.UInt32);
@@ -288,6 +300,26 @@ namespace Rasa.Database.Tables.Character
                 UpdateCharacterCreditsCommand.Parameters["@Id"].Value = characterId;
                 UpdateCharacterCreditsCommand.Parameters["@Credits"].Value = credits;
                 UpdateCharacterCreditsCommand.ExecuteNonQuery();
+            }
+        }
+
+        public static void UpdateCharacterExpirience(uint characterId, int experience)
+        {
+            lock (GameDatabaseAccess.CharLock)
+            {
+                UpdateCharacterExperienceCommand.Parameters["@Id"].Value = characterId;
+                UpdateCharacterExperienceCommand.Parameters["@Experience"].Value = experience;
+                UpdateCharacterExperienceCommand.ExecuteNonQuery();
+            }
+        }
+
+        public static void UpdateCharacterLevel(uint characterId, byte level)
+        {
+            lock (GameDatabaseAccess.CharLock)
+            {
+                UpdateCharacterLevelCommand.Parameters["@Id"].Value = characterId;
+                UpdateCharacterLevelCommand.Parameters["@Level"].Value = level;
+                UpdateCharacterLevelCommand.ExecuteNonQuery();
             }
         }
 

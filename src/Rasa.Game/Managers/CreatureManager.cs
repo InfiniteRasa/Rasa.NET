@@ -94,21 +94,21 @@ namespace Rasa.Managers
                         client = tempClient;
                         break;
                     }
-            
+
             if (client != null)
             {
                 // give experience
                 var experience = creature.Level * 100; // base experience
                 var experienceRange = creature.Level * 10;
                 experience += ((new Random().Next() % (experienceRange * 2 + 1)) - experienceRange);
-                
-                // todo: Depending on level difference reduce experience
-                //ManifestationManager.Instance.GainExperience(client, experience);
 
-                // spawn loot
-                //var lootDispenserObject = LootDispenserManager.instance.CreateLootObject(mapChannel, creature, client);
-                //creature.LootDispenserObjectEntityId = lootDispenserObject.EntityId;
+                // todo: Depending on level difference reduce experience
+                ManifestationManager.Instance.GainExperience(client, experience);
             }
+
+            // spawn loot
+            //var lootDispenserObject = LootDispenserManager.instance.CreateLootObject(mapChannel, creature, client);
+            //creature.LootDispenserObjectEntityId = lootDispenserObject.EntityId;
         }
 
         public Creature CreateCreature(uint dbId, SpawnPool spawnPool)

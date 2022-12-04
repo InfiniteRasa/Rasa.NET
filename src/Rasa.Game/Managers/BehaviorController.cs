@@ -689,7 +689,7 @@ namespace Rasa.Managers
             PassedTime = 0;
         }
         
-        private void SetActionFighting(Creature creature, ulong targetEntityId)
+        public void SetActionFighting(Creature creature, ulong targetEntityId)
         {
             creature.Controller.CurrentAction = BehaviorActionFighting;
             creature.Controller.PathIndex = 0;

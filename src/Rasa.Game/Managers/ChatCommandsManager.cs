@@ -81,6 +81,7 @@ namespace Rasa.Managers
             RegisterCommand(".getdistance", GetDistanceCommand);
             RegisterCommand(".giveitem", GiveItemCommand);
             RegisterCommand(".givelogos", GiveLogosCommand);
+            RegisterCommand(".givexp", GiveXpCommand);
             RegisterCommand(".gm", EnterGmModCommand);
             RegisterCommand(".forcestate", ForceStateCommand);
             RegisterCommand(".help", HelpGmCommand);
@@ -283,7 +284,7 @@ namespace Rasa.Managers
                 return;
             }
         }
-
+        
         private void GiveItemCommand(string[] parts)
         {
             if (parts.Length == 1)
@@ -322,6 +323,19 @@ namespace Rasa.Managers
             if (parts.Length == 2)
                 if (int.TryParse(parts[1], out int logosId))
                     CharacterManager.Instance.UpdateCharacter(_client, CharacterUpdate.Logos, logosId);
+
+            return;
+        }
+
+        private void GiveXpCommand(string[] parts)
+        {
+            if (parts.Length == 2)
+            {
+                if (int.TryParse(parts[1], out int xp))
+                    ManifestationManager.Instance.GainExperience(_client, xp);
+            }
+            else
+                CommunicatorManager.Instance.SystemMessage(_client, "usage: .givexp ammount");
 
             return;
         }

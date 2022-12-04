@@ -14,7 +14,7 @@ namespace Rasa.Structures
         public double Scale { get; set; }
         public int Race { get; set; }
         public uint Class { get; set; }
-        public uint Experience { get; set; }
+        public int Experience { get; set; }
         public byte Level { get; set; }
         public uint CloneCredits { get; set; }
         public uint NumLogins { get; set; }

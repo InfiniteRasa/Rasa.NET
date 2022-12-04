@@ -14,7 +14,7 @@ namespace Rasa.Structures
         public uint Class { get; set; }
         public byte Gender { get; set; }
         public double Scale { get; set; }
-        public uint Experience { get; set; }
+        public int Experience { get; set; }
         public byte Level { get; set; }
         public int Body { get; set; }
         public int Mind { get; set; }
@@ -51,7 +51,7 @@ namespace Rasa.Structures
                 Class = reader.GetUInt32("class"),
                 Gender = (byte)(reader.GetBoolean("gender") ? 1 : 0),
                 Scale = reader.GetDouble("scale"),
-                Experience = reader.GetUInt32("experience"),
+                Experience = reader.GetInt32("experience"),
                 Level = reader.GetByte("level"),
                 Body = reader.GetInt32("body"),
                 Mind = reader.GetInt32("mind"),

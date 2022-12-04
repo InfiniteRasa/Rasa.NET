@@ -8,10 +8,12 @@ namespace Rasa.Managers
     using Game;
     using Packets;
     using Packets.Communicator.Server;
+    using Packets.Manifestation.Server;
     using Packets.MapChannel.Client;
     using Packets.MapChannel.Server;
     using Packets.Game.Server;
     using Structures;
+    using Rasa.Extensions;
 
     public class ManifestationManager
     {
@@ -96,6 +98,7 @@ namespace Rasa.Managers
         private static ManifestationManager _instance;
         private static readonly object InstanceLock = new object();
         private static List<AutoFireTimer> AutoFire = new List<AutoFireTimer>();
+        public static byte MaxPlayerLevel = 50;
 
         public static ManifestationManager Instance
         {
@@ -535,6 +538,58 @@ namespace Rasa.Managers
             return entityData;
         }
 
+        internal void GainExperience(Client client, int experience)
+        {
+            if (client.Player.Level >= MaxPlayerLevel)
+                return; // cannot gain xp over level 50
+
+            client.Player.Experience += experience;
+
+            CharacterManager.Instance.UpdateCharacter(client, CharacterUpdate.Expirience, client.Player.Experience);
+
+            var xpInfo = new XPInfo(client.Player.Experience, experience, experience);
+
+            client.CallMethod(client.Player.Actor.EntityId, new ExperienceChangedPacket(xpInfo));
+
+            // check for level up
+            while (client.Player.Level < MaxPlayerLevel)
+            {
+                var xpForLevelUp = GetLevelNeededExperience(client.Player.Level);
+                
+                if (xpForLevelUp == -1)
+                    break;
+
+                if (client.Player.Experience >= xpForLevelUp)
+                {
+                    // level up
+                    client.Player.Level++;
+
+                    // update database
+                    CharacterManager.Instance.UpdateCharacter(client, CharacterUpdate.Level);
+
+                    // update client
+                    client.CallMethod(client.Player.Actor.EntityId, new LevelUpPacket(client.Player.Level));
+
+                    var msgArg = new Dictionary<string, string>
+                    {
+                        { "level", client.Player.Level.ToString() },
+                        { "attributePts", GetAvailableAttributePoints(client.Player).ToString() },  // todo: send correct number of new attribute points
+                        { "skillPts", GetSkillPointsAvailable(client.Player).ToString() }           // todo: send correct number of new skill points
+                    };
+
+                    client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(PlayerMessage.PmLevelIncreased, msgArg, MsgFilterId.LeveledUp));
+
+                    // todo: For all others send Recv_setLevel() to update level display for this player
+                    // update stats
+                    UpdateStatsValues(client, true);
+                    client.CallMethod(client.Player.Actor.EntityId, new AttributeInfoPacket(client.Player.Actor.Attributes));
+                    SendAvailableAllocationPoints(client);
+                }
+                else
+                    break;
+            }
+        }
+
         public void GainCredits(Client client, int credits)
         {
             CharacterManager.Instance.UpdateCharacter(client, CharacterUpdate.Credits, credits);
@@ -568,6 +623,14 @@ namespace Rasa.Managers
                 { 3812, 60 }
             };
             client.CallMethod(SysEntity.ClientMethodId, new CustomizationChoicesPacket(packet.EntityId, testChoices));
+        }
+
+        private int GetLevelNeededExperience(int level)
+        {
+            if (level < 1 || level >= 50)
+                return -1;
+
+            return ExpPerLevel.ExpRequred[level];
         }
 
         public int GetSkillIndexById(int skillId)
@@ -637,12 +700,7 @@ namespace Rasa.Managers
             // set abilities
             client.CallMethod(mapClient.Player.Actor.EntityId, new AbilitiesPacket(mapClient.Player.Skills));   // ToDo
             // update allocation points
-            client.CallMethod(mapClient.Player.Actor.EntityId, new AvailableAllocationPointsPacket
-            {
-                AvailableAttributePoints = GetAvailableAttributePoints(mapClient.Player),
-                TrainPoints = 0,        // not used?
-                AvailableSkillPoints = GetSkillPointsAvailable(mapClient.Player)
-            });
+            SendAvailableAllocationPoints(client);
             // update database with new character skills
             foreach (var skill in skillLevelupArray)
                 CharacterSkillsTable.UpdateCharacterSkill(client.AccountEntry.Id, client.AccountEntry.SelectedSlot, mapClient.Player.Skills[skill.Key].SkillId, mapClient.Player.Skills[skill.Key].SkillLevel);
@@ -794,6 +852,17 @@ namespace Rasa.Managers
             UserOptionsTable.DeleteUserOptions(client.AccountEntry.Id);
             UserOptionsTable.AddUserOption(value + ";");
 
+        }
+
+        internal void SendAvailableAllocationPoints(Client client)
+        {
+            // update available allocation points (attributes, trainPts, skillPts)
+
+            var attributePoints = GetAvailableAttributePoints(client.Player);
+            var trainPoints = 0;    // not used by te client
+            var skillPoints = GetSkillPointsAvailable(client.Player);
+
+            client.CallMethod(client.Player.Actor.EntityId, new AvailableAllocationPointsPacket(attributePoints, trainPoints, skillPoints));
         }
 
         public void SetAppearanceItem(Client client, Item item)
@@ -990,7 +1059,7 @@ namespace Rasa.Managers
             // send data to client
             client.CellCallMethod(client, client.MapClient.Player.Actor.EntityId, new PerformRecoveryPacket(PerformType.ThreeArgs, action.ActionId, action.ActionArgId, foundAmmo));
         }
-        
+
         #endregion
     }
 }

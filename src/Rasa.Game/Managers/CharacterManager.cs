@@ -392,9 +392,11 @@ namespace Rasa.Managers
                     break;
 
                 case CharacterUpdate.Expirience:
+                    CharacterTable.UpdateCharacterExpirience(client.MapClient.Player.CharacterId, client.MapClient.Player.Experience);
                     break;
 
                 case CharacterUpdate.Level:
+                    CharacterTable.UpdateCharacterLevel(client.MapClient.Player.CharacterId, client.MapClient.Player.Level);
                     break;
 
                 case CharacterUpdate.Login:
