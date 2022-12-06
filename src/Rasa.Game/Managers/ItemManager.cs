@@ -46,7 +46,7 @@ namespace Rasa.Managers
         {
         }
 
-        public Item CreateFromTemplateId(uint itemTemplateId, uint stackSize, string crafter)
+        public Item CreateFromTemplateId(uint itemTemplateId, uint stackSize, string crafter = "")
         {
             var itemTemplate = GetItemTemplateById(itemTemplateId);
             if (itemTemplate == null)

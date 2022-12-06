@@ -107,8 +107,8 @@ namespace Rasa.Managers
             }
 
             // spawn loot
-            //var lootDispenserObject = LootDispenserManager.instance.CreateLootObject(mapChannel, creature, client);
-            //creature.LootDispenserObjectEntityId = lootDispenserObject.EntityId;
+            if (killedBy != null && client != null)
+                LootDispenserManager.Instance.Loot(client, creature);
         }
 
         public Creature CreateCreature(uint dbId, SpawnPool spawnPool)

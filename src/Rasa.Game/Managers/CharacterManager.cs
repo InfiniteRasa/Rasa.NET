@@ -381,7 +381,7 @@ namespace Rasa.Managers
                     var ammount = (int)value;
 
                     if (ammount < 0)
-                        client.MapClient.Player.Credits[CurencyType.Credits] -= (int)Math.Abs(ammount);
+                        client.MapClient.Player.Credits[CurencyType.Credits] -= Math.Abs(ammount);
                     else
                         client.MapClient.Player.Credits[CurencyType.Credits] += ammount;
                     

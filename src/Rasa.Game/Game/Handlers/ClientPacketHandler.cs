@@ -8,6 +8,7 @@
     using Packets.Communicator.Both;
     using Packets.Communicator.Client;
     using Packets.Inventory.Client;
+    using Packets.LootDispenser.Client;
     using Packets.Party.Both;
     using Packets.Party.Client;
     using Packets.Social.Client;
@@ -708,6 +709,20 @@
             InventoryManager.Instance.WeaponDrawerInventory_MoveItem(Client, packet);
         }
 
+        #endregion
+
+        #region LootDispenser
+        [PacketHandler(GameOpcode.RequestCorpseLooting)]
+        private void RequestCorpseLooting(RequestCorpseLootingPacket packet)
+        {
+            LootDispenserManager.Instance.RequestCorpseLooting(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.RequestLootAllFromCorpse)]
+        private void RequestLootAllFromCorpse(RequestLootAllFromCorpsePacket packet)
+        {
+            LootDispenserManager.Instance.RequestLootAllFromCorpse(Client, packet);
+        }
         #endregion
 
         #region Party

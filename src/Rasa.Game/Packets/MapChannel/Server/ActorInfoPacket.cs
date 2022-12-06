@@ -57,8 +57,11 @@ namespace Rasa.Packets.MapChannel.Server
         {
             pw.WriteTuple(6);
             pw.WriteList(StateIds.Count);
-            foreach(var state in StateIds)
+            foreach (var state in StateIds)
+            {
+                pw.WriteTuple(1);
                 pw.WriteInt((int)state);            // stateIds
+            }
             pw.WriteDouble(Yaw);                    // yaw
             pw.WriteULong(TrackingTarget);          // trackingTarget
             pw.WriteDouble(MovementMode);           // movementMod
