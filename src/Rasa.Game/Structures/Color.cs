@@ -30,6 +30,11 @@ namespace Rasa.Structures
             Alpha = alpha;
         }
 
+        public static Color RandomColor()
+        {
+            return new Color((byte)new Random().Next(0,255), (byte)new Random().Next(0, 255), (byte)new Random().Next(0, 255));
+        }
+
         public void Read(PythonReader pr)
         {
             var size = pr.ReadTuple();

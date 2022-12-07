@@ -37,6 +37,7 @@ namespace Rasa.Structures
         public BaseBehaviorBaseNode Pathnodes { get; set; } //--entity patrol nodes
         //sint32** aggrotable; //stores enemydamage
         //sint32 aggrocount;
+        public double Scale = 1.0d;
         // origin
         public SpawnPool SpawnPool { get; set; }    // the spawnpool that initiated the creation of this creature
         // behavior controller

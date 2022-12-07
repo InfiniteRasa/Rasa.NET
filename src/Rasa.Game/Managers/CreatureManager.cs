@@ -205,11 +205,16 @@ namespace Rasa.Managers
             if (creature == null)
                 return;
 
+            // random colors for now
+            var hue = Color.RandomColor();
+            var hue2 = Color.RandomColor();
+
             var entityData = new List<PythonPacket>
             {
                 // PhysicalEntity
                 new IsTargetablePacket(EntityClassManager.Instance.GetClassInfo((EntityClassId)EntityManager.Instance.GetEntityClassId(creature.Actor.EntityId)).TargetFlag),
                 new WorldLocationDescriptorPacket(creature.Actor.Position, creature.Actor.Orientation),
+                new BodyAttributesPacket(creature.Scale, hue, 0, 0, hue2),
                 // Creature augmentation
                 new CreatureInfoPacket(creature.NameId, false, new List<int>()),    // ToDo add creature flags
                 // Actor augmentation

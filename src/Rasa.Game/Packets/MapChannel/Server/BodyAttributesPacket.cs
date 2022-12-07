@@ -2,18 +2,19 @@
 {
     using Data;
     using Memory;
+    using Rasa.Structures;
 
     public class BodyAttributesPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.BodyAttributes;
 
         public double Scale { get; set; }
-        public uint Hue { get; set; }
-        public bool IgnoreABVs { get; set; }
-        public bool IgnoreWS { get; set; }      // WS is WalkableSurfaces
-        public uint Hue2 { get; set; }
+        public Color Hue { get; set; }
+        public int IgnoreABVs { get; set; }
+        public int IgnoreWS { get; set; }      // WS is WalkableSurfaces
+        public Color Hue2 { get; set; }
 
-        public BodyAttributesPacket(double scale, uint hue, bool ignoreABVs, bool ignoreWS, uint hue2)
+        public BodyAttributesPacket(double scale, Color hue, int ignoreABVs, int ignoreWS, Color hue2)
         {
             Scale = scale;
             Hue = hue;
@@ -26,10 +27,10 @@
         {
             pw.WriteTuple(5);
             pw.WriteDouble(Scale);
-            pw.WriteUInt(Hue);
-            pw.WriteBool(IgnoreABVs);
-            pw.WriteBool(IgnoreWS);
-            pw.WriteUInt(Hue2);
+            pw.WriteStruct(Hue);
+            pw.WriteInt(1);     // ToDo : IgnoreABVs unknown
+            pw.WriteInt(1);     // ToDo : IgnoreWS unknown
+            pw.WriteStruct(Hue2);
         }
     }
 }
