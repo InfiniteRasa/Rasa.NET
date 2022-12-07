@@ -10,6 +10,7 @@ namespace Rasa.Structures
         public EquipmentData SlotId { get; set; }
         public EntityClassId Class { get; set; }
         public Color Color { get; set; }
+        public Color Hue2 { get; set; }
 
         public AppearanceData()
         {
@@ -21,6 +22,7 @@ namespace Rasa.Structures
             SlotId = (EquipmentData) entry.Slot;
             Class = (EntityClassId)entry.Class;
             Color = new Color(entry.Color);
+            Hue2 = new Color(2139062144);     // ToDO: get and save hue2 to database
         }
 
         public void Read(PythonReader pr)

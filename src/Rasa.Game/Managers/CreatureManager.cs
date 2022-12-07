@@ -287,7 +287,7 @@ namespace Rasa.Managers
 
                 if (appearanceData != null && appearanceData.Count > 0)
                     foreach (var t in appearanceData)
-                        tempAppearanceData.Add((EquipmentData)t.Slot, new AppearanceData { SlotId = (EquipmentData)t.Slot, Class = (EntityClassId)t.Class, Color = new Color(t.Color) });
+                        tempAppearanceData.Add((EquipmentData)t.Slot, new AppearanceData { SlotId = (EquipmentData)t.Slot, Class = (EntityClassId)t.Class, Color = new Color(t.Color), Hue2 = new Color(2139062144) });
 
                 // load Creature Actions
                 if (data.Action1 != 0)

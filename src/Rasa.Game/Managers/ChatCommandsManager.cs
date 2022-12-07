@@ -528,7 +528,7 @@ namespace Rasa.Managers
                                 if (!creature.AppearanceData.ContainsKey(slotId))
                                 {
                                     // new appearance
-                                    creature.AppearanceData.Add(slotId, new AppearanceData { SlotId = slotId, Class = classId, Color = new Color(color) });
+                                    creature.AppearanceData.Add(slotId, new AppearanceData { SlotId = slotId, Class = classId, Color = new Color(color), Hue2 = new Color(2139062144) });
                                     newAppearance = true;
                                 }
                                 if (classId < 0) // update only color of slot item
