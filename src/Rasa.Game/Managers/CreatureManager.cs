@@ -63,7 +63,42 @@ namespace Rasa.Managers
             foreach (var creature in creaturList)
                 CreateCreatureOnClient(client, creature);
         }
+        
+        private void GiveWeapon(Creature creature)
+        {
+            var haveWeapon = creature.AppearanceData.ContainsKey(EquipmentData.Weapon);
 
+            if (!haveWeapon)
+            {
+                var weapon = new AppearanceData();
+
+                weapon.SlotId = EquipmentData.Weapon;
+                weapon.Color = Color.RandomColor();
+                weapon.Hue2 = Color.RandomColor();
+
+                switch (creature.EntityClassId)
+                {
+                    case (EntityClassId)20757:
+                        weapon.Class = (EntityClassId)3878;
+                        break;
+                    case (EntityClassId)9244:
+                        weapon.Class = (EntityClassId)3782;
+                        break;
+                    case (EntityClassId)3846:
+                        weapon.Class = (EntityClassId)27131;
+                        break;
+                    case (EntityClassId)3848:
+                        weapon.Class = (EntityClassId)6443;
+                        break;
+                    default:
+                        return;
+                }
+
+                creature.AppearanceData.Add(EquipmentData.Weapon, weapon);
+                UpdateCreatureAppearance(creature);
+            }
+        }
+        
         internal void HandleCreatureKill(MapChannel mapChannel, Creature creature, Actor killedBy)
         {
             if (creature.Actor.State == CharacterState.Dead)
@@ -235,9 +270,12 @@ namespace Rasa.Managers
             // send inital movement packet
             var movementData = new Memory.MovementData(creature.Actor.Position.X + 1, creature.Actor.Position.Y, creature.Actor.Position.Z + 1, creature.Actor.Orientation);
 
+            // give some weapon to creature's
+            GiveWeapon(creature);
+
             client.MoveObject(creature.Actor.EntityId, movementData);
         }
-
+        
         public Creature FindCreature(uint creatureId)
         {
             return LoadedCreatures[creatureId];
@@ -406,6 +444,12 @@ namespace Rasa.Managers
             //memset(creature->pathnodes, 0x00, sizeof(baseBehavior_baseNode));
             //creature->lastattack = GetTickCount();
             //creature->lastresttime = GetTickCount();
+        }
+
+        public void UpdateCreatureAppearance(Creature creature)
+        {
+            var mapChannel = MapChannelManager.Instance.MapChannelArray[creature.Actor.MapContextId];
+            CellManager.Instance.CellCallMethod(mapChannel, creature.Actor, new AppearanceDataPacket(creature.AppearanceData));
         }
     }
 }
