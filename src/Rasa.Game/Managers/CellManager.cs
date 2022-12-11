@@ -214,6 +214,11 @@ namespace Rasa.Managers
             if (dynObject == null)
                 return;
 
+            // unregister object entity
+            EntityManager.Instance.UnregisterEntity(dynObject.EntityId);
+            EntityManager.Instance.UnregisterDynamicObject(dynObject.EntityId);
+            EntityManager.Instance.FreeEntity(dynObject.EntityId);
+
             var cellX = (uint)((dynObject.Position.X / CellSize) + CellBias);
             var cellZ = (uint)((dynObject.Position.Z / CellSize) + CellBias);
             var cellMatrix = CreateCellMatrix(mapChannel, cellX, cellZ);

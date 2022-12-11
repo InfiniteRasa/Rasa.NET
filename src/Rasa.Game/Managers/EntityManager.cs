@@ -202,6 +202,11 @@ namespace Rasa.Managers
             DynamicObjects.Add(dynamicObject.EntityId, dynamicObject);
         }
 
+        internal void UnregisterDynamicObject(ulong entityId)
+        {
+            DynamicObjects.Remove(entityId);
+        }
+
         // Players
         public MapChannelClient GetPlayer(ulong entityId)
         {
@@ -244,6 +249,5 @@ namespace Rasa.Managers
         {
             // ToDO
         }
-
     }
 }
