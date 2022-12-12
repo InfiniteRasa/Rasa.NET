@@ -6,7 +6,6 @@ namespace Rasa.Managers
 {
     using Data;
     using Database.Tables.World;
-    using Packets.MapChannel.Server;
     using Structures;
 
     public class SpawnPoolManager
@@ -137,7 +136,7 @@ namespace Rasa.Managers
                 var totalCreaturesActive = spawnPool.AliveCreatures + spawnPool.QueuedCreatures;
 
                 if (totalCreaturesActive > 0)
-                   continue; // there is still active creatures
+                    continue; // there is still active creatures
 
                 spawnPool.UpdateTimer += timePassed;
 
@@ -149,7 +148,7 @@ namespace Rasa.Managers
 
                 foreach (var spawnSlot in spawnPool.SpawnSlot)
                 {
-                    var spawnCreatureCount = new Random().Next(spawnSlot.CountMin, spawnSlot.CountMax);
+                    var spawnCreatureCount = new Random().Next(spawnSlot.CountMin, spawnSlot.CountMax + 1);
 
                     for (var i = 0; i < spawnCreatureCount; i++)
                         creatureList.Add(CreatureManager.Instance.FindCreature(spawnSlot.CreatureId));
@@ -176,25 +175,7 @@ namespace Rasa.Managers
                         //if (spawnPool->pathCount > 0)
                         //creature.Controller.aiPathFollowing.generalPath = spawnPool->pathList[rand() % spawnPool->pathCount]; // select random path
 
-                        // no random location if we spawn only one creature
-                        if (creatureList.Count == 1)
-                            CreatureManager.Instance.SetLocation(
-                                creature,
-                                new Vector3(
-                                    spawnPool.HomePosition.X,
-                                    spawnPool.HomePosition.Y,
-                                    spawnPool.HomePosition.Z),
-                                spawnPool.HomeOrientation,
-                                spawnPool.MapContextId);
-                        else
-                            CreatureManager.Instance.SetLocation(
-                                creature,
-                                new Vector3(
-                                    spawnPool.HomePosition.X + (new Random().Next() % 5) - 2,
-                                    spawnPool.HomePosition.Y,
-                                    spawnPool.HomePosition.Z + (new Random().Next() % 5) - 2),
-                                spawnPool.HomeOrientation,
-                                spawnPool.MapContextId);
+                        RandomizePosition(creature, creatureList.Count);
 
                         CellManager.Instance.AddToWorld(mapChannel, creature);
                     }
@@ -228,6 +209,19 @@ namespace Rasa.Managers
                     IncreaseQueuedCreatureCount(spawnPool, creatureList.Count);
                 }
             }
+        }
+
+        internal void RandomizePosition(Creature creature, int count)
+        {
+            var pos = creature.SpawnPool.HomePosition;
+
+            if (count != 1)
+            {
+                pos.X += new Random().Next() % 5 - 2;
+                pos.Z += new Random().Next() % 5 - 2;
+            }
+
+            CreatureManager.Instance.SetLocation(creature, pos, creature.SpawnPool.HomeOrientation, creature.SpawnPool.MapContextId);
         }
     }
 }

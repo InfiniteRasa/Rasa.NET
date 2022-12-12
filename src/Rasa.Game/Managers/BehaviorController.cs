@@ -683,6 +683,7 @@ namespace Rasa.Managers
                     }
                     // remove creature from world
                     CellManager.Instance.RemoveCreatureFromWorld(mapChannel, creatureList[f]);
+                    SpawnPoolManager.Instance.DecreaseDeadCreatureCount(creatureList[f].SpawnPool);
                 }
             }
 

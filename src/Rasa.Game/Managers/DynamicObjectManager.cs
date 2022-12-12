@@ -15,6 +15,7 @@ namespace Rasa.Managers
     using Packets.MapChannel.Server;
     using Packets.Protocol;
     using Structures;
+    using System;
 
     public class DynamicObjectManager
     {
@@ -376,12 +377,11 @@ namespace Rasa.Managers
                                 if (creature == null)
                                     continue;
 
-                                CreatureManager.Instance.SetLocation(creature, dropship.Position, dropship.SpawnPool.HomeOrientation, dropship.SpawnPool.MapContextId);
+                                SpawnPoolManager.Instance.RandomizePosition(creature, dropship.SpawnPool.QueuedCreatures);
 
                                 CellManager.Instance.AddToWorld(mapChannel, creature);
-
-                                SpawnPoolManager.Instance.DecreaseQueuedCreatureCount(dropship.SpawnPool, 1);
                             }
+                            SpawnPoolManager.Instance.DecreaseQueuedCreatureCount(dropship.SpawnPool, dropship.SpawnPool.QueuedCreatures);
                         }
 
                         break;
