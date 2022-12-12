@@ -10,6 +10,7 @@ namespace Rasa.Packets.MapChannel.Server
         public override GameOpcode Opcode { get; } = GameOpcode.EquipmentInfo;
 
         public List<ulong> EquipmentInfo { get; set; }
+        public Dictionary<uint, ulong> ActualEquipment = new Dictionary<uint, ulong>();
 
         public EquipmentInfoPacket(List<ulong> equipmentInfo)
         {
@@ -18,20 +19,23 @@ namespace Rasa.Packets.MapChannel.Server
 
         public override void Write(PythonWriter pw)
         {
-            pw.WriteTuple(1);
-            pw.WriteList(EquipmentInfo.Count);
-
             uint count = 0;
-
             foreach (var entry in EquipmentInfo)
             {
-                pw.WriteTuple(2);
-                pw.WriteUInt(count);
-                pw.WriteULong(entry);
+                if (entry != 0)
+                    ActualEquipment.Add(count, entry);
 
                 count++;
             }
 
+            pw.WriteTuple(1);
+            pw.WriteList(ActualEquipment.Count);
+            foreach (var entry in ActualEquipment)
+            {
+                pw.WriteTuple(2);
+                pw.WriteUInt(entry.Key);
+                pw.WriteULong(entry.Value);
+            }
         }
     }
 }

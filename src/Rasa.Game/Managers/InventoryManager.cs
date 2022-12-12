@@ -717,6 +717,7 @@ namespace Rasa.Managers
                     client.MapClient.Inventory.EquippedInventory[(int)slotId] = tempItem.EntityId; // update slot
                     break;
                 case InventoryType.WeaponDrawerInventory:
+                    client.MapClient.Inventory.EquippedInventory[13] = tempItem.EntityId; // update slot
                     client.MapClient.Inventory.WeaponDrawer[(int)slotId] = tempItem.EntityId; // update slot
                     break;
                 case InventoryType.ClanInventory:
