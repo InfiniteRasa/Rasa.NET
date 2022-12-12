@@ -195,6 +195,7 @@ namespace Rasa.Game
             MapChannelManager.Instance.MapChannelInit();
             DynamicObjectManager.Instance.InitDynamicObjects();
             MapTriggerManager.Instance.MapTriggerInit();
+            LogosManager.Instance.LogosInit();
 
             return true;
         }

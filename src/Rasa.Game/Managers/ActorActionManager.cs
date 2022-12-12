@@ -91,6 +91,9 @@
                         case 1:
                             DynamicObjectManager.Instance.FootlockerRecovery(mapChannel, action);
                             break;
+                        case 6:
+                            DynamicObjectManager.Instance.LogosRecovery(mapChannel, action);
+                            break;
                         case 7:
                             DynamicObjectManager.Instance.CaptureControlPointRecovery(mapChannel, action);
                             break;

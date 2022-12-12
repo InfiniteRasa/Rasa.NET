@@ -9,9 +9,9 @@ namespace Rasa.Packets.MapChannel.Server
     {
         public override GameOpcode Opcode { get; } = GameOpcode.LogosStoneTabula;
 
-        public List<int> Logos { get; set; }
+        public List<uint> Logos { get; set; }
 
-        public LogosStoneTabulaPacket(List<int> logos)
+        public LogosStoneTabulaPacket(List<uint> logos)
         {
             Logos = logos;
         }
@@ -21,7 +21,7 @@ namespace Rasa.Packets.MapChannel.Server
             pw.WriteTuple(1);
             pw.WriteList(Logos.Count);
             foreach (var logo in Logos)
-                pw.WriteInt(logo);
+                pw.WriteUInt(logo);
         }
     }
 }

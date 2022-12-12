@@ -19,28 +19,28 @@ namespace Rasa.Database.Tables.Character
             SetLogosCommand.Connection = GameDatabaseAccess.CharConnection;
             SetLogosCommand.Parameters.Add("@AccountId", MySqlDbType.UInt32);
             SetLogosCommand.Parameters.Add("@CharacterSlot", MySqlDbType.UInt32);
-            SetLogosCommand.Parameters.Add("@LogosId", MySqlDbType.Int32);
+            SetLogosCommand.Parameters.Add("@LogosId", MySqlDbType.UInt32);
             SetLogosCommand.Prepare();
         }
 
-        public static List<int> GetLogos(uint accountId, uint characterSlot)
+        public static List<uint> GetLogos(uint accountId, uint characterSlot)
         {
             lock (GameDatabaseAccess.CharLock)
             {
-                var playerLogos = new List<int>();
+                var playerLogos = new List<uint>();
 
                 GetLogosCommand.Parameters["@AccountId"].Value = accountId;
                 GetLogosCommand.Parameters["@CharacterSlot"].Value = characterSlot;
 
                 using (var reader = GetLogosCommand.ExecuteReader())
                     while (reader.Read())
-                        playerLogos.Add(reader.GetInt32("logosId"));
+                        playerLogos.Add(reader.GetUInt32("logosId"));
 
                 return playerLogos;
             }
         }
 
-        public static void SetLogos(uint accountId, uint characterSlot, int logosId)
+        public static void SetLogos(uint accountId, uint characterSlot, uint logosId)
         {
             lock (GameDatabaseAccess.CharLock)
             {

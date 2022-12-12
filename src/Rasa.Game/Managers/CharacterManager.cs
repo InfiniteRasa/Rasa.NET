@@ -10,6 +10,7 @@ namespace Rasa.Managers
     using Packets.Game.Client;
     using Packets.Game.Server;
     using Packets.MapChannel.Server;
+    using Rasa.Packets.ClientMethod.Server;
     using Structures;
 
     public class CharacterManager
@@ -406,9 +407,9 @@ namespace Rasa.Managers
                     break;
 
                 case CharacterUpdate.Logos:
-                    client.MapClient.Player.Logos.Add((int)value);
-                    CharacterLogosTable.SetLogos(client.AccountEntry.Id, client.AccountEntry.SelectedSlot, (int)value);
-                    client.CallMethod(client.MapClient.Player.Actor.EntityId, new LogosStoneTabulaPacket(client.MapClient.Player.Logos));
+                    client.MapClient.Player.Logos.Add((uint)value);
+                    CharacterLogosTable.SetLogos(client.AccountEntry.Id, client.AccountEntry.SelectedSlot, (uint)value);
+                    client.CallMethod(client.Player.Actor.EntityId, new LogosStoneAddedPacket((uint)value));
                     break;
 
                 case CharacterUpdate.Position:

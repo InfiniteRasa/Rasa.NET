@@ -80,6 +80,18 @@ namespace Rasa.Managers
                         obj.TrigeredByPlayers.Add(client);
                         break;
                     }
+                case DynamicObjectType.Logos:
+                    {
+                        var actionData = new ActionData(client.MapClient.Player.Actor, packet.ActionId, packet.ActionArgId, 10000);
+                        actionData.SourceId = obj.EntityId;
+
+                        client.CallMethod(client.MapClient.Player.Actor.EntityId, new PerformWindupPacket(PerformType.TwoArgs, packet.ActionId, packet.ActionArgId));
+                        client.CallMethod(packet.EntityId, new UsePacket(client.MapClient.Player.Actor.EntityId, obj.StateId, 10000));
+                        client.MapClient.MapChannel.PerformRecovery.Add(actionData);
+
+                        obj.TrigeredByPlayers.Add(client);
+                        break;
+                    }
                 default:
                     Logger.WriteLog(LogType.Debug, $"ToDo: RequestUseObjectPacket: unsuported object type {obj.DynamicObjectType}");
                     break;
@@ -152,6 +164,24 @@ namespace Rasa.Managers
 
                 // check for players neer object
                 DynamicObjectProximityWorker(mapChannel, teleporter, delta);
+            }
+
+            // dynamicObjects
+            foreach (var dynamicObject in mapChannel.DynamicObjects)
+            {
+                // spawn object
+                if (!dynamicObject.IsInWorld)
+                {
+                    dynamicObject.RespawnTime -= delta;
+
+                    if (dynamicObject.RespawnTime <= 0)
+                    {
+                        CellManager.Instance.AddToWorld(mapChannel, dynamicObject);
+                        dynamicObject.IsInWorld = true;
+                        dynamicObject.StateId = UseObjectState.IdStateActive;
+                        dynamicObject.WindupTime = 10000;
+                    }
+                }
             }
         }
 
@@ -405,126 +435,6 @@ namespace Rasa.Managers
                 }
             }
         }
-
-
-        //public void DropshipsWorker(MapChannel mapChannel, long timePassed)
-        //{
-        //    foreach (var entry in Dropships)
-        //    {
-        //        var dropship = entry.Value;
-
-        //        if (dropship.DropshipType != DropshipType.Spawner && dropship.DropshipType != DropshipType.Teleporter)
-        //        {
-        //            Logger.WriteLog(LogType.Debug, $"error dropshiptype { dropship.DropshipType}");
-        //            return;
-        //        }
-
-        //        if (dropship.DropshipType == DropshipType.Teleporter)
-        //            Logger.WriteLog(LogType.Debug, $"{ dropship.Phase} => {dropship.PhaseTimeleft}");
-
-        //            dropship.PhaseTimeleft -= timePassed;
-
-        //        if (dropship.PhaseTimeleft > 0)
-        //            continue;
-
-        //        // init
-        //        if (dropship.Phase == 0)
-        //        {
-                    
-        //            dropship.Phase = 1;
-        //            dropship.StateId = UseObjectState.CsStateSpawn;
-        //            Logger.WriteLog(LogType.AI, $" we hit phase { dropship.Phase} => {dropship.PhaseTimeleft}");
-        //        }
-
-        //        // spawn creatures
-        //        else if (dropship.Phase == 1)
-        //        {
-                    
-        //            dropship.PhaseTimeleft = 2000;
-        //            dropship.Phase = 2;
-        //            Logger.WriteLog(LogType.AI, $" we hit phase { dropship.Phase} => {dropship.PhaseTimeleft}");
-        //            if (dropship.DropshipType == DropshipType.Teleporter)
-        //            {
-        //                if (dropship.Client.State == ClientState.Ingame)
-        //                {
-        //                    dropship.Client.CellCallMethod(dropship.Client, dropship.Client.MapClient.Player.Actor.EntityId, new PreTeleportPacket(TeleportType.Default));
-        //                    dropship.Client.CallMethod(SysEntity.ClientMethodId, new BeginTeleportPacket());
-        //                }
-        //                else if (dropship.Client.State == ClientState.Teleporting)
-        //                {
-        //                    dropship.Client.MapClient.MapChannel.ClientList.Add(dropship.Client);
-        //                    CommunicatorManager.Instance.PlayerEnterMap(dropship.Client);
-        //                    dropship.Client.CellCallMethod(dropship.Client, dropship.Client.MapClient.Player.Actor.EntityId, new TeleportArrivalPacket());
-        //                }
-        //            }
-
-        //            if (dropship.DropshipType == DropshipType.Spawner)
-        //            {
-        //                // spawn creatures
-        //                for (var i = 0; i < dropship.SpawnPool.QueuedCreatures; i++)
-        //                {
-        //                    var creature = CreatureManager.Instance.CreateCreature(dropship.SpawnPool.DbId, dropship.SpawnPool);
-
-        //                    if (creature == null)
-        //                        continue;
-
-        //                    CreatureManager.Instance.SetLocation(creature, dropship.Position, dropship.SpawnPool.HomeOrientation, dropship.SpawnPool.MapContextId);
-
-        //                    CellManager.Instance.AddToWorld(mapChannel, creature);
-
-        //                    SpawnPoolManager.Instance.DecreaseQueuedCreatureCount(dropship.SpawnPool, 1);
-        //                }
-        //            }
-
-        //            continue;
-        //        }
-        //        else if (dropship.Phase == 2)
-        //        {
-        //            dropship.PhaseTimeleft = 6000;
-        //            dropship.Phase = 3;
-        //            dropship.StateId = UseObjectState.CsStateEnd;
-        //            Logger.WriteLog(LogType.AI, $" we hit phase { dropship.Phase} => {dropship.PhaseTimeleft}");
-        //        }
-        //        else if (dropship.Phase == 3)
-        //        {
-        //            if (dropship.DropshipType == DropshipType.Teleporter)
-        //            {
-        //                switch (dropship.Client.State)
-        //                {
-        //                    case ClientState.Ingame:
-        //                        CellManager.Instance.RemoveFromWorld(dropship.Client);
-        //                        dropship.Client.MapClient.MapChannel.ClientList.Remove(dropship.Client);
-        //                        dropship.Client.CallMethod(SysEntity.ClientMethodId, new UnrequestMovementBlockPacket());
-        //                        dropship.Client.CallMethod(SysEntity.ClientMethodId, new PreWonkavatePacket());
-        //                        dropship.Client.CallMethod(SysEntity.CurrentInputStateId, new WonkavatePacket(dropship.DestinationMapId, 1, MapChannelManager.Instance.MapChannelArray[dropship.DestinationMapId].MapInfo.MapVersion, dropship.Destination, 0));
-        //                        dropship.Client.MapClient.Player.Actor.Position = dropship.Destination;
-        //                        dropship.Client.State = ClientState.Teleporting;
-        //                        break;
-        //                    case ClientState.Teleporting:
-        //                        dropship.Client.State = ClientState.Ingame;
-        //                        break;
-        //                    default:
-        //                        Logger.WriteLog(LogType.Error, $"Unsupported CLientState {dropship.Client.State}");
-        //                        break;
-        //                }
-        //            }
-
-        //            if (dropship.DropshipType == DropshipType.Spawner)
-        //                SpawnPoolManager.Instance.DecreaseQueueCount(dropship.SpawnPool);
-
-        //            // remove object
-        //            CellManager.Instance.RemoveFromWorld(mapChannel, dropship);
-
-        //            Dropships.Remove(dropship.EntityId);
-        //            continue;
-        //        }
-
-        //        if (dropship.DropshipType == DropshipType.Teleporter)
-        //            Logger.WriteLog(LogType.AI, $"Dropship {dropship.EntityId} is in {dropship.StateId}");
-
-        //        CellManager.Instance.CellCallMethod(dropship, new ForceStatePacket(dropship.StateId, 0));
-        //    }
-        //}
         #endregion
 
         #region Footlocker
@@ -556,6 +466,56 @@ namespace Rasa.Managers
             }
         }
 
+        #endregion
+
+        #region Logos
+        internal void LogosRecovery(MapChannel mapChannel, ActionData action)
+        {
+            foreach (var obj in mapChannel.DynamicObjects)
+            {
+                foreach (var client in obj.TrigeredByPlayers)
+                    if (client.MapClient.Player.Actor == action.Actor)
+                    {
+                        if (action.IsInrerrupted)
+                        {
+                            Logger.WriteLog(LogType.Debug, $"Action is interupted");
+                            obj.TrigeredByPlayers.Remove(client);
+                            //CellManager.Instance.CellCallMethod(mapChannel, action.Actor, new PerformWindupPacket(PerformType.TwoArgs, action.ActionId, action.ActionArgId));
+                            break;
+                        }
+
+                        Logger.WriteLog(LogType.Debug, $"Action Exicuted");
+                        obj.TrigeredByPlayers.Remove(client);
+                        CellManager.Instance.CellCallMethod(obj, new UsableInfoPacket(true, obj.StateId, 0, 10000, 0));
+
+                        var logosId = 0u;
+                        foreach (var entry in mapChannel.DynamicObjects)
+                        {
+                            var logos = entry as Logos;
+                            if (action.SourceId == logos.EntityId)
+                            {
+                                logosId = logos.Id;
+                                break;
+                            }
+                        }
+
+                        var haveLogos = false;
+                        foreach (var logos in client.Player.Logos)
+                        {
+                            if (logos == logosId)
+                            {
+                                haveLogos = true;
+                                break;
+                            }
+                        }
+
+                        if (!haveLogos)
+                            CharacterManager.Instance.UpdateCharacter(client, CharacterUpdate.Logos, logosId);
+                        
+                        break;
+                    }
+            }
+        }
         #endregion
 
         #region Waypoint
@@ -732,7 +692,6 @@ namespace Rasa.Managers
                 }
             }
         }
-
         #endregion
     }
 }

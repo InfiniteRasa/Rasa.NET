@@ -8,6 +8,7 @@
         Waypoint            = 4,
         Wormhole            = 5,
         MapTrigger          = 6,
-        DropshipTeleporter  = 7
+        DropshipTeleporter  = 7,
+        Logos               = 8
     }
 }
