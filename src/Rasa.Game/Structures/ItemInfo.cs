@@ -53,13 +53,13 @@ namespace Rasa.Structures
         public int ReuseOverride { get; set; }
         public int CoolRate { get; set; }
         public double HeatPerShot { get; set; }
-        public int ToolType { get; set; }
+        public ToolType ToolType { get; set; }
         public uint AmmoPerShot { get; set; }
         public int WindupTime { get; set; }
         public int RecoveryTime { get; set; }
         public int RefireTime { get; set; }
         public int Range { get; set; }
-        public int AttackType { get; set; }
+        public AttackType AttackType { get; set; }
         public WeaponAltInfo WeaponAltInfo { get; set; }
 
         public WeaponInfo(WeaponTemplateEntry weapon)
@@ -74,13 +74,13 @@ namespace Rasa.Structures
             ReuseOverride = weapon.ReuseOverride;
             CoolRate = weapon.CoolRate;
             HeatPerShot = weapon.HeatPerShot;
-            ToolType = weapon.ToolType;
+            ToolType = (ToolType)weapon.ToolType;
             AmmoPerShot = weapon.AmmoPerShot;
             WindupTime = weapon.WindupTime;
             RecoveryTime = weapon.RecoveryTime;
             RefireTime = weapon.RefireTime;
             Range = weapon.Range;
-            AttackType = weapon.AttackType;
+            AttackType = (AttackType)weapon.AttackType;
 
             if (AltActionId > 0)
                 WeaponAltInfo = new WeaponAltInfo(weapon);

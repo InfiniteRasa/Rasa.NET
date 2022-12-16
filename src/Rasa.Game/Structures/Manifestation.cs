@@ -30,7 +30,7 @@ namespace Rasa.Structures
         public int SpentBody { get; set; }
         public int SpentMind { get; set; }
         public int SpentSpirit { get; set; }
-        public Dictionary<int, SkillsData> Skills = new Dictionary<int, SkillsData>();
+        public Dictionary<SkillId, SkillsData> Skills = new Dictionary<SkillId, SkillsData>();
         public Dictionary<int, AbilityDrawerData> Abilities = new Dictionary<int, AbilityDrawerData>();
         public List<uint> Titles { get; set; } = new List<uint>();
         public uint CurrentTitle { get; set; }

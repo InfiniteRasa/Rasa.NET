@@ -3,7 +3,6 @@
     using Data;
     using Game;
     using Packets.MapChannel.Client;
-    using Packets.MapChannel.Server;
 
     public class ActorManager
     {

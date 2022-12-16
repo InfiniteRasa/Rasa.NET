@@ -134,13 +134,13 @@ namespace Rasa.Managers
             return abilities;
         }
 
-        public Dictionary<int, SkillsData> GetPlayerSkills(Client client)
+        public Dictionary<SkillId, SkillsData> GetPlayerSkills(Client client)
         {
-            var skills = new Dictionary<int, SkillsData>();
+            var skills = new Dictionary<SkillId, SkillsData>();
             var skillsData = CharacterSkillsTable.GetCharacterSkills(client.AccountEntry.Id, client.AccountEntry.SelectedSlot);
 
             foreach (var skill in skillsData)
-                skills.Add(skill.SkillId, new SkillsData(skill.SkillId, skill.AbilityId, skill.SkillLevel));
+                skills.Add((SkillId)skill.SkillId, new SkillsData((SkillId)skill.SkillId, skill.AbilityId, skill.SkillLevel));
 
             return skills;
         }

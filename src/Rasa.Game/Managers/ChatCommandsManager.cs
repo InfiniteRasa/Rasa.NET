@@ -75,9 +75,11 @@ namespace Rasa.Managers
             RegisterCommand(".bark", BarkCommand);
             RegisterCommand(".comehere", ComeHereCommand);
             RegisterCommand(".createobj", CreateObjectCommand);
+            RegisterCommand(".createobjonloc", CreateObjectOnLocationCommand);
             RegisterCommand(".creature", CreateCreatureCommand);
             RegisterCommand(".creatureappearance", SetCreatureAppearanceCommand);
             RegisterCommand(".creatureloc", SetCreatureLocation);
+            RegisterCommand(".deleteobj", DeleteObjectCommand);
             RegisterCommand(".getdistance", GetDistanceCommand);
             RegisterCommand(".giveitem", GiveItemCommand);
             RegisterCommand(".givelogos", GiveLogosCommand);
@@ -204,7 +206,7 @@ namespace Rasa.Managers
 
             return;
         }
-
+        
         private void CreateObjectCommand(string[] parts)
         {
             if (parts.Length == 1)
@@ -230,7 +232,51 @@ namespace Rasa.Managers
             }
             return;
         }
+        
+        private void CreateObjectOnLocationCommand(string[] parts)
+        {
+            if (parts.Length != 6)
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, "usage: .createobjonloc entityClassId posX posY posZ orientation");
+                return;
+            }
 
+            if (Enum.TryParse(parts[1], out EntityClassId entityClassId))
+                if (float.TryParse(parts[2], out var posX))
+                    if (float.TryParse(parts[3], out var posY))
+                        if (float.TryParse(parts[4], out var posZ))
+                            if (float.TryParse(parts[5], out var orientation))
+                            {
+                                var newObject = new DynamicObject
+                                {
+                                    Position = new Vector3(posX, posY, posZ),
+                                    Orientation = orientation,
+                                    MapContextId = _client.MapClient.Player.Actor.MapContextId,
+                                    EntityClassId = entityClassId
+                                };
+
+                                CellManager.Instance.AddToWorld(_client.MapClient.MapChannel, newObject);
+                                CommunicatorManager.Instance.SystemMessage(_client, $"Created object EntityId = {newObject.EntityId}");
+                            }
+            return;
+        }
+
+        private void DeleteObjectCommand(string[] parts)
+        {
+            if (parts.Length != 2)
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, "usage: .deleteobj entityId");
+                return;
+            }
+
+            if (ulong.TryParse(parts[1], out ulong entityId))
+            {
+                _client.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(entityId));
+                //EntityManager.Instance.FreeEntity(entityId);
+            }
+
+            return;
+        }
         private void EnterGmModCommand(string[] parts)
         {
             _client.CallMethod(SysEntity.ClientMethodId, new SetIsGMPacket(true));

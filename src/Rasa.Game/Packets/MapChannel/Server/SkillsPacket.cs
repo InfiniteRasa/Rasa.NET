@@ -10,9 +10,9 @@ namespace Rasa.Packets.MapChannel.Server
     {
         public override GameOpcode Opcode { get; } = GameOpcode.Skills;
 
-        public static Dictionary<int, SkillsData> SkillsData { get; set; } = new Dictionary<int, SkillsData>();
+        public static Dictionary<SkillId, SkillsData> SkillsData { get; set; } = new Dictionary<SkillId, SkillsData>();
         
-        public SkillsPacket(Dictionary<int, SkillsData> skillsData)
+        public SkillsPacket(Dictionary<SkillId, SkillsData> skillsData)
         {
             SkillsData = skillsData;
         }
@@ -24,7 +24,7 @@ namespace Rasa.Packets.MapChannel.Server
             foreach(var entry in SkillsData)
             {
                 pw.WriteTuple(2);
-                pw.WriteInt(entry.Value.SkillId);
+                pw.WriteInt((int)entry.Value.SkillId);
                 pw.WriteInt(entry.Value.SkillLevel);
             }
         }

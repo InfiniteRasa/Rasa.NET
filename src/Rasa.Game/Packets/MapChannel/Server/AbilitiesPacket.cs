@@ -10,9 +10,9 @@ namespace Rasa.Packets.MapChannel.Server
     {
         public override GameOpcode Opcode { get; } = GameOpcode.Abilities;
 
-        public Dictionary<int, SkillsData> AbilityList = new Dictionary<int, SkillsData>();
+        public Dictionary<SkillId, SkillsData> AbilityList = new Dictionary<SkillId, SkillsData>();
 
-        public AbilitiesPacket(Dictionary<int, SkillsData> abilityList)
+        public AbilitiesPacket(Dictionary<SkillId, SkillsData> abilityList)
         {
             foreach (var ability in abilityList)
                 if (abilityList[ability.Key].AbilityId != -1)   // don't insert if there is no ablilityId

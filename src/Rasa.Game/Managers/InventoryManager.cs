@@ -1246,22 +1246,22 @@ namespace Rasa.Managers
                 // check skill requrements if it's still true
                 if (canEquip)
                     foreach (var skill in client.MapClient.Player.Skills)
-                        if (skill.Value.SkillId == itemToEquip.ItemTemplate.EquipableInfo.SkillId)
-                        {
-                            if (skill.Value.SkillLevel >= itemToEquip.ItemTemplate.EquipableInfo.SkillLevel)
+                        if (itemToEquip.ItemTemplate.EquipableInfo != null)
+                            if (skill.Value.SkillId == (SkillId)itemToEquip.ItemTemplate.EquipableInfo.SkillId)
                             {
-                                canEquip = true;
-                                break;
+                                if (skill.Value.SkillLevel >= itemToEquip.ItemTemplate.EquipableInfo.SkillLevel)
+                                {
+                                    canEquip = true;
+                                    break;
+                                }
+                                else
+                                {
+                                    CommunicatorManager.Instance.SystemMessage(client, "Skill level to low, cannot equip item.");
+                                    break;
+                                }
                             }
                             else
-                            {
-                                CommunicatorManager.Instance.SystemMessage(client, "Skill level to low, cannot equip item.");
-                                break;
-                            }
-                        }
-                        else
-                            canEquip = false;
-                        
+                                canEquip = false;
             }
 
             return canEquip;

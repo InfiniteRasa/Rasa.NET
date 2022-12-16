@@ -60,8 +60,8 @@
                         else
                             pw.WriteNoneStruct();
 
-                        pw.WriteInt(ItemTemplate.WeaponInfo.AttackType);
-                        pw.WriteInt(ItemTemplate.WeaponInfo.ToolType);
+                        pw.WriteInt((int)ItemTemplate.WeaponInfo.AttackType);
+                        pw.WriteInt((int)ItemTemplate.WeaponInfo.ToolType);
 
                         break;
 

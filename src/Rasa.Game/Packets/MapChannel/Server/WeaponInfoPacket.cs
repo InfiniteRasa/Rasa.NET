@@ -20,7 +20,7 @@
         public int ReuseOverride { get; set; }
         public int CoolRate { get; set; }
         public double HeatPerShot { get; set; }
-        public int ToolType { get; set; }
+        public ToolType ToolType { get; set; }
         public bool IsJammed { get; set; }
         public uint AmmoPerShot { get; set; }
         public int CammeraProfile { get; set; }
@@ -41,7 +41,7 @@
             pw.WriteNoneStruct();       // ReuseOverride ToDo
             pw.WriteInt(CoolRate);
             pw.WriteDouble(HeatPerShot);
-            pw.WriteInt(ToolType);
+            pw.WriteInt((int)ToolType);
             pw.WriteBool(IsJammed);
             pw.WriteUInt(AmmoPerShot);
             pw.WriteInt(CammeraProfile);

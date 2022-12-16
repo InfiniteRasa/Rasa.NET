@@ -1,12 +1,14 @@
 ﻿namespace Rasa.Structures
 {
+    using Data;
+
     public class SkillsData
     {
-        public int SkillId { get; set; }
+        public SkillId SkillId { get; set; }
         public int AbilityId { get; set; }
         public int SkillLevel { get; set; }
 
-        public SkillsData(int skillId, int abilityId, int skillLevel)
+        public SkillsData(SkillId skillId, int abilityId, int skillLevel)
         {
             SkillId = skillId;
             AbilityId = abilityId;
@@ -14,7 +16,7 @@
         }
 
         // used for itemTemplate
-        public SkillsData(int skillId, int skillLevel)
+        public SkillsData(SkillId skillId, int skillLevel)
         {
             SkillId = skillId;
             SkillLevel = skillLevel;

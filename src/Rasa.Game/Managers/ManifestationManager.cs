@@ -121,7 +121,7 @@ namespace Rasa.Managers
         private ManifestationManager()
         {
         }
-
+        
         // constant skillId data
         public readonly int[] SkillIById = {
             1,8,14,19,20,21,22,23,24,
@@ -657,13 +657,13 @@ namespace Rasa.Managers
         {
             var mapClient = client.MapClient;
             var skillPointsAvailable = GetSkillPointsAvailable(mapClient.Player);
-            var skillLevelupArray = new Dictionary<int, SkillsData>(); // used to temporarily safe skill level updates
+            var skillLevelupArray = new Dictionary<SkillId, SkillsData>(); // used to temporarily safe skill level updates
 
             for (var i = 0; i < packet.ListLenght; i++)
             {
-                var skillId = packet.SkillIds[i];
+                var skillId = (SkillId)packet.SkillIds[i];
 
-                if (skillId == -1)
+                if (skillId == SkillId.None)
                     throw new Exception("LevelSkills: Invalid skillId received. Modified or outdated client?");
 
                 var oldSkillLevel = 0;
@@ -675,7 +675,7 @@ namespace Rasa.Managers
                 {
                     // create new entry in character skils and db
                     mapClient.Player.Skills.Add(skillId, new SkillsData(skillId, abilityId, 0));
-                    CharacterSkillsTable.SetCharacterSkill(client.AccountEntry.Id, client.AccountEntry.SelectedSlot, skillId, abilityId, 0);
+                    CharacterSkillsTable.SetCharacterSkill(client.AccountEntry.Id, client.AccountEntry.SelectedSlot, (int)skillId, abilityId, 0);
                 }
 
                 var newSkillLevel = packet.SkillLevels[i];
@@ -703,7 +703,7 @@ namespace Rasa.Managers
             SendAvailableAllocationPoints(client);
             // update database with new character skills
             foreach (var skill in skillLevelupArray)
-                CharacterSkillsTable.UpdateCharacterSkill(client.AccountEntry.Id, client.AccountEntry.SelectedSlot, mapClient.Player.Skills[skill.Key].SkillId, mapClient.Player.Skills[skill.Key].SkillLevel);
+                CharacterSkillsTable.UpdateCharacterSkill(client.AccountEntry.Id, client.AccountEntry.SelectedSlot, (int)mapClient.Player.Skills[skill.Key].SkillId, mapClient.Player.Skills[skill.Key].SkillLevel);
         }
 
         public void NotifyEquipmentUpdate(Client client)
