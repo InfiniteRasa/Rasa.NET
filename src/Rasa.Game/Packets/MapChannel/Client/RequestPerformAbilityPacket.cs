@@ -9,7 +9,7 @@
 
         public ActionId ActionId { get; set; }
         public int ActionArgId { get; set; }
-        public uint Target { get; set; }
+        public ulong Target { get; set; }
         public int ItemId { get; set; }
 
         public override void Read(PythonReader pr)

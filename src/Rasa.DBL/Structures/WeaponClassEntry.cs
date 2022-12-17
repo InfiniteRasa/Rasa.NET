@@ -7,7 +7,7 @@ namespace Rasa.Structures
         public uint ClassId { get; set; }
         public short WeaponTemplateid { get; set; }
         public short WeaponAttackActionId { get; set; }
-        public short WeaponAttackArgId { get; set; }
+        public uint WeaponAttackArgId { get; set; }
         public short DrawActionId { get; set; }
         public short StowActionId { get; set; }
         public short ReloadActionId { get; set; }
@@ -39,7 +39,7 @@ namespace Rasa.Structures
                 ClassId = reader.GetUInt32("classId"),
                 WeaponTemplateid = reader.GetInt16("weaponTemplateid"),
                 WeaponAttackActionId = reader.GetInt16("weaponAttackActionId"),
-                WeaponAttackArgId = reader.GetInt16("weaponAttackArgId"),
+                WeaponAttackArgId = reader.GetUInt32("weaponAttackArgId"),
                 DrawActionId = reader.GetInt16("drawActionId"),
                 StowActionId = reader.GetInt16("stowActionId"),
                 ReloadActionId = reader.GetInt16("reloadActionId"),

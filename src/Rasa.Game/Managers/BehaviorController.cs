@@ -454,10 +454,11 @@ namespace Rasa.Managers
                     UpdateEntityMovement(targetDistX, targetDistY, targetDistZ, creature, mapChannel, 0.0f, false);
 
                     // execute action and quit
-                    var dmg = action.MinDamage + (new Random().Next() % (action.MaxDamage - action.MinDamage + 1));
+                    var dmg = (int)(action.MinDamage + (new Random().Next() % (action.MaxDamage - action.MinDamage + 1)));
 
+                    var actionData = new ActionData(creature.Actor, action.ActionId, action.ActionArgId, creature.Controller.ActionFighting.TargetEntityId, 0);
                     // do damage
-                    MissileManager.Instance.MissileLaunch(mapChannel, creature.Actor, creature.Controller.ActionFighting.TargetEntityId, dmg, action.ActionId, action.ActionArgId);
+                    MissileManager.Instance.MissileLaunch(mapChannel, actionData, dmg);
 
                     // set cooldown
                     action.CooldownTimer = action.Coolodown;
@@ -683,7 +684,9 @@ namespace Rasa.Managers
                     }
                     // remove creature from world
                     CellManager.Instance.RemoveCreatureFromWorld(mapChannel, creatureList[f]);
-                    SpawnPoolManager.Instance.DecreaseDeadCreatureCount(creatureList[f].SpawnPool);
+
+                    if (creatureList[f].SpawnPool != null)
+                        SpawnPoolManager.Instance.DecreaseDeadCreatureCount(creatureList[f].SpawnPool);
                 }
             }
 

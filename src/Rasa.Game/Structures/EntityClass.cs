@@ -97,7 +97,7 @@ namespace Rasa.Structures
         //public int ClassId { get; set; }
         public short WeaponTemplateid { get; set; }
         public ActionId WeaponAttackActionId { get; set; }
-        public short WeaponAttackArgId { get; set; }
+        public uint WeaponAttackArgId { get; set; }
         public short DrawActionId { get; set; }
         public short StowActionId { get; set; }
         public short ReloadActionId { get; set; }

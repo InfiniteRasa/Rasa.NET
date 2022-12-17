@@ -13,7 +13,6 @@ namespace Rasa.Managers
     using Packets.MapChannel.Server;
     using Packets.Game.Server;
     using Structures;
-    using Rasa.Extensions;
 
     public class ManifestationManager
     {
@@ -219,9 +218,9 @@ namespace Rasa.Managers
             // let's calculate damage
             var damageRange = weaponClassInfo.MaxDamage - weaponClassInfo.MinDamage;
             var damage = weaponClassInfo.MinDamage + new Random().Next(0, damageRange + 1);
-
+            var action = new ActionData(client.MapClient.Player.Actor, weaponClassInfo.WeaponAttackActionId, weaponClassInfo.WeaponAttackArgId, client.Player.TargetEntityId, 0);
             // launch correct missile type depending on weapon type
-            MissileManager.Instance.MissileLaunch(client.MapClient.MapChannel, client.MapClient.Player.Actor, client.MapClient.Player.TargetEntityId, damage, weaponClassInfo.WeaponAttackActionId, (uint)weaponClassInfo.WeaponAttackArgId);
+            MissileManager.Instance.MissileLaunch(client.MapClient.MapChannel, action, damage);
             
             return true;
         }

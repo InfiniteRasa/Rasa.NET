@@ -177,7 +177,7 @@ namespace Rasa.Managers
             };
 
             creature.Actor.State = CharacterState.Idle;
-            creature.Actor.Name = EntityClassManager.Instance.LoadedEntityClasses[(EntityClassId)creature.EntityClassId].ClassName;
+            creature.Actor.Name = EntityClassManager.Instance.LoadedEntityClasses[creature.EntityClassId].ClassName;
 
             // set creature stats
             var creatureStats = CreatureStatsTable.GetCreatureStats(dbId);

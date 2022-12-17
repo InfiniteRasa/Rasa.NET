@@ -25,12 +25,12 @@ namespace Rasa.Structures
         public uint Absorbed { get; set; }
         public uint Resisted { get; set; }
         public long FinalAmt { get; set; }
-        public bool IsCritical { get; set; }
-        public uint DeathBlow { get; set; }
+        public int IsCritical { get; set; }
+        public int DeathBlow { get; set; }
         public uint CoverModifier { get; set; }
-        public bool WasImune { get; set; }
+        public int WasImune { get; set; }
         public List<uint> TargetEffectIds { get; set; } // ToDo
         public List<uint> SourceEffectIds { get; set; } // ToDo
-        public object OnHitData { get; set; }           // ToDo
+        public List<object> OnHitData { get; set; }           // ToDo
     }
 }

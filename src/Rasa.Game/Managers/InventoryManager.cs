@@ -1245,8 +1245,8 @@ namespace Rasa.Managers
 
                 // check skill requrements if it's still true
                 if (canEquip)
-                    foreach (var skill in client.MapClient.Player.Skills)
-                        if (itemToEquip.ItemTemplate.EquipableInfo != null)
+                    if (itemToEquip.ItemTemplate.EquipableInfo != null)
+                        foreach (var skill in client.MapClient.Player.Skills)
                             if (skill.Value.SkillId == (SkillId)itemToEquip.ItemTemplate.EquipableInfo.SkillId)
                             {
                                 if (skill.Value.SkillLevel >= itemToEquip.ItemTemplate.EquipableInfo.SkillLevel)

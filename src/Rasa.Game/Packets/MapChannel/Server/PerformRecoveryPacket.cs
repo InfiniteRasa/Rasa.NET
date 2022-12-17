@@ -85,10 +85,10 @@ namespace Rasa.Packets.MapChannel.Server
                                 pw.WriteUInt(hit.Absorbed);         // self.absorbed
                                 pw.WriteUInt(hit.Resisted);         // self.resisted
                                 pw.WriteLong(hit.FinalAmt);         // self.finalAmt
-                                pw.WriteBool(hit.IsCritical);       // self.isCrit
-                                pw.WriteUInt(hit.DeathBlow);        // self.deathBlow    ToDo => maybe bool
+                                pw.WriteInt(hit.IsCritical);        // self.isCrit
+                                pw.WriteInt(hit.DeathBlow);         // self.deathBlow    ToDo => maybe bool
                                 pw.WriteUInt(hit.CoverModifier);    // self.coverModifier
-                                pw.WriteBool(hit.WasImune);         // self.wasImmune
+                                pw.WriteInt(hit.WasImune);          // self.wasImmune
                                 pw.WriteList(0);                    // ToDo: targetEffectIds
                                 pw.WriteList(0);                    // ToDo: sourceEffectIds
                             pw.WriteNoneStruct();               // OnHitData

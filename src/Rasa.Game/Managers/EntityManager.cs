@@ -133,7 +133,7 @@ namespace Rasa.Managers
 
         public EntityType GetEntityType(ulong entityId)
         {
-            if (entityId != 0)
+            if(RegisteredEntities.ContainsKey(entityId))
                 return RegisteredEntities[entityId];
 
             return 0;

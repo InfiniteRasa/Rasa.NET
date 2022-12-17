@@ -4,7 +4,7 @@
 
     public class Missile
     {
-        public long DamageA { get; set; }
+        public int DamageA { get; set; }
         public int DamageB { get; set; }
         public ActionId ActionId { get; set; }
         public uint ActionArgId { get; set; }
@@ -13,5 +13,6 @@
         public Actor TargetActor { get; set; }
         public Actor Source { get; set; }
         public long TriggerTime { get; set; }       // amount of milliseconds left before the missile is triggered, is decreased on every tick
+        public MissileArgs Args = new MissileArgs();
     }
 }

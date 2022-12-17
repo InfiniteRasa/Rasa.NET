@@ -1,4 +1,6 @@
-﻿namespace Rasa.Managers
+﻿using System;
+
+namespace Rasa.Managers
 {
     using Data;
     using Packets.MapChannel.Server;
@@ -78,8 +80,7 @@
             switch (action.ActionId)
             {
                 case ActionId.AaRecruitLightning:
-                    CellManager.Instance.CellCallMethod(mapChannel, action.Actor, new PerformRecoveryPacket(PerformType.TwoArgs, action.ActionId, action.ActionArgId));
-                    // ToDo: do damage
+                    MissileManager.Instance.MissileLaunch(mapChannel, action, new Random().Next(233, 311 + 1));
                     break;
                 case ActionId.AaRecruitSprint:
                     GameEffectManager.Instance.AttachSprint(mapChannel, action.Actor, action.ActionArgId, 500);
