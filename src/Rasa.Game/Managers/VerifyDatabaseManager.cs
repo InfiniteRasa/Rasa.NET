@@ -37,7 +37,8 @@ namespace Rasa.Managers
             "rasaworld_2021_03_20_14_00_added_dropships",
             "rasaworld_2021_11_11_12_13_added_missing_table",
             "rasaworld_2021_12_07_21_30_added_dropship_teleporters",
-            "rasaworld_2022_12_12_12_30_logos_added"
+            "rasaworld_2022_12_12_12_30_logos_added",
+            "rasaworld_2022_19_12_16_30_map_info_added"
     };
 
         private static VerifyDatabaseManager _instance;

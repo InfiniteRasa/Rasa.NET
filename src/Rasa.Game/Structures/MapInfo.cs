@@ -14,5 +14,13 @@
             MapVersion = mapVersion;
             BaseRegionId = baseRegionId;
         }
+
+        public MapInfo(MapInfoEntry map)
+        {
+            MapContextId = map.MapContextId;
+            MapName = map.MapName;
+            MapVersion = map.MapVersion;
+            BaseRegionId = map.BaseRegion;
+        }
     }
 }

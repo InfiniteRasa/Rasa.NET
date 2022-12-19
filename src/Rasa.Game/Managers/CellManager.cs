@@ -123,8 +123,9 @@ namespace Rasa.Managers
             if (client.MapClient.Player == null)
                 return;
 
-            var mapChannel = client.MapClient.MapChannel;
+            var mapChannel = MapChannelManager.Instance.MapChannelArray[client.LoadingMap];
 
+            client.MapClient.MapChannel = mapChannel;
             // calculate initial cell
             var CellPosX = (uint)(client.MapClient.Player.Actor.Position.X / CellSize + CellBias);
             var CellPosZ = (uint)(client.MapClient.Player.Actor.Position.Z / CellSize + CellBias);
@@ -231,7 +232,7 @@ namespace Rasa.Managers
             DynamicObjectManager.Instance.CellDiscardDynamicObjectToClients(dynObject.EntityId, ListOfClients);
 
             // remove object from cell
-            mapChannel.MapCellInfo.Cells[cellMatrix[2,2]].DynamicObjectList.Remove(dynObject);
+            mapChannel.MapCellInfo.Cells[cellMatrix[2, 2]].DynamicObjectList.Remove(dynObject);
         }
 
         public void RemoveFromWorld(MapChannel mapChannel, ulong entityId)
@@ -295,7 +296,7 @@ namespace Rasa.Managers
 
                 // remove Player from old cell
                 mapChannel.MapCellInfo.Cells[client.MapClient.Player.Actor.Cells[2, 2]].ClientList.Remove(client);
-                
+
                 // remove players, creatures, object that left visibility range
                 var DiscardClients = new List<Client>();
                 var DiscardCreatures = new List<Creature>();
@@ -322,7 +323,7 @@ namespace Rasa.Managers
                 mapChannel.MapCellInfo.Cells[cellMatrix[2, 2]].ClientList.Add(client);
                 // set new player visibility
                 client.MapClient.Player.Actor.Cells = cellMatrix;
-                
+
                 // notify client about players, creatures, objects
                 var AddClients = new List<Client>();
                 var AddCreatures = new List<Creature>();
@@ -351,7 +352,7 @@ namespace Rasa.Managers
         {
             var oldCells = new List<uint>();
             var newCells = new List<uint>();
-            
+
             // find all cells that need to be removed
             foreach (var oldCell in oldCellMatrix)
             {
@@ -450,7 +451,7 @@ namespace Rasa.Managers
                 foreach (var client in mapChannel.MapCellInfo.Cells[cellSeed].ClientList)
                     client.CallMethod(obj.EntityId, packet);
         }
-        
+
         internal void CellCallMethod(MapChannel mapChannel, Actor origin, PythonPacket packet)
         {
             foreach (var cellSeed in origin.Cells)

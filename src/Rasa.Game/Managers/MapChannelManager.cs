@@ -9,6 +9,7 @@ namespace Rasa.Managers
     using Game;
     using Packets.ClientMethod.Server;
     using Packets.MapChannel.Server;
+    using Rasa.Database.Tables.World;
     using Structures;
     using Timer;
 
@@ -147,9 +148,9 @@ namespace Rasa.Managers
 
         public void MapChannelInit()
         {
-            MapChannelsByContextId.Add(1985, new MapChannel { MapInfo = new MapInfo(1985, "adv_bootcamp", 783, 0) });
-            MapChannelsByContextId.Add(1220, new MapChannel { MapInfo = new MapInfo(1220, "adv_foreas_concordia_wilderness", 1556, 0) });
-            MapChannelsByContextId.Add(1148, new MapChannel { MapInfo = new MapInfo(1148, "adv_foreas_concordia_divide", 1584, 0) });
+            var loadedMaps = MapInfoTable.LoadMapInfo();
+            foreach (var map in loadedMaps)
+                MapChannelsByContextId.Add(map.MapContextId, new MapChannel { MapInfo = new MapInfo(map) });
 
             foreach (var t in MapChannelsByContextId)
             {
@@ -170,20 +171,6 @@ namespace Rasa.Managers
                 };
                 // register mapChannel
                 MapChannelArray.Add(id, newMapChannel);
-            }
-
-            foreach (var t in MapChannelArray)
-            {
-                var mapChannel = t.Value;
-                //navmesh_initForMapChannel(mapChannel);
-                //dynamicObject_init(mapChannel);
-                //mission_initForChannel(mapChannel);
-                //missile_initForMapchannel(mapChannel);
-                //SpawnPoolManager.Instance.InitForMapChannel(mapChannel);
-                //controller_initForMapChannel(mapChannel);
-                //teleporter_initForMapChannel(mapChannel); //---load teleporters
-                //logos_initForMapChannel(mapChannel); // logos world objects
-                Console.WriteLine("Map: {0} loaded", mapChannel.MapInfo.MapName);
             }
 
             Console.WriteLine("\nMapChannels Started...");
@@ -238,7 +225,7 @@ namespace Rasa.Managers
                     // check for objects
                     if (Timer.IsTriggered("CheckForObjects"))
                         DynamicObjectManager.Instance.DynamicObjectWorker(mapChannel, delta);
-                    
+
                     // check for creatures
                     if (Timer.IsTriggered("CheckForCreatures"))
                         SpawnPoolManager.Instance.SpawnPoolWorker(mapChannel, delta);
@@ -370,7 +357,7 @@ namespace Rasa.Managers
                 ManifestationManager.Instance.AssignPlayer(client);
                 CharacterManager.Instance.UpdateCharacter(client, CharacterUpdate.Position);
                 CommunicatorManager.Instance.PlayerEnterMap(dropship.Client);
-                
+
                 return;
             }
 
