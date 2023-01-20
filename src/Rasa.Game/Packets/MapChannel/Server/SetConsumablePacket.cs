@@ -7,9 +7,9 @@
     {
         public override GameOpcode Opcode { get; } = GameOpcode.SetConsumable;
 
-        public bool IsConsumable { get; set; }
+        public byte IsConsumable { get; set; }
 
-        public SetConsumablePacket(bool isConsumable)
+        public SetConsumablePacket(byte isConsumable)
         {
             IsConsumable = isConsumable;
         }
@@ -17,7 +17,7 @@
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(1);
-            pw.WriteBool(IsConsumable);
+            pw.WriteBool(IsConsumable != 0);
         }
     }
 }

@@ -12,8 +12,8 @@
 
         public PartyMember(Client client)
         {
-            MemberId = client.Player.Actor.EntityId;
-            MemberName = client.Player.Actor.FamilyName;
+            MemberId = client.Player.EntityId;
+            MemberName = client.Player.FamilyName;
             MemberClassId = client.Player.Class;
             MemberLevel = client.Player.Level;
             IsAfk = false;

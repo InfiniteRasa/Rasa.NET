@@ -95,8 +95,8 @@
 
         public void RequestActionInterrupt(Client client, RequestActionInterruptPacket packet)
         {
-            foreach (var action in client.MapClient.MapChannel.PerformRecovery)
-                if (action.Actor == client.MapClient.Player.Actor)
+            foreach (var action in client.Player.MapChannel.PerformRecovery)
+                if (action.Actor == client.Player)
                     if (action.ActionId == packet.ActionId)
                         if (action.ActionArgId == packet.ActionArgId)
                         {
@@ -107,8 +107,8 @@
 
         public void RequestVisualCombatMode(Client client, bool combatMode)
         {
-            client.MapClient.Player.Actor.InCombatMode = combatMode;
-            client.CellCallMethod(client, client.MapClient.Player.Actor.EntityId, new RequestVisualCombatModePacket(combatMode));
+            client.Player.InCombatMode = combatMode;
+            client.CellCallMethod(client, client.Player.EntityId, new RequestVisualCombatModePacket(combatMode));
         }
 
         public void SetDesiredCrouchState(Client client, CharacterState state)

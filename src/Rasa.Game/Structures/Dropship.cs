@@ -16,10 +16,11 @@ namespace Rasa.Structures
         internal Client Client { get; set; }
         internal Vector3 Destination { get; set; }
         internal uint DestinationMapId { get; set; }
+
         public Dropship(Factions faction, DropshipType dropshipType, SpawnPool spawnPool = null)
         {
             EntityId = EntityManager.Instance.GetEntityId;
-            EntityClassId = faction == Factions.AFS ? EntityClassId.UsableCrSpawnerHumDropshipV01 : EntityClassId.UsableCrSpawnerBaneDropshipV01;
+            EntityClassId = faction == Factions.AFS ? Data.EntityClasses.UsableCrSpawnerHumDropshipV01 : Data.EntityClasses.UsableCrSpawnerBaneDropshipV01;
             Faction = faction;
             StateId = UseObjectState.CsStateBegin;
             PhaseTimeleft = 5000;
@@ -28,17 +29,17 @@ namespace Rasa.Structures
             SpawnPool = spawnPool;
             MapContextId = spawnPool.MapContextId;
             Position = new Vector3(
-                spawnPool.HomePosition.X + (2.0f - (new Random().Next() % 100) * 0.04f),
-                spawnPool.HomePosition.Y,
-                spawnPool.HomePosition.Z + (2.0f - (new Random().Next() % 100) * 0.04f)
+                spawnPool.Position.X + (2.0f - (new Random().Next() % 100) * 0.04f),
+                spawnPool.Position.Y,
+                spawnPool.Position.Z + (2.0f - (new Random().Next() % 100) * 0.04f)
                 );
-            Orientation = (new Random().Next() % 640) * 0.01f;
+            Rotation = (new Random().Next() % 640) * 0.01f;
         }
         
         public Dropship(Factions faction, DropshipType dropshipType, Client client, Vector3 destination = new Vector3(), uint destinationMapId = 0)
         {
             EntityId = EntityManager.Instance.GetEntityId;
-            EntityClassId = faction == Factions.AFS ? EntityClassId.UsableCrSpawnerHumDropshipV01 : EntityClassId.UsableCrSpawnerBaneDropshipV01;
+            EntityClassId = faction == Factions.AFS ? Data.EntityClasses.UsableCrSpawnerHumDropshipV01 : Data.EntityClasses.UsableCrSpawnerBaneDropshipV01;
             Faction = faction;
             StateId = UseObjectState.CsStateBegin;
             PhaseTimeleft = 5000;
@@ -49,14 +50,10 @@ namespace Rasa.Structures
             if (client.State == ClientState.Teleporting)
                 MapContextId = client.LoadingMap;
             else
-                MapContextId = client.Player.Actor.MapContextId;
+                MapContextId = client.Player.MapContextId;
 
-            Position = new Vector3(
-                client.Player.Actor.Position.X,
-                client.Player.Actor.Position.Y,
-                client.Player.Actor.Position.Z
-                );
-            Orientation = (new Random().Next() % 640) * 0.01f;
+            Position = client.Player.Position;
+            Rotation = (new Random().Next() % 640) * 0.01f;
             DynamicObjectType = DynamicObjectType.DropshipTeleporter;
             Destination = destination;
             DestinationMapId = destinationMapId;

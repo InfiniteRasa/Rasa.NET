@@ -125,8 +125,8 @@ namespace Rasa.Managers
 
         internal void ChangePartyLootMethod(Client client, ChangePartyLootMethodPacket packet)
         {
-            var party = Parties[client.MapClient.Player.PartyId];
-            var clients = Server.Clients.FindAll(c => c.MapClient.Player.PartyId == client.MapClient.Player.PartyId);
+            var party = Parties[client.Player.PartyId];
+            var clients = Server.Clients.FindAll(c => c.Player.PartyId == client.Player.PartyId);
 
             party.LootMethod = packet.PartyLootMethod;
 
@@ -136,8 +136,8 @@ namespace Rasa.Managers
 
         internal void ChangePartyLootThreshold(Client client, ChangePartyLootThresholdPacket packet)
         {
-            var clients = Server.Clients.FindAll(c => c.MapClient.Player.PartyId == client.MapClient.Player.PartyId);
-            var party = Parties[client.MapClient.Player.PartyId];
+            var clients = Server.Clients.FindAll(c => c.Player.PartyId == client.Player.PartyId);
+            var party = Parties[client.Player.PartyId];
 
             party.LootThreshold = packet.PartyLootThreshold;
 
@@ -147,15 +147,15 @@ namespace Rasa.Managers
 
         internal void DisbandParty(Client client)
         {
-            var partyMembers = Server.Clients.FindAll(c => c.MapClient.Player.PartyId == client.MapClient.Player.PartyId);
+            var partyMembers = Server.Clients.FindAll(c => c.Player.PartyId == client.Player.PartyId);
 
             foreach (var partyMember in partyMembers)
             {
-                partyMember.MapClient.Player.PartyId = 0;
+                partyMember.Player.PartyId = 0;
                 partyMember.CallMethod(SysEntity.ClientPartyManagerId, new SetCurrentPartyIdPacket(0));
             }
 
-            Parties.Remove(client.MapClient.Player.PartyId);
+            Parties.Remove(client.Player.PartyId);
         }
 
         internal void InviteUserToPartyByName(Client client, InviteUserToPartyByNamePacket packet)
@@ -164,15 +164,15 @@ namespace Rasa.Managers
 
             List<PartyMember> SenderSquadInfo = new List<PartyMember>();
 
-            if (client.MapClient.Player.PartyId != 0)
-                SenderSquadInfo = Parties[client.MapClient.Player.PartyId].Members;
+            if (client.Player.PartyId != 0)
+                SenderSquadInfo = Parties[client.Player.PartyId].Members;
             else
                 SenderSquadInfo.Add(new PartyMember(client));
 
-            inviteeClient.CallMethod(SysEntity.ClientPartyManagerId, new InviteToPartyPacket(client.MapClient.Player.Actor.FamilyName, SenderSquadInfo));
-            inviteeClient.MapClient.Player.PartyInviterId = client.MapClient.Player.Actor.EntityId;
+            inviteeClient.CallMethod(SysEntity.ClientPartyManagerId, new InviteToPartyPacket(client.Player.FamilyName, SenderSquadInfo));
+            inviteeClient.Player.PartyInviterId = client.Player.EntityId;
 
-            client.CallMethod(SysEntity.ClientPartyManagerId, new InvitedPlayerToPartyPacket(packet.FamilyName, inviteeClient.MapClient.Player.IsAFK));
+            client.CallMethod(SysEntity.ClientPartyManagerId, new InvitedPlayerToPartyPacket(packet.FamilyName, inviteeClient.Player.IsAFK));
         }
 
         internal void CancelSquadJoinRequest(Client client, CancelSquadJoinRequestPacket packet)
@@ -184,14 +184,14 @@ namespace Rasa.Managers
         {
             var inviteeClient = Server.Clients.Find(c => c.AccountEntry.FamilyName == packet.FamilyName && c.State == ClientState.Ingame);
 
-            inviteeClient.CallMethod(SysEntity.ClientPartyManagerId, new SquadRequestCanceledPacket(client.MapClient.Player.Actor.FamilyName));
+            inviteeClient.CallMethod(SysEntity.ClientPartyManagerId, new SquadRequestCanceledPacket(client.Player.FamilyName));
         }
 
         internal void PartyInvitationResponse(Client client, PartyInvitationResponsePacket packet)
         {
-            var receiverClient = Server.Clients.Find(c => c.MapClient.Player.Actor.EntityId == client.MapClient.Player.PartyInviterId && c.State == ClientState.Ingame);
+            var receiverClient = Server.Clients.Find(c => c.Player.EntityId == client.Player.PartyInviterId && c.State == ClientState.Ingame);
 
-            client.MapClient.Player.PartyInviterId = 0;
+            client.Player.PartyInviterId = 0;
 
             if (packet.Response)
             {
@@ -200,15 +200,15 @@ namespace Rasa.Managers
                 foreach (var onlineMember in Server.Clients)
                     SenderSquadInfo.Add(new PartyMember(onlineMember));
 
-                receiverClient.CallMethod(SysEntity.ClientPartyManagerId, new SquadRequestSuccessPacket(client.MapClient.Player.Actor.FamilyName));
+                receiverClient.CallMethod(SysEntity.ClientPartyManagerId, new SquadRequestSuccessPacket(client.Player.FamilyName));
 
-                if (receiverClient.MapClient.Player.PartyId == 0)
+                if (receiverClient.Player.PartyId == 0)
                     CreateParty(receiverClient, client);
                 else
                     AddNewPartyMember(receiverClient, client);
             }
             else
-                receiverClient.CallMethod(SysEntity.ClientPartyManagerId, new SquadRequestDeclinedPacket(client.MapClient.Player.Actor.FamilyName));
+                receiverClient.CallMethod(SysEntity.ClientPartyManagerId, new SquadRequestDeclinedPacket(client.Player.FamilyName));
         }
 
         internal void InviteSquad(Client client, InviteSquadPacket packet)
@@ -223,8 +223,8 @@ namespace Rasa.Managers
 
         internal void KickUserFromPartyById(Client client, KickUserFromPartyByIdPacket packet)
         {
-            var partyMembers = Server.Clients.FindAll(c => c.MapClient.Player.PartyId == client.MapClient.Player.PartyId);
-            var kickedMember = partyMembers.Find(c => c.MapClient.Player.Actor.EntityId == packet.MemberId);
+            var partyMembers = Server.Clients.FindAll(c => c.Player.PartyId == client.Player.PartyId);
+            var kickedMember = partyMembers.Find(c => c.Player.EntityId == packet.MemberId);
 
             foreach (var partyMember in partyMembers)
             {
@@ -234,19 +234,19 @@ namespace Rasa.Managers
                 partyMember.CallMethod(SysEntity.ClientPartyManagerId, new RemovePartyMemberPacket(packet.MemberId, true));
             }
 
-            kickedMember.MapClient.Player.PartyId = 0;
+            kickedMember.Player.PartyId = 0;
             kickedMember.CallMethod(SysEntity.ClientPartyManagerId, new SetCurrentPartyIdPacket(0, true));
 
-            var party = Parties[client.MapClient.Player.PartyId];
+            var party = Parties[client.Player.PartyId];
             var memberToRemove = party.Members.Find(m => m.MemberId == packet.MemberId);
 
             party.Members.Remove(memberToRemove);
 
             if (party.Members.Count == 1)
             {
-                client.MapClient.Player.PartyId = 0;
+                client.Player.PartyId = 0;
 
-                Parties.Remove(client.MapClient.Player.PartyId);
+                Parties.Remove(client.Player.PartyId);
 
                 client.CallMethod(SysEntity.ClientPartyManagerId, new SetCurrentPartyIdPacket(0));
             }
@@ -254,32 +254,32 @@ namespace Rasa.Managers
 
         internal void LeaveParty(Client client)
         {
-            var party = Parties[client.MapClient.Player.PartyId];
-            var memberToRemove = party.Members.Find(m => m.MemberId == client.MapClient.Player.Actor.EntityId);
-            var partyMembers = Server.Clients.FindAll(c => c.MapClient.Player.PartyId == party.Id);
+            var party = Parties[client.Player.PartyId];
+            var memberToRemove = party.Members.Find(m => m.MemberId == client.Player.EntityId);
+            var partyMembers = Server.Clients.FindAll(c => c.Player.PartyId == party.Id);
 
             foreach(var partyMember in partyMembers)
             {
                 if (partyMember == client)
                     continue;
 
-                partyMember.CallMethod(SysEntity.ClientPartyManagerId, new RemovePartyMemberPacket(client.MapClient.Player.Actor.EntityId));
+                partyMember.CallMethod(SysEntity.ClientPartyManagerId, new RemovePartyMemberPacket(client.Player.EntityId));
             }
 
             party.Members.Remove(memberToRemove);
 
             if (party.Members.Count == 1)
             {
-                var lastPartyMember = Server.Clients.Find(c => c.MapClient.Player.Actor.EntityId == party.Members[0].MemberId);
+                var lastPartyMember = Server.Clients.Find(c => c.Player.EntityId == party.Members[0].MemberId);
 
                 lastPartyMember.CallMethod(SysEntity.ClientPartyManagerId, new SetCurrentPartyIdPacket(0));
-                lastPartyMember.MapClient.Player.PartyId = 0;
+                lastPartyMember.Player.PartyId = 0;
 
-                Parties.Remove(client.MapClient.Player.PartyId);
+                Parties.Remove(client.Player.PartyId);
             }
 
             client.CallMethod(SysEntity.ClientPartyManagerId, new SetCurrentPartyIdPacket(0));
-            client.MapClient.Player.PartyId = 0;
+            client.Player.PartyId = 0;
         }
 
         #region Helper Functions
@@ -294,8 +294,8 @@ namespace Rasa.Managers
 
             Parties.Add(partyId, party);
 
-            leader.MapClient.Player.PartyId = partyId;
-            member.MapClient.Player.PartyId = partyId;
+            leader.Player.PartyId = partyId;
+            member.Player.PartyId = partyId;
 
             leader.CallMethod(SysEntity.ClientPartyManagerId, new SetCurrentPartyIdPacket(partyId));
             leader.CallMethod(SysEntity.ClientPartyManagerId, new SetPartyLeaderPacket(party.PartyLeaderId));
@@ -307,14 +307,14 @@ namespace Rasa.Managers
 
         public void AddNewPartyMember(Client leader, Client newMember)
         {
-            var partyId = leader.MapClient.Player.PartyId;
-            var partyMembers = Server.Clients.FindAll(c => c.MapClient.Player.PartyId == partyId);
+            var partyId = leader.Player.PartyId;
+            var partyMembers = Server.Clients.FindAll(c => c.Player.PartyId == partyId);
             var newPartyMember = new PartyMember(newMember);
 
             foreach (var partyMember in partyMembers)
                 partyMember.CallMethod(SysEntity.ClientPartyManagerId, new AddPartyMemberPacket(newPartyMember));
 
-            newMember.MapClient.Player.PartyId = partyId;
+            newMember.Player.PartyId = partyId;
 
             Parties[partyId].Members.Add(newPartyMember);
 

@@ -5,7 +5,6 @@ using System.Numerics;
 namespace Rasa.Managers
 {
     using Data;
-    using Database.Tables.World;
     using Extensions;
     using Game;
     using Packets;
@@ -14,13 +13,15 @@ namespace Rasa.Managers
     using Packets.MapChannel.Client;
     using Packets.MapChannel.Server;
     using Packets.Protocol;
+    using Rasa.Repositories.UnitOfWork;
     using Structures;
-    using System;
 
     public class DynamicObjectManager
     {
         private static DynamicObjectManager _instance;
         private static readonly object InstanceLock = new object();
+        private readonly IGameUnitOfWorkFactory _gameUnitOfWorkFactory;
+
         public readonly Dictionary<ulong, Dropship> Dropships = new Dictionary<ulong, Dropship>();
 
         public static DynamicObjectManager Instance
@@ -33,7 +34,7 @@ namespace Rasa.Managers
                     lock (InstanceLock)
                     {
                         if (_instance == null)
-                            _instance = new DynamicObjectManager();
+                            _instance = new DynamicObjectManager(Server.GameUnitOfWorkFactory);
                     }
                 }
 
@@ -41,8 +42,9 @@ namespace Rasa.Managers
             }
         }
 
-        private DynamicObjectManager()
+        private DynamicObjectManager(IGameUnitOfWorkFactory gameUnitOfWorkFactory)
         {
+            _gameUnitOfWorkFactory = gameUnitOfWorkFactory;
         }
 
         internal void InitDynamicObjects()
@@ -65,30 +67,30 @@ namespace Rasa.Managers
             {
                 case DynamicObjectType.ControlPoint:
                     {
-                        client.CallMethod(client.MapClient.Player.Actor.EntityId, new PerformWindupPacket(PerformType.TwoArgs, packet.ActionId, packet.ActionArgId));
-                        client.CallMethod(packet.EntityId, new UsePacket(client.MapClient.Player.Actor.EntityId, obj.StateId, 10000));
-                        client.MapClient.MapChannel.PerformRecovery.Add(new ActionData(client.MapClient.Player.Actor, packet.ActionId, packet.ActionArgId, 10000));
+                        client.CallMethod(client.Player.EntityId, new PerformWindupPacket(PerformType.TwoArgs, packet.ActionId, packet.ActionArgId));
+                        client.CallMethod(packet.EntityId, new UsePacket(client.Player.EntityId, obj.StateId, 10000));
+                        client.Player.MapChannel.PerformRecovery.Add(new ActionData(client.Player, packet.ActionId, packet.ActionArgId, 10000));
 
                         obj.TrigeredByPlayers.Add(client);
                         break;
                     }
                 case DynamicObjectType.Lockbox:
                     {
-                        client.CallMethod(client.MapClient.Player.Actor.EntityId, new PerformWindupPacket(PerformType.TwoArgs, packet.ActionId, packet.ActionArgId));
-                        client.CallMethod(packet.EntityId, new UsePacket(client.MapClient.Player.Actor.EntityId, obj.StateId, 100));
-                        client.MapClient.MapChannel.PerformRecovery.Add(new ActionData(client.MapClient.Player.Actor, packet.ActionId, packet.ActionArgId, 100));
+                        client.CallMethod(client.Player.EntityId, new PerformWindupPacket(PerformType.TwoArgs, packet.ActionId, packet.ActionArgId));
+                        client.CallMethod(packet.EntityId, new UsePacket(client.Player.EntityId, obj.StateId, 100));
+                        client.Player.MapChannel.PerformRecovery.Add(new ActionData(client.Player, packet.ActionId, packet.ActionArgId, 100));
 
                         obj.TrigeredByPlayers.Add(client);
                         break;
                     }
                 case DynamicObjectType.Logos:
                     {
-                        var actionData = new ActionData(client.MapClient.Player.Actor, packet.ActionId, packet.ActionArgId, 10000);
+                        var actionData = new ActionData(client.Player, packet.ActionId, packet.ActionArgId, 10000);
                         actionData.SourceId = obj.EntityId;
 
-                        client.CallMethod(client.MapClient.Player.Actor.EntityId, new PerformWindupPacket(PerformType.TwoArgs, packet.ActionId, packet.ActionArgId));
-                        client.CallMethod(packet.EntityId, new UsePacket(client.MapClient.Player.Actor.EntityId, obj.StateId, 10000));
-                        client.MapClient.MapChannel.PerformRecovery.Add(actionData);
+                        client.CallMethod(client.Player.EntityId, new PerformWindupPacket(PerformType.TwoArgs, packet.ActionId, packet.ActionArgId));
+                        client.CallMethod(packet.EntityId, new UsePacket(client.Player.EntityId, obj.StateId, 10000));
+                        client.Player.MapChannel.PerformRecovery.Add(actionData);
 
                         obj.TrigeredByPlayers.Add(client);
                         break;
@@ -191,7 +193,7 @@ namespace Rasa.Managers
             switch (obj.EntityClassId)
             {
                 // Human waypoint
-                case EntityClassId.UsableTwoStateHumWaypointV01:
+                case EntityClasses.UsableTwoStateHumWaypointV01:
                     {
                         // check for players that enter range
                         PlayerEnterWaypoint(obj);
@@ -202,7 +204,7 @@ namespace Rasa.Managers
                         break;
                     }
                 // Control point
-                case (EntityClassId)3814:
+                case (EntityClasses)3814:
                     break;
                 default:
                     break;
@@ -230,12 +232,16 @@ namespace Rasa.Managers
 
             if (dynamicObject.EntityClassId == 0)
                 return;
+            var classInfo = EntityClassManager.Instance.GetClassInfo(EntityManager.Instance.GetEntityClassId(dynamicObject.EntityId));
+
+            if (classInfo == null)
+                return;
 
             var entityData = new List<PythonPacket>
             {
                 // PhysicalEntity
-                new IsTargetablePacket(EntityClassManager.Instance.GetClassInfo(EntityManager.Instance.GetEntityClassId(dynamicObject.EntityId)).TargetFlag),
-                new WorldLocationDescriptorPacket(dynamicObject.Position, dynamicObject.Orientation),
+                new IsTargetablePacket(classInfo.TargetFlag),
+                new WorldLocationDescriptorPacket(dynamicObject.Position, dynamicObject.Rotation),
                 // set state
                 new UsableInfoPacket(dynamicObject.IsEnabled, dynamicObject.StateId, 0, dynamicObject.WindupTime, dynamicObject.ActivateMission)
         };
@@ -282,9 +288,9 @@ namespace Rasa.Managers
             var newControlPoint = new DynamicObject
             {
                 Position = new Vector3(197.66f, 162.27f, -54.08f),
-                Orientation = 3.05f,
+                Rotation = 3.05f,
                 MapContextId = 1220,
-                EntityClassId = (EntityClassId)26486,
+                EntityClassId = (EntityClasses)26486,
                 DynamicObjectType = DynamicObjectType.ControlPoint,
                 ObjectData = new ControlPointStatus(215, 1, 1, 30000)
             };
@@ -301,7 +307,7 @@ namespace Rasa.Managers
                 var controlpoint = entry.Value;
 
                 foreach (var client in controlpoint.TrigeredByPlayers)
-                    if (client.MapClient.Player.Actor == action.Actor)
+                    if (client.Player == action.Actor)
                     {
                         if (action.IsInrerrupted)
                         {
@@ -333,7 +339,7 @@ namespace Rasa.Managers
 
                 if (dropship.DropshipType != DropshipType.Spawner && dropship.DropshipType != DropshipType.Teleporter)
                 {
-                    Logger.WriteLog(LogType.Debug, $"error dropshiptype { dropship.DropshipType}");
+                    Logger.WriteLog(LogType.Debug, $"error dropshiptype {dropship.DropshipType}");
                     return;
                 }
 
@@ -342,7 +348,7 @@ namespace Rasa.Managers
                 if (dropship.PhaseTimeleft > 0)
                     continue;
 
-                if(dropship.Phase == 0 || dropship.Phase == 1 || dropship.Phase == 4)
+                if (dropship.Phase == 0 || dropship.Phase == 1 || dropship.Phase == 4)
                     CellManager.Instance.CellCallMethod(dropship, new ForceStatePacket(dropship.StateId, 0));
 
                 switch (dropship.Phase)
@@ -362,7 +368,7 @@ namespace Rasa.Managers
                         {
                             if (dropship.Client.State == ClientState.Ingame)
                             {
-                                CellManager.Instance.CellCallMethod(dropship.Client.MapClient.MapChannel, dropship.Client.MapClient.Player.Actor, new PreTeleportPacket(TeleportType.Default));
+                                CellManager.Instance.CellCallMethod(dropship.Client.Player.MapChannel, dropship.Client.Player, new PreTeleportPacket(TeleportType.Default));
                                 dropship.Client.CallMethod(SysEntity.ClientMethodId, new BeginTeleportPacket());
                             }
                         }
@@ -405,11 +411,11 @@ namespace Rasa.Managers
                             {
                                 case ClientState.Ingame:
                                     CellManager.Instance.RemoveFromWorld(dropship.Client);
-                                    dropship.Client.MapClient.MapChannel.ClientList.Remove(dropship.Client);
+                                    dropship.Client.Player.MapChannel.ClientList.Remove(dropship.Client);
                                     dropship.Client.CallMethod(SysEntity.ClientMethodId, new UnrequestMovementBlockPacket());
                                     dropship.Client.CallMethod(SysEntity.ClientMethodId, new PreWonkavatePacket());
                                     dropship.Client.CallMethod(SysEntity.CurrentInputStateId, new WonkavatePacket(dropship.DestinationMapId, 1, MapChannelManager.Instance.MapChannelArray[dropship.DestinationMapId].MapInfo.MapVersion, dropship.Destination, 0));
-                                    dropship.Client.MapClient.Player.Actor.Position = dropship.Destination;
+                                    dropship.Client.Player.Position = dropship.Destination;
                                     dropship.Client.State = ClientState.Teleporting;
                                     break;
                                 case ClientState.Teleporting:
@@ -446,7 +452,8 @@ namespace Rasa.Managers
 
         internal void InitFootlockers()
         {
-            var footlockers = FootlockersTable.LoadFootlockers();
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateWorld();
+            var footlockers = unitOfWork.Footlockers.GetFootlockers();
 
             foreach (var footlocker in footlockers)
             {
@@ -454,10 +461,10 @@ namespace Rasa.Managers
 
                 var newFootlocker = new DynamicObject
                 {
-                    Position = new Vector3(footlocker.CoordX, footlocker.CoordY, footlocker.CoordZ),
-                    Orientation = footlocker.Orientation,
+                    Position = footlocker.Position,
+                    Rotation = footlocker.Rotation,
                     MapContextId = footlocker.MapContextId,
-                    EntityClassId = (EntityClassId)footlocker.EntityClassId,
+                    EntityClassId = (EntityClasses)footlocker.ClassId,
                     DynamicObjectType = DynamicObjectType.Lockbox,
                     Comment = footlocker.Comment
                 };
@@ -474,7 +481,7 @@ namespace Rasa.Managers
             foreach (var obj in mapChannel.DynamicObjects)
             {
                 foreach (var client in obj.TrigeredByPlayers)
-                    if (client.MapClient.Player.Actor == action.Actor)
+                    if (client.Player == action.Actor)
                     {
                         if (action.IsInrerrupted)
                         {
@@ -511,7 +518,7 @@ namespace Rasa.Managers
 
                         if (!haveLogos)
                             CharacterManager.Instance.UpdateCharacter(client, CharacterUpdate.Logos, logosId);
-                        
+
                         break;
                     }
             }
@@ -522,7 +529,8 @@ namespace Rasa.Managers
 
         internal void InitTeleporters()
         {
-            var teleporters = TeleporterTable.GetTeleporters();
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateWorld();
+            var teleporters = unitOfWork.Teleporters.GetTeleporters();
 
             foreach (var teleporter in teleporters)
             {
@@ -533,10 +541,10 @@ namespace Rasa.Managers
 
                 var newTeleporter = new DynamicObject
                 {
-                    Position = new Vector3(teleporter.CoordX, teleporter.CoordY, teleporter.CoordZ),
-                    Orientation = teleporter.Orientation,
+                    Position = teleporter.Position,
+                    Rotation = teleporter.Rotation,
                     MapContextId = teleporter.MapContextId,
-                    EntityClassId = (EntityClassId)teleporter.EntityClassId,
+                    EntityClassId = (EntityClasses)teleporter.ClassId,
                     Comment = teleporter.Description,
                     ObjectData = new WaypointInfo(teleporter.Id, false, teleporter.Type)
                 };
@@ -563,14 +571,14 @@ namespace Rasa.Managers
         internal void CheckPlayerWaypoint(Client client, WaypointInfo objectData)
         {
             // check if player has requested waypoint
-            if (client.MapClient.Player.GainedWaypoints.Contains(objectData.WaypointId))
+            if (client.Player.GainedWaypoints.Contains(objectData.WaypointId))
             {
                 return;
             }
 
             // add waypoint to player as he entered for the first time
-            client.CallMethod(client.MapClient.Player.Actor.EntityId, new WaypointGainedPacket(objectData.WaypointId, objectData.WaypointType));
-            client.MapClient.Player.GainedWaypoints.Add(objectData.WaypointId);
+            client.CallMethod(client.Player.EntityId, new WaypointGainedPacket(objectData.WaypointId, objectData.WaypointType));
+            client.Player.GainedWaypoints.Add(objectData.WaypointId);
 
             // update Db
             CharacterManager.Instance.UpdateCharacter(client, CharacterUpdate.Teleporter, objectData.WaypointId);
@@ -587,7 +595,7 @@ namespace Rasa.Managers
             {
                 var teleporterData = teleporter.Value.ObjectData as WaypointInfo;
 
-                foreach (var waypointId in client.MapClient.Player.GainedWaypoints)
+                foreach (var waypointId in client.Player.GainedWaypoints)
                 {
                     if (waypointId == teleporterData.WaypointId)
                     {
@@ -609,11 +617,11 @@ namespace Rasa.Managers
 
         internal void SelectWaypoint(Client client, SelectWaypointPacket packet)
         {
-            if (packet.MapInstanceId != client.MapClient.Player.Actor.MapContextId)
+            if (packet.MapInstanceId != client.Player.MapContextId)
             {
                 var dropship = new Dropship(Factions.AFS, DropshipType.Teleporter, client, MapChannelManager.Instance.MapChannelArray[packet.MapInstanceId].Teleporters[packet.WaypointId].Position, packet.MapInstanceId);
 
-                CellManager.Instance.AddToWorld(client.MapClient.MapChannel, dropship);
+                CellManager.Instance.AddToWorld(client.Player.MapChannel, dropship);
                 Dropships.Add(dropship.EntityId, dropship);
                 client.CallMethod(SysEntity.ClientMethodId, new RequestMovementBlockPacket());
 
@@ -621,27 +629,30 @@ namespace Rasa.Managers
                 return;
             }
 
-            var teleporter = client.MapClient.MapChannel.Teleporters[packet.WaypointId];
+            var teleporter = client.Player.MapChannel.Teleporters[packet.WaypointId];
             var objData = teleporter.ObjectData as WaypointInfo;
-            var movementData = new Memory.MovementData
+            var movementData = new Models.Movement
                 (
+                new Vector3(
                     teleporter.Position.X,
                     teleporter.Position.Y + 1,
-                    teleporter.Position.Z,
-                    teleporter.Orientation
-                );
+                    teleporter.Position.Z),
+                0f,
+                0,
+                new Vector2((float)teleporter.Rotation, 0f)
+            );
 
-            client.CellCallMethod(client, client.MapClient.Player.Actor.EntityId, new PreTeleportPacket(TeleportType.Default));
-            client.CallMethod(client.MapClient.Player.Actor.EntityId, new TeleportPacket(teleporter.Position, teleporter.Orientation, TeleportType.Default, 5));
+            client.CellCallMethod(client, client.Player.EntityId, new PreTeleportPacket(TeleportType.Default));
+            client.CallMethod(client.Player.EntityId, new TeleportPacket(teleporter.Position, teleporter.Rotation, TeleportType.Default, 5));
             client.CallMethod(SysEntity.ClientMethodId, new BeginTeleportPacket());
-            client.CellMoveObject(client.MapClient, new MoveObjectMessage(client.MapClient.Player.Actor.EntityId, movementData), false);
+            client.CellMoveObject(client, new MoveObjectMessage(client.Player.EntityId, movementData), false);
 
             teleporter.TrigeredByPlayers.Remove(client);    // ToDO: maybe safely remove client
         }
 
         internal void TeleportAcknowledge(Client client)
         {
-            client.CallMethod(client.MapClient.Player.Actor.EntityId, new TeleportArrivalPacket());
+            client.CallMethod(client.Player.EntityId, new TeleportArrivalPacket());
         }
 
         internal void PlayerEnterWaypoint(DynamicObject obj)
@@ -652,7 +663,7 @@ namespace Rasa.Managers
             foreach (var client in mapChannel.MapCellInfo.Cells[cellSeed].ClientList)
             {
                 // check if player is near waypoint
-                if (!client.MapClient.Player.Actor.IsNear2m(obj))
+                if (!client.Player.IsNear2m(obj))
                 {
                     continue;
                 }
@@ -670,8 +681,8 @@ namespace Rasa.Managers
 
                 CheckPlayerWaypoint(client, objectData);
 
-                var waypointInfoList = CreateListOfWaypoints(client, mapChannel);  
-                
+                var waypointInfoList = CreateListOfWaypoints(client, mapChannel);
+
                 client.CallMethod(SysEntity.ClientMethodId, new EnteredWaypointPacket(obj.MapContextId, obj.MapContextId, waypointInfoList, objectData.WaypointType, objectData.WaypointId));
 
                 // check if we already added him to the waypoint
@@ -684,7 +695,7 @@ namespace Rasa.Managers
             {
                 var client = obj.TrigeredByPlayers[i];
 
-                if (!client.MapClient.Player.Actor.IsNear2m(obj))
+                if (!client.Player.IsNear2m(obj))
                 {
                     obj.TrigeredByPlayers.RemoveAt(i);
 

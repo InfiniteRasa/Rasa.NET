@@ -18,7 +18,7 @@ namespace Rasa.Managers
 
         public Dictionary<ulong, EntityType> RegisteredEntities = new Dictionary<ulong, EntityType>();
         public Dictionary<ulong, Item> Items = new Dictionary<ulong, Item>();
-        public Dictionary<ulong, MapChannelClient> Players = new Dictionary<ulong, MapChannelClient>();
+        public Dictionary<ulong, Manifestation> Players = new Dictionary<ulong, Manifestation>();
         public Dictionary<ulong, Actor> Actors = new Dictionary<ulong, Actor>();
         public Dictionary<ulong, Creature> Creatures = new Dictionary<ulong, Creature>();
         public Dictionary<ulong, DynamicObject> DynamicObjects = new Dictionary<ulong, DynamicObject>();
@@ -53,7 +53,7 @@ namespace Rasa.Managers
             //free entity
             switch (entityType)
             {
-                case EntityType.Player:
+                case EntityType.Character:
                     FreeEntity(entityId);
                     UnregisterEntity(entityId);
                     UnregisterPlayer(entityId);
@@ -101,15 +101,15 @@ namespace Rasa.Managers
             }
         }
 
-        public EntityClassId GetEntityClassId(ulong entityId)
+        public EntityClasses GetEntityClassId(ulong entityId)
         {
             switch (GetEntityType(entityId))
             {
-                case EntityType.Player:
-                    return Players[entityId].Player.Actor.EntityClassId;
+                case EntityType.Character:
+                    return Players[entityId].EntityClass;
 
                 case EntityType.Creature:
-                    return Creatures[entityId].EntityClassId;
+                    return Creatures[entityId].EntityClass;
 
                 case EntityType.Npc:
                     Logger.WriteLog(LogType.Error, $"Not implemented, {GetEntityType(entityId)} ToDo");
@@ -208,14 +208,14 @@ namespace Rasa.Managers
         }
 
         // Players
-        public MapChannelClient GetPlayer(ulong entityId)
+        public Manifestation GetPlayer(ulong entityId)
         {
             return Players[entityId];
         }
 
-        public void RegisterPlayer(ulong entityId, MapChannelClient mapClient)
+        public void RegisterPlayer(ulong entityId, Manifestation player)
         {
-            Players.Add(entityId, mapClient);
+            Players.Add(entityId, player);
         }
 
         public void UnregisterPlayer(ulong entityId)
@@ -231,7 +231,7 @@ namespace Rasa.Managers
 
         public void RegisterCreature(Creature creature)
         {
-            Creatures.Add(creature.Actor.EntityId, creature);
+            Creatures.Add(creature.EntityId, creature);
         }
 
         public void UnregisterCreature(ulong entityId)

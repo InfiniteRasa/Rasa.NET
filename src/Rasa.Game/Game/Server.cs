@@ -7,18 +7,18 @@ using Microsoft.Extensions.Hosting;
 
 namespace Rasa.Game
 {
-    using Managers;
     using Commands;
     using Config;
     using Data;
-    using Database;
     using Hosting;
     using Login;
+    using Managers;
     using Memory;
     using Networking;
     using Packets;
     using Packets.Communicator;
     using Queue;
+    using Repositories.UnitOfWork;
     using Structures;
     using Threading;
     using Timer;
@@ -26,6 +26,8 @@ namespace Rasa.Game
     public class Server : ILoopable, IRasaServer
     {
         private readonly IHostApplicationLifetime _hostApplicationLifetime;
+        private readonly IClientFactory _clientFactory;
+        public static IGameUnitOfWorkFactory GameUnitOfWorkFactory;
 
         public string ServerType { get; } = "Game";
 
@@ -47,10 +49,14 @@ namespace Rasa.Game
 
         private readonly List<Client> _clientsToRemove = new List<Client>();
         private readonly PacketRouter<Server, CommOpcode> _router = new PacketRouter<Server, CommOpcode>();
-
-        public Server(IHostApplicationLifetime hostApplicationLifetime)
+        public Server(
+            IHostApplicationLifetime hostApplicationLifetime,
+            IClientFactory clientFactory,
+            IGameUnitOfWorkFactory gameUnitOfWorkFactory)
         {
             _hostApplicationLifetime = hostApplicationLifetime;
+            _clientFactory = clientFactory;
+            GameUnitOfWorkFactory= gameUnitOfWorkFactory;
 
             Configuration.OnLoad += ConfigLoaded;
             Configuration.OnReLoad += ConfigReLoaded;
@@ -63,8 +69,6 @@ namespace Rasa.Game
             LengthedSocket.InitializeEventArgsPool(Config.SocketAsyncConfig.MaxClients * Config.SocketAsyncConfig.ConcurrentOperationsByClient);
 
             BufferManager.Initialize(Config.SocketAsyncConfig.BufferSize, Config.SocketAsyncConfig.MaxClients, Config.SocketAsyncConfig.ConcurrentOperationsByClient);
-
-            GameDatabaseAccess.Initialize(Config.WorldDatabaseConnectionString, Config.CharDatabaseConnectionString);
 
             CommandProcessor.RegisterCommand("exit", ProcessExitCommand);
             CommandProcessor.RegisterCommand("reload", ProcessReloadCommand);
@@ -183,9 +187,6 @@ namespace Rasa.Game
                 QueueManager.Update(Config.ServerInfoConfig.MaxPlayers - CurrentPlayers);
             });
 
-            // Verify database
-            VerifyDatabaseManager.Instance.VerifyDatabase();
-
             // Load items from db
             EntityClassManager.Instance.LoadEntityClasses();
             MissionManager.Instance.LoadMissions();
@@ -193,9 +194,9 @@ namespace Rasa.Game
             SpawnPoolManager.Instance.SpawnPoolInit();
             ChatCommandsManager.Instance.RegisterChatCommands();
             MapChannelManager.Instance.MapChannelInit();
+            LogosManager.Instance.LogosInit();
             DynamicObjectManager.Instance.InitDynamicObjects();
             MapTriggerManager.Instance.MapTriggerInit();
-            LogosManager.Instance.LogosInit();
 
             return true;
         }
@@ -203,7 +204,10 @@ namespace Rasa.Game
         private void OnLogin(LoginClient client)
         {
             lock (Clients)
-                Clients.Add(new Client(client.Socket, client.Data, this));
+            {
+                var newClient = _clientFactory.Create(client.Socket, client.Data, this);
+                Clients.Add(newClient);
+            }
         }
 
         private static void OnError(SocketAsyncEventArgs args)

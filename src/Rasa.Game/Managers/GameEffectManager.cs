@@ -89,10 +89,10 @@
         {
             foreach (var client in mapChannel.ClientList)
             {
-                if (client.MapClient.Player == null)
+                if (client.Player == null)
                     continue;
 
-                var actor = client.MapClient.Player.Actor;
+                var actor = client.Player;
                 var gameEffect = actor.ActiveEffects;
 
                 // This need future work

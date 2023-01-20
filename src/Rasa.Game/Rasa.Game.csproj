@@ -2,16 +2,18 @@
 
   <PropertyGroup>
     <AssemblyTitle>Rasa.NET Game</AssemblyTitle>
-    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <TargetFramework>net5.0</TargetFramework>
     <AssemblyName>Rasa.Game</AssemblyName>
     <OutputType>Exe</OutputType>
     <PackageId>Rasa.Game</PackageId>
-    <PackageTargetFallback>$(PackageTargetFallback)</PackageTargetFallback>
+    <RuntimeIdentifiers>win10-x64;osx.10.10-x64;ubuntu.14.04-x64</RuntimeIdentifiers>
+    <RuntimeFrameworkVersion>5.0.0</RuntimeFrameworkVersion>
     <GenerateAssemblyConfigurationAttribute>false</GenerateAssemblyConfigurationAttribute>
     <GenerateAssemblyCompanyAttribute>false</GenerateAssemblyCompanyAttribute>
     <GenerateAssemblyProductAttribute>false</GenerateAssemblyProductAttribute>
     <RootNamespace>Rasa</RootNamespace>
     <StartupObject>Rasa.GameProgram</StartupObject>
+    <LangVersion>9.0</LangVersion>
   </PropertyGroup>
 
   <ItemGroup>
@@ -32,10 +34,6 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <DependentUpon>appsettings.json</DependentUpon>
     </None>
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Packets\Manifestation\Client\" />
   </ItemGroup>
 
 </Project>

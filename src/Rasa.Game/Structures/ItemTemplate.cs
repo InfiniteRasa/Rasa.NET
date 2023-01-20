@@ -3,10 +3,11 @@
 namespace Rasa.Structures
 {
     using Data;
+    using World;
 
     public class ItemTemplate
     {
-        public EntityClassId Class { get; set; }
+        public EntityClasses Class { get; set; }
         public uint ItemTemplateId { get; set; }
         public ItemInfo ItemInfo = new ItemInfo();
         public EquipableInfo EquipableInfo { get; set; }
@@ -31,7 +32,7 @@ namespace Rasa.Structures
         public ItemTemplate(ItemTemplateItemClassEntry template)
         {
             ItemTemplateId = template.ItemTemplateId;
-            Class = (EntityClassId)template.ItemClass;
+            Class = (EntityClasses)template.ItemClass;
         }
     }
 }

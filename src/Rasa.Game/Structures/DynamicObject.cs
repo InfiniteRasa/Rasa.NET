@@ -6,7 +6,7 @@ namespace Rasa.Structures
     using Data;
     using Game;
     using Managers;
-    using Positioning;
+    using Interfaces;
 
     public class DynamicObject : IHasPosition
     {
@@ -16,10 +16,10 @@ namespace Rasa.Structures
         }
 
         public ulong EntityId { get; set; }
-        public EntityClassId EntityClassId { get; set; }
+        public EntityClasses EntityClassId { get; set; }
         public object ObjectData { get; set; }
         public Vector3 Position { get; set; }
-        public float Orientation { get; set; }
+        public double Rotation { get; set; }
         public uint MapContextId { get; set; }
         public Factions Faction { get; set; }
         public long RespawnTime { get; set; }

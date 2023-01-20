@@ -33,29 +33,29 @@
                         pw.WriteInt(EntityClass.WeaponClassInfo.MinDamage);
                         pw.WriteInt(EntityClass.WeaponClassInfo.MaxDamage);
                         pw.WriteUInt((uint)EntityClass.WeaponClassInfo.AmmoClassId);
-                        pw.WriteInt(EntityClass.WeaponClassInfo.ClipSize);
+                        pw.WriteUInt(EntityClass.WeaponClassInfo.ClipSize);
                         pw.WriteUInt(ItemTemplate.WeaponInfo.AmmoPerShot);
                         pw.WriteInt(EntityClass.WeaponClassInfo.DamageType);
-                        pw.WriteInt(ItemTemplate.WeaponInfo.WindupTime);
-                        pw.WriteInt(ItemTemplate.WeaponInfo.RecoveryTime);
-                        pw.WriteInt(ItemTemplate.WeaponInfo.RefireTime);
-                        pw.WriteInt(ItemTemplate.WeaponInfo.ReloadTime);
-                        pw.WriteInt(ItemTemplate.WeaponInfo.Range);
-                        pw.WriteInt(ItemTemplate.WeaponInfo.AERadius);
+                        pw.WriteUInt(ItemTemplate.WeaponInfo.Windup);
+                        pw.WriteUInt(ItemTemplate.WeaponInfo.Recovery);
+                        pw.WriteUInt(ItemTemplate.WeaponInfo.Refire);
+                        pw.WriteUInt(ItemTemplate.WeaponInfo.ReloadTime);
+                        pw.WriteUInt(ItemTemplate.WeaponInfo.Range);
+                        pw.WriteUInt(ItemTemplate.WeaponInfo.AeRadius);
 
-                        if (ItemTemplate.WeaponInfo.AEType == 0)
+                        if (ItemTemplate.WeaponInfo.AeType == 0)
                             pw.WriteNoneStruct();
                         else
-                            pw.WriteInt(ItemTemplate.WeaponInfo.AEType);
+                            pw.WriteUInt(ItemTemplate.WeaponInfo.AeType);
 
                         if (ItemTemplate.WeaponInfo.WeaponAltInfo != null)
                         {
                             pw.WriteTuple(5);
-                            pw.WriteInt(ItemTemplate.WeaponInfo.WeaponAltInfo.MaxDamage);
-                            pw.WriteInt(ItemTemplate.WeaponInfo.WeaponAltInfo.DamageType);
-                            pw.WriteInt(ItemTemplate.WeaponInfo.WeaponAltInfo.Range);
-                            pw.WriteInt(ItemTemplate.WeaponInfo.WeaponAltInfo.AERadius);
-                            pw.WriteInt(ItemTemplate.WeaponInfo.WeaponAltInfo.AEType);
+                            pw.WriteUInt(ItemTemplate.WeaponInfo.WeaponAltInfo.AltMaxDamage);
+                            pw.WriteUInt(ItemTemplate.WeaponInfo.WeaponAltInfo.AltDamageType);
+                            pw.WriteUInt(ItemTemplate.WeaponInfo.WeaponAltInfo.AltRange);
+                            pw.WriteUInt(ItemTemplate.WeaponInfo.WeaponAltInfo.AltAeRadius);
+                            pw.WriteUInt(ItemTemplate.WeaponInfo.WeaponAltInfo.AltAeType);
                         }
                         else
                             pw.WriteNoneStruct();

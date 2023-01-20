@@ -6,7 +6,27 @@ namespace Rasa.Memory
 {
     using Extensions;
 
-    public class PythonReader : IDisposable
+    public enum PythonType
+    {
+        Structs = 0x00,
+        Int = 0x10,
+        Long = 0x20,
+        Double = 0x30,
+        String = 0x40,
+        UnicodeString = 0x50,
+        Dictionary = 0x60,
+        List = 0x70,
+        Tuple = 0x80
+    }
+
+    public enum PythonStruct
+    {
+        None = 0x00,
+        True = 0x01,
+        Zero = 0x02
+    }
+
+    public sealed class PythonReader : IDisposable
     {
         public BinaryReader Reader { get; }
         public long BeginPosition { get; }
@@ -23,7 +43,7 @@ namespace Rasa.Memory
 
             --Reader.BaseStream.Position;
 
-            return (PythonType) (type & 0xF0);
+            return (PythonType)(type & 0xF0);
         }
 
         public void ReadNoneStruct()
@@ -47,25 +67,29 @@ namespace Rasa.Memory
                 throw new Exception($"Expected ZeroStruct, found data: {val:X2}");
         }
 
+        public PythonStruct ReadUnkStruct()
+        {
+            var val = Reader.ReadByte();
+
+            return val switch
+            {
+                0x00 => PythonStruct.None,
+                0x01 => PythonStruct.True,
+                0x02 => PythonStruct.Zero,
+                _ => throw new Exception($"Expected NoneStruct, TrueStruct or ZeroStruct, found data: {val:X2}"),
+            };
+        }
+
         public bool ReadBool()
         {
             var val = Reader.ReadByte();
-            switch (val)
+            return val switch
             {
-                case 0x00: // NoneStruct
-                case 0x10: // Int 0
-                    return false;
-
-                case 0x01: // TrueStruct
-                case 0x11: // Int 1
-                    return true;
-
-                case 0x02:  // ZeroStruct
-                    return false;
-
-                default:
-                    throw new Exception($"Expected 0x00, 0x10 or 0x01, 0x11. Got: {val:X2}");
-            }
+                0x00 or 0x10 => false, // NoneStruct or int 0
+                0x01 or 0x11 => true, // TrueStruct or int 1
+                0x02 => false, // ZeroStruct
+                _ => throw new Exception($"Expected 0x00, 0x10 or 0x01, 0x11. Got: {val:X2}"),
+            };
         }
 
         public int ReadInt()
@@ -77,20 +101,13 @@ namespace Rasa.Memory
             if (type <= 0x1C)
                 return type & 0xF;
 
-            switch (type)
+            return type switch
             {
-                case 0x1D:
-                    return Reader.ReadByte();
-
-                case 0x1E:
-                    return Reader.ReadInt16();
-
-                case 0x1F:
-                    return Reader.ReadInt32();
-
-                default:
-                    throw new Exception($"WTF? Int type: {type:X2}");
-            }
+                0x1D => Reader.ReadByte(),
+                0x1E => Reader.ReadInt16(),
+                0x1F => Reader.ReadInt32(),
+                _ => throw new Exception($"WTF? Int type: {type:X2}"),
+            };
         }
 
         public uint ReadUInt()
@@ -100,22 +117,15 @@ namespace Rasa.Memory
                 throw new Exception($"Expected 0x1_. Got: {type:X2}");
 
             if (type <= 0x1C)
-                return (uint) (type & 0xF);
+                return (uint)(type & 0xF);
 
-            switch (type)
+            return type switch
             {
-                case 0x1D:
-                    return Reader.ReadByte();
-
-                case 0x1E:
-                    return Reader.ReadUInt16();
-
-                case 0x1F:
-                    return Reader.ReadUInt32();
-
-                default:
-                    throw new Exception($"WTF? Int type: {type:X2}");
-            }
+                0x1D => Reader.ReadByte(),
+                0x1E => Reader.ReadUInt16(),
+                0x1F => Reader.ReadUInt32(),
+                _ => throw new Exception($"WTF? Int type: {type:X2}"),
+            };
         }
 
         public long ReadLong()
@@ -154,23 +164,14 @@ namespace Rasa.Memory
             if ((type & 0x30) != 0x30)
                 throw new Exception($"Expected 0x3_. Got: {type:X2}");
 
-            switch (type)
+            return type switch
             {
-                case 0x30:
-                    return 0.0D;
-
-                case 0x31:
-                    return 1.0D;
-
-                case 0x3E:
-                    return Reader.ReadDouble();
-
-                case 0x3F:
-                    return Reader.ReadSingle();
-
-                default:
-                    throw new Exception($"WTF? Double type: {type:X2}");
-            }
+                0x30 => 0.0D,
+                0x31 => 1.0D,
+                0x3E => Reader.ReadDouble(),
+                0x3F => Reader.ReadSingle(),
+                _ => throw new Exception($"WTF? Double type: {type:X2}"),
+            };
         }
 
         public string ReadString()
@@ -253,20 +254,13 @@ namespace Rasa.Memory
             if (type <= 0x6C)
                 return type & 0x0F;
 
-            switch (type)
+            return type switch
             {
-                case 0x6D:
-                    return Reader.ReadByte();
-
-                case 0x6E:
-                    return Reader.ReadInt16();
-
-                case 0x6F:
-                    return Reader.ReadInt32();
-
-                default:
-                    throw new Exception($"WTF? Dictionary type: {type:X2}");
-            }
+                0x6D => Reader.ReadByte(),
+                0x6E => Reader.ReadInt16(),
+                0x6F => Reader.ReadInt32(),
+                _ => throw new Exception($"WTF? Dictionary type: {type:X2}"),
+            };
         }
 
         public int ReadList()
@@ -278,20 +272,13 @@ namespace Rasa.Memory
             if (type <= 0x7C)
                 return type & 0x0F;
 
-            switch (type)
+            return type switch
             {
-                case 0x7D:
-                    return Reader.ReadByte();
-
-                case 0x7E:
-                    return Reader.ReadInt16();
-
-                case 0x7F:
-                    return Reader.ReadInt32();
-
-                default:
-                    throw new Exception($"WTF? List type: {type:X2}");
-            }
+                0x7D => Reader.ReadByte(),
+                0x7E => Reader.ReadInt16(),
+                0x7F => Reader.ReadInt32(),
+                _ => throw new Exception($"WTF? List type: {type:X2}"),
+            };
         }
 
         public int ReadTuple()
@@ -303,20 +290,13 @@ namespace Rasa.Memory
             if (type <= 0x8C)
                 return type & 0x0F;
 
-            switch (type)
+            return type switch
             {
-                case 0x8D:
-                    return Reader.ReadByte();
-
-                case 0x8E:
-                    return Reader.ReadInt16();
-
-                case 0x8F:
-                    return Reader.ReadInt32();
-
-                default:
-                    throw new Exception($"WTF? Tuple type: {type:X2}");
-            }
+                0x8D => Reader.ReadByte(),
+                0x8E => Reader.ReadInt16(),
+                0x8F => Reader.ReadInt32(),
+                _ => throw new Exception($"WTF? Tuple type: {type:X2}"),
+            };
         }
 
         public T ReadStruct<T>()
@@ -342,38 +322,18 @@ namespace Rasa.Memory
                 var type = Reader.ReadByte();
                 if (type == 0x66)
                 {
-                    //if (Reader.ReadByte() == 0x2A)    // trow error "Cannot read beyond end of streem"
-                    if (Reader.BaseStream.Position == Reader.BaseStream.Length)
+                    //if (Reader.ReadByte() == 0x2A)
                         break;
 
-                    --Reader.BaseStream.Position;
+                    //--Reader.BaseStream.Position;
                 }
 
                 --Reader.BaseStream.Position;
 
-                switch ((PythonType) (type & 0xF0))
+                switch ((PythonType)(type & 0xF0))
                 {
                     case PythonType.Structs:
-                        switch (type & 0x0F)
-                        {
-                            case 0x00:
-                                ReadNoneStruct();
-                                sb.AppendLine("NoneStruct");
-                                break;
-
-                            case 0x01:
-                                ReadTrueStruct();
-                                sb.AppendLine("TrueStruct");
-                                break;
-
-                            case 0x02:
-                                ReadZeroStruct();
-                                sb.AppendLine("ZeroStruct");
-                                break;
-
-                            default:
-                                throw new Exception($"Invalid type read! Type: {type:X}");
-                        }
+                        sb.Append("Struct: ").AppendLine($"{ReadUnkStruct()}");
                         break;
 
                     case PythonType.Int:
@@ -420,7 +380,6 @@ namespace Rasa.Memory
 
         public void Dispose()
         {
-            
         }
     }
 }

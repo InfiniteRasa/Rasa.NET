@@ -107,21 +107,21 @@ namespace Rasa.Managers
 
         internal void ClanChat(Client client, ClanChatPacket packet)
         {
-            var clanMembers = Server.Clients.FindAll(c => c.MapClient.Player.ClanId == packet.ClanId);
+            var clanMembers = Server.Clients.FindAll(c => c.Player.ClanId == packet.ClanId);
             
             foreach(var member in clanMembers)
-                member.CallMethod(SysEntity.CommunicatorId, new ClanChatPacket(client.MapClient.Player.Actor.FamilyName, packet.Message));
+                member.CallMethod(SysEntity.CommunicatorId, new ClanChatPacket(client.Player.FamilyName, packet.Message));
         }
 
         internal void ChannelChat(Client client, ChannelChatPacket packet)
         {
-            client.CallMethod(SysEntity.CommunicatorId, new ChannelChatPacket(client.MapClient.Player.Actor.FamilyName, packet.ChannelId, packet.MapEntityId, packet.MapContextId, packet.Message));
+            client.CallMethod(SysEntity.CommunicatorId, new ChannelChatPacket(client.Player.FamilyName, packet.ChannelId, packet.MapEntityId, packet.MapContextId, packet.Message));
         }
 
         internal void Emote(Client client, EmotePacket packet)
         {
-            client.CallMethod(SysEntity.CommunicatorId, new EmotePacket(client.MapClient.Player.Actor.Name, packet.Emote));
-            CellManager.Instance.CellCallMethod(client.MapClient.MapChannel, client.MapClient.Player.Actor, new PerformWindupPacket(PerformType.TwoArgs, ActionId.Gesture, (uint)new Random().Next(1, 100)));   // ToDo: just testing
+            client.CallMethod(SysEntity.CommunicatorId, new EmotePacket(client.Player.Name, packet.Emote));
+            CellManager.Instance.CellCallMethod(client.Player.MapChannel, client.Player, new PerformWindupPacket(PerformType.TwoArgs, ActionId.Gesture, (uint)new Random().Next(1, 100)));   // ToDo: just testing
         }
 
         internal void Who(Client client, WhoPacket packet)
@@ -141,7 +141,7 @@ namespace Rasa.Managers
                 var newLink = new ChatChannelPlayerLink
                 {
                     Next = null,
-                    EntityId = client.MapClient.Player.Actor.EntityId,
+                    EntityId = client.Player.EntityId,
                     Previous = null
                 };
 
@@ -183,10 +183,10 @@ namespace Rasa.Managers
 
         public void JoinDefaultLocalChannel(Client client, uint channelId)
         {
-            if (client.MapClient.JoinedChannels >= 14)
+            if (client.Player.JoinedChannels >= 14)
                 return; // todo, send error to client
             // generate channel hash
-            var cHash = GenerateDefaultChannelHash((int)channelId, (int)client.MapClient.MapChannel.MapInfo.MapContextId, 0);
+            var cHash = GenerateDefaultChannelHash((int)channelId, (int)client.Player.MapChannel.MapInfo.MapContextId, 0);
             // find channel
             ChatChannel chatChannel;
             if (ChannelsBySeed.TryGetValue(cHash, out chatChannel))
@@ -199,24 +199,24 @@ namespace Rasa.Managers
                 chatChannel.Name[0] = '\0';
                 chatChannel.InstanceId = 0;
                 chatChannel.ChannelId = channelId;
-                chatChannel.MapContextId = client.MapClient.MapChannel.MapInfo.MapContextId;
+                chatChannel.MapContextId = client.Player.MapChannel.MapInfo.MapContextId;
                 chatChannel.IsDefaultChannel = true;
                 chatChannel.FirstPlayer = null;
                 // register it
                 ChannelsBySeed.Add(cHash, chatChannel);
             }
             // add channel entry to player
-            client.MapClient.ChannelHashes[client.MapClient.JoinedChannels] = cHash;
-            client.MapClient.JoinedChannels++;
+            client.Player.ChannelHashes[client.Player.JoinedChannels] = cHash;
+            client.Player.JoinedChannels++;
             // add client to channel
             AddClientToChannel(client, cHash);
-            client.CallMethod(SysEntity.CommunicatorId, new ChatChannelJoinedPacket(channelId, client.MapClient.MapChannel.MapInfo.MapContextId, client.MapClient.Player.Actor.EntityId));
+            client.CallMethod(SysEntity.CommunicatorId, new ChatChannelJoinedPacket(channelId, client.Player.MapChannel.MapInfo.MapContextId, client.Player.EntityId));
         }
 
         public void LoginOk(Client client)
         {
             // send LoginOk (despite the original description in the python files, this will only show 'You have arrived at ....' msg in chat)
-            client.CallMethod(SysEntity.CommunicatorId, new LoginOkPacket(client.MapClient.Player.Actor.Name));
+            client.CallMethod(SysEntity.CommunicatorId, new LoginOkPacket(client.Player.Name));
             // send MOTD ( Recv_SendMOTD - receives MOTDDict {languageId: text} )
             // SendMOTD = 770		// Displayed only if different
             // PreviewMOTD = 769	// Displayed always
@@ -236,16 +236,16 @@ namespace Rasa.Managers
             // save player time
             CharacterManager.Instance.UpdateCharacter(client, CharacterUpdate.Login, null);
             // remove client from all channels
-            for (var i = 0; i < client.MapClient.JoinedChannels; i++)
+            for (var i = 0; i < client.Player.JoinedChannels; i++)
             {
-                var chatChannel = ChannelsBySeed[client.MapClient.ChannelHashes[i]];
+                var chatChannel = ChannelsBySeed[client.Player.ChannelHashes[i]];
                 if (chatChannel != null)
                 {
                     // remove client link from channel
                     var currentLink = chatChannel.FirstPlayer;
                     while (currentLink != null)
                     {
-                        if (currentLink.EntityId == client.MapClient.Player.Actor.EntityId)
+                        if (currentLink.EntityId == client.Player.EntityId)
                         {
                             // do removing
                             if (currentLink.Previous == null)
@@ -268,7 +268,7 @@ namespace Rasa.Managers
                 }
             }
 
-            client.MapClient.JoinedChannels = 0;
+            client.Player.JoinedChannels = 0;
 
             SocialManager.Instance.FriendLoggedOut(client);
         }
@@ -288,22 +288,22 @@ namespace Rasa.Managers
                 else
                     Logger.WriteLog(LogType.Security, $"AccountId = {client.AccountEntry.Id} tryed to use GM Command = {textMsg}");
             } 
-            if (client.MapClient.Player == null)
+            if (client.Player == null)
                 return;
             // go through all players and send chat message ( can ignore sync because playerList will not change )
-            var mapChannel = client.MapClient.MapChannel;
+            var mapChannel = client.Player.MapChannel;
             for (var i = 0; i < mapChannel.ClientList.Count; i++)
             {
                 var tempClient = mapChannel.ClientList[i];
-                if (tempClient.MapClient.Player != null)
+                if (tempClient.Player != null)
                 {
-                    var distance = Vector3.Distance(client.MapClient.Player.Actor.Position, tempClient.MapClient.Player.Actor.Position);
+                    var distance = Vector3.Distance(client.Player.Position, tempClient.Player.Position);
                     if (distance <= 70.0) // 70 is about the range the client is visible
                     client.CallMethod(SysEntity.CommunicatorId, new RadialChatPacket
                         {
-                            FamilyName = client.MapClient.Player.Actor.FamilyName,
+                            FamilyName = client.Player.FamilyName,
                             TextMsg = textMsg,
-                            EntityId = client.MapClient.Player.Actor.EntityId
+                            EntityId = client.Player.EntityId
                         }
                     );
                 }

@@ -9,12 +9,12 @@ namespace Rasa.Packets.MapChannel.Server
     {
         public override GameOpcode Opcode { get; } = GameOpcode.CreatureInfo;
 
-        public int CreatureNameId { get; set; }
+        public uint CreatureNameId { get; set; }
         public bool IsFlyer { get; set; }
         //public int LeaderId { get; set; }
         public List<int> CreatureFlags { get; set; }
 
-        public CreatureInfoPacket(int creatureNameId, bool isFlyer, List<int> creatureFlags)
+        public CreatureInfoPacket(uint creatureNameId, bool isFlyer, List<int> creatureFlags)
         {
             CreatureNameId = creatureNameId;
             IsFlyer = isFlyer;
@@ -27,7 +27,7 @@ namespace Rasa.Packets.MapChannel.Server
             if (CreatureNameId == 0)
                 pw.WriteNoneStruct();           // creatureNameId (none, server defines name)
             else
-                pw.WriteInt(CreatureNameId);    // use creaturename table to lookup translated name
+                pw.WriteUInt(CreatureNameId);    // use creaturename table to lookup translated name
 
             pw.WriteBool(IsFlyer);
             pw.WriteNoneStruct();               // LeaderId is not used by client

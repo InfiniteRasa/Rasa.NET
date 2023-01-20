@@ -12,10 +12,10 @@ namespace Rasa.Packets.MapChannel.Server
         public Vector3 Position { get; set; }
         public Quaternion Rotation { get; set; }
 
-        public WorldLocationDescriptorPacket(Vector3 position, float orientation)
+        public WorldLocationDescriptorPacket(Vector3 position, double orientation)
         {
             Position = position;
-            Rotation = Quaternion.CreateFromYawPitchRoll(orientation, 0f, 0f);
+            Rotation = Quaternion.CreateFromYawPitchRoll((float)orientation, 0f, 0f);
         }
 
         public override void Write(PythonWriter pw)

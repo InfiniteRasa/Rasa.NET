@@ -5,11 +5,13 @@ using System.Numerics;
 namespace Rasa.Managers
 {
     using Data;
-    using Database.Tables.World;
     using Game;
+    using Models;
     using Packets;
     using Packets.Game.Server;
     using Packets.MapChannel.Server;
+    using Repositories.UnitOfWork;
+    using Repositories.World;
     using Structures;
 
     public class CreatureManager
@@ -27,7 +29,7 @@ namespace Rasa.Managers
         public const long CreatureLocationUpdateTime = 1500;
         public readonly Dictionary<uint, Creature> LoadedCreatures = new Dictionary<uint, Creature>();
         public readonly Dictionary<uint, CreatureAction> CreatureActions = new Dictionary<uint, CreatureAction>();
-
+        private readonly IGameUnitOfWorkFactory _gameUnitOfWorkFactory;
         public static CreatureManager Instance
         {
             get
@@ -38,7 +40,7 @@ namespace Rasa.Managers
                     lock (InstanceLock)
                     {
                         if (_instance == null)
-                            _instance = new CreatureManager();
+                            _instance = new CreatureManager(Server.GameUnitOfWorkFactory);
                     }
                 }
 
@@ -46,8 +48,9 @@ namespace Rasa.Managers
             }
         }
 
-        private CreatureManager()
+        private CreatureManager(IGameUnitOfWorkFactory gameUnitOfWorkFactory)
         {
+            _gameUnitOfWorkFactory = gameUnitOfWorkFactory;
         }
 
         // 1 creature to n client's
@@ -63,32 +66,33 @@ namespace Rasa.Managers
             foreach (var creature in creaturList)
                 CreateCreatureOnClient(client, creature);
         }
-        
+
         private void GiveWeapon(Creature creature)
         {
             var haveWeapon = creature.AppearanceData.ContainsKey(EquipmentData.Weapon);
 
             if (!haveWeapon)
             {
-                var weapon = new AppearanceData();
-
-                weapon.SlotId = EquipmentData.Weapon;
-                weapon.Color = Color.RandomColor();
-                weapon.Hue2 = Color.RandomColor();
-
-                switch (creature.EntityClassId)
+                var weapon = new AppearanceData
                 {
-                    case (EntityClassId)20757:
-                        weapon.Class = (EntityClassId)3878;
+                    SlotId = EquipmentData.Weapon,
+                    Color = Color.RandomColor(),
+                    Hue2 = Color.RandomColor()
+                };
+
+                switch (creature.EntityClass)
+                {
+                    case (EntityClasses)20757:
+                        weapon.Class = 3878;
                         break;
-                    case (EntityClassId)9244:
-                        weapon.Class = (EntityClassId)3782;
+                    case (EntityClasses)9244:
+                        weapon.Class = 3782;
                         break;
-                    case (EntityClassId)3846:
-                        weapon.Class = (EntityClassId)27131;
+                    case (EntityClasses)3846:
+                        weapon.Class = 27131;
                         break;
-                    case (EntityClassId)3848:
-                        weapon.Class = (EntityClassId)6443;
+                    case (EntityClasses)3848:
+                        weapon.Class = 6443;
                         break;
                     default:
                         return;
@@ -98,17 +102,17 @@ namespace Rasa.Managers
                 UpdateCreatureAppearance(creature);
             }
         }
-        
+
         internal void HandleCreatureKill(MapChannel mapChannel, Creature creature, Actor killedBy)
         {
-            if (creature.Actor.State == CharacterState.Dead)
+            if (creature.State == CharacterState.Dead)
                 return; // creature already dead
 
             // kill creature
             var stateIds = new List<CharacterState> { CharacterState.Dead };
 
-            creature.Actor.State = CharacterState.Dead;
-            CellManager.Instance.CellCallMethod(mapChannel, creature.Actor, new StateChangePacket(stateIds));
+            creature.State = CharacterState.Dead;
+            CellManager.Instance.CellCallMethod(mapChannel, creature, new StateChangePacket(stateIds));
 
             // tell spawnpool if set
             if (creature.SpawnPool != null)
@@ -124,7 +128,7 @@ namespace Rasa.Managers
             // get client if it's killed by player
             foreach (var cellSeed in killedBy.Cells)
                 foreach (var tempClient in mapChannel.MapCellInfo.Cells[cellSeed].ClientList)
-                    if (tempClient.MapClient.Player.Actor == killedBy)
+                    if (tempClient.Player == killedBy)
                     {
                         client = tempClient;
                         break;
@@ -135,7 +139,7 @@ namespace Rasa.Managers
                 // give experience
                 var experience = creature.Level * 100; // base experience
                 var experienceRange = creature.Level * 10;
-                experience += ((new Random().Next() % (experienceRange * 2 + 1)) - experienceRange);
+                experience += (uint)(new Random().Next() % (experienceRange * 2 + 1)) - experienceRange;
 
                 // todo: Depending on level difference reduce experience
                 ManifestationManager.Instance.GainExperience(client, experience);
@@ -157,7 +161,7 @@ namespace Rasa.Managers
 
             var isCreature = false;
             // check if classId have creature Augmentation
-            foreach (var aug in EntityClassManager.Instance.LoadedEntityClasses[LoadedCreatures[dbId].EntityClassId].Augmentations)
+            foreach (var aug in EntityClassManager.Instance.LoadedEntityClasses[LoadedCreatures[dbId].EntityClass].Augmentations)
                 if (aug == AugmentationType.Creature)
                 {
                     isCreature = true;
@@ -176,28 +180,43 @@ namespace Rasa.Managers
                 SpawnPool = spawnPool
             };
 
-            creature.Actor.State = CharacterState.Idle;
-            creature.Actor.Name = EntityClassManager.Instance.LoadedEntityClasses[creature.EntityClassId].ClassName;
+            creature.State = CharacterState.Idle;
+            creature.Name = EntityClassManager.Instance.LoadedEntityClasses[creature.EntityClass].ClassName;
 
             // set creature stats
-            var creatureStats = CreatureStatsTable.GetCreatureStats(dbId);
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateWorld();
+            var creatureStats = unitOfWork.CreatureStats.GetCreatureStats(dbId);
+
             if (creatureStats != null)
             {
-                creature.Actor.Attributes.Add(Attributes.Body, new ActorAttributes(Attributes.Body, creatureStats.Body, creatureStats.Body, creatureStats.Body, 5, 1000));
-                creature.Actor.Attributes.Add(Attributes.Mind, new ActorAttributes(Attributes.Mind, creatureStats.Mind, creatureStats.Mind, creatureStats.Mind, 5, 1000));
-                creature.Actor.Attributes.Add(Attributes.Spirit, new ActorAttributes(Attributes.Spirit, creatureStats.Spirit, creatureStats.Spirit, creatureStats.Spirit, 5, 1000));
-                creature.Actor.Attributes.Add(Attributes.Health, new ActorAttributes(Attributes.Health, creatureStats.Health, creatureStats.Health, creatureStats.Health, 5, 1000));
-                creature.Actor.Attributes.Add(Attributes.Chi, new ActorAttributes(Attributes.Chi, 0, 0, 0, 0, 0));
-                creature.Actor.Attributes.Add(Attributes.Power, new ActorAttributes(Attributes.Power, 0, 0, 0, 0, 0));
-                creature.Actor.Attributes.Add(Attributes.Aware, new ActorAttributes(Attributes.Aware, 0, 0, 0, 0, 0));
-                creature.Actor.Attributes.Add(Attributes.Armor, new ActorAttributes(Attributes.Armor, creatureStats.Armor, creatureStats.Armor, creatureStats.Armor, 5, 1000));
-                creature.Actor.Attributes.Add(Attributes.Speed, new ActorAttributes(Attributes.Speed, 1, 1, 1, 0, 0));
-                creature.Actor.Attributes.Add(Attributes.Regen, new ActorAttributes(Attributes.Regen, 0, 0, 0, 0, 0));
+                creature.Attributes.Add(Attributes.Body, new ActorAttributes(Attributes.Body, creatureStats.Body, creatureStats.Body, creatureStats.Body, 5, 1000));
+                creature.Attributes.Add(Attributes.Mind, new ActorAttributes(Attributes.Mind, creatureStats.Mind, creatureStats.Mind, creatureStats.Mind, 5, 1000));
+                creature.Attributes.Add(Attributes.Spirit, new ActorAttributes(Attributes.Spirit, creatureStats.Spirit, creatureStats.Spirit, creatureStats.Spirit, 5, 1000));
+                creature.Attributes.Add(Attributes.Health, new ActorAttributes(Attributes.Health, creatureStats.Health, creatureStats.Health, creatureStats.Health, 5, 1000));
+                creature.Attributes.Add(Attributes.Chi, new ActorAttributes(Attributes.Chi, 0, 0, 0, 0, 0));
+                creature.Attributes.Add(Attributes.Power, new ActorAttributes(Attributes.Power, 0, 0, 0, 0, 0));
+                creature.Attributes.Add(Attributes.Aware, new ActorAttributes(Attributes.Aware, 0, 0, 0, 0, 0));
+                creature.Attributes.Add(Attributes.Armor, new ActorAttributes(Attributes.Armor, creatureStats.Armor, creatureStats.Armor, creatureStats.Armor, 5, 1000));
+                creature.Attributes.Add(Attributes.Speed, new ActorAttributes(Attributes.Speed, 1, 1, 1, 0, 0));
+                creature.Attributes.Add(Attributes.Regen, new ActorAttributes(Attributes.Regen, 0, 0, 0, 0, 0));
+            }
+            else
+            {
+                creature.Attributes.Add(Attributes.Body, new ActorAttributes(Attributes.Body, 15, 15, 15, 5, 1000));
+                creature.Attributes.Add(Attributes.Mind, new ActorAttributes(Attributes.Mind, 15, 15, 15, 5, 1000));
+                creature.Attributes.Add(Attributes.Spirit, new ActorAttributes(Attributes.Spirit, 15, 15, 15, 5, 1000));
+                creature.Attributes.Add(Attributes.Health, new ActorAttributes(Attributes.Health, 100, 100, 100, 10, 1000));
+                creature.Attributes.Add(Attributes.Chi, new ActorAttributes(Attributes.Chi, 0, 0, 0, 0, 0));
+                creature.Attributes.Add(Attributes.Power, new ActorAttributes(Attributes.Power, 0, 0, 0, 0, 0));
+                creature.Attributes.Add(Attributes.Aware, new ActorAttributes(Attributes.Aware, 0, 0, 0, 0, 0));
+                creature.Attributes.Add(Attributes.Armor, new ActorAttributes(Attributes.Armor, 100, 100, 100, 5, 1000));
+                creature.Attributes.Add(Attributes.Speed, new ActorAttributes(Attributes.Speed, 1, 1, 1, 0, 0));
+                creature.Attributes.Add(Attributes.Regen, new ActorAttributes(Attributes.Regen, 0, 0, 0, 0, 0));
             }
 
             creature.Controller.CurrentAction = BehaviorManager.BehaviorActionWander;
             creature.Controller.ActionWander.State = BehaviorManager.WanderIdle; //wanderstate: calc new position
-            
+
             if (spawnPool != null)
                 SpawnPoolManager.Instance.IncreaseAliveCreatureCount(spawnPool);
 
@@ -207,9 +226,9 @@ namespace Rasa.Managers
         internal void CellUpdateLocation(MapChannel mapChannel, Creature creature, uint newLocX, uint newLocZ)
         {
             // get old and new cell matrix
-            var oldCellMatrix = creature.Actor.Cells;
+            var oldCellMatrix = creature.Cells;
             var newCellMatrix = CellManager.Instance.CreateCellMatrix(mapChannel, newLocX, newLocZ);
-            
+
             // get info about cell we need to update
             var needUpdate = new List<uint>();
             var needDelete = new List<uint>();
@@ -217,18 +236,18 @@ namespace Rasa.Managers
             CellManager.Instance.GetCellMatrixDiff(oldCellMatrix, newCellMatrix, out needUpdate, out needDelete);
 
             mapChannel.MapCellInfo.Cells[oldCellMatrix[2, 2]].CreatureList.Remove(creature);
-            
+
             // remove creature for player that are not in visibility range anymore
             foreach (var cellSeed in needDelete)
                 foreach (var client in mapChannel.MapCellInfo.Cells[cellSeed].ClientList)
-                    client.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(creature.Actor.EntityId));
+                    client.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(creature.EntityId));
 
             // add creature to new cell
             mapChannel.MapCellInfo.Cells[newCellMatrix[2, 2]].CreatureList.Add(creature);
-            
+
             // set new creature visibility
-            creature.Actor.Cells = newCellMatrix;
-            
+            creature.Cells = newCellMatrix;
+
             // notify clients about creature
             foreach (var cellSeed in needUpdate)
                 foreach (var client in mapChannel.MapCellInfo.Cells[cellSeed].ClientList)
@@ -247,35 +266,35 @@ namespace Rasa.Managers
             var entityData = new List<PythonPacket>
             {
                 // PhysicalEntity
-                new IsTargetablePacket(EntityClassManager.Instance.GetClassInfo((EntityClassId)EntityManager.Instance.GetEntityClassId(creature.Actor.EntityId)).TargetFlag),
-                new WorldLocationDescriptorPacket(creature.Actor.Position, creature.Actor.Orientation),
+                new IsTargetablePacket(EntityClassManager.Instance.GetClassInfo(EntityManager.Instance.GetEntityClassId(creature.EntityId)).TargetFlag),
+                new WorldLocationDescriptorPacket(creature.Position, creature.Rotation),
                 new BodyAttributesPacket(creature.Scale, hue, 0, 0, hue2),
                 // Creature augmentation
                 new CreatureInfoPacket(creature.NameId, false, new List<int>()),    // ToDo add creature flags
                 // Actor augmentation
                 new AppearanceDataPacket(creature.AppearanceData),
                 new LevelPacket(creature.Level),
-                new AttributeInfoPacket(creature.Actor.Attributes),
+                new AttributeInfoPacket(creature.Attributes),
                 new TargetCategoryPacket(creature.Faction),
-                new UpdateAttributesPacket(creature.Actor.Attributes, 0),
+                new UpdateAttributesPacket(creature.Attributes, 0),
                 new IsRunningPacket(false)
             };
 
-            client.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(creature.Actor.EntityId, creature.EntityClassId, entityData));
+            client.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(creature.EntityId, creature.EntityClass, entityData));
 
             // NPC  & Vendor augmentation
             if (creature.Npc != null)
                 NpcManager.Instance.UpdateConversationStatus(client, creature);
 
             // send inital movement packet
-            var movementData = new Memory.MovementData(creature.Actor.Position.X + 1, creature.Actor.Position.Y, creature.Actor.Position.Z + 1, creature.Actor.Orientation);
+            var movementData = new Movement(creature.Position, new Vector2((float)creature.Rotation, 0f));
 
             // give some weapon to creature's
             GiveWeapon(creature);
 
-            client.MoveObject(creature.Actor.EntityId, movementData);
+            client.MoveObject(creature.EntityId, movementData);
         }
-        
+
         public Creature FindCreature(uint creatureId)
         {
             return LoadedCreatures[creatureId];
@@ -283,19 +302,20 @@ namespace Rasa.Managers
 
         public void CreatureInit()
         {
-            var creatureList = CreatureTable.LoadCreatures();
-            var cratureActions = CreatureActionTable.GetCreatureActions();
-            var vendorsList = VendorsTable.LoadVendors();
-            var vendorItemList = VendorItemsTable.LoadVendorItems();
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateWorld();
+            var creatureList = unitOfWork.Creatures.Get();
+            var cratureActions = unitOfWork.CreatureActions.Get();
+            var vendorsList = unitOfWork.Vendors.Get();
+            var vendorItemList = unitOfWork.VendorItems.Get();
 
             foreach (var action in cratureActions)
                 CreatureActions.Add(action.Id, new CreatureAction(action));
 
             foreach (var data in creatureList)
             {
-                var appearanceData = CreatureAppearanceTable.GetCreatureAppearance(data.DbId);
+                var appearanceData = unitOfWork.CreatureAppearances.GetCreatureAppearances(data.Id);
                 var tempAppearanceData = new Dictionary<EquipmentData, AppearanceData>();
-                var augmentationsList = EntityClassManager.Instance.LoadedEntityClasses[(EntityClassId)data.ClassId].Augmentations;
+                var augmentationsList = EntityClassManager.Instance.LoadedEntityClasses[(EntityClasses)data.ClassId].Augmentations;
                 var actions = new List<CreatureAction>();
                 Npc isNpc = null;
                 var isVendor = false;
@@ -330,7 +350,7 @@ namespace Rasa.Managers
 
                 if (appearanceData != null && appearanceData.Count > 0)
                     foreach (var t in appearanceData)
-                        tempAppearanceData.Add((EquipmentData)t.Slot, new AppearanceData { SlotId = (EquipmentData)t.Slot, Class = (EntityClassId)t.Class, Color = new Color(t.Color), Hue2 = new Color(2139062144) });
+                        tempAppearanceData.Add((EquipmentData)t.SlotId, new AppearanceData { SlotId = (EquipmentData)t.SlotId, Class = t.ClassId, Color = new Color(t.Color), Hue2 = new Color(2139062144) });
 
                 // load Creature Actions
                 if (data.Action1 != 0)
@@ -369,7 +389,7 @@ namespace Rasa.Managers
                 {
                     // Load vendorPackageId
                     foreach (var vendor in vendorsList)
-                        if (vendor.CreatureDbId == data.DbId)
+                        if (vendor.Id == data.Id)
                         {
                             creature.Npc.Vendor = new Vendor(vendor.PackageId);
                             break;
@@ -377,7 +397,7 @@ namespace Rasa.Managers
 
                     // Load vendorItems
                     foreach (var vendorItem in vendorItemList)
-                        if (vendorItem.DbId == data.DbId)
+                        if (vendorItem.Id == data.Id)
                             creature.Npc.Vendor.VendorItems.Add(vendorItem.ItemTemplateId);
                 }
 
@@ -386,7 +406,7 @@ namespace Rasa.Managers
                 {
                     var mission = entry.Value;
 
-                    if (mission.MissionGiver == data.DbId || mission.MissionReciver == data.DbId)
+                    if (mission.MissionGiver == data.Id || mission.MissionReciver == data.Id)
                     {
                         if (creature.Npc.NpcMissionIds != null)
                         {
@@ -405,37 +425,37 @@ namespace Rasa.Managers
                 LoadedCreatures.Add(creature.DbId, creature);
             }
 
-            var npcPackages = NPCPackagesTable.LoadNPCPackages();
+            var npcPackages = unitOfWork.NpcPackages.Get();
             foreach (var package in npcPackages)
             {
-                if (LoadedCreatures.ContainsKey(package.CreatureDbId))
+                if (LoadedCreatures.ContainsKey(package.Id))
                 {
-                    foreach (var aug in EntityClassManager.Instance.LoadedEntityClasses[LoadedCreatures[package.CreatureDbId].EntityClassId].Augmentations)
+                    foreach (var aug in EntityClassManager.Instance.LoadedEntityClasses[LoadedCreatures[package.Id].EntityClass].Augmentations)
                     {
                         if (aug == AugmentationType.NPC)
                         {
-                            LoadedCreatures[package.CreatureDbId].Npc.NpcPackageId = package.NpcPackageId;
+                            LoadedCreatures[package.Id].Npc.NpcPackageId = package.PackageId;
                             break;
                         }
                     }
                 }
                 else
-                    Logger.WriteLog(LogType.Error, $"LoadNPCPackages: unknown cratueDbId = {package.CreatureDbId}");
+                    Logger.WriteLog(LogType.Error, $"LoadNPCPackages: unknown cratueDbId = {package.Id}");
             }
         }
 
         public void CellDiscardCreaturesToClient(Client client, List<Creature> discardCreatures)
         {
             foreach (var creature in discardCreatures)
-                client.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(creature.Actor.EntityId));
+                client.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(creature.EntityId));
         }
 
-        public void SetLocation(Creature creature, Vector3 position, float orientation, uint mapContextId)
+        public void SetLocation(Creature creature, Vector3 position, double orientation, uint mapContextId)
         {
             // set spawnlocation
-            creature.Actor.Position = position;
-            creature.Actor.Orientation = orientation;
-            creature.Actor.MapContextId = mapContextId;
+            creature.Position = position;
+            creature.Rotation = orientation;
+            creature.MapContextId = mapContextId;
             // set home location
             creature.HomePos.Position = position;
             creature.HomePos.MapContextid = mapContextId;
@@ -448,8 +468,29 @@ namespace Rasa.Managers
 
         public void UpdateCreatureAppearance(Creature creature)
         {
-            var mapChannel = MapChannelManager.Instance.MapChannelArray[creature.Actor.MapContextId];
-            CellManager.Instance.CellCallMethod(mapChannel, creature.Actor, new AppearanceDataPacket(creature.AppearanceData));
+            var mapChannel = MapChannelManager.Instance.MapChannelArray[creature.MapContextId];
+            CellManager.Instance.CellCallMethod(mapChannel, creature, new AppearanceDataPacket(creature.AppearanceData));
+        }
+
+        internal void CreateOrUpdateAppearance(Creature creature, AppearanceData appearanceData)
+        {
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateWorld();
+
+            if (!creature.AppearanceData.ContainsKey(appearanceData.SlotId))
+                creature.AppearanceData.Add(appearanceData.SlotId, appearanceData);
+
+            creature.AppearanceData[appearanceData.SlotId].Color = appearanceData.Color;
+
+            if (appearanceData.Class > 0)
+                creature.AppearanceData[appearanceData.SlotId].Class = appearanceData.Class;
+
+            // update creature appearance on client's
+            CellManager.Instance.CellCallMethod(creature, new AppearanceDataPacket(creature.AppearanceData));
+
+            // update creature in database
+            unitOfWork.CreatureAppearances.CreateOrUpdate(creature.DbId, (uint)appearanceData.SlotId, appearanceData.Class, appearanceData.Color.Hue);
+
+            Logger.WriteLog(LogType.Debug, "Creature Look updated");
         }
     }
 }

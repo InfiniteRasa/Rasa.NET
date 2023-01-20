@@ -1,5 +1,4 @@
-﻿
-namespace Rasa.Structures
+﻿namespace Rasa.Structures
 {
     using Data;
     using Memory;

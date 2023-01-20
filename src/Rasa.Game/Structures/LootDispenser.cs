@@ -9,11 +9,11 @@ namespace Rasa.Structures
         public LootDispenser()
         {
             EntityId = EntityManager.Instance.GetEntityId;
-            EntityClassId = (EntityClassId)10000035;
+            EntityClassId = (Data.EntityClasses)10000035;
         }
 
         public ulong EntityId { get; set; }
-        public EntityClassId EntityClassId { get; set; }
+        public Data.EntityClasses EntityClassId { get; set; }
         public List<LootItem> LootItems = new List<LootItem>();
         public int Credits { get; set; }
         public ulong Owner { get; set; }

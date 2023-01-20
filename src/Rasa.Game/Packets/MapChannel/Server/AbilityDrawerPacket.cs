@@ -26,7 +26,7 @@ namespace Rasa.Packets.MapChannel.Server
                 pw.WriteInt(entry.Value.AbilitySlotId); // slotId            
                 pw.WriteTuple(3);
                 pw.WriteInt(entry.Value.AbilityId);     // abilityId
-                pw.WriteInt(entry.Value.AbilityLevel);  // abilityLevel
+                pw.WriteUInt(entry.Value.AbilityLevel);  // abilityLevel
                 pw.WriteNoneStruct();                   // itemId ( unknown purpose ) <<= c++  krssrb =>> if you drag 'n' drop usable iteme from inventory
             }
         }

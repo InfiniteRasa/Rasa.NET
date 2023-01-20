@@ -4,13 +4,13 @@ using System.Numerics;
 namespace Rasa.Structures
 {
     using Game;
-    using Positioning;
+    using Interfaces;
     public class MapTrigger : IHasPosition
     {
         internal uint TriggerId { get; set; }
         internal string TriggerName { get; set; }
         public Vector3 Position { get; set; }
-        public float Orientation { get; set; }
+        public double Rotation { get; set; }
         internal uint MapContextId { get; set; }
         internal List<Client> TrigeredBy = new List<Client>();
 
@@ -19,7 +19,7 @@ namespace Rasa.Structures
             TriggerId = id;
             TriggerName = name;
             Position = positon;
-            Orientation = orientation;
+            Rotation = orientation;
             MapContextId = contextId;
         }
     }

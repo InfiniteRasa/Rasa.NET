@@ -17,10 +17,10 @@
 
         public IgnoredPlayer(Client client)
         {
-            CharacterId = client.MapClient.Player.CharacterId;
+            CharacterId = client.Player.Id;
             UserId = client.AccountEntry.Id;
-            CharacterName = client.MapClient.Player.Actor.Name;
-            FamilyName = client.MapClient.Player.Actor.FamilyName;
+            CharacterName = client.Player.Name;
+            FamilyName = client.Player.FamilyName;
             IsOnline = true;
         }
 

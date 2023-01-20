@@ -2,7 +2,7 @@
 
 namespace Rasa.Extensions
 {
-    using Structures.Positioning;
+    using Structures.Interfaces;
     public static class HasPositionExtensions
     {
         public static bool IsNear2m(this IHasPosition first, IHasPosition second)

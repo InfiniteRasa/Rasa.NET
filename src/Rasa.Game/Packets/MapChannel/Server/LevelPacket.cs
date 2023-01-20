@@ -7,9 +7,9 @@
     {
         public override GameOpcode Opcode { get; } = GameOpcode.Level;
 
-        public int Level { get; set; }
+        public uint Level { get; set; }
 
-        public LevelPacket(int level)
+        public LevelPacket(uint level)
         {
             Level = level;
         }
@@ -17,7 +17,7 @@
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(1);
-            pw.WriteInt(Level);
+            pw.WriteUInt(Level);
         }
     }
 }

@@ -1,48 +1,50 @@
-﻿namespace Rasa.Packets.Protocol
+﻿using System;
+
+namespace Rasa.Packets.Protocol
 {
     using Data;
     using Memory;
+    using Models;
 
-    public class MoveObjectMessage : ISubtypedPacket<MoveObjectSubtype>
+    public class MoveObjectMessage : IClientMessage
     {
         public ClientMessageOpcode Type { get; set; } = ClientMessageOpcode.MoveObject;
         public byte RawSubtype { get; set; }
-
-        public MoveObjectSubtype Subtype
-        {
-            get { return (MoveObjectSubtype) RawSubtype; }
-            set { RawSubtype = (byte) value; }
-        }
-
         public byte MinSubtype { get; } = 1;
         public byte MaxSubtype { get; } = 3;
         public ClientMessageSubtypeFlag SubtypeFlags { get; } = ClientMessageSubtypeFlag.HasSubtype;
 
+        public MoveObjectSubtype Subtype
+        {
+            get { return (MoveObjectSubtype)RawSubtype; }
+            set { RawSubtype = (byte)value; }
+        }
+
         public byte UnkByte { get; set; }
         public ulong EntityId { get; set; }
-        public MovementData MovementData { get; set; }
+        public Movement Movement { get; set; }
 
-        public MoveObjectMessage(MovementData movementData)
+        public MoveObjectMessage(Movement movementData)
         {
             Subtype = MoveObjectSubtype.Subtype1;
 
-            MovementData = movementData;
+            Movement = movementData;
         }
 
-        public MoveObjectMessage(ulong entityId, MovementData movementData)
+        public MoveObjectMessage(ulong entityId, Movement movement)
         {
             Subtype = MoveObjectSubtype.Subtype2;
 
             EntityId = entityId;
-            MovementData = movementData;
+            Movement = movement;
         }
 
-        public MoveObjectMessage(byte unkByte, MovementData movementData)
+        public MoveObjectMessage(byte unkByte, Movement movement)
         {
             Subtype = MoveObjectSubtype.Subtype3;
 
             UnkByte = unkByte;
-            MovementData = movementData;
+            Movement = movement;
         }
 
         public void Read(ProtocolBufferReader reader)
@@ -58,7 +60,7 @@
                     break;
             }
 
-            MovementData = reader.ReadMovement();
+            Movement = reader.ReadMovement();
         }
 
         public void Write(ProtocolBufferWriter writer)
@@ -74,7 +76,7 @@
                     break;
             }
 
-            writer.WriteMovementData(MovementData);
+            writer.WriteMovementData(Movement);
         }
     }
 }

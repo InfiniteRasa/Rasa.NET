@@ -49,8 +49,7 @@ namespace Rasa.Memory
 
             var bytesToCopy = (bytesInSource > bytesAvailable) ? bytesAvailable : bytesInSource;
 
-            if (bytesToCopy > 0)
-            {
+            if (bytesToCopy > 0) {
                 Array.Copy(source.Buffer, source.BaseOffset + source.Offset, this.Buffer, this.BaseOffset + this.Length, bytesToCopy);
                 source.Offset += bytesToCopy;
                 Length += bytesToCopy;
@@ -61,16 +60,15 @@ namespace Rasa.Memory
 
         public int ShiftProcessedData()
         {
-            if (Offset > 0)
-            {
-                var pos = Offset;
+            if (Offset > 0) {
+                var pos          = Offset;
                 var amountToMove = RemainingLength;
 
                 Array.Copy(this.Buffer, this.BaseOffset + pos, this.Buffer, this.BaseOffset + 0, amountToMove);
-
-                ByteCount -= pos;
-                Length -= pos;
-                Offset = 0;
+                
+                ByteCount  -= pos;
+                Length     -= pos;
+                Offset      = 0;
 
                 return pos;
             }

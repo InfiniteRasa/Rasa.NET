@@ -1,15 +1,12 @@
-﻿using Google.Protobuf.WellKnownTypes;
-using Microsoft.Extensions.Options;
-using Rasa.Data;
-using Rasa.Memory;
-
-namespace Rasa.Structures
+﻿namespace Rasa.Structures
 {
+    using Memory;
+	
     public class XPInfo : IPythonDataStruct
     {
-        public int Total = 0;
-        public int Gained = 0;
-        public int BaseGained = 0;
+        public uint Total = 0;
+        public uint Gained = 0;
+        public uint BaseGained = 0;
         public int GroupMod = 1;
         public int StreakMod = 1;
         public int BoosterMod = 1;
@@ -20,7 +17,7 @@ namespace Rasa.Structures
         {
         }
 
-        public XPInfo(int total, int gained, int baseGained)
+        public XPInfo(uint total, uint gained, uint baseGained)
         {
             Total = total;
             Gained = gained;
@@ -34,9 +31,9 @@ namespace Rasa.Structures
         public void Write(PythonWriter pw)
         {
             pw.WriteTuple(8);
-            pw.WriteInt(Total);
-            pw.WriteInt(Gained);
-            pw.WriteInt(BaseGained);
+            pw.WriteUInt(Total);
+            pw.WriteUInt(Gained);
+            pw.WriteUInt(BaseGained);
             pw.WriteInt(GroupMod);
             pw.WriteInt(StreakMod);
             pw.WriteInt(BoosterMod);

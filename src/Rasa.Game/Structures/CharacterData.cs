@@ -1,13 +1,14 @@
 ﻿namespace Rasa.Structures
 {
+    using Char;
     using Data;
     using Memory;
 
     public class CharacterData : IPythonDataStruct
     {
         public string Name { get; set; }
-        public uint MapContextId { get; set; }
-        public int ExpPoints { get; set; }
+        public uint MapContextId { get; set; } // called "Pos" in client
+        public uint ExpPoints { get; set; }
         public byte ExpLevel { get; set; }
         public int Body { get; set; }
         public int Mind { get; set; }
@@ -35,7 +36,7 @@
             pr.ReadTuple();
             Name = pr.ReadUnicodeString();
             MapContextId = pr.ReadUInt();
-            ExpPoints = pr.ReadInt();
+            ExpPoints = pr.ReadUInt();
             ExpLevel = (byte) pr.ReadInt();
             Body = pr.ReadInt();
             Mind = pr.ReadInt();
@@ -50,7 +51,7 @@
             pw.WriteTuple(10);
             pw.WriteUnicodeString(Name);
             pw.WriteUInt(MapContextId);
-            pw.WriteInt(ExpPoints);
+            pw.WriteUInt(ExpPoints);
             pw.WriteInt(ExpLevel);
             pw.WriteInt(Body);
             pw.WriteInt(Mind);

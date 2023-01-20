@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Buffers;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
@@ -53,8 +54,6 @@ namespace Rasa.Packets.Protocol
 
             if (Channel != 0) // 0 == ReliableStreamChannel (no extra data), Move message uses channels
             {
-                //Debugger.Break();
-
                 SequenceNumber = br.ReadUInt32(); // Sequence number? if (previousValue - newValue < 0) { process packet; previousValue = newValue; }
                 br.ReadInt32(); // 0xDEADBEEF
                 br.ReadInt32(); // skip
@@ -79,7 +78,7 @@ namespace Rasa.Packets.Protocol
 
             var readBr = br;
 
-            BufferData buffer = null;
+            byte[] uncompressedBuffer = null;
 
             if (Compress)
             {
@@ -93,49 +92,23 @@ namespace Rasa.Packets.Protocol
 
                     var uncompressedSize = br.ReadInt32();
 
-                    byte[] uncompressedData;
-                    var offset = 0;
-
-                    if (uncompressedSize > BufferManager.BlockSize)
-                        uncompressedData = new byte[uncompressedSize];
-                    else
-                    {
-                        buffer = BufferManager.RequestBuffer();
-
-                        uncompressedData = buffer.Buffer;
-                        offset = buffer.BaseOffset;
-                    }
+                    uncompressedBuffer = ArrayPool<byte>.Shared.Rent(uncompressedSize);
 
                     using (var deflateStream = new DeflateStream(br.BaseStream, CompressionMode.Decompress, true)) // TODO: test if the br.BaseStream is cool as the Stream input for the DeflateStream
-                        deflateStream.Read(uncompressedData, offset, uncompressedSize);
+                        deflateStream.Read(uncompressedBuffer, 0, uncompressedSize);
 
-                    readBr = buffer != null ? buffer.GetReader() : new BinaryReader(new MemoryStream(uncompressedData, 0, uncompressedSize, false), Encoding.UTF8, false);
+                    readBr = new BinaryReader(new MemoryStream(uncompressedBuffer, 0, uncompressedSize, false), Encoding.UTF8, false);
                 }
             }
 
-            // ReSharper disable SwitchStatementMissingSomeCases
-            switch (Type)
+            Message = Type switch
             {
-                case ClientMessageOpcode.Login:
-                    Message = new LoginMessage();
-                    break;
-
-                case ClientMessageOpcode.Move:
-                    Message = new MoveMessage();
-                    break;
-
-                case ClientMessageOpcode.CallServerMethod:
-                    Message = new CallServerMethodMessage();
-                    break;
-
-                case ClientMessageOpcode.Ping:
-                    Message = new PingMessage();
-                    break;
-
-                default:
-                    throw new Exception($"Unable to handle packet type {Type}, because it's a Server -> Client packet!");
-            }
-            // ReSharper restore SwitchStatementMissingSomeCases
+                ClientMessageOpcode.Login => new LoginMessage(),
+                ClientMessageOpcode.Move => new MoveMessage(),
+                ClientMessageOpcode.CallServerMethod => new CallServerMethodMessage(),
+                ClientMessageOpcode.Ping => new PingMessage(),
+                _ => throw new Exception($"Unable to handle packet type {Type}, because it's a Server -> Client packet!"),
+            };
 
             using (var reader = new ProtocolBufferReader(readBr, ProtocolBufferFlags.DontFragment))
             {
@@ -158,8 +131,9 @@ namespace Rasa.Packets.Protocol
                 reader.ReadXORCheck((int) br.BaseStream.Position - xorCheckPosition);
             }
 
-            if (buffer != null) // If we requested a buffer for decompressing, free it
-                BufferManager.FreeBuffer(buffer);
+            // If we rented a buffer for decompressing, return it
+            if (uncompressedBuffer != null) 
+                ArrayPool<byte>.Shared.Return(uncompressedBuffer);
         }
 
         public void Write(BinaryWriter bw)
@@ -180,33 +154,32 @@ namespace Rasa.Packets.Protocol
 
             var packetBeginPosition = (int) bw.BaseStream.Position;
 
-            var packetBuffer = BufferManager.RequestBuffer();
+            // TODO: find limits and maybe lower this number
+            // OR: use NCMS as the target stream
+            var packetBuffer = ArrayPool<byte>.Shared.Rent(0x8000);
             int uncompressedSize;
 
-            using (var ms = new MemoryStream(packetBuffer.Buffer, packetBuffer.BaseOffset, packetBuffer.MaxLength, true))
+            using (var ms = new MemoryStream(packetBuffer, true))
             {
-                using (var packetWriter = new BinaryWriter(ms, Encoding.UTF8, true))
-                {
-                    using (var writer = new ProtocolBufferWriter(packetWriter, ProtocolBufferFlags.DontFragment))
-                    {
-                        writer.WriteProtocolFlags();
+                using var packetWriter = new BinaryWriter(ms, Encoding.UTF8, true);
+                using var writer = new ProtocolBufferWriter(packetWriter, ProtocolBufferFlags.DontFragment);
 
-                        writer.WriteDebugByte(41);
+                writer.WriteProtocolFlags();
 
-                        if ((Message.SubtypeFlags & ClientMessageSubtypeFlag.HasSubtype) == ClientMessageSubtypeFlag.HasSubtype)
-                            writer.WriteByte(Message.RawSubtype);
+                writer.WriteDebugByte(41);
 
-                        Message.Write(writer);
+                if ((Message.SubtypeFlags & ClientMessageSubtypeFlag.HasSubtype) == ClientMessageSubtypeFlag.HasSubtype)
+                    writer.WriteByte(Message.RawSubtype);
 
-                        writer.WriteDebugByte(42);
+                Message.Write(writer);
 
-                        var currentPos = (int) ms.Position;
+                writer.WriteDebugByte(42);
 
-                        writer.WriteXORCheck(currentPos);
+                var currentPos = (int)ms.Position;
 
-                        uncompressedSize = (int) ms.Position;
-                    }
-                }
+                writer.WriteXORCheck(currentPos);
+
+                uncompressedSize = (int)ms.Position;
             }
 
             var compress = (Message.SubtypeFlags & ClientMessageSubtypeFlag.Compress) == ClientMessageSubtypeFlag.Compress && uncompressedSize > 0;
@@ -228,26 +201,26 @@ namespace Rasa.Packets.Protocol
                 bw.Write((byte) 0x01);
                 bw.Write(uncompressedSize);
 
-                var compressedBuffer = BufferManager.RequestBuffer();
+                var compressedBuffer = ArrayPool<byte>.Shared.Rent(uncompressedSize);
                 int compressedSize;
 
-                using (var compressStream = compressedBuffer.GetStream(true))
+                using (var compressStream = new MemoryStream(compressedBuffer, true))
                 {
                     using (var compressorStream = new DeflateStream(compressStream, CompressionMode.Compress, true))
-                        compressorStream.Write(packetBuffer.Buffer, packetBuffer.BaseOffset, uncompressedSize);
+                        compressorStream.Write(packetBuffer, 0, uncompressedSize);
 
                     compressedSize = (int) compressStream.Position;
                 }
 
-                BufferManager.FreeBuffer(packetBuffer);
+                ArrayPool<byte>.Shared.Return(packetBuffer);
 
                 packetBuffer = compressedBuffer;
                 packetSize = compressedSize;
             }
 
-            bw.Write(packetBuffer.Buffer, packetBuffer.BaseOffset, packetSize);
+            bw.Write(packetBuffer, 0, packetSize);
 
-            BufferManager.FreeBuffer(packetBuffer);
+            ArrayPool<byte>.Shared.Return(packetBuffer);
 
             var currentPosition = bw.BaseStream.Position;
 

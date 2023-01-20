@@ -11,19 +11,21 @@
         public string FamilyName { get; set; }
         public uint UserId { get; set; }
         public uint ClanId { get; set; }
-        public uint Rank { get; set; }
+        public byte Rank { get; set; }
         public string Note { get; set; }
         public bool IsAfk { get; set; }
-        public ulong CharacterId { get; set; }
+        public uint CharacterId { get; set; }
+        public ulong CharacterEntityId { get; set; }
 
         public ClanMemberData()
         {
         }
 
-        public ClanMemberData(uint userId, ulong characterId, string characterName, string familyName, uint clanId, uint level, uint contextId, uint rank, bool isOnline, bool isAfk, string note)
+        public ClanMemberData(uint userId, uint characterId, ulong characterEntityId, string characterName, string familyName, uint clanId, uint level, uint contextId, byte rank, bool isOnline, bool isAfk, string note)
         {
             UserId = userId;
             CharacterId = characterId;
+            CharacterEntityId= characterEntityId;
             CharacterName = characterName;
             FamilyName = familyName;
             ClanId = clanId;
@@ -39,13 +41,13 @@
         {
             pr.ReadTuple();
             UserId = pr.ReadUInt();
-            CharacterId = pr.ReadULong();
+            CharacterEntityId = pr.ReadULong();
             CharacterName = pr.ReadString();
             FamilyName = pr.ReadString();
             ClanId = pr.ReadUInt();
             Level = pr.ReadUInt();
             ContextId = pr.ReadUInt();
-            Rank = pr.ReadUInt();
+            Rank = (byte)pr.ReadUInt();
             IsOnline = pr.ReadBool();
             IsAfk = pr.ReadBool();
             Note = pr.ReadString();
@@ -55,7 +57,7 @@
         {
             pw.WriteTuple(11);
             pw.WriteUInt(UserId);
-            pw.WriteULong(CharacterId);
+            pw.WriteULong(CharacterEntityId);
             pw.WriteString(CharacterName);
             pw.WriteString(FamilyName);
             pw.WriteUInt(ClanId);

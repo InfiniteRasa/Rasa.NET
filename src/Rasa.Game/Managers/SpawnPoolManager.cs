@@ -5,13 +5,16 @@ using System.Numerics;
 namespace Rasa.Managers
 {
     using Data;
-    using Database.Tables.World;
+    using Game;
+    using Repositories.UnitOfWork;
     using Structures;
 
     public class SpawnPoolManager
     {
         private static SpawnPoolManager _instance;
         private static readonly object InstanceLock = new object();
+        private readonly IGameUnitOfWorkFactory _gameUnitOfWorkFactory;
+
         public readonly Dictionary<uint, SpawnPool> LoadedSpawnPools = new Dictionary<uint, SpawnPool>();
 
         public static SpawnPoolManager Instance
@@ -24,7 +27,7 @@ namespace Rasa.Managers
                     lock (InstanceLock)
                     {
                         if (_instance == null)
-                            _instance = new SpawnPoolManager();
+                            _instance = new SpawnPoolManager(Server.GameUnitOfWorkFactory);
                     }
                 }
 
@@ -32,8 +35,9 @@ namespace Rasa.Managers
             }
         }
 
-        private SpawnPoolManager()
+        private SpawnPoolManager(IGameUnitOfWorkFactory gameUnitOfWorkFactory)
         {
+            _gameUnitOfWorkFactory = gameUnitOfWorkFactory;
         }
 
         public void IncreaseQueueCount(SpawnPool spawnPool)
@@ -85,32 +89,33 @@ namespace Rasa.Managers
 
         public void SpawnPoolInit()
         {
-            var spawnPoolList = SpawnPoolTable.LoadSpawnPool();
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateWorld();
+            var spawnPoolList = unitOfWork.Spawnpools.Get();
 
             foreach (var data in spawnPoolList)
             {
                 var spawnPoolSlots = new List<SpawnPoolSlot>();
 
-                if (data.CreatureId1 > 0)
-                    spawnPoolSlots.Add(new SpawnPoolSlot(data.CreatureId1, data.CreatureMinCount1, data.CreatureMaxCount1));
-                if (data.CreatureId2 > 0)
-                    spawnPoolSlots.Add(new SpawnPoolSlot(data.CreatureId2, data.CreatureMinCount2, data.CreatureMaxCount2));
-                if (data.CreatureId3 > 0)
-                    spawnPoolSlots.Add(new SpawnPoolSlot(data.CreatureId3, data.CreatureMinCount3, data.CreatureMaxCount3));
-                if (data.CreatureId4 > 0)
-                    spawnPoolSlots.Add(new SpawnPoolSlot(data.CreatureId4, data.CreatureMinCount4, data.CreatureMaxCount4));
-                if (data.CreatureId5 > 0)
-                    spawnPoolSlots.Add(new SpawnPoolSlot(data.CreatureId5, data.CreatureMinCount5, data.CreatureMaxCount5));
-                if (data.CreatureId6 > 0)
-                    spawnPoolSlots.Add(new SpawnPoolSlot(data.CreatureId6, data.CreatureMinCount6, data.CreatureMaxCount6));
+                if (data.Creature1Id > 0)
+                    spawnPoolSlots.Add(new SpawnPoolSlot(data.Creature1Id, data.Creature1MinCount, data.Creature1MaxCount));
+                if (data.Creature2Id > 0)
+                    spawnPoolSlots.Add(new SpawnPoolSlot(data.Creature2Id, data.Creature2MinCount, data.Creature2MaxCount));
+                if (data.Creature3Id > 0)
+                    spawnPoolSlots.Add(new SpawnPoolSlot(data.Creature3Id, data.Creature3MinCount, data.Creature3MaxCount));
+                if (data.Creature4Id > 0)
+                    spawnPoolSlots.Add(new SpawnPoolSlot(data.Creature4Id, data.Creature4MinCount, data.Creature4MaxCount));
+                if (data.Creature5Id > 0)
+                    spawnPoolSlots.Add(new SpawnPoolSlot(data.Creature5Id, data.Creature5MinCount, data.Creature5MaxCount));
+                if (data.Creature6Id > 0)
+                    spawnPoolSlots.Add(new SpawnPoolSlot(data.Creature6Id, data.Creature5MinCount, data.Creature6MaxCount));
 
                 var spawnPool = new SpawnPool
                 {
                     AnimType = data.AnimType,
                     MapContextId = data.MapContextId,
-                    DbId = data.DbId,
-                    HomePosition = new Vector3(data.PosX, data.PosY, data.PosZ),
-                    HomeOrientation = data.Orientation,
+                    DbId = data.Id,
+                    Position = data.Position,
+                    Rotation = (float)data.Rotation,
                     Mode = data.Mode,
                     RespawnTime = data.RespawnTime * 100,  //convert to ms
                     // to spawn all cretures at server start, we set UpdateTimer to RespawnTime
@@ -118,7 +123,7 @@ namespace Rasa.Managers
                     SpawnSlot = spawnPoolSlots
                 };
 
-                LoadedSpawnPools.Add(data.DbId, spawnPool);
+                LoadedSpawnPools.Add(data.Id, spawnPool);
             }
 
             Logger.WriteLog(LogType.Initialize, $"Loaded {LoadedSpawnPools.Count} SpawnPools");
@@ -213,7 +218,7 @@ namespace Rasa.Managers
 
         internal void RandomizePosition(Creature creature, int count)
         {
-            var pos = creature.SpawnPool.HomePosition;
+            var pos = creature.SpawnPool.Position;
 
             if (count != 1)
             {
@@ -221,7 +226,7 @@ namespace Rasa.Managers
                 pos.Z += new Random().Next() % 5 - 2;
             }
 
-            CreatureManager.Instance.SetLocation(creature, pos, creature.SpawnPool.HomeOrientation, creature.SpawnPool.MapContextId);
+            CreatureManager.Instance.SetLocation(creature, pos, creature.SpawnPool.Rotation, creature.SpawnPool.MapContextId);
         }
     }
 }

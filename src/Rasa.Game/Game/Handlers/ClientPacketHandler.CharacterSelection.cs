@@ -13,13 +13,6 @@
             CharacterManager.Instance.RequestCharacterName(Client, packet.Gender);
         }
         
-        [PacketHandler(GameOpcode.StoreUserClientInformation)]
-        private void StoreUserClientInformation(StoreUserClientInformationPacket packet)
-        {
-            Logger.WriteLog(LogType.Debug, "StoreUserClientInformationPacket ToDo");
-        }
-
-        // ReSharper disable once UnusedParameter.Local
         [PacketHandler(GameOpcode.RequestFamilyName)]
         private void RequestFamilyName(RequestFamilyNamePacket packet)
         {
@@ -48,6 +41,12 @@
         private void RequestSwitchToCharacterInSlot(RequestSwitchToCharacterInSlotPacket packet)
         {
             CharacterManager.Instance.RequestSwitchToCharacterInSlot(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.StoreUserClientInformation)]
+        private void RequestStoreUserClientInformation(StoreUserClientInformationPacket packet)
+        {
+			Logger.WriteLog(LogType.Debug, "StoreUserClientInformationPacket ToDo");
         }
     }
 }

@@ -3,12 +3,12 @@
 namespace Rasa.Managers
 {
     using Data;
-    using Database.Tables.Character;
-    using Database.Tables.World;
     using Game;
     using Packets.Game.Server;
     using Packets.MapChannel.Server;
-    using Rasa.Packets.MapChannel.Client;
+    using Packets.MapChannel.Client;
+    using Repositories.Char.Items;
+    using Repositories.UnitOfWork;
     using Structures;
 
     public class ItemManager
@@ -21,8 +21,10 @@ namespace Rasa.Managers
          */
 
         private static ItemManager _instance;
-        private static readonly object InstanceLock = new object();
-        public Dictionary<uint, EntityClassId> ItemTemplateItemClass = new Dictionary<uint, EntityClassId>();
+        private static readonly object InstanceLock = new();
+        private readonly IGameUnitOfWorkFactory _gameUnitOfWorkFactory;
+
+        public Dictionary<uint, EntityClasses> ItemTemplateItemClass = new();
 
         public static ItemManager Instance
         {
@@ -34,7 +36,7 @@ namespace Rasa.Managers
                     lock (InstanceLock)
                     {
                         if (_instance == null)
-                            _instance = new ItemManager();
+                            _instance = new ItemManager(Server.GameUnitOfWorkFactory);
                     }
                 }
 
@@ -42,8 +44,9 @@ namespace Rasa.Managers
             }
         }
 
-        private ItemManager()
+        private ItemManager(IGameUnitOfWorkFactory gameUnitOfWorkFactory)
         {
+            _gameUnitOfWorkFactory = gameUnitOfWorkFactory;
         }
 
         public Item CreateFromTemplateId(uint itemTemplateId, uint stackSize, string crafter = "")
@@ -69,21 +72,23 @@ namespace Rasa.Managers
                 stackSize = classInfo.ItemClassInfo.StackSize;
 
             // insert into items table to get unique ItemId
-            var itemId = 0U;
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
 
-            if (crafter != "")
-                itemId = ItemsTable.CraftItem(itemTemplate.ItemTemplateId, stackSize, classInfo.ItemClassInfo.MaxHitPoints, crafter, 2139062144);
-            else
-                itemId = ItemsTable.CreateItem(itemTemplate.ItemTemplateId, stackSize, classInfo.ItemClassInfo.MaxHitPoints, 2139062144);
-            
             // create physical copy of item
             var item = new Item
             {
-                ItemId = itemId,
                 ItemTemplate = itemTemplate,
-                Stacksize = stackSize,
-                Color = 2139062144     // ToDo we will have to find color in game client files
+                ItemTemplateId = itemTemplate.ItemTemplateId,
+                StackSize = stackSize,
+                Crafter = crafter,
+                Color = 2139062144,     // ToDo we will have to find color in game client files
+                CurrentHitPoints = classInfo.ItemClassInfo.MaxHitPoints
             };
+            //create item in db
+            var itemId = unitOfWork.Items.CreateItem(item);
+
+            item.Id = itemId;
+
             // register item
             EntityManager.Instance.RegisterEntity(item.EntityId, EntityType.Item);
             EntityManager.Instance.RegisterItem(item.EntityId, item);
@@ -136,7 +141,7 @@ namespace Rasa.Managers
                 OwnerId = characterSlot,
                 OwnerSlotId = slotId,
                 ItemTemplate = itemTemplate,
-                Stacksize = stackSize,
+                StackSize = stackSize,
             };
             // register item
             EntityManager.Instance.RegisterItem(item.EntityId, item);
@@ -164,69 +169,71 @@ namespace Rasa.Managers
             Logger.WriteLog(LogType.Initialize, "Loading ItemTemplates from db...");
 
             var LoadedItemTemplates = new Dictionary<uint, ItemTemplate>();
-            
+            var loaded = 0;
+            var skipped = 0;
+
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateWorld();
+
             // load item templates
-            var itemTemplates = ItemTemplateItemClassTable.GetItemTemplateItemClass();
+            var itemTemplates = unitOfWork.ItemTemplateItemClasses.Get();
             foreach (var itemTemplate in itemTemplates)
             {
                 LoadedItemTemplates.Add(itemTemplate.ItemTemplateId, new ItemTemplate(itemTemplate));
-                ItemTemplateItemClass.Add(itemTemplate.ItemTemplateId, (EntityClassId)itemTemplate.ItemClass);
+                ItemTemplateItemClass.Add(itemTemplate.ItemTemplateId, (EntityClasses)itemTemplate.ItemClass);
             }
 
             // add race requirements to itemTemplate
-            var itemRaceReq = ItemTemplateRaceRequiremenTable.GetItemTemplateRaceRequirement();
+            var itemRaceReq = unitOfWork.ItemTemplateRequirementRaces.Get();
             foreach (var raceReq in itemRaceReq)
-                LoadedItemTemplates[raceReq.ItemTemplateId].ItemInfo.RaceReq = raceReq.RaceId;
+                LoadedItemTemplates[raceReq.Id].ItemInfo.RaceReq = raceReq.RaceId;
 
             // add skill requirements to itemTemplate
-            var itemSkillReq = ItemTemplateSkillRequirementTable.GetItemTemplateSkillRequirement();
+            var itemSkillReq = unitOfWork.ItemTemplateRequirementSkills.Get();
             foreach (var skillReq in itemSkillReq)
-                LoadedItemTemplates[skillReq.ItemTemplateId].EquipableInfo = new EquipableInfo(skillReq.SkillId, skillReq.SkillLevel);
+                LoadedItemTemplates[skillReq.Id].EquipableInfo = new EquipableInfo(skillReq.SkillId, skillReq.SkillLevel);
 
             // add resistance data to itemTemplate
-            var itemTemplateResistance = ItemTemplateResistanceTable.GetItemTemplateResistance();
+            var itemTemplateResistance = unitOfWork.ItemTemplateResistances.Get();
             foreach (var resistance in itemTemplateResistance)
-                LoadedItemTemplates[resistance.ItemTemplateId].EquipableInfo.ResistList.Add(new ResistanceData((DamageType)resistance.ResistanceType, resistance.ResistanceValue));
+                LoadedItemTemplates[resistance.Id].EquipableInfo.ResistList.Add(new ResistanceData((DamageType)resistance.ResistanceType, resistance.ResistanceValue));
 
             // add item requirements to itemTemplate
-            var itemReqs = ItemTemplateRequirementsTable.GetItemTemplateRequirements();
-            var loaded = 0;
-            var skipped = 0;
+            var itemReqs = unitOfWork.ItemTemplateRequirements.Get();
 
             foreach (var itemReq in itemReqs)
             {
 
-                if (LoadedItemTemplates.ContainsKey(itemReq.ItemTemplateId))
+                if (LoadedItemTemplates.ContainsKey(itemReq.Id))
                 {
-                    LoadedItemTemplates[itemReq.ItemTemplateId].ItemInfo.Requirements.Add((RequirementsType)itemReq.ReqType, itemReq.ReqValue);
+                    LoadedItemTemplates[itemReq.Id].ItemInfo.Requirements.Add((RequirementsType)itemReq.RequirementType, itemReq.RequirementValue);
                     loaded++;
                 }
                 else
                     skipped++;
             }
 
-            var weaponTemplates = WeaponTemplateTable.GetWeaponTemplates();
+            var weaponTemplates = unitOfWork.ItemTemplateWeapons.Get();
             foreach (var weaponTemplate in weaponTemplates)
-                LoadedItemTemplates[weaponTemplate.ItemTemplateId].WeaponInfo = new WeaponInfo(weaponTemplate);
+                LoadedItemTemplates[weaponTemplate.Id].WeaponInfo = new WeaponInfo(weaponTemplate);
 
-            var armorTemplates = ArmorTemplateTable.GetArmorTemplates();
+            var armorTemplates = unitOfWork.ItemTemplateArmors.Get();
             foreach (var armorTemplate in armorTemplates)
-                LoadedItemTemplates[armorTemplate.ItemTemplateId].ArmorValue = armorTemplate.ArmorValue;
+                LoadedItemTemplates[armorTemplate.Id].ArmorValue = armorTemplate.ArmorValue;
 
-            var itemTemplatesData = ItemTemplateTable.GetItemTemplates();
+            var itemTemplatesData = unitOfWork.ItemTemplates.Get();
             foreach (var template in itemTemplatesData)
             {
-                LoadedItemTemplates[template.ItemTemplateId].BoundToCharacter = template.BoundToCharacterFlag;
-                LoadedItemTemplates[template.ItemTemplateId].BuyPrice = template.BuyPrice;
-                LoadedItemTemplates[template.ItemTemplateId].HasAccountUniqueFlag = template.HasAccountUniqueFlag;
-                LoadedItemTemplates[template.ItemTemplateId].HasBoEFlag = template.HasBoEFlag;
-                LoadedItemTemplates[template.ItemTemplateId].HasCharacterUniqueFlag = template.HasCharacterUniqueFlag;
-                LoadedItemTemplates[template.ItemTemplateId].HasSellableFlag = template.HasSellableFlag;
-                LoadedItemTemplates[template.ItemTemplateId].InventoryCategory = (InventoryCategory)template.InventoryCategory;
-                LoadedItemTemplates[template.ItemTemplateId].NotPlaceableInLockbox = template.NotPlaceableInLockBoxFlag;
-                LoadedItemTemplates[template.ItemTemplateId].ItemInfo.Tradable = template.NotTradableFlag;
-                LoadedItemTemplates[template.ItemTemplateId].QualityId = template.QualityId;
-                LoadedItemTemplates[template.ItemTemplateId].SellPrice = template.SellPrice;
+                LoadedItemTemplates[template.Id].BoundToCharacter = template.BoundToCharacterFlag != 0;
+                LoadedItemTemplates[template.Id].BuyPrice = template.BuyPrice;
+                LoadedItemTemplates[template.Id].HasAccountUniqueFlag = template.HasAccountUniqueFlag != 0;
+                LoadedItemTemplates[template.Id].HasBoEFlag = template.HasBoEFlag != 0;
+                LoadedItemTemplates[template.Id].HasCharacterUniqueFlag = template.HasCharacterUniqueFlag != 0;
+                LoadedItemTemplates[template.Id].HasSellableFlag = template.HasSellableFlag != 0;
+                LoadedItemTemplates[template.Id].InventoryCategory = (InventoryCategory)template.InventoryCategory;
+                LoadedItemTemplates[template.Id].NotPlaceableInLockbox = template.NotPlacableInLockboxFlag != 0;
+                LoadedItemTemplates[template.Id].ItemInfo.Tradable = template.NotTradableFlag != 0;
+                LoadedItemTemplates[template.Id].QualityId = template.QualityId;
+                LoadedItemTemplates[template.Id].SellPrice = template.SellPrice;
             }
             
             Logger.WriteLog(LogType.Initialize, $"Loaded {itemTemplatesData.Count} ItemTemplates.");
@@ -251,24 +258,7 @@ namespace Rasa.Managers
 
             var classInfo = EntityClassManager.Instance.GetClassInfo(item.ItemTemplate.Class);
             // ItemInfo
-            client.CallMethod(item.EntityId, new ItemInfoPacket
-            {
-                CurrentHitPoints = item.CurrentHitPoints,
-                MaxHitPoints = classInfo.ItemClassInfo.MaxHitPoints,
-                CrafterName = item.CrafterName,
-                ItemTemplateId = item.ItemTemplate.ItemTemplateId,
-                HasSellableFlag = item.ItemTemplate.HasSellableFlag,
-                HasCharacterUniqueFlag = item.ItemTemplate.HasCharacterUniqueFlag,
-                HasAccountUniqueFlag = item.ItemTemplate.HasAccountUniqueFlag,
-                HasBoEFlag = item.ItemTemplate.HasBoEFlag,
-                ClassModuleIds = item.ItemTemplate.ModuleIds,
-                LootModuleIds = item.ItemTemplate.LootModuleIds,
-                QualityId = item.ItemTemplate.QualityId,
-                BoundToCharacter = item.ItemTemplate.BoundToCharacter,
-                NotTradable = item.ItemTemplate.ItemInfo.Tradable,
-                NotPlaceableInLockbox = item.ItemTemplate.NotPlaceableInLockbox,
-                InventoryCategory = item.ItemTemplate.InventoryCategory
-            } );
+            client.CallMethod(item.EntityId, new ItemInfoPacket(item, classInfo));
 
             // isConsumable
             client.CallMethod(item.EntityId, new SetConsumablePacket(classInfo.ItemClassInfo.IsConsumableFlag));
@@ -276,26 +266,7 @@ namespace Rasa.Managers
             if (item.ItemTemplate.WeaponInfo != null)    // weapon
             {
                 // WeaponInfo
-                client.CallMethod(item.EntityId, new WeaponInfoPacket
-                {
-                    WeaponName = item.ItemTemplate.WeaponInfo.WeaponName,
-                    ClipSize = classInfo.WeaponClassInfo.ClipSize,
-                    CurrentAmmo = item.CurrentAmmo,
-                    AimRate = item.ItemTemplate.WeaponInfo.AimRate,
-                    ReloadTime = item.ItemTemplate.WeaponInfo.ReloadTime,
-                    AltActionId = item.ItemTemplate.WeaponInfo.AltActionId,
-                    AltActionArg = item.ItemTemplate.WeaponInfo.AltActionArg,
-                    AeType = item.ItemTemplate.WeaponInfo.AEType,
-                    AeRadius = item.ItemTemplate.WeaponInfo.AERadius,
-                    RecoilAmount = item.ItemTemplate.WeaponInfo.RecoilAmount,
-                    ReuseOverride = item.ItemTemplate.WeaponInfo.ReuseOverride,
-                    CoolRate = item.ItemTemplate.WeaponInfo.CoolRate,
-                    HeatPerShot = item.ItemTemplate.WeaponInfo.HeatPerShot,
-                    ToolType = item.ItemTemplate.WeaponInfo.ToolType,
-                    IsJammed = item.IsJammed,
-                    AmmoPerShot = item.ItemTemplate.WeaponInfo.AmmoPerShot,
-                    CammeraProfile = item.CammeraProfile
-                } );
+                client.CallMethod(item.EntityId, new WeaponInfoPacket(item, classInfo));
 
                 // WeaponAmmoInfo
                 client.CallMethod(item.EntityId, new WeaponAmmoInfoPacket(item.CurrentAmmo));
@@ -305,7 +276,13 @@ namespace Rasa.Managers
                 client.CallMethod(item.EntityId, new ArmorInfoPacket(item.CurrentHitPoints, classInfo.ItemClassInfo.MaxHitPoints));
             
             // SetStackCount
-            client.CallMethod(item.EntityId, new SetStackCountPacket(item.Stacksize));
+            client.CallMethod(item.EntityId, new SetStackCountPacket(item.StackSize));
+        }
+
+        internal void UpdateItemCurrentAmmo(IItemChange item)
+        {
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+            unitOfWork.Items.UpdateAmmo(item);
         }
     }
 }

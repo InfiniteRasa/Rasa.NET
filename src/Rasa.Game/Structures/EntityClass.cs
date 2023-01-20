@@ -3,13 +3,14 @@
 namespace Rasa.Structures
 {
     using Data;
+    using World;
 
     public class EntityClass
     {
         public uint ClassId { get; set; }                           // entityClass.pyo
         public string ClassName { get; set; }                       // entityClass.pyo
         public int MeshId { get; set; }                             // entityClass.pyo
-        public int LodMeshId { get; set; }                          // entityClass.pyo for all entityClasses LodMeshId is none (null)
+        public uint LodMeshId { get; set; }                         // entityClass.pyo for all entityClasses LodMeshId is none (null)
         public double LodScreenPercentage { get; set; }             // entityClass.pyo for all entityClasses LodScreenPercentage is none (null)
         public short ClassCollisionRole { get; set; }               // entityClass.pyo
         public List<AugmentationType> Augmentations { get; set; }   // entityClass.pyo
@@ -31,7 +32,7 @@ namespace Rasa.Structures
         public EquipableClassInfo EquipableClassInfo { get; set; }
         public WeaponClassInfo WeaponClassInfo { get; set; }
 
-        public EntityClass(uint classId, string className, int meshId, short classCollisionRole, List<AugmentationType> augList, bool targetFlag)
+        public EntityClass(uint classId, string className, uint meshId, short classCollisionRole, List<AugmentationType> augList, bool targetFlag)
         {
             ClassId = classId;
             ClassName = className;
@@ -44,14 +45,12 @@ namespace Rasa.Structures
 
     public class ArmorClassInfo
     {
-        //public int ClassId { get; set; }
-        public int MinDamageAbsorbed { get; set; }
-        public int MaxDamageAbsorbed { get; set; }
+        public uint MinDamageAbsorbed { get; set; }
+        public uint MaxDamageAbsorbed { get; set; }
         public int RegenRate { get; set; }
 
         public ArmorClassInfo(ArmorClassEntry armorClass)
         {
-            //ClassId = armorClass.ClassId;
             MinDamageAbsorbed = armorClass.MinDamageAbsorbed;
             MaxDamageAbsorbed = armorClass.MaxDamageAbsorbed;
             RegenRate = armorClass.RegenRate;
@@ -70,20 +69,20 @@ namespace Rasa.Structures
 
     public class ItemClassInfo
     {
-        public int InventoryIconStringId { get; set; }
-        public int LootValue { get; set; }
-        public bool HiddenInventoryFlag { get; set; }
-        public bool IsConsumableFlag { get; set; }
+        public uint InventoryIconStringId { get; set; }
+        public uint LootValue { get; set; }
+        public byte HidenInventoryFlag { get; set; }
+        public byte IsConsumableFlag { get; set; }
         public int MaxHitPoints { get; set; }
         public uint StackSize { get; set; }
-        public int DragAudioSetId { get; set; }
-        public int DropAudioSetId { get; set; }
+        public uint DragAudioSetId { get; set; }
+        public uint DropAudioSetId { get; set; }
 
         public ItemClassInfo(ItemClassEntry itemClassInfo)
         {
             InventoryIconStringId = itemClassInfo.InventoryIconStringId;
             LootValue = itemClassInfo.LootValue;
-            HiddenInventoryFlag = itemClassInfo.HiddenInventoryFlag;
+            HidenInventoryFlag = itemClassInfo.HidenInventoryFlag;
             IsConsumableFlag = itemClassInfo.IsConsumableFlag;
             MaxHitPoints = itemClassInfo.MaxHitPoints;
             StackSize = itemClassInfo.StackSize;
@@ -94,20 +93,19 @@ namespace Rasa.Structures
 
     public class WeaponClassInfo
     {
-        //public int ClassId { get; set; }
-        public short WeaponTemplateid { get; set; }
+        public uint WeaponTemplateid { get; set; }
         public ActionId WeaponAttackActionId { get; set; }
         public uint WeaponAttackArgId { get; set; }
-        public short DrawActionId { get; set; }
-        public short StowActionId { get; set; }
-        public short ReloadActionId { get; set; }
-        public EntityClassId AmmoClassId { get; set; }
-        public short ClipSize { get; set; }
+        public byte DrawActionId { get; set; }
+        public byte StowActionId { get; set; }
+        public byte ReloadActionId { get; set; }
+        public EntityClasses AmmoClassId { get; set; }
+        public uint ClipSize { get; set; }
         public int MinDamage { get; set; }
         public int MaxDamage { get; set; }
-        public short DamageType { get; set; }
-        public short Velocity { get; set; }
-        public short WeaponAnimConditionCode { get; set; }
+        public byte DamageType { get; set; }
+        public int Velocity { get; set; }
+        public uint WeaponAnimConditionCode { get; set; }
         public bool WindupOverride { get; set; }
         public bool RecoveryOverride { get; set; }
         public bool ReuseOverride { get; set; }
@@ -118,19 +116,19 @@ namespace Rasa.Structures
         public bool UnkArg3 { get; set; }
         public bool UnkArg4 { get; set; }
         public bool UnkArg5 { get; set; }
-        public short UnkArg6 { get; set; }
+        public uint UnkArg6 { get; set; }
         public bool UnkArg7 { get; set; }
-        public short UnkArg8 { get; set; }
+        public uint UnkArg8 { get; set; }
 
         public WeaponClassInfo(WeaponClassEntry weaponInfo)
         {
-            WeaponTemplateid = weaponInfo.WeaponTemplateid;
-            WeaponAttackActionId = (ActionId)weaponInfo.WeaponAttackActionId;
-            WeaponAttackArgId = weaponInfo.WeaponAttackArgId;
+            WeaponTemplateid = weaponInfo.Id;
+            WeaponAttackActionId = (ActionId)weaponInfo.AttackActionId;
+            WeaponAttackArgId = weaponInfo.AttackActionArgId;
             DrawActionId = weaponInfo.DrawActionId;
             StowActionId = weaponInfo.StowActionId;
             ReloadActionId = weaponInfo.ReloadActionId;
-            AmmoClassId = (EntityClassId)weaponInfo.AmmoClassId;
+            AmmoClassId = (EntityClasses)weaponInfo.AmmoClassId;
             ClipSize = weaponInfo.ClipSize;
             MinDamage = weaponInfo.MinDamage;
             MaxDamage = weaponInfo.MaxDamage;
@@ -142,14 +140,14 @@ namespace Rasa.Structures
             ReuseOverride = weaponInfo.ReuseOverride;
             ReloadOverride = weaponInfo.ReloadOverride;
             RangeType = weaponInfo.RangeType;
-            UnkArg1 = weaponInfo.UnkArg1;
-            UnkArg2 = weaponInfo.UnkArg2;
-            UnkArg3 = weaponInfo.UnkArg3;
-            UnkArg4 = weaponInfo.UnkArg4;
-            UnkArg5 = weaponInfo.UnkArg5;
-            UnkArg6 = weaponInfo.UnkArg6;
-            UnkArg7 = weaponInfo.UnkArg7;
-            UnkArg8 = weaponInfo.UnkArg8;
+            UnkArg1 = weaponInfo.UnknownArg1;
+            UnkArg2 = weaponInfo.UnknownArg2;
+            UnkArg3 = weaponInfo.UnknownArg3;
+            UnkArg4 = weaponInfo.UnknownArg4;
+            UnkArg5 = weaponInfo.UnknownArg5;
+            UnkArg6 = weaponInfo.UnknownArg6;
+            UnkArg7 = weaponInfo.UnknownArg7;
+            UnkArg8 = weaponInfo.UnknownArg8;
         }
     }
 }

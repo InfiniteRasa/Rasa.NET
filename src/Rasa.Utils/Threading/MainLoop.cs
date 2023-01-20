@@ -28,7 +28,10 @@ namespace Rasa.Threading
 
             Running = true;
 
-            LoopThread = new Thread(Loop);
+            LoopThread = new Thread(Loop)
+            {
+                Priority = ThreadPriority.Highest
+            };
             LoopThread.Start();
         }
 

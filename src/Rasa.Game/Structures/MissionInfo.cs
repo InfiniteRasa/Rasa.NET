@@ -103,8 +103,8 @@ namespace Rasa.Structures
     public class RewardItem : IPythonDataStruct
     {
         public uint ItemTemplateId { get; set; }
-        public EntityClassId Class { get; set; }
-        public int Quantity { get; set; }
+        public EntityClasses Class { get; set; }
+        public uint Quantity { get; set; }
         // public int Hue { get; set; }    // not used by client
         public List<int> ModuleIds = new List<int>();
         public int QualityId { get; set; }
@@ -118,7 +118,7 @@ namespace Rasa.Structures
             pw.WriteTuple(6);
             pw.WriteLong(ItemTemplateId);
             pw.WriteUInt((uint)Class);
-            pw.WriteInt(Quantity);
+            pw.WriteUInt(Quantity);
             pw.WriteNoneStruct();                  // hue      (not used by client)
             pw.WriteList(ModuleIds.Count);
             foreach (var module in ModuleIds)

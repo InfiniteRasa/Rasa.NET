@@ -3,6 +3,7 @@
 namespace Rasa.Structures
 {
     using Data;
+    using World;
 
     public class ItemInfo
     {
@@ -44,41 +45,41 @@ namespace Rasa.Structures
     {
         public string WeaponName { get; set; }
         public double AimRate { get; set; }
-        public int ReloadTime { get; set; }
-        public int AEType { get; set; }
-        public int AltActionId { get; set; }
-        public int AltActionArg { get; set; }
-        public int AERadius { get; set; }
-        public int RecoilAmount { get; set; }
-        public int ReuseOverride { get; set; }
-        public int CoolRate { get; set; }
+        public uint ReloadTime { get; set; }
+        public uint AeType { get; set; }
+        public uint AltActionId { get; set; }
+        public uint AltActionArgId { get; set; }
+        public uint AeRadius { get; set; }
+        public uint RecoilAmount { get; set; }
+        public uint ReuseOverride { get; set; }
+        public uint CoolRate { get; set; }
         public double HeatPerShot { get; set; }
         public ToolType ToolType { get; set; }
         public uint AmmoPerShot { get; set; }
-        public int WindupTime { get; set; }
-        public int RecoveryTime { get; set; }
-        public int RefireTime { get; set; }
-        public int Range { get; set; }
+        public uint Windup { get; set; }
+        public uint Recovery { get; set; }
+        public uint Refire { get; set; }
+        public uint Range { get; set; }
         public AttackType AttackType { get; set; }
         public WeaponAltInfo WeaponAltInfo { get; set; }
 
-        public WeaponInfo(WeaponTemplateEntry weapon)
+        public WeaponInfo(ItemTemplateWeaponEntry weapon)
         {
             AimRate = weapon.AimRate;
             ReloadTime = weapon.ReloadTime;
-            AEType = weapon.AEType;
+            AeType = weapon.AeType;
             AltActionId = weapon.AltActionId;
-            AltActionArg = weapon.AltActionArg;
-            AERadius = weapon.AERadius;
+            AltActionArgId = weapon.AltActionArgId;
+            AeRadius = weapon.AeRadius;
             RecoilAmount = weapon.RecoilAmount;
             ReuseOverride = weapon.ReuseOverride;
             CoolRate = weapon.CoolRate;
             HeatPerShot = weapon.HeatPerShot;
             ToolType = (ToolType)weapon.ToolType;
             AmmoPerShot = weapon.AmmoPerShot;
-            WindupTime = weapon.WindupTime;
-            RecoveryTime = weapon.RecoveryTime;
-            RefireTime = weapon.RefireTime;
+            Windup = weapon.Windup;
+            Recovery = weapon.Recovery;
+            Refire = weapon.Refire;
             Range = weapon.Range;
             AttackType = (AttackType)weapon.AttackType;
 
@@ -89,19 +90,19 @@ namespace Rasa.Structures
 
     public class WeaponAltInfo
     {
-        public int MaxDamage { get; set; }      // kWeaponAltIdx_MaxDamage = 0
-        public int DamageType { get; set; }     // kWeaponAltIdx_DamageType = 1
-        public int Range { get; set; }          // kWeaponAltIdx_Range = 2
-        public int AERadius { get; set; }       // kWeaponAltIdx_AERadius = 3
-        public int AEType { get; set; }         // kWeaponAltIdx_AEType = 4
+        public uint AltMaxDamage { get; set; }      // kWeaponAltIdx_MaxDamage = 0
+        public uint AltDamageType { get; set; }     // kWeaponAltIdx_DamageType = 1
+        public uint AltRange { get; set; }          // kWeaponAltIdx_Range = 2
+        public uint AltAeRadius { get; set; }       // kWeaponAltIdx_AERadius = 3
+        public uint AltAeType { get; set; }         // kWeaponAltIdx_AEType = 4
 
-        public WeaponAltInfo(WeaponTemplateEntry weapon)
+        public WeaponAltInfo(ItemTemplateWeaponEntry weapon)
         {
-            MaxDamage = weapon.AltMaxDamage;
-            DamageType = weapon.AltDamageType;
-            Range = weapon.AltRange;
-            AERadius = weapon.AltAERadius;
-            AEType = weapon.AltAEType;
+            AltMaxDamage = weapon.AltMaxDamage;
+            AltDamageType = weapon.AltDamageType;
+            AltRange = weapon.AltRange;
+            AltAeRadius = weapon.AltAeRadius;
+            AltAeType = weapon.AltAeType;
         }
     }
 

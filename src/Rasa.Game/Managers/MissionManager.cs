@@ -3,13 +3,16 @@
 namespace Rasa.Managers
 {
     using Data;
-    using Database.Tables.World;
+    using Game;
+    using Repositories.UnitOfWork;
     using Structures;
 
     public class MissionManager
     {
         private static MissionManager _instance;
         private static readonly object InstanceLock = new object();
+        private readonly IGameUnitOfWorkFactory _gameUnitOfWorkFactory;
+
         public readonly Dictionary<uint, Mission> LoadedMissions = new Dictionary<uint, Mission>();
 
         public static MissionManager Instance
@@ -22,7 +25,7 @@ namespace Rasa.Managers
                     lock (InstanceLock)
                     {
                         if (_instance == null)
-                            _instance = new MissionManager();
+                            _instance = new MissionManager(Server.GameUnitOfWorkFactory);
                     }
                 }
 
@@ -30,26 +33,28 @@ namespace Rasa.Managers
             }
         }
 
-        private MissionManager()
+        private MissionManager(IGameUnitOfWorkFactory gameUnitOfWorkFactory)
         {
+            _gameUnitOfWorkFactory = gameUnitOfWorkFactory;
         }
 
         public void LoadMissions()
         {
-            var missions = NpcMissionsTable.GetNpcMissions();
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateWorld();
+            var missions = unitOfWork.NpcMissions.Get();
 
             foreach (var line in missions)
             {
-                if (!LoadedMissions.ContainsKey(line.MissionId))
-                    LoadedMissions.Add(line.MissionId, new Mission(line.MissionId));
+                if (!LoadedMissions.ContainsKey(line.Id))
+                    LoadedMissions.Add(line.Id, new Mission(line.Id));
 
                 switch ((MissionScriptCommand)line.Command)
                 {
                     case MissionScriptCommand.Dispenser:
-                        LoadedMissions[line.MissionId].MissionGiver = line.Var1;
+                        LoadedMissions[line.Id].MissionGiver = line.Var1;
                         break;
                     case MissionScriptCommand.Collector:
-                        LoadedMissions[line.MissionId].MissionReciver = line.Var1;
+                        LoadedMissions[line.Id].MissionReciver = line.Var1;
                         break;
                     case MissionScriptCommand.RewardItem:
                         {
@@ -64,7 +69,7 @@ namespace Rasa.Managers
                                 QualityId = itemTemplate.QualityId
                             };
 
-                            LoadedMissions[line.MissionId].MissionInfo.MissionConstantData.RewardInfo.FixedReward.FixedItems.Add(rewardItem);
+                            LoadedMissions[line.Id].MissionInfo.MissionConstantData.RewardInfo.FixedReward.FixedItems.Add(rewardItem);
                             break;
                         }
                     default:

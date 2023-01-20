@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Buffers;
+using System.IO;
 
 namespace Rasa.Packets.Protocol
 {
@@ -34,7 +36,7 @@ namespace Rasa.Packets.Protocol
             MethodId = packet.Opcode;
         }
 
-        public CallMethodMessage(uint entityId, string methodName, PythonPacket packet)
+        public CallMethodMessage(ulong entityId, string methodName, PythonPacket packet)
         {
             EntityId = entityId;
             MethodName = methodName;
@@ -88,9 +90,9 @@ namespace Rasa.Packets.Protocol
                     throw new Exception($"Invalid subtype ({Subtype}) for CallMethodMessage!");
             }
 
-            var buffer = BufferManager.RequestBuffer();
+            var buffer = ArrayPool<byte>.Shared.Rent(0x2000);
 
-            using (var bw = buffer.CreateWriter())
+            using (var bw = new BinaryWriter(new MemoryStream(buffer)))
             {
                 bw.Write((byte) 0x4F); // 'O' - Optimized Marshall Format
 
@@ -98,10 +100,10 @@ namespace Rasa.Packets.Protocol
 
                 bw.Write((byte) 0x66); // 'f' - python payload finish mark
 
-                writer.WriteArray(buffer.Buffer, buffer.BaseOffset, (int) bw.BaseStream.Position);
+                writer.WriteArray(buffer, 0, (int) bw.BaseStream.Position);
             }
 
-            BufferManager.FreeBuffer(buffer);
+            ArrayPool<byte>.Shared.Return(buffer);
 
             if (Subtype == CallMethodMessageSubtype.UnkPlusMethodId || Subtype == CallMethodMessageSubtype.UnkPlusMethodName)
                 writer.WriteUInt(UnknownValue);

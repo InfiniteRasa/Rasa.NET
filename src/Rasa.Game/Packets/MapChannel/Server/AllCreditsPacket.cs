@@ -11,9 +11,9 @@ namespace Rasa.Packets.MapChannel.Server
 
         public Dictionary<CurencyType, int> Credits { get; set; }
 
-        public AllCreditsPacket(Dictionary<CurencyType, int> creadits)
+        public AllCreditsPacket(Dictionary<CurencyType, int> credits)
         {
-            Credits = creadits;
+            Credits = credits;
         }
 
         public override void Write(PythonWriter pw)

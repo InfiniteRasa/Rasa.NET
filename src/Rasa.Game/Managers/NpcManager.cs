@@ -4,12 +4,12 @@ using System.Collections.Generic;
 namespace Rasa.Managers
 {
     using Data;
-    using Database.Tables.Character;
     using Game;
     using Packets.Communicator.Server;
     using Packets.Inventory.Server;
     using Packets.MapChannel.Client;
     using Packets.MapChannel.Server;
+    using Rasa.Repositories.UnitOfWork;
     using Structures;
 
     public class NpcManager
@@ -24,6 +24,7 @@ namespace Rasa.Managers
 
         private static NpcManager _instance;
         private static readonly object InstanceLock = new object();
+        private readonly IGameUnitOfWorkFactory _gameUnitOfWorkFactory;
 
         public static NpcManager Instance
         {
@@ -35,7 +36,7 @@ namespace Rasa.Managers
                     lock (InstanceLock)
                     {
                         if (_instance == null)
-                            _instance = new NpcManager();
+                            _instance = new NpcManager(Server.GameUnitOfWorkFactory);
                     }
                 }
 
@@ -43,8 +44,9 @@ namespace Rasa.Managers
             }
         }
 
-        private NpcManager()
+        private NpcManager(IGameUnitOfWorkFactory gameUnitOfWorkFactory)
         {
+            _gameUnitOfWorkFactory = gameUnitOfWorkFactory;
         }
 
         #region NPC
@@ -58,13 +60,13 @@ namespace Rasa.Managers
         {
             var mission = MissionManager.Instance.LoadedMissions[packet.MissionId];
 
-            if (client.MapClient.Player.Missions.Count > 30)
+            if (client.Player.Missions.Count > 30)
             {
                 CommunicatorManager.Instance.SystemMessage(client, "Mission log is full.");
                 return;
             }
 
-            client.CallMethod(client.MapClient.Player.Actor.EntityId, new MissionGainedPacket(packet.MissionId, mission.MissionInfo));
+            client.CallMethod(client.Player.EntityId, new MissionGainedPacket(packet.MissionId, mission.MissionInfo));
         }
 
         public void CompleteNPCMission(Client client, CompleteNPCMissionPacket packet)
@@ -140,8 +142,8 @@ namespace Rasa.Managers
             };
             var fixedItems = new List<RewardItem>
             {
-                new RewardItem(17131, 27120, 1, new List<int>{900620 }, 2),
-                new RewardItem(17131, 27120, 1, new List<int>{900007 }, 2)
+                new RewardItem(145, 27120, 1, new List<int>{900620 }, 2),
+                new RewardItem(145, 27120, 1, new List<int>{900007 }, 2)
             };
             var selectableRewards = new List<RewardItem>
             {
@@ -224,7 +226,7 @@ namespace Rasa.Managers
             };
             */
 
-            client.CallMethod(creature.Actor.EntityId, new ConversePacket(convoDataDict));
+            client.CallMethod(creature.EntityId, new ConversePacket(convoDataDict));
         }
 
         public void UpdateConversationStatus(Client client, Creature creature)
@@ -256,9 +258,9 @@ namespace Rasa.Managers
 
                 // if we have completable mission send it, else send available missions
                 if (completeMission.Count > 0)
-                    client.CallMethod(creature.Actor.EntityId, new NPCConversationStatusPacket(ConversationStatus.ObjectivComplete, completeMission));  // complete mission
+                    client.CallMethod(creature.EntityId, new NPCConversationStatusPacket(ConversationStatus.ObjectivComplete, completeMission));  // complete mission
                 else
-                    client.CallMethod(creature.Actor.EntityId, new NPCConversationStatusPacket(ConversationStatus.Available, availableMissions));       // available missions
+                    client.CallMethod(creature.EntityId, new NPCConversationStatusPacket(ConversationStatus.Available, availableMissions));       // available missions
 
                 statusSet = true;
             }
@@ -338,21 +340,21 @@ namespace Rasa.Managers
             if (vendor != null && statusSet == false)
             {
                 // creature->npcData.isVendor
-                client.CallMethod(creature.Actor.EntityId, new NPCConversationStatusPacket(ConversationStatus.Vending, new List<uint> { vendor.VendorPackageId })); // status - vending
+                client.CallMethod(creature.EntityId, new NPCConversationStatusPacket(ConversationStatus.Vending, new List<uint> { vendor.VendorPackageId })); // status - vending
                 statusSet = true;
             }
 
             // is NPC auctioner?
             if (creature.Npc.NpcIsAuctioneer && statusSet == false)
             {
-                client.CallMethod(creature.Actor.EntityId, new NPCConversationStatusPacket(ConversationStatus.Auctioneer, new List<uint>())); // status - none
+                client.CallMethod(creature.EntityId, new NPCConversationStatusPacket(ConversationStatus.Auctioneer, new List<uint>())); // status - none
                 statusSet = true;
             }
 
             // is NPC clan master?
             if (creature.Npc.NpcIsClanMaster && statusSet == false)
             {
-                client.CallMethod(creature.Actor.EntityId, new NPCConversationStatusPacket(ConversationStatus.Clan, new List<uint>())); // status - none
+                client.CallMethod(creature.EntityId, new NPCConversationStatusPacket(ConversationStatus.Clan, new List<uint>())); // status - none
                 statusSet = true;
             }
 
@@ -360,7 +362,7 @@ namespace Rasa.Managers
             if (statusSet == false)
             {
                 // no other status, set NONE status
-                client.CallMethod(creature.Actor.EntityId, new NPCConversationStatusPacket(ConversationStatus.None, new List<uint>()));// status - none
+                client.CallMethod(creature.EntityId, new NPCConversationStatusPacket(ConversationStatus.None, new List<uint>()));// status - none
 
                 statusSet = true;
             }
@@ -418,7 +420,7 @@ namespace Rasa.Managers
 
             var buyBackItem = EntityManager.Instance.GetItem((uint)packet.ItemEntityId);
             var buyedItem = InventoryManager.Instance.AddItemToInventory(client, buyBackItem);
-            var buyPrice = (int)buyedItem.Stacksize * buyedItem.ItemTemplate.SellPrice;
+            var buyPrice = (int)buyedItem.StackSize * buyedItem.ItemTemplate.SellPrice;
 
             // remove credits
             ManifestationManager.Instance.LossCredits(client, -buyPrice);
@@ -441,7 +443,7 @@ namespace Rasa.Managers
             // has the player enough credits?
             var buyPrice = selectedVendorItem.ItemTemplate.BuyPrice * (int)itemQuantity;
 
-            if (client.MapClient.Player.Credits[CurencyType.Credits] < buyPrice)
+            if (client.Player.Credits[CurencyType.Credits] < buyPrice)
                 return; // not enough credits
 
             // duplicate item
@@ -451,14 +453,14 @@ namespace Rasa.Managers
                 return; // could not duplicate item
 
             var tempItem = boughtItem;
-            var desiredStacksize = tempItem.Stacksize;
+            var desiredStacksize = tempItem.StackSize;
 
             boughtItem = InventoryManager.Instance.AddItemToInventory(client, boughtItem);
 
             if (boughtItem == null)
             {
                 // item could not be added to inventory
-                var appliedRestStackSize = tempItem.Stacksize;
+                var appliedRestStackSize = tempItem.StackSize;
                 if (appliedRestStackSize == desiredStacksize)
                 {
                     // not even 1x item could be added to the inventory
@@ -497,7 +499,8 @@ namespace Rasa.Managers
                 // updateItem on client
                 ItemManager.Instance.SendItemDataToClient(client, item, true);
                 // updare item in db
-                ItemsTable.UpdateCurrentHitPoints(item.ItemId, item.CurrentHitPoints);
+                using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+                unitOfWork.Items.UpdateCurrentHitPoints(item);
             }
         }
 
@@ -513,7 +516,7 @@ namespace Rasa.Managers
 
             for (var i = 0; i < 250; i++)
             {
-                if (client.MapClient.Inventory.PersonalInventory[i] == itemEntityId)
+                if (client.Player.Inventory.PersonalInventory[i] == itemEntityId)
                 {
                     slotIndex = (uint)i;
                     break;
@@ -536,12 +539,13 @@ namespace Rasa.Managers
             }
 
             // get sell price
-            var realItemQuantity = Math.Min(itemQuantity, soldItem.Stacksize);
+            var realItemQuantity = Math.Min(itemQuantity, soldItem.StackSize);
             var sellPrice = soldItem.ItemTemplate.SellPrice * (int)realItemQuantity;
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
             // remove item
             // todo: Handle stacksizes correctly and only decrease item by quantity parameter
             InventoryManager.Instance.RemoveItemBySlot(client, InventoryType.Personal, slotIndex);
-            CharacterInventoryTable.DeleteInvItem(client.AccountEntry.Id, client.AccountEntry.SelectedSlot, (int)InventoryType.Personal, slotIndex);
+            unitOfWork.CharacterInventories.DeleteInvItem(client.AccountEntry.Id, client.Player.Id, (uint)InventoryType.Personal, slotIndex);
             // add credits to player
             ManifestationManager.Instance.GainCredits(client, sellPrice);
             // add item to buyback list

@@ -6,7 +6,6 @@ using System.Linq;
 namespace Rasa.Managers
 {
     using Data;
-    using Database.Tables.Character;
     using Game;
     using Packets;
     using Packets.Clan.Client;
@@ -15,6 +14,8 @@ namespace Rasa.Managers
     using Packets.MapChannel.Server;
     using Misc;
     using Structures;
+    using Structures.Char;
+    using Repositories.UnitOfWork;
 
     public class ClanManager
     {
@@ -52,6 +53,17 @@ namespace Rasa.Managers
 
         private static ClanManager _instance;
         private static readonly object InstanceLock = new object();
+        private readonly IGameUnitOfWorkFactory _gameUnitOfWorkFactory;
+
+        // Matches game client limits
+        private readonly uint _minClanNameLength = 3;
+        private readonly uint _maxClanNameLength = 20;
+        private readonly byte _clankRankLeader = 3;
+        private readonly int _requiredCreditsForClanCreation = 10000;
+
+        // Arbitrary limit right now
+        public static readonly uint _maxClanMembers = 100;
+
         public static ClanManager Instance
         {
             get
@@ -62,7 +74,7 @@ namespace Rasa.Managers
                     lock (InstanceLock)
                     {
                         if (_instance == null)
-                            _instance = new ClanManager();
+                            _instance = new ClanManager(Server.GameUnitOfWorkFactory);
                     }
                 }
 
@@ -70,9 +82,9 @@ namespace Rasa.Managers
             }
         }
 
-        private ClanManager()
+        private ClanManager(IGameUnitOfWorkFactory gameUnitOfWorkFactory)
         {
-            Init();
+            _gameUnitOfWorkFactory = gameUnitOfWorkFactory;
         }
 
         #endregion
@@ -87,15 +99,16 @@ namespace Rasa.Managers
 
         void Init()
         {
-            List<ClanEntry> clans = ClanTable.GetClans();
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+            List<ClanEntry> clans = unitOfWork.Clans.GetClans();
             foreach(ClanEntry clan in clans)
             {
                 Clans.AddOrUpdate(clan.Id, new Lazy<ClanEntry>(clan), (x, y) => new Lazy<ClanEntry>(clan));
 
-                List<ClanMemberEntry> clanMembers = ClanTable.GetAllClanMembersByClanId(clan.Id);
+                List<ClanMemberEntry> clanMembers = unitOfWork.ClanMembers.GetAllClanMembersByClanId(clan.Id);
                 ClanMembers.AddOrUpdate(clan.Id, new Lazy<List<ClanMemberEntry>>(clanMembers), (x, y) => new Lazy<List<ClanMemberEntry>>(clanMembers));
             }
-            InitCurrentClanInventories(ClanTable.GetClans());
+            InitCurrentClanInventories(unitOfWork.Clans.GetClans());
         }
 
         internal void InitializePlayerClanData(Client client)
@@ -103,32 +116,35 @@ namespace Rasa.Managers
             if (client == null)
                 throw new ArgumentNullException(nameof(client));
 
-            ClanEntry clan = ClanTable.GetClanByCharacterId(client.Player.CharacterId);
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+
+            ClanEntry clan = unitOfWork.Clans.GetClanByCharacterId(client.Player.Id);
 
             if (clan != null)
             {
                 var clanData = new ClanData(clan);
-                var member = ClanTable.GetClanMemberByCharacterId(client.Player.CharacterId);
+                var member = unitOfWork.ClanMembers.GetClanMemberByCharacterId(client.Player.Id);
 
                 RegisterClanMember(member.ClanId, member);
 
                 SetClanData(client, clanData);
                 SetClanMemberData(client, clanData);
 
-                SetClanDataForOnlineMembers(clanData.Id, client.Player.CharacterId);
-                SetMemberDataForOnlineMembers(clanData.Id, client.Player.CharacterId);                
+                SetClanDataForOnlineMembers(clanData.Id, client.Player.Id);
+                SetMemberDataForOnlineMembers(clanData.Id, client.Player.Id);                
             }
         }
 
         internal void InitCurrentClanInventories(List<ClanEntry> clans)
         {
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
             foreach (ClanEntry clan in clans)
             {
-                List<ClanInventoryEntry> getClanInventoryData = ClanInventoryTable.GetItems(clan.Id);
+                List<ClanInventoryEntry> getClanInventoryData = unitOfWork.ClanInventories.GetItems(clan.Id);
 
                 foreach (var item in getClanInventoryData)
                 {
-                    var itemData = ItemsTable.GetItem(item.ItemId);
+                    var itemData = unitOfWork.Items.GetItem(item.ItemId);
                     var itemTemplate = ItemManager.Instance.GetItemTemplateById(itemData.ItemTemplateId);
 
                     if (itemTemplate == null)
@@ -138,11 +154,11 @@ namespace Rasa.Managers
                     {
                         OwnerSlotId = item.SlotId,
                         ItemTemplate = itemTemplate,
-                        Stacksize = itemData.StackSize,
+                        StackSize = itemData.StackSize,
                         CurrentHitPoints = itemData.CurrentHitPoints,
                         Color = itemData.Color,
-                        ItemId = item.ItemId,
-                        CrafterName = itemData.CrafterName
+                        Id = item.ItemId,
+                        Crafter = itemData.CrafterName
                     };
 
                     // check if item is weapon
@@ -161,19 +177,19 @@ namespace Rasa.Managers
         {
             if (client == null)
                 throw new ArgumentNullException(nameof(client));
-
-            ClanEntry clan = ClanTable.GetClanByCharacterId(client.Player.CharacterId);
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+            ClanEntry clan = unitOfWork.Clans.GetClanByCharacterId(client.Player.Id);
 
             string clanName = clan?.Name;
             uint pvpTimeoutSeconds = 0;
 
-            CharacterEntry character = CharacterTable.GetCharacterById(client.Player.CharacterId);
+            CharacterEntry character = unitOfWork.Characters.Get(client.Player.Id);
             var now = DateTime.UtcNow;
             var maxCooldownTime = now.AddDays(-7);
 
-            if (character.LastPvPClan.HasValue && character.LastPvPClan.Value > maxCooldownTime)
+            if (character.LastPvPClan > maxCooldownTime)
             {
-                pvpTimeoutSeconds = (uint)(now - character.LastPvPClan.Value).TotalSeconds;
+                pvpTimeoutSeconds = (uint)(now - character.LastPvPClan).TotalSeconds;
             }
 
             client.CallMethod(SysEntity.ClientClanManagerId, new GetPvPClanStatusPacket(clanName, pvpTimeoutSeconds));
@@ -187,9 +203,11 @@ namespace Rasa.Managers
             if (packet == null)
                 throw new ArgumentNullException(nameof(packet));
 
-            if(CanCreateClan(client, packet, client.MapClient.Player.CharacterId))
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+
+            if(CanCreateClan(client, packet, client.Player.Id))
             {                          
-                ClanEntry clan = ClanTable.CreateClan(packet.ClanName, packet.IsPvP);
+                ClanEntry clan = unitOfWork.Clans.CreateClan(packet.ClanName, packet.IsPvP);
 
                 if (clan != null)
                 {
@@ -201,23 +219,19 @@ namespace Rasa.Managers
 
                     // Create the member data the client expects 
                     // This player created the clan and is the leader
-                    ClanMemberData clanMemberData = CreateClanMemberData(clanData, client.Player.CharacterId, ClanTable.ClankRankLeader);
+                    ClanMemberData clanMemberData = CreateClanMemberData(clanData, client.Player.Id, _clankRankLeader);
                     
-                    // Update the database with the clan creator as a member of this clan
+                    // AddOrUpdate the database with the clan creator as a member of this clan
                     AddMemberToClan(clanMemberData);
                    
                     // Send the data packets to the client
                     SetClanData(client, clanData);
                     SetClanMemberData(client, clanData);
 
-                    client.MapClient.Player.ClanId = clan.Id;
+                    client.Player.ClanId = clan.Id;
 
                     // Cache the newly created clan
                     RegisterClan(clan);
-
-                    // Add new db row for clan currency
-                    if (ClanLockboxTable.GetLockboxInfo(clanData.Id).Count < 2)
-                        ClanLockboxTable.AddLockboxInfo(clanData.Id);
                 }
             }
         }
@@ -230,21 +244,23 @@ namespace Rasa.Managers
             if (packet == null)
                 throw new ArgumentNullException(nameof(packet));
 
-            ClanMemberEntry member = GetClanMember(client.Player.ClanId, client.Player.CharacterId);
+            ClanMemberEntry member = GetClanMember(client.Player.ClanId, client.Player.Id);
             ClanMemberEntry memberToBeKicked = GetClanMember(packet.ClanId, packet.CharacterId);
             ClanEntry clan = GetClan(member.ClanId);
             ClanMemberData memberToBeKickedData = CreateClanMemberData(new ClanData(clan), memberToBeKicked.CharacterId, memberToBeKicked.Rank, memberToBeKicked.Note);
 
             // The leader and the rank below them can kick players
-            if (member.Rank >= ClanTable.ClankRankLeader - 1 && client.Player.ClanId == packet.ClanId)
+            if (member.Rank >= _clankRankLeader - 1 && client.Player.ClanId == packet.ClanId)
             {
+                using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+
                 if (clan.IsPvP)
                 {
                     // Save the time they were last in a PvP clan to start the 7 day cooldown.
-                    ClanTable.UpdateLastPvPClanTimeForMembers(clan.Id, DateTime.UtcNow);
+                    unitOfWork.Clans.UpdateLastPvPClanTimeForMembers(clan.Id, DateTime.UtcNow);
                 }
 
-                if (ClanTable.DeleteClanMember(memberToBeKicked))
+                if (unitOfWork.ClanMembers.DeleteClanMember(memberToBeKicked))
                 {                    
                     UnregisterClanMember(memberToBeKicked);
 
@@ -256,12 +272,12 @@ namespace Rasa.Managers
 
                     // Notfies the kicked client that they were kicked and clears out the clan data
                     // The client expects the characterId to be the entityId for this message
-                    var memberClient = Server.Clients.Find(c => c.MapClient.Player.CharacterId == memberToBeKicked.CharacterId);
+                    var memberClient = Server.Clients.Find(c => c.Player.Id == memberToBeKicked.CharacterId);
 
                     if (memberClient != null)
                     {
-                        memberClient.CallMethod(SysEntity.ClientClanManagerId, new PlayerLeftClanPacket(memberClient.Player.Actor.EntityId, memberClient.Player.Actor.Name, memberClient.Player.Actor.FamilyName, packet.ClanId, true));
-                        memberClient.CallMethod(memberClient.Player.Actor.EntityId, new ClanIdPacket(0));
+                        memberClient.CallMethod(SysEntity.ClientClanManagerId, new PlayerLeftClanPacket(memberClient.Player.EntityId, memberClient.Player.Name, memberClient.Player.FamilyName, packet.ClanId, true));
+                        memberClient.CallMethod(memberClient.Player.EntityId, new ClanIdPacket(0));
                     }
                 }
             }
@@ -284,7 +300,7 @@ namespace Rasa.Managers
             // The player accepted so they must be online
             memberData.IsOnline = true;
 
-            // Update the database for the invitee to be in the clan
+            // AddOrUpdate the database for the invitee to be in the clan
             AddMemberToClan(memberData);
 
             // Membership changed, update all clan members game clients
@@ -295,7 +311,7 @@ namespace Rasa.Managers
                 new PlayerJoinedClanPacket(SetClanMemberDataPacket.NameKey, memberData),
                 packet.InvitedCharacterId);
 
-            // Update the joined players clan window
+            // AddOrUpdate the joined players clan window
             SetClanData(client, clanData);
             SetClanMemberData(client, clanData);
 
@@ -308,7 +324,7 @@ namespace Rasa.Managers
         internal void CleanupClan(Client client)
         {
             for (int i = 0; i < 500; i++)
-                client.MapClient.Inventory.ClanInventory[i] = 0;
+                client.Player.Inventory.ClanInventory[i] = 0;
 
             client.Player.ClanId = 0;
         }
@@ -320,15 +336,16 @@ namespace Rasa.Managers
 
             if (packet == null)
                 throw new ArgumentNullException(nameof(packet));
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
 
-            ClanEntry inviterClan = ClanTable.GetClanByCharacterId(client.Player.CharacterId);
-            List<ClanMemberEntry> members = ClanTable.GetAllClanMembersByClanId(inviterClan.Id);
-            GameAccountEntry inviteeAccount = GameAccountTable.GetAccountByFamilyName(packet.FamilyName);
-            CharacterEntry inviteeCharacter = CharacterTable.GetCharacter(inviteeAccount.Id, inviteeAccount.SelectedSlot);
+            ClanEntry inviterClan = unitOfWork.Clans.GetClanByCharacterId(client.Player.Id);
+            List<ClanMemberEntry> members = unitOfWork.ClanMembers.GetAllClanMembersByClanId(inviterClan.Id);
+            GameAccountEntry inviteeAccount = unitOfWork.GameAccounts.Get(packet.FamilyName);
+            CharacterEntry inviteeCharacter = unitOfWork.Characters.GetByAccountId(inviteeAccount.Id, inviteeAccount.SelectedSlot);
 
             var messageArgs = CreatePlayerMessageArgs("playername", $"{inviteeCharacter.Name} {inviteeAccount.FamilyName}");
 
-            if (members.Count >= ClanTable.MaxClanMembers)
+            if (members.Count >= _maxClanMembers)
             {
                 client.CallMethod(SysEntity.ClientClanManagerId, new DisplayClanMessagePacket((int)PlayerMessage.PmClanInviteError, messageArgs));
                 return;
@@ -336,7 +353,7 @@ namespace Rasa.Managers
 
             if (inviteeAccount != null)
             {                
-                ClanEntry existingClan = ClanTable.GetClanByCharacterId(inviteeCharacter.Id);
+                ClanEntry existingClan = unitOfWork.Clans.GetClanByCharacterId(inviteeCharacter.Id);
 
                 // Invitee is not already in a clan
                 if(existingClan != null)
@@ -348,7 +365,7 @@ namespace Rasa.Managers
                 if (inviteeCharacter != null)
                 {
                     // Make sure the invitee is online
-                    var invitee = Server.Clients.Find(c => c.MapClient.Player.CharacterId == inviteeCharacter.Id);
+                    var invitee = Server.Clients.Find(c => c.Player.Id == inviteeCharacter.Id);
 
                     if (invitee != null)
                     {
@@ -366,10 +383,12 @@ namespace Rasa.Managers
             if (packet == null)
                 throw new ArgumentNullException(nameof(packet));
 
-            ClanEntry inviterClan = ClanTable.GetClanByCharacterId(client.MapClient.Player.CharacterId);
-            ClanEntry existingClan = ClanTable.GetClanByCharacterId(packet.CharacterId);
-            CharacterEntry inviteeCharacter = CharacterTable.GetCharacterById(packet.CharacterId);
-            GameAccountEntry inviteeAccount = GameAccountTable.GetAccountByCharacterId(packet.CharacterId);
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+
+            ClanEntry inviterClan = unitOfWork.Clans.GetClanByCharacterId(client.Player.Id);
+            ClanEntry existingClan = unitOfWork.Clans.GetClanByCharacterId(packet.CharacterId);
+            CharacterEntry inviteeCharacter = unitOfWork.Characters.Get(packet.CharacterId);
+            GameAccountEntry inviteeAccount = unitOfWork.GameAccounts.Get(packet.CharacterId);
 
             var messageArgs = CreatePlayerMessageArgs("playername", $"{inviteeCharacter.Name} {inviteeAccount.FamilyName}");
 
@@ -380,16 +399,16 @@ namespace Rasa.Managers
                 return;
             }
 
-            List<ClanMemberEntry> members = ClanTable.GetAllClanMembersByClanId(inviterClan.Id);
+            List<ClanMemberEntry> members = unitOfWork.ClanMembers.GetAllClanMembersByClanId(inviterClan.Id);
 
-            if(members.Count >= ClanTable.MaxClanMembers)
+            if(members.Count >= _maxClanMembers)
             {
                 client.CallMethod(SysEntity.ClientClanManagerId, new DisplayClanMessagePacket((int)PlayerMessage.PmClanInviteError, messageArgs));
                 return;
             }
 
             // Make sure the invitee is online
-            var invitee = Server.Clients.Find(c => c.MapClient.Player.CharacterId == packet.CharacterId);
+            var invitee = Server.Clients.Find(c => c.Player.Id == packet.CharacterId);
             
             if (invitee != null)
             {
@@ -405,17 +424,19 @@ namespace Rasa.Managers
             if (packet == null)
                 throw new ArgumentNullException(nameof(packet));
 
-            ClanEntry clan = ClanTable.GetClanByCharacterId(client.Player.CharacterId);
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+
+            ClanEntry clan = unitOfWork.Clans.GetClanByCharacterId(client.Player.Id);
             List<ClanMemberEntry> allMembers = GetClanMembers(clan.Id);
-            ClanMemberEntry clanLeader = allMembers.FirstOrDefault(x => x.Rank == ClanTable.ClankRankLeader);
+            ClanMemberEntry clanLeader = allMembers.FirstOrDefault(x => x.Rank == _clankRankLeader);
 
             // Only the clan leader can change ranks
-            if (clanLeader != null && clanLeader.CharacterId == client.Player.CharacterId)
+            if (clanLeader != null && clanLeader.CharacterId == client.Player.Id)
             {
-                if(ClanTable.UpdateRankTitleByClanId(clan.Id, packet.Rank, packet.Title))
+                if(unitOfWork.Clans.UpdateRankTitleByClanId(clan.Id, packet.Rank, packet.Title))
                 {   
                     // Get the clan now that the rank title is updated
-                    ClanEntry updatedClan = ClanTable.GetClanById(clan.Id);
+                    ClanEntry updatedClan = unitOfWork.Clans.GetClanById(clan.Id);
 
                     RegisterClan(updatedClan);
 
@@ -424,7 +445,7 @@ namespace Rasa.Managers
             }
             else
             {
-                Logger.WriteLog(LogType.Error, $"ClanManager: Character ID {client.Player.CharacterId} attempted to change rank title but is not the leader.");
+                Logger.WriteLog(LogType.Error, $"ClanManager: Character ID {client.Player.Id} attempted to change rank title but is not the leader.");
             }
         }
 
@@ -436,28 +457,30 @@ namespace Rasa.Managers
             if (packet == null)
                 throw new ArgumentNullException(nameof(packet));
 
-            ClanMemberEntry member = GetClanMember(packet.ClanId, client.Player.CharacterId);
+            ClanMemberEntry member = GetClanMember(packet.ClanId, client.Player.Id);
             ClanEntry clan = GetClan(packet.ClanId);
+
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
 
             if (clan.IsPvP)
             {
                 // Save the time they were last in a PvP clan to start the 7 day cooldown.
-                ClanTable.UpdateLastPvPClanTimeForMembers(clan.Id, DateTime.UtcNow);
+                unitOfWork.Clans.UpdateLastPvPClanTimeForMembers(clan.Id, DateTime.UtcNow);
             }
 
-            if (ClanTable.DeleteClanMember(member))
+            if (unitOfWork.ClanMembers.DeleteClanMember(member))
             {                
                 UnregisterClanMember(member);
 
                 // Notifies other players still in the clan that we left
                 CallMethodForOnlineMembers(packet.ClanId, (uint)SysEntity.ClientClanManagerId,
-                    new PlayerLeftClanPacket(client.Player.CharacterId, client.Player.Actor.Name, client.Player.Actor.FamilyName, packet.ClanId, false),
-                    client.Player.CharacterId);
+                    new PlayerLeftClanPacket(client.Player.Id, client.Player.Name, client.Player.FamilyName, packet.ClanId, false),
+                    client.Player.Id);
 
                 // Notfies the leavers client that we succesfully left and clears out the clan data
                 // The client expects the characterId to be the entityId for this message
-                client.CallMethod(SysEntity.ClientClanManagerId, new PlayerLeftClanPacket(client.Player.Actor.EntityId, client.Player.Actor.Name, client.Player.Actor.FamilyName, packet.ClanId, false));
-                client.CallMethod(client.Player.Actor.EntityId, new ClanIdPacket(0));
+                client.CallMethod(SysEntity.ClientClanManagerId, new PlayerLeftClanPacket(client.Player.EntityId, client.Player.Name, client.Player.FamilyName, packet.ClanId, false));
+                client.CallMethod(client.Player.EntityId, new ClanIdPacket(0));
             }
         }
 
@@ -470,35 +493,37 @@ namespace Rasa.Managers
                 throw new ArgumentNullException(nameof(packet));
 
             ClanEntry clan = GetClan(packet.ClanId);
-            ClanMemberEntry member = GetClanMember(clan.Id, client.Player.CharacterId);
+            ClanMemberEntry member = GetClanMember(clan.Id, client.Player.Id);
 
-            if(member.Rank == ClanTable.ClankRankLeader)
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+
+            if(member.Rank == _clankRankLeader)
             {
                 if (clan.IsPvP)
                 {
                     // Save the time they were last in a PvP clan to start the 7 day cooldown.
                     // Prevents PvP clans from disbanding and creating another clan to workaround the cooldown.
-                    ClanTable.UpdateLastPvPClanTimeForMembers(clan.Id, DateTime.UtcNow);
+                    unitOfWork.Clans.UpdateLastPvPClanTimeForMembers(clan.Id, DateTime.UtcNow);
                 }
 
                 List<ClanMemberEntry> members = GetClanMembers(clan.Id);                
 
                 foreach (ClanMemberEntry m in members)
                 {
-                    var memberClient = Server.Clients.Find(c => c.MapClient.Player.CharacterId == m.CharacterId);
+                    var memberClient = Server.Clients.Find(c => c.Player.Id == m.CharacterId);
 
                     if (memberClient != null)
                     {
                         // 0 Clears the overhead frame next to the player name
-                        memberClient.CallMethod(memberClient.Player.Actor.EntityId, new ClanIdPacket(0));
+                        memberClient.CallMethod(memberClient.Player.EntityId, new ClanIdPacket(0));
 
                         // Shows a message in the players chat and updates the clan UI
                         memberClient.CallMethod(SysEntity.ClientClanManagerId, new ClanDisbandedPacket(clan.Id));
                     }
                 }
 
-                ClanTable.DeleteClanMembers(clan.Id);
-                ClanTable.DeleteClan(packet.ClanId);
+                unitOfWork.ClanMembers.DeleteClanMembers(clan.Id);
+                unitOfWork.Clans.DeleteClan(packet.ClanId);
 
                 UnregisterClan(clan);
                 UnregisterClanMembers(clan.Id);
@@ -512,10 +537,10 @@ namespace Rasa.Managers
             var clanId = client.Player.ClanId;
             if (clanId > 0)
             {
-                ClanMemberEntry member = GetClanMember(clanId, client.Player.CharacterId);
+                ClanMemberEntry member = GetClanMember(clanId, client.Player.Id);
                 UnregisterClanMember(member);
 
-                SetMemberDataForOnlineMembers(clanId, client.Player.CharacterId);
+                SetMemberDataForOnlineMembers(clanId, client.Player.Id);
             }
         }
 
@@ -524,9 +549,9 @@ namespace Rasa.Managers
         {
             ClanMemberEntry member = GetClanMember(client.Player.ClanId, packet.CharacterId);
 
-            if (member?.Rank < ClanTable.ClankRankLeader)
+            if (member?.Rank < _clankRankLeader)
             {
-                UpdateClanMemberRank(member, member.Rank + 1);
+                UpdateClanMemberRank(member, (byte)(member.Rank + 1));
             }
         }
 
@@ -536,16 +561,16 @@ namespace Rasa.Managers
 
             if (member?.Rank - 1 >= 0)
             {
-                UpdateClanMemberRank(member, member.Rank - 1);
+                UpdateClanMemberRank(member, (byte)(member.Rank - 1));
             }
         }
 
         internal void MakePlayerClanLeader(Client client, MakePlayerClanLeaderPacket packet)
         {
-            ClanMemberEntry leader = GetClanMembers(client.Player.ClanId).FirstOrDefault(x => x.Rank == ClanTable.ClankRankLeader);
+            ClanMemberEntry leader = GetClanMembers(client.Player.ClanId).FirstOrDefault(x => x.Rank == _clankRankLeader);
 
             // Only the leader can assign a new leader
-            if(leader?.CharacterId == client.Player.CharacterId)
+            if(leader?.CharacterId == client.Player.Id)
             {
                 ClanMemberEntry member = GetClanMember(client.Player.ClanId, packet.CharacterId);
                 UpdateClanLeader(member, leader);                
@@ -556,10 +581,12 @@ namespace Rasa.Managers
 
         #region Helper Functions
 
-        private ClanMemberData CreateClanMemberData(ClanData clanData, uint characterId, uint rank = 0, string note = "")
+        private ClanMemberData CreateClanMemberData(ClanData clanData, uint characterId, byte rank = 0, string note = "")
         {
-            CharacterEntry character = CharacterTable.GetCharacterById(characterId);
-            GameAccountEntry account = GameAccountTable.GetAccount(character.AccountId);
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+
+            CharacterEntry character = unitOfWork.Characters.Get(characterId);
+            GameAccountEntry account = unitOfWork.GameAccounts.Get(character.AccountId);
 
             return new ClanMemberData
             {               
@@ -577,21 +604,24 @@ namespace Rasa.Managers
 
         private void SetClanMemberData(Client client, ClanData clanData)
         {
-            Manifestation player = client.MapClient.Player;
+            Manifestation player = client.Player;
 
             client.CallMethod(SysEntity.ClientClanManagerId, new ClanMembersRosterBeginPacket(clanData.Id));
 
-            List<ClanMemberEntry> clanMemberEntries = ClanTable.GetAllClanMembersByClanId(clanData.Id);
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+
+            List<ClanMemberEntry> clanMemberEntries = unitOfWork.ClanMembers.GetAllClanMembersByClanId(clanData.Id);
 
             foreach (ClanMemberEntry member in clanMemberEntries)
             {
                 ClanMemberData clanMemberData = CreateClanMemberData(clanData, member.CharacterId, member.Rank, member.Note);
-                clanMemberData.IsOnline = Server.Clients.Contains(Server.Clients.Find(c => c.MapClient.Player.CharacterId == member.CharacterId));
+                clanMemberData.IsOnline = Server.Clients.Contains(Server.Clients.Find(c => c.Player.Id == member.CharacterId));
                 
-                if (player.CharacterId == member.CharacterId)
+                if (player.Id == member.CharacterId)
                 {
                     // The game is expecting the characterId to be the manifestationId for the current player                    
-                    clanMemberData.CharacterId = player.Actor.EntityId;
+                    clanMemberData.CharacterEntityId = player.EntityId;
+                    clanMemberData.CharacterId = player.Id;
                 }
 
                 client.CallMethod(SysEntity.ClientClanManagerId, new SetClanMemberDataPacket(SetClanMemberDataPacket.NameKey, clanMemberData));
@@ -603,27 +633,29 @@ namespace Rasa.Managers
         {
             Manifestation player = client.Player;            
             client.CallMethod(SysEntity.ClientClanManagerId, new SetClanDataPacket(SetClanDataPacket.NameKey, clanData));
-            client.CallMethod(player.Actor.EntityId, new ClanIdPacket(clanData.Id));
+            client.CallMethod(player.EntityId, new ClanIdPacket(clanData.Id));
         }
 
         private void AddMemberToClan(ClanMemberData clanMember)
         {
-            ClanTable.InsertClanMemberData(clanMember.ClanId, clanMember.CharacterId, clanMember.Rank, clanMember.Note);            
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
 
-            // Update the cache with the newly added member from the database
-            List<ClanMemberEntry> members = ClanTable.GetAllClanMembersByClanId(clanMember.ClanId);
+            unitOfWork.ClanMembers.InsertClanMemberData(clanMember.ClanId, clanMember.CharacterId, clanMember.Rank, clanMember.Note);            
+
+            // AddOrUpdate the cache with the newly added member from the database
+            List<ClanMemberEntry> members = unitOfWork.ClanMembers.GetAllClanMembersByClanId(clanMember.ClanId);
             RegisterClanMember(clanMember.ClanId, members.FirstOrDefault(x => x.CharacterId == clanMember.CharacterId));
         }
 
         private void SendInviteToCharacter(Client client, uint characterId, ClanEntry clan)
         {
-            Client inviteeClient = Server.Clients.Find(c => c.MapClient.Player.CharacterId == characterId);
+            Client inviteeClient = Server.Clients.Find(c => c.Player.Id == characterId);
 
             var inviteData = new ClanInviteData
             {
                 // Sending the full name here because it looks better on the invitation prompt in-game
                 // "Name Familyname invited you to join ClanType ClanName"
-                InviterFamilyName = $"{client.Player.Actor.Name} {client.Player.Actor.FamilyName}",
+                InviterFamilyName = $"{client.Player.Name} {client.Player.FamilyName}",
                 ClanId = clan.Id,
                 ClanName = clan.Name,
                 IsPvP = clan.IsPvP,
@@ -635,13 +667,13 @@ namespace Rasa.Managers
 
         private bool CanCreateClan(Client client, CreateClanPacket packet, uint characterId)
         {
-            if (packet.ClanName.Length > ClanTable.MaxClanNameLength)
+            if (packet.ClanName.Length > _maxClanNameLength)
             {
                 client.CallMethod(SysEntity.ClientClanManagerId, new DisplayClanMessagePacket((int)PlayerMessage.PmClanNameTooLong, new Dictionary<string, string>()));
                 return false;
             }
 
-            if (packet.ClanName.Length < ClanTable.MinClanNameLength)
+            if (packet.ClanName.Length < _minClanNameLength)
             {
                 client.CallMethod(SysEntity.ClientClanManagerId, new DisplayClanMessagePacket((int)PlayerMessage.PmClanNameRequired, new Dictionary<string, string>()));
                 return false;
@@ -654,14 +686,16 @@ namespace Rasa.Managers
                 return false;
             }
 
-            if(client.Player.Credits[CurencyType.Credits] < ClanTable.RequiredCreditsForClanCreation)
+            if(client.Player.Credits[CurencyType.Credits] < _requiredCreditsForClanCreation)
             {
                 client.CallMethod(SysEntity.ClientClanManagerId, new DisplayClanMessagePacket((int)PlayerMessage.PmInsufficientFundsToCreateClan, new Dictionary<string, string>()));
                 return false;
             }
 
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+
             // Verify content of clan name: PmInappropriateClanName
-            List<string> censoredWords = CensorWordsTable.GetCensoredWords();
+            List<string> censoredWords = unitOfWork.CensoredWords.GetCensoredWords();
             var censor = new Censor(censoredWords);
 
             if(censor.ContainsProfanity(packet.ClanName))
@@ -672,14 +706,14 @@ namespace Rasa.Managers
 
             if (packet.IsPvP)
             {
-                CharacterEntry character = CharacterTable.GetCharacterById(characterId);
+                CharacterEntry character = unitOfWork.Characters.Get(characterId);
 
                 var now = DateTime.UtcNow.AddDays(-7);
 
                 // Verify the creator is not on PvP timeout: PmClanCannotCreateUserInPvpTimeout
-                if (character.LastPvPClan.HasValue && character.LastPvPClan.Value > now)
+                if (character.LastPvPClan > now)
                 {
-                    var pvpTimeoutSeconds = (uint)(now - character.LastPvPClan.Value).TotalSeconds;
+                    var pvpTimeoutSeconds = (uint)(now - character.LastPvPClan).TotalSeconds;
                     if(pvpTimeoutSeconds > 0)
                     {
                         client.CallMethod(SysEntity.ClientClanManagerId, new DisplayClanMessagePacket((int)PlayerMessage.PmClanCannotCreateUserInPvpTimeout, new Dictionary<string, string>()));
@@ -689,10 +723,11 @@ namespace Rasa.Managers
             }
 
             // Pay for the clan creation
-            var currentCredits = client.MapClient.Player.Credits[CurencyType.Credits];
-            client.MapClient.Player.Credits[CurencyType.Credits] -= ClanTable.RequiredCreditsForClanCreation;
-            client.CallMethod(client.Player.Actor.EntityId, new UpdateCreditsPacket(CurencyType.Credits, client.Player.Credits[CurencyType.Credits], (uint)Math.Abs(currentCredits - ClanTable.RequiredCreditsForClanCreation)));
-            CharacterTable.UpdateCharacterCredits(client.Player.CharacterId, client.Player.Credits[CurencyType.Credits]);
+            var currentCredits = client.Player.Credits[CurencyType.Credits];
+            client.Player.Credits[CurencyType.Credits] -= _requiredCreditsForClanCreation;
+            client.CallMethod(client.Player.EntityId, new UpdateCreditsPacket(CurencyType.Credits, client.Player.Credits[CurencyType.Credits], (uint)Math.Abs(currentCredits - _requiredCreditsForClanCreation)));
+            
+            CharacterManager.Instance.UpdateCharacter(client, CharacterUpdate.Credits, client.Player.Credits[CurencyType.Credits]);
 
             return true;
         }        
@@ -702,7 +737,9 @@ namespace Rasa.Managers
             if (string.IsNullOrEmpty(clanName))
                 throw new ArgumentNullException(nameof(clanName));
 
-            return ClanTable.GetClanByName(clanName) != null;
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+
+            return unitOfWork.Clans.GetClanByName(clanName) != null;
         }
 
         private void SetMemberDataForOnlineMembers(uint clanId, uint skipCharacterId = 0)
@@ -724,13 +761,13 @@ namespace Rasa.Managers
             foreach (ClanMemberEntry member in GetClanMembers(clanId))
             {
                 // If the member is online get their cached client
-                var memberClient = Server.Clients.Find(c => c.MapClient.Player.CharacterId == member.CharacterId);
+                var memberClient = Server.Clients.Find(c => c.Player.Id == member.CharacterId);
 
                 if (memberClient != null)
                 {
                     // Don't send a message to this player
-                    if ((skipCharacterId != 0 && skipCharacterId == memberClient.Player.CharacterId) ||
-                        onlyThisCharacterId != 0 && onlyThisCharacterId != memberClient.Player.CharacterId)
+                    if ((skipCharacterId != 0 && skipCharacterId == memberClient.Player.Id) ||
+                        onlyThisCharacterId != 0 && onlyThisCharacterId != memberClient.Player.Id)
                         continue;
 
                     memberClient.CallMethod(entityId, packet);
@@ -743,13 +780,13 @@ namespace Rasa.Managers
             foreach (ClanMemberEntry member in GetClanMembers(clanId))
             {
                 // If the member is online get their cached client
-                var memberClient = Server.Clients.Find(c => c.MapClient.Player.CharacterId == member.CharacterId);
+                var memberClient = Server.Clients.Find(c => c.Player.Id == member.CharacterId);
 
                 if (memberClient != null)
                 {
                     // Don't send a message to this player
-                    if ((skipCharacterId != 0 && skipCharacterId == memberClient.Player.CharacterId) ||
-                        onlyThisCharacterId != 0 && onlyThisCharacterId != memberClient.Player.CharacterId)
+                    if ((skipCharacterId != 0 && skipCharacterId == memberClient.Player.Id) ||
+                        onlyThisCharacterId != 0 && onlyThisCharacterId != memberClient.Player.Id)
                         continue;
 
                     methodToCall.Invoke(memberClient);
@@ -765,13 +802,15 @@ namespace Rasa.Managers
             };
         }
 
-        private void UpdateClanMemberRank(ClanMemberEntry member, uint newRank)
+        private void UpdateClanMemberRank(ClanMemberEntry member, byte newRank)
         {
-            ClanTable.UpdateRankByCharacterId(newRank, member.CharacterId);
-            CharacterEntry character = CharacterTable.GetCharacterById(member.CharacterId);
-            GameAccountEntry account = GameAccountTable.GetAccountByCharacterId(member.CharacterId);
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
 
-            // Update the game clients 
+            unitOfWork.ClanMembers.UpdateRankByCharacterId(newRank, member.CharacterId);
+            CharacterEntry character = unitOfWork.Characters.Get(member.CharacterId);
+            GameAccountEntry account = unitOfWork.GameAccounts.Get(member.CharacterId);
+
+            // AddOrUpdate the game clients 
             SetMemberDataForOnlineMembers(member.ClanId);
 
             string newRankTitle = GetRankTitleForRank(member.ClanId, newRank);
@@ -795,18 +834,20 @@ namespace Rasa.Managers
             }
 
             // Refresh the cached member
-            member.Rank = newRank;
+            member.Rank = (byte)newRank;
             RegisterClanMember(member.ClanId, member);
         }
 
         private void UpdateClanLeader(ClanMemberEntry member, ClanMemberEntry leaderMember)
         {
-            ClanTable.UpdateRankByCharacterId(ClanTable.ClankRankLeader, member.CharacterId);
-            ClanTable.UpdateRankByCharacterId(ClanTable.ClankRankLeader - 1, leaderMember.CharacterId);
-            CharacterEntry memberCharacter = CharacterTable.GetCharacterById(member.CharacterId);
-            GameAccountEntry account = GameAccountTable.GetAccountByCharacterId(member.CharacterId);
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
 
-            // Update the game clients 
+            unitOfWork.ClanMembers.UpdateRankByCharacterId(_clankRankLeader, member.CharacterId);
+            unitOfWork.ClanMembers.UpdateRankByCharacterId((byte)(_clankRankLeader - 1), leaderMember.CharacterId);
+            CharacterEntry memberCharacter = unitOfWork.Characters.Get(member.CharacterId);
+            GameAccountEntry account = unitOfWork.GameAccounts.Get(member.CharacterId);
+
+            // AddOrUpdate the game clients 
             SetMemberDataForOnlineMembers(member.ClanId);
 
             var messageArgs = new Dictionary<string, string>
@@ -819,11 +860,11 @@ namespace Rasa.Managers
                 new DisplayClanMessagePacket((int)PlayerMessage.PmClanNewLeader, messageArgs));
 
             // Refresh the cached member
-            member.Rank = ClanTable.ClankRankLeader;
+            member.Rank = _clankRankLeader;
             RegisterClanMember(member.ClanId, member);
 
             // Refresh the old leader
-            leaderMember.Rank = ClanTable.ClankRankLeader - 1;
+            leaderMember.Rank = (byte)(_clankRankLeader - 1);
             RegisterClanMember(leaderMember.ClanId, leaderMember);
         }
 
@@ -865,7 +906,9 @@ namespace Rasa.Managers
         {
             Lazy<ClanEntry> clan = Clans.GetValueOrDefault(clanId);
 
-            return clan.Value ?? ClanTable.GetClanById(clanId);
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+
+            return clan.Value ?? unitOfWork.Clans.GetClanById(clanId);
         }        
 
         private void RegisterClanMember(uint clanId, ClanMemberEntry member)
@@ -910,7 +953,9 @@ namespace Rasa.Managers
         {
             Lazy<List<ClanMemberEntry>> clanMembers = ClanMembers.GetValueOrDefault(clanId);
 
-            return clanMembers.Value ?? ClanTable.GetAllClanMembersByClanId(clanId);
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+
+            return clanMembers.Value ?? unitOfWork.ClanMembers.GetAllClanMembersByClanId(clanId);
         }
 
         public ClanMemberEntry GetClanMember(uint clanId, uint characterId)

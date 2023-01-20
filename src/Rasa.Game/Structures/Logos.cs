@@ -1,6 +1,8 @@
 ﻿namespace Rasa.Structures
 {
     using Data;
+    using World;
+
     public class Logos : DynamicObject
     {
         public uint Id { get; set; }
@@ -8,7 +10,7 @@
 
         public Logos(LogosEntry logos)
         {
-            EntityClassId = (EntityClassId)logos.ClassId;
+            EntityClassId = (EntityClasses)logos.ClassId;
             Id = logos.Id;
             MapContextId = logos.MapContextId;
             Name = logos.Name;

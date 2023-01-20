@@ -5,20 +5,17 @@ namespace Rasa.Structures
 {
     using Data;
     using Managers;
-    using Positioning;
+    using Interfaces;
 
     public class Actor : IHasPosition
     {
-        public Actor()
-        {
-            EntityId = EntityManager.Instance.GetEntityId;
-        }
-        public ulong EntityId { get; set; }
-        public EntityClassId EntityClassId { get; set; }
+        public ulong EntityId = EntityManager.Instance.GetEntityId;
+        public Vector3 Position { get; set; }
+        public double Rotation { get; set; }
+        public bool IsCrouching { get; set; }
+        public EntityClasses EntityClass { get; set; }
         public string Name { get; set; }
         public string FamilyName { get; set; }
-        public Vector3 Position { get; set; }
-        public float Orientation { get; set; }
         public uint MapContextId { get; set; }
         public bool IsRunning { get; set; }
         public bool InCombatMode { get; set; }

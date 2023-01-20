@@ -3,20 +3,18 @@
 namespace Rasa.Structures
 {
     using Data;
-
-    public class Creature
+    using World;
+    public class Creature : Actor
     {
         public uint DbId { get; set; }
-        public EntityClassId EntityClassId { get; set; }
         // npc data (only if creature is a NPC)
         public Npc Npc { get; set; }
         // loot data (only if creature is harvestable)
         public CreatureLootData LootData { get; set; }
-        public Actor Actor { get; set; }                                        // the base actor object
         public Factions Faction { get; set; }
-        public int Level { get; set; }
-        public int MaxHitPoints { get; set; }
-        public int NameId { get; set; }
+        public uint Level { get; set; }
+        public uint MaxHitPoints { get; set; }
+        public uint NameId { get; set; }
         public long UpdatePositionCounter;                                       // decreases, when it hits 0 and the cell position changed, call creature_updateCellLocation()
         public Dictionary<EquipmentData, AppearanceData> AppearanceData { get; set; }
         //sint32 lastattack;
@@ -51,10 +49,10 @@ namespace Rasa.Structures
         public long LastAgression { get; internal set; }
         public long LastRestTime { get; internal set; }
 
-        public Creature(CreaturesEntry data)
+        public Creature(CreatureEntry data)
         {
-            DbId = data.DbId;
-            EntityClassId = (EntityClassId)data.ClassId;
+            DbId = data.Id;
+            EntityClass = (EntityClasses)data.ClassId;
             Faction = (Factions)data.Faction;
             Level = data.Level;
             MaxHitPoints = data.MaxHitPoints;
@@ -69,10 +67,9 @@ namespace Rasa.Structures
 
         public Creature(Creature creature)
         {
-            Actor = new Actor();
             AppearanceData = creature.AppearanceData;
             DbId = creature.DbId;
-            EntityClassId = creature.EntityClassId;
+            EntityClass = creature.EntityClass;
             Faction = creature.Faction;
             Level = creature.Level;
             MaxHitPoints = creature.MaxHitPoints;

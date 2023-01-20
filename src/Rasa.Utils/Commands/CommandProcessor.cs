@@ -39,6 +39,9 @@ namespace Rasa.Commands
                     {
                         case ConsoleKey.Enter:
                             return command;
+                        case ConsoleKey.Backspace:
+                            command = command.Substring(0, command.Length - 1);
+                            break;
                         default:
                             command += key.KeyChar;
                             break;

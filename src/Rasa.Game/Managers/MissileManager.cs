@@ -43,20 +43,20 @@ namespace Rasa.Managers
         {
             var creature = EntityManager.Instance.GetCreature(missile.TargetEntityId);
 
-            if (creature.Actor.State == CharacterState.Dead)
+            if (creature.State == CharacterState.Dead)
                 return;
 
             // decrease armor first
-            var armorDecrease = Math.Min(missile.DamageA, creature.Actor.Attributes[Attributes.Armor].Current);
-            creature.Actor.Attributes[Attributes.Armor].Current -= armorDecrease;
-            CellManager.Instance.CellCallMethod(mapChannel, creature.Actor, new UpdateArmorPacket(creature.Actor.Attributes[Attributes.Armor], creature.Actor.EntityId));
+            var armorDecrease = Math.Min(missile.DamageA, creature.Attributes[Attributes.Armor].Current);
+            creature.Attributes[Attributes.Armor].Current -= armorDecrease;
+            CellManager.Instance.CellCallMethod(mapChannel, creature, new UpdateArmorPacket(creature.Attributes[Attributes.Armor], creature.EntityId));
 
             // decrease health (if armor is depleted)
-            var healthDecrease = Math.Min(missile.DamageA - armorDecrease, creature.Actor.Attributes[Attributes.Health].Current);
-            creature.Actor.Attributes[Attributes.Health].Current -= healthDecrease;
-            CellManager.Instance.CellCallMethod(mapChannel, creature.Actor, new UpdateHealthPacket(creature.Actor.Attributes[Attributes.Health], creature.Actor.EntityId));
+            var healthDecrease = Math.Min(missile.DamageA - armorDecrease, creature.Attributes[Attributes.Health].Current);
+            creature.Attributes[Attributes.Health].Current -= healthDecrease;
+            CellManager.Instance.CellCallMethod(mapChannel, creature, new UpdateHealthPacket(creature.Attributes[Attributes.Health], creature.EntityId));
             
-            if (creature.Actor.Attributes[Attributes.Health].Current <= 0)
+            if (creature.Attributes[Attributes.Health].Current <= 0)
             {
                 // fix health so it dont regenerate after death
                 missile.TargetActor.Attributes[Attributes.Health].Current = 0;
@@ -197,15 +197,13 @@ namespace Rasa.Managers
                 {
                     case EntityType.Creature:
                         {
-                            var creature = EntityManager.Instance.GetCreature(action.TargetId);
-                            targetActor = creature.Actor;
+                            targetActor = EntityManager.Instance.GetCreature(action.TargetId);
                             missile.TargetEntityId = action.TargetId;
                         }
                         break;
-                    case EntityType.Player:
+                    case EntityType.Character:
                         {
-                            var player = EntityManager.Instance.GetPlayer(action.TargetId);
-                            targetActor = player.Player.Actor;
+                            targetActor = EntityManager.Instance.GetPlayer(action.TargetId);
                             missile.TargetEntityId = action.TargetId;
                         }
                         break;
@@ -274,7 +272,7 @@ namespace Rasa.Managers
                 case EntityType.Creature:
                     DoDamageToCreature(mapChannel, missile);
                     break;
-                case EntityType.Player:
+                case EntityType.Character:
                     DoDamageToPlayer(mapChannel, missile);
                     break;
                 default:

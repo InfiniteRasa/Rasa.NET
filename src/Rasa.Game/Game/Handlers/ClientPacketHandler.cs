@@ -15,12 +15,17 @@
 
     public partial class ClientPacketHandler
     {
-        public Client Client { get; }
+        public Client Client { get; private set; }
 
-        public ClientPacketHandler(Client client)
+        public ClientPacketHandler()
+        {
+        }
+
+        public void RegisterClient(Client client)
         {
             Client = client;
         }
+        
         [PacketHandler(GameOpcode.AllocateAttributePoints)]
         private void AllocateAttributePoints(AllocateAttributePointsPacket packet)
         {
@@ -523,7 +528,7 @@
         {
             Logger.WriteLog(LogType.Debug, "ToDo: GuildChatPacket");
         }
-        
+
         [PacketHandler(GameOpcode.PartyChat)]
         private void PartyChat(PartyChatPacket packet)
         {
@@ -844,7 +849,7 @@
         {
             SocialManager.Instance.AddIgnoreByName(Client, packet);
         }
-        
+
         [PacketHandler(GameOpcode.RemoveFriend)]
         private void RemoveFriend(RemoveFriendPacket packet)
         {

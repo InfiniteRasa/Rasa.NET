@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
-using System.Security.Cryptography;
+
 using Microsoft.Extensions.Hosting;
 
 namespace Rasa.Auth
@@ -11,13 +11,12 @@ namespace Rasa.Auth
     using Commands;
     using Config;
     using Data;
-    using Database;
-    using Database.Tables.Auth;
     using Hosting;
     using Memory;
     using Networking;
     using Packets.Communicator;
     using Packets.Auth.Server;
+    using Repositories.UnitOfWork;
     using Structures;
     using Threading;
     using Timer;
@@ -25,6 +24,7 @@ namespace Rasa.Auth
     public class Server : ILoopable, IRasaServer
     {
         private readonly IHostApplicationLifetime _hostApplicationLifetime;
+        private readonly IAuthUnitOfWorkFactory _authUnitOfWorkFactory;
 
         public string ServerType { get; } = "Authentication";
 
@@ -44,9 +44,11 @@ namespace Rasa.Auth
         private List<CommunicatorClient> GameServerQueue { get; } = new List<CommunicatorClient>();
         private Dictionary<byte, CommunicatorClient> GameServers { get; } = new Dictionary<byte, CommunicatorClient>();
 
-        public Server(IHostApplicationLifetime hostApplicationLifetime)
+        public Server(IHostApplicationLifetime hostApplicationLifetime, IAuthUnitOfWorkFactory authUnitOfWorkFactory)
         {
             _hostApplicationLifetime = hostApplicationLifetime;
+            _authUnitOfWorkFactory = authUnitOfWorkFactory;
+
             Configuration.OnLoad += ConfigLoaded;
             Configuration.OnReLoad += ConfigReLoaded;
             Configuration.Load();
@@ -59,9 +61,7 @@ namespace Rasa.Auth
             LengthedSocket.InitializeEventArgsPool(Config.SocketAsyncConfig.MaxClients * Config.SocketAsyncConfig.ConcurrentOperationsByClient);
 
             BufferManager.Initialize(Config.SocketAsyncConfig.BufferSize, Config.SocketAsyncConfig.MaxClients, Config.SocketAsyncConfig.ConcurrentOperationsByClient);
-
-            AuthDatabaseAccess.Initialize(Config.DatabaseConnectionString);
-
+            
             CommandProcessor.RegisterCommand("exit", ProcessExitCommand);
             CommandProcessor.RegisterCommand("reload", ProcessReloadCommand);
             CommandProcessor.RegisterCommand("create", ProcessCreateCommand);
@@ -189,7 +189,7 @@ namespace Rasa.Auth
                 return;
 
             lock (Clients)
-                Clients.Add(new Client(newSocket, this));
+                Clients.Add(new Client(newSocket, this, _authUnitOfWorkFactory));
         }
         #endregion
 
@@ -449,7 +449,7 @@ namespace Rasa.Auth
             Logger.WriteLog(LogType.Command, "Invalid reload command!");
         }
 
-        private static void ProcessCreateCommand(string[] parts)
+        private void ProcessCreateCommand(string[] parts)
         {
             if (parts.Length < 4)
             {
@@ -457,24 +457,15 @@ namespace Rasa.Auth
                 return;
             }
 
-            var salt = new byte[20];
-
-            using (var rng = RandomNumberGenerator.Create())
-                rng.GetBytes(salt);
-
-            var data = new AuthAccountEntry
-            {
-                Email = parts[1],
-                Username = parts[2],
-                Password = parts[3],
-                Salt = BitConverter.ToString(salt).Replace("-", "").ToLower()
-            };
-
-            data.HashPassword();
+            var email = parts[1];
+            var userName = parts[2];
+            var password = parts[3];
 
             try
             {
-                AccountTable.InsertAccount(data);
+                using var unitOfWork = _authUnitOfWorkFactory.Create();
+                unitOfWork.AuthAccountRepository.Create(email, userName, password);
+                unitOfWork.Complete();
 
                 Logger.WriteLog(LogType.Command, $"Created account: {parts[2]}! (Password: {parts[3]})");
             }

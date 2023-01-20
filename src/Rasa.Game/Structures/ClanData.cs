@@ -2,13 +2,14 @@
 
 namespace Rasa.Structures
 {
+    using Char;
     using Memory;
 
     public class ClanData : IPythonDataStruct
     {
         public uint Id { get; set; }
         public string Name { get; set; }
-        public Dictionary<uint, string> RankTitles { get; set; } = new Dictionary<uint, string>(); // TODO: Verify the type of this data is.
+        public Dictionary<uint, string> RankTitles { get; set; } = new Dictionary<uint, string>();
         public bool IsPvP { get; set; }
 
         public ClanData()

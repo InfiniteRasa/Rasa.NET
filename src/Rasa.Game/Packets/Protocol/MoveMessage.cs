@@ -1,9 +1,8 @@
-﻿using System;
-
-namespace Rasa.Packets.Protocol
+﻿namespace Rasa.Packets.Protocol
 {
     using Data;
     using Memory;
+    using Models;
 
     public class MoveMessage : IClientMessage
     {
@@ -17,17 +16,11 @@ namespace Rasa.Packets.Protocol
 
         public byte MinSubtype { get; } = 0;
         public byte MaxSubtype { get; } = 0;
-        
         public ClientMessageSubtypeFlag SubtypeFlags { get; } = ClientMessageSubtypeFlag.None;
 
         public byte UnkByte { get; set; }
-        public MovementData MovementData { get; set; }
 
-        public MoveMessage(ulong entityId, MovementData movement)
-        {
-            MovementData = movement;
-        }
-
+        public Movement Movement { get; private set; }
         public MoveMessage()
         {
         }
@@ -35,12 +28,13 @@ namespace Rasa.Packets.Protocol
         public void Read(ProtocolBufferReader reader)
         {
             UnkByte = reader.ReadByte();
-            MovementData = reader.ReadMovement();
+            Movement = reader.ReadMovement();
         }
 
         public void Write(ProtocolBufferWriter writer)
         {
-            throw new NotImplementedException();
+            writer.WriteByte(UnkByte);
+            writer.WriteMovementData(Movement); // TODO is this required?
         }
     }
 }

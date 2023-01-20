@@ -81,11 +81,11 @@ namespace Rasa.Managers
 
         internal LootDispenser Create(Client killer, Creature creature)
         {
-            var mapChannel = killer.MapClient.MapChannel;
+            var mapChannel = killer.Player.MapChannel;
             var loot = new LootDispenser();
             loot.IsLootable = true;
-            loot.AttachedTo = creature.Actor.EntityId;
-            loot.Owner = killer.Player.Actor.EntityId;
+            loot.AttachedTo = creature.EntityId;
+            loot.Owner = killer.Player.EntityId;
 
             CreateLoot(killer, loot);
 
@@ -98,7 +98,7 @@ namespace Rasa.Managers
         {
             var giveLoot = new Random().Next(0, 2);
             if (giveLoot > 0)
-                loot.LootItems.Add(new LootItem(28, 3147, (uint)giveLoot*3, killer.Player.Actor.EntityId, 0));
+                loot.LootItems.Add(new LootItem(28, 3147, (uint)giveLoot*3, killer.Player.EntityId, 0));
 
             loot.Credits = new Random().Next(1, 10);
             loot.LootQuality = (LootQuality)new Random().Next(1, 7);
@@ -120,16 +120,16 @@ namespace Rasa.Managers
 
         internal void RequestLootAllFromCorpse(Client client, RequestLootAllFromCorpsePacket packet)
         {
-            var loot = client.MapClient.MapChannel.LootDispensers[packet.EntityId];
+            var loot = client.Player.MapChannel.LootDispensers[packet.EntityId];
 
-            if (loot.Owner != client.Player.Actor.EntityId)
+            if (loot.Owner != client.Player.EntityId)
                 return;
 
             if (loot.FullyLooted)
                 return;
 
             client.CallMethod(loot.EntityId, new ActorGotLootPacket(loot));
-            client.CallMethod(loot.EntityId, new TakenInfoPacket(client.Player.Actor.EntityId, loot.LootItems));
+            client.CallMethod(loot.EntityId, new TakenInfoPacket(client.Player.EntityId, loot.LootItems));
 
             loot.IsLootable = false;
             CanLootItems(client, loot);

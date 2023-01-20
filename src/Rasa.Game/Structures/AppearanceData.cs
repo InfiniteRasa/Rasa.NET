@@ -2,25 +2,25 @@
 
 namespace Rasa.Structures
 {
+    using Char;
     using Data;
     using Memory;
 
     public class AppearanceData : IPythonDataStruct
     {
         public EquipmentData SlotId { get; set; }
-        public EntityClassId Class { get; set; }
+        public uint Class { get; set; }
         public Color Color { get; set; }
         public Color Hue2 { get; set; }
 
         public AppearanceData()
         {
-
         }
 
         public AppearanceData(CharacterAppearanceEntry entry)
         {
             SlotId = (EquipmentData) entry.Slot;
-            Class = (EntityClassId)entry.Class;
+            Class = entry.Class;
             Color = new Color(entry.Color);
             Hue2 = new Color(2139062144);     // ToDO: get and save hue2 to database
         }
@@ -33,7 +33,7 @@ namespace Rasa.Structures
             if (count != 2)
                 Debugger.Break();
 
-            Class = (EntityClassId)pr.ReadUInt();
+            Class = pr.ReadUInt();
             Color = pr.ReadStruct<Color>();
         }
 
@@ -42,15 +42,19 @@ namespace Rasa.Structures
             pw.WriteInt((int) SlotId);
 
             pw.WriteTuple(3);
-            pw.WriteUInt((uint)Class);
+            pw.WriteUInt(Class);
             pw.WriteStruct(Color);
-
             Color.WriteEmpty(pw);
         }
 
-        public CharacterAppearanceEntry GetDatabaseEntry(uint characterId)
+        public CharacterAppearanceEntry GetDatabaseEntry()
         {
-            return new CharacterAppearanceEntry(characterId, (uint)SlotId, (uint)Class, Color.Hue);
+            return new CharacterAppearanceEntry
+            {
+                Slot = (uint) SlotId,
+                Class = Class,
+                Color = Color.Hue
+            };
         }
     }
 }

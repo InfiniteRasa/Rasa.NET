@@ -19,12 +19,12 @@
         
         public Friend(Client client)
         {
-            CharacterId = client.MapClient.Player.CharacterId;
+            CharacterId = client.Player.Id;
             UserId = client.AccountEntry.Id;
-            CharacterName = client.MapClient.Player.Actor.Name;
-            FamilyName = client.MapClient.Player.Actor.FamilyName;
-            Level = client.MapClient.Player.Level;
-            ContextId = client.MapClient.Player.Actor.MapContextId;
+            CharacterName = client.Player.Name;
+            FamilyName = client.Player.FamilyName;
+            Level = client.Player.Level;
+            ContextId = client.Player.MapContextId;
             IsOnline = true;
         }
 

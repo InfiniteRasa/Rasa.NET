@@ -30,7 +30,7 @@ namespace Rasa.Packets.MapChannel.Server
 
                 pw.WriteTuple(2);
                 pw.WriteInt(ability.AbilityId);
-                pw.WriteInt(ability.AbilityLevel);
+                pw.WriteUInt(ability.AbilityLevel);
             }
         }
     }

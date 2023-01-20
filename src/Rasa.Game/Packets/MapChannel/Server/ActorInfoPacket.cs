@@ -29,7 +29,7 @@ namespace Rasa.Packets.MapChannel.Server
             { CharacterState.Flying, CharacterStateType.Posture},
             { CharacterState.Flailing, CharacterStateType.Posture},
             { CharacterState.Normal, CharacterStateType.Control},
-            { CharacterState.UnControlled, CharacterStateType.Control},
+            { CharacterState.Uncontrolled, CharacterStateType.Control},
             { CharacterState.Stunned, CharacterStateType.Control},
             { CharacterState.Crouched, CharacterStateType.Posture},
             { CharacterState.AtPeace, CharacterStateType.Combat},

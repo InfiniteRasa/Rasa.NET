@@ -2,49 +2,39 @@
 {
     using Data;
     using Memory;
+    using Structures;
 
     public class WeaponInfoPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.WeaponInfo;
-        
-        public string WeaponName { get; set; }
-        public int ClipSize { get; set; }
-        public uint CurrentAmmo { get; set; }
-        public double AimRate { get; set; }
-        public int ReloadTime { get; set; }
-        public int AltActionId { get; set; }
-        public int AltActionArg { get; set; }
-        public int AeType { get; set; }
-        public int AeRadius { get; set; }
-        public int RecoilAmount { get; set; }
-        public int ReuseOverride { get; set; }
-        public int CoolRate { get; set; }
-        public double HeatPerShot { get; set; }
-        public ToolType ToolType { get; set; }
-        public bool IsJammed { get; set; }
-        public uint AmmoPerShot { get; set; }
-        public int CammeraProfile { get; set; }
 
+        public Item Item { get; set; }
+        public EntityClass ClassInfo { get; set; }
+        public WeaponInfoPacket(Item item, EntityClass classInfo)
+        {
+            Item = item;
+            ClassInfo = classInfo;
+        }
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(17);
             pw.WriteNoneStruct();       // maybe not used by client
-            pw.WriteInt(ClipSize);
-            pw.WriteUInt(CurrentAmmo);
-            pw.WriteDouble(AimRate);
-            pw.WriteInt(ReloadTime);
-            pw.WriteInt(AltActionId);
-            pw.WriteInt(AltActionArg);
-            pw.WriteInt(AeType);
-            pw.WriteInt(AeRadius);
-            pw.WriteInt(RecoilAmount);
+            pw.WriteUInt(ClassInfo.WeaponClassInfo.ClipSize);
+            pw.WriteUInt(Item.CurrentAmmo);
+            pw.WriteDouble(Item.ItemTemplate.WeaponInfo.AimRate);
+            pw.WriteUInt(Item.ItemTemplate.WeaponInfo.ReloadTime);
+            pw.WriteUInt(Item.ItemTemplate.WeaponInfo.AltActionId);
+            pw.WriteUInt(Item.ItemTemplate.WeaponInfo.AltActionArgId);
+            pw.WriteUInt(Item.ItemTemplate.WeaponInfo.AeType);
+            pw.WriteUInt(Item.ItemTemplate.WeaponInfo.AeRadius);
+            pw.WriteUInt(Item.ItemTemplate.WeaponInfo.RecoilAmount);
             pw.WriteNoneStruct();       // ReuseOverride ToDo
-            pw.WriteInt(CoolRate);
-            pw.WriteDouble(HeatPerShot);
-            pw.WriteInt((int)ToolType);
-            pw.WriteBool(IsJammed);
-            pw.WriteUInt(AmmoPerShot);
-            pw.WriteInt(CammeraProfile);
+            pw.WriteUInt(Item.ItemTemplate.WeaponInfo.CoolRate);
+            pw.WriteDouble(Item.ItemTemplate.WeaponInfo.HeatPerShot);
+            pw.WriteInt((int)Item.ItemTemplate.WeaponInfo.ToolType);
+            pw.WriteBool(Item.IsJammed);
+            pw.WriteUInt(Item.ItemTemplate.WeaponInfo.AmmoPerShot);
+            pw.WriteInt(Item.CammeraProfile);
         }
     }
 }

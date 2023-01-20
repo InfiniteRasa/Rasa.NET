@@ -5,9 +5,8 @@ using System.Numerics;
 namespace Rasa.Managers
 {
     using Data;
-    using Database.Tables.World;
     using Game;
-    using Memory;
+    using Models;
     using Packets.Game.Server;
     using Packets.MapChannel.Server;
     using Structures;
@@ -118,7 +117,7 @@ namespace Rasa.Managers
             {
                 if (uint.TryParse(parts[1], out var titleId))
                 {
-                    _client.CallMethod(_client.MapClient.Player.Actor.EntityId, new TitleAddedPacket(titleId));
+                    _client.CallMethod(_client.Player.EntityId, new TitleAddedPacket(titleId));
                 }
             }
         }
@@ -136,7 +135,7 @@ namespace Rasa.Managers
                 if (Enum.TryParse(parts[1], out CharacterState stateId))
                     if (double.TryParse(parts[2], out var speed))
                     {
-                        _client.CallMethod(_client.MapClient.Player.Actor.EntityId, new ActorInfoPacket(stateId, _client.MapClient.Player.TrackingTargetEntityId, _client.MovementData.ViewX, speed, _client.MapClient.Player.Actor.InCombatMode));
+                        _client.CallMethod(_client.Player.EntityId, new ActorInfoPacket(stateId, _client.Player.TrackingTargetEntityId, _client.Movement.ViewDirection.X, speed, _client.Player.InCombatMode));
                     }
             }
         }
@@ -166,14 +165,7 @@ namespace Rasa.Managers
             if (parts.Length == 2)
                 if (ulong.TryParse(parts[1], out var entityId))
                 {
-                    var test = new Memory.MovementData(
-                        _client.MovementData.PosX,
-                        _client.MovementData.PosY,
-                        _client.MovementData.PosZ,
-                        _client.MovementData.ViewX)
-                    {
-                        Velocity = 6.5f
-                    };
+                    var test = new Movement(_client.Movement.Position, 6.5f, 0, _client.Movement.ViewDirection);
 
                     _client.MoveObject(entityId, test);
                 }
@@ -195,9 +187,9 @@ namespace Rasa.Managers
 
                     if (creature != null)
                     {
-                        CreatureManager.Instance.SetLocation(creature, new Vector3(_client.MovementData.PosX, _client.MovementData.PosY, _client.MovementData.PosZ), _client.MovementData.ViewX, _client.MapClient.Player.Actor.MapContextId);
-                        CellManager.Instance.AddToWorld(_client.MapClient.MapChannel, creature);
-                        CommunicatorManager.Instance.SystemMessage(_client, $"Created new creature with EntityId {creature.Actor.EntityId}");
+                        CreatureManager.Instance.SetLocation(creature, _client.Movement.Position, _client.Movement.ViewDirection.X, _client.Player.MapContextId);
+                        CellManager.Instance.AddToWorld(_client.Player.MapChannel, creature);
+                        CommunicatorManager.Instance.SystemMessage(_client, $"Created new creature with EntityId {creature.EntityId}");
                     }
                     else
                         CommunicatorManager.Instance.SystemMessage(_client, $"Creature with dbId={dbId} isn't in database");
@@ -206,7 +198,7 @@ namespace Rasa.Managers
 
             return;
         }
-        
+
         private void CreateObjectCommand(string[] parts)
         {
             if (parts.Length == 1)
@@ -216,23 +208,23 @@ namespace Rasa.Managers
             }
             if (parts.Length == 2)
             {
-                if (Enum.TryParse(parts[1], out EntityClassId entityClassId))
+                if (Enum.TryParse(parts[1], out EntityClasses entityClassId))
                 {
                     var newObject = new DynamicObject
                     {
-                        Position = new Vector3(_client.MovementData.PosX, _client.MovementData.PosY, _client.MovementData.PosZ),
-                        Orientation = _client.MovementData.ViewX,
-                        MapContextId = _client.MapClient.Player.Actor.MapContextId,
+                        Position = _client.Movement.Position,
+                        Rotation = _client.Movement.ViewDirection.X,
+                        MapContextId = _client.Player.MapContextId,
                         EntityClassId = entityClassId
                     };
 
-                    CellManager.Instance.AddToWorld(_client.MapClient.MapChannel, newObject);
+                    CellManager.Instance.AddToWorld(_client.Player.MapChannel, newObject);
                     CommunicatorManager.Instance.SystemMessage(_client, $"Created object EntityId = {newObject.EntityId}");
                 }
             }
             return;
         }
-        
+
         private void CreateObjectOnLocationCommand(string[] parts)
         {
             if (parts.Length != 6)
@@ -241,7 +233,7 @@ namespace Rasa.Managers
                 return;
             }
 
-            if (Enum.TryParse(parts[1], out EntityClassId entityClassId))
+            if (Enum.TryParse(parts[1], out EntityClasses entityClassId))
                 if (float.TryParse(parts[2], out var posX))
                     if (float.TryParse(parts[3], out var posY))
                         if (float.TryParse(parts[4], out var posZ))
@@ -250,12 +242,12 @@ namespace Rasa.Managers
                                 var newObject = new DynamicObject
                                 {
                                     Position = new Vector3(posX, posY, posZ),
-                                    Orientation = orientation,
-                                    MapContextId = _client.MapClient.Player.Actor.MapContextId,
+                                    Rotation = orientation,
+                                    MapContextId = _client.Player.MapContextId,
                                     EntityClassId = entityClassId
                                 };
 
-                                CellManager.Instance.AddToWorld(_client.MapClient.MapChannel, newObject);
+                                CellManager.Instance.AddToWorld(_client.Player.MapChannel, newObject);
                                 CommunicatorManager.Instance.SystemMessage(_client, $"Created object EntityId = {newObject.EntityId}");
                             }
             return;
@@ -272,7 +264,6 @@ namespace Rasa.Managers
             if (ulong.TryParse(parts[1], out ulong entityId))
             {
                 _client.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(entityId));
-                //EntityManager.Instance.FreeEntity(entityId);
             }
 
             return;
@@ -306,7 +297,7 @@ namespace Rasa.Managers
             {
                 var msg = "Distance between you and target ";
 
-                var entityId = _client.MapClient.Player.TargetEntityId;
+                var entityId = _client.Player.TargetEntityId;
 
                 if (entityId == 0)
                 {
@@ -317,10 +308,10 @@ namespace Rasa.Managers
                 var entityType = EntityManager.Instance.GetEntityType(entityId);
 
                 if (entityType == EntityType.Creature)
-                    msg += $"\nEntityId = {entityId} is {Vector3.Distance(new Vector3(_client.MovementData.PosX, _client.MovementData.PosY, _client.MovementData.PosZ), EntityManager.Instance.GetCreature(entityId).SpawnPool.HomePosition)}\n";
+                    msg += $"\nEntityId = {entityId} is {Vector3.Distance(_client.Movement.Position, EntityManager.Instance.GetCreature(entityId).SpawnPool.Position)}\n";
 
-                if (entityType == EntityType.Player)
-                    msg += $"\nEntityId = {entityId} is {Vector3.Distance(new Vector3(_client.MovementData.PosX, _client.MovementData.PosY, _client.MovementData.PosZ), EntityManager.Instance.GetActor(entityId).Position)}\n";
+                if (entityType == EntityType.Character)
+                    msg += $"\nEntityId = {entityId} is {Vector3.Distance(_client.Movement.Position, EntityManager.Instance.GetActor(entityId).Position)}\n";
 
                 if (entityType == EntityType.Object)
                     msg = $"EntityId = {entityId} is object, ToDo\n";
@@ -330,7 +321,7 @@ namespace Rasa.Managers
                 return;
             }
         }
-        
+
         private void GiveItemCommand(string[] parts)
         {
             if (parts.Length == 1)
@@ -343,16 +334,16 @@ namespace Rasa.Managers
                 if (uint.TryParse(parts[1], out uint itemTemplateId))
                 {
                     var classInfo = EntityClassManager.Instance.GetClassInfo(ItemManager.Instance.ItemTemplateItemClass[itemTemplateId]);
-                    var item = ItemManager.Instance.CreateFromTemplateId(itemTemplateId, classInfo.ItemClassInfo.StackSize, _client.MapClient.Player.Actor.FamilyName);
-                    item.CrafterName = _client.MapClient.Player.Actor.FamilyName;
+                    var item = ItemManager.Instance.CreateFromTemplateId(itemTemplateId, classInfo.ItemClassInfo.StackSize, _client.Player.FamilyName);
+                    item.Crafter = _client.Player.FamilyName;
                     InventoryManager.Instance.AddItemToInventory(_client, item);
                 }
             if (parts.Length == 3)
                 if (uint.TryParse(parts[1], out uint itemTemplateId))
                     if (uint.TryParse(parts[2], out uint quantity))
                     {
-                        var item = ItemManager.Instance.CreateFromTemplateId(itemTemplateId, quantity, _client.MapClient.Player.Actor.FamilyName);
-                        item.CrafterName = _client.MapClient.Player.Actor.FamilyName;
+                        var item = ItemManager.Instance.CreateFromTemplateId(itemTemplateId, quantity, _client.Player.FamilyName);
+                        item.Crafter = _client.Player.FamilyName;
                         InventoryManager.Instance.AddItemToInventory(_client, item);
                     }
 
@@ -367,7 +358,7 @@ namespace Rasa.Managers
                 return;
             }
             if (parts.Length == 2)
-                if (int.TryParse(parts[1], out int logosId))
+                if (uint.TryParse(parts[1], out uint logosId))
                     CharacterManager.Instance.UpdateCharacter(_client, CharacterUpdate.Logos, logosId);
 
             return;
@@ -377,7 +368,7 @@ namespace Rasa.Managers
         {
             if (parts.Length == 2)
             {
-                if (int.TryParse(parts[1], out int xp))
+                if (uint.TryParse(parts[1], out uint xp))
                     ManifestationManager.Instance.GainExperience(_client, xp);
             }
             else
@@ -394,14 +385,14 @@ namespace Rasa.Managers
 
             return;
         }
-        
+
         private void NpcInfoCommand(string[] parts)
         {
             if (parts.Length == 1)
             {
                 var msg = "target = (\n";
 
-                var entityId = _client.MapClient.Player.TargetEntityId;
+                var entityId = _client.Player.TargetEntityId;
 
                 if (entityId == 0)
                 {
@@ -423,9 +414,9 @@ namespace Rasa.Managers
                     if (creature.SpawnPool != null)
                         msg += $"SpawnPoolDbId = {creature.SpawnPool.DbId}\n";
 
-                    msg += $"PosX = {creature.Actor.Position.X}\n";
-                    msg += $"PosY = {creature.Actor.Position.Y}\n";
-                    msg += $"PosZ = {creature.Actor.Position.Z}\n";
+                    msg += $"PosX = {creature.Position.X}\n";
+                    msg += $"PosY = {creature.Position.Y}\n";
+                    msg += $"PosZ = {creature.Position.Z}\n";
                 }
 
                 msg += ")\n";
@@ -456,7 +447,7 @@ namespace Rasa.Managers
             {
                 if (ulong.TryParse(parts[1], out var entityId))
                 {
-                    CellManager.Instance.RemoveFromWorld(_client.MapClient.MapChannel, entityId);
+                    CellManager.Instance.RemoveFromWorld(_client.Player.MapChannel, entityId);
                     CommunicatorManager.Instance.SystemMessage(_client, $"Removed object EntityId = {entityId}");
                 }
             }
@@ -485,7 +476,7 @@ namespace Rasa.Managers
 
             return;
         }
-        
+
         private void TeleCommand(string[] parts)
         {
             if (parts.Length != 4)
@@ -497,7 +488,7 @@ namespace Rasa.Managers
             if (float.TryParse(parts[1], out float posX))
                 if (float.TryParse(parts[2], out float posY))
                     if (float.TryParse(parts[3], out float posZ))
-                        _client.MoveObject(_client.MapClient.Player.Actor.EntityId, new MovementData(posX, posY, posZ, 0));
+                        _client.MoveObject(_client.Player.EntityId, new Movement(new Vector3(posX, posY, posZ), new Vector2(0f, 0f)));
         }
 
         private void TeleportCommand(string[] parts)
@@ -528,11 +519,11 @@ namespace Rasa.Managers
                                     0,                  // ToDo MapInstanceId
                                     mapChannel.MapInfo.MapVersion,
                                     new Vector3(posX, posY, posZ),
-                                    _client.MovementData.ViewX
+                                    _client.Movement.ViewDirection.X
                                     );
 
                                 _client.CallMethod(SysEntity.CurrentInputStateId, packet);
-                                // Update Db, this position will be loaded in MapLoadedPacket
+                                // AddOrUpdate Db, this position will be loaded in MapLoadedPacket
                                 CharacterManager.Instance.UpdateCharacter(_client, CharacterUpdate.Position, packet);
                                 mapChannel.ClientList.Add(_client);
                             }
@@ -551,7 +542,7 @@ namespace Rasa.Managers
             }
 
             if (float.TryParse(parts[1], out float posY))
-                _client.MoveObject(_client.MapClient.Player.Actor.EntityId, new MovementData(_client.MapClient.Player.Actor.Position.X, posY, _client.MapClient.Player.Actor.Position.Z, 0));
+                _client.MoveObject(_client.Player.EntityId, new Movement(new Vector3(_client.Movement.Position.X, posY, _client.Movement.Position.Z), _client.Movement.ViewDirection));
         }
 
         private void SetCreatureAppearanceCommand(string[] parts)
@@ -564,38 +555,14 @@ namespace Rasa.Managers
             if (parts.Length == 5)
             {
                 if (ulong.TryParse(parts[1], out var entityId))
-                    if (Enum.TryParse(parts[2], out EquipmentData slotId))
-                        if (Enum.TryParse(parts[3], out EntityClassId classId))
+                    if (uint.TryParse(parts[2], out uint slotId))
+                        if (uint.TryParse(parts[3], out uint classId))
                             if (uint.TryParse(parts[4], out uint color))
                             {
                                 // get creature from entityId
                                 var creature = EntityManager.Instance.GetCreature(entityId);
-                                var newAppearance = false;
-                                if (!creature.AppearanceData.ContainsKey(slotId))
-                                {
-                                    // new appearance
-                                    creature.AppearanceData.Add(slotId, new AppearanceData { SlotId = slotId, Class = classId, Color = new Color(color), Hue2 = new Color(2139062144) });
-                                    newAppearance = true;
-                                }
-                                if (classId < 0) // update only color of slot item
-                                {
-                                    creature.AppearanceData[slotId].Color = new Color(color);
-                                    _client.CellCallMethod(_client, entityId, new AppearanceDataPacket(creature.AppearanceData));
-                                }
-                                else
-                                {
-                                    creature.AppearanceData[slotId].Class = classId;
-                                    creature.AppearanceData[slotId].Color = new Color(color);
-                                }
-
-                                // update creature appearance on client's
-                                _client.CellCallMethod(_client, entityId, new AppearanceDataPacket(creature.AppearanceData));
-
-                                // update creature in database
-                                if (newAppearance)
-                                    CreatureAppearanceTable.SetCreatureAppearance(creature.DbId, (uint)slotId, (uint)creature.AppearanceData[slotId].Class, creature.AppearanceData[slotId].Color.Hue);
-                                else
-                                    CreatureAppearanceTable.UpdateCreatureAppearance(creature.DbId, (uint)slotId, (uint)creature.AppearanceData[slotId].Class, creature.AppearanceData[slotId].Color.Hue);
+                                var appearanceData = new AppearanceData(new Structures.Char.CharacterAppearanceEntry(slotId, classId,color));
+                                CreatureManager.Instance.CreateOrUpdateAppearance(creature, appearanceData);
 
                                 Logger.WriteLog(LogType.Debug, "Creature Look updated");
                             }
@@ -644,8 +611,8 @@ namespace Rasa.Managers
             }
             if (parts.Length == 2)
             {
-                if (int.TryParse(parts[1], out int regionId))
-                    _client.CallMethod(_client.MapClient.Player.Actor.EntityId, new UpdateRegionsPacket { RegionIdList = regionId });
+                if (uint.TryParse(parts[1], out uint regionId))
+                    _client.CallMethod(_client.Player.EntityId, new UpdateRegionsPacket { RegionIdList = regionId });
             }
             return;
         }
@@ -661,19 +628,19 @@ namespace Rasa.Managers
             {
                 if (double.TryParse(parts[1], out double speed))
                     // ToDO send on cell domain
-                    _client.CallMethod(_client.MapClient.Player.Actor.EntityId, new MovementModChangePacket(speed));
+                    _client.CallMethod(_client.Player.EntityId, new MovementModChangePacket(speed));
             }
             return;
         }
 
         private void WhereCommand(string[] parts)
         {
-            CommunicatorManager.Instance.SystemMessage(_client, $"PosX = {_client.MovementData.PosX}\nPosY = "
-                +$"{_client.MovementData.PosY}\nPosZ = {_client.MovementData.PosZ}\nOrientation = {_client.MovementData.ViewX}"
-                +$"\nMapId = {_client.MapClient.Player.Actor.MapContextId}");
+            CommunicatorManager.Instance.SystemMessage(_client, $"PosX = {_client.Movement.Position.X}\nPosY = "
+                + $"{_client.Movement.Position.Y}\nPosZ = {_client.Movement.Position.Z}\nOrientation = {_client.Movement.ViewDirection.X}"
+                + $"\nMapId = {_client.Player.MapContextId}");
             return;
         }
-        
+
         #endregion
     }
 }

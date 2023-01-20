@@ -4,14 +4,16 @@ using System.Text.RegularExpressions;
 namespace Rasa.Managers
 {
     using Data;
-    using Database.Tables.World;
+    using Rasa.Game;
+    using Rasa.Repositories.UnitOfWork;
     using Structures;
 
     public class EntityClassManager
     {
         private static EntityClassManager _instance;
         private static readonly object InstanceLock = new object();
-        public Dictionary<EntityClassId, EntityClass> LoadedEntityClasses = new Dictionary<EntityClassId, EntityClass>();
+        private readonly IGameUnitOfWorkFactory _gameUnitOfWorkFactory;
+        public Dictionary<EntityClasses, EntityClass> LoadedEntityClasses = new Dictionary<EntityClasses, EntityClass>();
 
         public static EntityClassManager Instance
         {
@@ -23,7 +25,7 @@ namespace Rasa.Managers
                     lock (InstanceLock)
                     {
                         if (_instance == null)
-                            _instance = new EntityClassManager();                                                           
+                            _instance = new EntityClassManager(Server.GameUnitOfWorkFactory);                                                           
 
                     }
                 }
@@ -32,55 +34,57 @@ namespace Rasa.Managers
             }
         }
 
-        private EntityClassManager()
+        private EntityClassManager(IGameUnitOfWorkFactory gameUnitOfWorkFactory)
         {
+            _gameUnitOfWorkFactory = gameUnitOfWorkFactory;
         }
 
         public void LoadEntityClasses()
         {
             Logger.WriteLog(LogType.Initialize, "Loading data from db ...");
-            var entityClassList = EntityClassTable.LoadEntityClass();
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateWorld();
+            var entityClassList = unitOfWork.EntityClasses.Get();
 
             foreach (var entityClass in entityClassList)
             {
                 // Parse AugmentationList
                 var augList = new List<AugmentationType>();
-                var augmentations = Regex.Split(entityClass.Augmentations, @"\D+");
+                var augmentations = Regex.Split(entityClass.AugList, @"\D+");
 
                 foreach (var value in augmentations)
                     if (int.TryParse(value, out var augmentation))
                         augList.Add((AugmentationType)augmentation);
 
-                LoadedEntityClasses.Add((EntityClassId)entityClass.ClassId, new EntityClass(
-                    entityClass.ClassId,
+                LoadedEntityClasses.Add((EntityClasses)entityClass.Id, new EntityClass(
+                    entityClass.Id,
                     entityClass.ClassName,
                     entityClass.MeshId,
                     entityClass.ClassCollisionRole,
                     augList,
-                    entityClass.TargetFlag
+                    entityClass.TargetFlag != 0
                     ));
             };
 
             // Load itemClasses
-            var itemClassList = ItemClassTable.LoadItemClasses();
+            var itemClassList = unitOfWork.ItemClasses.Get();
             foreach (var itemClass in itemClassList)
-                LoadedEntityClasses[(EntityClassId)itemClass.ClassId].ItemClassInfo = new ItemClassInfo(itemClass);
+                LoadedEntityClasses[(EntityClasses)itemClass.Id].ItemClassInfo = new ItemClassInfo(itemClass);
 
             // Load ArmorClasses
-            var armorClassList = ArmorClassTable.LoadArmorClasses();
+            var armorClassList = unitOfWork.ArmorClasses.Get();
             foreach (var armorClass in armorClassList)
-                LoadedEntityClasses[(EntityClassId)armorClass.ClassId].ArmorClassInfo = new ArmorClassInfo(armorClass);
+                LoadedEntityClasses[(EntityClasses)armorClass.Id].ArmorClassInfo = new ArmorClassInfo(armorClass);
 
             // Load WeaponClasses
-            var weaponClassList = WeaponClassTable.LoadWeaponClasses();
+            var weaponClassList = unitOfWork.WeaponClasses.Get();
             foreach (var weaponClass in weaponClassList)
-                LoadedEntityClasses[(EntityClassId)weaponClass.ClassId].WeaponClassInfo = new WeaponClassInfo(weaponClass);
+                LoadedEntityClasses[(EntityClasses)weaponClass.Id].WeaponClassInfo = new WeaponClassInfo(weaponClass);
 
             // Load EquipableClasses
-            var equipableClassList = EquipableClassTable.LoadEquipableClasses();
+            var equipableClassList = unitOfWork.EquipableClasses.Get();
             foreach (var equipableClass in equipableClassList)
-                LoadedEntityClasses[(EntityClassId)equipableClass.ClassId].EquipableClassInfo = new EquipableClassInfo((EquipmentData)equipableClass.SlotId);
-            
+                LoadedEntityClasses[(EntityClasses)equipableClass.Id].EquipableClassInfo = new EquipableClassInfo((EquipmentData)equipableClass.SlotId);
+
             // Load ItemTemplates
             ItemManager.Instance.LoadItemTemplates();
 
@@ -91,7 +95,7 @@ namespace Rasa.Managers
             Logger.WriteLog(LogType.Initialize, $"Loaded {weaponClassList.Count} WeaponClasses");
         }
 
-        public EntityClass GetClassInfo(EntityClassId entityClassId)
+        public EntityClass GetClassInfo(EntityClasses entityClassId)
         {
             if (LoadedEntityClasses.ContainsKey(entityClassId))
                 return LoadedEntityClasses[entityClassId];

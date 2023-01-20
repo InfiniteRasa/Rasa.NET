@@ -1,15 +1,13 @@
-﻿using System.Collections.Generic;
-
-namespace Rasa.Managers
+﻿namespace Rasa.Managers
 {
-    using Data;
-    using Database.Tables.World;
+    using Game;
+    using Repositories.UnitOfWork;
     using Structures;
     public class LogosManager
     {
         private static LogosManager _instance;
         private static readonly object InstanceLock = new object();
-        private List<int> States = new List<int>();
+        private readonly IGameUnitOfWorkFactory _gameUnitOfWorkFactory;
 
         public static LogosManager Instance
         {
@@ -21,7 +19,7 @@ namespace Rasa.Managers
                     lock (InstanceLock)
                     {
                         if (_instance == null)
-                            _instance = new LogosManager();
+                            _instance = new LogosManager(Server.GameUnitOfWorkFactory);
                     }
                 }
 
@@ -29,13 +27,15 @@ namespace Rasa.Managers
             }
         }
 
-        private LogosManager()
+        private LogosManager(IGameUnitOfWorkFactory gameUnitOfWorkFactory)
         {
+            _gameUnitOfWorkFactory = gameUnitOfWorkFactory;
         }
 
         internal void LogosInit()
         {
-            var logosList = LogosTable.LoadLogos();
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateWorld();
+            var logosList = unitOfWork.Logoses.Get();
 
             foreach (var entry in logosList)
             {

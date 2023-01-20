@@ -1,43 +1,53 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Net.Sockets;
-using System.Numerics;
+using System.Text;
 
 namespace Rasa.Game
 {
     using Cryptography;
     using Data;
-    using Database.Tables.Character;
     using Handlers;
     using Managers;
     using Memory;
+    using Models;
     using Networking;
     using Packets;
     using Packets.Protocol;
+    using Rasa.Packets.Communicator.Both;
+    using Repositories.Char;
+    using Repositories.UnitOfWork;
     using Structures;
+    using Structures.Char;
+    using System.Net.Mail;
+    using System.Numerics;
 
     public class Client
     {
+        private readonly IGameUnitOfWorkFactory _gameUnitOfWorkFactory;
+
         public const int LengthSize = 2;
 
-        public LengthedSocket Socket { get; }
-        public ClientCryptData Data { get; }
-        public Server Server { get; }
+        public Server Server { get; private set; }
+        public LengthedSocket Socket { get; private set; }
+        public ClientCryptData Data { get; private set; }
         public GameAccountEntry AccountEntry { get; private set; }
+        public uint LoadingMap { get; set; }
         public ClientState State { get; set; }
+        public Manifestation Player { get; set; }
+        public Movement Movement { get; set; }
         public uint[] SendSequence { get; } = new uint[256];
         public uint[] ReceiveSequence { get; } = new uint[256];
-        public uint LoadingMap { get; set; }
-        public MapChannelClient MapClient = new MapChannelClient();
-        public List<UserOptions> UserOptions = new List<UserOptions>();
-        private readonly object _clientLock = new object();
+        public List<UserOptions> UserOptions = new();
+
+        private readonly object _clientLock = new();
         private readonly ClientPacketHandler _handler;
-        private readonly PacketQueue _packetQueue = new PacketQueue();
-        public MovementData MovementData { get; set; }
+        private readonly PacketQueue _packetQueue = new();
+        private readonly NonContiguousMemoryStream _incomingDataQueue = new();
 
 
-        BufferData inboundData = null;
         private static PacketRouter<ClientPacketHandler, GameOpcode> PacketRouter { get; } = new PacketRouter<ClientPacketHandler, GameOpcode>();
 
         public static Type GetPacketType(GameOpcode opcode)
@@ -45,14 +55,20 @@ namespace Rasa.Game
             return PacketRouter.GetPacketType(opcode);
         }
 
-        public Client(LengthedSocket socket, ClientCryptData data, Server server)
+        public Client(
+            IGameUnitOfWorkFactory gameUnitOfWorkFactory,
+            ClientPacketHandler handler)
         {
-            inboundData = BufferManager.RequestBuffer();
-            inboundData.Length = 0;
-            _handler = new ClientPacketHandler(this);
+            _gameUnitOfWorkFactory = gameUnitOfWorkFactory;
 
+            _handler = handler;
+            _handler.RegisterClient(this);
+        }
+
+        public void RegisterAtServer(Server server, LengthedSocket socket, ClientCryptData cryptData)
+        {
             Socket = socket;
-            Data = data;
+            Data = cryptData;
             Server = server;
 
             State = ClientState.Connected;
@@ -61,7 +77,6 @@ namespace Rasa.Game
             Socket.OnReceive += OnReceive;
             Socket.OnEncrypt += OnEncrypt;
             Socket.OnDecrypt += OnDecrypt;
-            Socket.OnDisconnect += OnDisconnect;
 
             Socket.ReceiveAsync();
 
@@ -71,17 +86,21 @@ namespace Rasa.Game
             Logger.WriteLog(LogType.Network, "*** Client connected from {0}", Socket.RemoteAddress);
         }
 
-        ~Client()
-        {
-            BufferManager.FreeBuffer(inboundData);
-        }
-
         public void Update(long delta)
         {
-            IBasePacket packet;
+            foreach (var protocolPacket in DecodeIncomingPackets())
+            {
+                try
+                {
+                    HandleProtocolPacket(protocolPacket);
+                }
+                catch (InvalidClientMessageException)
+                {
+                    Close();
+                }
+            }
 
-            while ((packet = _packetQueue.PopIncoming()) != null)
-                HandlePacket(packet);
+            IBasePacket packet;
 
             while ((packet = _packetQueue.PopOutgoing()) != null)
                 SendPacket(packet);
@@ -104,6 +123,8 @@ namespace Rasa.Game
                 Socket.Close();
 
                 Server.Disconnect(this);
+
+                SaveCharacter();
             }
         }
 
@@ -117,18 +138,18 @@ namespace Rasa.Game
             SendMessage(new CallMethodMessage((ulong)entityId, packet));
         }
 
-        internal void MoveObject(ulong entityId, MovementData movementData)
+        internal void MoveObject(ulong entityId, Movement movement)
         {
-            SendMessage(new MoveObjectMessage(entityId, movementData), false, 1);
+            SendMessage(new MoveObjectMessage(entityId, movement), false, 1);
         }
 
         // Cell Domain
         public void CellCallMethod(Client client, ulong entityId, PythonPacket packet)
         {
-            var clientList = new List<Client>();
+           var clientList = new List<Client>();
 
-            foreach (var cellSeed in client.MapClient.Player.Actor.Cells)
-                clientList.AddRange(client.MapClient.MapChannel.MapCellInfo.Cells[cellSeed].ClientList);
+            foreach (var cellSeed in client.Player.Cells)
+                clientList.AddRange(client.Player.MapChannel.MapCellInfo.Cells[cellSeed].ClientList);
 
             foreach (var tempClient in clientList)
                 tempClient.CallMethod(entityId, packet);
@@ -139,30 +160,30 @@ namespace Rasa.Game
         {
             var clientList = new List<Client>();
 
-            foreach (var cellSeed in client.MapClient.Player.Actor.Cells)
-                clientList.AddRange(client.MapClient.MapChannel.MapCellInfo.Cells[cellSeed].ClientList);
+            foreach (var cellSeed in client.Player.Cells)
+                clientList.AddRange(client.Player.MapChannel.MapCellInfo.Cells[cellSeed].ClientList);
 
             foreach (var tempClient in clientList)
             {
                 if (tempClient == client)
                     continue;
 
-                tempClient.CallMethod(client.MapClient.Player.Actor.EntityId, packet);
+                tempClient.CallMethod(client.Player.EntityId, packet);
             }
         }
-        
+
         // Cell send movement
-        internal void CellMoveObject(MapChannelClient mapClient, MoveObjectMessage moveObjectMessage, bool ignoreSelf)
+        internal void CellMoveObject(Client client, MoveObjectMessage moveObjectMessage, bool ignoreSelf)
         {
             var clientList = new List<Client>();
 
-            foreach (var cellSeed in mapClient.Player.Actor.Cells)
-                clientList.AddRange(mapClient.MapChannel.MapCellInfo.Cells[cellSeed].ClientList);
+            foreach (var cellSeed in client.Player.Cells)
+                clientList.AddRange(client.Player.MapChannel.MapCellInfo.Cells[cellSeed].ClientList);
 
             foreach (var tempClient in clientList)
             {
-                if (tempClient.MapClient == mapClient && ignoreSelf)
-                        continue;
+                if (tempClient == client && ignoreSelf)
+                    continue;
 
                 tempClient.SendMessage(moveObjectMessage, false, 1);
             }
@@ -193,21 +214,12 @@ namespace Rasa.Game
             Socket.Send(pPacket);
         }
 
-        public void HandlePacket(IBasePacket packet)
+        private void HandleProtocolPacket(ProtocolPacket protocolPacket)
         {
-            var pPacket = packet as ProtocolPacket;
-            if (pPacket == null)
-                return;
-
-            switch (pPacket.Type)
+            switch (protocolPacket.Type)
             {
                 case ClientMessageOpcode.Login:
-                    var loginMsg = pPacket.Message as LoginMessage;
-                    if (loginMsg == null)
-                    {
-                        Close(true);
-                        return;
-                    }
+                    var loginMsg = GetMessageAs<LoginMessage>(protocolPacket);
 
                     if (loginMsg.Version.Length != 8 || loginMsg.Version != "1.16.5.0")
                     {
@@ -218,6 +230,7 @@ namespace Rasa.Game
                             ErrorCode = LoginErrorCodes.VersionMismatch,
                             Subtype = LoginResponseMessageSubtype.Failed
                         }, delay: false);
+
                         return;
                     }
 
@@ -235,39 +248,43 @@ namespace Rasa.Game
                         return;
                     }
 
-                    GameAccountTable.CreateAccountDataIfNeeded(loginEntry.Id, loginEntry.Name, loginEntry.Email);
-
-                    if (Server.IsBanned(loginMsg.AccountId))
+                    using (var unitOfWork = _gameUnitOfWorkFactory.CreateChar())
                     {
-                        Logger.WriteLog(LogType.Error, "Client with ip: {0} tried to log in while the account is banned! User Id: {1}", Socket.RemoteAddress, loginMsg.AccountId);
+                        unitOfWork.GameAccounts.CreateOrUpdate(loginEntry.Id, loginEntry.Name, loginEntry.Email);
+                        // for now set all account to GM status
+                        unitOfWork.GameAccounts.UpdateAccountLevel(loginEntry.Id, 1);
 
-                        SendMessage(new LoginResponseMessage
+                        if (Server.IsBanned(loginMsg.AccountId))
                         {
-                            ErrorCode = LoginErrorCodes.AccountLocked,
-                            Subtype = LoginResponseMessageSubtype.Failed
-                        }, delay: false);
+                            Logger.WriteLog(LogType.Error, "Client with ip: {0} tried to log in while the account is banned! User Id: {1}", Socket.RemoteAddress, loginMsg.AccountId);
 
-                        return;
-                    }
+                            SendMessage(new LoginResponseMessage
+                            {
+                                ErrorCode = LoginErrorCodes.AccountLocked,
+                                Subtype = LoginResponseMessageSubtype.Failed
+                            }, delay: false);
 
-                    if (Server.IsAlreadyLoggedIn(loginMsg.AccountId))
-                    {
-                        Logger.WriteLog(LogType.Error, "Client with ip: {0} tried to log in while the account is being played on! User Id: {1}", Socket.RemoteAddress, loginMsg.AccountId);
+                            return;
+                        }
 
-                        SendMessage(new LoginResponseMessage
+                        if (Server.IsAlreadyLoggedIn(loginMsg.AccountId))
                         {
-                            ErrorCode = LoginErrorCodes.AlreadyLoggedIn,
-                            Subtype = LoginResponseMessageSubtype.Failed
-                        }, delay: false);
+                            Logger.WriteLog(LogType.Error, "Client with ip: {0} tried to log in while the account is being played on! User Id: {1}", Socket.RemoteAddress, loginMsg.AccountId);
 
-                        return;
+                            SendMessage(new LoginResponseMessage
+                            {
+                                ErrorCode = LoginErrorCodes.AlreadyLoggedIn,
+                                Subtype = LoginResponseMessageSubtype.Failed
+                            }, delay: false);
+
+                            return;
+                        }
+
+                        LoadGameAccountEntry(unitOfWork, loginEntry.Id);
+
+                        unitOfWork.GameAccounts.UpdateLoginData(loginEntry.Id, Socket.RemoteAddress);
+                        unitOfWork.Complete();
                     }
-
-                    AccountEntry = GameAccountTable.GetAccount(loginEntry.Id);
-                    AccountEntry.LastIP = Socket.RemoteAddress.ToString();
-                    AccountEntry.LastLogin = DateTime.Now;
-
-                    GameAccountTable.UpdateAccount(AccountEntry);
 
                     SendMessage(new LoginResponseMessage
                     {
@@ -278,33 +295,32 @@ namespace Rasa.Game
                     State = ClientState.LoggedIn;
 
                     CharacterManager.Instance.StartCharacterSelection(this);
-                    return;
+                    break;
 
                 case ClientMessageOpcode.Move:
-                    var movePacket = pPacket.Message as MoveMessage;
-                    if (movePacket == null)
+                    if (Player == null)
                     {
-                        Close(true);
                         return;
                     }
 
-                    MapClient.Player.Actor.Position = new Vector3(movePacket.MovementData.PosX, movePacket.MovementData.PosY, movePacket.MovementData.PosZ);
-                    MapClient.Player.Actor.Orientation = movePacket.MovementData.ViewX;
-                    MovementData = movePacket.MovementData;
+                    var moveMessage = GetMessageAs<MoveMessage>(protocolPacket);
+                    if (moveMessage.Movement == null)
+                    {
+                        return;
+                    }
+
+                    Player.Position = moveMessage.Movement.Position;
+                    Player.Rotation = moveMessage.Movement.ViewDirection.X;
+                    Movement = moveMessage.Movement;
 
                     // send your movement to other players in visibility range
-                    var moveObjectMessage = new MoveObjectMessage(MapClient.Player.Actor.EntityId, movePacket.MovementData);
-                    CellMoveObject(MapClient, moveObjectMessage, true);
+                    var moveObjectMessage = new MoveObjectMessage(Player.EntityId, moveMessage.Movement);
+                    CellMoveObject(this, moveObjectMessage, true);
 
                     break;
 
                 case ClientMessageOpcode.CallServerMethod:
-                    var csmPacket = pPacket.Message as CallServerMethodMessage;
-                    if (csmPacket == null)
-                    {
-                        Close(true);
-                        return;
-                    }
+                    var csmPacket = GetMessageAs<CallServerMethodMessage>(protocolPacket);
 
                     if (!csmPacket.ReadPacket())
                     {
@@ -316,16 +332,21 @@ namespace Rasa.Game
                     break;
 
                 case ClientMessageOpcode.Ping:
-                    var pingMessage = pPacket.Message as PingMessage;
-                    if (pingMessage == null)
-                    {
-                        Close(true);
-                        return;
-                    }
+                    var pingMessage = GetMessageAs<PingMessage>(protocolPacket);
 
                     SendMessage(pingMessage, delay: false);
                     break;
             }
+        }
+
+        private T GetMessageAs<T>(ProtocolPacket protocolPacket)
+            where T : class, IClientMessage
+        {
+            if (protocolPacket.Message is T message)
+            {
+                return message;
+            }
+            throw new InvalidClientMessageException();
         }
 
         public bool IsAuthenticated()
@@ -334,16 +355,9 @@ namespace Rasa.Game
         }
 
         #region Socketing
-        private void OnDisconnect()
-        {
-            foreach (var client in MapClient.MapChannel.ClientList)
-                if (client.MapClient == MapClient)
-                    MapChannelManager.Instance.RemovePlayer(client, false);
-        }
-
         private void OnEncrypt(BufferData data, ref int length)
         {
-            var paddingCount = (byte)(8 - length % 8);
+            var paddingCount = (byte) (8 - length % 8);
 
             var tempArray = BufferManager.RequestBuffer();
 
@@ -379,135 +393,110 @@ namespace Rasa.Game
         {
             Close(false);
         }
-
-        private int ReadExpectedSize(BufferData data)
-        {
-            return BitConverter.ToInt16(data.Buffer, data.BaseOffset);
-        }
-
+		
         private void OnReceive(BufferData data)
         {
-            do
-            {
-                inboundData.ShiftProcessedData();
-                inboundData.Append(data);
-
-                var sizeAvailable = inboundData.RemainingLength;
-
-                if (sizeAvailable == 0) { break; }
-                var sizeNeeded = ReadExpectedSize(inboundData);
-
-                if (sizeNeeded > sizeAvailable)
-                {
-                    // Likely a fragmented packet
-                    //Logger.WriteLog(LogType.Network, "===== Fragmented packet =====");
-                    break;
-                }
-
-                //Logger.WriteLog(LogType.Network, "[N] > needed : {0}   available : {1}", sizeNeeded, sizeAvailable);
-
-                if (!DecodePacket(inboundData, out ushort subsize))
-                    break;
-            }
-            while (true);
-
-            if (data.RemainingLength > 0)
-            {
-                throw new Exception("Did not read all of data from socket, processing will be corrupted!");
-            }
+            _incomingDataQueue.CopyFromArray(data.Buffer, data.BaseOffset + data.Offset, data.RemainingLength);
         }
 
-        private bool DecodePacket(BufferData data, out ushort length)
+        private IEnumerable<ProtocolPacket> DecodeIncomingPackets()
         {
-            using (var br = data.GetReader(data.Offset, data.RemainingLength))
+            ProtocolPacket packet;
+
+            while ((packet = DecodeNextPacket()) != null)
+                yield return packet;
+
+            yield break;
+        }
+
+        private ProtocolPacket DecodeNextPacket()
+        {
+            // If there is not enough data to read the packet size at all, then stop processing
+            if (_incomingDataQueue.Length < 2)
+                return null;
+
+            using var br = new BinaryReader(_incomingDataQueue, Encoding.UTF8, true);
+
+            // Peek the packet size to determine if the whole packet has arrived
+            var startPosition = _incomingDataQueue.Position;
+
+            // Read the size of the next packet
+            var packetSize = br.ReadUInt16();
+
+            // Rewind the stream to the starting position
+            _incomingDataQueue.Position = startPosition;
+
+            // If the packet is fragmented and not all the fragments has arrived yet, then stop processing
+            if (packetSize > _incomingDataQueue.Length)
+                return null;
+
+            // Construct and the packet
+            var rawPacket = new ProtocolPacket();
+
+            rawPacket.Read(br);
+
+            // Check for overreading or underreading the packet
+            if (_incomingDataQueue.Position != startPosition + packetSize)
+                throw new Exception($"ProtocolPacket over or under read! Start position: {startPosition} | Packet size: {packetSize} | End position: {_incomingDataQueue.Position}!");
+
+            // Advance the stream by removing the already processed data
+            _incomingDataQueue.RemoveBytes(packetSize);
+
+            // Throw away any packet that came out of order, if it came on a channel
+            if (rawPacket.Channel != 0)
             {
-                var rawPacket = new ProtocolPacket();
-
-                rawPacket.Read(br);
-
-                if (rawPacket.Channel != 0)
+                // If an out of sequence packet arrived, then throw it away
+                if (rawPacket.SequenceNumber < ReceiveSequence[rawPacket.Channel])
                 {
-                    if (rawPacket.SequenceNumber < ReceiveSequence[rawPacket.Channel])
-                    {
-                        Debugger.Break();
+                    Debugger.Break(); // todo: test and remove later
 
-                        length = rawPacket.Size; // throw away the packet
-                        return true;
-                    }
-
-                    ReceiveSequence[rawPacket.Channel] = rawPacket.SequenceNumber;
+                    return null;
                 }
 
-                length = rawPacket.Size;
-
-                data.Offset += (int)br.BaseStream.Position;
-
-                if (rawPacket.Type == ClientMessageOpcode.None)
-                {
-                    if (length != 4)
-                        Debugger.Break(); // If it's not send timeout check, let's investigate...
-
-                    return true;
-                }
-
-                _packetQueue.EnqueueIncoming(rawPacket);
+                // AddOrUpdate the receive sequence for the channel
+                ReceiveSequence[rawPacket.Channel] = rawPacket.SequenceNumber;
             }
-            /*var packet = new PythonCallPacket(length);
-            using (var br = data.GetReader())
+
+            // Some internal send timeout check, skip the packet
+            if (rawPacket.Type == ClientMessageOpcode.None)
             {
-                packet.Read(br);
+                if (rawPacket.Size != 4)
+                    Debugger.Break(); // If it's not send timeout check, let's investigate...
 
-                if (packet.Return.HasValue)
-                    return packet.Return.Value;
-
-                if (packet.Type == 2)
-                {
-                    State = ClientState.LoggedIn;
-                    Entry = Server.AuthenticateClient(this, packet.AccountId, packet.OneTimeKey);
-                    if (Entry == null)
-                    {
-                        Logger.WriteLog(LogType.Error, "Client with ip: {0} tried to log in with invalid session data! User Id: {1} | OneTimeKey: {2}", Socket.RemoteAddress, packet.AccountId, packet.OneTimeKey);
-                        Close(false);
-                        return false;
-                    }
-
-                    CharacterManager.Instance.StartCharacterSelection(this);
-                    return true;
-                }
-
-                if (packet.DataSize > 0 && br.BaseStream.Position + packet.DataSize < br.BaseStream.Length)
-                {
-                    if (br.ReadByte() != 0x4F) // 'O' format
-                        throw new Exception("Unsupported serialization format!");
-
-                    var packetType = PacketRouter.GetPacketType(packet.Opcode);
-                    if (packetType != null)
-                    {
-                        var pythonPacket = Activator.CreateInstance(packetType) as IBasePacket;
-                        if (pythonPacket == null)
-                            return false;
-
-                        pythonPacket.Read(br);
-
-                        Server.PacketQueue.EnqueueIncoming(this, pythonPacket);
-                    }
-                    else
-                        Logger.WriteLog(LogType.Error, $"Unhandled game opcode: {packet.Opcode}");
-                }
-                else
-                    Logger.WriteLog(LogType.Error, $"Invalid data found in Python method call! Off: {br.BaseStream.Position} | Len: {packet.DataSize} | Array len: {br.BaseStream.Length}");
-            }*/
-
-            return true;
+                return null;
+            }
+            
+            return rawPacket;
         }
         #endregion
 
-        public Manifestation Player
+        public void SaveCharacter()
         {
-            get
+            var player = Player;
+            if (player == null)
             {
-                return MapClient?.Player;
+                return;
             }
+
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+            unitOfWork.Characters.SaveCharacter(player);
+            unitOfWork.Complete();
+        }
+
+        public void ReloadGameAccountEntry()
+        {
+            if (AccountEntry == null)
+            {
+                throw new InvalidOperationException("Client must be initialized by handling a login packet first.");
+            }
+
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+            LoadGameAccountEntry(unitOfWork, AccountEntry.Id);
+        }
+
+        private void LoadGameAccountEntry(ICharUnitOfWork unitOfWork, uint id)
+        {
+            AccountEntry = unitOfWork.GameAccounts.Get(id);
         }
     }
 }

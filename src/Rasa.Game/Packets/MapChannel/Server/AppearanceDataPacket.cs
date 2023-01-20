@@ -26,7 +26,7 @@ namespace Rasa.Packets.MapChannel.Server
                 var appearance = t.Value;
                 pw.WriteInt((int)appearance.SlotId);
                 pw.WriteTuple(3);
-                pw.WriteUInt((uint)appearance.Class);
+                pw.WriteUInt(appearance.Class);
                 pw.WriteStruct(appearance.Color);
                 pw.WriteStruct(appearance.Hue2);
             }

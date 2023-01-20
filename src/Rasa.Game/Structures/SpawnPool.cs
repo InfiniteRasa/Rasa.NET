@@ -1,14 +1,15 @@
-﻿using System.Collections.Generic;
+﻿using Rasa.Structures.Interfaces;
+using System.Collections.Generic;
 using System.Numerics;
 
 namespace Rasa.Structures
 {
-    public class SpawnPool
+    public class SpawnPool : IHasPosition
     {
         public uint DbId { get; set; }         // id of the spawnpool
 
-        public Vector3 HomePosition { get; set; }
-        public float HomeOrientation { get; set; }
+        public Vector3 Position { get; set; }
+        public double Rotation { get; set; }
         public List<SpawnPoolSlot> SpawnSlot { get; set; }
         // different spawn points
         //public int LocationCount { get; set; }
@@ -26,7 +27,7 @@ namespace Rasa.Structures
 
         // respawn lock
         public long UpdateTimer { get; set; }
-        public int RespawnTime { get; set; }
+        public uint RespawnTime { get; set; }
         
 
         // paths
