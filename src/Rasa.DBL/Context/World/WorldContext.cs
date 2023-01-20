@@ -23,12 +23,34 @@ namespace Rasa.Context.World
             _databaseConfiguration = databaseConfiguration;
             _dbContextPropertyModifier = dbContextPropertyModifier;
         }
-
-        public DbSet<ExperienceForLevelEntry> ExperienceForLevel { get; set; }
-
-        public DbSet<RandomNameEntry> RandomNameEntries { get; set; }
-
+        public DbSet<ArmorClassEntry> ArmorClassEntries { get; set; }
+        public DbSet<CreatureEntry> CreatureEntries { get; set; }
+        public DbSet<CreatureActionEntry> CreatureActionEntries { get; set; }
+        public DbSet<CreatureAppearanceEntry> CreatureAppearanceEntries { get; set; }
+        public DbSet<CreatureStatEntry> CreatureStatEntries { get; set; }
+        public DbSet<ExperienceForLevelEntry> ExperienceForLevelEntries { get; set; }
+        public DbSet<EntityClassEntry> EntityClassEntries { get; set; }
+        public DbSet<EquipableClassEntry> EquipableClassEntries { get; set; }
+        public DbSet<FootlockerEntry> FootlockerEntries { get; set; }
+        public DbSet<ItemClassEntry> ItemClassEntries { get; set; }
+        public DbSet<ItemTemplateEntry> ItemTemplateEntries { get; set; }
+        public DbSet<ItemTemplateArmorEntry> ItemTemplateArmorEntries { get; set; }
         public DbSet<ItemTemplateItemClassEntry> ItemTemplateItemClassEntries { get; set; }
+        public DbSet<ItemTemplateRequirementEntry> ItemTemplateRequirementEntries { get; set; }
+        public DbSet<ItemTemplateRequirementRaceEntry> ItemTemplateRequirementRaceEntries { get; set; }
+        public DbSet<ItemTemplateRequirementSkillEntry> ItemTemplateRequirementSkillEntries { get; set; }
+        public DbSet<ItemTemplateResistanceEntry> ItemTemplateResistanceEntries { get; set; }
+        public DbSet<ItemTemplateWeaponEntry> ItemTemplateWeaponEntries { get; set; }
+        public DbSet<LogosEntry> LogosEntries { get; set; }
+        public DbSet<MapInfoEntry> MapInfoEntries { get; set; }
+        public DbSet<NpcMissionEntry> NpcMissionEntries { get; set; }
+        public DbSet<NpcPackageEntry> NpcPackageEntries { get; set; }
+        public DbSet<RandomNameEntry> RandomNameEntries { get; set; }
+        public DbSet<SpawnPoolEntry> SpawnPoolEntries { get; set; }
+        public DbSet<TeleporterEntry> TeleporterEntries { get; set; }
+        public DbSet<VendorEntry> VendorEntries { get; set; }
+        public DbSet<VendorItemEntry> VendorItemEntries { get; set; }
+        public DbSet<WeaponClassEntry> WeaponClassEntries { get; set; }
 
         protected override DatabaseConnectionConfiguration GetDatabaseConnectionConfiguration()
         {
@@ -59,28 +81,6 @@ namespace Rasa.Context.World
         {
             modelBuilder.Entity<RandomNameEntry>()
                 .Property(e => e.Type)
-                .AsUnsignedTinyInt(_dbContextPropertyModifier, 3);
-
-            modelBuilder.Entity<RandomNameEntry>()
-                .Property(e => e.Gender)
-                .AsUnsignedTinyInt(_dbContextPropertyModifier, 3);
-
-            modelBuilder.Entity<RandomNameEntry>().HasKey(e => new { e.Name, e.Type, e.Gender });
-        }
-
-        private void SetupItemTemplateItemClass(ModelBuilder modelBuilder)
-        {
-            modelBuilder.Entity<ItemTemplateItemClassEntry>()
-                .Property(e => e.ItemTemplateId)
-                .AsIdColumn(_dbContextPropertyModifier)
-                .HasAnnotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.None);
-
-            modelBuilder.Entity<ItemTemplateItemClassEntry>()
-                .Property(e => e.ItemClass)
-                .AsUnsignedInt(_dbContextPropertyModifier, 11);
-        }
-    }
-}
                 .AsUnsignedTinyInt(_dbContextPropertyModifier, 3);
 
             modelBuilder.Entity<RandomNameEntry>()

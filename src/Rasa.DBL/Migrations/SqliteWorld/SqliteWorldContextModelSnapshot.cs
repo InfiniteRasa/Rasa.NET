@@ -16,62 +16,62 @@ namespace Rasa.Migrations.SqliteWorld
             modelBuilder
                 .HasAnnotation("ProductVersion", "5.0.1");
 
-            modelBuilder.Entity("Rasa.Structures.World.ExperienceForLevelEntry", b =>
+            modelBuilder.Entity("Rasa.Structures.World.ArmorClassEntry", b =>
                 {
-                    b.Property<uint>("Level")
+                    b.Property<uint>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("level")
-                        .HasAnnotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.None);
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("class_id");
 
-                    b.Property<long>("Experience")
-                        .HasColumnType("bigint(20)")
-                        .HasColumnName("experience");
+                    b.Property<uint>("MaxDamageAbsorbed")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("max_damage_absorbed");
 
-                    b.HasKey("Level");
+                    b.Property<uint>("MinDamageAbsorbed")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("min_damage_absorbed");
 
-                    b.ToTable("player_exp_for_level");
+                    b.Property<int>("RegenRate")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("regen_rate");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("armorclass");
                 });
 
-            modelBuilder.Entity("Rasa.Structures.World.ItemTemplateItemClassEntry", b =>
+            modelBuilder.Entity("Rasa.Structures.World.CreatureActionEntry", b =>
                 {
-                    b.Property<uint>("ItemTemplateId")
+                    b.Property<uint>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("itemTemplateId")
-                        .HasAnnotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.None);
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("id");
 
-                    b.Property<uint>("ItemClass")
-                        .HasColumnType("int(11)")
-                        .HasColumnName("itemClassId");
+                    b.Property<uint>("ActionArgId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("action_arg_id");
 
-                    b.HasKey("ItemTemplateId");
+                    b.Property<uint>("ActionId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("action_id");
 
-                    b.ToTable("itemtemplate_itemclass");
-                });
+                    b.Property<uint>("Cooldown")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("cooldown");
 
-            modelBuilder.Entity("Rasa.Structures.World.RandomNameEntry", b =>
-                {
-                    b.Property<string>("Name")
-                        .HasColumnType("varchar(64)")
-                        .HasColumnName("name");
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("description");
 
-                    b.Property<byte>("Type")
-                        .HasColumnType("tinyint(3)")
-                        .HasColumnName("type");
+                    b.Property<uint>("MaxDamage")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("max_damage");
 
-                    b.Property<byte>("Gender")
-                        .HasColumnType("tinyint(3)")
-                        .HasColumnName("gender");
+                    b.Property<uint>("MinDamage")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("min_damage");
 
-                    b.HasKey("Name", "Type", "Gender");
-
-                    b.ToTable("player_random_name");
-                });
-#pragma warning restore 612, 618
-        }
-    }
-}
                     b.Property<double>("RangeMax")
                         .HasColumnType("REAL")
                         .HasColumnName("range_max");

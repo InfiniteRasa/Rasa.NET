@@ -35,8 +35,8 @@ namespace Rasa
             }
             catch (Exception e)
             {
-                Logger.WriteLog(LogType.Error, "Auth server ended unexpectedly. Exception:");
-                Logger.WriteLog(LogType.Error, e);
+                Console.WriteLine("Auth server ended unexpectedly. Exception:");
+                Console.WriteLine(e);
                 return e.HResult;
             }
         }

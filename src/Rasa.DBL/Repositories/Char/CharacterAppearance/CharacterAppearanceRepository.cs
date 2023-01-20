@@ -1,9 +1,9 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Linq;
+using System.Collections.Generic;
 
 namespace Rasa.Repositories.Char.CharacterAppearance
 {
-    using System;
-    using System.Linq;
     using Context.Char;
     using Structures.Char;
 
@@ -40,25 +40,25 @@ namespace Rasa.Repositories.Char.CharacterAppearance
             }
         }
 
-        public void DeleteForChar(uint characterId)
-        {
-            var characterAppearances = _charContext.CreateTrackingQuery(_charContext.CharacterAppearanceEntries)
-                .Where(e => e.CharacterId == characterId);
-            _charContext.CharacterAppearanceEntries.RemoveRange(characterAppearances);
-        }
-
-        public List<CharacterAppearanceEntry> GetByCharacterId(uint characterId)
+        public void AddOrUpdate(uint characterId, CharacterAppearanceEntry newEntry)
         {
             var query = _charContext.CreateNoTrackingQuery(_charContext.CharacterAppearanceEntries);
-            var characterAppearances = query.Where(e => e.CharacterId == characterId).ToList();
-            if (characterAppearances == null)
+            var appearanceEntry = query.FirstOrDefault(e => e.CharacterId == characterId && e.Slot == newEntry.Slot);
+
+            if (appearanceEntry != null)
             {
-                throw new EntityNotFoundException(nameof(CharacterAppearanceEntry), $"{nameof(CharacterEntry.Id)}", $"{characterId}");
+                appearanceEntry.Class = newEntry.Class;
+                appearanceEntry.Color = newEntry.Color;
+
+                _charContext.CharacterAppearanceEntries.Update(appearanceEntry);
             }
-            return characterAppearances;
+            else
+            {
+                newEntry.CharacterId = characterId;
+
+                _charContext.CharacterAppearanceEntries.Add(newEntry);
+            }
         }
-    }
-}
 
         public void DeleteForChar(uint characterId)
         {

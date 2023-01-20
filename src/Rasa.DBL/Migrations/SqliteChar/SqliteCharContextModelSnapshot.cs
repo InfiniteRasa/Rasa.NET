@@ -17,6 +17,46 @@ namespace Rasa.Migrations.SqliteChar
             modelBuilder
                 .HasAnnotation("ProductVersion", "5.0.1");
 
+            modelBuilder.Entity("Rasa.Structures.Char.CensorWordsEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Word")
+                        .IsRequired()
+                        .HasColumnType("varchar(45)")
+                        .HasColumnName("word");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("censor_words");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.Char.CharacterAbilityDrawerEntry", b =>
+                {
+                    b.Property<uint>("CharacterId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("character_id");
+
+                    b.Property<int>("AbilitySlot")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("abilitiy_slot");
+
+                    b.Property<int>("AbilityId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ability_id");
+
+                    b.Property<uint>("AbilityLevel")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ability_level");
+
+                    b.HasKey("CharacterId", "AbilitySlot");
+
+                    b.ToTable("character_ability_drawer");
+                });
+
             modelBuilder.Entity("Rasa.Structures.Char.CharacterAppearanceEntry", b =>
                 {
                     b.Property<uint>("CharacterId")
@@ -51,7 +91,11 @@ namespace Rasa.Migrations.SqliteChar
                         .HasColumnType("integer")
                         .HasColumnName("account_id");
 
-                    b.Property<uint>("Body")
+                    b.Property<byte>("ActiveWeapon")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("active_weapon");
+
+                    b.Property<int>("Body")
                         .HasColumnType("int(11)")
                         .HasColumnName("body");
 
@@ -83,6 +127,10 @@ namespace Rasa.Migrations.SqliteChar
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("datetime('now')");
 
+                    b.Property<int>("Credit")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("credit");
+
                     b.Property<byte>("CrouchState")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(3)")
@@ -106,6 +154,10 @@ namespace Rasa.Migrations.SqliteChar
                         .HasColumnName("last_login")
                         .HasDefaultValueSql("datetime('now')");
 
+                    b.Property<DateTime>("LastPvPClan")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("last_pvp_clan");
+
                     b.Property<byte>("Level")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("tinyint(3)")
@@ -116,7 +168,7 @@ namespace Rasa.Migrations.SqliteChar
                         .HasColumnType("int(11)")
                         .HasColumnName("map_context_id");
 
-                    b.Property<uint>("Mind")
+                    b.Property<int>("Mind")
                         .HasColumnType("int(11)")
                         .HasColumnName("mind");
 
@@ -130,6 +182,10 @@ namespace Rasa.Migrations.SqliteChar
                         .HasColumnType("int(11)")
                         .HasDefaultValue(0u)
                         .HasColumnName("num_logins");
+
+                    b.Property<int>("Prestige")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("prestige");
 
                     b.Property<byte>("Race")
                         .HasColumnType("tinyint(3)")
@@ -153,7 +209,7 @@ namespace Rasa.Migrations.SqliteChar
                         .HasColumnType("tinyint(3)")
                         .HasColumnName("slot");
 
-                    b.Property<uint>("Spirit")
+                    b.Property<int>("Spirit")
                         .HasColumnType("int(11)")
                         .HasColumnName("spirit");
 
@@ -170,181 +226,125 @@ namespace Rasa.Migrations.SqliteChar
                     b.ToTable("character");
                 });
 
-            modelBuilder.Entity("Rasa.Structures.Char.ClanEntry", b =>
+            modelBuilder.Entity("Rasa.Structures.Char.CharacterInventoryEntry", b =>
                 {
-                    b.Property<uint>("Id")
+                    b.Property<uint>("ItemId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("item_id");
 
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT")
-                        .HasColumnName("created_at")
-                        .HasDefaultValueSql("datetime('now')");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("varchar(100)")
-                        .HasColumnName("name");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("clan");
-                });
-
-            modelBuilder.Entity("Rasa.Structures.Char.ClanMemberEntry", b =>
-                {
-                    b.Property<uint>("ClanId")
-                        .HasColumnType("integer")
-                        .HasColumnName("clan_id");
+                    b.Property<uint>("AccountId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("account_id");
 
                     b.Property<uint>("CharacterId")
-                        .HasColumnType("integer")
+                        .HasColumnType("INTEGER")
                         .HasColumnName("character_id");
 
-                    b.Property<byte>("Rank")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(3)")
-                        .HasDefaultValue((byte)0)
-                        .HasColumnName("rank");
+                    b.Property<uint>("InventoryType")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("invenotry_type");
 
-                    b.HasKey("ClanId", "CharacterId");
+                    b.Property<uint>("SlotId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("slot_id");
 
-                    b.HasIndex(new[] { "CharacterId" }, "clan_member_index_character")
-                        .IsUnique();
+                    b.HasKey("ItemId");
 
-                    b.ToTable("clan_member");
+                    b.ToTable("character_inventory");
                 });
 
-            modelBuilder.Entity("Rasa.Structures.Char.GameAccountEntry", b =>
+            modelBuilder.Entity("Rasa.Structures.Char.CharacterLockboxEntry", b =>
                 {
-                    b.Property<uint>("Id")
+                    b.Property<uint>("AccountId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id")
-                        .HasAnnotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.None);
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("account_id");
 
-                    b.Property<bool>("CanSkipBootcamp")
+                    b.Property<int>("Credits")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("credits");
+
+                    b.Property<int>("PurashedTabs")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("purashed_tabs");
+
+                    b.HasKey("AccountId");
+
+                    b.ToTable("character_lockbox");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.Char.CharacterLogosEntry", b =>
+                {
+                    b.Property<uint>("CharacterId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("character_id");
+
+                    b.Property<uint>("LogosId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("logos_id");
+
+                    b.HasKey("CharacterId", "LogosId");
+
+                    b.ToTable("character_logos");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.Char.CharacterMissionEntry", b =>
+                {
+                    b.Property<uint>("CharacterId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false)
-                        .HasColumnName("can_skip_bootcamp");
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("character_id");
 
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT")
-                        .HasColumnName("created_at")
-                        .HasDefaultValueSql("datetime('now')");
+                    b.Property<uint>("MissionId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("mission_id");
 
-                    b.Property<string>("Email")
+                    b.Property<uint>("MissionState")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("mission_state");
+
+                    b.HasKey("CharacterId");
+
+                    b.ToTable("character_mission");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.Char.CharacterOptionEntry", b =>
+                {
+                    b.Property<uint>("CharacterId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("character_id");
+
+                    b.Property<uint>("OptionId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("option_id");
+
+                    b.Property<string>("Value")
                         .IsRequired()
-                        .HasColumnType("varchar(255)")
-                        .HasColumnName("email");
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("value");
 
-                    b.Property<string>("FamilyName")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("varchar(64)")
-                        .HasDefaultValue("")
-                        .HasColumnName("family_name");
+                    b.HasKey("CharacterId", "OptionId");
 
-                    b.Property<string>("LastIp")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("varchar(15)")
-                        .HasDefaultValue("0.0.0.0")
-                        .HasColumnName("last_ip");
-
-                    b.Property<DateTime>("LastLogin")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT")
-                        .HasColumnName("last_login")
-                        .HasDefaultValueSql("datetime('now')");
-
-                    b.Property<byte>("Level")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(3)")
-                        .HasDefaultValue((byte)0)
-                        .HasColumnName("level");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("varchar(64)")
-                        .HasColumnName("name");
-
-                    b.Property<byte>("SelectedSlot")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(3)")
-                        .HasDefaultValue((byte)0)
-                        .HasColumnName("selected_slot");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("account");
+                    b.ToTable("character_option");
                 });
 
-            modelBuilder.Entity("Rasa.Structures.Char.CharacterAppearanceEntry", b =>
+            modelBuilder.Entity("Rasa.Structures.Char.CharacterSkillsEntry", b =>
                 {
-                    b.HasOne("Rasa.Structures.Char.CharacterEntry", "Character")
-                        .WithMany("CharacterAppearance")
-                        .HasForeignKey("CharacterId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                    b.Property<uint>("CharacterId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("character_id");
 
-                    b.Navigation("Character");
-                });
+                    b.Property<uint>("SkillId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("skill_id");
 
-            modelBuilder.Entity("Rasa.Structures.Char.CharacterEntry", b =>
-                {
-                    b.HasOne("Rasa.Structures.Char.GameAccountEntry", "GameAccount")
-                        .WithMany("Characters")
-                        .HasForeignKey("AccountId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                    b.Property<int>("AbilityId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ability_id");
 
-                    b.Navigation("GameAccount");
-                });
-
-            modelBuilder.Entity("Rasa.Structures.Char.ClanMemberEntry", b =>
-                {
-                    b.HasOne("Rasa.Structures.Char.CharacterEntry", "Character")
-                        .WithOne("MemberOfClan")
-                        .HasForeignKey("Rasa.Structures.Char.ClanMemberEntry", "CharacterId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Rasa.Structures.Char.ClanEntry", "Clan")
-                        .WithMany("Members")
-                        .HasForeignKey("ClanId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Character");
-
-                    b.Navigation("Clan");
-                });
-
-            modelBuilder.Entity("Rasa.Structures.Char.CharacterEntry", b =>
-                {
-                    b.Navigation("CharacterAppearance");
-
-                    b.Navigation("MemberOfClan");
-                });
-
-            modelBuilder.Entity("Rasa.Structures.Char.ClanEntry", b =>
-                {
-                    b.Navigation("Members");
-                });
-
-            modelBuilder.Entity("Rasa.Structures.Char.GameAccountEntry", b =>
-                {
-                    b.Navigation("Characters");
-                });
-#pragma warning restore 612, 618
-        }
-    }
-}
+                    b.Property<int>("SkillLevel")
+                        .HasColumnType("INTEGER")
                         .HasColumnName("skill_level");
 
                     b.HasKey("CharacterId", "SkillId");

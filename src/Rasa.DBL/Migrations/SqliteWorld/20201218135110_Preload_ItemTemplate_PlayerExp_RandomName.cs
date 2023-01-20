@@ -15,7 +15,7 @@ namespace Rasa.Migrations.SqliteWorld
     {
         private readonly ICollection<IPreloader> _preloaders = new List<IPreloader>
         {
-            new ItemTemplatePreloader(),
+            new ItemTemplateItemClassPreloader(),
             new ExperienceForLevelPreloader(),
             new RandomNamePreloader()
         };

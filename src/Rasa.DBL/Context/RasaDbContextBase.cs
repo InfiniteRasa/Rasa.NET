@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -98,11 +99,10 @@ namespace Rasa.Context
         {
             if (_databaseConfiguration.Value.GetDatabaseProvider() == DatabaseProvider.Sqlite)
             {
+                Console.WriteLine($"Please wait, loading Sqlite database...");
                 this.Database.Migrate();
+                Console.WriteLine("Database ready.");
             }
-        }
-    }
-}
         }
     }
 }
