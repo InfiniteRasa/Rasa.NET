@@ -28,6 +28,8 @@ namespace Rasa.Game
     {
         private readonly IGameUnitOfWorkFactory _gameUnitOfWorkFactory;
 
+        private readonly ICharacterManager _characterManager;
+
         public const int LengthSize = 2;
 
         public Server Server { get; private set; }
@@ -58,8 +60,14 @@ namespace Rasa.Game
         public Client(
             IGameUnitOfWorkFactory gameUnitOfWorkFactory,
             ClientPacketHandler handler)
+            ClientPacketHandler handler)
         {
             _gameUnitOfWorkFactory = gameUnitOfWorkFactory;
+            _characterManager = characterManager;
+
+            _handler = handler;
+            _handler.RegisterClient(this);
+        }
 
             _handler = handler;
             _handler.RegisterClient(this);
@@ -251,6 +259,23 @@ namespace Rasa.Game
                     using (var unitOfWork = _gameUnitOfWorkFactory.CreateChar())
                     {
                         unitOfWork.GameAccounts.CreateOrUpdate(loginEntry.Id, loginEntry.Name, loginEntry.Email);
+
+                        if (Server.IsBanned(loginMsg.AccountId))
+                        {
+                            Logger.WriteLog(LogType.Error, "Client with ip: {0} tried to log in while the account is banned! User Id: {1}", Socket.RemoteAddress, loginMsg.AccountId);
+
+                            SendMessage(new LoginResponseMessage
+                            {
+                                ErrorCode = LoginErrorCodes.AccountLocked,
+                                Subtype = LoginResponseMessageSubtype.Failed
+                            }, delay: false);
+
+                            return;
+                        }
+
+                    using (var unitOfWork = _gameUnitOfWorkFactory.CreateChar())
+                    {
+                        unitOfWork.GameAccounts.CreateOrUpdate(loginEntry.Id, loginEntry.Name, loginEntry.Email);
                         // for now set all account to GM status
                         unitOfWork.GameAccounts.UpdateAccountLevel(loginEntry.Id, 1);
 
@@ -294,7 +319,7 @@ namespace Rasa.Game
 
                     State = ClientState.LoggedIn;
 
-                    CharacterManager.Instance.StartCharacterSelection(this);
+                    _characterManager.StartCharacterSelection(this);
                     break;
 
                 case ClientMessageOpcode.Move:

@@ -70,10 +70,13 @@ namespace Rasa.Memory
         public PythonStruct ReadUnkStruct()
         {
             var val = Reader.ReadByte();
-
             return val switch
             {
                 0x00 => PythonStruct.None,
+                0x01 => PythonStruct.True,
+                0x02 => PythonStruct.Zero,
+                _ => throw new Exception($"Expected NoneStruct, TrueStruct or ZeroStruct, found data: {val:X2}"),
+            };
                 0x01 => PythonStruct.True,
                 0x02 => PythonStruct.Zero,
                 _ => throw new Exception($"Expected NoneStruct, TrueStruct or ZeroStruct, found data: {val:X2}"),

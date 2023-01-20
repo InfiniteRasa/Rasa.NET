@@ -10,8 +10,6 @@ namespace Rasa.Repositories.Char.GameAccount
 
         GameAccountEntry Get(uint id);
 
-        GameAccountEntry Get(string name);
-
         bool CanChangeFamilyName(uint id, string newFamilyName);
 
         void UpdateFamilyName(uint id, string newFamilyName);
@@ -19,6 +17,8 @@ namespace Rasa.Repositories.Char.GameAccount
         void UpdateLoginData(uint id, IPAddress remoteAddress);
 
         void UpdateSelectedSlot(uint id, byte selectedSlot);
+    }
+}
 
         void UpdateAccountLevel(uint id, byte level);
     }

@@ -25,6 +25,17 @@ namespace Rasa.Structures
             Hue2 = new Color(2139062144);     // ToDO: get and save hue2 to database
         }
 
+        public AppearanceData()
+        {
+        }
+
+        public AppearanceData(CharacterAppearanceEntry entry)
+        {
+            SlotId = (EquipmentData) entry.Slot;
+            Class = entry.Class;
+            Color = new Color(entry.Color);
+        }
+
         public void Read(PythonReader pr)
         {
             SlotId = (EquipmentData) pr.ReadUInt();
@@ -54,6 +65,7 @@ namespace Rasa.Structures
                 Slot = (uint) SlotId,
                 Class = Class,
                 Color = Color.Hue
+            };
             };
         }
     }

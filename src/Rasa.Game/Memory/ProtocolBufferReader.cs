@@ -165,7 +165,7 @@ namespace Rasa.Memory
         public Movement ReadMovement()
         {
             this.ReadDebugByte(41);
-
+            this.ReadDebugByte(3);
             this.ReadDebugByte(3);
             var unknownByte = this.ReadByte();
 

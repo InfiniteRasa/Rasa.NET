@@ -17,21 +17,14 @@ namespace Rasa.Managers
     using Repositories.World;
     using Structures;
     using Structures.Char;
-
-    public class CharacterManager
+    
+    public class CharacterManager : ICharacterManager
     {
-        private static CharacterManager _instance;
-        private static readonly object InstanceLock = new object();
         private readonly object _createLock = new();
         private readonly IGameUnitOfWorkFactory _gameUnitOfWorkFactory;
 
         public const ulong SelectionPodStartEntityId = 100;
         public const byte MaxSelectionPods = 16;
-
-        public static CharacterManager Instance
-        {
-            get
-            {
                 // ReSharper disable once InvertIf
                 if (_instance == null)
                 {
@@ -40,15 +33,14 @@ namespace Rasa.Managers
                         if (_instance == null)
                             _instance = new CharacterManager(Server.GameUnitOfWorkFactory);
                     }
-                }
 
-                return _instance;
-            }
-        }
+        private readonly IGameUnitOfWorkFactory _gameUnitOfWorkFactory;
+        private readonly IMapChannelManager _mapChannelManager;
 
         public CharacterManager(IGameUnitOfWorkFactory gameUnitOfWorkFactory)
         {
             _gameUnitOfWorkFactory = gameUnitOfWorkFactory;
+            _mapChannelManager = mapChannelManager;
         }
 
         public void StartCharacterSelection(Client client)
@@ -57,7 +49,7 @@ namespace Rasa.Managers
                 return;
 
             client.CallMethod(SysEntity.ClientMethodId, new BeginCharacterSelectionPacket(client.AccountEntry.FamilyName, client.AccountEntry.Characters.Any(), client.AccountEntry.Id, client.AccountEntry.CanSkipBootcamp));
-
+            
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
             var charactersBySlot = unitOfWork.Characters.GetByAccountId(client.AccountEntry.Id);
 

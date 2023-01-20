@@ -4,30 +4,30 @@ namespace Rasa.Repositories.Char
 {
     using Character;
     using CharacterAppearance;
-    using Clan;
-    using ClanInventory;
-    using ClanMember;
     using Context.Char;
     using GameAccount;
-    using CensorWord;
-    using CharacterAbilityDrawer;
-    using CharacterInventory;
-    using CharacterLockbox;
-    using CharacterLogos;
-    using CharacterMission;
-    using CharacterOption;
-    using CharacterSkills;
-    using CharacterTeleporter;
-    using CharacterTitle;
-    using Friend;
-    using Ignored;
-    using Items;
-    using UserOption;
     using UnitOfWork;
 
     public class CharUnitOfWork : UnitOfWork, ICharUnitOfWork
     {
         [SuppressMessage("ReSharper", "SuggestBaseTypeForParameter", Justification = "Required for DI")]
+        public CharUnitOfWork(CharContext dbContext,
+            IGameAccountRepository gameAccounts, 
+            ICharacterRepository characters, 
+            ICharacterAppearanceRepository characterAppearances) : base(dbContext)
+        {
+            GameAccounts = gameAccounts;
+            Characters = characters;
+            CharacterAppearances = characterAppearances;
+        }
+
+        public IGameAccountRepository GameAccounts { get; }
+
+        public ICharacterRepository Characters { get; }
+
+        public ICharacterAppearanceRepository CharacterAppearances { get; }
+    }
+}
         public CharUnitOfWork(CharContext dbContext,
             IGameAccountRepository gameAccounts,
             ICensoredWordRepository censoredWords,

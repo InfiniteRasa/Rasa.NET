@@ -1,7 +1,8 @@
-﻿using Microsoft.EntityFrameworkCore;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+
+using Microsoft.EntityFrameworkCore;
 
 namespace Rasa.Repositories.Char.Character
 {
@@ -114,10 +115,9 @@ namespace Rasa.Repositories.Char.Character
             entry.CoordY = characterChange.Position.Y;
             entry.CoordZ = characterChange.Position.Z;
             entry.Rotation = characterChange.Rotation;
-            entry.MapContextId= characterChange.MapContextId;
         }
-
-        public void UpdateCharacterAttributes(uint id, int spentBody, int spentMind, int spentSpirit)
+    }
+}
         {
             var query = _charContext.CreateNoTrackingQuery(_charContext.CharacterEntries);
             var entry = query.Where(e => e.Id == id).FirstOrDefault();
