@@ -8,20 +8,20 @@
         public uint ClanId { get; set; }
         public string ClanName { get; set; }
         public bool IsPvP { get; set; }
-        public uint InvitedCharacterId { get; set; }
+        public ulong InvitedCharacterEntityId { get; set; }
 
         public ClanInviteData()
         {
 
         }
 
-        public ClanInviteData(string inviterFamilyName, uint clanId, string clanName, bool isPvP, uint invitedCharacterId)
+        public ClanInviteData(string inviterFamilyName, uint clanId, string clanName, bool isPvP, ulong invitedCharacterEntityId)
         {
             InviterFamilyName = inviterFamilyName;
             ClanId = clanId;
             ClanName = clanName;
             IsPvP = isPvP;
-            InvitedCharacterId = invitedCharacterId;
+            InvitedCharacterEntityId = invitedCharacterEntityId;
         }
 
         public void Read(PythonReader pr)
@@ -31,7 +31,7 @@
             ClanId = pr.ReadUInt();
             ClanName = pr.ReadString();
             IsPvP = pr.ReadBool();
-            InvitedCharacterId = pr.ReadUInt();
+            InvitedCharacterEntityId = pr.ReadULong();
         }
 
         public void Write(PythonWriter pw)
@@ -41,7 +41,7 @@
             pw.WriteUInt(ClanId);
             pw.WriteString(ClanName);
             pw.WriteBool(IsPvP);
-            pw.WriteUInt(InvitedCharacterId);
+            pw.WriteULong(InvitedCharacterEntityId);
         }
     }
 }

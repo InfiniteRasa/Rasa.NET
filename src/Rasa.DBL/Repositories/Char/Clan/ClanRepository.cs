@@ -39,8 +39,6 @@ namespace Rasa.Repositories.Char.Clan
             _charContext.ClanEntries.Add(entry);
             _charContext.SaveChanges();
 
-            entry.Id = _charContext.ClanEntries.Last().Id;
-
             return entry;
         }
 

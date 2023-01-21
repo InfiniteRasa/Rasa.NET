@@ -232,6 +232,7 @@ namespace Rasa.Managers
 
             if (dynamicObject.EntityClassId == 0)
                 return;
+				
             var classInfo = EntityClassManager.Instance.GetClassInfo(EntityManager.Instance.GetEntityClassId(dynamicObject.EntityId));
 
             if (classInfo == null)

@@ -7,14 +7,14 @@
     {
         public override GameOpcode Opcode => GameOpcode.ClanInvitationResponse;
 
-        public uint InvitedCharacterId { get; set; }
+        public ulong InvitedCharacterEntityId { get; set; }
         public bool Accepted { get; set; }
         public uint ClanId { get; set; }
 
         public override void Read(PythonReader pr)
         {
             pr.ReadTuple();
-            InvitedCharacterId = pr.ReadUInt();
+            InvitedCharacterEntityId = pr.ReadULong();
             Accepted = pr.ReadBool();
             ClanId = pr.ReadUInt();
         }

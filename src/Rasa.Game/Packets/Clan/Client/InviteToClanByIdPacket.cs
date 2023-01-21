@@ -7,12 +7,12 @@
     {
         public override GameOpcode Opcode => GameOpcode.InviteToClanById;
 
-        public uint CharacterId { get; set; }
+        public ulong CharacterEntityId { get; set; }
 
         public override void Read(PythonReader pr)
         {
             pr.ReadTuple();
-            CharacterId = pr.ReadUInt();                
+            CharacterEntityId = pr.ReadULong();                
         }
     }
 }

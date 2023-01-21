@@ -63,6 +63,9 @@ namespace Rasa.Repositories.Char.ClanMember
                 Note = note
             };
 
+            _charContext.ClanMemberEntries.Add(entry);
+            _charContext.SaveChanges();
+
             return true;
         }
 
