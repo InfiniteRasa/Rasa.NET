@@ -8,7 +8,8 @@ namespace Rasa.Repositories.World
 
     public interface ICreatureActionRepository
     {
-        List<CreatureActionEntry> Get();
+        CreatureActionEntry Get(uint id);
+        Dictionary<uint,CreatureActionEntry> Get();
     }
 
     public class CreatureActionRepository : ICreatureActionRepository
@@ -20,12 +21,20 @@ namespace Rasa.Repositories.World
             _worldContext = worldContext;
         }
 
-        public List<CreatureActionEntry> Get()
+        public CreatureActionEntry Get(uint id)
         {
             var query = _worldContext.CreateNoTrackingQuery(_worldContext.CreatureActionEntries);
-            var creatureActionEntries = query.ToList();
+            var entry = query.Where(e => e.Id == id).FirstOrDefault();
 
-            return creatureActionEntries;
+            return entry;
+        }
+
+        public Dictionary<uint, CreatureActionEntry> Get()
+        {
+            var query = _worldContext.CreateNoTrackingQuery(_worldContext.CreatureActionEntries);
+            var entres = query.ToDictionary(e => e.Id, e => e);
+
+            return entres;
         }
     }
 }

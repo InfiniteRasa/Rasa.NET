@@ -11,8 +11,8 @@ namespace Rasa.Managers
     using Packets.Game.Server;
     using Packets.MapChannel.Server;
     using Repositories.UnitOfWork;
-    using Repositories.World;
     using Structures;
+
 
     public class CreatureManager
     {
@@ -27,8 +27,7 @@ namespace Rasa.Managers
         private static CreatureManager _instance;
         private static readonly object InstanceLock = new object();
         public const long CreatureLocationUpdateTime = 1500;
-        public readonly Dictionary<uint, Creature> LoadedCreatures = new Dictionary<uint, Creature>();
-        public readonly Dictionary<uint, CreatureAction> CreatureActions = new Dictionary<uint, CreatureAction>();
+        public Dictionary<uint, Creature> LoadedCreatures = new();
         private readonly IGameUnitOfWorkFactory _gameUnitOfWorkFactory;
         public static CreatureManager Instance
         {
@@ -175,10 +174,10 @@ namespace Rasa.Managers
             }
 
             // crate creature
-            var creature = new Creature(LoadedCreatures[dbId])
-            {
-                SpawnPool = spawnPool
-            };
+            var creatureEntry = LoadedCreatures[dbId];
+            var creature = (Creature)creatureEntry.Clone();
+
+            creature.SpawnPool = spawnPool;
 
             creature.State = CharacterState.Idle;
             creature.Name = EntityClassManager.Instance.LoadedEntityClasses[creature.EntityClass].ClassName;
@@ -295,21 +294,13 @@ namespace Rasa.Managers
             client.MoveObject(creature.EntityId, movementData);
         }
 
-        public Creature FindCreature(uint creatureId)
-        {
-            return LoadedCreatures[creatureId];
-        }
-
         public void CreatureInit()
         {
             using var unitOfWork = _gameUnitOfWorkFactory.CreateWorld();
             var creatureList = unitOfWork.Creatures.Get();
-            var cratureActions = unitOfWork.CreatureActions.Get();
             var vendorsList = unitOfWork.Vendors.Get();
             var vendorItemList = unitOfWork.VendorItems.Get();
-
-            foreach (var action in cratureActions)
-                CreatureActions.Add(action.Id, new CreatureAction(action));
+            var creatureActions = unitOfWork.CreatureActions.Get();
 
             foreach (var data in creatureList)
             {
@@ -352,29 +343,28 @@ namespace Rasa.Managers
                     foreach (var t in appearanceData)
                         tempAppearanceData.Add((EquipmentData)t.SlotId, new AppearanceData { SlotId = (EquipmentData)t.SlotId, Class = t.ClassId, Color = new Color(t.Color), Hue2 = new Color(2139062144) });
 
-                // load Creature Actions
-                if (data.Action1 != 0)
-                    actions.Add(CreatureActions[data.Action1]);
-                if (data.Action2 != 0)
-                    actions.Add(CreatureActions[data.Action2]);
-                if (data.Action3 != 0)
-                    actions.Add(CreatureActions[data.Action3]);
-                if (data.Action4 != 0)
-                    actions.Add(CreatureActions[data.Action4]);
-                if (data.Action5 != 0)
-                    actions.Add(CreatureActions[data.Action5]);
-                if (data.Action6 != 0)
-                    actions.Add(CreatureActions[data.Action6]);
-                if (data.Action7 != 0)
-                    actions.Add(CreatureActions[data.Action7]);
-                if (data.Action8 != 0)
-                    actions.Add(CreatureActions[data.Action8]);
-
                 var creature = new Creature(data)
                 {
                     AppearanceData = tempAppearanceData,
-                    Actions = actions
                 };
+
+                // load Creature Actions
+                if (data.Action1 != 0)
+                    creature.Actions.Add(new CreatureAction(creatureActions[data.Action1]));
+                if (data.Action2 != 0)
+                    creature.Actions.Add(new CreatureAction(creatureActions[data.Action2]));
+                if (data.Action3 != 0)
+                    creature.Actions.Add(new CreatureAction(creatureActions[data.Action3]));
+                if (data.Action4 != 0)
+                    creature.Actions.Add(new CreatureAction(creatureActions[data.Action4]));
+                if (data.Action5 != 0)
+                    creature.Actions.Add(new CreatureAction(creatureActions[data.Action5]));
+                if (data.Action6 != 0)
+                    creature.Actions.Add(new CreatureAction(creatureActions[data.Action6]));
+                if (data.Action7 != 0)
+                    creature.Actions.Add(new CreatureAction(creatureActions[data.Action7]));
+                if (data.Action8 != 0)
+                    creature.Actions.Add(new CreatureAction(creatureActions[data.Action8]));
 
                 if (isNpc != null)
                     creature.Npc = isNpc;
@@ -421,7 +411,6 @@ namespace Rasa.Managers
                         }
                     }
                 }
-
                 LoadedCreatures.Add(creature.DbId, creature);
             }
 

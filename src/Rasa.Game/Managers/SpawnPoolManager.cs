@@ -156,7 +156,7 @@ namespace Rasa.Managers
                     var spawnCreatureCount = new Random().Next(spawnSlot.CountMin, spawnSlot.CountMax + 1);
 
                     for (var i = 0; i < spawnCreatureCount; i++)
-                        creatureList.Add(CreatureManager.Instance.FindCreature(spawnSlot.CreatureId));
+                        creatureList.Add(new Creature(CreatureManager.Instance.LoadedCreatures[spawnSlot.CreatureId]));
 
                     if (creatureList.Count > 63)    // cannot spawn more than 64 creatures at once
                         break;

@@ -195,7 +195,6 @@ namespace Rasa.Game
             ChatCommandsManager.Instance.RegisterChatCommands();
             MapChannelManager.Instance.MapChannelInit();
             ClanManager.Instance.ClansInit();
-            LogosManager.Instance.LogosInit();
             DynamicObjectManager.Instance.InitDynamicObjects();
             MapTriggerManager.Instance.MapTriggerInit();
 

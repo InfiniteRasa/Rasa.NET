@@ -86,6 +86,7 @@ namespace Rasa.Managers
             RegisterCommand(".gm", EnterGmModCommand);
             RegisterCommand(".forcestate", ForceStateCommand);
             RegisterCommand(".help", HelpGmCommand);
+            RegisterCommand(".neer", NeerCommand);
             RegisterCommand(".npcinfo", NpcInfoCommand);
             RegisterCommand(".reloadcreatures", ReloadCreaturesCommand);
             RegisterCommand(".removeobj", RemoveObjectCommand);
@@ -386,6 +387,34 @@ namespace Rasa.Managers
             return;
         }
 
+        private void NeerCommand(string[] parts)
+        {
+            var listObj = new List<DynamicObject>();
+            var listCreatures = new List<Creature>();
+
+            foreach (var cellSeed in _client.Player.Cells)
+            {
+                var objects = _client.Player.MapChannel.MapCellInfo.Cells[cellSeed].DynamicObjectList;
+
+                if (objects.Count > 0)
+                {
+                    foreach (var obj in objects)
+                        Console.WriteLine($"object: entityId=> {obj.EntityId}, entityClass=> {obj.EntityClassId}, type=> {obj.DynamicObjectType}, position => {obj.Position}.");
+                }
+            }
+            foreach (var cellSeed in _client.Player.Cells)
+            {
+                var creatures = _client.Player.MapChannel.MapCellInfo.Cells[cellSeed].CreatureList;
+                if (creatures.Count > 0)
+                    foreach (var creature in creatures)
+                        Console.WriteLine($"creature: entityId=> {creature.EntityId}, entityClass=> {creature.EntityClass}, dbId=> {creature.DbId}, position => {creature.HomePos.Position}.");
+
+            }
+
+            Console.WriteLine();
+            return;
+        }
+
         private void NpcInfoCommand(string[] parts)
         {
             if (parts.Length == 1)
@@ -431,7 +460,6 @@ namespace Rasa.Managers
         private void ReloadCreaturesCommand(string[] obj)
         {
             CreatureManager.Instance.LoadedCreatures.Clear();
-            CreatureManager.Instance.CreatureActions.Clear();
             CreatureManager.Instance.CreatureInit();
             CommunicatorManager.Instance.SystemMessage(_client, "Creatures Reloaded.");
         }

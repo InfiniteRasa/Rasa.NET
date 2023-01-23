@@ -52,6 +52,7 @@ namespace Rasa.Managers
             InitControlPoints();
             InitFootlockers();
             InitTeleporters();
+            LogosManager.Instance.LogosInit();
         }
 
         internal void ForceState(DynamicObject obj, UseObjectState state, int delta)
@@ -256,7 +257,7 @@ namespace Rasa.Managers
                 return;
 
             foreach (var client in clients)
-                client.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(entityId));
+                EntityManager.Instance.DestroyPhysicalEntity(client, entityId, EntityType.Object);
         }
 
         internal void CellDiscardDynamicObjectsToClient(Client client, List<DynamicObject> discardObjects)

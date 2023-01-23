@@ -71,6 +71,9 @@ namespace Rasa.Managers
                     UnregisterItem(entityId);
                     break;
                 case EntityType.Object:
+                    FreeEntity(entityId);
+                    UnregisterEntity(entityId);
+                    UnregisterDynamicObject(entityId);
                     break;
                 case EntityType.VendorItem:
                     break;

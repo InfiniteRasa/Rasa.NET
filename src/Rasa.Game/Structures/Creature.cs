@@ -3,8 +3,10 @@
 namespace Rasa.Structures
 {
     using Data;
+    using System;
+    using System.Linq;
     using World;
-    public class Creature : Actor
+    public class Creature : Actor, ICloneable
     {
         public uint DbId { get; set; }
         // npc data (only if creature is a NPC)
@@ -77,7 +79,13 @@ namespace Rasa.Structures
             Npc = creature.Npc;
             RunSpeed = creature.RunSpeed;
             WalkSpeed = creature.WalkSpeed;
-            Actions = creature.Actions;
+            foreach (var action in creature.Actions)
+                Actions.Add(new CreatureAction((CreatureAction)action.Clone()));
+        }
+
+        public object Clone()
+        {
+            return new Creature(this);
         }
     }
 }

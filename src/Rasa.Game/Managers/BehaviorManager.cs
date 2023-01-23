@@ -461,7 +461,7 @@ namespace Rasa.Managers
                     MissileManager.Instance.MissileLaunch(mapChannel, actionData, dmg);
 
                     // set cooldown
-                    action.CooldownTimer = action.Coolodown;
+                    action.CooldownTimer = action.Cooldown;
 
                     // creature used action, break loop
                     break;
