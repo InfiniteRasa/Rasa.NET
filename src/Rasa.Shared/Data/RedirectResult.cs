@@ -1,8 +1,7 @@
-﻿namespace Rasa.Data
+﻿namespace Rasa.Data;
+
+public enum RedirectResult : byte
 {
-    public enum RedirectResult : byte
-    {
-        Fail = 0,
-        Success = 1
-    }
+    Fail = 0,
+    Success = 1
 }

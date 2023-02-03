@@ -1,11 +1,10 @@
-﻿namespace Rasa
-{
-    using Hosting;
+﻿namespace Rasa;
 
-    public class AuthHost : RasaHost
+using Rasa.Hosting;
+
+public class AuthHost : RasaHost
+{
+    public AuthHost(IRasaServer server) : base(server)
     {
-        public AuthHost(IRasaServer server) : base(server)
-        {
-        }
     }
 }

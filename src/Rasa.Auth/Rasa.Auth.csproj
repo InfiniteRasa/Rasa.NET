@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <AssemblyTitle>Rasa.NET Auth</AssemblyTitle>
-    <TargetFramework>net5.0</TargetFramework>
+    <TargetFramework>net7.0</TargetFramework>
     <AssemblyName>Rasa.Auth</AssemblyName>
     <OutputType>Exe</OutputType>
     <PackageId>Rasa.Auth</PackageId>
@@ -13,7 +13,7 @@
     <GenerateAssemblyProductAttribute>false</GenerateAssemblyProductAttribute>
     <RootNamespace>Rasa</RootNamespace>
     <StartupObject>Rasa.AuthProgram</StartupObject>
-    <LangVersion>9.0</LangVersion>
+    <LangVersion>10.0</LangVersion>
   </PropertyGroup>
 
   <ItemGroup>
@@ -27,6 +27,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Rasa.Communicator\Rasa.Communicator.csproj" />
     <ProjectReference Include="..\Rasa.DBL\Rasa.DBL.csproj" />
     <ProjectReference Include="..\Rasa.Shared\Rasa.Shared.csproj" />
     <ProjectReference Include="..\Rasa.Utils\Rasa.Utils.csproj" />

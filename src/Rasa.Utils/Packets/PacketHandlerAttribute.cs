@@ -1,20 +1,17 @@
-﻿using System;
+﻿namespace Rasa.Packets;
 
-namespace Rasa.Packets
+[AttributeUsage(AttributeTargets.Method, AllowMultiple = true, Inherited = false)]
+public class PacketHandlerAttribute : Attribute
 {
-    [AttributeUsage(AttributeTargets.Method, AllowMultiple = true, Inherited = false)]
-    public class PacketHandlerAttribute : Attribute
+    private object Opcode { get; }
+
+    public PacketHandlerAttribute(object opcode)
     {
-        private object Opcode { get; }
+        Opcode = opcode;
+    }
 
-        public PacketHandlerAttribute(object opcode)
-        {
-            Opcode = opcode;
-        }
-
-        public T GetOpcode<T>() where T : struct
-        {
-            return (T) Opcode;
-        }
+    public T GetOpcode<T>() where T : struct
+    {
+        return (T) Opcode;
     }
 }

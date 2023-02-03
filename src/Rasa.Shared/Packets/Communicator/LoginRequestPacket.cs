@@ -2,32 +2,31 @@
 using System.Net;
 using System.Net.Sockets;
 
-namespace Rasa.Packets.Communicator
+namespace Rasa.Packets.Communicator;
+
+using Rasa.Data;
+using Rasa.Extensions;
+
+public class LoginRequestPacket : IOpcodedPacket<CommOpcode>
 {
-    using Data;
-    using Extensions;
+    public CommOpcode Opcode { get; } = CommOpcode.LoginRequest;
+    public byte ServerId { get; set; }
+    public string Password { get; set; }
+    public IPAddress PublicAddress { get; set; }
 
-    public class LoginRequestPacket : IOpcodedPacket<CommOpcode>
+    public void Read(BinaryReader br)
     {
-        public CommOpcode Opcode { get; } = CommOpcode.LoginRequest;
-        public byte ServerId { get; set; }
-        public string Password { get; set; }
-        public IPAddress PublicAddress { get; set; }
+        ServerId = br.ReadByte();
+        Password = br.ReadLengthedString();
+        PublicAddress = new IPAddress(br.ReadBytes(br.ReadByte()));
+    }
 
-        public void Read(BinaryReader br)
-        {
-            ServerId = br.ReadByte();
-            Password = br.ReadLengthedString();
-            PublicAddress = new IPAddress(br.ReadBytes(br.ReadByte()));
-        }
-
-        public void Write(BinaryWriter bw)
-        {
-            bw.Write((byte) Opcode);
-            bw.Write(ServerId);
-            bw.WriteLengthedString(Password);
-            bw.Write((byte) (PublicAddress.AddressFamily == AddressFamily.InterNetwork ? 4 : 16));
-            bw.Write(PublicAddress.GetAddressBytes());
-        }
+    public void Write(BinaryWriter bw)
+    {
+        bw.Write((byte) Opcode);
+        bw.Write(ServerId);
+        bw.WriteLengthedString(Password);
+        bw.Write((byte) (PublicAddress.AddressFamily == AddressFamily.InterNetwork ? 4 : 16));
+        bw.Write(PublicAddress.GetAddressBytes());
     }
 }

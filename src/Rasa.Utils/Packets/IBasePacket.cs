@@ -1,11 +1,10 @@
 ﻿using System.IO;
 
-namespace Rasa.Packets
-{
-    public interface IBasePacket
-    {
-        void Read(BinaryReader br);
+namespace Rasa.Packets;
 
-        void Write(BinaryWriter bw);
-    }
+public interface IBasePacket
+{
+    void Read(BinaryReader br);
+
+    void Write(BinaryWriter bw);
 }

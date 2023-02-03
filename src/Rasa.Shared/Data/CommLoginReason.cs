@@ -1,8 +1,7 @@
-﻿namespace Rasa.Data
+﻿namespace Rasa.Data;
+
+public enum CommLoginReason : byte
 {
-    public enum CommLoginReason : byte
-    {
-        Success = 0,
-        Failure = 1
-    }
+    Success = 0,
+    Failure = 1
 }

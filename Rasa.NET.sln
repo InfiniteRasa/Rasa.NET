@@ -1,6 +1,6 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.31105.61
+# Visual Studio Version 17
+VisualStudioVersion = 17.4.33213.308
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{B8E6F56E-FC5A-40E5-A0B7-38A1073647FB}"
 EndProject
@@ -16,7 +16,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Rasa.Game", "src\Rasa.Game\
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Rasa.Test", "src\Rasa.Test\Rasa.Test.csproj", "{42A96BBC-A86C-44F4-BD31-93685CEB773F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Rasa.Communicator", "src\Rasa.Communicator\Rasa.Communicator.csproj", "{A7C35087-0201-456B-9AB3-0F8B1626075E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Rasa.Communicator", "src\Rasa.Communicator\Rasa.Communicator.csproj", "{A7C35087-0201-456B-9AB3-0F8B1626075E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

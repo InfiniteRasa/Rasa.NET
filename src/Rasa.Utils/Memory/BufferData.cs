@@ -1,176 +1,139 @@
-﻿using System;
-using System.IO;
-using System.Text;
+﻿using System.IO;
 
-namespace Rasa.Memory
+namespace Rasa.Memory;
+
+public class BufferData
 {
-    public class BufferData
+    public static byte[] Buffer => BufferManager.Buffer;
+    public int BaseOffset { get; set; }
+    public int RealBaseOffset { get; }
+    public int MaxLength => BufferManager.BlockSize - (BaseOffset - RealBaseOffset);
+
+    public int Offset { get; set; }
+    public int Length { get; set; }
+    public int ByteCount { get; set; }
+    public int RemainingLength => Length - Offset;
+
+    public bool Free { get; set; } = true;
+
+    public string StrData => ByteData();
+
+    public BufferData(int baseOffset)
     {
-        public byte[] Buffer => BufferManager.Buffer;
-        public int BaseOffset { get; set; }
-        public int RealBaseOffset { get; }
-        public int MaxLength => BufferManager.BlockSize - (BaseOffset - RealBaseOffset);
+        RealBaseOffset = baseOffset;
 
-        public int Offset { get; set; }
-        public int Length { get; set; }
-        public int ByteCount { get; set; }
-        public int RemainingLength => Length - Offset;
+        Reset();
+    }
 
-        public bool Free { get; set; } = true;
+    public byte this[int off]
+    {
+        get { return Buffer[BaseOffset + off]; }
+        set { Buffer[BaseOffset + off] = value; }
+    }
 
-        public string StrData => ByteData();
+    public void Reset()
+    {
+        BaseOffset = RealBaseOffset;
+        Length = MaxLength;
+        Offset = ByteCount = 0;
 
-        public BufferData(int baseOffset)
+        Clear();
+    }
+
+    public int Append(BufferData source)
+    {
+        var bytesAvailable = MaxLength - Length;
+        var bytesInSource = source.RemainingLength;
+
+        var bytesToCopy = (bytesInSource > bytesAvailable) ? bytesAvailable : bytesInSource;
+
+        if (bytesToCopy > 0)
         {
-            RealBaseOffset = baseOffset;
-
-            Reset();
+            Array.Copy(Buffer, source.BaseOffset + source.Offset, Buffer, BaseOffset + Length, bytesToCopy);
+            source.Offset += bytesToCopy;
+            Length += bytesToCopy;
         }
 
-        public byte this[int off]
+        return bytesToCopy;
+    }
+
+    public int ShiftProcessedData()
+    {
+        if (Offset > 0)
         {
-            get { return Buffer[BaseOffset + off]; }
-            set { Buffer[BaseOffset + off] = value; }
+            var pos = Offset;
+
+            Array.Copy(Buffer, BaseOffset + pos, Buffer, BaseOffset + 0, RemainingLength);
+            
+            ByteCount -= pos;
+            Length -= pos;
+            Offset = 0;
+
+            return pos;
         }
 
-        public void Reset()
-        {
-            BaseOffset = RealBaseOffset;
-            Length = MaxLength;
-            Offset = ByteCount = 0;
+        return 0;
+    }
 
-            Clear();
+    public void Clear(int offset, int length)
+    {
+        CheckConstraints(offset, length);
+
+        Array.Clear(Buffer, BaseOffset + offset, length);
+    }
+
+    public static void Copy(BufferData source, int sourceOffset, BufferData dest, int destOffset, int length)
+    {
+        source.CheckConstraints(sourceOffset, length);
+        dest.CheckConstraints(destOffset, length);
+
+        Array.Copy(Buffer, source.BaseOffset + sourceOffset, Buffer, dest.BaseOffset + destOffset, length);
+    }
+
+    public MemoryStream GetStream(int offset, int length, bool writable)
+    {
+        CheckConstraints(offset, length);
+
+        return new MemoryStream(Buffer, BaseOffset + offset, length, writable);
+    }
+
+    public void Clear() => Clear(0, MaxLength);
+    public MemoryStream GetStream(bool writable) => GetStream(Offset, RemainingLength, writable);
+    public BinaryReader GetReader() => GetReader(Offset, RemainingLength, Encoding.UTF8, false);
+    public BinaryReader GetReader(int offset, int length) => GetReader(offset, length, Encoding.UTF8, false);
+    public BinaryReader GetReader(int offset, int length, Encoding encoding, bool leaveOpen) => new(GetStream(offset, length, false), encoding, leaveOpen);
+    public BinaryWriter CreateWriter() => CreateWriter(Offset, RemainingLength, Encoding.UTF8, false);
+    public BinaryWriter CreateWriter(int offset, int length) => CreateWriter(offset, length, Encoding.UTF8, false);
+    public BinaryWriter CreateWriter(int offset, int length, Encoding encoding, bool leaveOpen) => new(GetStream(offset, length, true), encoding, leaveOpen);
+    public override string ToString() => $"BufferData[{BaseOffset} + {Offset}, {Length}]";
+
+    private void CheckConstraints(int offset, int length)
+    {
+        if (offset < 0)
+            throw new ArgumentOutOfRangeException(nameof(offset));
+
+        if (length < 0)
+            throw new ArgumentOutOfRangeException(nameof(length));
+
+        if (offset + length > MaxLength)
+            throw new Exception("BufferData tried to access another BufferData's memory!");
+
+        if (BaseOffset < RealBaseOffset || BaseOffset > RealBaseOffset + BufferManager.BlockSize)
+            throw new Exception("The BaseOffset is in another buffer's area!");
+    }
+
+    public string ByteData()
+    {
+        var sb = new StringBuilder();
+
+        for (var i = 0; i < RemainingLength; ++i)
+        {
+            if (i > 0)
+                sb.Append(", ");
+
+            sb.Append($"0x{this[Offset + i]:X2}");
         }
 
-        public int Append(BufferData source)
-        {
-            var bytesAvailable = MaxLength - Length;
-            var bytesInSource = source.RemainingLength;
-
-            var bytesToCopy = (bytesInSource > bytesAvailable) ? bytesAvailable : bytesInSource;
-
-            if (bytesToCopy > 0) {
-                Array.Copy(source.Buffer, source.BaseOffset + source.Offset, this.Buffer, this.BaseOffset + this.Length, bytesToCopy);
-                source.Offset += bytesToCopy;
-                Length += bytesToCopy;
-            }
-
-            return bytesToCopy;
-        }
-
-        public int ShiftProcessedData()
-        {
-            if (Offset > 0) {
-                var pos          = Offset;
-                var amountToMove = RemainingLength;
-
-                Array.Copy(this.Buffer, this.BaseOffset + pos, this.Buffer, this.BaseOffset + 0, amountToMove);
-                
-                ByteCount  -= pos;
-                Length     -= pos;
-                Offset      = 0;
-
-                return pos;
-            }
-
-            return 0;
-        }
-
-        public void Clear()
-        {
-            Clear(0, MaxLength);
-        }
-
-        public void Clear(int offset, int length)
-        {
-            CheckConstraints(offset, length);
-
-            Array.Clear(Buffer, BaseOffset + offset, length);
-        }
-
-        public static void Copy(BufferData source, int sourceOffset, BufferData dest, int destOffset, int length)
-        {
-            source.CheckConstraints(sourceOffset, length);
-            dest.CheckConstraints(destOffset, length);
-
-            Array.Copy(source.Buffer, source.BaseOffset + sourceOffset, dest.Buffer, dest.BaseOffset + destOffset, length);
-        }
-
-        public MemoryStream GetStream(bool writable)
-        {
-            return GetStream(Offset, RemainingLength, writable);
-        }
-
-        public MemoryStream GetStream(int offset, int length, bool writable)
-        {
-            CheckConstraints(offset, length);
-
-            return new MemoryStream(Buffer, BaseOffset + offset, length, writable);
-        }
-
-        public BinaryReader GetReader()
-        {
-            return GetReader(Offset, RemainingLength, Encoding.UTF8, false);
-        }
-
-        public BinaryReader GetReader(int offset, int length)
-        {
-            return GetReader(offset, length, Encoding.UTF8, false);
-        }
-
-        public BinaryReader GetReader(int offset, int length, Encoding encoding, bool leaveOpen)
-        {
-            return new BinaryReader(GetStream(offset, length, false), encoding, leaveOpen);
-        }
-
-        public BinaryWriter CreateWriter()
-        {
-            return CreateWriter(Offset, RemainingLength, Encoding.UTF8, false);
-        }
-
-        public BinaryWriter CreateWriter(int offset, int length)
-        {
-            return CreateWriter(offset, length, Encoding.UTF8, false);
-        }
-
-        public BinaryWriter CreateWriter(int offset, int length, Encoding encoding, bool leaveOpen)
-        {
-            return new BinaryWriter(GetStream(offset, length, true), encoding, leaveOpen);
-        }
-
-        private void CheckConstraints(int offset, int length)
-        {
-            if (offset < 0)
-                throw new ArgumentOutOfRangeException(nameof(offset));
-
-            if (length < 0)
-                throw new ArgumentOutOfRangeException(nameof(length));
-
-            if (offset + length > MaxLength)
-                throw new Exception("BufferData tried to access another BufferData's memory!");
-
-            if (BaseOffset < RealBaseOffset || BaseOffset > RealBaseOffset + BufferManager.BlockSize)
-                throw new Exception("The BaseOffset is in another buffer's area!");
-        }
-
-        public string ByteData()
-        {
-            var sb = new StringBuilder();
-
-            for (var i = 0; i < RemainingLength; ++i)
-            {
-                if (i > 0)
-                    sb.Append(", ");
-
-                sb.Append($"0x{this[Offset + i]:X2}");
-            }
-
-            return sb.ToString();
-        }
-
-        public override string ToString()
-        {
-            return $"BufferData[{BaseOffset} + {Offset}, {Length}]";
-        }
+        return sb.ToString();
     }
 }

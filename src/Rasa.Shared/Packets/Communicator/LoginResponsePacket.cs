@@ -1,23 +1,22 @@
 ﻿using System.IO;
 
-namespace Rasa.Packets.Communicator
+namespace Rasa.Packets.Communicator;
+
+using Rasa.Data;
+
+public class LoginResponsePacket : IOpcodedPacket<CommOpcode>
 {
-    using Data;
+    public CommOpcode Opcode { get; } = CommOpcode.LoginResponse;
+    public CommLoginReason Response { get; set; }
 
-    public class LoginResponsePacket : IOpcodedPacket<CommOpcode>
+    public void Read(BinaryReader br)
     {
-        public CommOpcode Opcode { get; } = CommOpcode.LoginResponse;
-        public CommLoginReason Response { get; set; }
+        Response = (CommLoginReason) br.ReadByte();
+    }
 
-        public void Read(BinaryReader br)
-        {
-            Response = (CommLoginReason) br.ReadByte();
-        }
-
-        public void Write(BinaryWriter bw)
-        {
-            bw.Write((byte) Opcode);
-            bw.Write((byte) Response);
-        }
+    public void Write(BinaryWriter bw)
+    {
+        bw.Write((byte) Opcode);
+        bw.Write((byte) Response);
     }
 }

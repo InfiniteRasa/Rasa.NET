@@ -1,22 +1,17 @@
-﻿using System.Collections.Generic;
+﻿namespace Rasa.Initialization;
 
-namespace Rasa.Initialization
+public class Initializer : IInitializer
 {
-    public class Initializer : IInitializer
+    private readonly IEnumerable<IInitializable> _initializables;
+
+    public Initializer(IEnumerable<IInitializable> initializables)
     {
-        private readonly IEnumerable<IInitializable> _initializables;
+        _initializables = initializables;
+    }
 
-        public Initializer(IEnumerable<IInitializable> initializables)
-        {
-            _initializables = initializables;
-        }
-
-        public void Execute()
-        {
-            foreach (var initializable in _initializables)
-            {
-                initializable.Initialize();
-            }
-        }
+    public void Execute()
+    {
+        foreach (var initializable in _initializables)
+            initializable.Initialize();
     }
 }

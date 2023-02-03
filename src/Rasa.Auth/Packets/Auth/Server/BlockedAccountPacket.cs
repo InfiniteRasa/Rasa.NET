@@ -1,29 +1,28 @@
 ﻿using System.IO;
 
-namespace Rasa.Packets.Auth.Server
+namespace Rasa.Packets.Auth.Server;
+
+using Rasa.Data;
+
+public class BlockedAccountPacket : IOpcodedPacket<ServerOpcode>
 {
-    using Data;
+    public uint Reason { get; set; }
 
-    public class BlockedAccountPacket : IOpcodedPacket<ServerOpcode>
+    public ServerOpcode Opcode { get; } = ServerOpcode.BlockedAccount;
+
+    public void Read(BinaryReader reader)
     {
-        public uint Reason { get; set; }
+        Reason = reader.ReadUInt32();
+    }
 
-        public ServerOpcode Opcode { get; } = ServerOpcode.BlockedAccount;
+    public void Write(BinaryWriter writer)
+    {
+        writer.Write((byte) Opcode);
+        writer.Write(Reason);
+    }
 
-        public void Read(BinaryReader reader)
-        {
-            Reason = reader.ReadUInt32();
-        }
-
-        public void Write(BinaryWriter writer)
-        {
-            writer.Write((byte) Opcode);
-            writer.Write(Reason);
-        }
-
-        public override string ToString()
-        {
-            return $"BlockedAccountPacket({Reason})";
-        }
+    public override string ToString()
+    {
+        return $"BlockedAccountPacket({Reason})";
     }
 }

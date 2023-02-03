@@ -1,35 +1,34 @@
 ﻿using System.IO;
 
-namespace Rasa.Packets.Auth.Server
+namespace Rasa.Packets.Auth.Server;
+
+using Rasa.Data;
+
+public class HandoffToQueuePacket : IOpcodedPacket<ServerOpcode>
 {
-    using Data;
+    public uint OneTimeKey { get; set; }
+    public uint AccountId { get; set; }
+    public byte ServerId { get; set; }
 
-    public class HandoffToQueuePacket : IOpcodedPacket<ServerOpcode>
+    public ServerOpcode Opcode { get; } = ServerOpcode.HandOffToQueue;
+
+    public void Read(BinaryReader reader)
     {
-        public uint OneTimeKey { get; set; }
-        public uint AccountId { get; set; }
-        public byte ServerId { get; set; }
+        OneTimeKey = reader.ReadUInt32();
+        AccountId = reader.ReadUInt32();
+        ServerId = reader.ReadByte();
+    }
 
-        public ServerOpcode Opcode { get; } = ServerOpcode.HandOffToQueue;
+    public void Write(BinaryWriter writer)
+    {
+        writer.Write((byte) Opcode);
+        writer.Write(OneTimeKey);
+        writer.Write(AccountId);
+        writer.Write(ServerId);
+    }
 
-        public void Read(BinaryReader reader)
-        {
-            OneTimeKey = reader.ReadUInt32();
-            AccountId = reader.ReadUInt32();
-            ServerId = reader.ReadByte();
-        }
-
-        public void Write(BinaryWriter writer)
-        {
-            writer.Write((byte) Opcode);
-            writer.Write(OneTimeKey);
-            writer.Write(AccountId);
-            writer.Write(ServerId);
-        }
-
-        public override string ToString()
-        {
-            return $"HandoffToQueuePacket({OneTimeKey}, {AccountId}, {ServerId})";
-        }
+    public override string ToString()
+    {
+        return $"HandoffToQueuePacket({OneTimeKey}, {AccountId}, {ServerId})";
     }
 }

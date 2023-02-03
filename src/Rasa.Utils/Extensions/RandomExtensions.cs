@@ -1,12 +1,9 @@
-﻿using System;
+﻿namespace Rasa.Extensions;
 
-namespace Rasa.Extensions
+public static class RandomExtensions
 {
-    public static class RandomExtensions
+    public static uint NextUInt(this Random rand)
     {
-        public static uint NextUInt(this Random rand)
-        {
-            return (uint) rand.Next();
-        }
+        return (uint) rand.Next();
     }
 }

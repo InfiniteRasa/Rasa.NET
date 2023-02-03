@@ -1,7 +1,6 @@
-﻿namespace Rasa.Initialization
+﻿namespace Rasa.Initialization;
+
+public interface IInitializer
 {
-    public interface IInitializer
-    {
-        void Execute();
-    }
+    void Execute();
 }

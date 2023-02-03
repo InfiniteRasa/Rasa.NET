@@ -1,38 +1,38 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Primitives;
 
-namespace Rasa.Config
+namespace Rasa.Config;
+
+public static class Configuration
 {
-    public static class Configuration
+    public delegate void OnLoadDelegate();
+
+    private static IChangeToken? Token { get; set; }
+    private static IConfiguration? Config { get; set; }
+
+    public static OnLoadDelegate? OnLoad { get; set; }
+    public static OnLoadDelegate? OnReLoad { get; set; }
+
+    public static void Load()
     {
-        public delegate void OnLoadDelegate();
+        var builder = new ConfigurationBuilder()
+            .AddJsonFile("appsettings.json", false, true)
+            .AddJsonFile("appsettings.env.json", true, true);
 
-        public static IConfiguration Config { get; private set; }
-        public static IChangeToken Token { get; private set; }
-        public static OnLoadDelegate OnLoad;
-        public static OnLoadDelegate OnReLoad;
+        Config = builder.Build();
+        Token = Config.GetReloadToken();
+        Token.RegisterChangeCallback(OnChange, null);
 
-        public static void Load()
-        {
-            var builder = new ConfigurationBuilder()
-                .AddJsonFile("appsettings.json", false, true)
-                .AddJsonFile("appsettings.env.json", true, true);
+        OnLoad?.Invoke();
+    }
 
-            Config = builder.Build();
-            Token = Config.GetReloadToken();
-            Token.RegisterChangeCallback(OnChange, null);
+    public static void OnChange(object state)
+    {
+        OnReLoad?.Invoke();
+    }
 
-            OnLoad?.Invoke();
-        }
-
-        public static void OnChange(object state)
-        {
-            OnReLoad?.Invoke();
-        }
-
-        public static void Bind(object obj)
-        {
-            Config.Bind(obj);
-        }
+    public static void Bind(object obj)
+    {
+        Config.Bind(obj);
     }
 }

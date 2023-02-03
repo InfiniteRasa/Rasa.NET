@@ -1,34 +1,33 @@
 ﻿using System.IO;
 
-namespace Rasa.Packets.Auth.Server
+namespace Rasa.Packets.Auth.Server;
+
+using Rasa.Data;
+
+public class SendServerFailPacket : IOpcodedPacket<ServerOpcode>
 {
-    using Data;
+    public byte ReasonCode { get; set; }
 
-    public class SendServerFailPacket : IOpcodedPacket<ServerOpcode>
+    public ServerOpcode Opcode { get; } = ServerOpcode.SendServerListFail;
+
+    public SendServerFailPacket(byte reasonCode)
     {
-        public byte ReasonCode { get; set; }
+        ReasonCode = reasonCode;
+    }
 
-        public ServerOpcode Opcode { get; } = ServerOpcode.SendServerListFail;
+    public void Read(BinaryReader reader)
+    {
+        ReasonCode = reader.ReadByte();
+    }
 
-        public SendServerFailPacket(byte reasonCode)
-        {
-            ReasonCode = reasonCode;
-        }
+    public void Write(BinaryWriter writer)
+    {
+        writer.Write((byte) Opcode);
+        writer.Write(ReasonCode);
+    }
 
-        public void Read(BinaryReader reader)
-        {
-            ReasonCode = reader.ReadByte();
-        }
-
-        public void Write(BinaryWriter writer)
-        {
-            writer.Write((byte) Opcode);
-            writer.Write(ReasonCode);
-        }
-
-        public override string ToString()
-        {
-            return $"SendServerFailPacket({ReasonCode})";
-        }
+    public override string ToString()
+    {
+        return $"SendServerFailPacket({ReasonCode})";
     }
 }

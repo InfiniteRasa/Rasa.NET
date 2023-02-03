@@ -1,21 +1,19 @@
-﻿using System;
-using System.IO;
+﻿using System.IO;
 
-namespace Rasa.Packets.Communicator
+namespace Rasa.Packets.Communicator;
+
+using Rasa.Data;
+
+public class ServerInfoRequestPacket : IOpcodedPacket<CommOpcode>
 {
-    using Data;
+    public CommOpcode Opcode { get; } = CommOpcode.ServerInfoRequest;
 
-    public class ServerInfoRequestPacket : IOpcodedPacket<CommOpcode>
+    public void Read(BinaryReader br)
     {
-        public CommOpcode Opcode { get; } = CommOpcode.ServerInfoRequest;
+    }
 
-        public void Read(BinaryReader br)
-        {
-        }
-
-        public void Write(BinaryWriter bw)
-        {
-            bw.Write((byte) Opcode);
-        }
+    public void Write(BinaryWriter bw)
+    {
+        bw.Write((byte) Opcode);
     }
 }

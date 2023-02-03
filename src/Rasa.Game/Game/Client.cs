@@ -305,7 +305,7 @@ namespace Rasa.Game
 
             length += paddingCount;
 
-            GameCryptManager.Encrypt(tempArray.Buffer, tempArray.BaseOffset, ref length, length, Data);
+            GameCryptManager.Encrypt(BufferData.Buffer, tempArray.BaseOffset, ref length, length, Data);
 
             BufferData.Copy(tempArray, 0, data, data.Offset, length);
 
@@ -314,7 +314,7 @@ namespace Rasa.Game
 
         private bool OnDecrypt(BufferData data)
         {
-            var result = GameCryptManager.Decrypt(data.Buffer, data.BaseOffset + data.Offset, data.RemainingLength, Data);
+            var result = GameCryptManager.Decrypt(BufferData.Buffer, data.BaseOffset + data.Offset, data.RemainingLength, Data);
             if (!result)
                 return false;
 
@@ -334,7 +334,7 @@ namespace Rasa.Game
 		
         private void OnReceive(BufferData data)
         {
-            _incomingDataQueue.CopyFromArray(data.Buffer, data.BaseOffset + data.Offset, data.RemainingLength);
+            _incomingDataQueue.Write(BufferData.Buffer, data.BaseOffset + data.Offset, data.RemainingLength);
         }
 
         private IEnumerable<ProtocolPacket> DecodeIncomingPackets()

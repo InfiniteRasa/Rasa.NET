@@ -1,11 +1,10 @@
-﻿namespace Rasa.Hosting
+﻿namespace Rasa.Hosting;
+
+public interface IRasaServer
 {
-    public interface IRasaServer
-    {
-        string ServerType { get; }
+    string ServerType { get; }
 
-        bool Start();
+    bool Start();
 
-        bool Running { get; }
-    }
+    bool Running { get; }
 }

@@ -1,32 +1,31 @@
 ﻿using System.IO;
 
-namespace Rasa.Packets.Auth.Client
+namespace Rasa.Packets.Auth.Client;
+
+using Rasa.Data;
+
+public class SCCheckPacket : IOpcodedPacket<ClientOpcode>
 {
-    using Data;
+    public uint UserId { get; set; }
+    public uint CardValue { get; set; }
 
-    public class SCCheckPacket : IOpcodedPacket<ClientOpcode>
+    public ClientOpcode Opcode { get; } = ClientOpcode.SCCheck;
+
+    public void Read(BinaryReader reader)
     {
-        public uint UserId { get; set; }
-        public uint CardValue { get; set; }
+        UserId = reader.ReadUInt32();
+        CardValue = reader.ReadUInt32();
+    }
 
-        public ClientOpcode Opcode { get; } = ClientOpcode.SCCheck;
+    public void Write(BinaryWriter writer)
+    {
+        writer.Write((byte) Opcode);
+        writer.Write(UserId);
+        writer.Write(CardValue);
+    }
 
-        public void Read(BinaryReader reader)
-        {
-            UserId = reader.ReadUInt32();
-            CardValue = reader.ReadUInt32();
-        }
-
-        public void Write(BinaryWriter writer)
-        {
-            writer.Write((byte) Opcode);
-            writer.Write(UserId);
-            writer.Write(CardValue);
-        }
-
-        public override string ToString()
-        {
-            return $"SCCheckPacket({UserId}, {CardValue})";
-        }
+    public override string ToString()
+    {
+        return $"SCCheckPacket({UserId}, {CardValue})";
     }
 }

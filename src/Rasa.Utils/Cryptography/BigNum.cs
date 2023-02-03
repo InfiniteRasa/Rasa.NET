@@ -1,365 +1,362 @@
-﻿using System;
+﻿namespace Rasa.Cryptography;
 
-namespace Rasa.Cryptography
+public class BigNum
 {
-    public class BigNum
+    private const int BignumSize = 256; //Wert: 0 - 2^65536 
+
+    public byte[] Content { get; } = new byte[BignumSize];
+
+    public bool Reset()
     {
-        private const int BignumSize = 256; //Wert: 0 - 2^65536 
+        Array.Clear(Content, 0, Content.Length);
+        return true;
+    }
 
-        public byte[] Content { get; } = new byte[BignumSize];
+    public bool SetUInt32(uint val)
+    {
+        Reset();
+        Array.Copy(BitConverter.GetBytes(val), Content, 4);
+        return true;
+    }
 
-        public bool Reset()
+    public bool Copy(BigNum src)
+    {
+        Array.Copy(src.Content, Content, src.Content.Length);
+        return true;
+    }
+
+    //Addiert zwei Bignums (A = B + C), gibt den Überlauf zurück
+    public uint Add(BigNum b, BigNum c)
+    {
+        var overflow = 0U;
+
+        for (var i = 0; i < BignumSize; ++i)
         {
-            Array.Clear(Content, 0, Content.Length);
-            return true;
+            //Addiere zu overflow die beiden BigNum Ziffern
+            overflow += (uint)b.Content[i] + c.Content[i];
+
+            //Speichere aktuellen Ziffernwert
+            Content[i] = (byte)(overflow & 0xFF);
+
+            overflow = overflow >> 8;
         }
 
-        public bool SetUInt32(uint val)
+        return overflow;
+    }
+
+    //Subtrahiert zwei Bignums (Result = B - C), gibt den Überlauf zurück
+    public uint Sub(BigNum b, BigNum c)
+    {
+        var overflow = 1U;
+
+        for (var i = 0; i < BignumSize; i++)
         {
-            Reset();
-            Array.Copy(BitConverter.GetBytes(val), Content, 4);
-            return true;
+            //Addiere zu overflow die beiden BigNum Ziffern b + ~d
+            overflow += b.Content[i] + (uint)((~c.Content[i]) & 0xFF);
+
+            //Speichere aktuellen Ziffernwert
+            Content[i] = (byte)(overflow & 0xFF);
+
+            //Rücke overflow Wert
+            overflow = overflow >> 8;
         }
 
-        public bool Copy(BigNum src)
-        {
-            Array.Copy(src.Content, Content, src.Content.Length);
-            return true;
-        }
+        return overflow;
+    }
 
-        //Addiert zwei Bignums (A = B + C), gibt den Überlauf zurück
-        public uint Add(BigNum b, BigNum c)
+    //Multipliziert zwei Bignums (result = a * b)
+    public bool Mul(BigNum a, BigNum b)
+    {
+        //Zwischenspeicher für Ziffern-Multiplikationsergebniss
+        var storer = new BigNum();
+        var resultnew = new BigNum();
+
+        var o1 = new BigNum();
+        var o2 = new BigNum();
+
+        o1.Copy(a);
+        o2.Copy(b);
+
+        //Ziffernwertspeicher
+        resultnew.Reset();
+
+        for (var i = 0; i < BignumSize; ++i)
         {
+            //Setze storer und overflow auf 0
+            storer.Reset();
+
             var overflow = 0U;
 
-            for (var i = 0; i < BignumSize; ++i)
+            //Berechne Ziffernmultiplikation
+            for (var i2 = 0; i2 < (BignumSize - i); ++i2)
             {
-                //Addiere zu overflow die beiden BigNum Ziffern
-                overflow += (uint)b.Content[i] + c.Content[i];
+                //Multipliziere Ziffern
+                overflow += o1.Content[i] * (uint)o2.Content[i2];
 
-                //Speichere aktuellen Ziffernwert
-                Content[i] = (byte)(overflow & 0xFF);
+                //Speichere Ziffer
+                storer.Content[i + i2] = (byte)(overflow & 0xFF);
 
+                //Schiebe Ziffern
                 overflow = overflow >> 8;
             }
-
-            return overflow;
+            //Addiere Ziffernprodukt zu result
+            resultnew.Add(resultnew, storer);
         }
 
-        //Subtrahiert zwei Bignums (Result = B - C), gibt den Überlauf zurück
-        public uint Sub(BigNum b, BigNum c)
+        //Kopiere Ergebniss
+        Copy(resultnew);
+
+        //Return erfolg
+        return true;
+    }
+
+    //Dividiert einen BigNum (result = a / c)
+    public bool Div(BigNum a, BigNum b)
+    {
+        var o1 = new BigNum();
+        var o2 = new BigNum();
+
+        Reset();
+
+        o1.Copy(a);
+        o2.Copy(b);
+
+        //Fange falsche Werte ab
+        if (o1.IsZero() || o2.IsZero())
+            return false;
+
+        //Suche maximum
+        var shiftCount = 0;
+        while (o1.Compare(o2) >= 0 && (o2.Content[BignumSize - 1] & 0x80) == 0)
         {
-            var overflow = 1U;
-
-            for (var i = 0; i < BignumSize; i++)
-            {
-                //Addiere zu overflow die beiden BigNum Ziffern b + ~d
-                overflow += b.Content[i] + (uint)((~c.Content[i]) & 0xFF);
-
-                //Speichere aktuellen Ziffernwert
-                Content[i] = (byte)(overflow & 0xFF);
-
-                //Rücke overflow Wert
-                overflow = overflow >> 8;
-            }
-
-            return overflow;
+            ++shiftCount;
+            o2.Double();
         }
 
-        //Multipliziert zwei Bignums (result = a * b)
-        public bool Mul(BigNum a, BigNum b)
+        //Mache den letzten Verdoppler Rückgängig
+        o2.Half();
+
+        //Solange b ist nicht Null
+        while (shiftCount > 0)
         {
-            //Zwischenspeicher für Ziffern-Multiplikationsergebniss
-            var storer = new BigNum();
-            var resultnew = new BigNum();
+            //Rücke result
+            Double();
 
-            var o1 = new BigNum();
-            var o2 = new BigNum();
-
-            o1.Copy(a);
-            o2.Copy(b);
-
-            //Ziffernwertspeicher
-            resultnew.Reset();
-
-            for (var i = 0; i < BignumSize; ++i)
+            //Passt b in a?
+            if (o1.Compare(o2) >= 0) // (a-b)>=0
             {
-                //Setze storer und overflow auf 0
-                storer.Reset();
+                //Subtrahiere von a
+                o1.Sub(o1, o2);
 
-                var overflow = 0U;
-
-                //Berechne Ziffernmultiplikation
-                for (var i2 = 0; i2 < (BignumSize - i); ++i2)
-                {
-                    //Multipliziere Ziffern
-                    overflow += o1.Content[i] * (uint)o2.Content[i2];
-
-                    //Speichere Ziffer
-                    storer.Content[i + i2] = (byte)(overflow & 0xFF);
-
-                    //Schiebe Ziffern
-                    overflow = overflow >> 8;
-                }
-                //Addiere Ziffernprodukt zu result
-                resultnew.Add(resultnew, storer);
+                //Setze Result
+                Content[0] |= 1;
             }
 
-            //Kopiere Ergebniss
-            Copy(resultnew);
-
-            //Return erfolg
-            return true;
-        }
-
-        //Dividiert einen BigNum (result = a / c)
-        public bool Div(BigNum a, BigNum b)
-        {
-            var o1 = new BigNum();
-            var o2 = new BigNum();
-
-            Reset();
-
-            o1.Copy(a);
-            o2.Copy(b);
-
-            //Fange falsche Werte ab
-            if (o1.IsZero() || o2.IsZero())
-                return false;
-
-            //Suche maximum
-            var shiftCount = 0;
-            while (o1.Compare(o2) >= 0 && (o2.Content[BignumSize - 1] & 0x80) == 0)
-            {
-                ++shiftCount;
-                o2.Double();
-            }
-
-            //Mache den letzten Verdoppler Rückgängig
+            //Halbiere b
             o2.Half();
 
-            //Solange b ist nicht Null
-            while (shiftCount > 0)
-            {
-                //Rücke result
-                Double();
-
-                //Passt b in a?
-                if (o1.Compare(o2) >= 0) // (a-b)>=0
-                {
-                    //Subtrahiere von a
-                    o1.Sub(o1, o2);
-
-                    //Setze Result
-                    Content[0] |= 1;
-                }
-
-                //Halbiere b
-                o2.Half();
-
-                //Zähle shiftanzahl
-                --shiftCount;
-            }
-
-            //Return erfolg
-            return true;
+            //Zähle shiftanzahl
+            --shiftCount;
         }
 
-        //Berechnet den Modulo einer Bignumdivision (result = A%B)
-        public bool Mod(BigNum a, BigNum b)
+        //Return erfolg
+        return true;
+    }
+
+    //Berechnet den Modulo einer Bignumdivision (result = A%B)
+    public bool Mod(BigNum a, BigNum b)
+    {
+        var factor = new BigNum();
+
+        //Runde Factor auf a/b*b
+        factor.Div(a, b);
+        factor.Mul(factor, b);
+
+        //Berechne Rest
+        Sub(a, factor);
+
+        //Return Erfolg
+        return true;
+    }
+
+    //Modulare Exponentiation (result = (B^E)%N)
+    public bool ModExp(BigNum b, BigNum e, BigNum n)
+    {
+        var p = new BigNum();
+        var exponent = new BigNum();
+
+        var bitCount = e.CountBits();
+
+        //Setze p auf 1
+        p.Reset();
+        p.SetUInt32(0x01);
+
+        //Kopiere Exponent
+        exponent.Copy(e);
+
+        //Beginne schleife
+        while (bitCount >= 0)
         {
-            var factor = new BigNum();
+            p.Mul(p, p);
+            p.Mod(p, n);
 
-            //Runde Factor auf a/b*b
-            factor.Div(a, b);
-            factor.Mul(factor, b);
-
-            //Berechne Rest
-            Sub(a, factor);
-
-            //Return Erfolg
-            return true;
-        }
-
-        //Modulare Exponentiation (result = (B^E)%N)
-        public bool ModExp(BigNum b, BigNum e, BigNum n)
-        {
-            var p = new BigNum();
-            var exponent = new BigNum();
-
-            var bitCount = e.CountBits();
-
-            //Setze p auf 1
-            p.Reset();
-            p.SetUInt32(0x01);
-
-            //Kopiere Exponent
-            exponent.Copy(e);
-
-            //Beginne schleife
-            while (bitCount >= 0)
+            //Falls ungerade multiplizierte mit Basis
+            if ((exponent.Content[bitCount / 8] & (1 << (bitCount % 8))) != 0)
             {
-                p.Mul(p, p);
+                p.Mul(p, b);
                 p.Mod(p, n);
-
-                //Falls ungerade multiplizierte mit Basis
-                if ((exponent.Content[bitCount / 8] & (1 << (bitCount % 8))) != 0)
-                {
-                    p.Mul(p, b);
-                    p.Mod(p, n);
-                }
-
-                //Halbiere exponent
-                //Bignum_Half(&exponent);
-                --bitCount;
             }
 
-            //Kopiere Ergebniss
-            Copy(p);
-
-            //Return erfolg
-            return true;
+            //Halbiere exponent
+            //Bignum_Half(&exponent);
+            --bitCount;
         }
 
-        //Halbiert einen BigNum (a = a / 2)
-        public bool Half()
+        //Kopiere Ergebniss
+        Copy(p);
+
+        //Return erfolg
+        return true;
+    }
+
+    //Halbiert einen BigNum (a = a / 2)
+    public bool Half()
+    {
+        //Shiftbit ist 0
+        byte shiftbit = 0;
+        for (var i = BignumSize - 1; i >= 0; --i)
         {
-            //Shiftbit ist 0
-            byte shiftbit = 0;
-            for (var i = BignumSize - 1; i >= 0; --i)
-            {
-                //Errechne neuen Ziffernwert
-                var newvalue = (byte)((Content[i] >> 1) | (shiftbit << 7));
+            //Errechne neuen Ziffernwert
+            var newvalue = (byte)((Content[i] >> 1) | (shiftbit << 7));
 
-                //Merke shiftbit
-                shiftbit = (byte)(Content[i] & 0x01);
+            //Merke shiftbit
+            shiftbit = (byte)(Content[i] & 0x01);
 
-                //Setze neuen Ziffernwert
-                Content[i] = newvalue;
-            }
-
-            //Return erfolg
-            return true;
+            //Setze neuen Ziffernwert
+            Content[i] = newvalue;
         }
 
-        //Verdoppelt einen BigNum (a = a * 2)
-        public bool Double()
+        //Return erfolg
+        return true;
+    }
+
+    //Verdoppelt einen BigNum (a = a * 2)
+    public bool Double()
+    {
+        //Shiftbit ist 0
+        byte shiftbit = 0;
+
+        for (var i = 0; i < BignumSize; ++i)
         {
-            //Shiftbit ist 0
-            byte shiftbit = 0;
+            //Errechne neuen Ziffernwert
+            var newvalue = (byte)((Content[i] << 1) | (shiftbit >> 7));
 
-            for (var i = 0; i < BignumSize; ++i)
-            {
-                //Errechne neuen Ziffernwert
-                var newvalue = (byte)((Content[i] << 1) | (shiftbit >> 7));
+            //Merke shiftbit
+            shiftbit = (byte)(Content[i] & 0x80);
 
-                //Merke shiftbit
-                shiftbit = (byte)(Content[i] & 0x80);
-
-                //Setze neuen Ziffernwert
-                Content[i] = newvalue;
-            }
-
-            //Return erfolg
-            return true;
+            //Setze neuen Ziffernwert
+            Content[i] = newvalue;
         }
 
-        //Bignumvergleiche
+        //Return erfolg
+        return true;
+    }
 
-        //Vergleicht zwei Bignums (-1,0,1)
-        public int Compare(BigNum b)
+    //Bignumvergleiche
+
+    //Vergleicht zwei Bignums (-1,0,1)
+    public int Compare(BigNum b)
+    {
+        for (var i = (BignumSize - 1); i >= 0; --i)
         {
-            for (var i = (BignumSize - 1); i >= 0; --i)
-            {
-                var vergleich = Content[i] - b.Content[i];
+            var vergleich = Content[i] - b.Content[i];
 
-                //Falls unterschiedlich, gib Unterschied zurück
-                if (vergleich != 0)
-                    return vergleich;
-            }
-
-            //Return gleich
-            return 0;
+            //Falls unterschiedlich, gib Unterschied zurück
+            if (vergleich != 0)
+                return vergleich;
         }
 
-        //Vergleicht einen BigNum mit 0
-        public bool IsZero()
-        {
-            //Für alle Ziffern
-            for (var i = 0; i < BignumSize; ++i)
-                if (Content[i] != 0)
-                    return false; //Return false falls Ziffer ungleich 0
+        //Return gleich
+        return 0;
+    }
 
-            return true;
-        }
+    //Vergleicht einen BigNum mit 0
+    public bool IsZero()
+    {
+        //Für alle Ziffern
+        for (var i = 0; i < BignumSize; ++i)
+            if (Content[i] != 0)
+                return false; //Return false falls Ziffer ungleich 0
 
-        //Gibt die Stelle des ersten Bits zurück(Bsp: 0x100 wäre 8)
-        public int CountBits()
-        {
-            for (var i = (BignumSize - 1) * 8; i >= 0; --i)
-                if ((Content[i / 8] & (1 << (i % 8))) != 0)
-                    return i;
+        return true;
+    }
 
-            return 0;
-        }
+    //Gibt die Stelle des ersten Bits zurück(Bsp: 0x100 wäre 8)
+    public int CountBits()
+    {
+        for (var i = (BignumSize - 1) * 8; i >= 0; --i)
+            if ((Content[i / 8] & (1 << (i % 8))) != 0)
+                return i;
 
-        //Liest einen BigNum aus dem Speicher
-        public bool Read(byte[] p, int offset, int digitCount)
-        {
-            Reset();
+        return 0;
+    }
 
-            for (var i = 0; i < digitCount; ++i)
-                Content[i] = p[offset + i];
+    //Liest einen BigNum aus dem Speicher
+    public bool Read(byte[] p, int offset, int digitCount)
+    {
+        Reset();
 
-            //Return Erfolg
-            return true;
-        }
+        for (var i = 0; i < digitCount; ++i)
+            Content[i] = p[offset + i];
 
-        //Liest einen BigNum aus dem Speicher im Big Endian Format.
-        public bool ReadBigEndian(byte[] p, int offset, int digitCount)
-        {
-            Reset();
+        //Return Erfolg
+        return true;
+    }
 
-            for (var i = 0; i < digitCount; ++i)
-                Content[digitCount - i - 1] = p[offset + i];
+    //Liest einen BigNum aus dem Speicher im Big Endian Format.
+    public bool ReadBigEndian(byte[] p, int offset, int digitCount)
+    {
+        Reset();
 
-            //Return Erfolg
-            return true;
-        }
+        for (var i = 0; i < digitCount; ++i)
+            Content[digitCount - i - 1] = p[offset + i];
 
-        //Schreibt einen BigNum in den Speicher
-        public bool WriteTo(byte[] p, int off, int digitCount)
-        {
-            Array.Clear(p, off, digitCount);
+        //Return Erfolg
+        return true;
+    }
 
-            for (var i = 0; i < digitCount; ++i)
-                p[off + i] = Content[i];
+    //Schreibt einen BigNum in den Speicher
+    public bool WriteTo(byte[] p, int off, int digitCount)
+    {
+        Array.Clear(p, off, digitCount);
 
-            //Return Erfolg
-            return true;
-        }
+        for (var i = 0; i < digitCount; ++i)
+            p[off + i] = Content[i];
 
-        //Schreibt einen BigNum in den Speicher im Big Endian Format
-        //Achtung: Funktioniert nicht ganz fehlerfrei wenn DigitCount > Eigentliche Anzahl der Stellen
-        public bool WriteToBigEndian(byte[] p, int off, int digitCount)
-        {
-            Array.Clear(p, off, digitCount);
+        //Return Erfolg
+        return true;
+    }
 
-            for (var i = 0; i < digitCount; ++i)
-                p[off + i] = Content[digitCount - i - 1];
+    //Schreibt einen BigNum in den Speicher im Big Endian Format
+    //Achtung: Funktioniert nicht ganz fehlerfrei wenn DigitCount > Eigentliche Anzahl der Stellen
+    public bool WriteToBigEndian(byte[] p, int off, int digitCount)
+    {
+        Array.Clear(p, off, digitCount);
 
-            //Return Erfolg
-            return true;
-        }
+        for (var i = 0; i < digitCount; ++i)
+            p[off + i] = Content[digitCount - i - 1];
 
-        //Gibt die Länge eines BigNum in Byte-Stellen zurück
-        public int Length()
-        {
-            for (var i = (BignumSize - 1); i >= 0; --i)
-                if (Content[i] != 0)
-                    return i + 1;
+        //Return Erfolg
+        return true;
+    }
 
-            return 0;
-        }
+    //Gibt die Länge eines BigNum in Byte-Stellen zurück
+    public int Length()
+    {
+        for (var i = (BignumSize - 1); i >= 0; --i)
+            if (Content[i] != 0)
+                return i + 1;
+
+        return 0;
     }
 }

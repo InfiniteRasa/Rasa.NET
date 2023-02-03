@@ -43,7 +43,7 @@ namespace Rasa.Login
 
         private void OnEncrypt(BufferData data, ref int length)
         {
-            GameCryptManager.Encrypt(data.Buffer, data.BaseOffset + data.Offset, ref length, data.RemainingLength, Data);
+            GameCryptManager.Encrypt(BufferData.Buffer, data.BaseOffset + data.Offset, ref length, data.RemainingLength, Data);
         }
 
         private void OnReceive(BufferData data)

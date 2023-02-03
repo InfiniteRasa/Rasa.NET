@@ -318,7 +318,7 @@ namespace Rasa.Game
 
         private void OnCommunicatorReceive(BufferData data)
         {
-            var opcode = (CommOpcode) data.Buffer[data.BaseOffset + data.Offset++];
+            var opcode = (CommOpcode)BufferData.Buffer[data.BaseOffset + data.Offset++];
 
             var packetType = _router.GetPacketType(opcode);
             if (packetType == null)

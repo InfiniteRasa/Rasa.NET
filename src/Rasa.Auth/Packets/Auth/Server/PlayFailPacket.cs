@@ -1,34 +1,33 @@
 ﻿using System.IO;
 
-namespace Rasa.Packets.Auth.Server
+namespace Rasa.Packets.Auth.Server;
+
+using Rasa.Data;
+
+public class PlayFailPacket : IOpcodedPacket<ServerOpcode>
 {
-    using Data;
+    public FailReason ResultCode { get; set; }
 
-    public class PlayFailPacket : IOpcodedPacket<ServerOpcode>
+    public ServerOpcode Opcode { get; } = ServerOpcode.PlayFail;
+
+    public PlayFailPacket(FailReason resultCode)
     {
-        public FailReason ResultCode { get; set; }
+        ResultCode = resultCode;
+    }
 
-        public ServerOpcode Opcode { get; } = ServerOpcode.PlayFail;
+    public void Read(BinaryReader reader)
+    {
+        ResultCode = (FailReason) reader.ReadByte();
+    }
 
-        public PlayFailPacket(FailReason resultCode)
-        {
-            ResultCode = resultCode;
-        }
+    public void Write(BinaryWriter writer)
+    {
+        writer.Write((byte) Opcode);
+        writer.Write((byte) ResultCode);
+    }
 
-        public void Read(BinaryReader reader)
-        {
-            ResultCode = (FailReason) reader.ReadByte();
-        }
-
-        public void Write(BinaryWriter writer)
-        {
-            writer.Write((byte) Opcode);
-            writer.Write((byte) ResultCode);
-        }
-
-        public override string ToString()
-        {
-            return $"PlayFailPacket({ResultCode})";
-        }
+    public override string ToString()
+    {
+        return $"PlayFailPacket({ResultCode})";
     }
 }

@@ -1,71 +1,60 @@
-﻿using System;
-using System.Collections.Generic;
+﻿namespace Rasa.Timer;
 
-namespace Rasa.Timer
+public class Timer
 {
-    public class Timer
+    private readonly Dictionary<string, TimedItem> _timedItems = new();
+
+    public void Add(string name, long timer, bool repeating, Action action)
     {
-        private readonly Dictionary<string, TimedItem> _timedItems = new();
-
-        public void Add(string name, long timer, bool repeating, Action action)
+        lock (_timedItems)
         {
-            lock (_timedItems)
-            {
-                if (_timedItems.ContainsKey(name))
-                    _timedItems.Remove(name);
+            _timedItems.Remove(name);
 
-                _timedItems.Add(name, new TimedItem(name, timer, repeating, action));
-            }
+            _timedItems.Add(name, new TimedItem(name, timer, repeating, action));
         }
+    }
 
-        public void Remove(string name)
+    public void Remove(string name)
+    {
+        lock (_timedItems)
+            _timedItems.Remove(name);
+    }
+
+    public void Update(long delta)
+    {
+        lock (_timedItems)
         {
-            lock (_timedItems)
-            {
-                if (_timedItems.ContainsKey(name))
-                    _timedItems.Remove(name);
-            }
-        }
+            List<string>? toRemove = null;
 
-        public void Update(long delta)
-        {
-            lock (_timedItems)
+            foreach (var item in _timedItems)
             {
-                List<string> toRemove = null;
-
-                foreach (var item in _timedItems)
+                if (item.Value.Update(delta))
                 {
-                    if (item.Value.Update(delta))
+                    item.Value.Action?.Invoke();
+
+                    if (!item.Value.Repeating)
                     {
-                        item.Value.Action?.Invoke();
+                        toRemove ??= new();
 
-                        if (!item.Value.Repeating)
-                        {
-                            if (toRemove == null)
-                                toRemove = new();
-
-                            toRemove.Add(item.Key);
-                        }
+                        toRemove.Add(item.Key);
                     }
                 }
-
-                if (toRemove == null)
-                    return;
-
-                foreach (var key in toRemove)
-                {
-                    _timedItems.Remove(key);
-                }
             }
+
+            if (toRemove == null)
+                return;
+
+            foreach (var key in toRemove)
+                _timedItems.Remove(key);
         }
+    }
 
-        public void ResetTimer(string name)
+    public void ResetTimer(string name)
+    {
+        lock (_timedItems)
         {
-            lock (_timedItems)
-            {
-                if (_timedItems.ContainsKey(name))
-                    _timedItems[name].ResetTimer();
-            }
+            if (_timedItems.TryGetValue(name, out var value))
+                value.ResetTimer();
         }
     }
 }

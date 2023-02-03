@@ -1,9 +1,8 @@
-﻿namespace Rasa.Data
+﻿namespace Rasa.Data;
+
+public enum AuthListType
 {
-    public enum AuthListType
-    {
-        All = 0,
-        Online = 1,
-        OnceOnline = 2
-    }
+    All = 0,
+    Online = 1,
+    OnceOnline = 2
 }

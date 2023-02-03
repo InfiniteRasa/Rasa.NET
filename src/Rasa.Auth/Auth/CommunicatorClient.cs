@@ -2,121 +2,124 @@
 using System.Net;
 using System.Net.Sockets;
 
-namespace Rasa.Auth
+namespace Rasa.Auth;
+
+using Data;
+using Memory;
+using Networking;
+using Packets;
+using Packets.Communicator;
+
+public class CommunicatorClient
 {
-    using Data;
-    using Memory;
-    using Networking;
-    using Packets;
-    using Packets.Communicator;
+    public LengthedSocket Socket { get; }
+    public Server Server { get; }
+    public byte ServerId { get; set; }
+    public int QueuePort { get; set; }
+    public int GamePort { get; set; }
+    public byte AgeLimit { get; set; }
+    public byte PKFlag { get; set; }
+    public ushort CurrentPlayers { get; set; }
+    public ushort MaxPlayers { get; set; }
+    public DateTime LastRequestTime { get; set; }
+    public IPAddress PublicAddress { get; set; }
 
-    public class CommunicatorClient
+    private readonly PacketRouter<CommunicatorClient, CommOpcode> _router = new();
+
+    public bool Connected => Socket.Connected;
+
+    public CommunicatorClient(LengthedSocket socket, Server server)
     {
-        public LengthedSocket Socket { get; }
-        public Server Server { get; }
-        public byte ServerId { get; set; }
-        public int QueuePort { get; set; }
-        public int GamePort { get; set; }
-        public byte AgeLimit { get; set; }
-        public byte PKFlag { get; set; }
-        public ushort CurrentPlayers { get; set; }
-        public ushort MaxPlayers { get; set; }
-        public DateTime LastRequestTime { get; set; }
-        public IPAddress PublicAddress { get; set; }
+        Server = server;
+        Socket = socket;
 
-        private readonly PacketRouter<CommunicatorClient, CommOpcode> _router = new PacketRouter<CommunicatorClient, CommOpcode>();
+        Socket.OnReceive += OnReceive;
+        Socket.OnError += OnError;
 
-        public bool Connected => Socket.Connected;
+        Socket.ReceiveAsync();
+    }
 
-        public CommunicatorClient(LengthedSocket socket, Server server)
+    private void OnReceive(BufferData data)
+    {
+        var opcode = (CommOpcode)BufferData.Buffer[data.BaseOffset + data.Offset++];
+
+        var packetType = _router.GetPacketType(opcode);
+        if (packetType == null)
+            return;
+
+        if (Activator.CreateInstance(packetType) is not IOpcodedPacket<CommOpcode> packet)
+            return;
+
+        packet.Read(data.GetReader());
+
+        _router.RoutePacket(this, packet);
+    }
+
+    private void OnError(SocketAsyncEventArgs args)
+    {
+        Socket.Close();
+
+        Server.DisconnectCommunicator(this);
+    }
+
+    public void RequestServerInfo()
+    {
+        LastRequestTime = DateTime.Now;
+
+        Socket.Send(new ServerInfoRequestPacket());
+    }
+
+    public void RequestRedirection(Client client)
+    {
+        Socket.Send(new RedirectRequestPacket
         {
-            Server = server;
-            Socket = socket;
+            AccountId = client.AccountEntry.Id,
+            Email = client.AccountEntry.Email,
+            Username = client.AccountEntry.Username,
+            OneTimeKey = client.OneTimeKey
+        });
+    }
 
-            Socket.OnReceive += OnReceive;
-            Socket.OnError += OnError;
-
-            Socket.ReceiveAsync();
-        }
-
-        private void OnReceive(BufferData data)
+    [PacketHandler(CommOpcode.LoginRequest)]
+#pragma warning disable IDE0051 // Remove unused private members
+    private void MsgLoginRequest(LoginRequestPacket packet)
+#pragma warning restore IDE0051 // Remove unused private members
+    {
+        if (!Server.AuthenticateGameServer(packet, this))
         {
-            var opcode = (CommOpcode) data.Buffer[data.BaseOffset + data.Offset++];
-
-            var packetType = _router.GetPacketType(opcode);
-            if (packetType == null)
-                return;
-
-            var packet = Activator.CreateInstance(packetType) as IOpcodedPacket<CommOpcode>;
-            if (packet == null)
-                return;
-
-            packet.Read(data.GetReader());
-
-            _router.RoutePacket(this, packet);
-        }
-
-        private void OnError(SocketAsyncEventArgs args)
-        {
-            Socket.Close();
-
-            Server.DisconnectCommunicator(this);
-        }
-
-        public void RequestServerInfo()
-        {
-            LastRequestTime = DateTime.Now;
-
-            Socket.Send(new ServerInfoRequestPacket());
-        }
-
-        public void RequestRedirection(Client client)
-        {
-            Socket.Send(new RedirectRequestPacket
-            {
-                AccountId = client.AccountEntry.Id,
-                Email = client.AccountEntry.Email,
-                Username = client.AccountEntry.Username,
-                OneTimeKey = client.OneTimeKey
-            });
-        }
-
-        // ReSharper disable once UnusedMember.Local
-        [PacketHandler(CommOpcode.LoginRequest)]
-        private void MsgLoginRequest(LoginRequestPacket packet)
-        {
-            if (!Server.AuthenticateGameServer(packet, this))
-            {
-                Socket.Send(new LoginResponsePacket
-                {
-                    Response = CommLoginReason.Failure
-                });
-                return;
-            }
-
             Socket.Send(new LoginResponsePacket
             {
-                Response = CommLoginReason.Success
+                Response = CommLoginReason.Failure
             });
-
-            ServerId = packet.ServerId;
-            PublicAddress = packet.PublicAddress;
-
-            RequestServerInfo();
+            return;
         }
 
-        // ReSharper disable once UnusedMember.Local
-        [PacketHandler(CommOpcode.ServerInfoResponse)]
-        private void MsgGameInfoResponse(ServerInfoResponsePacket packet)
+        Socket.Send(new LoginResponsePacket
         {
-            Server.UpdateServerInfo(this, packet);
-        }
+            Response = CommLoginReason.Success
+        });
 
-        // ReSharper disable once UnusedMember.Local
-        [PacketHandler(CommOpcode.RedirectResponse)]
-        private void MsgRedirectResponse(RedirectResponsePacket packet)
-        {
-            Server.RedirectResponse(this, packet);
-        }
+        ServerId = packet.ServerId;
+        PublicAddress = packet.PublicAddress;
+
+        RequestServerInfo();
+    }
+
+    // ReSharper disable once UnusedMember.Local
+    [PacketHandler(CommOpcode.ServerInfoResponse)]
+#pragma warning disable IDE0051 // Remove unused private members
+    private void MsgGameInfoResponse(ServerInfoResponsePacket packet)
+#pragma warning restore IDE0051 // Remove unused private members
+    {
+        Server.UpdateServerInfo(this, packet);
+    }
+
+    // ReSharper disable once UnusedMember.Local
+    [PacketHandler(CommOpcode.RedirectResponse)]
+#pragma warning disable IDE0051 // Remove unused private members
+    private void MsgRedirectResponse(RedirectResponsePacket packet)
+#pragma warning restore IDE0051 // Remove unused private members
+    {
+        Server.RedirectResponse(this, packet);
     }
 }

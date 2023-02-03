@@ -1,38 +1,35 @@
-﻿using System;
+﻿namespace Rasa.Timer;
 
-namespace Rasa.Timer
+public class TimedItem
 {
-    public class TimedItem
+    public string Name { get; }
+    public bool Repeating { get; }
+    public long Timer { get; }
+    public long CurrentTimer { get; private set; }
+    public Action Action { get; }
+
+    public TimedItem(string name, long timer, bool repeating, Action action)
     {
-        public string Name { get; }
-        public bool Repeating { get; }
-        public long Timer { get; }
-        public long CurrentTimer { get; private set; }
-        public Action Action { get; }
+        Name = name;
+        Repeating = repeating;
+        CurrentTimer = Timer = timer;
+        Action = action;
+    }
 
-        public TimedItem(string name, long timer, bool repeating, Action action)
+    public bool Update(long delta)
+    {
+        if (CurrentTimer <= delta)
         {
-            Name = name;
-            Repeating = repeating;
-            CurrentTimer = Timer = timer;
-            Action = action;
+            CurrentTimer = Timer - (delta - CurrentTimer);
+            return true;
         }
 
-        public bool Update(long delta)
-        {
-            if (CurrentTimer <= delta)
-            {
-                CurrentTimer = Timer - (delta - CurrentTimer);
-                return true;
-            }
+        CurrentTimer -= delta;
+        return false;
+    }
 
-            CurrentTimer -= delta;
-            return false;
-        }
-
-        public void ResetTimer()
-        {
-            CurrentTimer = Timer;
-        }
+    public void ResetTimer()
+    {
+        CurrentTimer = Timer;
     }
 }

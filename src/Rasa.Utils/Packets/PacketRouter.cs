@@ -1,74 +1,67 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Linq.Expressions;
+﻿using System.Linq.Expressions;
 using System.Reflection;
 
-namespace Rasa.Packets
+namespace Rasa.Packets;
+
+public class PacketRouter<T, O>
+    where T : class
+    where O : struct
 {
-    public class PacketRouter<T, O>
-        where T : class
-        where O : struct
+    private readonly Dictionary<O, PacketData> _handlers = new Dictionary<O, PacketData>();
+
+    public PacketRouter()
     {
-        private readonly Dictionary<O, PacketData> _handlers = new Dictionary<O, PacketData>();
+        SetupHandlers();
+    }
 
-        public PacketRouter()
-        {
-            SetupHandlers();
-        }
+    public void SetupHandlers()
+    {
+        var info = typeof(T).GetTypeInfo();
 
-        public void SetupHandlers()
-        {
-            var info = typeof(T).GetTypeInfo();
-
-            foreach (var method in info.DeclaredMethods)
-            { 
-                foreach (var attr in method.GetCustomAttributes<PacketHandlerAttribute>())
-                {
-                    var paramType = method.GetParameters().FirstOrDefault()?.ParameterType;
-                    if (paramType == null)
-                        throw new Exception($"Invalid PacketHandler attribute usage! Used on function: {info.FullName}.{method.Name}");
-
-                    _handlers.Add(attr.GetOpcode<O>(), new PacketData(paramType, method.CreateDelegate(Expression.GetActionType(typeof(T), paramType))));
-                }
-            }
-        }
-
-        public void RoutePacket(T target, IOpcodedPacket<O> packet)
-        {
-            if (!_handlers.ContainsKey(packet.Opcode))
+        foreach (var method in info.DeclaredMethods)
+        { 
+            foreach (var attr in method.GetCustomAttributes<PacketHandlerAttribute>())
             {
-                Logger.WriteLog(LogType.Error, $"PacketRouter can't route to a non-existant opcode: {packet.Opcode}");
-                return;
+                var paramType = method.GetParameters().FirstOrDefault()?.ParameterType;
+                if (paramType == null)
+                    throw new Exception($"Invalid PacketHandler attribute usage! Used on function: {info.FullName}.{method.Name}");
+
+                _handlers.Add(attr.GetOpcode<O>(), new PacketData(paramType, method.CreateDelegate(Expression.GetActionType(typeof(T), paramType))));
             }
-
-            _handlers[packet.Opcode].Handler.DynamicInvoke(target, packet);
         }
+    }
 
-        public Type GetPacketType(O opcode)
+    public void RoutePacket(T target, IOpcodedPacket<O> packet)
+    {
+        if (!_handlers.ContainsKey(packet.Opcode))
         {
-            if (_handlers.ContainsKey(opcode))
-                return _handlers[opcode].Type;
-
-            Logger.WriteLog(LogType.Error, $"Non-existant PacketRouter type definition! Opcode: {opcode}");
-            return null;
+            Logger.WriteLog(LogType.Error, $"PacketRouter can't route to a non-existant opcode: {packet.Opcode}");
+            return;
         }
 
-        public class PacketData
+        _handlers[packet.Opcode].Handler.DynamicInvoke(target, packet);
+    }
+
+    public Type? GetPacketType(O opcode)
+    {
+        if (_handlers.TryGetValue(opcode, out var value))
+            return value.Type;
+
+        Logger.WriteLog(LogType.Error, $"Non-existant PacketRouter type definition! Opcode: {opcode}");
+        return null;
+    }
+
+    public class PacketData
+    {
+        public Type Type { get; }
+        public Delegate Handler { get; }
+
+        public PacketData(Type type, Delegate handler)
         {
-            public Type Type { get; }
-            public Delegate Handler { get; }
-
-            public PacketData(Type type, Delegate handler)
-            {
-                Type = type;
-                Handler = handler;
-            }
-
-            public override string ToString()
-            {
-                return $"PacketData(Type: {Type} | Handler: {typeof(T).FullName}::{Handler.GetMethodInfo().Name})";
-            }
+            Type = type;
+            Handler = handler;
         }
+
+        public override string ToString() => $"PacketData(Type: {Type} | Handler: {typeof(T).FullName}::{Handler.GetMethodInfo().Name})";
     }
 }

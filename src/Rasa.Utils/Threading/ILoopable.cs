@@ -1,7 +1,6 @@
-﻿namespace Rasa.Threading
+﻿namespace Rasa.Threading;
+
+public interface ILoopable
 {
-    public interface ILoopable
-    {
-        void MainLoop(long delta);
-    }
+    void MainLoop(long delta);
 }
