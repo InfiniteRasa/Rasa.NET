@@ -1,5 +1,7 @@
 ﻿using System;
-using System.Net.Sockets;
+using System.Buffers;
+using System.IO;
+using System.Net;
 
 namespace Rasa.Auth;
 
@@ -20,11 +22,13 @@ using Rasa.Timer;
 
 public class Client
 {
+    public const int SendBufferSize = 512;
+    public const int SendBufferCryptoPadding = 8;
+    public const int SendBufferChecksumPadding = 8;
+
     private readonly IAuthUnitOfWorkFactory _authUnitOfWorkFactory;
 
-    public const int LengthSize = 2;
-
-    public LengthedSocket Socket { get; }
+    public AsyncLengthedSocket Socket { get; }
     public Server Server { get; }
 
     public uint OneTimeKey { get; }
@@ -34,23 +38,21 @@ public class Client
     public ClientState State { get; private set; }
     public Timer Timer { get; }
 
-    private PacketQueue _packetQueue = new();
+    private readonly PacketQueue _packetQueue = new();
 
-    public Client(LengthedSocket socket, Server server, IAuthUnitOfWorkFactory authUnitOfWorkFactory)
+    public Client(AsyncLengthedSocket socket, Server server, IAuthUnitOfWorkFactory authUnitOfWorkFactory)
     {
         _authUnitOfWorkFactory = authUnitOfWorkFactory;
 
-        Socket = socket;
         Server = server;
         State = ClientState.Connected;
 
         Timer = new Timer();
 
+        Socket = socket;
         Socket.OnError += OnError;
         Socket.OnReceive += OnReceive;
-        Socket.OnDecrypt += OnDecrypt;
-
-        Socket.ReceiveAsync();
+        Socket.Start();
 
         var rnd = new Random();
 
@@ -59,9 +61,6 @@ public class Client
         SessionId2 = rnd.NextUInt();
 
         SendPacket(new ProtocolVersionPacket(OneTimeKey));
-
-        // This is here (after ProtocolVersionPacket), so it won't get encrypted
-        Socket.OnEncrypt += OnEncrypt;
 
         Timer.Add("timeout", Server.Config.AuthConfig.ClientTimeout * 1000, false, () =>
         {
@@ -107,7 +106,18 @@ public class Client
 
     public void SendPacket(IBasePacket packet)
     {
-        Socket.Send(packet);
+        var buffer = ArrayPool<byte>.Shared.Rent(SendBufferSize + SendBufferCryptoPadding + SendBufferChecksumPadding);
+        var writer = new BinaryWriter(new MemoryStream(buffer, true));
+
+        packet.Write(writer);
+
+        var length = (int)writer.BaseStream.Position;
+        if (packet is not ProtocolVersionPacket)
+            AuthCryptManager.Encrypt(buffer, 0, ref length, buffer.Length);
+
+        Socket.Send(buffer, 0, length);
+
+        ArrayPool<byte>.Shared.Return(buffer);
     }
 
     public void HandlePacket(IBasePacket packet)
@@ -135,11 +145,11 @@ public class Client
         }
     }
 
-    public void RedirectionResult(RedirectResult result, ServerInfo info)
+    public void RedirectionResult(CommunicatorActionResult result, ServerInfo info)
     {
         switch (result)
         {
-            case RedirectResult.Fail:
+            case CommunicatorActionResult.Failure:
                 SendPacket(new PlayFailPacket(FailReason.UnexpectedError));
 
                 Close();
@@ -147,7 +157,7 @@ public class Client
                 Logger.WriteLog(LogType.Error, $"Account ({AccountEntry.Username}, {AccountEntry.Id}) couldn't be redirected to server: {info.ServerId}!");
                 break;
 
-            case RedirectResult.Success:
+            case CommunicatorActionResult.Success:
                 HandleSuccessfulRedirect(info);
                 break;
 
@@ -172,33 +182,28 @@ public class Client
         Logger.WriteLog(LogType.Network, $"Account ({AccountEntry.Username}, {AccountEntry.Id}) was redirected to the queue of the server: {info.ServerId}!");
     }
 
-    private void OnError(SocketAsyncEventArgs args)
-    {
-        Close();
-    }
+    private void OnError() => Close();
 
-    private static void OnEncrypt(BufferData data, ref int length)
+    private void OnReceive(NonContiguousMemoryStream incomingStream, int length)
     {
-        AuthCryptManager.Encrypt(BufferData.Buffer, data.BaseOffset + data.Offset, ref length, data.RemainingLength);
-    }
+        var data = ArrayPool<byte>.Shared.Rent(length);
 
-    private static bool OnDecrypt(BufferData data)
-    {
-        return AuthCryptManager.Decrypt(BufferData.Buffer, data.BaseOffset + data.Offset, data.RemainingLength);
-    }
+        incomingStream.Read(data, 0, length);
 
-    private void OnReceive(BufferData data)
-    {
-        // Reset the timeout after every action
-        Timer.ResetTimer("timeout");
+        AuthCryptManager.Decrypt(data, 0, length);
 
-        using var br = data.GetReader();
+        using var br = new BinaryReader(new MemoryStream(data, 0, length, false));
 
         var packet = CreatePacket((ClientOpcode)br.ReadByte());
 
         packet.Read(br);
 
+        ArrayPool<byte>.Shared.Return(data);
+
         _packetQueue.EnqueueIncoming(packet);
+
+        // Reset the timeout after every action
+        Timer.ResetTimer("timeout");
     }
 
     private static IBasePacket CreatePacket(ClientOpcode opcode)
@@ -210,12 +215,10 @@ public class Client
             ClientOpcode.Logout        => new LogoutPacket(),
             ClientOpcode.ServerListExt => new ServerListExtPacket(),
             ClientOpcode.SCCheck       => new SCCheckPacket(),
-
             _ => throw new ArgumentOutOfRangeException(nameof(opcode)),
         };
     }
 
-    #region Handlers
     private void MsgLogin(LoginPacket packet)
     {
         using var unitOfWork = _authUnitOfWorkFactory.Create();
@@ -246,7 +249,7 @@ public class Client
             return;
         }
 
-        unitOfWork.AuthAccountRepository.UpdateLoginData(AccountEntry.Id, Socket.RemoteAddress);
+        unitOfWork.AuthAccountRepository.UpdateLoginData(AccountEntry.Id, (Socket.RemoteAddress as IPEndPoint).Address);
         unitOfWork.Complete();
 
         State = ClientState.LoggedIn;
@@ -260,19 +263,29 @@ public class Client
         Logger.WriteLog(LogType.Network, "*** Client logged in from {0}", Socket.RemoteAddress);
     }
 
-#pragma warning disable IDE0060 // Remove unused parameter
     private void MsgLogout(LogoutPacket packet)
     {
+        if (SessionId1 != packet.SessionId1 || SessionId2 != packet.SessionId2)
+        {
+            Logger.WriteLog(LogType.Security, $"Account ({AccountEntry.Username}, {AccountEntry.Id}) has sent an LogoutPacket with invalid session data!");
+            return;
+        }
+
         Close();
     }
 
     private void MsgServerListExt(ServerListExtPacket packet)
     {
+        if (SessionId1 != packet.SessionId1 || SessionId2 != packet.SessionId2)
+        {
+            Logger.WriteLog(LogType.Security, $"Account ({AccountEntry.Username}, {AccountEntry.Id}) has sent an ServerListExtPacket with invalid session data!");
+            return;
+        }
+
         State = ClientState.ServerList;
 
         SendPacket(new SendServerListExtPacket(Server.ServerList, AccountEntry.LastServerId));
     }
-#pragma warning restore IDE0060 // Remove unused parameter
 
     private void MsgAboutToPlay(AboutToPlayPacket packet)
     {
@@ -284,5 +297,4 @@ public class Client
 
         Server.RequestRedirection(this, packet.ServerId);
     }
-    #endregion
 }

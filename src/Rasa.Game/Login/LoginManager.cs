@@ -1,37 +1,36 @@
 ﻿using System.Collections.Generic;
 
-namespace Rasa.Login
+namespace Rasa.Login;
+
+using Rasa.Networking;
+
+public delegate void LoginDelegate(LoginClient client);
+
+public class LoginManager
 {
-    using Networking;
+    public LoginDelegate OnLogin { get; set; }
+    public LoginDelegate OnFail { get; set; }
+    public List<LoginClient> Clients { get; } = new List<LoginClient>();
 
-    public delegate void LoginDelegate(LoginClient client);
-
-    public class LoginManager
+    public void LoginSocket(AsyncLengthedSocket socket)
     {
-        public LoginDelegate OnLogin { get; set; }
-        public LoginDelegate OnFail { get; set; }
-        public List<LoginClient> Clients { get; } = new List<LoginClient>();
+        lock (Clients)
+            Clients.Add(new LoginClient(this, socket));
+    }
 
-        public void LoginSocket(LengthedSocket socket)
-        {
-            lock (Clients)
-                Clients.Add(new LoginClient(this, socket));
-        }
+    public void ExchangeDone(LoginClient client)
+    {
+        lock (Clients)
+            Clients.Remove(client);
 
-        public void ExchangeDone(LoginClient client)
-        {
-            lock (Clients)
-                Clients.Remove(client);
+        OnLogin?.Invoke(client);
+    }
 
-            OnLogin?.Invoke(client);
-        }
+    public void Disconnect(LoginClient client)
+    {
+        lock (Clients)
+            Clients.Remove(client);
 
-        public void Disconnect(LoginClient client)
-        {
-            lock (Clients)
-                Clients.Remove(client);
-
-            OnFail?.Invoke(client);
-        }
+        OnFail?.Invoke(client);
     }
 }

@@ -1,25 +1,24 @@
 ﻿using System;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Rasa.Game
+namespace Rasa.Game;
+
+using Rasa.Cryptography;
+using Rasa.Networking;
+
+public class ClientFactory : IClientFactory
 {
-    using Cryptography;
-    using Networking;
+    private readonly IServiceProvider _serviceProvider;
 
-    public class ClientFactory : IClientFactory
+    public ClientFactory(IServiceProvider serviceProvider)
     {
-        private readonly IServiceProvider _serviceProvider;
+        _serviceProvider = serviceProvider;
+    }
 
-        public ClientFactory(IServiceProvider serviceProvider)
-        {
-            _serviceProvider = serviceProvider;
-        }
-
-        public Client Create(LengthedSocket socket, ClientCryptData data, Server server)
-        {
-            var client = _serviceProvider.GetService<Client>();
-            client.RegisterAtServer(server, socket, data);
-            return client;
-        }
+    public Client Create(AsyncLengthedSocket socket, ClientCryptData data, Server server)
+    {
+        var client = _serviceProvider.GetService<Client>();
+        client.RegisterAtServer(server, socket, data);
+        return client;
     }
 }

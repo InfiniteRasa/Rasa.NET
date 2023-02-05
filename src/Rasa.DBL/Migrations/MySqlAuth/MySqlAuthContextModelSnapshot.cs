@@ -17,7 +17,7 @@ namespace Rasa.Migrations.MySqlAuth
                 .HasAnnotation("Relational:MaxIdentifierLength", 64)
                 .HasAnnotation("ProductVersion", "5.0.1");
 
-            modelBuilder.Entity("Rasa.Structures.AuthAccountEntry", b =>
+            modelBuilder.Entity("Rasa.Structures.Auth.AuthAccountEntry", b =>
                 {
                     b.Property<uint>("Id")
                         .ValueGeneratedOnAdd()

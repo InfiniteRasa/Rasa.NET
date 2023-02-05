@@ -6,8 +6,6 @@
     <AssemblyName>Rasa.Game</AssemblyName>
     <OutputType>Exe</OutputType>
     <PackageId>Rasa.Game</PackageId>
-    <RuntimeIdentifiers>win10-x64;osx.10.10-x64;ubuntu.14.04-x64</RuntimeIdentifiers>
-    <RuntimeFrameworkVersion>5.0.0</RuntimeFrameworkVersion>
     <GenerateAssemblyConfigurationAttribute>false</GenerateAssemblyConfigurationAttribute>
     <GenerateAssemblyCompanyAttribute>false</GenerateAssemblyCompanyAttribute>
     <GenerateAssemblyProductAttribute>false</GenerateAssemblyProductAttribute>
@@ -21,8 +19,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Rasa.Communicator\Rasa.Communicator.csproj" />
     <ProjectReference Include="..\Rasa.DBL\Rasa.DBL.csproj" />
-    <ProjectReference Include="..\Rasa.Shared\Rasa.Shared.csproj" />
     <ProjectReference Include="..\Rasa.Utils\Rasa.Utils.csproj" />
   </ItemGroup>
 

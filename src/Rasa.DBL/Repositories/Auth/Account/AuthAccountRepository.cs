@@ -25,14 +25,8 @@ namespace Rasa.Repositories.Auth.Account
 
         public void Create(string email, string userName, string password)
         {
-            if (string.IsNullOrEmpty(email))
-            {
-                throw new ArgumentNullException(nameof(email));
-            }
-            if (string.IsNullOrEmpty(userName))
-            {
-                throw new ArgumentNullException(nameof(userName));
-            }
+            ArgumentException.ThrowIfNullOrEmpty(email);
+            ArgumentException.ThrowIfNullOrEmpty(userName);
 
             var salt = CreateSalt();
             var hashedPassword = Hash(password ?? string.Empty, salt);

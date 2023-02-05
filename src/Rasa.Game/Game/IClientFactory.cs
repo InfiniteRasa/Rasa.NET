@@ -1,10 +1,9 @@
-﻿namespace Rasa.Game
-{
-    using Cryptography;
-    using Networking;
+﻿namespace Rasa.Game;
 
-    public interface IClientFactory
-    {
-        Client Create(LengthedSocket socket, ClientCryptData data, Server server);
-    }
+using Rasa.Cryptography;
+using Rasa.Networking;
+
+public interface IClientFactory
+{
+    Client Create(AsyncLengthedSocket socket, ClientCryptData data, Server server);
 }

@@ -1,88 +1,109 @@
 ﻿using System.Net.Sockets;
 
-namespace Rasa.Login
+namespace Rasa.Login;
+
+using Rasa.Cryptography;
+using Rasa.Memory;
+using Rasa.Networking;
+using Rasa.Packets;
+using Rasa.Packets.Login.Client;
+using Rasa.Packets.Login.Server;
+using System;
+using System.Buffers;
+using System.IO;
+using System.Text;
+
+public class LoginClient
 {
-    using Cryptography;
-    using Memory;
-    using Networking;
-    using Packets.Login.Client;
-    using Packets.Login.Server;
+    public const int SendBufferSize = 512;
+    public const int SendBufferCryptoPadding = 8;
+    public const int SendBufferChecksumPadding = 8;
 
-    public class LoginClient
+    public AsyncLengthedSocket Socket { get; }
+    public LoginManager Manager { get; }
+    public ClientCryptData Data { get; } = new ClientCryptData();
+
+    public BigNum PrivateKey { get; } = new BigNum();
+    public BigNum PublicKey { get; } = new BigNum();
+    public BigNum K { get; } = new BigNum();
+
+    public LoginClient(LoginManager manager, AsyncLengthedSocket socket)
     {
-        public LengthedSocket Socket { get; }
-        public LoginManager Manager { get; }
-        public ClientCryptData Data { get; } = new ClientCryptData();
+        Manager = manager;
 
-        // ReSharper disable once InconsistentNaming
-        public BigNum PrivateKey { get; } = new BigNum();
-        public BigNum PublicKey { get; } = new BigNum();
-        public BigNum K { get; } = new BigNum();
+        Socket = socket;
+        Socket.OnReceive += OnReceive;
+        Socket.OnError += OnError;
 
-        public LoginClient(LoginManager manager, LengthedSocket socket)
+        DHKeyExchange.GeneratePrivateAndPublicA(PrivateKey, PublicKey);
+
+        SendPacket(new ServerKeyPacket
         {
-            Manager = manager;
+            PublicKey = PublicKey,
+            Prime = DHKeyExchange.ConstantPrime,
+            Generator = DHKeyExchange.ConstantGenerator
+        });
 
-            Socket = socket;
-            Socket.AutoReceive = false;
-            Socket.OnReceive += OnReceive;
-            Socket.OnError += OnError;
-
-            DHKeyExchange.GeneratePrivateAndPublicA(PrivateKey, PublicKey);
-
-            Socket.Send(new ServerKeyPacket
-            {
-                PublicKey = PublicKey,
-                Prime = DHKeyExchange.ConstantPrime,
-                Generator = DHKeyExchange.ConstantGenerator
-            });
-
-            Socket.OnEncrypt += OnEncrypt;
-            Socket.ReceiveAsync();
-        }
-
-        private void OnEncrypt(BufferData data, ref int length)
-        {
-            GameCryptManager.Encrypt(BufferData.Buffer, data.BaseOffset + data.Offset, ref length, data.RemainingLength, Data);
-        }
-
-        private void OnReceive(BufferData data)
-        {
-            var packet = new ClientKeyPacket();
-            packet.Read(data.GetReader());
-
-            DHKeyExchange.GenerateServerK(PrivateKey, packet.B, K);
-
-            var key = new byte[64];
-            K.WriteToBigEndian(key, 0, key.Length);
-
-            GameCryptManager.Initialize(Data, key);
-
-            Socket.Send(new ClientKeyOkPacket());
-
-            Cleanup();
-
-            Manager.ExchangeDone(this);
-        }
-
-        private void OnError(SocketAsyncEventArgs args)
-        {
-            Manager.Disconnect(this);
-
-            Close();
-        }
-
-        private void Cleanup()
-        {
-            Socket.AutoReceive = true;
-            Socket.OnReceive = null;
-            Socket.OnError = null;
-            Socket.OnEncrypt = null;
-        }
-
-        public void Close()
-        {
-            Socket.Close();
-        }
+        Socket.Start();
     }
+
+    public void SendPacket(IBasePacket packet)
+    {
+        var buffer = ArrayPool<byte>.Shared.Rent(SendBufferSize + SendBufferCryptoPadding + SendBufferChecksumPadding);
+        var writer = new BinaryWriter(new MemoryStream(buffer, true));
+
+        packet.Write(writer);
+
+        var length = (int)writer.BaseStream.Position;
+
+        if (packet is not ServerKeyPacket)
+        {
+            GameCryptManager.Encrypt(buffer, 0, ref length, buffer.Length, Data);
+        }
+
+        Socket.Send(buffer, 0, length);
+
+        ArrayPool<byte>.Shared.Return(buffer);
+    }
+
+    private void OnReceive(NonContiguousMemoryStream incomingStream, int length)
+    {
+        var startPosition = incomingStream.Position;
+
+        using var br = new BinaryReader(incomingStream, Encoding.UTF8, true);
+
+        var packet = new ClientKeyPacket();
+        packet.Read(br);
+
+        if (startPosition + length != incomingStream.Position)
+            throw new Exception($"Over or under read of the incoming packet! Start position: {startPosition} | Length: {length} | Ending position: {incomingStream.Position}");
+
+        DHKeyExchange.GenerateServerK(PrivateKey, packet.B, K);
+
+        var key = new byte[64];
+        K.WriteToBigEndian(key, 0, key.Length);
+
+        GameCryptManager.Initialize(Data, key);
+
+        SendPacket(new ClientKeyOkPacket());
+
+        Cleanup();
+
+        Manager.ExchangeDone(this);
+    }
+
+    private void OnError()
+    {
+        Manager.Disconnect(this);
+
+        Close();
+    }
+
+    private void Cleanup()
+    {
+        Socket.OnReceive = null;
+        Socket.OnError = null;
+    }
+
+    public void Close() => Socket.Close();
 }

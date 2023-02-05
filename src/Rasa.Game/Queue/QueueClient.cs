@@ -1,120 +1,137 @@
 ﻿using System;
 using System.Net;
-using System.Net.Sockets;
 
-namespace Rasa.Queue
+namespace Rasa.Queue;
+
+using Rasa.Data;
+using Rasa.Memory;
+using Rasa.Networking;
+using Rasa.Packets;
+using Rasa.Packets.Queue.Client;
+using Rasa.Packets.Queue.Server;
+using System.Buffers;
+using System.IO;
+using System.Text;
+
+public class QueueClient
 {
-    using Data;
-    using Memory;
-    using Networking;
-    using Packets.Queue.Client;
-    using Packets.Queue.Server;
+    public const int SendBufferSize = 512;
 
-    public class QueueClient
+    public QueueManager Manager { get; }
+    public AsyncLengthedSocket Socket { get; }
+    public QueueState State { get; private set; }
+    public uint UserId { get; set; }
+    public uint OneTimeKey { get; set; }
+    public DateTime EnqueueTime { get; private set; }
+    public DateTime DequeueTime { get; set; }
+
+    public QueueClient(QueueManager manager, AsyncLengthedSocket socket)
     {
-        public QueueManager Manager { get; }
-        public LengthedSocket Socket { get; }
-        public QueueState State { get; private set; }
-        public uint UserId { get; set; }
-        public uint OneTimeKey { get; set; }
-        public DateTime EnqueueTime { get; private set; }
-        public DateTime DequeueTime { get; set; }
+        Manager = manager;
+        Socket = socket;
+        Socket.OnReceive += OnReceive;
+        Socket.OnError += OnError;
 
-        public QueueClient(QueueManager manager, LengthedSocket socket)
+        Socket.Start();
+
+        SendPacket(new ServerKeyPacket
         {
-            Manager = manager;
-            Socket = socket;
-            Socket.OnReceive += OnReceive;
-            Socket.OnError += OnError;
+            PublicKey = Manager.Config.PublicKey,
+            Prime = Manager.Config.Prime,
+            Generator = Manager.Config.Generator
+        });
 
-            Socket.ReceiveAsync();
+        State = QueueState.Authenticating;
+    }
 
-            Socket.Send(new ServerKeyPacket
-            {
-                PublicKey = Manager.Config.PublicKey,
-                Prime = Manager.Config.Prime,
-                Generator = Manager.Config.Generator
-            });
+    private void SendPacket(IOpcodedPacket<QueueOpcode> packet)
+    {
+        var buffer = ArrayPool<byte>.Shared.Rent(SendBufferSize);
+        var writer = new BinaryWriter(new MemoryStream(buffer, true));
 
-            State = QueueState.Authenticating;
-        }
+        packet.Write(writer);
 
-        private void OnReceive(BufferData data)
+        Socket.Send(buffer, 0, (int)writer.BaseStream.Position);
+
+        ArrayPool<byte>.Shared.Return(buffer);
+    }
+
+    private void OnReceive(NonContiguousMemoryStream incomingStream, int length)
+    {
+        var startPosition = incomingStream.Position;
+
+        using var br = new BinaryReader(incomingStream, Encoding.UTF8, true);
+
+        switch (State)
         {
-            switch (State)
-            {
-                case QueueState.Authenticating:
-                    var keyPacket = new ClientKeyPacket();
+            case QueueState.Authenticating:
+                var keyPacket = new ClientKeyPacket();
 
-                    keyPacket.Read(data.GetReader());
+                keyPacket.Read(br);
 
-                    if (keyPacket.PublicKey != Manager.Config.PublicKey)
-                    {
-                        Close();
-                        return;
-                    }
+                if (keyPacket.PublicKey != Manager.Config.PublicKey)
+                {
+                    Close();
+                    return;
+                }
 
-                    Socket.Send(new ClientKeyOkPacket());
+                SendPacket(new ClientKeyOkPacket());
 
-                    State = QueueState.Authenticated;
+                State = QueueState.Authenticated;
 
-                    break;
+                break;
 
-                case QueueState.Authenticated:
-                    if (data[data.Offset++] != 7)
-                        throw new Exception("Invalid opcode???");
+            case QueueState.Authenticated:
+                if (br.ReadByte() != 7)
+                    throw new Exception("Invalid opcode???");
 
-                    var loginPacket = new QueueLoginPacket();
+                var loginPacket = new QueueLoginPacket();
 
-                    loginPacket.Read(data.GetReader());
+                loginPacket.Read(br);
 
-                    UserId = loginPacket.UserId;
-                    OneTimeKey = loginPacket.OneTimeKey;
-                    State = QueueState.InQueue;
+                UserId = loginPacket.UserId;
+                OneTimeKey = loginPacket.OneTimeKey;
+                State = QueueState.InQueue;
 
-                    Manager.Enqueue(this);
-                    EnqueueTime = DateTime.Now;
-                    break;
+                Manager.Enqueue(this);
+                EnqueueTime = DateTime.Now;
+                break;
 
-                default:
-                    throw new Exception("Received packet in a invalid queue state!");
-            }
+            default:
+                throw new Exception("Received packet in a invalid queue state!");
         }
+    }
 
-        private void OnError(SocketAsyncEventArgs args)
+    private void OnError() => Close();
+
+    public void Close()
+    {
+        Socket.Close();
+
+        State = QueueState.Disconnected;
+
+        Manager.Disconnect(this);
+    }
+
+    public void Redirect(IPAddress ip, int port)
+    {
+        State = QueueState.Redirecting;
+
+        SendPacket(new HandoffToGamePacket
         {
-            Close();
-        }
+            OneTimeKey = OneTimeKey,
+            ServerIp = ip,
+            ServerPort = port,
+            UserId = UserId
+        });
+    }
 
-        public void Close()
+    public void SendPositionUpdate(int position, int estimatedTime)
+    {
+        SendPacket(new QueuePositionPacket
         {
-            Socket.Close();
-
-            State = QueueState.Disconnected;
-
-            Manager.Disconnect(this);
-        }
-
-        public void Redirect(IPAddress ip, int port)
-        {
-            State = QueueState.Redirecting;
-
-            Socket.Send(new HandoffToGamePacket
-            {
-                OneTimeKey = OneTimeKey,
-                ServerIp = ip,
-                ServerPort = port,
-                UserId = UserId
-            });
-        }
-
-        public void SendPositionUpdate(int position, int estimatedTime)
-        {
-            Socket.Send(new QueuePositionPacket
-            {
-                Position = position,
-                EstimatedTime = estimatedTime
-            });
-        }
+            Position = position,
+            EstimatedTime = estimatedTime
+        });
     }
 }

@@ -20,6 +20,8 @@ public class NonContiguousMemoryStream : Stream
     public override long Position { get; set; }
     public override long Length => Buffers.Sum(arr => (long)arr.Length) - Origin;
 
+    public int AvailableBytesToRead => (int)(WritePosition - Position);
+
     public void RemoveBytes(int count)
     {
         if (count > Length)

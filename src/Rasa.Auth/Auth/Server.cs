@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
-using System.Net.Sockets;
 
 using Microsoft.Extensions.Hosting;
 
@@ -10,12 +9,12 @@ namespace Rasa.Auth;
 
 using Rasa.Commands;
 using Rasa.Communicator;
+using Rasa.Communicator.Packets;
 using Rasa.Config;
 using Rasa.Data;
 using Rasa.Hosting;
 using Rasa.Memory;
 using Rasa.Networking;
-using Rasa.Packets.Communicator;
 using Rasa.Packets.Auth.Server;
 using Rasa.Repositories.UnitOfWork;
 using Rasa.Threading;
@@ -31,19 +30,15 @@ public class Server : ILoopable, IRasaServer
     public const int MainLoopTime = 100; // Milliseconds
 
     public Config Config { get; private set; }
-    public Communicator Communicator { get; private set; }
-    public LengthedSocket AuthCommunicator { get; private set; }
-    public LengthedSocket ListenerSocket { get; private set; }
+    public Communicator Communicator { get; } = new(CommunicatorType.Server);
+    public AsyncLengthedSocket ListenerSocket { get; } = new(AsyncLengthedSocket.HeaderSizeType.Word);
     public List<Client> Clients { get; } = new();
-   
     public List<ServerInfo> ServerList { get; } = new();
     public MainLoop Loop { get; }
     public Timer Timer { get; }
     public bool Running => Loop != null && Loop.Running;
 
     private readonly List<Client> _clientsToRemove = new();
-    private List<CommunicatorClient> GameServerQueue { get; } = new();
-    private Dictionary<byte, CommunicatorClient> GameServers { get; } = new();
 
     public Server(IHostApplicationLifetime hostApplicationLifetime, IAuthUnitOfWorkFactory authUnitOfWorkFactory)
     {
@@ -54,16 +49,17 @@ public class Server : ILoopable, IRasaServer
         Configuration.OnReLoad += ConfigReLoaded;
         Configuration.Load();
 
+        if (Config is null)
+            throw new Exception("Unable to load configuration!");
+
         Loop = new MainLoop(this, MainLoopTime);
         Timer = new Timer();
 
         SetupServerList();
 
-        LengthedSocket.InitializeEventArgsPool(Config.SocketAsyncConfig.MaxClients * Config.SocketAsyncConfig.ConcurrentOperationsByClient);
-
-        BufferManager.Initialize(Config.SocketAsyncConfig.BufferSize, Config.SocketAsyncConfig.MaxClients, Config.SocketAsyncConfig.ConcurrentOperationsByClient);
-
         RegisterConsoleCommands();
+
+        Logger.WriteLog(LogType.Initialize, "The Auth server has been initialized!");
     }
 
     ~Server()
@@ -153,12 +149,9 @@ public class Server : ILoopable, IRasaServer
         // Set up the listener socket
         try
         {
-            ListenerSocket = new LengthedSocket(SizeType.Word);
             ListenerSocket.OnError += OnError;
             ListenerSocket.OnAccept += OnAccept;
-            ListenerSocket.Bind(new IPEndPoint(IPAddress.Any, Config.AuthConfig.Port));
-            ListenerSocket.Listen(Config.AuthConfig.Backlog);
-            ListenerSocket.AcceptAsync();
+            ListenerSocket.StartListening(new IPEndPoint(IPAddress.Any, Config.AuthConfig.Port), Config.AuthConfig.Backlog);
 
             Logger.WriteLog(LogType.Network, "*** Listening for clients on port {0}", Config.AuthConfig.Port);
         }
@@ -171,7 +164,12 @@ public class Server : ILoopable, IRasaServer
         }
 
         // Set up communicator
-        Communicator = new Communicator(CommunicatorType.Server, IPAddress.Parse(Config.CommunicatorConfig.Address), Config.CommunicatorConfig.Port, Config.CommunicatorConfig.Backlog);
+        Communicator.OnLoginRequest += AuthenticateGameServer;
+        Communicator.OnRedirectResponse += RedirectResponse;
+        Communicator.OnServerInfoResponse += UpdateServerInfo;
+        Communicator.Start(IPAddress.Parse(Config.CommunicatorConfig.Address), Config.CommunicatorConfig.Port, Config.CommunicatorConfig.Backlog);
+
+        Logger.WriteLog(LogType.Network, "*** Listening for gameservers on port {0}", Config.CommunicatorConfig.Port);
 
         // Add the repeating server info request timed event
         Timer.Add("ServerInfoUpdate", 1000, true, () =>
@@ -187,17 +185,12 @@ public class Server : ILoopable, IRasaServer
         return true;
     }
 
-    private static void OnError(SocketAsyncEventArgs args)
+    private static void OnError()
     {
-        if (args.LastOperation == SocketAsyncOperation.Accept && args.AcceptSocket != null &&
-            args.AcceptSocket.Connected)
-            args.AcceptSocket.Shutdown(SocketShutdown.Both);
     }
 
-    private void OnAccept(LengthedSocket newSocket)
+    private void OnAccept(AsyncLengthedSocket newSocket)
     {
-        ListenerSocket.AcceptAsync();
-
         if (newSocket == null)
             return;
 
@@ -207,47 +200,37 @@ public class Server : ILoopable, IRasaServer
     #endregion
 
     #region Communicator
-    public bool AuthenticateGameServer(LoginRequestPacket packet, CommunicatorClient client)
+    public bool AuthenticateGameServer(Communicator client, LoginRequestPacket packet)
     {
-        lock (GameServers)
+        if (Communicator.Clients!.ContainsKey(packet.Data.Id))
         {
-            if (GameServers.ContainsKey(packet.ServerId))
-            {
-                DisconnectCommunicator(client);
-                Logger.WriteLog(LogType.Debug, $"A server tried to connect to an already in use server slot! Remote Address: {client.Socket.RemoteAddress}");
-                return false;
-            }
-
-            if (!Config.Servers.ContainsKey(packet.ServerId.ToString()))
-            {
-                DisconnectCommunicator(client);
-                Logger.WriteLog(LogType.Debug, $"A server tried to connect to a non-defined server slot! Remote Address: {client.Socket.RemoteAddress}");
-                return false;
-            }
-
-            if (Config.Servers[packet.ServerId.ToString()] != packet.Password)
-            {
-                DisconnectCommunicator(client);
-                Logger.WriteLog(LogType.Error, $"A server tried to log in with an invalid password! Remote Address: {client.Socket.RemoteAddress}");
-                return false;
-            }
-
-            GameServerQueue.Remove(client);
-            GameServers.Add(packet.ServerId, client);
-
-            Logger.WriteLog(LogType.Network, $"The Game server (Id: {packet.ServerId}, Address: {client.Socket.RemoteAddress}, Public Address: {packet.PublicAddress}) has authenticated! Requesting info...");
-
-            return true;
+            Logger.WriteLog(LogType.Debug, $"A server tried to connect to an already in use server slot! Remote Address: {client.Socket.RemoteAddress}");
+            return false;
         }
+
+        if (!Config.Servers!.ContainsKey(packet.Data.Id.ToString()))
+        {
+            Logger.WriteLog(LogType.Debug, $"A server tried to connect to a non-defined server slot! Remote Address: {client.Socket.RemoteAddress}");
+            return false;
+        }
+
+        if (Config.Servers[packet.Data.Id.ToString()] != packet.Data.Password)
+        {
+            Logger.WriteLog(LogType.Error, $"A server tried to log in with an invalid password! Remote Address: {client.Socket.RemoteAddress}");
+            return false;
+        }
+
+        Logger.WriteLog(LogType.Communicator, $"The Game server (Id: {packet.Data.Id}, Address: {client.Socket.RemoteAddress}, Public Address: {packet.Data.Address}) has authenticated!");
+        return true;
     }
 
-    public void UpdateServerInfo(CommunicatorClient client, ServerInfoResponsePacket packet)
+    public void UpdateServerInfo()
     {
         GenerateServerList();
         BroadcastServerList();
     }
 
-    public void RedirectResponse(CommunicatorClient client, RedirectResponsePacket packet)
+    public void RedirectResponse(Communicator client, RedirectResponsePacket packet)
     {
         Client authClient;
         lock (Clients)
@@ -255,40 +238,21 @@ public class Server : ILoopable, IRasaServer
 
         ServerInfo info;
         lock (ServerList)
-            info = ServerList.FirstOrDefault(i => i.ServerId == client.ServerId);
+            info = ServerList.FirstOrDefault(i => i.ServerId == client.ServerData.Id);
 
         if (authClient != null && info != null)
-            authClient.RedirectionResult(packet.Response, info);
+            authClient.RedirectionResult(packet.Result, info);
     }
 
     public void RequestRedirection(Client client, byte serverId)
     {
-        lock (GameServers)
-            if (GameServers.TryGetValue(serverId, out var value))
-                value.RequestRedirection(client);
-    }
-
-    public void DisconnectCommunicator(CommunicatorClient client)
-    {
-        if (client == null)
-            return;
-
-        lock (GameServers)
+        Communicator.RequestRedirection(serverId, new()
         {
-            GameServerQueue.Remove(client);
-
-            if (client.ServerId != 0)
-                GameServers.Remove(client.ServerId);
-
-            GenerateServerList();
-        }
-
-        Timer.Add($"Disconnect-comm-{DateTime.Now.Ticks}", 1000, false, () =>
-        {
-            client.Socket?.Close();
+            AccountId = client.AccountEntry.Id,
+            Email = client.AccountEntry.Email,
+            OneTimeKey = client.OneTimeKey,
+            Username = client.AccountEntry.Username
         });
-
-        Logger.WriteLog(LogType.Network, $"The game server (Id: {client.ServerId}, Address: {client.Socket.RemoteAddress}) has disconnected!");
     }
 
     private void GenerateServerList()
@@ -297,64 +261,40 @@ public class Server : ILoopable, IRasaServer
         {
             var toRemove = new List<ServerInfo>();
 
-            lock (GameServers)
+            ServerList.Clear();
+
+            foreach (var client in Communicator.Clients!)
             {
-                foreach (var sInfo in ServerList)
+                ServerList.Add(new ServerInfo
                 {
-                    if (GameServers.TryGetValue(sInfo.ServerId, out var client))
-                    {
-                        sInfo.Setup(client.PublicAddress, client.QueuePort, client.GamePort, client.AgeLimit, client.PKFlag, client.CurrentPlayers, client.MaxPlayers);
-                        continue;
-                    }
-
-                    if (Config.AuthListType == AuthListType.Online)
-                    {
-                        toRemove.Add(sInfo);
-                        continue;
-                    }
-
-                    sInfo.Clear();
-                }
-
-                foreach (var server in GameServers)
-                {
-                    if (ServerList.All(s => s.ServerId != server.Key))
-                    {
-                        ServerList.Add(new ServerInfo
-                        {
-                            AgeLimit = server.Value.AgeLimit,
-                            PKFlag = server.Value.PKFlag,
-                            CurrentPlayers = server.Value.CurrentPlayers,
-                            MaxPlayers = server.Value.MaxPlayers,
-                            QueuePort = server.Value.QueuePort,
-                            GamePort = server.Value.GamePort,
-                            Ip = server.Value.PublicAddress,
-                            ServerId = server.Key,
-                            Status = 1
-                        });
-                    }
-                }
+                    AgeLimit = client.Value.ServerInfo!.AgeLimit,
+                    PKFlag = client.Value.ServerInfo.PKFlag,
+                    CurrentPlayers = client.Value.ServerInfo.CurrentPlayers,
+                    MaxPlayers = client.Value.ServerInfo.MaxPlayers,
+                    GamePort = client.Value.ServerInfo.GamePort,
+                    QueuePort = client.Value.ServerInfo.QueuePort,
+                    Ip = client.Value.ServerData!.Address,
+                    ServerId = client.Key,
+                    Status = 1
+                });
             }
-
-            if (toRemove.Count == 0)
-                return;
-
-            foreach (var rem in toRemove)
-                ServerList.Remove(rem);
         }
     }
     #endregion
 
     public void Shutdown()
     {
-        ListenerSocket?.Close();
-        ListenerSocket = null;
+        ListenerSocket.Close();
 
         Loop.Stop();
+
+        _hostApplicationLifetime.StopApplication();
     }
 
     public void MainLoop(long delta)
     {
+        Communicator.Update();
+
         Timer.Update(delta);
 
         if (Clients.Count == 0)
@@ -401,11 +341,7 @@ public class Server : ILoopable, IRasaServer
         if (parts.Length > 1)
             minutes = int.Parse(parts[1]);
 
-        Timer.Add("exit", minutes * 60000, false, () =>
-        {
-            Shutdown();
-            _hostApplicationLifetime.StopApplication();
-        });
+        Timer.Add("exit", minutes * 60000, false, Shutdown);
 
         Logger.WriteLog(LogType.Command, $"Exiting the server in {minutes} minute(s).");
     }
