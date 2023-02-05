@@ -500,9 +500,9 @@ namespace Rasa.Managers
                     unitOfWork.Characters.UpdateCharacterActiveWeapon(client.Player.Id, client.Player.ActiveWeapon);
                     break;
                 case CharacterUpdate.Teleporter:
-                    var teleporterId = (uint)value;
+                    var teleporter = (CharacterTeleporterEntry)value;
 
-                    unitOfWork.CharacterTeleporters.Add(client.Player.Id, teleporterId);
+                    unitOfWork.CharacterTeleporters.Add(teleporter);
                     break;
                 default:
                     break;

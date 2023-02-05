@@ -16,10 +16,15 @@ namespace Rasa.Structures.Char
         [Required]
         public uint WaypointId { get; set; }
 
-        public CharacterTeleporterEntry(uint characterId, uint waypointId)
+        [Column("waypoint_type")]
+        [Required]
+        public byte WaypointType { get; set; }
+
+        public CharacterTeleporterEntry(uint characterId, uint waypointId, byte waypointType)
         {
             CharacterId = characterId;
             WaypointId = waypointId;
+            WaypointType = waypointType;
         }
 
         public CharacterTeleporterEntry()

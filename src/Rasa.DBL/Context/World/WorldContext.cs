@@ -44,6 +44,7 @@ namespace Rasa.Context.World
         public DbSet<LogosEntry> LogosEntries { get; set; }
         public DbSet<MapInfoEntry> MapInfoEntries { get; set; }
         public DbSet<NpcMissionEntry> NpcMissionEntries { get; set; }
+        public DbSet<NpcMissionRewardEntry> NpcMissionRewardEntries { get; set; }
         public DbSet<NpcPackageEntry> NpcPackageEntries { get; set; }
         public DbSet<RandomNameEntry> RandomNameEntries { get; set; }
         public DbSet<SpawnPoolEntry> SpawnPoolEntries { get; set; }

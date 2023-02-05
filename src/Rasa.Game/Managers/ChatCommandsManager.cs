@@ -9,6 +9,7 @@ namespace Rasa.Managers
     using Models;
     using Packets.Game.Server;
     using Packets.MapChannel.Server;
+    using Rasa.Packets.Communicator.Client;
     using Structures;
 
     public class ChatCommandsManager
@@ -670,5 +671,10 @@ namespace Rasa.Managers
         }
 
         #endregion
+
+        internal void PrivilegedCommand(Client client, PrivilegedCommandPacket packet)
+        {
+            Logger.WriteLog(LogType.Debug, "ToDo: PrivilegedCommand");
+        }
     }
 }

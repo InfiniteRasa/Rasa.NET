@@ -347,7 +347,7 @@
         [PacketHandler(GameOpcode.SetAutoLootThreshold)]
         private void SetAutoLootThreshold(SetAutoLootThresholdPacket packet)
         {
-            Logger.WriteLog(LogType.Debug, "ToDo SetAutoLootThreshold");
+            Logger.WriteLog(LogType.Debug, "ToDo: SetAutoLootThreshold");
         }
 
         [PacketHandler(GameOpcode.SetDesiredCrouchState)]
@@ -538,7 +538,7 @@
         [PacketHandler(GameOpcode.PrivilegedCommand)]
         private void PrivilegedCommand(PrivilegedCommandPacket packet)
         {
-            Logger.WriteLog(LogType.Debug, "ToDo: PrivilegedCommandPacket");
+            ChatCommandsManager.Instance.PrivilegedCommand(Client, packet);
         }
 
         [PacketHandler(GameOpcode.RadialChat)]
@@ -735,6 +735,7 @@
         [PacketHandler(GameOpcode.AcceptPartyInvitesChanged)]
         private void AcceptPartyInvitesChanged(AcceptPartyInvitesChangedPacket packet)
         {
+            Logger.WriteLog(LogType.Debug, $"ToDo: AcceptPartyInvitesChangedPacket");
         }
 
         [PacketHandler(GameOpcode.CancelSquadInviteRequest)]

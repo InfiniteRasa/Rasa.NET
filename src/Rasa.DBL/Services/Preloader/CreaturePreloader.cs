@@ -45,8 +45,8 @@ namespace Rasa.Services.Preloader
             yield return new object[] { 28, "Test Vendor 8", 3848, 1, 5, 555, 0, 9, 5, 2, 0, 0, 0, 0, 0, 0, 0 };
             yield return new object[] { 29, "Test Vendor 9", 3846, 1, 5, 555, 0, 9, 5, 2, 0, 0, 0, 0, 0, 0, 0 };
             yield return new object[] { 30, "Clan Master", 3846, 1, 5, 120, 8838, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0 };
-            yield return new object[] { 100, "Outpost Commander Rogers", 3846, 1, 5, 555, 2973, 9, 5, 2, 0, 0, 0, 0, 0, 0, 0 };
-            yield return new object[] { 101, "Field Sgt. Witherspoon", 3846, 1, 25, 555, 3072, 9, 5, 2, 0, 0, 0, 0, 0, 0, 0 };
+            yield return new object[] { 100, "Outpost Commander Rogers", 3846, 1, 5, 555, 2973, 9, 0, 2, 0, 0, 0, 0, 0, 0, 0 };
+            yield return new object[] { 101, "Field Sgt. Witherspoon", 3846, 1, 25, 555, 3072, 9, 0, 2, 0, 0, 0, 0, 0, 0, 0 };
 
         }
     }

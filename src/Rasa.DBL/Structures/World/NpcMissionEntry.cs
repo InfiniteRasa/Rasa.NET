@@ -1,37 +1,47 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-using Microsoft.EntityFrameworkCore;
-
 namespace Rasa.Structures.World
 {
     using Interfaces;
 
     [Table(TableName)]
-    [Keyless]
     public class NpcMissionEntry :IHasId
     {
         public const string TableName = "npc_mission";
 
+        [Key]
         [Column("id")]
         [Required]
         public uint Id { get; set; }
 
-        [Column("command")]
+        [Column("giver_id")]
         [Required]
-        public byte Command { get; set; }
+        public uint GiverId { get; set; }
 
-        [Column("var1")]
+        [Column("reciver_id")]
         [Required]
-        public uint Var1 { get; set; }
+        public uint ReciverId { get; set; }
 
-        [Column("var2")]
+        [Column("level")]
         [Required]
-        public uint Var2 { get; set; }
+        public uint Level { get; set; }
 
-        [Column("var3")]
+        [Column("group_type")]
         [Required]
-        public uint Var3 { get; set; }
+        public byte GroupType { get; set; }
+
+        [Column("category_id")]
+        [Required]
+        public byte CategoryId { get; set; }
+
+        [Column("shareable")]
+        [Required]
+        public bool Shareable { get; set; }
+
+        [Column("radio_completeable")]
+        [Required]
+        public bool RadioCompleteable { get; set; }
 
         [Column("comment", TypeName = "varchar(50)")]
         [Required]

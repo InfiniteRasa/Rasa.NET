@@ -3,6 +3,7 @@ using System.Numerics;
 
 namespace Rasa.Structures
 {
+    using Data;
     public class MapWaypointInfoList
     {
         internal uint GameGontextId { get; set; }
@@ -22,16 +23,16 @@ namespace Rasa.Structures
         internal uint WaypointId { get; set; }
         internal bool Contested { get; set; }
         internal Vector3 Position { get; set; }
-        internal uint WaypointType { get; set; }
+        internal WaypointType WaypointType { get; set; }
 
-        public WaypointInfo(uint waypointId, bool contested, uint waypointType)
+        public WaypointInfo(uint waypointId, bool contested, WaypointType waypointType)
         {
             WaypointId = waypointId;
             Contested = contested;
             WaypointType = waypointType;
         }
 
-        public WaypointInfo(uint waypointId, bool contested, Vector3 position, uint waypointType)
+        public WaypointInfo(uint waypointId, bool contested, Vector3 position, WaypointType waypointType)
         {
             WaypointId = waypointId;
             Contested = contested;

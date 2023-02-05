@@ -2,7 +2,7 @@
 {
     public class MissionObjectiveCounter
     {
-        public int CounterId { get; set; }
-        public int MaxCount { get; set; }
+        public uint Count { get; set; }
+        public uint MaxCount { get; set; }
     }
 }

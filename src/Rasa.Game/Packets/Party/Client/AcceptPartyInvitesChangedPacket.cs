@@ -9,7 +9,6 @@
 
         public override void Read(PythonReader pr)
         {
-            Logger.WriteLog(LogType.Debug, $"AcceptPartyInvitesChangedPacket {pr.ToString()}");
             pr.ReadTuple();
             pr.ReadTrueStruct();
         }

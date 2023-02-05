@@ -4,7 +4,7 @@ using System.Linq;
 namespace Rasa.Repositories.Char.CharacterTeleporter
 {
     using Context.Char;
-    using Rasa.Structures.Char;
+    using Structures.Char;
 
     public class CharacterTeleporterRepository : ICharacterTeleporterRepository
     {
@@ -15,18 +15,16 @@ namespace Rasa.Repositories.Char.CharacterTeleporter
             _charContext = charContext;
         }
 
-        public void Add(uint characterId, uint waypointId)
+        public void Add(CharacterTeleporterEntry teleporter)
         {
-            var entry = new CharacterTeleporterEntry(characterId, waypointId);
-
-            _charContext.CharacterTeleporterEntries.Add(entry);
+            _charContext.CharacterTeleporterEntries.Add(teleporter);
             _charContext.SaveChanges();
         }
 
-        public List<uint> Get(uint characterId)
+        public List<CharacterTeleporterEntry> Get(uint characterId)
         {
             var query = _charContext.CreateNoTrackingQuery(_charContext.CharacterTeleporterEntries);
-            var entries = query.Where(e => e.CharacterId == characterId).Select(e => e.WaypointId).ToList();
+            var entries = query.Where(e => e.CharacterId == characterId).ToList();
 
             return entries;
         }

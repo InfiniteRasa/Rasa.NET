@@ -44,7 +44,7 @@ namespace Rasa.Structures
         public ulong TargetEntityId { get; set; }
         public ulong TrackingTargetEntityId { get; set; }
         public byte ActiveWeapon { get; set; }
-        public List<uint> GainedWaypoints = new();
+        public List<CharacterTeleporterEntry> GainedWaypoints = new();
         public bool IsAFK { get; set; }
 
         // Inventory

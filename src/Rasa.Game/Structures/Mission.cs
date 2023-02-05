@@ -1,15 +1,23 @@
 ﻿namespace Rasa.Structures
 {
-    public class Mission
+    using Structures.World;
+
+    public class Mission : MissionInfo
     {
         public uint MissionId { get; set; }
         public uint MissionGiver { get; set; }
         public uint MissionReciver { get; set; }
-        public MissionInfo MissionInfo = new MissionInfo();
 
-        public Mission(uint missionId)
+        public Mission(NpcMissionEntry mission)
         {
-            MissionId = missionId;
+            MissionId = mission.Id;
+            MissionGiver = mission.GiverId;
+            MissionReciver = mission.ReciverId;
+            MissionConstantData.Level = mission.Level;
+            MissionConstantData.GroupType = mission.GroupType;
+            MissionConstantData.CategoryId = mission.CategoryId;
+            MissionConstantData.Shareable = mission.Shareable;
+            MissionConstantData.RadioCompletable = mission.RadioCompleteable;
         }
     }
 }

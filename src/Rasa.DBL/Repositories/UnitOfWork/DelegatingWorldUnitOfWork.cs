@@ -53,6 +53,8 @@ namespace Rasa.Repositories.UnitOfWork
 
         public INpcMissionRepository NpcMissions => _parent.NpcMissions;
 
+        public INpcMissionRewardRepository NpcMissionRewards => _parent.NpcMissionRewards;
+
         public INpcPackageRepository NpcPackages => _parent.NpcPackages;
 
         public IPlayerRandomNameRepository RandomNames => _parent.RandomNames;

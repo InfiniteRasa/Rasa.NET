@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace Rasa.Packets.MapChannel.Server
+namespace Rasa.Packets.Mission.Server
 {
     using Data;
     using Memory;
@@ -9,10 +9,10 @@ namespace Rasa.Packets.MapChannel.Server
     public class MissionStatusInfoPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.MissionStatusInfo;
-        
-        public Dictionary<int, MissionInfo> MissionStatusDict { get; set; }
 
-        public MissionStatusInfoPacket(Dictionary<int, MissionInfo> missionStatusDict)
+        public Dictionary<uint, MissionInfo> MissionStatusDict { get; set; }
+
+        public MissionStatusInfoPacket(Dictionary<uint, MissionInfo> missionStatusDict)
         {
             MissionStatusDict = missionStatusDict;
         }
@@ -24,7 +24,7 @@ namespace Rasa.Packets.MapChannel.Server
             foreach (var entry in MissionStatusDict)
             {
                 var missionInfo = entry.Value;
-                pw.WriteInt(entry.Key);
+                pw.WriteUInt(entry.Key);
                 pw.WriteStruct(missionInfo);
             }
         }

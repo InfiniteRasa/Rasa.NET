@@ -46,7 +46,7 @@
         [PacketHandler(GameOpcode.StoreUserClientInformation)]
         private void RequestStoreUserClientInformation(StoreUserClientInformationPacket packet)
         {
-			Logger.WriteLog(LogType.Debug, "StoreUserClientInformationPacket ToDo");
+			// ToDo
         }
     }
 }

@@ -697,32 +697,72 @@ namespace Rasa.Migrations.SqliteWorld
 
             modelBuilder.Entity("Rasa.Structures.World.NpcMissionEntry", b =>
                 {
-                    b.Property<byte>("Command")
+                    b.Property<uint>("Id")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
-                        .HasColumnName("command");
+                        .HasColumnName("id");
+
+                    b.Property<byte>("CategoryId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("category_id");
 
                     b.Property<string>("Comment")
                         .IsRequired()
                         .HasColumnType("varchar(50)")
                         .HasColumnName("comment");
 
+                    b.Property<uint>("GiverId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("giver_id");
+
+                    b.Property<byte>("GroupType")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("group_type");
+
+                    b.Property<uint>("Level")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("level");
+
+                    b.Property<bool>("RadioCompleteable")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("radio_completeable");
+
+                    b.Property<uint>("ReciverId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("reciver_id");
+
+                    b.Property<bool>("Shareable")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("shareable");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("npc_mission");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.NpcMissionRewardEntry", b =>
+                {
+                    b.Property<int>("Credits")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("credits");
+
                     b.Property<uint>("Id")
                         .HasColumnType("INTEGER")
                         .HasColumnName("id");
 
-                    b.Property<uint>("Var1")
+                    b.Property<uint>("ItemTemplateId")
                         .HasColumnType("INTEGER")
-                        .HasColumnName("var1");
+                        .HasColumnName("item_template_id");
 
-                    b.Property<uint>("Var2")
+                    b.Property<uint>("Quantity")
                         .HasColumnType("INTEGER")
-                        .HasColumnName("var2");
+                        .HasColumnName("quantity");
 
-                    b.Property<uint>("Var3")
+                    b.Property<byte>("Type")
                         .HasColumnType("INTEGER")
-                        .HasColumnName("var3");
+                        .HasColumnName("type");
 
-                    b.ToTable("npc_mission");
+                    b.ToTable("npc_mission_reward");
                 });
 
             modelBuilder.Entity("Rasa.Structures.World.NpcPackageEntry", b =>

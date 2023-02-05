@@ -9,6 +9,26 @@ namespace Rasa.Managers
 
     public class MissionManager
     {
+        /*      Mission Packets:
+         * - MissionStatusInfo(self, missionStatusDict)
+         * - MissionCompleteable(self, missionId, bCompleteable)
+         * - MissionCompleted(self, missionId)
+         * - MissionRewarded(self, missionId)
+         * - MissionFailed(self, missionId)
+         * - MissionDiscarded(self, missionId)
+         * - MissionCleared(self, missionId)
+         * - MissionGained(self, missionId, missionInfo)
+         * - ObjectiveRevealed(self, missionId, objectiveId, missionInfo)
+         * - ObjectiveActivated(self, missionId, objectiveId)
+         * - ObjectiveCompleted(self, missionId, objectiveId)
+         * - ObjectiveFailed(self, missionId, objectiveId)
+         * - UpdateObjectiveCounter(self, missionId, objectiveId, counterId, counterVal, initialVal, targetVal)
+         * - UpdateObjectiveItemCounter(self, missionId, objectiveId, itemClassId, counterVal, targetVal)
+         * - DispenseSharedMission(self, actorId, missionId, missionInfo)
+         * - DispenseRadioMission(self, missionId, missionInfo, bForceDialog)
+         * 
+         */
+
         private static MissionManager _instance;
         private static readonly object InstanceLock = new object();
         private readonly IGameUnitOfWorkFactory _gameUnitOfWorkFactory;
@@ -43,39 +63,10 @@ namespace Rasa.Managers
             using var unitOfWork = _gameUnitOfWorkFactory.CreateWorld();
             var missions = unitOfWork.NpcMissions.Get();
 
-            foreach (var line in missions)
+            foreach (var mission in missions)
             {
-                if (!LoadedMissions.ContainsKey(line.Id))
-                    LoadedMissions.Add(line.Id, new Mission(line.Id));
+                LoadedMissions.Add(mission.Id, new Mission(mission));
 
-                switch ((MissionScriptCommand)line.Command)
-                {
-                    case MissionScriptCommand.Dispenser:
-                        LoadedMissions[line.Id].MissionGiver = line.Var1;
-                        break;
-                    case MissionScriptCommand.Collector:
-                        LoadedMissions[line.Id].MissionReciver = line.Var1;
-                        break;
-                    case MissionScriptCommand.RewardItem:
-                        {
-                            var itemTemplate = ItemManager.Instance.GetItemTemplateById((uint)line.Var1);
-
-                            var rewardItem = new RewardItem
-                            {
-                                ItemTemplateId = (uint)line.Var1,
-                                Class = itemTemplate.Class,
-                                Quantity = line.Var2,
-                                ModuleIds = itemTemplate.ModuleIds,
-                                QualityId = itemTemplate.QualityId
-                            };
-
-                            LoadedMissions[line.Id].MissionInfo.MissionConstantData.RewardInfo.FixedReward.FixedItems.Add(rewardItem);
-                            break;
-                        }
-                    default:
-                        Logger.WriteLog(LogType.Error, $"LoadMissions: Unknown command {line.Command}");
-                        break;
-                }
             }
         }
     }

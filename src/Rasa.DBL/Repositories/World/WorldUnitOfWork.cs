@@ -29,6 +29,7 @@ namespace Rasa.Repositories.World
             ILogosRepository logosRepository,
             IMapInfoRepository mapInfoRepository,
             INpcMissionRepository npcMissionRepository,
+            INpcMissionRewardRepository npcMissionRewardRepository,
             INpcPackageRepository npcPackageRepository,
             IPlayerRandomNameRepository randomNameRepository,
             ISpawnpoolRepository spawnpoolRepository,
@@ -58,6 +59,7 @@ namespace Rasa.Repositories.World
             Logoses = logosRepository;
             MapInfos = mapInfoRepository;
             NpcMissions = npcMissionRepository;
+            NpcMissionRewards = npcMissionRewardRepository;
             NpcPackages = npcPackageRepository;
             RandomNames = randomNameRepository;
             Spawnpools = spawnpoolRepository;
@@ -87,6 +89,7 @@ namespace Rasa.Repositories.World
         public ILogosRepository Logoses { get; }
         public IMapInfoRepository MapInfos { get; }
         public INpcMissionRepository NpcMissions { get; }
+        public INpcMissionRewardRepository NpcMissionRewards { get; }
         public INpcPackageRepository NpcPackages { get; }
         public IPlayerRandomNameRepository RandomNames { get; }
         public ISpawnpoolRepository Spawnpools { get; }

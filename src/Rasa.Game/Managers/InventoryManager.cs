@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Numerics;
 
 namespace Rasa.Managers
 {
@@ -146,7 +145,6 @@ namespace Rasa.Managers
 
         public void PersonalInventory_MoveItem(Client client, PersonalInventory_MoveItemPacket packet)
         {
-            RunTest();
             // remove item
             if (packet.SrcSlot == packet.DestSlot)
                 return;
@@ -851,7 +849,6 @@ namespace Rasa.Managers
                     ItemManager.Instance.SendItemDataToClient(client, item, false);
                     // add item to empty slot
                     AddItemBySlot(client, InventoryType.Personal, item.EntityId, (uint)(itemCategoryOffset + i), true, true);
-                    unitOfWork.CharacterInventories.AddInvItem(client.AccountEntry.Id, client.Player.Id, (int)InventoryType.Personal, item.OwnerSlotId, item.Id);
                     return item;
                 }
             }
@@ -1300,61 +1297,5 @@ namespace Rasa.Managers
         }
 
         #endregion
-
-        public void RunTest()
-        {
-            var start = new Vector3(222f, 163f, -35f);
-            var end = new Vector3(238f, 169f, -27f);
-            //var quaterion = new Quaternion(0.0f, -0.707106f, 0.0f, 0.707108f);
-            //var quaterion = new Quaternion(0.0f, 0.0f, 0.0f, 0.095608f);
-            var quaterion = new Quaternion(0.0f, 0.0f, 0.0f, 0.985688f);
-            //var towerPos = new Vector3(239.0f, 163.0f, -94.0f);
-            //var towerPos = new Vector3(176.143f, 147.71f, -455.706f);
-            var towerPos = new Vector3(528.118f, 231.737f, 149.626f);
-
-            var r = 7;
-            var angle = Math.Acos(quaterion.W) * 2;
-            var x_2 = towerPos.X + r * Math.Sin(angle);
-            var y_2 = towerPos.Z + r * Math.Cos(angle);
-
-            var doorLocation = new Vector3((float)x_2, towerPos.Y + 1, (float)y_2);
-
-            Console.WriteLine($"Door Orientattion = {angle}");
-            Console.WriteLine($"Door location = {doorLocation}\n");
-
-            var heading = 0.707107f;
-            var newloc = CalculateTuretLocation(new Vector3(166f, 163f, -43f), heading);
-
-            var newObject = new DynamicObject
-            {
-                Position = newloc,
-                Rotation = CalculateTuretOrientation(heading),
-                MapContextId = 1220,
-                EntityClassId = (EntityClasses)4064
-            };
-
-            CellManager.Instance.AddToWorld(MapChannelManager.Instance.FindByContextId(1220), newObject);
-        }
-
-        internal Vector3 CalculateTuretLocation(Vector3 start, float heading)
-        {
-            // generate location for Emplacement_AFS_Turret_Standard = 4064
-            // get position x, y z and orw of map static entity ArchHumOutpostFenceCornerV03 = 9620
-
-            var offset = -18.0d;
-            var angle = Math.Acos(heading) * 2 + 1.1d;
-            var endX = start.X + offset * Math.Sin(angle);
-            var endZ = start.Z + offset * Math.Cos(angle);
-            var end = new Vector3((float)endX, start.Y + 6.0f, (float)endZ);
-
-            return end;
-        }
-
-        internal float CalculateTuretOrientation(float heading)
-        {
-            var orientation = Math.Acos(heading) * 2 + 0.8d;
-
-            return (float)orientation;
-        }
     }
 }

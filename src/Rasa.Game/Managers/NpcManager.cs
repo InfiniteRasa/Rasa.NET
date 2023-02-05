@@ -9,7 +9,8 @@ namespace Rasa.Managers
     using Packets.Inventory.Server;
     using Packets.MapChannel.Client;
     using Packets.MapChannel.Server;
-    using Rasa.Repositories.UnitOfWork;
+    using Packets.Mission.Server;
+    using Repositories.UnitOfWork;
     using Structures;
 
     public class NpcManager
@@ -66,7 +67,7 @@ namespace Rasa.Managers
                 return;
             }
 
-            client.CallMethod(client.Player.EntityId, new MissionGainedPacket(packet.MissionId, mission.MissionInfo));
+            client.CallMethod(client.Player.EntityId, new MissionGainedPacket(packet.MissionId, mission));
         }
 
         public void CompleteNPCMission(Client client, CompleteNPCMissionPacket packet)
@@ -100,10 +101,10 @@ namespace Rasa.Managers
                         var mission = MissionManager.Instance.LoadedMissions[missionId];
 
                         if (mission.MissionGiver == creature.DbId)
-                            dispensableMissions.Add(mission.MissionId, mission.MissionInfo);
+                            dispensableMissions.Add(mission.MissionId, mission);
 
                         if (mission.MissionReciver == creature.DbId)
-                            completeableMissions.Add(mission.MissionId, mission.MissionInfo.MissionConstantData.RewardInfo);
+                            completeableMissions.Add(mission.MissionId, mission.MissionConstantData.RewardInfo);
                     }
 
                     // insert data into convoDataDict

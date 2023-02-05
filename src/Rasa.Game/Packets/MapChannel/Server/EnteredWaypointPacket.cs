@@ -12,12 +12,12 @@ namespace Rasa.Packets.MapChannel.Server
 
         internal uint CurrentMapId { get; set; }
         internal uint GameContextId { get; set; }
-        public List<MapWaypointInfoList> MapWaypointInfoList { get; set; }
+        public Dictionary<uint, MapWaypointInfoList> MapWaypointInfoList { get; set; }
         internal uint TempWormholes { get; set; }
-        internal uint WaypointTypeId { get; set; }
+        internal WaypointType WaypointTypeId { get; set; }
         internal uint CurrentWaypointId { get; set; }
         
-        public EnteredWaypointPacket(uint currentMapId, uint gameContextId, List<MapWaypointInfoList> mapWaypointInfoList, uint waypointTypeId, uint currentWaypointId = 0)
+        public EnteredWaypointPacket(uint currentMapId, uint gameContextId, Dictionary<uint, MapWaypointInfoList> mapWaypointInfoList, WaypointType waypointTypeId, uint currentWaypointId = 0)
         {
             CurrentMapId = currentMapId;
             GameContextId = gameContextId;
@@ -33,8 +33,9 @@ namespace Rasa.Packets.MapChannel.Server
                 pw.WriteUInt(CurrentMapId);
                 pw.WriteUInt(GameContextId);
                 pw.WriteList(MapWaypointInfoList.Count);
-                    foreach (var waypointInfo in MapWaypointInfoList)
+                    foreach (var entry in MapWaypointInfoList)
                     {
+                        var waypointInfo = entry.Value;
                         pw.WriteTuple(3);
                             pw.WriteUInt(waypointInfo.GameGontextId);
                             pw.WriteList(waypointInfo.MapInstanceList.Count);
@@ -54,7 +55,7 @@ namespace Rasa.Packets.MapChannel.Server
                                 }
                     }
                 pw.WriteNoneStruct();                       //tempwormhole'
-                pw.WriteUInt(WaypointTypeId);
+                pw.WriteInt((int)WaypointTypeId);
                 if (CurrentWaypointId != 0)
                     pw.WriteUInt(CurrentWaypointId);
                 else

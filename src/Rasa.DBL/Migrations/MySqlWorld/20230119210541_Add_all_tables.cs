@@ -330,12 +330,31 @@ namespace Rasa.Migrations.MySqlWorld
                 name: "npc_mission",
                 columns: table => new
                 {
-                    id = table.Column<uint>(type: "int unsigned", nullable: false),
-                    command = table.Column<byte>(type: "tinyint unsigned", nullable: false),
-                    var1 = table.Column<uint>(type: "int unsigned", nullable: false),
-                    var2 = table.Column<uint>(type: "int unsigned", nullable: false),
-                    var3 = table.Column<uint>(type: "int unsigned", nullable: false),
+                    id = table.Column<uint>(type: "int unsigned", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    giver_id = table.Column<uint>(type: "int unsigned", nullable: false),
+                    reciver_id = table.Column<uint>(type: "int unsigned", nullable: false),
+                    level = table.Column<uint>(type: "int unsigned", nullable: false),
+                    group_type = table.Column<byte>(type: "tinyint unsigned", nullable: false),
+                    category_id = table.Column<byte>(type: "tinyint unsigned", nullable: false),
+                    shareable = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    radio_completeable = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     comment = table.Column<string>(type: "varchar(50)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_npc_mission", x => x.id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "npc_mission_reward",
+                columns: table => new
+                {
+                    id = table.Column<uint>(type: "int unsigned", nullable: false),
+                    type = table.Column<byte>(type: "tinyint unsigned", nullable: false),
+                    credits = table.Column<int>(type: "int", nullable: false),
+                    item_template_id = table.Column<uint>(type: "int unsigned", nullable: false),
+                    quantity = table.Column<uint>(type: "int unsigned", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -534,6 +553,9 @@ namespace Rasa.Migrations.MySqlWorld
 
             migrationBuilder.DropTable(
                 name: "npc_mission");
+
+            migrationBuilder.DropTable(
+                name: "npc_mission_reward");
 
             migrationBuilder.DropTable(
                 name: "npc_package");

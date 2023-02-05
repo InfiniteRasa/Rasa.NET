@@ -8,9 +8,9 @@
         public override GameOpcode Opcode { get; } = GameOpcode.WaypointGained;
 
         public uint WaypointId { get; set; }
-        public uint WaypointType { get; set; }
+        public WaypointType WaypointType { get; set; }
 
-        public WaypointGainedPacket(uint waypointId, uint waypointType)
+        public WaypointGainedPacket(uint waypointId, WaypointType waypointType)
         {
             WaypointId = waypointId;
             WaypointType = waypointType;
@@ -20,7 +20,7 @@
         {
             pw.WriteTuple(2);
             pw.WriteUInt(WaypointId);
-            pw.WriteUInt(WaypointType);
+            pw.WriteInt((int)WaypointType);
         }
     }
 }

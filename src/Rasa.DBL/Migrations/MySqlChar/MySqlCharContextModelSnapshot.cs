@@ -363,6 +363,10 @@ namespace Rasa.Migrations.MySqlChar
                         .HasColumnType("int unsigned")
                         .HasColumnName("waypointId");
 
+                    b.Property<byte>("WaypointType")
+                        .HasColumnType("tinyint unsigned")
+                        .HasColumnName("waypoint_type");
+
                     b.HasKey("CharacterId", "WaypointId");
 
                     b.ToTable("character_teleporter");

@@ -15,15 +15,8 @@ namespace Rasa.Services.Preloader
 
         protected override IEnumerable<object[]> GetRows()
         {
-            yield return new object[] { 429, 1, 100, 0, 0, "mission giver" };
-            yield return new object[] { 429, 2, 101, 0, 0, "mission reciver" };
-            yield return new object[] { 429, 3, 13096, 1, 0, "reward item" };
-            yield return new object[] { 429, 0, 2, 430, 0, "test" };
-            yield return new object[] { 429, 0, 3, 429, 0, "test" };
-            yield return new object[] { 298, 1, 101, 0, 0, "mission reciver" };
-            yield return new object[] { 298, 3, 28, 100, 0, "reward item" };
-            yield return new object[] { 298, 3, 145, 1, 0, "reward item" };
-
+            yield return new object[] { 321, 101, 100, 5, 1, 1, false, false, "Assemble With Lieutenant Perkins" };
+            yield return new object[] { 429, 101, 100, 3, 2, 2, true, true, "River Recon" };
         }
     }
 }

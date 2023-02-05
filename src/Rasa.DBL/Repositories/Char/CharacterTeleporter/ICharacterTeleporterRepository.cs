@@ -2,9 +2,11 @@
 
 namespace Rasa.Repositories.Char.CharacterTeleporter
 {
+    using Structures.Char;
+
     public interface ICharacterTeleporterRepository
     {
-        void Add(uint characterId, uint waypointId);
-        List<uint> Get(uint characterId);
+        void Add(CharacterTeleporterEntry teleporter);
+        List<CharacterTeleporterEntry> Get(uint characterId);
     }
 }

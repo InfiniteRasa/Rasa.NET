@@ -4,9 +4,13 @@ namespace Rasa.Structures
 {
     public class MissionObjective
     {
-        public uint State { get; set; } // min state
-        public int ObjectiveId { get; set; }
-        public uint CounterCount { get; set; }
-        public List<MissionObjectiveCounter> Counter { get; set; }
+        public uint ObjectiveId { get; set; }
+        public uint ObjectiveStatus { get; set; }
+        public uint Ordinal { get; set; }
+        public uint TimeRemaining { get; set; }
+        public object CounterDict { get; set; }
+        public Dictionary<uint, MissionObjectiveCounter> ItemCounters = new();  // itemClassId = (count, countMax)
+        public bool IsRequired { get; set; }
+        public List<MissionIndicator> IndicatorList { get; set; }
     }
 }

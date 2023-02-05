@@ -13,8 +13,10 @@ namespace Rasa.Managers
     using Packets.MapChannel.Client;
     using Packets.MapChannel.Server;
     using Packets.Protocol;
-    using Rasa.Repositories.UnitOfWork;
+    using Repositories.UnitOfWork;
     using Structures;
+    using Structures.Char;
+    using System;
 
     public class DynamicObjectManager
     {
@@ -23,7 +25,7 @@ namespace Rasa.Managers
         private readonly IGameUnitOfWorkFactory _gameUnitOfWorkFactory;
 
         public readonly Dictionary<ulong, Dropship> Dropships = new Dictionary<ulong, Dropship>();
-
+        public readonly Dictionary<ulong, DynamicObject> Teleporters = new Dictionary<ulong, DynamicObject>();
         public static DynamicObjectManager Instance
         {
             get
@@ -191,10 +193,12 @@ namespace Rasa.Managers
 
         internal void DynamicObjectProximityWorker(MapChannel mapChannel, DynamicObject obj, long delta)
         {
-            switch (obj.EntityClassId)
+            switch (obj.DynamicObjectType)
             {
-                // Human waypoint
-                case EntityClasses.UsableTwoStateHumWaypointV01:
+                // teleporters
+                case DynamicObjectType.Waypoint:
+                case DynamicObjectType.Wormhole:
+                case DynamicObjectType.DropshipTeleporter:
                     {
                         // check for players that enter range
                         PlayerEnterWaypoint(obj);
@@ -205,8 +209,7 @@ namespace Rasa.Managers
                         break;
                     }
                 // Control point
-                case (EntityClasses)3814:
-                    break;
+                case DynamicObjectType.ControlPoint:
                 default:
                     break;
             }
@@ -292,7 +295,7 @@ namespace Rasa.Managers
                 Position = new Vector3(197.66f, 162.27f, -54.08f),
                 Rotation = 3.05f,
                 MapContextId = 1220,
-                EntityClassId = (EntityClasses)26486,
+                EntityClassId = (EntityClasses)3814,
                 DynamicObjectType = DynamicObjectType.ControlPoint,
                 ObjectData = new ControlPointStatus(215, 1, 1, 30000)
             };
@@ -548,7 +551,7 @@ namespace Rasa.Managers
                     MapContextId = teleporter.MapContextId,
                     EntityClassId = (EntityClasses)teleporter.ClassId,
                     Comment = teleporter.Description,
-                    ObjectData = new WaypointInfo(teleporter.Id, false, teleporter.Type)
+                    ObjectData = new WaypointInfo(teleporter.Id, false, (WaypointType)teleporter.Type)
                 };
 
                 switch (teleporter.Type)
@@ -562,57 +565,71 @@ namespace Rasa.Managers
                     case 3:
                         newTeleporter.DynamicObjectType = DynamicObjectType.Wormhole;
                         break;
+                    case 4:
+                        CellManager.Instance.AddToWorld(mapChannel, new MapTrigger(teleporter.Id, teleporter.Description, teleporter.Position, teleporter.Rotation, teleporter.MapContextId));
+                        break;
+                    case 5:
+                        break;
                     default:
                         Logger.WriteLog(LogType.Error, $"InitTeleporters: unsuported teleporter type {teleporter.Type}");
                         break;
                 }
+
                 mapChannel.Teleporters.Add(teleporter.Id, newTeleporter);
+                Teleporters.Add(teleporter.Id, newTeleporter);
             }
         }
 
         internal void CheckPlayerWaypoint(Client client, WaypointInfo objectData)
         {
             // check if player has requested waypoint
-            if (client.Player.GainedWaypoints.Contains(objectData.WaypointId))
-            {
-                return;
-            }
+            foreach (var waypoint in client.Player.GainedWaypoints)
+                if (waypoint.WaypointId == objectData.WaypointId)
+                 return;
 
+            var newWaypoint = new CharacterTeleporterEntry(client.Player.Id, objectData.WaypointId, (byte)objectData.WaypointType);
             // add waypoint to player as he entered for the first time
             client.CallMethod(client.Player.EntityId, new WaypointGainedPacket(objectData.WaypointId, objectData.WaypointType));
-            client.Player.GainedWaypoints.Add(objectData.WaypointId);
+            client.Player.GainedWaypoints.Add(newWaypoint);
 
             // update Db
-            CharacterManager.Instance.UpdateCharacter(client, CharacterUpdate.Teleporter, objectData.WaypointId);
+            CharacterManager.Instance.UpdateCharacter(client, CharacterUpdate.Teleporter, newWaypoint);
         }
 
-        internal List<MapWaypointInfoList> CreateListOfWaypoints(Client client, MapChannel mapChannel)
+        internal Dictionary<uint, MapWaypointInfoList> CreateListOfWaypoints(Client client, WaypointType waypointType)
         {
-            var listOfWaypoints = new List<MapWaypointInfoList>();
+            var listOfWaypoints = new Dictionary<uint, MapWaypointInfoList>();
             var listOfMapInstances = new List<MapInstanceInfo>();
             var waypointInfo = new List<WaypointInfo>();
+            var mapChannel = client.Player.MapChannel;
 
             // create waypoint list for player
-            foreach (var teleporter in mapChannel.Teleporters)
+            foreach (var waypoint in client.Player.GainedWaypoints)
             {
-                var teleporterData = teleporter.Value.ObjectData as WaypointInfo;
+                if ((WaypointType)waypoint.WaypointType != waypointType)
+                    continue;
 
-                foreach (var waypointId in client.Player.GainedWaypoints)
+                var teleporter = Teleporters[waypoint.WaypointId];
+                var teleporterData = teleporter.ObjectData as WaypointInfo;
+
+                if (teleporterData.WaypointType == WaypointType.Waypoint && teleporter.MapContextId != mapChannel.MapInfo.MapContextId)
+                    continue;
+
+                if (teleporterData.WaypointType != waypointType)
+                    continue;
+
+                if (waypoint.WaypointId == teleporterData.WaypointId)
                 {
-                    if (waypointId == teleporterData.WaypointId)
+                    waypointInfo.Add(new WaypointInfo(teleporterData.WaypointId, teleporterData.Contested, teleporterData.WaypointType)
                     {
-                        waypointInfo.Add(new WaypointInfo(teleporterData.WaypointId, teleporterData.Contested, teleporterData.WaypointType)
-                        {
-                            Position = teleporter.Value.Position
-                        });
+                        Position = teleporter.Position
+                    });
 
-                        break;
-                    }
+                    listOfMapInstances.Add(new MapInstanceInfo(1, mapChannel.MapInfo.MapContextId, MapInstanceStatus.Low)); // ToDo: send mapInstanceStatus based on map population
                 }
             }
 
-            listOfMapInstances.Add(new MapInstanceInfo(1, mapChannel.MapInfo.MapContextId, MapInstanceStatus.Low)); // ToDo: send mapInstanceStatus based on map population
-            listOfWaypoints.Add(new MapWaypointInfoList(mapChannel.MapInfo.MapContextId, listOfMapInstances, waypointInfo));
+            listOfWaypoints.Add(mapChannel.MapInfo.MapContextId, new MapWaypointInfoList(mapChannel.MapInfo.MapContextId, listOfMapInstances, waypointInfo));
 
             return listOfWaypoints;
         }
@@ -683,7 +700,7 @@ namespace Rasa.Managers
 
                 CheckPlayerWaypoint(client, objectData);
 
-                var waypointInfoList = CreateListOfWaypoints(client, mapChannel);
+                var waypointInfoList = CreateListOfWaypoints(client, objectData.WaypointType);
 
                 client.CallMethod(SysEntity.ClientMethodId, new EnteredWaypointPacket(obj.MapContextId, obj.MapContextId, waypointInfoList, objectData.WaypointType, objectData.WaypointId));
 
@@ -704,6 +721,42 @@ namespace Rasa.Managers
                     client.CallMethod(SysEntity.ClientMethodId, new ExitedWaypointPacket());
                 }
             }
+        }
+
+        internal Dictionary<uint, MapWaypointInfoList> CreateListOfDropships()
+
+        {
+            var dropships = new Dictionary<uint, MapWaypointInfoList>();
+
+            // for now we add all dropships, ToDO: give player only gained dropships
+            foreach (var entry in Teleporters)
+            {
+                var teleporter = entry.Value;
+                var teleporterInfo = teleporter.ObjectData as WaypointInfo;
+
+                if (teleporterInfo.WaypointType == WaypointType.Dropship)
+                {
+                    if (dropships.ContainsKey(teleporter.MapContextId))
+                    {
+                        var map = dropships[teleporter.MapContextId];
+                        var waypoints = map.Waypoints;
+
+                        waypoints.Add(new WaypointInfo(teleporterInfo.WaypointId, teleporterInfo.Contested, teleporter.Position, teleporterInfo.WaypointType));
+                    }
+                    else
+                    {
+                        //create new entry
+                        var instance = new List<MapInstanceInfo> { new MapInstanceInfo(1, teleporter.MapContextId, MapInstanceStatus.Low) };
+                        var waypoints = new List<WaypointInfo> { new WaypointInfo(teleporterInfo.WaypointId, teleporterInfo.Contested, new Vector3(-225.353f, 99.597f, -70.5246f), WaypointType.Dropship) };
+
+                        var mapWaypointInfoList = new MapWaypointInfoList(teleporter.MapContextId, instance, waypoints);
+
+                        dropships.Add(teleporter.MapContextId, mapWaypointInfoList);
+                    }
+                }
+            }
+
+            return dropships;
         }
         #endregion
     }

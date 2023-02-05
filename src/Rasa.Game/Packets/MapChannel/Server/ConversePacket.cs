@@ -49,7 +49,7 @@ namespace Rasa.Packets.MapChannel.Server
                         {
                             pw.WriteUInt(mission.Key);
                             pw.WriteTuple(6);
-                            pw.WriteInt(mission.Value.MissionConstantData.Level);
+                            pw.WriteUInt(mission.Value.MissionConstantData.Level);
                             pw.WriteStruct(mission.Value.MissionConstantData.RewardInfo);
                             pw.WriteNoneStruct();                                       // offerVOAudioSetId (NoneStruct for no-audio)  // ToDo
                             pw.WriteList(mission.Value.ItemRequired.Count);       // itemsRequired
@@ -60,9 +60,9 @@ namespace Rasa.Packets.MapChannel.Server
                             {
                                 pw.WriteTuple(2);
                                 pw.WriteNoneStruct();                   // ordinal      (not used by client)
-                                pw.WriteInt(objective.ObjectiveId);     // objectiveId
+                                pw.WriteUInt(objective.ObjectiveId);     // objectiveId
                             }
-                            pw.WriteInt(mission.Value.MissionConstantData.GroupType);         // groupType
+                            pw.WriteUInt(mission.Value.MissionConstantData.GroupType);         // groupType
                         }
 
                         break;

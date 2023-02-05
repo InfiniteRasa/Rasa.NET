@@ -38,15 +38,6 @@ namespace Rasa.Managers
 
         internal void MapTriggerInit()
         {
-            var triggers = new List<MapTrigger>
-            {
-                new MapTrigger(267, "DropshipPad Twin Pillars", new Vector3(-60f, 221.269f, -471f), 0, 1220),
-                new MapTrigger(99, "DropshipPad Bootcamp", new Vector3(-225.353f, 99.597f, -70.5246f), 0, 1985),
-                new MapTrigger(249, "DropshipPad Foreas Base", new Vector3(-81f, 119.5f, 640.5f), 0, 1148)
-            };
-
-            foreach (var trigger in triggers)
-                CellManager.Instance.AddToWorld(MapChannelManager.Instance.MapChannelArray[trigger.MapContextId], trigger);
         }
 
         internal void PlayerEnterTriggerRange(Client client, MapTrigger mapTrigger)
@@ -58,20 +49,9 @@ namespace Rasa.Managers
 
                 mapTrigger.TrigeredBy.Add(client);
 
-                var listOfDropships1 = new List<WaypointInfo>();
-                var listOfDropships2 = new List<WaypointInfo>();
-                var listOfDropships3 = new List<WaypointInfo>();
-                var dropshipInfoList = new List<MapWaypointInfoList>();
+                var dropshipInfoList = DynamicObjectManager.Instance.CreateListOfDropships();
 
-                listOfDropships1.Add(new WaypointInfo(99, false, new Vector3(-225.353f, 99.597f, -70.5246f), 1));
-                listOfDropships2.Add(new WaypointInfo(267, false, new Vector3(-60f, 221.269f, -471f), 1));
-                listOfDropships3.Add(new WaypointInfo(249, false, new Vector3(-81f, 119.5f, 640.5f), 1));
-
-                dropshipInfoList.Add(new MapWaypointInfoList(1985, new List<MapInstanceInfo> { new MapInstanceInfo(1, 1985, MapInstanceStatus.Low) }, listOfDropships1));
-                dropshipInfoList.Add(new MapWaypointInfoList(1220, new List<MapInstanceInfo> { new MapInstanceInfo(1, 1220, MapInstanceStatus.Low) }, listOfDropships2));
-                dropshipInfoList.Add(new MapWaypointInfoList(1148, new List<MapInstanceInfo> { new MapInstanceInfo(1, 1148, MapInstanceStatus.Low) }, listOfDropships3));
-
-                client.CallMethod(SysEntity.ClientMethodId, new EnteredWaypointPacket(mapTrigger.MapContextId, mapTrigger.MapContextId, dropshipInfoList, 1, mapTrigger.TriggerId));
+                client.CallMethod(SysEntity.ClientMethodId, new EnteredWaypointPacket(mapTrigger.MapContextId, mapTrigger.MapContextId, dropshipInfoList, WaypointType.Dropship, mapTrigger.TriggerId));
             }
         }
         internal void PlayerExitTriggerRange(Client client, MapTrigger mapTrigger)

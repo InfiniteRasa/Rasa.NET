@@ -24,6 +24,7 @@
         ILogosRepository Logoses { get; }
         IMapInfoRepository MapInfos { get; }
         INpcMissionRepository NpcMissions { get; }
+        INpcMissionRewardRepository NpcMissionRewards { get; }
         INpcPackageRepository NpcPackages { get; }
         IPlayerRandomNameRepository RandomNames { get; }
         ISpawnpoolRepository Spawnpools { get; }
