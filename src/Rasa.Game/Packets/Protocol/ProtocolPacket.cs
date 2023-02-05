@@ -64,8 +64,6 @@ namespace Rasa.Packets.Protocol
             using (var reader = new ProtocolBufferReader(br, ProtocolBufferFlags.DontFragment))
             {
                 reader.ReadProtocolFlags();
-
-
                 reader.ReadPacketType(out ushort type, out bool compress);
 
                 Type = (ClientMessageOpcode) type;

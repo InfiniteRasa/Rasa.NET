@@ -101,7 +101,7 @@ public class Client
             SendPacket(packet);
     }
 
-    public void Close(bool sendPacket = true)
+    public void Close()
     {
         if (State == ClientState.Disconnected)
             return;
@@ -145,8 +145,7 @@ public class Client
 
     public void SendPacket(IBasePacket packet)
     {
-        var pPacket = packet as ProtocolPacket;
-        if (pPacket == null)
+        if (packet is not ProtocolPacket pPacket)
         {
             Debugger.Break();
             return;
@@ -287,7 +286,7 @@ public class Client
 
                 if (!csmPacket.ReadPacket())
                 {
-                    Close(true);
+                    Close();
                     return;
                 }
 
@@ -302,13 +301,12 @@ public class Client
         }
     }
 
-    private T GetMessageAs<T>(ProtocolPacket protocolPacket)
+    private static T GetMessageAs<T>(ProtocolPacket protocolPacket)
         where T : class, IClientMessage
     {
         if (protocolPacket.Message is T message)
-        {
             return message;
-        }
+
         throw new InvalidClientMessageException();
     }
 
@@ -317,7 +315,7 @@ public class Client
         return State != ClientState.Connected && State != ClientState.Disconnected;
     }
 
-    private void OnError() => Close(false);
+    private void OnError() => Close();
 
     private void OnReceive(NonContiguousMemoryStream incomingStream, int length)
     {
