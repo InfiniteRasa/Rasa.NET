@@ -74,7 +74,7 @@ namespace Rasa.Managers
                         client.CallMethod(packet.EntityId, new UsePacket(client.Player.EntityId, obj.StateId, 10000));
                         client.Player.MapChannel.PerformRecovery.Add(new ActionData(client.Player, packet.ActionId, packet.ActionArgId, 10000));
 
-                        obj.TrigeredByPlayers.Add(client);
+                        obj.TriggeredByPlayers.Add(client);
                         break;
                     }
                 case DynamicObjectType.Lockbox:
@@ -83,7 +83,7 @@ namespace Rasa.Managers
                         client.CallMethod(packet.EntityId, new UsePacket(client.Player.EntityId, obj.StateId, 100));
                         client.Player.MapChannel.PerformRecovery.Add(new ActionData(client.Player, packet.ActionId, packet.ActionArgId, 100));
 
-                        obj.TrigeredByPlayers.Add(client);
+                        obj.TriggeredByPlayers.Add(client);
                         break;
                     }
                 case DynamicObjectType.Logos:
@@ -95,7 +95,7 @@ namespace Rasa.Managers
                         client.CallMethod(packet.EntityId, new UsePacket(client.Player.EntityId, obj.StateId, 10000));
                         client.Player.MapChannel.PerformRecovery.Add(actionData);
 
-                        obj.TrigeredByPlayers.Add(client);
+                        obj.TriggeredByPlayers.Add(client);
                         break;
                     }
                 default:
@@ -311,18 +311,18 @@ namespace Rasa.Managers
             {
                 var controlpoint = entry.Value;
 
-                foreach (var client in controlpoint.TrigeredByPlayers)
+                foreach (var client in controlpoint.TriggeredByPlayers)
                     if (client.Player == action.Actor)
                     {
                         if (action.IsInrerrupted)
                         {
                             Logger.WriteLog(LogType.Debug, $"Action is interupted");
-                            controlpoint.TrigeredByPlayers.Remove(client);
+                            controlpoint.TriggeredByPlayers.Remove(client);
                             break;
                         }
 
                         Logger.WriteLog(LogType.Debug, $"Action Exicuted");
-                        controlpoint.TrigeredByPlayers.Remove(client);
+                        controlpoint.TriggeredByPlayers.Remove(client);
                         controlpoint.Faction = controlpoint.Faction == Factions.AFS ? Factions.Bane : Factions.AFS;
                         controlpoint.StateId = controlpoint.StateId == UseObjectState.CpointStateFactionAOwned ? UseObjectState.CpointStateFactionBOwned : UseObjectState.CpointStateFactionAOwned;
 
@@ -485,19 +485,19 @@ namespace Rasa.Managers
         {
             foreach (var obj in mapChannel.DynamicObjects)
             {
-                foreach (var client in obj.TrigeredByPlayers)
+                foreach (var client in obj.TriggeredByPlayers)
                     if (client.Player == action.Actor)
                     {
                         if (action.IsInrerrupted)
                         {
                             Logger.WriteLog(LogType.Debug, $"Action is interupted");
-                            obj.TrigeredByPlayers.Remove(client);
+                            obj.TriggeredByPlayers.Remove(client);
                             //CellManager.Instance.CellCallMethod(mapChannel, action.Actor, new PerformWindupPacket(PerformType.TwoArgs, action.ActionId, action.ActionArgId));
                             break;
                         }
 
                         Logger.WriteLog(LogType.Debug, $"Action Exicuted");
-                        obj.TrigeredByPlayers.Remove(client);
+                        obj.TriggeredByPlayers.Remove(client);
                         CellManager.Instance.CellCallMethod(obj, new UsableInfoPacket(true, obj.StateId, 0, 10000, 0));
 
                         var logosId = 0u;
@@ -666,7 +666,7 @@ namespace Rasa.Managers
             client.CallMethod(SysEntity.ClientMethodId, new BeginTeleportPacket());
             client.CellMoveObject(client, new MoveObjectMessage(client.Player.EntityId, movementData), false);
 
-            teleporter.TrigeredByPlayers.Remove(client);    // ToDO: maybe safely remove client
+            teleporter.TriggeredByPlayers.Remove(client);    // ToDO: maybe safely remove client
         }
 
         internal void TeleportAcknowledge(Client client)
@@ -688,13 +688,13 @@ namespace Rasa.Managers
                 }
 
                 // check if already added
-                if (obj.TrigeredByPlayers.Any(p => p == client))
+                if (obj.TriggeredByPlayers.Any(p => p == client))
                 {
                     continue;
                 }
 
                 // if not add him and send enter packet
-                obj.TrigeredByPlayers.Add(client);
+                obj.TriggeredByPlayers.Add(client);
 
                 var objectData = (WaypointInfo)obj.ObjectData;
 
@@ -710,13 +710,13 @@ namespace Rasa.Managers
 
         internal void PlayerExitWaypoint(DynamicObject obj)
         {
-            for (var i = obj.TrigeredByPlayers.Count - 1; i >= 0; i--)
+            for (var i = obj.TriggeredByPlayers.Count - 1; i >= 0; i--)
             {
-                var client = obj.TrigeredByPlayers[i];
+                var client = obj.TriggeredByPlayers[i];
 
                 if (!client.Player.IsNear2m(obj))
                 {
-                    obj.TrigeredByPlayers.RemoveAt(i);
+                    obj.TriggeredByPlayers.RemoveAt(i);
 
                     client.CallMethod(SysEntity.ClientMethodId, new ExitedWaypointPacket());
                 }

@@ -24,7 +24,7 @@ namespace Rasa.Structures
         public Factions Faction { get; set; }
         public long RespawnTime { get; set; }
         public DynamicObjectType DynamicObjectType { get; set; }
-        public List<Client> TrigeredByPlayers = new List<Client>();
+        public List<Client> TriggeredByPlayers = new List<Client>();
         public string Comment { get; set; }
 
         public bool IsInWorld = false;
