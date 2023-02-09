@@ -130,7 +130,7 @@ namespace Rasa.Services.Preloader
             yield return new object[] { 162, 0, 0, "Middle Ground", 0.0, 0.0, 0.0, 0.0, 0 };
             yield return new object[] { 163, 25651, 2, "Waypoint: Thunderhead Base", 446.07812, 374.58984, -517.14844, 3.7, 1911 };
             yield return new object[] { 165, 29648, 2, "Waypoint: Southern Pools Listening Post", 239.9336, 664.5, -571.9961, 0.0, 1304 };
-            yield return new object[] { 166, 29648, 2, "Waypoint: Eastern Pools Listening Post", 995.9531, 656..5, 383.03906, 6.25, 1304 };
+            yield return new object[] { 166, 29648, 2, "Waypoint: Eastern Pools Listening Post", 995.9531, 656.05, 383.03906, 6.25, 1304 };
             yield return new object[] { 167, 0, 5, "Hospital: Southern Pools Listening Post First Aid Station", 245.89453, 664.5,-588.0039, 0.0, 1304 };
             yield return new object[] { 168, 0, 5, "Hhospital: Eastern Pools Listening Post First Aid Station", 995.9297, 656.5, 311.9336, 0.0, 1304 };
             yield return new object[] { 169, 25651, 2, "Waypoint: Retread Camp", -126.50781, 863.71094, 533.66797, 3.14, 1304 };
@@ -576,7 +576,7 @@ namespace Rasa.Services.Preloader
             yield return new object[] { 620, 0, 0, "Waypoint: OMEGA_ICW_WP dupe 474", 0.0, 0.0, 0.0, 0.0, 0 };
             yield return new object[] { 621, 0, 0, "Waypoint: OMEGA_PORTABLE_WP Dupe 467", 0.0, 0.0, 0.0, 0.0, 0 };
             yield return new object[] { 622, 0, 2, "Waypoint: Tampeii Settlement", 408.89062, 542.28125, -114.91406, 0.0, 2048 };
-            yield return new object[] { 623, 0, 0, "placeholder", 0.0, 0.0, 0.0, 0 };
+            yield return new object[] { 623, 0, 0, "placeholder", 0.0, 0.0, 0.0, 0.0, 0 };
             yield return new object[] { 624, 25651, 2, "I thnk Viands Village", -265.54297, 176.41016, -454.66406, 6.26, 1244 };
             yield return new object[] { 10000003, 0, 0, "GY1", 0.0, 0.0, 0.0, 0.0, 0 };
             yield return new object[] { 10000004, 0, 0, "GY2", 0.0, 0.0, 0.0, 0.0, 0 };
