@@ -428,6 +428,7 @@ namespace Rasa.Managers
                     break;
 
                 case CharacterUpdate.Class:
+                    unitOfWork.Characters.UpdateCharacterClass(client.Player.Id, client.Player.Class);
                     break;
 
                 case CharacterUpdate.CloneCredits:
