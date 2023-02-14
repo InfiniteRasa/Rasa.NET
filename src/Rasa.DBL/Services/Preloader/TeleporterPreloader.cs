@@ -356,7 +356,7 @@ namespace Rasa.Services.Preloader
             yield return new object[] { 400, 25408, 3, "Wormhole: Torden Abyss", 170.28516, 542.0078, -558.0625, 2.53, 2028 };
             yield return new object[] { 401, 0, 0, "Dropship Transport: Fort Virgil See 266 Dupe", 0.0, 0.0, 0.0, 0.0, 0 };
             yield return new object[] { 402, 0, 4, "Dropship Transport: Quicksilver Post", -568.6211, 236.27734, -200.41406, 0.0, 1759 };
-            yield return new object[] { 403, 0, 0, "Dropship: Baylor Base", -594.95703, 258.22266, -517.10547, 0.0, 1759 };
+            yield return new object[] { 403, 0, 4, "Dropship: Baylor Base", -594.95703, 258.22266, -517.10547, 0.0, 1759 };
             yield return new object[] { 404, 0, 5, "Hospital for Team Blue", -401.96484, 420.5, 45.683594, 0.0, 2374 };
             yield return new object[] { 405, 0, 5, "Hospital for Team Red", 282.05078, 420.5, 34.28125, 0.0, 2374 };
             yield return new object[] { 406, 25408, 3, "Wormhole: Valverde Descent ", -349.6875, 713.75, -741.14844, 3.1, 2047 };
@@ -575,7 +575,7 @@ namespace Rasa.Services.Preloader
             yield return new object[] { 619, 0, 0, "Waypoint: OMEGA_BIOWEAP_WP dupe 473", 0.0, 0.0, 0.0, 0.0, 0 };
             yield return new object[] { 620, 0, 0, "Waypoint: OMEGA_ICW_WP dupe 474", 0.0, 0.0, 0.0, 0.0, 0 };
             yield return new object[] { 621, 0, 0, "Waypoint: OMEGA_PORTABLE_WP Dupe 467", 0.0, 0.0, 0.0, 0.0, 0 };
-            yield return new object[] { 622, 0, 2, "Waypoint: Tampeii Settlement", 408.89062, 542.28125, -114.91406, 0.0, 2048 };
+            yield return new object[] { 622, 0, 2, "Waypoint: Tampeii Settlement", 408.89062, 542.28125, -114.91406, 0.0, 2028 };
             yield return new object[] { 623, 0, 0, "placeholder", 0.0, 0.0, 0.0, 0.0, 0 };
             yield return new object[] { 624, 25651, 2, "I thnk Viands Village", -265.54297, 176.41016, -454.66406, 6.26, 1244 };
             yield return new object[] { 10000003, 0, 0, "GY1", 0.0, 0.0, 0.0, 0.0, 0 };
