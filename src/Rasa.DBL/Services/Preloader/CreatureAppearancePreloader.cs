@@ -143,7 +143,41 @@ namespace Rasa.Services.Preloader
             yield return new object[] { 30, 15, 4023, 4294934528 };
             yield return new object[] { 30, 16, 4022, 4294934528 };
             yield return new object[] { 30, 2, 4021, 4294934528 };
-
+            yield return new object[] { 65, 17, 24019, 4286886614 };
+            yield return new object[] { 65, 16, 19250, 266553 };
+            yield return new object[] { 65, 15, 19296, 266553 };
+            yield return new object[] { 65, 2, 4021, 266553 };
+            yield return new object[] { 65, 14, 25255, 266553 };
+            yield return new object[] { 66, 17, 24019, 4286886614 };
+            yield return new object[] { 66, 16, 19250, 266553 };
+            yield return new object[] { 66, 15, 19296, 266553 };
+            yield return new object[] { 66, 2, 4021, 266553 };
+            yield return new object[] { 66, 14, 25255, 266553 };
+            yield return new object[] { 61, 16, 19250, 266553 };
+            yield return new object[] { 62, 16, 19250, 266553 };
+            yield return new object[] { 63, 16, 19250, 266553 };
+            yield return new object[] { 64, 16, 19250, 266553 };
+            yield return new object[] { 61, 14, 25255, 266553 };
+            yield return new object[] { 62, 14, 25255, 266553 };
+            yield return new object[] { 63, 14, 25255, 266553 };
+            yield return new object[] { 64, 14, 25255, 266553 };
+            yield return new object[] { 61, 2, 4021, 266553 };
+            yield return new object[] { 62, 2, 4021, 266553 };
+            yield return new object[] { 63, 2, 4021, 266553 };
+            yield return new object[] { 64, 2, 4021, 266553 };
+            yield return new object[] { 61, 15, 19296, 266553 };
+            yield return new object[] { 62, 15, 19296, 266553 };
+            yield return new object[] { 63, 15, 19296, 266553 };
+            yield return new object[] { 64, 15, 19296, 266553 };
+            yield return new object[] { 61, 17, 24019, 4286886614 };
+            yield return new object[] { 62, 17, 24019, 4286886614 };
+            yield return new object[] { 63, 17, 24019, 4286886614 };
+            yield return new object[] { 64, 17, 24019, 4286886614 };
+            yield return new object[] { 67, 17, 20824, 4286886614 };
+            yield return new object[] { 67, 14, 3672, 1 };
+            yield return new object[] { 67, 16, 4023, 13933202 };
+            yield return new object[] { 67, 15, 4022, 13933202 };
+            yield return new object[] { 67, 2, 4021, 22120 };
         }
     }
 }
