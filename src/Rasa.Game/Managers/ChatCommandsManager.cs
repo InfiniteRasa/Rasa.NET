@@ -10,6 +10,7 @@ namespace Rasa.Managers
     using Packets.Game.Server;
     using Packets.MapChannel.Server;
     using Rasa.Packets.Communicator.Client;
+    using Rasa.Repositories.UnitOfWork;
     using Structures;
 
     public class ChatCommandsManager
@@ -84,6 +85,7 @@ namespace Rasa.Managers
             RegisterCommand(".giveitem", GiveItemCommand);
             RegisterCommand(".givelogos", GiveLogosCommand);
             RegisterCommand(".givexp", GiveXpCommand);
+            RegisterCommand(".chg_class", ChangeClassCommand);
             RegisterCommand(".gm", EnterGmModCommand);
             RegisterCommand(".forcestate", ForceStateCommand);
             RegisterCommand(".help", HelpGmCommand);
@@ -375,6 +377,77 @@ namespace Rasa.Managers
             }
             else
                 CommunicatorManager.Instance.SystemMessage(_client, "usage: .givexp ammount");
+
+            return;
+        }
+
+        private void ChangeClassCommand(string[] parts)
+        {
+            Boolean validInput = false;
+            if (parts.Length == 2)
+            {
+                uint newClassId = 1;
+                switch(parts[1].ToUpper())
+                {
+                    case "RECRUIT": 
+                        validInput = true; 
+                        newClassId = 1; 
+                        break;
+                    case "SOLDIER": validInput = true; 
+                        newClassId = 2; 
+                        break;
+                    case "SPECIALIST": validInput = true; 
+                        newClassId = 3; 
+                        break;
+                    case "COMMANDO": validInput = true; 
+                        newClassId = 4; 
+                        break;
+                    case "RANGER": validInput = true; 
+                        newClassId = 5; 
+                        break;
+                    case "SAPPER": 
+                        validInput = true; 
+                        newClassId = 6; break;
+                    case "BIOTECHNICIAN": 
+                        validInput = true; 
+                        newClassId = 7; break;
+                    case "GRENADIER": 
+                        validInput = true; 
+                        newClassId = 8; break;
+                    case "GUARDIAN": 
+                        validInput = true; 
+                        newClassId = 9; break;
+                    case "SNIPER": 
+                        validInput = true; 
+                        newClassId = 10; break;
+                    case "SPY": 
+                        validInput = true; 
+                        newClassId = 11; break;
+                    case "DEMOLITIONIST": 
+                        validInput = true; 
+                        newClassId = 12; break;
+                    case "ENGINEER": 
+                        validInput = true; 
+                        newClassId = 13; break;
+                    case "MEDIC": 
+                        validInput = true; 
+                        newClassId = 14; break;
+                    case "EXOBIOLOGIST": 
+                        validInput = true; 
+                        newClassId = 15; break;
+                    default: 
+                        validInput = false;
+                        break;
+                }
+                if (validInput)
+                {
+                    ManifestationManager.Instance.DebugChgPlayerClass(_client, newClassId);
+                }
+            }
+
+            if (!validInput) {
+                CommunicatorManager.Instance.SystemMessage(_client, "usage: .chg_class <className>, availableClasses: \n  RECRUIT\n  SOLDIER\n  SPECIALIST\n  COMMANDO\n  RANGER\n  SAPPER\n  BIOTECHNICIAN\n  GRENADIER\n  GUARDIAN\n  SNIPER\n  SPY\n  DEMOLITIONIST\n  ENGINEER\n  MEDIC\n  EXOBIOLOGIST\n");
+            }
 
             return;
         }
