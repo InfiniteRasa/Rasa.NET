@@ -20,6 +20,8 @@ namespace Rasa.Structures
         public bool IsRunning { get; set; }
         public bool InCombatMode { get; set; }
         public CharacterState State { get; set; }
+        public ulong Target { get; set; }
+        public double MovementSpeed { get; set; }
         public bool WeaponReady { get; set; }
         // action data
         public int CurrentAction { get; set; }

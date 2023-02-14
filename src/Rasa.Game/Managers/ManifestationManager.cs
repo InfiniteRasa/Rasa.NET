@@ -221,7 +221,7 @@ namespace Rasa.Managers
             // let's calculate damage
             var damageRange = weaponClassInfo.MaxDamage - weaponClassInfo.MinDamage;
             var damage = weaponClassInfo.MinDamage + new Random().Next(0, damageRange + 1);
-            var action = new ActionData(client.Player, weaponClassInfo.WeaponAttackActionId, weaponClassInfo.WeaponAttackArgId, client.Player.TargetEntityId, 0);
+            var action = new ActionData(client.Player, weaponClassInfo.WeaponAttackActionId, weaponClassInfo.WeaponAttackArgId, client.Player.Target, 0);
             // launch correct missile type depending on weapon type
             MissileManager.Instance.MissileLaunch(client.Player.MapChannel, action, damage);
             
@@ -396,6 +396,8 @@ namespace Rasa.Managers
             client.CallMethod(SysEntity.ClientMethodId, new SetCurrentContextIdPacket(client.Player.MapChannel.MapInfo.MapContextId));
 
             SocialManager.Instance.SetSocialContactList(client);
+
+            client.CallMethod(player.EntityId, new ActorInfoPacket(player));
 
             client.CallMethod(player.EntityId, new UpdateRegionsPacket { RegionIdList = client.Player.MapChannel.MapInfo.BaseRegionId });  // ToDo this should be list of regions? or just curent region wher player is
 
@@ -894,7 +896,7 @@ namespace Rasa.Managers
 
         public void SetTargetId(Client client, ulong entityId)
         {
-            client.Player.TargetEntityId = entityId;
+            client.Player.Target = entityId;
         }
 
         public void SetTrackingTarget(Client client, ulong entityId)

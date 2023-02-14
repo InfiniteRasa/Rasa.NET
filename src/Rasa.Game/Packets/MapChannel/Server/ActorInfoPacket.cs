@@ -4,6 +4,7 @@ namespace Rasa.Packets.MapChannel.Server
 {
     using Data;
     using Memory;
+    using Structures;
 
     public class ActorInfoPacket : ServerPythonPacket
     {
@@ -11,7 +12,7 @@ namespace Rasa.Packets.MapChannel.Server
 
         public List<CharacterState> StateIds = new List<CharacterState>();
         public ulong TrackingTarget { get; set; }
-        public float Yaw { get; set; }
+        public double Yaw { get; set; }
         public double MovementMode { get; set; }
         public CharacterStateType DesiredPostureId { get; set; }
         public bool CombatMode { get; set; }
@@ -43,14 +44,14 @@ namespace Rasa.Packets.MapChannel.Server
             { CharacterState.Dying, CharacterStateType.Control}
         };
 
-        public ActorInfoPacket(CharacterState characterState, ulong trackingTarget, float yaw, double movementMode, bool combatMode)
+        public ActorInfoPacket(Actor actor)
         {
-            StateIds.Add(characterState);
-            TrackingTarget = TrackingTarget;
-            Yaw = yaw;
-            MovementMode = movementMode;
-            DesiredPostureId = Tester[characterState];
-            CombatMode = combatMode;
+            StateIds.Add(actor.State);
+            TrackingTarget = actor.Target;
+            Yaw = actor.Rotation;
+            MovementMode = actor.MovementSpeed;
+            DesiredPostureId = Tester[actor.State];
+            CombatMode = actor.InCombatMode;
         }
 
         public override void Write(PythonWriter pw)

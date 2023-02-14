@@ -41,7 +41,6 @@ namespace Rasa.Structures
         public Dictionary<int, MissionLog> Missions { get; set; } = new();
         public DateTime LoginTime { get; set; }
         public List<uint> Logos = new();
-        public ulong TargetEntityId { get; set; }
         public ulong TrackingTargetEntityId { get; set; }
         public byte ActiveWeapon { get; set; }
         public List<CharacterTeleporterEntry> GainedWaypoints = new();
@@ -102,6 +101,8 @@ namespace Rasa.Structures
             MapContextId = character.MapContextId;
             IsRunning = character.IsRunning();
             InCombatMode = false;
+            State = CharacterState.Normal;
+            MovementSpeed = 1.0d;
             Attributes = new Dictionary<Attributes, ActorAttributes>() {
                         { Data.Attributes.Body, new ActorAttributes(Data.Attributes.Body, 0, 0, 0, 0, 0) },
                         { Data.Attributes.Mind, new ActorAttributes(Data.Attributes.Mind, 0, 0, 0, 0, 0) },
