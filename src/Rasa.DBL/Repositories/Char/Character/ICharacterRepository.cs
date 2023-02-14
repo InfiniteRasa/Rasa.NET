@@ -14,6 +14,7 @@ namespace Rasa.Repositories.Char.Character
         void UpdateLoginData(uint id);
         void SaveCharacter(ICharacterChange characterChange);
         void UpdateCharacterAttributes(uint id, int spentBody, int spentMind, int spentSpirit);
+        void UpdateCharacterClass(uint id, uint classId);
         void UpdateCharacterCloneCredits(uint id, uint cloneCredits);
         void UpdateCharacterCredits(uint id, int credits);
         void UpdateCharacterExpirience(uint id, uint experience);

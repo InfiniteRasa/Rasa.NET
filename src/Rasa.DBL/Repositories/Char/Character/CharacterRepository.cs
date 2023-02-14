@@ -130,6 +130,17 @@ namespace Rasa.Repositories.Char.Character
             _charContext.SaveChanges();
         }
 
+        public void UpdateCharacterClass(uint id, uint classId)
+        {
+            var query = _charContext.CreateNoTrackingQuery(_charContext.CharacterEntries);
+            var entry = query.Where(e => e.Id == id).FirstOrDefault();
+
+            entry.Class = classId;
+ 
+            _charContext.CharacterEntries.Update(entry);
+            _charContext.SaveChanges();
+        }
+
         public void UpdateCharacterCloneCredits(uint id, uint cloneCredits)
         {
             var query = _charContext.CreateNoTrackingQuery(_charContext.CharacterEntries);

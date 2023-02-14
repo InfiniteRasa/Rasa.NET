@@ -594,6 +594,13 @@ namespace Rasa.Managers
             }
         }
 
+        public void DebugChgPlayerClass(Client client, uint newClassId)
+        {
+            client.Player.Class = newClassId;
+            client.CallMethod(client.Player.EntityId, new CharacterClassPacket(client.Player.Class));
+            CharacterManager.Instance.UpdateCharacter(client, CharacterUpdate.Class, client.Player.Class);
+        }
+
         public void GainCredits(Client client, int credits)
         {
             CharacterManager.Instance.UpdateCharacter(client, CharacterUpdate.Credits, credits);
