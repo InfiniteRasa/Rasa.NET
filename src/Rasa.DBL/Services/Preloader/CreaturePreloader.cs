@@ -37,7 +37,7 @@ namespace Rasa.Services.Preloader
             yield return new object[] { 20, "Test Npc 10", 3848, 1, 5, 555, 0, 9, 5, 2, 0, 0, 0, 0, 0, 0, 0 };
             yield return new object[] { 21, "Test Vendor 1", 3846, 1, 5, 555, 0, 9, 5, 2, 0, 0, 0, 0, 0, 0, 0 };
             yield return new object[] { 22, "Test Vendor 2", 3848, 1, 5, 555, 0, 9, 5, 2, 0, 0, 0, 0, 0, 0, 0 };
-            yield return new object[] { 23, "Test Vendor 3", 3846, 1, 5, 555, 0, 9, 5, 2, 0, 0, 0, 0, 0, 0, 0 };
+            yield return new object[] { 23, "Test Vendor 3", 3846, 1, 5, 555, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0 };
             yield return new object[] { 24, "Test Vendor 4", 3848, 1, 5, 555, 0, 9, 5, 2, 0, 0, 0, 0, 0, 0, 0 };
             yield return new object[] { 25, "Test Vendor 5", 3846, 1, 5, 555, 0, 9, 5, 2, 0, 0, 0, 0, 0, 0, 0 };
             yield return new object[] { 26, "Test Vendor 6", 3848, 1, 5, 555, 0, 9, 5, 2, 0, 0, 0, 0, 0, 0, 0 };
@@ -77,10 +77,10 @@ namespace Rasa.Services.Preloader
             yield return new object[] { 58, "NPC_Creature_Boargar", 10606, 3, 8, 555, 0, 7, 3.5, 4, 0, 0, 0, 0, 0, 0, 0 };
             yield return new object[] { 59, "Creature_Mox", 6021, 3, 6, 555, 0, 7, 3.5, 22, 23, 0, 0, 0, 0, 0, 0 };
             yield return new object[] { 60, "Creature_Filcher", 6421, 3, 6, 555, 0, 7, 3.5, 21, 0, 0, 0, 0, 0, 0, 0 };
-            yield return new object[] { 61, "General Supply Vendor Lower Eloh Creek", 22637, 1, 6, 555, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-            yield return new object[] { 62, "General Supply Vendor Landing Zone", 22637, 1, 6, 555, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-            yield return new object[] { 63, "General Supply Vendor Twin Pillars", 22637, 1, 6, 555, 174, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-            yield return new object[] { 64, "General Supply Vendor Imperial Valley", 22637, 1, 6, 555, 175, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+            yield return new object[] { 61, "General Supply Vendor Lower Eloh Creek", 20972, 1, 6, 555, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+            yield return new object[] { 62, "General Supply Vendor Landing Zone", 20972, 1, 6, 555, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+            yield return new object[] { 63, "General Supply Vendor Twin Pillars", 20972, 1, 6, 555, 174, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+            yield return new object[] { 64, "General Supply Vendor Imperial Valley", 20972, 1, 6, 555, 175, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
             yield return new object[] { 65, "General Military Surplus Twin Pillars", 26868, 1, 6, 555, 10208, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
             yield return new object[] { 66, "General Military Surplus Twin Pillars", 26868, 1, 6, 555, 10207, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
             yield return new object[] { 67, "Prestige Supply Vendor Twin Pillars", 20972, 1, 6, 555, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
