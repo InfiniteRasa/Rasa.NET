@@ -68,6 +68,13 @@ namespace Rasa.Services.Preloader
             yield return new object[] { 45104, 2, 1, 0, 0, 0, 0, 0, 0, 2, 1, 1 };
             yield return new object[] { 45105, 2, 1, 0, 0, 0, 0, 0, 0, 2, 1, 1 };
             yield return new object[] { 42410, 1, 1, 0, 0, 0, 0, 0, 0, 2, 1, 1 };
+            yield return new object[] { 3738, 2, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1 };
+            yield return new object[] { 167, 2, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1 };
+            yield return new object[] { 11382, 2, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1 };
+            yield return new object[] { 4019, 2, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1 };
+            yield return new object[] { 3439, 2, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1 };
+            yield return new object[] { 3690, 2, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1 };
+            yield return new object[] { 3770, 2, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1 };
         }
     }
 }
