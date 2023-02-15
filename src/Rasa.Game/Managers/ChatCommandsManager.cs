@@ -139,7 +139,9 @@ namespace Rasa.Managers
                 if (Enum.TryParse(parts[1], out CharacterState stateId))
                     if (double.TryParse(parts[2], out var speed))
                     {
-                        _client.CallMethod(_client.Player.EntityId, new ActorInfoPacket(stateId, _client.Player.TrackingTargetEntityId, _client.Movement.ViewDirection.X, speed, _client.Player.InCombatMode));
+                        _client.Player.State = stateId;
+                        _client.Player.MovementSpeed = speed;
+                        _client.CallMethod(_client.Player.EntityId, new ActorInfoPacket(_client.Player));
                     }
             }
         }
@@ -301,7 +303,7 @@ namespace Rasa.Managers
             {
                 var msg = "Distance between you and target ";
 
-                var entityId = _client.Player.TargetEntityId;
+                var entityId = _client.Player.Target;
 
                 if (entityId == 0)
                 {
@@ -495,7 +497,7 @@ namespace Rasa.Managers
             {
                 var msg = "target = (\n";
 
-                var entityId = _client.Player.TargetEntityId;
+                var entityId = _client.Player.Target;
 
                 if (entityId == 0)
                 {

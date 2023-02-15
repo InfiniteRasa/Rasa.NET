@@ -380,18 +380,11 @@ namespace Rasa.Managers
 
                         if (dropship.DropshipType == DropshipType.Spawner)
                         {
+                            // create list of creatures to spawn
+                            var creatureList = SpawnPoolManager.Instance.CreateListOfCreatures(dropship.SpawnPool);
+
                             // spawn creatures
-                            for (var i = 0; i < dropship.SpawnPool.QueuedCreatures; i++)
-                            {
-                                var creature = CreatureManager.Instance.CreateCreature(dropship.SpawnPool.DbId, dropship.SpawnPool);
-
-                                if (creature == null)
-                                    continue;
-
-                                SpawnPoolManager.Instance.RandomizePosition(creature, dropship.SpawnPool.QueuedCreatures);
-
-                                CellManager.Instance.AddToWorld(mapChannel, creature);
-                            }
+                            SpawnPoolManager.Instance.SpawnCreatures(dropship.SpawnPool, creatureList);
                             SpawnPoolManager.Instance.DecreaseQueuedCreatureCount(dropship.SpawnPool, dropship.SpawnPool.QueuedCreatures);
                         }
 

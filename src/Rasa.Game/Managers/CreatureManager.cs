@@ -271,6 +271,7 @@ namespace Rasa.Managers
                 // Creature augmentation
                 new CreatureInfoPacket(creature.NameId, false, new List<int>()),    // ToDo add creature flags
                 // Actor augmentation
+                new ActorInfoPacket(creature),
                 new AppearanceDataPacket(creature.AppearanceData),
                 new LevelPacket(creature.Level),
                 new AttributeInfoPacket(creature.Attributes),
@@ -285,13 +286,8 @@ namespace Rasa.Managers
             if (creature.Npc != null)
                 NpcManager.Instance.UpdateConversationStatus(client, creature);
 
-            // send inital movement packet
-            var movementData = new Movement(creature.Position, new Vector2((float)creature.Rotation, 0f));
-
             // give some weapon to creature's
             GiveWeapon(creature);
-
-            client.MoveObject(creature.EntityId, movementData);
         }
 
         public void CreatureInit()
