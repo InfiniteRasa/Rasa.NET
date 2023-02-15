@@ -173,7 +173,7 @@ namespace Rasa.Managers
                 return null;
             }
 
-            // crate creature
+            // create creature
             var creatureEntry = LoadedCreatures[dbId];
             var creature = (Creature)creatureEntry.Clone();
 
@@ -429,7 +429,7 @@ namespace Rasa.Managers
                     }
                 }
                 else
-                    Logger.WriteLog(LogType.Error, $"LoadNPCPackages: unknown cratueDbId = {package.Id}");
+                    Logger.WriteLog(LogType.Error, $"LoadNPCPackages: unknown creatureDbId = {package.Id}");
             }
         }
 
