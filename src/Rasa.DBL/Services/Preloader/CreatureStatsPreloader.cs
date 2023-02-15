@@ -45,9 +45,45 @@ namespace Rasa.Services.Preloader
             yield return new object[] { 28, 15, 15, 15, 120, 70 };
             yield return new object[] { 29, 15, 15, 15, 120, 70 };
             yield return new object[] { 30, 15, 15, 15, 120, 70 };
+            yield return new object[] { 31, 15, 15, 15, 120, 70 };
+            yield return new object[] { 32, 15, 15, 15, 120, 70 };
+            yield return new object[] { 33, 15, 15, 15, 120, 70 };
+            yield return new object[] { 34, 15, 15, 15, 500, 120 };
+            yield return new object[] { 35, 15, 15, 15, 120, 70 };
+            yield return new object[] { 36, 15, 15, 15, 120, 70 };
+            yield return new object[] { 37, 15, 15, 15, 120, 70 };
+            yield return new object[] { 38, 15, 15, 15, 120, 70 };
+            yield return new object[] { 39, 15, 15, 15, 120, 70 };
+            yield return new object[] { 40, 15, 15, 15, 250, 120 };
+            yield return new object[] { 41, 15, 15, 15, 120, 70 };
+            yield return new object[] { 42, 15, 15, 15, 120, 70 };
+            yield return new object[] { 43, 15, 15, 15, 120, 70 };
+            yield return new object[] { 44, 15, 15, 15, 120, 70 };
+            yield return new object[] { 45, 15, 15, 15, 120, 70 };
+            yield return new object[] { 46, 15, 15, 15, 120, 70 };
+            yield return new object[] { 47, 15, 15, 15, 120, 70 };
+            yield return new object[] { 48, 15, 15, 15, 500, 120 };
+            yield return new object[] { 49, 15, 15, 15, 500, 120 };
+            yield return new object[] { 50, 15, 15, 15, 120, 70 };
+            yield return new object[] { 51, 15, 15, 15, 120, 70 };
+            yield return new object[] { 52, 15, 15, 15, 120, 70 };
+            yield return new object[] { 53, 15, 15, 15, 120, 70 };
+            yield return new object[] { 54, 15, 15, 15, 120, 70 };
+            yield return new object[] { 55, 15, 15, 15, 120, 70 };
+            yield return new object[] { 56, 15, 15, 15, 120, 70 };
+            yield return new object[] { 57, 15, 15, 15, 120, 70 };
+            yield return new object[] { 58, 15, 15, 15, 120, 70 };
+            yield return new object[] { 59, 15, 15, 15, 120, 70 };
+            yield return new object[] { 60, 15, 15, 15, 120, 70 };
+            yield return new object[] { 61, 15, 15, 15, 120, 70 };
+            yield return new object[] { 62, 15, 15, 15, 120, 70 };
+            yield return new object[] { 63, 15, 15, 15, 120, 70 };
+            yield return new object[] { 64, 15, 15, 15, 120, 70 };
+            yield return new object[] { 65, 15, 15, 15, 120, 70 };
+            yield return new object[] { 66, 15, 15, 15, 120, 70 };
+            yield return new object[] { 67, 15, 15, 15, 120, 70 };
             yield return new object[] { 100, 15, 15, 15, 120, 70 };
             yield return new object[] { 101, 15, 15, 15, 120, 70 };
-
         }
     }
 }

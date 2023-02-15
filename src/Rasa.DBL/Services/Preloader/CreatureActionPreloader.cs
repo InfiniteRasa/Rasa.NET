@@ -27,7 +27,17 @@ namespace Rasa.Services.Preloader
             yield return new object[] { 10, "bane_hunter_invasion melee", 174, 33, 1, 5, 1400, 333, 20, 45 };
             yield return new object[] { 11, "bane_amoeboid_invasion melee", 431, 1, 1, 3, 2500, 0, 30, 60 };
             yield return new object[] { 12, "bane_amoeboid_invasion range", 211, 1, 3, 14, 2800, 1800, 20, 50 };
-
+            yield return new object[] { 13, "NPC_Vehicle_AFS_Mech Minigun physical", 1, 224, 1.0, 20.5, 400, 0, 10, 15 };
+            yield return new object[] { 14, "NPC_Vehicle_AFS_Mech Minigun laser", 149, 12, 1.0, 20.5, 1000, 0, 10, 15 };
+            yield return new object[] { 15, "NPC_Vehicle_AFS_Mech Missiles Physical", 141, 17, 1.0, 40.0, 1000, 0, 20, 30 };
+            yield return new object[] { 16, "Bane Caretaker", 1, 265, 0.5, 10.0, 800, 0, 10, 15 };
+            yield return new object[] { 17, "WEAPON_ATTACK_FOREAN_SPEAR_RANGED", 1, 305, 1.0, 6.0, 3000, 0, 10, 45 };
+            yield return new object[] { 18, "Hominis Machina", 1, 97, 0.5, 25.0, 500, 0, 10, 30 };
+            yield return new object[] { 19, "THRAX_LIEUTENANT_V01", 1, 229, 5.0, 15.0, 500, 100, 15, 32 };
+            yield return new object[] { 20, "THRAX_LIEUTENANT_V01", 1, 79, 1.0, 15.0, 800, 0, 10, 15 };
+            yield return new object[] { 21, "Creature_Filcher", 174, 207, 1.0, 15.0, 800, 0, 16, 24 };
+            yield return new object[] { 22, "Creature_Mox Melee Attack", 174, 13, 1.0, 15.0, 800, 0, 16, 24 };
+            yield return new object[] { 23, "Creature_Mox Range Energy Attack", 1, 209, 1.0, 15.0, 800, 0, 16, 24 };
         }
     }
 }

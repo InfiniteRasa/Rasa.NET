@@ -44,10 +44,10 @@ namespace Rasa.Managers
         {
             if (client.Player.IsNear5m(mapTrigger))
             {
-                if (mapTrigger.TrigeredBy.Contains(client))
+                if (mapTrigger.TriggeredBy.Contains(client))
                     return;
 
-                mapTrigger.TrigeredBy.Add(client);
+                mapTrigger.TriggeredBy.Add(client);
 
                 var dropshipInfoList = DynamicObjectManager.Instance.CreateListOfDropships();
 
@@ -57,9 +57,9 @@ namespace Rasa.Managers
         internal void PlayerExitTriggerRange(Client client, MapTrigger mapTrigger)
         {
             if (!client.Player.IsNear5m(mapTrigger))
-                if (mapTrigger.TrigeredBy.Contains(client))
+                if (mapTrigger.TriggeredBy.Contains(client))
                 {
-                    mapTrigger.TrigeredBy.Remove(client);
+                    mapTrigger.TriggeredBy.Remove(client);
                     client.CallMethod(SysEntity.ClientMethodId, new ExitedWaypointPacket());
                 }
         }

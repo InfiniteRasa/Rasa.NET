@@ -89,7 +89,7 @@ namespace Rasa.Managers
             RegisterCommand(".gm", EnterGmModCommand);
             RegisterCommand(".forcestate", ForceStateCommand);
             RegisterCommand(".help", HelpGmCommand);
-            RegisterCommand(".neer", NeerCommand);
+            RegisterCommand(".near", NearCommand);
             RegisterCommand(".npcinfo", NpcInfoCommand);
             RegisterCommand(".reloadcreatures", ReloadCreaturesCommand);
             RegisterCommand(".removeobj", RemoveObjectCommand);
@@ -463,7 +463,7 @@ namespace Rasa.Managers
             return;
         }
 
-        private void NeerCommand(string[] parts)
+        private void NearCommand(string[] parts)
         {
             var listObj = new List<DynamicObject>();
             var listCreatures = new List<Creature>();

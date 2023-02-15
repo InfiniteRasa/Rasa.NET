@@ -49,6 +49,7 @@ namespace Rasa.Services.Preloader
             yield return new object[] { 32, 21030, 1764, -601.5, 439.0, 421.6, 0.0, "MT Hellas Outpost Footlocker" };
             yield return new object[] { 33, 21030, 2375, 149.56, 209.5, -157.3, 0.0, "AFSOutpost Lexington Footlocker" };
             yield return new object[] { 34, 10000063, 1454, -316.67656, 218.30469, 111.66, 2.89, "Clan Lockbox Paludos" };
+            yield return new object[] { 35, 10000063, 1220, -88.46, 221.27, -522.58, 3.13, "Clan Lockbox Twin Pillars" };
         }
     }
 }

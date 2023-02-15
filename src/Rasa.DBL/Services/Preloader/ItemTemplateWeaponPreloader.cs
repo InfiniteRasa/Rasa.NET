@@ -16,6 +16,8 @@ namespace Rasa.Services.Preloader
         protected override IEnumerable<object[]> GetRows()
         {
             yield return new object[] { 145, 1, 1500, 1, 133, 0, 1, 1, 0, 1, 2, 15, 1, 800, 1, 800, 80, 25, 1, 80, 1, 1, 2 };
+            yield return new object[] { 148, 1, 1500, 1, 133, 0, 1, 1, 0, 1, 2, 15, 1, 800, 1, 800, 80, 25, 1, 80, 1, 1, 2 };
+            yield return new object[] { 3311, 1, 1500, 1, 133, 0, 1, 1, 0, 1, 2, 15, 1, 800, 1, 800, 80, 25, 1, 80, 1, 1, 2 };
         }
     }
 }

@@ -12,7 +12,7 @@ namespace Rasa.Managers
 
     public class BehaviorManager
     {
-        public const byte WanderDistance = 20;
+        public const byte WanderDistance = 40; //was original 20
         public const byte PathLengthLimit = 72;
 
         private const byte PathModeOneShot  = 0; // creature will walk along the path once
