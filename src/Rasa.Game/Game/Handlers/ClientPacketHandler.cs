@@ -532,7 +532,7 @@
         [PacketHandler(GameOpcode.PartyChat)]
         private void PartyChat(PartyChatPacket packet)
         {
-            Logger.WriteLog(LogType.Debug, "ToDo: PartyChatPacket");
+            CommunicatorManager.Instance.PartyChat(Client, packet);
         }
 
         [PacketHandler(GameOpcode.PrivilegedCommand)]
@@ -550,7 +550,7 @@
         [PacketHandler(GameOpcode.Reply)]
         private void Reply(ReplyPacket packet)
         {
-            Logger.WriteLog(LogType.Debug, "ToDo: ReplyPacket");
+            CommunicatorManager.Instance.Reply(Client, packet);
         }
 
         [PacketHandler(GameOpcode.RequestLOSReport)]
@@ -592,7 +592,7 @@
         [PacketHandler(GameOpcode.Whisper)]
         private void Whisper(WhisperPacket packet)
         {
-            Logger.WriteLog(LogType.Debug, "ToDo: WhisperPacket");
+            CommunicatorManager.Instance.Whisper(Client, packet);
         }
 
         [PacketHandler(GameOpcode.Who)]
