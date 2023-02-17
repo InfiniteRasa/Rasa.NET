@@ -511,7 +511,7 @@ namespace Rasa.Managers
                 if (tempClient == client)
                     continue;
 
-                client.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(tempClient.Player.EntityId));
+                client.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(tempClient.Player.EntityId, tempClient.Player.EntityClass, CreatePlayerEntityData(tempClient)));
             }
         }
 		
