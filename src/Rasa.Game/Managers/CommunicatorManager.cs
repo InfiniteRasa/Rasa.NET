@@ -124,6 +124,68 @@ namespace Rasa.Managers
             CellManager.Instance.CellCallMethod(client.Player.MapChannel, client.Player, new PerformWindupPacket(PerformType.TwoArgs, ActionId.Gesture, (uint)new Random().Next(1, 100)));   // ToDo: just testing
         }
 
+        internal void Reply(Client client, ReplyPacket packet)
+        {
+            var reciver = Server.Clients.Find(c => c.Player.FamilyName == packet.Reciver);
+            
+            // send message to self
+            client.CallMethod(SysEntity.CommunicatorId, new WhisperPacket
+            {
+                Sender = client.Player.FamilyName,
+                Message = packet.Message,
+                SenderEntityId = client.Player.EntityId
+            });
+
+            // send message to target
+            reciver.CallMethod(SysEntity.CommunicatorId, new WhisperPacket
+            {
+                Sender = client.Player.FamilyName,
+                Message = packet.Message,
+                SenderEntityId = client.Player.EntityId
+            });
+        }
+
+        internal void PartyChat(Client client, PartyChatPacket packet)
+        {
+            var party = PartyManager.Instance.Parties[client.Player.PartyId];
+
+            foreach (var partyMember in party.Members)
+            {
+                var tempClient = Server.Clients.Find(c => c.Player.EntityId == partyMember.MemberId);
+                
+                tempClient.CallMethod(SysEntity.CommunicatorId, new PartyChatPacket
+                {
+                    Sender = client.Player.FamilyName,
+                    Message = packet.Message,
+                    SenderUserId = client.Player.EntityId,
+                    SenderEntityId = client.Player.EntityId
+                });
+
+                // ToDo: check what's SenderUserId and SenderEntityId variables do
+            }
+        }
+
+        internal void Whisper(Client client, WhisperPacket packet)
+        {
+            var reciver = Server.Clients.Find(c => c.Player.FamilyName == packet.Reciver);
+
+            // send message to self
+            client.CallMethod(SysEntity.CommunicatorId, new WhisperPacket
+            {
+                Sender = client.Player.FamilyName,
+                Message = packet.Message,
+                SenderEntityId = client.Player.EntityId
+            });
+
+            // send message to target
+            reciver.CallMethod(SysEntity.CommunicatorId, new WhisperPacket
+            {
+                Sender = client.Player.FamilyName,
+                Message = packet.Message,
+                SenderEntityId = client.Player.EntityId
+            });
+        }
+
         internal void Who(Client client, WhoPacket packet)
         {
             // msgId from playermessagelanguage.py
@@ -299,7 +361,7 @@ namespace Rasa.Managers
                 {
                     var distance = Vector3.Distance(client.Player.Position, tempClient.Player.Position);
                     if (distance <= 70.0) // 70 is about the range the client is visible
-                    client.CallMethod(SysEntity.CommunicatorId, new RadialChatPacket
+                        tempClient.CallMethod(SysEntity.CommunicatorId, new RadialChatPacket
                         {
                             FamilyName = client.Player.FamilyName,
                             TextMsg = textMsg,

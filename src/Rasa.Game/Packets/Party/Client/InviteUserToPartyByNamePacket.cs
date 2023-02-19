@@ -12,7 +12,11 @@
         public override void Read(PythonReader pr)
         {
             pr.ReadTuple();
-            FamilyName = pr.ReadString();
+
+            if (pr.PeekType() == PythonType.UnicodeString)
+                FamilyName = pr.ReadUnicodeString();
+            else
+                FamilyName = pr.ReadString();
         }
     }
 }

@@ -36,7 +36,7 @@ namespace Rasa.Game
         public GameAccountEntry AccountEntry { get; private set; }
         public uint LoadingMap { get; set; }
         public ClientState State { get; set; }
-        public Manifestation Player { get; set; }
+        public Manifestation Player = new();
         public Movement Movement { get; set; }
         public uint[] SendSequence { get; } = new uint[256];
         public uint[] ReceiveSequence { get; } = new uint[256];
