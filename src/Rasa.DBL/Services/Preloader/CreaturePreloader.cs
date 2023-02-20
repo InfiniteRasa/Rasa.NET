@@ -46,7 +46,7 @@ namespace Rasa.Services.Preloader
             yield return new object[] { 29, "Test Vendor 9", 3846, 1, 5, 555, 0, 9, 5, 2, 0, 0, 0, 0, 0, 0, 0 };
             yield return new object[] { 30, "Clan Master", 3846, 1, 5, 120, 8838, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0 };
             yield return new object[] { 31, "Medical Vendor Static", 20972, 1, 5, 555, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0 };
-            yield return new object[] { 32, "Weapons Vendor Static", 20972, 1, 5, 555, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0 };
+            yield return new object[] { 32, "Weapons Vendor Static", 20972, 1, 5, 555, 10787, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0 };
             yield return new object[] { 33, "Bane Amoeboid V1", 6032, 0, 6, 1000, 0, 9, 5, 12, 0, 0, 0, 0, 0, 0, 0 };
             yield return new object[] { 34, "Bane Amoeboid V1 Boss", 10310, 0, 15, 1800, 0, 9, 5, 24, 0, 0, 0, 0, 0, 0, 0 };
             yield return new object[] { 100, "Outpost Commander Rogers", 3846, 1, 5, 555, 2973, 9, 5, 2, 0, 0, 0, 0, 0, 0, 0 };
@@ -87,9 +87,11 @@ namespace Rasa.Services.Preloader
             yield return new object[] { 68, "Council Elder Solis", 22636, 1, 10, 750, 2970, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
             yield return new object[] { 69, "Council Elder Solis", 22636, 1, 10, 750, 2968, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
             yield return new object[] { 70, "Council Elder Solis", 22636, 1, 10, 750, 2981, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-            yield return new object[] { 71, "Armor Supply Vendor Twin Pillars", 20975, 1, 6, 555, 182, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-            yield return new object[] { 72, "Armor Supply Vendor Alia Das", 20972, 1, 6, 555, 184, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0 };
-            yield return new object[] { 73, "Ammo Supply Vendor Alia Das", 20972, 1, 6, 555, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0 };
+            yield return new object[] { 71, "Armor Supply Vendor Twin Pillars", 20975, 1, 6, 555, 9869, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+            yield return new object[] { 72, "Armor Supply Vendor Alia Das", 20972, 1, 6, 555, 10788, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0 };
+            yield return new object[] { 73, "Ammo Supply Vendor Alia Das", 20972, 1, 6, 555, 10790, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0 };
+            yield return new object[] { 74, "Weapon Supply Twin Pillars", 20972, 1, 6, 555, 10789, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+            yield return new object[] { 75, "NPC_Bane_Thrax_Grenadier_Boss", 10612, 0, 15, 2000, 6716, 1, 1, 19, 20, 0, 0, 0, 0, 0, 0 };
         }
     }
 }

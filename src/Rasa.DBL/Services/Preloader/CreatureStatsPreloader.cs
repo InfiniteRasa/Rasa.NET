@@ -90,6 +90,8 @@ namespace Rasa.Services.Preloader
             yield return new object[] { 71, 15, 15, 15, 120, 70 };
             yield return new object[] { 72, 15, 15, 15, 120, 70 };
             yield return new object[] { 73, 15, 15, 15, 120, 70 };
+            yield return new object[] { 74, 15, 15, 15, 120, 70 };
+            yield return new object[] { 75, 15, 15, 15, 750, 175 };
         }
     }
 }

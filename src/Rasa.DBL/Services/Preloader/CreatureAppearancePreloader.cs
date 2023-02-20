@@ -182,6 +182,7 @@ namespace Rasa.Services.Preloader
             yield return new object[] { 51, 13, 6238, 1 };
             yield return new object[] { 53, 13, 10529, 1 };
             yield return new object[] { 57, 13, 10357, 1 };
+            yield return new object[] { 75, 13, 10357, 1 };
             yield return new object[] { 48, 13, 3782, 1 };
             yield return new object[] { 38, 13, 10533, 1 };
             yield return new object[] { 42, 13, 10533, 1 };
@@ -211,6 +212,12 @@ namespace Rasa.Services.Preloader
             yield return new object[] { 73, 14, 9781, 4278655809 };
             yield return new object[] { 73, 15, 4023, 4294934528 };
             yield return new object[] { 73, 17, 24008, 4286690539 };
+            yield return new object[] { 74, 2, 4021, 4294934528 };
+            yield return new object[] { 74, 13, 6271, 1 };
+            yield return new object[] { 74, 14, 9781, 4278655809 };
+            yield return new object[] { 74, 15, 4023, 4294934528 };
+            yield return new object[] { 74, 16, 4022, 4294934528 };
+            yield return new object[] { 74, 17, 24008, 4286690539 };
         }
     }
 }

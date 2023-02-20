@@ -34,6 +34,7 @@ namespace Rasa.Services.Preloader
             yield return new object[] { 71, 29 };
             yield return new object[] { 72, 42 };
             yield return new object[] { 73, 104 };
+            yield return new object[] { 74, 14 };
         }
     }
 }

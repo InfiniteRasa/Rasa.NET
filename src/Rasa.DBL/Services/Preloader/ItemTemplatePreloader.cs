@@ -1,5 +1,5 @@
-﻿using System.Collections.Generic;
-using Microsoft.EntityFrameworkCore.Migrations;
+﻿using Microsoft.EntityFrameworkCore.Migrations;
+using System.Collections.Generic;
 
 namespace Rasa.Services.Preloader
 {
@@ -15,9 +15,6 @@ namespace Rasa.Services.Preloader
 
         protected override IEnumerable<object[]> GetRows()
         {
-            yield return new object[] { 26, 2, 1, 0, 0, 0, 0, 0, 0, 2, 2, 1 };
-            yield return new object[] { 28, 2, 1, 0, 0, 0, 0, 0, 0, 2, 1, 1 };
-            yield return new object[] { 32, 2, 1, 0, 0, 0, 0, 0, 0, 2, 1, 1 };
             yield return new object[] { 50, 2, 1, 0, 0, 0, 0, 0, 0, 2, 2, 1 };
             yield return new object[] { 145, 2, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1 };
             yield return new object[] { 48542, 5, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1 };
@@ -4970,7 +4967,6 @@ namespace Rasa.Services.Preloader
             yield return new object[] { 110901, 2, 1, 0, 0, 0, 0, 0, 0, 2, 1, 1 };
             yield return new object[] { 110900, 2, 1, 0, 0, 0, 0, 0, 0, 2, 1, 1 };
             yield return new object[] { 45031, 2, 1, 0, 0, 0, 0, 0, 0, 2, 1, 1 };
-            yield return new object[] { 28, 2, 1, 0, 0, 0, 0, 0, 0, 2, 1, 1 };
             yield return new object[] { 110903, 2, 1, 0, 0, 0, 0, 0, 0, 2, 1, 1 };
             yield return new object[] { 110904, 2, 1, 0, 0, 0, 0, 0, 0, 2, 1, 1 };
             yield return new object[] { 110905, 2, 1, 0, 0, 0, 0, 0, 0, 2, 1, 1 };
@@ -5001,6 +4997,9 @@ namespace Rasa.Services.Preloader
             yield return new object[] { 45104, 2, 1, 0, 0, 0, 0, 0, 0, 2, 1, 1 };
             yield return new object[] { 45105, 2, 1, 0, 0, 0, 0, 0, 0, 2, 1, 1 };
             yield return new object[] { 42410, 1, 1, 0, 0, 0, 0, 0, 0, 2, 1, 1 };
+            yield return new object[] { 28, 2, 1, 0, 0, 0, 0, 0, 0, 2, 1, 1 };
+            yield return new object[] { 45125, 2, 1, 0, 0, 0, 0, 0, 0, 2, 1, 1 };
+            yield return new object[] { 111032, 2, 1, 0, 0, 0, 0, 0, 0, 2, 1, 1 };
         }
     }
 }
