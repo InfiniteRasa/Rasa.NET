@@ -44,6 +44,21 @@ namespace Rasa.Services.Preloader
             yield return new object[] { 27, "NPC_Forean_Gunner", 1, 116, 1.0, 20.0, 2500, 0, 15, 28 };
             yield return new object[] { 28, "NPC_Forean_Archer", 1, 145, 1.0, 30.0, 2500, 0, 15, 28 };
             yield return new object[] { 29, "Bane_Thrax_Technician_Boss", 1, 1, 0.5, 30.0, 800, 0, 10, 15 };
+            yield return new object[] { 30, "Proctor Fulgor Lightbender Boss", 1, 149, 0.5, 30.0, 800, 0, 15, 25 };
+            yield return new object[] { 31, "Arioch Xanx Boss", 174, 24, 0.5, 30.0, 800, 0, 15, 25 };
+            yield return new object[] { 32, "Atropos Linker Boss", 1, 203, 0.5, 30.0, 800, 0, 15, 25 };
+            yield return new object[] { 33, "Horntail Thrax Boss", 1, 1, 0.5, 30.0, 800, 0, 10, 15 };
+            yield return new object[] { 34, "Old Scratch Thrax Boss", 1, 79, 0.5, 30.0, 800, 0, 15, 25 };
+            yield return new object[] { 35, "Bane Hunter Boss", 1, 244, 0.5, 30.0, 800, 0, 15, 25 };
+            yield return new object[] { 36, "Bane Linker Boss", 1, 203, 0.5, 30.0, 800, 0, 15, 25 };
+            yield return new object[] { 37, "Linker Chest Blast", 263, 1, 0.5, 30.0, 2500, 1800, 15, 25 };
+            yield return new object[] { 38, "Linker Ground Blast", 264, 2, 0.5, 30.0, 2500, 1800, 15, 25 };
+            yield return new object[] { 39, "Linker Channel Blast", 410, 1, 0.5, 30.0, 2500, 1800, 15, 25 };
+            yield return new object[] { 40, "Linker Hand Blast", 412, 2, 0.5, 30.0, 2500, 1800, 15, 25 };
+            yield return new object[] { 41, "Bane Thrax Overseer Rifle", 1, 79, 0.5, 30.0, 800, 0, 15, 25 };
+            yield return new object[] { 42, "Bane Shield Drones", 1, 45, 0.5, 30.0, 800, 0, 15, 20 };
+            yield return new object[] { 43, "Bane Miasma regular", 174, 12, 0.5, 10.0, 800, 0, 15, 20 };
+            yield return new object[] { 44, "Fithik Hive Monarch Boss", 174, 34, 0.5, 10.0, 800, 0, 15, 20 };
         }
     }
 }

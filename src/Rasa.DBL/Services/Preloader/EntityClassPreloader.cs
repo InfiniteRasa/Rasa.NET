@@ -6158,7 +6158,7 @@ namespace Rasa.Services.Preloader
             yield return new object[] { 20680, "MisTreasureDispenserCLRFCrystals", 13792, 1, 0, "6" };
             yield return new object[] { 20681, "ArchHumCorrRoomEdgeStraight8mmV02", 49404, 1, 0, "" };
             yield return new object[] { 20682, "MisDivideItemPurgasLevel1Card", 29248, 1, 0, "6" };
-            yield return new object[] { 20684, "MisCavesofDonn_DyingForean", 30264, 1, 1, "52" };
+            yield return new object[] { 20684, "MisCavesofDonn_DyingForean", 30264, 1, 1, "8" };
             yield return new object[] { 20685, "FloraForeasGenTree04V01", 30534, 1, 0, "" };
             yield return new object[] { 20686, "FloraForeasGenTree04V02", 30535, 1, 0, "" };
             yield return new object[] { 20687, "FloraForeasGenTree04V03", 30536, 1, 0, "" };
