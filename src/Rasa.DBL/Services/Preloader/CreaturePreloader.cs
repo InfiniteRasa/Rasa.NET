@@ -68,7 +68,7 @@ namespace Rasa.Services.Preloader
             yield return new object[] { 49, "Bane Hunter Invasion Boss", 10327, 0, 15, 1800, 0, 0, 0, 9, 10, 0, 0, 0, 0, 0, 0 };
             yield return new object[] { 50, "NPC_Forean_Spearman", 7034, 1, 9, 500, 0, 9, 5, 17, 6, 5, 0, 0, 0, 0, 0 };
             yield return new object[] { 51, "NPC_Forean_Gunner", 6239, 1, 9, 500, 0, 9, 5, 27, 0, 0, 0, 0, 0, 0, 0 };
-            yield return new object[] { 52, "NPC_Forean_Shaman", 7035, 1, 9, 500, 3000, 9, 5, 0, 0, 0, 0, 0, 0, 0, 0 };
+            yield return new object[] { 52, "NPC_Forean_Shaman", 7035, 1, 9, 500, 0, 9, 5, 0, 0, 0, 0, 0, 0, 0, 0 };
             yield return new object[] { 53, "NPC_Forean_Archer", 7036, 1, 9, 500, 0, 9, 5, 28, 0, 0, 0, 0, 0, 0, 0 };
             yield return new object[] { 54, "NPC_Forean_Vendor_Shaman_Static", 22635, 1, 9, 500, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
             yield return new object[] { 55, "NPC_Forean_Vendor_Gunner_Static", 22636, 1, 9, 500, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -123,7 +123,7 @@ namespace Rasa.Services.Preloader
             yield return new object[] { 106, "Council Elder Barhui", 7035, 1, 10, 750, 3090, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
             yield return new object[] { 107, "Dr. Fanja Corman Ranja Gorge", 6340, 1, 10, 1000, 202, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
             yield return new object[] { 108, "Dr. Gwen Duvall", 6340, 1, 10, 1000, 6738, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-            yield return new object[] { 109, "Dr. Samual Corman", 6339, 1, 10, 1000, 6888, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+            yield return new object[] { 109, "Dr. Munson", 6339, 1, 10, 1000, 6888, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
             yield return new object[] { 110, "Dr. Ojy", 6340, 1, 10, 1000, 6946, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
             yield return new object[] { 111, "Dr. Soji", 6339, 1, 10, 1000, 6948, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
             yield return new object[] { 112, "Dying Forean", 7035, 1, 10, 1000, 9729, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
