@@ -15,7 +15,7 @@ namespace Rasa.Structures
         public Dictionary<EquipmentData, AppearanceData> AppearanceData { get; set; }
         public List<CharacterOptions> CharacterOptions = new();
         public double Scale { get; set; }
-        public int Race { get; set; }
+        public Race Race { get; set; }
         public uint Class { get; set; }
         public uint Experience { get; set; }
         public byte Level { get; set; }
@@ -76,7 +76,7 @@ namespace Rasa.Structures
             // CharacterData
             Id = character.Id;
             Scale = character.Scale;
-            Race = character.Race;
+            Race = (Race)character.Race;
             Class = character.Class;
             Experience = character.Experience;
             Level = character.Level;

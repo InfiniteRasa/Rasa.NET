@@ -1251,7 +1251,7 @@ namespace Rasa.Managers
                 }
 
                 // check race requirements
-                if (itemToEquip.ItemTemplate.ItemInfo.RaceReq != 0 && itemToEquip.ItemTemplate.ItemInfo.RaceReq != client.Player.Race)
+                if (itemToEquip.ItemTemplate.ItemInfo.RaceReq != 0 && itemToEquip.ItemTemplate.ItemInfo.RaceReq != (int)client.Player.Race)
                 {
                     CommunicatorManager.Instance.SystemMessage(client, "Item is not for your race, cannot equip it.");
                     canEquip = false;
