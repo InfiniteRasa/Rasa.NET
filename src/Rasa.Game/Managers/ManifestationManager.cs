@@ -654,26 +654,9 @@ namespace Rasa.Managers
             return skillId < 0 ? -1 : skillId >= 200 ? -1 : SkillId2Idx[skillId];
         }
 
-        //
-        // Training points calculation:
-        // trainingPoints = 2 * (level - 1)
-
-        //if (level >= 5)
-        //    trainingPoints += 2
-
-        //if (level >= 15)
-        //    trainingPoints += 2
-
-        //if (level >= 30)
-        //    trainingPoints += 2
-
-        //if (level >= 50)
-        //    trainingPoints += 4
         public int GetSkillPointsAvailable(Manifestation player)
         {
             var level = player.Level;
-            if (level < 0) level = 1;
-            if (level > 50) level = 50; // Safety
 
             var pointsAvailable = (player.Level - 1) * 2;
             pointsAvailable += 5; // add five points because of the recruit skills that start at level 1

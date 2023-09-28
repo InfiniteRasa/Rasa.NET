@@ -31,7 +31,6 @@ namespace Rasa.Repositories.World
             return creatureStat;
         }
 
-
         public CreatureActionEntry GetCreatureActionById(uint id)
         {
             var query = _worldContext.CreateNoTrackingQuery(_worldContext.CreatureActionEntries);

@@ -72,6 +72,7 @@ namespace Rasa.Repositories.World
 
             return requirementRaceEntries;
         }
+
         public List<ItemTemplateResistanceEntry> GetItemResistances()
         {
             var query = _worldContext.CreateNoTrackingQuery(_worldContext.ItemTemplateResistanceEntries);
@@ -95,6 +96,7 @@ namespace Rasa.Repositories.World
 
             return weaponEntries;
         }
+
         public List<EquipableClassEntry> GetEquipableClasses()
         {
             var query = _worldContext.CreateNoTrackingQuery(_worldContext.EquipableClassEntries);
@@ -102,6 +104,7 @@ namespace Rasa.Repositories.World
 
             return equipableClassEntries;
         }
+
         public List<ItemTemplateRequirementSkillEntry> GetRequirementsSkill()
         {
             var query = _worldContext.CreateNoTrackingQuery(_worldContext.ItemTemplateRequirementSkillEntries);
@@ -109,6 +112,7 @@ namespace Rasa.Repositories.World
 
             return requirementSkillEntries;
         }
+
         public List<ItemTemplateRequirementEntry> GetRequirementsGeneric()
         {
             var query = _worldContext.CreateNoTrackingQuery(_worldContext.ItemTemplateRequirementEntries);
