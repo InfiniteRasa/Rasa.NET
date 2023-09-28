@@ -7,7 +7,7 @@ namespace Rasa.Repositories.World
     using Structures.World;
     public interface ILogosRepository
     {
-        List<LogosEntry> Get();
+        List<LogosEntry> GetLogos();
     }
     public class LogosRepository : ILogosRepository
     {
@@ -17,7 +17,7 @@ namespace Rasa.Repositories.World
         {
             _worldContext = worldContext;
         }
-        public List<LogosEntry> Get()
+        public List<LogosEntry> GetLogos()
         {
             var query = _worldContext.CreateNoTrackingQuery(_worldContext.LogosEntries);
             var logosEntries = query.ToList();

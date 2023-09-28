@@ -14,7 +14,6 @@ namespace Rasa.Managers
     using Repositories.UnitOfWork;
     using Structures;
     using Structures.Char;
-    
     public class ManifestationManager
     {
         /* Actor: Player "bodies" (ManifestationClass)
@@ -570,6 +569,8 @@ namespace Rasa.Managers
                     // level up
                     client.Player.Level++;
 
+
+
                     // update database
                     CharacterManager.Instance.UpdateCharacter(client, CharacterUpdate.Level);
 
@@ -594,6 +595,8 @@ namespace Rasa.Managers
                 else
                     break;
             }
+
+
         }
 
         public void DebugChgPlayerClass(Client client, uint newClassId)
@@ -617,11 +620,11 @@ namespace Rasa.Managers
 
         public int GetAvailableAttributePoints(Manifestation player)
         {
-            var points = player.Level * 2 - 2;
+            var points = 3 * (player.Level - 1);
             points -= player.SpentBody;
             points -= player.SpentMind;
             points -= player.SpentSpirit;
-            points = Math.Max(points, 0);
+            //points = Math.Max(points, 0); Probably do not need this? (StaticVariable)
             return points;
         }
 
@@ -653,8 +656,23 @@ namespace Rasa.Managers
 
         public int GetSkillPointsAvailable(Manifestation player)
         {
+            var level = player.Level;
+
             var pointsAvailable = (player.Level - 1) * 2;
             pointsAvailable += 5; // add five points because of the recruit skills that start at level 1
+
+            if (level >= 5)
+                pointsAvailable += 2;
+
+            if (level >= 15)
+                pointsAvailable += 2;
+
+            if (level >= 30)
+                pointsAvailable += 2;
+
+            if (level >= 50)
+                pointsAvailable += 4;
+
             // subtract spent skill levels
             foreach (var skill in player.Skills)
             {
@@ -912,6 +930,65 @@ namespace Rasa.Managers
             client.CellCallMethod(client, client.Player.EntityId, new AppearanceDataPacket(client.Player.AppearanceData));
         }
 
+        // Health calculation:
+        //levelBasedHealth = 20000.0
+        //for (int i = level; i< 50; ++i)
+        //levelBasedHealth = levelBasedHealth - 0.082995 * levelBasedHealth;
+
+        private readonly float[] HealthBaselinePerLevel =
+         {
+            286.5784148f,
+            312.51565127f,
+            340.8003787f,
+            371.6450605f,
+            405.28138942f,
+            441.96202792f,
+            481.96250612f,
+            525.58329139f,
+            573.15204539f,
+            625.02608535f,
+            681.59506802f,
+            743.28391668f,
+            810.55601298f,
+            883.91667764f,
+            963.91696626f,
+            1051.15780858f,
+            1146.29452247f,
+            1250.04173638f,
+            1363.17875735f,
+            1486.55542483f,
+            1621.09849437f,
+            1767.818599f,
+            1927.81784069f,
+            2102.29806892f,
+            2292.56990847f,
+            2500.06260431f,
+            2726.33475751f,
+            2973.08603281f,
+            3242.1699258f,
+            3535.60768567f,
+            3855.60349799f,
+            4204.56104164f,
+            4585.10154431f,
+            5000.08347207f,
+            5452.62400104f,
+            5946.1224323f,
+            6484.28572615f,
+            7071.15634718f,
+            7711.14262974f,
+            8409.05189147f,
+            9170.12654399f,
+            10000.08347172f,
+            10905.15697485f,
+            11892.14559882f,
+            12968.4632023f,
+            14142.19464703f,
+            15422.15652808f,
+            16817.9634005f,
+            18340.1f,
+            20000f
+        };
+
         /*
          * ToDO (this still need work, this is just copied from c++ projet
          * Updates all attributes depending on level, spent attribute points, etc.
@@ -922,42 +999,111 @@ namespace Rasa.Managers
         {
             var player = client.Player;
             var attribute = player.Attributes;
-            // body
-            attribute[Attributes.Body].NormalMax = 10 + (player.Level - 1) * 2 + player.SpentBody;
+
+            int level = player.Level;
+
+            // We don't want things to blow up just in case something wrong happens to level
+            if (level < 0) level  = 1;
+            if (level > 50) level = 50;
+
+            int levelBasedBody   = 0;
+            int levelBasedMind   = 0;
+            int levelBasedSpirit = 0;
+
+            switch (player.Race)
+            {
+                case Race.Human:
+                    levelBasedBody = levelBasedMind = levelBasedSpirit = 2 * (level - 1) + 10;
+                    break;
+
+                case Race.Forean:
+                    levelBasedBody = (level - 1) + 10;
+                    levelBasedMind = 3 * (level - 1) + 10;
+                    levelBasedSpirit = 2 * (level - 1) + 10;
+                    break;
+
+                case Race.Brann:
+                    levelBasedBody = levelBasedMind = (level - 1) + 10;
+                    levelBasedSpirit = 4 * (level - 1) + 10;
+                    break;
+
+                case Race.Thrax:
+                    levelBasedBody = 3 * (level - 1) + 10;
+                    levelBasedMind = (level - 1) + 10;
+                    levelBasedSpirit = 2 * (level - 1) + 10;
+                    break;
+            }
+
+            int totalBody   = levelBasedBody   + player.SpentBody;
+            int totalMind   = levelBasedMind   + player.SpentMind;
+            int totalSpirit = levelBasedSpirit + player.SpentSpirit;
+
+            // Health
+            float levelBasedHealth = HealthBaselinePerLevel[level - 1];
+            levelBasedHealth = levelBasedHealth / (2 * (level - 1) + 2 * (2 * (level - 1) + 10) + 10);
+            int totalHealth = (int)(levelBasedHealth * (totalSpirit + 2 * totalBody));
+
+            // Power
+            float basePower = basePower = (3 * level + 100) / (2 * (level - 1) + 2 * (2 * (level - 1) + 10) + 10);
+            int totalPower  = (int)(basePower * (totalBody + 2 * totalMind));
+
+            // Regen
+            float baseRegen = (2 * level + 100) / (2 * (level - 1) + 2 * (2 * (level - 1) + 10) + 10);
+            int totalRegen = (int)(baseRegen * (totalMind + 2 * totalSpirit));
+          
+            // Bonuses
             var bodyBonus = 0;
-            attribute[Attributes.Body].CurrentMax = attribute[Attributes.Body].NormalMax + bodyBonus;
-            attribute[Attributes.Body].Current = attribute[Attributes.Body].CurrentMax;
-            // mind
-            attribute[Attributes.Mind].NormalMax = 10 + (player.Level - 1) * 2 + player.SpentMind;
             var mindBonus = 0;
-            attribute[Attributes.Mind].CurrentMax = attribute[Attributes.Mind].NormalMax + mindBonus;
-            attribute[Attributes.Mind].Current = attribute[Attributes.Mind].CurrentMax;
-            // spirit
-            attribute[Attributes.Spirit].NormalMax = 10 + (player.Level - 1) * 2 + player.SpentSpirit;
             var spiritBonus = 0;
-            attribute[Attributes.Spirit].CurrentMax = attribute[Attributes.Spirit].NormalMax + spiritBonus;
-            attribute[Attributes.Spirit].Current = attribute[Attributes.Spirit].CurrentMax;
-            // health
-            attribute[Attributes.Health].NormalMax = 100 + (player.Level - 1) * 2 * 8 + player.SpentBody * 6;
+
             var healthBonus = 0;
-            attribute[Attributes.Health].CurrentMax = attribute[Attributes.Health].NormalMax + healthBonus;
-            if (fullreset)
-                attribute[Attributes.Health].Current = attribute[Attributes.Health].CurrentMax;
-            else
-                attribute[Attributes.Health].Current = Math.Min(attribute[Attributes.Health].Current, attribute[Attributes.Health].CurrentMax);
+            var chiBonus    = 0;
+            var regenBonus  = 0;
+
+            float armorBonusPercent = (float)Math.Max(0.0, (totalBody - (2 * (level - 1) + 10)) * 0.667);   // every body attribute over the default base attribute gives 0.667% bonus armo;
+            float logosBonusPercent = (float)Math.Max(0.0, (totalMind - (2 * (level - 1) + 10)) * 0.375);   // every mind attribute over the default base attribute gives 0.375% bonus logos damage
+            float critBonusPercent = (float)Math.Max(0.0, (totalSpirit - (2 * (level - 1) + 10)) * 0.065);  // every spirit attribute over the default base attribute gives 0.065% bonus crit chance;
+
+
+            // body
+            attribute[Attributes.Body].NormalMax    = totalBody;
+            attribute[Attributes.Body].CurrentMax   = attribute[Attributes.Body].NormalMax + bodyBonus;
+            attribute[Attributes.Body].Current      = attribute[Attributes.Body].Current;
+
+            attribute[Attributes.Mind].NormalMax    = totalMind;
+            attribute[Attributes.Mind].CurrentMax   = attribute[Attributes.Mind].NormalMax + mindBonus;
+            attribute[Attributes.Mind].Current      = attribute[Attributes.Mind].Current;
+
+            attribute[Attributes.Spirit].NormalMax  = totalSpirit;
+            attribute[Attributes.Spirit].CurrentMax = attribute[Attributes.Spirit].NormalMax + spiritBonus;
+            attribute[Attributes.Spirit].Current    = attribute[Attributes.Spirit].CurrentMax;
+
+            // health
+            attribute[Attributes.Health].NormalMax  = totalHealth;
+            attribute[Attributes.Health].CurrentMax = totalHealth;
+
             // chi/adrenaline
-            attribute[Attributes.Chi].NormalMax = 100 + (player.Level - 1) * 2 * 4 + player.SpentSpirit * 3;
-            var chiBonus = 0;
-            attribute[Attributes.Chi].CurrentMax = attribute[Attributes.Chi].NormalMax + chiBonus;
+            attribute[Attributes.Chi].NormalMax     = totalPower;
+            attribute[Attributes.Chi].CurrentMax    = totalPower;
+
+            attribute[Attributes.Regen].NormalMax   = totalRegen; // regenRate in percent
+            attribute[Attributes.Regen].CurrentMax  = totalRegen;
+
             if (fullreset)
+            {
+                attribute[Attributes.Health].Current = attribute[Attributes.Health].CurrentMax;
                 attribute[Attributes.Chi].Current = attribute[Attributes.Chi].CurrentMax;
+            }
             else
+            {
+                attribute[Attributes.Health].Current = Math.Min(attribute[Attributes.Health].Current, attribute[Attributes.Health].CurrentMax);
                 attribute[Attributes.Chi].Current = Math.Min(attribute[Attributes.Chi].Current, attribute[Attributes.Chi].CurrentMax);
+            }
+
+
             // update regen rate
-            attribute[Attributes.Regen].NormalMax = 100 + (player.Level - 1) * 2 + Math.Max(0, (attribute[Attributes.Spirit].CurrentMax - 10)) * 6; // regenRate in percent
-            var regenBonus = 0;
-            attribute[Attributes.Regen].CurrentMax = attribute[Attributes.Regen].NormalMax + regenBonus;
-            attribute[Attributes.Regen].RefreshAmount = (int)Math.Round(2D * (attribute[Attributes.Regen].CurrentMax / 100), 0); // 2.0 per second is the base regeneration for health
+            attribute[Attributes.Regen].RefreshAmount = (int)Math.Round(2D * (attribute[Attributes.Regen].CurrentMax / 100), 0);
+            // 2.0 per second is the base regeneration for health
             // calculate armor max
             var armorMax = 0.0d;
             //float armorBonus = 0; // todo! (From item modules)

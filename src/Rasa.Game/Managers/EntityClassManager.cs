@@ -66,22 +66,22 @@ namespace Rasa.Managers
             };
 
             // Load itemClasses
-            var itemClassList = unitOfWork.ItemClasses.Get();
+            var itemClassList = unitOfWork.Equipment.GetItemClasses();
             foreach (var itemClass in itemClassList)
                 LoadedEntityClasses[(EntityClasses)itemClass.Id].ItemClassInfo = new ItemClassInfo(itemClass);
 
             // Load ArmorClasses
-            var armorClassList = unitOfWork.ArmorClasses.Get();
+            var armorClassList = unitOfWork.Equipment.GetArmorClasses();
             foreach (var armorClass in armorClassList)
                 LoadedEntityClasses[(EntityClasses)armorClass.Id].ArmorClassInfo = new ArmorClassInfo(armorClass);
 
             // Load WeaponClasses
-            var weaponClassList = unitOfWork.WeaponClasses.Get();
+            var weaponClassList = unitOfWork.Equipment.GetWeaponClasses();
             foreach (var weaponClass in weaponClassList)
                 LoadedEntityClasses[(EntityClasses)weaponClass.Id].WeaponClassInfo = new WeaponClassInfo(weaponClass);
 
             // Load EquipableClasses
-            var equipableClassList = unitOfWork.EquipableClasses.Get();
+            var equipableClassList = unitOfWork.Equipment.GetEquipableClasses();
             foreach (var equipableClass in equipableClassList)
                 LoadedEntityClasses[(EntityClasses)equipableClass.Id].EquipableClassInfo = new EquipableClassInfo((EquipmentData)equipableClass.SlotId);
 

@@ -116,23 +116,10 @@ namespace Rasa
 
             // World
             services.AddScoped<IWorldUnitOfWork, WorldUnitOfWork>();
-            services.AddScoped<IArmorClassRepository, ArmorClassRepository>();
-            services.AddScoped<ICreatureActionRepository, CreatureActionRepository>();
-            services.AddScoped<ICreatureAppearanceRepository, CreatureAppearanceRepository>();
+            services.AddScoped<IEquipmentRepository, EquipmentRepository>();
             services.AddScoped<ICreatureRepository, CreatureRepository>();
-            services.AddScoped<ICreatureStatRepository, CreatureStatRepository>();
             services.AddScoped<IEntityClassRepository, EntityClassRepository>();
-            services.AddScoped<IEquipableClassRepository, EquipableClassRepository>();
             services.AddScoped<IFootlockerRepository, FootlockerRepository>();
-            services.AddScoped<IItemClassRepository, ItemClassRepository>();
-            services.AddScoped<IItemTemplateArmorRepository, ItemTemplateArmorRepository>();
-            services.AddScoped<IItemTemplateRepository, ItemTemplateRepository>();
-            services.AddScoped<IItemTemplateItemClassRepository, ItemTemplateItemClassRepository>();
-            services.AddScoped<IItemTemplateRequirementRepository, ItemTemplateRequirementRepository>();
-            services.AddScoped<IItemTemplateRequirementRaceRepository, ItemTemplateRequirementRaceRepository>();
-            services.AddScoped<IItemTemplateRequirementSkillRepository, ItemTemplateRequirementSkillRepository>();
-            services.AddScoped<IItemTemplateResistanceRepository, ItemTemplateResistanceRepository>();
-            services.AddScoped<IItemTemplateWeaponRepository, ItemTemplateWeaponRepository>();
             services.AddScoped<ILogosRepository, LogosRepository>();
             services.AddScoped<IMapInfoRepository, MapInfoRepository>();
             services.AddScoped<INpcMissionRepository, NpcMissionRepository>();
@@ -141,9 +128,6 @@ namespace Rasa
             services.AddScoped<IPlayerRandomNameRepository, PlayerRandomNameRepository>();
             services.AddScoped<ISpawnpoolRepository, SpawnpoolRepository>();
             services.AddScoped<ITeleporterRepository, TeleporterRepository>();
-            services.AddScoped<IVendorReposiotry, VendorReposiotry>();
-            services.AddScoped<IVendorItemRepository, VendorItemRepository>();
-            services.AddScoped<IWeaponClassRepository, WeaponClassRepository>();
         }
 
         private static void AddDatabase(HostBuilderContext context, IServiceCollection services)

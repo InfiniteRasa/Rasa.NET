@@ -13,7 +13,6 @@ namespace Rasa.Managers
     {
         private static MapTriggerManager _instance;
         private static readonly object InstanceLock = new object();
-
         public static MapTriggerManager Instance
         {
             get
