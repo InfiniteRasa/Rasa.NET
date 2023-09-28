@@ -12,12 +12,8 @@ namespace Rasa.Managers
     using Packets.MapChannel.Client;
     using Packets.MapChannel.Server;
     using Repositories.UnitOfWork;
-    using SQLitePCL;
     using Structures;
     using Structures.Char;
-    using System.Reflection.Emit;
-    using System.Reflection.Metadata;
-
     public class ManifestationManager
     {
         /* Actor: Player "bodies" (ManifestationClass)

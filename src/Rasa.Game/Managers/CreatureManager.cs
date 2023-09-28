@@ -184,7 +184,7 @@ namespace Rasa.Managers
 
             // set creature stats
             using var unitOfWork = _gameUnitOfWorkFactory.CreateWorld();
-            var creatureStats = unitOfWork.CreatureStats.GetCreatureStats(dbId);
+            var creatureStats = unitOfWork.Creatures.GetCreatureStats(dbId);
 
             if (creatureStats != null)
             {
@@ -294,13 +294,14 @@ namespace Rasa.Managers
         {
             using var unitOfWork = _gameUnitOfWorkFactory.CreateWorld();
             var creatureList = unitOfWork.Creatures.Get();
-            var vendorsList = unitOfWork.Vendors.Get();
-            var vendorItemList = unitOfWork.VendorItems.Get();
-            var creatureActions = unitOfWork.CreatureActions.Get();
+            var creatureActions = unitOfWork.Creatures.GetCreatureActions();
+
+            var vendorsList = unitOfWork.Creatures.GetVendors();
+            var vendorItemList = unitOfWork.Creatures.GetVendorItems();
 
             foreach (var data in creatureList)
             {
-                var appearanceData = unitOfWork.CreatureAppearances.GetCreatureAppearances(data.Id);
+                var appearanceData = unitOfWork.Creatures.GetCreatureAppearances(data.Id);
                 var tempAppearanceData = new Dictionary<EquipmentData, AppearanceData>();
                 var augmentationsList = EntityClassManager.Instance.LoadedEntityClasses[(EntityClasses)data.ClassId].Augmentations;
                 var actions = new List<CreatureAction>();
@@ -473,7 +474,7 @@ namespace Rasa.Managers
             CellManager.Instance.CellCallMethod(creature, new AppearanceDataPacket(creature.AppearanceData));
 
             // update creature in database
-            unitOfWork.CreatureAppearances.CreateOrUpdate(creature.DbId, (uint)appearanceData.SlotId, appearanceData.Class, appearanceData.Color.Hue);
+            unitOfWork.Creatures.CreateOrUpdateAppearance(creature.DbId, (uint)appearanceData.SlotId, appearanceData.Class, appearanceData.Color.Hue);
 
             Logger.WriteLog(LogType.Debug, "Creature Look updated");
         }

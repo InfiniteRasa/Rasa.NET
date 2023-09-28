@@ -35,7 +35,7 @@
         internal void LogosInit()
         {
             using var unitOfWork = _gameUnitOfWorkFactory.CreateWorld();
-            var logosList = unitOfWork.Logoses.Get();
+            var logosList = unitOfWork.Logoses.GetLogos();
 
             foreach (var entry in logosList)
             {

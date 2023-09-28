@@ -175,7 +175,7 @@ namespace Rasa.Managers
             using var unitOfWork = _gameUnitOfWorkFactory.CreateWorld();
 
             // load item templates
-            var itemTemplates = unitOfWork.ItemTemplateItemClasses.Get();
+            var itemTemplates = unitOfWork.Equipment.GetItemTemplateClasses();
             foreach (var itemTemplate in itemTemplates)
             {
                 LoadedItemTemplates.Add(itemTemplate.ItemTemplateId, new ItemTemplate(itemTemplate));
@@ -183,22 +183,22 @@ namespace Rasa.Managers
             }
 
             // add race requirements to itemTemplate
-            var itemRaceReq = unitOfWork.ItemTemplateRequirementRaces.Get();
+            var itemRaceReq = unitOfWork.Equipment.GetRequirementsRace();
             foreach (var raceReq in itemRaceReq)
                 LoadedItemTemplates[raceReq.Id].ItemInfo.RaceReq = raceReq.RaceId;
 
             // add skill requirements to itemTemplate
-            var itemSkillReq = unitOfWork.ItemTemplateRequirementSkills.Get();
+            var itemSkillReq = unitOfWork.Equipment.GetRequirementsSkill();
             foreach (var skillReq in itemSkillReq)
                 LoadedItemTemplates[skillReq.Id].EquipableInfo = new EquipableInfo(skillReq.SkillId, skillReq.SkillLevel);
 
             // add resistance data to itemTemplate
-            var itemTemplateResistance = unitOfWork.ItemTemplateResistances.Get();
+            var itemTemplateResistance = unitOfWork.Equipment.GetItemResistances();
             foreach (var resistance in itemTemplateResistance)
                 LoadedItemTemplates[resistance.Id].EquipableInfo.ResistList.Add(new ResistanceData((DamageType)resistance.ResistanceType, resistance.ResistanceValue));
 
             // add item requirements to itemTemplate
-            var itemReqs = unitOfWork.ItemTemplateRequirements.Get();
+            var itemReqs = unitOfWork.Equipment.GetRequirementsGeneric();
 
             foreach (var itemReq in itemReqs)
             {
@@ -212,15 +212,15 @@ namespace Rasa.Managers
                     skipped++;
             }
 
-            var weaponTemplates = unitOfWork.ItemTemplateWeapons.Get();
+            var weaponTemplates = unitOfWork.Equipment.GetWeaponItems();
             foreach (var weaponTemplate in weaponTemplates)
                 LoadedItemTemplates[weaponTemplate.Id].WeaponInfo = new WeaponInfo(weaponTemplate);
 
-            var armorTemplates = unitOfWork.ItemTemplateArmors.Get();
+            var armorTemplates = unitOfWork.Equipment.GetArmorItems();
             foreach (var armorTemplate in armorTemplates)
                 LoadedItemTemplates[armorTemplate.Id].ArmorValue = armorTemplate.ArmorValue;
 
-            var itemTemplatesData = unitOfWork.ItemTemplates.Get();
+            var itemTemplatesData = unitOfWork.Equipment.GetItemTemplates();
             foreach (var template in itemTemplatesData)
             {
                 LoadedItemTemplates[template.Id].BoundToCharacter = template.BoundToCharacterFlag != 0;
