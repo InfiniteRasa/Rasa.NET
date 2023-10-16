@@ -31,6 +31,10 @@ Next, create a appsettings.env.json in the root directory with the following con
 }
 ```
 
+## Start Server
+
+Next, run `docker compose up`
+
 ## Create a User
 
 Like the setup docs mention, the next step is creating a user. To do so, attach to the auth server and run the command.
