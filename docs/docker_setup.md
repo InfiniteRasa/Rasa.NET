@@ -2,6 +2,8 @@
 
 This was tested using Linux. This provides an alternative to building and using the project directly on your system.
 
+This currently only supports SQLite for the database.
+
 ## Clone the Repo
 
 First, clone the git repository like normal, Then make sure to go into the directory.
