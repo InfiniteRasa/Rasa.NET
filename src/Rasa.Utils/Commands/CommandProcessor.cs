@@ -42,6 +42,7 @@ namespace Rasa.Commands
                             return command;
                         case ConsoleKey.Backspace:
                             command = command.Substring(0, command.Length - 1);
+                            Console.Write("\b \b");
                             break;
                         default:
                             command += key.KeyChar;
