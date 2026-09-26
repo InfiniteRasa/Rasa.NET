@@ -61,15 +61,20 @@ namespace Rasa.Managers
         {
             actor.ActiveEffects[gameEffect.EffectId] = gameEffect;
             gameEffect.Holder = actor;
-            MapChannelManager.Instance.FindByContextId(actor.MapContextId)?.ActorsWithEffects.Add(actor);
+            MapOf(actor)?.ActorsWithEffects.Add(actor);
         }
+
+        // The map channel the actor is in: its own when it has one (a private instance), else
+        // the map of its context.
+        private static MapChannel MapOf(Actor actor)
+            => actor.RuntimeMapChannel ?? MapChannelManager.Instance.FindByContextId(actor.MapContextId);
 
         public void RemoveFromList(Actor actor, GameEffect gameEffect)
         {
             actor.ActiveEffects.Remove(gameEffect.EffectId);
 
             if (actor.ActiveEffects.Count == 0)
-                MapChannelManager.Instance.FindByContextId(actor.MapContextId)?.ActorsWithEffects.Remove(actor);
+                MapOf(actor)?.ActorsWithEffects.Remove(actor);
         }
 
         /// <summary>Allocates the next effect id on the map. Effect ids are per map, like entity cells.</summary>
@@ -125,6 +130,8 @@ namespace Rasa.Managers
 
             AddToList(actor, effect);
             mapChannel.ActorsWithEffects.Add(actor);
+            if (effect.TickDamageMax > 0 && actor is Creature attackedCreature)
+                CreatureManager.RecordOwnerAttack(mapChannel, effect.Source, attackedCreature);
 
             // A player's attributes are worked out in one place, UpdateStatsValues, which reads
             // the effects; anything else would be undone by the next time it runs - putting on a
@@ -501,6 +508,13 @@ namespace Rasa.Managers
                     continue;
                 }
 
+                // In another channel of the same map (a private instance): that channel ticks it.
+                if (actor.RuntimeMapChannel != null && !ReferenceEquals(actor.RuntimeMapChannel, mapChannel))
+                {
+                    mapChannel.ActorsWithEffects.Remove(actor);
+                    continue;
+                }
+
                 // Dead, or not on this map any more: nothing to tick and nobody to tell.
                 if (actor.State == CharacterState.Dead || actor.MapContextId != mapChannel.MapInfo.MapContextId)
                 {
@@ -681,7 +695,7 @@ namespace Rasa.Managers
             {
                 var rolled = AbilityManager.Scale(effect.SourceLevel, _random.Next(effect.TickDamageMin, effect.TickDamageMax + 1), effect.TickScaleType);
                 var amount = ApplyResist(target, rolled, out var resisted, effect.TickDamageType);
-                var taken = ActorManager.Instance.Damage(mapChannel, target, amount, source, effect.TickDamageType);
+                var taken = ActorManager.Instance.Damage(mapChannel, target, amount, source, effect.TickDamageType, isPeriodic: true);
 
                 hits.Add(new TickEntry
                 {

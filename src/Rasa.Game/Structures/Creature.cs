@@ -92,6 +92,7 @@ namespace Rasa.Structures
         // creature tumers
         public long LastAgression { get; internal set; }
         public long LastRestTime { get; internal set; }
+        public bool IsInteractable { get; set; } = true;
 
         /// <summary>
         /// The player this creature belongs to, or 0 for an ordinary world creature.
@@ -139,6 +140,8 @@ namespace Rasa.Structures
         /// be harvested either.
         /// </summary>
         public int HarvestAttemptsLeft { get; set; }
+        internal Manifestation CombatParticipant { get; set; }
+        internal Game.Missions.World.ActorGameplayBinding GameplayBinding { get; set; }
 
         /// <summary>
         /// Whether this creature's last death was a Critical Death finish. The finishing move
@@ -182,6 +185,7 @@ namespace Rasa.Structures
             WalkSpeed = creature.WalkSpeed;
             foreach (var action in creature.Actions)
                 Actions.Add(new CreatureAction((CreatureAction)action.Clone()));
+            IsInteractable = creature.IsInteractable;
         }
 
         public object Clone()

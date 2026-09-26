@@ -28,6 +28,8 @@ namespace Rasa.Managers
         private static NpcManager _instance;
         private static readonly object InstanceLock = new object();
         private readonly IGameUnitOfWorkFactory _gameUnitOfWorkFactory;
+        private readonly ManifestationManager _currencyManager;
+        private readonly MissionApplication _missionManager;
 
         public static NpcManager Instance
         {
@@ -48,9 +50,20 @@ namespace Rasa.Managers
         }
 
         private NpcManager(IGameUnitOfWorkFactory gameUnitOfWorkFactory)
+            : this(gameUnitOfWorkFactory, null)
+        {
+        }
+
+        internal NpcManager(
+            IGameUnitOfWorkFactory gameUnitOfWorkFactory,
+            MissionApplication missionManager)
         {
             _gameUnitOfWorkFactory = gameUnitOfWorkFactory;
+            _currencyManager = new ManifestationManager(gameUnitOfWorkFactory);
+            _missionManager = missionManager;
         }
+
+        private MissionApplication Missions => _missionManager ?? MissionApplication.Instance;
 
         #region NPC
 
@@ -61,69 +74,105 @@ namespace Rasa.Managers
 
         public void AssignNPCMission(Client client, AssignNPCMissionPacket packet)
         {
-            // Any id can arrive here; an unknown one threw and disconnected the sender.
-            if (!MissionManager.Instance.LoadedMissions.TryGetValue(packet.MissionId, out var mission))
-                return;
-
-            if (client.Player.Missions.Count > 30)
-            {
-                CommunicatorManager.Instance.SystemMessage(client, "Mission log is full.");
-                return;
-            }
-
-            client.CallMethod(client.Player.EntityId, new MissionGainedPacket(packet.MissionId, mission));
+            Missions.TryAcceptNpcMission(
+                client, packet.NpcEntityId, packet.MissionId);
         }
 
         public void CompleteNPCMission(Client client, CompleteNPCMissionPacket packet)
         {
-            Logger.WriteLog(LogType.Debug, $"ToDo: CompleteNPCMission");
+            if (packet == null)
+                return;
+            Missions.TryCompleteNpcMission(
+                client,
+                packet.EntityId,
+                packet.MissionId,
+                packet.SelectionIdx,
+                packet.Rating);
+        }
+
+        public void CompleteNPCObjective(
+            Client client,
+            CompleteNPCObjectivePacket packet)
+        {
+            if (packet == null)
+                return;
+            Missions.TryCompleteNpcObjective(
+                client,
+                packet.EntityId,
+                packet.MissionId,
+                packet.ObjectiveId,
+                packet.PlayerFlagId);
+        }
+
+        public void PerformNPCChoice(Client client, PerformNPCChoicePacket packet)
+        {
+            if (packet == null)
+                return;
+            Missions.TryPerformNpcChoice(client, packet.EntityId, packet.MissionId, packet.ObjectiveId,
+                packet.PlayerFlagId, packet.ChoiceIdx);
+        }
+
+        public void RewardNPCMission(Client client, RewardNPCMissionPacket packet)
+        {
+            if (packet == null)
+                return;
+            Missions.TryRewardNpcMission(
+                client,
+                packet.EntityId,
+                packet.MissionId,
+                packet.SelectionIdx,
+                packet.Rating);
+        }
+
+        public void AbandonMission(Client client, AbandonMissionPacket packet)
+        {
+            if (packet == null)
+                return;
+            if (!Missions.TryAbandon(client, packet.MissionId))
+                Missions.TryClear(client, packet.MissionId);
+        }
+
+        public bool ObjectiveFailed(
+            Client client,
+            uint missionId,
+            uint objectiveId)
+        {
+            // Failure comes from authoritative server objective rules/scripts; the client has
+            // no packet that can declare its own objective failed.
+            return Missions.TryFailObjective(client, missionId, objectiveId);
+        }
+
+        public bool MissionFailed(Client client, uint missionId)
+        {
+            // Server lifecycle sources may fail a mission directly when no objective owns the
+            // failure condition.
+            return Missions.TryFailMission(client, missionId);
         }
 
         public void RequestNpcConverse(Client client, RequestNPCConversePacket packet)
         {
-            var creature = NpcInReach(client, packet.EntityId, null, "an NPC");
+            if (client == null || packet == null)
+                return;
+            lock (client.SyncRoot)
+                OpenConversation(client, packet.EntityId);
+        }
 
-            if (creature == null)
+        private void OpenConversation(Client client, ulong entityId)
+        {
+            client.MissionConversation = null;
+            if (EntityManager.Instance.TryGetObject(entityId, out var conversationObject) &&
+                conversationObject.MissionConversation != null)
+            {
+                Missions.ObjectConversations.Open(client, entityId);
+                return;
+            }
+            if (!Missions.TryOpenNpcConversation(client, entityId, out var creature, out var conversation))
                 return;
 
-            // ToDo create DB structures, and replace constant data with dinamic
-
-            var convoDataDict = new Dictionary<ConversationType, object>();
+            var convoDataDict = conversation.CreateConversationData();
 
             if (creature.Npc.Vendor != null)
                 convoDataDict.Add(ConversationType.Vending, new List<uint> { creature.Npc.Vendor.VendorPackageId });
-
-            if (creature.Npc.NpcMissionIds != null)
-                if (creature.Npc.NpcMissionIds.Count > 0)
-                {
-                    var dispensableMissions = new Dictionary<uint, MissionInfo>();
-                    var completeableMissions = new Dictionary<uint, RewardInfo>();
-                    var completeableObjectives = new List<CompleteableObjectives>();
-
-                    foreach (var missionId in creature.Npc.NpcMissionIds)
-                    {
-                        // An NPC row naming a mission that did not load: skipped, not a disconnect
-                        // for whoever talks to it.
-                        if (!MissionManager.Instance.LoadedMissions.TryGetValue(missionId, out var mission))
-                            continue;
-
-                        if (mission.MissionGiver == creature.DbId)
-                            dispensableMissions.Add(mission.MissionId, mission);
-
-                        if (mission.MissionReciver == creature.DbId)
-                            completeableMissions.Add(mission.MissionId, mission.MissionConstantData.RewardInfo);
-                    }
-
-                    // insert data into convoDataDict
-                    if (dispensableMissions.Count > 0)
-                        convoDataDict.Add(ConversationType.MissionDispense, dispensableMissions);
-
-                    if (completeableMissions.Count > 0)
-                        convoDataDict.Add(ConversationType.MissionComplete, completeableMissions);
-
-                    if (completeableObjectives.Count > 0)
-                        convoDataDict.Add(ConversationType.ObjectiveChoice, completeableObjectives);
-                }
 
             // Auctioner = 14
             if (creature.Npc.NpcIsAuctioneer)
@@ -254,48 +303,42 @@ namespace Rasa.Managers
             client.CallMethod(creature.EntityId, new ConversePacket(convoDataDict));
         }
 
-        public void UpdateConversationStatus(Client client, Creature creature)
+        public void UpdateConversationStatus(
+            Client client,
+            Creature creature,
+            MissionApplication missionManager = null)
         {
+            if (creature == null)
+                return;
+
+            if (!creature.IsInteractable)
+            {
+                client.CallMethod(
+                    creature.EntityId,
+                    new NPCConversationStatusPacket(ConversationStatus.None, new List<uint>()));
+                return;
+            }
+
             var npc = creature.Npc;
             var vendor = creature.Npc.Vendor;
             var statusSet = false;
 
-            /* ToDo
-             * implement Player=>MissionStatus
-             * npc missions shold be checked with player mission status
-             */
-
-            if (npc.NpcMissionIds != null)
+            var missionState = (missionManager ?? Missions).ClassifyNpcConversation(
+                client.Player,
+                creature);
+            if (missionState.TryGetStatus(out var missionStatus, out var missionIds))
             {
-                var availableMissions = new List<uint>();
-                var completeMission = new List<uint>();
-
-                foreach (var missionId in npc.NpcMissionIds)
-                {
-                    if (!MissionManager.Instance.LoadedMissions.TryGetValue(missionId, out var mission))
-                        continue;
-
-                    if (mission.MissionReciver == creature.DbId)
-                        completeMission.Add(missionId);
-
-                    if (mission.MissionGiver == creature.DbId)
-                        availableMissions.Add(missionId);
-                }
-
-                // if we have completable mission send it, else send available missions
-                if (completeMission.Count > 0)
-                    client.CallMethod(creature.EntityId, new NPCConversationStatusPacket(ConversationStatus.ObjectivComplete, completeMission));  // complete mission
-                else
-                    client.CallMethod(creature.EntityId, new NPCConversationStatusPacket(ConversationStatus.Available, availableMissions));       // available missions
-
+                client.CallMethod(
+                    creature.EntityId,
+                    new NPCConversationStatusPacket(missionStatus, missionIds));
                 statusSet = true;
             }
 
             /*
             foreach (var entry in npcData.RelatedMissions)
             {
-                var missionLogEntry = MissionManager.Instance.FindPlayerMission(client, entry.MissionIndex);
-                var mission = MissionManager.Instance.GetById(missionLogEntry.MissionIndex);
+                var missionLogEntry = MissionApplication.Instance.FindPlayerMission(client, entry.MissionIndex);
+                var mission = MissionApplication.Instance.GetById(missionLogEntry.MissionIndex);
 
                 if (missionLogEntry != null)
                 {
@@ -347,10 +390,10 @@ namespace Rasa.Managers
                         }
                     }
                 }
-                else if (MissionManager.Instance.IsCompletedByPlayer(client, mission.MissionIndex) == false)
+                else if (MissionApplication.Instance.IsCompletedByPlayer(client, mission.MissionIndex) == false)
                 {
                     // check if the npc is actually the mission dispenser and not only a objective related npc
-                    if (MissionManager.Instance.IsCreatureMissionDispenser(MissionManager.Instance.GetByIndex(mission.MissionIndex), creature))
+                    if (MissionApplication.Instance.IsCreatureMissionDispenser(MissionApplication.Instance.GetByIndex(mission.MissionIndex), creature))
                     {
                         // mission available overwrites any other converse state
                         client.SendPacket(creature.Actor.EntityId, new NPCConversationStatusPacket(ConversationStatus.Available, new List<int> { })); // status - available
@@ -438,7 +481,9 @@ namespace Rasa.Managers
                 return null;
             }
 
+            // Same map and the same copy of it: a private instance shares its map's context id.
             if (creature.State == CharacterState.Dead || creature.MapContextId != player.MapContextId
+                || (creature.RuntimeMapChannel != null && player.MapChannel != null && creature.RuntimeMapChannel != player.MapChannel)
                 || System.Numerics.Vector3.Distance(player.Position, creature.Position) > NpcInteractionRange)
             {
                 Logger.WriteLog(LogType.Debug, $"{player.FamilyName} asked {role} {entityId} for something from out of reach; ignored.");
@@ -576,7 +621,11 @@ namespace Rasa.Managers
             }
 
             var quantity = item.StackSize;
-            var placedItem = InventoryManager.Instance.AddItemToInventory(client, item);
+
+            if (!_currencyManager.LossCredits(client, (int)price))
+                return;
+
+            var placedItem = InventoryManager.Instance.GrantItemToInventory(client, item);
 
             if (placedItem == null)
             {
@@ -586,10 +635,18 @@ namespace Rasa.Managers
 
                 if (placed == 0)
                 {
+                    if (!_currencyManager.GainCredits(client, (int)price))
+                        Logger.WriteLog(LogType.Error,
+                            $"Could not refund failed buyback purchase for character {client.Player.Id}.");
                     client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(PlayerMessage.PmInventoryFull, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
                     return;
                 }
 
+                var refund = price - (long)unitPrice * placed;
+                if (refund > 0 &&
+                    !_currencyManager.GainCredits(client, (int)refund))
+                    Logger.WriteLog(LogType.Error,
+                        $"Could not refund partial buyback purchase for character {client.Player.Id}.");
                 price = (long) unitPrice * placed;
             }
             else
@@ -598,8 +655,6 @@ namespace Rasa.Managers
                 client.CallMethod(SysEntity.ClientInventoryManagerId, new RemoveBuybackItemPacket(packet.ItemEntityId));
             }
 
-            // remove credits
-            ManifestationManager.Instance.LossCredits(client, (int) price);
         }
 
         public void RequestVendorPurchase(Client client, RequestVendorPurchasePacket packet)
@@ -659,11 +714,19 @@ namespace Rasa.Managers
                 return;
             }
 
+            if (!_currencyManager.LossCredits(client, (int)total))
+                return;
+
             // A fresh item with its own row in the items table, holding the whole quantity.
             var boughtItem = ItemManager.Instance.DuplicateItem(client, packet);
 
             if (boughtItem == null)
+            {
+                if (!_currencyManager.GainCredits(client, (int)total))
+                    Logger.WriteLog(LogType.Error,
+                        $"Could not refund failed vendor purchase for character {client.Player.Id}.");
                 return;
+            }
 
             var quantity = boughtItem.StackSize;
 
@@ -671,7 +734,7 @@ namespace Rasa.Managers
             // full merge it deletes boughtItem's row itself and returns the stack it merged into;
             // if it runs out of room it returns null with the unplaced remainder still in
             // boughtItem.StackSize.
-            var placedItem = InventoryManager.Instance.AddItemToInventory(client, boughtItem);
+            var placedItem = InventoryManager.Instance.GrantItemToInventory(client, boughtItem);
 
             if (placedItem == null)
             {
@@ -689,19 +752,25 @@ namespace Rasa.Managers
 
                 if (placed == 0)
                 {
+                    if (!_currencyManager.GainCredits(client, (int)total))
+                        Logger.WriteLog(LogType.Error,
+                            $"Could not refund failed vendor purchase for character {client.Player.Id}.");
                     client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(PlayerMessage.PmInventoryFull, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
                     return;
                 }
 
                 quantity = placed;
+                var charged = total;
                 total = (long) unitPrice * quantity;
+                var refund = charged - total;
+                if (refund > 0 &&
+                    !_currencyManager.GainCredits(client, (int)refund))
+                    Logger.WriteLog(LogType.Error,
+                        $"Could not refund partial vendor purchase for character {client.Player.Id}.");
             }
 
             // send player message
             client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(PlayerMessage.PmGotLootFromUnknown, new Dictionary<string, string> { { "quantity", quantity.ToString() }, { "loot", vendorItem.ItemTemplate.Class.ToString() } }, MsgFilterId.LootObtained));
-
-            // remove credits
-            ManifestationManager.Instance.LossCredits(client, (int) total);
         }
 
         /// <summary>
@@ -814,9 +883,11 @@ namespace Rasa.Managers
                 return RepairResult.Unaffordable;
             }
 
+            if (!_currencyManager.LossCredits(client, cost))
+                return RepairResult.Unaffordable;
+
             item.CurrentHitPoints = maxHitPoints;
             item.WearCarry = 0;
-            ManifestationManager.Instance.LossCredits(client, cost);
             ItemManager.Instance.SendItemDataToClient(client, item, true);
 
             // The condition change itself. SendItemDataToClient carries the new hit points in
@@ -894,10 +965,16 @@ namespace Rasa.Managers
                 return;
             }
 
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+            if (Game.Missions.Persistence.MissionItemProtection.IsProtected(soldItem, unitOfWork))
+                return;
+
             var quantity = (uint) Math.Min(packet.Quantity, soldItem.StackSize);
             var sellPrice = Math.Min((long) Math.Max(soldItem.ItemTemplate.SellPrice, 0) * quantity, int.MaxValue);
 
-            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+            if (sellPrice > 0 &&
+                !_currencyManager.GainCredits(client, (int)sellPrice))
+                return;
 
             if (quantity < soldItem.StackSize)
             {
@@ -924,9 +1001,6 @@ namespace Rasa.Managers
                 InventoryManager.Instance.RemoveItemBySlot(client, InventoryType.Personal, slotIndex);
                 unitOfWork.CharacterInventories.DeleteInvItemByItemId(soldItem.Id);
             }
-
-            // add credits to player
-            ManifestationManager.Instance.GainCredits(client, (int) sellPrice);
 
             // add item to buyback list, retiring the oldest if it is full
             var buyback = client.Player.Inventory.BuybackItems;

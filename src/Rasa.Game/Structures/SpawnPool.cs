@@ -1,4 +1,5 @@
 ﻿using Rasa.Structures.Interfaces;
+using Rasa.Structures.World;
 using System.Collections.Generic;
 using System.Numerics;
 
@@ -30,15 +31,30 @@ namespace Rasa.Structures
         public short Mode { get; set; }     // automatic spawning, CP spawn, scripted spawn (manual trigger)
         public short AnimType { get; set; } // which effect is used to spawn creatures (bane dropship, no effect, human dropship)   // ToDo
         public uint MapContextId { get; set; }
+        public MapChannel RuntimeMapChannel { get; set; }
         // spawn runtime info
         public int DropshipQueue { get; set; } // number of dropships that are currently delivering units
         public int QueuedCreatures { get; set; } // number of creatures that are spawning right now (i.e. delivered via dropship)
         public int AliveCreatures { get; set; } // number of spawned creatures that are alive
         public int DeadCreatures { get; set; }  // number of spawned creatures that are dead (either killed or spawned dead)
+        internal List<Creature> QueuedCreatureList { get; set; }
+        public string ScenarioKey { get; set; }
+        public string SceneRunId { get; set; }
+        public string SceneActorRole { get; set; }
+        public string SceneSharedKey { get; set; }
+        public uint SceneGeneration { get; set; }
+        internal global::Rasa.Missions.Scenes.SceneSpawnPose ScenePose { get; set; }
+        public uint ScenarioMissionId { get; set; }
+        public uint? ScenarioGroupId { get; set; }
+        public string ScenarioAttemptKey { get; set; }
+        public uint ScenarioOwnerCharacterId { get; set; }
+        public MissionSpawnGroupPolicy SpawnPolicy { get; set; }
+        public uint FollowOwnerCharacterId { get; set; }
+        public ulong FollowTargetEntityId { get; set; }
 
-        // respawn lock
+        // Runtime milliseconds; the persisted RespawnTime is in seconds.
         public long UpdateTimer { get; set; }
-        public uint RespawnTime { get; set; }
+        public long RespawnTime { get; set; }
         
 
         // paths

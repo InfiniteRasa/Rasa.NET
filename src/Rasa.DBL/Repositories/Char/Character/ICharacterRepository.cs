@@ -21,13 +21,25 @@ namespace Rasa.Repositories.Char.Character
         void UpdateCharacterClass(uint id, uint classId);
         void UpdateCharacterCloneCredits(uint id, uint cloneCredits);
         void UpdateCharacterCredits(uint id, int credits);
+        void UpdateCharacterCurrencies(uint id, int credits, int prestige);
         void UpdateCharacterPrestige(uint id, int prestige);
         void UpdateCharacterExpirience(uint id, uint experience);
+        void UpdateCharacterProgression(uint id, uint experience, byte level);
+        void ReconcileBootcampCharacter(
+            uint id,
+            uint experience,
+            byte level,
+            uint classId,
+            double x,
+            double y,
+            double z,
+            double rotation,
+            uint mapContextId);
         void UpdateCharacterLevel(uint id, byte level);
         void UpdateCharacterLogin(uint id, uint totalTimePlayed, uint numLogins);
         void UpdateCharacterPosition(uint id, double x, double y, double z, double rotation, uint mapContextId);
         void UpdateCharacterActiveWeapon(uint id, byte activeWeapon);
-        void UpdateCharacterActiveAbilitySlot(uint id, byte activeAbilitySlot);
+        void UpdateCharacterAbilitySlot(uint id, byte slot);
         void UpdateCharacterName(uint id, string name);
 
         /// <summary>Whether another character already has this name, matched case-insensitively.</summary>

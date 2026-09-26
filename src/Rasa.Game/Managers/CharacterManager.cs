@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data.Common;
 using System.Linq;
 
 using JetBrains.Annotations;
+using Microsoft.EntityFrameworkCore;
 
 namespace Rasa.Managers
 {
@@ -17,7 +19,9 @@ namespace Rasa.Managers
     using Packets.Communicator.Server;
     using Packets.Manifestation.Server;
     using Packets;
+    using Repositories;
     using Repositories.Char;
+    using Repositories.Char.CharacterMissionProgress;
     using Repositories.UnitOfWork;
     using Repositories.World;
     using Structures;
@@ -29,6 +33,12 @@ namespace Rasa.Managers
         private static readonly object InstanceLock = new object();
         private readonly object _createLock = new();
         private readonly IGameUnitOfWorkFactory _gameUnitOfWorkFactory;
+        private readonly MissionApplication _missionManager;
+        private const string LegacyStartingExperienceRevision = "legacy";
+        private const uint StartingPistolTemplateId = 17131;
+        private const uint StartingAmmoTemplateId = 28;
+        private const uint StartingAmmoQuantity = 1000;
+        internal Game.Missions.Integration.IStartingExperiencePolicy StartingExperience { get; }
 
         public const ulong SelectionPodStartEntityId = 100;
         public const byte MaxSelectionPods = 16;
@@ -51,9 +61,13 @@ namespace Rasa.Managers
             }
         }
 
-        public CharacterManager(IGameUnitOfWorkFactory gameUnitOfWorkFactory)
+        public CharacterManager(
+            IGameUnitOfWorkFactory gameUnitOfWorkFactory,
+            MissionApplication missionManager = null)
         {
             _gameUnitOfWorkFactory = gameUnitOfWorkFactory;
+            _missionManager = missionManager;
+            StartingExperience = Game.Missions.Integration.StartingExperienceComposition.Create(gameUnitOfWorkFactory, missionManager);
         }
 
         private static readonly Race[] AllRaces = { Race.Human, Race.Forean, Race.Brann, Race.Thrax };
@@ -103,7 +117,7 @@ namespace Rasa.Managers
             if (client.State != ClientState.LoggedIn)
                 return;
 
-            client.CallMethod(SysEntity.ClientMethodId, new BeginCharacterSelectionPacket(client.AccountEntry.FamilyName, client.AccountEntry.Characters.Any(), client.AccountEntry.Id, EnabledRaces, client.AccountEntry.CanSkipBootcamp));
+            client.CallMethod(SysEntity.ClientMethodId, new BeginCharacterSelectionPacket(client.AccountEntry.FamilyName, client.AccountEntry.Characters.Any(), client.AccountEntry.Id, EnabledRaces, StartingExperience.CanSkip(client.AccountEntry)));
 
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
             var charactersBySlot = unitOfWork.Characters.GetByAccountId(client.AccountEntry.Id);
@@ -238,14 +252,14 @@ namespace Rasa.Managers
 
             lock (_createLock)
             {
-                var createdCharacterId = InternalClone(client, packet, unitOfWork);
-
-                if (createdCharacterId == null)
+                if (!TryPersistCharacterCreation(
+                        client,
+                        unitOfWork,
+                        () => InternalClone(client, packet, unitOfWork),
+                        out characterId))
                 {
                     return;
                 }
-
-                characterId = createdCharacterId.Value;
             }
 
             CopyProgressToClone(unitOfWork, source, characterId);
@@ -317,7 +331,16 @@ namespace Rasa.Managers
                 return null;
             }
 
-            unitOfWork.CharacterAppearances.Add(characterEntry, CreateCharacterAppearanceEntries(packet.AppearanceData));
+            if (!unitOfWork.CharacterAppearances.Add(characterEntry, CreateCharacterAppearanceEntries(packet.AppearanceData)))
+            {
+                SendCharacterCreateFailed(client, CreateCharacterResult.TechnicalDifficulty);
+                return null;
+            }
+
+            unitOfWork.CharacterStartingExperience.Add(new CharacterStartingExperienceEntry(
+                characterEntry.Id,
+                LegacyStartingExperienceRevision,
+                CharacterStartingExperienceState.Legacy));
 
             return characterEntry.Id;
         }
@@ -442,18 +465,15 @@ namespace Rasa.Managers
             // TODO to remove this lock, the family name check and update must be redesigned to be thread safe
             lock (_createLock)
             {
-                var createdCharacterId = InternalCreate(client, packet, unitOfWork);
-
-                if (createdCharacterId == null)
+                if (!TryPersistCharacterCreation(
+                        client,
+                        unitOfWork,
+                        () => InternalCreate(client, packet, unitOfWork),
+                        out characterId))
                 {
                     return;
                 }
-
-                characterId = createdCharacterId.Value;
             }
-
-            // give basic items
-            GiveBasicItems(client, characterId);
 
             // give first lockbox tab
             if (unitOfWork.CharacterLockboxes.Get(client.AccountEntry.Id) == null)
@@ -769,7 +789,17 @@ namespace Rasa.Managers
             }
 
             var appearances = CreateCharacterAppearanceEntries(packet.AppearanceData);
-            unitOfWork.CharacterAppearances.Add(characterEntry, appearances);
+            if (!unitOfWork.CharacterAppearances.Add(characterEntry, appearances))
+            {
+                SendCharacterCreateFailed(client, CreateCharacterResult.TechnicalDifficulty);
+                return null;
+            }
+
+            unitOfWork.CharacterStartingExperience.Add(new CharacterStartingExperienceEntry(
+                characterEntry.Id,
+                StartingExperience.ContentRevision,
+                CharacterStartingExperienceState.Pending));
+            CreateStartingLoadout(unitOfWork, client.AccountEntry.Id, characterEntry.Id);
 
             if (string.IsNullOrWhiteSpace(client.AccountEntry.FamilyName) || changeFamilyName)
             {
@@ -777,6 +807,71 @@ namespace Rasa.Managers
             }
 
             return characterEntry.Id;
+        }
+
+        private void CreateStartingLoadout(ICharUnitOfWork unitOfWork, uint accountId, uint characterId)
+        {
+            var progression = new ManifestationManager(_gameUnitOfWorkFactory);
+            foreach (var skill in new[]
+                     {
+                         SkillId.Lightning, SkillId.Sprint, SkillId.Firearms,
+                         SkillId.HandToHand, SkillId.MotorAssistArmor
+                     })
+                unitOfWork.CharacterSkills.AddOrUpdate(
+                    characterId,
+                    (uint)skill,
+                    progression.SkillIdx2AbilityId[progression.GetSkillIndexById((int)skill)],
+                    1);
+
+            unitOfWork.CharacterAbilityDrawers.AddOrUpdate(
+                characterId, 0, (int)ActionId.AaRecruitLightning, 1);
+            unitOfWork.CharacterAbilityDrawers.AddOrUpdate(
+                characterId, 1, (int)ActionId.AaRecruitSprint, 1);
+
+            foreach (var (templateId, quantity, inventoryType, slot) in new[]
+                     {
+                         (StartingPistolTemplateId, 1U, InventoryType.WeaponDrawerInventory, 0U),
+                         (StartingAmmoTemplateId, StartingAmmoQuantity, InventoryType.Personal,
+                             (uint)InventoryOffset.CategoryConsumable)
+                     })
+            {
+                if (!ItemManager.Instance.ItemTemplateItemClass.TryGetValue(templateId, out var classId) ||
+                    !EntityClassManager.Instance.LoadedEntityClasses.TryGetValue(classId, out var entityClass) ||
+                    entityClass.ItemClassInfo == null ||
+                    entityClass.ItemClassInfo.StackSize < quantity)
+                    throw new GameplayRejectionException($"Starting item template {templateId} is unavailable or cannot hold {quantity} items.");
+
+                var item = new Item(templateId, quantity, entityClass.ItemClassInfo.MaxHitPoints, 2139062144);
+                var itemId = unitOfWork.Items.CreateItem(item);
+                unitOfWork.CharacterInventories.AddInvItem(
+                    accountId, characterId, (uint)inventoryType, slot, itemId);
+            }
+        }
+
+        private bool TryPersistCharacterCreation(
+            Client client,
+            ICharUnitOfWork unitOfWork,
+            Func<uint?> createOperation,
+            out uint characterId)
+        {
+            characterId = 0;
+            try
+            {
+                uint? createdCharacterId = null;
+                unitOfWork.ExecuteTransaction(() => createdCharacterId = createOperation());
+
+                if (createdCharacterId == null)
+                    return false;
+
+                characterId = createdCharacterId.Value;
+                return true;
+            }
+            catch (Exception error) when (error is GameplayRejectionException or DbUpdateException or DbException)
+            {
+                Logger.WriteLog(LogType.Error, $"Character creation failed: {error}");
+                SendCharacterCreateFailed(client, CreateCharacterResult.TechnicalDifficulty);
+                return false;
+            }
         }
 
         private IEnumerable<CharacterAppearanceEntry> CreateCharacterAppearanceEntries(
@@ -802,18 +897,6 @@ namespace Rasa.Managers
             var databaseEntry = appearanceData.GetDatabaseEntry();
             databaseEntry.Class = unitOfWork.Equipment.GetItemClass(appearanceData.Class);
             return databaseEntry;
-        }
-
-        private void GiveBasicItems(Client client, uint characterId)
-        {
-            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
-            unitOfWork.CharacterInventories.AddInvItem(client.AccountEntry.Id, characterId, (int)InventoryType.Personal, 0, unitOfWork.Items.CreateItem(new Item(145, 1, EntityClassManager.Instance.LoadedEntityClasses[ItemManager.Instance.ItemTemplateItemClass[17131]].ItemClassInfo.MaxHitPoints, 2139062144)));
-            unitOfWork.CharacterInventories.AddInvItem(client.AccountEntry.Id, characterId, (int)InventoryType.Personal, 50, unitOfWork.Items.CreateItem(new Item(28, 100, EntityClassManager.Instance.LoadedEntityClasses[ItemManager.Instance.ItemTemplateItemClass[28]].ItemClassInfo.MaxHitPoints, 2139062144)));
-            unitOfWork.CharacterInventories.AddInvItem(client.AccountEntry.Id, characterId, (int)InventoryType.Personal, 1, unitOfWork.Items.CreateItem(new Item(13126, 1, EntityClassManager.Instance.LoadedEntityClasses[ItemManager.Instance.ItemTemplateItemClass[13126]].ItemClassInfo.MaxHitPoints, 2139062144)));
-            unitOfWork.CharacterInventories.AddInvItem(client.AccountEntry.Id, characterId, (int)InventoryType.Personal, 2, unitOfWork.Items.CreateItem(new Item(13186, 1, EntityClassManager.Instance.LoadedEntityClasses[ItemManager.Instance.ItemTemplateItemClass[13186]].ItemClassInfo.MaxHitPoints, 2139062144)));
-            unitOfWork.CharacterInventories.AddInvItem(client.AccountEntry.Id, characterId, (int)InventoryType.Personal, 3, unitOfWork.Items.CreateItem(new Item(13156, 1, EntityClassManager.Instance.LoadedEntityClasses[ItemManager.Instance.ItemTemplateItemClass[13156]].ItemClassInfo.MaxHitPoints, 2139062144)));
-            //unitOfWork.CharacterInventories.AddInvItem(client.AccountEntry.Id, characterId, (int)InventoryType.Personal, 4, unitOfWork.Items.CreateItem(new Item(13066, 1, EntityClassManager.Instance.LoadedEntityClasses[ItemManager.Instance.ItemTemplateItemClass[13066]].ItemClassInfo.MaxHitPoints, 2139062144)));
-            //unitOfWork.CharacterInventories.AddInvItem(client.AccountEntry.Id, characterId, (int)InventoryType.Personal, 5, unitOfWork.Items.CreateItem(new Item(13096, 1, EntityClassManager.Instance.LoadedEntityClasses[ItemManager.Instance.ItemTemplateItemClass[13096]].ItemClassInfo.MaxHitPoints, 2139062144)));
         }
 
         /// <summary>
@@ -857,34 +940,45 @@ namespace Rasa.Managers
 
                 using (var unitOfWork = _gameUnitOfWorkFactory.CreateChar())
                 {
-                    unitOfWork.CharacterAppearances.DeleteForChar(charactersBySlot.Id);
+                    listings = 0;
+                    unitOfWork.ExecuteTransaction(() =>
+                    {
+                        unitOfWork.CharacterAppearances.DeleteForChar(charactersBySlot.Id);
+                        unitOfWork.CharacterMissionItems.RemoveAll(charactersBySlot.Id);
+                        unitOfWork.CharacterMissions.RemoveAll(charactersBySlot.Id);
+                        unitOfWork.CharacterInventories.DeleteForCharacter(
+                            client.AccountEntry.Id, charactersBySlot.Id);
 
-                    // An auction row names its seller by id and carries no foreign key, so a
-                    // character deleted with listings running used to leave them standing:
-                    // still in other players' browse results, still buyable, and still naming
-                    // the character the proceeds were meant to go to. They go in the same
-                    // SaveChanges as the character row, so the two cannot come apart.
-                    listings = unitOfWork.Auctions.DeleteAuctionsBySeller(charactersBySlot.Id);
+                        // An auction row names its seller by id and carries no foreign key, so a
+                        // character deleted with listings running used to leave them standing.
+                        listings = unitOfWork.Auctions?.DeleteAuctionsBySeller(
+                            charactersBySlot.Id) ?? 0;
 
-                    // The character's items go with it: its personal, equipped and weapon
-                    // drawer rows and the item rows they point at. The home lockbox is the
-                    // account's and is kept. These rows used to be left behind with the dead
-                    // character's id, where the next character on the account to log in with
-                    // the slot free inherited them.
-                    var itemIds = unitOfWork.CharacterInventories.DeleteForCharacter(client.AccountEntry.Id, charactersBySlot.Id);
-                    unitOfWork.Items.DeleteItems(itemIds);
+                        // And the cooldowns it logged out with.
+                        unitOfWork.CharacterActionReuses.DeleteForCharacter(charactersBySlot.Id);
 
-                    // And the cooldowns it logged out with.
-                    unitOfWork.CharacterActionReuses.DeleteForCharacter(charactersBySlot.Id);
-
-                    // TODO delete ClanMember entry
-                    unitOfWork.Characters.Delete(charactersBySlot.Id);
-                    unitOfWork.Complete();
+                        // TODO delete ClanMember entry
+                        unitOfWork.Characters.Delete(charactersBySlot.Id);
+                    });
                 }
 
                 if (listings > 0)
                     Logger.WriteLog(LogType.Debug,
                         $"Character {charactersBySlot.Id} was deleted with {listings} auction(s) running; the listings were taken down with it.");
+
+                ReleaseOwnedPrivateStartingExperienceRuntime(charactersBySlot.Id);
+                foreach (var item in EntityManager.Instance.Items.Values.Where(item =>
+                    item.MissionOwnership?.CharacterId == charactersBySlot.Id).ToArray())
+                {
+                    if (client.Player?.Id == charactersBySlot.Id)
+                    {
+                        var slot = client.Player.Inventory.PersonalInventory.IndexOf(item.EntityId);
+                        if (slot >= 0)
+                            client.Player.Inventory.PersonalInventory[slot] = 0;
+                    }
+                    item.MissionOwnership = null;
+                    EntityManager.Instance.ReleaseEntity(item.EntityId, EntityType.Item);
+                }
 
                 // Client.Player still points at the character that was just deleted - it is left
                 // loaded when the player returns to character selection. Client.SaveCharacter
@@ -903,8 +997,11 @@ namespace Rasa.Managers
 
                 SendCharacterInfo(client, packet.Slot, null);
             }
-            catch
+            catch (Exception error) when (
+                error is DbUpdateException || error is DbException || error is EntityNotFoundException)
             {
+                Logger.WriteLog(LogType.Error,
+                    $"Account {client.AccountEntry.Id} could not delete character in slot {packet.Slot}: {error}");
                 client.CallMethod(SysEntity.ClientMethodId, new DeleteCharacterFailedPacket());
             }
         }
@@ -914,39 +1011,80 @@ namespace Rasa.Managers
             // Only from the pod screen. From the world this replaced the manifestation while
             // the old one was still in its map's cells and every manager's tables - never
             // removed, a frozen copy for everyone else, and the client in two maps at once.
-            if (client.State != ClientState.CharacterSelection)
+            if (client.State != ClientState.CharacterSelection || client.PendingTransfer != null)
             {
                 Logger.WriteLog(LogType.Security,
-                    $"AccountId = {client.AccountEntry.Id} tried to switch to the character in slot {packet.SlotNum} while in state {client.State}.");
+                    $"AccountId = {client.AccountEntry?.Id} tried to switch to the character in slot {packet.SlotNum} while in state {client.State}.");
                 return;
             }
 
             if (packet.SlotNum < 1 || packet.SlotNum > MaxSelectionPods)
                 return;
 
-            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
-
-            // Look before the selected slot is changed: it used to be written first, so a
-            // switch to an empty pod left the account pointing at nothing.
-            var character = unitOfWork.Characters.GetByAccountId(client.AccountEntry.Id, packet.SlotNum);
-
-            if (character == null)
+            CharacterEntry character = null;
+            CharacterStartingExperienceState? startingState = null;
+            var rejectedSelection = false;
+            try
             {
-                Logger.WriteLog(LogType.Security,
-                    $"AccountId = {client.AccountEntry.Id} tried to switch to slot {packet.SlotNum}, which is empty.");
+                using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+                unitOfWork.ExecuteTransaction(() =>
+                {
+                    // Look before the selected slot is changed: it used to be written first, so a
+                    // switch to an empty pod left the account pointing at nothing.
+                    character = unitOfWork.Characters.GetByAccountId(client.AccountEntry.Id, packet.SlotNum);
+
+                    if (character == null)
+                    {
+                        Logger.WriteLog(LogType.Security,
+                            $"AccountId = {client.AccountEntry.Id} tried to switch to slot {packet.SlotNum}, which is empty.");
+                        rejectedSelection = true;
+                        return;
+                    }
+
+                    if (!StartingExperience.TrySelect(client, packet.SkipBootcamp, character, unitOfWork, out startingState))
+                    {
+                        rejectedSelection = true;
+                        return;
+                    }
+                    client.AccountEntry.SelectedSlot = packet.SlotNum;
+                    unitOfWork.GameAccounts.UpdateSelectedSlot(
+                        client.AccountEntry.Id,
+                        packet.SlotNum);
+                    unitOfWork.Characters.UpdateLoginData(character.Id);
+                    character = unitOfWork.Characters.Get(character.Id);
+                });
+            }
+            catch (Exception error) when (
+                error is GameplayRejectionException ||
+                error is DbUpdateException ||
+                error is DbException)
+            {
+                Logger.WriteLog(
+                    LogType.Error,
+                    $"AccountId = {client.AccountEntry.Id} could not switch to slot {packet.SlotNum}: {error.Message}");
                 return;
             }
 
-            client.AccountEntry.SelectedSlot = packet.SlotNum;
-            unitOfWork.GameAccounts.UpdateSelectedSlot(client.AccountEntry.Id, packet.SlotNum);
-            unitOfWork.Characters.UpdateLoginData(character.Id);
-            unitOfWork.Complete();
+            if (rejectedSelection || character == null)
+                return;
 
+            client.ReloadGameAccountEntry();
             client.Player = CreateCharacterManifestation(client, character);
-            client.Player.MapChannel = MapChannelManager.Instance.FindByContextId(client.Player.MapContextId);
+            client.Player.MapChannel = StartingExperience.ResolveMap(character, startingState);
             client.LoadingMap = client.Player.MapContextId;
             MapChannelManager.Instance.PassClientToMapInstance(client);
         }
+
+        internal static void ReleaseOwnedPrivateStartingExperienceRuntime(uint characterId)
+        {
+            if (characterId == 0)
+                return;
+
+            MapChannelManager.Instance.ReleaseOwnedPrivateInstances(characterId);
+        }
+
+        internal void OfferStartingExperienceMission(Client client) =>
+            StartingExperience.OfferStartingExperienceMission(client);
 
         private void SendCharacterCreateFailed(Client client, CreateCharacterResult result)
         {
@@ -985,8 +1123,6 @@ namespace Rasa.Managers
             var characterAppearances = unitOfWork.CharacterAppearances.GetByCharacterId(character.Id);
             var appearanceData = new Dictionary<EquipmentData, AppearanceData>();
             var lockboxInfo = unitOfWork.CharacterLockboxes.Get(client.AccountEntry.Id);
-            var missions = unitOfWork.CharacterMissions.Get(client.AccountEntry.Id, client.AccountEntry.SelectedSlot);
-            var missionData = new Dictionary<int, MissionLog>();
             var clan = unitOfWork.Clans.GetClanByCharacterId(character.Id);
             var logos = unitOfWork.CharacterLogoses.GetLogos(character.Id);
 
@@ -997,7 +1133,9 @@ namespace Rasa.Managers
             {
                 ClanId = clan?.Id ?? 0,
                 ClanName = clan?.Name,
-                GainedWaypoints = unitOfWork.CharacterTeleporters.Get(character.Id),
+                PlayerFlags = new Dictionary<uint, uint>(unitOfWork.CharacterFlags.Get(character.Id)),
+                GainedWaypoints = unitOfWork.CharacterTeleporters.Get(character.Id)
+                    .Where(waypoint => !StartingExperience.IsExitWaypoint(waypoint.WaypointId)).ToList(),
                 LockboxCredits = lockboxInfo?.Credits ?? 0,
                 // Floored: the free tab is not bought, so a missing or zeroed lockbox row must
                 // not cost it. Sending 0 tells the client every tab is locked, including that
@@ -1007,10 +1145,12 @@ namespace Rasa.Managers
                 Skills = MapChannelManager.Instance.GetPlayerSkills(character.Id),
                 Titles = unitOfWork.CharacterTitles.Get(character.Id),
                 Abilities = MapChannelManager.Instance.GetPlayerAbilities(character.Id),
-                Missions = missionData,
                 LoginTime = DateTime.Now,
                 Logos = logos
             };
+            HydrateMissions(newCharacter, unitOfWork);
+            newCharacter.StartingExperienceCompleted =
+                Game.Missions.Persistence.MissionRequirementFactsAdapter.HasCompletedStartingExperience(unitOfWork, character.Id);
 
             // The cooldowns it logged out with, on the server's clock; ActionReuseTimes takes
             // them to the client when it arrives in the world.
@@ -1018,6 +1158,14 @@ namespace Rasa.Managers
                 Environment.TickCount64, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
 
             return newCharacter;
+        }
+
+        internal void HydrateMissions(
+            Manifestation player,
+            ICharUnitOfWork unitOfWork)
+        {
+            (_missionManager ?? MissionApplication.Instance)
+                .HydrateAndClearInvalid(player, unitOfWork);
         }
 
         /// <summary>
@@ -1098,8 +1246,11 @@ namespace Rasa.Managers
             return held.Distinct().Count();
         }
 
-        public void UpdateCharacter(Client client, CharacterUpdate job, object value = null)
+        public bool UpdateCharacter(Client client, CharacterUpdate job, object value = null)
         {
+            if (job == CharacterUpdate.Logos)
+                return TryAddLogos(client, (uint)value);
+
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
             switch (job)
             {
@@ -1116,19 +1267,7 @@ namespace Rasa.Managers
                     break;
 
                 case CharacterUpdate.Credits:
-                    // The value is a signed change, and it goes straight into the purse and the
-                    // row. Nothing used to stop it landing below zero, so a charge that skipped
-                    // its own funds check left the player in debt rather than being refused; the
-                    // sum is widened because two large gains in a row would otherwise wrap
-                    // negative and look exactly like that.
-                    client.Player.Credits[CurencyType.Credits] =
-                        ClampCurrency(client, CurencyType.Credits, (int)value);
-
-                    // inform owner
-                    client.CallMethod(client.Player.EntityId, new UpdateCreditsPacket(CurencyType.Credits, client.Player.Credits[CurencyType.Credits], 0));
-                    // update db
-                    unitOfWork.Characters.UpdateCharacterCredits(client.Player.Id, client.Player.Credits[CurencyType.Credits]);
-                    break;
+                    return PersistCurrency(client, unitOfWork, CurencyType.Credits, (int)value);
 
                 case CharacterUpdate.Expirience:
                     unitOfWork.Characters.UpdateCharacterExpirience(client.Player.Id, client.Player.Experience);
@@ -1147,17 +1286,6 @@ namespace Rasa.Managers
                     var totalTimePlayed = (uint)Math.Max(0, sessionMinutes) + client.Player.TotalTimePlayed;
 
                     unitOfWork.Characters.UpdateCharacterLogin(client.Player.Id, totalTimePlayed, client.Player.NumLogins);
-                    break;
-
-                case CharacterUpdate.Logos:
-                    // Once each. A second add put the Logos in the list twice, failed the insert on
-                    // the (character_id, logos_id) key, and had the client append it again.
-                    if (client.Player.Logos.Contains((uint)value))
-                        break;
-
-                    client.Player.Logos.Add((uint)value);
-                    unitOfWork.CharacterLogoses.SetLogos(client.Player.Id, (uint)value);
-                    client.CallMethod(client.Player.EntityId, new LogosStoneAddedPacket((uint)value));
                     break;
 
                 case CharacterUpdate.Position:
@@ -1182,14 +1310,7 @@ namespace Rasa.Managers
                     break;
 
                 case CharacterUpdate.Prestige:
-                    // Same shape as Credits: value is the signed change, clamped the same way.
-                    // Prestige was loaded into Player.Credits at login but never written back.
-                    client.Player.Credits[CurencyType.Prestige] =
-                        ClampCurrency(client, CurencyType.Prestige, (int)value);
-
-                    client.CallMethod(client.Player.EntityId, new UpdateCreditsPacket(CurencyType.Prestige, client.Player.Credits[CurencyType.Prestige], 0));
-                    unitOfWork.Characters.UpdateCharacterPrestige(client.Player.Id, client.Player.Credits[CurencyType.Prestige]);
-                    break;
+                    return PersistCurrency(client, unitOfWork, CurencyType.Prestige, (int)value);
 
                 case CharacterUpdate.Stats:
                     break;
@@ -1201,7 +1322,7 @@ namespace Rasa.Managers
 
                 case CharacterUpdate.ActiveAbilitySlot:
                     client.Player.CurrentAbilityDrawer = (byte)value;
-                    unitOfWork.Characters.UpdateCharacterActiveAbilitySlot(client.Player.Id, (byte)value);
+                    unitOfWork.Characters.UpdateCharacterAbilitySlot(client.Player.Id, (byte)value);
                     break;
                 case CharacterUpdate.Teleporter:
                     var teleporter = (CharacterTeleporterEntry)value;
@@ -1211,6 +1332,88 @@ namespace Rasa.Managers
                 default:
                     break;
             }
+
+            return true;
+        }
+
+        internal bool TryAddLogos(Client client, uint logosId)
+        {
+            if (client?.Player == null || logosId == 0)
+                return false;
+
+            lock (client.SyncRoot)
+            {
+                if (client.Player.Logos.Contains(logosId))
+                    return false;
+
+                try
+                {
+                    using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+                    unitOfWork.CharacterLogoses.SetLogos(client.Player.Id, logosId);
+                }
+                catch (Exception error) when (GameplayRejectionException.IsExpected(error))
+                {
+                    Logger.WriteLog(
+                        LogType.Error,
+                        $"Unable to persist Logos {logosId} for character {client.Player.Id}: {error}");
+                    return false;
+                }
+
+                client.Player.Logos.Add(logosId);
+                client.CallMethod(
+                    client.Player.EntityId,
+                    new LogosStoneAddedPacket(logosId));
+                (_missionManager ?? MissionApplication.Instance).RecordProgress(
+                    client,
+                    MissionProgressEvent.Logos(logosId));
+                return true;
+            }
+        }
+
+        private static bool PersistCurrency(
+            Client client,
+            ICharUnitOfWork unitOfWork,
+            CurencyType type,
+            int change)
+        {
+            if (client?.Player == null || !client.Player.Credits.TryGetValue(type, out var current))
+                return false;
+
+            var next = ClampCurrency(client, type, change);
+
+            try
+            {
+                unitOfWork.ExecuteTransaction(() =>
+                {
+                    var character = unitOfWork.Characters.Find(client.Player.Id);
+                    var durable = type == CurencyType.Credits
+                        ? character?.Credit
+                        : character?.Prestige;
+
+                    if (character == null || durable != current)
+                        throw new GameplayRejectionException(
+                            $"Durable {type} balance changed before update.");
+
+                    if (type == CurencyType.Credits)
+                        unitOfWork.Characters.UpdateCharacterCredits(client.Player.Id, next);
+                    else
+                        unitOfWork.Characters.UpdateCharacterPrestige(client.Player.Id, next);
+                });
+            }
+            catch (Exception error) when (
+                error is GameplayRejectionException ||
+                error is DbUpdateException ||
+                error is DbException)
+            {
+                Logger.WriteLog(LogType.Error,
+                    $"Could not persist {type} for character {client.Player.Id}: {error.Message}");
+                return false;
+            }
+
+            client.Player.Credits[type] = next;
+            client.CallMethod(client.Player.EntityId,
+                new UpdateCreditsPacket(type, next, 0));
+            return true;
         }
     }
 }

@@ -82,9 +82,8 @@ namespace Rasa.Memory
         {
             WriteDebugByte(13);
 
-            WriteCount(value.Length);
-
             var bytes = Encoding.UTF8.GetBytes(value);
+            WriteCount(bytes.Length);
 
             Writer.Write(bytes, 0, bytes.Length);
         }

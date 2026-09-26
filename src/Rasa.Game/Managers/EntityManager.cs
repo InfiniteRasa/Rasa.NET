@@ -4,6 +4,7 @@ namespace Rasa.Managers
 {
     using Data;
     using Game;
+    using Game.Missions.Integration;
     using Packets.MapChannel.Server;
     using Structures;
 
@@ -56,15 +57,20 @@ namespace Rasa.Managers
         public void DestroyPhysicalEntity(Client client, ulong entityId, EntityType entityType)
         {
             client.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(entityId));
+            ReleaseEntity(entityId, entityType);
+        }
 
-            // Unregister before freeing: FreeEntity refuses an id that is still registered, so
-            // the old order leaked every id destroyed this way - a player's whole inventory on
-            // each map change and logout - and logged a line per item.
+        internal void ReleaseEntity(ulong entityId, EntityType entityType)
+        {
+            if (!RegisteredEntities.TryGetValue(entityId, out var registeredType) || registeredType != entityType)
+                return;
+
             switch (entityType)
             {
                 case EntityType.Character:
                     UnregisterEntity(entityId);
                     UnregisterPlayer(entityId);
+                    UnregisterActor(entityId);
                     FreeEntity(entityId);
                     break;
                 case EntityType.Npc:
@@ -72,6 +78,7 @@ namespace Rasa.Managers
                 case EntityType.Creature:
                     UnregisterEntity(entityId);
                     UnregisterCreature(entityId);
+                    UnregisterActor(entityId);
                     FreeEntity(entityId);
                     break;
                 case EntityType.Item:
@@ -93,7 +100,6 @@ namespace Rasa.Managers
                     Logger.WriteLog(LogType.Error, $"DestroyPhysicalEntity: entity {entityId} has unhandled type {entityType}; not freed.");
                     break;
             }
-                    
         }
 
         public ulong GetEntityId
@@ -114,6 +120,12 @@ namespace Rasa.Managers
                     return _entityId++;
                 }
             }
+        }
+
+        internal ulong AllocateUnrecycledEntityId()
+        {
+            lock (_entityIdLock)
+                return _entityId++;
         }
 
         public EntityClasses GetEntityClassId(ulong entityId)
@@ -185,7 +197,16 @@ namespace Rasa.Managers
 
         public void UnregisterEntity(ulong entityId)
         {
+            InvalidateConversationTarget(entityId);
             RegisteredEntities.Remove(entityId);
+        }
+
+        private void InvalidateConversationTarget(ulong entityId)
+        {
+            if (Creatures.TryGetValue(entityId, out var creature))
+                MissionInteractionPolicy.InvalidateTarget(creature.RuntimeMapChannel, entityId);
+            if (DynamicObjects.TryGetValue(entityId, out var obj))
+                MissionInteractionPolicy.InvalidateTarget(obj.RuntimeMapChannel, entityId);
         }
         // Actors
         /// <summary>
@@ -252,6 +273,7 @@ namespace Rasa.Managers
 
         internal void UnregisterDynamicObject(ulong entityId)
         {
+            InvalidateConversationTarget(entityId);
             DynamicObjects.Remove(entityId);
         }
 
@@ -291,6 +313,7 @@ namespace Rasa.Managers
 
         public void UnregisterCreature(ulong entityId)
         {
+            InvalidateConversationTarget(entityId);
             Creatures.Remove(entityId);
         }
 

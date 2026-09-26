@@ -32,6 +32,12 @@
         {
             Client = client;
         }
+
+        [PacketHandler(GameOpcode.AbandonMission)]
+        private void AbandonMission(AbandonMissionPacket packet)
+        {
+            NpcManager.Instance.AbandonMission(Client, packet);
+        }
         
         [PacketHandler(GameOpcode.AllocateAttributePoints)]
         private void AllocateAttributePoints(AllocateAttributePointsPacket packet)
@@ -50,6 +56,21 @@
         {
             NpcManager.Instance.AssignNPCMission(Client, packet);
         }
+
+        [PacketHandler(GameOpcode.AssignRadioMission)]
+        private void AssignRadioMission(AssignRadioMissionPacket packet)
+        {
+            MissionApplication.Instance.TryAcceptRadioMission(
+                Client, packet.MissionId);
+        }
+
+        [PacketHandler(GameOpcode.ShareMission)]
+        private void ShareMission(ShareMissionPacket packet) =>
+            MissionApplication.Instance.Sharing.TryShare(Client, packet.MissionId);
+
+        [PacketHandler(GameOpcode.AssignSharedMission)]
+        private void AssignSharedMission(AssignSharedMissionPacket packet) =>
+            MissionApplication.Instance.Sharing.TryAccept(Client, packet.SourcePlayerEntityId, packet.MissionId);
 
         [PacketHandler(GameOpcode.AutoFireKeepAlive)]
         private void AutoFireKeepAlive(AutoFireKeepAlivePacket packet)
@@ -109,6 +130,22 @@
         private void CompleteNPCMission(CompleteNPCMissionPacket packet)
         {
             NpcManager.Instance.CompleteNPCMission(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.CompleteRadioMission)]
+        private void CompleteRadioMission(CompleteRadioMissionPacket packet) =>
+            MissionApplication.Instance.TryCompleteRadioMission(Client, packet.MissionId, packet.SelectionIdx, packet.Rating);
+
+        [PacketHandler(GameOpcode.CompleteNPCObjective)]
+        private void CompleteNPCObjective(CompleteNPCObjectivePacket packet)
+        {
+            NpcManager.Instance.CompleteNPCObjective(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.PerformNPCChoice)]
+        private void PerformNPCChoice(PerformNPCChoicePacket packet)
+        {
+            NpcManager.Instance.PerformNPCChoice(Client, packet);
         }
 
         [PacketHandler(GameOpcode.CreateClan)]
@@ -188,6 +225,12 @@
         private void LevelSkills(LevelSkillsPacket packet)
         {
             ManifestationManager.Instance.LevelSkills(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.RewardNPCMission)]
+        private void RewardNPCMission(RewardNPCMissionPacket packet)
+        {
+            NpcManager.Instance.RewardNPCMission(Client, packet);
         }
         
         [PacketHandler(GameOpcode.MapLoaded)]

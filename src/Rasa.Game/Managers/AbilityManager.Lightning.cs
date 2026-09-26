@@ -74,11 +74,12 @@ namespace Rasa.Managers
         }
 
         /// <summary>Up to <paramref name="count"/> hostile creatures other than <paramref name="from"/> within radius of it, nearest first.</summary>
-        private static List<Creature> NearestHostiles(MapChannel mapChannel, Manifestation player, Creature from, float radius, int count)
+        internal static List<Creature> NearestHostiles(MapChannel mapChannel, Manifestation player, Creature from, float radius, int count)
         {
             return HostilesWithin(mapChannel, player, from.Position, radius)
                 .Where(c => c != from)
                 .OrderBy(c => Vector3.DistanceSquared(c.Position, from.Position))
+                .ThenBy(c => c.EntityId)
                 .Take(count)
                 .ToList();
         }

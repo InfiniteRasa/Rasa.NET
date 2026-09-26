@@ -46,6 +46,7 @@
         /// clan lockbox refuse.
         /// </summary>
         public bool IsBound => BoundCharacterId != 0 || (ItemTemplate?.BoundToCharacter ?? false);
+        public MissionItemOwnership MissionOwnership { get; internal set; }
         // weapon specific
         public uint CurrentAmmo { get; set; }
         public bool IsJammed { get; set; }
@@ -73,4 +74,7 @@
         /// </summary>
         public double WearCarry { get; set; }
     }
+
+    public sealed record MissionItemOwnership(uint CharacterId, uint MissionId, string AssignmentId,
+        uint Generation, string ItemKey);
 }

@@ -195,6 +195,10 @@ namespace Rasa.Game
 
                 foreach (var client in Clients)
                 {
+                    if (client.PendingTransfer != null &&
+                        MapChannelManager.Instance.CheckTransferTimeout(client))
+                        continue;
+
                     // Client.Update guards its own handlers and disconnects the client that
                     // threw. This is for the rest of it - Close(), the socket, the packet
                     // queue - so a fault in one connection cannot leave every client after it
@@ -250,7 +254,7 @@ namespace Rasa.Game
                     // Disconnect for this lock - as one closed on a socket thread does, holding
                     // that connection's own lock while it waits.
                     foreach (var client in dropped)
-                        MapChannelManager.Instance.RemoveStrandedPlayer(client);
+                        MapChannelManager.Instance.CleanupDisconnected(client);
                 }
             }
         }
@@ -266,42 +270,38 @@ namespace Rasa.Game
                 return false;
             }
 
-            // The world first, then the doors. Everything below the loaders used to come first:
-            // the loop ticking, the auth link logging in (which puts this world on the server
-            // list), and both the world and queue ports accepting - while about twenty loaders
-            // still had the maps, clans, dynamic objects, navmesh and abilities to build. The loop
-            // only skips its tick while nobody is connected, so the first connection to finish its
-            // key exchange had the map worker walking MapChannelArray while MapChannelInit was
-            // still adding to it, cells and entity tables written from two threads at once, and a
-            // login that got as far as the world before ClansInit reading clan items that were
-            // not there yet. A restart is exactly when everyone reconnects at once.
-            //
-            // So: load everything; then bind and listen; then start accepting; then start the
-            // loop; and last of all log in to the auth server, which is what tells players this
-            // world is up.
-            // Load items from db
+            // The world first, then the doors. Everything but the mission check used to come
+            // after the loop ticking, the auth link logging in (which puts this world on the
+            // server list), and both the world and queue ports accepting - while about twenty
+            // loaders still had the maps, clans, dynamic objects, navmesh and abilities to build.
+            // The first connection to finish its key exchange had the map worker walking
+            // MapChannelArray while MapChannelInit was still adding to it. A restart is exactly
+            // when everyone reconnects at once. ServerStartupLifecycle runs these in that order:
+            // load everything; then bind and listen; then start accepting; then start the loop;
+            // and last of all log in to the auth server, which is what tells players this world
+            // is up.
+            return new ServerStartupLifecycle(
+                ValidateMissionReadiness,
+                () => Loop.Start(),
+                SetupCommunicator,
+                CreateListenerSocket,
+                RegisterLoginAndQueue,
+                BeginAcceptingClients,
+                RegisterStartupTimers,
+                LoadRemainingRuntimeData,
+                PublishReady,
+                Shutdown).Start();
+        }
+
+        private bool ValidateMissionReadiness()
+        {
             EntityClassManager.Instance.LoadEntityClasses();
-            MissionManager.Instance.LoadMissions();
-            CreatureManager.Instance.CreatureInit();
-            SpawnPoolManager.Instance.SpawnPoolInit();
-            ChatCommandsManager.Instance.RegisterChatCommands();
-            MapChannelManager.Instance.MapChannelInit();
-            NavMeshManager.Instance.NavMeshInit(Config.GameDataConfig?.NavMeshPath);
-            ClanManager.Instance.ClansInit();
-            DynamicObjectManager.Instance.InitDynamicObjects();
-            MapTriggerManager.Instance.MapTriggerInit();
-            MapLinkManager.Instance.MapLinkInit();
-            RegionManager.Instance.RegionInit();
-            EmitterManager.Instance.EmitterInit();
-            MapMarkerManager.Instance.MapMarkerInit();
-            SpawnPoolManager.Instance.ValidatePools();
-            RecipeManager.Instance.RecipeInit();
-            AbilityManager.Instance.AbilityInit();
-            ManifestationManager.Instance.LoadSkillClasses();
+            var missionValidation = MissionApplication.Instance.LoadMissions();
+            return LogMissionValidationAndCheckReadiness(missionValidation);
+        }
 
-            // After AbilityInit, which loads the action data it checks the creature rows against.
-            CreatureManager.Instance.ValidateActions();
-
+        private void CreateListenerSocket()
+        {
             try
             {
                 ListenerSocket = new LengthedSocket(SizeType.Dword, false);
@@ -314,10 +314,31 @@ namespace Rasa.Game
             {
                 Logger.WriteLog(LogType.Error, "Unable to create or start listening on the client socket! Exception:");
                 Logger.WriteLog(LogType.Error, e);
-
-                return false;
+                throw;
             }
+        }
 
+        private void RegisterLoginAndQueue()
+        {
+            LoginManager.OnLogin += OnLogin;
+            QueueManager = new QueueManager(this);
+        }
+
+        private void BeginAcceptingClients()
+        {
+            ListenerSocket.AcceptAsync();
+            Logger.WriteLog(LogType.Network, "*** Listening for clients on port {0}", Config.GameConfig.Port);
+
+            // Squad voice chat. A voice port that cannot be bound leaves voice off, not the world.
+            _voiceApplied = true;
+            Voice.VoiceServer.Instance.Apply(Config.VoiceConfig, Config.GameConfig.PublicAddress);
+
+            if (Config.VoiceConfig?.Enabled != true)
+                Logger.WriteLog(LogType.Initialize, "Squad voice chat is off (VoiceConfig.Enabled).");
+        }
+
+        private void RegisterStartupTimers()
+        {
             Timer.Add("SessionExpire", 10000, true, () =>
             {
                 var toRemove = new List<uint>();
@@ -361,26 +382,33 @@ namespace Rasa.Game
             // see this, and how hard the server is breathing is not their business.
             if (Config.GameConfig.PerformanceMetricsInterval > 0)
                 Timer.Add("PerformanceMetrics", Config.GameConfig.PerformanceMetricsInterval, true, SendPerformanceMetrics);
+        }
 
-            LoginManager.OnLogin += OnLogin;
+        private void LoadRemainingRuntimeData()
+        {
+            CreatureManager.Instance.CreatureInit();
+            SpawnPoolManager.Instance.SpawnPoolInit();
+            ChatCommandsManager.Instance.RegisterChatCommands();
+            MapChannelManager.Instance.MapChannelInit();
+            NavMeshManager.Instance.NavMeshInit(Config.GameDataConfig?.NavMeshPath);
+            ClanManager.Instance.ClansInit();
+            DynamicObjectManager.Instance.InitDynamicObjects();
+            MapTriggerManager.Instance.MapTriggerInit();
+            MapLinkManager.Instance.MapLinkInit();
+            RegionManager.Instance.RegionInit();
+            EmitterManager.Instance.EmitterInit();
+            MapMarkerManager.Instance.MapMarkerInit();
+            SpawnPoolManager.Instance.ValidatePools();
+            RecipeManager.Instance.RecipeInit();
+            AbilityManager.Instance.AbilityInit();
+            ManifestationManager.Instance.LoadSkillClasses();
 
-            QueueManager = new QueueManager(this);
+            // After AbilityInit, which loads the action data it checks the creature rows against.
+            CreatureManager.Instance.ValidateActions();
+        }
 
-            ListenerSocket.AcceptAsync();
-
-            Logger.WriteLog(LogType.Network, "*** Listening for clients on port {0}", Config.GameConfig.Port);
-
-            // Squad voice chat. A voice port that cannot be bound leaves voice off, not the world.
-            _voiceApplied = true;
-            Voice.VoiceServer.Instance.Apply(Config.VoiceConfig, Config.GameConfig.PublicAddress);
-
-            if (Config.VoiceConfig?.Enabled != true)
-                Logger.WriteLog(LogType.Initialize, "Squad voice chat is off (VoiceConfig.Enabled).");
-
-            Loop.Start();
-
-            SetupCommunicator();
-
+        private void PublishReady()
+        {
             // Last line of Start(), and it has to stay last. It used to sit inside
             // MapChannelInit, which is the sixth of the loaders above - so the navmesh, the
             // clans, the dynamic objects, the map triggers, the map links, the regions, the
@@ -389,8 +417,23 @@ namespace Rasa.Game
             // to tell a server still loading from one that was up.
             Logger.WriteLog(LogType.Initialize, "");
             Logger.WriteLog(LogType.Initialize, "Server ready!");
+        }
 
-            return true;
+        internal static bool LogMissionValidationAndCheckReadiness(
+            Structures.Missions.MissionValidationReport missionValidation)
+        {
+            if (missionValidation == null)
+                throw new ArgumentNullException(nameof(missionValidation));
+
+            foreach (var diagnostic in missionValidation.Diagnostics)
+                Logger.WriteLog(LogType.Error, diagnostic.ToOperatorMessage());
+            if (!missionValidation.BlocksReadiness)
+                return true;
+
+            Logger.WriteLog(
+                LogType.Error,
+                "Mission content validation failed for required content; the Game server will not report ready.");
+            return false;
         }
 
         private void OnLogin(LoginClient client)

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Net.Sockets;
+using System.Threading;
 
 namespace Rasa.Login
 {
@@ -19,6 +20,8 @@ namespace Rasa.Login
         public BigNum PrivateKey { get; } = new BigNum();
         public BigNum PublicKey { get; } = new BigNum();
         public BigNum K { get; } = new BigNum();
+        private int _started;
+        private int _lifecycle;
 
         /// <summary>When the connection was accepted; a key exchange not finished in time is closed.</summary>
         public DateTime ConnectedTime { get; } = DateTime.UtcNow;
@@ -32,6 +35,12 @@ namespace Rasa.Login
             Socket.OnReceive += OnReceive;
             Socket.OnError += OnError;
             Socket.OnDrop += OnDrop;
+        }
+
+        internal void Start()
+        {
+            if (Interlocked.Exchange(ref _started, 1) != 0)
+                return;
 
             DHKeyExchange.GeneratePrivateAndPublicA(PrivateKey, PublicKey);
 
@@ -41,6 +50,9 @@ namespace Rasa.Login
                 Prime = DHKeyExchange.ConstantPrime,
                 Generator = DHKeyExchange.ConstantGenerator
             });
+
+            if (Volatile.Read(ref _lifecycle) != 0)
+                return;
 
             Socket.OnEncrypt += OnEncrypt;
             Socket.ReceiveAsync();
@@ -54,7 +66,8 @@ namespace Rasa.Login
         private void OnReceive(BufferData data)
         {
             var packet = new ClientKeyPacket();
-            packet.Read(data.GetReader());
+            using var reader = data.GetReader();
+            packet.Read(reader);
 
             DHKeyExchange.GenerateServerK(PrivateKey, packet.B, K);
 
@@ -65,23 +78,17 @@ namespace Rasa.Login
 
             Socket.Send(new ClientKeyOkPacket());
 
-            Cleanup();
-
             Manager.ExchangeDone(this);
         }
 
         private void OnError(SocketAsyncEventArgs args)
         {
-            Manager.Disconnect(this);
-
             Close();
         }
 
         /// <summary>The socket gave up on this connection; the reason is already logged.</summary>
         private void OnDrop(string reason)
         {
-            Manager.Disconnect(this);
-
             Close();
         }
 
@@ -90,12 +97,26 @@ namespace Rasa.Login
             Socket.AutoReceive = true;
             Socket.OnReceive = null;
             Socket.OnError = null;
+            Socket.OnDrop = null;
             Socket.OnEncrypt = null;
+        }
+
+        internal bool TryCompleteExchange()
+        {
+            if (Interlocked.CompareExchange(ref _lifecycle, 2, 0) != 0)
+                return false;
+
+            Cleanup();
+            return true;
         }
 
         public void Close()
         {
+            if (Interlocked.CompareExchange(ref _lifecycle, 1, 0) != 0)
+                return;
+
             Socket.Close();
+            Manager.Disconnect(this);
         }
     }
 }

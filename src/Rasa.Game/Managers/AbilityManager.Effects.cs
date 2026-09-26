@@ -55,6 +55,7 @@ namespace Rasa.Managers
 
         /// <summary>skilldata T4_SNIPER_SHREDDER_AMMO; its pump shortens Shredder Ammo's interval.</summary>
         private const int ShredderAmmoSkillId = 150;
+        private const int MedpackTypeId = 280;                      // CONSUMABLE_MED_PACK
 
         /// <summary>
         /// How long the effect that carries an instant Reconstruction's numbers stays on. The
@@ -69,6 +70,22 @@ namespace Rasa.Managers
 
             switch (actionInfo.Module)
             {
+                case "abilities.medpack":
+                    var medpack = NewEffect(mapChannel, player, info, MedpackTypeId, info.Get(AbilityProperty.Duration, 5));
+                    medpack.TickHealMin = info.Get(AbilityProperty.HealAmountMin);
+                    medpack.TickHealMax = Math.Max(medpack.TickHealMin,
+                        info.Get(AbilityProperty.HealAmountMax, medpack.TickHealMin));
+                    medpack.TickIntervalMs = Math.Max(1, info.Get(AbilityProperty.Interval, 1)) * 1000;
+                    medpack.NextTickTick = Environment.TickCount64;
+                    medpack.TickScaleType = info.Get(AbilityProperty.ConsumableScaleType);
+                    medpack.AllowDetach = true;
+                    medpack.Tooltip["healMin"] = Scale(player.Level, medpack.TickHealMin, medpack.TickScaleType);
+                    medpack.Tooltip["healMax"] = Scale(player.Level, medpack.TickHealMax, medpack.TickScaleType);
+                    medpack.Tooltip["interval"] = medpack.TickIntervalMs / 1000;
+                    GameEffectManager.Instance.Attach(mapChannel, player, medpack);
+                    Hit(recovery, player);
+                    break;
+
                 case "abilities.rage":
                     AttachRage(mapChannel, player, info);
                     Hit(recovery, player);

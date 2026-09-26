@@ -104,7 +104,7 @@ namespace Rasa.Managers
             foreach (var viewer in Onlookers(mapChannel, player))
             {
                 viewer.CallMethod(SysEntity.ClientMethodId,
-                    new CreatePhysicalEntityPacket(player.EntityId, player.EntityClass, ManifestationManager.Instance.CreatePlayerEntityData(client)));
+                    new CreatePhysicalEntityPacket(player.EntityId, player.EntityClass, ManifestationManager.Instance.CreatePlayerEntityData(client, viewer)));
                 GameEffectManager.ShowEffectsTo(viewer, player);
             }
         }

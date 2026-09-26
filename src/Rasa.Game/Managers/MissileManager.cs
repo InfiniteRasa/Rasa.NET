@@ -54,9 +54,7 @@ namespace Rasa.Managers
         /// or summon, so this is reachable by pressing fire before re-targeting.
         /// </summary>
         private static bool IsOnMap(MapChannel mapChannel, Actor actor)
-        {
-            return actor != null && actor.MapContextId == mapChannel.MapInfo.MapContextId;
-        }
+            => MapInstanceScope.Contains(mapChannel, actor);
 
         /// <summary>
         /// Marks an actor as being in a fight, if it is a player. Creatures have their own notion
@@ -122,6 +120,19 @@ namespace Rasa.Managers
             if (creature.State == CharacterState.Dead || creature.State == CharacterState.Dying)
                 return;
 
+            // A mission scene's invulnerable creature: the whole hit is resisted.
+            if (Game.Missions.World.CreatureGameplayRules.IsInvulnerable(creature))
+            {
+                foreach (var hit in missile.Args.HitData)
+                    if (hit.EntityId == creature.EntityId)
+                    {
+                        hit.Resisted = (uint)Math.Max(0, missile.DamageA);
+                        hit.FinalAmt = 0;
+                    }
+                missile.DamageA = 0;
+                return;
+            }
+
             // Its target category has to allow the hit: a player may strike HOSTILE and NEUTRAL,
             // a creature anything its own category may fight (TargetCategories), as Mind Control
             // bends it (BehaviorManager.MayFight). The client does not offer the rest as targets;
@@ -166,6 +177,7 @@ namespace Rasa.Managers
 
             // decrease health (if armor is depleted)
             var healthDecrease = Math.Min(missile.DamageA - armorDecrease, creature.Attributes[Attributes.Health].Current);
+            CreatureManager.RecordCombatDamage(mapChannel, creature, missile.Source, armorDecrease + healthDecrease);
             creature.Attributes[Attributes.Health].Current -= healthDecrease;
             CellManager.Instance.CellCallMethod(mapChannel, creature, new UpdateHealthPacket(creature.Attributes[Attributes.Health], creature.EntityId));
             
@@ -587,11 +599,9 @@ namespace Rasa.Managers
 
                 // A force field (ForceFields): only one that stops the shooter, and the missile
                 // lands on the field's own hit points; there is no actor to it.
-                if (targetType == EntityType.Object)
+                if (targetType == EntityType.Object && ForceFields.Find(action.TargetId) is { } field)
                 {
-                    var field = ForceFields.Find(action.TargetId);
-
-                    if (field == null || field.MapChannel != mapChannel || !ForceFields.MayShoot(field, action.Actor))
+                    if (field.MapChannel != mapChannel || !ForceFields.MayShoot(field, action.Actor))
                         return;
 
                     var fieldDistance = Vector3.Distance(field.Position, action.Actor.Position);
@@ -601,6 +611,25 @@ namespace Rasa.Managers
 
                     missile.TargetEntityId = action.TargetId;
                     triggerTime = (int)(fieldDistance * 0.5f);
+                }
+                else if (targetType == EntityType.Object)
+                {
+                    // A Bootcamp practice target (PracticeTargetManager).
+                    if (!PracticeTargetManager.TryGetTarget(mapChannel, action.TargetId, out var practiceTarget) ||
+                        !PracticeTargetManager.CanHit(mapChannel, action.Actor, practiceTarget))
+                    {
+                        Logger.WriteLog(LogType.Debug, $"MissileLaunch: invalid practice target {action.TargetId}.");
+                        return;
+                    }
+
+                    var targetDistance = Vector3.Distance(practiceTarget.Position, action.Actor.Position);
+
+                    if (!float.IsFinite(targetDistance) || targetDistance > MaxTargetDistance)
+                        return;
+
+                    missile.TargetObject = practiceTarget;
+                    missile.TargetEntityId = action.TargetId;
+                    triggerTime = (int)(targetDistance * 0.5f);
                 }
                 else
                 {
@@ -640,7 +669,7 @@ namespace Rasa.Managers
 
                     var distance = Vector3.Distance(targetActor.Position, action.Actor.Position);
 
-                    if (distance > MaxTargetDistance)
+                    if (!float.IsFinite(distance) || distance > MaxTargetDistance)
                     {
                         Logger.WriteLog(LogType.Debug, $"MissileLaunch: {action.Actor.EntityId} aimed at {action.TargetId} from {distance:F0} units away");
                         return;
@@ -673,6 +702,10 @@ namespace Rasa.Managers
 
             if (action.Actor is Creature)
                 missile.AreaDamage = damage;
+
+            // An escort's owner opening fire gives the escort its target (mission scenes).
+            if (targetActor is Creature attackedCreature)
+                CreatureManager.RecordOwnerAttack(mapChannel, action.Actor, attackedCreature);
 
             CellManager.Instance.CellCallMethod(mapChannel, action.Actor, new PerformWindupPacket(PerformType.ThreeArgs, missile.ActionId, missile.ActionArgId, missile.TargetEntityId));
 
@@ -895,7 +928,19 @@ namespace Rasa.Managers
 
             // Checked again here: the missile was queued a tick ago, and the target can have
             // left the map (or the world) since.
-            if (missile.TargetEntityId != 0 && targetType != EntityType.Object && !IsOnMap(mapChannel, missile.TargetActor))
+            if (missile.TargetObject != null)
+            {
+                if (!PracticeTargetManager.CanHit(mapChannel, missile.Source, missile.TargetObject))
+                    targetType = 0;
+            }
+            else if (missile.TargetEntityId != 0 && targetType != EntityType.Object && !IsOnMap(mapChannel, missile.TargetActor))
+                targetType = 0;
+
+            // A follower or a defender of a mission scene does not turn on a creature on its side.
+            if (missile.Source is Creature companion &&
+                (companion.SpawnPool?.FollowOwnerCharacterId > 0 || Game.Missions.World.CreatureGameplayRules.IsDefender(companion)) &&
+                missile.TargetActor is Creature enemy &&
+                !CreatureManager.IsHostileTarget(mapChannel, companion, enemy))
                 targetType = 0;
 
             // A staff drawn may deflect it (Staff, from pump 3): no damage at all, and the clients
@@ -1001,6 +1046,9 @@ namespace Rasa.Managers
                 case EntityType.Character:
                     DoDamageToPlayer(mapChannel, missile);
                     break;
+                case EntityType.Object when missile.TargetObject != null:
+                    EnterCombat(missile.Source);
+                    break;
                 case EntityType.Object:
                     ForceFields.TakeHit(missile);
                     break;
@@ -1058,6 +1106,9 @@ namespace Rasa.Managers
                     CellManager.Instance.CellCallMethod(mapChannel, missile.Source, CreatureAttacks.RecoveryFor(missile));
                     break;
             }
+
+            if (targetType == EntityType.Object && missile.TargetObject != null && missile.DamageA > 0)
+                PracticeTargetManager.RecordHit(mapChannel, missile.Source, missile.TargetObject, missile.ActionId);
         }
     }
 }

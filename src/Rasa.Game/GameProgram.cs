@@ -26,8 +26,13 @@ namespace Rasa
     using Repositories.Char.CharacterLogos;
     using Repositories.Char.CharacterActionReuse;
     using Repositories.Char.CharacterMission;
+    using Repositories.Char.CharacterMissionDeadline;
+    using Repositories.Char.CharacterMissionProgress;
+    using Repositories.Char.CharacterMissionScenario;
     using Repositories.Char.CharacterOption;
+    using Repositories.Char.CharacterFlag;
     using Repositories.Char.CharacterSkills;
+    using Repositories.Char.CharacterStartingExperience;
     using Repositories.Char.CharacterTeleporter;
     using Repositories.Char.CharacterTitle;
     using Repositories.Char.Clan;
@@ -47,6 +52,8 @@ namespace Rasa
     {
         public static async Task<int> Main(string[] args)
         {
+            if (args.Length == 1 && args[0] == "--check-mission-assets")
+                return Game.Missions.Integration.MissionAssetCheck.Run(AppContext.BaseDirectory, Environment.CurrentDirectory);
             var hostBuilder = new HostBuilder()
                 .ConfigureAppConfiguration(ConfigureApp)
                 .ConfigureServices(ConfigureServices);
@@ -105,8 +112,13 @@ namespace Rasa
             services.AddScoped<ICharacterLogosRepository, CharacterLogosRepository>();
             services.AddScoped<ICharacterActionReuseRepository, CharacterActionReuseRepository>();
             services.AddScoped<ICharacterMissionRepository, CharacterMissionRepository>();
+            services.AddScoped<ICharacterMissionDeadlineRepository, CharacterMissionDeadlineRepository>();
+            services.AddScoped<ICharacterMissionProgressRepository, CharacterMissionProgressRepository>();
+            services.AddScoped<ICharacterMissionScenarioRepository, CharacterMissionScenarioRepository>();
             services.AddScoped<ICharacterOptionRepository, CharacterOptionRepository>();
+            services.AddScoped<ICharacterFlagRepository, CharacterFlagRepository>();
             services.AddScoped<ICharacterSkillsRepository, CharacterSkillsRepository>();
+            services.AddScoped<ICharacterStartingExperienceRepository, CharacterStartingExperienceRepository>();
             services.AddScoped<ICharacterTeleporterRepository, CharacterTeleporterRepository>();
             services.AddScoped<ICharacterTitleRepository, CharacterTitleRepository>();
             services.AddScoped<IClanRepository, ClanRepository>();
@@ -138,6 +150,7 @@ namespace Rasa
             services.AddScoped<IRecipeRepository, RecipeRepository>();
             services.AddScoped<INpcMissionRepository, NpcMissionRepository>();
             services.AddScoped<INpcMissionRewardRepository, NpcMissionRewardRepository>();
+            services.AddScoped<IMissionContentRepository, MissionContentRepository>();
             services.AddScoped<INpcPackageRepository, NpcPackageRepository>();
             services.AddScoped<IPlayerRandomNameRepository, PlayerRandomNameRepository>();
             services.AddScoped<ISpawnpoolRepository, SpawnpoolRepository>();

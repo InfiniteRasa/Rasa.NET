@@ -9,7 +9,22 @@ namespace Rasa.Extensions
         public static string ReadLengthedString(this BinaryReader reader)
         {
             var len = reader.ReadInt32();
-            return len == 0 ? "" : Encoding.UTF8.GetString(reader.ReadBytes(reader.CheckedLength(len, "string")));
+            return len == 0 ? "" : Encoding.UTF8.GetString(reader.ReadBytesExactly(len));
+        }
+
+        public static byte[] ReadBytesExactly(this BinaryReader reader, int length)
+        {
+            if (length < 0)
+                throw new InvalidDataException("Payload length cannot be negative.");
+
+            if (reader.BaseStream.CanSeek && length > reader.BaseStream.Length - reader.BaseStream.Position)
+                throw new EndOfStreamException("Payload length exceeds the available data.");
+
+            var bytes = reader.ReadBytes(length);
+            if (bytes.Length != length)
+                throw new EndOfStreamException("Incomplete payload.");
+
+            return bytes;
         }
 
         /// <summary>
@@ -31,9 +46,16 @@ namespace Rasa.Extensions
             return (int)length;
         }
 
+        public static void EnsureFullyConsumed(this BinaryReader reader, string what)
+        {
+            var stream = reader.BaseStream;
+            if (stream.CanSeek && stream.Position != stream.Length)
+                throw new InvalidDataException($"{what} contains trailing bytes.");
+        }
+
         public static string ReadUtf8StringOn(this BinaryReader reader, int length)
         {
-            var bytes = reader.ReadBytes(reader.CheckedLength(length, "string"));
+            var bytes = reader.ReadBytesExactly(length);
 
             var index = Array.IndexOf<byte>(bytes, 0);
             if (index == -1)

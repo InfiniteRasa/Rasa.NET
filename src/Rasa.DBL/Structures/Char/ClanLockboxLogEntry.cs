@@ -1,6 +1,7 @@
 ﻿using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 
 namespace Rasa.Structures.Char
 {
@@ -17,6 +18,7 @@ namespace Rasa.Structures.Char
     /// to read back as the person who did it.
     /// </summary>
     [Table(TableName)]
+    [Index(nameof(ClanId), nameof(TransactionTime), Name = "clan_lockbox_log_index_clan_id_time")]
     public class ClanLockboxLogEntry
     {
         public const string TableName = "clan_lockbox_log";

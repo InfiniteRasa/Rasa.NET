@@ -21,7 +21,7 @@ namespace Rasa.Repositories.Char.Auction
         /// <summary>Every live auction, for the browse tab and for expiry sweeps.</summary>
         List<AuctionEntry> GetAuctions();
 
-        void DeleteAuction(uint itemId);
+        bool DeleteAuction(uint itemId);
 
         /// <summary>
         /// Takes down everything one character has listed and says how many rows went, on the

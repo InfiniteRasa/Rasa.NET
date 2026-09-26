@@ -92,7 +92,8 @@ namespace Rasa.Managers
             "abilities.controlledfission", "abilities.explodingnanites", "abilities.disease", "abilities.firesupport",
             "abilities.selfdestruct", "abilities.scatterbombs", "abilities.calledshot", "abilities.feedback",
             "abilities.reflection", "abilities.conversion", "abilities.corpseexplode", "abilities.cure",
-            "abilities.cloakwave", "abilities.tacticalevasion", "abilities.traitor", "abilities.hack", "abilities.mindcontrol"
+            "abilities.cloakwave", "abilities.tacticalevasion", "abilities.traitor", "abilities.hack", "abilities.mindcontrol",
+            "abilities.medpack"
         };
 
         /// <summary>
@@ -132,9 +133,19 @@ namespace Rasa.Managers
             }
         }
 
+        private readonly MissionApplication _missionManager;
+
         private AbilityManager(IGameUnitOfWorkFactory gameUnitOfWorkFactory)
+            : this(gameUnitOfWorkFactory, null)
+        {
+        }
+
+        private AbilityManager(
+            IGameUnitOfWorkFactory gameUnitOfWorkFactory,
+            MissionApplication missionManager)
         {
             _gameUnitOfWorkFactory = gameUnitOfWorkFactory;
+            _missionManager = missionManager;
         }
 
         public int Count => _actions.Count;
@@ -291,6 +302,12 @@ namespace Rasa.Managers
             // item in their pack whose template performs exactly this action.
             var item = packet.ItemId != 0 ? EntityManager.Instance.GetItem((ulong)packet.ItemId) : null;
 
+            if (packet.ItemId != 0 && item == null)
+            {
+                Fail(client, actionId, level, PlayerMessage.PmMissingReqItem);
+                return;
+            }
+
             if (!Grants(player, actionId, level, item))
             {
                 Logger.WriteLog(LogType.Security, $"{player.FamilyName} asked for {action.Name} level {level} without a skill or item that grants it");
@@ -351,11 +368,27 @@ namespace Rasa.Managers
             // none; self abilities have none or the performer.
             Actor target = null;
 
+            // Or a Bootcamp practice target, for the recruit's lightning (PracticeTargetManager).
+            DynamicObject practiceTarget = null;
+
             if (!SelfCentred(info) && packet.Target.HasEntity && packet.Target.EntityId != player.EntityId)
             {
                 target = ResolveTarget(mapChannel, packet.Target.EntityId);
 
                 if (target == null)
+                    practiceTarget = ResolvePracticeTarget(mapChannel, player, info, packet.Target.EntityId);
+
+                if (practiceTarget != null)
+                {
+                    var practiceDistance = Vector3.Distance(player.Position, practiceTarget.Position);
+
+                    if (!float.IsFinite(practiceDistance) || info.MaxRange > 0 && practiceDistance > info.MaxRange + RangeSlack)
+                    {
+                        Fail(client, actionId, level, PlayerMessage.PmTargetOutOfRange);
+                        return;
+                    }
+                }
+                else if (target == null)
                 {
                     Fail(client, actionId, level, PlayerMessage.PmActionFailedNoTarget);
                     return;
@@ -410,7 +443,7 @@ namespace Rasa.Managers
                 return;
             }
 
-            if (wantsHostile && target == null && !SelfCentred(info) && packet.Target.Kind != ActionTargetKind.Location)
+            if (wantsHostile && target == null && practiceTarget == null && !SelfCentred(info) && packet.Target.Kind != ActionTargetKind.Location)
             {
                 Fail(client, actionId, level, PlayerMessage.PmActionFailedNoTarget);
                 return;
@@ -453,7 +486,8 @@ namespace Rasa.Managers
                 }
 
             // Accepted. Everyone else sees the windup; the performer's client already started its own.
-            SendToOthers(mapChannel, player, new PerformWindupPacket(PerformType.ThreeArgs, actionId, level, target?.EntityId ?? 0));
+            var targetId = practiceTarget?.EntityId ?? target?.EntityId ?? 0;
+            SendToOthers(mapChannel, player, new PerformWindupPacket(PerformType.ThreeArgs, actionId, level, targetId));
 
             // One ability at a time: a new request replaces a pending one, as the client's own
             // action queue does.
@@ -469,8 +503,9 @@ namespace Rasa.Managers
                 StartCharge(mapChannel, client, player, target, actionId, windupMs);
             }
 
-            mapChannel.PerformRecovery.Add(new ActionData(player, actionId, level, target?.EntityId ?? 0, windupMs)
+            mapChannel.PerformRecovery.Add(new ActionData(player, actionId, level, targetId, windupMs)
             {
+                TargetObject = practiceTarget,
                 TargetLocation = location,
                 ItemId = packet.ItemId
             });
@@ -608,9 +643,24 @@ namespace Rasa.Managers
                 _ => null
             };
 
-            // Entity ids are global, cells are per map: a target on another map is not here.
-            return target != null && target.MapContextId == mapChannel.MapInfo.MapContextId ? target : null;
+            // Entity ids are global, cells are per map: a target on another map - or another copy
+            // of this one - is not here.
+            return IsOnMap(mapChannel, target) ? target : null;
         }
+
+        /// <summary>The Bootcamp practice target the recruit's lightning (level 1) is aimed at, when it can be hit from here.</summary>
+        private static DynamicObject ResolvePracticeTarget(
+            MapChannel map, Manifestation player, ActionLevelInfo info, ulong entityId)
+        {
+            if (info.ActionId != ActionId.AaRecruitLightning || info.Level != 1 ||
+                !PracticeTargetManager.TryGetTarget(map, entityId, out var target) ||
+                !PracticeTargetManager.CanHit(map, player, target))
+                return null;
+            return target;
+        }
+
+        private static bool IsOnMap(MapChannel mapChannel, Actor actor)
+            => MapInstanceScope.Contains(mapChannel, actor);
 
         /// <summary>
         /// Who a player's damage may land on: HOSTILE and NEUTRAL creatures (TargetCategories.
@@ -619,7 +669,9 @@ namespace Rasa.Managers
         /// </summary>
         internal static bool IsHostile(Manifestation player, Actor target)
         {
-            return target is Creature creature && TargetCategories.PlayerMayAttack(creature.TargetCategory) && creature.State != CharacterState.Dying && creature.Attributes[Attributes.Health].Current > 0;
+            return target is Creature creature && TargetCategories.PlayerMayAttack(creature.TargetCategory)
+                   && creature.State != CharacterState.Dead && creature.State != CharacterState.Dying
+                   && creature.Attributes.TryGetValue(Attributes.Health, out var health) && health.Current > 0;
         }
 
         /// <summary>The first attribute the player cannot pay, or null if they can pay them all.</summary>
@@ -689,15 +741,17 @@ namespace Rasa.Managers
             if (!IsSustained(info))
                 TakeCosts(client, player, info);
 
-            foreach (var requirement in info.ItemRequirements)
-                InventoryManager.Instance.RemoveItemsByClass(client, requirement.ItemClass, requirement.Quantity);
-
-            if (action.ItemId != 0)
+            // The items it takes, and the one it was used from, in one write; never a mission's.
+            try
             {
-                var item = EntityManager.Instance.GetItem((ulong)action.ItemId);
-
-                if (item != null)
-                    InventoryManager.Instance.ReduceStackCount(client, InventoryType.Personal, item, 1);
+                ConsumeAbilityItems(client, info, action.ItemId);
+            }
+            catch (Exception error) when (GameplayRejectionException.IsExpected(error))
+            {
+                Logger.WriteLog(LogType.Error, $"Unable to consume ability items for character {player.Id}: {error.Message}");
+                SendToOthers(mapChannel, player, new ActionInterruptPacket(player.EntityId, action.ActionId, action.ActionArgId));
+                Fail(client, action.ActionId, action.ActionArgId, PlayerMessage.PmMissingReqItem);
+                return;
             }
 
             StartCooldown(client, player, info);
@@ -822,6 +876,55 @@ namespace Rasa.Managers
         /// What is not re-weighed: a target that died or despawned mid-windup. The ability was
         /// performed, it costs what it costs, and it hits nothing - which is what happens now.
         /// </summary>
+        private void ConsumeAbilityItems(Client client, ActionLevelInfo info, ulong sourceItemId)
+        {
+            if (sourceItemId == 0 && info.ItemRequirements.Count == 0)
+                return;
+            using var unit = _gameUnitOfWorkFactory.CreateChar();
+            var quantities = new Dictionary<ulong, uint>();
+            var source = sourceItemId == 0 ? null : EntityManager.Instance.GetItem(sourceItemId);
+            if (sourceItemId != 0 && source == null)
+                throw new GameplayRejectionException("The ability source item is no longer available.");
+            if (source != null && Game.Missions.Persistence.MissionItemProtection.IsProtected(source, unit))
+                throw new GameplayRejectionException("Assignment-owned items cannot pay ordinary ability costs.");
+            if (source != null)
+                quantities[source.EntityId] = 1;
+            var sourceCredit = source == null ? 0U : 1U;
+            foreach (var requirement in info.ItemRequirements)
+            {
+                var remaining = requirement.Quantity;
+                if (sourceCredit > 0 && source.ItemTemplate.Class == requirement.ItemClass && remaining > 0)
+                {
+                    remaining--;
+                    sourceCredit--;
+                }
+                foreach (var entityId in client.Player.Inventory.PersonalInventory.Where(id => id != 0))
+                {
+                    if (remaining == 0)
+                        break;
+                    var item = EntityManager.Instance.GetItem(entityId);
+                    if (item?.ItemTemplate?.Class != requirement.ItemClass ||
+                        Game.Missions.Persistence.MissionItemProtection.IsProtected(item, unit))
+                        continue;
+                    var reserved = quantities.GetValueOrDefault(entityId);
+                    if (reserved > item.StackSize)
+                        throw new GameplayRejectionException("The ability source stack is empty.");
+                    var take = Math.Min(remaining, item.StackSize - reserved);
+                    if (take == 0)
+                        continue;
+                    quantities[entityId] = reserved + take;
+                    remaining -= take;
+                }
+                if (remaining != 0)
+                    throw new GameplayRejectionException("Required ability items are no longer available.");
+            }
+            var consumption = new InventoryManager.InventoryConsumption();
+            unit.ExecuteTransaction(() => consumption.PlanAndSave(client, quantities, unit));
+            consumption.Publish(client);
+            foreach (var progress in consumption.ProgressEvents)
+                (_missionManager ?? MissionApplication.Instance).RecordProgress(client, progress);
+        }
+
         private PlayerMessage? StillAllowed(MapChannel mapChannel, Client client, Manifestation player, ActionData action, ActionLevelInfo info)
         {
             // Asked for with an item, so it is the item that has to still grant it - a skill the
@@ -853,7 +956,20 @@ namespace Rasa.Managers
                 if (InventoryManager.Instance.CountItemsByClass(client, requirement.ItemClass) < requirement.Quantity)
                     return PlayerMessage.PmMissingReqItem;
 
-            if (action.TargetId != 0 && info.MaxRange > 0)
+            // A practice target still has to be the one it was aimed at, and still hittable.
+            if (action.TargetObject != null)
+            {
+                var practiceTarget = ResolvePracticeTarget(mapChannel, player, info, action.TargetId);
+
+                if (!ReferenceEquals(practiceTarget, action.TargetObject))
+                    return PlayerMessage.PmActionFailedNoTarget;
+
+                var practiceDistance = Vector3.Distance(player.Position, practiceTarget.Position);
+
+                if (!float.IsFinite(practiceDistance) || info.MaxRange > 0 && practiceDistance > info.MaxRange + RangeSlack)
+                    return PlayerMessage.PmTargetOutOfRange;
+            }
+            else if (action.TargetId != 0 && info.MaxRange > 0)
             {
                 var target = ResolveTarget(mapChannel, action.TargetId);
 
@@ -925,6 +1041,35 @@ namespace Rasa.Managers
             var min = info.Get(AbilityProperty.DamageAmountMin);
             var max = Math.Max(min, info.Get(AbilityProperty.DamageAmountMax, min));
 
+            // The recruit's lightning at a Bootcamp practice target: a hit on the target, nothing else.
+            if (action.TargetObject != null)
+            {
+                var practiceTarget = ResolvePracticeTarget(mapChannel, player, info, action.TargetId);
+
+                if (practiceTarget == null || !ReferenceEquals(practiceTarget, action.TargetObject))
+                    return;
+
+                var practiceAmount = GameEffectManager.ApplyDamageDealt(
+                    player, Scale(player.Level, _random.Next(min, max + 1), scaleType));
+                var practice = new AbilityRecoveryPacket(
+                    action.ActionId, action.ActionArgId, AbilityRecoveryPacket.HitDataKind.Damage)
+                {
+                    ArcData = true
+                };
+                practice.Hits.Add(new AbilityHit
+                {
+                    EntityId = practiceTarget.EntityId,
+                    Amount = practiceAmount,
+                    DamageType = damageType
+                });
+                ManifestationManager.Instance.EnterCombat(client);
+                CellManager.Instance.CellCallMethod(mapChannel, player, practice);
+                if (practiceAmount > 0)
+                    PracticeTargetManager.RecordHit(
+                        mapChannel, player, practiceTarget, action.ActionId, _missionManager);
+                return;
+            }
+
             var targets = new List<Creature>();
             var primary = action.TargetId != 0 ? ResolveTarget(mapChannel, action.TargetId) as Creature : null;
 
@@ -991,6 +1136,12 @@ namespace Rasa.Managers
                 };
 
                 recovery.Hits.Add(hit);
+
+                // A hit on a creature a mission counts.
+                if (taken > 0 && target.DbId != 0)
+                    (_missionManager ?? MissionApplication.Instance).RecordProgress(
+                        client,
+                        MissionProgressEvent.AbilityHit((uint)action.ActionId, target.DbId));
 
                 // Still standing: the stuns the hit carries - the ability's own, and an Ice or
                 // Sonic crit's - each of which opens the Critical Death window if it is low enough.
@@ -1076,7 +1227,7 @@ namespace Rasa.Managers
         {
             var found = new List<Creature>();
 
-            if (radius <= 0)
+            if (!(radius > 0))
                 return found;
 
             foreach (var cell in CellManager.CellsIn(mapChannel, player.Cells))

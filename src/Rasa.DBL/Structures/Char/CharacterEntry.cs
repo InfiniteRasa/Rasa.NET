@@ -75,9 +75,9 @@ namespace Rasa.Structures.Char
         public byte ActiveWeapon { get; set; }
 
         /// <summary>The armed ability drawer slot, 0 to 24 (five loadouts of five).</summary>
-        [Column("active_ability_slot")]
+        [Column("current_ability_slot")]
         [Required]
-        public byte ActiveAbilitySlot { get; set; }
+        public byte CurrentAbilitySlot { get; set; }
 
         [Column("body")]
         [Required]

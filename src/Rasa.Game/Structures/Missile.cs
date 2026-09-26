@@ -11,6 +11,7 @@
         public bool IsAbility { get; set; }         // set to true to use PerformAbility instead of Windup/Recovery
         public ulong TargetEntityId { get; set; }    // the entityId of the destination (it is possible that the object does no more exist on arrival)
         public Actor TargetActor { get; set; }
+        internal DynamicObject TargetObject { get; set; }
         public Actor Source { get; set; }
         /// <summary>Percent of DamageA that skips armour and comes straight off health (Torqueshell and Injection Guns skills).</summary>
         public int ArmorBypassPercent { get; set; }

@@ -42,6 +42,8 @@
         }
     }
 
+    public sealed record ChoiceObjectives(int MissionId, int ObjectiveId, int PlayerFlagId);
+
     public class RewardableMissions
     {
         public int MissionId { get; set; }

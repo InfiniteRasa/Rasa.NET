@@ -61,6 +61,7 @@ namespace Rasa.NavMesh
                     case "--terrain-step": settings.TerrainStep = int.Parse(Next()); break;
                     case "--cell": settings.CellSize = float.Parse(Next(), CultureInfo.InvariantCulture); break;
                     case "--cell-height": settings.CellHeight = float.Parse(Next(), CultureInfo.InvariantCulture); break;
+                    case "--detail-distance": settings.DetailSampleDistance = float.Parse(Next(), CultureInfo.InvariantCulture); break;
                     case "--radius": settings.AgentRadius = float.Parse(Next(), CultureInfo.InvariantCulture); break;
                     case "--climb": settings.AgentMaxClimb = float.Parse(Next(), CultureInfo.InvariantCulture); break;
                     case "--slope": settings.AgentMaxSlope = float.Parse(Next(), CultureInfo.InvariantCulture); break;
@@ -211,7 +212,7 @@ namespace Rasa.NavMesh
 
         private static void Usage()
         {
-            Console.WriteLine("Rasa.NavMesh --client <Tabula Rasa folder> [--out navmesh] [--map <name>]... [--terrain-step 2] [--cell 0.4] [--threads N] [--obj] [--cover-only | --no-cover]");
+            Console.WriteLine("Rasa.NavMesh --client <Tabula Rasa folder> [--out navmesh] [--map <name>]... [--terrain-step 2] [--cell 0.4] [--cell-height 0.2] [--detail-distance 6] [--threads N] [--obj] [--cover-only | --no-cover]");
             Console.WriteLine("Rasa.NavMesh --path <file.nav> x1 y1 z1 x2 y2 z2");
         }
     }

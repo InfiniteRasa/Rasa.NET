@@ -18,8 +18,13 @@ namespace Rasa.Repositories.Char
     using CharacterLogos;
     using CharacterActionReuse;
     using CharacterMission;
+    using CharacterMissionDeadline;
+    using CharacterMissionProgress;
+    using CharacterMissionScenario;
     using CharacterOption;
+    using CharacterFlag;
     using CharacterSkills;
+    using CharacterStartingExperience;
     using CharacterTeleporter;
     using CharacterTitle;
     using Friend;
@@ -43,8 +48,13 @@ namespace Rasa.Repositories.Char
             ICharacterLogosRepository characterLogoses,
             ICharacterActionReuseRepository characterActionReuses,
             ICharacterMissionRepository characterMissions,
+            ICharacterMissionDeadlineRepository characterMissionDeadlines,
+            ICharacterMissionProgressRepository characterMissionProgress,
+            ICharacterMissionScenarioRepository characterMissionScenario,
             ICharacterOptionRepository characterOptions,
+            ICharacterFlagRepository characterFlags,
             ICharacterSkillsRepository characterSkills,
+            ICharacterStartingExperienceRepository characterStartingExperience,
             ICharacterTeleporterRepository characterTeleporters,
             ICharacterTitleRepository characterTitles,
             IAuctionRepository auctions,
@@ -69,8 +79,15 @@ namespace Rasa.Repositories.Char
             CharacterLogoses = characterLogoses;
             CharacterActionReuses = characterActionReuses;
             CharacterMissions = characterMissions;
+            MissionOffers = new MissionOffer.MissionOfferRepository(dbContext);
+            CharacterMissionItems = new CharacterMissionItem.CharacterMissionItemRepository(dbContext);
+            CharacterMissionDeadlines = characterMissionDeadlines;
+            CharacterMissionProgress = characterMissionProgress;
+            CharacterMissionScenario = characterMissionScenario;
             CharacterOptions = characterOptions;
+            CharacterFlags = characterFlags;
             CharacterSkills = characterSkills;
+            CharacterStartingExperience = characterStartingExperience;
             CharacterTeleporters = characterTeleporters;
             CharacterTitles = characterTitles;
             Clans = clans;
@@ -94,8 +111,15 @@ namespace Rasa.Repositories.Char
         public ICharacterLogosRepository CharacterLogoses { get; }
         public ICharacterActionReuseRepository CharacterActionReuses { get; }
         public ICharacterMissionRepository CharacterMissions { get; }
+        public MissionOffer.MissionOfferRepository MissionOffers { get; }
+        public CharacterMissionItem.ICharacterMissionItemRepository CharacterMissionItems { get; }
+        public ICharacterMissionDeadlineRepository CharacterMissionDeadlines { get; }
+        public ICharacterMissionProgressRepository CharacterMissionProgress { get; }
+        public ICharacterMissionScenarioRepository CharacterMissionScenario { get; }
         public ICharacterOptionRepository CharacterOptions { get; }
+        public ICharacterFlagRepository CharacterFlags { get; }
         public ICharacterSkillsRepository CharacterSkills { get; }
+        public ICharacterStartingExperienceRepository CharacterStartingExperience { get; }
         public ICharacterTeleporterRepository CharacterTeleporters { get; }
         public ICharacterTitleRepository CharacterTitles { get; }
         public IAuctionRepository Auctions { get; }

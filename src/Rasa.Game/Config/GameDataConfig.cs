@@ -19,8 +19,8 @@
 
         /// <summary>
         /// The folder holding one &lt;map name&gt;.nav per map, built by Rasa.NavMesh from the
-        /// client data, relative to the server's working directory. Default "navmesh". Maps
-        /// without a file get straight-line creature movement, as before.
+        /// client data. Explicit paths remain relative to the working directory; default
+        /// "navmesh" also resolves published assets and the source checkout.
         /// </summary>
         public string NavMeshPath { get; set; }
     }

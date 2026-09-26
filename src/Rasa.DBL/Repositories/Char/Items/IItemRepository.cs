@@ -9,6 +9,7 @@ namespace Rasa.Repositories.Char.Items
         void DeleteItem(uint itemId);
         void DeleteItems(IEnumerable<uint> itemIds);
         ItemEntry GetItem(uint itemId);
+        IReadOnlyList<ItemEntry> GetItems(IReadOnlyCollection<uint> itemIds);
         void UpdateAmmo(IItemChange item);
         void UpdateBoundCharacter(IItemChange item);
         void UpdateCurrentHitPoints(IItemChange item);

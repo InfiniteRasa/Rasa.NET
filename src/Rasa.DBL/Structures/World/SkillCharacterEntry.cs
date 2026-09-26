@@ -21,6 +21,7 @@ namespace Rasa.Structures.World
 
         /// <summary>The skill, from generated/client/skilldata.</summary>
         [Key]
+        [DatabaseGenerated(DatabaseGeneratedOption.None)]
         [Column("id")]
         [Required]
         public uint Id { get; set; }

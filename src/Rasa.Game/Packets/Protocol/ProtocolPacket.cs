@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Buffers;
-using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Text;
@@ -8,11 +7,14 @@ using System.Text;
 namespace Rasa.Packets.Protocol
 {
     using Data;
+    using Extensions;
     using Memory;
 
     public class ProtocolPacket : IBasePacket
     {
-        private const int MaxUncompressedSize = 4 * ushort.MaxValue;
+        public const int HeaderSize = 4;
+        public const int MaxSize = ushort.MaxValue;
+        public const int MaxExpandedSize = 4 * MaxSize;
 
         public ClientMessageOpcode Type { get; private set; } = ClientMessageOpcode.None;
 
@@ -36,20 +38,40 @@ namespace Rasa.Packets.Protocol
 
         public void Read(BinaryReader br)
         {
-            if (br.BaseStream.Length < 4)
-                throw new Exception("Fragmented receive, should not happen! (4 size header)");
+            var available = br.BaseStream.Length - br.BaseStream.Position;
+            if (available < HeaderSize)
+                throw new InvalidDataException("Incomplete protocol header.");
 
+            Size = br.ReadUInt16();
+            if (Size < HeaderSize || Size > available)
+                throw new InvalidDataException($"Invalid protocol size {Size}; available bytes: {available}.");
+
+            var frame = ArrayPool<byte>.Shared.Rent(Size);
+            try
+            {
+                frame[0] = (byte)Size;
+                frame[1] = (byte)(Size >> 8);
+                br.BaseStream.ReadExactly(frame, 2, Size - 2);
+
+                using var stream = new MemoryStream(frame, 0, Size, false);
+                using var reader = new BinaryReader(stream, Encoding.UTF8, true);
+                ReadFrame(reader);
+
+                if (stream.Position != stream.Length)
+                    throw new InvalidDataException("Protocol frame contains unconsumed bytes.");
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(frame);
+            }
+        }
+
+        private void ReadFrame(BinaryReader br)
+        {
             Size = br.ReadUInt16();
             Channel = br.ReadByte();
 
             br.ReadByte(); // padding
-
-            if (Size > br.BaseStream.Length)
-            {
-                // Caller (Client.Update) logs and disconnects this client; do not break into
-                // a debugger on a headless server.
-                throw new Exception($"Fragmented receive, should not happen! Packet size: {Size} <-> Buffer length: {br.BaseStream.Length}");
-            }
 
             if (Channel == 0xFF) // Internal channel: Send timeout checking, ignore the packet
                 return;
@@ -80,86 +102,69 @@ namespace Rasa.Packets.Protocol
 
             var readBr = br;
 
-            byte[] uncompressedBuffer = null;
-
-            if (Compress)
+            try
             {
-                var someType = br.ReadByte(); // 0 = No compression
-                if (someType >= 2)
-                    throw new Exception("Invalid compress type received!");
-
-                if (someType == 1)
+                if (Compress)
                 {
-                    // Untested path: the client normally sends uncompressed bodies. If this
-                    // ever fires, Client.Update() logs and drops the connection rather than
-                    // the server breaking into a debugger.
-                    Logger.WriteLog(LogType.Debug, "Received a deflate-compressed message body (untested decompression path).");
+                    var compressionType = br.ReadByte();
+                    if (compressionType >= 2)
+                        throw new InvalidDataException("Invalid compress type received!");
 
-                    var uncompressedSize = br.ReadInt32();
-
-                    // The size is the client's claim; a frame is at most 64 KB, and nothing in
-                    // the protocol inflates past a few times that.
-                    if (uncompressedSize < 0 || uncompressedSize > MaxUncompressedSize)
-                        throw new InvalidDataException($"Compressed body claims {uncompressedSize} bytes uncompressed.");
-
-                    uncompressedBuffer = ArrayPool<byte>.Shared.Rent(uncompressedSize);
-
-                    using (var deflateStream = new DeflateStream(br.BaseStream, CompressionMode.Decompress, true)) // TODO: test if the br.BaseStream is cool as the Stream input for the DeflateStream
+                    if (compressionType == 1)
                     {
-                        // Read returns what it has, not what was asked for; loop until the
-                        // buffer is full or the stream ends.
-                        var total = 0;
+                        var uncompressedSize = br.ReadInt32();
+                        if (uncompressedSize <= 0)
+                            throw new InvalidDataException("Decompressed protocol size must be positive.");
+                        if (uncompressedSize > MaxExpandedSize)
+                            throw new InvalidDataException(
+                                $"Decompressed protocol size cannot exceed {MaxExpandedSize} bytes.");
 
-                        while (total < uncompressedSize)
-                        {
-                            var read = deflateStream.Read(uncompressedBuffer, total, uncompressedSize - total);
+                        var compressed = br.ReadBytesExactly((int)(br.BaseStream.Length - br.BaseStream.Position));
+                        readBr = new BinaryReader(
+                            ProtocolInflater.Decompress(compressed, uncompressedSize),
+                            Encoding.UTF8,
+                            false);
+                    }
+                }
 
-                            if (read == 0)
-                                break;
+                Message = Type switch
+                {
+                    ClientMessageOpcode.Login => new LoginMessage(),
+                    ClientMessageOpcode.Move => new MoveMessage(),
+                    ClientMessageOpcode.CallServerMethod => new CallServerMethodMessage(),
+                    ClientMessageOpcode.Ping => new PingMessage(),
+                    _ => throw new InvalidDataException($"Unsupported client packet type {Type}."),
+                };
 
-                            total += read;
-                        }
+                using (var reader = new ProtocolBufferReader(readBr, ProtocolBufferFlags.DontFragment))
+                {
+                    reader.ReadProtocolFlags();
 
-                        uncompressedSize = total;
+                    // Subtype and Message.Read()
+                    reader.ReadDebugByte(41);
+
+                    if ((Message.SubtypeFlags & ClientMessageSubtypeFlag.HasSubtype) == ClientMessageSubtypeFlag.HasSubtype)
+                    {
+                        Message.RawSubtype = reader.ReadByte();
+                        if (Message.RawSubtype < Message.MinSubtype || Message.RawSubtype > Message.MaxSubtype)
+                            throw new InvalidDataException("Invalid Subtype found!");
                     }
 
-                    readBr = new BinaryReader(new MemoryStream(uncompressedBuffer, 0, uncompressedSize, false), Encoding.UTF8, false);
-                }
-            }
+                    Message.Read(reader);
 
-            Message = Type switch
-            {
-                ClientMessageOpcode.Login => new LoginMessage(),
-                ClientMessageOpcode.Move => new MoveMessage(),
-                ClientMessageOpcode.CallServerMethod => new CallServerMethodMessage(),
-                ClientMessageOpcode.Ping => new PingMessage(),
-                _ => throw new Exception($"Unable to handle packet type {Type}, because it's a Server -> Client packet!"),
-            };
+                    reader.ReadDebugByte(42);
 
-            using (var reader = new ProtocolBufferReader(readBr, ProtocolBufferFlags.DontFragment))
-            {
-                reader.ReadProtocolFlags();
-
-                // Subtype and Message.Read()
-                reader.ReadDebugByte(41);
-
-                if ((Message.SubtypeFlags & ClientMessageSubtypeFlag.HasSubtype) == ClientMessageSubtypeFlag.HasSubtype)
-                {
-                    Message.RawSubtype = reader.ReadByte();
-                    if (Message.RawSubtype < Message.MinSubtype || Message.RawSubtype > Message.MaxSubtype)
-                        throw new Exception("Invalid Subtype found!");
+                    reader.ReadXORCheck((int)br.BaseStream.Position - xorCheckPosition);
                 }
 
-                Message.Read(reader);
-
-                reader.ReadDebugByte(42);
-
-                reader.ReadXORCheck((int) br.BaseStream.Position - xorCheckPosition);
+                if (readBr != br && readBr.BaseStream.Position != readBr.BaseStream.Length)
+                    throw new InvalidDataException("Decompressed payload contains unconsumed bytes.");
             }
-
-            // If we rented a buffer for decompressing, return it
-            if (uncompressedBuffer != null) 
-                ArrayPool<byte>.Shared.Return(uncompressedBuffer);
+            finally
+            {
+                if (readBr != br)
+                    readBr.Dispose();
+            }
         }
 
         public void Write(BinaryWriter bw)
@@ -183,78 +188,88 @@ namespace Rasa.Packets.Protocol
             // TODO: find limits and maybe lower this number
             // OR: use NCMS as the target stream
             var packetBuffer = ArrayPool<byte>.Shared.Rent(0x8000);
-            int uncompressedSize;
-
-            using (var ms = new MemoryStream(packetBuffer, true))
+            try
             {
-                using var packetWriter = new BinaryWriter(ms, Encoding.UTF8, true);
-                using var writer = new ProtocolBufferWriter(packetWriter, ProtocolBufferFlags.DontFragment);
+                int uncompressedSize;
 
-                writer.WriteProtocolFlags();
-
-                writer.WriteDebugByte(41);
-
-                if ((Message.SubtypeFlags & ClientMessageSubtypeFlag.HasSubtype) == ClientMessageSubtypeFlag.HasSubtype)
-                    writer.WriteByte(Message.RawSubtype);
-
-                Message.Write(writer);
-
-                writer.WriteDebugByte(42);
-
-                var currentPos = (int)ms.Position;
-
-                writer.WriteXORCheck(currentPos);
-
-                uncompressedSize = (int)ms.Position;
-            }
-
-            var compress = (Message.SubtypeFlags & ClientMessageSubtypeFlag.Compress) == ClientMessageSubtypeFlag.Compress && uncompressedSize > 0;
-
-            using (var writer = new ProtocolBufferWriter(bw, ProtocolBufferFlags.DontFragment))
-            {
-                writer.WriteProtocolFlags();
-
-                writer.WritePacketType((ushort) Message.Type, compress);
-
-                writer.WriteXORCheck((int) (bw.BaseStream.Position - packetBeginPosition));
-
-            }
-
-            int packetSize = uncompressedSize;
-
-            if (compress) // TODO: test
-            {
-                bw.Write((byte) 0x01);
-                bw.Write(uncompressedSize);
-
-                var compressedBuffer = ArrayPool<byte>.Shared.Rent(uncompressedSize);
-                int compressedSize;
-
-                using (var compressStream = new MemoryStream(compressedBuffer, true))
+                using (var ms = new MemoryStream(packetBuffer, true))
                 {
-                    using (var compressorStream = new DeflateStream(compressStream, CompressionMode.Compress, true))
-                        compressorStream.Write(packetBuffer, 0, uncompressedSize);
+                    using var packetWriter = new BinaryWriter(ms, Encoding.UTF8, true);
+                    using var writer = new ProtocolBufferWriter(packetWriter, ProtocolBufferFlags.DontFragment);
 
-                    compressedSize = (int) compressStream.Position;
+                    writer.WriteProtocolFlags();
+
+                    writer.WriteDebugByte(41);
+
+                    if ((Message.SubtypeFlags & ClientMessageSubtypeFlag.HasSubtype) == ClientMessageSubtypeFlag.HasSubtype)
+                        writer.WriteByte(Message.RawSubtype);
+
+                    Message.Write(writer);
+
+                    writer.WriteDebugByte(42);
+
+                    var currentPos = (int)ms.Position;
+
+                    writer.WriteXORCheck(currentPos);
+
+                    uncompressedSize = (int)ms.Position;
                 }
 
-                ArrayPool<byte>.Shared.Return(packetBuffer);
+                var compress = (Message.SubtypeFlags & ClientMessageSubtypeFlag.Compress) == ClientMessageSubtypeFlag.Compress && uncompressedSize > 0;
 
-                packetBuffer = compressedBuffer;
-                packetSize = compressedSize;
+                using (var writer = new ProtocolBufferWriter(bw, ProtocolBufferFlags.DontFragment))
+                {
+                    writer.WriteProtocolFlags();
+
+                    writer.WritePacketType((ushort)Message.Type, compress);
+
+                    writer.WriteXORCheck((int)(bw.BaseStream.Position - packetBeginPosition));
+                }
+
+                int packetSize = uncompressedSize;
+
+                if (compress)
+                {
+                    bw.Write((byte)0x01);
+                    bw.Write(uncompressedSize);
+
+                    var compressedBuffer = ArrayPool<byte>.Shared.Rent(uncompressedSize);
+                    try
+                    {
+                        int compressedSize;
+
+                        using (var compressStream = new MemoryStream(compressedBuffer, true))
+                        {
+                            using (var compressorStream = new DeflateStream(compressStream, CompressionMode.Compress, true))
+                                compressorStream.Write(packetBuffer, 0, uncompressedSize);
+
+                            compressedSize = (int)compressStream.Position;
+                        }
+
+                        bw.Write(compressedBuffer, 0, compressedSize);
+                    }
+                    finally
+                    {
+                        ArrayPool<byte>.Shared.Return(compressedBuffer);
+                    }
+                }
+                else
+                {
+                    bw.Write(packetBuffer, 0, packetSize);
+                }
+
+                var currentPosition = bw.BaseStream.Position;
+
+                bw.BaseStream.Position = sizePosition;
+
+                bw.Write((ushort)(currentPosition - sizePosition));
+
+                bw.BaseStream.Position = currentPosition;
             }
-
-            bw.Write(packetBuffer, 0, packetSize);
-
-            ArrayPool<byte>.Shared.Return(packetBuffer);
-
-            var currentPosition = bw.BaseStream.Position;
-
-            bw.BaseStream.Position = sizePosition;
-
-            bw.Write((ushort) (currentPosition - sizePosition));
-
-            bw.BaseStream.Position = currentPosition;
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(packetBuffer);
+            }
         }
     }
 }

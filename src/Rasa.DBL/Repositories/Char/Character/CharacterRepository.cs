@@ -219,6 +219,14 @@ namespace Rasa.Repositories.Char.Character
             _charContext.SaveChanges();
         }
 
+        public void UpdateCharacterCurrencies(uint id, int credits, int prestige)
+        {
+            var entry = _charContext.GetWritableEnsuring(_charContext.CharacterEntries, id);
+            entry.Credit = credits;
+            entry.Prestige = prestige;
+            _charContext.SaveChanges();
+        }
+
         public void UpdateCharacterPrestige(uint id, int prestige)
         {
             var entry = GetWritable(id);
@@ -240,6 +248,37 @@ namespace Rasa.Repositories.Char.Character
 
             entry.Experience = experience;
 
+            _charContext.SaveChanges();
+        }
+
+        public void UpdateCharacterProgression(uint id, uint experience, byte level)
+        {
+            var entry = _charContext.GetWritableEnsuring(_charContext.CharacterEntries, id);
+            entry.Experience = experience;
+            entry.Level = level;
+            _charContext.SaveChanges();
+        }
+
+        public void ReconcileBootcampCharacter(
+            uint id,
+            uint experience,
+            byte level,
+            uint classId,
+            double x,
+            double y,
+            double z,
+            double rotation,
+            uint mapContextId)
+        {
+            var entry = _charContext.GetWritableEnsuring(_charContext.CharacterEntries, id);
+            entry.Experience = experience;
+            entry.Level = level;
+            entry.Class = classId;
+            entry.CoordX = x;
+            entry.CoordY = y;
+            entry.CoordZ = z;
+            entry.Rotation = rotation;
+            entry.MapContextId = mapContextId;
             _charContext.SaveChanges();
         }
 
@@ -297,15 +336,10 @@ namespace Rasa.Repositories.Char.Character
             _charContext.SaveChanges();
         }
 
-        public void UpdateCharacterActiveAbilitySlot(uint id, byte activeAbilitySlot)
+        public void UpdateCharacterAbilitySlot(uint id, byte slot)
         {
-            var entry = GetWritable(id);
-
-            if (entry == null)
-                return;
-
-            entry.ActiveAbilitySlot = activeAbilitySlot;
-
+            var entry = _charContext.GetWritableEnsuring(_charContext.CharacterEntries, id);
+            entry.CurrentAbilitySlot = slot;
             _charContext.SaveChanges();
         }
 

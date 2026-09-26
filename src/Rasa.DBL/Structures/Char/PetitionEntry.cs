@@ -68,15 +68,15 @@ namespace Rasa.Structures.Char
         [Required]
         public uint MapContextId { get; set; }
 
-        [Column("pos_x")]
+        [Column("pos_x", TypeName = "double")]
         [Required]
         public double PosX { get; set; }
 
-        [Column("pos_y")]
+        [Column("pos_y", TypeName = "double")]
         [Required]
         public double PosY { get; set; }
 
-        [Column("pos_z")]
+        [Column("pos_z", TypeName = "double")]
         [Required]
         public double PosZ { get; set; }
 

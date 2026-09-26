@@ -5,8 +5,14 @@ namespace Rasa.Structures
     public class LootItem
     {
         public LootItem()
+            : this(true)
         {
-            EntityId = EntityManager.Instance.GetEntityId;
+        }
+
+        private LootItem(bool allocateEntityId)
+        {
+            if (allocateEntityId)
+                EntityId = EntityManager.Instance.GetEntityId;
         }
         public ulong EntityId { get; set; }
         public uint ItemTemplateId { get; set; }
@@ -45,8 +51,8 @@ namespace Rasa.Structures
             ReservedFor != 0 ? ReservedFor == entityId : PartyId != 0 || ActorId == entityId;
 
         public LootItem(uint itemTemplateId, uint itemClassId, uint itemQuantity, ulong actorId, uint partyId)
+            : this(true)
         {
-            EntityId = EntityManager.Instance.GetEntityId;
             ItemTemplateId = itemTemplateId;
             ItemClassId = itemClassId;
             ItemQuantity = itemQuantity;
@@ -56,6 +62,7 @@ namespace Rasa.Structures
 
         /// <summary>A row standing for an item that already exists; its entity id is the item's.</summary>
         public LootItem(Item item, ulong actorId, uint partyId)
+            : this(false)
         {
             Item = item;
             EntityId = item.EntityId;
@@ -65,5 +72,16 @@ namespace Rasa.Structures
             ActorId = actorId;
             PartyId = partyId;
         }
+
+        internal static LootItem Capture(LootItem source) => new(false)
+        {
+            EntityId = source.EntityId,
+            ItemTemplateId = source.ItemTemplateId,
+            ItemClassId = source.ItemClassId,
+            ItemQuantity = source.ItemQuantity,
+            ActorId = source.ActorId,
+            PartyId = source.PartyId,
+            Taken = source.Taken
+        };
     }
 }

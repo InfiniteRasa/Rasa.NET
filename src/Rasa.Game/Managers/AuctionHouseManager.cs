@@ -6,6 +6,7 @@ namespace Rasa.Managers
 {
     using Data;
     using Memory;
+    using Packets;
     using Packets.Inventory.Server;
     using Packets.MapChannel.Server;
     using Rasa.Game;
@@ -53,8 +54,51 @@ namespace Rasa.Managers
 
         private static AuctionHouseManager _instance;
         private static readonly object InstanceLock = new object();
+        private static readonly object AuctionSyncRoot = new object();
 
         private readonly IGameUnitOfWorkFactory _gameUnitOfWorkFactory;
+        private readonly ManifestationManager _currencyManager;
+        private readonly MissionApplication _missionManager;
+        private readonly Action<PythonPacket> _beforeBuyoutPublication;
+
+        private sealed class BuyoutRejection : Exception
+        {
+            internal PlayerMessage FailureMessage { get; }
+
+            internal BuyoutRejection(PlayerMessage message)
+            {
+                FailureMessage = message;
+            }
+        }
+
+        private sealed class BuyoutResult
+        {
+            internal PlayerMessage? FailureMessage { get; init; }
+            internal AuctionEntry Auction { get; init; }
+            internal Client Seller { get; init; }
+            internal int BuyerCredits { get; init; }
+            internal int SellerCredits { get; init; }
+            internal uint InboxSlot { get; init; }
+            internal MissionProgressPublicationPlan ProgressPlan { get; init; }
+        }
+
+        private sealed class CancelResult
+        {
+            internal PlayerMessage? FailureMessage { get; init; }
+            internal Item Item { get; init; }
+            internal uint Slot { get; init; }
+        }
+
+        private sealed class ExpiryResult
+        {
+            internal Item Item { get; init; }
+            internal uint SellerId { get; init; }
+            internal uint InboxSlot { get; init; }
+        }
+
+        private sealed class ExpiryDeferred : Exception
+        {
+        }
 
         /// <summary>
         /// Deposit charged to list an item, in tenths of a percent, by the duration the seller
@@ -89,8 +133,19 @@ namespace Rasa.Managers
         }
 
         private AuctionHouseManager(IGameUnitOfWorkFactory gameUnitOfWorkFactory)
+            : this(gameUnitOfWorkFactory, null)
+        {
+        }
+
+        internal AuctionHouseManager(
+            IGameUnitOfWorkFactory gameUnitOfWorkFactory,
+            MissionApplication missionManager,
+            Action<PythonPacket> beforeBuyoutPublication = null)
         {
             _gameUnitOfWorkFactory = gameUnitOfWorkFactory;
+            _currencyManager = new ManifestationManager(gameUnitOfWorkFactory);
+            _missionManager = missionManager;
+            _beforeBuyoutPublication = beforeBuyoutPublication;
         }
 
         #region Handlers
@@ -115,58 +170,225 @@ namespace Rasa.Managers
                 return;
             }
 
-            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
-            var auction = unitOfWork.Auctions.GetAuctionByItemId(item.Id);
+            BuyoutResult result;
+            lock (AuctionSyncRoot)
+                result = ConsumeBuyoutLocked(client, packet, item);
 
-            if (auction == null)
+            if (result.FailureMessage.HasValue)
             {
-                BuyoutFailed(client, packet.ItemId, PlayerMessage.PmAuctionItemNotFound);
+                BuyoutFailed(client, packet.ItemId, result.FailureMessage.Value);
                 return;
             }
 
-            if (auction.SellerId == client.Player.Id)
-            {
-                BuyoutFailed(client, packet.ItemId, PlayerMessage.PmAuctionCannotPurchaseOwnItem);
-                return;
-            }
+            client.Player.Credits[CurencyType.Credits] = result.BuyerCredits;
+            if (result.Seller != null)
+                result.Seller.Player.Credits[CurencyType.Credits] =
+                    result.SellerCredits;
 
-            // The price the buyer agreed to, checked against the price on the row: a listing can
-            // only be bought for what it says, however stale the window they clicked in.
-            if (packet.Price != auction.Price)
-            {
-                BuyoutFailed(client, packet.ItemId, PlayerMessage.PmAuctionPendingTransaction);
-                return;
-            }
+            item.OwnerId = client.Player.Id;
+            item.OwnerSlotId = result.InboxSlot;
+            client.Player.Inventory.InboxItems.Add(item.EntityId);
+            var seller = OnlineSeller(result.Auction.SellerId);
+            seller?.Player.Inventory.AuctionItems.Remove(item.EntityId);
 
-            if (client.Player.Credits[CurencyType.Credits] < auction.Price)
+            PublishBuyoutPacket(
+                client,
+                client.Player.EntityId,
+                new UpdateCreditsPacket(
+                    CurencyType.Credits,
+                    result.BuyerCredits,
+                    0),
+                $"auction item {item.Id} buyer credits");
+            if (result.Seller != null)
+                MissionApplication.TryPublish(
+                    () => result.Seller.CallMethod(
+                        result.Seller.Player.EntityId,
+                        new UpdateCreditsPacket(
+                            CurencyType.Credits,
+                            result.SellerCredits,
+                            0)),
+                    $"auction item {item.Id} seller credits");
+            MissionApplication.TryPublish(
+                () => ItemManager.Instance.SendItemDataToClient(
+                    client,
+                    item,
+                    false),
+                $"auction item {item.Id} entity data");
+            PublishBuyoutPacket(
+                client,
+                (ulong)SysEntity.ClientInventoryManagerId,
+                new AddInboxItemPacket(item.EntityId),
+                $"auction item {item.Id} inbox delivery");
+            if (seller != null)
             {
-                BuyoutFailed(client, packet.ItemId, PlayerMessage.PmAuctionInsufficientFunds);
-                return;
+                MissionApplication.TryPublish(
+                    () => seller.CallMethod(
+                        SysEntity.ClientInventoryManagerId,
+                        new RemoveAuctionItemPacket(item.EntityId)),
+                    $"auction item {item.Id} seller inventory removal");
+                MissionApplication.TryPublish(
+                    () => seller.CallMethod(
+                        SysEntity.ClientAuctionHouseManagerId,
+                        new AuctionSoldPacket(
+                            item.EntityId,
+                            result.Auction.Price)),
+                    $"auction item {item.Id} sold result");
             }
-
-            if (client.Player.Inventory.InboxItems.Count >= Inventory.MaxInboxItems)
-            {
-                BuyoutFailed(client, packet.ItemId, PlayerMessage.PmAuctionNoBuyoutInboxFull);
-                return;
-            }
-
-            // Delivered before anyone is charged: if the inbox will not take it, nothing else
-            // has happened yet and the auction is still standing.
-            if (!InventoryManager.Instance.DeliverToInbox(unitOfWork, client.AccountEntry.Id, client.Player.Id, item))
-            {
-                BuyoutFailed(client, packet.ItemId, PlayerMessage.PmAuctionNoBuyoutInboxFull);
-                return;
-            }
-
-            unitOfWork.Auctions.DeleteAuction(item.Id);
-            CharacterManager.Instance.UpdateCharacter(client, CharacterUpdate.Credits, -(int)auction.Price);
-            PaySeller(unitOfWork, auction);
-            RemoveFromSellersAuctionList(auction.SellerId, item.EntityId, auction.Price);
+            PublishBuyoutPacket(
+                client,
+                (ulong)SysEntity.ClientAuctionHouseManagerId,
+                new AuctionBuyoutSuccessPacket(item.EntityId),
+                $"auction item {item.Id} buyout result");
+            result.ProgressPlan.Publish(client);
 
             // The buyer is the one asking, so they are logged in and it is in their inbox now.
             Unlist(item, true);
+        }
 
-            client.CallMethod(SysEntity.ClientAuctionHouseManagerId, new AuctionBuyoutSuccessPacket(item.EntityId));
+        private BuyoutResult ConsumeBuyoutLocked(
+            Client client,
+            RequestAuctionBuyoutPacket packet,
+            Item item)
+        {
+            AuctionEntry auction = null;
+            Client seller = null;
+            var buyerAfter = 0;
+            var sellerAfter = 0;
+            var inboxSlot = 0u;
+            var progressPlan =
+                MissionProgressPublicationPlan.Empty;
+
+            try
+            {
+                using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+                unitOfWork.ExecuteTransaction(() =>
+                {
+                    auction = unitOfWork.Auctions.GetAuctionByItemId(item.Id);
+                    if (auction == null)
+                        throw new BuyoutRejection(
+                            PlayerMessage.PmAuctionItemNotFound);
+
+                    if (auction.SellerId == client.Player.Id)
+                        throw new BuyoutRejection(
+                            PlayerMessage.PmAuctionCannotPurchaseOwnItem);
+
+                    if (packet.Price != auction.Price)
+                        throw new BuyoutRejection(
+                            PlayerMessage.PmAuctionPendingTransaction);
+
+                    var buyer = unitOfWork.Characters.Find(client.Player.Id);
+                    var durableItem =
+                        unitOfWork.CharacterInventories.FindByItemId(item.Id);
+                    if (buyer == null ||
+                        buyer.AccountId != client.AccountEntry.Id ||
+                        !client.Player.Credits.TryGetValue(
+                            CurencyType.Credits, out var runtimeBuyerCredits) ||
+                        buyer.Credit != runtimeBuyerCredits ||
+                        durableItem == null ||
+                        durableItem.CharacterId != auction.SellerId ||
+                        durableItem.InventoryType !=
+                        (uint)InventoryType.AuctionInventory ||
+                        item.OwnerId != auction.SellerId)
+                        throw new BuyoutRejection(
+                            PlayerMessage.PmAuctionPendingTransaction);
+
+                    if (buyer.Credit < auction.Price)
+                        throw new BuyoutRejection(
+                            PlayerMessage.PmAuctionInsufficientFunds);
+
+                    var durableSeller =
+                        unitOfWork.Characters.Find(auction.SellerId);
+                    if (durableSeller == null)
+                        throw new BuyoutRejection(
+                            PlayerMessage.PmAuctionPendingTransaction);
+
+                    seller = OnlineSeller(auction.SellerId);
+                    if (seller != null &&
+                        (!seller.Player.Credits.TryGetValue(
+                             CurencyType.Credits, out var runtimeSellerCredits) ||
+                         runtimeSellerCredits != durableSeller.Credit))
+                        throw new BuyoutRejection(
+                            PlayerMessage.PmAuctionPendingTransaction);
+
+                    buyerAfter = checked(buyer.Credit - (int)auction.Price);
+                    sellerAfter = checked(
+                        durableSeller.Credit + (int)auction.Price);
+
+                    if (!unitOfWork.Auctions.DeleteAuction(item.Id))
+                        throw new BuyoutRejection(
+                            PlayerMessage.PmAuctionPendingTransaction);
+
+                    unitOfWork.Characters.UpdateCharacterCredits(
+                        buyer.Id, buyerAfter);
+                    unitOfWork.Characters.UpdateCharacterCredits(
+                        durableSeller.Id, sellerAfter);
+
+                    if (!InventoryManager.Instance.TryMoveToInbox(
+                            unitOfWork,
+                            buyer.AccountId,
+                            buyer.Id,
+                            item.Id,
+                            out inboxSlot))
+                        throw new BuyoutRejection(
+                            PlayerMessage.PmAuctionNoBuyoutInboxFull);
+
+                    progressPlan = (_missionManager ?? MissionApplication.Instance)
+                        .PlanProgress(
+                            client,
+                            new[]
+                            {
+                                MissionProgressEvent.ItemAcquired(
+                                    (uint)item.ItemTemplate.Class,
+                                    item.StackSize)
+                            },
+                            unitOfWork);
+                });
+            }
+            catch (BuyoutRejection rejection)
+            {
+                return new BuyoutResult
+                {
+                    FailureMessage = rejection.FailureMessage
+                };
+            }
+            catch (Exception error) when (
+                GameplayRejectionException.IsExpected(error) ||
+                error is OverflowException ||
+                error is System.Data.Common.DbException ||
+                error is Microsoft.EntityFrameworkCore.DbUpdateException)
+            {
+                Logger.WriteLog(LogType.Error,
+                    $"Auction buyout for item {item.Id} failed atomically: {error.Message}");
+                return new BuyoutResult
+                {
+                    FailureMessage = PlayerMessage.PmAuctionPendingTransaction
+                };
+            }
+
+            return new BuyoutResult
+            {
+                Auction = auction,
+                Seller = seller,
+                BuyerCredits = buyerAfter,
+                SellerCredits = sellerAfter,
+                InboxSlot = inboxSlot,
+                ProgressPlan = progressPlan
+            };
+        }
+
+        private void PublishBuyoutPacket(
+            Client client,
+            ulong entityId,
+            PythonPacket packet,
+            string description)
+        {
+            MissionApplication.TryPublish(
+                () =>
+                {
+                    _beforeBuyoutPublication?.Invoke(packet);
+                    client.CallMethod(entityId, packet);
+                },
+                description);
         }
 
         /// <summary>
@@ -209,47 +431,111 @@ namespace Rasa.Managers
             if (NpcManager.NpcInReach(client, packet.EntityId, NpcManager.IsAuctioneerNpc, "an auctioneer") == null)
                 return;
 
-            var item = EntityManager.Instance.GetItem(packet.ItemEntityId);
+            CancelResult result;
+            lock (AuctionSyncRoot)
+                result = ConsumeCancellationLocked(client, packet.ItemEntityId);
 
-            if (item == null || !client.Player.Inventory.AuctionItems.Contains(packet.ItemEntityId))
+            if (result.FailureMessage.HasValue)
             {
-                FailCancel(client, packet.ItemEntityId, PlayerMessage.PmAuctionItemNotFound);
+                FailCancel(client, packet.ItemEntityId, result.FailureMessage.Value);
                 return;
             }
 
-            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
-            var auction = unitOfWork.Auctions.GetAuctionByItemId(item.Id);
+            client.Player.Inventory.AuctionItems.Remove(packet.ItemEntityId);
+            client.CallMethod(SysEntity.ClientInventoryManagerId,
+                new RemoveAuctionItemPacket(packet.ItemEntityId));
 
-            if (auction == null || auction.SellerId != client.Player.Id)
-            {
-                FailCancel(client, packet.ItemEntityId, PlayerMessage.PmAuctionItemNotFound);
-                return;
-            }
+            result.Item.OwnerId = client.Player.Id;
+            result.Item.OwnerSlotId = result.Slot;
+            client.Player.Inventory.PersonalInventory[(int)result.Slot] =
+                result.Item.EntityId;
+            client.CallMethod(SysEntity.ClientInventoryManagerId,
+                new InventoryAddItemPacket(
+                    InventoryType.Personal, result.Item.EntityId, result.Slot));
+            client.CallMethod(SysEntity.ClientAuctionHouseManagerId,
+                new CancelAuctionSuccessPacket(packet.ItemEntityId));
+
+            Unlist(result.Item, true);
+        }
+
+        private CancelResult ConsumeCancellationLocked(
+            Client client,
+            ulong itemEntityId)
+        {
+            var item = EntityManager.Instance.GetItem(itemEntityId);
+
+            if (item == null ||
+                !client.Player.Inventory.AuctionItems.Contains(itemEntityId))
+                return new CancelResult
+                {
+                    FailureMessage = PlayerMessage.PmAuctionItemNotFound
+                };
 
             var slotId = FindFreePersonalSlot(client, item);
-
             if (slotId < 0)
             {
-                // Nothing here has changed yet, so the auction simply stays up.
-                FailCancel(client, packet.ItemEntityId, PlayerMessage.PmAuctionInternalError);
                 Logger.WriteLog(LogType.Debug, $"Character {client.Player.Id} cancelled an auction with no free inventory slot for the item.");
-                return;
+                return new CancelResult
+                {
+                    FailureMessage = PlayerMessage.PmAuctionInternalError
+                };
             }
 
-            unitOfWork.Auctions.DeleteAuction(item.Id);
-            client.Player.Inventory.AuctionItems.Remove(packet.ItemEntityId);
-            Unlist(item, true);
+            try
+            {
+                using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+                unitOfWork.ExecuteTransaction(() =>
+                {
+                    var auction = unitOfWork.Auctions.GetAuctionByItemId(item.Id);
+                    var durableItem =
+                        unitOfWork.CharacterInventories.FindByItemId(item.Id);
+                    if (auction == null ||
+                        auction.SellerId != client.Player.Id ||
+                        durableItem == null ||
+                        durableItem.AccountId != client.AccountEntry.Id ||
+                        durableItem.CharacterId != client.Player.Id ||
+                        durableItem.InventoryType !=
+                        (uint)InventoryType.AuctionInventory ||
+                        item.OwnerId != client.Player.Id)
+                        throw new BuyoutRejection(
+                            PlayerMessage.PmAuctionItemNotFound);
 
-            client.CallMethod(SysEntity.ClientInventoryManagerId, new RemoveAuctionItemPacket(packet.ItemEntityId));
+                    if (!unitOfWork.Auctions.DeleteAuction(item.Id))
+                        throw new BuyoutRejection(
+                            PlayerMessage.PmAuctionPendingTransaction);
 
-            item.OwnerId = client.Player.Id;
-            item.OwnerSlotId = (uint)slotId;
+                    unitOfWork.CharacterInventories.MoveInvItem(
+                        client.AccountEntry.Id,
+                        client.Player.Id,
+                        (uint)InventoryType.Personal,
+                        (uint)slotId,
+                        item.Id);
+                });
+            }
+            catch (BuyoutRejection rejection)
+            {
+                return new CancelResult
+                {
+                    FailureMessage = rejection.FailureMessage
+                };
+            }
+            catch (Exception error) when (
+                error is System.Data.Common.DbException ||
+                error is Microsoft.EntityFrameworkCore.DbUpdateException)
+            {
+                Logger.WriteLog(LogType.Error,
+                    $"Auction cancellation for item {item.Id} failed atomically: {error.Message}");
+                return new CancelResult
+                {
+                    FailureMessage = PlayerMessage.PmAuctionPendingTransaction
+                };
+            }
 
-            // The row already exists from when the item was listed, so this is a move, not an
-            // insert - AddItemBySlot with actuallyAdd false updates it in place.
-            InventoryManager.Instance.AddItemBySlot(client, InventoryType.Personal, item.EntityId, (uint)slotId, true);
-
-            client.CallMethod(SysEntity.ClientAuctionHouseManagerId, new CancelAuctionSuccessPacket(packet.ItemEntityId));
+            return new CancelResult
+            {
+                Item = item,
+                Slot = (uint)slotId
+            };
         }
 
         /// <summary>
@@ -293,7 +579,8 @@ namespace Rasa.Managers
                 return;
             }
 
-            if (!CanBeAuctioned(item))
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+            if (!CanBeAuctioned(item) || Game.Missions.Persistence.MissionItemProtection.IsProtected(item, unitOfWork))
             {
                 Fail(client, packet.ItemEntityId, PlayerMessage.PmAuctionItemCannotBeAuctioned);
                 return;
@@ -321,7 +608,12 @@ namespace Rasa.Managers
                 return;
             }
 
-            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+            if (!_currencyManager.LossCredits(client, (int)deposit))
+            {
+                Fail(client, packet.ItemEntityId, PlayerMessage.PmAuctionNotEnoughCreditsForDeposit);
+                return;
+            }
+
             var auction = new AuctionEntry(item.Id, client.Player.Id, client.Player.Name, packet.Price,
                 deposit, DurationHours[packet.Duration]);
 
@@ -329,11 +621,12 @@ namespace Rasa.Managers
             // the player keeps their credits and their item.
             if (!unitOfWork.Auctions.CreateAuction(auction))
             {
+                if (!_currencyManager.GainCredits(client, (int)deposit))
+                    Logger.WriteLog(LogType.Error,
+                        $"Auction listing for item {item.Id} could not refund character {client.Player.Id}.");
                 Fail(client, packet.ItemEntityId, PlayerMessage.PmAuctionInternalError);
                 return;
             }
-
-            CharacterManager.Instance.UpdateCharacter(client, CharacterUpdate.Credits, -(int)deposit);
 
             // Out of the pack, into the auction inventory. RemoveItemBySlot does no database work
             // of its own, so the row is moved here.
@@ -468,17 +761,22 @@ namespace Rasa.Managers
         /// </summary>
         public void ExpireAuctions()
         {
-            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+            List<AuctionEntry> auctions;
+            using (var unitOfWork = _gameUnitOfWorkFactory.CreateChar())
+                auctions = unitOfWork.Auctions.GetAuctions();
 
-            ExpireAll(unitOfWork, unitOfWork.Auctions.GetAuctions());
+            ExpireAll(auctions);
         }
 
         /// <summary>Expires just this character's auctions, on their way into the world.</summary>
         public void ExpireAuctionsFor(Client client)
         {
-            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+            List<AuctionEntry> auctions;
+            using (var unitOfWork = _gameUnitOfWorkFactory.CreateChar())
+                auctions =
+                    unitOfWork.Auctions.GetAuctionsBySeller(client.Player.Id);
 
-            ExpireAll(unitOfWork, unitOfWork.Auctions.GetAuctionsBySeller(client.Player.Id));
+            ExpireAll(auctions);
         }
 
         #endregion
@@ -520,7 +818,7 @@ namespace Rasa.Managers
         /// </summary>
         public static bool CanBeAuctioned(Item item)
         {
-            if (item?.ItemTemplate == null)
+            if (item?.ItemTemplate == null || item.MissionOwnership != null)
                 return false;
 
             if (item.IsBound)
@@ -548,7 +846,7 @@ namespace Rasa.Managers
         /// pass gives up instead of writing a line per auction; the next one is five minutes
         /// away.
         /// </summary>
-        private void ExpireAll(ICharUnitOfWork unitOfWork, List<AuctionEntry> auctions)
+        private void ExpireAll(List<AuctionEntry> auctions)
         {
             var now = DateTime.UtcNow;
             var consecutiveFailures = 0;
@@ -560,7 +858,21 @@ namespace Rasa.Managers
 
                 try
                 {
-                    Expire(unitOfWork, auction);
+                    ExpiryResult result;
+                    lock (AuctionSyncRoot)
+                        result = ConsumeExpiryLocked(auction.ItemId);
+
+                    if (result?.Item != null)
+                    {
+                        result.Item.OwnerId = result.SellerId;
+                        result.Item.OwnerSlotId = result.InboxSlot;
+                        InventoryManager.Instance.PublishInboxDelivery(
+                            OnlineSeller(result.SellerId), result.Item);
+                        RemoveFromSellersAuctionList(
+                            result.SellerId, result.Item.EntityId, null);
+                        Unlist(result.Item, InSomeonesInbox(result.Item.EntityId));
+                    }
+
                     consecutiveFailures = 0;
                 }
                 catch (Exception e)
@@ -586,78 +898,86 @@ namespace Rasa.Managers
         /// Every way this can fail to return the item is answered here rather than thrown, so
         /// that one auction cannot take the sweep down with it.
         /// </summary>
-        private void Expire(ICharUnitOfWork unitOfWork, AuctionEntry auction)
+        private ExpiryResult ConsumeExpiryLocked(uint itemId)
         {
-            var accountId = AccountOf(auction.SellerId, unitOfWork);
-
-            // Asked before the item is looked for, because this is the case where there is
-            // nothing to look for it on behalf of. A character deleted with auctions running
-            // leaves the rows behind (they carry no foreign key), and an item cannot be
-            // returned to an inbox that no character owns - the row would be written against
-            // account 0 and never load again. The listing is simply taken down.
-            if (accountId == null)
+            ExpiryResult result = null;
+            try
             {
-                Logger.WriteLog(LogType.Error,
-                    $"Auction on item {auction.ItemId} has expired but its seller {auction.SellerName} ({auction.SellerId}) no longer exists; the listing is removed.");
+                using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+                unitOfWork.ExecuteTransaction(() =>
+                {
+                    var auction = unitOfWork.Auctions.GetAuctionByItemId(itemId);
+                    if (auction == null ||
+                        auction.RemainingHours(DateTime.UtcNow) > 0)
+                        return;
 
-                unitOfWork.Auctions.DeleteAuction(auction.ItemId);
+                    var accountId = AccountOf(auction.SellerId, unitOfWork);
 
-                // And its item, if one was loaded for it: there is nobody to hold it now.
-                var orphan = ListedItem(auction.ItemId);
+                    // Asked before the item is looked for, because this is the case where there
+                    // is nothing to look for it on behalf of. A character deleted with auctions
+                    // running leaves the rows behind, and an item cannot be returned to account
+                    // zero. Consuming the listing is the only safe terminal transition.
+                    if (accountId == null)
+                    {
+                        Logger.WriteLog(LogType.Error,
+                            $"Auction on item {auction.ItemId} has expired but its seller {auction.SellerName} ({auction.SellerId}) no longer exists; the listing is removed.");
 
-                if (orphan != null)
-                    Unlist(orphan, false);
+                        if (!unitOfWork.Auctions.DeleteAuction(auction.ItemId))
+                            throw new ExpiryDeferred();
 
-                return;
+                        // And its item, if one was loaded for it: there is nobody to hold it now.
+                        var orphan = ListedItem(auction.ItemId);
+
+                        if (orphan != null)
+                            Unlist(orphan, false);
+                        return;
+                    }
+
+                    var item = FindAuctionedItem(auction, unitOfWork);
+                    var durableItem =
+                        unitOfWork.CharacterInventories.FindByItemId(itemId);
+                    if (item == null ||
+                        durableItem == null ||
+                        durableItem.AccountId != accountId.Value ||
+                        durableItem.CharacterId != auction.SellerId ||
+                        durableItem.InventoryType !=
+                        (uint)InventoryType.AuctionInventory ||
+                        item.OwnerId != auction.SellerId)
+                    {
+                        Logger.WriteLog(LogType.Error,
+                            $"Auction on item {auction.ItemId} has expired but its item or auction ownership is gone; row left in place.");
+                        return;
+                    }
+
+                    if (!unitOfWork.Auctions.DeleteAuction(auction.ItemId))
+                        throw new ExpiryDeferred();
+
+                    if (!InventoryManager.Instance.TryMoveToInbox(
+                            unitOfWork,
+                            accountId.Value,
+                            auction.SellerId,
+                            item.Id,
+                            out var inboxSlot))
+                    {
+                        Logger.WriteLog(LogType.Debug,
+                            $"Auction on item {auction.ItemId} has expired but {auction.SellerName}'s inbox is full; it will be retried.");
+                        throw new ExpiryDeferred();
+                    }
+
+                    result = new ExpiryResult
+                    {
+                        Item = item,
+                        SellerId = auction.SellerId,
+                        InboxSlot = inboxSlot
+                    };
+                });
+            }
+            catch (ExpiryDeferred)
+            {
+                return null;
             }
 
-            var item = FindAuctionedItem(auction, unitOfWork);
-
-            if (item == null)
-            {
-                Logger.WriteLog(LogType.Error, $"Auction on item {auction.ItemId} has expired but its item is gone; row left in place.");
-                return;
-            }
-
-            if (!InventoryManager.Instance.DeliverToInbox(unitOfWork, accountId.Value, auction.SellerId, item))
-            {
-                Logger.WriteLog(LogType.Debug, $"Auction on item {auction.ItemId} has expired but {auction.SellerName}'s inbox is full; it will be retried.");
-                return;
-            }
-
-            unitOfWork.Auctions.DeleteAuction(auction.ItemId);
-            RemoveFromSellersAuctionList(auction.SellerId, item.EntityId, null);
-            Unlist(item, InSomeonesInbox(item.EntityId));
-        }
-
-        /// <summary>
-        /// Adds the proceeds to the seller's character row. Done through CharacterManager when
-        /// they are online so their purse and their client agree, and straight to the row when
-        /// they are not - the money has to arrive either way.
-        /// </summary>
-        private static void PaySeller(ICharUnitOfWork unitOfWork, AuctionEntry auction)
-        {
-            var seller = OnlineSeller(auction.SellerId);
-
-            if (seller != null)
-            {
-                CharacterManager.Instance.UpdateCharacter(seller, CharacterUpdate.Credits, (int)auction.Price);
-                return;
-            }
-
-            var character = unitOfWork.Characters.Find(auction.SellerId);
-
-            // A listing outlives a deleted seller until the expiry sweep reaches it, so it can
-            // still be bought in the meantime. The buyer has the item and has been charged for
-            // it by this point; there is simply nobody left to pay, so the credits are destroyed
-            // rather than conjured onto a row that is not there.
-            if (character == null)
-            {
-                Logger.WriteLog(LogType.Error, $"Auction on item {auction.ItemId} sold but seller {auction.SellerId} no longer exists; proceeds dropped.");
-                return;
-            }
-
-            unitOfWork.Characters.UpdateCharacterCredits(auction.SellerId, character.Credit + (int)auction.Price);
+            return result;
         }
 
         /// <summary>
@@ -698,18 +1018,25 @@ namespace Rasa.Managers
         /// <summary>The registered Item for a listing, or null if none is loaded.</summary>
         public Item ListedItem(uint itemId)
         {
-            if (!Listed.TryGetValue(itemId, out var item))
+            lock (Listed)
+            {
+                if (!Listed.TryGetValue(itemId, out var item))
+                    return null;
+
+                if (EntityManager.Instance.GetItem(item.EntityId) == item)
+                    return item;
+
+                Listed.Remove(itemId);
                 return null;
-
-            if (EntityManager.Instance.GetItem(item.EntityId) == item)
-                return item;
-
-            Listed.Remove(itemId);
-            return null;
+            }
         }
 
         /// <summary>Hands an item to the auction house for as long as it is listed.</summary>
-        public void List(Item item) => Listed[item.Id] = item;
+        public void List(Item item)
+        {
+            lock (Listed)
+                Listed[item.Id] = item;
+        }
 
         /// <summary>
         /// The listing is over; the item belongs to whoever it went to. If nobody who is logged in
@@ -718,14 +1045,16 @@ namespace Rasa.Managers
         /// </summary>
         private static void Unlist(Item item, bool heldByOnlinePlayer)
         {
-            Listed.Remove(item.Id);
+            if (item == null)
+                return;
+
+            lock (Listed)
+                Listed.Remove(item.Id);
 
             if (heldByOnlinePlayer)
                 return;
 
-            EntityManager.Instance.UnregisterEntity(item.EntityId);
-            EntityManager.Instance.UnregisterItem(item.EntityId);
-            EntityManager.Instance.FreeEntity(item.EntityId);
+            EntityManager.Instance.ReleaseEntity(item.EntityId, EntityType.Item);
         }
 
         /// <summary>Whether any logged-in player has this entity in their inbox.</summary>

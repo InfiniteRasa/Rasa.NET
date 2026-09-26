@@ -23,7 +23,7 @@ namespace Rasa.Packets.LootDispenser.Server
         public ActorGotLootPacket(ulong actorId, List<ulong> itemIds)
         {
             ActorId = actorId;
-            ItemIds = itemIds ?? new List<ulong>();
+            ItemIds = itemIds == null ? new List<ulong>() : new List<ulong>(itemIds);
         }
 
         public override void Write(PythonWriter pw)

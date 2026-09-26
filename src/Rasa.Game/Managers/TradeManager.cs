@@ -245,8 +245,9 @@ namespace Rasa.Managers
             }
 
             // Bound on Character - bound when it was equipped, or bound by its template - or Not
-            // Tradable (mission items are both): "This item cannot be traded."
-            if (item.IsBound || item.ItemTemplate.NotTradable)
+            // Tradable (mission items are both), or held for a mission: "This item cannot be traded."
+            if (item.IsBound || item.ItemTemplate.NotTradable ||
+                Game.Missions.Persistence.MissionItemProtection.IsProtected(item, Server.GameUnitOfWorkFactory))
             {
                 Decline(client, PlayerMessage.PmTradeItemCanNotBeTraded);
                 return;
@@ -390,6 +391,9 @@ namespace Rasa.Managers
                 using var unitOfWork = Server.GameUnitOfWorkFactory.CreateChar();
                 using var transaction = unitOfWork.BeginTransaction();
 
+                if (toB.Concat(toA).Any(move =>
+                    Game.Missions.Persistence.MissionItemProtection.IsProtected(move.Item, unitOfWork)))
+                    throw new GameplayRejectionException("Assignment-owned items cannot be traded.");
                 foreach (var move in toB.Concat(toA))
                     unitOfWork.CharacterInventories.MoveInvItem(
                         move.To.AccountEntry.Id, move.To.Player.Id, (uint)InventoryType.Personal, move.Slot, move.Item.Id);
@@ -466,7 +470,7 @@ namespace Rasa.Managers
             {
                 var item = EntityManager.Instance.GetItem(offered.EntityId);
 
-                if (item == null || !HoldsInPersonalInventory(client, offered.EntityId))
+                if (item == null || item.MissionOwnership != null || !HoldsInPersonalInventory(client, offered.EntityId))
                     return false;
 
                 // Equipped and taken off again between the offer and the exchange: a Bind on

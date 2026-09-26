@@ -1,0 +1,24 @@
+## 2026-09-19 - Final whole-branch finding fix
+
+- Finding: Normal Bootcamp exit-pad departure persisted Alia Das waypoint 57 and hospital 103 durably, but left `client.Player.GainedWaypoints` stale, so waypoint authorization, waypoint listings, and destination map-marker visibility could lag until reconnect.
+- Fix:
+  - refactored waypoint grant publication through `DynamicObjectManager.ConvergeWaypointGrant`, which reuses the authoritative runtime + packet + map-marker path after persistence;
+  - updated `CharacterManager.TryDepartBootcampFromExitPad` to converge waypoint 57 and hospital 103 into the live manifestation only after the departure transaction commits and before map entry;
+  - kept duplicate exit-pad requests idempotent by reusing the existing runtime dedupe path.
+- Tests added/expanded:
+  - `BootcampDepartureTests.ExitPadDeparturePublishesWaypointUnlocksAndDestinationMarkersWithoutReconnect`
+  - `BootcampDepartureTests.ExitPadDepartureMatchesSkipParityAtLevelFourUsingTheAuthoritativeThreshold`
+  - `BootcampDepartureTests.DuplicateExitPadSelectionsDuringTransferCommitDepartureAndReleaseOnlyOnce`
+  - `BootcampEndToEndTests.FreshNormalDepartureMatchesSkipParityForTravelLoadoutAndWaypoints`
+- Validation:
+  - `dotnet test src\Rasa.Test\Rasa.Test.csproj --filter "FullyQualifiedName~BootcampDepartureTests|FullyQualifiedName~FreshNormalDepartureMatchesSkipParityForTravelLoadoutAndWaypoints" --no-restore --nologo`
+  - `dotnet test src\Rasa.Test\Rasa.Test.csproj --filter "FullyQualifiedName~BootcampDepartureTests|FullyQualifiedName~WaypointTravelTests|FullyQualifiedName~BootcampEndToEndTests" --no-restore --nologo`
+  - `dotnet test src\Rasa.Test\Rasa.Test.csproj --filter "FullyQualifiedName~Bootcamp" --no-restore --nologo`
+  - `dotnet test src\Rasa.Test\Rasa.Test.csproj --filter "FullyQualifiedName~Rasa.Test.Missions" --no-restore --nologo`
+  - `dotnet test Rasa.NET.sln -c Release --no-restore --nologo`
+  - `dotnet build Rasa.NET.sln -c Release --no-restore --nologo`
+  - `dotnet ef migrations has-pending-model-changes --project src\Rasa.DBL --startup-project src\Rasa.Game --context SqliteWorldContext --no-build`
+  - `dotnet ef migrations has-pending-model-changes --project src\Rasa.DBL --startup-project src\Rasa.Game --context MySqlWorldContext --no-build`
+  - `dotnet ef migrations has-pending-model-changes --project src\Rasa.DBL --startup-project src\Rasa.Game --context SqliteCharContext --no-build`
+  - `dotnet ef migrations has-pending-model-changes --project src\Rasa.DBL --startup-project src\Rasa.Game --context MySqlCharContext --no-build`
+- Notes: the packet-level map-marker assertion in selection-context tests drives `MapMarkerManager.PlayerEnteredMap` directly because that test harness stubs `assignPlayer`; production still reaches the same code during authoritative destination-map entry.

@@ -8,6 +8,7 @@ using Org.BouncyCastle.Crypto.Parameters;
 namespace Rasa.Packets.Auth.Client
 {
     using Data;
+    using Extensions;
 
     public class LoginPacket : IOpcodedPacket<ClientOpcode>
     {
@@ -34,7 +35,7 @@ namespace Rasa.Packets.Auth.Client
 
         public void Read(BinaryReader reader)
         {
-            var buff = reader.ReadBytes(30);
+            var buff = reader.ReadBytesExactly(30);
 
             for (var i = 0; i < 24; i += 8)
                 Decrypter.ProcessBlock(buff, i, buff, i);

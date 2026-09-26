@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 
 namespace Rasa.Structures.World
 {
@@ -30,6 +31,7 @@ namespace Rasa.Structures.World
     /// threshold sits in open water rather than through a cluster.
     /// </summary>
     [Table(TableName)]
+    [Index(nameof(MapContextId), Name = "map_marker_index_map_context_id")]
     public class MapMarkerEntry
     {
         public const string TableName = "map_marker";

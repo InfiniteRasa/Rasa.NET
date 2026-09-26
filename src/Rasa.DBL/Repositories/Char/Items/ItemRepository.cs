@@ -33,12 +33,13 @@ namespace Rasa.Repositories.Char.Items
             {
                 Logger.WriteLog(LogType.Error, "Error creating item:");
                 Logger.WriteLog(LogType.Error, e);
-                return 0;
+                throw;
             }
         }
 
         public void DeleteItem(uint itemId)
         {
+            CharacterMissionItem.MissionItemMutationGuard.RequireUnbound(_charContext, itemId);
             var query = _charContext.CreateNoTrackingQuery(_charContext.ItemEntries);
             var entry = query.Where(e => e.ItemId == itemId).FirstOrDefault();
 
@@ -126,6 +127,14 @@ namespace Rasa.Repositories.Char.Items
 
         }
 
+        public IReadOnlyList<ItemEntry> GetItems(IReadOnlyCollection<uint> itemIds)
+        {
+            var ids = itemIds.Distinct().ToArray();
+            return ids.Length == 0 ? Array.Empty<ItemEntry>() :
+                _charContext.CreateNoTrackingQuery(_charContext.ItemEntries)
+                    .Where(entry => ids.Contains(entry.ItemId)).ToArray();
+        }
+
         public void UpdateAmmo(IItemChange item)
         {
             UpdateColumn(item, nameof(ItemEntry.AmmoCount), entry => entry.AmmoCount = item.CurrentAmmo);
@@ -143,6 +152,7 @@ namespace Rasa.Repositories.Char.Items
 
         public void UpdateItemStackSize(IItemChange item)
         {
+            CharacterMissionItem.MissionItemMutationGuard.RequireUnbound(_charContext, item.Id);
             UpdateColumn(item, nameof(ItemEntry.StackSize), entry => entry.StackSize = item.StackSize);
         }
     }

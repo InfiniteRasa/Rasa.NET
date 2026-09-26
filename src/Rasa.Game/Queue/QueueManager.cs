@@ -17,21 +17,30 @@ namespace Rasa.Queue
     public class QueueManager
     {
         /// <summary>
-        /// Lock order, which every path here keeps to: Server.Clients may be held when
-        /// <see cref="Clients"/> is taken (the world loop's Arrived), and _queuedClients may be
-        /// held when <see cref="Clients"/> is taken (a redirect whose send drops the connection
-        /// closes it, and Close leaves the list). Nothing takes Server.Clients or _queuedClients
-        /// while holding <see cref="Clients"/>, and nothing takes Server.Clients while holding
-        /// _queuedClients. Nothing that can run socket I/O is called under <see cref="Clients"/>:
-        /// a synchronous completion runs this connection's handlers on the same thread.
+        /// Serializes queue membership changes with the client's disconnect transition. Code under
+        /// this gate only reads capacity and changes client state or the in-memory queue; socket
+        /// sends, callbacks, and client-list mutation happen after it is released. QueueClientState
+        /// never acquires this gate, so the lock order is always queue gate then state gate, never
+        /// the reverse.
         /// </summary>
         private readonly Queue<QueueClient> _queuedClients = new Queue<QueueClient>();
+        private readonly Func<bool> _isFull;
+        private readonly IPAddress _publicAddress;
+        private readonly int _gamePort;
+        private readonly Action _beforeAdmission;
 
         public List<QueueClient> Clients { get; } = new List<QueueClient>();
 
         public Server Server { get; }
         public LengthedSocket Socket { get; }
-        public int QueuedClients => _queuedClients.Count;
+        public int QueuedClients
+        {
+            get
+            {
+                lock (_queuedClients)
+                    return _queuedClients.Count;
+            }
+        }
 
         /// <summary>Queue connections handed off to the world port that are still open.</summary>
         public int RedirectingClients
@@ -156,11 +165,15 @@ namespace Rasa.Queue
                     .Select(c => c.UserId));
         }
         public RedirectDelegate OnRedirect { get; set; }
-        public QueueConfig Config => Server.Config.QueueConfig;
+        public QueueConfig Config { get; }
 
         public QueueManager(Server server)
         {
             Server = server;
+            Config = server.Config.QueueConfig;
+            _isFull = () => server.IsFull;
+            _publicAddress = server.PublicAddress;
+            _gamePort = server.Config.GameConfig.Port;
 
             Socket = new LengthedSocket(SizeType.Dword, false);
             Socket.OnError += OnError;
@@ -169,6 +182,20 @@ namespace Rasa.Queue
             Socket.Listen(Config.Backlog);
 
             Socket.AcceptAsync();
+        }
+
+        internal QueueManager(
+            QueueConfig config,
+            Func<bool> isFull,
+            IPAddress publicAddress,
+            int gamePort,
+            Action beforeAdmission)
+        {
+            Config = config;
+            _isFull = isFull;
+            _publicAddress = publicAddress;
+            _gamePort = gamePort;
+            _beforeAdmission = beforeAdmission;
         }
 
         private static void OnError(SocketAsyncEventArgs args)
@@ -180,30 +207,41 @@ namespace Rasa.Queue
         private void OnAccept(LengthedSocket socket)
         {
             Socket.AcceptAsync();
+            AcceptClient(socket);
+        }
 
+        internal void AcceptClient(LengthedSocket socket)
+        {
             var address = socket.RemoteAddress;
-            QueueClient client = null;
+            var client = new QueueClient(this, socket, false);
 
             // Counted and added under the lock, so two accepts from one address cannot both
             // pass the check; started after it, because starting runs socket I/O whose
-            // completion can run the whole handshake on this thread (see QueueClient).
+            // completion can run the whole handshake on this thread.
             lock (Clients)
             {
-                if (Clients.Count(c => address.Equals(c.Socket.RemoteAddress)) < MaxConnectionsPerAddress)
-                {
-                    client = new QueueClient(this, socket);
+                if (address != null && Clients.Count(c => address.Equals(c.Socket.RemoteAddress)) >= MaxConnectionsPerAddress)
+                    client = null;
+                else
                     Clients.Add(client);
-                }
             }
 
-            if (client != null)
+            if (client == null)
             {
-                client.Start();
+                socket.Close();
+                ReportRefusal(address);
                 return;
             }
 
-            socket.Close();
-            ReportRefusal(address);
+            try
+            {
+                client.Start();
+            }
+            catch
+            {
+                client.Close();
+                throw;
+            }
         }
 
         /// <summary>
@@ -232,74 +270,76 @@ namespace Rasa.Queue
 
         public void Enqueue(QueueClient client)
         {
+            _beforeAdmission?.Invoke();
+            var position = 0;
+
             // Read before the queue lock, not under it: IsFull counts Server.Clients, which the
             // world loop holds for its whole tick, and waiting for it while holding a queue lock
             // nests the queue's locks inside the world's in one place and outside them in
-            // another. Nothing is lost by reading it first: the count was only ever a snapshot,
-            // free to change the moment it was taken, with or without this lock held.
-            var full = Server.IsFull;
+            // another. The count was only ever a snapshot, free to change the moment it was taken.
+            var queued = _isFull();
 
             lock (_queuedClients)
             {
-                if (!full)
-                {
-                    // TODO: need a position update before redirect?
-                    client.Redirect(Server.PublicAddress, Server.Config.GameConfig.Port);
+
+                if (!client.TryAdmit(queued, DateTime.Now))
                     return;
-                }
 
-                _queuedClients.Enqueue(client);
-
-                var pos = 0;
-
-                foreach (var c in _queuedClients)
+                if (queued)
                 {
-                    if (c.State == QueueState.Disconnected)
-                        continue;
+                    _queuedClients.Enqueue(client);
 
-                    if (c == client)
-                        c.SendPositionUpdate(pos, 10000 * pos); // TODO: proper estimated time calculation
-                    else
-                        ++pos;
+                    foreach (var queuedClient in _queuedClients)
+                    {
+                        if (queuedClient.State == QueueState.Disconnected)
+                            continue;
+
+                        if (queuedClient == client)
+                            break;
+
+                        ++position;
+                    }
                 }
             }
+
+            if (!queued)
+                client.SendRedirect(_publicAddress, _gamePort);
+            else
+                client.SendPositionUpdate(position, 10000 * position); // TODO: proper estimated time calculation
         }
 
-        private void AdvanceQueue(int freeSlots)
+        internal bool TryDisconnect(QueueClient client)
         {
-            if (QueuedClients == 0)
-                return;
-
             lock (_queuedClients)
-            {
-                for (var i = 0; i < freeSlots && QueuedClients > 0;)
-                {
-                    var client = _queuedClients.Dequeue();
-                    if (client.State == QueueState.Disconnected)
-                        continue;
+                return client.TryDisconnect();
+        }
 
-                    client.Redirect(Server.PublicAddress, Server.Config.GameConfig.Port);
-                    ++i;
-                }
+        private List<QueueClient> AdvanceQueue(int freeSlots, DateTime now)
+        {
+            var redirects = new List<QueueClient>();
+
+            for (var i = 0; i < freeSlots && _queuedClients.Count > 0;)
+            {
+                var client = _queuedClients.Dequeue();
+                if (!client.TryPrepareRedirect(now))
+                    continue;
+
+                redirects.Add(client);
+                ++i;
             }
+
+            return redirects;
         }
 
-        private void ClearDisconnected()
+        private void RemoveDisconnectedClients()
         {
-            if (QueuedClients == 0)
-                return;
+            var count = _queuedClients.Count;
 
-            lock (_queuedClients)
+            for (var i = 0; i < count; ++i)
             {
-                do
-                {
-                    var c = _queuedClients.Peek();
-                    if (c.State != QueueState.Disconnected)
-                        break;
-
-                    _queuedClients.Dequeue();
-                }
-                while (QueuedClients > 0);
+                var client = _queuedClients.Dequeue();
+                if (client.State != QueueState.Disconnected)
+                    _queuedClients.Enqueue(client);
             }
         }
 
@@ -307,22 +347,30 @@ namespace Rasa.Queue
         {
             ExpireHandshakes();
             ExpireRedirects();
-
-            if (QueuedClients == 0)
-                return;
+            List<QueueClient> redirects;
+            List<(QueueClient Client, int Position)> positionUpdates;
 
             lock (_queuedClients)
             {
-                ClearDisconnected();
+                if (_queuedClients.Count == 0)
+                    return;
 
-                AdvanceQueue(freeSlots);
+                RemoveDisconnectedClients();
+
+                redirects = AdvanceQueue(freeSlots, DateTime.Now);
 
                 var position = 0;
-
-                foreach (var client in _queuedClients)
-                    if (client.State != QueueState.Disconnected)
-                        client.SendPositionUpdate(position, 10000 * position++); // TODO: proper estimated time calculation
+                positionUpdates = _queuedClients
+                    .Where(client => client.State != QueueState.Disconnected)
+                    .Select(client => (client, position++))
+                    .ToList();
             }
+
+            foreach (var client in redirects)
+                client.SendRedirect(_publicAddress, _gamePort);
+
+            foreach (var update in positionUpdates)
+                update.Client.SendPositionUpdate(update.Position, 10000 * update.Position); // TODO: proper estimated time calculation
         }
     }
 }

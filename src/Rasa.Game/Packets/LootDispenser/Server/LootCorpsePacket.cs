@@ -22,22 +22,23 @@ namespace Rasa.Packets.LootDispenser.Server
     {
         public override GameOpcode Opcode { get; } = GameOpcode.LootCorpse;
 
-        public ulong ActorId { get; set; }
-        public List<LootItem> LootItems { get; set; } = new List<LootItem>();
+        public ulong ActorId { get; }
+        private readonly LootItem[] _lootItems;
 
         public LootCorpsePacket(ulong actorId, List<LootItem> lootItems)
         {
             ActorId = actorId;
-            LootItems = lootItems ?? new List<LootItem>();
+            _lootItems = lootItems?.ConvertAll(LootItem.Capture).ToArray()
+                         ?? System.Array.Empty<LootItem>();
         }
 
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(2);
             pw.WriteULong(ActorId);
-            pw.WriteDictionary(LootItems.Count);
+            pw.WriteDictionary(_lootItems.Length);
 
-            foreach (var item in LootItems)
+            foreach (var item in _lootItems)
             {
                 pw.WriteULong(item.EntityId);
                 pw.WriteTuple(4);

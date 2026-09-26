@@ -18,6 +18,7 @@ namespace Rasa.Repositories.Char.CharacterInventory
 
         public void AddInvItem(uint accountId, uint characterId, uint inventoryType, uint slotId, uint itemId)
         {
+            CharacterMissionItem.MissionItemMutationGuard.RequireUnbound(_charContext, itemId);
             var entry = new CharacterInventoryEntry(accountId, characterId, inventoryType, slotId, itemId);
 
             try
@@ -25,7 +26,7 @@ namespace Rasa.Repositories.Char.CharacterInventory
                 _charContext.CharacterInventoryEntries.Add(entry);
                 _charContext.SaveChanges();
             }
-            catch (Exception e)
+            catch (Exception e) when (_charContext.Database.CurrentTransaction == null)
             {
                 Logger.WriteLog(LogType.Error, "Error creating item:");
                 Logger.WriteLog(LogType.Error, e);
@@ -41,6 +42,7 @@ namespace Rasa.Repositories.Char.CharacterInventory
             if (entry == null)
                 return;
 
+            CharacterMissionItem.MissionItemMutationGuard.RequireUnbound(_charContext, entry.ItemId);
             _charContext.Remove(entry);
             _charContext.SaveChanges();
         }
@@ -52,6 +54,7 @@ namespace Rasa.Repositories.Char.CharacterInventory
         /// </summary>
         public void DeleteInvItemByItemId(uint itemId)
         {
+            CharacterMissionItem.MissionItemMutationGuard.RequireUnbound(_charContext, itemId);
             var query = _charContext.CreateNoTrackingQuery(_charContext.CharacterInventoryEntries);
             var entry = query.FirstOrDefault(e => e.ItemId == itemId);
 
@@ -62,21 +65,29 @@ namespace Rasa.Repositories.Char.CharacterInventory
             _charContext.SaveChanges();
         }
 
-        /// <summary>
-        /// Removes every inventory row of one character - personal, equipped and weapon drawer;
-        /// the home lockbox is the account's and carries character id 0 - and returns the item
-        /// ids those rows pointed at, so the caller can delete the items too. Staged on the
-        /// context, not saved: the caller commits with the character row.
-        /// </summary>
-        public List<uint> DeleteForCharacter(uint accountId, uint characterId)
+        public void DeleteForCharacter(uint accountId, uint characterId)
         {
-            var rows = _charContext.CreateTrackingQuery(_charContext.CharacterInventoryEntries)
-                .Where(e => e.AccountId == accountId && e.CharacterId == characterId)
-                .ToList();
+            if (characterId == 0)
+                throw new ArgumentOutOfRangeException(nameof(characterId),
+                    "Shared account inventory is not owned by a character.");
 
-            _charContext.CharacterInventoryEntries.RemoveRange(rows);
+            var inventory = _charContext.CreateTrackingQuery(_charContext.CharacterInventoryEntries)
+                .Where(entry => entry.AccountId == accountId && entry.CharacterId == characterId)
+                .ToArray();
+            var itemIds = inventory.Select(entry => entry.ItemId).ToArray();
+            var items = _charContext.CreateTrackingQuery(_charContext.ItemEntries)
+                .Where(entry => itemIds.Contains(entry.ItemId));
 
-            return rows.Select(r => r.ItemId).ToList();
+            // Stage both sets for the same commit as the character deletion.
+            _charContext.CharacterInventoryEntries.RemoveRange(inventory);
+            _charContext.ItemEntries.RemoveRange(items);
+        }
+
+        public CharacterInventoryEntry FindByItemId(uint itemId)
+        {
+            var query = _charContext.CreateNoTrackingQuery(
+                _charContext.CharacterInventoryEntries);
+            return query.FirstOrDefault(entry => entry.ItemId == itemId);
         }
 
         public List<CharacterInventoryEntry> GetItems(uint accountId)
@@ -104,6 +115,7 @@ namespace Rasa.Repositories.Char.CharacterInventory
 
         public void MoveInvItem(uint accountId, uint characterId, uint inventoryType, uint slotId, uint itemId)
         {
+            CharacterMissionItem.MissionItemMutationGuard.RequireUnbound(_charContext, itemId);
             var invItem = _charContext.CreateTrackingQuery(_charContext.CharacterInventoryEntries).FirstOrDefault(e => e.ItemId == itemId);
 
             if (invItem == null)

@@ -217,7 +217,7 @@ namespace Rasa.Test.Memory
             stream.CopyFromArray(buffer1);
             stream.CopyFromArray(buffer2);
 
-            Assert.ThrowsException<ArgumentOutOfRangeException>(() =>
+            Assert.ThrowsExactly<ArgumentOutOfRangeException>(() =>
             {
                 stream.RemoveBytes(11);
             });

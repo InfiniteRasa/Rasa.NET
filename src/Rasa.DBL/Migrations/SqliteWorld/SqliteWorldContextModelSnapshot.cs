@@ -5,6 +5,8 @@ using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Rasa.Context.World;
 
+#nullable disable
+
 namespace Rasa.Migrations.SqliteWorld
 {
     [DbContext(typeof(SqliteWorldContext))]
@@ -13,11 +15,15 @@ namespace Rasa.Migrations.SqliteWorld
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder
-                .HasAnnotation("ProductVersion", "5.0.1");
+            modelBuilder.HasAnnotation("ProductVersion", "9.0.20");
 
             modelBuilder.Entity("Rasa.Structures.World.ActionCostEntry", b =>
                 {
+                    b.Property<uint>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("id");
+
                     b.Property<uint>("ActionId")
                         .HasColumnType("INTEGER")
                         .HasColumnName("action_id");
@@ -29,11 +35,6 @@ namespace Rasa.Migrations.SqliteWorld
                     b.Property<int>("Cost")
                         .HasColumnType("INTEGER")
                         .HasColumnName("cost");
-
-                    b.Property<uint>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("id");
 
                     b.Property<uint>("Level")
                         .HasColumnType("INTEGER")
@@ -74,14 +75,14 @@ namespace Rasa.Migrations.SqliteWorld
 
             modelBuilder.Entity("Rasa.Structures.World.ActionItemRequirementEntry", b =>
                 {
-                    b.Property<uint>("ActionId")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("action_id");
-
                     b.Property<uint>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
                         .HasColumnName("id");
+
+                    b.Property<uint>("ActionId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("action_id");
 
                     b.Property<uint>("ItemClassId")
                         .HasColumnType("INTEGER")
@@ -102,14 +103,14 @@ namespace Rasa.Migrations.SqliteWorld
 
             modelBuilder.Entity("Rasa.Structures.World.ActionLevelEntry", b =>
                 {
-                    b.Property<uint>("ActionId")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("action_id");
-
                     b.Property<uint>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
                         .HasColumnName("id");
+
+                    b.Property<uint>("ActionId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("action_id");
 
                     b.Property<uint>("Level")
                         .HasColumnType("INTEGER")
@@ -154,14 +155,14 @@ namespace Rasa.Migrations.SqliteWorld
 
             modelBuilder.Entity("Rasa.Structures.World.ActionPropertyEntry", b =>
                 {
-                    b.Property<uint>("ActionId")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("action_id");
-
                     b.Property<uint>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
                         .HasColumnName("id");
+
+                    b.Property<uint>("ActionId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("action_id");
 
                     b.Property<uint>("Level")
                         .HasColumnType("INTEGER")
@@ -278,6 +279,21 @@ namespace Rasa.Migrations.SqliteWorld
                     b.ToTable("creature_appearance");
                 });
 
+            modelBuilder.Entity("Rasa.Structures.World.CreatureClassFlagEntry", b =>
+                {
+                    b.Property<uint>("ClassId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("class_id");
+
+                    b.Property<uint>("FlagId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("flag_id");
+
+                    b.HasKey("ClassId", "FlagId");
+
+                    b.ToTable("creature_class_flag");
+                });
+
             modelBuilder.Entity("Rasa.Structures.World.CreatureEntry", b =>
                 {
                     b.Property<uint>("Id")
@@ -353,21 +369,6 @@ namespace Rasa.Migrations.SqliteWorld
                     b.HasKey("Id");
 
                     b.ToTable("creature");
-                });
-
-            modelBuilder.Entity("Rasa.Structures.World.CreatureClassFlagEntry", b =>
-                {
-                    b.Property<uint>("ClassId")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("class_id");
-
-                    b.Property<uint>("FlagId")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("flag_id");
-
-                    b.HasKey("ClassId", "FlagId");
-
-                    b.ToTable("creature_class_flag");
                 });
 
             modelBuilder.Entity("Rasa.Structures.World.CreatureStatEntry", b =>
@@ -556,14 +557,14 @@ namespace Rasa.Migrations.SqliteWorld
 
             modelBuilder.Entity("Rasa.Structures.World.ItemTemplateActionEntry", b =>
                 {
-                    b.Property<uint>("ActionId")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("action_id");
-
                     b.Property<uint>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
                         .HasColumnName("id");
+
+                    b.Property<uint>("ActionId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("action_id");
 
                     b.Property<uint>("ItemTemplateId")
                         .HasColumnType("INTEGER")
@@ -1059,13 +1060,13 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnType("INTEGER")
                         .HasColumnName("marker_entity_id");
 
-                    b.Property<string>("Comment")
-                        .HasColumnType("varchar(64)")
-                        .HasColumnName("comment");
-
                     b.Property<uint>("MapContextId")
                         .HasColumnType("INTEGER")
                         .HasColumnName("map_context_id");
+
+                    b.Property<string>("Comment")
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("comment");
 
                     b.Property<uint>("MarkerType")
                         .HasColumnType("INTEGER")
@@ -1075,18 +1076,17 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnType("REAL")
                         .HasColumnName("match_distance");
 
-                    b.Property<byte>("ObjectKind")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("object_kind");
-
                     b.Property<uint>("ObjectId")
                         .HasColumnType("INTEGER")
                         .HasColumnName("object_id");
 
+                    b.Property<byte>("ObjectKind")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("object_kind");
+
                     b.HasKey("MarkerEntityId", "MapContextId");
 
-                    b.HasIndex("MapContextId")
-                        .HasDatabaseName("map_marker_index_map_context_id");
+                    b.HasIndex(new[] { "MapContextId" }, "map_marker_index_map_context_id");
 
                     b.ToTable("map_marker");
                 });
@@ -1158,6 +1158,1084 @@ namespace Rasa.Migrations.SqliteWorld
                     b.HasKey("Id");
 
                     b.ToTable("map_region");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.MissionActionEntry", b =>
+                {
+                    b.Property<uint>("MissionId")
+                        .HasColumnType("integer")
+                        .HasColumnName("mission_id");
+
+                    b.Property<string>("ContentRevision")
+                        .HasColumnType("varchar(32)")
+                        .HasColumnName("content_revision");
+
+                    b.Property<uint>("ObjectiveId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("objective_id");
+
+                    b.Property<uint>("TransitionId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("transition_id");
+
+                    b.Property<uint>("ActionId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("action_id");
+
+                    b.Property<string>("Comment")
+                        .IsRequired()
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("comment");
+
+                    b.Property<uint?>("IndicatorId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("indicator_id");
+
+                    b.Property<string>("ItemIntentJson")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("item_intent");
+
+                    b.Property<byte>("Kind")
+                        .HasColumnType("tinyint(3)")
+                        .HasColumnName("kind");
+
+                    b.Property<uint?>("NpcPackageId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("npc_package_id");
+
+                    b.Property<byte?>("ObjectiveState")
+                        .HasColumnType("tinyint(3)")
+                        .HasColumnName("objective_state");
+
+                    b.Property<uint?>("PlayerFlagId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("player_flag_id");
+
+                    b.Property<uint?>("PlayerFlagValue")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("player_flag_value");
+
+                    b.Property<byte>("Requirement")
+                        .HasColumnType("tinyint(3)")
+                        .HasColumnName("requirement");
+
+                    b.Property<uint?>("RewardId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("reward_id");
+
+                    b.Property<uint?>("ScenarioId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("scenario_id");
+
+                    b.Property<uint>("Sequence")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("sequence");
+
+                    b.Property<uint?>("SpawnGroupId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("spawn_group_id");
+
+                    b.Property<uint?>("TargetObjectiveId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("target_objective_id");
+
+                    b.HasKey("MissionId", "ContentRevision", "ObjectiveId", "TransitionId", "ActionId");
+
+                    b.HasIndex("MissionId", "ContentRevision", "RewardId");
+
+                    b.HasIndex("MissionId", "ContentRevision", "ScenarioId");
+
+                    b.HasIndex("MissionId", "ContentRevision", "SpawnGroupId");
+
+                    b.HasIndex("MissionId", "ContentRevision", "TargetObjectiveId");
+
+                    b.HasIndex("MissionId", "ContentRevision", "ObjectiveId", "IndicatorId");
+
+                    b.ToTable("mission_action", t =>
+                        {
+                            t.HasCheckConstraint("CK_mission_action_kind_parameter_set", "(kind IN (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)) AND (kind >= 10 OR item_intent IS NULL) AND (kind < 10 OR (item_intent IS NOT NULL AND target_objective_id IS NULL AND objective_state IS NULL AND reward_id IS NULL AND spawn_group_id IS NULL AND scenario_id IS NULL AND indicator_id IS NULL AND player_flag_id IS NULL AND player_flag_value IS NULL AND npc_package_id IS NULL)) AND (kind <> 1 OR (target_objective_id IS NOT NULL AND objective_state IS NULL AND reward_id IS NULL AND spawn_group_id IS NULL AND scenario_id IS NULL AND indicator_id IS NULL AND player_flag_id IS NULL AND player_flag_value IS NULL AND npc_package_id IS NULL)) AND (kind <> 2 OR (target_objective_id IS NOT NULL AND objective_state IS NOT NULL AND reward_id IS NULL AND spawn_group_id IS NULL AND scenario_id IS NULL AND indicator_id IS NULL AND player_flag_id IS NULL AND player_flag_value IS NULL AND npc_package_id IS NULL)) AND (kind <> 3 OR (target_objective_id IS NOT NULL AND objective_state IS NOT NULL AND reward_id IS NULL AND spawn_group_id IS NULL AND scenario_id IS NULL AND indicator_id IS NULL AND player_flag_id IS NULL AND player_flag_value IS NULL AND npc_package_id IS NULL)) AND (kind <> 4 OR (reward_id IS NOT NULL AND target_objective_id IS NULL AND objective_state IS NULL AND spawn_group_id IS NULL AND scenario_id IS NULL AND indicator_id IS NULL AND player_flag_id IS NULL AND player_flag_value IS NULL AND npc_package_id IS NULL)) AND (kind <> 5 OR (scenario_id IS NOT NULL AND target_objective_id IS NULL AND objective_state IS NULL AND reward_id IS NULL AND spawn_group_id IS NULL AND indicator_id IS NULL AND player_flag_id IS NULL AND player_flag_value IS NULL AND npc_package_id IS NULL)) AND (kind <> 6 OR (spawn_group_id IS NOT NULL AND target_objective_id IS NULL AND objective_state IS NULL AND reward_id IS NULL AND scenario_id IS NULL AND indicator_id IS NULL AND player_flag_id IS NULL AND player_flag_value IS NULL AND npc_package_id IS NULL)) AND (kind <> 7 OR (indicator_id IS NOT NULL AND target_objective_id IS NULL AND objective_state IS NULL AND reward_id IS NULL AND spawn_group_id IS NULL AND scenario_id IS NULL AND player_flag_id IS NULL AND player_flag_value IS NULL AND npc_package_id IS NULL)) AND (kind <> 8 OR (player_flag_id IS NOT NULL AND player_flag_value IS NOT NULL AND target_objective_id IS NULL AND objective_state IS NULL AND reward_id IS NULL AND spawn_group_id IS NULL AND scenario_id IS NULL AND indicator_id IS NULL AND npc_package_id IS NULL)) AND (kind <> 9 OR (npc_package_id IS NOT NULL AND player_flag_id IS NOT NULL AND target_objective_id IS NULL AND objective_state IS NULL AND reward_id IS NULL AND spawn_group_id IS NULL AND scenario_id IS NULL AND indicator_id IS NULL AND player_flag_value IS NULL))");
+                        });
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.MissionAreaEntry", b =>
+                {
+                    b.Property<uint>("MissionId")
+                        .HasColumnType("integer")
+                        .HasColumnName("mission_id");
+
+                    b.Property<string>("ContentRevision")
+                        .HasColumnType("varchar(32)")
+                        .HasColumnName("content_revision");
+
+                    b.Property<uint>("AreaId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("area_id");
+
+                    b.Property<string>("Comment")
+                        .IsRequired()
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("comment");
+
+                    b.Property<double?>("ExtentX")
+                        .HasColumnType("REAL")
+                        .HasColumnName("extent_x");
+
+                    b.Property<double?>("ExtentY")
+                        .HasColumnType("REAL")
+                        .HasColumnName("extent_y");
+
+                    b.Property<double?>("ExtentZ")
+                        .HasColumnType("REAL")
+                        .HasColumnName("extent_z");
+
+                    b.Property<uint>("MapContextId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("map_context_id");
+
+                    b.Property<double>("PosX")
+                        .HasColumnType("REAL")
+                        .HasColumnName("pos_x");
+
+                    b.Property<double>("PosY")
+                        .HasColumnType("REAL")
+                        .HasColumnName("pos_y");
+
+                    b.Property<double>("PosZ")
+                        .HasColumnType("REAL")
+                        .HasColumnName("pos_z");
+
+                    b.Property<double?>("Radius")
+                        .HasColumnType("REAL")
+                        .HasColumnName("radius");
+
+                    b.Property<byte>("Requirement")
+                        .HasColumnType("tinyint(3)")
+                        .HasColumnName("requirement");
+
+                    b.Property<byte>("Shape")
+                        .HasColumnType("tinyint(3)")
+                        .HasColumnName("shape");
+
+                    b.HasKey("MissionId", "ContentRevision", "AreaId");
+
+                    b.ToTable("mission_area");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.MissionChannelPolicyEntry", b =>
+                {
+                    b.Property<uint>("MissionId")
+                        .HasColumnType("integer")
+                        .HasColumnName("mission_id");
+
+                    b.Property<string>("ContentRevision")
+                        .HasColumnType("varchar(32)")
+                        .HasColumnName("content_revision");
+
+                    b.Property<int>("AcceptanceChannel")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("acceptance_channel");
+
+                    b.Property<int>("CompletionChannel")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("completion_channel");
+
+                    b.Property<string>("RadioSources")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("radio_sources");
+
+                    b.HasKey("MissionId", "ContentRevision");
+
+                    b.ToTable("mission_channel_policy", t =>
+                        {
+                            t.HasCheckConstraint("CK_mission_channel_policy_channels", "acceptance_channel IN (1, 2, 3) AND completion_channel IN (1, 2, 3)");
+                        });
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.MissionContentDefinitionEntry", b =>
+                {
+                    b.Property<uint>("MissionId")
+                        .HasColumnType("integer")
+                        .HasColumnName("mission_id")
+                        .HasAnnotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.None);
+
+                    b.Property<string>("ContentRevision")
+                        .HasColumnType("varchar(32)")
+                        .HasColumnName("content_revision");
+
+                    b.Property<byte>("AbandonmentPolicy")
+                        .HasColumnType("tinyint(3)")
+                        .HasColumnName("abandonment_policy");
+
+                    b.Property<byte>("CategoryId")
+                        .HasColumnType("tinyint(3)")
+                        .HasColumnName("category_id");
+
+                    b.Property<uint>("ClientNameTextId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("client_name_text_id");
+
+                    b.Property<string>("Comment")
+                        .IsRequired()
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("comment");
+
+                    b.Property<bool>("Enabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(false)
+                        .HasColumnName("enabled");
+
+                    b.Property<uint?>("GiverId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("giver_id");
+
+                    b.Property<byte>("GroupType")
+                        .HasColumnType("tinyint(3)")
+                        .HasColumnName("group_type");
+
+                    b.Property<uint>("Level")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("level");
+
+                    b.Property<bool>("RadioCompleteable")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("radio_completeable");
+
+                    b.Property<uint?>("ReceiverId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("receiver_id");
+
+                    b.Property<byte>("Requirement")
+                        .HasColumnType("tinyint(3)")
+                        .HasColumnName("requirement");
+
+                    b.Property<bool>("Shareable")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("shareable");
+
+                    b.HasKey("MissionId", "ContentRevision");
+
+                    b.HasIndex(new[] { "ContentRevision" }, "mission_content_definition_index_content_revision");
+
+                    b.ToTable("mission_content_definition");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.MissionEvidenceEntry", b =>
+                {
+                    b.Property<uint>("MissionId")
+                        .HasColumnType("integer")
+                        .HasColumnName("mission_id");
+
+                    b.Property<string>("ContentRevision")
+                        .HasColumnType("varchar(32)")
+                        .HasColumnName("content_revision");
+
+                    b.Property<uint>("EvidenceId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("evidence_id");
+
+                    b.Property<double>("Confidence")
+                        .HasColumnType("double")
+                        .HasColumnName("confidence");
+
+                    b.Property<string>("LocalClientPath")
+                        .HasColumnType("varchar(256)")
+                        .HasColumnName("local_client_path");
+
+                    b.Property<uint>("OwnerId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("owner_id");
+
+                    b.Property<byte>("OwnerKind")
+                        .HasColumnType("tinyint(3)")
+                        .HasColumnName("owner_kind");
+
+                    b.Property<string>("ReconstructionNote")
+                        .IsRequired()
+                        .HasColumnType("varchar(256)")
+                        .HasColumnName("reconstruction_note");
+
+                    b.Property<byte>("SourceKind")
+                        .HasColumnType("tinyint(3)")
+                        .HasColumnName("source_kind");
+
+                    b.Property<string>("SourceUri")
+                        .HasColumnType("varchar(256)")
+                        .HasColumnName("source_uri");
+
+                    b.HasKey("MissionId", "ContentRevision", "EvidenceId");
+
+                    b.ToTable("mission_evidence", t =>
+                        {
+                            t.HasCheckConstraint("CK_mission_evidence_source_location", "source_uri IS NOT NULL OR local_client_path IS NOT NULL");
+                        });
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.MissionExperienceBindingEntry", b =>
+                {
+                    b.Property<string>("ExperienceKey")
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("experience_key");
+
+                    b.Property<string>("Bindings")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("bindings");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("enabled");
+
+                    b.Property<uint>("MapContextId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("map_context_id");
+
+                    b.HasKey("ExperienceKey");
+
+                    b.ToTable("mission_experience_binding");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.MissionIndicatorEntry", b =>
+                {
+                    b.Property<uint>("MissionId")
+                        .HasColumnType("integer")
+                        .HasColumnName("mission_id");
+
+                    b.Property<string>("ContentRevision")
+                        .HasColumnType("varchar(32)")
+                        .HasColumnName("content_revision");
+
+                    b.Property<uint>("ObjectiveId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("objective_id");
+
+                    b.Property<uint>("IndicatorId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("indicator_id");
+
+                    b.Property<string>("Comment")
+                        .IsRequired()
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("comment");
+
+                    b.Property<double>("PosX")
+                        .HasColumnType("REAL")
+                        .HasColumnName("pos_x");
+
+                    b.Property<double>("PosY")
+                        .HasColumnType("REAL")
+                        .HasColumnName("pos_y");
+
+                    b.Property<double>("PosZ")
+                        .HasColumnType("REAL")
+                        .HasColumnName("pos_z");
+
+                    b.Property<double>("Radius")
+                        .HasColumnType("REAL")
+                        .HasColumnName("radius");
+
+                    b.Property<byte>("Requirement")
+                        .HasColumnType("tinyint(3)")
+                        .HasColumnName("requirement");
+
+                    b.Property<bool>("Show3DEffect")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("show_3d_effect");
+
+                    b.HasKey("MissionId", "ContentRevision", "ObjectiveId", "IndicatorId");
+
+                    b.ToTable("mission_indicator");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.MissionObjectiveDefinitionEntry", b =>
+                {
+                    b.Property<uint>("MissionId")
+                        .HasColumnType("integer")
+                        .HasColumnName("mission_id");
+
+                    b.Property<string>("ContentRevision")
+                        .HasColumnType("varchar(32)")
+                        .HasColumnName("content_revision");
+
+                    b.Property<uint>("ObjectiveId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("objective_id");
+
+                    b.Property<uint>("ClientBodyTextId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("client_body_text_id");
+
+                    b.Property<uint?>("ClientCounter0TextId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("client_counter_0_text_id");
+
+                    b.Property<uint?>("ClientCounter1TextId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("client_counter_1_text_id");
+
+                    b.Property<uint?>("ClientCounter2TextId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("client_counter_2_text_id");
+
+                    b.Property<uint>("ClientNameTextId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("client_name_text_id");
+
+                    b.Property<string>("Comment")
+                        .IsRequired()
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("comment");
+
+                    b.Property<byte>("InitialState")
+                        .HasColumnType("tinyint(3)")
+                        .HasColumnName("initial_state");
+
+                    b.Property<bool>("IsRequired")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("is_required");
+
+                    b.Property<uint>("Ordinal")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("ordinal");
+
+                    b.Property<byte>("Requirement")
+                        .HasColumnType("tinyint(3)")
+                        .HasColumnName("requirement");
+
+                    b.HasKey("MissionId", "ContentRevision", "ObjectiveId");
+
+                    b.ToTable("mission_objective_definition");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.MissionObjectiveTransitionEntry", b =>
+                {
+                    b.Property<uint>("MissionId")
+                        .HasColumnType("integer")
+                        .HasColumnName("mission_id");
+
+                    b.Property<string>("ContentRevision")
+                        .HasColumnType("varchar(32)")
+                        .HasColumnName("content_revision");
+
+                    b.Property<uint>("ObjectiveId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("objective_id");
+
+                    b.Property<uint>("TransitionId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("transition_id");
+
+                    b.Property<string>("Comment")
+                        .IsRequired()
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("comment");
+
+                    b.Property<byte?>("FromState")
+                        .HasColumnType("tinyint(3)")
+                        .HasColumnName("from_state");
+
+                    b.Property<byte>("Requirement")
+                        .HasColumnType("tinyint(3)")
+                        .HasColumnName("requirement");
+
+                    b.Property<uint>("Sequence")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("sequence");
+
+                    b.Property<byte?>("ToState")
+                        .HasColumnType("tinyint(3)")
+                        .HasColumnName("to_state");
+
+                    b.HasKey("MissionId", "ContentRevision", "ObjectiveId", "TransitionId");
+
+                    b.ToTable("mission_objective_transition");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.MissionPrerequisiteEntry", b =>
+                {
+                    b.Property<uint>("MissionId")
+                        .HasColumnType("integer")
+                        .HasColumnName("mission_id");
+
+                    b.Property<string>("ContentRevision")
+                        .HasColumnType("varchar(32)")
+                        .HasColumnName("content_revision");
+
+                    b.Property<uint>("PrerequisiteId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("prerequisite_id");
+
+                    b.Property<string>("Comment")
+                        .IsRequired()
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("comment");
+
+                    b.Property<byte>("Kind")
+                        .HasColumnType("tinyint(3)")
+                        .HasColumnName("kind");
+
+                    b.Property<uint?>("PlayerFlagId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("player_flag_id");
+
+                    b.Property<uint?>("PlayerFlagValue")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("player_flag_value");
+
+                    b.Property<uint?>("RequiredLevel")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("required_level");
+
+                    b.Property<uint?>("RequiredMissionId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("required_mission_id");
+
+                    b.Property<byte?>("RequiredMissionState")
+                        .HasColumnType("tinyint(3)")
+                        .HasColumnName("required_mission_state");
+
+                    b.Property<byte>("Requirement")
+                        .HasColumnType("tinyint(3)")
+                        .HasColumnName("requirement");
+
+                    b.HasKey("MissionId", "ContentRevision", "PrerequisiteId");
+
+                    b.ToTable("mission_prerequisite");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.MissionRepeatPolicyEntry", b =>
+                {
+                    b.Property<uint>("MissionId")
+                        .HasColumnType("integer")
+                        .HasColumnName("mission_id");
+
+                    b.Property<string>("ContentRevision")
+                        .HasColumnType("varchar(32)")
+                        .HasColumnName("content_revision");
+
+                    b.Property<uint?>("CooldownSeconds")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("cooldown_seconds");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("repeat_kind");
+
+                    b.Property<uint?>("ResetSecondUtc")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("reset_second_utc");
+
+                    b.HasKey("MissionId", "ContentRevision");
+
+                    b.ToTable("mission_repeat_policy", t =>
+                        {
+                            t.HasCheckConstraint("CK_mission_repeat_policy_parameters", "(repeat_kind IN (0, 1) AND cooldown_seconds IS NULL AND reset_second_utc IS NULL) OR (repeat_kind = 2 AND cooldown_seconds IS NOT NULL AND cooldown_seconds > 0 AND reset_second_utc IS NULL) OR (repeat_kind = 3 AND cooldown_seconds IS NULL AND reset_second_utc IS NOT NULL AND reset_second_utc BETWEEN 0 AND 86399)");
+                        });
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.MissionRewardDefinitionEntry", b =>
+                {
+                    b.Property<uint>("MissionId")
+                        .HasColumnType("integer")
+                        .HasColumnName("mission_id");
+
+                    b.Property<string>("ContentRevision")
+                        .HasColumnType("varchar(32)")
+                        .HasColumnName("content_revision");
+
+                    b.Property<uint>("RewardId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("reward_id");
+
+                    b.Property<string>("Comment")
+                        .IsRequired()
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("comment");
+
+                    b.Property<uint>("Credits")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("credits");
+
+                    b.Property<uint>("Experience")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("experience");
+
+                    b.Property<uint>("Prestige")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("prestige");
+
+                    b.Property<byte>("Requirement")
+                        .HasColumnType("tinyint(3)")
+                        .HasColumnName("requirement");
+
+                    b.Property<byte>("SelectionCount")
+                        .HasColumnType("tinyint(3)")
+                        .HasColumnName("selection_count");
+
+                    b.HasKey("MissionId", "ContentRevision", "RewardId");
+
+                    b.ToTable("mission_reward_definition", t =>
+                        {
+                            t.HasCheckConstraint("CK_mission_reward_definition_selection_count", "selection_count IN (0, 1)");
+                        });
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.MissionRewardItemEntry", b =>
+                {
+                    b.Property<uint>("MissionId")
+                        .HasColumnType("integer")
+                        .HasColumnName("mission_id");
+
+                    b.Property<string>("ContentRevision")
+                        .HasColumnType("varchar(32)")
+                        .HasColumnName("content_revision");
+
+                    b.Property<uint>("RewardId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("reward_id");
+
+                    b.Property<uint>("ItemId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("item_id");
+
+                    b.Property<uint>("ItemTemplateId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("item_template_id");
+
+                    b.Property<byte>("Kind")
+                        .HasColumnType("tinyint(3)")
+                        .HasColumnName("kind");
+
+                    b.Property<uint>("Quantity")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("quantity");
+
+                    b.HasKey("MissionId", "ContentRevision", "RewardId", "ItemId");
+
+                    b.ToTable("mission_reward_item", t =>
+                        {
+                            t.HasCheckConstraint("CK_mission_reward_item_kind", "kind IN (1, 2)");
+                        });
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.MissionScenarioEntry", b =>
+                {
+                    b.Property<uint>("MissionId")
+                        .HasColumnType("integer")
+                        .HasColumnName("mission_id");
+
+                    b.Property<string>("ContentRevision")
+                        .HasColumnType("varchar(32)")
+                        .HasColumnName("content_revision");
+
+                    b.Property<uint>("ScenarioId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("scenario_id");
+
+                    b.Property<string>("Comment")
+                        .IsRequired()
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("comment");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("name");
+
+                    b.Property<byte>("Requirement")
+                        .HasColumnType("tinyint(3)")
+                        .HasColumnName("requirement");
+
+                    b.Property<byte>("StartPolicy")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(3)")
+                        .HasDefaultValue((byte)1)
+                        .HasColumnName("start_policy");
+
+                    b.HasKey("MissionId", "ContentRevision", "ScenarioId");
+
+                    b.ToTable("mission_scenario");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.MissionScenarioStepEntry", b =>
+                {
+                    b.Property<uint>("MissionId")
+                        .HasColumnType("integer")
+                        .HasColumnName("mission_id");
+
+                    b.Property<string>("ContentRevision")
+                        .HasColumnType("varchar(32)")
+                        .HasColumnName("content_revision");
+
+                    b.Property<uint>("ScenarioId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("scenario_id");
+
+                    b.Property<uint>("StepId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("step_id");
+
+                    b.Property<uint?>("AbilityId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("ability_id");
+
+                    b.Property<byte?>("AbilitySlot")
+                        .HasColumnType("tinyint(3)")
+                        .HasColumnName("ability_slot");
+
+                    b.Property<bool?>("AccountSkipEntitlement")
+                        .HasColumnType("bit")
+                        .HasColumnName("account_skip_entitlement");
+
+                    b.Property<string>("AttemptKey")
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("attempt_key");
+
+                    b.Property<uint?>("AudioSetId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("audio_set_id");
+
+                    b.Property<string>("Comment")
+                        .IsRequired()
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("comment");
+
+                    b.Property<uint?>("DelayMilliseconds")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("delay_milliseconds");
+
+                    b.Property<string>("DynamicObjectKey")
+                        .HasMaxLength(64)
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("dynamic_object_key");
+
+                    b.Property<uint?>("EntityClassId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("entity_class_id");
+
+                    b.Property<bool?>("InitialInteractionEnabled")
+                        .HasColumnType("bit")
+                        .HasColumnName("initial_interaction_enabled");
+
+                    b.Property<byte>("Kind")
+                        .HasColumnType("tinyint(3)")
+                        .HasColumnName("kind");
+
+                    b.Property<uint?>("MapContextId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("map_context_id");
+
+                    b.Property<double?>("Orientation")
+                        .HasColumnType("REAL")
+                        .HasColumnName("orientation");
+
+                    b.Property<double?>("PosX")
+                        .HasColumnType("REAL")
+                        .HasColumnName("pos_x");
+
+                    b.Property<double?>("PosY")
+                        .HasColumnType("REAL")
+                        .HasColumnName("pos_y");
+
+                    b.Property<double?>("PosZ")
+                        .HasColumnType("REAL")
+                        .HasColumnName("pos_z");
+
+                    b.Property<byte?>("QualificationKey")
+                        .HasColumnType("tinyint(3)")
+                        .HasColumnName("qualification_key");
+
+                    b.Property<byte?>("QualificationValue")
+                        .HasColumnType("tinyint(3)")
+                        .HasColumnName("qualification_value");
+
+                    b.Property<byte>("Requirement")
+                        .HasColumnType("tinyint(3)")
+                        .HasColumnName("requirement");
+
+                    b.Property<uint?>("RewardId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("reward_id");
+
+                    b.Property<uint?>("ScenarioEventId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("scenario_event_id");
+
+                    b.Property<uint>("Sequence")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("sequence");
+
+                    b.Property<uint?>("SkillId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("skill_id");
+
+                    b.Property<byte?>("SkillLevel")
+                        .HasColumnType("tinyint(3)")
+                        .HasColumnName("skill_level");
+
+                    b.Property<uint?>("SpawnGroupId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("spawn_group_id");
+
+                    b.Property<uint?>("SpawnId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("spawn_id");
+
+                    b.Property<uint?>("TargetObjectiveId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("target_objective_id");
+
+                    b.Property<uint?>("TargetScenarioId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("target_scenario_id");
+
+                    b.Property<uint?>("TutorialId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("tutorial_id");
+
+                    b.HasKey("MissionId", "ContentRevision", "ScenarioId", "StepId");
+
+                    b.HasIndex("MissionId", "ContentRevision", "RewardId");
+
+                    b.HasIndex("MissionId", "ContentRevision", "TargetObjectiveId");
+
+                    b.HasIndex("MissionId", "ContentRevision", "TargetScenarioId");
+
+                    b.HasIndex("MissionId", "ContentRevision", "SpawnGroupId", "SpawnId");
+
+                    b.ToTable("mission_scenario_step", t =>
+                        {
+                            t.HasCheckConstraint("CK_mission_scenario_step_kind_parameter_set", "(kind IN (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23)) AND (kind <> 1 OR (spawn_group_id IS NOT NULL AND target_objective_id IS NULL AND reward_id IS NULL AND spawn_id IS NULL AND dynamic_object_key IS NULL AND entity_class_id IS NULL AND target_scenario_id IS NULL AND delay_milliseconds IS NULL AND skill_id IS NULL AND ability_id IS NULL AND skill_level IS NULL AND ability_slot IS NULL AND tutorial_id IS NULL AND audio_set_id IS NULL AND attempt_key IS NULL AND scenario_event_id IS NULL AND map_context_id IS NULL AND pos_x IS NULL AND pos_y IS NULL AND pos_z IS NULL AND orientation IS NULL AND initial_interaction_enabled IS NULL AND qualification_key IS NULL AND qualification_value IS NULL AND account_skip_entitlement IS NULL)) AND (kind <> 2 OR (spawn_group_id IS NOT NULL AND target_objective_id IS NULL AND reward_id IS NULL AND spawn_id IS NULL AND dynamic_object_key IS NULL AND entity_class_id IS NULL AND target_scenario_id IS NULL AND delay_milliseconds IS NULL AND skill_id IS NULL AND ability_id IS NULL AND skill_level IS NULL AND ability_slot IS NULL AND tutorial_id IS NULL AND audio_set_id IS NULL AND attempt_key IS NULL AND scenario_event_id IS NULL AND map_context_id IS NULL AND pos_x IS NULL AND pos_y IS NULL AND pos_z IS NULL AND orientation IS NULL AND initial_interaction_enabled IS NULL AND qualification_key IS NULL AND qualification_value IS NULL AND account_skip_entitlement IS NULL)) AND (kind <> 3 OR ((((entity_class_id IS NOT NULL AND spawn_group_id IS NULL AND spawn_id IS NULL) OR (entity_class_id IS NULL AND spawn_group_id IS NOT NULL AND spawn_id IS NOT NULL)) AND target_objective_id IS NULL AND reward_id IS NULL AND dynamic_object_key IS NULL AND target_scenario_id IS NULL AND delay_milliseconds IS NULL AND skill_id IS NULL AND ability_id IS NULL AND skill_level IS NULL AND ability_slot IS NULL AND tutorial_id IS NULL AND audio_set_id IS NULL AND attempt_key IS NULL AND scenario_event_id IS NULL AND map_context_id IS NULL AND pos_x IS NULL AND pos_y IS NULL AND pos_z IS NULL AND orientation IS NULL AND initial_interaction_enabled IS NULL AND qualification_key IS NULL AND qualification_value IS NULL AND account_skip_entitlement IS NULL))) AND (kind <> 4 OR ((((entity_class_id IS NOT NULL AND spawn_group_id IS NULL AND spawn_id IS NULL) OR (entity_class_id IS NULL AND spawn_group_id IS NOT NULL AND spawn_id IS NOT NULL)) AND target_objective_id IS NULL AND reward_id IS NULL AND dynamic_object_key IS NULL AND target_scenario_id IS NULL AND delay_milliseconds IS NULL AND skill_id IS NULL AND ability_id IS NULL AND skill_level IS NULL AND ability_slot IS NULL AND tutorial_id IS NULL AND audio_set_id IS NULL AND attempt_key IS NULL AND scenario_event_id IS NULL AND map_context_id IS NULL AND pos_x IS NULL AND pos_y IS NULL AND pos_z IS NULL AND orientation IS NULL AND initial_interaction_enabled IS NULL AND qualification_key IS NULL AND qualification_value IS NULL AND account_skip_entitlement IS NULL))) AND (kind <> 5 OR (target_objective_id IS NOT NULL AND reward_id IS NULL AND spawn_group_id IS NULL AND spawn_id IS NULL AND dynamic_object_key IS NULL AND entity_class_id IS NULL AND target_scenario_id IS NULL AND delay_milliseconds IS NULL AND skill_id IS NULL AND ability_id IS NULL AND skill_level IS NULL AND ability_slot IS NULL AND tutorial_id IS NULL AND audio_set_id IS NULL AND attempt_key IS NULL AND scenario_event_id IS NULL AND map_context_id IS NULL AND pos_x IS NULL AND pos_y IS NULL AND pos_z IS NULL AND orientation IS NULL AND initial_interaction_enabled IS NULL AND qualification_key IS NULL AND qualification_value IS NULL AND account_skip_entitlement IS NULL)) AND (kind <> 6 OR (target_objective_id IS NOT NULL AND reward_id IS NULL AND spawn_group_id IS NULL AND spawn_id IS NULL AND dynamic_object_key IS NULL AND entity_class_id IS NULL AND target_scenario_id IS NULL AND delay_milliseconds IS NULL AND skill_id IS NULL AND ability_id IS NULL AND skill_level IS NULL AND ability_slot IS NULL AND tutorial_id IS NULL AND audio_set_id IS NULL AND attempt_key IS NULL AND scenario_event_id IS NULL AND map_context_id IS NULL AND pos_x IS NULL AND pos_y IS NULL AND pos_z IS NULL AND orientation IS NULL AND initial_interaction_enabled IS NULL AND qualification_key IS NULL AND qualification_value IS NULL AND account_skip_entitlement IS NULL)) AND (kind <> 7 OR (target_objective_id IS NOT NULL AND reward_id IS NULL AND spawn_group_id IS NULL AND spawn_id IS NULL AND dynamic_object_key IS NULL AND entity_class_id IS NULL AND target_scenario_id IS NULL AND delay_milliseconds IS NULL AND skill_id IS NULL AND ability_id IS NULL AND skill_level IS NULL AND ability_slot IS NULL AND tutorial_id IS NULL AND audio_set_id IS NULL AND attempt_key IS NULL AND scenario_event_id IS NULL AND map_context_id IS NULL AND pos_x IS NULL AND pos_y IS NULL AND pos_z IS NULL AND orientation IS NULL AND initial_interaction_enabled IS NULL AND qualification_key IS NULL AND qualification_value IS NULL AND account_skip_entitlement IS NULL)) AND (kind <> 8 OR (target_objective_id IS NOT NULL AND reward_id IS NULL AND spawn_group_id IS NULL AND spawn_id IS NULL AND dynamic_object_key IS NULL AND entity_class_id IS NULL AND target_scenario_id IS NULL AND delay_milliseconds IS NULL AND skill_id IS NULL AND ability_id IS NULL AND skill_level IS NULL AND ability_slot IS NULL AND tutorial_id IS NULL AND audio_set_id IS NULL AND attempt_key IS NULL AND scenario_event_id IS NULL AND map_context_id IS NULL AND pos_x IS NULL AND pos_y IS NULL AND pos_z IS NULL AND orientation IS NULL AND initial_interaction_enabled IS NULL AND qualification_key IS NULL AND qualification_value IS NULL AND account_skip_entitlement IS NULL)) AND (kind <> 9 OR (delay_milliseconds IS NOT NULL AND target_objective_id IS NULL AND reward_id IS NULL AND spawn_group_id IS NULL AND spawn_id IS NULL AND dynamic_object_key IS NULL AND entity_class_id IS NULL AND target_scenario_id IS NULL AND skill_id IS NULL AND ability_id IS NULL AND skill_level IS NULL AND ability_slot IS NULL AND tutorial_id IS NULL AND audio_set_id IS NULL AND attempt_key IS NULL AND scenario_event_id IS NULL AND map_context_id IS NULL AND pos_x IS NULL AND pos_y IS NULL AND pos_z IS NULL AND orientation IS NULL AND initial_interaction_enabled IS NULL AND qualification_key IS NULL AND qualification_value IS NULL AND account_skip_entitlement IS NULL)) AND (kind <> 10 OR (target_objective_id IS NULL AND reward_id IS NULL AND spawn_group_id IS NULL AND spawn_id IS NULL AND dynamic_object_key IS NULL AND entity_class_id IS NULL AND target_scenario_id IS NULL AND delay_milliseconds IS NULL AND skill_id IS NULL AND ability_id IS NULL AND skill_level IS NULL AND ability_slot IS NULL AND tutorial_id IS NULL AND audio_set_id IS NULL AND attempt_key IS NULL AND scenario_event_id IS NULL AND map_context_id IS NULL AND pos_x IS NULL AND pos_y IS NULL AND pos_z IS NULL AND orientation IS NULL AND initial_interaction_enabled IS NULL AND qualification_key IS NULL AND qualification_value IS NULL AND account_skip_entitlement IS NULL)) AND (kind <> 11 OR (reward_id IS NOT NULL AND target_objective_id IS NULL AND spawn_group_id IS NULL AND spawn_id IS NULL AND dynamic_object_key IS NULL AND entity_class_id IS NULL AND target_scenario_id IS NULL AND delay_milliseconds IS NULL AND skill_id IS NULL AND ability_id IS NULL AND skill_level IS NULL AND ability_slot IS NULL AND tutorial_id IS NULL AND audio_set_id IS NULL AND attempt_key IS NULL AND scenario_event_id IS NULL AND map_context_id IS NULL AND pos_x IS NULL AND pos_y IS NULL AND pos_z IS NULL AND orientation IS NULL AND initial_interaction_enabled IS NULL AND qualification_key IS NULL AND qualification_value IS NULL AND account_skip_entitlement IS NULL)) AND (kind <> 12 OR (skill_id IS NOT NULL AND ability_id IS NOT NULL AND skill_level IS NOT NULL AND target_objective_id IS NULL AND reward_id IS NULL AND spawn_group_id IS NULL AND spawn_id IS NULL AND dynamic_object_key IS NULL AND entity_class_id IS NULL AND target_scenario_id IS NULL AND delay_milliseconds IS NULL AND tutorial_id IS NULL AND audio_set_id IS NULL AND attempt_key IS NULL AND scenario_event_id IS NULL AND map_context_id IS NULL AND pos_x IS NULL AND pos_y IS NULL AND pos_z IS NULL AND orientation IS NULL AND initial_interaction_enabled IS NULL AND qualification_key IS NULL AND qualification_value IS NULL AND account_skip_entitlement IS NULL)) AND (kind <> 13 OR (tutorial_id IS NOT NULL AND target_objective_id IS NULL AND reward_id IS NULL AND spawn_group_id IS NULL AND spawn_id IS NULL AND dynamic_object_key IS NULL AND entity_class_id IS NULL AND target_scenario_id IS NULL AND delay_milliseconds IS NULL AND skill_id IS NULL AND ability_id IS NULL AND skill_level IS NULL AND ability_slot IS NULL AND attempt_key IS NULL AND scenario_event_id IS NULL AND map_context_id IS NULL AND pos_x IS NULL AND pos_y IS NULL AND pos_z IS NULL AND orientation IS NULL AND initial_interaction_enabled IS NULL AND qualification_key IS NULL AND qualification_value IS NULL AND account_skip_entitlement IS NULL)) AND (kind <> 14 OR (target_scenario_id IS NOT NULL AND delay_milliseconds IS NOT NULL AND target_objective_id IS NULL AND reward_id IS NULL AND spawn_group_id IS NULL AND spawn_id IS NULL AND dynamic_object_key IS NULL AND entity_class_id IS NULL AND skill_id IS NULL AND ability_id IS NULL AND skill_level IS NULL AND ability_slot IS NULL AND tutorial_id IS NULL AND audio_set_id IS NULL AND attempt_key IS NULL AND scenario_event_id IS NULL AND map_context_id IS NULL AND pos_x IS NULL AND pos_y IS NULL AND pos_z IS NULL AND orientation IS NULL AND initial_interaction_enabled IS NULL AND qualification_key IS NULL AND qualification_value IS NULL AND account_skip_entitlement IS NULL)) AND (kind <> 15 OR ((((target_scenario_id IS NOT NULL AND attempt_key IS NULL) OR (target_scenario_id IS NULL AND attempt_key IS NOT NULL AND attempt_key <> '')) AND target_objective_id IS NULL AND reward_id IS NULL AND spawn_group_id IS NULL AND spawn_id IS NULL AND dynamic_object_key IS NULL AND entity_class_id IS NULL AND delay_milliseconds IS NULL AND skill_id IS NULL AND ability_id IS NULL AND skill_level IS NULL AND ability_slot IS NULL AND tutorial_id IS NULL AND audio_set_id IS NULL AND scenario_event_id IS NULL AND map_context_id IS NULL AND pos_x IS NULL AND pos_y IS NULL AND pos_z IS NULL AND orientation IS NULL AND initial_interaction_enabled IS NULL AND qualification_key IS NULL AND qualification_value IS NULL AND account_skip_entitlement IS NULL))) AND (kind <> 16 OR (scenario_event_id IS NOT NULL AND target_objective_id IS NULL AND reward_id IS NULL AND spawn_group_id IS NULL AND spawn_id IS NULL AND dynamic_object_key IS NULL AND entity_class_id IS NULL AND target_scenario_id IS NULL AND delay_milliseconds IS NULL AND skill_id IS NULL AND ability_id IS NULL AND skill_level IS NULL AND ability_slot IS NULL AND tutorial_id IS NULL AND audio_set_id IS NULL AND attempt_key IS NULL AND map_context_id IS NULL AND pos_x IS NULL AND pos_y IS NULL AND pos_z IS NULL AND orientation IS NULL AND initial_interaction_enabled IS NULL AND qualification_key IS NULL AND qualification_value IS NULL AND account_skip_entitlement IS NULL)) AND (kind <> 17 OR (map_context_id IS NOT NULL AND pos_x IS NOT NULL AND pos_y IS NOT NULL AND pos_z IS NOT NULL AND orientation IS NOT NULL AND target_objective_id IS NULL AND reward_id IS NULL AND spawn_group_id IS NULL AND spawn_id IS NULL AND dynamic_object_key IS NULL AND entity_class_id IS NULL AND target_scenario_id IS NULL AND delay_milliseconds IS NULL AND skill_id IS NULL AND ability_id IS NULL AND skill_level IS NULL AND ability_slot IS NULL AND tutorial_id IS NULL AND audio_set_id IS NULL AND attempt_key IS NULL AND scenario_event_id IS NULL AND initial_interaction_enabled IS NULL AND qualification_key IS NULL AND qualification_value IS NULL AND account_skip_entitlement IS NULL)) AND (kind <> 18 OR (qualification_key IS NOT NULL AND qualification_value IS NOT NULL AND target_objective_id IS NULL AND reward_id IS NULL AND spawn_group_id IS NULL AND spawn_id IS NULL AND dynamic_object_key IS NULL AND entity_class_id IS NULL AND target_scenario_id IS NULL AND delay_milliseconds IS NULL AND skill_id IS NULL AND ability_id IS NULL AND skill_level IS NULL AND ability_slot IS NULL AND tutorial_id IS NULL AND audio_set_id IS NULL AND attempt_key IS NULL AND scenario_event_id IS NULL AND map_context_id IS NULL AND pos_x IS NULL AND pos_y IS NULL AND pos_z IS NULL AND orientation IS NULL AND initial_interaction_enabled IS NULL AND account_skip_entitlement IS NULL)) AND (kind <> 19 OR (account_skip_entitlement IS NOT NULL AND target_objective_id IS NULL AND reward_id IS NULL AND spawn_group_id IS NULL AND spawn_id IS NULL AND dynamic_object_key IS NULL AND entity_class_id IS NULL AND target_scenario_id IS NULL AND delay_milliseconds IS NULL AND skill_id IS NULL AND ability_id IS NULL AND skill_level IS NULL AND ability_slot IS NULL AND tutorial_id IS NULL AND audio_set_id IS NULL AND attempt_key IS NULL AND scenario_event_id IS NULL AND map_context_id IS NULL AND pos_x IS NULL AND pos_y IS NULL AND pos_z IS NULL AND orientation IS NULL AND initial_interaction_enabled IS NULL AND qualification_key IS NULL AND qualification_value IS NULL)) AND (kind <> 20 OR (dynamic_object_key IS NOT NULL AND dynamic_object_key <> '' AND entity_class_id IS NOT NULL AND pos_x IS NOT NULL AND pos_y IS NOT NULL AND pos_z IS NOT NULL AND orientation IS NOT NULL AND target_objective_id IS NULL AND reward_id IS NULL AND spawn_group_id IS NULL AND spawn_id IS NULL AND target_scenario_id IS NULL AND skill_id IS NULL AND ability_id IS NULL AND skill_level IS NULL AND ability_slot IS NULL AND tutorial_id IS NULL AND audio_set_id IS NULL AND attempt_key IS NULL AND scenario_event_id IS NULL AND map_context_id IS NULL AND qualification_key IS NULL AND qualification_value IS NULL AND account_skip_entitlement IS NULL)) AND (kind <> 21 OR (dynamic_object_key IS NOT NULL AND dynamic_object_key <> '' AND target_objective_id IS NULL AND reward_id IS NULL AND spawn_group_id IS NULL AND spawn_id IS NULL AND entity_class_id IS NULL AND target_scenario_id IS NULL AND delay_milliseconds IS NULL AND skill_id IS NULL AND ability_id IS NULL AND skill_level IS NULL AND ability_slot IS NULL AND tutorial_id IS NULL AND audio_set_id IS NULL AND attempt_key IS NULL AND scenario_event_id IS NULL AND map_context_id IS NULL AND pos_x IS NULL AND pos_y IS NULL AND pos_z IS NULL AND orientation IS NULL AND initial_interaction_enabled IS NULL AND qualification_key IS NULL AND qualification_value IS NULL AND account_skip_entitlement IS NULL)) AND (kind <> 22 OR (spawn_group_id IS NOT NULL AND target_objective_id IS NULL AND reward_id IS NULL AND spawn_id IS NULL AND dynamic_object_key IS NULL AND entity_class_id IS NULL AND target_scenario_id IS NULL AND delay_milliseconds IS NULL AND skill_id IS NULL AND ability_id IS NULL AND skill_level IS NULL AND ability_slot IS NULL AND tutorial_id IS NULL AND audio_set_id IS NULL AND attempt_key IS NULL AND scenario_event_id IS NULL AND map_context_id IS NULL AND pos_x IS NULL AND pos_y IS NULL AND pos_z IS NULL AND orientation IS NULL AND initial_interaction_enabled IS NULL AND qualification_key IS NULL AND qualification_value IS NULL AND account_skip_entitlement IS NULL)) AND (kind <> 23 OR (target_objective_id IS NULL AND reward_id IS NULL AND spawn_group_id IS NULL AND spawn_id IS NULL AND dynamic_object_key IS NULL AND entity_class_id IS NULL AND target_scenario_id IS NULL AND delay_milliseconds IS NULL AND skill_id IS NULL AND ability_id IS NULL AND skill_level IS NULL AND ability_slot IS NULL AND tutorial_id IS NULL AND audio_set_id IS NULL AND attempt_key IS NULL AND scenario_event_id IS NULL AND map_context_id IS NULL AND pos_x IS NULL AND pos_y IS NULL AND pos_z IS NULL AND orientation IS NULL AND initial_interaction_enabled IS NULL AND qualification_key IS NULL AND qualification_value IS NULL AND account_skip_entitlement IS NULL))");
+
+                            t.HasCheckConstraint("CK_mission_scenario_step_numeric_bounds", "(target_objective_id IS NULL OR target_objective_id > 0) AND (reward_id IS NULL OR reward_id > 0) AND (spawn_group_id IS NULL OR spawn_group_id > 0) AND (spawn_id IS NULL OR spawn_id > 0) AND (entity_class_id IS NULL OR entity_class_id > 0) AND (target_scenario_id IS NULL OR target_scenario_id > 0) AND (delay_milliseconds IS NULL OR (delay_milliseconds >= 1 AND delay_milliseconds <= 86400000)) AND (skill_id IS NULL OR skill_id > 0) AND (ability_id IS NULL OR (ability_id >= 1 AND ability_id <= 2147483647)) AND (skill_level IS NULL OR (skill_level >= 1 AND skill_level <= 5)) AND (ability_slot IS NULL OR ability_slot <= 24) AND (tutorial_id IS NULL OR tutorial_id > 0) AND (audio_set_id IS NULL OR audio_set_id > 0) AND (attempt_key IS NULL OR attempt_key <> '') AND (dynamic_object_key IS NULL OR dynamic_object_key <> '') AND (scenario_event_id IS NULL OR scenario_event_id > 0) AND (map_context_id IS NULL OR map_context_id > 0) AND (qualification_key IS NULL OR (qualification_key >= 1 AND qualification_key <= 255)) AND (qualification_value IS NULL OR (qualification_value >= 0 AND qualification_value <= 1))");
+                        });
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.MissionSceneBindingEntry", b =>
+                {
+                    b.Property<uint>("MissionId")
+                        .HasColumnType("integer")
+                        .HasColumnName("mission_id");
+
+                    b.Property<string>("ContentRevision")
+                        .HasColumnType("varchar(32)")
+                        .HasColumnName("content_revision");
+
+                    b.Property<string>("Bindings")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("bindings");
+
+                    b.Property<string>("ScriptKey")
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("script_key");
+
+                    b.Property<int>("StateVersion")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("state_version");
+
+                    b.HasKey("MissionId", "ContentRevision");
+
+                    b.ToTable("mission_scene_binding");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.MissionSpawnEntry", b =>
+                {
+                    b.Property<uint>("MissionId")
+                        .HasColumnType("integer")
+                        .HasColumnName("mission_id");
+
+                    b.Property<string>("ContentRevision")
+                        .HasColumnType("varchar(32)")
+                        .HasColumnName("content_revision");
+
+                    b.Property<uint>("SpawnGroupId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("spawn_group_id");
+
+                    b.Property<uint>("SpawnId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("spawn_id");
+
+                    b.Property<uint>("CreatureId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("creature_id");
+
+                    b.Property<double>("PosX")
+                        .HasColumnType("REAL")
+                        .HasColumnName("pos_x");
+
+                    b.Property<double>("PosY")
+                        .HasColumnType("REAL")
+                        .HasColumnName("pos_y");
+
+                    b.Property<double>("PosZ")
+                        .HasColumnType("REAL")
+                        .HasColumnName("pos_z");
+
+                    b.Property<uint>("Quantity")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("quantity");
+
+                    b.Property<double>("Rotation")
+                        .HasColumnType("REAL")
+                        .HasColumnName("rotation");
+
+                    b.HasKey("MissionId", "ContentRevision", "SpawnGroupId", "SpawnId");
+
+                    b.ToTable("mission_spawn");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.MissionSpawnGroupEntry", b =>
+                {
+                    b.Property<uint>("MissionId")
+                        .HasColumnType("integer")
+                        .HasColumnName("mission_id");
+
+                    b.Property<string>("ContentRevision")
+                        .HasColumnType("varchar(32)")
+                        .HasColumnName("content_revision");
+
+                    b.Property<uint>("SpawnGroupId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("spawn_group_id");
+
+                    b.Property<uint?>("AreaId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("area_id");
+
+                    b.Property<string>("Comment")
+                        .IsRequired()
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("comment");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("enabled");
+
+                    b.Property<uint>("MapContextId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("map_context_id");
+
+                    b.Property<byte>("Requirement")
+                        .HasColumnType("tinyint(3)")
+                        .HasColumnName("requirement");
+
+                    b.Property<uint?>("RespawnSeconds")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("respawn_seconds");
+
+                    b.Property<byte>("SpawnPolicy")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("tinyint(3)")
+                        .HasDefaultValue((byte)0)
+                        .HasColumnName("spawn_policy");
+
+                    b.HasKey("MissionId", "ContentRevision", "SpawnGroupId");
+
+                    b.HasIndex("MissionId", "ContentRevision", "AreaId");
+
+                    b.ToTable("mission_spawn_group");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.MissionTriggerEntry", b =>
+                {
+                    b.Property<uint>("MissionId")
+                        .HasColumnType("integer")
+                        .HasColumnName("mission_id");
+
+                    b.Property<string>("ContentRevision")
+                        .HasColumnType("varchar(32)")
+                        .HasColumnName("content_revision");
+
+                    b.Property<uint>("ObjectiveId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("objective_id");
+
+                    b.Property<uint>("TransitionId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("transition_id");
+
+                    b.Property<uint>("TriggerId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("trigger_id");
+
+                    b.Property<uint?>("AreaId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("area_id");
+
+                    b.Property<string>("Comment")
+                        .IsRequired()
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("comment");
+
+                    b.Property<uint?>("CounterId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("counter_id");
+
+                    b.Property<uint?>("DurationSeconds")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("duration_seconds");
+
+                    b.Property<byte?>("EventKind")
+                        .HasColumnType("tinyint(3)")
+                        .HasColumnName("event_kind");
+
+                    b.Property<uint?>("InitialValue")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("initial_value");
+
+                    b.Property<byte>("Kind")
+                        .HasColumnType("tinyint(3)")
+                        .HasColumnName("kind");
+
+                    b.Property<uint?>("NpcPackageId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("npc_package_id");
+
+                    b.Property<uint?>("PlayerFlagId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("player_flag_id");
+
+                    b.Property<uint?>("RelatedObjectiveId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("related_objective_id");
+
+                    b.Property<byte?>("RelatedState")
+                        .HasColumnType("tinyint(3)")
+                        .HasColumnName("related_state");
+
+                    b.Property<byte>("Requirement")
+                        .HasColumnType("tinyint(3)")
+                        .HasColumnName("requirement");
+
+                    b.Property<uint>("Sequence")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("sequence");
+
+                    b.Property<bool?>("SourceSpawnResolved")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("source_spawn_resolved");
+
+                    b.Property<uint?>("SubjectId")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("subject_id");
+
+                    b.Property<uint?>("TargetValue")
+                        .HasColumnType("int(11)")
+                        .HasColumnName("target_value");
+
+                    b.HasKey("MissionId", "ContentRevision", "ObjectiveId", "TransitionId", "TriggerId");
+
+                    b.HasIndex("MissionId", "ContentRevision", "AreaId");
+
+                    b.HasIndex("MissionId", "ContentRevision", "RelatedObjectiveId");
+
+                    b.ToTable("mission_trigger", t =>
+                        {
+                            t.HasCheckConstraint("CK_mission_trigger_kind_parameter_set", "(kind IN (1, 2, 3, 4, 5)) AND (kind <> 1 OR (npc_package_id IS NOT NULL AND player_flag_id IS NOT NULL AND related_objective_id IS NULL AND related_state IS NULL AND event_kind IS NULL AND subject_id IS NULL AND counter_id IS NULL AND initial_value IS NULL AND target_value IS NULL AND area_id IS NULL AND duration_seconds IS NULL AND source_spawn_resolved IS NULL)) AND (kind <> 2 OR (event_kind IS NOT NULL AND subject_id IS NOT NULL AND related_objective_id IS NULL AND related_state IS NULL AND area_id IS NULL AND duration_seconds IS NULL AND npc_package_id IS NULL AND player_flag_id IS NULL)) AND (kind <> 3 OR (related_objective_id IS NOT NULL AND related_state IS NOT NULL AND event_kind IS NULL AND subject_id IS NULL AND counter_id IS NULL AND initial_value IS NULL AND target_value IS NULL AND area_id IS NULL AND duration_seconds IS NULL AND npc_package_id IS NULL AND player_flag_id IS NULL AND source_spawn_resolved IS NULL)) AND (kind <> 4 OR (area_id IS NOT NULL AND related_objective_id IS NULL AND related_state IS NULL AND event_kind IS NULL AND subject_id IS NULL AND counter_id IS NULL AND initial_value IS NULL AND target_value IS NULL AND duration_seconds IS NULL AND npc_package_id IS NULL AND player_flag_id IS NULL AND source_spawn_resolved IS NULL)) AND (kind <> 5 OR (duration_seconds IS NOT NULL AND related_objective_id IS NULL AND related_state IS NULL AND event_kind IS NULL AND subject_id IS NULL AND counter_id IS NULL AND initial_value IS NULL AND target_value IS NULL AND area_id IS NULL AND npc_package_id IS NULL AND player_flag_id IS NULL AND source_spawn_resolved IS NULL))");
+                        });
                 });
 
             modelBuilder.Entity("Rasa.Structures.World.NpcMissionEntry", b =>
@@ -1326,6 +2404,26 @@ namespace Rasa.Migrations.SqliteWorld
                     b.ToTable("recipe_input");
                 });
 
+            modelBuilder.Entity("Rasa.Structures.World.SkillCharacterEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .HasColumnType("integer")
+                        .HasColumnName("id")
+                        .HasAnnotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.None);
+
+                    b.Property<uint>("ClassId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("class_id");
+
+                    b.Property<uint>("RequiredLevel")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("required_level");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("skill_character");
+                });
+
             modelBuilder.Entity("Rasa.Structures.World.SpawnPoolArrivalEntry", b =>
                 {
                     b.Property<uint>("Id")
@@ -1489,25 +2587,6 @@ namespace Rasa.Migrations.SqliteWorld
                     b.HasKey("Id");
 
                     b.ToTable("spawnpool");
-                });
-
-            modelBuilder.Entity("Rasa.Structures.World.SkillCharacterEntry", b =>
-                {
-                    b.Property<uint>("Id")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("id");
-
-                    b.Property<uint>("ClassId")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("class_id");
-
-                    b.Property<uint>("RequiredLevel")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("required_level");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("skill_character");
                 });
 
             modelBuilder.Entity("Rasa.Structures.World.TeleporterEntry", b =>
@@ -1698,6 +2777,298 @@ namespace Rasa.Migrations.SqliteWorld
                     b.HasKey("Id");
 
                     b.ToTable("weaponclass");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.MissionActionEntry", b =>
+                {
+                    b.HasOne("Rasa.Structures.World.MissionRewardDefinitionEntry", null)
+                        .WithMany()
+                        .HasForeignKey("MissionId", "ContentRevision", "RewardId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Rasa.Structures.World.MissionScenarioEntry", null)
+                        .WithMany()
+                        .HasForeignKey("MissionId", "ContentRevision", "ScenarioId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Rasa.Structures.World.MissionSpawnGroupEntry", null)
+                        .WithMany()
+                        .HasForeignKey("MissionId", "ContentRevision", "SpawnGroupId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Rasa.Structures.World.MissionObjectiveDefinitionEntry", null)
+                        .WithMany()
+                        .HasForeignKey("MissionId", "ContentRevision", "TargetObjectiveId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Rasa.Structures.World.MissionIndicatorEntry", null)
+                        .WithMany()
+                        .HasForeignKey("MissionId", "ContentRevision", "ObjectiveId", "IndicatorId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Rasa.Structures.World.MissionObjectiveTransitionEntry", "Transition")
+                        .WithMany("Actions")
+                        .HasForeignKey("MissionId", "ContentRevision", "ObjectiveId", "TransitionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Transition");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.MissionAreaEntry", b =>
+                {
+                    b.HasOne("Rasa.Structures.World.MissionContentDefinitionEntry", "Content")
+                        .WithMany("Areas")
+                        .HasForeignKey("MissionId", "ContentRevision")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Content");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.MissionChannelPolicyEntry", b =>
+                {
+                    b.HasOne("Rasa.Structures.World.MissionContentDefinitionEntry", null)
+                        .WithMany()
+                        .HasForeignKey("MissionId", "ContentRevision")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.MissionEvidenceEntry", b =>
+                {
+                    b.HasOne("Rasa.Structures.World.MissionContentDefinitionEntry", "Content")
+                        .WithMany("Evidence")
+                        .HasForeignKey("MissionId", "ContentRevision")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Content");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.MissionIndicatorEntry", b =>
+                {
+                    b.HasOne("Rasa.Structures.World.MissionObjectiveDefinitionEntry", "Objective")
+                        .WithMany("Indicators")
+                        .HasForeignKey("MissionId", "ContentRevision", "ObjectiveId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Objective");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.MissionObjectiveDefinitionEntry", b =>
+                {
+                    b.HasOne("Rasa.Structures.World.MissionContentDefinitionEntry", "Content")
+                        .WithMany("Objectives")
+                        .HasForeignKey("MissionId", "ContentRevision")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Content");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.MissionObjectiveTransitionEntry", b =>
+                {
+                    b.HasOne("Rasa.Structures.World.MissionObjectiveDefinitionEntry", "Objective")
+                        .WithMany("Transitions")
+                        .HasForeignKey("MissionId", "ContentRevision", "ObjectiveId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Objective");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.MissionPrerequisiteEntry", b =>
+                {
+                    b.HasOne("Rasa.Structures.World.MissionContentDefinitionEntry", "Content")
+                        .WithMany("Prerequisites")
+                        .HasForeignKey("MissionId", "ContentRevision")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Content");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.MissionRepeatPolicyEntry", b =>
+                {
+                    b.HasOne("Rasa.Structures.World.MissionContentDefinitionEntry", null)
+                        .WithMany()
+                        .HasForeignKey("MissionId", "ContentRevision")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.MissionRewardDefinitionEntry", b =>
+                {
+                    b.HasOne("Rasa.Structures.World.MissionContentDefinitionEntry", "Content")
+                        .WithMany("Rewards")
+                        .HasForeignKey("MissionId", "ContentRevision")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Content");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.MissionRewardItemEntry", b =>
+                {
+                    b.HasOne("Rasa.Structures.World.MissionRewardDefinitionEntry", "Reward")
+                        .WithMany("Items")
+                        .HasForeignKey("MissionId", "ContentRevision", "RewardId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Reward");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.MissionScenarioEntry", b =>
+                {
+                    b.HasOne("Rasa.Structures.World.MissionContentDefinitionEntry", "Content")
+                        .WithMany("Scenarios")
+                        .HasForeignKey("MissionId", "ContentRevision")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Content");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.MissionScenarioStepEntry", b =>
+                {
+                    b.HasOne("Rasa.Structures.World.MissionRewardDefinitionEntry", null)
+                        .WithMany()
+                        .HasForeignKey("MissionId", "ContentRevision", "RewardId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Rasa.Structures.World.MissionScenarioEntry", "Scenario")
+                        .WithMany("Steps")
+                        .HasForeignKey("MissionId", "ContentRevision", "ScenarioId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Rasa.Structures.World.MissionSpawnGroupEntry", null)
+                        .WithMany()
+                        .HasForeignKey("MissionId", "ContentRevision", "SpawnGroupId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Rasa.Structures.World.MissionObjectiveDefinitionEntry", null)
+                        .WithMany()
+                        .HasForeignKey("MissionId", "ContentRevision", "TargetObjectiveId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Rasa.Structures.World.MissionScenarioEntry", null)
+                        .WithMany()
+                        .HasForeignKey("MissionId", "ContentRevision", "TargetScenarioId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Rasa.Structures.World.MissionSpawnEntry", null)
+                        .WithMany()
+                        .HasForeignKey("MissionId", "ContentRevision", "SpawnGroupId", "SpawnId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Scenario");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.MissionSceneBindingEntry", b =>
+                {
+                    b.HasOne("Rasa.Structures.World.MissionContentDefinitionEntry", null)
+                        .WithMany()
+                        .HasForeignKey("MissionId", "ContentRevision")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.MissionSpawnEntry", b =>
+                {
+                    b.HasOne("Rasa.Structures.World.MissionSpawnGroupEntry", "SpawnGroup")
+                        .WithMany("Spawns")
+                        .HasForeignKey("MissionId", "ContentRevision", "SpawnGroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("SpawnGroup");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.MissionSpawnGroupEntry", b =>
+                {
+                    b.HasOne("Rasa.Structures.World.MissionContentDefinitionEntry", "Content")
+                        .WithMany("SpawnGroups")
+                        .HasForeignKey("MissionId", "ContentRevision")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Rasa.Structures.World.MissionAreaEntry", null)
+                        .WithMany()
+                        .HasForeignKey("MissionId", "ContentRevision", "AreaId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Content");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.MissionTriggerEntry", b =>
+                {
+                    b.HasOne("Rasa.Structures.World.MissionAreaEntry", null)
+                        .WithMany()
+                        .HasForeignKey("MissionId", "ContentRevision", "AreaId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Rasa.Structures.World.MissionObjectiveDefinitionEntry", null)
+                        .WithMany()
+                        .HasForeignKey("MissionId", "ContentRevision", "RelatedObjectiveId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Rasa.Structures.World.MissionObjectiveTransitionEntry", "Transition")
+                        .WithMany("Triggers")
+                        .HasForeignKey("MissionId", "ContentRevision", "ObjectiveId", "TransitionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Transition");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.MissionContentDefinitionEntry", b =>
+                {
+                    b.Navigation("Areas");
+
+                    b.Navigation("Evidence");
+
+                    b.Navigation("Objectives");
+
+                    b.Navigation("Prerequisites");
+
+                    b.Navigation("Rewards");
+
+                    b.Navigation("Scenarios");
+
+                    b.Navigation("SpawnGroups");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.MissionObjectiveDefinitionEntry", b =>
+                {
+                    b.Navigation("Indicators");
+
+                    b.Navigation("Transitions");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.MissionObjectiveTransitionEntry", b =>
+                {
+                    b.Navigation("Actions");
+
+                    b.Navigation("Triggers");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.MissionRewardDefinitionEntry", b =>
+                {
+                    b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.MissionScenarioEntry", b =>
+                {
+                    b.Navigation("Steps");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.MissionSpawnGroupEntry", b =>
+                {
+                    b.Navigation("Spawns");
                 });
 #pragma warning restore 612, 618
         }

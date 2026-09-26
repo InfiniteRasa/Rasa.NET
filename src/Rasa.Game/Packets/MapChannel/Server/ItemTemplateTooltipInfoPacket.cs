@@ -34,37 +34,60 @@
                         pw.WriteInt(EntityClass.WeaponClassInfo.MaxDamage);
                         pw.WriteUInt((uint)EntityClass.WeaponClassInfo.AmmoClassId);
                         pw.WriteUInt(EntityClass.WeaponClassInfo.ClipSize);
-                        pw.WriteUInt(ItemTemplate.WeaponInfo.AmmoPerShot);
-                        pw.WriteInt(EntityClass.WeaponClassInfo.DamageType);
-                        pw.WriteUInt(ItemTemplate.WeaponInfo.Windup);
-                        pw.WriteUInt(ItemTemplate.WeaponInfo.Recovery);
-                        pw.WriteUInt(ItemTemplate.WeaponInfo.Refire);
-                        pw.WriteUInt(ItemTemplate.WeaponInfo.ReloadTime);
-                        pw.WriteUInt(ItemTemplate.WeaponInfo.Range);
-                        // Shotguns and propellant guns as cones, as WeaponInfo sends them (Managers.ConeWeapons).
-                        var (aeType, aeRadius) = Managers.ConeWeapons.AeOf(ItemTemplate.WeaponInfo, EntityClass.WeaponClassInfo);
 
-                        pw.WriteUInt(aeRadius);
-
-                        if (aeType == 0)
-                            pw.WriteNoneStruct();
-                        else
-                            pw.WriteUInt(aeType);
-
-                        if (ItemTemplate.WeaponInfo.WeaponAltInfo != null)
+                        if (ItemTemplate.WeaponInfo != null)
                         {
-                            pw.WriteTuple(5);
-                            pw.WriteUInt(ItemTemplate.WeaponInfo.WeaponAltInfo.AltMaxDamage);
-                            pw.WriteUInt(ItemTemplate.WeaponInfo.WeaponAltInfo.AltDamageType);
-                            pw.WriteUInt(ItemTemplate.WeaponInfo.WeaponAltInfo.AltRange);
-                            pw.WriteUInt(ItemTemplate.WeaponInfo.WeaponAltInfo.AltAeRadius);
-                            pw.WriteUInt(ItemTemplate.WeaponInfo.WeaponAltInfo.AltAeType);
+                            pw.WriteUInt(ItemTemplate.WeaponInfo.AmmoPerShot);
+                            pw.WriteInt(EntityClass.WeaponClassInfo.DamageType);
+                            pw.WriteUInt(ItemTemplate.WeaponInfo.Windup);
+                            pw.WriteUInt(ItemTemplate.WeaponInfo.Recovery);
+                            pw.WriteUInt(ItemTemplate.WeaponInfo.Refire);
+                            pw.WriteUInt(ItemTemplate.WeaponInfo.ReloadTime);
+                            pw.WriteUInt(ItemTemplate.WeaponInfo.Range);
+                            // Shotguns and propellant guns as cones, as WeaponInfo sends them (Managers.ConeWeapons).
+                            var (aeType, aeRadius) = Managers.ConeWeapons.AeOf(ItemTemplate.WeaponInfo, EntityClass.WeaponClassInfo);
+
+                            pw.WriteUInt(aeRadius);
+
+                            if (aeType == 0)
+                                pw.WriteNoneStruct();
+                            else
+                                pw.WriteUInt(aeType);
+
+                            if (ItemTemplate.WeaponInfo.WeaponAltInfo != null)
+                            {
+                                pw.WriteTuple(5);
+                                pw.WriteUInt(ItemTemplate.WeaponInfo.WeaponAltInfo.AltMaxDamage);
+                                pw.WriteUInt(ItemTemplate.WeaponInfo.WeaponAltInfo.AltDamageType);
+                                pw.WriteUInt(ItemTemplate.WeaponInfo.WeaponAltInfo.AltRange);
+                                pw.WriteUInt(ItemTemplate.WeaponInfo.WeaponAltInfo.AltAeRadius);
+                                pw.WriteUInt(ItemTemplate.WeaponInfo.WeaponAltInfo.AltAeType);
+                            }
+                            else
+                                pw.WriteNoneStruct();
+
+                            pw.WriteInt((int)ItemTemplate.WeaponInfo.AttackType);
+                            pw.WriteInt((int)ItemTemplate.WeaponInfo.ToolType);
                         }
                         else
+                        {
+                            // The entity class is augmented as a weapon, but this item template has no
+                            // matching row from ItemManager's weapon-items load (data gap). Send zeroed
+                            // weapon stats instead of crashing the write so the tooltip still opens.
+                            Logger.WriteLog(LogType.Error, $"ItemTemplateTooltipInfoPacket: item template {ItemTemplate.ItemTemplateId} is augmented as a weapon but has no WeaponInfo; sending zeroed weapon stats");
+                            pw.WriteUInt(0);
+                            pw.WriteInt(EntityClass.WeaponClassInfo.DamageType);
+                            pw.WriteUInt(0);
+                            pw.WriteUInt(0);
+                            pw.WriteUInt(0);
+                            pw.WriteUInt(0);
+                            pw.WriteUInt(0);
+                            pw.WriteUInt(0);
                             pw.WriteNoneStruct();
-
-                        pw.WriteInt((int)ItemTemplate.WeaponInfo.AttackType);
-                        pw.WriteInt((int)ItemTemplate.WeaponInfo.ToolType);
+                            pw.WriteNoneStruct();
+                            pw.WriteInt(0);
+                            pw.WriteInt(0);
+                        }
 
                         break;
 

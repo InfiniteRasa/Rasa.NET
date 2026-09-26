@@ -20,11 +20,33 @@ namespace Rasa.Structures
         {
         }
 
+        internal void WriteOffer(PythonWriter pw)
+        {
+            pw.WriteTuple(6);
+            pw.WriteUInt(MissionConstantData.Level);
+            pw.WriteStruct(MissionConstantData.RewardInfo);
+            if (AudioSetId > 0)
+                pw.WriteInt(AudioSetId);
+            else
+                pw.WriteNoneStruct();
+            pw.WriteList(ItemRequired.Count);
+            foreach (var item in ItemRequired)
+                pw.WriteInt(item);
+            pw.WriteList(ObjectivesList.Count);
+            foreach (var objective in ObjectivesList)
+            {
+                pw.WriteTuple(2);
+                pw.WriteNoneStruct(); // Preserve the NPC offer's unused ordinal.
+                pw.WriteUInt(objective.ObjectiveId);
+            }
+            pw.WriteUInt(MissionConstantData.GroupType);
+        }
+
         public void Write(PythonWriter pw)
         {
             pw.WriteTuple(5);                       // missionInfo = (missionStatus, bCompleteable, constantData, changeTime, objectiveList)
             pw.WriteInt((int)MissionState);         // missionStatus
-            pw.WriteBool(Completeable);             // bCompleteable
+            MissionWire.WriteBool(pw, Completeable); // bCompleteable
             pw.WriteStruct(MissionConstantData);    // constantData = (missionLevel, groupType, missionCategoryId, bShareable, bRadioCompleteable, rewardInfo)
             pw.WriteInt(0);                         // changeTime ToDo: seems that client dont use 'changeTime'
             pw.WriteList(ObjectivesList.Count);     // objectiveList
@@ -32,32 +54,41 @@ namespace Rasa.Structures
             {
                 pw.WriteTuple(8);
                 pw.WriteUInt(objective.ObjectiveId);                // objectiveId
-                pw.WriteUInt(objective.ObjectiveStatus);            // objStatus
+                pw.WriteUInt((uint)objective.State);                 // objStatus
                 pw.WriteUInt(objective.Ordinal);                    // ordinal
-                pw.WriteUInt(objective.TimeRemaining);              // objTime
-                pw.WriteNoneStruct();                               // counters
-                pw.WriteDictionary(objective.ItemCounters.Count);   // itemCountDict
+                if (objective.TimeRemaining.HasValue)
+                    pw.WriteUInt(objective.TimeRemaining.Value);     // objTime
+                else
+                    pw.WriteNoneStruct();
+                pw.WriteDictionary(objective.Counters.Count);       // counters
+                foreach (var entry in objective.Counters)
                 {
-                    foreach (var entry in objective.ItemCounters)
-                    {
-                        pw.WriteUInt(entry.Key);
-                        pw.WriteTuple(2);
-                        pw.WriteUInt(entry.Value.Count);
-                        pw.WriteUInt(entry.Value.MaxCount);
-                    }
+                    pw.WriteUInt(entry.Key);
+                    pw.WriteTuple(3);
+                    pw.WriteUInt(entry.Value.CounterValue);
+                    pw.WriteUInt(entry.Value.InitialValue);
+                    pw.WriteUInt(entry.Value.TargetValue);
                 }
-                pw.WriteBool(objective.IsRequired);                 // isRequired
+                pw.WriteDictionary(objective.ItemCounters.Count);   // itemCountDict
+                foreach (var entry in objective.ItemCounters)
+                {
+                    pw.WriteUInt(entry.Key);
+                    pw.WriteTuple(2);
+                    pw.WriteUInt(entry.Value.CounterValue);
+                    pw.WriteUInt(entry.Value.TargetValue);
+                }
+                MissionWire.WriteBool(pw, objective.IsRequired);    // isRequired
                 pw.WriteList(objective.IndicatorList.Count);        // indicatorList
                 foreach (var indicator in objective.IndicatorList)
                 {
                     pw.WriteTuple(4);
                     pw.WriteTuple(3);                               // position
                         pw.WriteDouble(indicator.Position.X);
-                        pw.WriteDouble(indicator.Position.X);
-                        pw.WriteDouble(indicator.Position.X);
+                        pw.WriteDouble(indicator.Position.Y);
+                        pw.WriteDouble(indicator.Position.Z);
                     pw.WriteDouble(indicator.Radius);               // radius
                     pw.WriteUInt(indicator.IndicatorId);            // indicatorId
-                    pw.WriteBool(indicator.Show3DEffect);           // bShow3DEffect
+                    MissionWire.WriteBool(pw, indicator.Show3DEffect); // bShow3DEffect
                 }
             }
         }
@@ -82,8 +113,8 @@ namespace Rasa.Structures
             pw.WriteUInt(Level);
             pw.WriteUInt(GroupType);
             pw.WriteUInt(CategoryId);
-            pw.WriteBool(Shareable);
-            pw.WriteBool(RadioCompletable);
+            MissionWire.WriteBool(pw, Shareable);
+            MissionWire.WriteBool(pw, RadioCompletable);
             pw.WriteStruct(RewardInfo);
         }
     }

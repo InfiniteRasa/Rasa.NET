@@ -10,13 +10,14 @@ namespace Rasa.Packets.LootDispenser.Server
     {
         public override GameOpcode Opcode { get; } = GameOpcode.CanLootItems;
 
-        public bool CanLootItems { get; set; }
-        public List<LootItem> LootItems = new List<LootItem>();
+        public bool CanLootItems { get; }
+        private readonly ulong[] _itemEntityIds;
         
         public CanLootItemsPacket(bool canLootItems, List<LootItem> lootItems)
         {
             CanLootItems = canLootItems;
-            LootItems = lootItems;
+            _itemEntityIds = lootItems?.ConvertAll(item => item.EntityId).ToArray()
+                             ?? System.Array.Empty<ulong>();
         }
         public override void Write(PythonWriter pw)
         {
@@ -24,10 +25,10 @@ namespace Rasa.Packets.LootDispenser.Server
             pw.WriteBool(CanLootItems);
             if (CanLootItems)
             {
-                pw.WriteDictionary(LootItems.Count);
-                foreach (var item in LootItems)
+                pw.WriteDictionary(_itemEntityIds.Length);
+                foreach (var entityId in _itemEntityIds)
                 {
-                    pw.WriteULong(item.EntityId);
+                    pw.WriteULong(entityId);
                     pw.WriteTuple(1);
                     pw.WriteBool(CanLootItems);
                 }

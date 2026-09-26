@@ -21,24 +21,30 @@ namespace Rasa.Packets.ClientMethod.Server
         public List<LootItem> Items { get; }
         public int Credits { get; }
 
+        // Queued packets are written later; what they say is taken when they are made.
+        private readonly List<(uint ClassId, uint Quantity, ulong EntityId)> _entries = new List<(uint, uint, ulong)>();
+
         public GotLootPacket(ulong creatureEntityId, List<LootItem> items, int credits)
         {
             CreatureEntityId = creatureEntityId;
-            Items = items ?? new List<LootItem>();
+            Items = items == null ? new List<LootItem>() : new List<LootItem>(items);
             Credits = credits;
+
+            foreach (var item in Items)
+                _entries.Add((item.ItemClassId, item.ItemQuantity, item.EntityId));
         }
 
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(3);
             pw.WriteULong(CreatureEntityId);
-            pw.WriteList(Items.Count);
-            foreach (var item in Items)
+            pw.WriteList(_entries.Count);
+            foreach (var (classId, quantity, entityId) in _entries)
             {
                 pw.WriteTuple(3);
-                pw.WriteUInt(item.ItemClassId);
-                pw.WriteUInt(item.ItemQuantity);
-                pw.WriteULong(item.EntityId);
+                pw.WriteUInt(classId);
+                pw.WriteUInt(quantity);
+                pw.WriteULong(entityId);
             }
             pw.WriteInt(Credits);
         }

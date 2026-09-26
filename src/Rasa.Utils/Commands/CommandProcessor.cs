@@ -43,6 +43,15 @@ namespace Rasa.Commands
 
         private static async Task<string> ReadCommand(CancellationToken stopToken)
         {
+            if (Console.IsInputRedirected)
+            {
+                // Console.KeyAvailable throws when input is redirected or no console is
+                // attached (headless/backgrounded launches, Docker without a tty, etc.).
+                // Without a real console there is nothing to read, so just idle.
+                await Task.Delay(1000, stopToken);
+                return null;
+            }
+
             var command = string.Empty;
             while (!stopToken.IsCancellationRequested)
             {

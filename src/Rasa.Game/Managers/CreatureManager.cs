@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Numerics;
+using System.Linq;
 
 namespace Rasa.Managers
 {
@@ -29,6 +30,8 @@ namespace Rasa.Managers
         public const long CreatureLocationUpdateTime = 1500;
         public Dictionary<uint, Creature> LoadedCreatures = new();
         private readonly IGameUnitOfWorkFactory _gameUnitOfWorkFactory;
+        private readonly ManifestationManager _manifestationManager;
+        private readonly MissionApplication _missionManager;
         public static CreatureManager Instance
         {
             get
@@ -48,8 +51,18 @@ namespace Rasa.Managers
         }
 
         private CreatureManager(IGameUnitOfWorkFactory gameUnitOfWorkFactory)
+            : this(gameUnitOfWorkFactory, new ManifestationManager(gameUnitOfWorkFactory))
+        {
+        }
+
+        internal CreatureManager(
+            IGameUnitOfWorkFactory gameUnitOfWorkFactory,
+            ManifestationManager manifestationManager,
+            MissionApplication missionManager = null)
         {
             _gameUnitOfWorkFactory = gameUnitOfWorkFactory;
+            _manifestationManager = manifestationManager;
+            _missionManager = missionManager;
         }
 
         /// <summary>
@@ -126,7 +139,7 @@ namespace Rasa.Managers
         /// <param name="critKill">A Critical Death finish: the experience and adrenaline are paid twice over, the client is told how the second award was earned, and the body cannot be revived.</param>
         internal void HandleCreatureKill(MapChannel mapChannel, Creature creature, Actor killedBy, CritKill critKill = CritKill.None)
         {
-            if (creature.State == CharacterState.Dead)
+            if (creature.State == CharacterState.Dead || Game.Missions.World.CreatureGameplayRules.IsInvulnerable(creature))
                 return; // creature already dead
 
             // A crab mine killed: it goes off where it fell, and is nobody's kill or loot.
@@ -167,15 +180,23 @@ namespace Rasa.Managers
             // harvest rights alike. The blow stays the creature's for threat.
             if (killedBy is Creature planted && planted.MasterEntityId != 0
                 && EntityManager.Instance.Players.TryGetValue(planted.MasterEntityId, out var master)
-                && master.MapContextId == creature.MapContextId)
+                && MapInstanceScope.Contains(mapChannel, master))
                 killedBy = master;
+
+            var policy = Game.Missions.World.CreatureGameplayRules.Policy(creature);
+            var participant = creature.CombatParticipant;
+            var canReward = creature.TargetCategory != TargetCategory.Friendly &&
+                Game.Missions.World.CreatureGameplayRules.RewardsKills(creature);
 
             // kill creature
             var stateIds = new List<CharacterState> { CharacterState.Dead };
 
             creature.State = CharacterState.Dead;
             creature.KnockbackTo = null;
+            Game.Missions.World.CreatureGameplayRules.ClearRole(creature);
             CellManager.Instance.CellCallMethod(mapChannel, creature, new StateChangePacket(stateIds));
+            if (creature.SpawnPool?.FollowOwnerCharacterId > 0)
+                PublishEscortStatus(mapChannel, creature, false);
 
             // A debuff does not outlive what it was on: a Ruin still ticking on a corpse would
             // try to damage it every second until it expired.
@@ -193,6 +214,8 @@ namespace Rasa.Managers
             {
                 SpawnPoolManager.Instance.DecreaseAliveCreatureCount(mapChannel, creature.SpawnPool);
                 SpawnPoolManager.Instance.IncreaseDeadCreatureCount(creature.SpawnPool);
+                if (creature.SpawnPool.SceneRunId == null)
+                    (_missionManager ?? MissionApplication.Instance).RecordScenarioCreatureDeath(creature.SpawnPool);
             }
 
             // todo: How were credits and experience calculated when multiple players attacked the same creature? Did only the player with the first strike get experience?
@@ -200,15 +223,27 @@ namespace Rasa.Managers
             Client client = null;
 
             // get client if it's killed by player
-            foreach (var cell in CellManager.CellsIn(mapChannel, killedBy.Cells))
-                foreach (var tempClient in cell.ClientList)
-                    if (tempClient.Player == killedBy)
+            foreach (var cell in CellManager.CellsIn(mapChannel, killedBy?.Cells))
+                foreach (var candidate in cell.ClientList)
+                    if (candidate.Player == killedBy && MapInstanceScope.Contains(mapChannel, killedBy))
                     {
-                        client = tempClient;
+                        client = candidate;
                         break;
                     }
 
-            if (client != null)
+            // A mission escort's kill is its owner's, and a scene defender's is the player who
+            // fought beside it.
+            if (client == null && killedBy is Creature killer && killer.TargetCategory != creature.TargetCategory)
+                client = FindEscortOwner(mapChannel, killer);
+            if (client == null && killedBy is Creature defender &&
+                Game.Missions.World.CreatureGameplayRules.IsDefender(defender) && policy.TrackParticipation &&
+                defender.TargetCategory != creature.TargetCategory && IsLivingOnMap(mapChannel, defender))
+                client = FindCombatPlayer(mapChannel, participant);
+            creature.CombatParticipant = null;
+            canReward &= client != null &&
+                (!mapChannel.IsPrivateInstance || mapChannel.OwnerCharacterId == client.Player.Id);
+
+            if (client != null && canReward)
             {
                 // give experience
                 var experience = creature.Level * 100; // base experience
@@ -216,7 +251,7 @@ namespace Rasa.Managers
                 experience += (uint)(Random.Shared.Next() % (experienceRange * 2 + 1)) - experienceRange;
 
                 // todo: Depending on level difference reduce experience
-                ManifestationManager.Instance.GainExperience(client, experience);
+                _manifestationManager.GainExperience(client, experience);
 
                 // A finishing move pays the kill over again: "You get full experience for killing
                 // the enemy, and you get full experience again at the end of the Finishing Move.
@@ -224,15 +259,15 @@ namespace Rasa.Managers
                 // strategy guide). Paid as a second award flagged as the crit kill, so the client
                 // prints the ordinary line and then its "by Crit Killing" line, one for each.
                 if (critKill != CritKill.None)
-                    ManifestationManager.Instance.GainExperience(client, experience, critKill);
+                    _manifestationManager.GainExperience(client, experience, critKill);
 
                 // Adrenaline is earned here and nowhere else: it does not regenerate. See
                 // ManifestationManager.AdrenalinePerKillPercent. Doubled for a finish, in one
                 // award rather than two, so the bar shows one number rather than two on top of
                 // each other.
-                var adrenaline = ManifestationManager.Instance.AdrenalineForKill(client);
+                var adrenaline = _manifestationManager.AdrenalineForKill(client);
 
-                ManifestationManager.Instance.GainAdrenaline(client, critKill != CritKill.None ? adrenaline * 2 : adrenaline);
+                _manifestationManager.GainAdrenaline(client, critKill != CritKill.None ? adrenaline * 2 : adrenaline);
             }
 
             // The corpse is harvestable by whoever earned it, a fixed number of times. Set here
@@ -247,19 +282,132 @@ namespace Rasa.Managers
             // A turret or a pet another creature brought in is nothing to loot or harvest
             // (CreatureSummons): only its experience is earned.
             var summoned = CreatureSummons.IsSummoned(creature);
+            var earned = canReward && client != null && !summoned;
 
-            creature.HarvestOwnerEntityId = !summoned ? client?.Player.EntityId ?? 0 : 0;
-            creature.HarvestAttemptsLeft = client != null && !summoned ? Harvest.AttemptsPerCorpse : 0;
+            creature.HarvestOwnerEntityId = earned ? client.Player.EntityId : 0;
+            creature.HarvestAttemptsLeft = earned ? Harvest.AttemptsPerCorpse : 0;
 
             // spawn loot
-            if (killedBy != null && client != null && !summoned)
-                LootDispenserManager.Instance.Loot(client, creature);
+            if (killedBy != null && earned)
+            {
+                try
+                {
+                    LootDispenserManager.Instance.Loot(client, creature, policy);
+                }
+                catch (Exception error) when (GameplayRejectionException.IsExpected(error))
+                {
+                    Logger.WriteLog(LogType.Error,
+                        $"Corpse loot generation failed for creature {creature.EntityId} ({creature.DbId}), " +
+                        $"character {client.Player.Id}; recording kill progress without loot: {error}");
+                }
+            }
+
+            var progressClient = client;
+            if (creature.SpawnPool?.SceneRunId != null)
+                (_missionManager ?? MissionApplication.Instance).Scenes.RecordDefeat(mapChannel, creature,
+                    progressClient != null && CanCreditScenarioProgress(mapChannel, creature, progressClient)
+                        ? progressClient : null);
+            else if (progressClient != null && CanCreditScenarioProgress(mapChannel, creature, progressClient))
+                (_missionManager ?? MissionApplication.Instance).Credit.Record(
+                    progressClient,
+                    MissionProgressEvent.Creature(creature.DbId),
+                    creature.Position);
+        }
+
+        internal static Client FindEscortOwner(MapChannel mapChannel, Creature escort)
+        {
+            var pool = escort?.SpawnPool;
+            if (pool?.FollowOwnerCharacterId is not > 0 || escort.MasterEntityId != 0 ||
+                pool.ScenarioOwnerCharacterId != pool.FollowOwnerCharacterId ||
+                mapChannel.IsPrivateInstance && mapChannel.OwnerCharacterId != pool.FollowOwnerCharacterId ||
+                !IsLivingOnMap(mapChannel, escort))
+                return null;
+
+            return mapChannel.ClientList.FirstOrDefault(client =>
+                client?.State == ClientState.Ingame && client.PendingTransfer == null &&
+                client.Player?.Id == pool.FollowOwnerCharacterId &&
+                IsLivingOnMap(mapChannel, client.Player) &&
+                CellManager.Instance.IsInWorld(client) &&
+                client.Player.Missions.TryGetValue(pool.ScenarioMissionId, out var mission) &&
+                mission.State == MissionState.Active);
+        }
+
+        internal static bool IsLivingOnMap(MapChannel map, Actor actor) =>
+            actor != null && actor.State != CharacterState.Dead &&
+            actor.Attributes.TryGetValue(Attributes.Health, out var health) && health.Current > 0 &&
+            MapInstanceScope.Contains(map, actor) &&
+            (actor is Creature creature
+                ? EntityManager.Instance.GetEntityType(actor.EntityId) == EntityType.Creature &&
+                  (creature.RuntimeMapChannel == null || ReferenceEquals(creature.RuntimeMapChannel, map)) &&
+                  EntityManager.Instance.Creatures.TryGetValue(actor.EntityId, out var registered) &&
+                  ReferenceEquals(registered, creature)
+                : actor is Manifestation player &&
+                  EntityManager.Instance.GetEntityType(actor.EntityId) == EntityType.Character &&
+                  EntityManager.Instance.Players.TryGetValue(actor.EntityId, out var registeredPlayer) &&
+                  ReferenceEquals(registeredPlayer, player));
+
+        internal static bool IsHostileTarget(MapChannel map, Actor source, Creature target) =>
+            IsLivingOnMap(map, source) && IsLivingOnMap(map, target) &&
+            target.TargetCategory != (source is Creature creature ? creature.TargetCategory : TargetCategory.Friendly);
+
+        internal static void RecordOwnerAttack(MapChannel map, Actor source, Creature target)
+        {
+            if (source is not Manifestation player ||
+                map?.SpawnPools?.Any(pool =>
+                    pool.FollowOwnerCharacterId != 0 && pool.FollowOwnerCharacterId == player.Id) != true ||
+                FindCombatPlayer(map, player) == null ||
+                !IsHostileTarget(map, player, target))
+                return;
+
+            foreach (var escort in map.MapCellInfo.Cells.Values.SelectMany(cell => cell.CreatureList).Distinct())
+                if (FindEscortOwner(map, escort)?.Player == player &&
+                    IsHostileTarget(map, escort, target))
+                    escort.Controller.ActionFollow.OwnerAttackTarget = target;
+        }
+
+        private static Client FindCombatPlayer(MapChannel map, Manifestation player) =>
+            IsLivingOnMap(map, player) ? map.ClientList.FirstOrDefault(client =>
+                client?.Player == player && client.State == ClientState.Ingame &&
+                client.PendingTransfer == null && CellManager.Instance.IsInWorld(client) &&
+                (!map.IsPrivateInstance || map.OwnerCharacterId == player.Id)) : null;
+
+        internal static void RecordCombatDamage(MapChannel map, Creature target, Actor source, int damage)
+        {
+            if (damage <= 0 || !Game.Missions.World.CreatureGameplayRules.TracksParticipation(target) || !IsHostileTarget(map, source, target))
+                return;
+            var client = source is Manifestation player
+                ? FindCombatPlayer(map, player)
+                : FindEscortOwner(map, source as Creature);
+            if (client != null)
+                target.CombatParticipant = client.Player;
+        }
+
+        internal static void PublishEscortStatus(MapChannel mapChannel, Creature creature, bool isEscort)
+        {
+            foreach (var client in CellManager.Instance.GetClientsInCells(mapChannel, creature.Cells))
+                if (client.Player?.Id == creature.SpawnPool?.FollowOwnerCharacterId)
+                    client.CallMethod(creature.EntityId, new UpdateEscortStatusPacket(isEscort));
+        }
+
+        private static bool CanCreditScenarioProgress(
+            MapChannel mapChannel,
+            Creature creature,
+            Client client)
+        {
+            if (client?.Player == null ||
+                creature?.SpawnPool?.ScenarioKey == null)
+                return client != null;
+
+            if (!mapChannel.IsPrivateInstance || mapChannel.OwnerCharacterId == 0)
+                return true;
+
+            return mapChannel.OwnerCharacterId == client.Player.Id;
         }
 
         public Creature CreateCreature(uint dbId, SpawnPool spawnPool)
         {
             // check is creature in database
-            if (!LoadedCreatures.ContainsKey(dbId))
+            if (!LoadedCreatures.TryGetValue(dbId, out var creatureEntry) || creatureEntry == null)
             {
                 Logger.WriteLog(LogType.Error, $"Creature with dbId={dbId}, isn't in database");
 
@@ -269,16 +417,14 @@ namespace Rasa.Managers
                 return null;
             }
 
-            var isCreature = false;
-            // check if classId have creature Augmentation
-            foreach (var aug in EntityClassManager.Instance.LoadedEntityClasses[LoadedCreatures[dbId].EntityClass].Augmentations)
-                if (aug == AugmentationType.Creature)
-                {
-                    isCreature = true;
-                    break;
-                }
+            if (!EntityClassManager.Instance.LoadedEntityClasses.TryGetValue(creatureEntry.EntityClass, out var entityClass) ||
+                entityClass == null)
+            {
+                Logger.WriteLog(LogType.Error, $"Creature with dbId={dbId} references missing entity class {creatureEntry.EntityClass}");
+                return null;
+            }
 
-            if (!isCreature)
+            if (entityClass.Augmentations == null || !entityClass.Augmentations.Contains(AugmentationType.Creature))
             {
                 Logger.WriteLog(LogType.Error, $"Creature with dbId = {dbId}, don't have creature Augmentation");
 
@@ -289,13 +435,19 @@ namespace Rasa.Managers
             }
 
             // create creature
-            var creatureEntry = LoadedCreatures[dbId];
             var creature = (Creature)creatureEntry.Clone();
 
             creature.SpawnPool = spawnPool;
+            if (spawnPool?.RuntimeMapChannel != null)
+            {
+                var leases = (_missionManager ?? MissionApplication.Instance).PublicActors;
+                leases.Recover(spawnPool.RuntimeMapChannel);
+                if (leases.IsReserved(spawnPool.RuntimeMapChannel, spawnPool.DbId))
+                    creature.IsInteractable = false;
+            }
 
             creature.State = CharacterState.Idle;
-            creature.Name = EntityClassManager.Instance.LoadedEntityClasses[creature.EntityClass].ClassName;
+            creature.Name = entityClass.ClassName;
 
             // set creature stats
             using var unitOfWork = _gameUnitOfWorkFactory.CreateWorld();
@@ -392,8 +544,12 @@ namespace Rasa.Managers
                 new AttributeInfoPacket(creature.Attributes),
                 new TargetCategoryPacket(creature.TargetCategory),
                 new UpdateAttributesPacket(creature.Attributes, 0),
-                new IsRunningPacket(false)
+                new IsRunningPacket(creature.IsRunning)
             };
+            if (creature.State != CharacterState.Dead &&
+                creature.SpawnPool?.FollowOwnerCharacterId is > 0 &&
+                creature.SpawnPool?.FollowOwnerCharacterId == client.Player?.Id)
+                entityData.Add(new UpdateEscortStatusPacket(true));
 
             // A clone's "Clone of %s" takes its master's name from here.
             if (creature.ActorName != null)
@@ -407,7 +563,16 @@ namespace Rasa.Managers
 
             // NPC  & Vendor augmentation
             if (creature.Npc != null)
+            {
+                // npc.py's own NPC.__init__ leaves npcPackageId at None until Recv_NPCInfo sets
+                // it - with nothing ever sending this packet, every NPC's client-side package id
+                // stayed None forever, which is invisible until something builds a lookup keyed
+                // on it (BuildObjectiveConversationText's (mission, objective, npcPackageId,
+                // playerFlagId, convoType) tuple), and then surfaces as ID_ERR_MISSING_TRANSLATION
+                // with "None" in the key even though the server-side binding is correct.
+                client.CallMethod(creature.EntityId, new NPCInfoPacket(creature.Npc.NpcPackageId));
                 NpcManager.Instance.UpdateConversationStatus(client, creature);
+            }
 
             // give some weapon to creature's
             GiveWeapon(creature);
@@ -415,6 +580,75 @@ namespace Rasa.Managers
             // What is on it - a DoT, a mark, a minion's or a risen corpse's effect, a turret's
             // look - went out before this client was here.
             GameEffectManager.ShowEffectsTo(client, creature);
+        }
+
+        internal Creature CreateScenarioCreature(
+            SpawnPool spawnPool,
+            uint creatureId,
+            Vector3 position,
+            double rotation)
+        {
+            if (!LoadedCreatures.TryGetValue(creatureId, out var template) ||
+                template == null)
+                return null;
+
+            if (!EntityClassManager.Instance.LoadedEntityClasses.TryGetValue(
+                    template.EntityClass,
+                    out var entityClass) ||
+                entityClass == null ||
+                entityClass.Augmentations == null ||
+                !entityClass.Augmentations.Contains(AugmentationType.Creature))
+                return null;
+
+            var creature = (Creature)template.Clone();
+            creature.SpawnPool = spawnPool;
+            creature.State = CharacterState.Idle;
+            creature.Name = entityClass.ClassName;
+            EnsureScenarioAttributes(creature);
+            SetLocation(creature, position, rotation, spawnPool?.MapContextId ?? creature.MapContextId);
+            creature.Controller.CurrentAction = BehaviorManager.BehaviorActionWander;
+            creature.Controller.ActionWander.State = BehaviorManager.WanderIdle;
+            if (spawnPool != null)
+                SpawnPoolManager.Instance.IncreaseAliveCreatureCount(spawnPool);
+            return creature;
+        }
+
+        internal void SetScenarioInteractionEnabled(
+            MapChannel mapChannel,
+            Creature creature,
+            bool enabled)
+        {
+            if (mapChannel == null || creature == null)
+                return;
+
+            creature.IsInteractable = enabled;
+            if (creature.Npc == null)
+                return;
+
+            foreach (var client in mapChannel.ClientList
+                         .Where(client => client?.Player?.MapChannel == mapChannel &&
+                             client.State == ClientState.Ingame)
+                         .ToArray())
+                NpcManager.Instance.UpdateConversationStatus(client, creature);
+        }
+
+        private static void EnsureScenarioAttributes(Creature creature)
+        {
+            if (creature.Attributes.Count != 0)
+                return;
+
+            var body = (int)Math.Max(15, creature.Level * 3);
+            var health = (int)Math.Max(100, creature.MaxHitPoints);
+            creature.Attributes.Add(Attributes.Body, new ActorAttributes(Attributes.Body, body, body, body, 5, 1000));
+            creature.Attributes.Add(Attributes.Mind, new ActorAttributes(Attributes.Mind, body, body, body, 5, 1000));
+            creature.Attributes.Add(Attributes.Spirit, new ActorAttributes(Attributes.Spirit, body, body, body, 5, 1000));
+            creature.Attributes.Add(Attributes.Health, new ActorAttributes(Attributes.Health, health, health, health, 10, 1000));
+            creature.Attributes.Add(Attributes.Chi, new ActorAttributes(Attributes.Chi, 0, 0, 0, 0, 0));
+            creature.Attributes.Add(Attributes.Power, new ActorAttributes(Attributes.Power, 0, 0, 0, 0, 0));
+            creature.Attributes.Add(Attributes.Aware, new ActorAttributes(Attributes.Aware, 0, 0, 0, 0, 0));
+            creature.Attributes.Add(Attributes.Armor, new ActorAttributes(Attributes.Armor, 100, 100, 100, 5, 1000));
+            creature.Attributes.Add(Attributes.Speed, new ActorAttributes(Attributes.Speed, 1, 1, 1, 0, 0));
+            creature.Attributes.Add(Attributes.Regen, new ActorAttributes(Attributes.Regen, 0, 0, 0, 0, 0));
         }
 
         public void CreatureInit()
@@ -519,7 +753,7 @@ namespace Rasa.Managers
                 }
 
                 // add mission data to npc's
-                foreach (var entry in MissionManager.Instance.LoadedMissions)
+                foreach (var entry in MissionApplication.Instance.LoadedMissions)
                 {
                     var mission = entry.Value;
 
@@ -639,7 +873,9 @@ namespace Rasa.Managers
 
         public void UpdateCreatureAppearance(Creature creature)
         {
-            var mapChannel = MapChannelManager.Instance.MapChannelArray[creature.MapContextId];
+            var mapChannel = creature?.RuntimeMapChannel;
+            if (mapChannel == null)
+                return;
             CellManager.Instance.CellCallMethod(mapChannel, creature, new AppearanceDataPacket(creature.AppearanceData));
         }
 

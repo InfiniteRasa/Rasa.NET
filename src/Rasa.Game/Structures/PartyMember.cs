@@ -16,6 +16,8 @@
     /// </summary>
     public class PartyMember : IPythonDataStruct
     {
+        internal System.Guid MembershipId { get; private set; } = System.Guid.NewGuid();
+        internal uint CharacterId { get; private set; }
         public uint UserId { get; set; }
         public string MemberName { get; set; }
         public uint MemberClassId { get; set; }
@@ -48,12 +50,17 @@
         /// <summary>Copies the live character: a member can come back on another character of the same account.</summary>
         public void Refresh(Client client)
         {
+            if (EntityId != client.Player.EntityId || CharacterId != client.Player.Id)
+                InvalidateMissionMembership();
+            CharacterId = client.Player.Id;
             EntityId = client.Player.EntityId;
             MemberName = client.Player.FamilyName;
             MemberClassId = client.Player.Class;
             MemberLevel = client.Player.Level;
             IsAfk = client.Player.IsAFK;
         }
+
+        internal void InvalidateMissionMembership() => MembershipId = System.Guid.NewGuid();
 
         public void Read(PythonReader pr)
         {

@@ -44,14 +44,14 @@ namespace Rasa.Memory
 
             var val = Reader.ReadByte();
             if (val != value)
-                throw new Exception($"ProtocolBufferReader::ReadDebugByte(): Expected {value}, found {val}");
+                throw new InvalidDataException($"ProtocolBufferReader::ReadDebugByte(): Expected {value}, found {val}");
         }
 
         public byte[] ReadArray()
         {
             ReadDebugByte(1);
 
-            return Reader.ReadBytes(Reader.CheckedLength(ReadCount(), "array"));
+            return Reader.ReadBytesExactly(ReadCount());
         }
 
         public byte ReadByte()
@@ -98,7 +98,7 @@ namespace Rasa.Memory
 
             var dest = new byte[4];
 
-            Reader.Read(dest, 0, lenCount + 1);
+            Reader.BaseStream.ReadExactly(dest, 0, lenCount + 1);
 
             return (dest[0] & 0x3F) | (dest[1] << 6) | (dest[2] << 14) | (dest[3] << 22);
         }
@@ -107,9 +107,8 @@ namespace Rasa.Memory
         {
             ReadDebugByte(13);
 
-            var length = Reader.CheckedLength(ReadCount(), "string");
-
-            var strBytes = Reader.ReadBytes(length);
+            var length = ReadCount();
+            var strBytes = Reader.ReadBytesExactly(length);
 
             return Encoding.UTF8.GetString(strBytes, 0, length);
         }
@@ -125,7 +124,7 @@ namespace Rasa.Memory
             UnknownValue = flagByte >> 6;
 
             if (UnknownValue != 0)
-                throw new NotImplementedException("Reading is disabled if UnknownValue isn't 0!");
+                throw new InvalidDataException("Unsupported protocol flags.");
         }
 
         public void ReadXORCheck(int length)
@@ -134,7 +133,7 @@ namespace Rasa.Memory
                 return;
 
             if (Reader.ReadByte() != (byte)((length & 0xFF) ^ ((length >> 8) & 0xFF) ^ ((length >> 16) & 0xFF) ^ ((length >> 24) & 0xFF)))
-                throw new Exception("XORCheck failed!");
+                throw new InvalidDataException("XORCheck failed!");
         }
 
         public void ReadPacketType(out ushort type, out bool compress)
@@ -193,7 +192,7 @@ namespace Rasa.Memory
             var value = (ReadByte() << 16)  | (ReadByte() << 8) | ReadByte();
 
             if ((value & 0x00800000) > 0)
-                value -= 0xFFFFFF;
+                value -= 0x1000000;
 
             ReadDebugByte(42);
 
@@ -234,7 +233,7 @@ namespace Rasa.Memory
             for (var i = 0; i < byteCount;)
             {
                 if (bitCount >= 16)
-                    throw new Exception("Bitcount can't be higher or equal to 32!");
+                    throw new InvalidDataException("Bitcount can't be higher or equal to 32!");
 
                 value = (short)(((valueBytes[i] & 0x7F) << bitCount) | (value & ((1 << bitCount) - 1)));
 
@@ -244,7 +243,7 @@ namespace Rasa.Memory
                     return value;
             }
 
-            throw new Exception("Input value is not over, but the array is!");
+            throw new InvalidDataException("Input value is not over, but the array is!");
         }
 
         public ushort ReadUShortBySevenBits()
@@ -258,7 +257,7 @@ namespace Rasa.Memory
             for (var i = 0; i < byteCount;)
             {
                 if (bitCount >= 16)
-                    throw new Exception("Bitcount can't be higher or equal to 32!");
+                    throw new InvalidDataException("Bitcount can't be higher or equal to 32!");
 
                 value = (ushort)(((valueBytes[i] & 0x7F) << bitCount) | (value & ((1 << bitCount) - 1)));
 
@@ -268,7 +267,7 @@ namespace Rasa.Memory
                     return value;
             }
 
-            throw new Exception("Input value is not over, but the array is!");
+            throw new InvalidDataException("Input value is not over, but the array is!");
         }
 
         public int ReadIntBySevenBits()
@@ -287,7 +286,7 @@ namespace Rasa.Memory
             for (var i = 1; i < byteCount;)
             {
                 if (bitCount >= 32)
-                    throw new Exception("Bitcount can't be higher or equal to 32!");
+                    throw new InvalidDataException("Bitcount can't be higher or equal to 32!");
 
                 value = ((valueBytes[i] & 0x7F) << bitCount) | (value & ((1 << bitCount) - 1));
 
@@ -297,7 +296,7 @@ namespace Rasa.Memory
                     return negative ? -value : value;
             }
 
-            throw new Exception("Input value is not over, but the array is!");
+            throw new InvalidDataException("Input value is not over, but the array is!");
         }
 
         public uint ReadUIntBySevenBits()
@@ -311,7 +310,7 @@ namespace Rasa.Memory
             for (var i = 0; i < byteCount;)
             {
                 if (bitCount >= 32)
-                    throw new Exception("Bitcount can't be higher or equal to 32!");
+                    throw new InvalidDataException("Bitcount can't be higher or equal to 32!");
 
                 value = (uint) (((valueBytes[i] & 0x7F) << bitCount) | ((int) value & ((1 << bitCount) - 1)));
 
@@ -321,7 +320,7 @@ namespace Rasa.Memory
                     return value;
             }
 
-            throw new Exception("Input value is not over, but the array is!");
+            throw new InvalidDataException("Input value is not over, but the array is!");
         }
 
         public ulong ReadULongBySevenBits()
@@ -335,7 +334,7 @@ namespace Rasa.Memory
             for (var i = 0; i < byteCount;)
             {
                 if (bitCount >= 64)
-                    throw new Exception("Bitcount can't be higher or equal to 64!");
+                    throw new InvalidDataException("Bitcount can't be higher or equal to 64!");
 
                 value = ((valueBytes[i] & 0x7FUL) << bitCount) | (value & ((1UL << bitCount) - 1UL));
 
@@ -345,7 +344,7 @@ namespace Rasa.Memory
                     return value;
             }
 
-            throw new Exception("Input value is not over, but the array is!");
+            throw new InvalidDataException("Input value is not over, but the array is!");
         }
 
         private byte[] GatherSevenBitBytes(int length, out int byteInd)
@@ -363,7 +362,7 @@ namespace Rasa.Memory
             }
 
             if (hasValue)
-                throw new Exception("Reading int from rasa bytes should have been continued, but ran out of available bytes!");
+                throw new InvalidDataException("Reading int from rasa bytes should have been continued, but ran out of available bytes!");
 
             return dest;
         }

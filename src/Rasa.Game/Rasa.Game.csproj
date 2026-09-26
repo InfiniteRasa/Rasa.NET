@@ -16,10 +16,16 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="BouncyCastle.Cryptography" Version="2.7.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.20">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.12" />
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Rasa.Missions\Rasa.Missions.csproj" />
     <ProjectReference Include="..\Rasa.DBL\Rasa.DBL.csproj" />
     <ProjectReference Include="..\Rasa.Navigation\Rasa.Navigation.csproj" />
     <ProjectReference Include="..\Rasa.Shared\Rasa.Shared.csproj" />
@@ -27,6 +33,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="..\..\navmesh\*.nav">
+      <Link>navmesh\%(Filename)%(Extension)</Link>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
     <None Update="appsettings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

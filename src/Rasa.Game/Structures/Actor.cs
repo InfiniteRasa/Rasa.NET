@@ -39,6 +39,7 @@ namespace Rasa.Structures
         /// </summary>
         public double MovementSpeed { get; set; } = 1.0d;
         public bool WeaponReady { get; set; }
+        public MapChannel RuntimeMapChannel { get; set; }
         // action data
         public int CurrentAction { get; set; }
         public Dictionary<Attributes, ActorAttributes> Attributes = new Dictionary<Attributes, ActorAttributes>();

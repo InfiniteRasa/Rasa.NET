@@ -123,7 +123,13 @@ namespace Rasa.Managers
 
             var pools = 0;
 
-            foreach (var pool in SpawnPoolManager.Instance.LoadedSpawnPools.Values)
+            // The map's own pools (each map channel runs clones of the loaded templates); the
+            // templates only for a map that has none.
+            var mapPools = mapChannel.SpawnPools.Count > 0
+                ? mapChannel.SpawnPools
+                : SpawnPoolManager.Instance.LoadedSpawnPools.Values.ToList();
+
+            foreach (var pool in mapPools)
             {
                 if (pool.MapContextId != mapContextId || pool.Mode != SpawnPoolManager.ModeAutomatic)
                     continue;

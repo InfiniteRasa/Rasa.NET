@@ -1,0 +1,5 @@
+**/bin
+**/obj
+**/*.env.json
+.git
+.p0-validation
