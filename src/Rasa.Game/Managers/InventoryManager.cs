@@ -1478,6 +1478,13 @@ namespace Rasa.Managers
                 }
             }
 
+            // The item's own record of where it is follows it. InventoryPlan checks every personal
+            // stack's OwnerSlotId against its slot before any grant, loot claim or mission accept,
+            // and this was left to the callers: an equip swap put the outgoing item in the pack
+            // with its old equipment slot still on it, and every later inventory change for that
+            // character was refused until they logged in again.
+            tempItem.OwnerSlotId = slotId;
+
             // set entityId in slot
             switch (inventoryType)
             {

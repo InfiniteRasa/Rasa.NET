@@ -460,6 +460,122 @@ namespace Rasa.Test.Missions
             AssertConversationUpdate(harness, actors.Hartmann);
         }
 
+        // Reported in play: after gear came off into a different pack slot than the one it was put
+        // on from, every corpse loot claim and the Capture the Flag follow-up (1995) were refused
+        // with "Runtime inventory no longer matches its durable owner/slot" until a relog.
+        [TestMethod]
+        public void BootsTakenOffIntoAnotherSlotLeaveTheInventoryUsable()
+        {
+            using var harness = BootcampRuntimeTestHarness.Create();
+            var actors = PrepareActors(harness);
+            Accept(harness, actors.McAllister);
+            CompleteObjective(harness, actors.Delessio, 4);
+            LootCrate(harness);
+            var boots = harness.Client.Player.Inventory.PersonalInventory.Where(id => id != 0)
+                .Select(id => EntityManager.Instance.GetItem(id))
+                .Single(item => item.ItemTemplateId == 13066);
+            var putOnFrom = boots.OwnerSlotId;
+            EquipBoots(harness);
+            var takenOffTo = FreeEquipmentSlot(harness, putOnFrom);
+
+            InventoryManager.Instance.RequestEquipArmor(harness.Client, new RequestEquipArmorPacket
+            {
+                SrcInventory = InventoryType.Personal,
+                SrcSlot = takenOffTo,
+                DestSlot = 2
+            });
+
+            Assert.AreEqual(boots.EntityId, harness.Client.Player.Inventory.PersonalInventory[(int)takenOffTo]);
+            Assert.AreEqual(takenOffTo, boots.OwnerSlotId);
+            AssertPackStillAcceptsChanges(harness, boots, takenOffTo, putOnFrom);
+        }
+
+        [TestMethod]
+        public void RifleTakenOutOfTheDrawerIntoAnotherSlotLeavesTheInventoryUsable()
+        {
+            using var harness = BootcampRuntimeTestHarness.Create();
+            var actors = PrepareActors(harness);
+            Accept(harness, actors.McAllister);
+            CompleteObjective(harness, actors.Delessio, 4);
+            LootCrate(harness);
+            EquipBoots(harness);
+            CompleteObjective(harness, actors.Delessio, 5);
+            CompleteObjective(harness, actors.Hartmann, 6);
+            var putOnFrom = harness.Client.Player.Inventory.PersonalInventory.Where(id => id != 0)
+                .Select(id => EntityManager.Instance.GetItem(id))
+                .Single(item => item.ItemTemplateId == 13713).OwnerSlotId;
+            var rifle = EquipAndReloadRifle(harness);
+            Assert.AreEqual(0U, rifle.OwnerSlotId, "In the drawer, the rifle's slot is its drawer slot.");
+            var takenOffTo = FreeEquipmentSlot(harness, putOnFrom);
+
+            InventoryManager.Instance.RequestEquipWeapon(harness.Client, new RequestEquipWeaponPacket
+            {
+                SrcSlot = takenOffTo,
+                InventoryType = InventoryType.Personal,
+                DestSlot = 0
+            });
+
+            Assert.AreEqual(rifle.EntityId, harness.Client.Player.Inventory.PersonalInventory[(int)takenOffTo]);
+            Assert.AreEqual(takenOffTo, rifle.OwnerSlotId);
+            AssertPackStillAcceptsChanges(harness, rifle, takenOffTo, putOnFrom);
+        }
+
+        // Reported in play: a player could shoot the friendly soldiers on the perimeter bridge.
+        // The damage was always refused; the clients were still shown the soldier being hit.
+        [TestMethod]
+        public void RifleFiredAtAFriendlyNpcGoesOutAsAShotAtNothing()
+        {
+            using var harness = BootcampRuntimeTestHarness.Create();
+            var actors = PrepareActors(harness);
+            Accept(harness, actors.McAllister);
+            CompleteObjective(harness, actors.Delessio, 4);
+            LootCrate(harness);
+            EquipBoots(harness);
+            CompleteObjective(harness, actors.Delessio, 5);
+            CompleteObjective(harness, actors.Hartmann, 6);
+            var rifle = EquipAndReloadRifle(harness);
+            // This harness's NPC rows carry no faction; the bridge soldier's is FRIENDLY.
+            var friendly = actors.Hartmann;
+            friendly.TargetCategory = TargetCategory.Friendly;
+            var health = friendly.Attributes[Attributes.Health].Current;
+            harness.Client.Player.Target = friendly.EntityId;
+
+            MissileManager.Instance.RequestWeaponAttack(harness.Client, new RequestWeaponAttackPacket
+            {
+                ActionId = ActionId.WeaponAttack,
+                ActionArgId = 133,
+                TargetId = (long)friendly.EntityId
+            });
+            var missile = harness.BootcampMap.QueuedMissiles.Single();
+            Assert.AreEqual(0UL, missile.TargetEntityId);
+            Assert.IsNull(missile.TargetActor);
+            MissileManager.Instance.DoWork(harness.BootcampMap, 1000);
+
+            Assert.AreEqual(19U, rifle.CurrentAmmo, "The shot is still fired.");
+            Assert.AreEqual(health, friendly.Attributes[Attributes.Health].Current);
+        }
+
+        private static uint FreeEquipmentSlot(BootcampRuntimeTestHarness.Harness harness, params uint[] except)
+        {
+            var pack = harness.Client.Player.Inventory.PersonalInventory;
+            return (uint)Enumerable.Range(0, InventoryManager.PersonalCategorySize)
+                .First(slot => pack[slot] == 0 && !except.Contains((uint)slot));
+        }
+
+        private static void AssertPackStillAcceptsChanges(
+            BootcampRuntimeTestHarness.Harness harness, Item item, uint from, params uint[] except)
+        {
+            var pack = harness.Client.Player.Inventory.PersonalInventory;
+            var to = FreeEquipmentSlot(harness, except.Append(from).ToArray());
+
+            InventoryManager.Instance.PersonalInventory_MoveItem(harness.Client,
+                new PersonalInventory_MoveItemPacket { SrcSlot = (int)from, DestSlot = (int)to });
+
+            Assert.AreEqual(item.EntityId, pack[(int)to], "An inventory change after taking gear off was refused.");
+            Assert.AreEqual(0UL, pack[(int)from]);
+            Assert.AreEqual(to, item.OwnerSlotId);
+        }
+
         private static (Creature McAllister, Creature Delessio, Creature Hartmann) PrepareActors(
             BootcampRuntimeTestHarness.Harness harness, bool useWorldSpawns = false)
         {

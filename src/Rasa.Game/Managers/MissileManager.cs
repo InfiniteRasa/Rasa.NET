@@ -581,6 +581,16 @@ namespace Rasa.Managers
             if (coneHalfAngle > 0 && action.Actor is Manifestation coneShooter)
                 AimCone(mapChannel, coneShooter, action, missile, coneHalfAngle, damage);
 
+            // A player's weapon at a creature they may not attack - a FRIENDLY soldier, a vendor.
+            // The client fires at whatever SetTargetId named, and the missile used to land on it
+            // as a hit: DoDamageToCreature took the damage back, but every client was still shown
+            // the creature being shot. It goes out as a shot at nothing instead.
+            if (action.TargetId != 0 && action.Actor is Manifestation &&
+                EntityManager.Instance.GetEntityType(action.TargetId) == EntityType.Creature &&
+                EntityManager.Instance.GetCreature(action.TargetId) is { } notAnEnemy &&
+                !TargetCategories.PlayerMayAttack(notAnEnemy.TargetCategory))
+                action.TargetId = 0;
+
             // get distance between actors
             Actor targetActor = null;
             var triggerTime = 0; // time between windup and recovery
