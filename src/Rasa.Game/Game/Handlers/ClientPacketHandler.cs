@@ -72,6 +72,15 @@
         private void AssignSharedMission(AssignSharedMissionPacket packet) =>
             MissionApplication.Instance.Sharing.TryAccept(Client, packet.SourcePlayerEntityId, packet.MissionId);
 
+        /// <summary>
+        /// Until this existed the opcode had no handler, and an unhandled opcode fails the packet
+        /// terminator check and closes the connection: Decline on a shared mission disconnected the
+        /// recipient.
+        /// </summary>
+        [PacketHandler(GameOpcode.DeclineSharedMission)]
+        private void DeclineSharedMission(DeclineSharedMissionPacket packet) =>
+            MissionApplication.Instance.Sharing.TryDecline(Client, packet.SourcePlayerEntityId, packet.MissionId);
+
         [PacketHandler(GameOpcode.AutoFireKeepAlive)]
         private void AutoFireKeepAlive(AutoFireKeepAlivePacket packet)
         {
