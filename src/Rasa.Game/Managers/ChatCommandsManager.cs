@@ -144,6 +144,10 @@ namespace Rasa.Managers
             // GameMaster: moves you, spawns and drives scenery and creatures, drives
             // your own client. A restart undoes all of it.
             RegisterCommand(".actorstate", GmLevel.GameMaster, ActorStateCommand);
+            RegisterCommand(".usermissions", GmMissionCommands.Level,
+                parts => GmMissionCommands.ShowUserMissions(_client, string.Join(" ", parts.Skip(1))));
+            RegisterCommand(".completeobjective", GmMissionCommands.Level,
+                parts => GmMissionCommands.CompleteObjective(_client, parts));
             RegisterCommand(".track", GmLevel.GameMaster, TrackCommand);
             RegisterCommand(".vamp", GmLevel.GameMaster, VampCommand);
             RegisterCommand(".effect", GmLevel.GameMaster, EffectCommand);
@@ -3318,7 +3322,8 @@ namespace Rasa.Managers
         {
             ["gotomap"] = new PrivilegedChatCommand(GmLevel.GameMaster, GmMapCommands.GotoMap),
             ["gotostartgroup"] = new PrivilegedChatCommand(GmLevel.GameMaster, GmMapCommands.GotoStartGroup),
-            ["killmap"] = new PrivilegedChatCommand(GmLevel.Admin, GmMapCommands.KillMap)
+            ["killmap"] = new PrivilegedChatCommand(GmLevel.Admin, GmMapCommands.KillMap),
+            ["usermissions"] = new PrivilegedChatCommand(GmMissionCommands.Level, GmMissionCommands.ShowUserMissions)
 
             // "getservercollisiondata" is intentionally not registered: it asks for
             // ServerCollisionData, which the retail client cannot load and this server has no

@@ -150,6 +150,10 @@
         /// terminator check and closes the connection. The retail client never sends it (see
         /// RewardRadioMissionPacket).
         /// </summary>
+        [PacketHandler(GameOpcode.ForceCompleteObjective)]
+        private void ForceCompleteObjective(ForceCompleteObjectivePacket packet) =>
+            GmMissionCommands.ForceCompleteObjective(Client, packet);
+
         [PacketHandler(GameOpcode.RewardRadioMission)]
         private void RewardRadioMission(RewardRadioMissionPacket packet) =>
             MissionApplication.Instance.TryRewardRadioMission(Client, packet.MissionId, packet.SelectionIdx, packet.Rating);

@@ -1277,6 +1277,69 @@ namespace Rasa.Managers
                 topicKind: MissionConversationTopicKind.LegacyReward);
         }
 
+        /// <summary>
+        /// ForceCompleteObjective and .completeobjective: a GM completes one of a player's objectives
+        /// as if it had been done. The objective's authored transition to Completed runs with its
+        /// progress rule set aside - its reveals, activations, flags, spawns and scenarios happen,
+        /// its counters stay where they are - or, for an objective with none, a bare completion.
+        /// Objective requirements are not asked; the mission's own completeability, the durable
+        /// checks and the publication to the player are the normal progress path's. Only an
+        /// incomplete objective of an active mission. <paramref name="by"/> goes in the log.
+        /// </summary>
+        internal bool TryForceCompleteObjective(Client client, uint missionId, uint objectiveId, string by)
+        {
+            if (client == null)
+                return false;
+
+            lock (client.SyncRoot)
+            {
+                if (!IsActivePlayer(client))
+                    return Reject($"Rejected forced completion of mission {missionId} objective {objectiveId}: character is not active in the world.");
+                if (!TryGetOperationalMission(missionId, out var definition) ||
+                    !definition.Objectives.TryGetValue(objectiveId, out var objectiveDefinition))
+                    return Reject($"Rejected forced completion of mission {missionId} objective {objectiveId}: no such operational objective.");
+                if (!client.Player.Missions.TryGetValue(missionId, out var runtimeMission) ||
+                    runtimeMission.State != MissionState.Active ||
+                    !runtimeMission.Objectives.TryGetValue(objectiveId, out var runtimeObjective) ||
+                    runtimeObjective.State != MissionObjectiveState.Incomplete)
+                    return Reject($"Rejected forced completion of mission {missionId} objective {objectiveId}: it is not an incomplete objective of an active mission.");
+
+                var authored = objectiveDefinition.GetExecutableTransitionsOrLegacyDefault()
+                    .Where(transition => (transition.ToState ?? MissionObjectiveState.Completed) == MissionObjectiveState.Completed)
+                    .OrderBy(transition => transition.Sequence)
+                    .ThenBy(transition => transition.TransitionId)
+                    .FirstOrDefault();
+                var forced = new MissionObjectiveExecutableTransition(authored?.TransitionId ?? 0, authored?.Sequence ?? 0,
+                    MissionObjectiveState.Completed, null, null, null, null, authored?.Actions);
+
+                var plan = MissionProgressPublicationPlan.Empty;
+                try
+                {
+                    using var unit = _gameUnitOfWorkFactory.CreateChar();
+                    unit.ExecuteTransaction(() =>
+                    {
+                        plan = PlanTransitionCandidates(client, new[]
+                        {
+                            new ProgressCandidate(definition, runtimeMission, objectiveDefinition, runtimeObjective, forced, default)
+                        }, unit, requirementsFrozen: true);
+                        if (!plan.HasChanges)
+                            throw new GameplayRejectionException("Forced objective completion changed nothing.");
+                    });
+                }
+                catch (Exception error) when (GameplayRejectionException.IsExpected(error))
+                {
+                    Logger.WriteLog(LogType.Error,
+                        $"Unable to force mission {missionId} objective {objectiveId} complete for character {client.Player.Id}: {error.Message}");
+                    return false;
+                }
+
+                plan.Publish(client);
+                Logger.WriteLog(LogType.Security,
+                    $"{by} forced mission {missionId} objective {objectiveId} complete for {client.Player.Name} {client.Player.FamilyName} (character {client.Player.Id}).");
+                return true;
+            }
+        }
+
         internal bool TryFailObjective(
             Client client,
             uint missionId,
