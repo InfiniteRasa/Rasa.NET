@@ -26,6 +26,7 @@ namespace Rasa.Managers
          *  - AddBuybackItem
          *  - InventoryAddItem
          *  - InventoryCreate
+         *  - InventoryReload                       => InventoryReloadPacket; the clan lockbox after each change
          *  - InventoryRemoveItem
          *  - LockboxTabPermissions
          *  - RemoveBuybackItem
@@ -37,8 +38,6 @@ namespace Rasa.Managers
          *      ToDo:
          *  - AddOverflowItem
          *  - AddWagerItem
-         *  - InventoryDestroy
-         *  - InventoryReload
          *  - RemoveOverflowItem
          *  - RemoveWagerItem
          *  - ResetOverflowInventory
@@ -58,6 +57,10 @@ namespace Rasa.Managers
          *                                             changes its slots only on InventoryRemoveItem and
          *                                             InventoryAddItem, so the item stays put. See
          *                                             InventoryMoveFailedPacket.
+         *  - InventoryDestroy (87)                 => InventoryReload with the new contents does the same
+         *                                             and says what is there; the request it answered
+         *                                             (closing the home lockbox) is gone. See
+         *                                             InventoryDestroyPacket.
          *  
          *    Inventory Handlers:
          *  - ClanLockbox_DepositItemInSlot         => implemented
@@ -2705,7 +2708,7 @@ namespace Rasa.Managers
                 ClanManager.Instance.CallMethodForOnlineMembers(clanId, (client) => AddItemBySlot(client, InventoryType.ClanInventory, entityId, slotId, false), characterId);
 
             ClanManager.Instance.CallMethodForOnlineMembers(clanId, (client) => UpdateItemSlot(client, entityId), characterId);
-            ClanManager.Instance.CallMethodForOnlineMembers(clanId, (uint)SysEntity.ClientInventoryManagerId, new ClanInventoryReload(InventoryType.ClanInventory, clanInventory, 500));
+            ClanManager.Instance.CallMethodForOnlineMembers(clanId, (uint)SysEntity.ClientInventoryManagerId, new InventoryReloadPacket(InventoryType.ClanInventory, clanInventory, 500));
         }
 
         public void RemoveItemBySlotForClan(uint clanId, uint slotId, uint skipThisCharacter)
