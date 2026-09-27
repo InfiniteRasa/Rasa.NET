@@ -180,6 +180,7 @@ namespace Rasa.Structures
             Level = creature.Level;
             MaxHitPoints = creature.MaxHitPoints;
             NameId = creature.NameId;
+            ActorName = creature.ActorName;
             Npc = creature.Npc;
             RunSpeed = creature.RunSpeed;
             WalkSpeed = creature.WalkSpeed;

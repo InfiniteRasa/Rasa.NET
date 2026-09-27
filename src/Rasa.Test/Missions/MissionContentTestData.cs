@@ -531,6 +531,8 @@ namespace Rasa.Test.Missions
             public List<CreatureAppearanceEntry> GetCreatureAppearances(uint creatureId) => new();
             public List<VendorItemEntry> GetVendorItems() => new();
             public List<VendorEntry> GetVendors() => new();
+            public List<VendorPriceEntry> GetVendorPrices() => new();
+            public List<CreatureActorNameEntry> GetActorNames() => new();
         }
 
         private sealed class FakeEquipmentRepository : IEquipmentRepository

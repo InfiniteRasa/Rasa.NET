@@ -258,6 +258,22 @@ namespace Rasa.Migrations.SqliteWorld
                     b.ToTable("creature_action");
                 });
 
+            modelBuilder.Entity("Rasa.Structures.World.CreatureActorNameEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ActorName")
+                        .IsRequired()
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("actor_name");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("creature_actor_name");
+                });
+
             modelBuilder.Entity("Rasa.Structures.World.CreatureAppearanceEntry", b =>
                 {
                     b.Property<uint>("ClassId")
@@ -2661,6 +2677,21 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("item_template_id");
 
                     b.ToTable("vendor_item");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.VendorPriceEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("id");
+
+                    b.Property<int>("ItemPrice")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("item_price");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("vendor_price");
                 });
 
             modelBuilder.Entity("Rasa.Structures.World.WeaponClassEntry", b =>

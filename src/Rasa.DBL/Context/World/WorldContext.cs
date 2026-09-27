@@ -85,6 +85,8 @@ namespace Rasa.Context.World
         public DbSet<TeleporterEntry> TeleporterEntries { get; set; }
         public DbSet<VendorEntry> VendorEntries { get; set; }
         public DbSet<VendorItemEntry> VendorItemEntries { get; set; }
+        public DbSet<VendorPriceEntry> VendorPriceEntries { get; set; }
+        public DbSet<CreatureActorNameEntry> CreatureActorNameEntries { get; set; }
         public DbSet<WeaponClassEntry> WeaponClassEntries { get; set; }
 
         protected override DatabaseConnectionConfiguration GetDatabaseConnectionConfiguration()

@@ -659,6 +659,12 @@ namespace Rasa.Managers
 
             var vendorsList = unitOfWork.Creatures.GetVendors();
             var vendorItemList = unitOfWork.Creatures.GetVendorItems();
+            var vendorPrices = new Dictionary<uint, int>();
+            foreach (var entry in unitOfWork.Creatures.GetVendorPrices())
+                vendorPrices[entry.Id] = entry.ItemPrice;
+            var actorNames = new Dictionary<uint, string>();
+            foreach (var entry in unitOfWork.Creatures.GetActorNames())
+                actorNames[entry.Id] = entry.ActorName;
 
             foreach (var data in creatureList)
             {
@@ -706,6 +712,10 @@ namespace Rasa.Managers
                     AppearanceData = tempAppearanceData,
                 };
 
+                // An NPC named by the server rather than by the client's creaturenamelanguage.
+                if (actorNames.TryGetValue(data.Id, out var actorName) && !string.IsNullOrWhiteSpace(actorName))
+                    creature.ActorName = actorName;
+
                 // load Creature Actions
                 if (data.Action1 != 0)
                     creature.Actions.Add(new CreatureAction(creatureActions[data.Action1]));
@@ -743,6 +753,15 @@ namespace Rasa.Managers
                         if (vendor.Id == data.Id)
                         {
                             creature.Npc.Vendor = new Vendor(vendor.PackageId);
+
+                            if (vendorPrices.TryGetValue(data.Id, out var itemPrice))
+                            {
+                                if (itemPrice >= 0)
+                                    creature.Npc.Vendor.ItemPrice = itemPrice;
+                                else
+                                    Logger.WriteLog(LogType.Error, $"vendor_price for vendor {data.Id} is {itemPrice}; its stock sells at buy_price.");
+                            }
+
                             break;
                         }
 

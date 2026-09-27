@@ -732,6 +732,8 @@ namespace Rasa.Test.World
             public List<CreatureAppearanceEntry> GetCreatureAppearances(uint creatureId) => throw new NotSupportedException();
             public List<VendorItemEntry> GetVendorItems() => throw new NotSupportedException();
             public List<VendorEntry> GetVendors() => throw new NotSupportedException();
+            public List<VendorPriceEntry> GetVendorPrices() => throw new NotSupportedException();
+            public List<CreatureActorNameEntry> GetActorNames() => throw new NotSupportedException();
         }
     }
 }

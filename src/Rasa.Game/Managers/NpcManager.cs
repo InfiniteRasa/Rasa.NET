@@ -574,7 +574,7 @@ namespace Rasa.Managers
                 itemList.Add(item);
             }
 
-            client.CallMethod(packet.EntityId, new VendPacket(itemList));
+            client.CallMethod(packet.EntityId, new VendPacket(creature.Npc.Vendor, itemList));
         }
 
         public void RequestCancelVendor(Client client, ulong entityId)
@@ -664,7 +664,9 @@ namespace Rasa.Managers
             // stock: without that, any item entity id the client had ever been shown - another
             // player's rifle, a corpse's loot - could be "bought" here at its template's BuyPrice,
             // which is 0 for anything no vendor sells.
-            if (NpcInReach(client, packet.VendorEntityId, IsVendorNpc, "a vendor") == null)
+            var vendor = NpcInReach(client, packet.VendorEntityId, IsVendorNpc, "a vendor")?.Npc?.Vendor;
+
+            if (vendor == null)
                 return;
 
             if (!EntityManager.Instance.VendorItems.TryGetValue(packet.VendorEntityId, out var stock)
@@ -696,11 +698,12 @@ namespace Rasa.Managers
                 return;
             }
 
-            var unitPrice = vendorItem.ItemTemplate.BuyPrice;
+            // The price the counter showed: the vendor's own (vendor_price) when it has one.
+            var unitPrice = vendor.PriceOf(vendorItem);
 
             if (unitPrice < 0)
             {
-                Logger.WriteLog(LogType.Error, $"RequestVendorPurchase: item template {vendorItem.ItemTemplate.ItemTemplateId} has a negative BuyPrice.");
+                Logger.WriteLog(LogType.Error, $"RequestVendorPurchase: item template {vendorItem.ItemTemplate.ItemTemplateId} is priced {unitPrice} at vendor {packet.VendorEntityId}.");
                 return;
             }
 
