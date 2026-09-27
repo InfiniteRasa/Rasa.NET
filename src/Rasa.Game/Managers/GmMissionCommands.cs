@@ -10,7 +10,7 @@ namespace Rasa.Managers
     using Packets.MapChannel.Server;
 
     /// <summary>
-    /// A GM's view of another player's missions, and the GM Complete button in it.
+    /// A GM's view of another player's missions, the GM Complete button in it, and giving missions.
     ///
     ///  - /usermissions and .usermissions [familyName | #characterId]: GmShowUserMissionsAck with
     ///    the player's mission log, which the client opens in the intel window. No argument is the
@@ -20,6 +20,11 @@ namespace Rasa.Managers
     ///    client never refreshes the view on its own.
     ///  - .completeobjective missionId objectiveId [familyName | #characterId]: the same without the
     ///    window.
+    ///  - /givemission: no argument opens the client's Give Mission picker (QAGiveMissionAck) on
+    ///    the GM's own missions; the pick comes back as /givemission &lt;id&gt; and gives it to the GM
+    ///    (MissionApplication.TryGiveMission).
+    ///  - .givemission missionId [familyName | #characterId]: gives it to another player; no
+    ///    argument opens the picker, as /givemission does.
     ///
     /// All at GameMaster. The player has to be in the world: an offline character's log is not
     /// loaded, and a completion has to reach their client.
@@ -90,6 +95,77 @@ namespace Rasa.Managers
             }
 
             Complete(gm, target, missionId, objectiveId);
+        }
+
+        /// <summary>/givemission [missionId]: the picker, or the mission for the GM themselves.</summary>
+        public static void GiveMission(Client gm, string args)
+        {
+            if (gm?.Player == null)
+                return;
+
+            var text = args?.Trim();
+            if (string.IsNullOrEmpty(text))
+            {
+                ShowGiveMissionList(gm);
+                return;
+            }
+
+            if (!uint.TryParse(text, out var missionId))
+            {
+                Say(gm, "usage: /givemission [missionId]");
+                return;
+            }
+
+            Give(gm, gm, missionId);
+        }
+
+        /// <summary>.givemission [missionId [familyName | #characterId]].</summary>
+        public static void GiveMission(Client gm, string[] parts)
+        {
+            if (gm?.Player == null)
+                return;
+
+            if (parts.Length == 1)
+            {
+                ShowGiveMissionList(gm);
+                return;
+            }
+
+            if (parts.Length > 3 || !uint.TryParse(parts[1], out var missionId))
+            {
+                Say(gm, "usage: .givemission [missionId [familyName | #characterId]]");
+                return;
+            }
+
+            var target = Find(gm, parts.Length == 3 ? parts[2] : null);
+            if (target == null)
+            {
+                Say(gm, $"{parts[2]} is not in the world.");
+                return;
+            }
+
+            Give(gm, target, missionId);
+        }
+
+        private static void ShowGiveMissionList(Client gm)
+        {
+            var missions = MissionApplication.Instance.GiveMissionList(gm.Player);
+            if (missions.Count == 0)
+            {
+                Say(gm, "No operational missions are loaded.");
+                return;
+            }
+
+            gm.CallMethod(SysEntity.ClientMethodId, new QAGiveMissionAckPacket(missions));
+        }
+
+        private static void Give(Client gm, Client target, uint missionId)
+        {
+            var by = $"GM {gm.Player.FamilyName} (account {gm.AccountEntry?.Id})";
+            if (MissionApplication.Instance.TryGiveMission(target, missionId, by))
+                Say(gm, $"Mission {missionId} given to {DisplayName(target)}.");
+            else
+                Say(gm, $"Mission {missionId} could not be given to {DisplayName(target)}: not an operational mission, already active, succeeded or completed, or their mission log is full.");
         }
 
         private static void Complete(Client gm, Client target, uint missionId, uint objectiveId)

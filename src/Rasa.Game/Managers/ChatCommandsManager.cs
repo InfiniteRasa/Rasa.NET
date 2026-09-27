@@ -148,6 +148,8 @@ namespace Rasa.Managers
                 parts => GmMissionCommands.ShowUserMissions(_client, string.Join(" ", parts.Skip(1))));
             RegisterCommand(".completeobjective", GmMissionCommands.Level,
                 parts => GmMissionCommands.CompleteObjective(_client, parts));
+            RegisterCommand(".givemission", GmMissionCommands.Level,
+                parts => GmMissionCommands.GiveMission(_client, parts));
             RegisterCommand(".track", GmLevel.GameMaster, TrackCommand);
             RegisterCommand(".vamp", GmLevel.GameMaster, VampCommand);
             RegisterCommand(".effect", GmLevel.GameMaster, EffectCommand);
@@ -3323,7 +3325,8 @@ namespace Rasa.Managers
             ["gotomap"] = new PrivilegedChatCommand(GmLevel.GameMaster, GmMapCommands.GotoMap),
             ["gotostartgroup"] = new PrivilegedChatCommand(GmLevel.GameMaster, GmMapCommands.GotoStartGroup),
             ["killmap"] = new PrivilegedChatCommand(GmLevel.Admin, GmMapCommands.KillMap),
-            ["usermissions"] = new PrivilegedChatCommand(GmMissionCommands.Level, GmMissionCommands.ShowUserMissions)
+            ["usermissions"] = new PrivilegedChatCommand(GmMissionCommands.Level, GmMissionCommands.ShowUserMissions),
+            ["givemission"] = new PrivilegedChatCommand(GmMissionCommands.Level, GmMissionCommands.GiveMission)
 
             // "getservercollisiondata" is intentionally not registered: it asks for
             // ServerCollisionData, which the retail client cannot load and this server has no
