@@ -787,6 +787,29 @@ namespace Rasa.Managers
                 selectionIndex,
                 null);
 
+        /// <summary>
+        /// RewardRadioMission: the reward of a radio mission already succeeded and not yet paid - what
+        /// RewardNPCMission is for a receiver NPC. Only a mission in Success: an active one, however
+        /// completeable, is refused rather than completed, so this cannot stand in for the turn-in.
+        /// CompleteRadioMission pays the same owed reward, and is what the retail client sends.
+        /// </summary>
+        internal bool TryRewardRadioMission(Client client, uint missionId, int? selectionIndex, int? rating)
+        {
+            if (client == null)
+                return false;
+            lock (client.SyncRoot)
+            {
+                if (!IsActivePlayer(client))
+                    return Reject($"Rejected mission {missionId} radio reward: character is not active in the world.");
+                if (!client.Player.Missions.TryGetValue(missionId, out var mission) ||
+                    mission.State != MissionState.Success)
+                    return Reject($"Rejected mission {missionId} radio reward: only a succeeded mission with its reward owed is rewarded.");
+                return TryGrantMission(client, null, missionId, selectionIndex, rating, MissionState.Success,
+                    requireCompletable: false, publishCompleted: false,
+                    topicKind: MissionConversationTopicKind.MissionCompletion);
+            }
+        }
+
         internal bool TryCompleteRadioMission(Client client, uint missionId, int? selectionIndex, int? rating)
         {
             if (client == null)

@@ -145,6 +145,15 @@
         private void CompleteRadioMission(CompleteRadioMissionPacket packet) =>
             MissionApplication.Instance.TryCompleteRadioMission(Client, packet.MissionId, packet.SelectionIdx, packet.Rating);
 
+        /// <summary>
+        /// Until this existed the opcode had no handler, and an unhandled opcode fails the packet
+        /// terminator check and closes the connection. The retail client never sends it (see
+        /// RewardRadioMissionPacket).
+        /// </summary>
+        [PacketHandler(GameOpcode.RewardRadioMission)]
+        private void RewardRadioMission(RewardRadioMissionPacket packet) =>
+            MissionApplication.Instance.TryRewardRadioMission(Client, packet.MissionId, packet.SelectionIdx, packet.Rating);
+
         [PacketHandler(GameOpcode.CompleteNPCObjective)]
         private void CompleteNPCObjective(CompleteNPCObjectivePacket packet)
         {
