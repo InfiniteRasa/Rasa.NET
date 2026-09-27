@@ -540,7 +540,8 @@ namespace Rasa.Managers
         /// <summary>
         /// Every automatic pool of hostile creatures whose area comes within SafeClearance of a
         /// friendly NPC's pool, a hospital or a waypoint pad: a player reviving or arriving there
-        /// would stand in a fight. And every one whose area comes within TurretScan of a turret
+        /// would stand in a fight. A pool of friendly soldiers (see IsSafeGround) is not safe
+        /// ground: a skirmish set up on purpose, like boot camp's bridge, is not reported. And every one whose area comes within TurretScan of a turret
         /// (an emplacement's pool, which is not safe ground): the two would fight for good.
         /// Logged and recorded for the map; nothing is changed. Run once
         /// the creatures, the pools and the teleporters are all loaded.
@@ -564,7 +565,7 @@ namespace Rasa.Managers
             {
                 if (pool.SpawnSlot.Count > 0 && pool.SpawnSlot.TrueForAll(s => IsEmplacement(s.CreatureId)))
                     turrets.Add(pool);
-                else if (pool.SpawnSlot.Exists(s => Side(s.CreatureId) == TargetCategory.Friendly))
+                else if (pool.SpawnSlot.Exists(s => IsSafeGround(s.CreatureId)))
                     Add(pool.MapContextId, pool.Position, $"the NPCs of pool {pool.DbId}");
             }
 
@@ -626,6 +627,18 @@ namespace Rasa.Managers
 
         private static bool IsEmplacement(uint creatureId) =>
             CreatureManager.Instance.LoadedCreatures.TryGetValue(creatureId, out var creature) && Emplacements.Classes.Contains(creature.EntityClass);
+
+        /// <summary>
+        /// A friendly creature a player can stand beside: one with the NPC augmentation (a vendor,
+        /// trainer, mission giver...), or one with no attack. A friendly with attacks and no NPC
+        /// augmentation is a soldier, there to fight - boot camp's AFS bridge squad (pools 510216,
+        /// 510217) holds its line 14 m from the Thrax initiates it faces (510218-510220). The old
+        /// data's named base staff on soldier classes carry no attack, so they stay safe ground.
+        /// </summary>
+        private static bool IsSafeGround(uint creatureId) =>
+            CreatureManager.Instance.LoadedCreatures.TryGetValue(creatureId, out var creature)
+            && creature.TargetCategory == TargetCategory.Friendly
+            && (creature.Npc != null || creature.Actions.Count == 0);
 
         private static TargetCategory Side(uint creatureId) =>
             CreatureManager.Instance.LoadedCreatures.TryGetValue(creatureId, out var creature) ? creature.TargetCategory : TargetCategory.Hostile;
