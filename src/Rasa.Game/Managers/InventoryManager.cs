@@ -29,21 +29,19 @@ namespace Rasa.Managers
          *  - InventoryRemoveItem
          *  - LockboxTabPermissions
          *  - RemoveBuybackItem
+         *  - ResetBuybackInventory
+         *  - AddInboxItem / RemoveInboxItem / ResetInboxInventory (ShowInbox on every arrival)
          *  
          *      ToDo:
          *  - AddAuctionItem
-         *  - AddInboxItem
          *  - AddOverflowItem
          *  - AddWagerItem
          *  - InventoryDestroy
          *  - InventoryReload
          *  - RemoveAuctionItem
-         *  - RemoveInboxItem
          *  - RemoveOverflowItem
          *  - RemoveWagerItem
          *  - ResetAuctionInventory
-         *  - ResetBuybackInventory
-         *  - ResetInboxInventory
          *  - ResetOverflowInventory
          *  - ResetWagerInventory
          *
@@ -2038,6 +2036,9 @@ namespace Rasa.Managers
                 }
             }
             client.CallMethod(SysEntity.ClientInventoryManagerId, new LockboxTabPermissionsPacket(client.Player.LockboxTabs));
+
+            // The inbox's items survive the map change too, and were never shown again.
+            ShowInbox(client, true);
         }
 
         public void SetupLocalClanInventory(Client client)
@@ -2273,13 +2274,9 @@ namespace Rasa.Managers
 
                     else if ((InventoryType)item.InventoryType == InventoryType.InboxInventory)
                     {
-                        // Waiting at an auction house. The client's Pick Up Items tab reads a
-                        // list only AddInboxItem and CreateInventory fill, and CreateInventory
-                        // iterates its argument expecting bare entity ids while
-                        // InventoryCreatePacket writes (index, entityId) pairs - so the items go
-                        // over one at a time.
+                        // Waiting at an auction house: listed to the client once the list is
+                        // complete and in slot order (ShowInbox, below).
                         client.Player.Inventory.InboxItems.Add(newItem.EntityId);
-                        client.CallMethod(SysEntity.ClientInventoryManagerId, new AddInboxItemPacket(newItem.EntityId));
                     }
 
                     else if ((InventoryType)item.InventoryType == InventoryType.AuctionInventory)
@@ -2315,6 +2312,45 @@ namespace Rasa.Managers
 
             SortBySlot(client.Player.Inventory.AuctionItems);
             SortBySlot(client.Player.Inventory.InboxItems);
+
+            // Item data went out in the loop above.
+            ShowInbox(client, false);
+        }
+
+        /// <summary>
+        /// Lists the character's inbox - the auction house's Pick Up Items tab - to their client
+        /// afresh: ResetInboxInventory, then AddInboxItem for each item in slot order.
+        ///
+        /// The client empties that list by itself only on the way back to the login screen. A
+        /// character chosen at character select inherited the list of whoever played before
+        /// them, and each login added the new ids to the old ones: ids of entities destroyed at
+        /// logout, which entity id recycling (EntityManager.GetEntityId) later hands to other
+        /// entities that then show up as rows, and which keep Receive All enabled over an
+        /// empty list. On a teleport or map link the items stay registered under the same ids
+        /// but the client drops their entities with the rest of the map, and nothing sent them
+        /// again: the tab was empty until the next login, with the items still in the inbox.
+        ///
+        /// <paramref name="sendItemData"/> is false where the caller has just sent every item's
+        /// data itself (the login load).
+        /// </summary>
+        internal void ShowInbox(Client client, bool sendItemData)
+        {
+            var inbox = client?.Player?.Inventory?.InboxItems;
+
+            if (inbox == null)
+                return;
+
+            inbox.RemoveAll(entityId => EntityManager.Instance.GetItem(entityId) == null);
+
+            client.CallMethod(SysEntity.ClientInventoryManagerId, new ResetInboxInventoryPacket());
+
+            foreach (var entityId in inbox)
+            {
+                if (sendItemData)
+                    ItemManager.Instance.SendItemDataToClient(client, EntityManager.Instance.GetItem(entityId), false);
+
+                client.CallMethod(SysEntity.ClientInventoryManagerId, new AddInboxItemPacket(entityId));
+            }
         }
 
         /// <summary>How many items of the entity class the player carries in their personal inventory, all stacks together.</summary>
