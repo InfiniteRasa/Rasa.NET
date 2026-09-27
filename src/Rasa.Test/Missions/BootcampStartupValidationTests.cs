@@ -206,6 +206,7 @@ namespace Rasa.Test.Missions
 
             var originalOut = Console.Out;
             using var writer = new StringWriter();
+            global::Rasa.Logger.Flush();
             Console.SetOut(writer);
             try
             {
@@ -213,6 +214,7 @@ namespace Rasa.Test.Missions
             }
             finally
             {
+                global::Rasa.Logger.Flush();
                 Console.SetOut(originalOut);
             }
 

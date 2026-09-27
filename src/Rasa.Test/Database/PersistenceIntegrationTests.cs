@@ -265,10 +265,18 @@ namespace Rasa.Test.Database
         public void BranchMigrationsAreConsolidatedByDatabase(Type contextType, int expectedCount)
         {
             using var context = CreateContext(contextType, "unused");
+            // The consolidated migrations first; migrations added after them (data and schema
+            // changes made since) all come later, and none before.
             var added = context.Database.GetMigrations()
                 .Where(id => string.CompareOrdinal(id, "202609") >= 0).ToArray();
+            var later = added.Skip(expectedCount).ToArray();
+            added = added.Take(expectedCount).ToArray();
 
             Assert.AreEqual(expectedCount, added.Length, contextType.Name);
+            if (expectedCount == 0)
+                Assert.HasCount(0, later, contextType.Name);
+            else
+                Assert.IsTrue(later.All(id => string.CompareOrdinal(id, added[^1]) > 0), contextType.Name);
             if (expectedCount == 1)
                 StringAssert.EndsWith(added[0], "_ConsolidatedCharacterSchema");
             if (expectedCount == 2)

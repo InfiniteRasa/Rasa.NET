@@ -1526,18 +1526,23 @@ namespace Rasa.Managers
 
             // Every call wrote a character_ability_drawer row for whatever slot, ability id and
             // level it named, and the whole drawer goes to everyone who meets the player. The slot
-            // has to be one of the drawer's, and anything put in it an action the tables know.
+            // has to be one of the drawer's, and anything put in it an ability one of the player's
+            // skills grants at that rank or higher.
             if (packet.SlotId < 0 || packet.SlotId >= AbilityDrawerSlots)
             {
                 Logger.WriteLog(LogType.Security, $"{client.Player.Name} asked to set ability drawer slot {packet.SlotId}; there are {AbilityDrawerSlots}. Refused.");
                 return;
             }
 
-            var clearing = packet.AbilityId == 0;
+            var clearing = packet.AbilityId == 0 && packet.AbilityLevel == 0;
 
-            if (!clearing && !AbilityManager.Instance.IsKnownAction(packet.AbilityId, packet.AbilityLevel))
+            if (!clearing &&
+                (packet.AbilityId <= 0 || packet.AbilityId > int.MaxValue ||
+                 packet.AbilityLevel <= 0 || packet.AbilityLevel > MaxSkillLevel ||
+                 !client.Player.Skills.Values.Any(skill =>
+                     skill.AbilityId == packet.AbilityId && skill.SkillLevel >= packet.AbilityLevel)))
             {
-                Logger.WriteLog(LogType.Security, $"{client.Player.Name} asked to put action {packet.AbilityId} at level {packet.AbilityLevel} in drawer slot {packet.SlotId}, which the tables do not have. Refused.");
+                Logger.WriteLog(LogType.Security, $"{client.Player.Name} asked to put action {packet.AbilityId} at level {packet.AbilityLevel} in drawer slot {packet.SlotId}, which none of their skills grants. Refused.");
                 return;
             }
 

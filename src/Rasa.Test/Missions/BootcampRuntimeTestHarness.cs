@@ -400,7 +400,7 @@ namespace Rasa.Test.Missions
             Directory.CreateDirectory(databaseDirectory);
             var worldDatabase = Path.Combine(databaseDirectory, "world");
             var worldContext = (SqliteWorldContext)CreateContext(typeof(SqliteWorldContext), worldDatabase);
-            worldContext.Initialize();
+            Rasa.Test.Database.MigratedDatabaseTemplates.Migrate(worldContext, worldContext.Initialize);
             Content.MissionContentTestSupport.ConfigureScenes(worldContext, configureScenes);
 
             var context = MissionTestContext.WithCustomDefinitions(new Dictionary<uint, Mission>());

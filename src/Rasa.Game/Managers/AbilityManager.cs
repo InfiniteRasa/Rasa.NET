@@ -395,7 +395,11 @@ namespace Rasa.Managers
                 }
 
                 // A corpse ability (canTargetDead) wants the body; everything else, the living.
-                if (CorpseModules.Contains(action.Module))
+                // A practice target has no actor behind it and was range-checked above.
+                if (target == null)
+                {
+                }
+                else if (CorpseModules.Contains(action.Module))
                 {
                     if (!IsUsableCorpse(target))
                     {
@@ -409,7 +413,7 @@ namespace Rasa.Managers
                     return;
                 }
 
-                if (info.MaxRange > 0 && Vector3.Distance(player.Position, target.Position) > info.MaxRange + RangeSlack)
+                if (target != null && info.MaxRange > 0 && Vector3.Distance(player.Position, target.Position) > info.MaxRange + RangeSlack)
                 {
                     Fail(client, actionId, level, PlayerMessage.PmTargetOutOfRange);
                     return;
@@ -519,7 +523,8 @@ namespace Rasa.Managers
         {
             if (item != null)
             {
-                if (!player.Inventory.PersonalInventory.Contains(item.EntityId))
+                if (item.OwnerId != player.Id || item.StackSize == 0 ||
+                    !player.Inventory.PersonalInventory.Contains(item.EntityId))
                     return false;
 
                 return _itemTemplateActions.TryGetValue(item.ItemTemplateId, out var performs) && performs.ActionId == actionId && performs.Level == level;
@@ -1073,7 +1078,14 @@ namespace Rasa.Managers
             var targets = new List<Creature>();
             var primary = action.TargetId != 0 ? ResolveTarget(mapChannel, action.TargetId) as Creature : null;
 
-            if (info.Has(AbilityProperty.ConeRadius))
+            // Lightning's bolt strikes its target alone; what else it reaches is its arc and its
+            // storm (ResolveLightningExtras), not an area around the target.
+            if (actionInfo.Module == "abilities.lightning")
+            {
+                if (primary != null && IsHostile(player, primary))
+                    targets.Add(primary);
+            }
+            else if (info.Has(AbilityProperty.ConeRadius))
             {
                 // A cone: the action's range long, CONE_RADIUS degrees either side of the aim -
                 // at the target when there is one, otherwise the way the player faces.

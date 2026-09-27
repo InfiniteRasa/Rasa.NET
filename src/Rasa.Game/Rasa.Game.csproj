@@ -49,14 +49,4 @@
     </None>
   </ItemGroup>
 
-  <!-- The per-map navmeshes built by Rasa.NavMesh into the repository's navmesh folder travel
-       with the server: build and publish copy them to navmesh\ next to Rasa.Game.dll, which is
-       where GameDataConfig.NavMeshPath ("navmesh") looks by default. -->
-  <ItemGroup>
-    <None Include="..\..\navmesh\*.nav" Link="navmesh\%(Filename)%(Extension)">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-    </None>
-  </ItemGroup>
-
 </Project>

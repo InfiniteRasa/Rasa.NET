@@ -433,7 +433,7 @@ namespace Rasa.Services.Preloader
             yield return new object[] { 477, 0, 0, "Myrex-13 Storage", 0.0, 0.0, 0.0, 0.0, 0 };
             yield return new object[] { 478, 0, 0, "Forward Recon Medic", 0.0, 0.0, 0.0, 0.0, 0 };
             yield return new object[] { 479, 0, 5, "Hospital: Eloh Vale Entrance", -46.0, 171.0, -455.0, 0.0, 2084 };
-            yield return new object[] { 480, 0, 5, "Hospital: CELLAR Arena Medic", 24.8994, 40.0, 114.7931, 0.0, 20000009 };
+            yield return new object[] { 480, 0, 5, "Hospital: CELLAR Arena Medic", 24.8994, 40.0, 114.7931, 0.0, 2259 };
             yield return new object[] { 481, 0, 0, "Red Hospital", 0.0, 0.0, 0.0, 0.0, 0 };
             yield return new object[] { 482, 0, 0, "Blue Hospital", 0.0, 0.0, 0.0, 0.0, 0 };
             yield return new object[] { 483, 0, 0, "Blue Hospital", 0.0, 0.0, 0.0, 0.0, 0 };

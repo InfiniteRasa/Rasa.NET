@@ -55,6 +55,7 @@ namespace Rasa.Services.Preloader
             yield return new object[] { 1977, "adv_arieki_ligo_burningsteps_magmacaverns", 195, 0 };
             yield return new object[] { 1985, "adv_bootcamp", 783, 4 };
             yield return new object[] { 1988, "adv_arieki_ligo_ashendesert_baneconscriptfacility", 254, 0 };
+            yield return new object[] { 1991, "test_lridout_outpostcombat", 114, 0 };
             yield return new object[] { 1993, "adv_arieki_ligo_burningsteps", 406, 0 };
             yield return new object[] { 2028, "adv_arieki_torden_abyss", 410, 0 };
             yield return new object[] { 2029, "adv_foreas_valverde_plateau_temporalchamber", 131, 0 };
@@ -83,6 +84,7 @@ namespace Rasa.Services.Preloader
             yield return new object[] { 2163, "adv_foreas_valverde_descent_inferno_outpost", 128, 0 };
             yield return new object[] { 2190, "adv_arieki_torden_abyss_dybukkar", 174, 0 };
             yield return new object[] { 2203, "adv_arieki_torden_abyss_omegalabs", 162, 0 };
+            yield return new object[] { 2233, "test_pvpcontrolpoint", 140, 0 };
             yield return new object[] { 2259, "adv_wargame_indoorarena", 35, 0 };
             yield return new object[] { 2278, "adv_zepic_pve_arena", 41, 0 };
             yield return new object[] { 2327, "adv_earth_unitedstates_manhattan_01", 122, 0 };

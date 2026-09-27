@@ -54,6 +54,9 @@ namespace Rasa
 
         private static long _dropped;
 
+        /// <summary>Lines taken but not yet written: queued, or being written now.</summary>
+        private static long _pending;
+
         private static readonly Thread Writer;
 
         static Logger()
@@ -97,7 +100,35 @@ namespace Rasa
                 {
                     // A log that cannot be written must not take the writer thread with it.
                 }
+                finally
+                {
+                    Interlocked.Decrement(ref _pending);
+                }
             }
+        }
+
+        /// <summary>
+        /// Waits until every line logged so far has been written, or the timeout passes. For
+        /// whoever reads the console or the log file right after logging - a test capturing
+        /// Console.Out, a shutdown. Returns false on a timeout.
+        /// </summary>
+        public static bool Flush(int timeoutMilliseconds = 5000)
+        {
+            if (Thread.CurrentThread == Writer)
+                return Interlocked.Read(ref _pending) == 0;
+
+            var deadline = Environment.TickCount64 + timeoutMilliseconds;
+            var spin = new SpinWait();
+
+            while (Interlocked.Read(ref _pending) > 0)
+            {
+                if (Environment.TickCount64 >= deadline)
+                    return false;
+
+                spin.SpinOnce();
+            }
+
+            return true;
         }
 
         private static void Write(string text, ConsoleColor color, bool toConsole)
@@ -231,8 +262,13 @@ namespace Rasa
 
             var toConsole = type != LogType.File && ((Config?.IsDebugMode ?? true) || type != LogType.Debug);
 
+            Interlocked.Increment(ref _pending);
+
             if (!Queue.TryAdd((text, desiredColor, toConsole)))
+            {
+                Interlocked.Decrement(ref _pending);
                 Interlocked.Increment(ref _dropped);
+            }
         }
 
         /// <summary>

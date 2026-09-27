@@ -357,7 +357,7 @@ namespace Rasa.Test.Missions
             Directory.CreateDirectory(databaseDirectory);
             var worldDatabase = Path.Combine(databaseDirectory, "world");
             var worldContext = (SqliteWorldContext)CreateContext(typeof(SqliteWorldContext), worldDatabase);
-            worldContext.Database.Migrate();
+            Rasa.Test.Database.MigratedDatabaseTemplates.Migrate(worldContext, () => worldContext.Database.Migrate());
 
 
             var context = MissionTestContext.WithCustomDefinitions(new Dictionary<uint, Mission>());

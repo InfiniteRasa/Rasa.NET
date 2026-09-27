@@ -362,7 +362,9 @@ namespace Rasa.Test.Missions
             CellManager.Instance.UpdateVisibility(harness.Client);
             var xp = harness.Client.Player.Experience;
             Shoot(harness, harness.Client.Player, escort, 100000);
-            Assert.AreEqual(CharacterState.Dead, escort.State);
+            // A player's shot does not land on a FRIENDLY creature at all
+            // (TargetCategories.PlayerMayAttack), so there is nothing to reward.
+            Assert.AreNotEqual(CharacterState.Dead, escort.State);
             Assert.AreEqual(xp, harness.Client.Player.Experience);
             Assert.AreEqual(0UL, escort.CorpseLootEntityId);
         }

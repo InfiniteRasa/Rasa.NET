@@ -44,6 +44,7 @@ namespace Rasa.Test.Missions
             var previousLogging = Logger.Config;
             using var output = new StringWriter();
             Logger.UpdateConfig(new Logger.LoggerConfig { IsDebugMode = true, LogToFile = false });
+            global::Rasa.Logger.Flush();
             Console.SetOut(output);
             try
             {
@@ -91,6 +92,7 @@ namespace Rasa.Test.Missions
             }
             finally
             {
+                global::Rasa.Logger.Flush();
                 Console.SetOut(previousOutput);
                 Logger.UpdateConfig(previousLogging);
             }

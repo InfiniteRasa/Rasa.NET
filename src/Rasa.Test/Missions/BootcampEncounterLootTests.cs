@@ -234,7 +234,10 @@ namespace Rasa.Test.Missions
             {
                 Assert.IsTrue(item.Item.Id > 0);
                 Assert.AreSame(item.Item, EntityManager.Instance.GetItem(item.EntityId));
-                Assert.AreEqual(LootQuality.Normal, (LootQuality)item.Item.ItemTemplate.QualityId);
+                // Loot_Junk_* templates are JUNK in the client's data (Flag_junk_and_unique_items);
+                // the rest of the drop is NORMAL, and the corpse shows the best of them.
+                var quality = (LootQuality)item.Item.ItemTemplate.QualityId;
+                Assert.IsTrue(quality is LootQuality.Normal or LootQuality.Junk, $"template {item.ItemTemplateId} is {quality}");
             }
             Assert.AreEqual(LootQuality.Normal, loot.LootQuality);
             harness.MovePlayerTo(thrax);

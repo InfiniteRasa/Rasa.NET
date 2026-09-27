@@ -404,7 +404,7 @@ namespace Rasa.Test.Gameplay
                 charContext.Database.Migrate();
 
             _worldContext = OpenWorld();
-            _worldContext.Database.Migrate();
+            Rasa.Test.Database.MigratedDatabaseTemplates.Migrate(_worldContext, () => _worldContext.Database.Migrate());
 
 
             Missions = new MissionApplication(

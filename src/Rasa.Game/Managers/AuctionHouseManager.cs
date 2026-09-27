@@ -124,7 +124,7 @@ namespace Rasa.Managers
                     lock (InstanceLock)
                     {
                         if (_instance == null)
-                            _instance = new AuctionHouseManager(Server.GameUnitOfWorkFactory);
+                            _instance = new AuctionHouseManager(Server.GameUnitOfWorkFactory, null, requireAuctioneer: true);
                     }
                 }
 
@@ -137,16 +137,29 @@ namespace Rasa.Managers
         {
         }
 
+        /// <param name="requireAuctioneer">
+        /// Whether each request must name an auctioneer in reach. The server's instance
+        /// (<see cref="Instance"/>) does; one made on its own - a test harness with no auctioneer
+        /// standing in it - leaves it off.
+        /// </param>
         internal AuctionHouseManager(
             IGameUnitOfWorkFactory gameUnitOfWorkFactory,
             MissionApplication missionManager,
-            Action<PythonPacket> beforeBuyoutPublication = null)
+            Action<PythonPacket> beforeBuyoutPublication = null,
+            bool requireAuctioneer = false)
         {
             _gameUnitOfWorkFactory = gameUnitOfWorkFactory;
             _currencyManager = new ManifestationManager(gameUnitOfWorkFactory);
             _missionManager = missionManager;
             _beforeBuyoutPublication = beforeBuyoutPublication;
+            _requireAuctioneer = requireAuctioneer;
         }
+
+        private readonly bool _requireAuctioneer;
+
+        /// <summary>At an auction house: the auctioneer the window was opened from has to be in reach.</summary>
+        private bool AuctioneerInReach(Client client, ulong entityId)
+            => !_requireAuctioneer || NpcManager.NpcInReach(client, entityId, NpcManager.IsAuctioneerNpc, "an auctioneer") != null;
 
         #region Handlers
 
@@ -159,7 +172,7 @@ namespace Rasa.Managers
         public void RequestAuctionBuyout(Client client, RequestAuctionBuyoutPacket packet)
         {
             // At an auction house: the auctioneer the window was opened from has to be in reach.
-            if (NpcManager.NpcInReach(client, packet.EntityId, NpcManager.IsAuctioneerNpc, "an auctioneer") == null)
+            if (!AuctioneerInReach(client, packet.EntityId))
                 return;
 
             var item = EntityManager.Instance.GetItem(packet.ItemId);
@@ -398,7 +411,7 @@ namespace Rasa.Managers
         public void RequestAuctionStatus(Client client, RequestAuctionStatusPacket packet)
         {
             // At an auction house: the auctioneer the window was opened from has to be in reach.
-            if (NpcManager.NpcInReach(client, packet.EntityId, NpcManager.IsAuctioneerNpc, "an auctioneer") == null)
+            if (!AuctioneerInReach(client, packet.EntityId))
                 return;
 
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
@@ -428,7 +441,7 @@ namespace Rasa.Managers
         public void RequestCancelAuction(Client client, RequestCancelAuctionPacket packet)
         {
             // At an auction house: the auctioneer the window was opened from has to be in reach.
-            if (NpcManager.NpcInReach(client, packet.EntityId, NpcManager.IsAuctioneerNpc, "an auctioneer") == null)
+            if (!AuctioneerInReach(client, packet.EntityId))
                 return;
 
             CancelResult result;
@@ -552,7 +565,7 @@ namespace Rasa.Managers
         public void RequestCreateAuction(Client client, RequestCreateAuctionPacket packet)
         {
             // At an auction house: the auctioneer the window was opened from has to be in reach.
-            if (NpcManager.NpcInReach(client, packet.EntityId, NpcManager.IsAuctioneerNpc, "an auctioneer") == null)
+            if (!AuctioneerInReach(client, packet.EntityId))
                 return;
 
             var item = EntityManager.Instance.GetItem(packet.ItemEntityId);
@@ -652,7 +665,7 @@ namespace Rasa.Managers
         public void RequestQueryAuctions(Client client, RequestQueryAuctionsPacket packet)
         {
             // At an auction house: the auctioneer the window was opened from has to be in reach.
-            if (NpcManager.NpcInReach(client, packet.EntityId, NpcManager.IsAuctioneerNpc, "an auctioneer") == null)
+            if (!AuctioneerInReach(client, packet.EntityId))
                 return;
 
             if (!AuctionCategory.Names.TryGetValue(packet.CategoryId, out var category))
@@ -1071,6 +1084,21 @@ namespace Rasa.Managers
 
             if (listed != null)
                 return listed;
+
+            // A seller who is logged in holds it among their auction items.
+            var seller = OnlineSeller(auction.SellerId);
+
+            if (seller != null)
+                foreach (var entityId in seller.Player.Inventory.AuctionItems)
+                {
+                    var held = EntityManager.Instance.GetItem(entityId);
+
+                    if (held != null && held.Id == auction.ItemId)
+                    {
+                        Instance.List(held);
+                        return held;
+                    }
+                }
 
             var itemData = unitOfWork.Items.GetItem(auction.ItemId);
 

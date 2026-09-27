@@ -683,6 +683,7 @@ namespace Rasa.Test.Missions.Scenes
             var app = Application(context, world, () => now);
             var originalOutput = Console.Out;
             using var output = new StringWriter();
+            global::Rasa.Logger.Flush();
             Console.SetOut(output);
             try
             {
@@ -710,6 +711,7 @@ namespace Rasa.Test.Missions.Scenes
             }
             finally
             {
+                global::Rasa.Logger.Flush();
                 Console.SetOut(originalOutput);
             }
             Assert.IsFalse(output.ToString().Contains("remains pending", StringComparison.Ordinal), output.ToString());
@@ -796,6 +798,7 @@ namespace Rasa.Test.Missions.Scenes
             };
             var previousOutput = Console.Out;
             using var output = new StringWriter();
+            global::Rasa.Logger.Flush();
             Console.SetOut(output);
             try
             {
@@ -804,6 +807,7 @@ namespace Rasa.Test.Missions.Scenes
             finally
             {
                 context.BeforeCommand = null;
+                global::Rasa.Logger.Flush();
                 Console.SetOut(previousOutput);
             }
             Assert.IsTrue(injected, "Inject only after the real world adapter has restarted the target control.");

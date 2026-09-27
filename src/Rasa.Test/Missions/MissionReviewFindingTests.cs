@@ -716,7 +716,9 @@ namespace Rasa.Test.Missions
                 AssertAcquisitionPrecedesMissionProgress(
                     packets,
                     typeof(UpdateCreditsPacket),
-                    typeof(ActorGotLootPacket),
+                    // The taker's own acquisition: GotLoot (the items and their credit share);
+                    // the server sends no ActorGotLoot.
+                    typeof(Rasa.Packets.ClientMethod.Server.GotLootPacket),
                     typeof(TakenInfoPacket));
                 Assert.AreEqual(3U,
                     context.Client.Player.Missions[321]

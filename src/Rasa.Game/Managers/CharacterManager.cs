@@ -541,7 +541,7 @@ namespace Rasa.Managers
 
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
 
-            if (new Censor(unitOfWork.CensoredWords.GetCensoredWords()).ContainsProfanity(name))
+            if (unitOfWork.CensoredWords != null && new Censor(unitOfWork.CensoredWords.GetCensoredWords()).ContainsProfanity(name))
             {
                 NameMessage(requester, PlayerMessage.PmNameUnacceptable);
                 return false;
@@ -661,7 +661,7 @@ namespace Rasa.Managers
                     _ => CreateCharacterResult.NameFormatInvalid
                 };
 
-            if (new Censor(unitOfWork.CensoredWords.GetCensoredWords()).ContainsProfanity(name))
+            if (unitOfWork.CensoredWords != null && new Censor(unitOfWork.CensoredWords.GetCensoredWords()).ContainsProfanity(name))
                 return CreateCharacterResult.NameUnacceptable;
 
             return CreateCharacterResult.Success;

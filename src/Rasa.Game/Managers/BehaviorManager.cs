@@ -68,7 +68,7 @@ namespace Rasa.Managers
         public const byte BehaviorActionFollow = 5;
 
         /// <summary>A mission scene's actor walking an authored path to an authored pose (SetActionScriptedMove).</summary>
-        internal const byte BehaviorActionScriptedMove = 6;
+        internal const byte BehaviorActionScriptedMove = 7;
 
         /// <summary>
         /// Chased too far from home and running back to it (<see cref="Leash"/>): it takes no
@@ -1245,6 +1245,16 @@ namespace Rasa.Managers
             return true;
         }
 
+        /// <summary>
+        /// How far from its owner an escort takes a fight on: as far as it may stray (20 m) and
+        /// then its longest attack's reach, and never beyond 35 m.
+        /// </summary>
+        private static float EscortEngageDistance(Creature creature)
+        {
+            var reach = creature.Actions.Count == 0 ? 0 : creature.Actions.Max(action => action.RangeMax);
+            return (float)Math.Min(35, 20 + reach);
+        }
+
         private bool AdvanceEscort(MapChannel map, Creature creature, long delta)
         {
             var owner = CreatureManager.FindEscortOwner(map, creature);
@@ -1273,7 +1283,7 @@ namespace Rasa.Managers
                 EntityManager.Instance.Creatures.TryGetValue(
                     creature.Controller.ActionFighting.TargetEntityId, out var currentTarget) &&
                 CreatureManager.IsHostileTarget(map, creature, currentTarget) &&
-                Vector3.Distance(currentTarget.Position, destination) <= 35)
+                Vector3.Distance(currentTarget.Position, destination) <= EscortEngageDistance(creature))
                 target = currentTarget;
 
             if (target != null)
@@ -1287,7 +1297,17 @@ namespace Rasa.Managers
             if (!hadOwnerTarget && !wasFighting && gap <= 20 && !follow.CatchUpRunning &&
                 creature.LastAgression >= AggroScanDelayMs &&
                 CheckForAttackableEntityInRange(map, creature, creature.AggroRange))
-                return false;
+            {
+                // Only a fight it can have without leaving its owner: one it picked up beyond
+                // that it would walk off after, give up at the leash and come back for again.
+                if (EntityManager.Instance.Creatures.TryGetValue(
+                        creature.Controller.ActionFighting.TargetEntityId, out var found) &&
+                    Vector3.Distance(found.Position, destination) <= EscortEngageDistance(creature))
+                    return false;
+
+                creature.Controller.ActionFighting.TargetEntityId = 0;
+                wasFighting = true;
+            }
 
             if (wasFighting)
             {
@@ -1538,8 +1558,6 @@ namespace Rasa.Managers
                 Logger.WriteLog(LogType.Error,
                     $"Actor {creature.EntityId} has no navmesh route from {creature.Position} to {destination} " +
                     $"on map {mapChannel.MapInfo?.MapContextId} (mesh loaded: {mapChannel.NavMesh != null}).");
-            else
-                creature.Controller.Path.Add(destination);
         }
 
         /// <summary>
