@@ -401,11 +401,11 @@
             GestureManager.Instance.RequestGesture(Client, packet);
         }
 
-        /*[PacketHandler(GameOpcode.RequestGestureWeapon)]
+        [PacketHandler(GameOpcode.RequestGestureWeapon)]
         private void RequestGestureWeapon(RequestGestureWeaponPacket packet)
         {
-            // ToDo
-        }*/
+            GestureManager.Instance.RequestGestureWeapon(Client, packet);
+        }
         
         [PacketHandler(GameOpcode.RequestLogout)]
         private void RequestLogout(RequestLogoutPacket packet)

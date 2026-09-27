@@ -128,5 +128,26 @@ namespace Rasa.Data
         };
 
         public static bool TryGet(uint argId, out GestureInfo info) => Table.TryGetValue(argId, out info);
+
+        /// <summary>
+        /// The (474, argId) rows - GESTURE_WEAPON, client/actions/gestureweapon.py: military hand
+        /// signals made with the weapon kept in hand (hideWeapon False), requested with
+        /// RequestGestureWeapon. None loops. Each needs its emote player flag (actiondata
+        /// playerFlagReqs), which the client checks before it sends.
+        /// </summary>
+        private static readonly Dictionary<uint, (GestureInfo Info, uint PlayerFlagId)> WeaponTable = new()
+        {
+            [63] = (new GestureInfo(3000, false), 765),  // /eyes: "You signal: X spotted!"
+            [65] = (new GestureInfo(3000, false), 766),  // /quiet: "You signal X to be quiet."
+            [66] = (new GestureInfo(2666, false), 764),  // /crouch: "You face X and signal: get down!"
+        };
+
+        public static bool TryGetWeapon(uint argId, out GestureInfo info, out uint playerFlagId)
+        {
+            var found = WeaponTable.TryGetValue(argId, out var row);
+            info = row.Info;
+            playerFlagId = row.PlayerFlagId;
+            return found;
+        }
     }
 }

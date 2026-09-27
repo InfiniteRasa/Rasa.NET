@@ -120,6 +120,7 @@ namespace Rasa.Managers
             switch (action.ActionId)
             {
                 case ActionId.Gesture:
+                case ActionId.GestureWeapon:
                     GestureManager.Instance.PerformRecovery(mapChannel, action);
                     break;
                 case ActionId.UseObject:
