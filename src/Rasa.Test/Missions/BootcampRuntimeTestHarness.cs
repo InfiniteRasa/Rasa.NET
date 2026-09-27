@@ -70,6 +70,7 @@ namespace Rasa.Test.Missions
             var bootstrap = CreateBootstrap(useWorldContent, configureScenes);
             initializeMaps?.Invoke(bootstrap.Maps);
             ConfigureRuntimePlayer(bootstrap.Context.Client);
+            GrantStartingLogos(bootstrap.Context, bootstrap.Context.Client.Player);
             var bootcampMap = bootstrap.Maps.GetOrCreatePrivateInstance(
                 BootcampMapContextId,
                 bootstrap.Context.Client.Player.Id);
@@ -638,10 +639,28 @@ namespace Rasa.Test.Missions
                 NavMeshFile.PathFor(Path.Combine(root.FullName, "navmesh"), "adv_bootcamp")));
         }
 
+        // What character creation puts in a new character's Tabula (CharacterManager.StartingLogos):
+        // POWER, without which Recruit Lightning is refused.
+        private static void GrantStartingLogos(MissionTestContext context, uint characterId)
+        {
+            using var unit = context.CreateChar();
+            var held = unit.CharacterLogoses.GetLogos(characterId);
+            foreach (var logosId in CharacterManager.StartingLogos.Where(logosId => !held.Contains(logosId)))
+                unit.CharacterLogoses.SetLogos(characterId, logosId);
+        }
+
+        private static void GrantStartingLogos(MissionTestContext context, Manifestation player)
+        {
+            GrantStartingLogos(context, player.Id);
+            foreach (var logosId in CharacterManager.StartingLogos.Where(logosId => !player.Logos.Contains(logosId)))
+                player.Logos.Add(logosId);
+        }
+
         private static void SeedFreshPendingCharacter(MissionTestContext context)
         {
             context.SeedCharacter(
                 FreshPendingAccountId, FreshPendingSlot, FreshPendingCharacterId, (byte)Race.Human);
+            GrantStartingLogos(context, FreshPendingCharacterId);
             using var unit = context.CreateChar();
             unit.CharacterStartingExperience.Add(
                 new CharacterStartingExperienceEntry(

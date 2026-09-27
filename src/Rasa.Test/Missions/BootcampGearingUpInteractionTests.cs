@@ -555,6 +555,42 @@ namespace Rasa.Test.Missions
             Assert.AreEqual(health, friendly.Attributes[Attributes.Health].Current);
         }
 
+        // Reported in play: Recruit Lightning worked without POWER in the Tabula.
+        [TestMethod]
+        public void LightningIsRefusedWithoutPowerInTheTabula()
+        {
+            using var harness = BootcampRuntimeTestHarness.Create();
+            var actors = PrepareActors(harness);
+            Accept(harness, actors.McAllister);
+            CompleteObjective(harness, actors.Delessio, 4);
+            LootCrate(harness);
+            EquipBoots(harness);
+            CompleteObjective(harness, actors.Delessio, 5);
+            CompleteObjective(harness, actors.Hartmann, 6);
+            EquipAndReloadRifle(harness);
+            var targets = harness.BootcampMap.DynamicObjects
+                .Where(candidate => (uint)candidate.EntityClassId == 29365).ToArray();
+            harness.Client.Player.Target = targets[0].EntityId;
+            MissileManager.Instance.RequestWeaponAttack(harness.Client,
+                new RequestWeaponAttackPacket { ActionId = ActionId.WeaponAttack, ActionArgId = 133 });
+            MissileManager.Instance.DoWork(harness.BootcampMap, 1000);
+            CompleteObjective(harness, actors.Hartmann, 9);
+            harness.MovePlayerTo(new Vector3(380, 120, 177));
+            CellManager.Instance.UpdateVisibility(harness.Client);
+            Assert.IsTrue(harness.Client.Player.Logos.Remove(AbilityLogos.Power));
+            var beforeChi = harness.Client.Player.Attributes[Attributes.Chi].Current;
+            harness.Drain();
+
+            CastLightning(harness, targets[1], expectPerformed: false);
+
+            Assert.AreEqual(beforeChi, harness.Client.Player.Attributes[Attributes.Chi].Current);
+            Assert.IsTrue(harness.Drain().OfType<UserActionFailedPacket>().Any(packet =>
+                packet.ActionId == ActionId.AaRecruitLightning &&
+                packet.MsgId == PlayerMessage.PmCannotUseAbilityNoLogos));
+            Assert.AreEqual(MissionObjectiveState.Incomplete,
+                harness.Client.Player.Missions[1992].Objectives[8].State);
+        }
+
         private static uint FreeEquipmentSlot(BootcampRuntimeTestHarness.Harness harness, params uint[] except)
         {
             var pack = harness.Client.Player.Inventory.PersonalInventory;
@@ -685,7 +721,8 @@ namespace Rasa.Test.Missions
             return rifle;
         }
 
-        private static void CastLightning(BootcampRuntimeTestHarness.Harness harness, DynamicObject target)
+        private static void CastLightning(
+            BootcampRuntimeTestHarness.Harness harness, DynamicObject target, bool expectPerformed = true)
         {
             var manager = (AbilityManager)Activator.CreateInstance(typeof(AbilityManager),
                 BindingFlags.Instance | BindingFlags.NonPublic, null,
@@ -714,6 +751,12 @@ namespace Rasa.Test.Missions
                 manager.RequestPerformAbility(harness.Client, request);
                 var pending = harness.BootcampMap.PerformRecovery
                     .Where(action => action.ActionId == ActionId.AaRecruitLightning).ToArray();
+                if (!expectPerformed)
+                {
+                    Assert.AreEqual(0, pending.Length);
+                    return;
+                }
+
                 Assert.AreEqual(1, pending.Length, "Lightning must accept the real Practice Dummy as its target.");
                 manager.PerformRecovery(harness.BootcampMap, pending[0]);
                 harness.BootcampMap.PerformRecovery.Remove(pending[0]);

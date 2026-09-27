@@ -315,6 +315,14 @@ namespace Rasa.Managers
                 return;
             }
 
+            // A skill's ability also wants its Logos in the Tabula (AbilityLogos). An item that
+            // performs the action, and a Polymorph disguise's own abilities, do not.
+            if (item == null && !IsMorphAbility(player, actionId, level) && !AbilityLogos.Has(player.Logos, actionId))
+            {
+                Fail(client, actionId, level, PlayerMessage.PmCannotUseAbilityNoLogos);
+                return;
+            }
+
             if (!CanResolve(action, info))
             {
                 if (_reportedUnsupported.Add(actionId))

@@ -38,6 +38,7 @@ namespace Rasa.Managers
         private const uint StartingPistolTemplateId = 17131;
         private const uint StartingAmmoTemplateId = 28;
         private const uint StartingAmmoQuantity = 1000;
+        internal static readonly IReadOnlyList<uint> StartingLogos = new[] { AbilityLogos.Power };
         internal Game.Missions.Integration.IStartingExperiencePolicy StartingExperience { get; }
 
         public const ulong SelectionPodStartEntityId = 100;
@@ -827,6 +828,10 @@ namespace Rasa.Managers
                 characterId, 0, (int)ActionId.AaRecruitLightning, 1);
             unitOfWork.CharacterAbilityDrawers.AddOrUpdate(
                 characterId, 1, (int)ActionId.AaRecruitSprint, 1);
+
+            // The Logos the drawer's abilities need (AbilityLogos): POWER, for Recruit Lightning.
+            foreach (var logosId in StartingLogos)
+                unitOfWork.CharacterLogoses.SetLogos(characterId, logosId);
 
             foreach (var (templateId, quantity, inventoryType, slot) in new[]
                      {

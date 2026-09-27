@@ -553,6 +553,7 @@ namespace Rasa.Test.Gameplay
             Assert.AreEqual(0, verify.CharacterStartingExperienceEntries.Count());
             Assert.AreEqual(0, verify.CharacterSkillsEntries.Count());
             Assert.AreEqual(0, verify.CharacterAbilityDrawerEntries.Count());
+            Assert.AreEqual(0, verify.CharacterLogosEntries.Count());
             Assert.AreEqual(0, verify.CharacterInventoryEntries.Count());
             Assert.AreEqual(0, verify.ItemEntries.Count());
         }
@@ -592,8 +593,47 @@ namespace Rasa.Test.Gameplay
                     entry.Character.Slot == 1));
             Assert.AreEqual(0, verify.CharacterSkillsEntries.Count());
             Assert.AreEqual(0, verify.CharacterAbilityDrawerEntries.Count());
+            Assert.AreEqual(0, verify.CharacterLogosEntries.Count());
             Assert.AreEqual(0, verify.CharacterInventoryEntries.Count());
             Assert.AreEqual(0, verify.ItemEntries.Count());
+        }
+
+        [TestMethod]
+        public void CreatingCharacterPutsPowerInTheTabulaForRecruitLightning()
+        {
+            using var context = new CharacterCreationContext();
+            context.SeedAccount(187);
+            var client = context.CreateClient(187);
+            new CharacterManager(context).RequestCreateCharacterInSlot(
+                client,
+                CreatePacket(slot: 1, familyName: "Fixture", characterName: "StarterLogos"));
+
+            uint characterId;
+            using (var verify = context.Open())
+            {
+                var character = verify.CharacterEntries.Single(entry => entry.AccountId == 187);
+                characterId = character.Id;
+                CollectionAssert.AreEquivalent(new[] { AbilityLogos.Power },
+                    verify.CharacterLogosEntries.Where(entry => entry.CharacterId == characterId)
+                        .Select(entry => entry.LogosId).ToArray());
+
+                // Already in Bootcamp, as in RepeatedSelectionLoadsStoredGearAllocationsAndAbilitySlotsWithoutResettingThem, so selection loads it directly.
+                character.MapContextId = 1985;
+                verify.CharacterStartingExperienceEntries.Single(entry =>
+                    entry.CharacterId == characterId).State = CharacterStartingExperienceState.Bootcamp;
+                verify.SaveChanges();
+            }
+
+            var maps = new MapChannelManager(context, privateInstances: new PrivateMapInstanceService());
+            maps.MapChannelArray.Add(1985, CreatePublicMap(1985));
+            using var scope = new MapChannelManagerScope(maps);
+            var login = context.CreateClient(187);
+            new CharacterManager(context).RequestSwitchToCharacterInSlot(
+                login, new RequestSwitchToCharacterInSlotPacket { SlotNum = 1 });
+
+            Assert.AreEqual(characterId, login.Player.Id);
+            Assert.IsTrue(AbilityLogos.Has(login.Player.Logos, ActionId.AaRecruitLightning));
+            maps.ReleaseOwnedPrivateInstances(characterId);
         }
 
         [TestMethod]
