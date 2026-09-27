@@ -685,6 +685,15 @@ namespace Rasa.Managers
                 return;
             }
 
+            // Character Unique ("Item is unique per character"): one per character. A stack is
+            // still one item, so a unique stackable can be bought as one stack of any size.
+            if (vendorItem.ItemTemplate.HasCharacterUniqueFlag &&
+                InventoryManager.Instance.HoldsTemplate(client.Player, vendorItem.ItemTemplate.ItemTemplateId))
+            {
+                client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(PlayerMessage.PmItemCharacterUnique, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
+                return;
+            }
+
             // Quantity is unsigned on the wire. It used to be cast to int and multiplied by the
             // price, so a value of 2^31 or more made the total negative: it passed the credit
             // check, CreateItem clamped the stack to the class maximum, and the debit added the

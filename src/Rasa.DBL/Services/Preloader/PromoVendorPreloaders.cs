@@ -12,8 +12,9 @@ namespace Rasa.Services.Preloader
     /// John sells the promotional items - armour dyes and their recipes, the pre-order and
     /// veteran pets, the Sunset pets, the retailer Soyuz model rockets, the veteran titles,
     /// resupply bot, dropship beacon and XP booster, the holiday snowballs and launcher, and the
-    /// space helmet. The three companion tokens are left out: they are mission items
-    /// (Flag_mission_items) handed to an NPC for a companion mission, not things to own.
+    /// space helmet; and, added by Promo_vendor_tokens_and_unique, the Pre-Order, Collector's
+    /// Edition and GameStop companion tokens (PromoVendors.CompanionTokens), which are mission
+    /// items (Flag_mission_items).
     ///
     /// Elm sells the emotes - the bonus emotes (AccountReward_Emote_*, with the veteran Logos
     /// Greet) and the Sunset emotes (AccountReward_Sunset_Emote_*). Drunk has two identical
@@ -25,8 +26,9 @@ namespace Rasa.Services.Preloader
     /// arrival, facing the waypoint. Vendor_Human_Male for John, Vendor_Human_Female for Elm,
     /// dressed like the AFS vendors beside them; general goods packages no other vendor uses.
     ///
-    /// Everything they sell is bound, not tradable and not sellable (Bind_account_reward_items),
-    /// so the 1 credit price cannot be sold back for more.
+    /// Everything they sell is bound, not tradable and not sellable (Bind_account_reward_items,
+    /// Flag_mission_items), so the 1 credit price cannot be sold back for more, and Character
+    /// Unique (Promo_vendor_tokens_and_unique), so each can be bought once per character.
     /// </summary>
     public static class PromoVendors
     {
@@ -39,6 +41,12 @@ namespace Rasa.Services.Preloader
         public const int ItemPrice = 1;
 
         public const uint AliaDasMapContextId = 1220;
+
+        /// <summary>
+        /// AccountReward_Mission_PreOrder_Companion, _CollectorsEdition_Companion and
+        /// _GameStopEdition_Companion: John's, from Promo_vendor_tokens_and_unique on.
+        /// </summary>
+        public static readonly uint[] CompanionTokens = { 111114, 111115, 111116 };
     }
 
     public class PromoVendorCreaturePreloader : PreloaderBase, IPreloader

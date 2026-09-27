@@ -988,6 +988,44 @@ namespace Rasa.Managers
         }
 
         /// <summary>
+        /// Whether the character already has an item of this template: carried, equipped, in a
+        /// weapon drawer, waiting in the inbox, or in the footlocker. The footlocker is the
+        /// account's, shared by all its characters, so there only an item bound to this
+        /// character - or to no one - is theirs. What Character Unique is tested against.
+        /// </summary>
+        public bool HoldsTemplate(Manifestation player, uint itemTemplateId)
+        {
+            var inventory = player?.Inventory;
+
+            if (inventory == null)
+                return false;
+
+            bool Is(ulong entityId, bool sharedLockbox)
+            {
+                if (entityId == 0)
+                    return false;
+
+                var item = EntityManager.Instance.GetItem(entityId);
+
+                if (item?.ItemTemplate == null || item.ItemTemplate.ItemTemplateId != itemTemplateId)
+                    return false;
+
+                return !sharedLockbox || item.BoundCharacterId == 0 || item.BoundCharacterId == player.Id;
+            }
+
+            foreach (var list in new[] { inventory.PersonalInventory, inventory.EquippedInventory, inventory.WeaponDrawer, inventory.InboxItems })
+                foreach (var entityId in list)
+                    if (Is(entityId, false))
+                        return true;
+
+            foreach (var entityId in inventory.HomeInventory)
+                if (Is(entityId, true))
+                    return true;
+
+            return false;
+        }
+
+        /// <summary>
         /// Puts an item into a character's inbox, whether or not they are logged in: the row is
         /// written either way, and a client that is online is told about it so the Pick Up Items
         /// tab updates without a relog. Returns false when the inbox is full, in which case
