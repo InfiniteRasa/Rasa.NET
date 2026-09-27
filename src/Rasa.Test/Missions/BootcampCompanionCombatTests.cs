@@ -619,7 +619,13 @@ namespace Rasa.Test.Missions
             try
             {
                 if (attack == "missile")
-                    Shoot(harness, harness.Client.Player, enemy, 1);
+                {
+                    // Without a crit: the player's 5% base chance turned the 1 into 2 now and then.
+                    MissileManager.Instance.MissileLaunch(harness.BootcampMap,
+                        new ActionData(harness.Client.Player, ActionId.WeaponAttack, 133, enemy.EntityId, 0), 1);
+                    harness.BootcampMap.QueuedMissiles.Single().CritChance = 0;
+                    MissileManager.Instance.DoWork(harness.BootcampMap, 250);
+                }
                 else if (attack == "direct")
                     ActorManager.Instance.Damage(harness.BootcampMap, enemy, 1, harness.Client.Player);
                 else
