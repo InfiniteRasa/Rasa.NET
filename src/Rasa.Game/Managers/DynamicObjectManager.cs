@@ -887,6 +887,18 @@ namespace Rasa.Managers
                             dropship.Client.CallMethod(SysEntity.ClientMethodId, new BeginTeleportPacket());
                         }
 
+                        if (dropship.DropshipType == DropshipType.Teleporter && dropship.Role == DropshipRole.Arrival &&
+                            dropship.Client.Player.MapContextId == dropship.MapContextId)
+                        {
+                            // Down the beam, now the ship is over the pad: TeleportArrival stops the
+                            // fade the player has been held in since they landed on the map and
+                            // plays the arrival effect on them (actor.py _PlayTeleportArrivalFX).
+                            if (dropship.PassengerBeamsDownItself)
+                                dropship.Client.CellIgnoreSelfCallMethod(dropship.Client, new TeleportArrivalPacket());
+                            else
+                                CellManager.Instance.CellCallMethod(mapChannel, dropship.Client.Player, new TeleportArrivalPacket());
+                        }
+
                         if (dropship.DropshipType == DropshipType.Spawner)
                         {
                             // create list of creatures to spawn
@@ -1567,13 +1579,18 @@ namespace Rasa.Managers
 
                     client.PendingTransfer = null;
                     CellManager.Instance.UpdateVisibility(client);
+
+                    // The player is still faded out from boarding (PreTeleport). The Teleport's
+                    // delay is how long their client leaves them so before it plays the arrival
+                    // (actor.py Recv_Teleport, _TelportMovementCompleted): until the arrival ship
+                    // below is over the pad, rather than at once, ahead of the ship.
                     client.CallMethod(
                         client.Player.EntityId,
                         new TeleportPacket(
                             transfer.DestinationPosition,
                             transfer.DestinationRotation,
                             TeleportType.Default,
-                            5));
+                            Dropship.BeamDownMs));
                     client.CellMoveObject(
                         client,
                         new MoveObjectMessage(
@@ -1585,7 +1602,10 @@ namespace Rasa.Managers
                         TargetCategory.Friendly,
                         DropshipType.Teleporter,
                         client,
-                        DropshipRole.Arrival);
+                        DropshipRole.Arrival)
+                    {
+                        PassengerBeamsDownItself = true
+                    };
                     CellManager.Instance.AddToWorld(transfer.DestinationMap, arrival);
                     Dropships.Add(arrival.EntityId, arrival);
                     return;

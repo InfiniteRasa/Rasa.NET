@@ -28,6 +28,20 @@ namespace Rasa.Structures
         /// <summary>A departure whose destination pad is on the map it leaves from: no map change, a flight and a move.</summary>
         internal bool StaysOnMap => Role == DropshipRole.Departure && DestinationMapId == MapContextId;
 
+        /// <summary>
+        /// When an arrival beams its passenger down, in ms from when it is built: the fly-in
+        /// (phase 0, 5 s) and two seconds of the landing and its transporter beam (phase 2) -
+        /// the same point in the flight at which a departure beams its passenger up.
+        /// </summary>
+        public const uint BeamDownMs = 7000;
+
+        /// <summary>
+        /// An arrival on the map the passenger left from: their own client was sent a Teleport
+        /// whose delay is <see cref="BeamDownMs"/> and plays the beam-down itself when it runs
+        /// out, so only everyone else is told.
+        /// </summary>
+        internal bool PassengerBeamsDownItself { get; set; }
+
         /// <param name="side">Whose ship: FRIENDLY for the AFS (human) dropship, HOSTILE for the Bane one.</param>
         public Dropship(TargetCategory side, DropshipType dropshipType, SpawnPool spawnPool = null)
         {
