@@ -8,6 +8,11 @@
     {
         public override GameOpcode Opcode { get; } = GameOpcode.ItemTemplateTooltipInfo;
 
+        // Templates already reported as weapons without an itemtemplate_weapon row: once each,
+        // not on every tooltip request. Most are tools (ToolActionManager: 519 of the 719 tool
+        // templates have none), which work without one, so this is a note and not an error.
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<uint, bool> ReportedWithoutWeaponInfo = new();
+
         private ItemTemplate ItemTemplate { get; set; }
         private EntityClass EntityClass { get; set; }
 
@@ -101,7 +106,8 @@
                             // The entity class is augmented as a weapon, but this item template has no
                             // matching row from ItemManager's weapon-items load (data gap). Send zeroed
                             // weapon stats instead of crashing the write so the tooltip still opens.
-                            Logger.WriteLog(LogType.Error, $"ItemTemplateTooltipInfoPacket: item template {ItemTemplate.ItemTemplateId} is augmented as a weapon but has no WeaponInfo; sending zeroed weapon stats");
+                            if (ReportedWithoutWeaponInfo.TryAdd(ItemTemplate.ItemTemplateId, true))
+                                Logger.WriteLog(LogType.Debug, $"ItemTemplateTooltipInfoPacket: item template {ItemTemplate.ItemTemplateId} is augmented as a weapon but has no WeaponInfo; sending zeroed weapon stats");
                             pw.WriteUInt(0);
                             pw.WriteInt(EntityClass.WeaponClassInfo.DamageType);
                             pw.WriteUInt(0);

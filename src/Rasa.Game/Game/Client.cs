@@ -1144,7 +1144,11 @@ namespace Rasa.Game
 
         internal bool TryAcceptSequence(byte channel, uint sequence)
         {
-            if (channel == 0)
+            // Channel 0 is the reliable stream; 0xFF is the client's send-timeout check, which
+            // carries no sequence number (ProtocolPacket.ReadFrame stops at the channel byte) and
+            // arrives every 3 s. Held to the sequence rule, every one after the first read as a
+            // repeat of sequence 0 and was logged as dropped out of order.
+            if (channel == 0 || channel == 0xFF)
                 return true;
 
             if (_receivedSequence[channel] &&

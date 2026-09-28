@@ -48,5 +48,16 @@ namespace Rasa.Test.World
             Assert.IsTrue(client.TryAcceptSequence(1, uint.MaxValue));
             Assert.IsTrue(client.TryAcceptSequence(1, 0));
         }
+
+        // The client's send-timeout check on channel 0xFF carries no sequence number; every one
+        // after the first was logged as a dropped out-of-order packet, every 3 s.
+        [TestMethod]
+        public void SendTimeoutChannelIsNotSequenced()
+        {
+            var client = new Rasa.Game.Client(null, new ClientPacketHandler());
+
+            for (var check = 0; check < 3; check++)
+                Assert.IsTrue(client.TryAcceptSequence(0xFF, 0));
+        }
     }
 }

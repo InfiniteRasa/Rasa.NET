@@ -767,6 +767,14 @@ namespace Rasa.Managers
             if (weapon == null)
                 return FireResult.NotFired;
 
+            // A template with no itemtemplate_weapon row has no refire, clip use, aim or range to
+            // fire by, and everything below reads them. Those are the tools - 519 of the 719 tool
+            // templates, the Snowball Launcher among them - which the client uses through
+            // RequestToolAction (ToolActionManager), never through here; this is a
+            // RequestWeaponAttack sent anyway while holding one.
+            if (weapon.ItemTemplate?.WeaponInfo == null)
+                return FireResult.NotFired;
+
             // A jammed weapon does nothing until it is reloaded. Checked before WeaponReady so
             // that a jam does not get mistaken for a weapon that is merely stowed and silently
             // drawn instead.
