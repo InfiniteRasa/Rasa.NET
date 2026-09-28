@@ -467,6 +467,12 @@
             CameraScripts.Finished(Client, packet.ScriptId);
         }
 
+        [PacketHandler(GameOpcode.ScriptableClientEvent)]
+        private void ScriptableClientEvent(ScriptableClientEventPacket packet)
+        {
+            ScriptableClientEvents.Received(Client, packet.EventId);
+        }
+
         [PacketHandler(GameOpcode.RequestAddLogosStoneToTabula)]
         private void RequestAddLogosStoneToTabula(RequestAddLogosStoneToTabulaPacket packet)
         {

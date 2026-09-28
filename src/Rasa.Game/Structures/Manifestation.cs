@@ -291,6 +291,12 @@ namespace Rasa.Structures
         /// <summary>When the player stops counting as watching it if FinishedCameraScript never comes (TickCount64).</summary>
         public long CameraScriptUntil { get; set; }
 
+        /// <summary>The scriptable client events the player's client is reporting (ScriptableClientEvents). Lock it to use it.</summary>
+        internal readonly HashSet<ScriptableClientEvent> TrackedClientEvents = new();
+
+        /// <summary>Set by .clientevent: each tracked event that comes back is also told to the player.</summary>
+        public bool EchoClientEvents { get; set; }
+
 
         public Manifestation()
         {

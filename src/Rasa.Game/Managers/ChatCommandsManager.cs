@@ -140,6 +140,7 @@ namespace Rasa.Managers
             RegisterCommand(".cover", GmLevel.Observer, CoverCommand);
             RegisterCommand(".los", GmLevel.Observer, LosCommand);
             RegisterCommand(".camerascript", GmLevel.Observer, CameraScriptCommand);
+            RegisterCommand(".clientevent", GmLevel.Observer, ClientEventCommand);
 
             // GameMaster: moves you, spawns and drives scenery and creatures, drives
             // your own client. A restart undoes all of it.
@@ -2212,6 +2213,76 @@ namespace Rasa.Managers
             }
 
             CommunicatorManager.Instance.SystemMessage(_client, $"Playing camera script {scriptId}.");
+        }
+
+        /// <summary>
+        /// .clientevent [list] | track &lt;event&gt;... | stop &lt;event&gt;... | stop all: the scriptable client
+        /// events on your own client (ScriptableClientEvents). An event is its id or its name (8,
+        /// crouched, MOVE_FORWARD). Events tracked here are echoed to you as they come back; "all" on
+        /// track tracks every one.
+        /// </summary>
+        private void ClientEventCommand(string[] parts)
+        {
+            var player = _client.Player;
+            var verb = parts.Length > 1 ? parts[1].ToLowerInvariant() : "list";
+
+            if (verb == "list")
+            {
+                var tracked = ScriptableClientEvents.Tracked(player);
+
+                CommunicatorManager.Instance.SystemMessage(_client,
+                    $"Scriptable client events ({tracked.Count} tracked). .clientevent track|stop <id|name>... or all.");
+
+                foreach (ScriptableClientEvent value in Enum.GetValues(typeof(ScriptableClientEvent)))
+                    CommunicatorManager.Instance.SystemMessage(_client,
+                        $"  {(uint)value}: {value}{(tracked.Contains(value) ? " (tracked)" : "")}");
+
+                return;
+            }
+
+            if ((verb != "track" && verb != "stop") || parts.Length < 3)
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, "usage: .clientevent [list] | track <id|name>... | stop <id|name>... | stop all");
+                return;
+            }
+
+            if (parts[2].ToLowerInvariant() == "all")
+            {
+                if (verb == "stop")
+                {
+                    var stopped = ScriptableClientEvents.StopAll(_client);
+                    player.EchoClientEvents = false;
+                    CommunicatorManager.Instance.SystemMessage(_client, $"Stopped {stopped} client event(s).");
+                    return;
+                }
+
+                parts = new[] { parts[0], parts[1] }
+                    .Concat(Enum.GetValues(typeof(ScriptableClientEvent)).Cast<ScriptableClientEvent>().Select(value => ((uint)value).ToString()))
+                    .ToArray();
+            }
+
+            var done = new List<ScriptableClientEvent>();
+
+            foreach (var text in parts.Skip(2))
+            {
+                if (!ScriptableClientEvents.TryParse(text, out var eventId))
+                {
+                    CommunicatorManager.Instance.SystemMessage(_client, $"{text} is not a client event. .clientevent list shows them.");
+                    continue;
+                }
+
+                if (verb == "track" ? ScriptableClientEvents.Start(_client, eventId) : ScriptableClientEvents.Stop(_client, eventId))
+                    done.Add(eventId);
+            }
+
+            if (verb == "track" && done.Count > 0)
+                player.EchoClientEvents = true;
+            else if (verb == "stop" && ScriptableClientEvents.Tracked(player).Count == 0)
+                player.EchoClientEvents = false;
+
+            if (done.Count > 0)
+                CommunicatorManager.Instance.SystemMessage(_client,
+                    $"{(verb == "track" ? "Tracking" : "Stopped")}: {string.Join(", ", done)}.");
         }
 
         private void NpcInfoCommand(string[] parts)
