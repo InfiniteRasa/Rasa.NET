@@ -29,7 +29,10 @@ namespace Rasa.Packets.MapChannel.Server
         /// <summary>What a shield on the one it hit took; Amount is what got through.</summary>
         public int Absorbed { get; }
 
-        public ShieldDroneReflectPacket(int effectId, ulong damageTargetId, DamageType damageType, int amount, bool deathBlow, int absorbed = 0)
+        /// <summary>The one it hit was immune (Managers.DamageImmunity): "Immune" in place of the damage.</summary>
+        public bool WasImmune { get; }
+
+        public ShieldDroneReflectPacket(int effectId, ulong damageTargetId, DamageType damageType, int amount, bool deathBlow, int absorbed = 0, bool wasImmune = false)
         {
             EffectId = effectId;
             DamageTargetId = damageTargetId;
@@ -37,6 +40,7 @@ namespace Rasa.Packets.MapChannel.Server
             Amount = amount;
             DeathBlow = deathBlow;
             Absorbed = absorbed;
+            WasImmune = wasImmune;
         }
 
         public override void Write(PythonWriter pw)
@@ -46,7 +50,7 @@ namespace Rasa.Packets.MapChannel.Server
             pw.WriteString("ReflectDamage");
             pw.WriteTuple(2);                   // args = (damageTargetId, rawInfo)
             pw.WriteULong(DamageTargetId);
-            DamageInfoWriter.WriteRawInfo(pw, DamageType, Amount, 0, false, DeathBlow, absorbed: Absorbed);
+            DamageInfoWriter.WriteRawInfo(pw, DamageType, Amount, 0, false, DeathBlow, absorbed: Absorbed, wasImmune: WasImmune);
         }
     }
 }

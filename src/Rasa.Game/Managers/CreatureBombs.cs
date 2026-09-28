@@ -429,10 +429,10 @@ namespace Rasa.Managers
             {
                 var (amount, resisted, crit) = Roll(bomb.Source, victim, bomb.Action, bomb.DamageType);
 
-                ActorManager.Instance.Damage(mapChannel, victim, amount, bomb.Source, out var absorbed, bomb.DamageType);
-                Reflection.Reflect(mapChannel, victim, bomb.Source, amount - absorbed, bomb.DamageType);
+                ActorManager.Instance.Damage(mapChannel, victim, amount, bomb.Source, out var outcome, bomb.DamageType);
+                Reflection.Reflect(mapChannel, victim, bomb.Source, outcome.Delivered, bomb.DamageType);
 
-                blast.Hits.Add(new TickEntry { EntityId = victim.EntityId, Amount = amount - absorbed, Absorbed = absorbed, Resisted = resisted, DamageType = bomb.DamageType, IsCritical = crit });
+                blast.Hits.Add(new TickEntry { EntityId = victim.EntityId, Amount = outcome.Delivered, Absorbed = outcome.Absorbed, WasImmune = outcome.Immune, Resisted = resisted, DamageType = bomb.DamageType, IsCritical = crit });
             }
 
             CellManager.Instance.CellCallMethod(mapChannel, corpse, blast);
@@ -731,10 +731,10 @@ namespace Rasa.Managers
             {
                 var (amount, resisted, crit) = Roll(bomb.Source, victim, bomb.Action, bomb.DamageType);
 
-                ActorManager.Instance.Damage(mapChannel, victim, amount, bomb.Source, out var absorbed, bomb.DamageType);
-                Reflection.Reflect(mapChannel, victim, bomb.Source, amount - absorbed, bomb.DamageType);
+                ActorManager.Instance.Damage(mapChannel, victim, amount, bomb.Source, out var outcome, bomb.DamageType);
+                Reflection.Reflect(mapChannel, victim, bomb.Source, outcome.Delivered, bomb.DamageType);
 
-                blast.Hits.Add(new TickEntry { EntityId = victim.EntityId, Amount = amount - absorbed, Absorbed = absorbed, Resisted = resisted, DamageType = bomb.DamageType, IsCritical = crit });
+                blast.Hits.Add(new TickEntry { EntityId = victim.EntityId, Amount = outcome.Delivered, Absorbed = outcome.Absorbed, WasImmune = outcome.Immune, Resisted = resisted, DamageType = bomb.DamageType, IsCritical = crit });
 
                 // KNOCKBACK_DISTANCE, where the blast has one (a Stalker's egg): away from where it went off.
                 if (knockback > 0 && victim.State != CharacterState.Dead && victim.Attributes[Attributes.Health].Current > 0)
@@ -746,13 +746,14 @@ namespace Rasa.Managers
                 foreach (var victim in CaughtCreatures(mapChannel, bomb.Source, holder.Position, bomb.Radius))
                 {
                     var (amount, resisted, crit) = Roll(bomb.Source, victim, bomb.Action, bomb.DamageType);
-                    var taken = ActorManager.Instance.Damage(mapChannel, victim, amount, bomb.Source, out var absorbed, bomb.DamageType);
+                    var taken = ActorManager.Instance.Damage(mapChannel, victim, amount, bomb.Source, out var outcome, bomb.DamageType);
 
                     blast.Hits.Add(new TickEntry
                     {
                         EntityId = victim.EntityId,
-                        Amount = amount - absorbed,
-                        Absorbed = absorbed,
+                        Amount = outcome.Delivered,
+                        Absorbed = outcome.Absorbed,
+                        WasImmune = outcome.Immune,
                         Resisted = resisted,
                         DamageType = bomb.DamageType,
                         IsCritical = crit,
@@ -773,10 +774,10 @@ namespace Rasa.Managers
             {
                 var (amount, resisted, crit) = Roll(source, victim, action, type);
 
-                ActorManager.Instance.Damage(mapChannel, victim, amount, source, out var absorbed, type);
-                Reflection.Reflect(mapChannel, victim, source, amount - absorbed, type);
+                ActorManager.Instance.Damage(mapChannel, victim, amount, source, out var outcome, type);
+                Reflection.Reflect(mapChannel, victim, source, outcome.Delivered, type);
 
-                recovery.Hits.Add(new AbilityHit { EntityId = victim.EntityId, Amount = amount - absorbed, Absorbed = absorbed, Resisted = resisted, DamageType = type, IsCritical = crit });
+                recovery.Hits.Add(new AbilityHit { EntityId = victim.EntityId, Amount = outcome.Delivered, Absorbed = outcome.Absorbed, WasImmune = outcome.Immune, Resisted = resisted, DamageType = type, IsCritical = crit });
             }
 
             CellManager.Instance.CellCallMethod(mapChannel, source, recovery);

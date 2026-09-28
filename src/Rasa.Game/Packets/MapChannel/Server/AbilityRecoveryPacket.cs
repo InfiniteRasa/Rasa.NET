@@ -110,7 +110,7 @@ namespace Rasa.Packets.MapChannel.Server
                 {
                     case HitDataKind.RawInfo:
                         // hitdata[i] is the rawInfo itself (CrabMineDeathAbility.DoAbility).
-                        DamageInfoWriter.WriteRawInfo(pw, hit.DamageType, hit.Amount, hit.Resisted, hit.IsCritical, hit.DeathBlow, absorbed: hit.Absorbed);
+                        DamageInfoWriter.WriteRawInfo(pw, hit.DamageType, hit.Amount, hit.Resisted, hit.IsCritical, hit.DeathBlow, absorbed: hit.Absorbed, wasImmune: hit.WasImmune);
                         break;
                     case HitDataKind.Heal:
                         pw.WriteInt(hit.Amount);
@@ -119,9 +119,9 @@ namespace Rasa.Packets.MapChannel.Server
                         // (clientInfo, extraClientInfo) - MiasmaCoalesceAbility.DoAbility: the
                         // hit, and its extra damage of another type or None.
                         pw.WriteTuple(2);
-                        DamageInfoWriter.WriteRawInfo(pw, hit.DamageType, hit.Amount, hit.Resisted, hit.IsCritical, hit.DeathBlow, absorbed: hit.Absorbed);
+                        DamageInfoWriter.WriteRawInfo(pw, hit.DamageType, hit.Amount, hit.Resisted, hit.IsCritical, hit.DeathBlow, absorbed: hit.Absorbed, wasImmune: hit.WasImmune);
                         if (hit.Extra != null)
-                            DamageInfoWriter.WriteRawInfo(pw, hit.Extra.DamageType, hit.Extra.Amount, hit.Extra.Resisted, hit.Extra.IsCritical, hit.Extra.DeathBlow, absorbed: hit.Extra.Absorbed);
+                            DamageInfoWriter.WriteRawInfo(pw, hit.Extra.DamageType, hit.Extra.Amount, hit.Extra.Resisted, hit.Extra.IsCritical, hit.Extra.DeathBlow, absorbed: hit.Extra.Absorbed, wasImmune: hit.Extra.WasImmune);
                         else
                             pw.WriteNoneStruct();
                         break;
@@ -138,7 +138,7 @@ namespace Rasa.Packets.MapChannel.Server
                         break;
                     case HitDataKind.Damage:
                         pw.WriteTuple(2);
-                        DamageInfoWriter.WriteRawInfo(pw, hit.DamageType, hit.Amount, hit.Resisted, hit.IsCritical, hit.DeathBlow, absorbed: hit.Absorbed);
+                        DamageInfoWriter.WriteRawInfo(pw, hit.DamageType, hit.Amount, hit.Resisted, hit.IsCritical, hit.DeathBlow, absorbed: hit.Absorbed, wasImmune: hit.WasImmune);
                         if (ArcData)
                         {
                             // onHitData = (arcData,): [(entityId, rawInfo), ...], which
@@ -151,7 +151,7 @@ namespace Rasa.Packets.MapChannel.Server
                             {
                                 pw.WriteTuple(2);
                                 pw.WriteULong(arc.EntityId);
-                                DamageInfoWriter.WriteRawInfo(pw, arc.DamageType, arc.Amount, arc.Resisted, arc.IsCritical, arc.DeathBlow, absorbed: arc.Absorbed);
+                                DamageInfoWriter.WriteRawInfo(pw, arc.DamageType, arc.Amount, arc.Resisted, arc.IsCritical, arc.DeathBlow, absorbed: arc.Absorbed, wasImmune: arc.WasImmune);
                             }
                         }
                         else
@@ -171,6 +171,9 @@ namespace Rasa.Packets.MapChannel.Server
 
         /// <summary>What a shield on the target took of the hit (ActorManager.Damage).</summary>
         public int Absorbed { get; set; }
+
+        /// <summary>The target was immune to the hit (Managers.DamageImmunity): "Immune" in place of the damage.</summary>
+        public bool WasImmune { get; set; }
 
         /// <summary>For HitDataKind.HealRepair: the armour repaired, beside Amount healed.</summary>
         public int Repair { get; set; }

@@ -45,6 +45,12 @@ namespace Rasa.Structures
         public Dictionary<Attributes, ActorAttributes> Attributes = new Dictionary<Attributes, ActorAttributes>();
         public Dictionary<int, GameEffect> ActiveEffects { get; set; } = new Dictionary<int, GameEffect>();
 
+        /// <summary>Takes nothing from any hit: every one shows "Immune" (Managers.DamageImmunity).</summary>
+        public bool ImmuneToAllDamage { get; set; }
+
+        /// <summary>The damage types a hit of which shows "Immune" and takes nothing (Managers.DamageImmunity).</summary>
+        public HashSet<DamageType> DamageImmunities { get; } = new HashSet<DamageType>();
+
         /// <summary>
         /// Environment.TickCount64 at which each action comes off cooldown, by action id. An
         /// action not in here, or past its tick, is ready. Kept per action rather than per

@@ -366,11 +366,11 @@ namespace Rasa.Managers
             if (reflected <= 0)
                 return;
 
-            var taken = ActorManager.Instance.Damage(mapChannel, attacker, reflected, drone, out var absorbed, damageType);
+            var taken = ActorManager.Instance.Damage(mapChannel, attacker, reflected, drone, out var outcome, damageType);
 
             CellManager.Instance.CellCallMethod(mapChannel, drone, new ShieldDroneReflectPacket(
-                source.EffectId, attacker.EntityId, damageType, reflected - absorbed,
-                taken > 0 && attacker.Attributes[Attributes.Health].Current <= 0, absorbed));
+                source.EffectId, attacker.EntityId, damageType, outcome.Delivered,
+                taken > 0 && attacker.Attributes[Attributes.Health].Current <= 0, outcome.Absorbed, outcome.Immune));
         }
     }
 }

@@ -332,13 +332,14 @@ namespace Rasa.Managers
                 var rolled = GameEffectManager.ApplyDamageDealt(owner, Scale(owner.Level, BombRandom.Next(mine.DamageMin, mine.DamageMax + 1), mine.ScaleType), mine.BonusPercent);
                 var crit = CriticalHits.Resolve(owner, victim, false, critChance, ref rolled);
                 var amount = GameEffectManager.ApplyResist(victim, rolled, out var resisted, mine.DamageType);
-                var taken = ActorManager.Instance.Damage(mapChannel, victim, amount, owner, out var absorbed, mine.DamageType);
+                var taken = ActorManager.Instance.Damage(mapChannel, victim, amount, owner, out var outcome, mine.DamageType);
 
                 blast.Hits.Add(new AbilityHit
                 {
                     EntityId = victim.EntityId,
-                    Amount = amount - absorbed,
-                    Absorbed = absorbed,
+                    Amount = outcome.Delivered,
+                    Absorbed = outcome.Absorbed,
+                    WasImmune = outcome.Immune,
                     Resisted = resisted,
                     DamageType = mine.DamageType,
                     IsCritical = crit,
@@ -347,7 +348,7 @@ namespace Rasa.Managers
 
                 hitAny = true;
 
-                if (crit && victim.State != CharacterState.Dead && victim.State != CharacterState.Dying && victim.Attributes[Attributes.Health].Current > 0)
+                if (crit && !outcome.Immune && victim.State != CharacterState.Dead && victim.State != CharacterState.Dying && victim.Attributes[Attributes.Health].Current > 0)
                     CritEffects.OnCritical(mapChannel, victim, owner, mine.DamageType, amount);
             }
 

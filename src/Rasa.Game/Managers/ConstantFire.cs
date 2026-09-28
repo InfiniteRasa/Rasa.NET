@@ -190,20 +190,21 @@ namespace Rasa.Managers
                 var rolled = RangeFalloff.Scale(damage, weapon.ItemTemplate.WeaponInfo.Range, player.Position, target.Position);
                 var crit = CriticalHits.Resolve(player, target, false, CriticalHits.AttackerChance(player, false, critBonus), ref rolled);
                 var amount = GameEffectManager.ApplyResist(target, rolled, out var resisted, damageType);
-                var landed = ActorManager.Instance.Damage(mapChannel, target, amount, player, out var absorbed, damageType);
+                var landed = ActorManager.Instance.Damage(mapChannel, target, amount, player, out var outcome, damageType);
 
                 pulse.Add(new TickEntry
                 {
                     EntityId = target.EntityId,
-                    Amount = amount - absorbed,
-                    Absorbed = absorbed,
+                    Amount = outcome.Delivered,
+                    Absorbed = outcome.Absorbed,
+                    WasImmune = outcome.Immune,
                     Resisted = resisted,
                     DamageType = damageType,
                     IsCritical = crit,
                     DeathBlow = landed > 0 && target.Attributes[Attributes.Health].Current <= 0
                 });
 
-                if (crit && target.State != CharacterState.Dead && target.State != CharacterState.Dying && target.Attributes[Attributes.Health].Current > 0)
+                if (crit && !outcome.Immune && target.State != CharacterState.Dead && target.State != CharacterState.Dying && target.Attributes[Attributes.Health].Current > 0)
                     CritEffects.OnCritical(mapChannel, target, player, damageType, amount);
 
                 if (leech)
@@ -266,7 +267,7 @@ namespace Rasa.Managers
 
             var crit = CriticalHits.Resolve(player, target, false, CriticalHits.AttackerChance(player, false, session.CritBonus), ref amount);
             var dealt = GameEffectManager.ApplyResist(target, amount, out var resisted, session.DamageType);
-            var landed = ActorManager.Instance.Damage(mapChannel, target, dealt, player, out var absorbed, session.DamageType);
+            var landed = ActorManager.Instance.Damage(mapChannel, target, dealt, player, out var outcome, session.DamageType);
 
             args.HitEntities.Add(target.EntityId);
             args.HitData.Add(new HitData
@@ -274,13 +275,14 @@ namespace Rasa.Managers
                 EntityId = target.EntityId,
                 DamageType = session.DamageType,
                 Resisted = (uint)resisted,
-                FinalAmt = dealt - absorbed,
-                Absorbed = (uint)absorbed,
+                FinalAmt = outcome.Delivered,
+                Absorbed = (uint)outcome.Absorbed,
+                WasImune = outcome.Immune ? 1 : 0,
                 IsCritical = crit ? 1 : 0,
                 DeathBlow = landed > 0 && target.Attributes[Attributes.Health].Current <= 0 ? 1 : 0
             });
 
-            if (crit && target.State != CharacterState.Dead && target.State != CharacterState.Dying && target.Attributes[Attributes.Health].Current > 0)
+            if (crit && !outcome.Immune && target.State != CharacterState.Dead && target.State != CharacterState.Dying && target.Attributes[Attributes.Health].Current > 0)
                 CritEffects.OnCritical(mapChannel, target, player, session.DamageType, dealt);
         }
 

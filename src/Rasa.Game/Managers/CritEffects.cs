@@ -177,13 +177,14 @@ namespace Rasa.Managers
             foreach (var other in arcTo)
             {
                 var amount = GameEffectManager.ApplyResist(other, perArc, out var resisted, DamageType.Electrical);
-                var taken = ActorManager.Instance.Damage(mapChannel, other, amount, player, out var absorbed, DamageType.Electrical);
+                var taken = ActorManager.Instance.Damage(mapChannel, other, amount, player, out var outcome, DamageType.Electrical);
 
                 announce.Hits.Add(new TickEntry
                 {
                     EntityId = other.EntityId,
-                    Amount = amount - absorbed,
-                    Absorbed = absorbed,
+                    Amount = outcome.Delivered,
+                    Absorbed = outcome.Absorbed,
+                    WasImmune = outcome.Immune,
                     Resisted = resisted,
                     DamageType = DamageType.Electrical,
                     DeathBlow = taken > 0 && other.Attributes[Attributes.Health].Current <= 0

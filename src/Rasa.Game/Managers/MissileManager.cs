@@ -97,6 +97,25 @@ namespace Rasa.Managers
         }
 
         /// <summary>
+        /// A hit the victim is immune to: nothing lands, and its hit records carry wasImmune, so
+        /// the recovery that shows the shot shows "Immune" over the victim in place of a number
+        /// (Actor.AnnounceDamage posts COMBAT_IMMUNE_ANNOUNCED for it).
+        /// </summary>
+        private static void Immune(Missile missile, Actor victim)
+        {
+            missile.DamageA = 0;
+
+            foreach (var hit in missile.Args.HitData)
+                if (hit.EntityId == victim.EntityId)
+                {
+                    hit.WasImune = 1;
+                    hit.FinalAmt = 0;
+                    hit.Resisted = 0;
+                    hit.Absorbed = 0;
+                }
+        }
+
+        /// <summary>
         /// The part of a missile's damage that meets armour. The rest - ArmorBypassPercent of it
         /// - goes past, and with whatever the armour could not stop comes off health: "Bypass
         /// Armor: 25% of damage done directly to Health".
@@ -120,19 +139,6 @@ namespace Rasa.Managers
             if (creature.State == CharacterState.Dead || creature.State == CharacterState.Dying)
                 return;
 
-            // A mission scene's invulnerable creature: the whole hit is resisted.
-            if (Game.Missions.World.CreatureGameplayRules.IsInvulnerable(creature))
-            {
-                foreach (var hit in missile.Args.HitData)
-                    if (hit.EntityId == creature.EntityId)
-                    {
-                        hit.Resisted = (uint)Math.Max(0, missile.DamageA);
-                        hit.FinalAmt = 0;
-                    }
-                missile.DamageA = 0;
-                return;
-            }
-
             // Its target category has to allow the hit: a player may strike HOSTILE and NEUTRAL,
             // a creature anything its own category may fight (TargetCategories), as Mind Control
             // bends it (BehaviorManager.MayFight). The client does not offer the rest as targets;
@@ -145,12 +151,13 @@ namespace Rasa.Managers
                 return;
             }
 
-            // Running home after a leash: untouchable until it is there, or dragging a creature to
-            // the end of its leash would make it a free kill. "Immune" floats over it.
-            if (BehaviorManager.IsReturning(creature))
+            // Immune (DamageImmunity): a mission scene's invulnerable creature, one running home
+            // after a leash - untouchable until it is there, or dragging a creature to the end of
+            // its leash would make it a free kill - or one immune to what the shot deals. The hit
+            // says so, and "Immune" floats over it as the shot lands.
+            if (DamageImmunity.IsImmune(creature, missile.DamageType))
             {
-                missile.DamageA = 0;
-                ActorManager.AnnounceImmune(mapChannel, creature, missile.Source);
+                Immune(missile, creature);
                 return;
             }
 
@@ -311,14 +318,15 @@ namespace Rasa.Managers
 
                 var rolled = AbilityManager.Scale(effect.SourceLevel, _random.Next(effect.WeaponBonusMin, effect.WeaponBonusMax + 1), effect.TickScaleType);
                 var amount = GameEffectManager.ApplyResist(target, rolled, out var resisted, effect.WeaponBonusType);
-                var taken = ActorManager.Instance.Damage(mapChannel, target, amount, shooter, out var absorbed, effect.WeaponBonusType);
+                var taken = ActorManager.Instance.Damage(mapChannel, target, amount, shooter, out var outcome, effect.WeaponBonusType);
 
                 var announce = new GameEffectAnnounceDamagePacket(effect.EffectId);
                 announce.Hits.Add(new TickEntry
                 {
                     EntityId = target.EntityId,
-                    Amount = amount - absorbed,
-                    Absorbed = absorbed,
+                    Amount = outcome.Delivered,
+                    Absorbed = outcome.Absorbed,
+                    WasImmune = outcome.Immune,
                     Resisted = resisted,
                     DamageType = effect.WeaponBonusType,
                     DeathBlow = taken > 0 && target.Attributes[Attributes.Health].Current <= 0
@@ -366,6 +374,13 @@ namespace Rasa.Managers
             // Both ends: whoever was hit, and whoever hit them if that was a player too.
             EnterCombat(actor);
             EnterCombat(missile.Source);
+
+            // Immune to it (DamageImmunity): the hit says so, and takes nothing.
+            if (DamageImmunity.IsImmune(actor, missile.DamageType))
+            {
+                Immune(missile, actor);
+                return;
+            }
 
             // A smoke screen takes its share off a shot before anything else: "Incoming ranged
             // damage reduced by X%", and melee walks through it.

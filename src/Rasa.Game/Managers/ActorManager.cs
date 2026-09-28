@@ -251,7 +251,11 @@ namespace Rasa.Managers
             return applied;
         }
 
-        /// <summary>"Immune" over the target for everyone around (GameEffectAttachFailed, COMBAT_IMMUNE_ANNOUNCED): a hit it does not take.</summary>
+        /// <summary>
+        /// "Immune" over the target for everyone around (GameEffectAttachFailed, IMMUNE, which the
+        /// client turns into COMBAT_IMMUNE_ANNOUNCED): a hit it does not take, for a caller with no
+        /// hit record of its own to carry wasImmune.
+        /// </summary>
         public static void AnnounceImmune(MapChannel mapChannel, Actor target, Actor source)
         {
             if (mapChannel == null || target == null)
@@ -275,26 +279,31 @@ namespace Rasa.Managers
         /// <param name="isPeriodic">Ticks contribute damage credit without issuing a new escort attack order.</param>
         public int Damage(MapChannel mapChannel, Actor target, int amount, Actor source, DamageType damageType = DamageType.Physical, bool isPeriodic = false)
         {
-            return Damage(mapChannel, target, amount, source, out _, damageType, isPeriodic);
+            var taken = Damage(mapChannel, target, amount, source, out var outcome, damageType, isPeriodic);
+
+            // No hit record here to carry wasImmune, so the clients are told on their own.
+            if (outcome.Immune)
+                AnnounceImmune(mapChannel, target, source);
+
+            return taken;
         }
 
         /// <summary>
-        /// Damage, with what a shield on the target took of it. A shield (Shield Extender,
-        /// Shield Wave: GameEffectManager.ApplyAbsorb) takes its share before the armour, as it
-        /// does of weapon fire in MissileManager, so what comes in here is the amount after
-        /// resistance and the hit to report is amount - absorbed, with absorbed beside it.
-        /// Falling is not combat damage and does not come through here (FallDamage.Apply): a
-        /// shield does not soften a fall.
+        /// Damage, with what became of it for the hit the caller reports (DamageOutcome). A target
+        /// immune to it (DamageImmunity: an invulnerable or leashing creature, a type or blanket
+        /// immunity, an effect granting one) takes nothing, and the hit is reported with
+        /// wasImmune so the clients show "Immune" as it lands. Otherwise a shield (Shield
+        /// Extender, Shield Wave: GameEffectManager.ApplyAbsorb) takes its share before the
+        /// armour, as it does of weapon fire in MissileManager: what comes in here is the amount
+        /// after resistance, and the hit to report is outcome.Delivered with outcome.Absorbed
+        /// beside it. Falling is not combat damage and does not come through here
+        /// (FallDamage.Apply): a shield does not soften a fall, nor does an immunity stop one.
         /// </summary>
-        /// <param name="absorbed">What the shield took; 0 when there is none, or the hit did not land.</param>
-        public int Damage(MapChannel mapChannel, Actor target, int amount, Actor source, out int absorbed, DamageType damageType = DamageType.Physical, bool isPeriodic = false)
+        public int Damage(MapChannel mapChannel, Actor target, int amount, Actor source, out DamageOutcome outcome, DamageType damageType = DamageType.Physical, bool isPeriodic = false)
         {
-            absorbed = 0;
+            outcome = new DamageOutcome { Delivered = amount };
 
             if (target == null || amount <= 0 || target.State == CharacterState.Dead || target.State == CharacterState.Dying)
-                return 0;
-
-            if (target is Creature defender && Game.Missions.World.CreatureGameplayRules.IsInvulnerable(defender))
                 return 0;
 
             if (source is Creature companion &&
@@ -305,17 +314,20 @@ namespace Rasa.Managers
             if (!target.Attributes.TryGetValue(Attributes.Health, out var health) || health.Current <= 0)
                 return 0;
 
-            // A creature running home after a leash takes nothing (BehaviorManager.Leash).
-            if (target is Creature returning && BehaviorManager.IsReturning(returning))
+            // Immune: nothing taken, nothing started - a creature running home after a leash
+            // (BehaviorManager.Leash) does not turn round for it.
+            if (DamageImmunity.IsImmune(target, damageType))
             {
-                AnnounceImmune(mapChannel, target, source);
+                outcome = new DamageOutcome { Immune = true };
                 return 0;
             }
+
             if (!isPeriodic && target is Creature attackedCreature)
                 CreatureManager.RecordOwnerAttack(mapChannel, source, attackedCreature);
 
             // A shield takes its share first; a hit it takes all of goes no further.
-            amount = GameEffectManager.Instance.ApplyAbsorb(mapChannel, target, amount, out absorbed);
+            amount = GameEffectManager.Instance.ApplyAbsorb(mapChannel, target, amount, out var absorbed);
+            outcome = new DamageOutcome { Delivered = amount, Absorbed = absorbed };
 
             if (amount <= 0)
                 return 0;

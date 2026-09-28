@@ -24,9 +24,11 @@ namespace Rasa.Test.Missions
             var health = Prepare(player, 1000);
             var shield = Shield(harness, percent: 40, pool: 500);
 
-            var taken = ActorManager.Instance.Damage(harness.BootcampMap, player, 100, null, out var absorbed, DamageType.Laser);
+            var taken = ActorManager.Instance.Damage(harness.BootcampMap, player, 100, null, out var outcome, DamageType.Laser);
 
-            Assert.AreEqual(40, absorbed);
+            Assert.AreEqual(40, outcome.Absorbed);
+            Assert.AreEqual(60, outcome.Delivered);
+            Assert.IsFalse(outcome.Immune);
             Assert.AreEqual(60, taken);
             Assert.AreEqual(940, health.Current);
             Assert.AreEqual(460, shield.AbsorbPool.Remaining);
@@ -42,12 +44,13 @@ namespace Rasa.Test.Missions
             var shield = Shield(harness, percent: 100, pool: 100);
 
             Assert.AreEqual(0, ActorManager.Instance.Damage(harness.BootcampMap, player, 30, null, out var first));
-            Assert.AreEqual(30, first);
+            Assert.AreEqual(30, first.Absorbed);
+            Assert.AreEqual(0, first.Delivered);
             Assert.AreEqual(1000, health.Current);
 
             var taken = ActorManager.Instance.Damage(harness.BootcampMap, player, 100, null, out var second);
 
-            Assert.AreEqual(70, second, "the pool had 70 left");
+            Assert.AreEqual(70, second.Absorbed, "the pool had 70 left");
             Assert.AreEqual(30, taken);
             Assert.AreEqual(970, health.Current);
             Assert.IsFalse(player.ActiveEffects.ContainsKey(shield.EffectId), "an emptied pool ends the shield");

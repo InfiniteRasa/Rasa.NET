@@ -90,7 +90,7 @@ namespace Rasa.Packets.MapChannel.Server
                     case TickKind.Damage:
                         pw.WriteTuple(2);
                         pw.WriteULong(entry.EntityId);
-                        DamageInfoWriter.WriteRawInfo(pw, entry.DamageType, entry.Amount, entry.Resisted, entry.IsCritical, entry.DeathBlow, absorbed: entry.Absorbed);
+                        DamageInfoWriter.WriteRawInfo(pw, entry.DamageType, entry.Amount, entry.Resisted, entry.IsCritical, entry.DeathBlow, absorbed: entry.Absorbed, wasImmune: entry.WasImmune);
                         break;
                     case TickKind.Heal:
                         pw.WriteTuple(2);
@@ -124,7 +124,7 @@ namespace Rasa.Packets.MapChannel.Server
             {
                 pw.WriteTuple(2);
                 pw.WriteULong(entry.EntityId);
-                DamageInfoWriter.WriteRawInfo(pw, entry.DamageType, entry.Amount, entry.Resisted, entry.IsCritical, entry.DeathBlow, absorbed: entry.Absorbed);
+                DamageInfoWriter.WriteRawInfo(pw, entry.DamageType, entry.Amount, entry.Resisted, entry.IsCritical, entry.DeathBlow, absorbed: entry.Absorbed, wasImmune: entry.WasImmune);
             }
         }
     }
@@ -139,6 +139,9 @@ namespace Rasa.Packets.MapChannel.Server
 
         /// <summary>What a shield on the target took of the hit (ActorManager.Damage).</summary>
         public int Absorbed { get; set; }
+
+        /// <summary>The target was immune to the hit (Managers.DamageImmunity): "Immune" in place of the damage.</summary>
+        public bool WasImmune { get; set; }
         public DamageType DamageType { get; set; }
         public bool IsCritical { get; set; }
         public bool DeathBlow { get; set; }

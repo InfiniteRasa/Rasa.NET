@@ -138,20 +138,21 @@ namespace Rasa.Managers
                 var rolled = GameEffectManager.ApplyDamageDealt(player, Scale(player.Level, BombRandom.Next(burning.DamageMin, burning.DamageMax + 1), burning.ScaleType));
                 var crit = CriticalHits.Resolve(player, victim, false, critChance, ref rolled);
                 var amount = GameEffectManager.ApplyResist(victim, rolled, out var resisted, burning.DamageType);
-                var taken = ActorManager.Instance.Damage(mapChannel, victim, amount, player, out var absorbed, burning.DamageType);
+                var taken = ActorManager.Instance.Damage(mapChannel, victim, amount, player, out var outcome, burning.DamageType);
 
                 blast.Hits.Add(new TickEntry
                 {
                     EntityId = victim.EntityId,
-                    Amount = amount - absorbed,
-                    Absorbed = absorbed,
+                    Amount = outcome.Delivered,
+                    Absorbed = outcome.Absorbed,
+                    WasImmune = outcome.Immune,
                     Resisted = resisted,
                     DamageType = burning.DamageType,
                     IsCritical = crit,
                     DeathBlow = taken > 0 && victim.Attributes[Attributes.Health].Current <= 0
                 });
 
-                if (crit)
+                if (crit && !outcome.Immune)
                     crits.Add((victim, amount));
             }
 

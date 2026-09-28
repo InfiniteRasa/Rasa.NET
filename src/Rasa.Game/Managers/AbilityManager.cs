@@ -1198,13 +1198,14 @@ namespace Rasa.Managers
                 var rolled = GameEffectManager.ApplyDamageDealt(player, Scale(player.Level, _random.Next(min, max + 1), scaleType));
                 var crit = CriticalHits.Resolve(player, target, false, critChance, ref rolled);
                 var amount = GameEffectManager.ApplyResist(target, rolled, out var resisted, damageType);
-                var taken = ActorManager.Instance.Damage(mapChannel, target, amount, player, out var absorbed, damageType);
+                var taken = ActorManager.Instance.Damage(mapChannel, target, amount, player, out var outcome, damageType);
 
                 var hit = new AbilityHit
                 {
                     EntityId = target.EntityId,
-                    Amount = amount - absorbed,
-                    Absorbed = absorbed,
+                    Amount = outcome.Delivered,
+                    Absorbed = outcome.Absorbed,
+                    WasImmune = outcome.Immune,
                     Resisted = resisted,
                     DamageType = damageType,
                     IsCritical = crit,
@@ -1223,7 +1224,7 @@ namespace Rasa.Managers
                 // Sonic crit's - each of which opens the Critical Death window if it is low enough.
                 if (target.State != CharacterState.Dead && target.State != CharacterState.Dying && target.Attributes[Attributes.Health].Current > 0)
                 {
-                    if (crit)
+                    if (crit && !outcome.Immune)
                         CritEffects.OnCritical(mapChannel, target, player, damageType, amount);
 
                     if (target.State != CharacterState.Dying && stun.Ms > 0 && Stuns.Roll(stun.Chance))

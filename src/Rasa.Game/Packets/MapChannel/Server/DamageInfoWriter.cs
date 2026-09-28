@@ -16,7 +16,8 @@ namespace Rasa.Packets.MapChannel.Server
         /// <param name="finalAmount">What got through to armour and health: after resistance and after a shield.</param>
         /// <param name="coverModifier">The share that got past cover: 1.0 for none in the way. The client's hit display is red at 0.8 and above, then orange, yellow, and green below 0.2 - so 0 reads as fully covered.</param>
         /// <param name="absorbed">What a shield on the target took (Shield Extender, Shield Wave). The client floats finalAmt + absorbed with the absorbed share in brackets ("-120(40)"), puts "(40 absorbed)" in the combat log, and plays the hit reaction for a hit the shield took all of.</param>
-        public static void WriteRawInfo(PythonWriter pw, DamageType damageType, long finalAmount, int resisted = 0, bool isCritical = false, bool deathBlow = false, double coverModifier = 1.0, int absorbed = 0)
+        /// <param name="wasImmune">The target was immune (Managers.DamageImmunity): the client shows "Immune" - floated over the target and a line in the combat log - in place of the damage.</param>
+        public static void WriteRawInfo(PythonWriter pw, DamageType damageType, long finalAmount, int resisted = 0, bool isCritical = false, bool deathBlow = false, double coverModifier = 1.0, int absorbed = 0, bool wasImmune = false)
         {
             pw.WriteTuple(12);
             pw.WriteUInt((uint)damageType);     // damageType
@@ -28,7 +29,7 @@ namespace Rasa.Packets.MapChannel.Server
             pw.WriteInt(isCritical ? 1 : 0);    // isCrit
             pw.WriteInt(deathBlow ? 1 : 0);     // deathBlow
             pw.WriteDouble(coverModifier);      // coverModifier
-            pw.WriteInt(0);                     // wasImmune
+            pw.WriteInt(wasImmune ? 1 : 0);     // wasImmune
             pw.WriteList(0);                    // targetEffectIds
             pw.WriteList(0);                    // sourceEffectIds
         }

@@ -229,6 +229,12 @@ namespace Rasa.Structures
         /// <summary>What the shield has left to absorb. Shared by an aura and its copies - one bubble, one pool.</summary>
         public AbsorbPool AbsorbPool { get; set; }
 
+        /// <summary>While on, the holder takes nothing from any hit and every one shows "Immune" (Managers.DamageImmunity).</summary>
+        public bool ImmuneToAllDamage { get; set; }
+
+        /// <summary>While on, a hit of one of these types takes nothing from the holder and shows "Immune".</summary>
+        public List<DamageType> ImmuneDamageTypes { get; } = new List<DamageType>();
+
         /// <summary>
         /// Shredder Ammo: extra damage the holder's weapon hits do, at most once per
         /// WeaponBonusIntervalMs, rolled WeaponBonusMin..Max and scaled like ability damage.

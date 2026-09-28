@@ -156,6 +156,7 @@ namespace Rasa.Managers
             RegisterCommand(".effect", GmLevel.GameMaster, EffectCommand);
             RegisterCommand(".moveflags", GmLevel.GameMaster, MoveFlagsCommand);
             RegisterCommand(".falldamage", GmLevel.GameMaster, FallDamageCommand);
+            RegisterCommand(".immune", GmLevel.GameMaster, ImmuneCommand);
             RegisterCommand(".feud", GmLevel.GameMaster, FeudCommand);
             RegisterCommand(".bark", GmLevel.GameMaster, BarkCommand);
             RegisterCommand(".comehere", GmLevel.GameMaster, ComeHereCommand);
@@ -2076,6 +2077,69 @@ namespace Rasa.Managers
 
             Console.WriteLine();
             return;
+        }
+
+        /// <summary>
+        /// .immune [all | off | &lt;damage type&gt;... | -&lt;damage type&gt;...]: makes your target
+        /// (yourself with none) immune to every hit, or to hits of the named types, so "Immune"
+        /// shows as the hit lands (DamageImmunity) - a type's name or number, a leading - takes it
+        /// off again. With nothing after it, says what the target is immune to. Held in memory
+        /// only: a restart, or the creature respawning, ends it.
+        /// </summary>
+        private void ImmuneCommand(string[] parts)
+        {
+            var communicator = CommunicatorManager.Instance;
+            var targetId = _client.Player.Target;
+            var target = targetId != 0 ? EntityManager.Instance.GetActor(targetId) : null;
+
+            target ??= _client.Player;
+
+            string Describe() =>
+                target.ImmuneToAllDamage ? "all damage"
+                : target.DamageImmunities.Count == 0 ? "nothing"
+                : string.Join(", ", target.DamageImmunities.OrderBy(type => type).Select(type => $"{type} ({(int)type})"));
+
+            var name = target == _client.Player ? "You are" : $"{target.Name ?? target.EntityId.ToString()} is";
+
+            if (parts.Length < 2)
+            {
+                communicator.SystemMessage(_client, $"{name} immune to {Describe()}. usage: .immune [all|off|<damage type>...|-<damage type>...]");
+                return;
+            }
+
+            foreach (var word in parts.Skip(1))
+            {
+                var text = word.ToLowerInvariant();
+
+                if (text == "all")
+                {
+                    target.ImmuneToAllDamage = true;
+                    continue;
+                }
+
+                if (text == "off" || text == "none")
+                {
+                    target.ImmuneToAllDamage = false;
+                    target.DamageImmunities.Clear();
+                    continue;
+                }
+
+                var remove = text.StartsWith("-");
+                var typeText = remove ? text.Substring(1) : text;
+
+                if (!Enum.TryParse<DamageType>(typeText, true, out var type) || !Enum.IsDefined(typeof(DamageType), type) || type == 0)
+                {
+                    communicator.SystemMessage(_client, $"Unknown damage type {word}; use one of {string.Join(", ", Enum.GetNames(typeof(DamageType)))}, or all, or off.");
+                    return;
+                }
+
+                if (remove)
+                    target.DamageImmunities.Remove(type);
+                else
+                    target.DamageImmunities.Add(type);
+            }
+
+            communicator.SystemMessage(_client, $"{name} now immune to {Describe()}.");
         }
 
         /// <summary>

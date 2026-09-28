@@ -23,9 +23,12 @@
         /// <summary>What a shield on the one it hit took; Amount is what got through.</summary>
         public int Absorbed { get; }
 
+        /// <summary>The one it hit was immune (Managers.DamageImmunity): "Immune" when the reflection arrives.</summary>
+        public bool WasImmune { get; }
+
         public int DelayMs { get; }
 
-        public GameEffectAnnounceReflectPacket(int effectId, ulong attackerId, DamageType damageType, int amount, bool deathBlow, int delayMs = 0, int absorbed = 0)
+        public GameEffectAnnounceReflectPacket(int effectId, ulong attackerId, DamageType damageType, int amount, bool deathBlow, int delayMs = 0, int absorbed = 0, bool wasImmune = false)
         {
             EffectId = effectId;
             AttackerId = attackerId;
@@ -33,6 +36,7 @@
             Amount = amount;
             DeathBlow = deathBlow;
             Absorbed = absorbed;
+            WasImmune = wasImmune;
             DelayMs = delayMs;
         }
 
@@ -43,7 +47,7 @@
             pw.WriteString("AnnounceReflect");
             pw.WriteTuple(3);                   // args = (entityId, rawInfo, delayMs)
             pw.WriteULong(AttackerId);
-            DamageInfoWriter.WriteRawInfo(pw, DamageType, Amount, 0, false, DeathBlow, absorbed: Absorbed);
+            DamageInfoWriter.WriteRawInfo(pw, DamageType, Amount, 0, false, DeathBlow, absorbed: Absorbed, wasImmune: WasImmune);
             pw.WriteInt(DelayMs);
         }
     }
