@@ -405,8 +405,11 @@ namespace Rasa.Managers
         }
 
         /// <summary>
-        /// Fills the "My Auctions" tab. The client asks for this every time the tab is opened,
-        /// and replaces its whole auction dictionary with what comes back.
+        /// Fills the "My Auctions" tab. The client asks for this every time the tab is opened.
+        /// AuctionStatusSuccess only adds to and updates the client's auction dictionary
+        /// (inventory.UpdateAuctionItems), so ResetAuctionInventory goes first and the answer
+        /// replaces the list: a listing that has since sold, expired or been skipped below
+        /// does not stay behind in it.
         /// </summary>
         public void RequestAuctionStatus(Client client, RequestAuctionStatusPacket packet)
         {
@@ -434,6 +437,7 @@ namespace Rasa.Managers
                 rows.Add(new AuctionStatus(entityId, auction.Price, auction.RemainingHours(now)));
             }
 
+            client.CallMethod(SysEntity.ClientInventoryManagerId, new ResetAuctionInventoryPacket());
             client.CallMethod(SysEntity.ClientAuctionHouseManagerId, new AuctionStatusSuccessPacket(rows));
         }
 

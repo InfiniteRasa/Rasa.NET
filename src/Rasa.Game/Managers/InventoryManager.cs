@@ -31,17 +31,16 @@ namespace Rasa.Managers
          *  - RemoveBuybackItem
          *  - ResetBuybackInventory
          *  - AddInboxItem / RemoveInboxItem / ResetInboxInventory (ShowInbox on every arrival)
+         *  - AddAuctionItem / RemoveAuctionItem / ResetAuctionInventory (ShowAuctions on every
+         *    arrival, AuctionHouseManager for listing, sale, expiry, cancel and status)
          *  
          *      ToDo:
-         *  - AddAuctionItem
          *  - AddOverflowItem
          *  - AddWagerItem
          *  - InventoryDestroy
          *  - InventoryReload
-         *  - RemoveAuctionItem
          *  - RemoveOverflowItem
          *  - RemoveWagerItem
-         *  - ResetAuctionInventory
          *  - ResetOverflowInventory
          *  - ResetWagerInventory
          *
@@ -2039,6 +2038,9 @@ namespace Rasa.Managers
 
             // The inbox's items survive the map change too, and were never shown again.
             ShowInbox(client, true);
+
+            // So do the listed ones.
+            ShowAuctions(client, true);
         }
 
         public void SetupLocalClanInventory(Client client)
@@ -2283,8 +2285,8 @@ namespace Rasa.Managers
                     {
                         // Listed at an auction house. SendItemDataToClient above already created
                         // the entity, which is all the client needs to render the row when it
-                        // asks for auction status; it belongs in no inventory list it can move
-                        // items in, so it only goes in the server's own auction list.
+                        // asks for auction status; listed to the client with the rest of the
+                        // auction list once the load is done (ShowAuctions, below).
                         client.Player.Inventory.AuctionItems.Add(newItem.EntityId);
                     }
                 }
@@ -2315,6 +2317,44 @@ namespace Rasa.Managers
 
             // Item data went out in the loop above.
             ShowInbox(client, false);
+            ShowAuctions(client, false);
+        }
+
+        /// <summary>
+        /// Lists the character's auctions - the auction house's Your Auctions tab - to their
+        /// client afresh: ResetAuctionInventory, then AddAuctionItem for each listed item. The
+        /// figures (price, time left) arrive with the next AuctionStatusSuccess, which the tab
+        /// asks for whenever it is opened.
+        ///
+        /// The same problem as <see cref="ShowInbox"/>: the client empties its auction list by
+        /// itself only on the way back to the login screen, and AuctionStatusSuccess only adds
+        /// to it. A character chosen at character select inherited the list of whoever played
+        /// before them, and those entries counted towards MAX_AUCTION_ITEMS, which the Create
+        /// Auction button checks before it asks the server anything. On a teleport or map link
+        /// the client dropped the listed items' entities with the rest of the map and was never
+        /// sent them again, so Your Auctions skipped every row until the next login.
+        ///
+        /// <paramref name="sendItemData"/> is false where the caller has just sent every item's
+        /// data itself (the login load).
+        /// </summary>
+        internal void ShowAuctions(Client client, bool sendItemData)
+        {
+            var listed = client?.Player?.Inventory?.AuctionItems;
+
+            if (listed == null)
+                return;
+
+            listed.RemoveAll(entityId => EntityManager.Instance.GetItem(entityId) == null);
+
+            client.CallMethod(SysEntity.ClientInventoryManagerId, new ResetAuctionInventoryPacket());
+
+            foreach (var entityId in listed)
+            {
+                if (sendItemData)
+                    ItemManager.Instance.SendItemDataToClient(client, EntityManager.Instance.GetItem(entityId), false);
+
+                client.CallMethod(SysEntity.ClientInventoryManagerId, new AddAuctionItemPacket(entityId));
+            }
         }
 
         /// <summary>
