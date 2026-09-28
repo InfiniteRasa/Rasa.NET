@@ -79,6 +79,11 @@ namespace Rasa.Structures.Char
         [Required]
         public byte CurrentAbilitySlot { get; set; }
 
+        /// <summary>The title the character wears (titledata id), 0 for none. One of character_title's.</summary>
+        [Column("current_title_id")]
+        [Required]
+        public uint CurrentTitleId { get; set; }
+
         [Column("body")]
         [Required]
         public int Body { get; set; }

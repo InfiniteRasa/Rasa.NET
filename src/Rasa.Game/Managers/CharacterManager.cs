@@ -1154,6 +1154,9 @@ namespace Rasa.Managers
                 Logos = logos
             };
             HydrateMissions(newCharacter, unitOfWork);
+
+            // The title it wore, if it still has it.
+            newCharacter.CurrentTitle = newCharacter.Titles.Contains(character.CurrentTitleId) ? character.CurrentTitleId : 0;
             newCharacter.StartingExperienceCompleted =
                 Game.Missions.Persistence.MissionRequirementFactsAdapter.HasCompletedStartingExperience(unitOfWork, character.Id);
 

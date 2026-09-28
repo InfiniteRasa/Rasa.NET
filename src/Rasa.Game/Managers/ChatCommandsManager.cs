@@ -247,21 +247,21 @@ namespace Rasa.Managers
                     $"Mission {missionId} objective {objectiveId} is not active.");
         }
 
+        /// <summary>
+        /// .addtitle titleId: gives you the title (titledata id), saved with the character, as a
+        /// title item does. The client lists it in the Titles window and prints "you have gained
+        /// the title".
+        /// </summary>
         private void AddTitleCommand(string[] parts)
         {
-            if (parts.Length == 1)
+            if (parts.Length != 2 || !uint.TryParse(parts[1], out var titleId) || titleId == 0)
             {
                 CommunicatorManager.Instance.SystemMessage(_client, "usage: .addtitle titleId");
                 return;
             }
 
-            if (parts.Length == 2)
-            {
-                if (uint.TryParse(parts[1], out var titleId))
-                {
-                    _client.CallMethod(_client.Player.EntityId, new TitleAddedPacket(titleId));
-                }
-            }
+            if (!ManifestationManager.Instance.GrantTitle(_client, titleId))
+                CommunicatorManager.Instance.SystemMessage(_client, $"You already have title {titleId}, or it could not be saved.");
         }
 
         /// <summary>

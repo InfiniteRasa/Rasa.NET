@@ -200,6 +200,10 @@ namespace Rasa.Migrations.SqliteChar
                         .HasColumnType("INTEGER")
                         .HasColumnName("current_ability_slot");
 
+                    b.Property<uint>("CurrentTitleId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("current_title_id");
+
                     b.Property<uint>("Experience")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int(11)")

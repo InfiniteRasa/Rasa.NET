@@ -294,11 +294,7 @@ namespace Rasa.Managers
             if (commit.TitleId == 0)
                 return;
 
-            lock (player.Titles)
-                if (!player.Titles.Contains(commit.TitleId))
-                    player.Titles.Add(commit.TitleId);
-
-            client.CallMethod(player.EntityId, new TitleAddedPacket(commit.TitleId));
+            ManifestationManager.TitleGained(client, commit.TitleId);
         }
 
         #endregion

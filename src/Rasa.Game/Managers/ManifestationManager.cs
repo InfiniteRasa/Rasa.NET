@@ -270,28 +270,99 @@ namespace Rasa.Managers
             return !string.Equals(saved?.Trim(), "False", StringComparison.OrdinalIgnoreCase);
         }
 
+        /// <summary>
+        /// ChangeTitle from the Titles window: one the character has earned, or none (0). It is
+        /// saved with the character and shown to their own client and to everyone who can see
+        /// them; CreatePlayerEntityData carries it to anyone who meets them later.
+        /// </summary>
         public void ChangeTitle(Client client, uint titleId)
         {
-            // One the character has earned, or none. Any id was taken, and the title shows in
-            // /who to everyone.
-            if (titleId != 0 && !client.Player.Titles.Contains(titleId))
+            var player = client?.Player;
+
+            if (player == null)
+                return;
+
+            bool has;
+
+            lock (player.Titles)
+                has = titleId == 0 || player.Titles.Contains(titleId);
+
+            if (!has)
             {
-                Logger.WriteLog(LogType.Security, $"{client.Player.FamilyName} asked to wear title {titleId}, which they do not have. Refused.");
+                Logger.WriteLog(LogType.Security, $"{player.FamilyName} asked to wear title {titleId}, which they do not have. Refused.");
                 return;
             }
 
-            //if (titleId != 0)
-            //{
-            client.Player.CurrentTitle = titleId;
-            client.CallMethod(client.Player.EntityId, new TitleChangedPacket(titleId));
-            /*}
-            else
+            try
             {
-                client.SendPacket(client.MapClient.Player.Actor.EntityId, new TitleRemovedPacket(client.MapClient.Player.CurrentTitle));
-                client.MapClient.Player.CurrentTitle = titleId;
+                using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+                unitOfWork.Characters.UpdateCharacterCurrentTitle(player.Id, titleId);
+            }
+            catch (Exception error) when (GameplayRejectionException.IsExpected(error))
+            {
+                Logger.WriteLog(LogType.Error, $"Unable to save title {titleId} for character {player.Id}: {error.Message}");
+                return;
             }
 
-            client.MapClient.Player.CurentTitle = titleId;*/
+            player.CurrentTitle = titleId;
+            ShowTitle(client);
+        }
+
+        /// <summary>The title the player wears, to their own client and to everyone who can see them.</summary>
+        private static void ShowTitle(Client client)
+        {
+            var player = client.Player;
+            var packet = new TitleChangedPacket(player.CurrentTitle);
+
+            client.CallMethod(player.EntityId, packet);
+
+            var mapChannel = player.MapChannel;
+
+            if (mapChannel == null)
+                return;
+
+            foreach (var other in CellManager.Instance.GetClientsInCells(mapChannel, player.Cells, client))
+                other.CallMethod(player.EntityId, packet);
+        }
+
+        /// <summary>
+        /// Gives the character a title and tells their client (TitleAdded: "you have gained the
+        /// title"). False when they have it already or it could not be saved.
+        /// </summary>
+        public bool GrantTitle(Client client, uint titleId)
+        {
+            var player = client?.Player;
+
+            if (player == null || titleId == 0)
+                return false;
+
+            try
+            {
+                using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+
+                if (!unitOfWork.CharacterTitles.Add(player.Id, titleId))
+                    return false;
+            }
+            catch (Exception error) when (GameplayRejectionException.IsExpected(error))
+            {
+                Logger.WriteLog(LogType.Error, $"Unable to give title {titleId} to character {player.Id}: {error.Message}");
+                return false;
+            }
+
+            TitleGained(client, titleId);
+            return true;
+        }
+
+        /// <summary>A title that is saved: onto the player's list and to their client.</summary>
+        public static void TitleGained(Client client, uint titleId)
+        {
+            var player = client.Player;
+
+            lock (player.Titles)
+                if (!player.Titles.Contains(titleId))
+                    player.Titles.Add(titleId);
+
+            client.CallMethod(player.EntityId, new TitleAddedPacket(titleId));
         }
 
         public bool PlayerTryFireWeapon(Client client) => TryFireWeapon(client) == FireResult.Fired;
@@ -2055,6 +2126,11 @@ namespace Rasa.Managers
             // And what they have targeted, which their combat stance aims at.
             if (!forSelf && Targets.Current(player) is var target && target != 0)
                 entityData.Add(new TargetIdPacket(target));
+
+            // The title they wear, to their own client and everyone who meets them. Every
+            // manifestation starts with none.
+            if (player.CurrentTitle != 0)
+                entityData.Add(new TitleChangedPacket(player.CurrentTitle));
 
             // The clan feuds they are in, to their own client and everyone who meets them: the
             // client tells ally from enemy by it. Every actor starts in none.
