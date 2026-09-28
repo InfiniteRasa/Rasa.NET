@@ -10,6 +10,7 @@ namespace Rasa.Managers
     using Packets;
     using Packets.MapChannel.Client;
     using Packets.MapChannel.Server;
+    using Repositories.Char;
     using Repositories.UnitOfWork;
     using Structures;
 
@@ -332,6 +333,15 @@ namespace Rasa.Managers
                 return;
             }
 
+            // An emote the player already knows, or a rocket still in the air (AccountRewards).
+            var rewardRefusal = AccountRewardRefusal(mapChannel, player, action, info);
+
+            if (rewardRefusal.HasValue)
+            {
+                Fail(client, actionId, level, rewardRefusal.Value);
+                return;
+            }
+
             // Polymorphed: "unable to access their inventory, abilities or consumables". The client
             // locks its own UI; this is the server holding to it. Polymorph itself still ends it.
             if (IsMorphed(player) && action.Module != PolymorphModule && !IsMorphAbility(player, actionId, level))
@@ -622,7 +632,8 @@ namespace Rasa.Managers
                 || action.Module == HortimonculusModule || action.Module == ReanimationModule || action.Module == ReanimationWaveModule
                 || action.Module == SpotterModule || action.Module == BotConstructionModule || action.Module == CreateCloneModule
                 || MorphSupportModules.Contains(action.Module)
-                || IsDirectDamage(action, info) || TimedEffectModules.Contains(action.Module);
+                || IsDirectDamage(action, info) || TimedEffectModules.Contains(action.Module)
+                || IsEmoteItem(action, info) || IsModelRocket(action, info);
         }
 
         /// <summary>
@@ -755,9 +766,13 @@ namespace Rasa.Managers
                 TakeCosts(client, player, info);
 
             // The items it takes, and the one it was used from, in one write; never a mission's.
+            // An emote item's flag goes in the same write; a model rocket is kept (AccountRewards).
+            IReadOnlyDictionary<uint, uint> committedFlags = null;
+            var flagWrite = EmoteItemFlagWrite(actionInfo, info, player, flags => committedFlags = flags);
+
             try
             {
-                ConsumeAbilityItems(client, info, action.ItemId);
+                ConsumeAbilityItems(client, info, KeepsSourceItem(actionInfo) ? 0 : action.ItemId, flagWrite);
             }
             catch (Exception error) when (GameplayRejectionException.IsExpected(error))
             {
@@ -776,6 +791,18 @@ namespace Rasa.Managers
             if (MorphSupportModules.Contains(actionInfo.Module))
             {
                 ResolveMorphSupport(mapChannel, client, player, actionInfo, info, action);
+                return;
+            }
+
+            if (IsEmoteItem(actionInfo, info))
+            {
+                LearnEmote(client, player, action, committedFlags);
+                return;
+            }
+
+            if (IsModelRocket(actionInfo, info))
+            {
+                LaunchModelRocket(mapChannel, player, info, action);
                 return;
             }
 
@@ -889,10 +916,18 @@ namespace Rasa.Managers
         /// What is not re-weighed: a target that died or despawned mid-windup. The ability was
         /// performed, it costs what it costs, and it hits nothing - which is what happens now.
         /// </summary>
-        private void ConsumeAbilityItems(Client client, ActionLevelInfo info, ulong sourceItemId)
+        private void ConsumeAbilityItems(Client client, ActionLevelInfo info, ulong sourceItemId, Action<ICharUnitOfWork> alsoWrite = null)
         {
             if (sourceItemId == 0 && info.ItemRequirements.Count == 0)
+            {
+                if (alsoWrite != null)
+                {
+                    using var writeUnit = _gameUnitOfWorkFactory.CreateChar();
+                    writeUnit.ExecuteTransaction(() => alsoWrite(writeUnit));
+                }
+
                 return;
+            }
             using var unit = _gameUnitOfWorkFactory.CreateChar();
             var quantities = new Dictionary<ulong, uint>();
             var source = sourceItemId == 0 ? null : EntityManager.Instance.GetItem(sourceItemId);
@@ -932,7 +967,11 @@ namespace Rasa.Managers
                     throw new GameplayRejectionException("Required ability items are no longer available.");
             }
             var consumption = new InventoryManager.InventoryConsumption();
-            unit.ExecuteTransaction(() => consumption.PlanAndSave(client, quantities, unit));
+            unit.ExecuteTransaction(() =>
+            {
+                consumption.PlanAndSave(client, quantities, unit);
+                alsoWrite?.Invoke(unit);
+            });
             consumption.Publish(client);
             foreach (var progress in consumption.ProgressEvents)
                 (_missionManager ?? MissionApplication.Instance).RecordProgress(client, progress);
@@ -993,6 +1032,10 @@ namespace Rasa.Managers
             // The point too, since the performer can have walked away from it during the windup.
             if (action.TargetLocation.HasValue && !LocationInRange(player, action.TargetLocation.Value, info))
                 return PlayerMessage.PmTargetOutOfRange;
+
+            // A second emote item for the same emote, used during the first one's windup.
+            if (_actions.TryGetValue(action.ActionId, out var actionInfo) && IsEmoteItem(actionInfo, info) && KnowsEmote(player, info))
+                return PlayerMessage.PmCannotPerformActionNow;
 
             return null;
         }

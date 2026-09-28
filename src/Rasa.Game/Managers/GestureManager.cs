@@ -72,6 +72,15 @@ namespace Rasa.Managers
                 return;
             }
 
+            // A reward emote wants its player flag, as the client checks it (Gestures.TryGetEmoteFlag).
+            if (Gestures.TryGetEmoteFlag(packet.GestureId, out var playerFlagId) &&
+                !CharacterFlagProjection.ToNativeIds(actor.PlayerFlags).Contains(playerFlagId))
+            {
+                Logger.WriteLog(LogType.Security,
+                    $"{actor.FamilyName} requested gesture {packet.GestureId} without its emote player flag {playerFlagId}");
+                return;
+            }
+
             Start(mapChannel, actor, ActionId.Gesture, packet.GestureId, packet.TargetEntityId, gesture);
         }
 

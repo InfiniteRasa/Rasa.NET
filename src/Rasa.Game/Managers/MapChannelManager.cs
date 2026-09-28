@@ -412,6 +412,9 @@ namespace Rasa.Managers
                         // Fire Support's beacons: their blasts and napalm pools.
                         Guard("AbilityManager.FireSupportWorker", mapChannel, () => AbilityManager.Instance.FireSupportWorker(mapChannel));
 
+                        // Model rockets: taken away once they have flown.
+                        Guard("AbilityManager.ModelRocketWorker", mapChannel, () => AbilityManager.Instance.ModelRocketWorker(mapChannel));
+
                         // Scatterbombs: the spent bombs are taken away once their blasts have played.
                         Guard("AbilityManager.ScatterbombWorker", mapChannel, () => AbilityManager.Instance.ScatterbombWorker(mapChannel));
 

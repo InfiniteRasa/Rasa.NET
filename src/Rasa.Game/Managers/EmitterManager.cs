@@ -165,6 +165,51 @@ namespace Rasa.Managers
                 CellManager.Instance.CellCallMethod(emitter.Object, packet);
         }
 
+        /// <summary>
+        /// Plays a package at a spot for as long as the caller keeps it: an emitter that is not a
+        /// row and not in the emitter list, on the given map channel (a private instance too).
+        /// Taken away with <see cref="RemoveTemporary"/>.
+        /// </summary>
+        public MapEmitter PlayTemporary(MapChannel mapChannel, uint mapContextId, Vector3 position, double rotation, uint packageId, string comment)
+        {
+            var emitter = new MapEmitter
+            {
+                MapContextId = mapContextId,
+                Position = position,
+                Rotation = rotation,
+                PackageId = packageId,
+                IsOn = true,
+                Comment = comment ?? ""
+            };
+
+            emitter.Object = new DynamicObject
+            {
+                EntityClassId = EmitterClassId,
+                DynamicObjectType = DynamicObjectType.Emitter,
+                ObjectData = emitter,
+                Position = position,
+                Rotation = rotation,
+                MapContextId = mapContextId,
+                TargetCategory = TargetCategory.Object,
+                Comment = emitter.Comment,
+                IsInWorld = true
+            };
+
+            CellManager.Instance.AddToWorld(mapChannel, emitter.Object);
+
+            return emitter;
+        }
+
+        /// <summary>Takes a <see cref="PlayTemporary"/> emitter off its map channel and off every client that had it.</summary>
+        public void RemoveTemporary(MapChannel mapChannel, MapEmitter emitter)
+        {
+            if (emitter?.Object == null)
+                return;
+
+            CellManager.Instance.RemoveFromWorld(mapChannel, emitter.Object);
+            emitter.Object = null;
+        }
+
         #endregion
 
         #region Switching
