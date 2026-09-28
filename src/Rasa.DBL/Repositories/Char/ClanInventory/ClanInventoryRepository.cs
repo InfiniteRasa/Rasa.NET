@@ -17,6 +17,7 @@ namespace Rasa.Repositories.Char.ClanInventory
 
         public void AddInvItem(uint clanId, uint slotId, uint itemId)
         {
+            CharacterMissionItem.MissionItemMutationGuard.RequireUnbound(_charContext, itemId);
             var entry = new ClanInventoryEntry(clanId, slotId, itemId);
 
             try
@@ -39,6 +40,7 @@ namespace Rasa.Repositories.Char.ClanInventory
             if (entry == null)
                 return;
 
+            CharacterMissionItem.MissionItemMutationGuard.RequireUnbound(_charContext, entry.ItemId);
             _charContext.Remove(entry);
             _charContext.SaveChanges();
         }
@@ -46,6 +48,7 @@ namespace Rasa.Repositories.Char.ClanInventory
         /// <summary>Deletes the lockbox row for one item, whichever clan and slot it is in.</summary>
         public void DeleteInvItemByItemId(uint itemId)
         {
+            CharacterMissionItem.MissionItemMutationGuard.RequireUnbound(_charContext, itemId);
             var query = _charContext.CreateNoTrackingQuery(_charContext.ClanInventoryEntries);
             var entry = query.FirstOrDefault(e => e.ItemId == itemId);
 
@@ -66,6 +69,7 @@ namespace Rasa.Repositories.Char.ClanInventory
 
         public void MoveInvItem(uint clanId, uint slotId, uint itemId)
         {
+            CharacterMissionItem.MissionItemMutationGuard.RequireUnbound(_charContext, itemId);
             var entry = _charContext.CreateTrackingQuery(_charContext.ClanInventoryEntries).FirstOrDefault(e => e.ClanId == clanId && e.ItemId == itemId);
 
             if (entry == null)

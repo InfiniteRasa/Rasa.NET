@@ -1,6 +1,8 @@
 ﻿using System;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading;
 
 namespace Rasa.Queue
 {
@@ -17,12 +19,13 @@ namespace Rasa.Queue
 
         /// <summary>
         /// Read on the main loop by every QueueManager pass and written on the socket threads as
-        /// the handshake advances, so the transitions go through <see cref="_clientLock"/>. They
-        /// are single writes rather than read-modify-writes everywhere except MarkArrived, which
-        /// is the one that has to be atomic: it is the main loop deciding a handed-off client has
-        /// arrived at the world port, against the client's own thread closing the socket.
+        /// the handshake advances, so the transitions go through <see cref="QueueClientState"/>. They
+        /// are single writes during key exchange. Admission, redirect, arrival, and disconnect use
+        /// expected-state transitions because each competes with teardown or another manager pass.
         /// </summary>
-        public QueueState State { get; private set; }
+        private readonly QueueClientState _state = new QueueClientState();
+        private int _started;
+        public QueueState State => _state.Value;
         public uint UserId { get; set; }
         public uint OneTimeKey { get; set; }
         public DateTime EnqueueTime { get; private set; }
@@ -32,12 +35,26 @@ namespace Rasa.Queue
         public DateTime RedirectTime { get; private set; }
 
         public QueueClient(QueueManager manager, LengthedSocket socket)
+            : this(manager, socket, true)
+        {
+        }
+
+        internal QueueClient(QueueManager manager, LengthedSocket socket, bool start)
         {
             Manager = manager;
             Socket = socket;
             Socket.OnReceive += OnReceive;
             Socket.OnError += OnError;
             Socket.OnDrop += OnDrop;
+
+            if (start)
+                Start();
+        }
+
+        internal void Start()
+        {
+            if (Interlocked.Exchange(ref _started, 1) != 0)
+                return;
 
             Socket.ReceiveAsync();
 
@@ -47,8 +64,6 @@ namespace Rasa.Queue
                 Prime = Manager.Config.Prime,
                 Generator = Manager.Config.Generator
             });
-
-            SetState(QueueState.Authenticating);
         }
 
         private void OnReceive(BufferData data)
@@ -58,7 +73,8 @@ namespace Rasa.Queue
             // cost this one connection.
             try
             {
-                HandleReceive(data);
+                using var reader = data.GetReader();
+                HandleReceive(reader);
             }
             catch (Exception e)
             {
@@ -67,14 +83,14 @@ namespace Rasa.Queue
             }
         }
 
-        private void HandleReceive(BufferData data)
+        internal void HandleReceive(BinaryReader reader)
         {
             switch (State)
             {
                 case QueueState.Authenticating:
                     var keyPacket = new ClientKeyPacket();
 
-                    keyPacket.Read(data.GetReader());
+                    keyPacket.Read(reader);
 
                     if (keyPacket.PublicKey != Manager.Config.PublicKey)
                     {
@@ -89,27 +105,22 @@ namespace Rasa.Queue
                     break;
 
                 case QueueState.Authenticated:
-                    if (data[data.Offset++] != 7)
-                        throw new Exception("Invalid opcode???");
+                    if (reader.ReadByte() != 7)
+                        throw new InvalidDataException("Invalid queue opcode.");
 
                     var loginPacket = new QueueLoginPacket();
 
-                    loginPacket.Read(data.GetReader());
+                    loginPacket.Read(reader);
 
                     UserId = loginPacket.UserId;
                     OneTimeKey = loginPacket.OneTimeKey;
-                    SetState(QueueState.InQueue);
-
                     Manager.Enqueue(this);
-                    EnqueueTime = DateTime.Now;
                     break;
 
                 default:
-                    throw new Exception("Received packet in a invalid queue state!");
+                    throw new InvalidDataException("Received packet in an invalid queue state.");
             }
         }
-
-        private readonly object _clientLock = new object();
 
         /// <summary>
         /// Advances the handshake, unless this connection has already gone. A socket thread that
@@ -119,13 +130,7 @@ namespace Rasa.Queue
         /// </summary>
         private void SetState(QueueState state)
         {
-            lock (_clientLock)
-            {
-                if (State == QueueState.Disconnected)
-                    return;
-
-                State = state;
-            }
+            _state.TrySet(state);
         }
 
         private void OnError(SocketAsyncEventArgs args)
@@ -149,17 +154,29 @@ namespace Rasa.Queue
         /// </summary>
         public void Close()
         {
-            lock (_clientLock)
-            {
-                if (State == QueueState.Disconnected)
-                    return;
-
-                State = QueueState.Disconnected;
-            }
+            if (!Manager.TryDisconnect(this))
+                return;
 
             Socket.Close();
 
             Manager.Disconnect(this);
+        }
+
+        internal bool TryAdmit(bool queued, DateTime now)
+        {
+            if (!_state.TrySet(QueueState.Authenticated, queued ? QueueState.InQueue : QueueState.Redirecting))
+                return false;
+
+            EnqueueTime = now;
+            if (!queued)
+                RedirectTime = now;
+
+            return true;
+        }
+
+        internal bool TryDisconnect()
+        {
+            return _state.TryDisconnect();
         }
 
         /// <summary>
@@ -171,16 +188,28 @@ namespace Rasa.Queue
         /// </summary>
         internal void MarkArrived()
         {
-            lock (_clientLock)
-                if (State == QueueState.Redirecting)
-                    State = QueueState.Arrived;
+            _state.TrySet(QueueState.Redirecting, QueueState.Arrived);
         }
 
         public void Redirect(IPAddress ip, int port)
         {
-            SetState(QueueState.Redirecting);
-            RedirectTime = DateTime.Now;
+            if (!TryPrepareRedirect(DateTime.Now))
+                return;
 
+            SendRedirect(ip, port);
+        }
+
+        internal bool TryPrepareRedirect(DateTime now)
+        {
+            if (!_state.TrySet(QueueState.InQueue, QueueState.Redirecting))
+                return false;
+
+            RedirectTime = now;
+            return true;
+        }
+
+        internal void SendRedirect(IPAddress ip, int port)
+        {
             Socket.Send(new HandoffToGamePacket
             {
                 OneTimeKey = OneTimeKey,
@@ -197,6 +226,57 @@ namespace Rasa.Queue
                 Position = position,
                 EstimatedTime = estimatedTime
             });
+        }
+    }
+
+    internal sealed class QueueClientState
+    {
+        private readonly object _lock = new object();
+        private QueueState _value;
+
+        internal QueueState Value
+        {
+            get
+            {
+                lock (_lock)
+                    return _value;
+            }
+        }
+
+        internal bool TrySet(QueueState value)
+        {
+            lock (_lock)
+            {
+                if (_value == QueueState.Disconnected)
+                    return false;
+
+                _value = value;
+                return true;
+            }
+        }
+
+        internal bool TrySet(QueueState expected, QueueState value)
+        {
+            lock (_lock)
+            {
+                if (_value != expected)
+                    return false;
+
+                _value = value;
+                return true;
+            }
+        }
+
+        internal bool TryDisconnect()
+        {
+            lock (_lock)
+            {
+                if (_value == QueueState.Disconnected)
+                    return false;
+
+                _value = QueueState.Disconnected;
+                return true;
+            }
         }
     }
 }

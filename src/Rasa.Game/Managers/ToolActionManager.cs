@@ -493,7 +493,7 @@ namespace Rasa.Managers
             // A full pack means the harvest does not happen rather than the item vanishing into
             // one: AddItemToInventory returns null with nowhere to put it, and the item it was
             // handed is already registered, so it has to be taken back out again.
-            if (InventoryManager.Instance.AddItemToInventory(client, item) == null)
+            if (InventoryManager.Instance.GrantItemToInventory(client, item) == null)
             {
                 EntityManager.Instance.DestroyPhysicalEntity(client, item.EntityId, EntityType.Item);
                 return PlayerMessage.PmYourInventoryIsFull;

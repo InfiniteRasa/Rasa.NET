@@ -1,3 +1,5 @@
+using System.IO;
+
 namespace Rasa.Packets.MapChannel.Client
 {
     using Data;
@@ -36,7 +38,7 @@ namespace Rasa.Packets.MapChannel.Client
         public ActionId ActionId { get; set; }
         public int ActionArgId { get; set; }
         public ActionTarget Target { get; set; }
-        public int ItemId { get; set; }
+        public ulong ItemId { get; set; }
 
         /// <summary>
         /// Which way the caster was facing, for a cone ability. Informational: the server holds
@@ -50,23 +52,33 @@ namespace Rasa.Packets.MapChannel.Client
         public override void Read(PythonReader pr)
         {
             var count = pr.ReadTuple();
+            if (count is not (4 or 5))
+                throw new InvalidDataException("Expected four or five ability request arguments.");
 
             ActionId = (ActionId)pr.ReadInt();
             ActionArgId = pr.ReadInt();
             Target = ActionTarget.Read(pr);
 
-            if (pr.PeekType() == PythonType.Int)
-                ItemId = pr.ReadInt();
-            else
-                pr.ReadUnkStruct();
+            switch (pr.PeekType())
+            {
+                case PythonType.Long:
+                    ItemId = pr.ReadULong();
+                    break;
+                case PythonType.Int:
+                    ItemId = pr.ReadUInt();
+                    break;
+                default:
+                    pr.ReadUnkStruct();
+                    ItemId = 0;
+                    break;
+            }
 
-            // Four or five; the sender has no other shape. A longer tuple is left unconsumed
-            // deliberately, so it fails the framing check loudly rather than being half-read.
-            if (count <= 4)
+            HasYaw = count == 5;
+            Yaw = 0;
+            if (!HasYaw)
                 return;
 
             Yaw = pr.ReadNumber();
-            HasYaw = true;
         }
     }
 }

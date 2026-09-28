@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Microsoft.Extensions.Options;
 
 namespace Rasa.Context.Char
@@ -10,6 +11,9 @@ namespace Rasa.Context.Char
     using Services.DbContext;
     using Structures.Char;
     using System;
+    using System.Linq;
+    using System.Threading;
+    using System.Threading.Tasks;
 
     public abstract class CharContext : RasaDbContextBase
     {
@@ -34,8 +38,19 @@ namespace Rasa.Context.Char
         public DbSet<CharacterLockboxEntry> CharacterLockboxEntries { get; set; }
         public DbSet<CharacterLogosEntry> CharacterLogosEntries { get; set; }
         public DbSet<CharacterMissionEntry> CharacterMissionEntries { get; set; }
+        public DbSet<CharacterMissionOfferEntry> CharacterMissionOfferEntries { get; set; }
+        public DbSet<CharacterMissionItemEntry> CharacterMissionItemEntries { get; set; }
+        public DbSet<CharacterMissionItemReceiptEntry> CharacterMissionItemReceiptEntries { get; set; }
+        public DbSet<CharacterMissionItemQuarantineEntry> CharacterMissionItemQuarantineEntries { get; set; }
+        public DbSet<CharacterMissionDeadlineEntry> CharacterMissionDeadlineEntries { get; set; }
+        public DbSet<CharacterMissionObjectiveEntry> CharacterMissionObjectiveEntries { get; set; }
+        public DbSet<CharacterMissionObjectiveCounterEntry> CharacterMissionObjectiveCounterEntries { get; set; }
+        public DbSet<CharacterMissionObjectiveItemCounterEntry> CharacterMissionObjectiveItemCounterEntries { get; set; }
+        public DbSet<CharacterMissionScenarioStepEntry> CharacterMissionScenarioStepEntries { get; set; }
         public DbSet<CharacterOptionEntry> CharacterOptionEntries { get; set; }
+        public DbSet<CharacterFlagEntry> CharacterFlagEntries { get; set; }
         public DbSet<CharacterSkillsEntry> CharacterSkillsEntries { get; set; }
+        public DbSet<CharacterStartingExperienceEntry> CharacterStartingExperienceEntries { get; set; }
         public DbSet<CharacterTeleporterEntry> CharacterTeleporterEntries { get; set; }
         public DbSet<CharacterTitleEntry> CharacterTitleEntries { get; set; }
         public DbSet<ClanEntry> ClanEntries { get; set; }
@@ -49,6 +64,44 @@ namespace Rasa.Context.Char
         public DbSet<ItemEntry> ItemEntries { get; set; }
         public DbSet<PetitionEntry> PetitionEntries { get; set; }
         public DbSet<UserOptionEntry> UserOptionEntries { get; set; }
+
+        public override int SaveChanges(bool acceptAllChangesOnSuccess)
+        {
+            AdvanceMissionVersions();
+            return base.SaveChanges(acceptAllChangesOnSuccess);
+        }
+
+        public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+        {
+            AdvanceMissionVersions();
+            return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+        }
+
+        private void AdvanceMissionVersions()
+        {
+            var changed = ChangeTracker.Entries()
+                .Where(entry => entry.State is EntityState.Modified or EntityState.Deleted)
+                .Select(entry => entry.Entity switch
+                {
+                    CharacterMissionEntry mission => ((uint, uint)?)(mission.CharacterId, mission.MissionId),
+                    CharacterMissionObjectiveEntry objective => (objective.CharacterId, objective.MissionId),
+                    CharacterMissionObjectiveCounterEntry counter => (counter.CharacterId, counter.MissionId),
+                    CharacterMissionObjectiveItemCounterEntry counter => (counter.CharacterId, counter.MissionId),
+                    _ => null
+                }).Where(key => key.HasValue).Select(key => key.Value).Distinct().ToArray();
+            foreach (var (characterId, missionId) in changed)
+            {
+                var mission = CharacterMissionEntries.Find(characterId, missionId);
+                if (mission == null)
+                    continue;
+                var tracked = Entry(mission);
+                if (tracked.State is EntityState.Added or EntityState.Deleted ||
+                    tracked.Property(entry => entry.Version).IsModified)
+                    continue;
+                mission.Version = checked(mission.Version + 1);
+            }
+        }
+
         protected override DatabaseConnectionConfiguration GetDatabaseConnectionConfiguration()
         {
             return _databaseConfiguration.Value.Char;
@@ -61,7 +114,14 @@ namespace Rasa.Context.Char
             SetupCharacterTable(modelBuilder);
             SetupCharacterAppearanceTable(modelBuilder);
             SetupCharacterLogosTable(modelBuilder);
+            SetupCharacterMissionTable(modelBuilder);
+            SetupCharacterMissionObjectiveTables(modelBuilder);
+            SetupCharacterMissionDurabilityTables(modelBuilder);
+            MissionRuntimeModel.Configure(modelBuilder);
+            MissionItemModel.Configure(modelBuilder);
             SetupCharacterSkillTable(modelBuilder);
+            SetupCharacterStartingExperienceTables(modelBuilder);
+            SetupCharacterFlagTable(modelBuilder);
             SetupCharacterTeleporterTable(modelBuilder);
             SetupCharacterOptionsTable(modelBuilder);
             SetupClanMemberTable(modelBuilder);
@@ -244,6 +304,112 @@ namespace Rasa.Context.Char
                 .HasKey(e => new { e.CharacterId, e.LogosId });
         }
 
+        private void SetupCharacterMissionTable(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<CharacterMissionEntry>()
+                .HasKey(e => new { e.CharacterId, e.MissionId });
+            modelBuilder.Entity<CharacterMissionEntry>()
+                .HasOne<CharacterEntry>()
+                .WithMany()
+                .HasForeignKey(e => e.CharacterId)
+                .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<CharacterMissionEntry>()
+                .Property(e => e.Completeable)
+                .HasDefaultValue(false);
+        }
+
+        private void SetupCharacterMissionObjectiveTables(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<CharacterMissionObjectiveEntry>()
+                .HasKey(entry => new { entry.CharacterId, entry.MissionId, entry.ObjectiveId });
+            modelBuilder.Entity<CharacterMissionObjectiveEntry>()
+                .HasOne(entry => entry.Mission)
+                .WithMany(mission => mission.Objectives)
+                .HasForeignKey(entry => new { entry.CharacterId, entry.MissionId })
+                .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<CharacterMissionObjectiveEntry>()
+                .Property(entry => entry.ObjectiveState)
+                .AsUnsignedTinyInt(_dbContextPropertyModifier, 3)
+                .IsConcurrencyToken();
+
+            modelBuilder.Entity<CharacterMissionObjectiveCounterEntry>()
+                .HasKey(entry => new
+                {
+                    entry.CharacterId,
+                    entry.MissionId,
+                    entry.ObjectiveId,
+                    entry.CounterId
+                });
+            modelBuilder.Entity<CharacterMissionObjectiveCounterEntry>()
+                .HasOne(entry => entry.Objective)
+                .WithMany(objective => objective.Counters)
+                .HasForeignKey(entry => new { entry.CharacterId, entry.MissionId, entry.ObjectiveId })
+                .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<CharacterMissionObjectiveCounterEntry>()
+                .Property(entry => entry.CounterId)
+                .AsUnsignedInt(_dbContextPropertyModifier, 11);
+            modelBuilder.Entity<CharacterMissionObjectiveCounterEntry>()
+                .Property(entry => entry.CounterValue)
+                .AsUnsignedInt(_dbContextPropertyModifier, 11)
+                .IsConcurrencyToken();
+
+            modelBuilder.Entity<CharacterMissionObjectiveItemCounterEntry>()
+                .HasKey(entry => new
+                {
+                    entry.CharacterId,
+                    entry.MissionId,
+                    entry.ObjectiveId,
+                    entry.ItemClassId
+                });
+            modelBuilder.Entity<CharacterMissionObjectiveItemCounterEntry>()
+                .HasOne(entry => entry.Objective)
+                .WithMany(objective => objective.ItemCounters)
+                .HasForeignKey(entry => new { entry.CharacterId, entry.MissionId, entry.ObjectiveId })
+                .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<CharacterMissionObjectiveItemCounterEntry>()
+                .Property(entry => entry.ItemClassId)
+                .AsUnsignedInt(_dbContextPropertyModifier, 11);
+            modelBuilder.Entity<CharacterMissionObjectiveItemCounterEntry>()
+                .Property(entry => entry.CounterValue)
+                .AsUnsignedInt(_dbContextPropertyModifier, 11)
+                .IsConcurrencyToken();
+        }
+
+        private void SetupCharacterMissionDurabilityTables(ModelBuilder modelBuilder)
+        {
+            var utcDateTime = new ValueConverter<DateTime, DateTime>(
+                value => value,
+                value => DateTime.SpecifyKind(value, DateTimeKind.Utc));
+
+            modelBuilder.Entity<CharacterMissionDeadlineEntry>()
+                .ToTable(table => table.HasCheckConstraint(
+                    "CK_character_mission_deadline_state",
+                    "state IN (1, 2, 3, 4)"));
+            modelBuilder.Entity<CharacterMissionDeadlineEntry>()
+                .HasKey(entry => new { entry.CharacterId, entry.MissionId });
+            modelBuilder.Entity<CharacterMissionDeadlineEntry>()
+                .HasOne(entry => entry.Mission)
+                .WithOne(mission => mission.Deadline)
+                .HasForeignKey<CharacterMissionDeadlineEntry>(entry =>
+                    new { entry.CharacterId, entry.MissionId })
+                .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<CharacterMissionDeadlineEntry>()
+                .Property(entry => entry.State)
+                .HasConversion<byte>()
+                .AsUnsignedTinyInt(_dbContextPropertyModifier, 3);
+            modelBuilder.Entity<CharacterMissionDeadlineEntry>()
+                .Property(entry => entry.DueAtUtc)
+                .HasConversion(utcDateTime);
+
+            modelBuilder.Entity<CharacterMissionScenarioStepEntry>()
+                .HasKey(entry => new { entry.CharacterId, entry.MissionId, entry.StepKey });
+            modelBuilder.Entity<CharacterMissionScenarioStepEntry>()
+                .HasOne(entry => entry.Mission)
+                .WithMany(mission => mission.ScenarioSteps)
+                .HasForeignKey(entry => new { entry.CharacterId, entry.MissionId })
+                .OnDelete(DeleteBehavior.Cascade);
+        }
+
         private void SetupCharacterOptionsTable(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<CharacterOptionEntry>()
@@ -260,6 +426,50 @@ namespace Rasa.Context.Char
         {
             modelBuilder.Entity<CharacterTeleporterEntry>()
                 .HasKey(e => new { e.CharacterId, e.WaypointId });
+        }
+
+        private void SetupCharacterStartingExperienceTables(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<CharacterStartingExperienceEntry>()
+                .ToTable(table => table.HasCheckConstraint(
+                    "CK_character_starting_experience_state",
+                    "state IN (1, 2, 3, 4, 5)"));
+            modelBuilder.Entity<CharacterStartingExperienceEntry>()
+                .HasKey(entry => entry.CharacterId);
+            modelBuilder.Entity<CharacterStartingExperienceEntry>()
+                .HasOne(entry => entry.Character)
+                .WithOne()
+                .HasForeignKey<CharacterStartingExperienceEntry>(entry => entry.CharacterId)
+                .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<CharacterStartingExperienceEntry>()
+                .Property(entry => entry.State)
+                .HasConversion<byte>()
+                .AsUnsignedTinyInt(_dbContextPropertyModifier, 3);
+
+        }
+
+        private void SetupCharacterFlagTable(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<CharacterFlagEntry>()
+                .ToTable(table =>
+                {
+                    table.HasCheckConstraint("CK_character_flag_id", "flag_id BETWEEN 1 AND 4294967295");
+                    table.HasCheckConstraint("CK_character_flag_value", "value BETWEEN 0 AND 4294967295");
+                });
+            modelBuilder.Entity<CharacterFlagEntry>()
+                .HasKey(entry => new { entry.CharacterId, entry.FlagId });
+            modelBuilder.Entity<CharacterFlagEntry>()
+                .HasOne(entry => entry.Character)
+                .WithMany()
+                .HasForeignKey(entry => entry.CharacterId)
+                .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<CharacterFlagEntry>()
+                .Property(entry => entry.FlagId)
+                .AsUnsignedInt(_dbContextPropertyModifier, 11)
+                .ValueGeneratedNever();
+            modelBuilder.Entity<CharacterFlagEntry>()
+                .Property(entry => entry.Value)
+                .AsUnsignedInt(_dbContextPropertyModifier, 11);
         }
 
         private void SetupClanMemberTable(ModelBuilder modelBuilder)

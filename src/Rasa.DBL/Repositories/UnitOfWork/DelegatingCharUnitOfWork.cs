@@ -17,8 +17,13 @@ namespace Rasa.Repositories.UnitOfWork
     using Char.CharacterLockbox;
     using Char.CharacterLogos;
     using Char.CharacterMission;
+    using Char.CharacterMissionDeadline;
+    using Char.CharacterMissionProgress;
+    using Char.CharacterMissionScenario;
     using Char.CharacterOption;
+    using Char.CharacterFlag;
     using Char.CharacterSkills;
+    using Char.CharacterStartingExperience;
     using Char.CharacterTeleporter;
     using Char.CharacterTitle;
     using Char.Friend;
@@ -41,6 +46,10 @@ namespace Rasa.Repositories.UnitOfWork
 
         public ICensoredWordRepository CensoredWords => _parent.CensoredWords;
 
+        public void ExecuteTransaction(System.Action operation) => _parent.ExecuteTransaction(operation);
+        public T Enlist<T>(System.Func<T> create) where T : class, ITransactionParticipant => _parent.Enlist(create);
+        public bool HasEnlisted<T>() where T : class, ITransactionParticipant => _parent.HasEnlisted<T>();
+
         public ICharacterRepository Characters => _parent.Characters;
 
         public ICharacterAbilityDrawerRepository CharacterAbilityDrawers => _parent.CharacterAbilityDrawers;
@@ -54,10 +63,27 @@ namespace Rasa.Repositories.UnitOfWork
         public ICharacterLogosRepository CharacterLogoses => _parent.CharacterLogoses;
 
         public ICharacterMissionRepository CharacterMissions => _parent.CharacterMissions;
+        public Char.MissionOffer.MissionOfferRepository MissionOffers => _parent.MissionOffers;
+        public Char.CharacterMissionItem.ICharacterMissionItemRepository CharacterMissionItems => _parent.CharacterMissionItems;
+
+        public ICharacterMissionDeadlineRepository CharacterMissionDeadlines =>
+            _parent.CharacterMissionDeadlines;
+
+        public ICharacterMissionProgressRepository CharacterMissionProgress =>
+            _parent.CharacterMissionProgress;
+
+        public ICharacterMissionScenarioRepository CharacterMissionScenario =>
+            _parent.CharacterMissionScenario;
 
         public ICharacterOptionRepository CharacterOptions => _parent.CharacterOptions;
 
+        public ICharacterFlagRepository CharacterFlags =>
+            _parent.CharacterFlags;
+
         public ICharacterSkillsRepository CharacterSkills => _parent.CharacterSkills;
+
+        public ICharacterStartingExperienceRepository CharacterStartingExperience =>
+            _parent.CharacterStartingExperience;
 
         public ICharacterTeleporterRepository CharacterTeleporters => _parent.CharacterTeleporters;
 

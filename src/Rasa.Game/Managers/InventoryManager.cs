@@ -6,6 +6,7 @@ namespace Rasa.Managers
 {
     using Data;
     using Game;
+    using Game.Missions.Persistence;
     using Packets.Communicator.Server;
     using Packets.Clan.Client;
     using Packets.Clan.Server;
@@ -18,7 +19,7 @@ namespace Rasa.Managers
     using Structures;
     using Structures.Char;
 
-    public class InventoryManager
+    public partial class InventoryManager
     {
         /*    Inventory Packets:
          *      Done:
@@ -73,6 +74,9 @@ namespace Rasa.Managers
         private static InventoryManager _instance;
         private static readonly object InstanceLock = new object();
         private readonly IGameUnitOfWorkFactory _gameUnitOfWorkFactory;
+        private readonly ManifestationManager _currencyManager;
+        private readonly CharacterManager _characterManager;
+        private readonly MissionApplication _missionManager;
         public static InventoryManager Instance
         {
             get
@@ -91,12 +95,30 @@ namespace Rasa.Managers
             }
         }
 
-        private InventoryManager(IGameUnitOfWorkFactory gameUnitOfWorkFactory)
+        internal InventoryManager(
+            IGameUnitOfWorkFactory gameUnitOfWorkFactory,
+            MissionApplication missionManager = null)
         {
             _gameUnitOfWorkFactory = gameUnitOfWorkFactory;
+            _currencyManager = new ManifestationManager(gameUnitOfWorkFactory);
+            _characterManager = new CharacterManager(gameUnitOfWorkFactory);
+            _missionManager = missionManager;
         }
 
         #region Handlers
+
+        private bool IsProtected(Item item) => MissionItemProtection.IsProtected(item, _gameUnitOfWorkFactory);
+        private bool HasProtected(params ulong[] entityIds) =>
+            entityIds.Where(id => id != 0).Any(id => IsProtected(EntityManager.Instance.GetItem(id)));
+        private static List<ulong> Slots(Manifestation player, InventoryType inventoryType) => inventoryType switch
+        {
+            InventoryType.Personal => player.Inventory.PersonalInventory,
+            InventoryType.HomeInventory => player.Inventory.HomeInventory,
+            InventoryType.EquipedInventory => player.Inventory.EquippedInventory,
+            InventoryType.WeaponDrawerInventory => player.Inventory.WeaponDrawer,
+            InventoryType.ClanInventory => player.Inventory.ClanInventory,
+            _ => null
+        };
 
         public void HomeInventory_DestroyItem(Client client, HomeInventory_DestroyItemPacket packet)
         {
@@ -134,7 +156,7 @@ namespace Rasa.Managers
 
             var entityId = client.Player.Inventory.HomeInventory[(int)packet.SrcSlot];
 
-            if (entityId == 0)
+            if (entityId == 0 || HasProtected(entityId, client.Player.Inventory.HomeInventory[(int)packet.DestSlot]))
                 return;
 
             RemoveItemBySlot(client, InventoryType.HomeInventory, packet.SrcSlot);
@@ -204,13 +226,24 @@ namespace Rasa.Managers
 
             if (entityId == 0)
                 return;
-
-            RemoveItemBySlot(client, InventoryType.Personal, (uint)packet.SrcSlot);
-            // if toSlot is not empty, move current item to SrcSlot (item swap)
-            if (client.Player.Inventory.PersonalInventory[packet.DestSlot] != 0)
-                AddItemBySlot(client, InventoryType.Personal, client.Player.Inventory.PersonalInventory[packet.DestSlot], (uint)packet.SrcSlot, true);
-
-            AddItemBySlot(client, InventoryType.Personal, entityId, (uint)packet.DestSlot, true);
+            lock (client.SyncRoot)
+            {
+                try
+                {
+                    InventoryPlan plan = null;
+                    using (var unit = _gameUnitOfWorkFactory.CreateChar())
+                        unit.ExecuteTransaction(() =>
+                        {
+                            plan = InventoryPlan.For(client, unit);
+                            plan.Move((uint)packet.SrcSlot, (uint)packet.DestSlot);
+                        });
+                    plan.Publish(client);
+                }
+                catch (Exception error) when (GameplayRejectionException.IsExpected(error))
+                {
+                    Logger.WriteLog(LogType.Error, $"Inventory item move rejected: {error.Message}");
+                }
+            }
         }
 
         /// <summary>
@@ -248,7 +281,7 @@ namespace Rasa.Managers
                 return;
             }
 
-            if (!ManifestationManager.Instance.LossCredits(client, price))
+            if (!_currencyManager.LossCredits(client, price))
                 return;
 
             // update Player
@@ -283,6 +316,8 @@ namespace Rasa.Managers
 
             var entityIdEquippedItem = client.Player.Inventory.EquippedInventory[(int)packet.DestSlot]; // the old equipped item (can be none)
             var entityIdInventoryItem = client.Player.Inventory.PersonalInventory[(int)packet.SrcSlot]; // the new equipped item (can be none)
+            if (HasProtected(entityIdEquippedItem, entityIdInventoryItem))
+                return;
 
             // Nothing coming in and nothing going out: the dequip path below would have looked
             // up the class of an item that is not there.
@@ -349,6 +384,10 @@ namespace Rasa.Managers
 
             // Send Data to client
             client.CallMethod(client.Player.EntityId, new AttributeInfoPacket(client.Player.Attributes));
+
+            if (itemToEquip != null &&
+                client.Player.Inventory.EquippedInventory[(int)packet.DestSlot] == entityIdInventoryItem)
+                RecordEquippedItemProgress(client, itemToEquip);
         }
 
         public void RequestEquipWeapon(Client client, RequestEquipWeaponPacket packet)
@@ -376,6 +415,8 @@ namespace Rasa.Managers
             // equip item
             var entityIdEquippedItem = client.Player.Inventory.WeaponDrawer[(int)destSlot]; // the old equipped item (can be none)
             var entityIdInventoryItem = client.Player.Inventory.PersonalInventory[(int)srcSlot]; // the new equipped item (can be none)
+            if (HasProtected(entityIdEquippedItem, entityIdInventoryItem))
+                return;
 
             // Nothing coming in and nothing going out: there is no swap to make, and the dequip
             // path below would clear an appearance slot that nothing had filled.
@@ -446,6 +487,10 @@ namespace Rasa.Managers
             ManifestationManager.Instance.NotifyEquipmentUpdate(client);
 
             ManifestationManager.Instance.UpdateAppearance(client);
+
+            if (itemToEquip != null &&
+                client.Player.Inventory.WeaponDrawer[(int)destSlot] == entityIdInventoryItem)
+                RecordEquippedItemProgress(client, itemToEquip);
         }
 
         public void RequestLockboxTabPermissions(Client client)
@@ -472,7 +517,7 @@ namespace Rasa.Managers
 
             var entityId = client.Player.Inventory.PersonalInventory[(int)packet.SrcSlot];
 
-            if (entityId == 0)
+            if (entityId == 0 || HasProtected(entityId, client.Player.Inventory.HomeInventory[(int)packet.DestSlot]))
                 return;
 
             RemoveItemBySlot(client, InventoryType.Personal, packet.SrcSlot);
@@ -499,7 +544,7 @@ namespace Rasa.Managers
 
             var entityId = client.Player.Inventory.PersonalInventory[(int)packet.SrcSlot];
 
-            if (entityId == 0)
+            if (entityId == 0 || HasProtected(entityId, client.Player.Inventory.ClanInventory[(int)packet.DestSlot]))
                 return;
 
             // If DestSlot is not empty, move current item to SrcSlot (item swap)
@@ -586,6 +631,8 @@ namespace Rasa.Managers
 
             var tempItem = EntityManager.Instance.GetItem(entityId);
 
+            if (IsProtected(tempItem))
+                return;
             RemoveItemBySlot(client, InventoryType.Personal, (uint)packet.SrcSlot);
 
             // AddItemToClanInventory saves the stack sizes it changes, and deletes every row
@@ -632,7 +679,7 @@ namespace Rasa.Managers
 
             var entityId = client.Player.Inventory.ClanInventory[(int)packet.SrcSlot];
 
-            if (entityId == 0)
+            if (entityId == 0 || HasProtected(entityId, client.Player.Inventory.ClanInventory[(int)packet.DestSlot]))
                 return;
 
             // If DestSlot is not empty, move current item to SrcSlot (item swap)
@@ -667,7 +714,7 @@ namespace Rasa.Managers
 
             var entityId = client.Player.Inventory.ClanInventory[(int)packet.SrcSlot];
 
-            if (entityId == 0)
+            if (entityId == 0 || HasProtected(entityId, client.Player.Inventory.PersonalInventory[(int)packet.DestSlot]))
                 return;
 
             var tempItem = EntityManager.Instance.GetItem(entityId);
@@ -744,7 +791,7 @@ namespace Rasa.Managers
 
             var tempItem = EntityManager.Instance.GetItem(packet.EntityId);
 
-            if (tempItem == null)
+            if (tempItem == null || IsProtected(tempItem))
                 return;
 
             //TODO: Support deleting portions
@@ -776,7 +823,7 @@ namespace Rasa.Managers
 
             var entityId = client.Player.Inventory.HomeInventory[(int)packet.SrcSlot];
 
-            if (entityId == 0)
+            if (entityId == 0 || HasProtected(entityId, client.Player.Inventory.PersonalInventory[(int)packet.DestSlot]))
                 return;
 
             RemoveItemBySlot(client, InventoryType.HomeInventory, packet.SrcSlot);
@@ -805,7 +852,7 @@ namespace Rasa.Managers
 
             var item = EntityManager.Instance.GetItem(packet.ItemEntityId);
 
-            if (item == null)
+            if (item == null || IsProtected(item))
                 return;
 
             // The destination has to be free: the inbox has no slot to swap an item back into,
@@ -837,36 +884,44 @@ namespace Rasa.Managers
         {
             var recipient = Server.Clients.Find(c => c?.Player != null && c.Player.Id == characterId
                                                      && c.State == ClientState.Ingame);
+            if (!TryMoveToInbox(
+                    unitOfWork, accountId, characterId, item.Id, out var slot))
+                return false;
+
+            item.OwnerId = characterId;
+            item.OwnerSlotId = slot;
+            PublishInboxDelivery(recipient, item);
+            return true;
+        }
+
+        internal bool TryMoveToInbox(
+            ICharUnitOfWork unitOfWork,
+            uint accountId,
+            uint characterId,
+            uint itemId,
+            out uint slot)
+        {
+            if (unitOfWork.CharacterMissionItems.GetOwner(itemId) != null)
+            {
+                slot = 0;
+                return false;
+            }
             var used = new HashSet<uint>();
+            var stored = unitOfWork.CharacterInventories.GetItems(accountId)
+                .Where(row => row.CharacterId == characterId
+                              && row.InventoryType == (uint)InventoryType.InboxInventory)
+                .ToList();
 
-            if (recipient != null)
+            if (stored.Count >= Inventory.MaxInboxItems)
             {
-                if (recipient.Player.Inventory.InboxItems.Count >= Inventory.MaxInboxItems)
-                    return false;
-
-                foreach (var entityId in recipient.Player.Inventory.InboxItems)
-                {
-                    var held = EntityManager.Instance.GetItem(entityId);
-
-                    if (held != null)
-                        used.Add(held.OwnerSlotId);
-                }
-            }
-            else
-            {
-                var stored = unitOfWork.CharacterInventories.GetItems(accountId)
-                    .Where(row => row.CharacterId == characterId
-                                  && row.InventoryType == (uint)InventoryType.InboxInventory)
-                    .ToList();
-
-                if (stored.Count >= Inventory.MaxInboxItems)
-                    return false;
-
-                foreach (var row in stored)
-                    used.Add(row.SlotId);
+                slot = 0;
+                return false;
             }
 
-            var slot = 0u;
+            foreach (var row in stored)
+                used.Add(row.SlotId);
+
+            slot = 0;
 
             while (slot < Inventory.MaxInboxItems && used.Contains(slot))
                 slot++;
@@ -874,22 +929,21 @@ namespace Rasa.Managers
             if (slot >= Inventory.MaxInboxItems)
                 return false;
 
-            item.OwnerId = characterId;
-            item.OwnerSlotId = slot;
-
             unitOfWork.CharacterInventories.MoveInvItem(accountId, characterId,
-                (uint)InventoryType.InboxInventory, slot, item.Id);
-
-            if (recipient != null)
-            {
-                recipient.Player.Inventory.InboxItems.Add(item.EntityId);
-                // A buyer has never seen the item they just bought, so its entity has to exist
-                // on their client before the inbox row can render.
-                ItemManager.Instance.SendItemDataToClient(recipient, item, false);
-                recipient.CallMethod(SysEntity.ClientInventoryManagerId, new AddInboxItemPacket(item.EntityId));
-            }
-
+                (uint)InventoryType.InboxInventory, slot, itemId);
             return true;
+        }
+
+        internal void PublishInboxDelivery(Client recipient, Item item)
+        {
+            if (recipient == null ||
+                recipient.Player.Inventory.InboxItems.Contains(item.EntityId))
+                return;
+
+            recipient.Player.Inventory.InboxItems.Add(item.EntityId);
+            ItemManager.Instance.SendItemDataToClient(recipient, item, false);
+            recipient.CallMethod(SysEntity.ClientInventoryManagerId,
+                new AddInboxItemPacket(item.EntityId));
         }
 
         public void TransferCreditToLockbox(Client client, int amount)
@@ -914,7 +968,7 @@ namespace Rasa.Managers
                     // The lockbox is credited only if the purse was actually debited. The check
                     // above already covers it, but the two halves are written separately here and
                     // a lockbox that gains what nobody lost is credits made out of nothing.
-                    if (!ManifestationManager.Instance.LossCredits(client, amount))
+                    if (!_currencyManager.LossCredits(client, amount))
                         return;
 
                     client.CallMethod(client.Player.EntityId, new LockboxFundsPacket(deposit));
@@ -932,7 +986,9 @@ namespace Rasa.Managers
                 {
                     var withdraw = client.Player.LockboxCredits + amount;
 
-                    ManifestationManager.Instance.GainCredits(client, -amount);
+                    if (!_currencyManager.GainCredits(client, -amount))
+                        return;
+
                     client.CallMethod(client.Player.EntityId, new LockboxFundsPacket(withdraw));
 
                     client.Player.LockboxCredits = withdraw;
@@ -1173,7 +1229,9 @@ namespace Rasa.Managers
             // amount was boxed and unboxed as an int, an InvalidCastException, so the clan
             // kept every deposit, the depositor kept the money, and the client was
             // disconnected. If the second step fails now the player is short, not the clan.
-            CharacterManager.Instance.UpdateCharacter(client, characterUpdate, (int)(-amount));
+            if (!_characterManager.UpdateCharacter(
+                    client, characterUpdate, (int)(-amount)))
+                return;
 
             if (creditType == 1)
                 unitOfWork.Clans.UpdateCredits(client.Player.ClanId, (uint)lockboxAfter);
@@ -1211,6 +1269,8 @@ namespace Rasa.Managers
                 return;
 
             var destEntityId = client.Player.Inventory.WeaponDrawer[(int)packet.DestSlot];
+            if (HasProtected(srcEntityId, destEntityId))
+                return;
             // swap items on the client and server
             if (destEntityId != 0)
             {
@@ -1241,6 +1301,13 @@ namespace Rasa.Managers
             var tempItem = EntityManager.Instance.GetItem(entityId);
 
             if (tempItem == null)
+                return;
+            var targetSlots = Slots(client.Player, inventoryType);
+            if (targetSlots != null && (slotId >= targetSlots.Count ||
+                targetSlots[(int)slotId] != entityId && HasProtected(targetSlots[(int)slotId])))
+                return;
+            if (IsProtected(tempItem) && (updateDB || inventoryType != InventoryType.Personal ||
+                tempItem.OwnerId != client.Player.Id || tempItem.OwnerSlotId != slotId))
                 return;
 
             // set entityId in slot
@@ -1338,6 +1405,8 @@ namespace Rasa.Managers
         /// </summary>
         private static void DeleteItemRows(ICharUnitOfWork unitOfWork, Item item)
         {
+            if (MissionItemProtection.IsProtected(item, unitOfWork))
+                throw new GameplayRejectionException("Assignment items require authored cleanup.");
             if (item.Id == 0)
                 return;
 
@@ -1364,7 +1433,25 @@ namespace Rasa.Managers
         /// </summary>
         public Item AddItemToInventory(Client client, Item item, uint destSlot)
         {
-            if (item == null)
+            return AddItemToInventory(client, item, destSlot, false);
+        }
+
+        /// <summary>
+        /// Places a newly granted item and records mission acquisition. Storage and equipment
+        /// transfers must use <see cref="AddItemToInventory(Client, Item, uint)"/>.
+        /// </summary>
+        public Item GrantItemToInventory(Client client, Item item, uint destSlot)
+        {
+            return AddItemToInventory(client, item, destSlot, true);
+        }
+
+        private Item AddItemToInventory(
+            Client client,
+            Item item,
+            uint destSlot,
+            bool recordAcquisition)
+        {
+            if (item == null || IsProtected(item))
                 return null;
 
             var inventory = client.Player.Inventory.PersonalInventory;
@@ -1377,9 +1464,10 @@ namespace Rasa.Managers
                          && inventory[(int)destSlot] == 0;
 
             if (!usable)
-                return AddItemToInventory(client, item);
+                return AddItemToInventory(client, item, recordAcquisition);
 
             var itemClassInfo = EntityClassManager.Instance.GetItemClassInfo(item);
+            var acquired = item.StackSize;
 
             item.OwnerId = client.Player.Id;
             item.OwnerSlotId = destSlot;
@@ -1387,16 +1475,40 @@ namespace Rasa.Managers
 
             ItemManager.Instance.SendItemDataToClient(client, item, false);
             AddItemBySlot(client, InventoryType.Personal, item.EntityId, destSlot, true, true);
+            if (recordAcquisition)
+                RecordItemProgress(
+                    client,
+                    item,
+                    acquired,
+                    MissionProgressEventKind.ItemAcquired);
 
             return item;
         }
 
         public Item AddItemToInventory(Client client, Item item)
         {
-            if (item == null)
+            return AddItemToInventory(client, item, false);
+        }
+
+        /// <summary>
+        /// Places a newly granted item and records mission acquisition. Storage and equipment
+        /// transfers must use <see cref="AddItemToInventory(Client, Item)"/>.
+        /// </summary>
+        public Item GrantItemToInventory(Client client, Item item)
+        {
+            return AddItemToInventory(client, item, true);
+        }
+
+        private Item AddItemToInventory(
+            Client client,
+            Item item,
+            bool recordAcquisition)
+        {
+            if (item == null || IsProtected(item))
                 return null;
 
             var itemClassInfo = EntityClassManager.Instance.GetItemClassInfo(item);
+            var initialQuantity = item.StackSize;
 
             // get item category offset
             var itemCategoryOffset = (int)item.ItemTemplate.InventoryCategory - 1;
@@ -1418,7 +1530,8 @@ namespace Rasa.Managers
                     var slotItem = EntityManager.Instance.GetItem(client.Player.Inventory.PersonalInventory[itemCategoryOffset + i]);
 
                     // same item template?
-                    if (slotItem.ItemTemplate.ItemTemplateId != item.ItemTemplate.ItemTemplateId)
+                    if (slotItem.ItemTemplate.ItemTemplateId != item.ItemTemplate.ItemTemplateId ||
+                        MissionItemProtection.IsProtected(slotItem, unitOfWork))
                         continue;
 
                     // calculate how many items we can add to the stack
@@ -1443,6 +1556,12 @@ namespace Rasa.Managers
                         // destroy the item
                         EntityManager.Instance.DestroyPhysicalEntity(client, item.EntityId, EntityType.Item);
                         DeleteItemRows(unitOfWork, item);
+                        if (recordAcquisition)
+                            RecordItemProgress(
+                                client,
+                                slotItem,
+                                initialQuantity,
+                                MissionProgressEventKind.ItemAcquired);
                         // return the 'new' item instead
                         return slotItem;
                     }
@@ -1474,10 +1593,22 @@ namespace Rasa.Managers
                     ItemManager.Instance.SendItemDataToClient(client, item, false);
                     // add item to empty slot
                     AddItemBySlot(client, InventoryType.Personal, item.EntityId, (uint)(itemCategoryOffset + i), true, true);
+                    if (recordAcquisition)
+                        RecordItemProgress(
+                            client,
+                            item,
+                            initialQuantity,
+                            MissionProgressEventKind.ItemAcquired);
                     return item;
                 }
             }
 
+            if (recordAcquisition)
+                RecordItemProgress(
+                    client,
+                    item,
+                    initialQuantity - item.StackSize,
+                    MissionProgressEventKind.ItemAcquired);
             return null;
         }
 
@@ -1493,7 +1624,7 @@ namespace Rasa.Managers
         /// </summary>
         public Item AddItemToClanInventory(Client client, Item item, uint firstSlot, uint lastSlot, uint unlockedSlots)
         {
-            if (item == null)
+            if (item == null || IsProtected(item))
                 return null;
 
             var itemClassInfo = EntityClassManager.Instance.GetItemClassInfo(item);
@@ -1507,7 +1638,8 @@ namespace Rasa.Managers
                     var slotItem = EntityManager.Instance.GetItem(client.Player.Inventory.ClanInventory[i]);
 
                     // same item template?
-                    if (slotItem.ItemTemplate.ItemTemplateId != item.ItemTemplate.ItemTemplateId)
+                    if (slotItem.ItemTemplate.ItemTemplateId != item.ItemTemplate.ItemTemplateId ||
+                        MissionItemProtection.IsProtected(slotItem, unitOfWork))
                         continue;
 
                     // calculate how many items we can add to the stack
@@ -1579,6 +1711,9 @@ namespace Rasa.Managers
 
         public uint FreeSlotIndex(Manifestation player, InventoryType inventoryType, uint slotIndex)
         {
+            var slots = Slots(player, inventoryType);
+            if (slots != null && slotIndex < slots.Count && HasProtected(slots[(int)slotIndex]))
+                throw new GameplayRejectionException("Assignment items require authored cleanup.");
             switch (inventoryType)
             {
                 case InventoryType.Personal:
@@ -1663,6 +1798,35 @@ namespace Rasa.Managers
             //client.CallMethod(SysEntity.ClientInventoryManagerId, new InventoryCreatePacket(InventoryType.EquipedInventory, client.MapClient.Inventory.EquippedInventory, 22));
         }
 
+        internal void ResendForMap(Client client)
+        {
+            var inventory = client.Player.Inventory;
+            var groups = new[]
+            {
+                (InventoryType.Personal, inventory.PersonalInventory),
+                (InventoryType.HomeInventory, inventory.HomeInventory),
+                (InventoryType.WeaponDrawerInventory, inventory.WeaponDrawer),
+                (InventoryType.EquipedInventory, inventory.EquippedInventory)
+            };
+            var sent = new HashSet<ulong>();
+            foreach (var (type, slots) in groups)
+            {
+                for (var slot = 0; slot < slots.Count; slot++)
+                {
+                    var entityId = slots[slot];
+                    if (entityId == 0)
+                        continue;
+                    var item = EntityManager.Instance.GetItem(entityId) ??
+                        throw new InvalidOperationException($"Missing inventory entity {entityId} during map transfer.");
+                    if (sent.Add(entityId))
+                        ItemManager.Instance.SendItemDataToClient(client, item, false);
+                    client.CallMethod(SysEntity.ClientInventoryManagerId,
+                        new InventoryAddItemPacket(type, entityId, (uint)slot));
+                }
+            }
+            client.CallMethod(SysEntity.ClientInventoryManagerId, new LockboxTabPermissionsPacket(client.Player.LockboxTabs));
+        }
+
         public void SetupLocalClanInventory(Client client)
         {
             if (client.Player.ClanId == 0)
@@ -1732,29 +1896,32 @@ namespace Rasa.Managers
             SetupLocalClanInventory(client);
         }
 
-        private static bool IsSlotFree(Client client, InventoryType inventoryType, uint slotId)
-        {
-            var inventory = client.Player.Inventory;
-
-            return inventoryType switch
-            {
-                InventoryType.Personal => slotId < inventory.PersonalInventory.Count && inventory.PersonalInventory[(int)slotId] == 0,
-                InventoryType.EquipedInventory => slotId < inventory.EquippedInventory.Count && inventory.EquippedInventory[(int)slotId] == 0,
-                InventoryType.WeaponDrawerInventory => slotId < inventory.WeaponDrawer.Count && inventory.WeaponDrawer[(int)slotId] == 0,
-                _ => false,
-            };
-        }
-
         public void InitCharacterInventory(Client client)
         {
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
             var getInventoryData = unitOfWork.CharacterInventories.GetItems(client.AccountEntry.Id);
-
-            // Every character id a row of this account can legitimately carry. Rows are per
-            // account; one with a character id outside this set (0 from the home lockbox,
-            // a pod number, a depositor on another account) was written by an older build
-            // and belongs to nobody, so it would never load again.
             var accountCharacterIds = new HashSet<uint>((client.AccountEntry.Characters ?? new List<CharacterEntry>()).Select(c => c.Id));
+            var missionItems = unitOfWork.CharacterMissionItems.GetOwned(client.Player.Id).ToDictionary(entry => entry.ItemId);
+            foreach (var row in getInventoryData.Where(row => row.CharacterId == client.Player.Id || row.CharacterId == 0))
+            {
+                var owner = unitOfWork.CharacterMissionItems.GetOwner(row.ItemId);
+                if (owner != null)
+                    missionItems.TryAdd(owner.ItemId, owner);
+            }
+            foreach (var owner in missionItems.Values)
+            {
+                var rows = getInventoryData.Where(row => row.ItemId == owner.ItemId).ToArray();
+                var saved = unitOfWork.Items.GetItem(owner.ItemId);
+                if (owner.CharacterId != client.Player.Id || rows.Length != 1 ||
+                    rows[0].CharacterId != owner.CharacterId || rows[0].InventoryType != (uint)InventoryType.Personal ||
+                    rows[0].SlotId >= PersonalCategorySize * PersonalCategoryCount ||
+                    getInventoryData.Count(row => row.CharacterId == owner.CharacterId &&
+                        row.InventoryType == (uint)InventoryType.Personal && row.SlotId == rows[0].SlotId) != 1 ||
+                    saved == null || saved.StackSize != owner.Quantity || owner.Quantity == 0 ||
+                    string.IsNullOrWhiteSpace(owner.AssignmentId) || owner.Generation == 0 ||
+                    string.IsNullOrWhiteSpace(owner.ItemKey))
+                    throw new GameplayRejectionException("Assignment inventory is inconsistent; quarantined without repair or reissuance.");
+            }
 
             // init for server inventory. Cleared first: this runs again on the manifestation
             // after a summon or .teleport, and used to append another block of slots each
@@ -1780,6 +1947,17 @@ namespace Rasa.Managers
 
             foreach (var item in getInventoryData)
             {
+                var inventoryType = (InventoryType)item.InventoryType;
+                var sharedHome = item.CharacterId == 0 && inventoryType == InventoryType.HomeInventory;
+                if (item.CharacterId != client.Player.Id && !sharedHome)
+                {
+                    if (!accountCharacterIds.Contains(item.CharacterId))
+                        Logger.WriteLog(LogType.Error,
+                            $"Account {client.AccountEntry.Id} {inventoryType} slot {item.SlotId} item {item.ItemId} "
+                            + $"has owner {item.CharacterId} outside the account's character snapshot; ignored without reassignment.");
+                    continue;
+                }
+
                 var itemData = unitOfWork.Items.GetItem(item.ItemId);
 
                 if (itemData == null)
@@ -1805,11 +1983,14 @@ namespace Rasa.Managers
                     OwnerId = item.CharacterId,
                     OwnerSlotId = item.SlotId,
                     ItemTemplate = itemTemplate,
+                    ItemTemplateId = itemTemplate.ItemTemplateId,
                     StackSize = itemData.StackSize,
                     CurrentHitPoints = itemData.CurrentHitPoints,
                     Color = itemData.Color,
                     Id = item.ItemId,
-                    Crafter = itemData.CrafterName
+                    Crafter = itemData.CrafterName,
+                    MissionOwnership = missionItems.TryGetValue(item.ItemId, out var provenance)
+                        ? InventoryPlan.ToOwnership(provenance) : null
                 };
 
                 // check if item is weapon
@@ -1822,29 +2003,6 @@ namespace Rasa.Managers
 
                 // fill invenoty slot
                 ItemManager.Instance.SendItemDataToClient(client, newItem, false);
-
-                var inventoryType = (InventoryType)item.InventoryType;
-
-                // An orphaned character-inventory row is adopted by the first character on
-                // the account to log in with that slot free: the row gets this character's
-                // id, and the item is back. If the slot is taken it is left for a later
-                // login and reported.
-                if (item.CharacterId != client.Player.Id
-                    && !accountCharacterIds.Contains(item.CharacterId)
-                    && (inventoryType == InventoryType.Personal || inventoryType == InventoryType.EquipedInventory || inventoryType == InventoryType.WeaponDrawerInventory))
-                {
-                    if (IsSlotFree(client, inventoryType, item.SlotId))
-                    {
-                        Logger.WriteLog(LogType.Error, $"Account {client.AccountEntry.Id} {inventoryType} slot {item.SlotId} item {item.ItemId} was stored with character id {item.CharacterId}, which is not a character of this account; assigned to {client.Player.Id} ({client.Player.Name}).");
-                        unitOfWork.CharacterInventories.MoveInvItem(client.AccountEntry.Id, client.Player.Id, item.InventoryType, item.SlotId, item.ItemId);
-                        newItem.OwnerId = client.Player.Id;
-                        item.CharacterId = client.Player.Id;
-                    }
-                    else
-                    {
-                        Logger.WriteLog(LogType.Error, $"Account {client.AccountEntry.Id} {inventoryType} slot {item.SlotId} item {item.ItemId} was stored with character id {item.CharacterId}, which is not a character of this account, and the slot is taken; left as is.");
-                    }
-                }
 
                 if (item.CharacterId == client.Player.Id)
                 {
@@ -1919,7 +2077,7 @@ namespace Rasa.Managers
 
                 var item = EntityManager.Instance.GetItem(entityId);
 
-                if (item?.ItemTemplate != null && item.ItemTemplate.Class == entityClass)
+                if (item?.ItemTemplate != null && item.ItemTemplate.Class == entityClass && !IsProtected(item))
                     total += item.StackSize;
             }
 
@@ -1943,7 +2101,7 @@ namespace Rasa.Managers
 
                 var item = EntityManager.Instance.GetItem(entityId);
 
-                if (item?.ItemTemplate != null && item.ItemTemplate.Class == entityClass && item.StackSize > 0)
+                if (item?.ItemTemplate != null && item.ItemTemplate.Class == entityClass && item.StackSize > 0 && !IsProtected(item))
                     stacks.Add(item);
             }
 
@@ -1962,7 +2120,7 @@ namespace Rasa.Managers
 
         public void ReduceStackCount(Client client, InventoryType inventoryType, Item tempItem, uint stackDecreaseCount)
         {
-            if (client.Player == null || tempItem == null || stackDecreaseCount == 0)
+            if (client.Player == null || tempItem == null || stackDecreaseCount == 0 || IsProtected(tempItem))
                 return;
 
             // Ownership is decided by where the entity actually sits: it has to be in this
@@ -1993,6 +2151,7 @@ namespace Rasa.Managers
             }
 
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+            var consumed = Math.Min(stackDecreaseCount, tempItem.StackSize);
 
             // uint - uint: a count larger than the stack wrapped to ~4 billion instead of
             // emptying it.
@@ -2014,10 +2173,51 @@ namespace Rasa.Managers
                 client.CallMethod(tempItem.EntityId, new SetStackCountPacket(tempItem.StackSize));
                 unitOfWork.Items.UpdateItemStackSize(tempItem);
             }
+
+            if (inventoryType == InventoryType.Personal)
+                RecordItemProgress(
+                    client,
+                    tempItem,
+                    consumed,
+                    MissionProgressEventKind.ItemConsumed);
+        }
+
+        private void RecordItemProgress(
+            Client client,
+            Item item,
+            uint quantity,
+            MissionProgressEventKind kind)
+        {
+            if (quantity == 0 || item?.ItemTemplate == null)
+                return;
+            var itemClassId = (uint)item.ItemTemplate.Class;
+            var progress = kind == MissionProgressEventKind.ItemAcquired
+                ? MissionProgressEvent.ItemAcquired(itemClassId, quantity)
+                : MissionProgressEvent.ItemConsumed(itemClassId, quantity);
+            (_missionManager ?? MissionApplication.Instance).RecordProgress(
+                client,
+                progress);
+        }
+
+        private void RecordEquippedItemProgress(
+            Client client,
+            Item item)
+        {
+            if (item?.ItemTemplate == null)
+                return;
+
+            (_missionManager ?? MissionApplication.Instance).RecordProgress(
+                client,
+                MissionProgressEvent.ItemEquipped(
+                    (uint)item.ItemTemplate.Class,
+                    item.ItemTemplate.ItemTemplateId));
         }
 
         public void RemoveItemBySlot(Client client, InventoryType inventoryType, uint slotIndex)
         {
+            var slots = Slots(client.Player, inventoryType);
+            if (slots != null && slotIndex < slots.Count && HasProtected(slots[(int)slotIndex]))
+                return;
             var entityId = 0ul;
 
             switch (inventoryType)
@@ -2077,6 +2277,8 @@ namespace Rasa.Managers
 
         public bool ValidateItemEquip(Client client, Item itemToEquip)
         {
+            if (IsProtected(itemToEquip))
+                return false;
             var canEquip = true;
             // min level criteria met?
             if (itemToEquip != null)

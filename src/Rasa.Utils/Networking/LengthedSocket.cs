@@ -811,6 +811,7 @@ namespace Rasa.Networking
         public DropHandler OnDrop;
 
         private int _dropped;
+        private int _closed;
 
         /// <summary>
         /// Logs why this connection is going and tells its owner, once. Several paths can notice
@@ -914,6 +915,9 @@ namespace Rasa.Networking
 
         public void Close()
         {
+            if (Interlocked.Exchange(ref _closed, 1) != 0)
+                return;
+
             DiscardQueuedSends();
 
             // Read it while it can still be read: the owner logs the address after this.

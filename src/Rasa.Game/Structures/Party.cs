@@ -7,6 +7,7 @@ namespace Rasa.Structures
     public class Party
     {
         internal uint Id { get; set; }
+        internal System.Guid LifetimeId { get; } = System.Guid.NewGuid();
 
         /// <summary>Account id of the leader.</summary>
         internal uint PartyLeaderId { get; set; }

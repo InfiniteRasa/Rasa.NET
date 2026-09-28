@@ -48,10 +48,21 @@ namespace Rasa.Managers
         private static readonly object InstanceLock = new object();
 
         private readonly IGameUnitOfWorkFactory _gameUnitOfWorkFactory;
+        private readonly MissionApplication _missionManager;
         private readonly Dictionary<ActionId, ActionInfo> _actions = new Dictionary<ActionId, ActionInfo>();
         private readonly Dictionary<uint, (ActionId ActionId, uint Level)> _itemTemplateActions = new Dictionary<uint, (ActionId, uint)>();
         private readonly HashSet<ActionId> _reportedUnsupported = new HashSet<ActionId>();
         private readonly Random _random = new Random();
+
+        private sealed class LightningLanding
+        {
+            internal Creature Primary;
+            internal DynamicObject PracticeTarget;
+            internal Vector3 PrimaryPosition;
+            internal float ArcRadius;
+            internal int ArcDamage;
+            internal IReadOnlyList<Creature> ArcTargets;
+        }
 
         /// <summary>
         /// Metres past an ability's range a target may be and still be hit. The client checks
@@ -80,7 +91,8 @@ namespace Rasa.Managers
         private static readonly HashSet<string> TimedEffectModules = new HashSet<string>
         {
             "abilities.rage", "abilities.resistance", "abilities.sacrifice", "abilities.decay",
-            "abilities.scourge", "abilities.reconstruction", "abilities.regenerationwave", "abilities.basewave"
+            "abilities.scourge", "abilities.reconstruction", "abilities.regenerationwave", "abilities.basewave",
+            "abilities.medpack"
         };
 
         /// <summary>Of those, the ones aimed at a single enemy (client targetType TARGET_NON_FRIENDLY).</summary>
@@ -112,8 +124,16 @@ namespace Rasa.Managers
         }
 
         private AbilityManager(IGameUnitOfWorkFactory gameUnitOfWorkFactory)
+            : this(gameUnitOfWorkFactory, null)
+        {
+        }
+
+        private AbilityManager(
+            IGameUnitOfWorkFactory gameUnitOfWorkFactory,
+            MissionApplication missionManager)
         {
             _gameUnitOfWorkFactory = gameUnitOfWorkFactory;
+            _missionManager = missionManager;
         }
 
         public int Count => _actions.Count;
@@ -240,7 +260,12 @@ namespace Rasa.Managers
 
             // Is it theirs to use? A skill that grants the ability at this level, or a usable
             // item in their pack whose template performs exactly this action.
-            var item = packet.ItemId != 0 ? EntityManager.Instance.GetItem((ulong)packet.ItemId) : null;
+            var item = packet.ItemId != 0 ? EntityManager.Instance.GetItem(packet.ItemId) : null;
+            if (packet.ItemId != 0 && item == null)
+            {
+                Fail(client, actionId, level, PlayerMessage.PmMissingReqItem);
+                return;
+            }
 
             if (!Grants(player, actionId, level, item))
             {
@@ -286,24 +311,28 @@ namespace Rasa.Managers
             // The target, when the ability wants one. Area-around-source and cone abilities have
             // none; self abilities have none or the performer.
             Actor target = null;
+            DynamicObject practiceTarget = null;
 
             if (!SelfCentred(info) && packet.Target.HasEntity && packet.Target.EntityId != player.EntityId)
             {
                 target = ResolveTarget(mapChannel, packet.Target.EntityId);
-
                 if (target == null)
+                    practiceTarget = ResolvePracticeTarget(mapChannel, player, info, packet.Target.EntityId);
+
+                if (target == null && practiceTarget == null)
                 {
                     Fail(client, actionId, level, PlayerMessage.PmActionFailedNoTarget);
                     return;
                 }
 
-                if (target.State == CharacterState.Dead)
+                if (target?.State == CharacterState.Dead)
                 {
                     Fail(client, actionId, level, PlayerMessage.PmActionFailedTargetDead);
                     return;
                 }
 
-                if (info.MaxRange > 0 && Vector3.Distance(player.Position, target.Position) > info.MaxRange + RangeSlack)
+                var distance = Vector3.Distance(player.Position, practiceTarget?.Position ?? target.Position);
+                if (!float.IsFinite(distance) || info.MaxRange > 0 && distance > info.MaxRange + RangeSlack)
                 {
                     Fail(client, actionId, level, PlayerMessage.PmTargetOutOfRange);
                     return;
@@ -312,7 +341,8 @@ namespace Rasa.Managers
 
             var wantsHostile = IsDirectDamage(action, info) || HostileEffectModules.Contains(action.Module);
 
-            if (wantsHostile && target == null && !SelfCentred(info) && packet.Target.Kind != ActionTargetKind.Location)
+            if (wantsHostile && target == null && practiceTarget == null &&
+                !SelfCentred(info) && packet.Target.Kind != ActionTargetKind.Location)
             {
                 Fail(client, actionId, level, PlayerMessage.PmActionFailedNoTarget);
                 return;
@@ -355,14 +385,16 @@ namespace Rasa.Managers
                 }
 
             // Accepted. Everyone else sees the windup; the performer's client already started its own.
-            SendToOthers(mapChannel, player, new PerformWindupPacket(PerformType.ThreeArgs, actionId, level, target?.EntityId ?? 0));
+            var targetId = practiceTarget?.EntityId ?? target?.EntityId ?? 0;
+            SendToOthers(mapChannel, player, new PerformWindupPacket(PerformType.ThreeArgs, actionId, level, targetId));
 
             // One ability at a time: a new request replaces a pending one, as the client's own
             // action queue does.
             mapChannel.PerformRecovery.RemoveAll(a => a.Actor == player && a.ActionId == actionId);
 
-            mapChannel.PerformRecovery.Add(new ActionData(player, actionId, level, target?.EntityId ?? 0, info.WindupMs)
+            mapChannel.PerformRecovery.Add(new ActionData(player, actionId, level, targetId, info.WindupMs)
             {
+                TargetObject = practiceTarget,
                 TargetLocation = packet.Target.Kind == ActionTargetKind.Location ? packet.Target.Location : null,
                 ItemId = packet.ItemId
             });
@@ -376,7 +408,8 @@ namespace Rasa.Managers
         {
             if (item != null)
             {
-                if (!player.Inventory.PersonalInventory.Contains(item.EntityId))
+                if (item.OwnerId != player.Id || item.StackSize == 0 ||
+                    !player.Inventory.PersonalInventory.Contains(item.EntityId))
                     return false;
 
                 return _itemTemplateActions.TryGetValue(item.ItemTemplateId, out var performs) && performs.ActionId == actionId && performs.Level == level;
@@ -427,8 +460,21 @@ namespace Rasa.Managers
             };
 
             // Entity ids are global, cells are per map: a target on another map is not here.
-            return target != null && target.MapContextId == mapChannel.MapInfo.MapContextId ? target : null;
+            return IsOnMap(mapChannel, target) ? target : null;
         }
+
+        private static DynamicObject ResolvePracticeTarget(
+            MapChannel map, Manifestation player, ActionLevelInfo info, ulong entityId)
+        {
+            if (info.ActionId != ActionId.AaRecruitLightning || info.Level != 1 ||
+                !PracticeTargetManager.TryGetTarget(map, entityId, out var target) ||
+                !PracticeTargetManager.CanHit(map, player, target))
+                return null;
+            return target;
+        }
+
+        private static bool IsOnMap(MapChannel mapChannel, Actor actor)
+            => MapInstanceScope.Contains(mapChannel, actor);
 
         /// <summary>
         /// Who a player's damage may land on: creatures that are not AFS. Other players are not
@@ -436,7 +482,12 @@ namespace Rasa.Managers
         /// </summary>
         private static bool IsHostile(Manifestation player, Actor target)
         {
-            return target is Creature creature && creature.Faction != Factions.AFS && creature.Attributes[Attributes.Health].Current > 0;
+            return target is Creature creature &&
+                   creature.Faction != Factions.AFS &&
+                   creature.State != CharacterState.Dead &&
+                   creature.State != CharacterState.Dying &&
+                   creature.Attributes.TryGetValue(Attributes.Health, out var health) &&
+                   health.Current > 0;
         }
 
         /// <summary>The first attribute the player cannot pay, or null if they can pay them all.</summary>
@@ -490,7 +541,7 @@ namespace Rasa.Managers
 
             // The request said they could start; this says it still lands. A windup is time the
             // world goes on in, and everything the request weighed can have changed inside it.
-            var refusal = StillAllowed(mapChannel, client, player, action, info);
+            var refusal = StillAllowed(mapChannel, client, player, action, actionInfo, info);
 
             if (refusal.HasValue)
             {
@@ -499,21 +550,42 @@ namespace Rasa.Managers
                 return;
             }
 
+            LightningLanding lightningLanding = null;
+            if (IsDirectDamage(actionInfo, info) &&
+                actionInfo.Module == "abilities.lightning" &&
+                !TrySnapshotLightningLanding(
+                    mapChannel,
+                    player,
+                    info,
+                    action,
+                    out lightningLanding))
+            {
+                SendToOthers(mapChannel, player,
+                    new ActionInterruptPacket(
+                        player.EntityId,
+                        action.ActionId,
+                        action.ActionArgId));
+                Fail(client, action.ActionId, action.ActionArgId,
+                    PlayerMessage.PmActionFailedNoTarget);
+                return;
+            }
+
+            try
+            {
+                ConsumeAbilityItems(client, info, action.ItemId);
+            }
+            catch (Exception error) when (GameplayRejectionException.IsExpected(error))
+            {
+                Logger.WriteLog(LogType.Error, $"Unable to consume ability items for character {player.Id}: {error.Message}");
+                SendToOthers(mapChannel, player, new ActionInterruptPacket(player.EntityId, action.ActionId, action.ActionArgId));
+                Fail(client, action.ActionId, action.ActionArgId, PlayerMessage.PmMissingReqItem);
+                return;
+            }
+
             // Paid on landing, not on asking. A sustained ability pays as it runs, through its
             // effect's drain, not here.
             if (!IsSustained(info))
                 TakeCosts(client, player, info);
-
-            foreach (var requirement in info.ItemRequirements)
-                InventoryManager.Instance.RemoveItemsByClass(client, requirement.ItemClass, requirement.Quantity);
-
-            if (action.ItemId != 0)
-            {
-                var item = EntityManager.Instance.GetItem((ulong)action.ItemId);
-
-                if (item != null)
-                    InventoryManager.Instance.ReduceStackCount(client, InventoryType.Personal, item, 1);
-            }
 
             StartCooldown(client, player, info);
 
@@ -526,7 +598,14 @@ namespace Rasa.Managers
 
             if (IsDirectDamage(actionInfo, info))
             {
-                ResolveDirectDamage(mapChannel, client, player, actionInfo, info, action);
+                ResolveDirectDamage(
+                    mapChannel,
+                    client,
+                    player,
+                    actionInfo,
+                    info,
+                    action,
+                    lightningLanding);
                 return;
             }
 
@@ -539,6 +618,55 @@ namespace Rasa.Managers
             // Not reachable: RequestPerformAbility refuses what cannot be resolved. Finish the
             // client's action cleanly all the same.
             CellManager.Instance.CellCallMethod(mapChannel, player, new AbilityRecoveryPacket(action.ActionId, action.ActionArgId, AbilityRecoveryPacket.HitDataKind.None));
+        }
+
+        private void ConsumeAbilityItems(Client client, ActionLevelInfo info, ulong sourceItemId)
+        {
+            if (sourceItemId == 0 && info.ItemRequirements.Count == 0)
+                return;
+            using var unit = _gameUnitOfWorkFactory.CreateChar();
+            var quantities = new Dictionary<ulong, uint>();
+            var source = sourceItemId == 0 ? null : EntityManager.Instance.GetItem(sourceItemId);
+            if (sourceItemId != 0 && source == null)
+                throw new GameplayRejectionException("The ability source item is no longer available.");
+            if (source != null && Game.Missions.Persistence.MissionItemProtection.IsProtected(source, unit))
+                throw new GameplayRejectionException("Assignment-owned items cannot pay ordinary ability costs.");
+            if (source != null)
+                quantities[source.EntityId] = 1;
+            var sourceCredit = source == null ? 0U : 1U;
+            foreach (var requirement in info.ItemRequirements)
+            {
+                var remaining = requirement.Quantity;
+                if (sourceCredit > 0 && source.ItemTemplate.Class == requirement.ItemClass && remaining > 0)
+                {
+                    remaining--;
+                    sourceCredit--;
+                }
+                foreach (var entityId in client.Player.Inventory.PersonalInventory.Where(id => id != 0))
+                {
+                    if (remaining == 0)
+                        break;
+                    var item = EntityManager.Instance.GetItem(entityId);
+                    if (item?.ItemTemplate?.Class != requirement.ItemClass ||
+                        Game.Missions.Persistence.MissionItemProtection.IsProtected(item, unit))
+                        continue;
+                    var reserved = quantities.GetValueOrDefault(entityId);
+                    if (reserved > item.StackSize)
+                        throw new GameplayRejectionException("The ability source stack is empty.");
+                    var take = Math.Min(remaining, item.StackSize - reserved);
+                    if (take == 0)
+                        continue;
+                    quantities[entityId] = reserved + take;
+                    remaining -= take;
+                }
+                if (remaining != 0)
+                    throw new GameplayRejectionException("Required ability items are no longer available.");
+            }
+            var consumption = new InventoryManager.InventoryConsumption();
+            unit.ExecuteTransaction(() => consumption.PlanAndSave(client, quantities, unit));
+            consumption.Publish(client);
+            foreach (var progress in consumption.ProgressEvents)
+                (_missionManager ?? MissionApplication.Instance).RecordProgress(client, progress);
         }
 
         /// <summary>
@@ -554,14 +682,21 @@ namespace Rasa.Managers
         /// at any distance, which with an unbounded Move is anything on the map. And the item
         /// that granted the ability could be traded or sold in the meantime.
         ///
-        /// What is not re-weighed: a target that died or despawned mid-windup. The ability was
-        /// performed, it costs what it costs, and it hits nothing - which is what happens now.
+        /// Target identity, life, hostility, map membership and range are re-weighed here before
+        /// costs are taken. Lightning then snapshots its still-valid primary and arc candidates
+        /// at landing and revalidates each arc immediately before applying its damage.
         /// </summary>
-        private PlayerMessage? StillAllowed(MapChannel mapChannel, Client client, Manifestation player, ActionData action, ActionLevelInfo info)
+        private PlayerMessage? StillAllowed(
+            MapChannel mapChannel,
+            Client client,
+            Manifestation player,
+            ActionData action,
+            ActionInfo actionInfo,
+            ActionLevelInfo info)
         {
             // Asked for with an item, so it is the item that has to still grant it - a skill the
             // player also happens to have does not stand in for the one they used.
-            var item = action.ItemId != 0 ? EntityManager.Instance.GetItem((ulong)action.ItemId) : null;
+            var item = action.ItemId != 0 ? EntityManager.Instance.GetItem(action.ItemId) : null;
 
             if (action.ItemId != 0 && item == null)
                 return PlayerMessage.PmMissingReqItem;
@@ -588,11 +723,29 @@ namespace Rasa.Managers
                 if (InventoryManager.Instance.CountItemsByClass(client, requirement.ItemClass) < requirement.Quantity)
                     return PlayerMessage.PmMissingReqItem;
 
-            if (action.TargetId != 0 && info.MaxRange > 0)
+            if (action.TargetId != 0)
             {
                 var target = ResolveTarget(mapChannel, action.TargetId);
+                var practiceTarget = action.TargetObject == null ? null :
+                    ResolvePracticeTarget(mapChannel, player, info, action.TargetId);
 
-                if (target != null && Vector3.Distance(player.Position, target.Position) > info.MaxRange + RangeSlack)
+                if (action.TargetObject != null && !ReferenceEquals(practiceTarget, action.TargetObject))
+                    return PlayerMessage.PmActionFailedNoTarget;
+                if (target == null && practiceTarget == null)
+                    return PlayerMessage.PmActionFailedNoTarget;
+
+                if (target != null && IsDirectDamage(actionInfo, info) &&
+                    !IsValidPrimaryTarget(mapChannel, player, target))
+                    return target.State == CharacterState.Dead ||
+                           target.State == CharacterState.Dying ||
+                           !target.Attributes.TryGetValue(Attributes.Health, out var health) ||
+                           health.Current <= 0
+                        ? PlayerMessage.PmActionFailedTargetDead
+                        : PlayerMessage.PmActionFailedActorFriendly;
+
+                var distance = Vector3.Distance(player.Position, practiceTarget?.Position ?? target.Position);
+                if (!float.IsFinite(distance) ||
+                    info.MaxRange > 0 && distance > info.MaxRange + RangeSlack)
                     return PlayerMessage.PmTargetOutOfRange;
             }
 
@@ -649,17 +802,81 @@ namespace Rasa.Managers
         /// of the performer. A cone is taken as the full circle for now. Each target gets its
         /// own roll, as the client's per-hit rawInfo expects.
         /// </summary>
-        private void ResolveDirectDamage(MapChannel mapChannel, Client client, Manifestation player, ActionInfo actionInfo, ActionLevelInfo info, ActionData action)
+        private void ResolveDirectDamage(
+            MapChannel mapChannel,
+            Client client,
+            Manifestation player,
+            ActionInfo actionInfo,
+            ActionLevelInfo info,
+            ActionData action,
+            LightningLanding lightningLanding)
         {
             var damageType = (DamageType)info.Get(AbilityProperty.DamageType, (int)DamageType.Physical);
             var scaleType = info.Get(AbilityProperty.DamageScaleType);
             var min = info.Get(AbilityProperty.DamageAmountMin);
             var max = Math.Max(min, info.Get(AbilityProperty.DamageAmountMax, min));
 
-            var targets = new List<Creature>();
-            var primary = action.TargetId != 0 ? ResolveTarget(mapChannel, action.TargetId) as Creature : null;
+            if (action.TargetObject != null)
+            {
+                if (lightningLanding?.PracticeTarget == null ||
+                    !PracticeTargetManager.CanHit(mapChannel, player, lightningLanding.PracticeTarget))
+                    return;
+                var practiceTarget = lightningLanding.PracticeTarget;
+                var amount = GameEffectManager.ApplyDamageDealt(
+                    player, Scale(player.Level, _random.Next(min, max + 1), scaleType));
+                var result = new AbilityRecoveryPacket(
+                    action.ActionId, action.ActionArgId, AbilityRecoveryPacket.HitDataKind.Damage)
+                {
+                    ArcData = true
+                };
+                result.Hits.Add(new AbilityHit
+                {
+                    EntityId = practiceTarget.EntityId,
+                    Amount = amount,
+                    DamageType = damageType
+                });
+                ManifestationManager.Instance.EnterCombat(client);
+                CellManager.Instance.CellCallMethod(mapChannel, player, result);
+                if (amount > 0)
+                    PracticeTargetManager.RecordHit(
+                        mapChannel, player, practiceTarget, action.ActionId, _missionManager);
+                return;
+            }
 
-            if (info.Has(AbilityProperty.RadiusAroundSource) || info.Has(AbilityProperty.ConeRadius))
+            var targets = new List<Creature>();
+            var primary = action.TargetId != 0
+                ? ResolveTarget(mapChannel, action.TargetId) as Creature
+                : null;
+            var lightning = actionInfo.Module == "abilities.lightning";
+            var lightningArc = (Radius: 0f, Damage: 0, MaximumTargets: 0);
+            var lightningPrimaryPosition = Vector3.Zero;
+            IReadOnlyList<Creature> lightningArcTargets = Array.Empty<Creature>();
+
+            if (lightning)
+            {
+                if (lightningLanding == null &&
+                    !TrySnapshotLightningLanding(
+                        mapChannel,
+                        player,
+                        info,
+                        action,
+                        out lightningLanding))
+                    return;
+
+                primary = lightningLanding.Primary;
+                if (!IsValidPrimaryTarget(mapChannel, player, primary))
+                    return;
+
+                lightningPrimaryPosition =
+                    lightningLanding.PrimaryPosition;
+                lightningArc =
+                    (lightningLanding.ArcRadius,
+                        lightningLanding.ArcDamage,
+                        lightningLanding.ArcTargets.Count);
+                lightningArcTargets = lightningLanding.ArcTargets;
+                targets.Add(primary);
+            }
+            else if (info.Has(AbilityProperty.RadiusAroundSource) || info.Has(AbilityProperty.ConeRadius))
             {
                 var radius = Math.Max(info.Get(AbilityProperty.RadiusAroundSource), info.Get(AbilityProperty.ConeRadius));
                 targets.AddRange(HostilesWithin(mapChannel, player, player.Position, radius));
@@ -679,7 +896,7 @@ namespace Rasa.Managers
 
             var recovery = new AbilityRecoveryPacket(action.ActionId, action.ActionArgId, AbilityRecoveryPacket.HitDataKind.Damage)
             {
-                ArcData = actionInfo.Module == "abilities.lightning"
+                ArcData = lightning
             };
 
             if (targets.Count > 0)
@@ -693,17 +910,148 @@ namespace Rasa.Managers
                 var amount = GameEffectManager.ApplyResist(target, rolled, out var resisted);
                 var taken = ActorManager.Instance.Damage(mapChannel, target, amount, player);
 
-                recovery.Hits.Add(new AbilityHit
+                var hit = new AbilityHit
                 {
                     EntityId = target.EntityId,
                     Amount = amount,
                     Resisted = resisted,
                     DamageType = damageType,
                     DeathBlow = taken > 0 && target.Attributes[Attributes.Health].Current <= 0
-                });
+                };
+
+                if (lightning && target == primary)
+                    ApplyLightningArcs(
+                        mapChannel,
+                        player,
+                        primary.EntityId,
+                        lightningPrimaryPosition,
+                        lightningArc.Radius,
+                        lightningArc.Damage,
+                        damageType,
+                        lightningArcTargets,
+                        hit);
+
+                recovery.Hits.Add(hit);
+                if (taken > 0 &&
+                    target.DbId != 0)
+                    (_missionManager ?? MissionApplication.Instance).RecordProgress(
+                        client,
+                        MissionProgressEvent.AbilityHit(
+                            (uint)action.ActionId,
+                            target.DbId));
             }
 
             CellManager.Instance.CellCallMethod(mapChannel, player, recovery);
+        }
+
+        private static bool TrySnapshotLightningLanding(
+            MapChannel mapChannel,
+            Manifestation player,
+            ActionLevelInfo info,
+            ActionData action,
+            out LightningLanding landing)
+        {
+            landing = null;
+            if (action.TargetObject != null)
+            {
+                var practiceTarget = ResolvePracticeTarget(mapChannel, player, info, action.TargetId);
+                if (practiceTarget == null || !ReferenceEquals(practiceTarget, action.TargetObject))
+                    return false;
+                landing = new LightningLanding
+                {
+                    PracticeTarget = practiceTarget,
+                    PrimaryPosition = practiceTarget.Position,
+                    ArcTargets = Array.Empty<Creature>()
+                };
+                return true;
+            }
+            var primary = action.TargetId != 0
+                ? ResolveTarget(mapChannel, action.TargetId) as Creature
+                : null;
+            if (!IsValidPrimaryTarget(mapChannel, player, primary) ||
+                !IsFinite(primary.Position))
+                return false;
+
+            var arc = GetLightningArcSpec(info, player.Level);
+            landing = new LightningLanding
+            {
+                Primary = primary,
+                PrimaryPosition = primary.Position,
+                ArcRadius = arc.Radius,
+                ArcDamage = arc.Damage,
+                ArcTargets = SelectLightningArcTargets(
+                    mapChannel,
+                    player,
+                    primary,
+                    arc.Radius,
+                    arc.MaximumTargets)
+            };
+            return true;
+        }
+
+        private static void ApplyLightningArcs(
+            MapChannel mapChannel,
+            Manifestation player,
+            ulong primaryEntityId,
+            Vector3 primaryPosition,
+            float radius,
+            int damage,
+            DamageType damageType,
+            IReadOnlyList<Creature> arcTargets,
+            AbilityHit primaryHit)
+        {
+            if (damage <= 0 || !float.IsFinite(radius) || radius <= 0 ||
+                !IsFinite(primaryPosition) || arcTargets == null)
+                return;
+
+            var radiusSquared = radius * radius;
+            foreach (var arcTarget in arcTargets)
+            {
+                if (!IsValidLightningArcTarget(
+                        mapChannel,
+                        player,
+                        arcTarget,
+                        primaryEntityId,
+                        primaryPosition,
+                        radiusSquared))
+                    continue;
+
+                var arcTaken = ActorManager.Instance.Damage(
+                    mapChannel, arcTarget, damage, player);
+                primaryHit.Arcs.Add(new AbilityHit
+                {
+                    EntityId = arcTarget.EntityId,
+                    Amount = damage,
+                    DamageType = damageType,
+                    DeathBlow = arcTaken > 0 &&
+                                arcTarget.Attributes[Attributes.Health].Current <= 0
+                });
+            }
+        }
+
+        private static bool IsValidLightningArcTarget(
+            MapChannel mapChannel,
+            Manifestation player,
+            Creature candidate,
+            ulong primaryEntityId,
+            Vector3 primaryPosition,
+            float radiusSquared)
+        {
+            if (mapChannel == null || player == null || candidate == null ||
+                candidate.EntityId == primaryEntityId ||
+                candidate.MapContextId != mapChannel.MapInfo.MapContextId ||
+                EntityManager.Instance.GetEntityType(candidate.EntityId) !=
+                EntityType.Creature ||
+                !EntityManager.Instance.Creatures.TryGetValue(
+                    candidate.EntityId, out var registered) ||
+                !ReferenceEquals(candidate, registered) ||
+                !IsHostile(player, candidate) ||
+                !IsFinite(candidate.Position))
+                return false;
+
+            var distance = Vector3.DistanceSquared(
+                primaryPosition, candidate.Position);
+            return float.IsFinite(distance) && distance <= radiusSquared;
         }
 
         /// <summary>Living, non-AFS creatures within radius metres of a point, from the cells around the performer.</summary>
@@ -721,6 +1069,87 @@ namespace Rasa.Managers
 
             return found;
         }
+
+        internal static (float Radius, int Damage, int MaximumTargets) GetLightningArcSpec(
+            ActionLevelInfo info,
+            int actorLevel)
+        {
+            if (info == null)
+                return (0, 0, 0);
+
+            var radius = info.Get(AbilityProperty.ArcRadius);
+            var baseDamage = info.Get(AbilityProperty.ArcDamage);
+            if (radius <= 0 || baseDamage <= 0)
+                return (0, 0, 0);
+
+            return (
+                radius,
+                Scale(actorLevel, baseDamage, info.Get(AbilityProperty.DamageScaleType)),
+                1);
+        }
+
+        internal static List<Creature> SelectLightningArcTargets(
+            MapChannel mapChannel,
+            Manifestation player,
+            Creature primary,
+            float radius,
+            int maximumTargets)
+        {
+            if (mapChannel == null || player == null || primary == null ||
+                maximumTargets <= 0 || !float.IsFinite(radius) || radius <= 0 ||
+                !IsValidPrimaryTarget(mapChannel, player, primary) ||
+                !IsFinite(primary.Position))
+                return new List<Creature>();
+
+            var radiusSquared = radius * radius;
+
+            return mapChannel.MapCellInfo.Cells.Values
+                .SelectMany(cell => cell.CreatureList)
+                .Where(candidate => candidate != null &&
+                                    candidate.EntityId != primary.EntityId &&
+                                    candidate.MapContextId == mapChannel.MapInfo.MapContextId &&
+                                    candidate.RuntimeMapChannel == mapChannel &&
+                                    candidate.State != CharacterState.Dead &&
+                                    EntityManager.Instance.GetEntityType(candidate.EntityId) == EntityType.Creature &&
+                                    EntityManager.Instance.Creatures.TryGetValue(candidate.EntityId, out var registered) &&
+                                    ReferenceEquals(candidate, registered) &&
+                                    IsHostile(player, candidate))
+                .Select(candidate => new
+                {
+                    Target = candidate,
+                    Distance = Vector3.DistanceSquared(primary.Position, candidate.Position)
+                })
+                .Where(entry => float.IsFinite(entry.Distance) && entry.Distance <= radiusSquared)
+                .GroupBy(entry => entry.Target.EntityId)
+                .Select(group => group.First())
+                .OrderBy(entry => entry.Distance)
+                .ThenBy(entry => entry.Target.EntityId)
+                .Take(maximumTargets)
+                .Select(entry => entry.Target)
+                .ToList();
+        }
+
+        private static bool IsValidPrimaryTarget(
+            MapChannel mapChannel,
+            Manifestation player,
+            Actor target)
+        {
+            return target is Creature creature &&
+                   mapChannel != null &&
+                   player != null &&
+                   creature.MapContextId == mapChannel.MapInfo.MapContextId &&
+                   creature.RuntimeMapChannel == mapChannel &&
+                   EntityManager.Instance.GetEntityType(creature.EntityId) == EntityType.Creature &&
+                   EntityManager.Instance.Creatures.TryGetValue(
+                       creature.EntityId, out var registered) &&
+                   ReferenceEquals(creature, registered) &&
+                   IsHostile(player, creature);
+        }
+
+        private static bool IsFinite(Vector3 position) =>
+            float.IsFinite(position.X) &&
+            float.IsFinite(position.Y) &&
+            float.IsFinite(position.Z);
 
         /// <summary>
         /// The performer and the living members of their squad within radius metres of them, from
@@ -751,7 +1180,6 @@ namespace Rasa.Managers
                     if (Vector3.Distance(player.Position, other.Position) <= radius)
                         found.Add(other);
                 }
-
             return found;
         }
 

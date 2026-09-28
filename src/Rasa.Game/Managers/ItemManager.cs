@@ -96,6 +96,20 @@ namespace Rasa.Managers
             return item;
         }
 
+        internal static Item StageItem(
+            ItemTemplate template,
+            uint stackSize,
+            string crafter) => new()
+        {
+            ItemTemplate = template,
+            ItemTemplateId = template.ItemTemplateId,
+            StackSize = stackSize,
+            Crafter = crafter,
+            Color = 2139062144,
+            CurrentHitPoints = EntityClassManager.Instance
+                .GetClassInfo(template.Class).ItemClassInfo.MaxHitPoints
+        };
+
         /// <summary>
         /// One item of a vendor's stock. Registered for the whole server and not sent anywhere:
         /// the stock is made once, but each client that opens the vendor has to be sent the

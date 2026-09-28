@@ -13,6 +13,7 @@ namespace Rasa.Structures
         public double Rotation { get; set; }
         internal uint MapContextId { get; set; }
         internal List<Client> TriggeredBy = new List<Client>();
+        internal HashSet<Client> ExitOccupants { get; } = new();
 
         public MapTrigger(uint id, string name, Vector3 positon, double rotation, uint contextId)
         {

@@ -58,6 +58,7 @@ namespace Rasa.Managers
         private ulong _nextJobId = 1;
 
         private readonly IGameUnitOfWorkFactory _gameUnitOfWorkFactory;
+        private readonly ManifestationManager _currencyManager;
 
         /// <summary>Every station by database id, live object included.</summary>
         private readonly Dictionary<uint, Station> _stations = new Dictionary<uint, Station>();
@@ -92,6 +93,7 @@ namespace Rasa.Managers
         private KraftwerksManager(IGameUnitOfWorkFactory gameUnitOfWorkFactory)
         {
             _gameUnitOfWorkFactory = gameUnitOfWorkFactory;
+            _currencyManager = new ManifestationManager(gameUnitOfWorkFactory);
         }
 
         public IEnumerable<Station> Stations => _stations.Values;
@@ -243,7 +245,13 @@ namespace Rasa.Managers
                 station.TriggeredByPlayers.Remove(user);
 
                 if (!action.IsInrerrupted)
+                {
                     CellManager.Instance.CellCallMethod(station, new UsableInfoPacket(station.IsEnabled, station.StateId, 0, station.WindupTime, station.ActivateMission));
+                    MissionApplication.Instance.RecordProgress(
+                        user,
+                        MissionProgressEvent.Interaction(
+                            (uint)station.EntityClassId));
+                }
 
                 return;
             }
@@ -436,7 +444,14 @@ namespace Rasa.Managers
                 return;
             }
 
-            // Everything checked; now take the ingredients and the credits. The schematic stays.
+            if (recipe.EnergyCost > 0 &&
+                !_currencyManager.LossCredits(client, (int)recipe.EnergyCost))
+            {
+                Fail(client, station, PlayerMessage.PmInsufficientFunds);
+                return;
+            }
+
+            // Everything checked; now take the ingredients. The schematic stays.
             foreach (var input in recipe.Inputs)
             {
                 var short_ = InventoryManager.Instance.RemoveItemsByClass(client, (EntityClasses)input.ClassId, input.Quantity);
@@ -444,9 +459,6 @@ namespace Rasa.Managers
                 if (short_ != 0)
                     Logger.WriteLog(LogType.Error, $"fabricate {recipe.TemplateId} for {player.FamilyName}: {short_} of class {input.ClassId} could not be removed after the count passed");
             }
-
-            if (recipe.EnergyCost > 0)
-                ManifestationManager.Instance.LossCredits(client, (int)recipe.EnergyCost);
 
             var job = new CraftingJob
             {
@@ -494,7 +506,7 @@ namespace Rasa.Managers
 
                 item.Crafter = client.Player.FamilyName;
 
-                if (InventoryManager.Instance.AddItemToInventory(client, item) != null)
+                if (InventoryManager.Instance.GrantItemToInventory(client, item) != null)
                 {
                     job.Count -= amount;
                     continue;

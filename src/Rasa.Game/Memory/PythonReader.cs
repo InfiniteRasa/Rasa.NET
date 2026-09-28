@@ -50,21 +50,21 @@ namespace Rasa.Memory
         {
             var val = Reader.ReadByte();
             if (val != 0x00)
-                throw new Exception($"Expected NoneStruct, found data: {val:X2}");
+                throw new InvalidDataException($"Expected NoneStruct, found data: {val:X2}");
         }
 
         public void ReadTrueStruct()
         {
             var val = Reader.ReadByte();
             if (val != 0x01)
-                throw new Exception($"Expected TrueStruct, found data: {val:X2}");
+                throw new InvalidDataException($"Expected TrueStruct, found data: {val:X2}");
         }
 
         public void ReadZeroStruct()
         {
             var val = Reader.ReadByte();
             if (val != 0x02)
-                throw new Exception($"Expected ZeroStruct, found data: {val:X2}");
+                throw new InvalidDataException($"Expected ZeroStruct, found data: {val:X2}");
         }
 
         public PythonStruct ReadUnkStruct()
@@ -76,7 +76,7 @@ namespace Rasa.Memory
                 0x00 => PythonStruct.None,
                 0x01 => PythonStruct.True,
                 0x02 => PythonStruct.Zero,
-                _ => throw new Exception($"Expected NoneStruct, TrueStruct or ZeroStruct, found data: {val:X2}"),
+                _ => throw new InvalidDataException($"Expected NoneStruct, TrueStruct or ZeroStruct, found data: {val:X2}"),
             };
         }
 
@@ -88,7 +88,7 @@ namespace Rasa.Memory
                 0x00 or 0x10 => false, // NoneStruct or int 0
                 0x01 or 0x11 => true, // TrueStruct or int 1
                 0x02 => false, // ZeroStruct
-                _ => throw new Exception($"Expected 0x00, 0x10 or 0x01, 0x11. Got: {val:X2}"),
+                _ => throw new InvalidDataException($"Expected 0x00, 0x10 or 0x01, 0x11. Got: {val:X2}"),
             };
         }
 
@@ -96,7 +96,7 @@ namespace Rasa.Memory
         {
             var type = Reader.ReadByte();
             if ((type & 0x10) != 0x10)
-                throw new Exception($"Expected 0x1_. Got: {type:X2}");
+                throw new InvalidDataException($"Expected 0x1_. Got: {type:X2}");
 
             if (type <= 0x1C)
                 return type & 0xF;
@@ -106,15 +106,31 @@ namespace Rasa.Memory
                 0x1D => Reader.ReadByte(),
                 0x1E => Reader.ReadInt16(),
                 0x1F => Reader.ReadInt32(),
-                _ => throw new Exception($"WTF? Int type: {type:X2}"),
+                _ => throw new InvalidDataException($"Unsupported integer type: {type:X2}"),
             };
+        }
+
+        public int? ReadNullableInt()
+        {
+            return PeekType() switch
+            {
+                PythonType.Int => ReadInt(),
+                PythonType.Structs => ReadNone(),
+                _ => throw new InvalidDataException("Expected Python int or None.")
+            };
+        }
+
+        private int? ReadNone()
+        {
+            ReadNoneStruct();
+            return null;
         }
 
         public uint ReadUInt()
         {
             var type = Reader.ReadByte();
             if ((type & 0x10) != 0x10)
-                throw new Exception($"Expected 0x1_. Got: {type:X2}");
+                throw new InvalidDataException($"Expected 0x1_. Got: {type:X2}");
 
             if (type <= 0x1C)
                 return (uint)(type & 0xF);
@@ -124,7 +140,7 @@ namespace Rasa.Memory
                 0x1D => Reader.ReadByte(),
                 0x1E => Reader.ReadUInt16(),
                 0x1F => Reader.ReadUInt32(),
-                _ => throw new Exception($"WTF? Int type: {type:X2}"),
+                _ => throw new InvalidDataException($"Unsupported integer type: {type:X2}"),
             };
         }
 
@@ -132,13 +148,13 @@ namespace Rasa.Memory
         {
             var type = Reader.ReadByte();
             if ((type & 0x20) != 0x20)
-                throw new Exception($"Expected 0x2_. Got: {type:X2}");
+                throw new InvalidDataException($"Expected 0x2_. Got: {type:X2}");
 
             if (type == 0x20)
                 return 0L;
 
             if (type != 0x2F)
-                throw new Exception($"WTF? Long type: {type:X2}");
+                throw new InvalidDataException($"Unsupported long type: {type:X2}");
 
             return Reader.ReadInt64();
         }
@@ -147,13 +163,13 @@ namespace Rasa.Memory
         {
             var type = Reader.ReadByte();
             if ((type & 0x20) != 0x20)
-                throw new Exception($"Expected 0x2_. Got: {type:X2}");
+                throw new InvalidDataException($"Expected 0x2_. Got: {type:X2}");
 
             if (type == 0x20)
                 return 0UL;
 
             if (type != 0x2F)
-                throw new Exception($"WTF? Long type: {type:X2}");
+                throw new InvalidDataException($"Unsupported long type: {type:X2}");
 
             return Reader.ReadUInt64();
         }
@@ -162,7 +178,7 @@ namespace Rasa.Memory
         {
             var type = Reader.ReadByte();
             if ((type & 0x30) != 0x30)
-                throw new Exception($"Expected 0x3_. Got: {type:X2}");
+                throw new InvalidDataException($"Expected 0x3_. Got: {type:X2}");
 
             return type switch
             {
@@ -170,7 +186,7 @@ namespace Rasa.Memory
                 0x31 => 1.0D,
                 0x3E => Reader.ReadDouble(),
                 0x3F => Reader.ReadSingle(),
-                _ => throw new Exception($"WTF? Double type: {type:X2}"),
+                _ => throw new InvalidDataException($"Unsupported double type: {type:X2}"),
             };
         }
 
@@ -178,7 +194,7 @@ namespace Rasa.Memory
         {
             var type = Reader.ReadByte();
             if ((type & 0x40) != 0x40)
-                throw new Exception($"Expected 0x4_. Got: {type:X2}");
+                throw new InvalidDataException($"Expected 0x4_. Got: {type:X2}");
 
             int length;
 
@@ -189,7 +205,7 @@ namespace Rasa.Memory
 
                 case 0x41:
                 case 0x42:
-                    throw new NotImplementedException();
+                    throw new InvalidDataException("Unsupported string encoding.");
 
                 case 0x4D:
                     length = Reader.ReadByte();
@@ -204,17 +220,17 @@ namespace Rasa.Memory
                     break;
 
                 default:
-                    throw new Exception($"WTF? String type: {type:X2}");
+                    throw new InvalidDataException($"Unsupported string type: {type:X2}");
             }
 
-            return Reader.ReadUtf8StringOn(length);
+            return Reader.ReadUtf8StringOn(CheckedCount(length, "string"));
         }
 
         public string ReadUnicodeString()
         {
             var type = Reader.ReadByte();
             if ((type & 0x50) != 0x50)
-                throw new Exception($"Expected 0x5_. Got: {type:X2}");
+                throw new InvalidDataException($"Expected 0x5_. Got: {type:X2}");
 
             int length;
 
@@ -224,7 +240,7 @@ namespace Rasa.Memory
                     return null;
 
                 case 0x52:
-                    throw new NotImplementedException();
+                    throw new InvalidDataException("Unsupported Unicode string encoding.");
 
                 case 0x5D:
                     length = Reader.ReadByte();
@@ -239,17 +255,17 @@ namespace Rasa.Memory
                     break;
 
                 default:
-                    throw new Exception($"WTF? String type: {type:X2}");
+                    throw new InvalidDataException($"Unsupported string type: {type:X2}");
             }
 
-            return Reader.ReadUtf8StringOn(length);
+            return Reader.ReadUtf8StringOn(CheckedCount(length, "Unicode string"));
         }
 
         public int ReadDictionary()
         {
             var type = Reader.ReadByte();
             if ((type & 0x60) != 0x60)
-                throw new Exception($"Expected 0x6_. Got: {type:X2}");
+                throw new InvalidDataException($"Expected 0x6_. Got: {type:X2}");
 
             if (type <= 0x6C)
                 return type & 0x0F;
@@ -259,7 +275,7 @@ namespace Rasa.Memory
                 0x6D => Reader.ReadByte(),
                 0x6E => Reader.ReadInt16(),
                 0x6F => Reader.ReadInt32(),
-                _ => throw new Exception($"WTF? Dictionary type: {type:X2}"),
+                _ => throw new InvalidDataException($"Unsupported dictionary type: {type:X2}"),
             }, "dictionary");
         }
 
@@ -267,7 +283,7 @@ namespace Rasa.Memory
         {
             var type = Reader.ReadByte();
             if ((type & 0x70) != 0x70)
-                throw new Exception($"Expected 0x7_. Got: {type:X2}");
+                throw new InvalidDataException($"Expected 0x7_. Got: {type:X2}");
 
             if (type <= 0x7C)
                 return type & 0x0F;
@@ -277,7 +293,7 @@ namespace Rasa.Memory
                 0x7D => Reader.ReadByte(),
                 0x7E => Reader.ReadInt16(),
                 0x7F => Reader.ReadInt32(),
-                _ => throw new Exception($"WTF? List type: {type:X2}"),
+                _ => throw new InvalidDataException($"Unsupported list type: {type:X2}"),
             }, "list");
         }
 
@@ -285,7 +301,7 @@ namespace Rasa.Memory
         {
             var type = Reader.ReadByte();
             if ((type & 0x80) != 0x80)
-                throw new Exception($"Expected 0x8_. Got: {type:X2}");
+                throw new InvalidDataException($"Expected 0x8_. Got: {type:X2}");
 
             if (type <= 0x8C)
                 return type & 0x0F;
@@ -295,7 +311,7 @@ namespace Rasa.Memory
                 0x8D => Reader.ReadByte(),
                 0x8E => Reader.ReadInt16(),
                 0x8F => Reader.ReadInt32(),
-                _ => throw new Exception($"WTF? Tuple type: {type:X2}"),
+                _ => throw new InvalidDataException($"Unsupported tuple type: {type:X2}"),
             }, "tuple");
         }
 
@@ -400,7 +416,7 @@ namespace Rasa.Memory
                         break;
 
                     default:
-                        throw new Exception($"Invalid type read! Type: {type:X}");
+                        throw new InvalidDataException($"Invalid type read! Type: {type:X}");
                 }
             }
 

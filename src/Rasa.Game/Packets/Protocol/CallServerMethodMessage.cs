@@ -103,11 +103,20 @@ namespace Rasa.Packets.Protocol
                     Packet.Read(br);
                 }
                 else
+                {
                     Logger.WriteLog(LogType.Error, $"Unhandled game opcode: {MethodId}");
+                    return false;
+                }
 
                 if (br.ReadByte() != 0x66)
                 {
                     Logger.WriteLog(LogType.Error, $"Invalid payload formatting for: {MethodId}. Skipping packet...");
+                    return false;
+                }
+
+                if (br.BaseStream.Position != br.BaseStream.Length)
+                {
+                    Logger.WriteLog(LogType.Error, $"Trailing payload data for: {MethodId}. Skipping packet...");
                     return false;
                 }
             }

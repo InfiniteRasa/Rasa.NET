@@ -237,11 +237,26 @@ src/Rasa.Auth/appsettings.env.json
 src/Rasa.Game/appsettings.env.json
 src/Rasa.DBL/databasesettings.env.json
 
+# Docker Compose local state and overrides
+/rasaauth.db
+/rasachar.db
+/rasaworld.db
+/appsettings.env.json
+
 # Local publish output (dotnet publish -o out\auth / out\game)
 out/
 
-# docs/ is local working notes. Only the two project documents are tracked;
-# nothing else under it is meant to be committed.
+# docs/ is local working notes. Keep only the maintained project documents
+# trackable; unrelated notes remain ignored.
 docs/*
 !docs/setup.md
 !docs/docker_setup.md
+!docs/abilities.md
+!docs/protocol-testing.md
+!docs/world-testing.md
+!docs/missions.md
+!docs/mission-reference.md
+
+# Local runtime files
+/log-auth.txt
+/log-game.txt

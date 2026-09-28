@@ -23,6 +23,7 @@ namespace Rasa.Repositories.World
             IRecipeRepository recipeRepository,
             INpcMissionRepository npcMissionRepository,
             INpcMissionRewardRepository npcMissionRewardRepository,
+            IMissionContentRepository missionContentRepository,
             INpcPackageRepository npcPackageRepository,
             IPlayerRandomNameRepository randomNameRepository,
             ISpawnpoolRepository spawnpoolRepository,
@@ -43,6 +44,7 @@ namespace Rasa.Repositories.World
             Recipes = recipeRepository;
             NpcMissions = npcMissionRepository;
             NpcMissionRewards = npcMissionRewardRepository;
+            MissionContent = missionContentRepository;
             NpcPackages = npcPackageRepository;
             RandomNames = randomNameRepository;
             Spawnpools = spawnpoolRepository;
@@ -63,6 +65,7 @@ namespace Rasa.Repositories.World
         public IRecipeRepository Recipes { get; }
         public INpcMissionRepository NpcMissions { get; }
         public INpcMissionRewardRepository NpcMissionRewards { get; }
+        public IMissionContentRepository MissionContent { get; }
         public INpcPackageRepository NpcPackages { get; }
         public IPlayerRandomNameRepository RandomNames { get; }
         public ISpawnpoolRepository Spawnpools { get; }

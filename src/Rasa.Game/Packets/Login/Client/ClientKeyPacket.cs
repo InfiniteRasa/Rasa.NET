@@ -5,6 +5,7 @@ namespace Rasa.Packets.Login.Client
 {
     using Cryptography;
     using Data;
+    using Extensions;
 
     public class ClientKeyPacket : IOpcodedPacket<LoginOpcode>
     {
@@ -14,10 +15,11 @@ namespace Rasa.Packets.Login.Client
         public void Read(BinaryReader br)
         {
             var bLen = br.ReadInt32();
-            if (bLen > 64)
-                throw new Exception("Why is it bigger?");
+            if (bLen <= 0 || bLen > 64)
+                throw new InvalidDataException("Game key length must be between 1 and 64 bytes.");
 
-            B.ReadBigEndian(br.ReadBytes(bLen), 0, bLen);
+            B.ReadBigEndian(br.ReadBytesExactly(bLen), 0, bLen);
+            br.EnsureFullyConsumed("Game key payload");
         }
 
         public void Write(BinaryWriter bw)

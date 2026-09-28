@@ -554,7 +554,8 @@ namespace Rasa.Managers
 
             LeaveMapChannels(client);
 
-            SocialManager.Instance.FriendLoggedOut(client);
+            if (client.AccountEntry != null)
+                SocialManager.Instance.FriendLoggedOut(client);
         }
 
         /// <summary>

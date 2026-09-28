@@ -706,6 +706,7 @@ namespace Rasa.Managers
 
             var entityId = member.EntityId;
 
+            member.InvalidateMissionMembership();
             member.EntityId = 0;
             member.OfflineSinceTick = Environment.TickCount64;
 
@@ -734,6 +735,7 @@ namespace Rasa.Managers
             if (member == null || !member.IsOnline)
                 return;
 
+            member.InvalidateMissionMembership();
             foreach (var other in OnlineClients(party))
                 if (other != client)
                     other.CallMethod(SysEntity.ClientPartyManagerId, new RemoveSquadMemberPacket(member.UserId, member.EntityId));
@@ -1050,6 +1052,7 @@ namespace Rasa.Managers
         /// <summary>Adds one member to a squad and tells the members it already had.</summary>
         private static void AddMemberEntry(Party party, PartyMember member, List<Client> tell)
         {
+            member.InvalidateMissionMembership();
             foreach (var other in tell)
             {
                 other.CallMethod(SysEntity.ClientPartyManagerId, new AddPartyMemberPacket(member));
@@ -1091,6 +1094,7 @@ namespace Rasa.Managers
             if (member == null)
                 return;
 
+            member.InvalidateMissionMembership();
             party.Members.Remove(member);
 
             if (member.IsOnline)
@@ -1139,6 +1143,8 @@ namespace Rasa.Managers
 
             var former = party.Members.Select(m => m.UserId).ToArray();
 
+            foreach (var member in party.Members)
+                member.InvalidateMissionMembership();
             party.Members.Clear();
             Parties.Remove(party.Id);
             FreePartyId(party.Id);
@@ -1343,6 +1349,18 @@ namespace Rasa.Managers
             return Parties.TryGetValue(client.Player.PartyId, out var party) && party.Find(client.AccountEntry.Id) != null
                 ? party
                 : null;
+        }
+
+        internal bool TryGetLiveMembership(Client client, out Party party, out PartyMember member)
+        {
+            party = null;
+            member = null;
+            if (!Rasa.Game.Missions.Integration.MissionInteractionPolicy.IsActivePlayer(client))
+                return false;
+            party = PartyOf(client);
+            member = party?.Find(client.AccountEntry.Id);
+            return member?.IsOnline == true && member.EntityId == client.Player.EntityId &&
+                member.CharacterId == client.Player.Id;
         }
 
         private Party FindPartyOfAccount(uint accountId) => Parties.Values.FirstOrDefault(p => p.Find(accountId) != null);

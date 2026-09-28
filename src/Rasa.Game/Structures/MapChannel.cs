@@ -6,8 +6,12 @@ namespace Rasa.Structures
 
     public class MapChannel
     {
+        internal System.Guid MissionEpoch { get; } = System.Guid.NewGuid();
         // ToDo
         public MapInfo MapInfo { get; set; }
+        public uint InstanceId { get; set; } = 1;
+        public bool IsPrivateInstance { get; set; }
+        public uint OwnerCharacterId { get; set; }
         // timers
         //public int TimerClientEffectUpdate { get; set; }
         //public int TimerMissileUpdate { get; set; }
@@ -41,6 +45,9 @@ namespace Rasa.Structures
         // Dynamic Object List
         public List<DynamicObject> DynamicObjects = new List<DynamicObject>();
 
+        /// <summary>Spawn pools configured for this concrete map instance.</summary>
+        public List<SpawnPool> SpawnPools = new List<SpawnPool>();
+
         // Dictionary<uniqueControlPointId, dataAboutdynamicObject> ControlPoints
         public Dictionary<uint, DynamicObject> ControlPoints = new Dictionary<uint, DynamicObject>();
 
@@ -55,6 +62,12 @@ namespace Rasa.Structures
 
         // Dictionary<uniqueLootDispenserId, dataAboutLootDispenser> LootDispensers
         public Dictionary<ulong, LootDispenser> LootDispensers = new Dictionary<ulong, LootDispenser>();
+        /// <summary>
+        /// Protects loot dispensers, corpse lifetime decisions, and looter state. When both are
+        /// needed, acquire Client.SyncRoot before this lock; never acquire a client lock while
+        /// holding this one.
+        /// </summary>
+        internal object LootSyncRoot { get; } = new object();
 
         // Missiles on this mapChannel
         public List<Missile> QueuedMissiles = new List<Missile>();

@@ -26,13 +26,13 @@ namespace Rasa.Structures.World
         [Required]
         public uint Id { get; set; }
 
-        [Column("name")]
+        [Column("name", TypeName = "varchar(64)")]
         [Required]
         [MaxLength(64)]
         public string Name { get; set; }
 
         /// <summary>The client python module that implements the action, relative to client/actions.</summary>
-        [Column("module")]
+        [Column("module", TypeName = "varchar(64)")]
         [Required]
         [MaxLength(64)]
         public string Module { get; set; }

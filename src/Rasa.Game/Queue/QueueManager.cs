@@ -16,13 +16,31 @@ namespace Rasa.Queue
 
     public class QueueManager
     {
+        /// <summary>
+        /// Serializes queue membership changes with the client's disconnect transition. Code under
+        /// this gate only reads capacity and changes client state or the in-memory queue; socket
+        /// sends, callbacks, and client-list mutation happen after it is released. QueueClientState
+        /// never acquires this gate, so the lock order is always queue gate then state gate, never
+        /// the reverse.
+        /// </summary>
         private readonly Queue<QueueClient> _queuedClients = new Queue<QueueClient>();
+        private readonly Func<bool> _isFull;
+        private readonly IPAddress _publicAddress;
+        private readonly int _gamePort;
+        private readonly Action _beforeAdmission;
 
         public List<QueueClient> Clients { get; } = new List<QueueClient>();
 
         public Server Server { get; }
         public LengthedSocket Socket { get; }
-        public int QueuedClients => _queuedClients.Count;
+        public int QueuedClients
+        {
+            get
+            {
+                lock (_queuedClients)
+                    return _queuedClients.Count;
+            }
+        }
 
         /// <summary>Queue connections handed off to the world port that are still open.</summary>
         public int RedirectingClients
@@ -96,11 +114,15 @@ namespace Rasa.Queue
                     .Select(c => c.UserId));
         }
         public RedirectDelegate OnRedirect { get; set; }
-        public QueueConfig Config => Server.Config.QueueConfig;
+        public QueueConfig Config { get; }
 
         public QueueManager(Server server)
         {
             Server = server;
+            Config = server.Config.QueueConfig;
+            _isFull = () => server.IsFull;
+            _publicAddress = server.PublicAddress;
+            _gamePort = server.Config.GameConfig.Port;
 
             Socket = new LengthedSocket(SizeType.Dword, false);
             Socket.OnError += OnError;
@@ -109,6 +131,20 @@ namespace Rasa.Queue
             Socket.Listen(Config.Backlog);
 
             Socket.AcceptAsync();
+        }
+
+        internal QueueManager(
+            QueueConfig config,
+            Func<bool> isFull,
+            IPAddress publicAddress,
+            int gamePort,
+            Action beforeAdmission)
+        {
+            Config = config;
+            _isFull = isFull;
+            _publicAddress = publicAddress;
+            _gamePort = gamePort;
+            _beforeAdmission = beforeAdmission;
         }
 
         private static void OnError(SocketAsyncEventArgs args)
@@ -120,9 +156,24 @@ namespace Rasa.Queue
         private void OnAccept(LengthedSocket socket)
         {
             Socket.AcceptAsync();
+            AcceptClient(socket);
+        }
 
+        internal void AcceptClient(LengthedSocket socket)
+        {
+            var client = new QueueClient(this, socket, false);
             lock (Clients)
-                Clients.Add(new QueueClient(this, socket));
+                Clients.Add(client);
+
+            try
+            {
+                client.Start();
+            }
+            catch
+            {
+                client.Close();
+                throw;
+            }
         }
 
         public void Disconnect(QueueClient client)
@@ -133,89 +184,102 @@ namespace Rasa.Queue
 
         public void Enqueue(QueueClient client)
         {
+            _beforeAdmission?.Invoke();
+            var position = 0;
+            bool queued;
+
             lock (_queuedClients)
             {
-                if (!Server.IsFull)
-                {
-                    // TODO: need a position update before redirect?
-                    client.Redirect(Server.PublicAddress, Server.Config.GameConfig.Port);
+                queued = _isFull();
+
+                if (!client.TryAdmit(queued, DateTime.Now))
                     return;
-                }
 
-                _queuedClients.Enqueue(client);
-
-                var pos = 0;
-
-                foreach (var c in _queuedClients)
+                if (queued)
                 {
-                    if (c.State == QueueState.Disconnected)
-                        continue;
+                    _queuedClients.Enqueue(client);
 
-                    if (c == client)
-                        c.SendPositionUpdate(pos, 10000 * pos); // TODO: proper estimated time calculation
-                    else
-                        ++pos;
+                    foreach (var queuedClient in _queuedClients)
+                    {
+                        if (queuedClient.State == QueueState.Disconnected)
+                            continue;
+
+                        if (queuedClient == client)
+                            break;
+
+                        ++position;
+                    }
                 }
             }
+
+            if (!queued)
+                client.SendRedirect(_publicAddress, _gamePort);
+            else
+                client.SendPositionUpdate(position, 10000 * position); // TODO: proper estimated time calculation
         }
 
-        private void AdvanceQueue(int freeSlots)
+        internal bool TryDisconnect(QueueClient client)
         {
-            if (QueuedClients == 0)
-                return;
-
             lock (_queuedClients)
-            {
-                for (var i = 0; i < freeSlots && QueuedClients > 0;)
-                {
-                    var client = _queuedClients.Dequeue();
-                    if (client.State == QueueState.Disconnected)
-                        continue;
+                return client.TryDisconnect();
+        }
 
-                    client.Redirect(Server.PublicAddress, Server.Config.GameConfig.Port);
-                    ++i;
-                }
+        private List<QueueClient> AdvanceQueue(int freeSlots, DateTime now)
+        {
+            var redirects = new List<QueueClient>();
+
+            for (var i = 0; i < freeSlots && _queuedClients.Count > 0;)
+            {
+                var client = _queuedClients.Dequeue();
+                if (!client.TryPrepareRedirect(now))
+                    continue;
+
+                redirects.Add(client);
+                ++i;
             }
+
+            return redirects;
         }
 
-        private void ClearDisconnected()
+        private void RemoveDisconnectedClients()
         {
-            if (QueuedClients == 0)
-                return;
+            var count = _queuedClients.Count;
 
-            lock (_queuedClients)
+            for (var i = 0; i < count; ++i)
             {
-                do
-                {
-                    var c = _queuedClients.Peek();
-                    if (c.State != QueueState.Disconnected)
-                        break;
-
-                    _queuedClients.Dequeue();
-                }
-                while (QueuedClients > 0);
+                var client = _queuedClients.Dequeue();
+                if (client.State != QueueState.Disconnected)
+                    _queuedClients.Enqueue(client);
             }
         }
 
         public void Update(int freeSlots)
         {
             ExpireRedirects();
-
-            if (QueuedClients == 0)
-                return;
+            List<QueueClient> redirects;
+            List<(QueueClient Client, int Position)> positionUpdates;
 
             lock (_queuedClients)
             {
-                ClearDisconnected();
+                if (_queuedClients.Count == 0)
+                    return;
 
-                AdvanceQueue(freeSlots);
+                RemoveDisconnectedClients();
+
+                redirects = AdvanceQueue(freeSlots, DateTime.Now);
 
                 var position = 0;
-
-                foreach (var client in _queuedClients)
-                    if (client.State != QueueState.Disconnected)
-                        client.SendPositionUpdate(position, 10000 * position++); // TODO: proper estimated time calculation
+                positionUpdates = _queuedClients
+                    .Where(client => client.State != QueueState.Disconnected)
+                    .Select(client => (client, position++))
+                    .ToList();
             }
+
+            foreach (var client in redirects)
+                client.SendRedirect(_publicAddress, _gamePort);
+
+            foreach (var update in positionUpdates)
+                update.Client.SendPositionUpdate(update.Position, 10000 * update.Position); // TODO: proper estimated time calculation
         }
     }
 }

@@ -74,6 +74,10 @@ namespace Rasa.Structures.Char
         [Required]
         public byte ActiveWeapon { get; set; }
 
+        [Column("current_ability_slot")]
+        [Required]
+        public byte CurrentAbilitySlot { get; set; }
+
         [Column("body")]
         [Required]
         public int Body { get; set; }

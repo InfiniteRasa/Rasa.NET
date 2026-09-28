@@ -21,11 +21,18 @@ namespace Rasa.Structures
         public Vector3 Position { get; set; }
         public double Rotation { get; set; }
         public uint MapContextId { get; set; }
+        public MapChannel RuntimeMapChannel { get; set; }
         public Factions Faction { get; set; }
         public long RespawnTime { get; set; }
         public DynamicObjectType DynamicObjectType { get; set; }
         public List<Client> TriggeredByPlayers = new List<Client>();
         public string Comment { get; set; }
+        public string ScenarioKey { get; set; }
+        public string SceneRunId { get; set; }
+        public uint SceneOwnerCharacterId { get; set; }
+        public uint SceneMissionId { get; set; }
+        public string SceneActorRole { get; set; }
+        public uint SceneGeneration { get; set; }
 
         /// <summary>
         /// What keeps this shut, or null if nothing does. Only a locked object can be ciphered,
@@ -39,5 +46,13 @@ namespace Rasa.Structures
         public bool IsEnabled = true;
         public uint WindupTime { get; internal set; }
         public uint ActivateMission { get; internal set; }
+
+        /// <summary>
+        /// The LootDispenser attached to this object, or 0. Mirrors Creature.CorpseLootEntityId -
+        /// same mechanism, just attached to a scripted prop instead of a kill.
+        /// </summary>
+        public ulong LootDispenserEntityId { get; set; }
+        internal MissionLootSource MissionLootSource { get; set; }
+        internal Rasa.Missions.Scenes.SceneObjectConversation MissionConversation { get; set; }
     }
 }

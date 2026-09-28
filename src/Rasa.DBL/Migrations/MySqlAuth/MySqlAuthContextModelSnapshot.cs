@@ -2,8 +2,11 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Rasa.Context.Auth;
+
+#nullable disable
 
 namespace Rasa.Migrations.MySqlAuth
 {
@@ -14,8 +17,10 @@ namespace Rasa.Migrations.MySqlAuth
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("Relational:MaxIdentifierLength", 64)
-                .HasAnnotation("ProductVersion", "5.0.1");
+                .HasAnnotation("ProductVersion", "9.0.20")
+                .HasAnnotation("Relational:MaxIdentifierLength", 64);
+
+            MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
 
             modelBuilder.Entity("Rasa.Structures.Auth.AuthAccountEntry", b =>
                 {
@@ -23,6 +28,8 @@ namespace Rasa.Migrations.MySqlAuth
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int(11) unsigned")
                         .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<uint>("Id"));
 
                     b.Property<string>("Email")
                         .IsRequired()

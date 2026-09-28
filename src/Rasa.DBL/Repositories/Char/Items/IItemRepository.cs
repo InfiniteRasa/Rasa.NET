@@ -1,4 +1,5 @@
-﻿using Rasa.Structures.Char;
+﻿using System.Collections.Generic;
+using Rasa.Structures.Char;
 
 namespace Rasa.Repositories.Char.Items
 {
@@ -7,6 +8,7 @@ namespace Rasa.Repositories.Char.Items
         uint CreateItem(IItemChange item);
         void DeleteItem(uint itemId);
         ItemEntry GetItem(uint itemId);
+        IReadOnlyList<ItemEntry> GetItems(IReadOnlyCollection<uint> itemIds);
         void UpdateAmmo(IItemChange item);
         void UpdateCurrentHitPoints(IItemChange item);
         void UpdateItemStackSize(IItemChange item);

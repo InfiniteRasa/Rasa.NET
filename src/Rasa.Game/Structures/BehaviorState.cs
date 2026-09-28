@@ -4,6 +4,7 @@ using System.Numerics;
 namespace Rasa.Structures
 {
     using Data;
+    using Models;
 
     public class BehaviorState
     {
@@ -20,7 +21,16 @@ namespace Rasa.Structures
         public ActionFighting ActionFighting = new ActionFighting();
         public ActionWander ActionWander = new ActionWander();
         public ActionFollow ActionFollow = new ActionFollow();
+        internal ScriptedMove ScriptedMove { get; set; }
+        internal Movement LastMovement { get; set; }
         //public long[] ActionLockTime { get; set; }
+    }
+
+    internal sealed class ScriptedMove
+    {
+        internal Vector3 Destination { get; init; }
+        internal double Orientation { get; init; }
+        internal bool Arrived { get; set; }
     }
 
     public class ActionFighting
@@ -61,6 +71,8 @@ namespace Rasa.Structures
 
         /// <summary>Throttles repathing while chasing a target that is itself moving.</summary>
         public long PathUpdateTime { get; set; }
+        internal bool CatchUpRunning { get; set; }
+        internal Creature OwnerAttackTarget { get; set; }
     }
 
     public class ActionWander

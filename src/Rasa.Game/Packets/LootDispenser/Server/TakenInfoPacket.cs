@@ -10,20 +10,21 @@ namespace Rasa.Packets.LootDispenser.Server
     {
         public override GameOpcode Opcode { get; } = GameOpcode.TakenInfo;
 
-        public List<LootItem> LootItems { get; set; } = new List<LootItem>();
+        private readonly ulong[] _itemEntityIds;
 
         public TakenInfoPacket(ulong actorId, List<LootItem> lootItems)
         {
-            LootItems = lootItems;
+            _itemEntityIds = lootItems?.ConvertAll(item => item.EntityId).ToArray()
+                             ?? System.Array.Empty<ulong>();
         }
 
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(1);
-            pw.WriteDictionary(LootItems.Count);
-            foreach (var item in LootItems)
+            pw.WriteDictionary(_itemEntityIds.Length);
+            foreach (var entityId in _itemEntityIds)
             {
-                pw.WriteULong(item.EntityId);
+                pw.WriteULong(entityId);
                 pw.WriteBool(true);
             }
         }

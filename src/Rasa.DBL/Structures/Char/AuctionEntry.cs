@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 
 namespace Rasa.Structures.Char
 {
@@ -15,6 +16,7 @@ namespace Rasa.Structures.Char
     /// two ends the seller actually picked.
     /// </summary>
     [Table(TableName)]
+    [Index(nameof(SellerId), Name = "auction_index_seller_id")]
     public class AuctionEntry
     {
         public const string TableName = "auction";

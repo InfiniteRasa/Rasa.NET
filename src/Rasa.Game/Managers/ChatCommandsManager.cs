@@ -19,7 +19,8 @@ namespace Rasa.Managers
     {
         private static ChatCommandsManager _instance;
         private static readonly object InstanceLock = new object();
-        private static readonly Dictionary<string, ChatCommand> Commands = new Dictionary<string, ChatCommand>();
+        private readonly Dictionary<string, ChatCommand> _commands = new();
+        private readonly NpcManager _npcManager;
 
         /// <summary>A registered dot command and the account level it takes to run it.</summary>
         private class ChatCommand
@@ -33,7 +34,7 @@ namespace Rasa.Managers
             public GmLevel Level { get; }
             public Action<string[]> Handler { get; }
         }
-        private static Client _client { get; set; }
+        private Client _client { get; set; }
         public static ChatCommandsManager Instance
         {
             get
@@ -53,7 +54,13 @@ namespace Rasa.Managers
         }
 
         private ChatCommandsManager()
+            : this(null)
         {
+        }
+
+        internal ChatCommandsManager(NpcManager npcManager)
+        {
+            _npcManager = npcManager;
         }
 
         /// <summary>
@@ -71,7 +78,7 @@ namespace Rasa.Managers
 
             var parts = command.Split(' ');
 
-            if (!Commands.TryGetValue(parts[0], out var registered))
+            if (!_commands.TryGetValue(parts[0], out var registered))
             {
                 Logger.WriteLog(LogType.Command, $"Invalid command: {command}");
                 CommunicatorManager.Instance.SystemMessage(client, $"Unknown command: {parts[0]}");
@@ -104,13 +111,13 @@ namespace Rasa.Managers
 
         public void RegisterCommand(string name, GmLevel level, Action<string[]> handler)
         {
-            Commands.Add(name, new ChatCommand(level, handler));
+            _commands.Add(name, new ChatCommand(level, handler));
         }
 
         public void RemoveCommand(string name)
         {
-            if (Commands.ContainsKey(name))
-                Commands.Remove(name);
+            if (_commands.ContainsKey(name))
+                _commands.Remove(name);
         }
 
         public void RegisterChatCommands()
@@ -118,6 +125,7 @@ namespace Rasa.Managers
             // Observer: reads the world, changes nothing in it.
             RegisterCommand(".getdistance", GmLevel.Observer, GetDistanceCommand);
             RegisterCommand(".maperrors", GmLevel.Observer, MapErrorsCommand);
+            RegisterCommand(".missions", GmLevel.Observer, MissionInspectionCommand);
             RegisterCommand(".gm", GmLevel.Observer, EnterGmModCommand);
             RegisterCommand(".help", GmLevel.Observer, HelpGmCommand);
             RegisterCommand(".links", GmLevel.Observer, LinksCommand);
@@ -168,6 +176,8 @@ namespace Rasa.Managers
             RegisterCommand(".givelogos", GmLevel.Admin, GiveLogosCommand);
             RegisterCommand(".givepads", GmLevel.Admin, GivePadsCommand);
             RegisterCommand(".givexp", GmLevel.Admin, GiveXpCommand);
+            RegisterCommand(".failmission", GmLevel.Admin, FailMissionCommand);
+            RegisterCommand(".failobjective", GmLevel.Admin, FailObjectiveCommand);
             RegisterCommand(".reloadcreatures", GmLevel.Admin, ReloadCreaturesCommand);
         }
 
@@ -176,6 +186,39 @@ namespace Rasa.Managers
         #endregion
 
         #region GM
+
+        private NpcManager Npcs => _npcManager ?? NpcManager.Instance;
+
+        private void FailMissionCommand(string[] parts)
+        {
+            if (parts.Length != 2 || !uint.TryParse(parts[1], out var missionId))
+            {
+                CommunicatorManager.Instance.SystemMessage(
+                    _client, "usage: .failmission missionId");
+                return;
+            }
+
+            if (!Npcs.MissionFailed(_client, missionId))
+                CommunicatorManager.Instance.SystemMessage(
+                    _client, $"Mission {missionId} is not active.");
+        }
+
+        private void FailObjectiveCommand(string[] parts)
+        {
+            if (parts.Length != 3 ||
+                !uint.TryParse(parts[1], out var missionId) ||
+                !uint.TryParse(parts[2], out var objectiveId))
+            {
+                CommunicatorManager.Instance.SystemMessage(
+                    _client, "usage: .failobjective missionId objectiveId");
+                return;
+            }
+
+            if (!Npcs.ObjectiveFailed(_client, missionId, objectiveId))
+                CommunicatorManager.Instance.SystemMessage(
+                    _client,
+                    $"Mission {missionId} objective {objectiveId} is not active.");
+        }
 
         private void AddTitleCommand(string[] parts)
         {
@@ -339,10 +382,16 @@ namespace Rasa.Managers
 
             // The command takes a signed amount; the two primitives do not. Positive is a gain,
             // negative is a charge of that size, already clamped to what they have above.
-            if (amount > 0)
-                ManifestationManager.Instance.GainCredits(target, amount);
-            else
-                ManifestationManager.Instance.LossCredits(target, -amount);
+            var changed = amount > 0
+                ? ManifestationManager.Instance.GainCredits(target, amount)
+                : ManifestationManager.Instance.LossCredits(target, -amount);
+
+            if (!changed)
+            {
+                communicator.SystemMessage(_client,
+                    $"Could not persist the credit change for {target.Player.FamilyName}.");
+                return;
+            }
 
             var after = target.Player.Credits[CurencyType.Credits];
             var who = target == _client ? "You" : target.Player.FamilyName;
@@ -400,6 +449,18 @@ namespace Rasa.Managers
 
             communicator.SystemMessage(_client,
                 $"{who} healed for {applied} ({health?.Current} of {health?.CurrentMax}).");
+        }
+
+        private void MissionInspectionCommand(string[] parts)
+        {
+            var characterId = _client.Player.Id;
+            if (parts.Length > 1 && !uint.TryParse(parts[1], out characterId))
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, "Usage: .missions [character-id]");
+                return;
+            }
+            foreach (var line in MissionApplication.Instance.Inspect(characterId))
+                CommunicatorManager.Instance.SystemMessage(_client, line);
         }
 
         private void MapErrorsCommand(string[] parts)
@@ -947,7 +1008,7 @@ namespace Rasa.Managers
                     var classInfo = EntityClassManager.Instance.GetClassInfo(ItemManager.Instance.ItemTemplateItemClass[itemTemplateId]);
                     var item = ItemManager.Instance.CreateFromTemplateId(itemTemplateId, classInfo.ItemClassInfo.StackSize, _client.Player.FamilyName);
                     item.Crafter = _client.Player.FamilyName;
-                    InventoryManager.Instance.AddItemToInventory(_client, item);
+                    InventoryManager.Instance.GrantItemToInventory(_client, item);
                 }
             if (parts.Length == 3)
                 if (uint.TryParse(parts[1], out uint itemTemplateId))
@@ -955,7 +1016,7 @@ namespace Rasa.Managers
                     {
                         var item = ItemManager.Instance.CreateFromTemplateId(itemTemplateId, quantity, _client.Player.FamilyName);
                         item.Crafter = _client.Player.FamilyName;
-                        InventoryManager.Instance.AddItemToInventory(_client, item);
+                        InventoryManager.Instance.GrantItemToInventory(_client, item);
                     }
 
             return;
@@ -1078,7 +1139,7 @@ namespace Rasa.Managers
             CommunicatorManager.Instance.SystemMessage(client,
                 $"Commands available at account level {client.AccountEntry.Level}:");
 
-            foreach (var command in Commands.Where(c => HasLevel(client, c.Value.Level))
+            foreach (var command in _commands.Where(c => HasLevel(client, c.Value.Level))
                                             .OrderBy(c => c.Value.Level)
                                             .ThenBy(c => c.Key))
                 CommunicatorManager.Instance.SystemMessage(client, $"{command.Key} ({command.Value.Level})");
@@ -1934,9 +1995,20 @@ namespace Rasa.Managers
 
         private void WhereCommand(string[] parts)
         {
-            CommunicatorManager.Instance.SystemMessage(_client, $"PosX = {_client.Movement.Position.X}\nPosY = "
-                + $"{_client.Movement.Position.Y}\nPosZ = {_client.Movement.Position.Z}\nOrientation = {_client.Movement.ViewDirection.X}"
-                + $"\nMapId = {_client.Player.MapContextId}");
+            var position = _client.Movement.Position;
+            var rotation = _client.Movement.ViewDirection.X;
+            var mapId = _client.Player.MapContextId;
+
+            CommunicatorManager.Instance.SystemMessage(_client, $"PosX = {position.X}\nPosY = "
+                + $"{position.Y}\nPosZ = {position.Z}\nOrientation = {rotation}"
+                + $"\nMapId = {mapId}");
+
+            // Logged too, so a live position can be read off the server console/log without the
+            // player needing to relay it or log out (position otherwise only persists to the
+            // character row on logout/map-exit).
+            Logger.WriteLog(LogType.Command,
+                $"[.where] {_client.Player.FamilyName}: map={mapId} pos=({position.X:0.####}, {position.Y:0.####}, {position.Z:0.####}) rot={rotation:0.####}");
+
             return;
         }
 

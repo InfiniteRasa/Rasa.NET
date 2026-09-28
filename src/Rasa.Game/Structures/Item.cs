@@ -32,6 +32,7 @@
         public string Crafter { get; set; }
         public int CurrentHitPoints { get; set; }
         public uint StackSize { get; set; }
+        public MissionItemOwnership MissionOwnership { get; internal set; }
         // weapon specific
         public uint CurrentAmmo { get; set; }
         public bool IsJammed { get; set; }
@@ -51,4 +52,7 @@
         /// <summary>When <see cref="Heat"/> was last brought up to date, in Environment.TickCount64 ms.</summary>
         public long HeatUpdatedAt { get; set; }
     }
+
+    public sealed record MissionItemOwnership(uint CharacterId, uint MissionId, string AssignmentId,
+        uint Generation, string ItemKey);
 }

@@ -3,6 +3,7 @@
 namespace Rasa.Packets.Queue.Client
 {
     using Data;
+    using Extensions;
 
     public class QueueLoginPacket : IOpcodedPacket<QueueOpcode>
     {
@@ -14,6 +15,7 @@ namespace Rasa.Packets.Queue.Client
         {
             UserId = br.ReadUInt32();
             OneTimeKey = br.ReadUInt32();
+            br.EnsureFullyConsumed("Queue login payload");
         }
 
         public void Write(BinaryWriter bw)

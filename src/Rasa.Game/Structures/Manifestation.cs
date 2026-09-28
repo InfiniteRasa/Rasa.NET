@@ -10,7 +10,17 @@ namespace Rasa.Structures
 
     public class Manifestation : Actor, ICharacterChange
     {
-        public uint Id { get; set; }
+        private uint _id;
+        public uint Id
+        {
+            get => _id;
+            set
+            {
+                if (_id != value)
+                    MissionLocationEpoch = Guid.NewGuid();
+                _id = value;
+            }
+        }
         public uint Gender { get; set; }
         public Dictionary<EquipmentData, AppearanceData> AppearanceData { get; set; }
         public List<CharacterOptions> CharacterOptions = new();
@@ -38,7 +48,12 @@ namespace Rasa.Structures
         public List<uint> Titles { get; set; } = new List<uint>();
         public uint CurrentTitle { get; set; }
         public int CurrentAbilityDrawer { get; set; }
-        public Dictionary<int, MissionLog> Missions { get; set; } = new();
+        public Dictionary<uint, MissionLog> Missions { get; set; } = new();
+        public Dictionary<uint, MissionState> MissionHistory { get; set; } = new();
+        public HashSet<uint> MissionSuccessHistory { get; set; } = new();
+        public Dictionary<uint, DateTime> MissionRewardTimes { get; set; } = new();
+        internal bool StartingExperienceCompleted { get; set; }
+        public Dictionary<uint, uint> PlayerFlags { get; set; } = new();
         public DateTime LoginTime { get; set; }
         public List<uint> Logos = new();
         public ulong TrackingTargetEntityId { get; set; }
@@ -118,7 +133,18 @@ namespace Rasa.Structures
         // Social
         internal List<uint> Friends = new();
         internal List<uint> IgnoredPlayers = new();
-        public MapChannel MapChannel { get; set; }
+        private MapChannel _mapChannel;
+        internal Guid MissionLocationEpoch { get; private set; } = Guid.NewGuid();
+        public MapChannel MapChannel
+        {
+            get => _mapChannel;
+            set
+            {
+                if (!ReferenceEquals(_mapChannel, value))
+                    MissionLocationEpoch = Guid.NewGuid();
+                _mapChannel = value;
+            }
+        }
         public bool Disconected { get; set; }
         /// <summary>Set by RequestLogout, cleared by CancelLogoutRequest.</summary>
         public bool LogoutActive { get; set; }
@@ -201,6 +227,7 @@ namespace Rasa.Structures
             Credits.Add(CurencyType.Credits, character.Credit);
             Credits.Add(CurencyType.Prestige, character.Prestige);
             ActiveWeapon = character.ActiveWeapon;
+            CurrentAbilityDrawer = character.CurrentAbilitySlot;
             NumLogins = character.NumLogins + 1;
             TotalTimePlayed = character.TotalTimePlayed;
             TimeSinceLastPlayed = character.LastLogin;
@@ -209,7 +236,7 @@ namespace Rasa.Structures
             // Actor
             EntityClass = character.Gender == 0 ? EntityClasses.HumanBaseMale : EntityClasses.HumanBaseFemale;
             Name = character.Name;
-            FamilyName = character.GameAccount.FamilyName;
+            FamilyName = character.GameAccount?.FamilyName;
             Position = new Vector3((float)character.CoordX, (float)character.CoordY, (float)character.CoordZ);
             Rotation = (float)character.Rotation;
             MapContextId = character.MapContextId;

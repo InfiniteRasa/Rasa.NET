@@ -244,7 +244,8 @@ namespace Rasa.Managers
                 return;
             }
 
-            if (item.ItemTemplate.BoundToCharacter)
+            if (item.ItemTemplate.BoundToCharacter ||
+                Game.Missions.Persistence.MissionItemProtection.IsProtected(item, Server.GameUnitOfWorkFactory))
             {
                 Decline(client, PlayerMessage.PmTradeItemCanNotBeTraded);
                 return;
@@ -388,6 +389,9 @@ namespace Rasa.Managers
                 using var unitOfWork = Server.GameUnitOfWorkFactory.CreateChar();
                 using var transaction = unitOfWork.BeginTransaction();
 
+                if (toB.Concat(toA).Any(move =>
+                    Game.Missions.Persistence.MissionItemProtection.IsProtected(move.Item, unitOfWork)))
+                    throw new GameplayRejectionException("Assignment-owned items cannot be traded.");
                 foreach (var move in toB.Concat(toA))
                     unitOfWork.CharacterInventories.MoveInvItem(
                         move.To.AccountEntry.Id, move.To.Player.Id, (uint)InventoryType.Personal, move.Slot, move.Item.Id);
@@ -464,7 +468,7 @@ namespace Rasa.Managers
             {
                 var item = EntityManager.Instance.GetItem(offered.EntityId);
 
-                if (item == null || !HoldsInPersonalInventory(client, offered.EntityId))
+                if (item == null || item.MissionOwnership != null || !HoldsInPersonalInventory(client, offered.EntityId))
                     return false;
 
                 if (offered.Matches(item))

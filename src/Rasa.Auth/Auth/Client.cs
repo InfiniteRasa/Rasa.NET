@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Net.Sockets;
 using System.Threading;
 
@@ -353,7 +354,7 @@ namespace Rasa.Auth
                 ClientOpcode.ServerListExt => new ServerListExtPacket(),
                 ClientOpcode.SCCheck       => new SCCheckPacket(),
 
-                _ => throw new ArgumentOutOfRangeException(nameof(opcode)),
+                _ => throw new InvalidDataException($"Unsupported auth opcode: {opcode}."),
             };
         }
 

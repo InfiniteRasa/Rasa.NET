@@ -164,7 +164,11 @@ namespace Rasa.Managers
 
             health.Current += applied;
 
-            var mapChannel = MapChannelManager.Instance.FindByContextId(target.MapContextId);
+            var mapChannel = target switch
+            {
+                Manifestation player => player.MapChannel,
+                _ => target.RuntimeMapChannel
+            };
 
             // No map means nobody can see them, which is not a reason to refuse the heal - the
             // health is still theirs. It is a reason not to try to broadcast it.
@@ -184,13 +188,25 @@ namespace Rasa.Managers
         /// standing at zero.
         /// </summary>
         /// <param name="source">Who did it; credited with a kill, and what a surviving creature turns on.</param>
-        public int Damage(MapChannel mapChannel, Actor target, int amount, Actor source)
+        /// <param name="isPeriodic">Ticks contribute damage credit without issuing a new escort attack order.</param>
+        public int Damage(MapChannel mapChannel, Actor target, int amount, Actor source, bool isPeriodic = false)
         {
             if (target == null || amount <= 0 || target.State == CharacterState.Dead)
                 return 0;
 
+            if (target is Creature defender && Game.Missions.World.CreatureGameplayRules.IsInvulnerable(defender))
+                return 0;
+
+            if (source is Creature companion &&
+                (companion.SpawnPool?.FollowOwnerCharacterId > 0 || Game.Missions.World.CreatureGameplayRules.IsDefender(companion)) &&
+                target is Creature enemy && !CreatureManager.IsHostileTarget(mapChannel, companion, enemy))
+                return 0;
+
             if (!target.Attributes.TryGetValue(Attributes.Health, out var health) || health.Current <= 0)
                 return 0;
+
+            if (!isPeriodic && target is Creature attackedCreature)
+                CreatureManager.RecordOwnerAttack(mapChannel, source, attackedCreature);
 
             var armorTaken = 0;
 
@@ -202,6 +218,8 @@ namespace Rasa.Managers
             }
 
             var healthTaken = Math.Min(amount - armorTaken, health.Current);
+            if (target is Creature damagedCreature)
+                CreatureManager.RecordCombatDamage(mapChannel, damagedCreature, source, armorTaken + healthTaken);
             health.Current -= healthTaken;
             CellManager.Instance.CellCallMethod(mapChannel, target, new UpdateHealthPacket(health, target is Creature ? target.EntityId : 0));
 
@@ -338,7 +356,11 @@ namespace Rasa.Managers
 
             armor.Current += applied;
 
-            var mapChannel = MapChannelManager.Instance.FindByContextId(target.MapContextId);
+            var mapChannel = target switch
+            {
+                Manifestation player => player.MapChannel,
+                _ => target.RuntimeMapChannel
+            };
 
             if (mapChannel != null)
                 CellManager.Instance.CellCallMethod(mapChannel, target, new UpdateArmorPacket(armor, target.EntityId));

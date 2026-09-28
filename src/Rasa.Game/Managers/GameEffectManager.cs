@@ -113,6 +113,8 @@ namespace Rasa.Managers
 
             AddToList(actor, effect);
             mapChannel.ActorsWithEffects.Add(actor);
+            if (effect.TickDamageMax > 0 && actor is Creature attackedCreature)
+                CreatureManager.RecordOwnerAttack(mapChannel, effect.Source, attackedCreature);
 
             if (effect.MaxHealthPercent != 0)
                 ApplyMaxHealth(mapChannel, actor, effect);
@@ -441,7 +443,7 @@ namespace Rasa.Managers
             {
                 var rolled = AbilityManager.Scale(effect.SourceLevel, _random.Next(effect.TickDamageMin, effect.TickDamageMax + 1), effect.TickScaleType);
                 var amount = ApplyResist(target, rolled, out var resisted);
-                var taken = ActorManager.Instance.Damage(mapChannel, target, amount, source);
+                var taken = ActorManager.Instance.Damage(mapChannel, target, amount, source, isPeriodic: true);
 
                 hits.Add(new TickEntry
                 {

@@ -8,7 +8,7 @@ namespace Rasa.Structures
     {
         public LootDispenser()
         {
-            EntityId = EntityManager.Instance.GetEntityId;
+            EntityId = EntityManager.Instance.AllocateUnrecycledEntityId();
             EntityClassId = (Data.EntityClasses)10000035;
         }
 
@@ -27,6 +27,20 @@ namespace Rasa.Structures
         /// cleared by CancelCorpseLooting, which is what the client sends when the window closes.
         /// </summary>
         public ulong CurrentLooter { get; set; }
+        internal Game.Client OwnerClient { get; set; }
+        internal Manifestation Player { get; set; }
+        internal MapChannel Map { get; set; }
+        internal Creature Corpse { get; set; }
+
+        /// <summary>
+        /// Set instead of <see cref="Corpse"/> when this dispenser is attached to a scripted
+        /// prop (a mission reward crate) rather than something a player killed. Exactly one of
+        /// the two is set.
+        /// </summary>
+        internal DynamicObject AttachedObject { get; set; }
+        internal uint CharacterId { get; set; }
+        internal uint AccountId { get; set; }
+        internal Rasa.Repositories.UnitOfWork.IGameUnitOfWorkFactory UnitOfWorkFactory { get; set; }
 
         /// <summary>Whether anything is left to take.</summary>
         public bool HasLoot => Credits > 0 || LootItems.Exists(i => !i.Taken);

@@ -11,8 +11,8 @@ namespace Rasa.Managers
 
     /// <summary>
     /// Loads each map's navmesh (built offline by Rasa.NavMesh from the client's terrain and
-    /// collision meshes) and answers the ground and path questions creature AI asks. A map with no
-    /// <c>.nav</c> file keeps the old behaviour: straight lines at spawn height.
+    /// collision meshes) and answers the ground and path questions creature AI asks. Ordinary
+    /// creatures on maps without navigation retain legacy movement; scripted routes require it.
     ///
     /// The queries are only made from the world loop (BehaviorManager, spawning) and from GM
     /// commands on the packet thread; the two never run concurrently, since packets are processed
@@ -23,7 +23,7 @@ namespace Rasa.Managers
         private static NavMeshManager _instance;
         private static readonly object InstanceLock = new object();
 
-        /// <summary>The default folder, relative to the working directory, when the config names none.</summary>
+        /// <summary>The default asset folder, resolved from the working directory, deployment or source checkout.</summary>
         public const string DefaultDirectory = "navmesh";
 
         /// <summary>
@@ -63,7 +63,7 @@ namespace Rasa.Managers
         /// <summary>Loads a navmesh for every map channel that has one. Runs after MapChannelInit.</summary>
         public void NavMeshInit(string directory)
         {
-            Directory = string.IsNullOrWhiteSpace(directory) ? DefaultDirectory : directory;
+            Directory = ResolveDirectory(directory, Environment.CurrentDirectory, AppContext.BaseDirectory);
             LoadedMaps = 0;
 
             if (!System.IO.Directory.Exists(Directory))
@@ -100,6 +100,27 @@ namespace Rasa.Managers
 
             if (missing.Count > 0 && missing.Count <= 12)
                 Logger.WriteLog(LogType.Initialize, $"  no navmesh for: {string.Join(", ", missing)}");
+        }
+
+        internal static string ResolveDirectory(string configuredDirectory, string workingDirectory, string applicationDirectory)
+        {
+            var directory = string.IsNullOrWhiteSpace(configuredDirectory) ? DefaultDirectory : configuredDirectory;
+            var configuredPath = Path.GetFullPath(directory, workingDirectory);
+            if (System.IO.Directory.Exists(configuredPath) ||
+                !string.Equals(directory, DefaultDirectory, StringComparison.Ordinal))
+                return configuredPath;
+            var deployedPath = Path.Combine(applicationDirectory, DefaultDirectory);
+            if (System.IO.Directory.Exists(deployedPath))
+                return deployedPath;
+            for (var candidate = new DirectoryInfo(applicationDirectory); candidate != null; candidate = candidate.Parent)
+                if (File.Exists(Path.Combine(candidate.FullName, "Rasa.NET.sln")))
+                {
+                    var repositoryPath = Path.Combine(candidate.FullName, DefaultDirectory);
+                    if (System.IO.Directory.Exists(repositoryPath))
+                        return repositoryPath;
+                    break;
+                }
+            return configuredPath;
         }
 
         /// <summary>

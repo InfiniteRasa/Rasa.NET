@@ -10,9 +10,9 @@ namespace Rasa.Packets.Mission.Server
     {
         public override GameOpcode Opcode { get; } = GameOpcode.MissionStatusInfo;
 
-        public Dictionary<uint, MissionInfo> MissionStatusDict { get; set; }
+        public IReadOnlyDictionary<uint, MissionInfo> MissionStatusDict { get; }
 
-        public MissionStatusInfoPacket(Dictionary<uint, MissionInfo> missionStatusDict)
+        public MissionStatusInfoPacket(IReadOnlyDictionary<uint, MissionInfo> missionStatusDict)
         {
             MissionStatusDict = missionStatusDict;
         }

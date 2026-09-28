@@ -18,6 +18,8 @@ namespace Rasa.Repositories.Char.Auction
 
         public bool CreateAuction(AuctionEntry auction)
         {
+            if (_charContext.CharacterMissionItemEntries.Any(entry => entry.ItemId == auction.ItemId))
+                return false;
             // item_id is the key, so a second listing of the same item would throw on save and
             // lose the seller's deposit with it. Checked here instead.
             if (GetAuctionByItemId(auction.ItemId) != null)
@@ -84,16 +86,17 @@ namespace Rasa.Repositories.Char.Auction
             return entries.Count;
         }
 
-        public void DeleteAuction(uint itemId)
+        public bool DeleteAuction(uint itemId)
         {
-            var query = _charContext.CreateNoTrackingQuery(_charContext.AuctionEntries);
+            var query = _charContext.CreateTrackingQuery(_charContext.AuctionEntries);
             var entry = query.FirstOrDefault(a => a.ItemId == itemId);
 
             if (entry == null)
-                return;
+                return false;
 
             _charContext.Remove(entry);
             _charContext.SaveChanges();
+            return true;
         }
     }
 }

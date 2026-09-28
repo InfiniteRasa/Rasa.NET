@@ -13,6 +13,7 @@ namespace Rasa.Packets.Queue.Client
         public void Read(BinaryReader br)
         {
             PublicKey = br.ReadLengthedString();
+            br.EnsureFullyConsumed("Queue key payload");
         }
 
         public void Write(BinaryWriter bw)

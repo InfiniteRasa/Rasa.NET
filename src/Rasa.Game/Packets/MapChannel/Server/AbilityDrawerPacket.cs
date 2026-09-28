@@ -14,7 +14,11 @@ namespace Rasa.Packets.MapChannel.Server
 
         public AbilityDrawerPacket(Dictionary<int, AbilityDrawerData> abilities)
         {
-            Abilities = abilities;
+            foreach (var entry in abilities)
+                Abilities[entry.Key] = new AbilityDrawerData(
+                    entry.Value.AbilitySlotId,
+                    entry.Value.AbilityId,
+                    entry.Value.AbilityLevel);
         }
 
         public override void Write(PythonWriter pw)

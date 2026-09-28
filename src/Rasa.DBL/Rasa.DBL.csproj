@@ -5,7 +5,6 @@
     <TargetFramework>net10.0</TargetFramework>
     <AssemblyName>Rasa.DBL</AssemblyName>
     <PackageId>Rasa.DBL</PackageId>
-    <NetStandardImplicitPackageVersion>2.1.0</NetStandardImplicitPackageVersion>
     <GenerateAssemblyConfigurationAttribute>false</GenerateAssemblyConfigurationAttribute>
     <GenerateAssemblyCompanyAttribute>false</GenerateAssemblyCompanyAttribute>
     <GenerateAssemblyProductAttribute>false</GenerateAssemblyProductAttribute>
@@ -14,6 +13,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Rasa.Missions\Rasa.Missions.csproj" />
     <ProjectReference Include="..\Rasa.Utils\Rasa.Utils.csproj" />
   </ItemGroup>
 

@@ -182,6 +182,10 @@ namespace Rasa.Game
 
                 foreach (var client in Clients)
                 {
+                    if (client.PendingTransfer != null &&
+                        MapChannelManager.Instance.CheckTransferTimeout(client))
+                        continue;
+
                     // Client.Update guards its own handlers and disconnects the client that
                     // threw. This is for the rest of it - Close(), the socket, the packet
                     // queue - so a fault in one connection cannot leave every client after it
@@ -237,7 +241,7 @@ namespace Rasa.Game
                     // Disconnect for this lock - as one closed on a socket thread does, holding
                     // that connection's own lock while it waits.
                     foreach (var client in dropped)
-                        MapChannelManager.Instance.RemoveStrandedPlayer(client);
+                        MapChannelManager.Instance.CleanupDisconnected(client);
                 }
             }
         }
@@ -253,10 +257,28 @@ namespace Rasa.Game
                 return false;
             }
 
-            Loop.Start();
+            return new ServerStartupLifecycle(
+                ValidateMissionReadiness,
+                () => Loop.Start(),
+                SetupCommunicator,
+                CreateListenerSocket,
+                RegisterLoginAndQueue,
+                BeginAcceptingClients,
+                RegisterStartupTimers,
+                LoadRemainingRuntimeData,
+                PublishReady,
+                Shutdown).Start();
+        }
 
-            SetupCommunicator();
+        private bool ValidateMissionReadiness()
+        {
+            EntityClassManager.Instance.LoadEntityClasses();
+            var missionValidation = MissionApplication.Instance.LoadMissions();
+            return LogMissionValidationAndCheckReadiness(missionValidation);
+        }
 
+        private void CreateListenerSocket()
+        {
             try
             {
                 ListenerSocket = new LengthedSocket(SizeType.Dword, false);
@@ -269,18 +291,24 @@ namespace Rasa.Game
             {
                 Logger.WriteLog(LogType.Error, "Unable to create or start listening on the client socket! Exception:");
                 Logger.WriteLog(LogType.Error, e);
-
-                return false;
+                throw;
             }
+        }
 
+        private void RegisterLoginAndQueue()
+        {
             LoginManager.OnLogin += OnLogin;
-
             QueueManager = new QueueManager(this);
+        }
 
+        private void BeginAcceptingClients()
+        {
             ListenerSocket.AcceptAsync();
-
             Logger.WriteLog(LogType.Network, "*** Listening for clients on port {0}", Config.GameConfig.Port);
+        }
 
+        private void RegisterStartupTimers()
+        {
             Timer.Add("SessionExpire", 10000, true, () =>
             {
                 var toRemove = new List<uint>();
@@ -322,10 +350,10 @@ namespace Rasa.Game
             // see this, and how hard the server is breathing is not their business.
             if (Config.GameConfig.PerformanceMetricsInterval > 0)
                 Timer.Add("PerformanceMetrics", Config.GameConfig.PerformanceMetricsInterval, true, SendPerformanceMetrics);
+        }
 
-            // Load items from db
-            EntityClassManager.Instance.LoadEntityClasses();
-            MissionManager.Instance.LoadMissions();
+        private void LoadRemainingRuntimeData()
+        {
             CreatureManager.Instance.CreatureInit();
             SpawnPoolManager.Instance.SpawnPoolInit();
             ChatCommandsManager.Instance.RegisterChatCommands();
@@ -340,7 +368,10 @@ namespace Rasa.Game
             RecipeManager.Instance.RecipeInit();
             AbilityManager.Instance.AbilityInit();
             ManifestationManager.Instance.LoadSkillClasses();
+        }
 
+        private void PublishReady()
+        {
             // Last line of Start(), and it has to stay last. It used to sit inside
             // MapChannelInit, which is the sixth of the loaders above - so the navmesh, the
             // clans, the dynamic objects, the map triggers, the map links, the regions, the
@@ -349,8 +380,23 @@ namespace Rasa.Game
             // to tell a server still loading from one that was up.
             Logger.WriteLog(LogType.Initialize, "");
             Logger.WriteLog(LogType.Initialize, "Server ready!");
+        }
 
-            return true;
+        internal static bool LogMissionValidationAndCheckReadiness(
+            Structures.Missions.MissionValidationReport missionValidation)
+        {
+            if (missionValidation == null)
+                throw new ArgumentNullException(nameof(missionValidation));
+
+            foreach (var diagnostic in missionValidation.Diagnostics)
+                Logger.WriteLog(LogType.Error, diagnostic.ToOperatorMessage());
+            if (!missionValidation.BlocksReadiness)
+                return true;
+
+            Logger.WriteLog(
+                LogType.Error,
+                "Mission content validation failed for required content; the Game server will not report ready.");
+            return false;
         }
 
         private void OnLogin(LoginClient client)

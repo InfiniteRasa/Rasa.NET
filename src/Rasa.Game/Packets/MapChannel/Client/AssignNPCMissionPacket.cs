@@ -1,4 +1,6 @@
-﻿namespace Rasa.Packets.MapChannel.Client
+﻿using System.IO;
+
+namespace Rasa.Packets.MapChannel.Client
 {
     using Data;
     using Memory;
@@ -12,9 +14,10 @@
 
         public override void Read(PythonReader pr)
         {
-            pr.ReadTuple();
+            if (pr.ReadTuple() != 2)
+                throw new InvalidDataException("NPC mission assignment requires NPC and mission fields.");
             NpcEntityId = pr.ReadULong();
-            MissionId = (uint)pr.ReadInt();
+            MissionId = pr.ReadUInt();
         }
     }
 }

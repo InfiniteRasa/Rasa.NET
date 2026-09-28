@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Rasa.Packets.MapChannel.Server
 {
@@ -38,6 +39,8 @@ namespace Rasa.Packets.MapChannel.Server
 
         /// <summary>For lightning: OnHitData is (arcData,), the arcs to draw. Empty for everything else.</summary>
         public bool ArcData { get; set; }
+        private AbilityHit[] _capturedHits;
+        private ulong[] _capturedMisses;
 
         public AbilityRecoveryPacket(ActionId actionId, uint actionArgId, HitDataKind kind)
         {
@@ -48,23 +51,26 @@ namespace Rasa.Packets.MapChannel.Server
 
         public override void Write(PythonWriter pw)
         {
+            _capturedHits ??= Hits.Select(AbilityHit.Capture).ToArray();
+            _capturedMisses ??= Misses.ToArray();
+
             pw.WriteTuple(6);
             pw.WriteUInt((uint)ActionId);
             pw.WriteUInt(ActionArgId);
 
-            pw.WriteList(Hits.Count);
-            foreach (var hit in Hits)
+            pw.WriteList(_capturedHits.Length);
+            foreach (var hit in _capturedHits)
                 pw.WriteULong(hit.EntityId);
 
-            pw.WriteList(Misses.Count);
-            foreach (var miss in Misses)
+            pw.WriteList(_capturedMisses.Length);
+            foreach (var miss in _capturedMisses)
                 pw.WriteULong(miss);
 
             pw.WriteList(0);                    // missdata
 
-            pw.WriteList(Kind == HitDataKind.None ? 0 : Hits.Count);
+            pw.WriteList(Kind == HitDataKind.None ? 0 : _capturedHits.Length);
 
-            foreach (var hit in Hits)
+            foreach (var hit in _capturedHits)
             {
                 switch (Kind)
                 {
@@ -78,17 +84,34 @@ namespace Rasa.Packets.MapChannel.Server
                         break;
                     case HitDataKind.Damage:
                         pw.WriteTuple(2);
-                        DamageInfoWriter.WriteRawInfo(pw, hit.DamageType, hit.Amount, hit.Resisted, hit.IsCritical, hit.DeathBlow);
+                        WriteRaw(pw, hit);
                         if (ArcData)
                         {
                             pw.WriteTuple(1);               // onHitData = (arcData,)
-                            pw.WriteList(0);
+                            pw.WriteList(hit.Arcs.Count);
+                            foreach (var arc in hit.Arcs)
+                            {
+                                pw.WriteTuple(2);
+                                pw.WriteULong(arc.EntityId);
+                                WriteRaw(pw, arc);
+                            }
                         }
                         else
                             pw.WriteNoneStruct();           // onHitData
                         break;
                 }
             }
+        }
+
+        private static void WriteRaw(PythonWriter pw, AbilityHit hit)
+        {
+            DamageInfoWriter.WriteRawInfo(
+                pw,
+                hit.DamageType,
+                hit.Amount,
+                hit.Resisted,
+                hit.IsCritical,
+                hit.DeathBlow);
         }
     }
 
@@ -100,6 +123,26 @@ namespace Rasa.Packets.MapChannel.Server
         public DamageType DamageType { get; set; }
         public bool IsCritical { get; set; }
         public bool DeathBlow { get; set; }
+        public List<AbilityHit> Arcs { get; } = new List<AbilityHit>();
+
+        internal static AbilityHit Capture(AbilityHit source)
+        {
+            var captured = new AbilityHit
+            {
+                EntityId = source.EntityId,
+                Amount = source.Amount,
+                Resisted = source.Resisted,
+                DamageType = source.DamageType,
+                IsCritical = source.IsCritical,
+                DeathBlow = source.DeathBlow,
+                EffectTypeId = source.EffectTypeId
+            };
+
+            foreach (var arc in source.Arcs)
+                captured.Arcs.Add(Capture(arc));
+
+            return captured;
+        }
 
         /// <summary>For HitDataKind.EffectAttach: the gameeffectdata id the client announces on this entity.</summary>
         public int EffectTypeId { get; set; }
