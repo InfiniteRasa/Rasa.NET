@@ -129,11 +129,15 @@ namespace Rasa.Managers
             if (classInfo?.ItemClassInfo == null)
                 return null;
 
+            // One of each: SendItemDataToClient sends StackSize as the stack count, and left at
+            // 0 every item on every vendor's counter drew "had SetStackCount called to 0 but its
+            // not stackable" on the client, and a stackable one showed a stack of nothing.
             var item = new Item
             {
                 ItemTemplate = itemTemplate,
-                CurrentHitPoints = classInfo.ItemClassInfo.MaxHitPoints
-            } ;
+                CurrentHitPoints = classInfo.ItemClassInfo.MaxHitPoints,
+                StackSize = 1
+            };
 
             // register item
             EntityManager.Instance.RegisterEntity(item.EntityId, EntityType.Item);

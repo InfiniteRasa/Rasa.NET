@@ -17,14 +17,41 @@
             EntityClass = entityClass;
         }
 
+        /// <summary>
+        /// The augmentations this packet has an entry for. The dictionary's length goes out
+        /// before its entries, so it has to count only what is written: a Recipe item (16) - the
+        /// dye recipes, every crafting recipe - announced two entries and wrote one, and the
+        /// client refused the whole reply ("Unable to unpack args for methodName=
+        /// ItemTemplateTooltipInfo"), so the item had no tooltip. The client reads a recipe's
+        /// tooltip from its own recipe data, not from here.
+        /// </summary>
+        private static bool Written(AugmentationType augmentation) => augmentation switch
+        {
+            AugmentationType.Weapon => true,
+            AugmentationType.Equipable => true,
+            AugmentationType.Item => true,
+            AugmentationType.Armor => true,
+            AugmentationType.Customization => true,
+            _ => false
+        };
+
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(3);
             pw.WriteUInt(ItemTemplate.ItemTemplateId);
             pw.WriteUInt((uint)ItemTemplate.Class);
-            pw.WriteDictionary(EntityClass.Augmentations.Count);
+
+            var written = 0;
+            foreach (var augmentation in EntityClass.Augmentations)
+                if (Written(augmentation))
+                    written++;
+
+            pw.WriteDictionary(written);
             foreach (var augumentation in EntityClass.Augmentations)
             {
+                if (!Written(augumentation))
+                    continue;
+
                 switch (augumentation)
                 {
                     case AugmentationType.Weapon:
@@ -153,7 +180,7 @@
                         break;
 
                     default:
-                        Logger.WriteLog(LogType.Error, $"ItemTemplateTooltipInfoPacket:\n recived unsuported augumentationType {augumentation}");
+                        // Unreachable: Written() leaves every other augmentation out.
                         break;
                 }
             }

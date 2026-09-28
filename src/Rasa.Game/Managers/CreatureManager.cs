@@ -551,9 +551,11 @@ namespace Rasa.Managers
                 creature.SpawnPool?.FollowOwnerCharacterId == client.Player?.Id)
                 entityData.Add(new UpdateEscortStatusPacket(true));
 
-            // A clone's "Clone of %s" takes its master's name from here.
+            // A clone's "Clone of %s" takes its master's name from here, and an NPC with no
+            // creature name id (creature_actor_name) shows it as its whole name - which the
+            // client's SetText only takes as unicode.
             if (creature.ActorName != null)
-                entityData.Add(new ActorNamePacket(creature.ActorName));
+                entityData.Add(new ActorNamePacket(creature.ActorName, true));
 
             // What it is fighting: a turret's gun, a Stalker's or a Strider's comes round to it.
             if (Targets.Current(creature) is var target && target != 0)
