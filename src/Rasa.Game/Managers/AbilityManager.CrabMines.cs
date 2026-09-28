@@ -332,12 +332,13 @@ namespace Rasa.Managers
                 var rolled = GameEffectManager.ApplyDamageDealt(owner, Scale(owner.Level, BombRandom.Next(mine.DamageMin, mine.DamageMax + 1), mine.ScaleType), mine.BonusPercent);
                 var crit = CriticalHits.Resolve(owner, victim, false, critChance, ref rolled);
                 var amount = GameEffectManager.ApplyResist(victim, rolled, out var resisted, mine.DamageType);
-                var taken = ActorManager.Instance.Damage(mapChannel, victim, amount, owner, mine.DamageType);
+                var taken = ActorManager.Instance.Damage(mapChannel, victim, amount, owner, out var absorbed, mine.DamageType);
 
                 blast.Hits.Add(new AbilityHit
                 {
                     EntityId = victim.EntityId,
-                    Amount = amount,
+                    Amount = amount - absorbed,
+                    Absorbed = absorbed,
                     Resisted = resisted,
                     DamageType = mine.DamageType,
                     IsCritical = crit,

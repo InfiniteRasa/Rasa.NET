@@ -1164,7 +1164,7 @@ namespace Rasa.Managers
             client.Player.Credits[CurencyType.Credits] = (int)purseAfter;
             client.Player.LockboxCredits = (int)lockboxAfter;
 
-            client.CallMethod(client.Player.EntityId, new UpdateCreditsPacket(CurencyType.Credits, (int)purseAfter, 0));
+            client.CallMethod(client.Player.EntityId, new UpdateCreditsPacket(CurencyType.Credits, (int)purseAfter, (int)(purseAfter - purse)));
             client.CallMethod(client.Player.EntityId, new LockboxFundsPacket((int)lockboxAfter));
         }
 
@@ -1424,7 +1424,7 @@ namespace Rasa.Managers
             }
 
             client.Player.Credits[currency] = (int)playerAfter;
-            client.CallMethod(client.Player.EntityId, new UpdateCreditsPacket(currency, (int)playerAfter, 0));
+            client.CallMethod(client.Player.EntityId, new UpdateCreditsPacket(currency, (int)playerAfter, (int)-amount));
 
             var lockboxCredits = creditType == 1 ? (uint)lockboxAfter : clanInfo.Credits;
             var lockboxPrestige = creditType == 2 ? (uint)lockboxAfter : clanInfo.Prestige;

@@ -83,7 +83,7 @@ namespace Rasa.Packets.MapChannel.Server.PerformRecovery
                         {
                             pw.WriteTuple(2);
                             pw.WriteULong(arc.EntityId);
-                            DamageInfoWriter.WriteRawInfo(pw, arc.DamageType, arc.Amount, arc.Resisted, arc.IsCritical, arc.DeathBlow);
+                            DamageInfoWriter.WriteRawInfo(pw, arc.DamageType, arc.Amount, arc.Resisted, arc.IsCritical, arc.DeathBlow, absorbed: arc.Absorbed);
                         }
                         break;
                     case RecoveryShape.EntityRawInfo:

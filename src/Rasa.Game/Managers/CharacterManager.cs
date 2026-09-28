@@ -1420,7 +1420,7 @@ namespace Rasa.Managers
 
             client.Player.Credits[type] = next;
             client.CallMethod(client.Player.EntityId,
-                new UpdateCreditsPacket(type, next, 0));
+                new UpdateCreditsPacket(type, next, next - current));
             return true;
         }
     }

@@ -19,15 +19,20 @@
         public DamageType DamageType { get; }
         public int Amount { get; }
         public bool DeathBlow { get; }
+
+        /// <summary>What a shield on the one it hit took; Amount is what got through.</summary>
+        public int Absorbed { get; }
+
         public int DelayMs { get; }
 
-        public GameEffectAnnounceReflectPacket(int effectId, ulong attackerId, DamageType damageType, int amount, bool deathBlow, int delayMs = 0)
+        public GameEffectAnnounceReflectPacket(int effectId, ulong attackerId, DamageType damageType, int amount, bool deathBlow, int delayMs = 0, int absorbed = 0)
         {
             EffectId = effectId;
             AttackerId = attackerId;
             DamageType = damageType;
             Amount = amount;
             DeathBlow = deathBlow;
+            Absorbed = absorbed;
             DelayMs = delayMs;
         }
 
@@ -38,7 +43,7 @@
             pw.WriteString("AnnounceReflect");
             pw.WriteTuple(3);                   // args = (entityId, rawInfo, delayMs)
             pw.WriteULong(AttackerId);
-            DamageInfoWriter.WriteRawInfo(pw, DamageType, Amount, 0, false, DeathBlow);
+            DamageInfoWriter.WriteRawInfo(pw, DamageType, Amount, 0, false, DeathBlow, absorbed: Absorbed);
             pw.WriteInt(DelayMs);
         }
     }

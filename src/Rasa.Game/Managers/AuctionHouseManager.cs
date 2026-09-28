@@ -193,6 +193,9 @@ namespace Rasa.Managers
                 return;
             }
 
+            var buyerBefore = client.Player.Credits.GetValueOrDefault(CurencyType.Credits);
+            var sellerBefore = result.Seller?.Player.Credits.GetValueOrDefault(CurencyType.Credits) ?? 0;
+
             client.Player.Credits[CurencyType.Credits] = result.BuyerCredits;
             if (result.Seller != null)
                 result.Seller.Player.Credits[CurencyType.Credits] =
@@ -210,7 +213,7 @@ namespace Rasa.Managers
                 new UpdateCreditsPacket(
                     CurencyType.Credits,
                     result.BuyerCredits,
-                    0),
+                    result.BuyerCredits - buyerBefore),
                 $"auction item {item.Id} buyer credits");
             if (result.Seller != null)
                 MissionApplication.TryPublish(
@@ -219,7 +222,7 @@ namespace Rasa.Managers
                         new UpdateCreditsPacket(
                             CurencyType.Credits,
                             result.SellerCredits,
-                            0)),
+                            result.SellerCredits - sellerBefore)),
                     $"auction item {item.Id} seller credits");
             MissionApplication.TryPublish(
                 () => ItemManager.Instance.SendItemDataToClient(

@@ -695,12 +695,13 @@ namespace Rasa.Managers
             {
                 var rolled = AbilityManager.Scale(effect.SourceLevel, _random.Next(effect.TickDamageMin, effect.TickDamageMax + 1), effect.TickScaleType);
                 var amount = ApplyResist(target, rolled, out var resisted, effect.TickDamageType);
-                var taken = ActorManager.Instance.Damage(mapChannel, target, amount, source, effect.TickDamageType, isPeriodic: true);
+                var taken = ActorManager.Instance.Damage(mapChannel, target, amount, source, out var absorbed, effect.TickDamageType, isPeriodic: true);
 
                 hits.Add(new TickEntry
                 {
                     EntityId = target.EntityId,
-                    Amount = amount,
+                    Amount = amount - absorbed,
+                    Absorbed = absorbed,
                     Resisted = resisted,
                     DamageType = effect.TickDamageType,
                     DeathBlow = taken > 0 && target.Attributes[Attributes.Health].Current <= 0

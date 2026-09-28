@@ -275,6 +275,22 @@ namespace Rasa.Managers
         /// <param name="isPeriodic">Ticks contribute damage credit without issuing a new escort attack order.</param>
         public int Damage(MapChannel mapChannel, Actor target, int amount, Actor source, DamageType damageType = DamageType.Physical, bool isPeriodic = false)
         {
+            return Damage(mapChannel, target, amount, source, out _, damageType, isPeriodic);
+        }
+
+        /// <summary>
+        /// Damage, with what a shield on the target took of it. A shield (Shield Extender,
+        /// Shield Wave: GameEffectManager.ApplyAbsorb) takes its share before the armour, as it
+        /// does of weapon fire in MissileManager, so what comes in here is the amount after
+        /// resistance and the hit to report is amount - absorbed, with absorbed beside it.
+        /// Falling is not combat damage and does not come through here (FallDamage.Apply): a
+        /// shield does not soften a fall.
+        /// </summary>
+        /// <param name="absorbed">What the shield took; 0 when there is none, or the hit did not land.</param>
+        public int Damage(MapChannel mapChannel, Actor target, int amount, Actor source, out int absorbed, DamageType damageType = DamageType.Physical, bool isPeriodic = false)
+        {
+            absorbed = 0;
+
             if (target == null || amount <= 0 || target.State == CharacterState.Dead || target.State == CharacterState.Dying)
                 return 0;
 
@@ -297,6 +313,12 @@ namespace Rasa.Managers
             }
             if (!isPeriodic && target is Creature attackedCreature)
                 CreatureManager.RecordOwnerAttack(mapChannel, source, attackedCreature);
+
+            // A shield takes its share first; a hit it takes all of goes no further.
+            amount = GameEffectManager.Instance.ApplyAbsorb(mapChannel, target, amount, out absorbed);
+
+            if (amount <= 0)
+                return 0;
 
             var armorTaken = 0;
 

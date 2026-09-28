@@ -121,12 +121,13 @@ namespace Rasa.Managers
                 var rolled = GameEffectManager.ApplyDamageDealt(player, Scale(bomb.SourceLevel, BombRandom.Next(bomb.TickDamageMin, bomb.TickDamageMax + 1), bomb.TickScaleType));
                 var crit = CriticalHits.Resolve(player, victim, false, critChance, ref rolled);
                 var amount = GameEffectManager.ApplyResist(victim, rolled, out var resisted, bomb.TickDamageType);
-                var taken = ActorManager.Instance.Damage(mapChannel, victim, amount, player, bomb.TickDamageType);
+                var taken = ActorManager.Instance.Damage(mapChannel, victim, amount, player, out var absorbed, bomb.TickDamageType);
 
                 blast.Hits.Add(new TickEntry
                 {
                     EntityId = victim.EntityId,
-                    Amount = amount,
+                    Amount = amount - absorbed,
+                    Absorbed = absorbed,
                     Resisted = resisted,
                     DamageType = bomb.TickDamageType,
                     IsCritical = crit,
@@ -231,12 +232,13 @@ namespace Rasa.Managers
                     var rolled = GameEffectManager.ApplyDamageDealt(player, Scale(player.Level, BombRandom.Next(min, max + 1), scaleType));
                     var crit = CriticalHits.Resolve(player, victim, false, critChance, ref rolled);
                     var amount = GameEffectManager.ApplyResist(victim, rolled, out var resisted, damageType);
-                    var taken = ActorManager.Instance.Damage(mapChannel, victim, amount, player, damageType);
+                    var taken = ActorManager.Instance.Damage(mapChannel, victim, amount, player, out var absorbed, damageType);
 
                     blast.Hits.Add(new TickEntry
                     {
                         EntityId = victim.EntityId,
-                        Amount = amount,
+                        Amount = amount - absorbed,
+                        Absorbed = absorbed,
                         Resisted = resisted,
                         DamageType = damageType,
                         IsCritical = crit,

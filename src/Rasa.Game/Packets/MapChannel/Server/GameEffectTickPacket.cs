@@ -90,7 +90,7 @@ namespace Rasa.Packets.MapChannel.Server
                     case TickKind.Damage:
                         pw.WriteTuple(2);
                         pw.WriteULong(entry.EntityId);
-                        DamageInfoWriter.WriteRawInfo(pw, entry.DamageType, entry.Amount, entry.Resisted, entry.IsCritical, entry.DeathBlow);
+                        DamageInfoWriter.WriteRawInfo(pw, entry.DamageType, entry.Amount, entry.Resisted, entry.IsCritical, entry.DeathBlow, absorbed: entry.Absorbed);
                         break;
                     case TickKind.Heal:
                         pw.WriteTuple(2);
@@ -124,7 +124,7 @@ namespace Rasa.Packets.MapChannel.Server
             {
                 pw.WriteTuple(2);
                 pw.WriteULong(entry.EntityId);
-                DamageInfoWriter.WriteRawInfo(pw, entry.DamageType, entry.Amount, entry.Resisted, entry.IsCritical, entry.DeathBlow);
+                DamageInfoWriter.WriteRawInfo(pw, entry.DamageType, entry.Amount, entry.Resisted, entry.IsCritical, entry.DeathBlow, absorbed: entry.Absorbed);
             }
         }
     }
@@ -132,8 +132,13 @@ namespace Rasa.Packets.MapChannel.Server
     public class TickEntry
     {
         public ulong EntityId { get; set; }
+
+        /// <summary>What got through to armour and health: after resistance and after a shield.</summary>
         public int Amount { get; set; }
         public int Resisted { get; set; }
+
+        /// <summary>What a shield on the target took of the hit (ActorManager.Damage).</summary>
+        public int Absorbed { get; set; }
         public DamageType DamageType { get; set; }
         public bool IsCritical { get; set; }
         public bool DeathBlow { get; set; }

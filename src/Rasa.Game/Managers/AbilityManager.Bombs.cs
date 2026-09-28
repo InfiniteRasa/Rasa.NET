@@ -83,12 +83,13 @@ namespace Rasa.Managers
                 var rolled = GameEffectManager.ApplyDamageDealt(player, Scale(bomb.SourceLevel, BombRandom.Next(bomb.TickDamageMin, bomb.TickDamageMax + 1), bomb.TickScaleType));
                 var crit = CriticalHits.Resolve(player, victim, false, critChance, ref rolled);
                 var amount = GameEffectManager.ApplyResist(victim, rolled, out var resisted, bomb.TickDamageType);
-                var taken = ActorManager.Instance.Damage(mapChannel, victim, amount, player, bomb.TickDamageType);
+                var taken = ActorManager.Instance.Damage(mapChannel, victim, amount, player, out var absorbed, bomb.TickDamageType);
 
                 blast.Hits.Add(new TickEntry
                 {
                     EntityId = victim.EntityId,
-                    Amount = amount,
+                    Amount = amount - absorbed,
+                    Absorbed = absorbed,
                     Resisted = resisted,
                     DamageType = bomb.TickDamageType,
                     IsCritical = crit,
@@ -152,14 +153,15 @@ namespace Rasa.Managers
                     rolled = BombRandom.Next(nanites.OnDamagedMin, nanites.OnDamagedMax + 1);
 
                 var amount = GameEffectManager.ApplyResist(player, rolled, out var resisted, nanites.OnDamagedType);
-                var taken = ActorManager.Instance.Damage(mapChannel, player, amount, thrax, nanites.OnDamagedType);
+                var taken = ActorManager.Instance.Damage(mapChannel, player, amount, thrax, out var absorbed, nanites.OnDamagedType);
 
                 var announce = new GameEffectAnnounceDamagePacket(nanites.EffectId);
 
                 announce.Hits.Add(new TickEntry
                 {
                     EntityId = player.EntityId,
-                    Amount = amount,
+                    Amount = amount - absorbed,
+                    Absorbed = absorbed,
                     Resisted = resisted,
                     DamageType = nanites.OnDamagedType,
                     DeathBlow = false
@@ -208,14 +210,15 @@ namespace Rasa.Managers
 
                 var rolled = GameEffectManager.ApplyDamageDealt(player, Scale(nanites.SourceLevel, BombRandom.Next(nanites.OnDamagedMin, nanites.OnDamagedMax + 1), nanites.TickScaleType));
                 var amount = GameEffectManager.ApplyResist(creature, rolled, out var resisted, nanites.OnDamagedType);
-                var taken = ActorManager.Instance.Damage(mapChannel, creature, amount, player, nanites.OnDamagedType);
+                var taken = ActorManager.Instance.Damage(mapChannel, creature, amount, player, out var absorbed, nanites.OnDamagedType);
 
                 var announce = new GameEffectAnnounceDamagePacket(nanites.EffectId);
 
                 announce.Hits.Add(new TickEntry
                 {
                     EntityId = creature.EntityId,
-                    Amount = amount,
+                    Amount = amount - absorbed,
+                    Absorbed = absorbed,
                     Resisted = resisted,
                     DamageType = nanites.OnDamagedType,
                     DeathBlow = taken > 0 && creature.Attributes[Attributes.Health].Current <= 0

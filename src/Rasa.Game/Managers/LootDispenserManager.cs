@@ -999,13 +999,13 @@ namespace Rasa.Managers
                         new UpdateCreditsPacket(
                             CurencyType.Credits,
                             creditsAfter,
-                            0)),
+                            ownShare)),
                     $"corpse {loot.EntityId} credits");
             foreach (var other in others)
                 MissionApplication.TryPublish(
                     () => other.Recipient.CallMethod(
                         other.Recipient.Player.EntityId,
-                        new UpdateCreditsPacket(CurencyType.Credits, other.After, 0)),
+                        new UpdateCreditsPacket(CurencyType.Credits, other.After, other.Share)),
                     $"corpse {loot.EntityId} squad credits");
 
             // No ActorGotLoot: its only effect is the pick-up sound, which the GotLoot below plays

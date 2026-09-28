@@ -68,12 +68,13 @@ namespace Rasa.Managers
                 .FirstOrDefault();
 
             int taken;
+            int absorbed;
 
             _reflecting = true;
 
             try
             {
-                taken = ActorManager.Instance.Damage(mapChannel, attacker, reflected, victim, damageType);
+                taken = ActorManager.Instance.Damage(mapChannel, attacker, reflected, victim, out absorbed, damageType);
             }
             finally
             {
@@ -83,8 +84,8 @@ namespace Rasa.Managers
             if (carrier == null || !(victim is Manifestation player))
                 return taken;
 
-            var announce = new GameEffectAnnounceReflectPacket(carrier.EffectId, attacker.EntityId, damageType, reflected,
-                taken > 0 && attacker.Attributes[Attributes.Health].Current <= 0);
+            var announce = new GameEffectAnnounceReflectPacket(carrier.EffectId, attacker.EntityId, damageType, reflected - absorbed,
+                taken > 0 && attacker.Attributes[Attributes.Health].Current <= 0, absorbed: absorbed);
 
             if (carrier.TypeId == ReflectionTypeId && !carrier.IsSkillPassive)
                 CellManager.Instance.CellCallMethod(mapChannel, player, announce);

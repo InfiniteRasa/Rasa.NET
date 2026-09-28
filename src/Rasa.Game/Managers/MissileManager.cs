@@ -311,13 +311,14 @@ namespace Rasa.Managers
 
                 var rolled = AbilityManager.Scale(effect.SourceLevel, _random.Next(effect.WeaponBonusMin, effect.WeaponBonusMax + 1), effect.TickScaleType);
                 var amount = GameEffectManager.ApplyResist(target, rolled, out var resisted, effect.WeaponBonusType);
-                var taken = ActorManager.Instance.Damage(mapChannel, target, amount, shooter, effect.WeaponBonusType);
+                var taken = ActorManager.Instance.Damage(mapChannel, target, amount, shooter, out var absorbed, effect.WeaponBonusType);
 
                 var announce = new GameEffectAnnounceDamagePacket(effect.EffectId);
                 announce.Hits.Add(new TickEntry
                 {
                     EntityId = target.EntityId,
-                    Amount = amount,
+                    Amount = amount - absorbed,
+                    Absorbed = absorbed,
                     Resisted = resisted,
                     DamageType = effect.WeaponBonusType,
                     DeathBlow = taken > 0 && target.Attributes[Attributes.Health].Current <= 0

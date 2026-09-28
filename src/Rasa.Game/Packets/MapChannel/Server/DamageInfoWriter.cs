@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 namespace Rasa.Packets.MapChannel.Server
 {
@@ -12,14 +13,16 @@ namespace Rasa.Packets.MapChannel.Server
     /// </summary>
     public static class DamageInfoWriter
     {
+        /// <param name="finalAmount">What got through to armour and health: after resistance and after a shield.</param>
         /// <param name="coverModifier">The share that got past cover: 1.0 for none in the way. The client's hit display is red at 0.8 and above, then orange, yellow, and green below 0.2 - so 0 reads as fully covered.</param>
-        public static void WriteRawInfo(PythonWriter pw, DamageType damageType, long finalAmount, int resisted = 0, bool isCritical = false, bool deathBlow = false, double coverModifier = 1.0)
+        /// <param name="absorbed">What a shield on the target took (Shield Extender, Shield Wave). The client floats finalAmt + absorbed with the absorbed share in brackets ("-120(40)"), puts "(40 absorbed)" in the combat log, and plays the hit reaction for a hit the shield took all of.</param>
+        public static void WriteRawInfo(PythonWriter pw, DamageType damageType, long finalAmount, int resisted = 0, bool isCritical = false, bool deathBlow = false, double coverModifier = 1.0, int absorbed = 0)
         {
             pw.WriteTuple(12);
             pw.WriteUInt((uint)damageType);     // damageType
             pw.WriteUInt(0);                    // reflected
             pw.WriteUInt(0);                    // filtered
-            pw.WriteUInt(0);                    // absorbed
+            pw.WriteUInt((uint)Math.Max(0, absorbed));  // absorbed
             pw.WriteUInt((uint)resisted);       // resisted
             pw.WriteLong(finalAmount);          // finalAmt
             pw.WriteInt(isCritical ? 1 : 0);    // isCrit

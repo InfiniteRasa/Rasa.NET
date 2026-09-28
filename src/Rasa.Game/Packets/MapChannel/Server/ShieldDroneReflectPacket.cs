@@ -26,13 +26,17 @@ namespace Rasa.Packets.MapChannel.Server
         public int Amount { get; }
         public bool DeathBlow { get; }
 
-        public ShieldDroneReflectPacket(int effectId, ulong damageTargetId, DamageType damageType, int amount, bool deathBlow)
+        /// <summary>What a shield on the one it hit took; Amount is what got through.</summary>
+        public int Absorbed { get; }
+
+        public ShieldDroneReflectPacket(int effectId, ulong damageTargetId, DamageType damageType, int amount, bool deathBlow, int absorbed = 0)
         {
             EffectId = effectId;
             DamageTargetId = damageTargetId;
             DamageType = damageType;
             Amount = amount;
             DeathBlow = deathBlow;
+            Absorbed = absorbed;
         }
 
         public override void Write(PythonWriter pw)
@@ -42,7 +46,7 @@ namespace Rasa.Packets.MapChannel.Server
             pw.WriteString("ReflectDamage");
             pw.WriteTuple(2);                   // args = (damageTargetId, rawInfo)
             pw.WriteULong(DamageTargetId);
-            DamageInfoWriter.WriteRawInfo(pw, DamageType, Amount, 0, false, DeathBlow);
+            DamageInfoWriter.WriteRawInfo(pw, DamageType, Amount, 0, false, DeathBlow, absorbed: Absorbed);
         }
     }
 }

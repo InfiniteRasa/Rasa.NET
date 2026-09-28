@@ -136,14 +136,15 @@ namespace Rasa.Managers
         private static TickEntry Deal(MapChannel mapChannel, Creature attacker, Actor victim, int damage, DamageType damageType)
         {
             var amount = GameEffectManager.ApplyResist(victim, damage, out var resisted, damageType);
-            var taken = ActorManager.Instance.Damage(mapChannel, victim, amount, attacker, damageType);
+            var taken = ActorManager.Instance.Damage(mapChannel, victim, amount, attacker, out var absorbed, damageType);
 
-            Reflection.Reflect(mapChannel, victim, attacker, amount, damageType);
+            Reflection.Reflect(mapChannel, victim, attacker, amount - absorbed, damageType);
 
             return new TickEntry
             {
                 EntityId = victim.EntityId,
-                Amount = amount,
+                Amount = amount - absorbed,
+                Absorbed = absorbed,
                 Resisted = resisted,
                 DamageType = damageType,
                 DeathBlow = taken > 0 && victim is Creature && victim.Attributes[Attributes.Health].Current <= 0

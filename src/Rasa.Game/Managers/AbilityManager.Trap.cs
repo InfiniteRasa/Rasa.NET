@@ -347,7 +347,7 @@ namespace Rasa.Managers
                 ? trap.ShotDamage
                 : Scale(trap.Owner.Level, BombRandom.Next(trap.ShotMin, trap.ShotMax + 1), trap.ShotScale);
             var amount = GameEffectManager.ApplyResist(target, shot, out var resisted, trap.ShotType);
-            var taken = ActorManager.Instance.Damage(mapChannel, target, amount, turret, trap.ShotType);
+            var taken = ActorManager.Instance.Damage(mapChannel, target, amount, turret, out var absorbed, trap.ShotType);
 
             var tick = new ConstantFireTickPacket(trap.Firing.EffectId, false);
             tick.Pulses.Add(new List<TickEntry>
@@ -355,7 +355,8 @@ namespace Rasa.Managers
                 new TickEntry
                 {
                     EntityId = target.EntityId,
-                    Amount = amount,
+                    Amount = amount - absorbed,
+                    Absorbed = absorbed,
                     Resisted = resisted,
                     DamageType = trap.ShotType,
                     DeathBlow = taken > 0 && target.Attributes[Attributes.Health].Current <= 0
@@ -423,12 +424,13 @@ namespace Rasa.Managers
                 var rolled = GameEffectManager.ApplyDamageDealt(owner, Scale(owner.Level, BombRandom.Next(trap.StrikeMin, trap.StrikeMax + 1), trap.StrikeScale));
                 var crit = CriticalHits.Resolve(owner, victim, false, critChance, ref rolled);
                 var amount = GameEffectManager.ApplyResist(victim, rolled, out var resisted, trap.StrikeType);
-                var taken = ActorManager.Instance.Damage(mapChannel, victim, amount, owner, trap.StrikeType);
+                var taken = ActorManager.Instance.Damage(mapChannel, victim, amount, owner, out var absorbed, trap.StrikeType);
 
                 strike.Hits.Add(new TickEntry
                 {
                     EntityId = victim.EntityId,
-                    Amount = amount,
+                    Amount = amount - absorbed,
+                    Absorbed = absorbed,
                     Resisted = resisted,
                     DamageType = trap.StrikeType,
                     IsCritical = crit,

@@ -177,19 +177,19 @@ namespace Rasa.Managers
                     var crit = CriticalHits.Resolve(miasma, victim, false, CriticalHits.AttackerChance(miasma, false), ref rolled);
                     var amount = GameEffectManager.ApplyResist(victim, rolled, out var resisted, type);
 
-                    ActorManager.Instance.Damage(mapChannel, victim, amount, miasma, type);
-                    Reflection.Reflect(mapChannel, victim, miasma, amount, type);
+                    ActorManager.Instance.Damage(mapChannel, victim, amount, miasma, out var absorbed, type);
+                    Reflection.Reflect(mapChannel, victim, miasma, amount - absorbed, type);
 
-                    var hit = new AbilityHit { EntityId = victim.EntityId, Amount = amount, Resisted = resisted, DamageType = type, IsCritical = crit };
+                    var hit = new AbilityHit { EntityId = victim.EntityId, Amount = amount - absorbed, Absorbed = absorbed, Resisted = resisted, DamageType = type, IsCritical = crit };
                     var (extraType, extraRolled) = ExtraOf(rolled, info);
 
                     if (extraType != 0 && extraRolled > 0)
                     {
                         var extra = GameEffectManager.ApplyResist(victim, extraRolled, out var extraResisted, extraType);
 
-                        ActorManager.Instance.Damage(mapChannel, victim, extra, miasma, extraType);
-                        Reflection.Reflect(mapChannel, victim, miasma, extra, extraType);
-                        hit.Extra = new AbilityHit { EntityId = victim.EntityId, Amount = extra, Resisted = extraResisted, DamageType = extraType };
+                        ActorManager.Instance.Damage(mapChannel, victim, extra, miasma, out var extraAbsorbed, extraType);
+                        Reflection.Reflect(mapChannel, victim, miasma, extra - extraAbsorbed, extraType);
+                        hit.Extra = new AbilityHit { EntityId = victim.EntityId, Amount = extra - extraAbsorbed, Absorbed = extraAbsorbed, Resisted = extraResisted, DamageType = extraType };
                     }
 
                     recovery.Hits.Add(hit);

@@ -579,9 +579,11 @@ namespace Rasa.Managers
         /// <summary>Applies a new credit total in memory and tells the player.</summary>
         private static void SetCredits(Client client, int amount)
         {
+            var before = client.Player.Credits.GetValueOrDefault(CurencyType.Credits);
+
             client.Player.Credits[CurencyType.Credits] = amount;
             client.CallMethod(client.Player.EntityId,
-                new UpdateCreditsPacket(CurencyType.Credits, amount, 0));
+                new UpdateCreditsPacket(CurencyType.Credits, amount, amount - before));
         }
 
         /// <summary>

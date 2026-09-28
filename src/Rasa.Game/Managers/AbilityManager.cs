@@ -1198,12 +1198,13 @@ namespace Rasa.Managers
                 var rolled = GameEffectManager.ApplyDamageDealt(player, Scale(player.Level, _random.Next(min, max + 1), scaleType));
                 var crit = CriticalHits.Resolve(player, target, false, critChance, ref rolled);
                 var amount = GameEffectManager.ApplyResist(target, rolled, out var resisted, damageType);
-                var taken = ActorManager.Instance.Damage(mapChannel, target, amount, player, damageType);
+                var taken = ActorManager.Instance.Damage(mapChannel, target, amount, player, out var absorbed, damageType);
 
                 var hit = new AbilityHit
                 {
                     EntityId = target.EntityId,
-                    Amount = amount,
+                    Amount = amount - absorbed,
+                    Absorbed = absorbed,
                     Resisted = resisted,
                     DamageType = damageType,
                     IsCritical = crit,
