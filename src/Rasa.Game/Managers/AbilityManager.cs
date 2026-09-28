@@ -333,12 +333,19 @@ namespace Rasa.Managers
                 return;
             }
 
-            // An emote the player already knows, or a rocket still in the air (AccountRewards).
-            var rewardRefusal = AccountRewardRefusal(mapChannel, player, action, info);
+            // An emote or title the player already has, a rocket still in the air (Toys).
+            var toyRefusal = ToyRefusal(mapChannel, player, action, info);
 
-            if (rewardRefusal.HasValue)
+            if (toyRefusal.HasValue)
             {
-                Fail(client, actionId, level, rewardRefusal.Value);
+                Fail(client, actionId, level, toyRefusal.Value);
+                return;
+            }
+
+            // The pet that is out, used again: it goes home, and nothing is performed.
+            if (TryDismissPet(player, action, level))
+            {
+                Fail(client, actionId, level, null);
                 return;
             }
 
@@ -459,7 +466,7 @@ namespace Rasa.Managers
             var wantsHostile = IsDirectDamage(action, info) || HostileEffectModules.Contains(action.Module);
 
             // A friendly buff lands on a player; a creature is not a friend to buff.
-            if (FriendlyEffectModules.Contains(action.Module) && target != null && !(target is Manifestation))
+            if ((FriendlyEffectModules.Contains(action.Module) || action.Module == SnowballModule) && target != null && !(target is Manifestation))
             {
                 Fail(client, actionId, level, PlayerMessage.PmTargetInvalid);
                 return;
@@ -633,7 +640,7 @@ namespace Rasa.Managers
                 || action.Module == SpotterModule || action.Module == BotConstructionModule || action.Module == CreateCloneModule
                 || MorphSupportModules.Contains(action.Module)
                 || IsDirectDamage(action, info) || TimedEffectModules.Contains(action.Module)
-                || IsEmoteItem(action, info) || IsModelRocket(action, info);
+                || IsToy(action, info);
         }
 
         /// <summary>
@@ -766,13 +773,12 @@ namespace Rasa.Managers
                 TakeCosts(client, player, info);
 
             // The items it takes, and the one it was used from, in one write; never a mission's.
-            // An emote item's flag goes in the same write; a model rocket is kept (AccountRewards).
-            IReadOnlyDictionary<uint, uint> committedFlags = null;
-            var flagWrite = EmoteItemFlagWrite(actionInfo, info, player, flags => committedFlags = flags);
+            // An emote's flag or a title goes in the same write; a rocket or a pet is kept (Toys).
+            var toyCommit = new ToyCommit();
 
             try
             {
-                ConsumeAbilityItems(client, info, KeepsSourceItem(actionInfo) ? 0 : action.ItemId, flagWrite);
+                ConsumeAbilityItems(client, info, KeepsSourceItem(actionInfo) ? 0 : action.ItemId, ToyWrite(actionInfo, info, player, toyCommit));
             }
             catch (Exception error) when (GameplayRejectionException.IsExpected(error))
             {
@@ -794,15 +800,9 @@ namespace Rasa.Managers
                 return;
             }
 
-            if (IsEmoteItem(actionInfo, info))
+            if (IsToy(actionInfo, info))
             {
-                LearnEmote(client, player, action, committedFlags);
-                return;
-            }
-
-            if (IsModelRocket(actionInfo, info))
-            {
-                LaunchModelRocket(mapChannel, player, info, action);
+                ResolveToy(mapChannel, client, player, actionInfo, info, action, toyCommit);
                 return;
             }
 
@@ -966,6 +966,14 @@ namespace Rasa.Managers
                 if (remaining != 0)
                     throw new GameplayRejectionException("Required ability items are no longer available.");
             }
+            // A kept source with requirements of quantity 0 (a pet summoner): nothing to take.
+            if (quantities.Count == 0)
+            {
+                if (alsoWrite != null)
+                    unit.ExecuteTransaction(() => alsoWrite(unit));
+
+                return;
+            }
             var consumption = new InventoryManager.InventoryConsumption();
             unit.ExecuteTransaction(() =>
             {
@@ -1033,8 +1041,8 @@ namespace Rasa.Managers
             if (action.TargetLocation.HasValue && !LocationInRange(player, action.TargetLocation.Value, info))
                 return PlayerMessage.PmTargetOutOfRange;
 
-            // A second emote item for the same emote, used during the first one's windup.
-            if (_actions.TryGetValue(action.ActionId, out var actionInfo) && IsEmoteItem(actionInfo, info) && KnowsEmote(player, info))
+            // A second emote or title item for the same one, used during the first one's windup.
+            if (_actions.TryGetValue(action.ActionId, out var actionInfo) && AlreadyHasReward(player, actionInfo, info))
                 return PlayerMessage.PmCannotPerformActionNow;
 
             return null;

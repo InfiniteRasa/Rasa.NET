@@ -22,11 +22,17 @@ namespace Rasa.Test.Missions
 
     [TestClass]
     [DoNotParallelize]
-    public class AccountRewardItemTests
+    public class ToyTests
     {
         private const uint LogosFistTemplate = 111120;     // "Logos Fist" Emote: 464 level 1, flag 388, /logosfist (2, 48)
         private const uint RocketTemplate = 122834;        // Soyuz ISS Model Rocket: 509 level 1, family 1902
         private const uint GameStopRocketTemplate = 122843; // 509 level 3, family 1920
+        private const uint ShadowTitleTemplate = 122272;   // Title: Shadow: 507 level 1, title 905
+        private const uint BlueFireworkTemplate = 117207;  // Blue firework: 482 level 1, FIREWORK_EFFECT 364 level 1
+        private const uint FlareGunTemplate = 117222;      // Flare Gun: 483 level 1, FLARE_GUN_EFFECT 374
+        private const uint SnowballTemplate = 131481;      // Snowball: 528 level 1
+        private const uint PineOckTemplate = 111117;       // Companion Pine-Ock: 460 level 1, variant 864
+        private const uint GriselTemplate = 131950;        // Pet: Grisel: 460 level 10, variant 4976
 
         [TestMethod]
         public void TheEmoteItemSetsItsFlagUsesItselfUpAndTellsTheClient()
@@ -113,9 +119,9 @@ namespace Rasa.Test.Missions
             manager.RequestPerformAbility(harness.Client, Request(509, level, item.EntityId));
             Assert.IsFalse(harness.BootcampMap.PerformRecovery.Any(action => action.ActionId == ActionId.VisualByActor));
 
-            manager.ModelRocketWorker(harness.BootcampMap, Environment.TickCount64 + 5_000);
+            manager.ToyWorker(harness.BootcampMap, Environment.TickCount64 + 5_000);
             Assert.HasCount(1, EmitterObjects(harness).ToArray(), "Up for DURATION (10 s).");
-            manager.ModelRocketWorker(harness.BootcampMap, Environment.TickCount64 + 11_000);
+            manager.ToyWorker(harness.BootcampMap, Environment.TickCount64 + 11_000);
             Assert.IsEmpty(EmitterObjects(harness).ToArray());
 
             manager.RequestPerformAbility(harness.Client, Request(509, level, item.EntityId));
@@ -154,6 +160,155 @@ namespace Rasa.Test.Missions
             Assert.AreEqual(20000005U, airGuitar);
             Assert.IsFalse(Gestures.TryGetEmoteFlag(2, out _));
         }
+
+
+        [TestMethod]
+        public void ATitleItemGivesItsTitleOnceAndKeepsTheOthers()
+        {
+            using var harness = BootcampRuntimeTestHarness.Create();
+            var player = harness.Client.Player;
+            using (var unit = harness.Context.CreateChar())
+            {
+                Assert.IsTrue(unit.CharacterTitles.Add(player.Id, 362));
+                Assert.IsFalse(unit.CharacterTitles.Add(player.Id, 362), "Once each.");
+            }
+            player.Titles = new List<uint> { 362 };
+
+            var item = Grant(harness, ShadowTitleTemplate);
+            var manager = CreateManager(harness, 507, 1, ShadowTitleTemplate);
+            harness.Drain();
+
+            manager.RequestPerformAbility(harness.Client, Request(507, 1, item.EntityId));
+            Land(harness, manager, harness.BootcampMap.PerformRecovery.Single(action => action.ActionId == ActionId.AccountrewardTitleItem));
+
+            CollectionAssert.AreEquivalent(new uint[] { 362, 905 }, player.Titles.ToArray());
+            using (var unit = harness.Context.CreateChar())
+            {
+                CollectionAssert.AreEquivalent(new uint[] { 362, 905 }, unit.CharacterTitles.Get(player.Id).ToArray(), "More than one title to a character.");
+                Assert.IsNull(unit.Items.GetItem(item.Id), "The title item is used up.");
+            }
+            Assert.AreEqual(905U, harness.Drain().OfType<TitleAddedPacket>().Single().TitleId);
+
+            var second = Grant(harness, ShadowTitleTemplate);
+            manager.RequestPerformAbility(harness.Client, Request(507, 1, second.EntityId));
+            Assert.IsFalse(harness.BootcampMap.PerformRecovery.Any(action => action.ActionId == ActionId.AccountrewardTitleItem), "A title held already.");
+        }
+
+        [TestMethod]
+        [DataRow(BlueFireworkTemplate, 482, 364)]
+        [DataRow(FlareGunTemplate, 483, 374)]
+        public void AFireworkOrFlareGoesOffWhereItWasAimedAndIsCleanedUp(uint template, int actionId, int effectTypeId)
+        {
+            using var harness = BootcampRuntimeTestHarness.Create();
+            var item = Grant(harness, template);
+            var manager = CreateManager(harness, (uint)actionId, 1, template);
+            var player = harness.Client.Player;
+            var aimed = player.Position + AbilityManager.FacingOf(player) * 20f;
+            harness.Drain();
+
+            manager.RequestPerformAbility(harness.Client, Request(actionId, 1, item.EntityId, aimed));
+            Land(harness, manager, harness.BootcampMap.PerformRecovery.Single(action => action.ActionId == (ActionId)actionId));
+
+            var proxy = Proxies(harness).Single();
+            Assert.AreEqual(20f, System.Numerics.Vector2.Distance(new(proxy.Position.X, proxy.Position.Z), new(player.Position.X, player.Position.Z)), 0.5f);
+            var packets = harness.Drain();
+            var attached = packets.OfType<GameEffectAttachedPacket>().Single(p => p.EffectTypeId == effectTypeId);
+            Assert.AreEqual(1U, attached.EffectLevel);
+            Assert.IsFalse(attached.Announced, "The recovery's hit announces it.");
+            var recovery = packets.OfType<AbilityRecoveryPacket>().Single(p => p.ActionId == (ActionId)actionId);
+            CollectionAssert.AreEqual(new[] { proxy.EntityId }, recovery.Hits.Select(hit => hit.EntityId).ToArray());
+            using (var unit = harness.Context.CreateChar())
+                Assert.IsNull(unit.Items.GetItem(item.Id), "Used up.");
+
+            manager.ToyWorker(harness.BootcampMap, Environment.TickCount64 + 16_000);
+            Assert.AreEqual(attached.EffectId, harness.Drain().OfType<GameEffectDetachedPacket>().Single().EffectId, "Detached after DURATION.");
+            Assert.HasCount(1, Proxies(harness).ToArray(), "Kept while the effect fades.");
+            manager.ToyWorker(harness.BootcampMap, Environment.TickCount64 + 19_000);
+            Assert.IsEmpty(Proxies(harness).ToArray());
+        }
+
+        [TestMethod]
+        public void ASnowballThrownAtNobodyIsUsedUpAndHitsNothing()
+        {
+            using var harness = BootcampRuntimeTestHarness.Create();
+            var item = Grant(harness, SnowballTemplate);
+            var manager = CreateManager(harness, 528, 1, SnowballTemplate);
+            harness.Drain();
+
+            manager.RequestPerformAbility(harness.Client, Request(528, 1, item.EntityId));
+            Land(harness, manager, harness.BootcampMap.PerformRecovery.Single(action => action.ActionId == (ActionId)528));
+
+            Assert.IsEmpty(harness.Drain().OfType<AbilityRecoveryPacket>().Single(p => p.ActionId == (ActionId)528).Hits.ToArray());
+            using var unit = harness.Context.CreateChar();
+            Assert.IsNull(unit.Items.GetItem(item.Id));
+        }
+
+        [TestMethod]
+        public void APetFollowsItsOwnerTakesNoPartAndGoesHomeOnTheSameItem()
+        {
+            using var harness = BootcampRuntimeTestHarness.Create();
+            var pineOck = Grant(harness, PineOckTemplate);
+            var grisel = Grant(harness, GriselTemplate);
+            LoadClass(harness, 7747);
+            LoadClass(harness, 30621);
+            var manager = CreateManager(harness, 460, 1, PineOckTemplate);
+            AddLevel(harness, manager, 460, 10, GriselTemplate);
+            var player = harness.Client.Player;
+
+            manager.RequestPerformAbility(harness.Client, Request(460, 1, pineOck.EntityId));
+            Land(harness, manager, harness.BootcampMap.PerformRecovery.Single(action => action.ActionId == ActionId.AccountrewardPet));
+
+            var pet = AbilityManager.PetCreatureOf(player);
+            Assert.IsNotNull(pet);
+            Assert.AreEqual((EntityClasses)7747, pet.EntityClass);
+            Assert.AreEqual(TargetCategory.Decoration, pet.TargetCategory);
+            Assert.IsFalse(TargetCategories.IsCombatant(pet.TargetCategory), "Nobody fights it.");
+            Assert.AreEqual(player.EntityId, pet.Controller.ActionFollow.FollowTargetId);
+            Assert.AreEqual(0UL, pet.Controller.ActionFollow.AssistTargetId, "It assists nobody.");
+            Assert.IsFalse(MinionManager.Instance.MinionsOf(harness.Client).Contains(pet), "No minion commands.");
+            using (var unit = harness.Context.CreateChar())
+                Assert.IsNotNull(unit.Items.GetItem(pineOck.Id), "The summoner is kept.");
+
+            // Another pet takes its place, once the 5 s reuse is over.
+            manager.RequestPerformAbility(harness.Client, Request(460, 10, grisel.EntityId));
+            Assert.IsFalse(harness.BootcampMap.PerformRecovery.Any(action => action.ActionId == ActionId.AccountrewardPet), "Still cooling down.");
+            player.ActionReuseUntil.Remove(ActionId.AccountrewardPet);
+            manager.RequestPerformAbility(harness.Client, Request(460, 10, grisel.EntityId));
+            Land(harness, manager, harness.BootcampMap.PerformRecovery.Single(action => action.ActionId == ActionId.AccountrewardPet));
+            var second = AbilityManager.PetCreatureOf(player);
+            Assert.AreEqual((EntityClasses)30621, second.EntityClass);
+            Assert.IsFalse(EntityManager.Instance.Creatures.Values.Contains(pet), "The first went home.");
+
+            // The same one again: home, and nothing performed.
+            manager.RequestPerformAbility(harness.Client, Request(460, 10, grisel.EntityId));
+            Assert.IsFalse(harness.BootcampMap.PerformRecovery.Any(action => action.ActionId == ActionId.AccountrewardPet));
+            Assert.IsNull(AbilityManager.PetCreatureOf(player));
+            Assert.IsFalse(EntityManager.Instance.Creatures.Values.Contains(second));
+        }
+
+        [TestMethod]
+        public void EveryPetVariantIsACreatureClass()
+        {
+            using var harness = BootcampRuntimeTestHarness.Create();
+            Assert.HasCount(20, AbilityManager.PetVariants.ToArray());
+            foreach (var (variant, (classId, _)) in AbilityManager.PetVariants)
+                Assert.IsTrue(harness.WorldContext.Set<EntityClassEntry>().AsNoTracking().Where(entry => entry.Id == classId).AsEnumerable()
+                    .Any(entry => entry.AugList.Split(',').Contains("1")), $"{variant}: {classId} is a creature class");
+        }
+
+        /// <summary>A creature class, as the server loads every class at start-up.</summary>
+        private static void LoadClass(BootcampRuntimeTestHarness.Harness harness, uint classId)
+        {
+            var entry = harness.WorldContext.Set<EntityClassEntry>().AsNoTracking().Single(row => row.Id == classId);
+            EntityClassManager.Instance.LoadedEntityClasses[(EntityClasses)classId] = new EntityClass(entry.Id, entry.ClassName, entry.MeshId,
+                entry.ClassCollisionRole, entry.AugList.Split(',').Select(value => (AugmentationType)uint.Parse(value)).ToList(), entry.TargetFlag != 0);
+        }
+
+        private static IEnumerable<DynamicObject> Proxies(BootcampRuntimeTestHarness.Harness harness) =>
+            harness.BootcampMap.MapCellInfo.Cells.Values
+                .SelectMany(cell => cell.DynamicObjectList)
+                .Where(obj => obj.EntityClassId == AbilityManager.LocationProxyClass)
+                .Distinct();
 
         private static void Clear(MissionTestContext context, Client watcher)
         {
@@ -227,7 +382,8 @@ namespace Rasa.Test.Missions
             }
         }
 
-        private static RequestPerformAbilityPacket Request(int actionId, uint level, ulong itemId)
+        private static RequestPerformAbilityPacket Request(int actionId, uint level, ulong itemId,
+            System.Numerics.Vector3? location = null, ulong targetId = 0)
         {
             using var stream = new MemoryStream();
             using (var writer = new PythonWriter(new BinaryWriter(stream, Encoding.UTF8, true)))
@@ -235,7 +391,17 @@ namespace Rasa.Test.Missions
                 writer.WriteTuple(4);
                 writer.WriteInt(actionId);
                 writer.WriteInt((int)level);
-                writer.WriteNoneStruct();
+                if (location.HasValue)
+                {
+                    writer.WriteTuple(3);
+                    writer.WriteDouble(location.Value.X);
+                    writer.WriteDouble(location.Value.Y);
+                    writer.WriteDouble(location.Value.Z);
+                }
+                else if (targetId != 0)
+                    writer.WriteULong(targetId);
+                else
+                    writer.WriteNoneStruct();
                 writer.WriteULong(itemId);
             }
             stream.Position = 0;
@@ -251,12 +417,21 @@ namespace Rasa.Test.Missions
             var manager = (AbilityManager)Activator.CreateInstance(typeof(AbilityManager),
                 BindingFlags.Instance | BindingFlags.NonPublic, null,
                 new object[] { harness.Context, harness.Manager }, null);
+            AddLevel(harness, manager, actionId, levelId, template);
+            return manager;
+        }
+
+        private static void AddLevel(BootcampRuntimeTestHarness.Harness harness, AbilityManager manager, uint actionId, uint levelId, uint template)
+        {
+            var actions = (Dictionary<ActionId, ActionInfo>)typeof(AbilityManager).GetField("_actions",
+                BindingFlags.Instance | BindingFlags.NonPublic).GetValue(manager);
             var row = harness.WorldContext.Set<ActionEntry>().Single(entry => entry.Id == actionId);
             var level = harness.WorldContext.Set<ActionLevelEntry>().Single(entry => entry.ActionId == actionId && entry.Level == levelId);
-            var action = new ActionInfo { ActionId = (ActionId)row.Id, Name = row.Name, Module = row.Module };
+            if (!actions.TryGetValue((ActionId)row.Id, out var action))
+                actions[(ActionId)row.Id] = action = new ActionInfo { ActionId = (ActionId)row.Id, Name = row.Name, Module = row.Module };
             var info = new ActionLevelInfo
             {
-                ActionId = action.ActionId, Level = levelId, WindupMs = level.WindupMs,
+                ActionId = action.ActionId, Level = levelId, WindupMs = level.WindupMs, MaxRange = level.MaxRange,
                 RecoveryMs = level.RecoveryMs, ReuseMs = level.ReuseMs, StartReuseOnPerform = level.StartReuseOnPerform != 0
             };
             foreach (var property in harness.WorldContext.ActionPropertyEntries.Where(entry => entry.ActionId == actionId && entry.Level == levelId))
@@ -264,11 +439,8 @@ namespace Rasa.Test.Missions
             foreach (var requirement in harness.WorldContext.Set<ActionItemRequirementEntry>().Where(entry => entry.ActionId == actionId && entry.Level == levelId))
                 info.ItemRequirements.Add(new ActionItemRequirement { ItemClass = (EntityClasses)requirement.ItemClassId, Quantity = requirement.Quantity });
             action.Levels[levelId] = info;
-            ((Dictionary<ActionId, ActionInfo>)typeof(AbilityManager).GetField("_actions",
-                BindingFlags.Instance | BindingFlags.NonPublic).GetValue(manager))[action.ActionId] = action;
             ((Dictionary<uint, (ActionId ActionId, uint Level)>)typeof(AbilityManager).GetField("_itemTemplateActions",
                 BindingFlags.Instance | BindingFlags.NonPublic).GetValue(manager))[template] = ((ActionId)actionId, levelId);
-            return manager;
         }
     }
 }

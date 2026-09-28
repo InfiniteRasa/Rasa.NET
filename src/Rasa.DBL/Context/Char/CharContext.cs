@@ -126,6 +126,7 @@ namespace Rasa.Context.Char
             SetupCharacterStartingExperienceTables(modelBuilder);
             SetupCharacterFlagTable(modelBuilder);
             SetupCharacterTeleporterTable(modelBuilder);
+            SetupCharacterTitleTable(modelBuilder);
             SetupCharacterOptionsTable(modelBuilder);
             SetupClanMemberTable(modelBuilder);
             SetupClanTable(modelBuilder);
@@ -435,6 +436,12 @@ namespace Rasa.Context.Char
         {
             modelBuilder.Entity<CharacterTeleporterEntry>()
                 .HasKey(e => new { e.CharacterId, e.WaypointId });
+        }
+
+        private void SetupCharacterTitleTable(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<CharacterTitleEntry>()
+                .HasKey(e => new { e.CharacterId, e.TitleId });
         }
 
         private void SetupCharacterStartingExperienceTables(ModelBuilder modelBuilder)

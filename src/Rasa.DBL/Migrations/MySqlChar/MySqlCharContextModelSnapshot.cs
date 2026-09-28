@@ -934,17 +934,14 @@ namespace Rasa.Migrations.MySqlChar
             modelBuilder.Entity("Rasa.Structures.Char.CharacterTitleEntry", b =>
                 {
                     b.Property<uint>("CharacterId")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int unsigned")
                         .HasColumnName("character_id");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<uint>("CharacterId"));
 
                     b.Property<uint>("TitleId")
                         .HasColumnType("int unsigned")
                         .HasColumnName("title_id");
 
-                    b.HasKey("CharacterId");
+                    b.HasKey("CharacterId", "TitleId");
 
                     b.ToTable("character_title");
                 });

@@ -412,8 +412,8 @@ namespace Rasa.Managers
                         // Fire Support's beacons: their blasts and napalm pools.
                         Guard("AbilityManager.FireSupportWorker", mapChannel, () => AbilityManager.Instance.FireSupportWorker(mapChannel));
 
-                        // Model rockets: taken away once they have flown.
-                        Guard("AbilityManager.ModelRocketWorker", mapChannel, () => AbilityManager.Instance.ModelRocketWorker(mapChannel));
+                        // Toys: rockets and fireworks taken away once they are done, pets whose owner has gone.
+                        Guard("AbilityManager.ToyWorker", mapChannel, () => AbilityManager.Instance.ToyWorker(mapChannel));
 
                         // Scatterbombs: the spent bombs are taken away once their blasts have played.
                         Guard("AbilityManager.ScatterbombWorker", mapChannel, () => AbilityManager.Instance.ScatterbombWorker(mapChannel));
@@ -915,6 +915,7 @@ namespace Rasa.Managers
                 client.Player.AutoFireCombatMode = false;
                 client.Player.TrackingTargetEntityId = 0;
                 MinionManager.Instance.DismissAll(client);
+                AbilityManager.DismissPet(client.Player);
                 DynamicObjectManager.Instance.ForgetPlayer(origin, client);
                 MapLinkManager.Instance.RemovePlayer(client);
                 RegionManager.Instance.RemovePlayer(client);
@@ -1077,6 +1078,7 @@ namespace Rasa.Managers
             // "Player-controlled subordinates will teleport with their masters, but not change
             // maps." Leaving the map is leaving them behind, so they are dismissed, not orphaned.
             RemovalStep(client, "dismissing minions", () => MinionManager.Instance.DismissAll(client));
+            RemovalStep(client, "sending the pet home", () => AbilityManager.DismissPet(client.Player));
 
             // Off every waypoint, pad, station and control point's list of who is at it; nothing
             // else takes a player who left standing on one off it.
