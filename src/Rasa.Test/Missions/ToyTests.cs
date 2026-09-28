@@ -243,6 +243,99 @@ namespace Rasa.Test.Missions
             Assert.IsNull(unit.Items.GetItem(item.Id));
         }
 
+        // nullability.py is TARGET_FRIENDLY: a friendly creature is a fair target, as it is for the
+        // Snowball Launcher. A hostile one never arrives from the client, which blind-shoots
+        // instead, and is refused with the snowball kept.
+        [TestMethod]
+        [DataRow(true)]
+        [DataRow(false)]
+        public void ASnowballHitsAFriendlyCreatureButIsRefusedAHostileOne(bool friendly)
+        {
+            using var harness = BootcampRuntimeTestHarness.Create();
+            var item = Grant(harness, SnowballTemplate);
+            var manager = CreateManager(harness, 528, 1, SnowballTemplate);
+            var npc = harness.AddNpc(BootcampRuntimeTestHarness.CorporalHartmannCreatureId,
+                position: harness.Client.Player.Position + new System.Numerics.Vector3(0, 0, 5));
+            npc.TargetCategory = friendly ? TargetCategory.Friendly : TargetCategory.Hostile;
+            harness.Drain();
+
+            manager.RequestPerformAbility(harness.Client, Request(528, 1, item.EntityId, targetId: npc.EntityId));
+
+            if (!friendly)
+            {
+                Assert.IsFalse(harness.BootcampMap.PerformRecovery.Any(action => action.ActionId == (ActionId)528));
+                using var kept = harness.Context.CreateChar();
+                Assert.IsNotNull(kept.Items.GetItem(item.Id), "Kept.");
+                return;
+            }
+
+            Land(harness, manager, harness.BootcampMap.PerformRecovery.Single(action => action.ActionId == (ActionId)528));
+            var recovery = harness.Drain().OfType<AbilityRecoveryPacket>().Single(p => p.ActionId == (ActionId)528);
+            CollectionAssert.AreEqual(new[] { npc.EntityId }, recovery.Hits.Select(hit => hit.EntityId).ToArray());
+            using var unit = harness.Context.CreateChar();
+            Assert.IsNull(unit.Items.GetItem(item.Id), "Used up.");
+        }
+
+        // Snowball_stacks_not_unique: the one thing on John's list that is not Character Unique,
+        // and it stacks to its class's 5000 as the client's itemclass table has it.
+        [TestMethod]
+        public void SnowballsStackToFiveThousandAndAreNotCharacterUnique()
+        {
+            using var harness = BootcampRuntimeTestHarness.Create();
+            var world = harness.WorldContext;
+            var templates = world.Set<ItemTemplateEntry>().AsNoTracking();
+
+            Assert.AreEqual(0, templates.Single(row => row.Id == SnowballTemplate).HasCharacterUniqueFlag);
+            Assert.AreEqual(1, templates.Single(row => row.Id == 131482).HasCharacterUniqueFlag, "The launcher stays unique.");
+            Assert.AreEqual(5000U, world.Set<ItemClassEntry>().AsNoTracking().Single(row => row.Id == 30547).StackSize);
+        }
+
+        [TestMethod]
+        public void ThrownSnowballsAreUsedUpOneAtATime()
+        {
+            using var harness = BootcampRuntimeTestHarness.Create();
+            var item = Grant(harness, SnowballTemplate, 3);
+            var manager = CreateManager(harness, 528, 1, SnowballTemplate);
+
+            manager.RequestPerformAbility(harness.Client, Request(528, 1, item.EntityId));
+            Land(harness, manager, harness.BootcampMap.PerformRecovery.Single(action => action.ActionId == (ActionId)528));
+
+            Assert.AreEqual(2U, item.StackSize);
+            using var unit = harness.Context.CreateChar();
+            Assert.AreEqual(2U, unit.Items.GetItem(item.Id).StackSize);
+        }
+
+        // A character who already carries snowballs can buy more, by the stack, at the counter's
+        // price; they merge into the stack already carried.
+        [TestMethod]
+        public void SnowballsAreBoughtByTheStackByAPlayerWhoAlreadyHasSome()
+        {
+            using var harness = BootcampRuntimeTestHarness.Create();
+            var carried = Grant(harness, SnowballTemplate);
+            Assert.IsFalse(ItemManager.Instance.GetItemTemplateById(SnowballTemplate).HasCharacterUniqueFlag);
+            var npc = harness.AddNpc(BootcampRuntimeTestHarness.CorporalHartmannCreatureId,
+                position: harness.Client.Player.Position + new System.Numerics.Vector3(0, 0, 2));
+            npc.Npc ??= new Npc();
+            npc.Npc.Vendor = new Vendor(0) { ItemPrice = 1, VendorItems = { SnowballTemplate } };
+            Assert.IsTrue(ManifestationManager.Instance.GainCredits(harness.Client, 1000));
+            var credits = harness.Client.Player.Credits[CurencyType.Credits];
+            var npcs = new NpcManager(harness.Context, harness.Manager);
+
+            npcs.RequestNPCVending(harness.Client, new RequestNPCVendingPacket { EntityId = npc.EntityId });
+            var stock = EntityManager.Instance.VendorItems[npc.EntityId].Single();
+            npcs.RequestVendorPurchase(harness.Client, new RequestVendorPurchasePacket
+            {
+                VendorEntityId = npc.EntityId,
+                ItemEntityId = stock,
+                Quantity = 500
+            });
+
+            Assert.AreEqual(credits - 500, harness.Client.Player.Credits[CurencyType.Credits]);
+            Assert.AreEqual(501U, carried.StackSize);
+            using var unit = harness.Context.CreateChar();
+            Assert.AreEqual(501U, unit.Items.GetItem(carried.Id).StackSize);
+        }
+
         [TestMethod]
         public void APetFollowsItsOwnerTakesNoPartAndGoesHomeOnTheSameItem()
         {
@@ -345,20 +438,21 @@ namespace Rasa.Test.Missions
                 InventoryCategory = (InventoryCategory)data.InventoryCategory,
                 HasSellableFlag = data.HasSellableFlag != 0,
                 BuyPrice = data.BuyPrice,
-                SellPrice = data.SellPrice
+                SellPrice = data.SellPrice,
+                HasCharacterUniqueFlag = data.HasCharacterUniqueFlag != 0
             };
             EntityClassManager.Instance.LoadedEntityClasses[classId] = entityClass;
             ItemManager.Instance.ItemTemplateItemClass[template] = classId;
         }
 
-        private static Item Grant(BootcampRuntimeTestHarness.Harness harness, uint template)
+        private static Item Grant(BootcampRuntimeTestHarness.Harness harness, uint template, uint quantity = 1)
         {
             LoadTemplate(harness, template);
             using (var unit = harness.Context.CreateChar())
             using (var grant = new InventoryManager.InventoryGrant())
             {
                 unit.ExecuteTransaction(() => grant.PlanAndSave(harness.Client,
-                    new[] { new InventoryManager.InventoryItemGrant(template, 1) }, unit));
+                    new[] { new InventoryManager.InventoryItemGrant(template, quantity) }, unit));
                 grant.Publish(harness.Client);
             }
 

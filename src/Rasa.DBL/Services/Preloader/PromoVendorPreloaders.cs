@@ -28,7 +28,9 @@ namespace Rasa.Services.Preloader
     ///
     /// Everything they sell is bound, not tradable and not sellable (Bind_account_reward_items,
     /// Flag_mission_items), so the 1 credit price cannot be sold back for more, and Character
-    /// Unique (Promo_vendor_tokens_and_unique), so each can be bought once per character.
+    /// Unique (Promo_vendor_tokens_and_unique), so each can be bought once per character - except
+    /// the Snowball, which is thrown away one at a time and bought by the stack
+    /// (Snowball_stacks_not_unique).
     /// </summary>
     public static class PromoVendors
     {
@@ -47,6 +49,13 @@ namespace Rasa.Services.Preloader
         /// _GameStopEdition_Companion: John's, from Promo_vendor_tokens_and_unique on.
         /// </summary>
         public static readonly uint[] CompanionTokens = { 111114, 111115, 111116 };
+
+        /// <summary>
+        /// AccountReward_Holiday_Consumable_Snowball: used up one at a time when thrown, so the one
+        /// thing on John's list that is not Character Unique (Snowball_stacks_not_unique). It
+        /// stacks to its class's 5000 (itemclass 30547, the client's table and ours agree).
+        /// </summary>
+        public const uint SnowballTemplateId = 131481;
     }
 
     public class PromoVendorCreaturePreloader : PreloaderBase, IPreloader

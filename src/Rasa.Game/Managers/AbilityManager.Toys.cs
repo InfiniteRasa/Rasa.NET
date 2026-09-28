@@ -43,7 +43,7 @@ namespace Rasa.Managers
     ///  - Snowball (ABILITY_NULL 528, abilities.nullability): TARGET_FRIENDLY with doBlindShots and
     ///    nothing to resolve; the target is the recovery's hit, so the throw and the splash
     ///    (actorActionFXFamily 2040 / 2039) play on them, or the client splats it on the ground.
-    ///    A player or nobody. Used up.
+    ///    A player, a FRIENDLY creature, or nobody. Used up.
     ///  - Pets and companions (ACCOUNTREWARD_PET 460, abilities.companion, 20 levels): the level's
     ///    CREATURE_VARIANT_ID names the creature. The variant table is not in the client, so
     ///    <see cref="PetVariants"/> pairs each with its creature class by name (the summoner item

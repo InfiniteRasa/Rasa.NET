@@ -465,8 +465,12 @@ namespace Rasa.Managers
 
             var wantsHostile = IsDirectDamage(action, info) || HostileEffectModules.Contains(action.Module);
 
-            // A friendly buff lands on a player; a creature is not a friend to buff.
-            if ((FriendlyEffectModules.Contains(action.Module) || action.Module == SnowballModule) && target != null && !(target is Manifestation))
+            // A friendly buff lands on a player; a creature is not a friend to buff. A snowball goes
+            // where nullability.py's TARGET_FRIENDLY lets it: a player, or a FRIENDLY creature - a
+            // soldier, a vendor - as the Snowball Launcher's does (ToolActionManager).
+            if (target != null && !(target is Manifestation) &&
+                (FriendlyEffectModules.Contains(action.Module) ||
+                 action.Module == SnowballModule && !(target is Creature { TargetCategory: TargetCategory.Friendly })))
             {
                 Fail(client, actionId, level, PlayerMessage.PmTargetInvalid);
                 return;
