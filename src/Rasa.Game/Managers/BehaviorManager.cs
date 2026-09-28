@@ -853,7 +853,7 @@ namespace Rasa.Managers
 
                     // A shot needs to see its target; a blow at arm's length does not, and nor
                     // does an Amoeboid bringing up another one, which is aimed at nobody.
-                    if (action.ActionId != ActionId.WeaponMelee && !AmoeboidVomit.IsVomit(action) && !HasLineOfSight(mapChannel, creature, targetActor))
+                    if (!CreatureAttacks.IsMelee(action) && !AmoeboidVomit.IsVomit(action) && !HasLineOfSight(mapChannel, creature, targetActor))
                     {
                         sightBlocked = true;
                         continue;
@@ -919,7 +919,7 @@ namespace Rasa.Managers
                     dmg = GameEffectManager.ApplyDamageDealt(creature, dmg);
 
                     // A Laser crit on it weakens its ranged attacks - a charge's blow is not one.
-                    if (action.ActionId != ActionId.WeaponMelee && !KaelRushingBlow.Is(action))
+                    if (!CreatureAttacks.IsMelee(action) && !KaelRushingBlow.Is(action))
                         dmg = GameEffectManager.ApplyRangedDamage(creature, dmg);
 
                     // Not every creature action is an attack. The Amoeboid's vomit is TARGET_NONE
@@ -960,7 +960,7 @@ namespace Rasa.Managers
 
                     // do damage, of the type the attack's weapon deals
                     MissileManager.Instance.MissileLaunch(mapChannel, actionData, dmg, damageType: CreatureAttacks.DamageTypeOf(action),
-                        melee: action.ActionId == ActionId.WeaponMelee, creatureAction: action, landsInMs: landsIn);
+                        melee: CreatureAttacks.IsMelee(action), creatureAction: action, landsInMs: landsIn);
 
                     // Feedback on it burns it for acting: this is the hostile action the server has.
                     AbilityManager.OnCreatureActed(mapChannel, creature, true);

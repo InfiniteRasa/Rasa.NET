@@ -28,9 +28,14 @@ namespace Rasa.Managers
     /// reduces the damage your attack delivers by a whopping 90% due to poor aim. Attacks with
     /// partial beading deliver greater damage, even if you can't afford to wait for a perfect
     /// shot." So a shot does NoBeadDamage of its damage at no bead, rising in a straight line to
-    /// all of it at the most the stance allows (the ceiling: 80 standing, 100 crouched) - standing
-    /// still and fully beaded is a full-damage shot; crouching gets there twice as fast and is the
-    /// only way to full bead's crit. The straight line is ours; the guide gives the two ends.
+    /// all of it at a full bead of 100 - the bead itself, not its share of the stance's ceiling.
+    /// That is the reticle: its lines sit at accuracy / 100 of the way in (reticlewindow.py,
+    /// Manifestation.accuracyRatio), and "the amount of damage your gun will do increases the
+    /// closer these lines get to the center of the targeting reticule". Standing, they stop at 80
+    /// and the shot does 82%; crouched they reach the centre and it does all of it - "Crouching
+    /// increases your damage but also makes you easier to hit unless you are behind cover", and
+    /// gets there twice as fast. Only a crouched shot is a full-bead shot, with its crit. The
+    /// straight line is ours; the guide gives the two ends.
     ///
     /// The rates are worked out again whenever what they depend on changes - crouching, the
     /// target, the weapon - as UpdateAccuracyRates is on the client. Running is not told apart
@@ -75,7 +80,8 @@ namespace Rasa.Managers
 
         /// <summary>
         /// What share of its damage a shot fired now does: NoBeadDamage with no bead, all of it at
-        /// the stance's ceiling, in a straight line between.
+        /// a full bead of 100 (only crouched can reach it), in a straight line between. Standing
+        /// tops out at 80, and 82% of the damage.
         /// </summary>
         public static double DamageFactor(Manifestation player, long now)
         {
@@ -84,7 +90,7 @@ namespace Rasa.Managers
             if (player.AccuracyMax <= 0)
                 return NoBeadDamage;
 
-            return NoBeadDamage + (1 - NoBeadDamage) * Math.Min(1.0, bead / player.AccuracyMax);
+            return NoBeadDamage + (1 - NoBeadDamage) * Math.Min(1.0, bead / CrouchedMax);
         }
 
         /// <summary>

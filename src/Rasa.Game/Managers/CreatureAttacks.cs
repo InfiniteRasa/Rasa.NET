@@ -40,6 +40,27 @@ namespace Rasa.Managers
             return resolved;
         }
 
+        /// <summary>
+        /// The creature attacks that are blows, not shots: WEAPON_MELEE (174), whose arguments are
+        /// the melee swings of the creature weapons (WEAPON_ATTACK_MELEE_THRAX_SOLDIER and the
+        /// rest), and the creature abilities the client data names as melee - CR_MIASMA_MELEE,
+        /// CR_FILCHER_MELEE, CR_LOPER_MELEE, CR_HOWLER_MELEE_ATTACK, CR_MAW_MELEE,
+        /// CR_AMOEBOID_MELEE, CR_XANX_MELEE, CR_FLAREGASHER_MELEE, CR_GRANITOUR_MELEE,
+        /// CR_ATTA_SOLDIER_MELEE and CR_ATTA_GRUB_MELEE. Only WEAPON_MELEE used to count, so the
+        /// abilities landed as shots: a crouched player took no more of them
+        /// (CROUCHED_MELEE_DAMAGE_TAKEN) and was no likelier to be critted
+        /// (CROUCHED_MELEE_TO_BE_CRIT_MOD), while cover, a smoke screen and chaff cut them.
+        /// </summary>
+        private static readonly HashSet<ActionId> MeleeActions = new HashSet<ActionId>
+        {
+            ActionId.WeaponMelee,
+            ActionId.CrMiasmaMelee, ActionId.CrFilcherMelee, ActionId.CrLoperMelee, ActionId.CrHowlerMeleeAttack,
+            ActionId.CrMawMelee, ActionId.CrAmoeboidMelee, ActionId.CrXanxMelee, ActionId.CrFlaregasherMelee,
+            ActionId.CrGranitourMelee, ActionId.CrAttaSoldierMelee, ActionId.CrAttaGrubMelee
+        };
+
+        public static bool IsMelee(CreatureAction action) => action != null && MeleeActions.Contains(action.ActionId);
+
         /// <summary>The player modules creature actions use whose class is DamageBase: hitdata (rawInfo, onHitData).</summary>
         private static readonly HashSet<string> DamageBaseModules = new HashSet<string>
         {
