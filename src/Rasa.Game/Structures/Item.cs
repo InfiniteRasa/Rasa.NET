@@ -50,7 +50,6 @@
         // weapon specific
         public uint CurrentAmmo { get; set; }
         public bool IsJammed { get; set; }
-        public int CammeraProfile { get; set; }
 
         /// <summary>
         /// Heat in the barrel, 0 to <see cref="Data.WeaponHeat.Capacity"/>. Not persisted: the

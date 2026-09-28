@@ -50,7 +50,8 @@
             pw.WriteInt((int)Item.ItemTemplate.WeaponInfo.ToolType);
             pw.WriteBool(Item.IsJammed);
             pw.WriteUInt(Item.ItemTemplate.WeaponInfo.AmmoPerShot);
-            pw.WriteInt(Item.CammeraProfile);
+            // The scope the Toggle Zoom key looks through, 0 for none (WeaponScopes).
+            pw.WriteInt(WeaponScopes.ProfileOf(ClassInfo.ClassId));
         }
     }
 }
