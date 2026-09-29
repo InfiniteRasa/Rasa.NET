@@ -93,6 +93,55 @@ namespace Rasa.Test.Missions
         }
 
         [TestMethod]
+        public void OnlyTheSquadIsToldTheShipIsInService()
+        {
+            using var harness = BootcampRuntimeTestHarness.Create();
+            var (item, manager) = Prepare(harness);
+            var deployed = Environment.TickCount64;
+            Deploy(harness, manager, item);
+            var ship = Ships(harness).Single();
+            harness.Drain();
+
+            // The deployer, once it has settled.
+            DropshipBeacons.Worker(harness.BootcampMap, deployed + 9000);
+            Assert.IsTrue(harness.Drain().OfType<SetUsablePacket>().Single().IsEnabled);
+            Assert.IsTrue(DropshipBeacons.ShowTo(harness.Client, ship), "met again: enabled in its UsableInfo");
+
+            // Someone else's ship: told it is not, and so a client meeting it.
+            var stranger = new Manifestation { PartyId = 0 };
+            SetOwner(harness, ship, stranger);
+            DropshipBeacons.Worker(harness.BootcampMap, deployed + 9500);
+            Assert.IsFalse(harness.Drain().OfType<SetUsablePacket>().Single().IsEnabled);
+            Assert.IsFalse(DropshipBeacons.ShowTo(harness.Client, ship));
+
+            // Joining the deployer's squad while it is out.
+            stranger.PartyId = 7;
+            harness.Client.Player.PartyId = 7;
+            DropshipBeacons.Worker(harness.BootcampMap, deployed + 10000);
+            Assert.IsTrue(harness.Drain().OfType<SetUsablePacket>().Single().IsEnabled);
+
+            // Nothing more while nothing changes.
+            DropshipBeacons.Worker(harness.BootcampMap, deployed + 10500);
+            Assert.IsEmpty(harness.Drain().OfType<SetUsablePacket>().ToArray());
+        }
+
+        [TestMethod]
+        public void NotInServiceForAnyoneBeforeItSettles()
+        {
+            using var harness = BootcampRuntimeTestHarness.Create();
+            var (item, manager) = Prepare(harness);
+            var deployed = Environment.TickCount64;
+            Deploy(harness, manager, item);
+            var ship = Ships(harness).Single();
+            harness.Drain();
+
+            DropshipBeacons.Worker(harness.BootcampMap, deployed + 1000);
+
+            Assert.IsEmpty(harness.Drain().OfType<SetUsablePacket>().ToArray());
+            Assert.IsFalse(DropshipBeacons.ShowTo(harness.Client, ship));
+        }
+
+        [TestMethod]
         public void AfterFiveMinutesTheShipLeavesAndIsTakenAway()
         {
             using var harness = BootcampRuntimeTestHarness.Create();
@@ -109,6 +158,7 @@ namespace Rasa.Test.Missions
             Assert.AreEqual(UseObjectState.WhState1, ship.StateId);
             var packets = harness.Drain();
             Assert.HasCount(1, packets.OfType<ExitedWaypointPacket>().ToArray(), "the open window is closed");
+            Assert.IsFalse(packets.OfType<SetUsablePacket>().Single().IsEnabled, "out of service for those told otherwise");
             Assert.IsTrue(packets.OfType<UsePacket>().Any(use => use.CurState == UseObjectState.WhState1), "sent away: 205 to 214");
             Assert.HasCount(1, Ships(harness).ToArray(), "kept while it goes");
 

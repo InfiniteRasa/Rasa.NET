@@ -588,7 +588,12 @@ namespace Rasa.Managers
                 entityData.Add((_missionManager ?? MissionApplication.Instance).ObjectConversations.Status(client, dynamicObject));
             }
             else
-                entityData.Add(new UsableInfoPacket(dynamicObject.IsEnabled, dynamicObject.StateId, 0,
+                entityData.Add(new UsableInfoPacket(
+                    // A beacon's ship is in service for its deployer's squad alone (DropshipBeacons).
+                    dynamicObject.DynamicObjectType == DynamicObjectType.DropshipBeacon
+                        ? DropshipBeacons.ShowTo(client, dynamicObject)
+                        : dynamicObject.IsEnabled,
+                    dynamicObject.StateId, 0,
                     dynamicObject.WindupTime, dynamicObject.ActivateMission));
 
             // Only for an object that actually has a lock. An unlocked usable is the default the

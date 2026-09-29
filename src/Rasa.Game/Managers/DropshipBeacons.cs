@@ -35,6 +35,15 @@ namespace Rasa.Managers
     /// "current" line reads "Portable Waypoint" (waypointlanguage 418); the client has no name
     /// for a beacon. SelectWaypoint takes a beacon in reach as the departure station
     /// (<see cref="IsNearUsable"/>) and the flight is the pads' own.
+    ///
+    /// In service for the squad alone. Every usable's IsUsable() on the client is the enabled
+    /// flag of UsableInfo and SetUsable, which go to each client on its own; for a WORMHOLE it
+    /// decides whether the ship shows as an OBJECT (enabled) or under its target category (not).
+    /// So the deployer and their squad are told the ship is enabled once it has settled, and
+    /// everyone else is left with the disabled one it was created with; someone who joins or
+    /// leaves the squad while it is out is told again (<see cref="SyncUsable"/>), as is a client
+    /// meeting the ship later (<see cref="ShowTo"/>). The WORMHOLE's own Recv_IsUsable
+    /// (IsUsable, 599) only stores the value in a field nothing reads, so it is not sent.
     /// </summary>
     public static class DropshipBeacons
     {
@@ -68,6 +77,9 @@ namespace Rasa.Managers
             public bool InService;
             public bool Leaving;
             public readonly List<Client> WindowOpen = new List<Client>();
+
+            /// <summary>The clients that have been told the ship is enabled.</summary>
+            public readonly HashSet<Client> ToldUsable = new HashSet<Client>();
         }
 
         private static readonly ConditionalWeakTable<MapChannel, List<Beacon>> Beacons = new();
@@ -141,6 +153,31 @@ namespace Rasa.Managers
                    (player == beacon.Owner || Detection.SameSquad(beacon.Owner, player));
         }
 
+        /// <summary>
+        /// Whether the ship goes to this client enabled: in service, and theirs or their squad's.
+        /// Called for the UsableInfo of a client meeting the ship, and remembered.
+        /// </summary>
+        public static bool ShowTo(Client client, DynamicObject ship)
+        {
+            var beacon = Find(ship);
+
+            if (beacon == null || !ShownUsable(client, beacon))
+                return false;
+
+            lock (beacon.ToldUsable)
+                beacon.ToldUsable.Add(client);
+
+            return true;
+        }
+
+        private static bool ShownUsable(Client client, Beacon beacon)
+        {
+            var player = client?.Player;
+
+            return beacon.InService && !beacon.Leaving && player != null &&
+                   (player == beacon.Owner || Detection.SameSquad(beacon.Owner, player));
+        }
+
         /// <summary>A ship in service the player may use within reach, on this map: a departure station for SelectWaypoint.</summary>
         public static bool IsNearUsable(Client client, MapChannel mapChannel)
         {
@@ -197,7 +234,10 @@ namespace Rasa.Managers
                     beacon.InService = true;
                     beacon.Ship.StateId = UseObjectState.WhState0;
                     CellManager.Instance.CellCallMethod(beacon.Ship, new UsePacket(beacon.Owner.EntityId, UseObjectState.WhState0, 0));
-                    DynamicObjectManager.Instance.SetEnabled(beacon.Ship, true);
+
+                    // In service on the server, so a use of it is looked at; the clients are told
+                    // one by one, the squad yes and nobody else anything (SyncUsable).
+                    beacon.Ship.IsEnabled = true;
                 }
 
                 if (!beacon.Leaving && now >= beacon.ExpiresAt)
@@ -212,7 +252,47 @@ namespace Rasa.Managers
                     continue;
                 }
 
+                SyncUsable(mapChannel, beacon);
                 Proximity(mapChannel, beacon);
+            }
+        }
+
+        /// <summary>
+        /// Tells each client around the ship whether it is in service for them, when that has
+        /// changed: the squad when it settles, someone who joins the squad while it is out, and
+        /// someone who leaves it. Clients no longer around are forgotten; meeting the ship again
+        /// sends them its UsableInfo (ShowTo).
+        /// </summary>
+        private static void SyncUsable(MapChannel mapChannel, Beacon beacon)
+        {
+            if (beacon.Leaving || !CellManager.TryGetCellCoordinates(beacon.Ship.Position, out var x, out var z))
+                return;
+
+            var around = CellManager.Instance.GetClientsInCells(mapChannel, CellManager.Instance.CreateCellMatrix(mapChannel, x, z)).ToList();
+
+            lock (beacon.ToldUsable)
+                beacon.ToldUsable.RemoveWhere(client => !around.Contains(client));
+
+            foreach (var client in around)
+            {
+                var usable = ShownUsable(client, beacon);
+                bool told;
+
+                lock (beacon.ToldUsable)
+                    told = beacon.ToldUsable.Contains(client);
+
+                if (usable == told)
+                    continue;
+
+                lock (beacon.ToldUsable)
+                {
+                    if (usable)
+                        beacon.ToldUsable.Add(client);
+                    else
+                        beacon.ToldUsable.Remove(client);
+                }
+
+                client.CallMethod(beacon.Ship.EntityId, new SetUsablePacket(usable));
             }
         }
 
@@ -239,7 +319,21 @@ namespace Rasa.Managers
             beacon.RemoveAt = now + DepartureMs;
 
             CloseAll(beacon);
-            DynamicObjectManager.Instance.SetEnabled(beacon.Ship, false);
+
+            // Out of service for everyone: those told otherwise are told again.
+            List<Client> told;
+
+            lock (beacon.ToldUsable)
+            {
+                told = beacon.ToldUsable.ToList();
+                beacon.ToldUsable.Clear();
+            }
+
+            beacon.Ship.IsEnabled = false;
+
+            foreach (var client in told)
+                if (client.State != ClientState.Disconnected)
+                    client.CallMethod(beacon.Ship.EntityId, new SetUsablePacket(false));
 
             // 205 to 214: away. A ship that never settled goes straight from 215, which has no
             // transition to 214 - it is simply taken away when its time comes.
