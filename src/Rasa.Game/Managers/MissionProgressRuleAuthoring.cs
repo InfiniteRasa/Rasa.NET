@@ -32,12 +32,23 @@ namespace Rasa.Managers
             }
 
             if (progressTriggers.Count > 1)
+            {
+                progressTriggers[0].TryGetEventKind(out var aggregateKind);
+                if (aggregateKind == MissionProgressEventKind.CreatureKilled)
+                    return TryBuildCreatureCounterSet(
+                        progressTriggers,
+                        out rule,
+                        out counters,
+                        out diagnostic);
+                if (aggregateKind == MissionProgressEventKind.ScenarioEvent)
+                    return TryBuildScopedSceneSet(progressTriggers, out rule, out counters, out diagnostic);
                 return TryBuildDistinctSet(
                     progressTriggers,
                     out rule,
                     out counters,
                     out itemCounters,
                     out diagnostic);
+            }
 
             var trigger = progressTriggers[0];
             trigger.TryGetEventKind(out var kind);
@@ -53,18 +64,12 @@ namespace Rasa.Managers
             var hasSourceSpawnResolved = trigger.SourceSpawnResolved.HasValue;
 
             if (kind is MissionProgressEventKind.WaypointAcquired or MissionProgressEventKind.LogosAcquired)
-            {
-                if (hasCounterId || hasInitialValue || hasTargetValue || hasSourceSpawnResolved)
-                {
-                    diagnostic = $"{kind} progress rules only support distinct subject sets without counter or spawn parameters.";
-                    return false;
-                }
-
-                rule = MissionProgressRule.CompleteWhenAllDistinctSubjectsObserved(
-                    kind,
-                    new HashSet<uint> { trigger.SubjectId.Value });
-                return true;
-            }
+                return TryBuildDistinctSet(
+                    progressTriggers,
+                    out rule,
+                    out counters,
+                    out itemCounters,
+                    out diagnostic);
 
             if (kind is MissionProgressEventKind.ItemAcquired or MissionProgressEventKind.ItemConsumed)
             {
@@ -141,6 +146,8 @@ namespace Rasa.Managers
 
             if (kind == MissionProgressEventKind.ScenarioEvent)
             {
+                if (hasInitialValue || hasTargetValue)
+                    return TryBuildScopedSceneSet(progressTriggers, out rule, out counters, out diagnostic);
                 if (!hasCounterId || trigger.CounterId.Value == 0 ||
                     hasInitialValue || hasTargetValue || hasSourceSpawnResolved)
                 {
@@ -219,6 +226,87 @@ namespace Rasa.Managers
             return true;
         }
 
+        private static bool TryBuildScopedSceneSet(
+            IReadOnlyList<MissionTriggerDefinition> triggers,
+            out MissionProgressRule rule,
+            out IReadOnlyDictionary<uint, MissionObjectiveCounterDefinition> counters,
+            out string diagnostic)
+        {
+            rule = null;
+            counters = new Dictionary<uint, MissionObjectiveCounterDefinition>();
+            diagnostic = null;
+            var first = triggers[0];
+            if (first.MissionId == 0 || !first.CounterId.HasValue || first.CounterId.Value == 0 ||
+                first.InitialValue != 0 || first.TargetValue != (uint)triggers.Count ||
+                triggers.Any(trigger => !trigger.TryGetEventKind(out var kind) ||
+                    kind != MissionProgressEventKind.ScenarioEvent || trigger.MissionId != first.MissionId ||
+                    trigger.CounterId != first.CounterId || trigger.InitialValue != 0 ||
+                    trigger.TargetValue != first.TargetValue || trigger.SubjectId is null or 0 ||
+                    trigger.SubjectId.Value > triggers.Count ||
+                    trigger.SourceSpawnResolved.HasValue) ||
+                triggers.Select(trigger => trigger.SubjectId).Distinct().Count() != triggers.Count)
+            {
+                diagnostic = "scoped scene counters require distinct events 1..N in one mission/scenario, " +
+                    "initial_value 0 and target_value equal to the authored event count.";
+                return false;
+            }
+            counters = new Dictionary<uint, MissionObjectiveCounterDefinition>
+            {
+                [0] = new(0, 0, first.TargetValue.Value)
+            };
+            rule = MissionProgressRule.CompleteOnDistinctScenarioEvents(first.MissionId,
+                first.CounterId.Value, new HashSet<uint>(triggers.Select(trigger => trigger.SubjectId.Value)));
+            return true;
+        }
+
+        private static bool TryBuildCreatureCounterSet(
+            IReadOnlyList<MissionTriggerDefinition> progressTriggers,
+            out MissionProgressRule rule,
+            out IReadOnlyDictionary<uint, MissionObjectiveCounterDefinition> counters,
+            out string diagnostic)
+        {
+            rule = null;
+            counters = new Dictionary<uint, MissionObjectiveCounterDefinition>();
+            var first = progressTriggers[0];
+            if (!first.CounterId.HasValue || !first.InitialValue.HasValue ||
+                !first.TargetValue.HasValue ||
+                !progressTriggers.All(trigger =>
+                    trigger.TryGetEventKind(out var kind) &&
+                    kind == MissionProgressEventKind.CreatureKilled &&
+                    trigger.SubjectId.HasValue && trigger.SubjectId.Value != 0 &&
+                    trigger.CounterId == first.CounterId &&
+                    trigger.InitialValue == first.InitialValue &&
+                    trigger.TargetValue == first.TargetValue &&
+                    !trigger.SourceSpawnResolved.HasValue))
+            {
+                diagnostic = "creature-set counter rules require non-zero subject_id values, one shared counter_id, initial_value and target_value, and no source_spawn_resolved.";
+                return false;
+            }
+            if (!TryValidateMonotonicRange(
+                    "counter progress rule",
+                    "counter_id",
+                    first.CounterId.Value,
+                    first.InitialValue.Value,
+                    first.TargetValue.Value,
+                    out diagnostic))
+                return false;
+
+            counters = new Dictionary<uint, MissionObjectiveCounterDefinition>
+            {
+                [first.CounterId.Value] = new(
+                    first.CounterId.Value,
+                    first.InitialValue.Value,
+                    first.TargetValue.Value)
+            };
+            rule = MissionProgressRule.IncrementCounterOnAnySubject(
+                MissionProgressEventKind.CreatureKilled,
+                new HashSet<uint>(progressTriggers.Select(trigger => trigger.SubjectId.Value)),
+                first.CounterId.Value,
+                first.InitialValue.Value,
+                first.TargetValue.Value);
+            return true;
+        }
+
         private static bool TryBuildDistinctSet(
             IReadOnlyList<MissionTriggerDefinition> progressTriggers,
             out MissionProgressRule rule,
@@ -243,18 +331,35 @@ namespace Rasa.Managers
                     kind == aggregateKind &&
                     trigger.SubjectId.HasValue &&
                     trigger.SubjectId.Value != 0 &&
-                    !trigger.CounterId.HasValue &&
-                    !trigger.InitialValue.HasValue &&
-                    !trigger.TargetValue.HasValue &&
                     !trigger.SourceSpawnResolved.HasValue))
             {
-                diagnostic = "distinct progress subject rules require one event_kind, non-zero subject_id values, and no counter or spawn parameters.";
+                diagnostic = "distinct progress subject rules require one event_kind, non-zero subject_id values, and no spawn parameters.";
                 return false;
             }
 
+            var subjects = new HashSet<uint>(progressTriggers.Select(trigger => trigger.SubjectId.Value));
+            var first = progressTriggers[0];
+            if (progressTriggers.Any(trigger => trigger.CounterId.HasValue ||
+                trigger.InitialValue.HasValue || trigger.TargetValue.HasValue))
+            {
+                if (!first.CounterId.HasValue ||
+                    !progressTriggers.All(trigger =>
+                        trigger.CounterId == first.CounterId &&
+                        trigger.InitialValue == 0 &&
+                        trigger.TargetValue == (uint)subjects.Count))
+                {
+                    diagnostic = "distinct counter rules require one shared counter_id, initial_value 0, and target_value equal to the distinct subject count.";
+                    return false;
+                }
+                counters = new Dictionary<uint, MissionObjectiveCounterDefinition>
+                {
+                    [first.CounterId.Value] = new(first.CounterId.Value, 0, (uint)subjects.Count)
+                };
+            }
             rule = MissionProgressRule.CompleteWhenAllDistinctSubjectsObserved(
                 aggregateKind,
-                new HashSet<uint>(progressTriggers.Select(trigger => trigger.SubjectId.Value)));
+                subjects,
+                first.CounterId);
             return true;
         }
 

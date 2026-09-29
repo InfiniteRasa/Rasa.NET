@@ -85,6 +85,38 @@ namespace Rasa.Test.Missions.Content
         }
 
         [TestMethod]
+        [DataRow("character.soldier-family", CharacterClass.Soldier, CharacterClass.Specialist)]
+        [DataRow("character.soldier-family", CharacterClass.Commando, CharacterClass.Specialist)]
+        [DataRow("character.soldier-family", CharacterClass.Sniper, CharacterClass.Engineer)]
+        [DataRow("character.specialist-family", CharacterClass.Specialist, CharacterClass.Soldier)]
+        [DataRow("character.specialist-family", CharacterClass.Biotechnician, CharacterClass.Soldier)]
+        [DataRow("character.specialist-family", CharacterClass.Engineer, CharacterClass.Sniper)]
+        public void ClassFamilyAdmissionRequiresThePersistedClass(
+            string key, CharacterClass eligible, CharacterClass ineligible)
+        {
+            var mission = new Mission(321, "Class-qualified offer", 321, 77, 88, 1, 1, 2,
+                false, false, Array.Empty<MissionObjectiveDefinition>(), true,
+                requirement: new CustomRequirement(key));
+            using var context = MissionTestContext.WithCustomDefinitions(
+                new Dictionary<uint, Mission> { [321] = mission });
+            var giver = context.AddNpc(77);
+            context.Client.Player.Class = (uint)eligible;
+            using (var unit = context.CreateChar())
+                unit.Characters.UpdateCharacterClass(1, (uint)ineligible);
+
+            Assert.IsFalse(context.Manager.AcceptOfferedMission(context.Client, giver.EntityId, 321),
+                "A runtime-only class change cannot authorize a class-qualified reward.");
+            using (var unit = context.CreateChar())
+            {
+                Assert.IsNull(unit.CharacterMissions.GetByCharacterAndMission(1, 321));
+                unit.Characters.UpdateCharacterClass(1, (uint)eligible);
+            }
+
+            Assert.IsTrue(context.Manager.AcceptOfferedMission(context.Client, giver.EntityId, 321),
+                "The existing class tree must include advanced descendants in the original class family.");
+        }
+
+        [TestMethod]
         public void LoadedAdmissionHandlerControlsOffersAndDurableAcceptanceButNotLaterStages()
         {
             using var harness = BootcampRuntimeTestHarness.Create(configureScenes: packs =>

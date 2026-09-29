@@ -306,11 +306,20 @@ namespace Rasa.Managers
         /// <param name="armorBypassPercent">Percent of the damage that skips armour: the Torqueshell and Injection Gun skills.</param>
         public void MissileLaunch(MapChannel mapChannel, ActionData action, int damage, int armorBypassPercent = 0)
         {
+            var manualSource = action.Actor as Creature;
+            if (manualSource?.ScriptedCombatGate != null &&
+                (!Game.Missions.World.CreatureGameplayRules.CanParticipateInCombat(manualSource) ||
+                 manualSource.ScriptedCombatAuthorization == null))
+            {
+                Logger.WriteLog(LogType.Debug, $"Manual combat source {manualSource.EntityId} has no current attack authority.");
+                return;
+            }
             var missile = new Missile
             {
                 DamageA = damage,
                 ArmorBypassPercent = Math.Max(0, Math.Min(100, armorBypassPercent)),
-                Source = action.Actor
+                Source = action.Actor,
+                SourceCombatAuthorization = manualSource?.ScriptedCombatAuthorization
             };
 
             // get distance between actors
@@ -429,6 +438,23 @@ namespace Rasa.Managers
                 missile.TargetActor is Creature enemy &&
                 !CreatureManager.IsHostileTarget(mapChannel, companion, enemy))
                 targetType = 0;
+            if (missile.Source is Creature manual &&
+                (manual.ScriptedCombatGate != null || missile.SourceCombatAuthorization != null) &&
+                (!CreatureManager.IsLivingOnMap(mapChannel, manual) ||
+                 !Game.Missions.World.CreatureGameplayRules.CanParticipateInCombat(manual) ||
+                 missile.SourceCombatAuthorization == null ||
+                 !ReferenceEquals(missile.SourceCombatAuthorization, manual.ScriptedCombatAuthorization)))
+            {
+                targetType = 0;
+                missile.Args.HitEntities.Clear();
+                missile.Args.HitData.Clear();
+                if (missile.TargetEntityId != 0)
+                {
+                    missile.Args.MisstEntities.Add(missile.TargetEntityId);
+                    missile.Args.Missdata.Add(0);
+                }
+                Logger.WriteLog(LogType.Debug, $"Retired manual-combat missile from {manual.EntityId} was rejected.");
+            }
 
             switch (targetType)
             {
@@ -473,7 +499,8 @@ namespace Rasa.Managers
             }
 
             if (targetType == EntityType.Object && missile.TargetObject != null && missile.DamageA > 0)
-                PracticeTargetManager.RecordHit(mapChannel, missile.Source, missile.TargetObject, missile.ActionId);
+                PracticeTargetManager.RecordHit(mapChannel, missile.Source, missile.TargetObject, missile.ActionId,
+                    damage: missile.DamageA);
         }
     }
 }

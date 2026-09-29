@@ -190,6 +190,10 @@ namespace Rasa.Managers
             internal uint OwnedQuantity(MissionItemOwnership owner) =>
                 checked((uint)_stacks.Where(stack => stack.Ownership == owner).Sum(stack => (long)stack.Count));
 
+            internal uint UnownedQuantity(uint templateId) =>
+                checked((uint)_stacks.Where(stack => stack.Ownership == null && stack.Template.ItemTemplateId == templateId)
+                    .Sum(stack => (long)stack.Count));
+
             internal void RequireAssignment(uint missionId, string assignmentId, uint generation,
                 IReadOnlyDictionary<string, Rasa.Missions.Definitions.MissionItemBinding> bindings)
             {

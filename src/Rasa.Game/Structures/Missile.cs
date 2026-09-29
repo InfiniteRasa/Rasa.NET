@@ -13,6 +13,7 @@
         public Actor TargetActor { get; set; }
         internal DynamicObject TargetObject { get; set; }
         public Actor Source { get; set; }
+        internal Game.Missions.World.ScriptedCombatAuthorization SourceCombatAuthorization { get; set; }
         /// <summary>Percent of DamageA that skips armour and comes straight off health (Torqueshell and Injection Guns skills).</summary>
         public int ArmorBypassPercent { get; set; }
         public long TriggerTime { get; set; }       // amount of milliseconds left before the missile is triggered, is decreased on every tick

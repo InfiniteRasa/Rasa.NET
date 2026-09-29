@@ -9,6 +9,7 @@ namespace Rasa.Managers
 {
     using Data;
     using Game;
+    using Game.Missions.Persistence;
     using Packets.Communicator.Server;
     using Packets.LootDispenser.Server;
     using Packets.MapChannel.Client;
@@ -218,6 +219,7 @@ namespace Rasa.Managers
             loot.UnitOfWorkFactory = _gameUnitOfWorkFactory;
 
             CreateLoot(killer, loot, (policy ?? Game.Missions.World.CreatureGameplayRules.Policy(creature)).Loot);
+            AppendMissionLoot(killer, loot);
 
             lock (mapChannel.LootSyncRoot)
             {
@@ -226,6 +228,60 @@ namespace Rasa.Managers
             }
 
             return loot;
+        }
+
+        private void AppendMissionLoot(Client owner, LootDispenser loot)
+        {
+            if (owner.Player.Missions.Count == 0)
+                return;
+            var missions = _missionManager ?? MissionApplication.Instance;
+            if (!MissionLootPlanner.HasCandidates(owner, missions))
+                return;
+            var staged = new List<(Item Item, MissionLootPlanner.QualifiedDrop Drop)>();
+            var committed = false;
+            try
+            {
+                using var unit = _gameUnitOfWorkFactory.CreateChar();
+                unit.ExecuteTransaction(() =>
+                {
+                    foreach (var drop in MissionLootPlanner.Plan(owner, loot, missions, unit, _lootRoll))
+                    {
+                        var template = ItemManager.Instance.GetItemTemplateById(drop.Binding.ItemTemplateId);
+                        var itemClass = template == null ? null :
+                            EntityClassManager.Instance.GetClassInfo(template.Class)?.ItemClassInfo;
+                        if (itemClass == null || drop.Quantity > itemClass.StackSize)
+                            throw new GameplayRejectionException("Mission corpse loot has an invalid template or native stack size.");
+                        var item = ItemManager.StageItem(template, drop.Quantity, string.Empty);
+                        staged.Add((item, drop));
+                        item.Id = unit.Items.CreateItem(item);
+                        if (item.Id == 0)
+                            throw new GameplayRejectionException("Mission corpse loot item was not persisted.");
+                    }
+                });
+                committed = true;
+            }
+            catch (Exception error) when (GameplayRejectionException.IsExpected(error))
+            {
+                Logger.WriteLog(LogType.Error, $"Mission corpse loot creation failed for character {owner.Player.Id}: {error.Message}");
+                return;
+            }
+            finally
+            {
+                if (!committed)
+                    foreach (var entry in staged)
+                        EntityManager.Instance.FreeEntity(entry.Item.EntityId);
+            }
+            foreach (var entry in staged)
+            {
+                EntityManager.Instance.RegisterEntity(entry.Item.EntityId, EntityType.Item);
+                EntityManager.Instance.RegisterItem(entry.Item.EntityId, entry.Item);
+                var item = new LootItem(entry.Item, owner.Player.EntityId, 0);
+                MissionLootPlanner.Attach(item, entry.Drop);
+                loot.LootItems.Add(item);
+                var quality = (LootQuality)entry.Item.ItemTemplate.QualityId;
+                if (quality.Rank() > loot.LootQuality.Rank())
+                    loot.LootQuality = quality;
+            }
         }
 
         /// <summary>
@@ -722,6 +778,8 @@ namespace Rasa.Managers
                                 throw new GameplayRejectionException("Reward loot item was already claimed.");
                     }
 
+                    MissionLootPlanner.ValidateClaim(client, loot, items, missionManager, unitOfWork,
+                        () => TryGetLoot(client, loot.EntityId, out var admittedLoot) && ReferenceEquals(admittedLoot, loot));
                     grant.PlanAndSave(client, items, unitOfWork, destSlot);
                     var events = items.GroupBy(item => item.ItemClassId)
                         .Select(group => MissionProgressEvent.ItemAcquired(

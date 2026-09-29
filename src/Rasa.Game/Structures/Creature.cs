@@ -58,6 +58,8 @@ namespace Rasa.Structures
         public long LastAgression { get; internal set; }
         public long LastRestTime { get; internal set; }
         public bool IsInteractable { get; set; } = true;
+        internal Func<bool> ScriptedCombatGate { get; set; }
+        internal Game.Missions.World.ScriptedCombatAuthorization ScriptedCombatAuthorization { get; set; }
 
         /// <summary>
         /// The player this creature belongs to, or 0 for an ordinary world creature.

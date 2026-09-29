@@ -146,6 +146,8 @@ namespace Rasa.Managers
 
                     if (tCreature.Attributes[Attributes.Health].Current <= 0)
                         continue;
+                    if (!Game.Missions.World.CreatureGameplayRules.CanParticipateInCombat(tCreature))
+                        continue;
 
                     if (tCreature == creature)
                         continue;
@@ -204,6 +206,15 @@ namespace Rasa.Managers
             if (creature.Controller.CurrentAction == BehaviorActionScriptedMove)
             {
                 AdvanceScriptedMove(mapChannel, creature, delta);
+                return;
+            }
+
+            if (creature.Controller.CurrentAction == BehaviorActionFighting &&
+                !Game.Missions.World.CreatureGameplayRules.CanParticipateInCombat(creature))
+            {
+                creature.Controller.ActionFighting.TargetEntityId = 0;
+                creature.Target = 0;
+                SetActionAnchor(creature, creature.Position);
                 return;
             }
 
@@ -1058,7 +1069,8 @@ namespace Rasa.Managers
             // A passive minion does not fight, and this is the one place worth saying so: it
             // covers both the aggro scan and being shot at (MissileManager calls straight in
             // here), so there is no second path where passive quietly stops meaning passive.
-            if (creature.MasterEntityId != 0 && creature.Stance == MinionStance.Passive)
+            if (creature.MasterEntityId != 0 && creature.Stance == MinionStance.Passive ||
+                !Game.Missions.World.CreatureGameplayRules.CanParticipateInCombat(creature))
                 return;
 
             creature.Controller.CurrentAction = BehaviorActionFighting;
@@ -1243,7 +1255,8 @@ namespace Rasa.Managers
         /// </summary>
         private static bool ScansForEnemies(Creature creature)
         {
-            return creature.MasterEntityId == 0 || creature.Stance == MinionStance.Aggressive;
+            return creature.ScriptedCombatGate == null &&
+                (creature.MasterEntityId == 0 || creature.Stance == MinionStance.Aggressive);
         }
 
         private void UpdateCreatureTimers(Creature creature, long delta)

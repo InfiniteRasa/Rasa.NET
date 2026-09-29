@@ -35,6 +35,9 @@ namespace Rasa.Game.Missions
         private readonly Dictionary<string, DateTime> _messageRetries = new(StringComparer.Ordinal);
         private readonly Dictionary<string, DateTime> _terminationRetries = new(StringComparer.Ordinal);
         private readonly Dictionary<string, PendingPause> _pauseRetries = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, DateTime> _ownerLossRetries = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, (MapChannel Map, DateTime Due)> _rewardRetirements = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, (Client Owner, uint Generation, DateTime Due)> _resumeRetries = new(StringComparer.Ordinal);
         private readonly Dictionary<uint, MissionExperienceDefinition> _experiences = new();
         private readonly Dictionary<(uint Character, MapChannel Map), Client> _resumed = new();
         private readonly SceneDueQueue _due = new();
@@ -48,8 +51,8 @@ namespace Rasa.Game.Missions
         {
             _factory = factory; _missions = missions; _manifestations = manifestations;
             _runtime = new SceneRuntime(registry ?? new SceneScriptRegistry());
-            _characters = new SceneCharacterAdapter(missions, manifestations);
             _utcNow = utcNow ?? (() => DateTime.UtcNow);
+            _characters = new SceneCharacterAdapter(missions, manifestations, _utcNow);
             _world = worldFactory?.Invoke(ObserveWorld) ?? new SceneWorldAdapter(missions.PublicActors, ObserveWorld);
         }
 
@@ -67,6 +70,9 @@ namespace Rasa.Game.Missions
         internal void LeaseReset(string runId)
         {
             _pauseRetries.Remove(runId);
+            _ownerLossRetries.Remove(runId);
+            _rewardRetirements.Remove(runId);
+            _resumeRetries.Remove(runId);
             if (_runs.TryGetValue(runId, out var current))
                 _world.Terminate(current.Run, current.Map);
             else
@@ -157,6 +163,13 @@ namespace Rasa.Game.Missions
                         assignment.AssignmentId == row.AssignmentId;
                     if (!map.IsPrivateInstance && row.MapKey != PublicActorLeaseService.MapKey(map))
                         continue;
+                    if (!string.IsNullOrEmpty(row.AssignmentId) &&
+                        unit.CharacterMissions.Runtime.WasRewarded(row.AssignmentId))
+                    {
+                        _rewardRetirements[row.RunId] = (map, _utcNow());
+                        RetireRewardedScene(row.RunId, map);
+                        continue;
+                    }
                     if ((!current && (!map.IsPrivateInstance || row.Version == 0)) || row.Status == "Resetting" ||
                         !map.IsPrivateInstance && row.Status is "Ended" or "Faulted")
                         continue;
@@ -165,9 +178,23 @@ namespace Rasa.Game.Missions
                         Submit(row.RunId, new SceneObservation(SceneEventKind.Started, row.Generation));
                     if (current && row.Status is "Running" or "Waiting")
                         DrainMessages(row.RunId);
+                    if (current && row.Version > 0 && assignment.MissionState == (uint)Data.MissionState.Active &&
+                        _runs.TryGetValue(row.RunId, out var resumed) &&
+                        resumed.Run.Status is SceneStatus.Running or SceneStatus.Waiting)
+                        NotifyRecovered(resumed);
                 }
             _missions.Credit.Resume(client);
             _resumed[(client.Player.Id, map)] = client;
+        }
+
+        private void NotifyRecovered(Resident resident)
+        {
+            var runId = resident.Run.Id;
+            _resumeRetries.Remove(runId);
+            if (!Submit(runId, new SceneObservation(SceneEventKind.Recovered, resident.Run.Generation, "resumed")) &&
+                _runs.TryGetValue(runId, out var current) &&
+                current.Run.Status is SceneStatus.Running or SceneStatus.Waiting)
+                _resumeRetries[runId] = (resident.Owner, resident.Run.Generation, _utcNow().AddSeconds(1));
         }
 
         internal void Rebuild(uint characterId, MapChannel map)
@@ -183,6 +210,18 @@ namespace Rasa.Game.Missions
 
         internal void MissionChanged(Client client, uint missionId, string change)
         {
+            if (change == "Rewarded" && client?.Player?.MapChannel is { } map &&
+                client.Player.Missions.TryGetValue(missionId, out var assignment))
+            {
+                using var unit = _factory.CreateChar();
+                foreach (var scene in unit.CharacterMissions.Runtime.Scenes(client.Player.Id, missionId)
+                    .Where(scene => scene.AssignmentId == assignment.AssignmentId))
+                {
+                    var residentMap = _runs.TryGetValue(scene.RunId, out var resident) ? resident.Map : map;
+                    _rewardRetirements[scene.RunId] = (residentMap, _utcNow());
+                    RetireRewardedScene(scene.RunId, residentMap);
+                }
+            }
             if (client?.Player?.MapChannel == null ||
                 !_experiences.TryGetValue(client.Player.MapContextId, out var experience))
                 return;
@@ -191,6 +230,39 @@ namespace Rasa.Game.Missions
                 run.Map == client.Player.MapChannel && run.Run.ScriptKey == experience.Scene.Script);
             foreach (var trigger in experience.MissionTriggers.Where(trigger => trigger.MissionId == missionId && trigger.Event == change))
                 Submit(root.Run.Id, new SceneObservation(SceneEventKind.Signal, root.Run.Generation, SequenceId: trigger.SequenceId));
+        }
+
+        private void RetireRewardedScene(string runId, MapChannel map)
+        {
+            try
+            {
+                using (var unit = _factory.CreateChar())
+                    unit.ExecuteTransaction(() =>
+                    {
+                        var store = unit.CharacterMissions.Runtime;
+                        var scene = store.Scene(runId);
+                        if (scene == null || scene.MissionId == 0 || string.IsNullOrEmpty(scene.AssignmentId) ||
+                            !store.WasRewarded(scene.AssignmentId))
+                            throw new GameplayRejectionException("Scene retirement has no exact rewarded assignment.");
+                        if (scene.Status == "Resetting")
+                            return;
+                        scene.Status = "Ended";
+                        scene.Version++;
+                        foreach (var timer in store.Timers(runId).Where(timer => timer.Disposition is "Pending" or "Paused"))
+                        { timer.Disposition = "Cancelled"; timer.Version++; }
+                        foreach (var message in store.Messages(runId).Where(message => message.Status == "Pending"))
+                        { message.Status = "Cancelled"; message.Version++; }
+                        foreach (var effect in store.Effects(runId).Where(effect => effect.Status is "Pending" or "Running"))
+                        { effect.Status = "Cancelled"; effect.Version++; }
+                    });
+                _missions.PublicActors.BeginReset(map, runId, "AssignmentRewarded");
+                LeaseReset(runId);
+            }
+            catch (Exception error) when (GameplayRejectionException.IsExpected(error))
+            {
+                _rewardRetirements[runId] = (map, _utcNow().AddSeconds(1));
+                Reject($"Scene {runId} reward retirement remains pending: {error}");
+            }
         }
 
         internal void PrepareAssignment(Repositories.Char.ICharUnitOfWork unit, Client owner, CharacterMissionEntry assignment)
@@ -430,6 +502,169 @@ namespace Rasa.Game.Missions
                 run.Bindings.Actors.Values.Any(actor => actor.Kind == SceneActorKind.PublicSpawn &&
                     actor.TemplateId == spawnId)).ToArray())
                 Reconcile(run.Run.Id);
+        }
+
+        internal bool OwnerLost(MapChannel map, string runId)
+        {
+            if (!_runs.TryGetValue(runId, out var resident) || resident.Map != map)
+            {
+                _ownerLossRetries.Remove(runId);
+                return false;
+            }
+            _world.Pause(runId);
+            if (Submit(runId, new SceneObservation(SceneEventKind.OwnerLost, resident.Run.Generation, "owner-left")))
+            {
+                _ownerLossRetries.Remove(runId);
+                return true;
+            }
+            _ownerLossRetries[runId] = _utcNow().AddSeconds(1);
+            return false;
+        }
+
+        internal bool PublicActorDied(MapChannel map, Creature creature)
+        {
+            if (creature?.SpawnPool == null || creature.SpawnPool.SceneRunId != null)
+                return false;
+            var handle = _missions.PublicActors.Handle(map, creature.SpawnPool.DbId);
+            if (handle == null || !_missions.PublicActors.TryResolve(map, handle, out var current) ||
+                !ReferenceEquals(current, creature) || !_runs.TryGetValue(handle.RunId, out var resident) ||
+                resident.Run.Generation != handle.Generation)
+                return false;
+            return Submit(handle.RunId, new SceneObservation(SceneEventKind.ActorDied, handle.Generation,
+                "public-actor-died", handle.Role, SourceEntityId: creature.EntityId));
+        }
+
+        private void ValidatePublicDeath(Resident resident, SceneObservation observation,
+            Repositories.Char.ICharUnitOfWork unit)
+        {
+            if (!resident.Bindings.Actors.TryGetValue(observation.Role, out var definition) ||
+                definition.Kind != SceneActorKind.PublicSpawn)
+                throw new GameplayRejectionException("Public death has no authored actor role.");
+            var expected = _missions.PublicActors.Handle(resident.Map, definition.TemplateId);
+            bool Current() => expected?.RunId == resident.Run.Id && expected.Generation == observation.Generation &&
+                expected.Role == observation.Role &&
+                _missions.PublicActors.TryResolve(resident.Map, expected, out var actor) &&
+                actor.EntityId == observation.SourceEntityId && actor.State == Data.CharacterState.Dead;
+            if (!Current())
+                throw new GameplayRejectionException("Public death belongs to a replaced actor or lease.");
+            TransactionValidation.AtCommitBoundary(unit, () =>
+            {
+                if (!Current())
+                    throw new GameplayRejectionException("Public death source changed at the commit boundary.");
+            });
+        }
+
+        internal bool CanUseObject(Client client, DynamicObject obj, uint argument)
+        {
+            if (!TryGetObjectSource(client, obj, out var resident, out var definition) ||
+                definition.UseAction is not { } use || use.ActionArgId != argument ||
+                System.Numerics.Vector3.Distance(client.Player.Position, obj.Position) > DynamicObjectManager.MaxUseDistance)
+                return false;
+            using var unit = _factory.CreateChar();
+            return ObjectObjectiveAvailable(resident, use.MissionId, use.ObjectiveId, unit);
+        }
+
+        internal bool UseObject(Client client, DynamicObject obj, uint argument)
+        {
+            if (client == null)
+                return false;
+            lock (client.SyncRoot)
+            {
+                if (!CanUseObject(client, obj, argument))
+                    return Reject("Native object recovery lost its owner, assignment, argument or source.");
+                return Submit(obj.SceneRunId, new SceneObservation(SceneEventKind.Signal, obj.SceneGeneration,
+                    "object-use", obj.SceneActorRole, $"object-use-{obj.SceneActorRole}",
+                    obj.MissionUseAction.SequenceId, SourceEntityId: obj.EntityId));
+            }
+        }
+
+        internal bool DamageObject(Client client, DynamicObject obj, int damage)
+        {
+            if (client == null)
+                return false;
+            lock (client.SyncRoot)
+            {
+                if (damage <= 0 || !TryGetObjectSource(client, obj, out var resident, out var definition) ||
+                    definition.Destruction is not { } destruction || obj.CurrentHitPoints == 0)
+                    return Reject("Object damage has no current, living assignment-owned source.");
+                using (var unit = _factory.CreateChar())
+                    if (!ObjectObjectiveAvailable(resident, destruction.MissionId, destruction.ObjectiveId, unit))
+                        return Reject("Object damage no longer belongs to an eligible objective.");
+                if ((uint)damage < obj.CurrentHitPoints)
+                {
+                    obj.CurrentHitPoints -= (uint)damage;
+                    PublishObjectDamage(resident.Map, obj);
+                    return true;
+                }
+                return Submit(obj.SceneRunId, new SceneObservation(SceneEventKind.Signal, obj.SceneGeneration,
+                    "object-destroy", obj.SceneActorRole, $"object-destroy-{obj.SceneActorRole}",
+                    destruction.SequenceId, SourceEntityId: obj.EntityId));
+            }
+        }
+
+        private bool TryGetObjectSource(Client client, DynamicObject obj, out Resident resident,
+            out SceneActorDefinition definition)
+        {
+            resident = null;
+            definition = null;
+            if (!Integration.MissionInteractionPolicy.IsActivePlayer(client) || obj?.SceneRunId == null ||
+                !obj.IsEnabled || !obj.IsInWorld || obj.SceneOwnerCharacterId != client.Player.Id ||
+                !_runs.TryGetValue(obj.SceneRunId, out resident) || resident.Suspended ||
+                !ReferenceEquals(resident.Owner, client) ||
+                resident.Run.Status is not (SceneStatus.Running or SceneStatus.Waiting) ||
+                resident.Run.Generation != obj.SceneGeneration ||
+                resident.Run.MissionId != obj.SceneMissionId || resident.Map != client.Player.MapChannel ||
+                !MapInstanceScope.Contains(resident.Map, obj) || !resident.Map.DynamicObjects.Contains(obj) ||
+                !EntityManager.Instance.TryGetObject(obj.EntityId, out var current) || !ReferenceEquals(current, obj) ||
+                !resident.Bindings.Actors.TryGetValue(obj.SceneActorRole, out definition))
+                return false;
+            return definition.Kind == SceneActorKind.Object && (uint)obj.EntityClassId == definition.TemplateId &&
+                obj.MissionUseAction == definition.UseAction && obj.MissionDestruction == definition.Destruction &&
+                obj.ScenarioKey == $"run:{resident.Run.Id}:generation:{resident.Run.Generation}:actor:{definition.Role}";
+        }
+
+        private bool ObjectObjectiveAvailable(Resident resident, uint missionId, uint objectiveId,
+            Repositories.Char.ICharUnitOfWork unit)
+        {
+            var assignment = unit.CharacterMissions.GetByCharacterAndMission(resident.Run.OwnerCharacterId, missionId);
+            return missionId == resident.Run.MissionId && assignment?.AssignmentId == resident.AssignmentId &&
+                assignment.MissionState == (uint)Data.MissionState.Active &&
+                assignment.ContentRevision == resident.Run.Release &&
+                unit.CharacterMissionProgress.GetTracked(resident.Run.OwnerCharacterId, missionId)
+                    .TryGetValue(objectiveId, out var objective) &&
+                objective.ObjectiveState == (byte)Data.MissionObjectiveState.Incomplete &&
+                _missions.IsObjectiveEligibleAtEvent(resident.Owner, missionId, objectiveId, unit);
+        }
+
+        private static void PublishObjectDamage(MapChannel map, DynamicObject obj) =>
+            CellManager.Instance.CellCallMethod(map, obj, new Packets.MapChannel.Server.DamageInfoPacket(
+                obj.IsEnabled && obj.CurrentHitPoints > 0, false,
+                obj.MissionDestruction.HitPoints, obj.CurrentHitPoints));
+
+        private DynamicObject ValidateObjectObservation(Resident resident, SceneObservation observation,
+            Repositories.Char.ICharUnitOfWork unit)
+        {
+            if (observation.Kind != SceneEventKind.Signal ||
+                !EntityManager.Instance.TryGetObject(observation.SourceEntityId.Value, out var obj) ||
+                !TryGetObjectSource(resident.Owner, obj, out var current, out var definition) ||
+                !ReferenceEquals(current, resident) || obj.SceneActorRole != observation.Role)
+                throw new GameplayRejectionException("Native object source changed before its scene input committed.");
+            var use = observation.Name == "object-use" ? definition.UseAction : null;
+            var destruction = observation.Name == "object-destroy" ? definition.Destruction : null;
+            if (use == null && destruction == null ||
+                observation.SequenceId != (use?.SequenceId ?? destruction.SequenceId) ||
+                use != null && System.Numerics.Vector3.Distance(resident.Owner.Player.Position, obj.Position) >
+                    DynamicObjectManager.MaxUseDistance ||
+                !ObjectObjectiveAvailable(resident, use?.MissionId ?? destruction.MissionId,
+                    use?.ObjectiveId ?? destruction.ObjectiveId, unit))
+                throw new GameplayRejectionException("Native object input no longer matches its authored objective.");
+            TransactionValidation.AtCommitBoundary(unit, () =>
+            {
+                if (!TryGetObjectSource(resident.Owner, obj, out var latest, out var shape) ||
+                    !ReferenceEquals(latest, resident) || shape != definition)
+                    throw new GameplayRejectionException("Native object source was replaced at the commit boundary.");
+            });
+            return destruction != null ? obj : null;
         }
 
         internal void RecordDefeat(MapChannel map, Creature creature, Client credited)
@@ -701,12 +936,18 @@ namespace Rasa.Game.Missions
         {
             if (!_runs.TryGetValue(runId, out var resident))
                 return Reject($"Scene run {runId} is not attached.");
+            if (_ownerLossRetries.ContainsKey(runId) && observation.Kind != SceneEventKind.OwnerLost)
+                return Reject($"Scene run {runId} is waiting for its owner-loss failure to commit.");
             if (resident.Suspended)
                 return Reject($"Scene run {runId} is waiting for its owner.");
             var evaluation = _runtime.Evaluate(resident.Run, resident.Bindings, observation, _utcNow());
             if (!evaluation.Accepted)
                 return Reject(evaluation.Rejection);
             var decision = evaluation.Decision;
+            var failForOwnerLoss = observation.Kind == SceneEventKind.OwnerLost &&
+                _missions.PublicActors.OwnerLossPolicy(resident.Map, runId) == "Fail";
+            if (failForOwnerLoss)
+                decision = new SceneDecision(resident.Run.Checkpoint, status: SceneStatus.Ended);
             using var publication = new MissionScenarioPlan();
             var worldTargets = new HashSet<string>(StringComparer.Ordinal) { runId };
             var sharedVersions = new Dictionary<string, long>(StringComparer.Ordinal);
@@ -726,6 +967,32 @@ namespace Rasa.Game.Missions
                     if (scene?.Version != resident.Run.Version || scene.Generation != observation.Generation)
                         throw new GameplayRejectionException($"Concurrent scene revision for run {runId}.");
                     RequireCurrentAssignment(unit, scene);
+                    if (failForOwnerLoss && !_missions.TryPlanRequiredMissionFailure(
+                        resident.Owner, resident.Run.MissionId, unit, publication))
+                        throw new GameplayRejectionException("Owner-loss failure could not be committed.");
+                    if (observation.SourceEntityId.HasValue)
+                    {
+                        if (observation.Kind == SceneEventKind.ActorDied)
+                            ValidatePublicDeath(resident, observation, unit);
+                        var destroyed = observation.Kind == SceneEventKind.ActorDied
+                            ? null : ValidateObjectObservation(resident, observation, unit);
+                        if (destroyed != null)
+                        {
+                            publication.AddRuntimeConvergence(() =>
+                            {
+                                destroyed.CurrentHitPoints = 0;
+                                destroyed.IsEnabled = false;
+                                destroyed.StateId = (Data.UseObjectState)destroyed.MissionDestruction.DestroyedState;
+                            });
+                            publication.AddPublication(() =>
+                            {
+                                if (!MapInstanceScope.Contains(resident.Map, destroyed))
+                                    return;
+                                PublishObjectDamage(resident.Map, destroyed);
+                                DynamicObjectManager.Instance.ForceState(destroyed, destroyed.StateId, 0);
+                            });
+                        }
+                    }
                     if (observation.DeliveryKey != null)
                     {
                         var message = store.Messages(runId).SingleOrDefault(message =>
@@ -865,6 +1132,7 @@ namespace Rasa.Game.Missions
                         timer.DueAtUtc = change.DueAtUtc; timer.RemainingTicks = null;
                         timer.Disposition = change.Cancel ? "Cancelled" : "Pending"; timer.Version++;
                     }
+                    var localSignals = new List<MissionProgressEvent>();
                     foreach (var signal in decision.Signals)
                     {
                         var signalKey = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
@@ -884,13 +1152,15 @@ namespace Rasa.Game.Missions
                             publication.AddRuntimeConvergence(() => _missions.Credit.Schedule(recipients));
                         }
                         else
-                            publication.AddProgressPlan(_missions.PlanProgress(resident.Owner, new[] { progress }, unit));
+                            localSignals.Add(progress);
                         store.Add(new MissionReceiptEntry
                         {
                             OwnerId = runId, Generation = next.Generation, OperationKey = signalKey,
                             Kind = "Signal", CreatedAtUtc = _utcNow()
                         });
                     }
+                    if (localSignals.Count > 0)
+                        publication.AddProgressPlan(_missions.PlanProgress(resident.Owner, localSignals, unit));
                     {
                         var plannedGeneration = scene.Generation;
                         var plannedVersion = scene.Version;
@@ -915,7 +1185,8 @@ namespace Rasa.Game.Missions
             resident.Run = next;
             foreach (var version in sharedVersions)
                 _runs[version.Key].Run = _runs[version.Key].Run with { Version = version.Value };
-            _world.Attach(next, resident.Bindings, resident.Owner, resident.Map);
+            _world.Attach(next, resident.Bindings,
+                resident.Owner?.Player?.MapChannel == resident.Map ? resident.Owner : null, resident.Map);
             if (decision.Fault != null)
                 Logger.WriteLog(LogType.Error, decision.Fault);
             if (publication.HasChanges)
@@ -1104,6 +1375,8 @@ namespace Rasa.Game.Missions
                     Reject($"Scene {runId} effect {effect.OperationKey} lost its source before acknowledgement.");
                     continue;
                 }
+                if (result.State == WorldEffectState.Suppressed)
+                    _world.CancelOperation(effect.RunId, effect.Generation, effect.OperationKey);
                 if (result.State is WorldEffectState.Failed or WorldEffectState.Deferred)
                 {
                     if (result.State == WorldEffectState.Failed)
@@ -1199,12 +1472,43 @@ namespace Rasa.Game.Missions
         internal bool Tick(MapChannel map, SceneTickScope scope = SceneTickScope.All)
         {
             var changed = false;
+            foreach (var retry in _resumeRetries.Where(entry => entry.Value.Due <= _utcNow()).ToArray())
+            {
+                if (!_runs.TryGetValue(retry.Key, out var resident))
+                {
+                    _resumeRetries.Remove(retry.Key);
+                    continue;
+                }
+                if (resident.Map != map)
+                    continue;
+                if (resident.Run.Generation != retry.Value.Generation ||
+                    !ReferenceEquals(resident.Owner, retry.Value.Owner) ||
+                    resident.Owner?.Player?.MapChannel != map || resident.Owner.State != Data.ClientState.Ingame ||
+                    resident.Owner.PendingTransfer != null)
+                {
+                    _resumeRetries.Remove(retry.Key);
+                    continue;
+                }
+                NotifyRecovered(resident);
+            }
+            foreach (var resident in _runs.Values.Where(resident => resident.Map == map &&
+                resident.Run.MissionId != 0 && resident.Owner?.Player?.Missions.TryGetValue(
+                    resident.Run.MissionId, out var log) == true && log.State == Data.MissionState.Completed &&
+                    log.AssignmentId == resident.AssignmentId).ToArray())
+                if (!_rewardRetirements.ContainsKey(resident.Run.Id))
+                    _rewardRetirements[resident.Run.Id] = (map, _utcNow());
+            foreach (var retirement in _rewardRetirements.Where(entry =>
+                entry.Value.Map == map && entry.Value.Due <= _utcNow()).ToArray())
+                RetireRewardedScene(retirement.Key, map);
+            foreach (var retry in _ownerLossRetries.Where(entry => entry.Value <= _utcNow()).ToArray())
+                if (_runs.TryGetValue(retry.Key, out var ownerLost) && ownerLost.Map == map)
+                    OwnerLost(map, retry.Key);
+            if (scope != SceneTickScope.Deadlines)
+                _missions.PublicActors.Tick(map);
             foreach (var retry in _pauseRetries.Where(entry => entry.Value.RetryAt <= _utcNow()).ToArray())
                 PersistPause(retry.Key);
             foreach (var retry in _terminationRetries.Where(entry => entry.Value <= _utcNow()).ToArray())
                 FinishCancellation(retry.Key);
-            if (scope != SceneTickScope.Deadlines)
-                _world.Tick(map, _utcNow());
             foreach (var retry in _worldRetries.Where(entry => entry.Value.RetryAt <= _utcNow() &&
                 _runs.TryGetValue(entry.Key, out var run) && run.Map == map).ToArray())
                 Reconcile(retry.Key);
@@ -1229,7 +1533,7 @@ namespace Rasa.Game.Missions
             }
             if (scope != SceneTickScope.Deadlines)
             {
-                _missions.PublicActors.Tick(map);
+                _world.Tick(map, _utcNow());
                 _missions.Credit.Tick(map);
             }
             return changed;
@@ -1257,6 +1561,11 @@ namespace Rasa.Game.Missions
                 var policy = map.IsPrivateInstance ? null :
                     _missions.PublicActors.OwnerLossPolicy(map, resident.Run.Id) ?? "Wait";
                 resident.OwnerPosition = resident.Owner?.Player?.Position ?? resident.OwnerPosition;
+                if (policy == "Fail")
+                {
+                    OwnerLost(map, resident.Run.Id);
+                    continue;
+                }
                 if (policy == "Continue")
                 {
                     resident.Owner = null;

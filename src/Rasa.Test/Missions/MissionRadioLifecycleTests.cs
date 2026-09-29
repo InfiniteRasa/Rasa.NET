@@ -82,6 +82,48 @@ namespace Rasa.Test.Missions
         }
 
         [TestMethod]
+        public void AnotherRadioOfferPreservesTheConsumedProofOfAnActiveAssignment()
+        {
+            using var context = RadioContext(additionalDefinitions: new[] { RadioMission(732) });
+            Assert.IsTrue(Offer(context));
+            Assert.IsTrue(context.Manager.TryAcceptRadioMission(context.Client, 731));
+            var original = ReadOffer(context);
+
+            Assert.IsTrue(Offer(context, 732));
+
+            var retained = ReadOffer(context);
+            Assert.IsNotNull(retained);
+            Assert.AreEqual(MissionOfferState.Consumed, retained.State);
+            Assert.AreEqual(original.OfferId, retained.OfferId);
+            Assert.AreEqual(original.ConsumedAssignmentId, retained.ConsumedAssignmentId);
+            Assert.AreEqual(original.SourceInstanceId, retained.SourceInstanceId);
+        }
+
+        [TestMethod]
+        [DataRow(false)]
+        [DataRow(true)]
+        public void OptionalSceneRadioReissueDoesNotFailRecoveryAfterAcceptance(bool optional)
+        {
+            using var context = SceneOfferContext(optional: optional);
+            Assert.IsTrue(context.Manager.Scenes.ExecuteNamed(context.Client, 730, "offer"));
+            Assert.IsTrue(context.Manager.TryAcceptRadioMission(context.Client, 731));
+            var assignment = context.ReadMission(731);
+            context.Drain();
+
+            using (var unit = context.CreateChar())
+            {
+                var scene = unit.CharacterMissions.Runtime.Scenes(1, 730).Single();
+                Assert.AreEqual(optional, context.Manager.Scenes.Submit(scene.RunId,
+                    new SceneObservation(SceneEventKind.Signal, scene.Generation,
+                        "recovered-source", SequenceId: 1)));
+            }
+
+            Assert.AreEqual(assignment.AssignmentId, context.ReadMission(731).AssignmentId);
+            Assert.AreEqual(MissionOfferState.Consumed, ReadOffer(context).State);
+            Assert.AreEqual(0, context.Drain().OfType<DispenseRadioMissionPacket>().Count());
+        }
+
+        [TestMethod]
         public void NonBootcampRadioLifecyclePersistsOfferThenUsesNativeAcceptanceAndSelectedReward()
         {
             var now = new DateTime(2026, 9, 25, 12, 0, 0, DateTimeKind.Utc);
@@ -1277,7 +1319,7 @@ namespace Rasa.Test.Missions
             }
         }
 
-        private static MissionTestContext SceneOfferContext(MissionRequirement sourceRequirement = null)
+        private static MissionTestContext SceneOfferContext(MissionRequirement sourceRequirement = null, bool optional = false)
         {
             var target = RadioMission(radioSources: new[]
                 { new MissionOfferSourceDefinition(MissionOfferSourceKind.Scene, "data.sequence", Requirement: sourceRequirement) });
@@ -1285,7 +1327,10 @@ namespace Rasa.Test.Missions
             var context = MissionTestContext.WithCustomDefinitions(new Dictionary<uint, Mission> { [730] = source, [731] = target });
             context.Manager.Scenes.Bind(730, "data.sequence", new SceneBindings("radio-v1",
                 new Dictionary<string, SceneActorDefinition>(), new Dictionary<string, SceneRoute>(),
-                new Dictionary<uint, SceneSequence> { [1] = new(characterIntents: new[] { new OfferRadioMissionIntent("radio-brief", 731) }) },
+                new Dictionary<uint, SceneSequence>
+                {
+                    [1] = new(characterIntents: new[] { new OfferRadioMissionIntent("radio-brief", 731, IfEligible: optional) })
+                },
                 new Dictionary<string, uint> { ["offer"] = 1 }));
             Assert.IsTrue(context.Manager.AcceptOfferedMission(context.Client, context.AddNpc(77).EntityId, 730));
             context.Drain();

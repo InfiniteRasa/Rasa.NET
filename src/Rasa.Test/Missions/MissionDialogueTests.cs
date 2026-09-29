@@ -225,12 +225,14 @@ namespace Rasa.Test.Missions
         }
 
         [TestMethod]
-        [DataRow(1)]
-        [DataRow(2)]
-        [DataRow(3)]
-        public void EachNativeChoiceSelectsOnlyItsAuthoredTransition(int index)
+        [DataRow(1, 2)]
+        [DataRow(2, 2)]
+        [DataRow(1, 3)]
+        [DataRow(2, 3)]
+        [DataRow(3, 3)]
+        public void EachNativeChoiceSelectsOnlyItsAuthoredTransition(int index, int choiceCount)
         {
-            using var fixture = new DialogueFixture();
+            using var fixture = new DialogueFixture(choiceCount: choiceCount);
             fixture.Open();
 
             fixture.Choose(index);
@@ -249,6 +251,73 @@ namespace Rasa.Test.Missions
                 "The native dialogue selector is not an instruction to persist a player flag.");
             Assert.IsNull(fixture.Context.Client.MissionConversation);
             Assert.AreEqual(1, fixture.Context.Drain().OfType<ObjectiveCompletedPacket>().Count());
+        }
+
+        [TestMethod]
+        public void TwoChoiceNativeTopicCannotSelectAnUnauthoredThirdTransition()
+        {
+            using var fixture = new DialogueFixture(choiceCount: 2);
+            var packet = fixture.Open();
+            Assert.IsTrue(packet.ConvoDataDict.ContainsKey(ConversationType.ObjectiveChoice));
+
+            fixture.Choose(3);
+
+            Assert.AreEqual(MissionObjectiveState.Incomplete,
+                fixture.Context.Client.Player.Missions[339].Objectives[8].State);
+            using var unit = fixture.Context.CreateChar();
+            Assert.AreEqual(0, unit.CharacterFlags.Get(1).Count);
+            Assert.AreEqual((byte)MissionObjectiveState.Inactive,
+                unit.CharacterMissionProgress.GetTracked(1, 339)[11].ObjectiveState);
+            Assert.AreEqual(0, fixture.Context.Drain().OfType<ObjectiveCompletedPacket>().Count());
+        }
+
+        [TestMethod]
+        public void TopicRequirementFiltersTheMenuAndRejectsAStaleDurableChoice()
+        {
+            using var fixture = new DialogueFixture(
+                topicRequirement: new Rasa.Missions.Runtime.FlagRequirement(909, 1));
+            Assert.IsFalse(fixture.Open().ConvoDataDict.ContainsKey(ConversationType.ObjectiveChoice));
+            fixture.Context.Client.Player.PlayerFlags[909] = 1;
+            using (var unit = fixture.Context.CreateChar())
+                unit.CharacterFlags.Set(1, 909, 1);
+            Assert.IsTrue(fixture.Open().ConvoDataDict.ContainsKey(ConversationType.ObjectiveChoice));
+            using (var unit = fixture.Context.CreateChar())
+                unit.CharacterFlags.Set(1, 909, 0);
+
+            fixture.Choose(1);
+
+            Assert.AreEqual(MissionObjectiveState.Incomplete,
+                fixture.Context.Client.Player.Missions[339].Objectives[8].State);
+            using (var unit = fixture.Context.CreateChar())
+            {
+                Assert.IsFalse(unit.CharacterFlags.Get(1).ContainsKey(701));
+                unit.CharacterFlags.Set(1, 909, 1);
+            }
+            fixture.Open();
+            fixture.Choose(1);
+            Assert.AreEqual(MissionObjectiveState.Completed,
+                fixture.Context.Client.Player.Missions[339].Objectives[8].State);
+        }
+
+        [TestMethod]
+        public void ExactCreatureBindingRejectsAnUnrelatedNpcThatReusesTheNativePackage()
+        {
+            using var fixture = new DialogueFixture(sourceCreatureId: 500);
+            var other = fixture.Context.AddNpc(501, npcPackageId: 586);
+
+            var wrongContact = fixture.Open(other.EntityId);
+
+            Assert.IsFalse(wrongContact.ConvoDataDict.ContainsKey(ConversationType.ObjectiveChoice));
+            fixture.Route(new PerformNPCChoicePacket
+            {
+                EntityId = other.EntityId, MissionId = 339, ObjectiveId = 8, PlayerFlagId = 1, ChoiceIdx = 1
+            });
+            Assert.AreEqual(MissionObjectiveState.Incomplete,
+                fixture.Context.Client.Player.Missions[339].Objectives[8].State);
+            Assert.IsTrue(fixture.Open().ConvoDataDict.ContainsKey(ConversationType.ObjectiveChoice));
+            fixture.Choose(1);
+            Assert.AreEqual(MissionObjectiveState.Completed,
+                fixture.Context.Client.Player.Missions[339].Objectives[8].State);
         }
 
         [TestMethod]
@@ -975,7 +1044,8 @@ namespace Rasa.Test.Missions
             internal Creature Npc { get; }
 
             internal DialogueFixture(MissionDialogueKind kind = MissionDialogueKind.Choice, bool failSecondChoice = false,
-                bool activateSpawnSequence = false)
+                bool activateSpawnSequence = false, int choiceCount = 3,
+                Rasa.Missions.Runtime.MissionRequirement topicRequirement = null, uint? sourceCreatureId = null)
             {
                 var transitions = Enumerable.Range(1, 3).Select(index =>
                     new MissionObjectiveExecutableTransition((uint)(100 + index), (uint)index,
@@ -996,7 +1066,8 @@ namespace Rasa.Test.Missions
                     {
                         new MissionDialogueTopicDefinition(8, 586, 1, kind,
                             choices: kind == MissionDialogueKind.Choice
-                                ? new Dictionary<int, uint> { [1] = 101, [2] = 102, [3] = 103 } : null)
+                                ? Enumerable.Range(1, choiceCount).ToDictionary(index => index, index => (uint)(100 + index))
+                                : null, requirement: topicRequirement, sourceCreatureId: sourceCreatureId)
                     });
                 Context = MissionTestContext.WithCustomDefinitions(new Dictionary<uint, Mission> { [339] = mission });
                 Context.SeedMission(1, 339, (uint)MissionState.Active, false);
@@ -1021,9 +1092,9 @@ namespace Rasa.Test.Missions
                 Context.Drain();
             }
 
-            internal ConversePacket Open()
+            internal ConversePacket Open(ulong? entityId = null)
             {
-                _router.RoutePacket(_handler, new RequestNPCConversePacket { EntityId = Npc.EntityId });
+                _router.RoutePacket(_handler, new RequestNPCConversePacket { EntityId = entityId ?? Npc.EntityId });
                 return Context.Drain().OfType<ConversePacket>().Single();
             }
 

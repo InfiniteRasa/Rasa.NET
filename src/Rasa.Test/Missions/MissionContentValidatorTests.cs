@@ -22,6 +22,8 @@ namespace Rasa.Test.Missions
     {
         [TestMethod]
         [DataRow("missing-index")]
+        [DataRow("one-choice")]
+        [DataRow("empty-choices")]
         [DataRow("index-zero")]
         [DataRow("index-four")]
         [DataRow("transition")]
@@ -44,6 +46,8 @@ namespace Rasa.Test.Missions
                 fixture.Transitions[0].ToState = (byte)MissionObjectiveState.Incomplete;
             var choices = new Dictionary<int, uint> { [1] = 20, [2] = 20, [3] = 20 };
             if (invalid == "missing-index") choices.Remove(2);
+            if (invalid == "one-choice") { choices.Remove(2); choices.Remove(3); }
+            if (invalid == "empty-choices") choices.Clear();
             if (invalid == "index-zero") { choices.Remove(1); choices[0] = 20; }
             if (invalid == "index-four") { choices.Remove(3); choices[4] = 20; }
             if (invalid == "transition") choices[2] = 999;
@@ -60,6 +64,25 @@ namespace Rasa.Test.Missions
 
             Assert.IsFalse(mission.IsOperational);
             StringAssert.Contains(mission.OperationalDiagnostic, "dialogue");
+        }
+
+        [TestMethod]
+        [DataRow(2)]
+        [DataRow(3)]
+        public void DialogueValidationAcceptsOnlyTheAuthoredNativeChoices(int count)
+        {
+            var fixture = MissionContentFixture.CreateValid();
+            var original = new MissionContentLoader().Load(fixture.CreateRepository()).Definitions[321].Mission;
+            var topic = new MissionDialogueTopicDefinition(10, 77, 11, MissionDialogueKind.Choice,
+                choices: Enumerable.Range(1, count).ToDictionary(index => index, _ => 20U));
+            var decoded = JsonSerializer.Deserialize<MissionDialogueTopicDefinition>(
+                JsonSerializer.Serialize(topic, MissionContentCodec.Options), MissionContentCodec.Options);
+
+            var mission = original.WithDialogue(new[] { decoded });
+
+            Assert.IsTrue(mission.IsOperational, mission.OperationalDiagnostic);
+            Assert.AreEqual(count, mission.Dialogue.Single().Choices.Count);
+            Assert.AreEqual(count == 3, mission.Dialogue.Single().Choices.ContainsKey(3));
         }
 
         [TestMethod]
@@ -130,6 +153,74 @@ namespace Rasa.Test.Missions
             Assert.ThrowsExactly<MissionRuleException>(() => harness.Manager.LoadMissions());
         }
 
+        [TestMethod]
+        [DoNotParallelize]
+        public void NativeNpcObjectDeclaresItsPackageWithoutInventingACreatureRow()
+        {
+            using var harness = BootcampRuntimeTestHarness.Create();
+            MissionDialogueTestContent.Install(harness.WorldContext, conversationObject: true,
+                kind: MissionDialogueKind.Completion);
+            harness.WorldContext.Set<NpcPackageEntry>().RemoveRange(
+                harness.WorldContext.Set<NpcPackageEntry>().Where(entry => entry.PackageId == 586));
+            harness.WorldContext.SaveChanges();
+            harness.WorldContext.ChangeTracker.Clear();
+
+            var report = harness.Manager.LoadMissions();
+
+            Assert.IsFalse(report.BlocksReadiness, string.Join("; ", report.Diagnostics.Select(item => item.Message)));
+            Assert.IsTrue(harness.Manager.LoadedMissions[339].IsOperational);
+            Assert.IsFalse(harness.WorldContext.Set<NpcPackageEntry>().Any(entry => entry.PackageId == 586));
+        }
+
+        [TestMethod]
+        [DataRow("bound-effects", true)]
+        [DataRow("missing-sequence", false)]
+        [DataRow("empty-sequence", false)]
+        [DataRow("unknown-script", false)]
+        [DoNotParallelize]
+        public void EmptyLegacyScenarioRequiresAnExactExecutableTypedBridge(string mode, bool accepted)
+        {
+            using var harness = BootcampRuntimeTestHarness.Create();
+            MissionDialogueTestContent.Install(harness.WorldContext);
+            harness.WorldContext.Set<MissionScenarioStepEntry>().RemoveRange(
+                harness.WorldContext.Set<MissionScenarioStepEntry>().Where(entry =>
+                    entry.MissionId == 339 && entry.ScenarioId == 201));
+            var row = harness.WorldContext.Set<MissionSceneBindingEntry>().Single(entry => entry.MissionId == 339);
+            var scene = JsonSerializer.Deserialize<MissionSceneDefinition>(row.Bindings, MissionContentCodec.Options);
+            if (mode == "missing-sequence")
+                scene.Sequences.Remove(201);
+            if (mode == "empty-sequence")
+                scene.Sequences[201] = new SceneSequenceDefinition();
+            if (mode == "unknown-script")
+            {
+                scene.Script = "missing.typed.bridge";
+                row.ScriptKey = scene.Script;
+            }
+            row.Bindings = JsonSerializer.Serialize(scene, MissionContentCodec.Options);
+            harness.WorldContext.SaveChanges();
+            harness.WorldContext.ChangeTracker.Clear();
+
+            Exception rejection = null;
+            MissionValidationReport report = null;
+            try
+            {
+                report = harness.Manager.LoadMissions();
+            }
+            catch (InvalidOperationException error)
+            {
+                rejection = error;
+            }
+
+            if (accepted)
+            {
+                Assert.IsNull(rejection, rejection?.Message);
+                Assert.IsFalse(report.BlocksReadiness,
+                    string.Join("; ", report.Diagnostics.Select(diagnostic => diagnostic.Message)));
+                Assert.IsTrue(harness.Manager.LoadedMissions[339].IsOperational);
+            }
+            else
+                Assert.IsTrue(rejection != null || report.BlocksReadiness);
+        }
         [TestMethod]
         [DoNotParallelize]
         public void MigratedChoiceMustNotQueueAnUnboundSceneSequence()

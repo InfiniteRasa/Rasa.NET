@@ -119,6 +119,7 @@ namespace Rasa.Managers
                     switch (action.ActionArgId)
                     {
                         case DynamicObjectManager.FootlockerUseArgId:
+                        case DynamicObjectManager.SurveyUseArgId:
                             DynamicObjectManager.Instance.FootlockerRecovery(mapChannel, action);
                             break;
                         case KraftwerksManager.UseObjectArgId:

@@ -16,8 +16,13 @@ namespace Rasa.Game.Missions.Persistence
     {
         private readonly MissionApplication _missions;
         private readonly ManifestationManager _manifestations;
-        internal SceneCharacterAdapter(MissionApplication missions, ManifestationManager manifestations)
-        { _missions = missions; _manifestations = manifestations; }
+        private readonly Func<DateTime> _utcNow;
+        internal SceneCharacterAdapter(MissionApplication missions, ManifestationManager manifestations,
+            Func<DateTime> utcNow = null)
+        {
+            _missions = missions; _manifestations = manifestations;
+            _utcNow = utcNow ?? (() => DateTime.UtcNow);
+        }
 
         internal void Apply(Client client, SceneRun run, CharacterIntent intent,
             ICharUnitOfWork unit, MissionScenarioPlan publication)
@@ -34,7 +39,8 @@ namespace Rasa.Game.Missions.Persistence
                         global::Rasa.Missions.Definitions.MissionOfferSourceKind.Scene,
                         run.ScriptKey, run.Id, run.Generation, sourceScene?.AssignmentId,
                         sourceParticipant?.AssignmentGeneration ?? 0);
-                    var publishOffer = _missions.Offers.PlanOffer(client, offer.MissionId, source, unit, offer.ForceDialog);
+                    var publishOffer = _missions.Offers.PlanOffer(client, offer.MissionId, source, unit,
+                        offer.ForceDialog, offer.IfEligible);
                     if (publishOffer != null)
                         publication.AddPublication(publishOffer);
                     break;
@@ -126,13 +132,29 @@ namespace Rasa.Game.Missions.Persistence
                     break;
                 case MissionDeadlineIntent deadline:
                     var existingDeadline = unit.CharacterMissionDeadlines.Get(client.Player.Id, deadline.MissionId);
+                    if (deadline.Kind == DeadlineIntentKind.Satisfy && existingDeadline != null &&
+                        (existingDeadline.State == CharacterMissionDeadlineState.Expired ||
+                         existingDeadline.State == CharacterMissionDeadlineState.Active && existingDeadline.DueAtUtc <= _utcNow()))
+                        throw new GameplayRejectionException("The authoritative mission deadline has already elapsed.");
                     if (deadline.Kind == DeadlineIntentKind.Start)
-                        unit.CharacterMissionDeadlines.AddOrUpdate(client.Player.Id, deadline.MissionId,
-                            DateTime.UtcNow.AddMilliseconds(deadline.Milliseconds), CharacterMissionDeadlineState.Active);
+                    {
+                        if (existingDeadline?.State != CharacterMissionDeadlineState.Active)
+                            unit.CharacterMissionDeadlines.AddOrUpdate(client.Player.Id, deadline.MissionId,
+                                _utcNow().AddMilliseconds(deadline.Milliseconds), CharacterMissionDeadlineState.Active);
+                    }
                     else if (existingDeadline?.State == CharacterMissionDeadlineState.Active)
+                    {
+                        var due = existingDeadline.DueAtUtc;
                         unit.CharacterMissionDeadlines.SetState(client.Player.Id, deadline.MissionId,
                             deadline.Kind == DeadlineIntentKind.Satisfy
                                 ? CharacterMissionDeadlineState.Satisfied : CharacterMissionDeadlineState.Cancelled);
+                        if (deadline.Kind == DeadlineIntentKind.Satisfy)
+                            Repositories.UnitOfWork.TransactionValidation.AtCommitBoundary(unit, () =>
+                            {
+                                if (due <= _utcNow())
+                                    throw new GameplayRejectionException("Mission deadline elapsed before satisfaction committed.");
+                            });
+                    }
                     if (deadline.Kind != DeadlineIntentKind.Start)
                         _missions.Scenes.EndDeadline(unit, run, deadline.MissionId);
                     publication.AddPublication(() => _missions.PublishMissionStatus(client, deadline.MissionId,

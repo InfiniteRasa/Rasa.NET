@@ -262,11 +262,13 @@ namespace Rasa.Test.Database
         [DataRow(typeof(MySqlCharContext), 1)]
         [DataRow(typeof(SqliteWorldContext), 2)]
         [DataRow(typeof(MySqlWorldContext), 2)]
-        public void BranchMigrationsAreConsolidatedByDatabase(Type contextType, int expectedCount)
+        public void ConsolidatedBaselineRetainsExpectedDatabaseMigrations(Type contextType, int expectedCount)
         {
             using var context = CreateContext(contextType, "unused");
+            // Freeze the September 26 consolidation boundary, not subsequent content migrations.
             var added = context.Database.GetMigrations()
-                .Where(id => string.CompareOrdinal(id, "202609") >= 0).ToArray();
+                .Where(id => string.CompareOrdinal(id, "202609") >= 0 &&
+                    string.CompareOrdinal(id, "20260927") < 0).ToArray();
 
             Assert.AreEqual(expectedCount, added.Length, contextType.Name);
             if (expectedCount == 1)

@@ -13,19 +13,40 @@ namespace Rasa.Game.Missions.Integration
     {
         private readonly MissionRequirementEvaluator _evaluator;
         private readonly MissionRequirementFactsAdapter _facts;
+        private readonly IGameUnitOfWorkFactory _factory;
+        private readonly Func<uint, Mission> _resolve;
         internal MissionRequirementService(MissionRequirementEvaluator evaluator = null,
-            MissionRequirementFactsAdapter facts = null)
-        { _evaluator = evaluator ?? new MissionRequirementEvaluator(); _facts = facts ?? new MissionRequirementFactsAdapter(); }
+            MissionRequirementFactsAdapter facts = null, IGameUnitOfWorkFactory factory = null, Func<uint, Mission> resolve = null)
+        {
+            _evaluator = evaluator ?? new MissionRequirementEvaluator();
+            _facts = facts ?? new MissionRequirementFactsAdapter();
+            _factory = factory;
+            _resolve = resolve;
+        }
 
-        internal bool Evaluate(Manifestation player, MissionRequirement requirement, ICharUnitOfWork unit = null) =>
-            requirement == null || _evaluator.Evaluate(requirement, _facts.Read(player, _evaluator.RequiredFacts(requirement), unit));
+        internal bool Evaluate(Manifestation player, MissionRequirement requirement, ICharUnitOfWork unit = null)
+        {
+            if (requirement == null)
+                return true;
+            var requested = _evaluator.RequiredFacts(requirement);
+            if (unit == null && MissionRequirementEvaluator.AssignmentItemRequirements(requirement).Count > 0)
+            {
+                using var authoritative = _factory?.CreateChar()
+                    ?? throw new MissionRuleException("Assignment inventory eligibility has no character factory.");
+                return Evaluate(player, requirement, authoritative);
+            }
+            return _evaluator.Evaluate(requirement, MissionRequirementFactsAdapter.WithAssignmentItems(
+                _facts.Read(player, requested, unit), player, requirement, unit, _resolve));
+        }
 
         internal CommitValidation Capture(Manifestation player, MissionRequirement requirement, ICharUnitOfWork unit)
         {
             if (requirement == null)
                 return null;
             var requested = _evaluator.RequiredFacts(requirement);
-            var facts = _facts.Read(player, requested, unit, out var completedStartingExperienceState);
+            var facts = MissionRequirementFactsAdapter.WithAssignmentItems(
+                _facts.Read(player, requested, unit, out var completedStartingExperienceState),
+                player, requirement, unit, _resolve);
             if (!_evaluator.Evaluate(requirement, facts))
                 throw new GameplayRejectionException("Durable mission preconditions are not satisfied.");
             var validation = new CommitValidation(this, player, requirement, requested, facts, unit,
@@ -49,6 +70,10 @@ namespace Rasa.Game.Missions.Integration
 
         internal static void ExpectEntitlement(ICharUnitOfWork unit, uint characterId, bool enabled) =>
             Project(unit, characterId, capture => capture.ExpectEntitlement(enabled));
+
+        internal static void ExpectAssignmentItem(ICharUnitOfWork unit, uint characterId,
+            uint missionId, string itemKey, uint quantity) =>
+            Project(unit, characterId, capture => capture.ExpectAssignmentItem(missionId, itemKey, quantity));
 
         private static void Project(ICharUnitOfWork unit, uint characterId, Action<CommitValidation> project)
         {
@@ -107,6 +132,9 @@ namespace Rasa.Game.Missions.Integration
                 var journal = _expected.Journal.ToDictionary(entry => entry.Key, entry => entry.Value);
                 journal[missionId] = state;
                 _expected = _expected with { Journal = journal };
+                if (state != Data.MissionState.Active && _expected.AssignmentItems != null)
+                    foreach (var key in _expected.AssignmentItems.Keys.Where(key => key.MissionId == missionId).ToArray())
+                        ExpectAssignmentItem(missionId, key.ItemKey, 0);
                 if (archived)
                     ExpectHistory(missionId, state);
             }
@@ -126,10 +154,22 @@ namespace Rasa.Game.Missions.Integration
 
             internal void Validate()
             {
-                var current = _service._facts.Read(_player, _requested, _unit);
+                var current = MissionRequirementFactsAdapter.WithAssignmentItems(
+                    _service._facts.Read(_player, _requested, _unit), _player, _requirement, _unit, _service._resolve);
                 if (_checkLevel && current.Level != _expected.Level ||
                     !_service.InputsMatch(_requirement, _expected, current))
                     throw new GameplayRejectionException("Mission requirement facts changed beyond the planned operation.");
+            }
+
+            internal void ExpectAssignmentItem(uint missionId, string itemKey, uint quantity)
+            {
+                if (_expected.AssignmentItems == null)
+                    return;
+                var items = _expected.AssignmentItems.ToDictionary(entry => entry.Key, entry => entry.Value);
+                foreach (var key in items.Keys.Where(key => key.MissionId == missionId && key.ItemKey == itemKey).ToArray())
+                    if (!key.SourceOfferMissionId.HasValue || items[key] > 0 || quantity == 0)
+                        items[key] = quantity;
+                _expected = _expected with { AssignmentItems = items };
             }
 
             internal void ExpectLevel(uint level)
@@ -156,6 +196,7 @@ namespace Rasa.Game.Missions.Integration
                     expected.EverRewarded?.Contains(mission.MissionId) == current.EverRewarded?.Contains(mission.MissionId),
                 CustomRequirement custom => _evaluator.RequiredFacts(custom)
                     .All(key => SameValue(expected.Custom, current.Custom, key)),
+                AssignmentItemRequirement item => SameValue(expected.AssignmentItems, current.AssignmentItems, item),
                 _ => throw new MissionRuleException("Unsupported mission requirement.")
             };
 
@@ -175,6 +216,10 @@ namespace Rasa.Game.Missions.Integration
                 foreach (var fact in _evaluator.RequiredFacts(source.Requirement))
                     if (!MissionRequirementFactsAdapter.Supported.Contains(fact))
                         throw new MissionRuleException($"Mission {mission.MissionId} radio source requires unsupported Game fact {fact}.");
+            foreach (var topic in mission.Dialogue)
+                foreach (var fact in _evaluator.RequiredFacts(topic.Requirement))
+                    if (!MissionRequirementFactsAdapter.Supported.Contains(fact))
+                        throw new MissionRuleException($"Mission {mission.MissionId} dialogue requires unsupported Game fact {fact}.");
         }
 
         internal void Validate(uint missionId, IEnumerable<uint> objectiveIds, MissionRequirement admission,

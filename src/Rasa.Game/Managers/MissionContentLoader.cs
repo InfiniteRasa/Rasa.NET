@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using Rasa.Missions.Definitions;
+using Rasa.Missions.Content;
 
 namespace Rasa.Managers
 {
@@ -27,6 +28,9 @@ namespace Rasa.Managers
                 .ToDictionary(entry => (entry.MissionId, entry.ContentRevision));
             var channelPolicies = (repository.GetChannelPolicies() ?? new List<MissionChannelPolicyEntry>())
                 .ToDictionary(entry => (entry.MissionId, entry.ContentRevision));
+            var sceneBindings = repository is IMigratedMissionContentRepository migrated
+                ? migrated.GetSceneBindings().ToDictionary(entry => (entry.MissionId, entry.ContentRevision))
+                : new Dictionary<(uint, string), MissionSceneBindingEntry>();
             if (selectedRevisions != null)
             {
                 definitions = definitions.Where(entry => selectedRevisions.TryGetValue(entry.MissionId, out var revision) &&
@@ -116,11 +120,21 @@ namespace Rasa.Managers
                     triggers,
                     actions);
                 var objectiveDiagnostics = new List<string>();
+                MissionSceneDefinition progressMetadata = null;
+                if (sceneBindings.TryGetValue((definition.MissionId, selectedRevision), out var sceneBinding))
+                {
+                    progressMetadata = JsonSerializer.Deserialize<MissionSceneDefinition>(
+                        sceneBinding.Bindings, MissionContentCodec.Options)
+                        ?? throw new InvalidOperationException($"Mission {definition.MissionId} has no binding document.");
+                    Game.Missions.Content.MissionSceneValidation.ValidateProgressMetadata(
+                        definition.MissionId, progressMetadata, uniqueObjectives.Keys);
+                }
                 var objectiveDefinitions = BuildObjectives(
                     uniqueObjectives,
                     missionIndicators,
                     transitionDefinitions,
-                    objectiveDiagnostics);
+                    objectiveDiagnostics,
+                    progressMetadata);
 
                 channelPolicies.TryGetValue((definition.MissionId, selectedRevision), out var channels);
                 var mission = new Mission(
@@ -253,7 +267,8 @@ namespace Rasa.Managers
             IReadOnlyDictionary<uint, MissionObjectiveDefinitionEntry> objectives,
             IReadOnlyDictionary<uint, MissionIndicator[]> indicators,
             IReadOnlyDictionary<(uint ObjectiveId, uint TransitionId), MissionObjectiveTransitionDefinition> transitions,
-            ICollection<string> diagnostics)
+            ICollection<string> diagnostics,
+            MissionSceneDefinition progressMetadata)
         {
             var objectiveDefinitions = new Dictionary<uint, MissionObjectiveDefinition>();
             var transitionsByObjective = transitions.Values.ToLookup(transition => transition.ObjectiveId);
@@ -290,7 +305,11 @@ namespace Rasa.Managers
                             : Array.Empty<MissionIndicator>(),
                         runtime.ProgressRule,
                         runtime.ExecutableTransitions,
-                        objectiveEntry.Requirement));
+                        objectiveEntry.Requirement,
+                        aggregation: progressMetadata?.ObjectiveAggregations?.GetValueOrDefault(objectiveEntry.ObjectiveId),
+                        isVisible: progressMetadata?.HiddenObjectiveIds?.Contains(objectiveEntry.ObjectiveId) != true,
+                        recognizeExistingFacts: progressMetadata?.ExistingFactObjectiveIds?.Contains(objectiveEntry.ObjectiveId) == true,
+                        historyAggregation: progressMetadata?.ObjectiveHistoryAggregations?.GetValueOrDefault(objectiveEntry.ObjectiveId)));
             }
 
             return objectiveDefinitions;

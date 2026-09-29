@@ -224,7 +224,7 @@ namespace Rasa.Context.World
                 "AND area_id IS NULL AND npc_package_id IS NULL " +
                 "AND player_flag_id IS NULL AND source_spawn_resolved IS NULL))";
             const string actionParameterSetConstraint =
-                "(kind IN (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)) " +
+                "(kind IN (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13)) " +
                 "AND (kind >= 10 OR item_intent IS NULL) " +
                 "AND (kind < 10 OR (item_intent IS NOT NULL AND target_objective_id IS NULL " +
                 "AND objective_state IS NULL AND reward_id IS NULL AND spawn_group_id IS NULL " +
@@ -401,7 +401,7 @@ namespace Rasa.Context.World
                 .AsUnsignedTinyInt(_dbContextPropertyModifier, 3);
             modelBuilder.Entity<MissionContentDefinitionEntry>()
                 .Property(entry => entry.CategoryId)
-                .AsUnsignedTinyInt(_dbContextPropertyModifier, 3);
+                .AsUnsignedInt(_dbContextPropertyModifier, 11);
 
             modelBuilder.Entity<MissionPrerequisiteEntry>()
                 .HasKey(entry => new { entry.MissionId, entry.ContentRevision, entry.PrerequisiteId });

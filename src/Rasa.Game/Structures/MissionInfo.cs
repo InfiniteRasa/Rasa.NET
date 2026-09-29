@@ -98,7 +98,7 @@ namespace Rasa.Structures
     {
         public uint Level { get; set; }  // it's mission level, not required XP level
         public byte GroupType { get; set; }
-        public byte CategoryId { get; set; }
+        public uint CategoryId { get; set; }
         public bool Shareable { get; set; }
         public bool RadioCompletable { get; set; }
         public RewardInfo RewardInfo = new RewardInfo();

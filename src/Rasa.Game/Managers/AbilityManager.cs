@@ -466,9 +466,10 @@ namespace Rasa.Managers
         private static DynamicObject ResolvePracticeTarget(
             MapChannel map, Manifestation player, ActionLevelInfo info, ulong entityId)
         {
-            if (info.ActionId != ActionId.AaRecruitLightning || info.Level != 1 ||
+            if (info.ActionId != ActionId.AaRecruitLightning ||
                 !PracticeTargetManager.TryGetTarget(map, entityId, out var target) ||
-                !PracticeTargetManager.CanHit(map, player, target))
+                !PracticeTargetManager.CanHit(map, player, target) ||
+                target.MissionDestruction == null && info.Level != 1)
                 return null;
             return target;
         }
@@ -525,6 +526,14 @@ namespace Rasa.Managers
 
             if (!_actions.TryGetValue(action.ActionId, out var actionInfo) || !actionInfo.Levels.TryGetValue(action.ActionArgId, out var info))
                 return;
+
+            if (action.Completed)
+            {
+                Logger.WriteLog(LogType.Debug,
+                    $"Ability recovery {action.ActionId}/{action.ActionArgId} for character {player.Id} was already resolved.");
+                return;
+            }
+            action.Completed = true;
 
             if (action.IsInrerrupted || player.State == CharacterState.Dead)
             {
@@ -839,7 +848,7 @@ namespace Rasa.Managers
                 CellManager.Instance.CellCallMethod(mapChannel, player, result);
                 if (amount > 0)
                     PracticeTargetManager.RecordHit(
-                        mapChannel, player, practiceTarget, action.ActionId, _missionManager);
+                        mapChannel, player, practiceTarget, action.ActionId, _missionManager, amount);
                 return;
             }
 
