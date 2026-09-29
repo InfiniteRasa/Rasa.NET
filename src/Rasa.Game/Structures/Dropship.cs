@@ -29,18 +29,34 @@ namespace Rasa.Structures
         internal bool StaysOnMap => Role == DropshipRole.Departure && DestinationMapId == MapContextId;
 
         /// <summary>
-        /// When an arrival beams its passenger down, in ms from when it is built: the fly-in
-        /// (phase 0, 5 s) and two seconds of the landing and its transporter beam (phase 2) -
-        /// the same point in the flight at which a departure beams its passenger up.
+        /// When an arrival that flies in beams its passenger down, in ms from when it is built:
+        /// the fly-in (phase 0, 5 s) and two seconds of the landing and its transporter beam
+        /// (phase 2) - the same point in the flight at which a departure beams its passenger up.
+        /// A ride that stays on its map lands this way.
         /// </summary>
         public const uint BeamDownMs = 7000;
 
         /// <summary>
-        /// An arrival on the map the passenger left from: their own client was sent a Teleport
-        /// whose delay is <see cref="BeamDownMs"/> and plays the beam-down itself when it runs
-        /// out, so only everyone else is told.
+        /// How long an arrival on another map beams before it lifts off: it is built already over
+        /// the pad (<see cref="ArriveOverhead"/>). The passenger's own client plays their
+        /// arrival when it leaves the loading screen - wonkavator.py OnExitState calls
+        /// Recv_TeleportArrival(500, ...) on its avatar, 1.8 s after the avatar is there and
+        /// 0.5 s delayed - about 2.3 s after MapLoaded, whatever the server does; this is when
+        /// everyone else is shown it.
         /// </summary>
-        internal bool PassengerBeamsDownItself { get; set; }
+        public const long OverheadBeamMs = 2500;
+
+        /// <summary>
+        /// Built hovering over the pad with its transporter beam on (CsStateSpawn, the landing)
+        /// rather than flying in: the passenger's client beams them down on its own clock as it
+        /// comes out of the loading screen, which a five second fly-in could never be ahead of.
+        /// </summary>
+        internal void ArriveOverhead()
+        {
+            StateId = UseObjectState.CsStateSpawn;
+            Phase = 2;
+            PhaseTimeleft = OverheadBeamMs;
+        }
 
         /// <param name="side">Whose ship: FRIENDLY for the AFS (human) dropship, HOSTILE for the Bane one.</param>
         public Dropship(TargetCategory side, DropshipType dropshipType, SpawnPool spawnPool = null)

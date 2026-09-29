@@ -570,6 +570,9 @@ namespace Rasa.Managers
                     DropshipType.Teleporter,
                     client,
                     DropshipRole.Arrival);
+
+                // Already over the pad, beam on: see Dropship.ArriveOverhead.
+                dropship.ArriveOverhead();
                 client.Player.MapChannel = mapChannel;
                 client.Player.MapContextId = dropship.Client.LoadingMap;
 
@@ -591,11 +594,10 @@ namespace Rasa.Managers
                 CellManager.Instance.AddToWorld(dropship.Client); // will introduce the player to all clients, including the current owner
                 MapLinkManager.Instance.PlayerEnteredMap(client);
 
-                // Not here yet: the arrival ship is only now flying in. Held faded out - the
-                // PreTeleport fade they boarded with, which lasts until something stops it - and
-                // beamed down by the ship when it is over the pad (DynamicObjectManager's
-                // dropship worker, Dropship.BeamDownMs). The TeleportArrival that used to go
-                // out here put them on the pad ahead of the ship.
+                // Not down yet: held faded out - the PreTeleport fade they boarded with, which
+                // lasts until a TeleportArrival stops it - under the ship's beam. Their own client
+                // beams them down as it leaves the loading screen (wonkavator.py OnExitState),
+                // everyone else's when the ship says so (Dropship.OverheadBeamMs).
                 CellManager.Instance.CellCallMethod(dropship.Client.Player.MapChannel, dropship.Client.Player, new PreTeleportPacket(TeleportType.Default));
                 client.CallMethod(SysEntity.ClientMethodId, new RequestMovementBlockPacket());
                 _assignPlayer(client);

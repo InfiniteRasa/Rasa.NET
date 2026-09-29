@@ -891,12 +891,12 @@ namespace Rasa.Managers
                             dropship.Client.Player.MapContextId == dropship.MapContextId)
                         {
                             // Down the beam, now the ship is over the pad: TeleportArrival stops the
-                            // fade the player has been held in since they landed on the map and
-                            // plays the arrival effect on them (actor.py _PlayTeleportArrivalFX).
-                            if (dropship.PassengerBeamsDownItself)
-                                dropship.Client.CellIgnoreSelfCallMethod(dropship.Client, new TeleportArrivalPacket());
-                            else
-                                CellManager.Instance.CellCallMethod(mapChannel, dropship.Client.Player, new TeleportArrivalPacket());
+                            // fade the player has been held in and plays the arrival effect on them
+                            // (actor.py _PlayTeleportArrivalFX). Everyone else's clients only: the
+                            // passenger's own plays it on its own clock - the Teleport's delay on
+                            // this map, leaving the loading screen on another - and a second one
+                            // would play the effect twice.
+                            dropship.Client.CellIgnoreSelfCallMethod(dropship.Client, new TeleportArrivalPacket());
                         }
 
                         if (dropship.DropshipType == DropshipType.Spawner)
@@ -926,23 +926,28 @@ namespace Rasa.Managers
                         dropship.PhaseTimeleft = 5000;
 
                         if (dropship.DropshipType == DropshipType.Teleporter && dropship.Role == DropshipRole.Arrival)
+                        {
+                            // Free to go as the ship lifts off - and in the world as far as the
+                            // server is concerned from the same moment. It used to wait for the
+                            // ship to be gone five seconds later, and every step the player took
+                            // in between was dropped ("Ignored movement outside the active world
+                            // state: Teleporting").
                             dropship.Client.CallMethod(SysEntity.ClientMethodId, new UnrequestMovementBlockPacket());
+
+                            if (dropship.Client.PendingTransfer == null &&
+                                dropship.Client.Player.MapContextId == dropship.MapContextId)
+                            {
+                                dropship.Client.State = ClientState.Ingame;
+                                Maps.ResumeMissionScenes(dropship.Client);
+                                ManifestationManager.Instance.ResetInactivity(dropship.Client);
+                            }
+                        }
                         break;
                     case 5:
                         if (dropship.DropshipType == DropshipType.Teleporter)
                         {
                             if (dropship.Role == DropshipRole.Departure)
                                 DepartDropship(dropship.Client, dropship);
-                            else
-                            {
-                                if (dropship.Client.PendingTransfer == null &&
-                                    dropship.Client.Player.MapContextId == dropship.MapContextId)
-                                {
-                                    dropship.Client.State = ClientState.Ingame;
-                                    Maps.ResumeMissionScenes(dropship.Client);
-                                    ManifestationManager.Instance.ResetInactivity(dropship.Client);
-                                }
-                            }
                         }
 
                         if (dropship.DropshipType == DropshipType.Spawner)
@@ -1602,10 +1607,7 @@ namespace Rasa.Managers
                         TargetCategory.Friendly,
                         DropshipType.Teleporter,
                         client,
-                        DropshipRole.Arrival)
-                    {
-                        PassengerBeamsDownItself = true
-                    };
+                        DropshipRole.Arrival);
                     CellManager.Instance.AddToWorld(transfer.DestinationMap, arrival);
                     Dropships.Add(arrival.EntityId, arrival);
                     return;
