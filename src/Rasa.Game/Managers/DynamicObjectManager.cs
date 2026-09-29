@@ -343,6 +343,9 @@ namespace Rasa.Managers
                     // The hovering ship is a two-state switch to the client, so it offers a use;
                     // there is nothing to do with one - the pad works by walking into the beam.
                     break;
+                case DynamicObjectType.DropshipBeacon:
+                    DropshipBeacons.Use(client, obj, packet);
+                    break;
                 default:
                     Logger.WriteLog(LogType.Debug, $"ToDo: RequestUseObjectPacket: unsuported object type {obj.DynamicObjectType}");
                     break;
@@ -1386,7 +1389,9 @@ namespace Rasa.Managers
                     source.ObjectData is WaypointInfo sourceInfo && sourceInfo.WaypointType == info.WaypointType &&
                     (isStartingExperienceExit || !Characters.StartingExperience.IsExitWaypoint(sourceInfo.WaypointId)) &&
                     MapInstanceScope.Contains(origin, source) &&
-                    (isDropship ? client.Player.IsNear5m(source) : client.Player.IsNear2m(source)));
+                    (isDropship ? client.Player.IsNear5m(source) : client.Player.IsNear2m(source))) ||
+                    // A Dropship Extraction Beacon's ship: one way out onto the network.
+                    isDropship && !isStartingExperienceExit && DropshipBeacons.IsNearUsable(client, origin);
                 var destination = isDropship ? teleporter.Position : teleporter.Position + new Vector3(0, 1, 0);
                 if (!nearbySource || !CellManager.TryGetCellCoordinates(destination, out _, out _) ||
                     !double.IsFinite(teleporter.Rotation) || !float.IsFinite((float)teleporter.Rotation))

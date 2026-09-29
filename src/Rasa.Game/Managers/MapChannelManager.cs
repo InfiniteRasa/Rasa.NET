@@ -415,6 +415,9 @@ namespace Rasa.Managers
                         // Toys: rockets and fireworks taken away once they are done, pets whose owner has gone.
                         Guard("AbilityManager.ToyWorker", mapChannel, () => AbilityManager.Instance.ToyWorker(mapChannel));
 
+                        // Dropship beacons: settled, sent away, and the travel window for the squad in reach.
+                        Guard("DropshipBeacons.Worker", mapChannel, () => DropshipBeacons.Worker(mapChannel));
+
                         // Scatterbombs: the spent bombs are taken away once their blasts have played.
                         Guard("AbilityManager.ScatterbombWorker", mapChannel, () => AbilityManager.Instance.ScatterbombWorker(mapChannel));
 

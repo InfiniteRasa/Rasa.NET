@@ -53,6 +53,10 @@ namespace Rasa.Managers
     ///    when the player leaves the map. The summoner is kept (its requirement's quantity is 0).
     ///    COMPANION_MASTER / COMPANION_SLAVE (346, 347) have no classes in the client's module, so
     ///    they are not sent.
+    ///  - The Dropship Extraction Beacon (ACCOUNTREWARD_PORTAL 511, abilities.portal): a personal
+    ///    dropship put down where the player stands, which for five minutes gives them and their
+    ///    squad the dropship travel window (<see cref="DropshipBeacons"/>). Kept; the hour's reuse
+    ///    is the action level's.
     /// </summary>
     public partial class AbilityManager
     {
@@ -182,11 +186,13 @@ namespace Rasa.Managers
         private static bool IsToy(ActionInfo action, ActionLevelInfo info)
         {
             return IsEmoteItem(action, info) || IsTitleItem(action, info) || IsModelRocket(action, info)
-                   || IsLocationEffect(action, info) || IsSnowball(action) || IsPet(action, info);
+                   || IsLocationEffect(action, info) || IsSnowball(action) || IsPet(action, info)
+                   || DropshipBeacons.Is(action, info);
         }
 
-        /// <summary>A rocket or a pet is kept when used; everything else used from an item is used up.</summary>
-        private static bool KeepsSourceItem(ActionInfo action) => action.Module == FixedVisualModule || action.Module == CompanionModule;
+        /// <summary>A rocket, a pet or a dropship beacon is kept when used; everything else used from an item is used up.</summary>
+        private static bool KeepsSourceItem(ActionInfo action) =>
+            action.Module == FixedVisualModule || action.Module == CompanionModule || action.Module == DropshipBeacons.PortalModule;
 
         #endregion
 
@@ -274,6 +280,8 @@ namespace Rasa.Managers
                 ThrowSnowball(mapChannel, action, recovery);
             else if (IsPet(actionInfo, info))
                 SummonPet(mapChannel, player, info, action, recovery);
+            else if (DropshipBeacons.Is(actionInfo, info))
+                DropshipBeacons.Deploy(mapChannel, player, info);
 
             CellManager.Instance.CellCallMethod(mapChannel, player, recovery);
         }

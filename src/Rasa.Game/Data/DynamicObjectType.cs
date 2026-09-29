@@ -15,6 +15,7 @@
         Hortimonculus       = 11,   // the plant Hortimonculus grows from a corpse
         Emitter             = 12,   // an FXPackageEmitter playing an FX package (EmitterManager)
         ForceField          = 13,   // a force field a GM has placed (ForceFields)
-        PracticeDummy       = 14    // a Bootcamp practice target (PracticeTargetManager)
+        PracticeDummy       = 14,   // a Bootcamp practice target (PracticeTargetManager)
+        DropshipBeacon      = 15    // a Dropship Extraction Beacon's personal dropship (DropshipBeacons)
     }
 }

@@ -460,7 +460,7 @@ namespace Rasa.Test.Missions
                 .Select(EntityManager.Instance.GetItem).Single(candidate => candidate.ItemTemplateId == template);
         }
 
-        private static void Land(BootcampRuntimeTestHarness.Harness harness, AbilityManager manager, ActionData pending)
+        internal static void Land(BootcampRuntimeTestHarness.Harness harness, AbilityManager manager, ActionData pending)
         {
             harness.BootcampMap.PerformRecovery.Remove(pending);
             lock (Server.Clients)
@@ -476,7 +476,7 @@ namespace Rasa.Test.Missions
             }
         }
 
-        private static RequestPerformAbilityPacket Request(int actionId, uint level, ulong itemId,
+        internal static RequestPerformAbilityPacket Request(int actionId, uint level, ulong itemId,
             System.Numerics.Vector3? location = null, ulong targetId = 0)
         {
             using var stream = new MemoryStream();
