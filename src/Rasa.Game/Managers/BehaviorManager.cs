@@ -14,23 +14,41 @@ namespace Rasa.Managers
     public class BehaviorManager
     {
         /// <summary>
-        /// Radius around home a stroll may end in. The C++ server used 20; it was raised to 40 while
-        /// destinations were random offsets that mostly failed the distance check, so creatures
-        /// hardly moved. With navmesh destinations every draw succeeds, and 40 m strolls at the
-        /// database's 5 m/s "walk" had whole camps sprinting about.
-        /// </summary>
-        public const byte WanderDistance = 20;
-
-        /// <summary>
         /// Wander pace, metres per second. creature.walk_speed is 5 for every row in the database -
         /// a jog, and the client shows it as one. Strolling creatures are capped at a walk; chases
         /// still use run_speed.
         /// </summary>
         public const float WanderWalkSpeed = 1.6f;
 
-        /// <summary>Idle time between strolls: RestTimeMin plus up to RestTimeSpread, drawn per stop so a camp does not move in step.</summary>
-        private const long RestTimeMin = 12000;
-        private const long RestTimeSpread = 28000;
+        /// <summary>
+        /// How long a creature stands before its next stroll, counted from when it stopped - after
+        /// a stroll, a fight or a leash alike. A spawned creature's first wait is drawn from anywhere
+        /// in the interval (<see cref="StartWandering"/>), so a camp that came up together does not
+        /// set off together; after that, strolls of different lengths keep them apart. Not in the
+        /// client.
+        /// </summary>
+        public const long WanderIntervalMs = 45000;
+
+        /// <summary>The furthest a stroll goes from where the creature stands, across the ground.</summary>
+        public const float WanderStepDistance = 10f;
+
+        /// <summary>The least room a stroll's end leaves to every other creature, and to wherever another is already walking.</summary>
+        public const float WanderSpacing = 4f;
+
+        /// <summary>The least a stroll moves the creature, so the spot it picks is not the one it is standing on.</summary>
+        public const float WanderMinStep = 2f;
+
+        /// <summary>
+        /// The spawn zone of a creature whose pool is a point (radius 0) or that has no pool - a GM
+        /// spawn - is this far around its spawn point. A pool with a radius is its own zone.
+        /// </summary>
+        public const float WanderZoneFallbackRadius = 10f;
+
+        /// <summary>How many points a stroll draws before it gives up until the next interval.</summary>
+        private const int WanderAttempts = 16;
+
+        /// <summary>A stroll that has not arrived in this long - walking into a wall off the navmesh - ends where the creature is.</summary>
+        private const long WanderMoveTimeoutMs = 20000;
         public const byte PathLengthLimit = 72;
 
         private const byte PathModeOneShot  = 0; // creature will walk along the path once
@@ -48,7 +66,59 @@ namespace Rasa.Managers
         /// an ordinary creature has a spawn point to wander around instead.
         /// </summary>
         public const byte BehaviorActionFollow = 5;
-        internal const byte BehaviorActionScriptedMove = 6;
+
+        /// <summary>A mission scene's actor walking an authored path to an authored pose (SetActionScriptedMove).</summary>
+        internal const byte BehaviorActionScriptedMove = 7;
+
+        /// <summary>
+        /// Chased too far from home and running back to it (<see cref="Leash"/>): it takes no
+        /// damage and picks no fight on the way, and arrives whole.
+        /// </summary>
+        public const byte BehaviorActionReturning = 6;
+
+        /// <summary>
+        /// How far a creature with no master follows a fight from its home before it gives up and
+        /// goes back (<see cref="Leash"/>): its own distance, across the ground. The target's
+        /// does not matter - a sniper at home shooting someone forty metres off is not chasing.
+        /// Not in the client; 60 m is what the leash here has always been.
+        /// </summary>
+        public const float MaxChaseDistance = 60f;
+
+        /// <summary>How close to home a returning creature has to get to count as there.</summary>
+        private const float HomeReachedDistance = 2f;
+
+        /// <summary>The least time a returning creature is given before it is put home regardless.</summary>
+        private const long ReturnTimeoutMinMs = 10000;
+
+        /// <summary>How often a creature re-tests whether it can see what it is shooting at.</summary>
+        private const long SightRecheckMs = 500;
+
+        /// <summary>
+        /// How long an attack in range may have left to cool down and still keep its creature
+        /// where it stands (ClosesInWhileCooling). A gunner between shots holds its ground; a
+        /// Kael whose tectonic strike is ten seconds from ready walks in and uses its fists.
+        /// </summary>
+        public const long HoldForCooldownMs = 1500;
+
+        /// <summary>
+        /// The least and most a creature waits past an action's cooldown before it may use it
+        /// again, as a share of that cooldown (NextCooldown): a random wait of 1% to 50% on top, so
+        /// a pack does not fire in step and a rotation does not tick like a clock.
+        /// </summary>
+        public const double CooldownJitterMin = 0.01;
+        public const double CooldownJitterMax = 0.50;
+
+        private static readonly Random CooldownRandom = new Random();
+
+        /// <summary>
+        /// A creature's first attack of a fight is not instant (OpensNow): each think it has an
+        /// attack ready, in range and in sight, it rolls to use it - OpeningChanceStep (25%) on the
+        /// first such think, 50% on the second, 75% on the third, and certain on the
+        /// OpeningThinks-th (the fourth). Until then it stands and faces its target. After the
+        /// first attack its actions follow their cooldowns (NextCooldown, ByReadiness).
+        /// </summary>
+        public const int OpeningThinks = 4;
+        public const double OpeningChanceStep = 1.0 / OpeningThinks;
 
         public const byte WanderIdle = 0;
         public const byte WanderMoving = 1;
@@ -99,6 +169,89 @@ namespace Rasa.Managers
         {
         }
 
+        /// <summary>
+        /// The nearest thing in one cell this creature would pick a fight with, within range,
+        /// if it is nearer than what has been found so far.
+        /// </summary>
+        private static void ScanCell(MapChannel mapChannel, Creature creature, MapCell cell, float range, ref float foundDistance, ref ulong foundId)
+        {
+            // A mission escort never picks a fight with a player, and only with a creature that is
+            // on the other side of its scene (CreatureManager.IsHostileTarget).
+            var escort = IsMissionEscort(creature);
+
+            foreach (var client in cell.ClientList)
+            {
+                if (escort)
+                    break;
+
+                // Cell lists can hold a client whose character is already gone. A player is
+                // FRIENDLY - sought by HOSTILE creatures only - whatever Polymorph has made
+                // them look like.
+                if (client.Player == null || !TargetCategories.Seeks(creature.TargetCategory, client.Player.CombatCategory))
+                    continue;
+
+                // Gone, and waiting to be taken out of the world: nothing to pick a fight with.
+                if (client.Player.Disconected)
+                    continue;
+
+                if (client.Player.GmFlagAlwaysFriendly)
+                    continue;
+
+                if (client.Player.Attributes[Attributes.Health].Current <= 0)
+                    continue;
+
+                // Cloaked (Cloak Wave): it cannot be noticed however close it stands. Nor can
+                // someone watching a camera script, who has no controls to answer with.
+                if (Detection.IsHidden(client.Player) || CameraScripts.IsWatching(client.Player))
+                    continue;
+
+                // check distance so creature attack closes target
+                var dist = Vector3.Distance(creature.Position, client.Player.Position);
+
+                // Stealth Armor: noticed that much closer (Manifestation.DetectionRangePercent).
+                if (dist <= range * client.Player.DetectionRangePercent / 100f)
+                {
+                    // set target and change state
+                    if (dist < foundDistance)
+                    {
+                        foundId = client.Player.EntityId;
+                        foundDistance = dist;
+                    }
+                }
+            }
+
+            foreach (var tCreature in cell.CreatureList)
+            {
+                if (escort && !CreatureManager.IsHostileTarget(mapChannel, creature, tCreature))
+                    continue;
+
+                if (tCreature.Attributes[Attributes.Health].Current <= 0 || tCreature.State == CharacterState.Dying)
+                    continue;
+
+                if (!Game.Missions.World.CreatureGameplayRules.CanParticipateInCombat(tCreature))
+                    continue;
+
+                if (tCreature == creature)
+                    continue;
+
+                if (!TargetCategories.Seeks(creature.TargetCategory, tCreature.TargetCategory))
+                    continue;
+
+                // check distance
+                var dist = Vector3.Distance(creature.Position, tCreature.Position);
+
+                if (dist <= range)
+                {
+                    // set target and change state
+                    if (dist < foundDistance)
+                    {
+                        foundId = tCreature.EntityId;
+                        foundDistance = dist;
+                    }
+                }
+            }
+        }
+
         /// <CheckForAttackableEntityInRange>
         /// Checks for enemy creatures and players within the given range
         /// </CheckForAttackableEntityInRange>
@@ -107,67 +260,45 @@ namespace Rasa.Managers
             var foundEntity_distance = range + 100.0f; // value that is guaranteed to be higher than the found creature
             var foundEntity_entityId = 0ul;
 
-            // AFS do not attack AFS
-            var attacksPlayers = !IsMissionEscort(creature) && creature.Faction != Factions.AFS;
+            // Blinded (Tactical Evasion's mag flash): it notices nobody at all.
+            if (Detection.IsBlind(creature))
+                return false;
 
-            foreach (var cell in CellManager.CellsIn(mapChannel, creature.Cells))
+            // Only HOSTILE and FRIENDLY go looking for a fight, and only with each other
+            // (TargetCategories.Seeks): a NEUTRAL creature waits to be attacked, and an object or
+            // decoration takes no part.
+            if (creature.TargetCategory != TargetCategory.Hostile && creature.TargetCategory != TargetCategory.Friendly)
+                return false;
+
+            // Only the cells the range can reach. This used to walk the whole 5x5 matrix - 128 m
+            // across - for an aggro range that is 18 m unless something raised it, on every think
+            // of every idle creature on the map, player nearby or not. A range under one cell
+            // fits in the 3x3 around the cell the creature is standing in now; anything longer
+            // keeps the matrix, which is as far as anything can see.
+            var reach = (int)Math.Ceiling(range / CellManager.CellSize);
+
+            if (reach >= 2)
             {
-                foreach (var client in cell.ClientList)
-                {
-                    // Cell lists can hold a client whose character is already gone.
-                    if (!attacksPlayers || client.Player == null)
-                        continue;
+                foreach (var cell in CellManager.CellsIn(mapChannel, creature.Cells))
+                    ScanCell(mapChannel, creature, cell, range, ref foundEntity_distance, ref foundEntity_entityId);
+            }
+            else
+            {
+                var cells = mapChannel.MapCellInfo.Cells;
 
-                    if (client.Player.GmFlagAlwaysFriendly)
-                        continue;
+                // As CellManager.GetCell numbers them; a cell the map has not got is empty ground.
+                var centreX = (uint)(creature.Position.X / CellManager.CellSize + CellManager.CellBias);
+                var centreZ = (uint)(creature.Position.Z / CellManager.CellSize + CellManager.CellBias);
 
-                    if (client.Player.Attributes[Attributes.Health].Current <= 0)
-                        continue;
-
-                    // check distance so creature attack closes target
-                    var dist = Vector3.Distance(creature.Position, client.Player.Position);
-
-                    if (dist <= range)
+                for (var dx = -reach; dx <= reach; dx++)
+                    for (var dz = -reach; dz <= reach; dz++)
                     {
-                        // set target and change state
-                        if (dist < foundEntity_distance)
-                        {
-                            foundEntity_entityId = client.Player.EntityId;
-                            foundEntity_distance = dist;
-                        }
+                        var cellX = (uint)(centreX + dx);
+                        var cellZ = (uint)(centreZ + dz);
+
+                        if (cells.TryGetValue((cellX & 0xFFFF) | (cellZ << 16), out var cell))
+                            ScanCell(mapChannel, creature, cell, range, ref foundEntity_distance, ref foundEntity_entityId);
                     }
-                }
-
-                foreach (var tCreature in cell.CreatureList)
-                {
-                    if (IsMissionEscort(creature) &&
-                        !CreatureManager.IsHostileTarget(mapChannel, creature, tCreature))
-                        continue;
-
-                    if (tCreature.Attributes[Attributes.Health].Current <= 0)
-                        continue;
-                    if (!Game.Missions.World.CreatureGameplayRules.CanParticipateInCombat(tCreature))
-                        continue;
-
-                    if (tCreature == creature)
-                        continue;
-
-                    if (tCreature.Faction == creature.Faction)
-                        continue;
-
-                    // check distance
-                    var dist = Vector3.Distance(creature.Position, tCreature.Position);
-
-                    if (dist <= range)
-                    {
-                        // set target and change state
-                        if (dist < foundEntity_distance)
-                        {
-                            foundEntity_entityId = tCreature.EntityId;
-                            foundEntity_distance = dist;
-                        }
-                    }
-                }
             }
 
             if (foundEntity_entityId != 0)
@@ -191,18 +322,47 @@ namespace Rasa.Managers
             // update all creature timers befor continue
             UpdateCreatureTimers(creature, delta);
 
+            // A crab mine: AbilityManager steers it, clears it away when it is spent, and all it
+            // does here is go where it is sent - it is never a corpse to despawn.
+            if (creature.IsScripted)
+            {
+                needCellUpdate = CellChanged(creature, delta);
+                return;
+            }
+
             if (creature.Attributes[Attributes.Health].Current <= 0)
             {
                 // A corpse with loot still on it, or with someone's window open on it, stays
                 // longer than one that has been cleared: twenty seconds from the kill is about
-                // one more fight, and bodies were going before anyone could loot them.
-                if (LootDispenserManager.Instance.AdvanceCorpseLifetime(
-                        mapChannel, creature, delta))
+                // one more fight, and bodies were going before anyone could loot them. The clock
+                // runs under the map's loot lock (LootDispenserManager.AdvanceCorpseLifetime).
+                if (LootDispenserManager.Instance.AdvanceCorpseLifetime(mapChannel, creature, delta))
                     needDeletion = true;
 
                 return; // creature dead
             }
 
+            // Held in its Critical Death window: it neither moves nor fights.
+            if (creature.State == CharacterState.Dying)
+                return;
+
+            // Knocked back, or stunned: it goes where the knockback carries it and nothing else,
+            // but it can still cross into another cell doing so.
+            var knockedBack = StepKnockback(mapChannel, creature, delta);
+
+            // Mid-charge (Kael rushing blow), winding up to blow itself up (a Fithik), to drop an
+            // egg (a Stalker) or any ability (CreatureWindups), in a cocoon (an Atta grub), or a
+            // cloud (a Miasma, CreatureMiasma), it does nothing else until that is done.
+            if (knockedBack || Stuns.IsStunned(creature) || KaelRushingBlow.IsCharging(creature) || CreatureBombs.IsSelfDestructing(creature)
+                || CreatureSupport.IsCasting(creature) || CreatureHabits.IsBusy(creature) || CreatureSummons.IsBusy(creature)
+                || CreatureWindups.IsWindingUp(creature) || CreatureMiasma.IsDissipated(creature))
+            {
+                needCellUpdate = CellChanged(creature, delta);
+                return;
+            }
+
+            // A mission scene's actor: an authored walk, an escort at its owner's side, a base's
+            // defender. Each keeps its own cell as it goes.
             if (creature.Controller.CurrentAction == BehaviorActionScriptedMove)
             {
                 AdvanceScriptedMove(mapChannel, creature, delta);
@@ -212,6 +372,8 @@ namespace Rasa.Managers
             if (creature.Controller.CurrentAction == BehaviorActionFighting &&
                 !Game.Missions.World.CreatureGameplayRules.CanParticipateInCombat(creature))
             {
+                creature.Hate.Clear();
+                CreatureWeaponDraw.Stow(mapChannel, creature);
                 creature.Controller.ActionFighting.TargetEntityId = 0;
                 creature.Target = 0;
                 SetActionAnchor(creature, creature.Position);
@@ -232,14 +394,17 @@ namespace Rasa.Managers
             var tCell = CellManager.Instance.GetCell(mapChannel, cellX, cellZ);
             if (tCell != null && tCell.CreatureList.Count > 1)
             {
-                var randomCreatureIndex = new Random().Next(tCell.CreatureList.Count);
+                var randomCreatureIndex = Random.Shared.Next(tCell.CreatureList.Count);
                 // get the creature
                 var tCreature = tCell.CreatureList[randomCreatureIndex];
+                // is it a different alive creature?
+                // An emplacement is bolted down: it neither pushes nor is pushed.
                 // Scripted actors keep their authored path and final pose.
-                if (creature != tCreature && tCreature.Attributes[Attributes.Health].Current > 0 &&
-                    !IsMissionEscort(creature) && !Game.Missions.World.CreatureGameplayRules.IsDefender(creature) &&
-                    tCreature.Controller.CurrentAction != BehaviorActionScriptedMove &&
-                    !IsMissionEscort(tCreature) && !Game.Missions.World.CreatureGameplayRules.IsDefender(tCreature))
+                if (creature != tCreature && tCreature.Attributes[Attributes.Health].Current > 0
+                    && !Emplacements.Is(creature) && !Emplacements.Is(tCreature)
+                    && !IsMissionEscort(creature) && !Game.Missions.World.CreatureGameplayRules.IsDefender(creature)
+                    && tCreature.Controller.CurrentAction != BehaviorActionScriptedMove
+                    && !IsMissionEscort(tCreature) && !Game.Missions.World.CreatureGameplayRules.IsDefender(tCreature))
                 {
                     var difX = creature.Position.X - tCreature.Position.X;
                     var difY = creature.Position.Y - tCreature.Position.Y;
@@ -276,18 +441,14 @@ namespace Rasa.Managers
             }
 
             // do we need to check for updated cell position?
-            creature.UpdatePositionCounter -= delta;
+            if (CellChanged(creature, delta))
+                needCellUpdate = true;
 
-            if (creature.UpdatePositionCounter <= 0)
+            // Running home after a chase that went too far: nothing else until it is there.
+            if (creature.Controller.CurrentAction == BehaviorActionReturning)
             {
-                // check for changed cell
-                var cellSeed = CellManager.Instance.GetCellSeed(creature.Position);
-
-                // calculate initial cell
-                if (cellSeed != creature.Cells[2, 2])
-                    needCellUpdate = true;
-
-                creature.UpdatePositionCounter = CreatureManager.CreatureLocationUpdateTime;
+                ReturnHome(mapChannel, creature, delta);
+                return;
             }
 
             if (creature.Controller.CurrentAction == BehaviorActionWander)
@@ -300,14 +461,35 @@ namespace Rasa.Managers
                         return;
                     }
 
-                if (creature.Controller.ActionWander.State == WanderIdle)
-                {
-                    if (creature.Controller.ActionWander.RestDuration <= 0)
-                        creature.Controller.ActionWander.RestDuration = RestTimeMin + new Random().Next((int)RestTimeSpread);
+                var wander = creature.Controller.ActionWander;
 
-                    //--- idle for a while before the next stroll
-                    if (creature.LastRestTime > creature.Controller.ActionWander.RestDuration)
+                if (wander.State == WanderIdle)
+                {
+                    wander.IdleMs += delta;
+
+                    // A Filcher sees loot to steal, a hurt Xanx a dead one to eat; a Predator
+                    // scans where it stands (CreatureHabits). An errand does not wait for the
+                    // stroll's interval.
+                    var errand = CreatureHabits.WhereTo(mapChannel, creature);
+
+                    if (errand.HasValue)
                     {
+                        wander.WanderDestination = errand.Value;
+                        wander.State = WanderMoving;
+                        wander.MovingMs = 0;
+                        wander.IdleMs = 0;
+                        wander.Errand = true;
+                        creature.Controller.Path.Clear();
+                        creature.Controller.PathIndex = 0;
+                        creature.LastRestTime = 0;
+                    }
+
+                    //--- stands for WanderIntervalMs after it stops, then strolls
+                    if (wander.IdleMs >= WanderIntervalMs)
+                    {
+                        // Whether or not it finds somewhere to go, the next try is a full interval off.
+                        wander.IdleMs = 0;
+
                         // does creature have a path?
                         if (creature.Controller.AiPathFollowing.GeneralPath != null)
                         {
@@ -319,25 +501,55 @@ namespace Rasa.Managers
                         if (creature.WalkSpeed < 0.01f || creature.RunSpeed < 0.01f)
                             return; // creature doesn't wander
 
-                        // set destination
-                        creature.Controller.ActionWander.WanderDestination = GetDestination(mapChannel, creature);
+                        // A Shield Drone covers a piece of ground, so it stays on it.
+                        if (ShieldDrone.HoldsGround(creature))
+                            return;
 
-                        // next step approaching
-                        creature.Controller.ActionWander.State = WanderMoving;
+                        var destination = PickStroll(mapChannel, creature);
+
+                        // Nowhere in its zone with room enough: it stays where it is.
+                        if (!destination.HasValue)
+                            return;
+
+                        wander.WanderDestination = destination.Value;
+                        wander.State = WanderMoving;
+                        wander.MovingMs = 0;
+                        creature.Controller.Path.Clear();
+                        creature.Controller.PathIndex = 0;
                         creature.LastRestTime = 0;
                     }
                 }
 
-                if (creature.Controller.ActionWander.State == WanderMoving)
+                if (wander.State == WanderMoving)
                 {
+                    wander.MovingMs += delta;
+
                     // following path (short path)
                     if (creature.Controller.Path.Count == 0)
-                        BuildPath(mapChannel, creature, creature.Controller.ActionWander.WanderDestination);
+                        BuildPath(mapChannel, creature, wander.WanderDestination);
 
-                    if (FollowPath(mapChannel, creature, Math.Min(creature.WalkSpeed, WanderWalkSpeed), delta))
+                    // Frightened, or on an errand: it runs, rather than strolls. Off a dropship or
+                    // through a teleporter: it marches in.
+                    var wanderSpeed = wander.Fleeing || wander.Errand ? creature.RunSpeed : wander.Arriving ? creature.WalkSpeed : Math.Min(creature.WalkSpeed, WanderWalkSpeed);
+                    var timeout = wander.Arriving ? wander.ArrivalTimeoutMs : WanderMoveTimeoutMs;
+
+                    if (FollowPath(mapChannel, creature, wanderSpeed, delta) || wander.MovingMs >= timeout)
                     {
-                        creature.Controller.ActionWander.State = WanderIdle;
-                        creature.Controller.ActionWander.RestDuration = 0;
+                        wander.Arriving = false;
+
+                        // There, or as near as it is going to get: it stops, and the interval
+                        // starts again from now.
+                        StopWalking(creature);
+                        wander.Fleeing = false;
+
+                        if (wander.Errand)
+                        {
+                            wander.Errand = false;
+                            CreatureHabits.Arrived(mapChannel, creature);
+                        }
+
+                        wander.State = WanderIdle;
+                        wander.IdleMs = 0;
                         creature.LastRestTime = 0;
                         return;
                     }
@@ -354,34 +566,32 @@ namespace Rasa.Managers
                 // are primarily offensive, assist mode will automatically issue a Target command
                 // whenever the player attacks an enemy so that the subordinate is targeting the
                 // same enemy."
-                if (creature.Controller.ActionFollow.AssistTargetId != 0 && creature.Stance != MinionStance.Passive)
-                {
-                    var assisted = EntityManager.Instance.GetActor(creature.Controller.ActionFollow.AssistTargetId);
+                var assistedTarget = AssistedTarget(creature);
 
-                    if (assisted != null && assisted.Target != 0 && assisted.Target != creature.EntityId)
-                    {
-                        creature.Target = assisted.Target;
-                        SetActionFighting(creature, assisted.Target);
+                if (assistedTarget != 0)
+                {
+                    creature.Target = assistedTarget;
+                    SetActionFighting(creature, assistedTarget);
+
+                    if (creature.Controller.CurrentAction == BehaviorActionFighting)
                         return;
-                    }
                 }
 
                 var destination = creature.Controller.ActionFollow.Anchor;
 
                 if (!creature.Controller.ActionFollow.HasAnchor)
                 {
+                    // TryGetValue: GetActor throws on a miss.
                     Actor followed = null;
                     if (creature.Controller.ActionFollow.FollowTargetId != 0)
-                        EntityManager.Instance.Actors.TryGetValue(
-                            creature.Controller.ActionFollow.FollowTargetId,
-                            out followed);
-                    if (followed == null &&
-                        creature.SpawnPool?.FollowOwnerCharacterId > 0)
+                        EntityManager.Instance.Actors.TryGetValue(creature.Controller.ActionFollow.FollowTargetId, out followed);
+
+                    // A mission escort follows its owner by character, whatever entity they are now.
+                    if (followed == null && creature.SpawnPool?.FollowOwnerCharacterId > 0)
                     {
                         followed = mapChannel.ClientList
                             .Select(client => client?.Player)
-                            .FirstOrDefault(player =>
-                                player?.Id == creature.SpawnPool.FollowOwnerCharacterId);
+                            .FirstOrDefault(player => player?.Id == creature.SpawnPool.FollowOwnerCharacterId);
                         if (followed != null)
                             creature.Controller.ActionFollow.FollowTargetId = followed.EntityId;
                     }
@@ -394,8 +604,6 @@ namespace Rasa.Managers
 
                     destination = followed.Position;
                 }
-
-                creature.HomePos.Position = destination;
 
                 var gap = Vector3.Distance(creature.Position, destination);
 
@@ -482,8 +690,8 @@ namespace Rasa.Managers
                     else
                     {
                         // random position bias added to every node (to make groups look like they do not run on the same path)
-                        creature.Controller.AiPathFollowing.RandomPathNodeBiasXZ[0] = ((new Random().Next() % 1001) - 500) / 500.0f * creature.Controller.AiPathFollowing.GeneralPath.NodeOffsetRandomization;
-                        creature.Controller.AiPathFollowing.RandomPathNodeBiasXZ[1] = ((new Random().Next() % 1001) - 500) / 500.0f * creature.Controller.AiPathFollowing.GeneralPath.NodeOffsetRandomization;
+                        creature.Controller.AiPathFollowing.RandomPathNodeBiasXZ[0] = ((Random.Shared.Next() % 1001) - 500) / 500.0f * creature.Controller.AiPathFollowing.GeneralPath.NodeOffsetRandomization;
+                        creature.Controller.AiPathFollowing.RandomPathNodeBiasXZ[1] = ((Random.Shared.Next() % 1001) - 500) / 500.0f * creature.Controller.AiPathFollowing.GeneralPath.NodeOffsetRandomization;
                         // update home position to be at the (old) current node
                         creature.HomePos.Position = new Vector3(currentTargetNodePos[0], currentTargetNodePos[1], currentTargetNodePos[2]);
                     }
@@ -491,34 +699,79 @@ namespace Rasa.Managers
             }
             else if (creature.Controller.CurrentAction == BehaviorActionFighting)
             {
+                // Who it hates most and can still fight is who it fights (Threat). Nobody left:
+                // the fight is over and the table goes with it. A minion assisting someone fights
+                // what they have targeted first, switching when they do, and falls back on its
+                // hate when they have nothing it can fight selected.
+                var assisting = AssistedTarget(creature);
+                // Mission escorts and defenders already chose a target within their owner's or
+                // base's bounds above; ambient hate must not override that assignment.
+                var chosen = IsMissionEscort(creature) || Game.Missions.World.CreatureGameplayRules.IsDefender(creature)
+                    ? creature.Controller.ActionFighting.TargetEntityId
+                    : assisting != 0 ? assisting : Threat.ChooseTarget(creature);
+
+                if (assisting != 0)
+                    creature.Target = assisting;
+
+                if (chosen == 0)
+                {
+                    GiveUp(creature);
+                    return;
+                }
+
+                if (chosen != creature.Controller.ActionFighting.TargetEntityId)
+                    SetActionFighting(creature, chosen);
+
                 // get target
                 var target = EntityManager.Instance.GetEntityType(creature.Controller.ActionFighting.TargetEntityId);
 
                 if (target == 0)
                 {
                     // target disappeared (player logout or deleted for some reason) - leave combat mode
-                    RestorePassiveAction(creature);
+                    if (!Threat.Retarget(creature))
+                        GiveUp(creature);
+
                     return;
                 }
 
                 // leave combat after 
                 if (creature.LastAgression > creature.AggressionTime)
                 {
-                    RestorePassiveAction(creature);
+                    GiveUp(creature);
                     return;
                 }
 
                 // get position of target
                 var targetPosition = new Vector3();
+                Actor targetActor = null;
 
                 if (target == EntityType.Character)
                 {
                     var player = EntityManager.Instance.GetPlayer(creature.Controller.ActionFighting.TargetEntityId);
+                    targetActor = player;
 
-                    // if target dead, set wander state
+                    // if target dead, on to the next it hates, or back to wandering
                     if (player.Attributes[Attributes.Health].Current <= 0 || player.State == CharacterState.Dead)
                     {
-                        RestorePassiveAction(creature);
+                        if (!Threat.Retarget(creature))
+                            GiveUp(creature);
+
+                        return;
+                    }
+
+                    // Cloaked, or watching a camera script: off the table, and on to whoever it hates next.
+                    if (Detection.IsHidden(player) || CameraScripts.IsWatching(player))
+                    {
+                        if (!Threat.Retarget(creature))
+                            StopFighting(creature);
+
+                        return;
+                    }
+
+                    // Blinded: it cannot fight what it cannot see, but it remembers who it hated.
+                    if (Detection.IsBlind(creature))
+                    {
+                        StopFighting(creature);
                         return;
                     }
 
@@ -528,13 +781,16 @@ namespace Rasa.Managers
                 else if (target == EntityType.Creature)
                 {
                     var targetCreature = EntityManager.Instance.GetCreature(creature.Controller.ActionFighting.TargetEntityId);
+                    targetActor = targetCreature;
 
-                    if (targetCreature.Attributes[Attributes.Health].Current <= 0 || targetCreature.State == CharacterState.Dead)
+                    if (targetCreature.Attributes[Attributes.Health].Current <= 0 || targetCreature.State == CharacterState.Dead || targetCreature.State == CharacterState.Dying)
                     {
-                        // exit visual combat mode
-                        CellManager.Instance.CellCallMethod(mapChannel, creature, new RequestVisualCombatModePacket(false));
+                        if (Threat.Retarget(creature))
+                            return;
 
-                        RestorePassiveAction(creature);
+                        // GiveUp stows the weapon, which takes the stance down with it
+                        // (CreatureWeaponDraw); a creature with no weapon never held one.
+                        GiveUp(creature);
                         return;
                     }
 
@@ -547,45 +803,188 @@ namespace Rasa.Managers
                 var targetDistY = (targetPosition.Y - creature.Position.Y);
                 var targetDistZ = (targetPosition.Z - creature.Position.Z);
                 var targetDistSqr = (targetDistX * targetDistX + targetDistY * targetDistY + targetDistZ * targetDistZ);
-                // stop tracking target after target exceeds a certain distance to home pos
-                // Note: For patrolling creatures the homePos is the last arrived path node 
-                var homeLocDistX = (creature.HomePos.Position.X - targetPosition.X);
-                var homeLocDistZ = (creature.HomePos.Position.Z - targetPosition.Z);
-                var homeLocDist = homeLocDistX * homeLocDistX + homeLocDistZ * homeLocDistZ;
-
-                if (homeLocDist >= 60.0f * 60.0f)
+                if (creature.MasterEntityId != 0)
                 {
-                    creature.LastRestTime = 0; // forces AI to immediately calculate new wander position
-                    RestorePassiveAction(creature);
+                    // A minion is leashed to its master, by where its target is: a fight that
+                    // has gone that far from them is dropped, and it goes back to them.
+                    var master = LeashCentre(creature);
+                    var masterDistX = master.X - targetPosition.X;
+                    var masterDistZ = master.Z - targetPosition.Z;
+
+                    if (masterDistX * masterDistX + masterDistZ * masterDistZ >= MaxChaseDistance * MaxChaseDistance)
+                    {
+                        creature.LastRestTime = 0;
+                        GiveUp(creature);
+                        return;
+                    }
+                }
+                else if (ChasedTooFar(creature))
+                {
+                    // Dragged too far from home: it runs back, forgetting the fight, and is whole
+                    // again when it gets there. For a patrolling creature home is the last path
+                    // node it reached.
+                    Leash(mapChannel, creature);
                     return;
                 }
                 creature.LastAgression = 0; // update aggression time if we found our target
 
+                // Brought low, a Fithik blows itself up on whoever is around it (CreatureBombs).
+                var selfDestruct = creature.Actions.FirstOrDefault(CreatureBombs.IsSelfDestruct);
+
+                if (selfDestruct != null && CreatureBombs.ShouldSelfDestruct(creature.Attributes[Attributes.Health].Current, creature.Attributes[Attributes.Health].CurrentMax))
+                {
+                    CreatureBombs.StartSelfDestruct(mapChannel, creature, selfDestruct);
+                    return;
+                }
+
+                // Brought to half its health, an Atta grub cocoons, and comes out an adult
+                // (CreatureSummons).
+                if (CreatureSummons.TryCocoon(mapChannel, creature))
+                    return;
+
+                // A Caretaker or a Technician looks after its side first: a heal, a repair or a
+                // revive, when one would do something (CreatureSupport).
+                if (CreatureSupport.TryStart(mapChannel, creature))
+                    return;
+
+                // A Xanx brought low eats a dead Xanx it is standing by (CreatureHabits).
+                if (CreatureHabits.TryInFight(mapChannel, creature))
+                    return;
+
                 var needToMove = true;
 
-                foreach (var action in creature.Actions)
+                // An attack in range that it could not use for want of a clear line: it has to go
+                // round whatever is in the way, not stand at the edge of its range.
+                var sightBlocked = false;
+
+                // Longest ready first: every attack is used as it comes off cooldown (ByReadiness).
+                foreach (var action in ByReadiness(creature.Actions))
                 {
+                    // Heals and revives are not aimed at the enemy (CreatureSupport.TryStart), nor
+                    // are the habits (CreatureHabits).
+                    if (CreatureSupport.Is(action) || CreatureHabits.Is(action))
+                        continue;
+
                     // check if we can execute action
                     if (targetDistSqr < action.RangeMin * action.RangeMin || targetDistSqr >= action.RangeMax * action.RangeMax)
                         continue;
 
-                    needToMove = false;
+                    // A shot needs to see its target; a blow at arm's length does not, and nor
+                    // does an Amoeboid bringing up another one, which is aimed at nobody.
+                    if (!CreatureAttacks.IsMelee(action) && !AmoeboidVomit.IsVomit(action) && !HasLineOfSight(mapChannel, creature, targetActor))
+                    {
+                        sightBlocked = true;
+                        continue;
+                    }
 
                     if (action.CooldownTimer > 0)
+                    {
+                        // An attack cooling down holds its creature at this range only if there
+                        // is nothing closer in it could be using meanwhile.
+                        if (!ClosesInWhileCooling(creature, action))
+                            needToMove = false;
+
                         continue;   // action on cooldown
+                    }
+
+                    // The first attack of a fight waits on a roll that grows each think (OpensNow):
+                    // until it comes up, the creature stands and faces its target.
+                    if (!OpensNow(creature))
+                    {
+                        needToMove = false;
+                        UpdateEntityMovement(targetDistX, targetDistY, targetDistZ, creature, mapChannel, 0.0f, false, delta);
+                        break;
+                    }
+
+                    // Rage, Scourge, a warcry, chaff: on itself or its own side (CreatureBuffs); a
+                    // Howler's shriek, on every player around it (CreatureDebuffs); a
+                    // Technician's turret, a Hunter's pet or a Thrax's Necromite
+                    // (CreatureSummons); a Stalker's egg charge or a Necromite's bomb on a body
+                    // (CreatureBombs); a Miasma turning to a cloud to coalesce on whoever is
+                    // around it (CreatureMiasma). Only when it would do something; otherwise on to
+                    // the next action.
+                    if (CreatureBuffs.Is(action) || CreatureDebuffs.Is(action) || CreatureSummons.IsSummon(action) || CreatureBombs.IsOvulate(action)
+                        || CreatureMiasma.Is(action) || CreatureBombs.IsCorpseExplosion(action))
+                    {
+                        var used = CreatureBuffs.Is(action) ? CreatureBuffs.Perform(mapChannel, creature, action, targetActor)
+                            : CreatureDebuffs.Is(action) ? CreatureDebuffs.Perform(mapChannel, creature, action)
+                            : CreatureSummons.IsSummon(action) ? CreatureSummons.Perform(mapChannel, creature, action, targetActor)
+                            : CreatureMiasma.Is(action) ? CreatureMiasma.Dissipate(mapChannel, creature, action)
+                            : CreatureBombs.IsCorpseExplosion(action) ? CreatureBombs.StartCorpseExplosion(mapChannel, creature, action)
+                            : CreatureBombs.Ovulate(mapChannel, creature, action);
+
+                        if (!used)
+                            continue;
+
+                        action.CooldownTimer = NextCooldown(creature, action);
+                        break;
+                    }
+
+                    needToMove = false;
 
                     // rotate
                     UpdateEntityMovement(targetDistX, targetDistY, targetDistZ, creature, mapChannel, 0.0f, false, delta);
 
                     // execute action and quit
-                    var dmg = (int)(action.MinDamage + (new Random().Next() % (action.MaxDamage - action.MinDamage + 1)));
+                    var dmg = (int)(action.MinDamage + (Random.Shared.Next() % (action.MaxDamage - action.MinDamage + 1)));
+
+                    // An attack that is a damage over time, or an effect alone, lands no hit: its
+                    // row's damage is the effect's (CreatureEffectAttacks).
+                    if (!CreatureEffectAttacks.Hits(CreatureEffectAttacks.KindOf(action.ActionId, action.ActionArgId)))
+                        dmg = 0;
+
+                    // Raised or lowered by what is on it: a Thrax boss's Rage.
+                    dmg = GameEffectManager.ApplyDamageDealt(creature, dmg);
+
+                    // A Laser crit on it weakens its ranged attacks - a charge's blow is not one.
+                    if (!CreatureAttacks.IsMelee(action) && !KaelRushingBlow.Is(action))
+                        dmg = GameEffectManager.ApplyRangedDamage(creature, dmg);
+
+                    // Not every creature action is an attack. The Amoeboid's vomit is TARGET_NONE
+                    // with a range of 0 and regurgitates another Amoeboid - a missile aimed at
+                    // whoever it is fighting is the wrong thing entirely.
+                    if (AmoeboidVomit.IsVomit(action))
+                    {
+                        AmoeboidVomit.Perform(mapChannel, creature, action);
+
+                        action.CooldownTimer = NextCooldown(creature, action);
+                        break;
+                    }
+
+                    // A Kael's rushing blow is a charge: its windup carries the Kael to its
+                    // target, and the blow lands when it gets there (KaelRushingBlow).
+                    if (KaelRushingBlow.Is(action))
+                    {
+                        creature.Controller.Path.Clear();
+                        KaelRushingBlow.Start(mapChannel, creature, action, targetActor, dmg);
+                        AbilityManager.OnCreatureActed(mapChannel, creature, true);
+
+                        action.CooldownTimer = NextCooldown(creature, action);
+                        break;
+                    }
 
                     var actionData = new ActionData(creature, action.ActionId, action.ActionArgId, creature.Controller.ActionFighting.TargetEntityId, 0);
-                    // do damage
-                    MissileManager.Instance.MissileLaunch(mapChannel, actionData, dmg);
 
-                    // set cooldown
-                    action.CooldownTimer = action.Cooldown;
+                    // An ability lands when its windup is done, and its flight after that; the
+                    // creature stands meanwhile (CreatureWindups). A weapon's shot lands as it did.
+                    var landsIn = CreatureWindups.Begin(mapChannel, creature, action, (float)Math.Sqrt(targetDistSqr));
+
+                    if (landsIn.HasValue)
+                    {
+                        creature.Controller.Path.Clear();
+                        creature.Controller.PathIndex = 0;
+                        StopMoving(creature);
+                    }
+
+                    // do damage, of the type the attack's weapon deals
+                    MissileManager.Instance.MissileLaunch(mapChannel, actionData, dmg, damageType: CreatureAttacks.DamageTypeOf(action),
+                        melee: CreatureAttacks.IsMelee(action), creatureAction: action, landsInMs: landsIn);
+
+                    // Feedback on it burns it for acting: this is the hostile action the server has.
+                    AbilityManager.OnCreatureActed(mapChannel, creature, true);
+
+                    // set cooldown, lengthened by whatever slows its attacks (Called Shot: Arm)
+                    action.CooldownTimer = NextCooldown(creature, action);
 
                     // creature used action, break loop
                     break;
@@ -594,7 +993,25 @@ namespace Rasa.Managers
                 if (needToMove == false)
                     return;
 
-                if (targetDistSqr <= 3.0f * 3.0f)
+                // A Shield Drone does not go to its target; the target comes to it. The guide
+                // gives it "Offense: None" and tells the player to "sprint directly toward them",
+                // which only works if the drone stays where its shield is - so it keeps whoever
+                // shot it in its hate table, strikes anything that closes inside three metres,
+                // and never leaves the ground it is covering.
+                if (ShieldDrone.HoldsGround(creature))
+                    return;
+
+                // An emplacement shoots from its mount or not at all: a target out of its reach or
+                // its sight is off its table, and it turns to the next it hates, or stands down.
+                if (Emplacements.Is(creature))
+                {
+                    if (!Threat.Retarget(creature))
+                        GiveUp(creature);
+
+                    return;
+                }
+
+                if (targetDistSqr <= 3.0f * 3.0f && !sightBlocked)
                     return;// near enough, dont move
 
                 // After checking for melee and ranged attacks without success, chase.
@@ -613,10 +1030,16 @@ namespace Rasa.Managers
 
                     var pathTarget = new Vector3();
 
-                    if (targetDistSqr < 0.1f)
+                    if (sightBlocked)
+                    {
+                        // Something between them: the navmesh route to the target itself goes
+                        // round it, where a point short of the target on this side would not.
+                        pathTarget = targetPosition;
+                    }
+                    else if (targetDistSqr < 0.1f)
                     {
                         // if too near, move out of enemy by running to random point somewhere x units around the creature
-                        var angle = (new Random().Next() / 32767.0f) * 6.28318f; // random angle
+                        var angle = (Random.Shared.Next() / 32767.0f) * 6.28318f; // random angle
                         var distance = 2.5f; // keep 2.5 meter distance
                         pathTarget.X = targetPosition.X + (float)Math.Cos(angle) * distance;
                         pathTarget.Y = targetPosition.Y;
@@ -651,28 +1074,160 @@ namespace Rasa.Managers
             }//---fighting
         }
 
-        /// <summary>
-        /// A wander destination around the creature's home, far enough from where it stands to be
-        /// worth walking to. On a map with a navmesh the point is drawn from the walkable surface
-        /// around home, so it is never inside a rock or off a cliff. Every candidate sits within
-        /// WanderDistance of home, so a creature that ended a chase further from home than that can
-        /// never draw one - the loop used to run forever, on the MainLoop thread. It gives up after
-        /// a fixed number of tries and walks home instead.
-        /// </summary>
-        private Vector3 GetDestination(MapChannel mapChannel, Creature creature)
-        {
-            for (var attempt = 0; attempt < 8; attempt++)
-            {
-                var dest = NavMeshManager.RandomPointAround(mapChannel, creature.HomePos.Position, WanderDistance)
-                           ?? creature.HomePos.Position + GetRandomVector();
-                var distance = GetDistanceSqr(creature.Position, dest);
+        #region Wander
 
-                if (distance > WanderDistance / 3 && distance < WanderDistance)
-                    return dest;
+        /// <summary>
+        /// Where a stroll goes: a point within <see cref="WanderStepDistance"/> of where the
+        /// creature stands and at least <see cref="WanderMinStep"/> from it, inside its spawn zone
+        /// (<see cref="WanderZoneOf"/>), and at least <see cref="WanderSpacing"/> from every other
+        /// living creature around and from wherever another is already walking to - so a camp
+        /// spreads over its ground instead of bunching. Drawn from the walkable surface where the
+        /// map has a navmesh, so never inside a rock or off a cliff; from the disc, on the ground,
+        /// where it has none. <see cref="WanderAttempts"/> draws, then nothing - it stays put until
+        /// the next interval. A creature that has ended up outside its zone - a chase that did not
+        /// leash, a knockback - and finds nothing goes home instead.
+        /// </summary>
+        public static Vector3? PickStroll(MapChannel mapChannel, Creature creature)
+        {
+            var (centre, radius) = WanderZoneOf(creature);
+            var taken = SpotsTakenAround(mapChannel, creature);
+
+            for (var attempt = 0; attempt < WanderAttempts; attempt++)
+            {
+                var candidate = NavMeshManager.RandomPointAround(mapChannel, creature.Position, WanderStepDistance)
+                                ?? NavMeshManager.SnapToGround(mapChannel, creature.Position + SpawnPoolManager.InDisc(WanderStepDistance));
+
+                if (IsGoodStroll(candidate, creature.Position, centre, radius, taken))
+                    return candidate;
             }
 
-            return creature.HomePos.Position;
+            return AcrossGround(creature.Position, centre) > radius ? creature.HomePos.Position : (Vector3?)null;
         }
+
+        /// <summary>Whether a stroll from <paramref name="from"/> may end at <paramref name="candidate"/>; distances across the ground.</summary>
+        public static bool IsGoodStroll(Vector3 candidate, Vector3 from, Vector3 zoneCentre, float zoneRadius, IEnumerable<Vector3> taken)
+        {
+            var step = AcrossGround(candidate, from);
+
+            if (step < WanderMinStep || step > WanderStepDistance)
+                return false;
+
+            if (AcrossGround(candidate, zoneCentre) > zoneRadius)
+                return false;
+
+            foreach (var spot in taken)
+                if (AcrossGround(candidate, spot) < WanderSpacing)
+                    return false;
+
+            return true;
+        }
+
+        /// <summary>
+        /// A creature's spawn zone: its pool's area when the pool has a radius (a camp, a nest),
+        /// otherwise <see cref="WanderZoneFallbackRadius"/> around the point it spawned on.
+        /// </summary>
+        public static (Vector3 Centre, float Radius) WanderZoneOf(Creature creature)
+        {
+            var pool = creature.SpawnPool;
+
+            if (pool != null && pool.Radius > 0 && pool.MapContextId == creature.MapContextId)
+                return (pool.Position, pool.Radius);
+
+            return (creature.HomePos.Position, WanderZoneFallbackRadius);
+        }
+
+        /// <summary>Where every other living creature around stands, and where each one strolling is headed.</summary>
+        private static List<Vector3> SpotsTakenAround(MapChannel mapChannel, Creature creature)
+        {
+            var spots = new List<Vector3>();
+
+            if (mapChannel == null)
+                return spots;
+
+            foreach (var cell in CellManager.CellsIn(mapChannel, creature.Cells))
+                foreach (var other in cell.CreatureList)
+                {
+                    if (other == creature || other.State == CharacterState.Dead || other.State == CharacterState.Dying)
+                        continue;
+
+                    if (!other.Attributes.TryGetValue(Attributes.Health, out var health) || health.Current <= 0)
+                        continue;
+
+                    spots.Add(other.Position);
+
+                    if (other.Controller?.CurrentAction == BehaviorActionWander && other.Controller.ActionWander.State == WanderMoving)
+                        spots.Add(other.Controller.ActionWander.WanderDestination);
+                }
+
+            return spots;
+        }
+
+        private static float AcrossGround(Vector3 a, Vector3 b)
+        {
+            var dx = a.X - b.X;
+            var dz = a.Z - b.Z;
+
+            return (float)Math.Sqrt(dx * dx + dz * dz);
+        }
+
+        /// <summary>
+        /// Tells the clients the creature has stopped where it is. The last step of a walk goes out
+        /// with the walking speed, and the clients carry an entity on at the speed they were last
+        /// given - left there, it would drift past the spot for its whole wait.
+        /// </summary>
+        private static void StopWalking(Creature creature)
+        {
+            CellManager.Instance.CellMoveObject(creature, new Movement(creature.Position, 0f, 0x08, new Vector2(creature.LastYaw, 0f)));
+        }
+
+        /// <summary>
+        /// Puts a creature to wandering: standing, with the interval to its first stroll starting
+        /// now - or, for one just spawned (<paramref name="staggered"/>), already partly run, by a
+        /// random amount, so that a camp that came up together does not set off together.
+        /// </summary>
+        public static void StartWandering(Creature creature, bool staggered)
+        {
+            var controller = creature.Controller;
+
+            controller.CurrentAction = BehaviorActionWander;
+            controller.ActionWander.State = WanderIdle;
+            controller.ActionWander.Fleeing = false;
+            controller.ActionWander.Errand = false;
+            controller.ActionWander.Arriving = false;
+            controller.ActionWander.MovingMs = 0;
+            controller.ActionWander.IdleMs = staggered ? Random.Shared.Next((int)WanderIntervalMs) : 0;
+            controller.Path.Clear();
+            controller.PathIndex = 0;
+        }
+
+        /// <summary>
+        /// A creature that has just arrived - off a dropship on a pad, through a teleporter - walks
+        /// to <paramref name="destination"/> on its pool's ground, which is its home from now on:
+        /// at its walk speed, with time enough for the distance. It notices a fight on the way as
+        /// a wandering creature does.
+        /// </summary>
+        public void WalkIn(Creature creature, Vector3 destination)
+        {
+            if (creature.Controller == null)
+                return;
+
+            StartWandering(creature, false);
+
+            creature.HomePos.Position = destination;
+
+            if (creature.WalkSpeed < 0.01f)
+                return;
+
+            var wander = creature.Controller.ActionWander;
+
+            wander.WanderDestination = destination;
+            wander.State = WanderMoving;
+            wander.MovingMs = 0;
+            wander.Arriving = true;
+            wander.ArrivalTimeoutMs = ReturnTimeoutFor(Vector3.Distance(creature.Position, destination), creature.WalkSpeed);
+        }
+
+        #endregion
 
         private static bool IsMissionEscort(Creature creature) =>
             creature.MasterEntityId == 0 && creature.SpawnPool?.FollowOwnerCharacterId > 0;
@@ -697,6 +1252,8 @@ namespace Rasa.Managers
 
             if (creature.Controller.CurrentAction != BehaviorActionFollow)
             {
+                if (creature.Controller.CurrentAction == BehaviorActionFighting)
+                    GiveUp(creature);
                 creature.Controller.CurrentAction = BehaviorActionFollow;
                 creature.Controller.ActionFighting.TargetEntityId = 0;
                 creature.Controller.ActionFollow.PathUpdateTime = 0;
@@ -708,11 +1265,23 @@ namespace Rasa.Managers
             return true;
         }
 
+        /// <summary>
+        /// How far from its owner an escort takes a fight on: as far as it may stray (20 m) and
+        /// then its longest attack's reach, and never beyond 35 m.
+        /// </summary>
+        private static float EscortEngageDistance(Creature creature)
+        {
+            var reach = creature.Actions.Count == 0 ? 0 : creature.Actions.Max(action => action.RangeMax);
+            return (float)Math.Min(35, 20 + reach);
+        }
+
         private bool AdvanceEscort(MapChannel map, Creature creature, long delta)
         {
             var owner = CreatureManager.FindEscortOwner(map, creature);
             if (owner == null)
             {
+                if (creature.Controller.CurrentAction == BehaviorActionFighting)
+                    GiveUp(creature);
                 creature.Controller.ActionFollow.OwnerAttackTarget = null;
                 creature.Controller.CurrentAction = BehaviorActionFollow;
                 creature.Controller.ActionFighting.TargetEntityId = 0;
@@ -736,7 +1305,7 @@ namespace Rasa.Managers
                 EntityManager.Instance.Creatures.TryGetValue(
                     creature.Controller.ActionFighting.TargetEntityId, out var currentTarget) &&
                 CreatureManager.IsHostileTarget(map, creature, currentTarget) &&
-                Vector3.Distance(currentTarget.Position, destination) <= 35)
+                Vector3.Distance(currentTarget.Position, destination) <= EscortEngageDistance(creature))
                 target = currentTarget;
 
             if (target != null)
@@ -748,12 +1317,23 @@ namespace Rasa.Managers
             }
 
             if (!hadOwnerTarget && !wasFighting && gap <= 20 && !follow.CatchUpRunning &&
-                creature.LastAgression >= AggroScanDelayMs &&
+                creature.LastAgression >= AggroScanDelayMs && ScansForEnemies(creature) &&
                 CheckForAttackableEntityInRange(map, creature, creature.AggroRange))
-                return false;
+            {
+                // Only a fight it can have without leaving its owner: one it picked up beyond
+                // that it would walk off after, give up at the leash and come back for again.
+                if (EntityManager.Instance.Creatures.TryGetValue(
+                        creature.Controller.ActionFighting.TargetEntityId, out var found) &&
+                    Vector3.Distance(found.Position, destination) <= EscortEngageDistance(creature))
+                    return false;
+
+                creature.Controller.ActionFighting.TargetEntityId = 0;
+                wasFighting = true;
+            }
 
             if (wasFighting)
             {
+                GiveUp(creature);
                 creature.Controller.Path.Clear();
                 creature.Controller.PathIndex = 0;
                 follow.PathUpdateTime = 0;
@@ -872,238 +1452,6 @@ namespace Rasa.Managers
                     new Vector2((float)creature.Rotation, 0)));
         }
 
-        /// <summary>
-        /// Sets the creature's path to <paramref name="destination"/>: the navmesh corners when the
-        /// map has one and both ends are on it. Mission escorts and the base defender never use
-        /// the straight-line fallback that ordinary creatures retain on maps without a navmesh.
-        /// </summary>
-        private static void BuildPath(MapChannel mapChannel, Creature creature, Vector3 destination)
-        {
-            var path = NavMeshManager.FindPath(mapChannel, creature.Position, destination);
-
-            creature.Controller.Path.Clear();
-            creature.Controller.PathIndex = 0;
-
-            if (path != null && path.Count > 0)
-                creature.Controller.Path.AddRange(path);
-            else if (mapChannel.NavMesh == null &&
-                     !IsMissionEscort(creature) && !Game.Missions.World.CreatureGameplayRules.IsDefender(creature))
-                creature.Controller.Path.Add(destination);
-            else
-                Logger.WriteLog(LogType.Error,
-                    $"Actor {creature.EntityId} has no navmesh route from {creature.Position} to {destination} " +
-                    $"on map {mapChannel.MapInfo?.MapContextId} (mesh loaded: {mapChannel.NavMesh != null}).");
-        }
-
-        /// <summary>
-        /// Walks the creature one tick along its path at <paramref name="speed"/>, advancing to the
-        /// next corner when the current one is reached. Returns true once the whole path has been
-        /// walked; the path is cleared then, so the next think builds a fresh one.
-        /// </summary>
-        private bool FollowPath(
-            MapChannel mapChannel, Creature creature, float speed, long delta,
-            float arrivalDistance = 0.8f, bool synchronizeVisibility = false)
-        {
-            var controller = creature.Controller;
-
-            if (controller.PathIndex >= controller.Path.Count)
-            {
-                controller.Path.Clear();
-                controller.PathIndex = 0;
-                return true;
-            }
-
-            var node = controller.Path[controller.PathIndex];
-            var difX = node.X - creature.Position.X;
-            var difY = node.Y - creature.Position.Y;
-            var difZ = node.Z - creature.Position.Z;
-            var distSqr = difX * difX + difZ * difZ;
-            if (synchronizeVisibility)
-                distSqr += difY * difY;
-
-            if (distSqr > Math.Min(0.01f, arrivalDistance * arrivalDistance))
-            {
-                var moved = UpdateEntityMovement(
-                    difX, difY, difZ, creature, mapChannel, speed, true, delta, synchronizeVisibility);
-
-                // the step is clamped to the distance left, so covering it means the corner is reached
-                if (moved * moved >= distSqr)
-                    distSqr = 0.0f;
-            }
-
-            if (distSqr <= arrivalDistance * arrivalDistance)
-            {
-                controller.PathIndex++;
-
-                if (controller.PathIndex >= controller.Path.Count)
-                {
-                    controller.Path.Clear();
-                    controller.PathIndex = 0;
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        private double GetDistanceSqr(Vector3 p1, Vector3 p2)
-        {
-            float dx = p2.X - p1.X;
-            float dy = p2.Y - p1.Y;
-            float dz = p2.Z - p1.Z;
-
-            return Math.Sqrt(dx * dx + dy * dy + dz * dz);
-        }
-
-        private Vector3 GetRandomVector()
-        {
-            var rnd1 = new Random().Next(1, WanderDistance);
-            var rnd2 = new Random().Next(1, WanderDistance);
-            var rndX = rnd1 * Math.Cos(Math.PI * 2 * rnd1 / rnd2);
-            var rndY = rnd2 * Math.Sin(Math.PI * 2 * rnd1 / rnd2);
-            var rndVector = new Vector3((float)rndX, 0.0f, (float)rndY);
-
-            return rndVector;
-        }
-        
-        public void MapChannelThink(MapChannel mapChannel, long delta)
-        {
-            // Accumulated per map. This used to be one field on the singleton shared by every
-            // map channel, so with two maps active each one's creatures ran on the other's time.
-            mapChannel.ControllerElapsed += delta;
-
-            if (mapChannel.ControllerElapsed < CreatureThinkInterval)
-                return;
-
-            var elapsed = mapChannel.ControllerElapsed;
-            mapChannel.ControllerElapsed = 0;
-
-            // creature deletion and update queue
-            var queue_creatureDeletion = new List<Creature>();
-            var queue_creatureCellUpdate = new List<Creature>();
-            var processedCreatures = new HashSet<Creature>(ReferenceEqualityComparer.Instance);
-            // todo: When on heavy load, the server should increase the time between calls to
-            //       this function. (check player updating as a reference)
-
-            // mapChannel.MapCellInfo.Cells can be modified, so we create temp list;
-            var tempCells = mapChannel.MapCellInfo.Cells.ToList();
-
-            foreach (var entry in tempCells)
-            {
-                var mapCell = entry.Value;
-
-                if (mapCell == null) // should never happen, but still do a check for safety
-                    continue;
-                // creatures
-                if (mapCell.CreatureList.Count > 0)
-                {
-
-                    foreach (var creature in mapCell.CreatureList.ToArray())
-                    {
-                        if (creature == null || !processedCreatures.Add(creature))
-                            continue;
-
-                        CreatureThink(mapChannel, creature, elapsed, out var needDeletion, out var needCellUpdate);
-
-                        if (needDeletion)
-                            queue_creatureDeletion.Add(creature);
-
-                        if (needCellUpdate) // update cell (even when creature is also deleted)
-                            queue_creatureCellUpdate.Add(creature);
-
-                        // need to delete creature & we still have a free space in the deletion queue
-                        // not so nice hack to remove creatures from the map cell when creature_cellUpdateLocation is called
-                        /*std::swap(mapCell->ht_creatureList.at(f), mapCell->ht_creatureList.at(creatureCount-1));
-                        mapCell->ht_creatureList.pop_back();
-                        creatureCount = mapCell->ht_creatureList.size();
-                        if( creatureCount == 0 )
-                            break;
-                        creatureList = &mapCell->ht_creatureList[0];
-                        f--;*/
-                    }
-                }
-            }
-            
-            //update logic for creatures (same like for deletion below, moving creatures to different vectors is not good)
-            if (queue_creatureCellUpdate.Count > 0)
-            {
-                var creatureList = queue_creatureCellUpdate;
-                var creatureCount = queue_creatureCellUpdate.Count;
-                for (var f = 0; f < creatureCount; f++)
-                {
-                    // calculate new cell position
-                    var newLocX = (uint)((creatureList[f].Position.X / CellManager.CellSize) + CellManager.CellBias);
-                    var newLocZ = (uint)((creatureList[f].Position.Z / CellManager.CellSize) + CellManager.CellBias);
-
-                    CreatureManager.Instance.CellUpdateLocation(mapChannel, creatureList[f], newLocX, newLocZ);
-                }
-            }
-
-            // deletion logic for creatures (we have to do it here, since deleting creatures while iterating them is not so nice...)
-            // do we need to delete some creatures?
-            if (queue_creatureDeletion.Count > 0)
-            {
-                var creatureList = queue_creatureDeletion;
-                var creatureCount = queue_creatureDeletion.Count;
-
-                for (var f = 0; f < creatureCount; f++)
-                {
-                    // did the creature have an active loot dispenser?
-                    if (creatureList[f].LootDispenserObjectEntityId != 0)
-                    {
-                        var lootDispenserObject = EntityManager.Instance.GetObject(creatureList[f].LootDispenserObjectEntityId);
-
-                        if (lootDispenserObject != null)
-                            DynamicObjectManager.Instance.DynamicObjectDestroy(mapChannel, lootDispenserObject);
-
-                        creatureList[f].LootDispenserObjectEntityId = 0;
-                    }
-                    // remove creature from world
-                    CellManager.Instance.RemoveCreatureFromWorld(mapChannel, creatureList[f]);
-                }
-            }
-        }
-        
-        public void SetActionFighting(Creature creature, ulong targetEntityId)
-        {
-            // A passive minion does not fight, and this is the one place worth saying so: it
-            // covers both the aggro scan and being shot at (MissileManager calls straight in
-            // here), so there is no second path where passive quietly stops meaning passive.
-            if (creature.MasterEntityId != 0 && creature.Stance == MinionStance.Passive ||
-                !Game.Missions.World.CreatureGameplayRules.CanParticipateInCombat(creature))
-                return;
-
-            creature.Controller.CurrentAction = BehaviorActionFighting;
-            // Whatever the creature was walking towards is not where the fight is: without this
-            // it chased its last wander node before ever heading for its target.
-            creature.Controller.Path.Clear();
-            creature.Controller.PathIndex = 0;
-            creature.Controller.TimerPathUpdateLock = 0;
-            creature.Controller.ActionFighting.TargetEntityId = targetEntityId;
-            creature.LastAgression = 0;
-        }
-        
-        private void SetActionPathFollowing(Creature creature)
-        {
-            creature.Controller.CurrentAction = BehaviorActionFollowingPath;
-            creature.Controller.Path.Clear();
-            creature.Controller.PathIndex = 0;
-            // random position bias added to every node (to make groups look like they do not run on the same path)
-            creature.Controller.AiPathFollowing.RandomPathNodeBiasXZ[0] =  ((new Random().Next() % 1001) - 500) / 500.0f * creature.Controller.AiPathFollowing.GeneralPath.NodeOffsetRandomization;
-            creature.Controller.AiPathFollowing.RandomPathNodeBiasXZ[1] = ((new Random().Next() % 1001) - 500) / 500.0f * creature.Controller.AiPathFollowing.GeneralPath.NodeOffsetRandomization;
-
-            Logger.WriteLog(LogType.AI, $"path 0{creature.Controller.AiPathFollowing.RandomPathNodeBiasXZ[0]}");
-            Logger.WriteLog(LogType.AI, $"path 1{creature.Controller.AiPathFollowing.RandomPathNodeBiasXZ[1]}");
-        }
-
-        private void SetActionWander(Creature creature)
-        {
-            creature.Controller.CurrentAction = BehaviorActionWander;
-            creature.Controller.ActionWander.State = WanderIdle;
-            creature.Controller.Path.Clear();
-            creature.Controller.PathIndex = 0;
-        }
-
         private void RestorePassiveAction(Creature creature)
         {
             if (creature.Controller.ActionFollow.HasAnchor ||
@@ -1117,41 +1465,6 @@ namespace Rasa.Managers
             }
 
             SetActionWander(creature);
-        }
-
-        /// <summary>
-        /// Trails an entity - normally the minion's master, or another player after a Follow
-        /// Target order. Clears any anchor, which is what Follow Me is for.
-        /// </summary>
-        public void SetActionFollow(Creature creature, ulong followTargetId)
-        {
-            creature.Controller.CurrentAction = BehaviorActionFollow;
-            if (creature.Controller.ActionFollow.FollowTargetId != followTargetId)
-            {
-                creature.Controller.ActionFollow.OwnerAttackTarget = null;
-                creature.Controller.ActionFollow.CatchUpRunning = false;
-            }
-            creature.Controller.ActionFollow.FollowTargetId = followTargetId;
-            creature.Controller.ActionFollow.HasAnchor = false;
-            creature.Controller.ActionFollow.PathUpdateTime = 0;
-            creature.Controller.Path.Clear();
-            creature.Controller.PathIndex = 0;
-        }
-
-        /// <summary>
-        /// Plants the minion at a spot and leaves it there: Go sets the picked location, Stay the
-        /// minion's own. It may still leave to act, and returns here when it is done.
-        /// </summary>
-        public void SetActionAnchor(Creature creature, Vector3 anchor)
-        {
-            creature.Controller.CurrentAction = BehaviorActionFollow;
-            creature.Controller.ActionFollow.OwnerAttackTarget = null;
-            creature.Controller.ActionFollow.CatchUpRunning = false;
-            creature.Controller.ActionFollow.HasAnchor = true;
-            creature.Controller.ActionFollow.Anchor = anchor;
-            creature.Controller.ActionFollow.PathUpdateTime = 0;
-            creature.Controller.Path.Clear();
-            creature.Controller.PathIndex = 0;
         }
 
         internal bool SetActionScriptedMove(
@@ -1249,21 +1562,849 @@ namespace Rasa.Managers
         }
 
         /// <summary>
+        /// Sets the creature's path to <paramref name="destination"/>: the navmesh corners when the
+        /// map has one and both ends are on it. Mission escorts and defenders never use the
+        /// straight-line fallback that ordinary creatures retain on maps without a navmesh.
+        /// </summary>
+        private static void BuildPath(MapChannel mapChannel, Creature creature, Vector3 destination)
+        {
+            var path = NavMeshManager.FindPath(mapChannel, creature.Position, destination);
+
+            creature.Controller.Path.Clear();
+            creature.Controller.PathIndex = 0;
+
+            if (path != null && path.Count > 0)
+                creature.Controller.Path.AddRange(path);
+            else if (mapChannel.NavMesh == null &&
+                     !IsMissionEscort(creature) && !Game.Missions.World.CreatureGameplayRules.IsDefender(creature))
+                creature.Controller.Path.Add(destination);
+            else if (IsMissionEscort(creature) || Game.Missions.World.CreatureGameplayRules.IsDefender(creature))
+                Logger.WriteLog(LogType.Error,
+                    $"Actor {creature.EntityId} has no navmesh route from {creature.Position} to {destination} " +
+                    $"on map {mapChannel.MapInfo?.MapContextId} (mesh loaded: {mapChannel.NavMesh != null}).");
+        }
+
+        /// <summary>
+        /// Walks the creature one tick along its path at <paramref name="speed"/>, advancing to the
+        /// next corner when the current one is reached. Returns true once the whole path has been
+        /// walked; the path is cleared then, so the next think builds a fresh one.
+        /// </summary>
+        private bool FollowPath(
+            MapChannel mapChannel, Creature creature, float speed, long delta,
+            float arrivalDistance = 0.8f, bool synchronizeVisibility = false)
+        {
+            var controller = creature.Controller;
+
+            if (controller.PathIndex >= controller.Path.Count)
+            {
+                controller.Path.Clear();
+                controller.PathIndex = 0;
+                return true;
+            }
+
+            var node = controller.Path[controller.PathIndex];
+            var difX = node.X - creature.Position.X;
+            var difY = node.Y - creature.Position.Y;
+            var difZ = node.Z - creature.Position.Z;
+            var distSqr = difX * difX + difZ * difZ;
+            if (synchronizeVisibility)
+                distSqr += difY * difY;
+
+            if (distSqr > Math.Min(0.01f, arrivalDistance * arrivalDistance)) // to avoid division by zero
+            {
+                var moved = UpdateEntityMovement(difX, difY, difZ, creature, mapChannel, speed, true, delta,
+                    synchronizeVisibility: synchronizeVisibility);
+
+                // the step is clamped to the distance left, so covering it means the corner is reached
+                if (moved * moved >= distSqr)
+                    distSqr = 0.0f;
+            }
+
+            if (distSqr <= arrivalDistance * arrivalDistance)
+            {
+                controller.PathIndex++;
+
+                if (controller.PathIndex >= controller.Path.Count)
+                {
+                    controller.Path.Clear();
+                    controller.PathIndex = 0;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>Counts down to the creature's next cell check and, when it is due, says whether it has moved into another cell.</summary>
+        private static bool CellChanged(Creature creature, long delta)
+        {
+            creature.UpdatePositionCounter -= delta;
+
+            if (creature.UpdatePositionCounter > 0)
+                return false;
+
+            creature.UpdatePositionCounter = CreatureManager.CreatureLocationUpdateTime;
+
+            return CellManager.Instance.GetCellSeed(creature.Position) != creature.Cells[2, 2];
+        }
+
+        /// <summary>
+        /// A step of a scripted creature's carry, on its own clock (a crab mine, every 100 ms):
+        /// the same as a knockback's, for whoever runs it.
+        /// </summary>
+        public bool StepCarry(MapChannel mapChannel, Creature creature, long delta)
+        {
+            if (creature.State == CharacterState.Dead)
+                return false;
+
+            return StepKnockback(mapChannel, creature, delta);
+        }
+
+        /// <summary>
+        /// One tick of a knockback in progress (CrowdControl.Knockback): the creature slides
+        /// toward where it is being carried at the knockback's speed, still facing whoever hit it,
+        /// and is told to stop when it gets there. Returns whether it was moving.
+        /// </summary>
+        private bool StepKnockback(MapChannel mapChannel, Creature creature, long delta)
+        {
+            if (creature.KnockbackTo == null)
+                return false;
+
+            var to = creature.KnockbackTo.Value;
+            var difX = to.X - creature.Position.X;
+            var difY = to.Y - creature.Position.Y;
+            var difZ = to.Z - creature.Position.Z;
+            var remaining = Math.Sqrt(difX * difX + difZ * difZ);
+
+            if (remaining > 0.05)
+            {
+                var speed = creature.KnockbackSpeed > 0 ? creature.KnockbackSpeed : CrowdControl.KnockbackSpeed;
+                var moved = UpdateEntityMovement(difX, difY, difZ, creature, mapChannel, speed, true, delta, knockback: true, faceAlong: creature.KnockbackIsPull);
+
+                if (moved < remaining - 0.05)
+                    return true;
+            }
+
+            creature.KnockbackTo = null;
+            creature.KnockbackSpeed = 0;
+            creature.KnockbackIsPull = false;
+            StopMoving(creature);
+
+            return true;
+        }
+
+        /// <summary>
+        /// Tells everyone who can see the creature that it is standing still where it is, facing
+        /// the way it last faced. Used when something stops it in its tracks - a stun, a freeze, the
+        /// end of a knockback - since the clients otherwise carry on extrapolating its last
+        /// movement.
+        /// </summary>
+        public void StopMoving(Creature creature)
+        {
+            var movement = new Movement(new Vector3(creature.Position.X, creature.Position.Y, creature.Position.Z), 0.0f, 0x08, new Vector2(creature.LastYaw, 0f));
+
+            CellManager.Instance.CellMoveObject(creature, movement);
+        }
+
+        private double GetDistanceSqr(Vector3 p1, Vector3 p2)
+        {
+            float dx = p2.X - p1.X;
+            float dy = p2.Y - p1.Y;
+            float dz = p2.Z - p1.Z;
+
+            return Math.Sqrt(dx * dx + dy * dy + dz * dz);
+        }
+
+        public void MapChannelThink(MapChannel mapChannel, long delta)
+        {
+            // Accumulated per map. This used to be one field on the singleton shared by every
+            // map channel, so with two maps active each one's creatures ran on the other's time.
+            mapChannel.ControllerElapsed += delta;
+
+            if (mapChannel.ControllerElapsed < CreatureThinkInterval)
+                return;
+
+            var elapsed = mapChannel.ControllerElapsed;
+            mapChannel.ControllerElapsed = 0;
+
+            // creature deletion and update queue
+            var queue_creatureDeletion = new List<Creature>();
+            var queue_creatureCellUpdate = new List<Creature>();
+            // todo: When on heavy load, the server should increase the time between calls to
+            //       this function. (check player updating as a reference)
+
+            // A thinking creature can add a cell to the table (GetCell makes the ones it is asked
+            // for), so the walk is over a copy - one kept on the map and refilled, not a new list
+            // on every think (MapChannel.ThinkCells).
+            var tempCells = mapChannel.ThinkCells;
+            var processedCreatures = new HashSet<Creature>(ReferenceEqualityComparer.Instance);
+
+            tempCells.Clear();
+            tempCells.AddRange(mapChannel.MapCellInfo.Cells.Values);
+
+            foreach (var mapCell in tempCells)
+            {
+                if (mapCell == null) // should never happen, but still do a check for safety
+                    continue;
+                // creatures
+                if (mapCell.CreatureList.Count > 0)
+                {
+
+                    // Over a copy, once each: a scene actor's own cell move can take it into a
+                    // cell not walked yet.
+                    foreach (var creature in mapCell.CreatureList.ToArray())
+                    {
+                        if (creature == null || !processedCreatures.Add(creature))
+                            continue;
+
+                        CreatureThink(mapChannel, creature, elapsed, out var needDeletion, out var needCellUpdate);
+
+                        if (needDeletion)
+                            queue_creatureDeletion.Add(creature);
+
+                        if (needCellUpdate) // update cell (even when creature is also deleted)
+                            queue_creatureCellUpdate.Add(creature);
+
+                        // need to delete creature & we still have a free space in the deletion queue
+                        // not so nice hack to remove creatures from the map cell when creature_cellUpdateLocation is called
+                        /*std::swap(mapCell->ht_creatureList.at(f), mapCell->ht_creatureList.at(creatureCount-1));
+                        mapCell->ht_creatureList.pop_back();
+                        creatureCount = mapCell->ht_creatureList.size();
+                        if( creatureCount == 0 )
+                            break;
+                        creatureList = &mapCell->ht_creatureList[0];
+                        f--;*/
+                    }
+                }
+            }
+            
+            //update logic for creatures (same like for deletion below, moving creatures to different vectors is not good)
+            if (queue_creatureCellUpdate.Count > 0)
+            {
+                var creatureList = queue_creatureCellUpdate;
+                var creatureCount = queue_creatureCellUpdate.Count;
+                for (var f = 0; f < creatureCount; f++)
+                {
+                    // calculate new cell position
+                    var newLocX = (uint)((creatureList[f].Position.X / CellManager.CellSize) + CellManager.CellBias);
+                    var newLocZ = (uint)((creatureList[f].Position.Z / CellManager.CellSize) + CellManager.CellBias);
+
+                    CreatureManager.Instance.CellUpdateLocation(mapChannel, creatureList[f], newLocX, newLocZ);
+                }
+            }
+
+            // deletion logic for creatures (we have to do it here, since deleting creatures while iterating them is not so nice...)
+            // do we need to delete some creatures?
+            if (queue_creatureDeletion.Count > 0)
+            {
+                var creatureList = queue_creatureDeletion;
+                var creatureCount = queue_creatureDeletion.Count;
+
+                for (var f = 0; f < creatureCount; f++)
+                {
+                    // did the creature have an active loot dispenser?
+                    if (creatureList[f].LootDispenserObjectEntityId != 0)
+                    {
+                        var lootDispenserObject = EntityManager.Instance.GetObject(creatureList[f].LootDispenserObjectEntityId);
+
+                        if (lootDispenserObject != null)
+                            DynamicObjectManager.Instance.DynamicObjectDestroy(mapChannel, lootDispenserObject);
+
+                        creatureList[f].LootDispenserObjectEntityId = 0;
+                    }
+                    // remove creature from world; its pool's dead count goes down with it (CellManager)
+                    CellManager.Instance.RemoveCreatureFromWorld(mapChannel, creatureList[f]);
+                }
+            }
+        }
+        
+        /// <summary>
+        /// Whether a creature should close in while this attack cools down: it has longer than
+        /// HoldForCooldownMs left, and the creature has an attack of shorter reach to go and use.
+        ///
+        /// Every attack in range used to pin its creature in place, cooling or not. That was
+        /// harmless while each creature had one attack, or a gun and a melee of about the same
+        /// cadence; it is not once a brute has a ranged special - a Kael with a twenty metre
+        /// tectonic strike would stand at twenty metres waiting for it forever and never smash.
+        /// A creature whose shortest-reach attack is this one keeps its ground as before, so a
+        /// ranged creature still stands off and shoots.
+        /// </summary>
+        public static bool ClosesInWhileCooling(Creature creature, CreatureAction action)
+        {
+            if (action.CooldownTimer <= HoldForCooldownMs)
+                return false;
+
+            foreach (var other in creature.Actions)
+            {
+                if (other == action || other.RangeMax <= 0 || AmoeboidVomit.IsVomit(other) || other.ActionId == ShieldDrone.HealAction || CreatureSupport.Is(other) || CreatureHabits.Is(other))
+                    continue;
+
+                if (other.RangeMax < action.RangeMax)
+                    return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// When a creature may use an action again after using it now: its cooldown, lengthened by
+        /// whatever slows its attacks (Called Shot: Arm), plus a random CooldownJitterMin to
+        /// CooldownJitterMax of that again.
+        /// </summary>
+        public static long NextCooldown(Creature creature, CreatureAction action)
+        {
+            double unit;
+
+            lock (CooldownRandom)
+                unit = CooldownRandom.NextDouble();
+
+            return WithJitter(action.Cooldown * (creature != null ? GameEffectManager.AttackRateModifierOf(creature) : 1.0), unit);
+        }
+
+        /// <summary>A cooldown with its wait on top, for a roll in [0, 1): 1% of it at 0, 50% at 1.</summary>
+        public static long WithJitter(double cooldown, double unit)
+        {
+            if (cooldown <= 0)
+                return 0;
+
+            var share = CooldownJitterMin + Math.Max(0, Math.Min(1, unit)) * (CooldownJitterMax - CooldownJitterMin);
+
+            return (long)Math.Round(cooldown * (1 + share));
+        }
+
+        /// <summary>
+        /// A creature's actions in the order it should try them: the one that came off cooldown
+        /// longest ago first (a ready action's timer keeps counting down below zero), then the rest.
+        /// Every attack gets its turn as it comes ready, rather than the first slots taking every
+        /// opening and the later ones waiting behind them. Ties keep their slot order.
+        /// </summary>
+        /// <summary>The chance of opening on the next think after this many held ones: 25%, 50%, 75%, then certain.</summary>
+        public static double OpeningChance(int heldThinks)
+        {
+            return Math.Min(1.0, (Math.Max(0, heldThinks) + 1) * OpeningChanceStep);
+        }
+
+        /// <summary>
+        /// Whether a creature with an attack ready uses it now: always once it has opened the
+        /// fight, and always for a minion (it fights on its master's word, not as an enemy);
+        /// otherwise the opening roll, unit being a roll in [0, 1). A held think is counted.
+        /// </summary>
+        public static bool OpensNow(Creature creature, double unit)
+        {
+            var fighting = creature.Controller.ActionFighting;
+
+            if (fighting.Opened || creature.MasterEntityId != 0)
+                return true;
+
+            if (unit < OpeningChance(fighting.OpeningRolls))
+            {
+                fighting.Opened = true;
+                return true;
+            }
+
+            fighting.OpeningRolls++;
+            return false;
+        }
+
+        private static bool OpensNow(Creature creature)
+        {
+            double unit;
+
+            lock (CooldownRandom)
+                unit = CooldownRandom.NextDouble();
+
+            return OpensNow(creature, unit);
+        }
+
+        /// <summary>
+        /// The actions soonest ready first, equals in the order the creature has them - what
+        /// OrderBy gave, as one list and an insertion sort over a handful of entries rather than
+        /// the LINQ machinery, on every think of every fighting creature.
+        /// </summary>
+        public static List<CreatureAction> ByReadiness(IEnumerable<CreatureAction> actions)
+        {
+            var list = new List<CreatureAction>(actions);
+
+            for (var i = 1; i < list.Count; i++)
+            {
+                var action = list[i];
+                var j = i - 1;
+
+                while (j >= 0 && list[j].CooldownTimer > action.CooldownTimer)
+                {
+                    list[j + 1] = list[j];
+                    j--;
+                }
+
+                list[j + 1] = action;
+            }
+
+            return list;
+        }
+
+        public void SetActionFighting(Creature creature, ulong targetEntityId)
+        {
+            TrySetActionFighting(creature, targetEntityId);
+        }
+
+        /// <summary>
+        /// A scene can preflight the AI's refusals before obtaining its source combat authorization.
+        /// The actual transition always rechecks that authorization.
+        /// </summary>
+        internal static bool CanSetActionFighting(Creature creature, ulong targetEntityId,
+            bool requireCombatAuthorization = true)
+        {
+            // Running home after a leash: nothing pulls it back into a fight on the way - not a
+            // hit, not an assist, not the scan.
+            if (IsReturning(creature))
+                return false;
+
+            // A passive minion does not fight, and this is the one place worth saying so: it
+            // covers both the aggro scan and being shot at (MissileManager calls straight in
+            // here), so there is no second path where passive quietly stops meaning passive.
+            if (creature.MasterEntityId != 0 && creature.Stance == MinionStance.Passive)
+                return false;
+
+            // Nor does a minion with no attack (the Repair Bot): it would only chase its target
+            // and stand there.
+            if (creature.MasterEntityId != 0 && creature.Actions.Count == 0)
+                return false;
+
+            // Only a fight its category allows: nothing on its own side, nothing that takes no
+            // part in fights (TargetCategories.MayFight, MayFightPlayer). A NEUTRAL creature
+            // fights whoever attacks it; an object or decoration fights nobody.
+            return requireCombatAuthorization
+                ? MayFight(creature, targetEntityId)
+                : MayFightTarget(creature, targetEntityId);
+        }
+
+        internal bool TrySetActionFighting(Creature creature, ulong targetEntityId)
+        {
+            if (!CanSetActionFighting(creature, targetEntityId))
+                return false;
+
+            // A fight starting, not a change of target within one: its first attack is rolled for again (OpensNow).
+            if (creature.Controller.CurrentAction != BehaviorActionFighting)
+            {
+                creature.Controller.ActionFighting.Opened = false;
+                creature.Controller.ActionFighting.OpeningRolls = 0;
+            }
+
+            creature.Controller.CurrentAction = BehaviorActionFighting;
+            // Whatever the creature was walking towards is not where the fight is: without this
+            // it chased its last wander node before ever heading for its target.
+            creature.Controller.Path.Clear();
+            creature.Controller.PathIndex = 0;
+            creature.Controller.TimerPathUpdateLock = 0;
+            creature.Controller.ActionFighting.TargetEntityId = targetEntityId;
+            creature.LastAgression = 0;
+
+            // Whatever brought it here - the scan, a hit, an assist - the target is on its table.
+            Threat.Noticed(creature, targetEntityId);
+
+            // Its weapon out for the fight, if it carries one.
+            CreatureWeaponDraw.Draw(creature.RuntimeMapChannel ?? MapChannelManager.Instance.FindByContextId(creature.MapContextId), creature);
+
+            // Its target, to everyone who can see it: the guns that aim, aim (Targets).
+            Targets.Sync(creature.RuntimeMapChannel ?? MapChannelManager.Instance.FindByContextId(creature.MapContextId), creature);
+            return true;
+        }
+
+        /// <summary>
+        /// Whether the creature's target category lets it fight this entity: another creature by
+        /// TargetCategories.MayFight, a player by MayFightPlayer (their CombatCategory); nothing else.
+        ///
+        /// Mind Control bends it (AbilityManager.MindControl): a Frightened creature fights nobody;
+        /// a Confused one any combatant creature and the players it could fight anyway; a Subverted
+        /// one only the creatures of its own category. And whoever a Confused or Subverted creature
+        /// turns on may answer it, whatever their categories.
+        /// </summary>
+        public static bool MayFight(Creature creature, ulong entityId)
+        {
+            if (!Game.Missions.World.CreatureGameplayRules.CanParticipateInCombat(creature))
+                return false;
+
+            return MayFightTarget(creature, entityId);
+        }
+
+        private static bool MayFightTarget(Creature creature, ulong entityId)
+        {
+            var pump = AbilityManager.MindControlPumpOf(creature);
+
+            if (pump == AbilityManager.MindControlFrighten)
+                return false;
+
+            if (EntityManager.Instance.Creatures.TryGetValue(entityId, out var other))
+            {
+                if (other == creature || !Game.Missions.World.CreatureGameplayRules.CanParticipateInCombat(other))
+                    return false;
+
+                if (pump == AbilityManager.MindControlConfusion)
+                    return TargetCategories.IsCombatant(other.TargetCategory);
+
+                if (pump == AbilityManager.MindControlSubversion)
+                    return other.TargetCategory == creature.TargetCategory;
+
+                if (TargetCategories.IsCombatant(creature.TargetCategory) && AbilityManager.IsMindConfused(other))
+                    return true;
+
+                return TargetCategories.MayFight(creature.TargetCategory, other.TargetCategory);
+            }
+
+            if (EntityManager.Instance.Players.TryGetValue(entityId, out var player))
+                return pump != AbilityManager.MindControlSubversion && TargetCategories.MayFightPlayer(creature.TargetCategory, player.CombatCategory);
+
+            return false;
+        }
+
+        /// <summary>
+        /// Mind Control's Frighten: the creature drops its fight and runs FleeDistance away from
+        /// whoever it fears, along the navmesh where the map has one.
+        /// </summary>
+        public void Flee(MapChannel mapChannel, Creature creature, Vector3 from)
+        {
+            if (creature.Controller == null || creature.RunSpeed < 0.01f)
+                return;
+
+            var away = new Vector3(creature.Position.X - from.X, 0, creature.Position.Z - from.Z);
+
+            if (away.LengthSquared() < 0.01f)
+            {
+                var angle = Random.Shared.NextDouble() * Math.PI * 2;
+                away = new Vector3((float)Math.Cos(angle), 0, (float)Math.Sin(angle));
+            }
+
+            var destination = creature.Position + Vector3.Normalize(away) * FleeDistance;
+
+            destination = NavMeshManager.NearestWalkable(mapChannel, destination) ?? destination;
+
+            SetActionWander(creature);
+            creature.Controller.ActionWander.WanderDestination = destination;
+            creature.Controller.ActionWander.State = WanderMoving;
+            creature.Controller.ActionWander.Fleeing = true;
+            creature.LastRestTime = 0;
+        }
+
+        /// <summary>How far a frightened creature runs from whoever frightened it before it looks again.</summary>
+        public const float FleeDistance = 20f;
+
+        /// <summary>The fight is over for this creature: it forgets everyone it hated and wanders again.</summary>
+        public void GiveUp(Creature creature)
+        {
+            creature.Hate.Clear();
+            StopFighting(creature);
+        }
+
+        #region Leash
+
+        /// <summary>Whether the creature is running home after a leash: it takes no damage and starts no fight.</summary>
+        public static bool IsReturning(Creature creature)
+        {
+            return creature?.Controller?.CurrentAction == BehaviorActionReturning;
+        }
+
+        /// <summary>Whether a creature with no master has followed a fight further from home than <see cref="MaxChaseDistance"/>, across the ground.</summary>
+        public static bool ChasedTooFar(Creature creature)
+        {
+            var home = creature.HomePos.Position;
+            var dx = creature.Position.X - home.X;
+            var dz = creature.Position.Z - home.Z;
+
+            return dx * dx + dz * dz > MaxChaseDistance * MaxChaseDistance;
+        }
+
+        /// <summary>
+        /// The creature has chased too far: it forgets everyone, sheds what its attackers put on
+        /// it - a DoT would otherwise go on killing it all the way home - drops out of its combat
+        /// stance and runs back. It is put home regardless when it has taken twice as long as a
+        /// straight run would, and never less than <see cref="ReturnTimeoutMinMs"/>.
+        /// </summary>
+        public void Leash(MapChannel mapChannel, Creature creature)
+        {
+            var controller = creature.Controller;
+
+            creature.Hate.Clear();
+
+            if (mapChannel != null)
+            {
+                foreach (var effect in creature.ActiveEffects.Values.Where(e => !e.IsBuff && !e.IsSkillPassive).ToList())
+                    GameEffectManager.Instance.DettachEffect(mapChannel, creature, effect);
+
+                CreatureWeaponDraw.Stow(mapChannel, creature);
+            }
+
+            var distance = Vector3.Distance(creature.Position, creature.HomePos.Position);
+
+            controller.CurrentAction = BehaviorActionReturning;
+            controller.ActionFighting.TargetEntityId = 0;
+            Targets.Sync(mapChannel, creature);
+            controller.ActionReturning.Elapsed = 0;
+            controller.ActionReturning.TimeoutMs = ReturnTimeoutFor(distance, creature.RunSpeed);
+            controller.Path.Clear();
+            controller.PathIndex = 0;
+
+            if (mapChannel != null)
+                BuildPath(mapChannel, creature, creature.HomePos.Position);
+        }
+
+        /// <summary>How long a creature gets to run <paramref name="distance"/> metres home before it is put there: twice the straight run, at least <see cref="ReturnTimeoutMinMs"/>.</summary>
+        public static long ReturnTimeoutFor(float distance, float runSpeed)
+        {
+            return Math.Max(ReturnTimeoutMinMs, (long)(distance / Math.Max(1f, runSpeed) * 2000f));
+        }
+
+        /// <summary>
+        /// One think of the run home: along the path at run speed, and whole again on arrival -
+        /// the end of the path, within <see cref="HomeReachedDistance"/> of home, or put there
+        /// when the time is up.
+        /// </summary>
+        private void ReturnHome(MapChannel mapChannel, Creature creature, long delta)
+        {
+            var controller = creature.Controller;
+            var home = creature.HomePos.Position;
+
+            controller.ActionReturning.Elapsed += delta;
+
+            var dx = creature.Position.X - home.X;
+            var dz = creature.Position.Z - home.Z;
+            var arrived = dx * dx + dz * dz <= HomeReachedDistance * HomeReachedDistance;
+
+            if (!arrived && controller.ActionReturning.Elapsed >= controller.ActionReturning.TimeoutMs)
+            {
+                // Stuck, or off the navmesh with no way round: put it there.
+                creature.Position = NavMeshManager.SnapToGround(mapChannel, home);
+                CellManager.Instance.CellMoveObject(creature, new Movement(creature.Position, 0f, 0x08, new Vector2(creature.LastYaw, 0f)));
+                arrived = true;
+            }
+
+            if (!arrived)
+            {
+                if (controller.Path.Count == 0)
+                    BuildPath(mapChannel, creature, home);
+
+                // The whole of a path built to home is as near home as the navmesh goes.
+                if (!FollowPath(mapChannel, creature, creature.RunSpeed, delta))
+                    return;
+            }
+
+            Restore(mapChannel, creature);
+
+            creature.Hate.Clear();
+            creature.LastRestTime = 0;
+            creature.LastAgression = 0;
+            SetActionWander(creature);
+        }
+
+        /// <summary>Health and armour back to their maximum, told to everyone around.</summary>
+        public static void Restore(MapChannel mapChannel, Creature creature)
+        {
+            if (creature.Attributes.TryGetValue(Attributes.Health, out var health))
+            {
+                health.Current = health.CurrentMax;
+
+                if (mapChannel != null)
+                    CellManager.Instance.CellCallMethod(mapChannel, creature, new Packets.MapChannel.Server.UpdateHealthPacket(health, creature.EntityId));
+            }
+
+            if (creature.Attributes.TryGetValue(Attributes.Armor, out var armor))
+            {
+                armor.Current = armor.CurrentMax;
+
+                if (mapChannel != null)
+                    CellManager.Instance.CellCallMethod(mapChannel, creature, new Packets.MapChannel.Server.UpdateArmorPacket(GameEffectManager.WithRegen(creature, armor), creature.EntityId));
+            }
+        }
+
+        #endregion
+
+        #region Line of sight
+
+        /// <summary>
+        /// Whether the creature can see the target to shoot at it: any of the points on the
+        /// target that cover is judged by (Cover.SamplePoints) in the clear from the creature's
+        /// eyes, against the map's collision meshes and terrain. The same test cover uses, so a
+        /// creature shoots at a target half behind a wall - the wall takes its share of the hit -
+        /// and not at one wholly behind it. With no cover file for the map, everything is in
+        /// sight, as it always was. Tested at most every <see cref="SightRecheckMs"/> per target.
+        /// </summary>
+        private static bool HasLineOfSight(MapChannel mapChannel, Creature creature, Actor target)
+        {
+            if (target == null || mapChannel?.Cover == null)
+                return true;
+
+            var fighting = creature.Controller.ActionFighting;
+
+            if (fighting.SightTargetId == target.EntityId && fighting.SightRecheckIn > 0)
+                return fighting.SightClear;
+
+            fighting.SightTargetId = target.EntityId;
+            fighting.SightRecheckIn = SightRecheckMs;
+            fighting.SightClear = Sees(mapChannel.Cover, creature, target);
+
+            return fighting.SightClear;
+        }
+
+        /// <summary>Whether any of the target's sample points is in the clear from the creature's eyes.</summary>
+        public static bool Sees(Navigation.CoverMesh cover, Creature creature, Actor target)
+        {
+            if (cover == null)
+                return true;
+
+            return Cover.Visible(cover, Cover.EyeOf(creature), Cover.SamplePoints(target, creature.Position)) > 0;
+        }
+
+        #endregion
+        
+        private void SetActionPathFollowing(Creature creature)
+        {
+            creature.Controller.CurrentAction = BehaviorActionFollowingPath;
+            creature.Controller.Path.Clear();
+            creature.Controller.PathIndex = 0;
+            // random position bias added to every node (to make groups look like they do not run on the same path)
+            creature.Controller.AiPathFollowing.RandomPathNodeBiasXZ[0] =  ((Random.Shared.Next() % 1001) - 500) / 500.0f * creature.Controller.AiPathFollowing.GeneralPath.NodeOffsetRandomization;
+            creature.Controller.AiPathFollowing.RandomPathNodeBiasXZ[1] = ((Random.Shared.Next() % 1001) - 500) / 500.0f * creature.Controller.AiPathFollowing.GeneralPath.NodeOffsetRandomization;
+
+            Logger.WriteLog(LogType.AI, $"path 0{creature.Controller.AiPathFollowing.RandomPathNodeBiasXZ[0]}");
+            Logger.WriteLog(LogType.AI, $"path 1{creature.Controller.AiPathFollowing.RandomPathNodeBiasXZ[1]}");
+        }
+
+        /// <summary>
+        /// The creature gives up whatever it was fighting - it died, left, or went out of sight
+        /// (Detection) - and goes back to wandering.
+        /// </summary>
+        public void StopFighting(Creature creature)
+        {
+            if (creature.Controller == null)
+                return;
+
+            var mapChannel = creature.RuntimeMapChannel ?? MapChannelManager.Instance.FindByContextId(creature.MapContextId);
+
+            // The fight is over: the weapon goes away (CreatureWeaponDraw).
+            CreatureWeaponDraw.Stow(mapChannel, creature);
+
+            // A creature that was following someone, or holding a spot - a minion, a mission
+            // escort - goes back to that rather than wandering off where the fight left it.
+            if (creature.Controller.ActionFollow.FollowTargetId != 0 || creature.Controller.ActionFollow.HasAnchor)
+            {
+                creature.Controller.CurrentAction = BehaviorActionFollow;
+                creature.Controller.ActionFollow.PathUpdateTime = 0;
+                creature.Controller.Path.Clear();
+                creature.Controller.PathIndex = 0;
+            }
+            else
+                SetActionWander(creature);
+
+            // No target any more: the guns that aimed at it let go (Targets).
+            Targets.Sync(mapChannel, creature);
+        }
+
+        /// <summary>
+        /// Where a fight is leashed from: a creature's home, or for one with a master on the map
+        /// (a reanimated creature, a minion, a traitor), the master - it goes where they go, and
+        /// its spawn point is no longer its home.
+        /// </summary>
+        private static Vector3 LeashCentre(Creature creature)
+        {
+            if (creature.MasterEntityId != 0
+                && EntityManager.Instance.Players.TryGetValue(creature.MasterEntityId, out var master)
+                && master.MapContextId == creature.MapContextId)
+                return master.Position;
+
+            return creature.HomePos.Position;
+        }
+
+        /// <summary>Back to wandering after something else - a fight, a leash, a path - with the full interval to go before it strolls.</summary>
+        private void SetActionWander(Creature creature)
+        {
+            StartWandering(creature, false);
+        }
+
+        /// <summary>
+        /// Trails an entity - normally the minion's master, or another player after a Follow
+        /// Target order. Clears any anchor, which is what Follow Me is for.
+        /// </summary>
+        public void SetActionFollow(Creature creature, ulong followTargetId)
+        {
+            creature.Controller.CurrentAction = BehaviorActionFollow;
+            if (creature.Controller.ActionFollow.FollowTargetId != followTargetId)
+            {
+                creature.Controller.ActionFollow.OwnerAttackTarget = null;
+                creature.Controller.ActionFollow.CatchUpRunning = false;
+            }
+            creature.Controller.ActionFollow.FollowTargetId = followTargetId;
+            creature.Controller.ActionFollow.HasAnchor = false;
+            creature.Controller.ActionFollow.PathUpdateTime = 0;
+            creature.Controller.Path.Clear();
+            creature.Controller.PathIndex = 0;
+
+            // An order can take it out of a fight: its gun lets go of the target (Targets).
+            Targets.Sync(creature.RuntimeMapChannel ?? MapChannelManager.Instance.FindByContextId(creature.MapContextId), creature);
+        }
+
+        /// <summary>
+        /// Plants the minion at a spot and leaves it there: Go sets the picked location, Stay the
+        /// minion's own. It may still leave to act, and returns here when it is done.
+        /// </summary>
+        public void SetActionAnchor(Creature creature, Vector3 anchor)
+        {
+            creature.Controller.CurrentAction = BehaviorActionFollow;
+            creature.Controller.ActionFollow.OwnerAttackTarget = null;
+            creature.Controller.ActionFollow.CatchUpRunning = false;
+            creature.Controller.ActionFollow.HasAnchor = true;
+            creature.Controller.ActionFollow.Anchor = anchor;
+            creature.Controller.ActionFollow.PathUpdateTime = 0;
+            creature.Controller.Path.Clear();
+            creature.Controller.PathIndex = 0;
+
+            Targets.Sync(creature.RuntimeMapChannel ?? MapChannelManager.Instance.FindByContextId(creature.MapContextId), creature);
+        }
+
+        /// <summary>
+        /// What the entity a minion assists has targeted, when the minion may fight it (Threat.CanFight
+        /// - alive, on the map, one its category allows); 0 when it assists nobody, is Passive, or
+        /// the assisted has nothing it can fight selected - a player with a friend or a corpse
+        /// selected is not asking for help.
+        /// </summary>
+        public static ulong AssistedTarget(Creature creature)
+        {
+            var assistId = creature.Controller.ActionFollow.AssistTargetId;
+
+            if (assistId == 0 || creature.MasterEntityId == 0 || creature.Stance == MinionStance.Passive)
+                return 0;
+
+            // TryGetValue: the assisted player may have gone, and GetActor throws on a miss.
+            if (!EntityManager.Instance.Actors.TryGetValue(assistId, out var assisted) || assisted.Target == 0 || assisted.Target == creature.EntityId)
+                return 0;
+
+            return Threat.CanFight(creature, assisted.Target) ? assisted.Target : 0;
+        }
+
+        /// <summary>
         /// Whether this creature goes looking for a fight. An ordinary creature always does; a
         /// minion does only when its master has set it Aggressive. Defensive still fights back,
-        /// because retaliation comes through SetActionFighting rather than through a scan.
+        /// because retaliation comes through SetActionFighting rather than through a scan. One under
+        /// Mind Control's Frighten, Confusion or Subversion does not: its fear, or the worker that
+        /// picks who it turns on, decides.
         /// </summary>
         private static bool ScansForEnemies(Creature creature)
         {
-            return creature.ScriptedCombatGate == null &&
-                (creature.MasterEntityId == 0 || creature.Stance == MinionStance.Aggressive);
+            if (creature.ScriptedCombatGate != null)
+                return false;
+
+            var pump = AbilityManager.MindControlPumpOf(creature);
+
+            if (pump > 0 && pump <= AbilityManager.MindControlSubversion)
+                return false;
+
+            return creature.MasterEntityId == 0 || creature.Stance == MinionStance.Aggressive;
         }
 
         private void UpdateCreatureTimers(Creature creature, long delta)
         {
             creature.LastAgression += delta;
-            creature.LastRestTime += delta + new Random().Next(1, 100);
+            creature.LastRestTime += delta + Random.Shared.Next(1, 100);
             creature.Controller.TimerPathUpdateLock -= delta;
+            creature.Controller.ActionFighting.SightRecheckIn -= delta;
 
             // update cooldown timer of all actions
             foreach (var action in creature.Actions)
@@ -1275,10 +2416,24 @@ namespace Rasa.Managers
         /// </summary>
         /// <param name="speed">Units per second; also what the client is told to extrapolate at.</param>
         /// <param name="elapsedMs">Time since the creature last moved.</param>
+        /// <param name="knockback">
+        /// A knockback carrying it: at the given speed whatever slows it, frozen or not, and facing
+        /// back the way it came. Otherwise the speed is the creature's own times MovementSpeed (its
+        /// slows), and a frozen creature only turns.
+        /// </param>
         /// <returns>The distance actually moved.</returns>
-        float UpdateEntityMovement(double difX, double difY, double difZ, Creature creature, MapChannel mapChannel, float speed, bool isMoved, long elapsedMs,
+        /// <param name="faceAlong">A carry that faces the way it goes (a Vortex pull) rather than back the way it came.</param>
+        float UpdateEntityMovement(double difX, double difY, double difZ, Creature creature, MapChannel mapChannel, float speed, bool isMoved, long elapsedMs, bool knockback = false, bool faceAlong = false,
             bool synchronizeVisibility = false)
         {
+            if (!knockback)
+            {
+                speed = (float)(speed * creature.MovementSpeed);
+
+                if (isMoved && CrowdControl.IsRooted(creature))
+                    isMoved = false;
+            }
+
             var remaining = Math.Sqrt(difX * difX + difY * difY + difZ * difZ);
             if (remaining < 0.0001d)
                 return 0;
@@ -1286,7 +2441,8 @@ namespace Rasa.Managers
             difX *= length;
             difY *= length;
             difZ *= length;
-            var vX = (float)Math.Atan2(-difX, -difZ);
+            var vX = knockback && !faceAlong ? (float)Math.Atan2(difX, difZ) : (float)Math.Atan2(-difX, -difZ);
+            creature.LastYaw = vX;
 
             var velocity = isMoved ? speed : 0.0f;
 
@@ -1295,6 +2451,15 @@ namespace Rasa.Managers
             // at their stated speed however the MainLoop ticks land. Clamped to the distance left
             // so a large step cannot carry the creature past its node.
             var step = (float)Math.Min(velocity * elapsedMs / 1000.0d, remaining);
+
+            // A force field that stops it (ForceFields): no further, walking or carried.
+            if (isMoved && step > 0f && ForceFields.Stops(mapChannel, creature, creature.Position,
+                    creature.Position + new Vector3((float)(difX * step), (float)(difY * step), (float)(difZ * step))))
+            {
+                isMoved = false;
+                velocity = 0f;
+                step = 0f;
+            }
 
             if (isMoved)
             {

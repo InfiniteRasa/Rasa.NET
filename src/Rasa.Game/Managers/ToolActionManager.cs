@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Numerics;
 
@@ -24,10 +24,9 @@ namespace Rasa.Managers
     /// templates we seed are tools, and two of them - the level 5-9 field repair tool and area
     /// healing disc - are on service-NPC vendors, so this is reachable by a new character.
     ///
-    /// Four of the six do something: the healing disc, the field repair tool, armour augmentation
-    /// and the two harvesting tools, which share one action id. The cipher is validated and then
-    /// refused silently, because asking for it is not a mistake - it needs the usable-hack flow,
-    /// which does not exist yet.
+    /// All six are carried out: the healing disc, the field repair tool, armour augmentation, the
+    /// two harvesting tools (which share one action id), the cipher, and the snowball launcher,
+    /// whose snowball does nothing to what it hits but fly there and splat.
     ///
     /// Harvesting is the one of these that makes an item out of nothing rather than moving a
     /// number that already existed, so it is the one a forged request is worth sending. Its rules
@@ -78,9 +77,11 @@ namespace Rasa.Managers
         };
 
         /// <summary>
-        /// The five that do something. Nerfweapon is the one left: it is the snowball launcher,
-        /// and there is no effect to apply. It is refused silently, since there is nothing wrong
-        /// with asking.
+        /// The tool actions that are carried out. All six are: the sixth, nerfweapon, is the
+        /// Snowball Launcher (AccountReward_Weapon_Avatar_Snowball_Launcher, class 30548), which
+        /// has no effect to apply - its whole point is the throw and the splat the client plays
+        /// from the action's own FX (actorActionFXFamily (527, 1): recovery family 2037, the
+        /// snowball projectile and vfx_hum_snowball_hit) once the server resolves it at a target.
         /// </summary>
         public static readonly HashSet<ActionId> Applies = new HashSet<ActionId>
         {
@@ -88,8 +89,18 @@ namespace Rasa.Managers
             ActionId.ToolFieldRepair,
             ActionId.ToolArmorAugmentation,
             ActionId.ToolHarvest,
-            ActionId.ToolCipher
+            ActionId.ToolCipher,
+            ActionId.ToolNerfweapon
         };
+
+        /// <summary>
+        /// The snowball's timing and reach, from the client's actionArguments (527, 1): no windup,
+        /// a 1500 ms recovery on animation 491, and 40 m. The Snowball Launcher has no
+        /// itemtemplate_weapon row to give them instead, nor ammo: its class has no ammo class, so
+        /// basetoolaction.py never asks for any.
+        /// </summary>
+        public const long SnowballWindupMs = 0;
+        public const float SnowballRange = 40f;
 
         /// <summary>
         /// The roll. Seeded once and locked, because a fresh Random per call seeded from the
@@ -165,11 +176,9 @@ namespace Rasa.Managers
                 return;
             }
 
-            // The snowball launcher still does nothing, so it is refused silently - with msgId
-            // None. The client cancels the action and pops it off __unresolvedActions either way;
-            // what it skips is the message, which is deliberate: the player did nothing wrong,
-            // and telling them off on every click of a tool that is simply not finished says less
-            // than nothing.
+            // A tool action with nothing server-side to carry it out is refused silently - with
+            // msgId None. The client cancels the action and pops it off __unresolvedActions either
+            // way; what it skips is the message, since the player did nothing wrong.
             if (!Applies.Contains(packet.ActionId))
             {
                 Fail(client, packet, null);
@@ -234,6 +243,10 @@ namespace Rasa.Managers
                 ? classInfo.MinDamage
                 : classInfo.MaxDamage;
 
+            // The Tools skill: "Healing \ Repair \ Armor Recharge Bonus" +10% a pump from pump 2.
+            if (IsRestoringTool(packet.ActionId))
+                amount = WithToolBonus(amount, SkillLevel(client, SkillId.SpecialistTools));
+
             SpendShot(client, tool);
 
             var targetId = TargetOf(client, packet);
@@ -244,7 +257,8 @@ namespace Rasa.Managers
             SendToOthers(mapChannel, client.Player,
                 new PerformWindupPacket(PerformType.ThreeArgs, packet.ActionId, packet.ActionArgId, targetId));
 
-            var windup = tool.ItemTemplate.WeaponInfo?.Windup ?? DefaultWindupMs;
+            var windup = tool.ItemTemplate.WeaponInfo?.Windup ??
+                         (packet.ActionId == ActionId.ToolNerfweapon ? SnowballWindupMs : DefaultWindupMs);
 
             mapChannel.PerformRecovery.Add(
                 new ActionData(client.Player, packet.ActionId, packet.ActionArgId, targetId, windup)
@@ -263,6 +277,12 @@ namespace Rasa.Managers
         {
             if (IsSelfVariant(packet.ActionId, packet.ActionArgId))
                 return client.Player.EntityId;
+
+            // The snowball is the exception: nerfweapon.py sets doBlindShots, so a throw at
+            // nothing (or at something it will not hit - a hostile, a corpse, out of sight) comes
+            // with no target and should land where the player aimed, not on the player.
+            if (packet.ActionId == ActionId.ToolNerfweapon && !packet.Target.HasEntity)
+                return 0;
 
             return packet.Target.HasEntity ? packet.Target.EntityId : client.Player.EntityId;
         }
@@ -316,6 +336,7 @@ namespace Rasa.Managers
             {
                 SendToOthers(mapChannel, action.Actor,
                     new ActionInterruptPacket(action.Actor.EntityId, action.ActionId, action.ActionArgId));
+                ActorManager.ResolveInterruptedRequest(client, action.ActionId, action.ActionArgId);
                 return;
             }
 
@@ -352,7 +373,8 @@ namespace Rasa.Managers
             // to return here and send nothing, which left the client holding the action in
             // __unresolvedActions forever - so the action is resolved on the way out instead: no
             // effect and no message, but closed.
-            if (!stillArmed || target == null)
+            // And still in reach once the windup has run.
+            if (!stillArmed || target == null || !InToolReach(client, target, action.ActionId))
             {
                 Resolve(mapChannel, action, hits);
                 return;
@@ -396,6 +418,13 @@ namespace Rasa.Managers
 
                     break;
                 }
+
+                case ActionId.ToolNerfweapon:
+                    // Nothing happens to whoever is hit; listing them is what sends the snowball
+                    // to them and splats it there. nerfweapon.py's DoHits (basetoolaction.py)
+                    // reads no hit data.
+                    hits.Add(new ToolHit(target.EntityId, 0));
+                    break;
 
                 case ActionId.ToolFieldRepair:
                 {
@@ -731,6 +760,33 @@ namespace Rasa.Managers
             return ValidateTarget(client, packet);
         }
 
+        /// <summary>Slack on a tool's range, as the other range checks here allow.</summary>
+        private const float ToolRangeSlack = 2.5f;
+
+        /// <summary>Reach for a tool whose weapon data gives no range.</summary>
+        private const float DefaultToolRange = 20f;
+
+        /// <summary>
+        /// The target is on the player's own map and within the armed tool's range. Themselves
+        /// always are.
+        /// </summary>
+        private static bool InToolReach(Client client, Actor target, ActionId actionId)
+        {
+            var player = client.Player;
+
+            if (target == player)
+                return true;
+
+            if (target.MapContextId != player.MapContextId)
+                return false;
+
+            var range = InventoryManager.Instance.CurrentWeapon(client)?.ItemTemplate?.WeaponInfo?.Range ?? 0;
+            var fallback = actionId == ActionId.ToolNerfweapon ? SnowballRange : DefaultToolRange;
+            var reach = (range > 0 ? range : fallback) + ToolRangeSlack;
+
+            return Vector3.Distance(player.Position, target.Position) <= reach;
+        }
+
         private PlayerMessage? ValidateTarget(Client client, RequestToolActionPacket packet)
         {
             // No tool sets TARGET_LOCATION, so a location here did not come from a tool module.
@@ -768,8 +824,16 @@ namespace Rasa.Managers
                 return ValidateHarvestTarget(client, packet, creature, targetId);
 
             // healdisc, repairtool, armoraug and nerfweapon are all TARGET_FRIENDLY or
-            // TARGET_SELF. ToDo: target category - HOSTILE creatures should be refused here, but
-            // faction and the client's target categories do not line up yet.
+            // TARGET_SELF, which targetedaction.py holds to category == FRIENDLY: a creature has
+            // to be one. A player is always friendly to another.
+            if (creature != null && creature.TargetCategory != TargetCategory.Friendly)
+                return PlayerMessage.PmTargetInvalid;
+
+            // On the same map and within the tool's reach. The target was looked up in the global
+            // tables with no distance at all, so a healing disc, repair tool or armour augment
+            // worked on a squad mate anywhere - on another map included.
+            if (!InToolReach(client, targetActor, packet.ActionId))
+                return PlayerMessage.PmTargetOutOfRange;
 
             // repairtool.py refuses a dead player outright; healdisc.py allows a corpse only at
             // Healing 3 or better. ToDo: repairtool also refuses dead BIOLOGICAL creatures, which
@@ -866,6 +930,35 @@ namespace Rasa.Managers
         }
 
         /// <summary>This player's level in a skill, or 0 if they have never trained it.</summary>
+        /// <summary>
+        /// The Tools skill's "Healing \ Repair \ Armor Recharge Bonus" by pump, from its pump
+        /// tooltips (uielement 2670-2674): None, +10%, +20%, +30%, +40%. The cipher level those
+        /// tooltips give alongside (1-5) is the pump itself, which CanCipher already reads. The
+        /// client names SKILL_EFFECT_HEALING_MOD_EFFECT (263) for this, but its effect class
+        /// (gameeffects.healmodeffect) is not in the client, so nothing is attached and the tool
+        /// tooltips keep printing the unmodified amount.
+        /// </summary>
+        private static readonly int[] ToolBonusByPump = { 0, 0, 10, 20, 30, 40 };
+
+        public static int ToolBonusPercent(int pump)
+        {
+            return ToolBonusByPump[Math.Max(0, Math.Min(ToolBonusByPump.Length - 1, pump))];
+        }
+
+        /// <summary>A healing, repair or armour amount with the Tools bonus of this pump on it.</summary>
+        public static int WithToolBonus(int amount, int pump)
+        {
+            var bonus = ToolBonusPercent(pump);
+
+            return bonus <= 0 || amount <= 0 ? amount : (int)Math.Round(amount * (100 + bonus) / 100.0);
+        }
+
+        /// <summary>The tools whose amount is health or armour put back: the healing disc, the field repair tool and the armour augmentation tool.</summary>
+        public static bool IsRestoringTool(ActionId actionId)
+        {
+            return actionId == ActionId.ToolHealingDisc || actionId == ActionId.ToolFieldRepair || actionId == ActionId.ToolArmorAugmentation;
+        }
+
         private static int SkillLevel(Client client, SkillId skillId)
         {
             return client.Player.Skills.TryGetValue(skillId, out var skill) ? skill.SkillLevel : 0;
@@ -873,8 +966,7 @@ namespace Rasa.Managers
 
         private static void Fail(Client client, RequestToolActionPacket packet, PlayerMessage? message)
         {
-            client.CallMethod(client.Player.EntityId,
-                new UserActionFailedPacket(packet.ActionId, packet.ActionArgId, message));
+            ActorManager.RefuseRequest(client, packet.ActionId, packet.ActionArgId, message);
         }
     }
 }

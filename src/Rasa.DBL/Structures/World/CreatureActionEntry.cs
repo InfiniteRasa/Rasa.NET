@@ -51,5 +51,13 @@ namespace Rasa.Structures.World
         [Column("max_damage")]
         [Required]
         public uint MaxDamage { get; set; }
+
+        /// <summary>
+        /// The damage type the attack lands as, as Rasa.Data.DamageType numbers them; 0 leaves it
+        /// to the server to work out from the action (Managers.CreatureAttacks).
+        /// </summary>
+        [Column("damage_type")]
+        [Required]
+        public uint DamageType { get; set; }
     }
 }

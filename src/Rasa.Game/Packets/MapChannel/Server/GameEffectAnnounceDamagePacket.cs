@@ -21,16 +21,24 @@ namespace Rasa.Packets.MapChannel.Server
         public int EffectId { get; }
         public List<TickEntry> Hits { get; } = new List<TickEntry>();
 
-        public GameEffectAnnounceDamagePacket(int effectId)
+        /// <summary>
+        /// The effect method called with (damageData,): AnnounceDamage, or DoExplosion for a
+        /// BombEffect (Controlled Fission), which plays its blast at the holder and announces the
+        /// same list.
+        /// </summary>
+        public string MethodName { get; }
+
+        public GameEffectAnnounceDamagePacket(int effectId, string methodName = "AnnounceDamage")
         {
             EffectId = effectId;
+            MethodName = methodName;
         }
 
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(3);
             pw.WriteInt(EffectId);
-            pw.WriteString("AnnounceDamage");
+            pw.WriteString(MethodName);
             pw.WriteTuple(1);                   // args = (damageData,)
             pw.WriteList(Hits.Count);
 
@@ -38,7 +46,7 @@ namespace Rasa.Packets.MapChannel.Server
             {
                 pw.WriteTuple(2);
                 pw.WriteULong(hit.EntityId);
-                DamageInfoWriter.WriteRawInfo(pw, hit.DamageType, hit.Amount, hit.Resisted, false, hit.DeathBlow);
+                DamageInfoWriter.WriteRawInfo(pw, hit.DamageType, hit.Amount, hit.Resisted, hit.IsCritical, hit.DeathBlow, absorbed: hit.Absorbed, wasImmune: hit.WasImmune);
             }
         }
     }

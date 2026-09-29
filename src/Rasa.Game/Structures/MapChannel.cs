@@ -32,6 +32,18 @@ namespace Rasa.Structures
 
         /// <summary>The map's navmesh, or null when no navmesh/&lt;map&gt;.nav was built for it. See NavMeshManager.</summary>
         public Navigation.NavMeshQuery NavMesh { get; set; }
+
+        /// <summary>
+        /// The height below which a player has fallen out of the world and is put back
+        /// (Managers.SafetyFloor); null when the map has no navmesh. Set with the navmesh.
+        /// </summary>
+        public float? SafetyFloorY { get; set; }
+
+        /// <summary>The highest walkable surface on the map, from its navmesh; null without one.</summary>
+        public float? TopWalkableY { get; set; }
+
+        /// <summary>What stands between two points on the map, for cover; null when no navmesh/&lt;map&gt;.cover was built. See Managers.Cover.</summary>
+        public Navigation.CoverMesh Cover { get; set; }
         // effect
         public int CurrentEffectId { get; set; } // increases with every spawned game effect
 
@@ -41,6 +53,17 @@ namespace Rasa.Structures
         /// GameEffectManager keeps it.
         /// </summary>
         public readonly HashSet<Actor> ActorsWithEffects = new HashSet<Actor>();
+
+        /// <summary>
+        /// Reused copies of the cell table for the passes that walk every cell while something
+        /// under them may add a cell (GetCell creates the ones it is asked for): the creature
+        /// think every 250 ms, and the creature armour regeneration every second. Each used to
+        /// copy the table afresh - sixteen bytes a cell, over the large object heap's threshold
+        /// once a map has touched five thousand cells, four times a second per map. The loop
+        /// thread runs one pass at a time, so one buffer each is enough.
+        /// </summary>
+        internal readonly List<MapCell> ThinkCells = new List<MapCell>();
+        internal readonly List<MapCell> RegenCells = new List<MapCell>();
 
         // Dynamic Object List
         public List<DynamicObject> DynamicObjects = new List<DynamicObject>();

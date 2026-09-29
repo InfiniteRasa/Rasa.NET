@@ -113,13 +113,13 @@ namespace Rasa.Test.Missions.Wilderness
         }
 
         [TestMethod]
-        [DataRow(82U, 81U)]
-        [DataRow(83U, 82U)]
-        [DataRow(84U, 91U)]
+        [DataRow(82U, 580014U)]
+        [DataRow(83U, 580015U)]
+        [DataRow(84U, 580016U)]
         public void SnipeHuntRequiresSixEligibleSnipersAndOneRetrievedOverseerDatapad(uint overseerId, uint overseerSpawn)
         {
             using var harness = CreateHarness();
-            harness.SpawnWorld(101, 530046, 530047, 530048, 530049, 530050, 530051, 530071, overseerSpawn);
+            harness.SpawnWorld(101, 630046, 630047, 630048, 630049, 630050, 630051, 630071, overseerSpawn);
             var witherspoon = harness.Npc(101);
             Assert.IsNotNull(witherspoon);
             Assert.IsFalse(harness.Manager.AcceptOfferedMission(harness.Client, witherspoon.EntityId, 433));
@@ -132,8 +132,8 @@ namespace Rasa.Test.Missions.Wilderness
             CollectionAssert.AreEquivalent(new uint[] { 82, 83, 84 }, drop.CreatureIds.ToArray());
 
             var ordinary = harness.Map.MapCellInfo.Cells.Values.SelectMany(cell => cell.CreatureList)
-                .Single(creature => creature.SpawnPool?.DbId == 530071);
-            Assert.AreEqual(530071U, ordinary.DbId);
+                .Single(creature => creature.SpawnPool?.DbId == 630071);
+            Assert.AreEqual(630071U, ordinary.DbId);
             Assert.AreEqual(7120U, (uint)ordinary.EntityClass);
             Kill(harness, ordinary);
             Assert.AreEqual(0U, harness.Client.Player.Missions[433].Objectives[1].Counters[0],
@@ -141,7 +141,7 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.IsFalse(harness.Map.LootDispensers[ordinary.CorpseLootEntityId].LootItems
                 .Any(item => item.ItemTemplateId == 2239));
 
-            var spawns = new uint[] { 530046, 530047, 530048, 530049, 530050, 530051 };
+            var spawns = new uint[] { 630046, 630047, 630048, 630049, 630050, 630051 };
             for (var index = 0; index < spawns.Length; index++)
             {
                 var sniper = harness.Map.MapCellInfo.Cells.Values.SelectMany(cell => cell.CreatureList)
@@ -446,7 +446,7 @@ namespace Rasa.Test.Missions.Wilderness
         public void SonicEmanatorUsesItsOwnersItemWithoutHarmingTheActualTreebackHerd()
         {
             using var harness = CreateHarness();
-            harness.SpawnWorld(204, 164, 530043, 530044, 530045);
+            harness.SpawnWorld(204, 580057, 630043, 630044, 630045);
             var richards = harness.Npc(204);
             Assert.IsNotNull(richards);
             Assert.IsFalse(harness.Manager.AcceptOfferedMission(harness.Client, richards.EntityId, 436));
@@ -459,9 +459,9 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.AreEqual(UseObjectState.IaStateActive, emanator.StateId);
             Assert.IsTrue(Vector3.Distance(new Vector3(460, 288.54892f, 589), emanator.Position) < 0.01f);
             var herd = harness.Map.MapCellInfo.Cells.Values.SelectMany(cell => cell.CreatureList)
-                .Where(creature => creature.SpawnPool?.DbId is 530043 or 530044 or 530045).ToArray();
+                .Where(creature => creature.SpawnPool?.DbId is 630043 or 630044 or 630045).ToArray();
             Assert.AreEqual(3, herd.Length);
-            Assert.IsTrue(herd.All(creature => creature.DbId == 530043 && (uint)creature.EntityClass == 6038 &&
+            Assert.IsTrue(herd.All(creature => creature.DbId == 630043 && (uint)creature.EntityClass == 6038 &&
                 Vector3.Distance(creature.Position, emanator.Position) < 20));
             var health = herd.ToDictionary(creature => creature.EntityId, creature => creature.Attributes[Attributes.Health].Current);
             var miasma = harness.Map.MapCellInfo.Cells.Values.SelectMany(cell => cell.CreatureList)
@@ -509,7 +509,7 @@ namespace Rasa.Test.Missions.Wilderness
         public void MamaMiasmaRequiresThreeNativeCavernEggLayersRatherThanOrdinaryMiasmas()
         {
             using var harness = CreateHarness();
-            harness.SpawnWorld(204, 164, 530040, 530041, 530042);
+            harness.SpawnWorld(204, 580057, 630040, 630041, 630042);
             var richards = harness.Npc(204);
             Assert.IsNotNull(richards);
             Assert.IsFalse(harness.Manager.AcceptOfferedMission(harness.Client, richards.EntityId, 506));
@@ -521,12 +521,12 @@ namespace Rasa.Test.Missions.Wilderness
             Kill(harness, ordinary);
             Assert.AreEqual(0U, harness.Client.Player.Missions[506].Objectives[1].Counters[0]);
 
-            var spawns = new uint[] { 530040, 530041, 530042 };
+            var spawns = new uint[] { 630040, 630041, 630042 };
             for (var index = 0; index < spawns.Length; index++)
             {
                 var eggLayer = harness.Map.MapCellInfo.Cells.Values.SelectMany(cell => cell.CreatureList)
                     .Single(creature => creature.SpawnPool?.DbId == spawns[index]);
-                Assert.AreEqual(530040U, eggLayer.DbId);
+                Assert.AreEqual(630040U, eggLayer.DbId);
                 Assert.AreEqual(10240U, (uint)eggLayer.EntityClass);
                 Assert.AreEqual(0U, eggLayer.NameId, "Use the native Miasma Egg-Layer class display, not an invented NPC name.");
                 Assert.IsNull(eggLayer.Npc);
@@ -555,13 +555,13 @@ namespace Rasa.Test.Missions.Wilderness
 
         internal static void AssertSniperProfile(Creature sniper)
         {
-            Assert.AreEqual(530046U, sniper.DbId);
+            Assert.AreEqual(630046U, sniper.DbId);
             Assert.AreEqual(7120U, (uint)sniper.EntityClass);
             Assert.AreEqual(406U, sniper.NameId);
             Assert.IsNull(sniper.Npc);
             Assert.IsTrue(sniper.AppearanceData.TryGetValue(EquipmentData.Weapon, out var weapon));
             Assert.AreEqual(7119U, weapon.Class);
-            var action = sniper.Actions.Single(candidate => candidate.Id == 530052);
+            var action = sniper.Actions.Single(candidate => candidate.Id == 630052);
             Assert.AreEqual(1U, (uint)action.ActionId);
             Assert.AreEqual(149U, action.ActionArgId);
             Assert.AreEqual(60d, action.RangeMax);

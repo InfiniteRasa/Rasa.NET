@@ -24,6 +24,13 @@ namespace Rasa.Structures
         public bool HasBoEFlag { get; set; }
         public int QualityId { get; set; }
         public bool NotPlaceableInLockbox { get; set; }
+
+        /// <summary>
+        /// not_tradable_flag. ItemInfo.Tradable carries the same flag under a name that says the
+        /// opposite (ItemManager fills it from NotTradableFlag, ItemInfoPacket sends it as
+        /// notTradable); this reads it the right way round.
+        /// </summary>
+        public bool NotTradable => ItemInfo != null && ItemInfo.Tradable;
         public InventoryCategory InventoryCategory { get; set; }
 
         public int BuyPrice { get; set; }

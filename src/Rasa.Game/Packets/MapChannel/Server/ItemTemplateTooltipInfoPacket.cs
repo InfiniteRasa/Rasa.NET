@@ -8,6 +8,11 @@
     {
         public override GameOpcode Opcode { get; } = GameOpcode.ItemTemplateTooltipInfo;
 
+        // Templates already reported as weapons without an itemtemplate_weapon row: once each,
+        // not on every tooltip request. Most are tools (ToolActionManager: 519 of the 719 tool
+        // templates have none), which work without one, so this is a note and not an error.
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<uint, bool> ReportedWithoutWeaponInfo = new();
+
         private ItemTemplate ItemTemplate { get; set; }
         private EntityClass EntityClass { get; set; }
 
@@ -17,14 +22,41 @@
             EntityClass = entityClass;
         }
 
+        /// <summary>
+        /// The augmentations this packet has an entry for. The dictionary's length goes out
+        /// before its entries, so it has to count only what is written: a Recipe item (16) - the
+        /// dye recipes, every crafting recipe - announced two entries and wrote one, and the
+        /// client refused the whole reply ("Unable to unpack args for methodName=
+        /// ItemTemplateTooltipInfo"), so the item had no tooltip. The client reads a recipe's
+        /// tooltip from its own recipe data, not from here.
+        /// </summary>
+        private static bool Written(AugmentationType augmentation) => augmentation switch
+        {
+            AugmentationType.Weapon => true,
+            AugmentationType.Equipable => true,
+            AugmentationType.Item => true,
+            AugmentationType.Armor => true,
+            AugmentationType.Customization => true,
+            _ => false
+        };
+
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(3);
             pw.WriteUInt(ItemTemplate.ItemTemplateId);
             pw.WriteUInt((uint)ItemTemplate.Class);
-            pw.WriteDictionary(EntityClass.Augmentations.Count);
+
+            var written = 0;
+            foreach (var augmentation in EntityClass.Augmentations)
+                if (Written(augmentation))
+                    written++;
+
+            pw.WriteDictionary(written);
             foreach (var augumentation in EntityClass.Augmentations)
             {
+                if (!Written(augumentation))
+                    continue;
+
                 switch (augumentation)
                 {
                     case AugmentationType.Weapon:
@@ -44,12 +76,15 @@
                             pw.WriteUInt(ItemTemplate.WeaponInfo.Refire);
                             pw.WriteUInt(ItemTemplate.WeaponInfo.ReloadTime);
                             pw.WriteUInt(ItemTemplate.WeaponInfo.Range);
-                            pw.WriteUInt(ItemTemplate.WeaponInfo.AeRadius);
+                            // Shotguns and propellant guns as cones, as WeaponInfo sends them (Managers.ConeWeapons).
+                            var (aeType, aeRadius) = Managers.ConeWeapons.AeOf(ItemTemplate.WeaponInfo, EntityClass.WeaponClassInfo);
 
-                            if (ItemTemplate.WeaponInfo.AeType == 0)
+                            pw.WriteUInt(aeRadius);
+
+                            if (aeType == 0)
                                 pw.WriteNoneStruct();
                             else
-                                pw.WriteUInt(ItemTemplate.WeaponInfo.AeType);
+                                pw.WriteUInt(aeType);
 
                             if (ItemTemplate.WeaponInfo.WeaponAltInfo != null)
                             {
@@ -71,7 +106,8 @@
                             // The entity class is augmented as a weapon, but this item template has no
                             // matching row from ItemManager's weapon-items load (data gap). Send zeroed
                             // weapon stats instead of crashing the write so the tooltip still opens.
-                            Logger.WriteLog(LogType.Error, $"ItemTemplateTooltipInfoPacket: item template {ItemTemplate.ItemTemplateId} is augmented as a weapon but has no WeaponInfo; sending zeroed weapon stats");
+                            if (ReportedWithoutWeaponInfo.TryAdd(ItemTemplate.ItemTemplateId, true))
+                                Logger.WriteLog(LogType.Debug, $"ItemTemplateTooltipInfoPacket: item template {ItemTemplate.ItemTemplateId} is augmented as a weapon but has no WeaponInfo; sending zeroed weapon stats");
                             pw.WriteUInt(0);
                             pw.WriteInt(EntityClass.WeaponClassInfo.DamageType);
                             pw.WriteUInt(0);
@@ -150,7 +186,7 @@
                         break;
 
                     default:
-                        Logger.WriteLog(LogType.Error, $"ItemTemplateTooltipInfoPacket:\n recived unsuported augumentationType {augumentation}");
+                        // Unreachable: Written() leaves every other augmentation out.
                         break;
                 }
             }

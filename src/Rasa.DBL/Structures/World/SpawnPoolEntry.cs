@@ -120,6 +120,15 @@ namespace Rasa.Structures.World
         [Required]
         public byte Creature6MaxCount { get; set; }
 
+        /// <summary>
+        /// How far from the pool's position its creatures may stand, on the navmesh. Zero is the
+        /// old behaviour: two units of scatter around the point. Areas mined from the client's map
+        /// placements carry the footprint of the camp they stand in.
+        /// </summary>
+        [Column("radius")]
+        [Required]
+        public double Radius { get; set; }
+
         public Vector3 Position => new((float)PosX, (float)PosY, (float)PosZ);
     }
 }

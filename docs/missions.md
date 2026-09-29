@@ -7,9 +7,11 @@ activation step, or separate database path to provide to another tool.
 The consolidated mission baseline targets **fresh databases**. Databases
 containing its removed intermediate migration IDs are not supported upgrade
 sources, and experimental mission saves are not converted. The subsequent
-Wilderness migrations support upgrades from `SeedWorldContent` and the
-intermediate Wilderness releases without resetting character progress.
-Database files are never deleted automatically.
+Wilderness rollout supports fresh merged databases and existing PR105 databases.
+Its 17 provider pairs run after PR105's `20261103000000` World boundary, using
+the common `20261104000000..20261104001600` sequence. The earlier September
+Wilderness IDs were unshipped and their disposable databases are not an upgrade
+source. Database files are never deleted automatically.
 
 After the preserved `development` history, each provider's baseline has one
 Char schema migration and two World migrations: `ConsolidatedCharacterSchema`,
@@ -83,10 +85,16 @@ Gorge author the same supported medpack policy before their activation.
 Daghda's Urn installs Skeev's World data and its manual-combat scene binding
 together. See the [coverage and reconstruction ledger](wilderness-missions.md).
 
+Mission-authored World creature, spawn-pool and attack identities use
+`630001..630199`, separate from PR105's Divide rows. Native mission, class and
+item IDs are unchanged, as are Char outcome flags `530002` and `530003`.
+PR105's class-sourced armor rows are authoritative; the retained
+`WildernessRewardEquipment` marker has no Up or Down data operations.
+
 Evidence notes use `TEXT`, not the baseline's `varchar(256)`. The unshipped W2
-provider wrappers widen this column before their first long note; the later
-`WildernessEvidenceCapacity` pair also handles databases that already recorded
-those migrations. Fixed content helpers and evidence text are unchanged.
+provider wrappers widen this column before calling the helper that inserts the
+first long notes. The later `WildernessEvidenceCapacity` pair retains the
+additive capacity boundary.
 This additive compatibility change retains capacity on rollback rather than
 truncating surviving notes.
 
@@ -499,11 +507,12 @@ not only the original flag/content transition. The operator chooses when to
 remove disposable files. There is no automatic reset, database deletion or
 mission-pack publishing. MySQL remains manually migrated.
 
-The forward Wilderness migrations also support databases already at the merged
-`SeedWorldContent` baseline. They do not reset Char assignments, inventory,
-flags or history. That upgrade path is distinct from unsupported experimental
-histories predating consolidation; validate an upgrade on a disposable copy,
-and never use a World `Down` migration as a live character-save rollback.
+The forward Wilderness migrations preserve an existing PR105 database's Char
+assignments, inventory, flags and history. Fresh initialization runs the retained
+baseline, all PR105 migrations, then Wilderness in the same order. Validate this
+upgrade on a disposable copy; September Wilderness and pre-consolidation
+experimental histories are not supported sources. Never use a World `Down`
+migration as a live character-save rollback.
 
 Use `AssignmentItemRequirement(missionId, itemKey)` when eligibility requires
 actual held stock from an active assignment. `SourceOfferMissionId` additionally
@@ -533,7 +542,10 @@ and full-row round trips through the retained `development` migration boundary.
 baseline independently of later forward migrations. `WildernessCoverageTests`
 checks the exact latest 64-outdoor-plus-five-Bootcamp set, and
 `WildernessProgressionAcceptanceTests` upgrades an active W1 assignment through
-the later providers without changing its identity or earned counters. The
+the retimed providers without changing its identity or earned counters.
+`WildernessMigrationTests` additionally covers fresh and PR105-existing World
+databases, preserving Divide, rebuilt Wilderness pools, moved bosses and armor
+while checking all 69 definitions and the mission-specific `630xxx` bindings. The
 content suites retain final objective, reward, scene, item and radio assertions;
 they no longer require removed intermediate migration IDs.
 Use the affected gameplay suites for the mission being changed, then the

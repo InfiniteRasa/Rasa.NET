@@ -42,7 +42,7 @@ namespace Rasa.Test.Missions.Wilderness
             Context = MissionTestContext.WithCustomDefinitions(new Dictionary<uint, Mission>());
             World = OpenWorld();
             if (targetWorldMigration == null)
-                World.Initialize();
+                MigratedDatabaseTemplates.Migrate(World, World.Initialize);
             else
                 World.GetService<IMigrator>().Migrate(targetWorldMigration);
             if (additionalContent != null)
@@ -171,7 +171,9 @@ namespace Rasa.Test.Missions.Wilderness
 
         internal Creature Npc(uint spawnId) => Map.MapCellInfo.Cells.Values
             .SelectMany(cell => cell.CreatureList)
-            .SingleOrDefault(creature => creature.SpawnPool?.DbId == spawnId && creature.Npc != null);
+            .Distinct()
+            .SingleOrDefault(creature => creature.SpawnPool?.DbId == spawnId && creature.Npc != null &&
+                CreatureManager.IsLivingOnMap(Map, creature));
 
         internal void MoveTo(Vector3 position)
         {
@@ -198,7 +200,8 @@ namespace Rasa.Test.Missions.Wilderness
                 new ActionRepository(context), new EquipmentRepository(context), new CreatureRepository(context),
                 new EntityClassRepository(context), new FootlockerRepository(context), new LogosRepository(context),
                 new MapInfoRepository(context), new MapLinkRepository(context), new KraftwerksRepository(context),
-                new MapRegionRepository(context), new MapMarkerRepository(context), new RecipeRepository(context),
+                new MapRegionRepository(context), new MapMarkerRepository(context),
+                new MapEmitterRepository(context), new SpawnPoolArrivalRepository(context), new RecipeRepository(context),
                 new NpcMissionRepository(context), new NpcMissionRewardRepository(context),
                 new MissionContentRepository(context), new NpcPackageRepository(context),
                 new PlayerRandomNameRepository(context), new SpawnpoolRepository(context), new TeleporterRepository(context));

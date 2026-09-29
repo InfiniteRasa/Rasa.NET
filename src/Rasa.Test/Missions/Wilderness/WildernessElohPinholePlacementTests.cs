@@ -145,17 +145,17 @@ namespace Rasa.Test.Missions.Wilderness
         public void EggLayersUseInteriorFloorsAndTreebacksUseTheApprovedHilltopHerd()
         {
             using var harness = WildernessElohPinholeTests.CreateHarness();
-            harness.SpawnWorld(204, 530040, 530041, 530042, 530043, 530044, 530045);
+            harness.SpawnWorld(204, 630040, 630041, 630042, 630043, 630044, 630045);
             var richards = harness.Npc(204);
             Assert.IsNotNull(richards);
             foreach (var (spawn, creatureId, entityClass, position, underground) in new[]
             {
-                (530040U, 530040U, 10240U, (330d, 203.8, 526d), true),
-                (530041U, 530040U, 10240U, (338.5, 213.1, 552d), true),
-                (530042U, 530040U, 10240U, (364d, 212d, 535d), true),
-                (530043U, 530043U, 6038U, (450d, 288.49, 584d), false),
-                (530044U, 530043U, 6038U, (473d, 288.54892, 585d), false),
-                (530045U, 530043U, 6038U, (460d, 288.54892, 601d), false)
+                (630040U, 630040U, 10240U, (330d, 203.8, 526d), true),
+                (630041U, 630040U, 10240U, (338.5, 213.1, 552d), true),
+                (630042U, 630040U, 10240U, (364d, 212d, 535d), true),
+                (630043U, 630043U, 6038U, (450d, 288.49, 584d), false),
+                (630044U, 630043U, 6038U, (473d, 288.54892, 585d), false),
+                (630045U, 630043U, 6038U, (460d, 288.54892, 601d), false)
             })
             {
                 var creature = harness.Map.MapCellInfo.Cells.Values.SelectMany(cell => cell.CreatureList)
@@ -174,22 +174,22 @@ namespace Rasa.Test.Missions.Wilderness
         public void SixSnipersUseTheApprovedNativeProfileAndReachablePillboxRidgePoses()
         {
             using var harness = WildernessElohPinholeTests.CreateHarness();
-            harness.SpawnWorld(101, 530046, 530047, 530048, 530049, 530050, 530051);
+            harness.SpawnWorld(101, 630046, 630047, 630048, 630049, 630050, 630051);
             var witherspoon = harness.Npc(101);
             Assert.IsNotNull(witherspoon);
             foreach (var (spawn, position, heading, lane) in new[]
             {
-                (530046U, (243.340721, 227.445074, 241.396381), -1.9331716839989537,
+                (630046U, (243.340721, 227.445074, 241.396381), -1.9331716839989537,
                     new Vector3(270.9166024f, 230.2878418f, 251.8508714f)),
-                (530047U, (255.207849, 230.380794, 263.403659), -1.593360459534133,
+                (630047U, (255.207849, 230.380794, 263.403659), -1.593360459534133,
                     new Vector3(298.1712006f, 229.1013684f, 264.3732543f)),
-                (530048U, (345.332512, 230.320493, 177.36105), -1.7367993608386485,
+                (630048U, (345.332512, 230.320493, 177.36105), -1.7367993608386485,
                     new Vector3(388.5864221f, 228.5609961f, 184.6080212f)),
-                (530049U, (327.942408, 233.363417, 184.94948), -1.43718286305095,
+                (630049U, (327.942408, 233.363417, 184.94948), -1.43718286305095,
                     new Vector3(369.8191494f, 227.3044425f, 179.3206472f)),
-                (530050U, (265.933766, 239.813626, 297.786076), -0.4228539207043388,
+                (630050U, (265.933766, 239.813626, 297.786076), -0.4228539207043388,
                     new Vector3(279.720757f, 231.5349094f, 267.5983178f)),
-                (530051U, (259.940889, 230.19304, 246.037072), -2.018010821944118,
+                (630051U, (259.940889, 230.19304, 246.037072), -2.018010821944118,
                     new Vector3(298.1712006f, 229.1013684f, 264.3732543f))
             })
             {

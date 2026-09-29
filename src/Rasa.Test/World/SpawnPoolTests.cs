@@ -109,7 +109,9 @@ namespace Rasa.Test.World
 
             Assert.HasCount(expected, creatures);
             Assert.IsTrue(creatures.All(creature => creature.DbId == 47 && creature.Level == 5));
-            Assert.AreNotSame(template, creatures[0]);
+            // The list names the loaded template once per creature to make; CreateCreature makes
+            // the real ones. A copy per entry would take an entity id nothing frees.
+            Assert.IsTrue(creatures.All(creature => ReferenceEquals(creature, template)));
         }
 
         private sealed class EndpointRandom : Random

@@ -9,7 +9,7 @@
         public ItemModule(int moduleId, int moduleLevel, ModuleInfo moduleInfo)
         {
             ModuleId = moduleId;
-            ModuleLevel = ModuleLevel;
+            ModuleLevel = moduleLevel;
             ModuleInfo = moduleInfo;
         }
     }
@@ -36,7 +36,7 @@
             Arg1 = arg1;
             Arg2 = arg2;
             Arg3 = arg3;
-            Arg4 = Arg4;
+            Arg4 = arg4;
         }
     }
 }

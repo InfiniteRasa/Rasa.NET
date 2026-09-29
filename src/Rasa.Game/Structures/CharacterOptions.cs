@@ -22,7 +22,9 @@
         {
             pr.ReadTuple();
             OptionId = (CharacterOption)pr.ReadUInt();
-            Value = pr.ReadUnicodeString();
+            // An option cleared on the client - an unbound key - is an empty unicode string,
+            // which comes off the wire as null; the value column is NOT NULL.
+            Value = pr.ReadUnicodeString() ?? string.Empty;
         }
 
         public void Write(PythonWriter pw)

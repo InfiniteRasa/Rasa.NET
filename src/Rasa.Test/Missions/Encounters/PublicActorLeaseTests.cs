@@ -7,6 +7,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Rasa.Test.Missions.Encounters
 {
+    using Rasa.Data;
     using Rasa.Game.Missions.World;
     using Rasa.Packets.Mission.Server;
     using Rasa.Structures;
@@ -16,6 +17,46 @@ namespace Rasa.Test.Missions.Encounters
     [DoNotParallelize]
     public class PublicActorLeaseTests
     {
+        [TestMethod]
+        [DataRow(CharacterState.Dead, 0, false)]
+        [DataRow(CharacterState.Dying, 100, false)]
+        [DataRow(CharacterState.Idle, 0, false)]
+        [DataRow(CharacterState.Idle, 100, true)]
+        public void PublicReservationRejectsActorsWithoutLivingHealth(
+            CharacterState state, int health, bool missingHealth)
+        {
+            using var context = MissionTestContext.WithDefinitions(321);
+            var actor = AddPublicActor(context);
+            actor.State = state;
+            actor.Attributes[Rasa.Data.Attributes.Health].Current = health;
+            if (missingHealth)
+                actor.Attributes.Remove(Rasa.Data.Attributes.Health);
+            context.Manager.PublicActors.Bind(new PublicEncounterBinding(321, 77, "escort", "example.escort"));
+
+            Assert.IsFalse(context.Manager.AcceptOfferedMission(context.Client, actor.EntityId, 321));
+            Assert.IsNull(context.Manager.PublicActors.Handle(context.Map, 77));
+            using var database = context.Open();
+            Assert.AreEqual(0, database.Set<MissionActorLeaseEntry>().Count());
+        }
+
+        [TestMethod]
+        public void RetainedCorpseDoesNotBlockItsLivingPublicReplacement()
+        {
+            using var context = MissionTestContext.WithDefinitions(321);
+            var corpse = AddPublicActor(context);
+            corpse.State = CharacterState.Dead;
+            corpse.Attributes[Rasa.Data.Attributes.Health].Current = 0;
+            var replacement = AddPublicActor(context);
+            context.Manager.PublicActors.Bind(new PublicEncounterBinding(321, 77, "escort", "example.escort"));
+
+            Assert.IsTrue(context.Manager.AcceptOfferedMission(context.Client, replacement.EntityId, 321));
+            var handle = context.Manager.PublicActors.Handle(context.Map, 77);
+            Assert.IsTrue(context.Manager.PublicActors.TryResolve(context.Map, handle, out var resolved));
+            Assert.AreSame(replacement, resolved);
+            Assert.IsTrue(context.Map.MapCellInfo.Cells.Values.Any(cell => cell.CreatureList.Contains(corpse)),
+                "Reservation must preserve PR105's retained corpse rather than deleting it to avoid ambiguity.");
+        }
+
         [TestMethod]
         public void ConcurrentAcceptancesReserveOnePublicActorAndPublishOneSuccess()
         {

@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace Rasa.Managers
 {
@@ -25,7 +27,7 @@ namespace Rasa.Managers
          *  - UpdateChi(self, current, currentMax, refreshAmount, whoId)
          *  - UpdateAttributes(self, attributeDataList, whoId)
          *  - UpdateRegions(self, regionIdList)
-         *  - ActionBlockChange(self, actionId, isBlocked)
+         *  - ActionBlockChange(self, actionId, isBlocked)                   => implemented, ActionBlocks
          *  - PerformWindup(self, actionId, actionArgId, *args)
          *  - PerformRecovery(self, actionId, actionArgId, *args)
          *  - StateChange(self, stateIdList)
@@ -33,7 +35,7 @@ namespace Rasa.Managers
          *  - Abilities(self, abilityList)
          *  - Skills(self, skillList)
          *  - UserActionFailed(self, actionId, actionArgId, msgId)
-         *  - ActionFailed(self, actionId, actionArgId)
+         *  - ActionFailed(self, actionId, actionArgId)                        => implemented, RefuseRequest
          *  - PreTeleport(self, teleportType = None)
          *  - TeleportFailed(self)
          *  - PostTeleport(self)
@@ -67,8 +69,8 @@ namespace Rasa.Managers
          *  - ReviveMe                  => ToDo
          *  - RequestActionInterrupt    => ToDo
          *  - RequestDetachGameEffect   => gesture effects only, GestureManager
-         *  - RequestVisualCombatMode   => ToDo
-         *  - SetDesiredCrouchState     => ToDo
+         *  - RequestVisualCombatMode   => implemented, RequestVisualCombatMode (relayed to the others)
+         *  - SetDesiredCrouchState     => implemented, ManifestationManager
          *  - TeleportAcknowledge       => ToDo
          */
 
@@ -95,6 +97,37 @@ namespace Rasa.Managers
         private ActorManager()
         {
         }
+
+        /// <summary>
+        /// Refuses a request the player made: UserActionFailed to show why (or nothing, for a null
+        /// message) and take the request off the client's unresolved list, then ActionFailed to
+        /// cancel the action their client started on its own - its windup, or the recovery it
+        /// plays locally once the windup has run. The one without the other either left the
+        /// character performing an action that never happened or left the request pending.
+        /// Only the player is told: nobody else is shown an action before the server accepts it.
+        /// </summary>
+        public static void RefuseRequest(Client client, ActionId actionId, uint actionArgId, PlayerMessage? message)
+        {
+            if (client?.Player == null)
+                return;
+
+            client.CallMethod(client.Player.EntityId, new UserActionFailedPacket(actionId, actionArgId, message));
+            client.CallMethod(client.Player.EntityId, new ActionFailedPacket(actionId, actionArgId));
+        }
+
+        /// <summary>
+        /// Closes a request the player interrupted. Their client cancelled the action itself when
+        /// it sent RequestActionInterrupt, but keeps the request on its unresolved list until the
+        /// server answers it; a silent UserActionFailed is that answer. No ActionFailed: there is
+        /// nothing left to cancel, and it could only catch a newer action with the same id.
+        /// </summary>
+        public static void ResolveInterruptedRequest(Client client, ActionId actionId, uint actionArgId)
+        {
+            if (client?.Player == null)
+                return;
+
+            client.CallMethod(client.Player.EntityId, new UserActionFailedPacket(actionId, actionArgId, null));
+        }
         #region Handlers
 
         public void RequestActionInterrupt(Client client, RequestActionInterruptPacket packet)
@@ -109,15 +142,47 @@ namespace Rasa.Managers
                         }
         }
 
+        /// <summary>
+        /// RequestVisualCombatMode from the player's own client: the stance it asks to hold. The
+        /// engine sends it on every camera profile change - whether the profile locks facing - and
+        /// the client has already taken the stance itself ("Notify server so that it can notify
+        /// other clients").
+        /// </summary>
         public void RequestVisualCombatMode(Client client, bool combatMode)
         {
-            client.Player.InCombatMode = combatMode;
-            client.CellCallMethod(client, client.Player.EntityId, new RequestVisualCombatModePacket(combatMode));
+            client.Player.RequestedCombatMode = combatMode;
+            UpdateCombatMode(client);
         }
 
-        public void SetDesiredCrouchState(Client client, CharacterState state)
+        /// <summary>Auto-fire starting or stopping: the trigger held is a stance held, to the others who see the player.</summary>
+        public void SetAutoFireCombatMode(Client client, bool firing)
         {
-            client.CellIgnoreSelfCallMethod(client, new SetDesiredCrouchStatePacket(state));
+            client.Player.AutoFireCombatMode = firing;
+            UpdateCombatMode(client);
+        }
+
+        /// <summary>The stance a player holds: the one their client asked for, or the trigger held down.</summary>
+        public static bool CombatModeOf(Manifestation player) => player.RequestedCombatMode || player.AutoFireCombatMode;
+
+        /// <summary>
+        /// Keeps InCombatMode - what ActorInfo gives a newcomer as isHoldingCombatMode - to
+        /// CombatModeOf, and tells everyone else who can see the player when it changes. Never the
+        /// player: their client holds its own stance, and the auto-fire half of it arriving there
+        /// once took away the hold its camera had set (Recv_RequestVisualCombatMode(False) removes
+        /// the one hold there is).
+        /// </summary>
+        private static void UpdateCombatMode(Client client)
+        {
+            var player = client.Player;
+            var mode = CombatModeOf(player);
+
+            if (mode == player.InCombatMode)
+                return;
+
+            player.InCombatMode = mode;
+
+            if (client.State == ClientState.Ingame && player.MapChannel != null)
+                client.CellIgnoreSelfCallMethod(client, new RequestVisualCombatModePacket(mode));
         }
 
         #endregion
@@ -157,6 +222,10 @@ namespace Rasa.Managers
             if (target.State == CharacterState.Dead || health.Current <= 0)
                 return 0;
 
+            // Disease P5: "All Healing: Disabled".
+            if (GameEffectManager.HealingBlocked(target))
+                return 0;
+
             var applied = Math.Min(amount, health.CurrentMax - health.Current);
 
             if (applied <= 0)
@@ -170,12 +239,30 @@ namespace Rasa.Managers
                 _ => target.RuntimeMapChannel
             };
 
+            // Healing someone creatures hate draws their hate to the healer.
+            if (sourceEntityId != 0 && sourceEntityId != target.EntityId && target is Manifestation)
+                Threat.FromHealing(mapChannel, EntityManager.Instance.GetActor(sourceEntityId), target, applied);
+
             // No map means nobody can see them, which is not a reason to refuse the heal - the
             // health is still theirs. It is a reason not to try to broadcast it.
             if (mapChannel != null)
                 CellManager.Instance.CellCallMethod(mapChannel, target, new UpdateHealthPacket(health, sourceEntityId));
 
             return applied;
+        }
+
+        /// <summary>
+        /// "Immune" over the target for everyone around (GameEffectAttachFailed, IMMUNE, which the
+        /// client turns into COMBAT_IMMUNE_ANNOUNCED): a hit it does not take, for a caller with no
+        /// hit record of its own to carry wasImmune.
+        /// </summary>
+        public static void AnnounceImmune(MapChannel mapChannel, Actor target, Actor source)
+        {
+            if (mapChannel == null || target == null)
+                return;
+
+            CellManager.Instance.CellCallMethod(mapChannel, target,
+                new GameEffectAttachFailedPacket(0, GameEffectAttachFailedPacket.FailReason.Immune, source?.EntityId ?? 0));
         }
 
         /// <summary>
@@ -188,13 +275,35 @@ namespace Rasa.Managers
         /// standing at zero.
         /// </summary>
         /// <param name="source">Who did it; credited with a kill, and what a surviving creature turns on.</param>
+        /// <param name="damageType">What it was, for the death animation of a creature it brings to its Critical Death window.</param>
         /// <param name="isPeriodic">Ticks contribute damage credit without issuing a new escort attack order.</param>
-        public int Damage(MapChannel mapChannel, Actor target, int amount, Actor source, bool isPeriodic = false)
+        public int Damage(MapChannel mapChannel, Actor target, int amount, Actor source, DamageType damageType = DamageType.Physical, bool isPeriodic = false)
         {
-            if (target == null || amount <= 0 || target.State == CharacterState.Dead)
-                return 0;
+            var taken = Damage(mapChannel, target, amount, source, out var outcome, damageType, isPeriodic);
 
-            if (target is Creature defender && Game.Missions.World.CreatureGameplayRules.IsInvulnerable(defender))
+            // No hit record here to carry wasImmune, so the clients are told on their own.
+            if (outcome.Immune)
+                AnnounceImmune(mapChannel, target, source);
+
+            return taken;
+        }
+
+        /// <summary>
+        /// Damage, with what became of it for the hit the caller reports (DamageOutcome). A target
+        /// immune to it (DamageImmunity: an invulnerable or leashing creature, a type or blanket
+        /// immunity, an effect granting one) takes nothing, and the hit is reported with
+        /// wasImmune so the clients show "Immune" as it lands. Otherwise a shield (Shield
+        /// Extender, Shield Wave: GameEffectManager.ApplyAbsorb) takes its share before the
+        /// armour, as it does of weapon fire in MissileManager: what comes in here is the amount
+        /// after resistance, and the hit to report is outcome.Delivered with outcome.Absorbed
+        /// beside it. Falling is not combat damage and does not come through here
+        /// (FallDamage.Apply): a shield does not soften a fall, nor does an immunity stop one.
+        /// </summary>
+        public int Damage(MapChannel mapChannel, Actor target, int amount, Actor source, out DamageOutcome outcome, DamageType damageType = DamageType.Physical, bool isPeriodic = false)
+        {
+            outcome = new DamageOutcome { Delivered = amount };
+
+            if (target == null || amount <= 0 || target.State == CharacterState.Dead || target.State == CharacterState.Dying)
                 return 0;
 
             if (source is Creature companion &&
@@ -205,16 +314,35 @@ namespace Rasa.Managers
             if (!target.Attributes.TryGetValue(Attributes.Health, out var health) || health.Current <= 0)
                 return 0;
 
+            // Immune: nothing taken, nothing started - a creature running home after a leash
+            // (BehaviorManager.Leash) does not turn round for it.
+            if (DamageImmunity.IsImmune(target, damageType))
+            {
+                outcome = new DamageOutcome { Immune = true };
+                return 0;
+            }
+
             if (!isPeriodic && target is Creature attackedCreature)
                 CreatureManager.RecordOwnerAttack(mapChannel, source, attackedCreature);
 
+            // A shield takes its share first; a hit it takes all of goes no further.
+            amount = GameEffectManager.Instance.ApplyAbsorb(mapChannel, target, amount, out var absorbed);
+            outcome = new DamageOutcome { Delivered = amount, Absorbed = absorbed };
+
+            if (amount <= 0)
+                return 0;
+
             var armorTaken = 0;
 
-            if (target.Attributes.TryGetValue(Attributes.Armor, out var armor) && armor.Current > 0)
+            // Armour first - unless an EMP crit is suppressing it, when it all goes to health.
+            if (target.Attributes.TryGetValue(Attributes.Armor, out var armor) && armor.Current > 0 && !GameEffectManager.ArmorSuppressed(target))
             {
-                armorTaken = Math.Min(amount, armor.Current);
+                // Target Painting: that share of the hit goes past the armour.
+                armorTaken = Math.Min(amount - amount * GameEffectManager.ArmorPiercePercentOf(target) / 100, armor.Current);
                 armor.Current -= armorTaken;
-                CellManager.Instance.CellCallMethod(mapChannel, target, new UpdateArmorPacket(armor, target is Creature ? target.EntityId : 0));
+                CellManager.Instance.CellCallMethod(mapChannel, target, target is Creature
+                    ? new UpdateArmorPacket(GameEffectManager.WithRegen(target, armor), target.EntityId)
+                    : new UpdateArmorPacket(armor, 0));
             }
 
             var healthTaken = Math.Min(amount - armorTaken, health.Current);
@@ -222,6 +350,11 @@ namespace Rasa.Managers
                 CreatureManager.RecordCombatDamage(mapChannel, damagedCreature, source, armorTaken + healthTaken);
             health.Current -= healthTaken;
             CellManager.Instance.CellCallMethod(mapChannel, target, new UpdateHealthPacket(health, target is Creature ? target.EntityId : 0));
+
+            // A hit a player endures wears the armour they have on (Durability) - a creature's
+            // lightning, an effect's tick, as weapon fire does in MissileManager.
+            if (target is Manifestation struck && armorTaken + healthTaken > 0)
+                Durability.WearArmor(mapChannel, struck);
 
             if (target is Creature creature)
             {
@@ -244,12 +377,29 @@ namespace Rasa.Managers
                     else
                         Logger.WriteLog(LogType.Error, $"Creature {creature.EntityId} was killed with no source to credit; it stays at zero.");
                 }
-                else if (source != null && (creature.Controller.CurrentAction == BehaviorManager.BehaviorActionWander || creature.Controller.CurrentAction == BehaviorManager.BehaviorActionFollowingPath))
+                else if (CritDeathManager.Instance.TryEnterPreDeath(mapChannel, creature, source, damageType))
                 {
-                    BehaviorManager.Instance.SetActionFighting(creature, source.EntityId);
+                    // Held near death for a finisher; it does not turn on anyone.
                 }
+                else if (source != null)
+                {
+                    // The source is hated for what landed - the resistance came off before this
+                    // was called and is not known here - and a wandering creature turns on them.
+                    Threat.FromDamage(creature, source, armorTaken + healthTaken);
+                }
+
+                // Explosive Nanites go off on damage taken.
+                if (healthTaken + armorTaken > 0 && health.Current > 0)
+                    AbilityManager.OnCreatureDamaged(mapChannel, creature);
             }
-            else if (health.Current <= 0)
+            else if (target is Manifestation victim && armorTaken + healthTaken > 0)
+            {
+                // Self Destruct goes off on the next damage its holder takes, and Conversion
+                // turns what landed into healing for the squad.
+                AbilityManager.OnPlayerDamaged(mapChannel, victim, armorTaken + healthTaken);
+            }
+
+            if (!(target is Creature) && health.Current <= 0)
             {
                 // A player at zero stands back up at full: see the remarks.
                 health.Current = health.CurrentMax;
@@ -270,8 +420,8 @@ namespace Rasa.Managers
         /// health and armour in manifestation_updatePlayer; power is the interim rule described
         /// at UpdateStatsValues. Chi (adrenaline) is not regenerated: it is gained on kills
         /// (ManifestationManager.GainAdrenaline) and spent by sprint and the like. In combat the
-        /// health and armour periods are five times longer (CombatRegen), which this honours by
-        /// ticking them every fifth second.
+        /// health period is five times longer (CombatRegen), which this honours by ticking it
+        /// every fifth second, and armour's amount is 0 (ManifestationManager.ApplyRegenPeriod).
         /// </summary>
         public void Regenerate(MapChannel mapChannel)
         {
@@ -295,6 +445,9 @@ namespace Rasa.Managers
                 if (player.Attributes.TryGetValue(Attributes.Power, out var power))
                     Regenerate(player, power, player.RegenSeconds);
             }
+
+            // Creatures' armour.
+            CreatureArmor.Regenerate(mapChannel);
         }
 
         /// <summary>
@@ -366,6 +519,59 @@ namespace Rasa.Managers
                 CellManager.Instance.CellCallMethod(mapChannel, target, new UpdateArmorPacket(armor, target.EntityId));
 
             return applied;
+        }
+
+        #endregion
+
+        #region State correction
+
+        /// <summary>
+        /// Puts the actor's states right on everyone who can see it, its own client included
+        /// (StateCorrection, which the client applies without the filters StateChange has).
+        ///
+        /// Of the server's own copy only the posture is kept here - CROUCHED or STANDING sets
+        /// IsCrouching - since that is all a correction on its own can mean to the rules. Alive
+        /// or dead is the business of whoever brings an actor back or kills it, with its health;
+        /// a DEAD or NORMAL sent through this changes how the actor looks, not what it is.
+        /// </summary>
+        public static void CorrectState(MapChannel mapChannel, Actor actor, IEnumerable<CharacterState> states)
+        {
+            if (mapChannel == null || actor == null)
+                return;
+
+            var list = states?.Distinct().ToList() ?? new List<CharacterState>();
+
+            if (list.Count == 0)
+                return;
+
+            if (list.Contains(CharacterState.Crouched))
+                actor.IsCrouching = true;
+            else if (list.Contains(CharacterState.Standing))
+                actor.IsCrouching = false;
+
+            CellManager.Instance.CellCallMethod(mapChannel, actor, new StateCorrectionPacket(list));
+        }
+
+        /// <summary>
+        /// A state by the client's name for it (STANDING, lying_down, "Combat Engaged") or its id;
+        /// false for anything the client has not got.
+        /// </summary>
+        public static bool TryParseState(string value, out CharacterState state)
+        {
+            state = 0;
+
+            if (string.IsNullOrWhiteSpace(value))
+                return false;
+
+            if (uint.TryParse(value, out var id))
+            {
+                state = (CharacterState)id;
+                return Enum.IsDefined(typeof(CharacterState), state);
+            }
+
+            var name = value.Replace("_", "").Replace(" ", "");
+
+            return Enum.TryParse(name, true, out state) && Enum.IsDefined(typeof(CharacterState), state);
         }
 
         #endregion

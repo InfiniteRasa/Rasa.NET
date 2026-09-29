@@ -524,7 +524,7 @@ namespace Rasa.Game.Missions.World
         private static IEnumerable<Creature> Actors(MapChannel map, uint spawnId) =>
             map.MapCellInfo.Cells.Values.SelectMany(cell => cell.CreatureList).Distinct()
                 .Where(actor => actor.SpawnPool?.DbId == spawnId && actor.SpawnPool.ScenarioKey == null &&
-                    MapInstanceScope.Contains(map, actor));
+                    CreatureManager.IsLivingOnMap(map, actor));
 
         private sealed record Recovery(string Run, uint Owner, string Release, uint Generation, PublicEncounterBinding Binding);
 

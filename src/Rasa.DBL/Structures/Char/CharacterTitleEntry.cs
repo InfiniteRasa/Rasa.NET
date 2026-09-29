@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Rasa.Structures.Char
 {
+    /// <summary>A title the character has earned: one row per title, keyed on both columns (CharContext).</summary>
     [Table(TableName)]
     public class CharacterTitleEntry
     {
@@ -18,7 +19,6 @@ namespace Rasa.Structures.Char
             TitleId = titleId;
         }
 
-        [Key]
         [Column("character_id")]
         [Required]
         public uint CharacterId { get; set; }

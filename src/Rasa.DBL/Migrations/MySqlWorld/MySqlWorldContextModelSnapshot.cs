@@ -242,6 +242,10 @@ namespace Rasa.Migrations.MySqlWorld
                         .HasColumnType("int unsigned")
                         .HasColumnName("cooldown");
 
+                    b.Property<uint>("DamageType")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("damage_type");
+
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasColumnType("varchar(50)")
@@ -270,6 +274,22 @@ namespace Rasa.Migrations.MySqlWorld
                     b.HasKey("Id");
 
                     b.ToTable("creature_action");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.CreatureActorNameEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("id");
+
+                    b.Property<string>("ActorName")
+                        .IsRequired()
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("actor_name");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("creature_actor_name");
                 });
 
             modelBuilder.Entity("Rasa.Structures.World.CreatureAppearanceEntry", b =>
@@ -961,6 +981,51 @@ namespace Rasa.Migrations.MySqlWorld
                     b.HasKey("Id");
 
                     b.ToTable("logos");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.MapEmitterEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Comment")
+                        .IsRequired()
+                        .HasColumnType("varchar(96)")
+                        .HasColumnName("comment");
+
+                    b.Property<byte>("IsOn")
+                        .HasColumnType("tinyint unsigned")
+                        .HasColumnName("is_on");
+
+                    b.Property<uint>("MapContextId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("map_context_id");
+
+                    b.Property<uint>("PackageId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("package_id");
+
+                    b.Property<double>("PosX")
+                        .HasColumnType("double")
+                        .HasColumnName("pos_x");
+
+                    b.Property<double>("PosY")
+                        .HasColumnType("double")
+                        .HasColumnName("pos_y");
+
+                    b.Property<double>("PosZ")
+                        .HasColumnType("double")
+                        .HasColumnName("pos_z");
+
+                    b.Property<double>("Rotation")
+                        .HasColumnType("double")
+                        .HasColumnName("rotation");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("map_emitter");
                 });
 
             modelBuilder.Entity("Rasa.Structures.World.MapInfoEntry", b =>
@@ -2437,6 +2502,51 @@ namespace Rasa.Migrations.MySqlWorld
                     b.ToTable("skill_character");
                 });
 
+            modelBuilder.Entity("Rasa.Structures.World.SpawnPoolArrivalEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Comment")
+                        .IsRequired()
+                        .HasColumnType("varchar(96)")
+                        .HasColumnName("comment");
+
+                    b.Property<ulong>("EntityId")
+                        .HasColumnType("bigint unsigned")
+                        .HasColumnName("entity_id");
+
+                    b.Property<byte>("Kind")
+                        .HasColumnType("tinyint unsigned")
+                        .HasColumnName("kind");
+
+                    b.Property<uint>("PoolId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("pool_id");
+
+                    b.Property<double>("PosX")
+                        .HasColumnType("double")
+                        .HasColumnName("pos_x");
+
+                    b.Property<double>("PosY")
+                        .HasColumnType("double")
+                        .HasColumnName("pos_y");
+
+                    b.Property<double>("PosZ")
+                        .HasColumnType("double")
+                        .HasColumnName("pos_z");
+
+                    b.Property<double>("Rotation")
+                        .HasColumnType("double")
+                        .HasColumnName("rotation");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("spawnpool_arrival");
+                });
+
             modelBuilder.Entity("Rasa.Structures.World.SpawnPoolEntry", b =>
                 {
                     b.Property<uint>("Id")
@@ -2550,6 +2660,10 @@ namespace Rasa.Migrations.MySqlWorld
                         .HasColumnType("double")
                         .HasColumnName("rotation");
 
+                    b.Property<double>("Radius")
+                        .HasColumnType("double")
+                        .HasColumnName("radius");
+
                     b.HasKey("Id");
 
                     b.ToTable("spawnpool");
@@ -2631,6 +2745,21 @@ namespace Rasa.Migrations.MySqlWorld
                         .HasColumnName("item_template_id");
 
                     b.ToTable("vendor_item");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.VendorPriceEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("id");
+
+                    b.Property<int>("ItemPrice")
+                        .HasColumnType("int")
+                        .HasColumnName("item_price");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("vendor_price");
                 });
 
             modelBuilder.Entity("Rasa.Structures.World.WeaponClassEntry", b =>

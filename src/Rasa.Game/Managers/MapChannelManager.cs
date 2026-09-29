@@ -195,7 +195,7 @@ namespace Rasa.Managers
             {
                 if (ability.AbilityId == 0) continue;
 
-                abilities.Add(ability.AbilitySlot, new AbilityDrawerData(ability.AbilitySlot, ability.AbilityId, ability.AbilityLevel));
+                abilities.Add(ability.AbilitySlot, new AbilityDrawerData(ability.AbilitySlot, ability.AbilityId, ability.AbilityLevel, ability.ItemId));
             }
 
             return abilities;
@@ -241,7 +241,6 @@ namespace Rasa.Managers
                 MapChannelArray.Add(mapInfo.Id, newMapChannel);
             }
             Timer.Add("AutoFire", 100, true, null);
-            Timer.Add("CheckForLogingClients", 1000, true, null);
             Timer.Add("CheckForObjects", 1000, true, null);
             Timer.Add("ClientEffectUpdate", 500, true, null);
             Timer.Add("CellUpdateVisibility", 1000, true, null);
@@ -251,17 +250,56 @@ namespace Rasa.Managers
             Timer.Add("Regenerate", 1000, true, null);
         }
 
+        private readonly Dictionary<string, long> _workerFaultQuietUntil = new();
+        private readonly Dictionary<string, int> _workerFaultsSinceLog = new();
+
+        /// <summary>
+        /// Runs one worker so that its failure costs only itself. The world tick is a chain of
+        /// these, and one throwing used to abandon everything after it - every other worker on that
+        /// map and every map after it - on each tick it kept throwing. A fault is logged in full
+        /// the first time, then at most once a minute per worker with a count.
+        /// </summary>
+        private void Guard(string worker, MapChannel mapChannel, Action work)
+        {
+            try
+            {
+                work();
+            }
+            catch (Exception e)
+            {
+                var now = Environment.TickCount64;
+                var faults = (_workerFaultsSinceLog.TryGetValue(worker, out var n) ? n : 0) + 1;
+
+                if (_workerFaultQuietUntil.TryGetValue(worker, out var quietUntil) && now < quietUntil)
+                {
+                    _workerFaultsSinceLog[worker] = faults;
+                    return;
+                }
+
+                var where = mapChannel == null ? "" : $" on map {mapChannel.MapInfo.MapContextId}";
+                var repeat = faults > 1 ? $" ({faults} faults since the last of these)" : "";
+
+                Logger.WriteLog(LogType.Error, $"{worker}{where} threw{repeat}: {e}");
+
+                _workerFaultsSinceLog[worker] = 0;
+                _workerFaultQuietUntil[worker] = now + 60000;
+            }
+        }
+
         public void MapChannelWorker(long delta)
         {
             Timer.Update(delta);
 
             PartyManager.Instance.ExpireHeldMembers();
 
+            // Clan feuds whose time is up.
+            Guard("ClanFeuds.Worker", null, () => ClanFeuds.Instance.Worker());
+
             // Server-wide lists, ticked once. These used to run inside the per-map loop below,
             // guarded by that map having players, so with N populated maps every auto-fire
             // timer and every dropship advanced N times per tick.
             if (Timer.IsTriggered("AutoFire"))
-                ManifestationManager.Instance.AutoFireTimerDoWork(delta);
+                Guard("ManifestationManager.AutoFireTimerDoWork", null, () => ManifestationManager.Instance.AutoFireTimerDoWork(delta));
 
             foreach (var mapChannel in MapChannelArray.Values
                          .Concat(_privateInstances.Snapshot())
@@ -270,61 +308,150 @@ namespace Rasa.Managers
             {
 
                 mapChannel.MapChannelElapsed += delta;
-                DynamicObjectManager.Instance.DropshipsWorker(mapChannel, delta);
+                Guard("DynamicObjectManager.DropshipsWorker", mapChannel, () => DynamicObjectManager.Instance.DropshipsWorker(mapChannel, delta));
 
-                if (Timer.IsTriggered("CheckForLogingClients"))
-                    if (mapChannel.QueuedClients.Count > 0)
-                    {
-                        // create new mapClient
-                        var dequedClient = mapChannel.QueuedClients.Dequeue();
+                // A /killmap asked for since the last tick: done here, between thinks.
+                Guard("MapReset.Worker", mapChannel, () => MapReset.Worker(mapChannel));
 
-                        // add it to list
-                        mapChannel.ClientList.Add(dequedClient);
-                    }
+                // Everyone who has been sent into this map since the last tick goes onto its list.
+                //
+                // This used to move one client per map per second (a 1000 ms timer, one Dequeue),
+                // a pace carried over from the original server, where the dequeue did the work of
+                // bringing a player in. Here MapLoaded does that work, and does not wait for the
+                // dequeue: a player is registered, in the cells and walking about as soon as their
+                // client has loaded. The list is only how the per-player workers find them -
+                // visibility, regeneration, inactivity, map links, regions, and the removal pass
+                // that takes out a player whose connection has dropped - so after a restart with a
+                // few hundred players coming back to one map, the last of them spent minutes in
+                // the world with a frozen view of it, no regeneration, and nothing to notice them
+                // leave. The workers already pass over a client that is still loading, which is
+                // what most dequeued clients were even at one a second.
+                while (mapChannel.QueuedClients.Count > 0)
+                {
+                    var queued = mapChannel.QueuedClients.Dequeue();
+
+                    if (queued != null && !mapChannel.ClientList.Contains(queued))
+                        mapChannel.ClientList.Add(queued);
+                }
 
                 if (mapChannel.ClientList.Count > 0)
                 {
-                    ActorActionManager.Instance.DoWork(mapChannel, delta);
-                    MissileManager.Instance.DoWork(mapChannel, delta);
-                    BehaviorManager.Instance.MapChannelThink(mapChannel, delta);
+                    // Rushing Blow: the charging players carried a step on, every tick, before
+                    // the blows whose windup is up are resolved.
+                    Guard("AbilityManager.ChargeWorker", mapChannel, () => AbilityManager.Instance.ChargeWorker(mapChannel));
+
+                    // Kael rushing blow: the blows whose charge is over.
+                    Guard("KaelRushingBlow.Worker", mapChannel, () => KaelRushingBlow.Worker(mapChannel));
+
+                    // Creature bombs, death blasts and self-destructs whose time has come.
+                    Guard("CreatureBombs.Worker", mapChannel, () => CreatureBombs.Worker(mapChannel));
+
+                    // Creature heals, repairs and revives whose windup is up.
+                    Guard("CreatureSupport.Worker", mapChannel, () => CreatureSupport.Worker(mapChannel));
+
+                    // Summoned turrets and pets whose time is up; grubs out of their cocoons.
+                    Guard("CreatureSummons.Worker", mapChannel, () => CreatureSummons.Worker(mapChannel));
+
+                    // Linkers' channels whose windup is done, and the boosts that have run out.
+                    Guard("CreatureBuffs.Worker", mapChannel, () => CreatureBuffs.Worker(mapChannel));
+
+                    // Creature actions that are not missiles, whose windup is done.
+                    Guard("CreatureWindups.Worker", mapChannel, () => CreatureWindups.Worker(mapChannel));
+
+                    // Miasmas whose time as a cloud is up coalesce.
+                    Guard("CreatureMiasma.Worker", mapChannel, () => CreatureMiasma.Worker(mapChannel));
+
+                    // Crab Mines: seeking, running, going off.
+                    Guard("AbilityManager.CrabMineWorker", mapChannel, () => AbilityManager.Instance.CrabMineWorker(mapChannel));
+
+                    // Reality Ripper: taking creatures in, and closing.
+                    Guard("AbilityManager.RealityRipperWorker", mapChannel, () => AbilityManager.Instance.RealityRipperWorker(mapChannel));
+
+                    // Trap: shooting, drawing the hate, running out.
+                    Guard("AbilityManager.TrapWorker", mapChannel, () => AbilityManager.Instance.TrapWorker(mapChannel));
+
+                    Guard("ActorActionManager.DoWork", mapChannel, () => ActorActionManager.Instance.DoWork(mapChannel, delta));
+                    Guard("MissileManager.DoWork", mapChannel, () => MissileManager.Instance.DoWork(mapChannel, delta));
+                    Guard("BehaviorManager.MapChannelThink", mapChannel, () => BehaviorManager.Instance.MapChannelThink(mapChannel, delta));
 
                     // despawn timers, and minions whose master has gone
-                    MinionManager.Instance.Worker(mapChannel, delta);
+                    Guard("MinionManager.Worker", mapChannel, () => MinionManager.Instance.Worker(mapChannel, delta));
 
                     // players whose combat timer has run out
-                    ManifestationManager.Instance.CombatWorker(mapChannel);
+                    Guard("ManifestationManager.CombatWorker", mapChannel, () => ManifestationManager.Instance.CombatWorker(mapChannel));
 
                     // CellManager worker
                     if (Timer.IsTriggered("CellUpdateVisibility"))
-                        CellManager.Instance.DoWork(mapChannel);
+                        Guard("CellManager.DoWork", mapChannel, () => CellManager.Instance.DoWork(mapChannel));
 
                     // check for objects
                     if (Timer.IsTriggered("CheckForObjects"))
-                        DynamicObjectManager.Instance.DynamicObjectWorker(mapChannel, delta);
+                        Guard("DynamicObjectManager.DynamicObjectWorker", mapChannel, () => DynamicObjectManager.Instance.DynamicObjectWorker(mapChannel, delta));
 
                     // check for creatures
                     if (Timer.IsTriggered("CheckForCreatures"))
-                        SpawnPoolManager.Instance.SpawnPoolWorker(mapChannel, delta);
+                        Guard("SpawnPoolManager.SpawnPoolWorker", mapChannel, () => SpawnPoolManager.Instance.SpawnPoolWorker(mapChannel, delta));
 
                     // check for mapTriggers
                     if (Timer.IsTriggered("CheckForMapTriggers"))
                     {
-                        MapTriggerManager.Instance.TriggersProximityWorker(mapChannel);
+                        Guard("MapTriggerManager.TriggersProximityWorker", mapChannel, () => MapTriggerManager.Instance.TriggersProximityWorker(mapChannel));
 
                         // zone borders and instance doors: anyone standing in one leaves the map
-                        MapLinkManager.Instance.Worker(mapChannel);
+                        Guard("MapLinkManager.Worker", mapChannel, () => MapLinkManager.Instance.Worker(mapChannel));
 
                         // ambient/music/sky/minimap regions: tell whoever changed region
-                        RegionManager.Instance.Worker(mapChannel);
+                        Guard("RegionManager.Worker", mapChannel, () => RegionManager.Instance.Worker(mapChannel));
                     }
 
                     // check for effects (buffs)
                     if (Timer.IsTriggered("ClientEffectUpdate"))
-                        GameEffectManager.Instance.DoWork(mapChannel, delta);
+                    {
+                        Guard("GameEffectManager.DoWork", mapChannel, () => GameEffectManager.Instance.DoWork(mapChannel, delta));
+
+                        // Fire Support's beacons: their blasts and napalm pools.
+                        Guard("AbilityManager.FireSupportWorker", mapChannel, () => AbilityManager.Instance.FireSupportWorker(mapChannel));
+
+                        // Toys: rockets and fireworks taken away once they are done, pets whose owner has gone.
+                        Guard("AbilityManager.ToyWorker", mapChannel, () => AbilityManager.Instance.ToyWorker(mapChannel));
+
+                        // Dropship beacons: settled, sent away, and the travel window for the squad in reach.
+                        Guard("DropshipBeacons.Worker", mapChannel, () => DropshipBeacons.Worker(mapChannel));
+
+                        // Scatterbombs: the spent bombs are taken away once their blasts have played.
+                        Guard("AbilityManager.ScatterbombWorker", mapChannel, () => AbilityManager.Instance.ScatterbombWorker(mapChannel));
+
+                        // Cadaver Immolation: the bodies whose delay is up.
+                        Guard("AbilityManager.CorpseWorker", mapChannel, () => AbilityManager.Instance.CorpseWorker(mapChannel));
+
+                        // Hortimonculus: the plants' healing, protection and decay.
+                        Guard("AbilityManager.HortimonculusWorker", mapChannel, () => AbilityManager.Instance.HortimonculusWorker(mapChannel));
+
+                        // Reanimation: the risen whose master has gone, and the spent ones.
+                        Guard("AbilityManager.ReanimationWorker", mapChannel, () => AbilityManager.Instance.ReanimationWorker(mapChannel));
+
+                        // Spotter: the spent ones taken away, the fallen let go.
+                        Guard("AbilityManager.SpotterWorker", mapChannel, () => AbilityManager.Instance.SpotterWorker(mapChannel));
+
+                        // Mind Control: the frightened kept running, the confused turned on someone new.
+                        Guard("AbilityManager.MindControlWorker", mapChannel, () => AbilityManager.Instance.MindControlWorker(mapChannel));
+
+                        // Tactical Evasion: the smoke screens, and the marks a retreat goes back to.
+                        Guard("AbilityManager.SmokeWorker", mapChannel, () => AbilityManager.Instance.SmokeWorker(mapChannel));
+
+                        // Shield Drones: the shield raised, held over whoever is under it, and its heal.
+                        Guard("ShieldDrone.Worker", mapChannel, () => ShieldDrone.Worker(mapChannel));
+
+                        // Amoeboids: the regurgitated children whose time is up.
+                        Guard("AmoeboidVomit.Worker", mapChannel, () => AmoeboidVomit.Worker(mapChannel));
+
+                        // Falls that ended with the player standing still: no Move to end them.
+                        Guard("FallDamage.Worker", mapChannel, () => FallDamage.Worker(mapChannel));
+                    }
 
                     // a second's health, armour, power and chi for everyone here
                     if (Timer.IsTriggered("Regenerate"))
-                        ActorManager.Instance.Regenerate(mapChannel);
+                        Guard("ActorManager.Regenerate", mapChannel, () => ActorManager.Instance.Regenerate(mapChannel));
 
                     _missionScenarioService?.TickMap(mapChannel);
 
@@ -333,9 +460,24 @@ namespace Rasa.Managers
 
                     // check for players leaving the map: /logout, inactivity, and dropped
                     // connections flagged by Client.Close()
-                    foreach (var client in mapChannel.ClientList)
+                    //
+                    // Every one flagged, not the first: this took one player per map per tick and
+                    // stopped, so two hundred connections dropping together from one map - an
+                    // ISP blip, the server's own network - took twenty seconds to clear, with each
+                    // character still registered, in the cells and fought by creatures meanwhile.
+                    // RemovePlayer writes to the database, so a crowd is spread over a few ticks
+                    // by RemovalBudgetMs rather than stalling one; the first always goes.
+                    var removalFrom = System.Diagnostics.Stopwatch.GetTimestamp();
+                    var removed = 0;
+
+                    foreach (var client in mapChannel.ClientList.ToArray())
                         if (client != null && client.Player.RemoveFromMap)
                         {
+                            if (removed > 0 && System.Diagnostics.Stopwatch.GetElapsedTime(removalFrom).TotalMilliseconds >= RemovalBudgetMs)
+                                break;
+
+                            removed++;
+
                             // The MainLoop thread has no handler of its own, so an exception
                             // escaping here stops the whole server ticking. Clear the flag
                             // first and drop the entry on failure so a bad removal is logged
@@ -351,12 +493,20 @@ namespace Rasa.Managers
                                 Logger.WriteLog(LogType.Error, $"Failed to remove {client.Player.FamilyName} from map {mapChannel.MapInfo.MapContextId}: {e}");
                                 mapChannel.ClientList.Remove(client);
                             }
-
-                            break;
                         }
                 }
             }
         }
+
+        /// <summary>How long one map's removal pass may run in a tick before the rest wait for the next; see MapChannelWorker.</summary>
+        private const double RemovalBudgetMs = 50;
+
+        /// <summary>The account level whose clients get EnableDevCommands when they enter the world.</summary>
+        public const GmLevel DevCommandsLevel = GmLevel.GameMaster;
+
+        /// <summary>Whether this client is to get EnableDevCommands now: a GM's, not sent it yet.</summary>
+        public static bool ShouldEnableDevCommands(Client client) =>
+            client?.AccountEntry != null && !client.DevCommandsSent && client.AccountEntry.Level >= (byte)DevCommandsLevel;
 
         public void MapLoaded(Client client)
         {
@@ -419,10 +569,13 @@ namespace Rasa.Managers
                     return;
 
                 var dropship = new Dropship(
-                    Factions.AFS,
+                    TargetCategory.Friendly,
                     DropshipType.Teleporter,
                     client,
                     DropshipRole.Arrival);
+
+                // Already over the pad, beam on: see Dropship.ArriveOverhead.
+                dropship.ArriveOverhead();
                 client.Player.MapChannel = mapChannel;
                 client.Player.MapContextId = dropship.Client.LoadingMap;
 
@@ -443,9 +596,21 @@ namespace Rasa.Managers
 
                 CellManager.Instance.AddToWorld(dropship.Client); // will introduce the player to all clients, including the current owner
                 MapLinkManager.Instance.PlayerEnteredMap(client);
-                CellManager.Instance.CellCallMethod(dropship.Client.Player.MapChannel, dropship.Client.Player, new TeleportArrivalPacket());
+
+                // Not down yet: held faded out - the PreTeleport fade they boarded with, which
+                // lasts until a TeleportArrival stops it - under the ship's beam. Their own client
+                // beams them down as it leaves the loading screen (wonkavator.py OnExitState),
+                // everyone else's when the ship says so (Dropship.OverheadBeamMs).
+                CellManager.Instance.CellCallMethod(dropship.Client.Player.MapChannel, dropship.Client.Player, new PreTeleportPacket(TeleportType.Default));
                 client.CallMethod(SysEntity.ClientMethodId, new RequestMovementBlockPacket());
                 _assignPlayer(client);
+
+                // The buffs brought from the map left, now there is somebody to show them to.
+                EffectCarry.Restore(client);
+
+                // And what they sold before the ride, still to be bought back.
+                NpcManager.Instance.ResendBuyback(client);
+
                 CommunicatorManager.Instance.PlayerEnterMap(dropship.Client);
 
                 return;
@@ -473,6 +638,14 @@ namespace Rasa.Managers
             if (client.AccountEntry != null && client.AccountEntry.Level >= (byte)GmLevel.Observer)
                 MapErrorManager.Instance.SendTo(client);
 
+            // A GM's client gets its developer commands, once per connection: see
+            // EnableDevCommandsPacket for what a client needs to do anything with it.
+            if (ShouldEnableDevCommands(client))
+            {
+                client.CallMethod(SysEntity.ClientMethodId, new EnableDevCommandsPacket());
+                client.DevCommandsSent = true;
+            }
+
             CellManager.Instance.AddToWorld(client); // will introduce the player to all clients, including the current owner
 
             // Before the first link check: a player who arrives through a pass is standing in
@@ -480,10 +653,28 @@ namespace Rasa.Managers
             MapLinkManager.Instance.PlayerEnteredMap(client);
             ManifestationManager.Instance.AssignPlayer(client);
 
+            // The buffs brought from the map left (nothing on a login): after the player is in
+            // the cells and their own client has its actor's info, so the attach reaches it and
+            // everyone around.
+            EffectCarry.Restore(client);
+
+            // The Recently Sold list: what is still to be bought back after a map change, or a
+            // clean one on a login.
+            NpcManager.Instance.ResendBuyback(client);
+
             ClanManager.Instance.InitializePlayerClanData(client);
             InventoryManager.Instance.InitClanInventory(client);
+
+            // The clan's feuds, for the tracker and the Clan Warfare list: after a login the client
+            // knows of none, and after a map link this only refreshes them.
+            ClanFeuds.Instance.PlayerEnteredWorld(client);
+
             _enterMapChannels(client);
             PartyManager.Instance.PlayerEnteredWorld(client);
+
+            // A character saved below the map's floor - out of the world when they left it - is put
+            // back; any other is noted as where they arrived.
+            SafetyFloor.OnEnteredWorld(client);
         }
 
         private static bool IsExpectedTransferMapLoad(Client client)
@@ -543,12 +734,18 @@ namespace Rasa.Managers
             MapLinkManager.Instance.PlayerEnteredMap(client);
             _assignPlayer(client);
 
+            // As on any arrival: the buffs carried over, the buyback list, the clan's feuds.
+            EffectCarry.Restore(client);
+            NpcManager.Instance.ResendBuyback(client);
+            ClanFeuds.Instance.PlayerEnteredWorld(client);
+
             client.PendingTransfer = null;
             client.State = ClientState.Ingame;
             ResumeMissionScenes(client);
             ManifestationManager.Instance.ResetInactivity(client);
             client.CallMethod(SysEntity.ClientMethodId, new UnrequestMovementBlockPacket());
             _enterMapChannels(client);
+            SafetyFloor.OnEnteredWorld(client);
             if (transfer.ReleaseOwnedPrivateInstancesForCharacterId != 0)
                 ReleaseOwnedPrivateInstances(transfer.ReleaseOwnedPrivateInstancesForCharacterId);
         }
@@ -715,10 +912,22 @@ namespace Rasa.Managers
                 client.State = ClientState.Teleporting;
                 client.Player.Target = 0;
                 LootDispenserManager.Instance.RemoveForOwner(origin, client);
+                ManifestationManager.Instance.RemovePlayerCharacter(client);
                 ActorActionManager.Instance.RemoveActor(client.Player);
+
+                // The timed buffs go aside, clocks stopped, to go on again on arrival (EffectCarry).
+                EffectCarry.Stash(client.Player);
                 GameEffectManager.Instance.ClearEffects(origin, client.Player);
+
+                // Out of weapon, stance and follow, as RemovePlayer does: the client arrives at peace.
                 client.Player.WeaponReady = false;
+                client.Player.InCombatMode = false;
+                client.Player.RequestedCombatMode = false;
+                client.Player.AutoFireCombatMode = false;
+                client.Player.TrackingTargetEntityId = 0;
                 MinionManager.Instance.DismissAll(client);
+                AbilityManager.DismissPet(client.Player);
+                DynamicObjectManager.Instance.ForgetPlayer(origin, client);
                 MapLinkManager.Instance.RemovePlayer(client);
                 RegionManager.Instance.RemovePlayer(client);
                 CommunicatorManager.Instance.LeaveMapChannels(client);
@@ -768,36 +977,91 @@ namespace Rasa.Managers
             inventory.Clear();
         }
 
+        /// <summary>
+        /// Takes a player out of the map: out of the managers that track them, out of the entity
+        /// tables and the cells, off the map's client list, and - on a logout - back to the
+        /// character screen.
+        ///
+        /// Every step runs in <see cref="RemovalStep"/>, which logs a failure and goes on to the
+        /// next. It used to be one straight run, with the database writes second and the cells
+        /// near the end, and the caller clears RemoveFromMap before calling and drops the client
+        /// from the list if this throws - so a SqliteException out of the position save (a busy
+        /// database, a full disk) or a throw from an effect's OnDetached left a manifestation
+        /// registered and standing in its cells with nothing that would ever look at it again.
+        /// Worse, if the throw came after the inventories were emptied, every player who later
+        /// walked into those cells was introduced to it, and building its entity data indexed
+        /// its empty equipment list: the newcomer's MapLoaded threw and they were disconnected,
+        /// for as long as the server ran. A step that fails now costs what that step does - a
+        /// save, a notice - and the player still leaves.
+        ///
+        /// Each step also tolerates having been done already (lists emptied, ids unregistered,
+        /// cells left), so a second removal of the same player is harmless.
+        /// </summary>
         public void RemovePlayer(Client client, bool logout)
         {
-            DetachMissionScenes(client, client.Player.MapChannel);
-            ManifestationManager.Instance.RemovePlayerCharacter(client);
+            // Out of the mission scenes, and back to where a transfer still under way started,
+            // before anything reads which map the player is on.
+            RemovalStep(client, "leaving mission scenes", () => DetachMissionScenes(client, client.Player.MapChannel));
+            RemovalStep(client, "removing the character", () => ManifestationManager.Instance.RemovePlayerCharacter(client));
             client.RestoreTransferOrigin();
-            DynamicObjectManager.Instance.CleanupClientDropships(client);
+            RemovalStep(client, "removing its dropships", () => DynamicObjectManager.Instance.CleanupClientDropships(client));
+
+            var player = client.Player;
+            var mapChannel = player.MapChannel;
 
             // A target is an entity on this map; the client does not always re-target after a
             // map change, and MissileLaunch refuses cross-map targets, so drop it here.
-            client.Player.Target = 0;
+            player.Target = 0;
 
-            // unregister Communicator
-            CommunicatorManager.Instance.PlayerExitMap(client);
+            // Position and time played to the database, chat channels left, friends told.
+            RemovalStep(client, "leaving chat and saving position", () => CommunicatorManager.Instance.PlayerExitMap(client));
+
             // unregister mapChannelClient
-            EntityManager.Instance.UnregisterEntity(client.Player.EntityId);
-            EntityManager.Instance.UnregisterPlayer(client.Player.EntityId);
-            EntityManager.Instance.UnregisterActor(client.Player.EntityId);
+            RemovalStep(client, "unregistering the character", () =>
+            {
+                EntityManager.Instance.UnregisterEntity(player.EntityId);
+                EntityManager.Instance.UnregisterPlayer(player.EntityId);
+                EntityManager.Instance.UnregisterActor(player.EntityId);
+            });
 
             // unregister character Inventory
-            DestroyInventory(client, client.Player.Inventory.EquippedInventory);
-            DestroyInventory(client, client.Player.Inventory.HomeInventory);
-            DestroyInventory(client, client.Player.Inventory.PersonalInventory);
-            DestroyInventory(client, client.Player.Inventory.WeaponDrawer);
+            RemovalStep(client, "releasing the inventory", () =>
+            {
+                DestroyInventory(client, player.Inventory.EquippedInventory);
+                DestroyInventory(client, player.Inventory.HomeInventory);
+                DestroyInventory(client, player.Inventory.PersonalInventory);
+                DestroyInventory(client, player.Inventory.WeaponDrawer);
 
-            NpcManager.Instance.DiscardBuybackItems(client);
-            ActorActionManager.Instance.RemoveActor(client.Player);
+                // The auction house's pick-up items are this player's; they are loaded again from
+                // their rows on arrival, like the lists above, and were left registered each time.
+                DestroyInventory(client, player.Inventory.InboxItems);
+
+                // Listed items are the auction house's (AuctionHouseManager.Listed), which keeps
+                // them while the seller is away and gives the same objects back on their next
+                // load; the seller's list of them only goes.
+                player.Inventory.AuctionItems.Clear();
+            });
+
+            // The Recently Sold list lasts the session: a map change keeps it, and the arrival
+            // shows it again (NpcManager.ResendBuyback).
+            if (logout)
+                RemovalStep(client, "discarding the buyback list", () => NpcManager.Instance.DiscardBuybackItems(client));
+
+            RemovalStep(client, "removing queued actions", () => ActorActionManager.Instance.RemoveActor(player));
 
             // Effects are per map as far as the clients know - nobody on the next map was told
             // about them - and a sprint left running would keep draining adrenaline unseen.
-            GameEffectManager.Instance.ClearEffects(client.Player.MapChannel, client.Player);
+            // A map change keeps the timed buffs aside, clocks stopped, to go on again on arrival
+            // (EffectCarry); a logout keeps nothing.
+            RemovalStep(client, "clearing effects", () =>
+            {
+                if (logout)
+                    EffectCarry.Drop(player);
+                else
+                    EffectCarry.Stash(player);
+
+                GameEffectManager.Instance.ClearEffects(mapChannel, player);
+            });
 
             // The weapon is put away with them. A manifestation arriving on a map starts with
             // nothing in its hands - the client transitions to _no_tool and is never told
@@ -806,42 +1070,73 @@ namespace Rasa.Managers
             // of the session: the server thought a weapon was out that the player could see was
             // not, which let a tool action through that the client refuses (basetoolaction.py
             // checks IsWeaponReady) and skipped the draw the fire path performs for itself.
-            client.Player.WeaponReady = false;
+            player.WeaponReady = false;
+
+            // The combat stance goes the same way. The client's manifestation arrives at peace -
+            // ClearMap removed it and the new map creates it afresh - but the flag stayed as it
+            // was, and AssignPlayer sends it back in ActorInfo (isHoldingCombatMode). A player who
+            // zoned in stance was put back into it with a hold, which outlasts the client's own
+            // 2.5 s return to peace. The RequestVisualCombatMode that would have cleared it is one
+            // the client sends after the server has already set Loading, which is dropped.
+            player.InCombatMode = false;
+            player.RequestedCombatMode = false;
+            player.AutoFireCombatMode = false;
+
+            // And whatever it was following or walking up to: that is on the map being left.
+            player.TrackingTargetEntityId = 0;
 
             // Before the player leaves the cells, while their minions can still be told to go:
             // "Player-controlled subordinates will teleport with their masters, but not change
             // maps." Leaving the map is leaving them behind, so they are dismissed, not orphaned.
-            MinionManager.Instance.DismissAll(client);
+            RemovalStep(client, "dismissing minions", () => MinionManager.Instance.DismissAll(client));
+            RemovalStep(client, "sending the pet home", () => AbilityManager.DismissPet(client.Player));
 
-            CellManager.Instance.RemoveFromWorld(client);
-            MapLinkManager.Instance.RemovePlayer(client);
-            RegionManager.Instance.RemovePlayer(client);
-            ClanManager.Instance.RemovePlayer(client);
-            LookingForGroupManager.Instance.RemovePlayer(client);
-            SummonManager.Instance.RemovePlayer(client);
-            TradeManager.Instance.RemovePlayer(client);
-            PartyManager.Instance.RemovePlayer(client);
-            PetitionManager.Instance.RemovePlayer(client);
-            client.Player.Inventory = new Inventory();
+            // Off every waypoint, pad, station and control point's list of who is at it; nothing
+            // else takes a player who left standing on one off it.
+            RemovalStep(client, "leaving waypoints and objects", () => DynamicObjectManager.Instance.ForgetPlayer(mapChannel, client));
 
+            RemovalStep(client, "leaving the cells", () => CellManager.Instance.RemoveFromWorld(client));
+            RemovalStep(client, "leaving map links", () => MapLinkManager.Instance.RemovePlayer(client));
+            RemovalStep(client, "leaving regions", () => RegionManager.Instance.RemovePlayer(client));
+            RemovalStep(client, "leaving the clan roster", () => ClanManager.Instance.RemovePlayer(client));
+            RemovalStep(client, "leaving looking-for-group", () => LookingForGroupManager.Instance.RemovePlayer(client));
+            RemovalStep(client, "cancelling summons", () => SummonManager.Instance.RemovePlayer(client));
+            RemovalStep(client, "cancelling trade", () => TradeManager.Instance.RemovePlayer(client));
+            RemovalStep(client, "leaving the squad", () => PartyManager.Instance.RemovePlayer(client));
+            RemovalStep(client, "closing petitions", () => PetitionManager.Instance.RemovePlayer(client));
+
+            // Leaving the world, not the map: the cooldowns still running go to the database, to
+            // be picked up when the character is next loaded.
             if (logout)
-                if (client.Player.Disconected == false)
-                {
-                    PassClientToCharacterSelection(client);
-                    client.Player.Disconected = true;
-                }
+                RemovalStep(client, "saving cooldowns", () => ActionReuse.Save(client));
 
-            // remove from list
-            for (var i = 0; i < client.Player.MapChannel.ClientList.Count; i++)
+            if (logout && player.Disconected == false)
             {
-                if (client == client.Player.MapChannel.ClientList[i])
-                {
-                    client.Player.MapChannel.ClientList.RemoveAt(i);
-                    //mapClient.MapChannel.PlayerCount--;
-                    break;
-                }
+                RemovalStep(client, "returning to character selection", () => PassClientToCharacterSelection(client));
+                player.Disconected = true;
             }
 
+            // Nothing of the old lists is carried: the next map loads them afresh.
+            player.Inventory = new Inventory();
+
+            // remove from list
+            mapChannel?.ClientList.Remove(client);
+        }
+
+        /// <summary>
+        /// One step of <see cref="RemovePlayer"/>. A failure is logged against the player and the
+        /// step, and the removal carries on: see RemovePlayer for why no step may stop the rest.
+        /// </summary>
+        private static void RemovalStep(Client client, string step, Action work)
+        {
+            try
+            {
+                work();
+            }
+            catch (Exception e)
+            {
+                Logger.WriteLog(LogType.Error, $"Removing {client.Player?.FamilyName} from the world: {step} failed, carrying on with the rest: {e}");
+            }
         }
 
         /// <summary>
@@ -859,14 +1154,54 @@ namespace Rasa.Managers
         /// on no map's list or login queue is removed here, the way the worker would have; any
         /// other is left alone, so nobody is removed twice.
         /// </summary>
+        /// <summary>
+        /// Whether any map still lists a connection of this account, on its client list or its
+        /// login queue. A connection that has closed stays on its map's list until the worker has
+        /// taken its character out of the world, so this is true for exactly as long as a
+        /// character of the account may still be there.
+        /// </summary>
+        public bool HoldsClientOf(uint accountId)
+        {
+            foreach (var mapChannel in MapChannelArray.Values)
+            {
+                foreach (var client in mapChannel.ClientList)
+                    if (client?.AccountEntry?.Id == accountId)
+                        return true;
+
+                foreach (var client in mapChannel.QueuedClients)
+                    if (client?.AccountEntry?.Id == accountId)
+                        return true;
+            }
+
+            return false;
+        }
+
         public void RemoveStrandedPlayer(Client client)
         {
             var player = client.Player;
 
-            if (player == null
-                || !EntityManager.Instance.Players.TryGetValue(player.EntityId, out var registered)
-                || registered != player)
+            if (player == null)
                 return;
+
+            if (!EntityManager.Instance.Players.TryGetValue(player.EntityId, out var registered) || registered != player)
+            {
+                // Out of the world already - but a map change keeps what they sold to buy back
+                // (RemovePlayer), and a connection lost on its loading screen would leave those
+                // items registered for good.
+                if (player.Inventory.BuybackItems.Count > 0)
+                {
+                    try
+                    {
+                        NpcManager.Instance.DiscardBuybackItems(client);
+                    }
+                    catch (Exception e)
+                    {
+                        Logger.WriteLog(LogType.Error, $"Failed to discard the buyback list of disconnected player {player.FamilyName}: {e}");
+                    }
+                }
+
+                return;
+            }
 
             foreach (var mapChannel in MapChannelArray.Values)
                 if (mapChannel.ClientList.Contains(client) || mapChannel.QueuedClients.Contains(client))

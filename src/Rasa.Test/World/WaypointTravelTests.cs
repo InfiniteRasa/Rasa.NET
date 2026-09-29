@@ -74,6 +74,31 @@ namespace Rasa.Test.World
             Assert.AreEqual(1, saved);
         }
 
+        // The client acknowledges a Teleport only when a BeginTeleport has queued the answer
+        // (actor.py BeginTeleport -> _TeleportAckQueue, Recv_Teleport -> _TeleportAck), so the
+        // BeginTeleport has to come first or the transfer is never completed.
+        [TestMethod]
+        public void BeginTeleportComesBeforeTheTeleportSoTheClientAcknowledgesIt()
+        {
+            using var world = new WorldTestContext();
+            var client = world.CreateClient();
+            CellManager.Instance.AddToWorld(client);
+            WorldTestContext.Drain(client);
+            var manager = CreateManager(world);
+            AddWaypoint(manager, world.Map, 10, Vector3.Zero);
+            AddWaypoint(manager, world.Map, 20, new Vector3(200, 5, 0));
+            client.Player.GainedWaypoints.Add(new CharacterTeleporterEntry(client.Player.Id, 20, (byte)WaypointType.Waypoint));
+
+            manager.SelectWaypoint(client, new SelectWaypointPacket { MapInstanceId = world.Map.MapInfo.MapContextId, WaypointId = 20 });
+
+            var sent = WorldTestContext.Drain(client).Select(p => p.Message)
+                .OfType<CallMethodMessage>().Select(p => p.Packet).ToList();
+            var begin = sent.FindIndex(packet => packet is BeginTeleportPacket);
+            var teleport = sent.FindIndex(packet => packet is TeleportPacket);
+            Assert.IsTrue(begin >= 0, "BeginTeleport sent");
+            Assert.IsLessThan(teleport, begin, "BeginTeleport first");
+        }
+
         [TestMethod]
         [DataRow(false, false)]
         [DataRow(true, true)]
@@ -114,8 +139,13 @@ namespace Rasa.Test.World
             Assert.IsNull(client.PendingTransfer);
         }
 
+        /// <summary>
+        /// The travel window keys each row by the map id it was listed under - the map's context
+        /// id (MapInstanceInfo) - and sends that back as the instance: what a real client sends
+        /// when a waypoint is picked. It selects the instance that row was listed for.
+        /// </summary>
         [TestMethod]
-        public void MapContextCannotBeUsedAsAnInstanceAlias()
+        public void TheListedMapIdSelectsTheWaypointsOwnInstance()
         {
             using var world = new WorldTestContext();
             var client = world.CreateClient();
@@ -127,6 +157,26 @@ namespace Rasa.Test.World
             client.Player.GainedWaypoints.Add(new CharacterTeleporterEntry(client.Player.Id, 20, (byte)WaypointType.Waypoint));
 
             manager.SelectWaypoint(client, new SelectWaypointPacket { MapInstanceId = 1220, WaypointId = 20 });
+
+            Assert.AreEqual(ClientState.Teleporting, client.State);
+            Assert.IsNotNull(client.PendingTransfer);
+            Assert.AreEqual(new Vector3(200, 1, 0), client.Player.Position);
+        }
+
+        /// <summary>A map id that is neither the waypoint's map nor its instance number is still refused.</summary>
+        [TestMethod]
+        public void AnotherMapsIdIsNotAnInstanceOfThisOne()
+        {
+            using var world = new WorldTestContext();
+            var client = world.CreateClient();
+            CellManager.Instance.AddToWorld(client);
+            WorldTestContext.Drain(client);
+            var manager = CreateManager(world);
+            AddWaypoint(manager, world.Map, 10, Vector3.Zero);
+            AddWaypoint(manager, world.Map, 20, new Vector3(200, 0, 0));
+            client.Player.GainedWaypoints.Add(new CharacterTeleporterEntry(client.Player.Id, 20, (byte)WaypointType.Waypoint));
+
+            manager.SelectWaypoint(client, new SelectWaypointPacket { MapInstanceId = 1148, WaypointId = 20 });
 
             Assert.AreEqual(Vector3.Zero, client.Player.Position);
             Assert.IsNull(client.PendingTransfer);
@@ -229,7 +279,7 @@ namespace Rasa.Test.World
             Assert.IsTrue(trigger.TriggeredBy.Contains(client));
             var menu = WorldTestContext.Drain(client).Select(p => p.Message).OfType<CallMethodMessage>()
                 .Select(p => p.Packet).OfType<EnteredWaypointPacket>().Single();
-            Assert.AreEqual(1U, menu.CurrentMapId);
+            Assert.AreEqual(1220U, menu.CurrentMapId);
             client.Player.Position = new Vector3(200, 0, 0);
             CellManager.Instance.UpdateVisibility(client);
             triggers.TriggersProximityWorker(world.Map);

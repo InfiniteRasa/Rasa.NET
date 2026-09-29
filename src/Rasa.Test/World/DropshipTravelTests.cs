@@ -74,7 +74,7 @@ namespace Rasa.Test.World
                 Assert.IsNull(client.PendingTransfer);
                 Assert.AreEqual(1, saved);
                 var arrival = new Dropship(
-                    Factions.AFS,
+                    TargetCategory.Friendly,
                     DropshipType.Teleporter,
                     client,
                     DropshipRole.Arrival);
@@ -224,7 +224,7 @@ namespace Rasa.Test.World
             using var world = new WorldTestContext();
             var client = world.CreateClient();
             var ship = new Dropship(
-                Factions.AFS,
+                TargetCategory.Friendly,
                 DropshipType.Teleporter,
                 client,
                 DropshipRole.Departure);

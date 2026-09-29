@@ -100,9 +100,32 @@ namespace Rasa.Migrations.MySqlChar
                         .HasColumnType("int unsigned")
                         .HasColumnName("ability_level");
 
+                    b.Property<uint?>("ItemId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("item_id");
+
                     b.HasKey("CharacterId", "AbilitySlot");
 
                     b.ToTable("character_ability_drawer");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.Char.CharacterActionReuseEntry", b =>
+                {
+                    b.Property<uint>("CharacterId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("character_id");
+
+                    b.Property<uint>("ActionId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("action_id");
+
+                    b.Property<long>("ReadyAt")
+                        .HasColumnType("bigint")
+                        .HasColumnName("ready_at");
+
+                    b.HasKey("CharacterId", "ActionId");
+
+                    b.ToTable("character_action_reuse");
                 });
 
             modelBuilder.Entity("Rasa.Structures.Char.CharacterAppearanceEntry", b =>
@@ -190,6 +213,10 @@ namespace Rasa.Migrations.MySqlChar
                     b.Property<byte>("CurrentAbilitySlot")
                         .HasColumnType("tinyint unsigned")
                         .HasColumnName("current_ability_slot");
+
+                    b.Property<uint>("CurrentTitleId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("current_title_id");
 
                     b.Property<uint>("Experience")
                         .ValueGeneratedOnAdd()
@@ -915,17 +942,14 @@ namespace Rasa.Migrations.MySqlChar
             modelBuilder.Entity("Rasa.Structures.Char.CharacterTitleEntry", b =>
                 {
                     b.Property<uint>("CharacterId")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("int unsigned")
                         .HasColumnName("character_id");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<uint>("CharacterId"));
 
                     b.Property<uint>("TitleId")
                         .HasColumnType("int unsigned")
                         .HasColumnName("title_id");
 
-                    b.HasKey("CharacterId");
+                    b.HasKey("CharacterId", "TitleId");
 
                     b.ToTable("character_title");
                 });
@@ -1209,6 +1233,10 @@ namespace Rasa.Migrations.MySqlChar
                     b.Property<uint>("AmmoCount")
                         .HasColumnType("int unsigned")
                         .HasColumnName("ammo_count");
+
+                    b.Property<uint>("BoundCharacterId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("bound_character_id");
 
                     b.Property<uint>("Color")
                         .HasColumnType("int unsigned")

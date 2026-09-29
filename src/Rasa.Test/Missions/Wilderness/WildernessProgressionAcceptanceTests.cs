@@ -16,7 +16,7 @@ namespace Rasa.Test.Missions.Wilderness
         public void WaveAProviderBoundaryEnablesExactlyItsNativeOutdoorScopeAndBootcamp()
         {
             using var harness = WildernessRuntimeTestHarness.Create(
-                targetWorldMigration: "20260929090436_WildernessLandingZone");
+                targetWorldMigration: "20261104001100_WildernessLandingZone");
             var outdoor = new uint[]
             {
                 1407, 1069, 479, 1449,
@@ -39,7 +39,7 @@ namespace Rasa.Test.Missions.Wilderness
         public void ForwardWorldUpgradePreservesTheActiveTargetsOfOpportunityAttemptAndCharacterState()
         {
             using var harness = WildernessRuntimeTestHarness.Create(
-                targetWorldMigration: "20260928224705_WildernessAliaOpening");
+                targetWorldMigration: "20261104000200_WildernessAliaOpening");
             harness.SpawnWorld(196);
             var cimoch = harness.Npc(196);
             using (var unit = harness.CreateChar())

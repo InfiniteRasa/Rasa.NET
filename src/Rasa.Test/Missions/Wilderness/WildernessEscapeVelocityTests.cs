@@ -133,7 +133,7 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.IsTrue(Math.Abs(pierre.Position.Y - boarding.Y) <= 0.35f,
                 "The ground under the raised pad must not count as boarding.");
             Assert.AreSame(pierre, EntityManager.Instance.GetCreature(pierre.EntityId));
-            Assert.AreEqual(530070U, pierre.SpawnPool.DbId);
+            Assert.AreEqual(630070U, pierre.SpawnPool.DbId);
             Assert.IsTrue(pierre.Attributes[Attributes.Health].Current > 0);
             Assert.AreEqual(MissionObjectiveState.Completed, harness.Client.Player.Missions[666].Objectives[1].State);
             using (var unit = harness.CreateChar())
@@ -488,11 +488,11 @@ namespace Rasa.Test.Missions.Wilderness
         {
             var definition = harness.World.CreatureEntries.SingleOrDefault(creature => creature.NameId == 3097);
             Assert.IsNotNull(definition, "The coordinator-owned World migration must provide native Sgt. Pierre.");
-            Assert.AreEqual(530070U, definition.Id);
+            Assert.AreEqual(630070U, definition.Id);
             Assert.AreEqual(6340U, definition.ClassId);
             var pool = harness.Map.SpawnPools.Single(spawn =>
                 spawn.SpawnSlot.Any(slot => slot.CreatureId == definition.Id));
-            Assert.AreEqual(530070U, pool.DbId);
+            Assert.AreEqual(630070U, pool.DbId);
             Assert.AreEqual(1, pool.SpawnSlot.Sum(slot => slot.CountMax));
             harness.SpawnWorld(pool.DbId, 172);
             var pierre = harness.Npc(pool.DbId);

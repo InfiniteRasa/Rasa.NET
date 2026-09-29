@@ -683,6 +683,7 @@ namespace Rasa.Test.Missions.Scenes
             var app = Application(context, world, () => now);
             var originalOutput = Console.Out;
             using var output = new StringWriter();
+            global::Rasa.Logger.Flush();
             Console.SetOut(output);
             try
             {
@@ -710,6 +711,7 @@ namespace Rasa.Test.Missions.Scenes
             }
             finally
             {
+                global::Rasa.Logger.Flush();
                 Console.SetOut(originalOutput);
             }
             Assert.IsFalse(output.ToString().Contains("remains pending", StringComparison.Ordinal), output.ToString());
@@ -767,8 +769,8 @@ namespace Rasa.Test.Missions.Scenes
             SharedActorRepeatFixture fixture, string control, string status, byte expectedAction, bool restoredPose = false)
         {
             var context = fixture.Context;
-            fixture.Guide.Faction = Factions.Bane;
-            fixture.Independent.Faction = Factions.AFS;
+            fixture.Guide.TargetCategory = TargetCategory.Hostile;
+            fixture.Independent.TargetCategory = TargetCategory.Friendly;
             Assert.IsTrue(context.Manager.AcceptOfferedMission(context.Client, fixture.Giver.EntityId, 321));
             Assert.IsTrue(context.Manager.Scenes.ExecuteNamed(context.Client, 321, control));
             Assert.IsTrue(context.Manager.Scenes.Submit(fixture.RootId,
@@ -782,7 +784,7 @@ namespace Rasa.Test.Missions.Scenes
             context.Manager.Scenes.Detach(1, context.Map);
             fixture.DeferGuideSpawn();
             fixture.RestoreGuideSpawn();
-            fixture.Guide.Faction = Factions.Bane;
+            fixture.Guide.TargetCategory = TargetCategory.Hostile;
             var injected = false;
             context.BeforeCommand = command =>
             {
@@ -796,6 +798,7 @@ namespace Rasa.Test.Missions.Scenes
             };
             var previousOutput = Console.Out;
             using var output = new StringWriter();
+            global::Rasa.Logger.Flush();
             Console.SetOut(output);
             try
             {
@@ -804,6 +807,7 @@ namespace Rasa.Test.Missions.Scenes
             finally
             {
                 context.BeforeCommand = null;
+                global::Rasa.Logger.Flush();
                 Console.SetOut(previousOutput);
             }
             Assert.IsTrue(injected, "Inject only after the real world adapter has restarted the target control.");

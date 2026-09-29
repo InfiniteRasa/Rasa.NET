@@ -452,7 +452,9 @@ namespace Rasa.Managers
             string.IsNullOrEmpty(familyName)
                 ? null
                 : Server.Clients.Find(c => c.State == ClientState.Ingame && c.Player != null && c.AccountEntry != null
-                                           && string.Equals(c.Player.FamilyName, familyName, System.StringComparison.OrdinalIgnoreCase));
+                                           && string.Equals(c.Player.FamilyName, familyName, System.StringComparison.Ordinal))
+                  ?? Server.Clients.Find(c => c.State == ClientState.Ingame && c.Player != null && c.AccountEntry != null
+                                              && string.Equals(c.Player.FamilyName, familyName, System.StringComparison.OrdinalIgnoreCase));
 
         #endregion
     }

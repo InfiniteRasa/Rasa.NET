@@ -14,11 +14,13 @@ namespace Rasa.NavMesh
     /// Builds one Detour navmesh per map from the client's own data - the terrain heightmap in
     /// <c>data/maps/&lt;map&gt;/t*_terrain.glm</c> and the collision meshes of every entity placed by
     /// <c>data/maps/&lt;map&gt;/&lt;map&gt;.map</c>, read out of <c>data/mesh*.glm</c> - and writes
-    /// <c>&lt;out&gt;/&lt;map&gt;.nav</c> for Rasa.Game's NavMeshManager.
+    /// <c>&lt;out&gt;/&lt;map&gt;.nav</c> for Rasa.Game's NavMeshManager. From the same geometry it
+    /// writes <c>&lt;out&gt;/&lt;map&gt;.cover</c> (CoverMesh), what the server casts its cover rays
+    /// against; <c>--cover-only</c> writes just that, leaving the navmeshes as they are.
     ///
     /// <code>
     /// Rasa.NavMesh --client "C:\Games\Tabula Rasa" --out navmesh [--map adv_foreas_concordia_wilderness]...
-    ///              [--terrain-step 2] [--cell 0.4] [--threads 8] [--obj]
+    ///              [--terrain-step 2] [--cell 0.4] [--threads 8] [--obj] [--cover-only | --no-cover]
     /// Rasa.NavMesh --path navmesh\adv_foreas_concordia_wilderness.nav  x1 y1 z1  x2 y2 z2
     /// </code>
     /// </summary>
@@ -43,6 +45,8 @@ namespace Rasa.NavMesh
             var maps = new List<string>();
             var settings = new BuildSettings();
             var writeObj = false;
+            var writeNav = true;
+            var writeCover = true;
             var positional = new List<string>();
 
             for (var i = 0; i < args.Length; i++)
@@ -65,6 +69,8 @@ namespace Rasa.NavMesh
                     case "--tile": settings.TileSize = int.Parse(Next()); break;
                     case "--threads": settings.Threads = int.Parse(Next()); break;
                     case "--obj": writeObj = true; break;
+                    case "--cover-only": writeNav = false; writeCover = true; break;
+                    case "--no-cover": writeCover = false; break;
                     case "--path": pathTest = Next(); break;
                     case "-h": case "--help": Usage(); return 0;
                     default: positional.Add(args[i]); break;
@@ -154,10 +160,21 @@ namespace Rasa.NavMesh
                     if (writeObj)
                         geometry.WriteObj(Path.Combine(output, name + ".obj"));
 
-                    var navMesh = NavMeshBuilder.Build(geometry, settings, Console.WriteLine);
-                    var path = NavMeshFile.PathFor(output, name);
-                    NavMeshFile.Write(path, navMesh);
-                    Console.WriteLine($"  wrote {path} ({new FileInfo(path).Length / 1024:n0} KB) in {mapWatch.Elapsed.TotalSeconds:0.0} s");
+                    if (writeCover)
+                    {
+                        var cover = CoverBuilder.Build(geometry, settings);
+                        var coverPath = CoverMesh.PathFor(output, name);
+                        cover.Write(coverPath);
+                        Console.WriteLine($"  wrote {coverPath} ({cover.TriangleCount:n0} tris, terrain {(cover.HasTerrain ? "yes" : "no")}, {new FileInfo(coverPath).Length / 1024:n0} KB)");
+                    }
+
+                    if (writeNav)
+                    {
+                        var navMesh = NavMeshBuilder.Build(geometry, settings, Console.WriteLine);
+                        var path = NavMeshFile.PathFor(output, name);
+                        NavMeshFile.Write(path, navMesh);
+                        Console.WriteLine($"  wrote {path} ({new FileInfo(path).Length / 1024:n0} KB) in {mapWatch.Elapsed.TotalSeconds:0.0} s");
+                    }
                 }
                 catch (Exception e)
                 {
@@ -216,8 +233,8 @@ namespace Rasa.NavMesh
 
         private static void Usage()
         {
-            Console.WriteLine("Rasa.NavMesh --client <Tabula Rasa folder> [--out navmesh] [--map <name>]... [--terrain-step 2] [--cell 0.4] [--cell-height 0.2] [--detail-distance 6] [--threads N] [--obj]");
-            Console.WriteLine($"Rasa.NavMesh --client <Tabula Rasa folder> --map {BuildSettings.WildernessMapName} --profile {BuildSettings.WildernessProfileName} [--out navmesh] [--threads N]");
+            Console.WriteLine("Rasa.NavMesh --client <Tabula Rasa folder> [--out navmesh] [--map <name>]... [--terrain-step 2] [--cell 0.4] [--cell-height 0.2] [--detail-distance 6] [--threads N] [--obj] [--cover-only | --no-cover]");
+            Console.WriteLine($"Rasa.NavMesh --client <Tabula Rasa folder> --map {BuildSettings.WildernessMapName} --profile {BuildSettings.WildernessProfileName} [--out navmesh] [--threads N] [--cover-only | --no-cover]");
             Console.WriteLine("Rasa.NavMesh --path <file.nav> x1 y1 z1 x2 y2 z2");
         }
     }

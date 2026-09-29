@@ -35,6 +35,21 @@ namespace Rasa.Structures
         /// <summary>Whether someone has already taken this one.</summary>
         public bool Taken { get; set; }
 
+        /// <summary>
+        /// The manifestation that won this item on a squad roll (Managers.LootRolls), or 0. Only
+        /// they may take it, for as long as the corpse lasts.
+        /// </summary>
+        public ulong ReservedFor { get; set; }
+
+        /// <summary>
+        /// Whether this manifestation may take the item, among those allowed at the corpse at all:
+        /// the roll's winner for a rolled item; otherwise anyone sharing a squad's Free For All
+        /// corpse (PartyId set), or the owner it was rolled for (ActorId) - the killer, or whoever
+        /// Rotation handed the corpse to.
+        /// </summary>
+        public bool MayTake(ulong entityId) =>
+            ReservedFor != 0 ? ReservedFor == entityId : PartyId != 0 || ActorId == entityId;
+
         public LootItem(uint itemTemplateId, uint itemClassId, uint itemQuantity, ulong actorId, uint partyId)
             : this(true)
         {

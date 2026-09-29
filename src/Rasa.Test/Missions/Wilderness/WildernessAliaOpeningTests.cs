@@ -85,8 +85,8 @@ namespace Rasa.Test.Missions.Wilderness
 
             for (var count = 1U; count <= 12; count++)
             {
-                var pool = harness.Map.SpawnPools.Single(pool => pool.DbId == 46);
-                harness.SpawnWorldAfter(pool.RespawnTime, 46);
+                var pool = harness.Map.SpawnPools.Single(pool => pool.DbId == 580019);
+                harness.SpawnWorldAfter(pool.RespawnTime, 580019);
                 var thrax = harness.Map.MapCellInfo.Cells.Values.SelectMany(cell => cell.CreatureList)
                     .FirstOrDefault(creature => creature.DbId == 3 && creature.State != CharacterState.Dead);
                 Assert.IsNotNull(thrax, $"No live Thrax at kill {count}; alive={pool.AliveCreatures}, queued={pool.QueuedCreatures}, " +

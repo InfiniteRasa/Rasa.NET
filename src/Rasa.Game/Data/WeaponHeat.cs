@@ -36,9 +36,9 @@ namespace Rasa.Data
         public const double Capacity = 1000.0;
 
         /// <summary>
-        /// MIN_HEAT_FOR_DURABILITY_LOSS. Above this, firing was meant to cost the weapon
-        /// condition. Nothing here uses it: this server does not wear a weapon down by firing it
-        /// at all, so gating a loss that does not happen would be inventing the loss.
+        /// MIN_HEAT_FOR_DURABILITY_LOSS. A weapon attack wears the weapon only while its barrel
+        /// is at or above this (Managers.Durability.WearWeapon). At the placeholder heat numbers
+        /// every template carries no weapon gets this hot, so none wears until they are corrected.
         /// </summary>
         public const double MinHeatForDurabilityLoss = 500.0;
 

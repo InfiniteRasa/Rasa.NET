@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -10,6 +10,7 @@ namespace Rasa.Managers
     using Packets;
     using Packets.MapChannel.Client;
     using Packets.MapChannel.Server;
+    using Repositories.Char;
     using Repositories.UnitOfWork;
     using Structures;
 
@@ -24,8 +25,9 @@ namespace Rasa.Managers
     ///  1. The client checks the ability itself - cooldown, cost, target - then plays its own
     ///     windup and sends RequestPerformAbility(actionId, level, target, itemId). It does not
     ///     wait for the server to start the windup.
-    ///  2. The server checks the same things and, if any fails, answers UserActionFailed with
-    ///     the reason; the client shows it and cancels its windup. Otherwise everyone else is
+    ///  2. The server checks the same things and, if any fails, answers with the reason
+    ///     (ActorManager.RefuseRequest: UserActionFailed, which the client shows, and
+    ///     ActionFailed, which cancels its windup). Otherwise everyone else is
     ///     sent PerformWindup so they see the animation, and the action is queued for the
     ///     windup time.
     ///  3. When the windup has run the server resolves the ability: takes the cost, starts the
@@ -48,21 +50,10 @@ namespace Rasa.Managers
         private static readonly object InstanceLock = new object();
 
         private readonly IGameUnitOfWorkFactory _gameUnitOfWorkFactory;
-        private readonly MissionApplication _missionManager;
         private readonly Dictionary<ActionId, ActionInfo> _actions = new Dictionary<ActionId, ActionInfo>();
         private readonly Dictionary<uint, (ActionId ActionId, uint Level)> _itemTemplateActions = new Dictionary<uint, (ActionId, uint)>();
         private readonly HashSet<ActionId> _reportedUnsupported = new HashSet<ActionId>();
         private readonly Random _random = new Random();
-
-        private sealed class LightningLanding
-        {
-            internal Creature Primary;
-            internal DynamicObject PracticeTarget;
-            internal Vector3 PrimaryPosition;
-            internal float ArcRadius;
-            internal int ArcDamage;
-            internal IReadOnlyList<Creature> ArcTargets;
-        }
 
         /// <summary>
         /// Metres past an ability's range a target may be and still be hit. The client checks
@@ -70,6 +61,9 @@ namespace Rasa.Managers
         /// slack covers the former.
         /// </summary>
         private const float RangeSlack = 2.5f;
+
+        /// <summary>Vortex's client module: its targets are pulled in (CrowdControl.Pull) as well as hurt.</summary>
+        public const string VortexModule = "abilities.vortex";
 
         /// <summary>
         /// The client modules whose DoAbility reads hit data as (rawInfo, onHitData) - the
@@ -81,7 +75,9 @@ namespace Rasa.Managers
         {
             "abilities.lightning", "abilities.knockback", "abilities.rushingblow", "abilities.shrapnel",
             "abilities.tectonicstrike", "abilities.stun", "abilities.concussivewave", "abilities.energywave",
-            "abilities.vortex", "abilities.deathdamage", "abilities.stalkereggattack"
+            "abilities.vortex", "abilities.deathdamage", "abilities.stalkereggattack",
+            // Polymorph's creature attacks (AbilityManager.MorphAbilities).
+            KaelSmashModule, KaelGroundPoundModule, CaretakerAttackModule
         };
 
         /// <summary>
@@ -92,18 +88,33 @@ namespace Rasa.Managers
         {
             "abilities.rage", "abilities.resistance", "abilities.sacrifice", "abilities.decay",
             "abilities.scourge", "abilities.reconstruction", "abilities.regenerationwave", "abilities.basewave",
+            "abilities.shieldextender", "abilities.shieldwave", "abilities.bioaugmentation", "abilities.weaponenhancement",
+            "abilities.damageconversion", "abilities.critwave", "abilities.painttarget", "abilities.polarityfield",
+            "abilities.controlledfission", "abilities.explodingnanites", "abilities.disease", "abilities.firesupport",
+            "abilities.selfdestruct", "abilities.scatterbombs", "abilities.calledshot", "abilities.feedback",
+            "abilities.reflection", "abilities.conversion", "abilities.corpseexplode", "abilities.cure",
+            "abilities.cloakwave", "abilities.tacticalevasion", "abilities.traitor", "abilities.hack", "abilities.mindcontrol",
             "abilities.medpack"
         };
 
+        /// <summary>
+        /// Of those, the ones aimed at a friend (client targetType TARGET_FRIENDLY): another
+        /// player, or the performer when nobody else is targeted.
+        /// </summary>
+        private static readonly HashSet<string> FriendlyEffectModules = new HashSet<string>
+        {
+            "abilities.shieldextender", "abilities.bioaugmentation", "abilities.weaponenhancement"
+        };
+
         /// <summary>Of those, the ones aimed at a single enemy (client targetType TARGET_NON_FRIENDLY).</summary>
-        private static readonly HashSet<string> HostileEffectModules = new HashSet<string> { "abilities.decay" };
+        private static readonly HashSet<string> HostileEffectModules = new HashSet<string> { "abilities.decay", "abilities.painttarget", "abilities.polarityfield", "abilities.controlledfission", "abilities.explodingnanites", "abilities.disease", "abilities.traitor", "abilities.hack", "abilities.mindcontrol" };
 
         /// <summary>
         /// Abilities the client marks isToggle without a sourceGameEffect or targetGameEffect
         /// (Sacrifice), or whose toggle the player may also press again while it runs (Rage): a
         /// second request while the effect is on means "off", as it does for sprint.
         /// </summary>
-        private static readonly HashSet<string> ToggleModules = new HashSet<string> { "abilities.sprint", "abilities.rage", "abilities.sacrifice" };
+        private static readonly HashSet<string> ToggleModules = new HashSet<string> { "abilities.sprint", "abilities.rage", "abilities.sacrifice", "abilities.selfdestruct", PolymorphModule };
 
         public static AbilityManager Instance
         {
@@ -122,6 +133,8 @@ namespace Rasa.Managers
                 return _instance;
             }
         }
+
+        private readonly MissionApplication _missionManager;
 
         private AbilityManager(IGameUnitOfWorkFactory gameUnitOfWorkFactory)
             : this(gameUnitOfWorkFactory, null)
@@ -144,6 +157,19 @@ namespace Rasa.Managers
         {
             info = null;
             return _actions.TryGetValue(actionId, out var action) && action.Levels.TryGetValue(level, out info);
+        }
+
+        /// <summary>An action's client module and its level's data - a creature's attack as much as a player's ability.</summary>
+        public bool TryGetAction(ActionId actionId, uint level, out string module, out ActionLevelInfo info)
+        {
+            module = null;
+            info = null;
+
+            if (!_actions.TryGetValue(actionId, out var action) || !action.Levels.TryGetValue(level, out info))
+                return false;
+
+            module = action.Module;
+            return true;
         }
 
         /// <summary>The action a usable item template performs, if it performs one.</summary>
@@ -258,9 +284,25 @@ namespace Rasa.Managers
                 return;
             }
 
+            // Stunned or knocked down (PlayerCrowdControl): nothing until it ends.
+            if (Stuns.IsStunned(player))
+            {
+                Fail(client, actionId, level, PlayerMessage.PmCannotPerformActionNow);
+                return;
+            }
+
+            // Blocked (ActionBlocks): the client greys it out and refuses it itself, and this holds
+            // to that for one that asks anyway.
+            if (ActionBlocks.IsBlocked(player, actionId))
+            {
+                Fail(client, actionId, level, PlayerMessage.PmCannotPerformActionNow);
+                return;
+            }
+
             // Is it theirs to use? A skill that grants the ability at this level, or a usable
             // item in their pack whose template performs exactly this action.
-            var item = packet.ItemId != 0 ? EntityManager.Instance.GetItem(packet.ItemId) : null;
+            var item = packet.ItemId != 0 ? EntityManager.Instance.GetItem((ulong)packet.ItemId) : null;
+
             if (packet.ItemId != 0 && item == null)
             {
                 Fail(client, actionId, level, PlayerMessage.PmMissingReqItem);
@@ -274,11 +316,50 @@ namespace Rasa.Managers
                 return;
             }
 
+            // A skill's ability also wants its Logos in the Tabula (AbilityLogos). An item that
+            // performs the action, and a Polymorph disguise's own abilities, do not.
+            if (item == null && !IsMorphAbility(player, actionId, level) && !AbilityLogos.Has(player.Logos, actionId))
+            {
+                Fail(client, actionId, level, PlayerMessage.PmCannotUseAbilityNoLogos);
+                return;
+            }
+
             if (!CanResolve(action, info))
             {
                 if (_reportedUnsupported.Add(actionId))
                     Logger.WriteLog(LogType.Error, $"Ability {action.Name} ({action.Module}) is not implemented on the server yet; refused.");
 
+                Fail(client, actionId, level, PlayerMessage.PmCannotPerformActionNow);
+                return;
+            }
+
+            // An emote or title the player already has, a rocket still in the air (Toys).
+            var toyRefusal = ToyRefusal(mapChannel, player, action, info);
+
+            if (toyRefusal.HasValue)
+            {
+                Fail(client, actionId, level, toyRefusal.Value);
+                return;
+            }
+
+            // The pet that is out, used again: it goes home, and nothing is performed.
+            if (TryDismissPet(player, action, level))
+            {
+                Fail(client, actionId, level, null);
+                return;
+            }
+
+            // Polymorphed: "unable to access their inventory, abilities or consumables". The client
+            // locks its own UI; this is the server holding to it. Polymorph itself still ends it.
+            if (IsMorphed(player) && action.Module != PolymorphModule && !IsMorphAbility(player, actionId, level))
+            {
+                Fail(client, actionId, level, PlayerMessage.PmCannotPerformActionNow);
+                return;
+            }
+
+            // "The user may have up to 3 Crab Mines active at once."
+            if (action.Module == CrabMinesModule && CrabMinesOf(player) >= MaxCrabMines)
+            {
                 Fail(client, actionId, level, PlayerMessage.PmCannotPerformActionNow);
                 return;
             }
@@ -311,38 +392,91 @@ namespace Rasa.Managers
             // The target, when the ability wants one. Area-around-source and cone abilities have
             // none; self abilities have none or the performer.
             Actor target = null;
+
+            // Or a Bootcamp practice target, for the recruit's lightning (PracticeTargetManager).
             DynamicObject practiceTarget = null;
 
             if (!SelfCentred(info) && packet.Target.HasEntity && packet.Target.EntityId != player.EntityId)
             {
                 target = ResolveTarget(mapChannel, packet.Target.EntityId);
+
                 if (target == null)
                     practiceTarget = ResolvePracticeTarget(mapChannel, player, info, packet.Target.EntityId);
 
-                if (target == null && practiceTarget == null)
+                if (practiceTarget != null)
+                {
+                    var practiceDistance = Vector3.Distance(player.Position, practiceTarget.Position);
+
+                    if (!float.IsFinite(practiceDistance) || info.MaxRange > 0 && practiceDistance > info.MaxRange + RangeSlack)
+                    {
+                        Fail(client, actionId, level, PlayerMessage.PmTargetOutOfRange);
+                        return;
+                    }
+                }
+                else if (target == null)
                 {
                     Fail(client, actionId, level, PlayerMessage.PmActionFailedNoTarget);
                     return;
                 }
 
-                if (target?.State == CharacterState.Dead)
+                // A corpse ability (canTargetDead) wants the body; everything else, the living.
+                // A practice target has no actor behind it and was range-checked above.
+                if (target == null)
+                {
+                }
+                else if (CorpseModules.Contains(action.Module))
+                {
+                    if (!IsUsableCorpse(target))
+                    {
+                        Fail(client, actionId, level, PlayerMessage.PmTargetInvalid);
+                        return;
+                    }
+                }
+                else if (target.State == CharacterState.Dead)
                 {
                     Fail(client, actionId, level, PlayerMessage.PmActionFailedTargetDead);
                     return;
                 }
 
-                var distance = Vector3.Distance(player.Position, practiceTarget?.Position ?? target.Position);
-                if (!float.IsFinite(distance) || info.MaxRange > 0 && distance > info.MaxRange + RangeSlack)
+                if (target != null && info.MaxRange > 0 && Vector3.Distance(player.Position, target.Position) > info.MaxRange + RangeSlack)
                 {
                     Fail(client, actionId, level, PlayerMessage.PmTargetOutOfRange);
                     return;
                 }
             }
 
+            // A point on the ground, when the ability is aimed at one: where a turret, trap, rift or
+            // fire support beacon goes, or the centre of an area blast. It was taken as sent, so any
+            // of those could be put anywhere on the map - in the air, inside a base, on another
+            // player - with the range the table gives the ability never consulted. Held to that range
+            // like an entity target; an ability whose range is 0 has no use for a point and gets none.
+            Vector3? location = null;
+
+            if (packet.Target.Kind == ActionTargetKind.Location && info.MaxRange > 0)
+            {
+                if (!LocationInRange(player, packet.Target.Location, info))
+                {
+                    Fail(client, actionId, level, PlayerMessage.PmTargetOutOfRange);
+                    return;
+                }
+
+                location = packet.Target.Location;
+            }
+
             var wantsHostile = IsDirectDamage(action, info) || HostileEffectModules.Contains(action.Module);
 
-            if (wantsHostile && target == null && practiceTarget == null &&
-                !SelfCentred(info) && packet.Target.Kind != ActionTargetKind.Location)
+            // A friendly buff lands on a player; a creature is not a friend to buff. A snowball goes
+            // where nullability.py's TARGET_FRIENDLY lets it: a player, or a FRIENDLY creature - a
+            // soldier, a vendor - as the Snowball Launcher's does (ToolActionManager).
+            if (target != null && !(target is Manifestation) &&
+                (FriendlyEffectModules.Contains(action.Module) ||
+                 action.Module == SnowballModule && !(target is Creature { TargetCategory: TargetCategory.Friendly })))
+            {
+                Fail(client, actionId, level, PlayerMessage.PmTargetInvalid);
+                return;
+            }
+
+            if (wantsHostile && target == null && practiceTarget == null && !SelfCentred(info) && packet.Target.Kind != ActionTargetKind.Location)
             {
                 Fail(client, actionId, level, PlayerMessage.PmActionFailedNoTarget);
                 return;
@@ -392,13 +526,31 @@ namespace Rasa.Managers
             // action queue does.
             mapChannel.PerformRecovery.RemoveAll(a => a.Actor == player && a.ActionId == actionId);
 
-            mapChannel.PerformRecovery.Add(new ActionData(player, actionId, level, targetId, info.WindupMs)
+            // Rushing Blow's windup is the charge: timed as the client times it, the distance at
+            // 70 m/s, with the performer carried to the target through it.
+            var windupMs = (long)info.WindupMs;
+
+            if (action.Module == RushingBlowModule && target != null)
+            {
+                windupMs = ChargeWindupMs(Vector3.Distance(player.Position, target.Position));
+                StartCharge(mapChannel, client, player, target, actionId, windupMs);
+            }
+
+            mapChannel.PerformRecovery.Add(new ActionData(player, actionId, level, targetId, windupMs)
             {
                 TargetObject = practiceTarget,
-                TargetLocation = packet.Target.Kind == ActionTargetKind.Location ? packet.Target.Location : null,
+                TargetLocation = location,
                 ItemId = packet.ItemId
             });
         }
+
+        /// <summary>
+        /// Whether this item of the player's performs the action at this level: theirs, in their
+        /// pack, not used up, and its template's action is exactly this one (ItemTemplateActions).
+        /// What a tray slot holding an item has to be (ManifestationManager.RequestSetAbilitySlot).
+        /// </summary>
+        public bool ItemPerforms(Manifestation player, Item item, ActionId actionId, uint level) =>
+            player != null && item != null && Grants(player, actionId, level, item);
 
         /// <summary>
         /// Whether the player may use the action at this level: a skill of theirs grants the
@@ -415,6 +567,10 @@ namespace Rasa.Managers
                 return _itemTemplateActions.TryGetValue(item.ItemTemplateId, out var performs) && performs.ActionId == actionId && performs.Level == level;
             }
 
+            // Polymorphed: the creature's combat actions are theirs while it lasts.
+            if (IsMorphAbility(player, actionId, level))
+                return true;
+
             foreach (var skill in player.Skills.Values)
                 if (skill.AbilityId == (int)actionId && skill.SkillLevel >= level)
                     return true;
@@ -422,10 +578,81 @@ namespace Rasa.Managers
             return false;
         }
 
+        /// <summary>
+        /// Blocks (ActionBlocks.Unimplemented) every ability the player's skills grant that this
+        /// server cannot perform at any level they have - the ones RequestPerformAbility would
+        /// refuse as not implemented - and unblocks the rest, so the drawer shows them grey
+        /// instead of winding up for a refusal. Run when the character enters a map (with
+        /// <paramref name="send"/> false, ActionBlocks.Resend following) and when their skills
+        /// change.
+        /// </summary>
+        public void RefreshUnimplementedBlocks(Client client, bool send = true)
+        {
+            var player = client?.Player;
+
+            if (player == null)
+                return;
+
+            var blocked = new List<ActionId>();
+
+            foreach (var skill in player.Skills.Values)
+            {
+                if (skill.AbilityId <= 0 || skill.SkillLevel <= 0)
+                    continue;
+
+                var actionId = (ActionId)skill.AbilityId;
+
+                // An id the tables do not have is refused as bad data, not blocked: an empty table
+                // would otherwise grey out every ability there is.
+                if (!_actions.TryGetValue(actionId, out var action))
+                    continue;
+
+                if (!action.Levels.Any(l => l.Key <= (uint)skill.SkillLevel && CanResolve(action, l.Value)))
+                    blocked.Add(actionId);
+            }
+
+            ActionBlocks.SetAll(client, ActionBlocks.Unimplemented, blocked, send);
+        }
+
+        /// <summary>
+        /// Whether the tables know this action at this level (0 meaning no particular level): what
+        /// an ability drawer slot may hold. Nothing checked the drawer, so any id and level were
+        /// saved and shown to everyone who met the player.
+        /// </summary>
+        public bool IsKnownAction(long actionId, long level)
+        {
+            if (actionId <= 0 || actionId > uint.MaxValue || level < 0 || level > uint.MaxValue)
+                return false;
+
+            return _actions.TryGetValue((ActionId)actionId, out var action)
+                   && (level == 0 || action.Levels.ContainsKey((uint)level));
+        }
+
+        /// <summary>The action's name from the tables, or null for an id they do not have.</summary>
+        public string ActionName(ActionId actionId) => _actions.TryGetValue(actionId, out var action) ? action.Name : null;
+
+        /// <summary>
+        /// A target point that is a real position within the ability's range of the performer,
+        /// height included. A NaN or infinite coordinate fails every comparison, which would have
+        /// read as in range, so those are refused outright.
+        /// </summary>
+        private static bool LocationInRange(Manifestation player, Vector3 location, ActionLevelInfo info)
+        {
+            if (!float.IsFinite(location.X) || !float.IsFinite(location.Y) || !float.IsFinite(location.Z))
+                return false;
+
+            return info.MaxRange > 0 && Vector3.Distance(player.Position, location) <= info.MaxRange + RangeSlack;
+        }
+
         /// <summary>Whether this server knows how to apply the ability; see the class remarks.</summary>
         private static bool CanResolve(ActionInfo action, ActionLevelInfo info)
         {
-            return action.Module == "abilities.sprint" || IsDirectDamage(action, info) || TimedEffectModules.Contains(action.Module);
+            return action.Module == "abilities.sprint" || action.Module == PolymorphModule || action.Module == CrabMinesModule || action.Module == RealityRipperModule || action.Module == TrapModule || action.Module == TurretModule
+                || action.Module == HortimonculusModule || action.Module == ReanimationModule || action.Module == ReanimationWaveModule
+                || action.Module == SpotterModule || action.Module == BotConstructionModule || action.Module == CreateCloneModule
+                || MorphSupportModules.Contains(action.Module)
+                || IsDirectDamage(action, info) || TimedEffectModules.Contains(action.Module)
+                || IsToy(action, info);
         }
 
         /// <summary>
@@ -459,10 +686,12 @@ namespace Rasa.Managers
                 _ => null
             };
 
-            // Entity ids are global, cells are per map: a target on another map is not here.
+            // Entity ids are global, cells are per map: a target on another map - or another copy
+            // of this one - is not here.
             return IsOnMap(mapChannel, target) ? target : null;
         }
 
+        /// <summary>The Bootcamp practice target or mission prop that the recruit's lightning can hit from here.</summary>
         private static DynamicObject ResolvePracticeTarget(
             MapChannel map, Manifestation player, ActionLevelInfo info, ulong entityId)
         {
@@ -478,17 +707,15 @@ namespace Rasa.Managers
             => MapInstanceScope.Contains(mapChannel, actor);
 
         /// <summary>
-        /// Who a player's damage may land on: creatures that are not AFS. Other players are not
-        /// targets - there is no PvP to speak of yet - and AFS creatures are the friendly NPCs.
+        /// Who a player's damage may land on: HOSTILE and NEUTRAL creatures (TargetCategories.
+        /// PlayerMayAttack). Other players are not targets - there is no PvP to speak of yet - and
+        /// FRIENDLY creatures are the friendly NPCs.
         /// </summary>
-        private static bool IsHostile(Manifestation player, Actor target)
+        internal static bool IsHostile(Manifestation player, Actor target)
         {
-            return target is Creature creature &&
-                   creature.Faction != Factions.AFS &&
-                   creature.State != CharacterState.Dead &&
-                   creature.State != CharacterState.Dying &&
-                   creature.Attributes.TryGetValue(Attributes.Health, out var health) &&
-                   health.Current > 0;
+            return target is Creature creature && TargetCategories.PlayerMayAttack(creature.TargetCategory)
+                   && creature.State != CharacterState.Dead && creature.State != CharacterState.Dying
+                   && creature.Attributes.TryGetValue(Attributes.Health, out var health) && health.Current > 0;
         }
 
         /// <summary>The first attribute the player cannot pay, or null if they can pay them all.</summary>
@@ -508,7 +735,7 @@ namespace Rasa.Managers
 
         private static void Fail(Client client, ActionId actionId, uint level, PlayerMessage? message)
         {
-            client.CallMethod(client.Player.EntityId, new UserActionFailedPacket(actionId, level, message));
+            ActorManager.RefuseRequest(client, actionId, level, message);
         }
 
         #endregion
@@ -544,13 +771,15 @@ namespace Rasa.Managers
 
                 if (!action.IsInrerrupted)
                     Fail(client, action.ActionId, action.ActionArgId, PlayerMessage.PmActionFailedActorDead);
+                else
+                    ActorManager.ResolveInterruptedRequest(client, action.ActionId, action.ActionArgId);
 
                 return;
             }
 
             // The request said they could start; this says it still lands. A windup is time the
             // world goes on in, and everything the request weighed can have changed inside it.
-            var refusal = StillAllowed(mapChannel, client, player, action, actionInfo, info);
+            var refusal = StillAllowed(mapChannel, client, player, action, info);
 
             if (refusal.HasValue)
             {
@@ -559,29 +788,18 @@ namespace Rasa.Managers
                 return;
             }
 
-            LightningLanding lightningLanding = null;
-            if (IsDirectDamage(actionInfo, info) &&
-                actionInfo.Module == "abilities.lightning" &&
-                !TrySnapshotLightningLanding(
-                    mapChannel,
-                    player,
-                    info,
-                    action,
-                    out lightningLanding))
-            {
-                SendToOthers(mapChannel, player,
-                    new ActionInterruptPacket(
-                        player.EntityId,
-                        action.ActionId,
-                        action.ActionArgId));
-                Fail(client, action.ActionId, action.ActionArgId,
-                    PlayerMessage.PmActionFailedNoTarget);
-                return;
-            }
+            // Paid on landing, not on asking. A sustained ability pays as it runs, through its
+            // effect's drain, not here.
+            if (!IsSustained(info))
+                TakeCosts(client, player, info);
+
+            // The items it takes, and the one it was used from, in one write; never a mission's.
+            // An emote's flag or a title goes in the same write; a rocket or a pet is kept (Toys).
+            var toyCommit = new ToyCommit();
 
             try
             {
-                ConsumeAbilityItems(client, info, action.ItemId);
+                ConsumeAbilityItems(client, info, KeepsSourceItem(actionInfo) ? 0 : action.ItemId, ToyWrite(actionInfo, info, player, toyCommit));
             }
             catch (Exception error) when (GameplayRejectionException.IsExpected(error))
             {
@@ -591,12 +809,93 @@ namespace Rasa.Managers
                 return;
             }
 
-            // Paid on landing, not on asking. A sustained ability pays as it runs, through its
-            // effect's drain, not here.
-            if (!IsSustained(info))
-                TakeCosts(client, player, info);
-
             StartCooldown(client, player, info);
+
+            // The charge has arrived: the blow lands from where it ends.
+            if (actionInfo.Module == RushingBlowModule)
+                FinishCharge(player);
+
+            if (MorphSupportModules.Contains(actionInfo.Module))
+            {
+                ResolveMorphSupport(mapChannel, client, player, actionInfo, info, action);
+                return;
+            }
+
+            if (IsToy(actionInfo, info))
+            {
+                ResolveToy(mapChannel, client, player, actionInfo, info, action, toyCommit);
+                return;
+            }
+
+            if (actionInfo.Module == TurretModule)
+            {
+                PlaceTurret(mapChannel, player, info, action, false);
+                CellManager.Instance.CellCallMethod(mapChannel, player, new AbilityRecoveryPacket(action.ActionId, action.ActionArgId, AbilityRecoveryPacket.HitDataKind.None));
+                return;
+            }
+
+            if (actionInfo.Module == TrapModule)
+            {
+                PlantTrap(mapChannel, player, info, action);
+                CellManager.Instance.CellCallMethod(mapChannel, player, new AbilityRecoveryPacket(action.ActionId, action.ActionArgId, AbilityRecoveryPacket.HitDataKind.None));
+                return;
+            }
+
+            if (actionInfo.Module == SpotterModule)
+            {
+                SummonSpotter(mapChannel, client, player, info, action);
+                return;
+            }
+
+            if (actionInfo.Module == BotConstructionModule)
+            {
+                ConstructBot(mapChannel, client, player, info, action);
+                return;
+            }
+
+            if (actionInfo.Module == CreateCloneModule)
+            {
+                CreateClone(mapChannel, client, player, info, action);
+                return;
+            }
+
+            if (actionInfo.Module == ReanimationModule)
+            {
+                Reanimate(mapChannel, player, info, action);
+                return;
+            }
+
+            if (actionInfo.Module == ReanimationWaveModule)
+            {
+                ReanimationWave(mapChannel, player, info, action);
+                return;
+            }
+
+            if (actionInfo.Module == HortimonculusModule)
+            {
+                GrowHortimonculus(mapChannel, player, info, action);
+                return;
+            }
+
+            if (actionInfo.Module == RealityRipperModule)
+            {
+                OpenRealityRipper(mapChannel, player, info, action);
+                CellManager.Instance.CellCallMethod(mapChannel, player, new AbilityRecoveryPacket(action.ActionId, action.ActionArgId, AbilityRecoveryPacket.HitDataKind.None));
+                return;
+            }
+
+            if (actionInfo.Module == CrabMinesModule)
+            {
+                DeployCrabMine(mapChannel, player, info, action);
+                CellManager.Instance.CellCallMethod(mapChannel, player, new AbilityRecoveryPacket(action.ActionId, action.ActionArgId, AbilityRecoveryPacket.HitDataKind.None));
+                return;
+            }
+
+            if (actionInfo.Module == PolymorphModule)
+            {
+                ResolvePolymorph(mapChannel, client, player, info, action);
+                return;
+            }
 
             if (actionInfo.Module == "abilities.sprint")
             {
@@ -607,14 +906,7 @@ namespace Rasa.Managers
 
             if (IsDirectDamage(actionInfo, info))
             {
-                ResolveDirectDamage(
-                    mapChannel,
-                    client,
-                    player,
-                    actionInfo,
-                    info,
-                    action,
-                    lightningLanding);
+                ResolveDirectDamage(mapChannel, client, player, actionInfo, info, action);
                 return;
             }
 
@@ -629,10 +921,34 @@ namespace Rasa.Managers
             CellManager.Instance.CellCallMethod(mapChannel, player, new AbilityRecoveryPacket(action.ActionId, action.ActionArgId, AbilityRecoveryPacket.HitDataKind.None));
         }
 
-        private void ConsumeAbilityItems(Client client, ActionLevelInfo info, ulong sourceItemId)
+        /// <summary>
+        /// Why a landing ability should not land after all, or null to let it through.
+        ///
+        /// The request weighs all of this and then the windup runs, which for some abilities is
+        /// seconds. The recovery took the request's word for every bit of it, and the one thing
+        /// it did repeat it repeated loosely: TakeCosts subtracts with Math.Max(0, ...), so an
+        /// ability that could no longer be paid for emptied the pool and went off anyway. Only
+        /// a second request for the same action replaces a pending one, so two different
+        /// abilities could be started against the same adrenaline and both land on one pool's
+        /// worth of it. A target could be walked out of reach during the windup and still be hit
+        /// at any distance, which with an unbounded Move is anything on the map. And the item
+        /// that granted the ability could be traded or sold in the meantime.
+        ///
+        /// What is not re-weighed: a target that died or despawned mid-windup. The ability was
+        /// performed, it costs what it costs, and it hits nothing - which is what happens now.
+        /// </summary>
+        private void ConsumeAbilityItems(Client client, ActionLevelInfo info, ulong sourceItemId, Action<ICharUnitOfWork> alsoWrite = null)
         {
             if (sourceItemId == 0 && info.ItemRequirements.Count == 0)
+            {
+                if (alsoWrite != null)
+                {
+                    using var writeUnit = _gameUnitOfWorkFactory.CreateChar();
+                    writeUnit.ExecuteTransaction(() => alsoWrite(writeUnit));
+                }
+
                 return;
+            }
             using var unit = _gameUnitOfWorkFactory.CreateChar();
             var quantities = new Dictionary<ulong, uint>();
             var source = sourceItemId == 0 ? null : EntityManager.Instance.GetItem(sourceItemId);
@@ -671,41 +987,30 @@ namespace Rasa.Managers
                 if (remaining != 0)
                     throw new GameplayRejectionException("Required ability items are no longer available.");
             }
+            // A kept source with requirements of quantity 0 (a pet summoner): nothing to take.
+            if (quantities.Count == 0)
+            {
+                if (alsoWrite != null)
+                    unit.ExecuteTransaction(() => alsoWrite(unit));
+
+                return;
+            }
             var consumption = new InventoryManager.InventoryConsumption();
-            unit.ExecuteTransaction(() => consumption.PlanAndSave(client, quantities, unit));
+            unit.ExecuteTransaction(() =>
+            {
+                consumption.PlanAndSave(client, quantities, unit);
+                alsoWrite?.Invoke(unit);
+            });
             consumption.Publish(client);
             foreach (var progress in consumption.ProgressEvents)
                 (_missionManager ?? MissionApplication.Instance).RecordProgress(client, progress);
         }
 
-        /// <summary>
-        /// Why a landing ability should not land after all, or null to let it through.
-        ///
-        /// The request weighs all of this and then the windup runs, which for some abilities is
-        /// seconds. The recovery took the request's word for every bit of it, and the one thing
-        /// it did repeat it repeated loosely: TakeCosts subtracts with Math.Max(0, ...), so an
-        /// ability that could no longer be paid for emptied the pool and went off anyway. Only
-        /// a second request for the same action replaces a pending one, so two different
-        /// abilities could be started against the same adrenaline and both land on one pool's
-        /// worth of it. A target could be walked out of reach during the windup and still be hit
-        /// at any distance, which with an unbounded Move is anything on the map. And the item
-        /// that granted the ability could be traded or sold in the meantime.
-        ///
-        /// Target identity, life, hostility, map membership and range are re-weighed here before
-        /// costs are taken. Lightning then snapshots its still-valid primary and arc candidates
-        /// at landing and revalidates each arc immediately before applying its damage.
-        /// </summary>
-        private PlayerMessage? StillAllowed(
-            MapChannel mapChannel,
-            Client client,
-            Manifestation player,
-            ActionData action,
-            ActionInfo actionInfo,
-            ActionLevelInfo info)
+        private PlayerMessage? StillAllowed(MapChannel mapChannel, Client client, Manifestation player, ActionData action, ActionLevelInfo info)
         {
             // Asked for with an item, so it is the item that has to still grant it - a skill the
             // player also happens to have does not stand in for the one they used.
-            var item = action.ItemId != 0 ? EntityManager.Instance.GetItem(action.ItemId) : null;
+            var item = action.ItemId != 0 ? EntityManager.Instance.GetItem((ulong)action.ItemId) : null;
 
             if (action.ItemId != 0 && item == null)
                 return PlayerMessage.PmMissingReqItem;
@@ -732,31 +1037,34 @@ namespace Rasa.Managers
                 if (InventoryManager.Instance.CountItemsByClass(client, requirement.ItemClass) < requirement.Quantity)
                     return PlayerMessage.PmMissingReqItem;
 
-            if (action.TargetId != 0)
+            // A practice target still has to be the one it was aimed at, and still hittable.
+            if (action.TargetObject != null)
             {
-                var target = ResolveTarget(mapChannel, action.TargetId);
-                var practiceTarget = action.TargetObject == null ? null :
-                    ResolvePracticeTarget(mapChannel, player, info, action.TargetId);
+                var practiceTarget = ResolvePracticeTarget(mapChannel, player, info, action.TargetId);
 
-                if (action.TargetObject != null && !ReferenceEquals(practiceTarget, action.TargetObject))
-                    return PlayerMessage.PmActionFailedNoTarget;
-                if (target == null && practiceTarget == null)
+                if (!ReferenceEquals(practiceTarget, action.TargetObject))
                     return PlayerMessage.PmActionFailedNoTarget;
 
-                if (target != null && IsDirectDamage(actionInfo, info) &&
-                    !IsValidPrimaryTarget(mapChannel, player, target))
-                    return target.State == CharacterState.Dead ||
-                           target.State == CharacterState.Dying ||
-                           !target.Attributes.TryGetValue(Attributes.Health, out var health) ||
-                           health.Current <= 0
-                        ? PlayerMessage.PmActionFailedTargetDead
-                        : PlayerMessage.PmActionFailedActorFriendly;
+                var practiceDistance = Vector3.Distance(player.Position, practiceTarget.Position);
 
-                var distance = Vector3.Distance(player.Position, practiceTarget?.Position ?? target.Position);
-                if (!float.IsFinite(distance) ||
-                    info.MaxRange > 0 && distance > info.MaxRange + RangeSlack)
+                if (!float.IsFinite(practiceDistance) || info.MaxRange > 0 && practiceDistance > info.MaxRange + RangeSlack)
                     return PlayerMessage.PmTargetOutOfRange;
             }
+            else if (action.TargetId != 0 && info.MaxRange > 0)
+            {
+                var target = ResolveTarget(mapChannel, action.TargetId);
+
+                if (target != null && Vector3.Distance(player.Position, target.Position) > info.MaxRange + RangeSlack)
+                    return PlayerMessage.PmTargetOutOfRange;
+            }
+
+            // The point too, since the performer can have walked away from it during the windup.
+            if (action.TargetLocation.HasValue && !LocationInRange(player, action.TargetLocation.Value, info))
+                return PlayerMessage.PmTargetOutOfRange;
+
+            // A second emote or title item for the same one, used during the first one's windup.
+            if (_actions.TryGetValue(action.ActionId, out var actionInfo) && AlreadyHasReward(player, actionInfo, info))
+                return PlayerMessage.PmCannotPerformActionNow;
 
             return null;
         }
@@ -811,84 +1119,65 @@ namespace Rasa.Managers
         /// of the performer. A cone is taken as the full circle for now. Each target gets its
         /// own roll, as the client's per-hit rawInfo expects.
         /// </summary>
-        private void ResolveDirectDamage(
-            MapChannel mapChannel,
-            Client client,
-            Manifestation player,
-            ActionInfo actionInfo,
-            ActionLevelInfo info,
-            ActionData action,
-            LightningLanding lightningLanding)
+        private void ResolveDirectDamage(MapChannel mapChannel, Client client, Manifestation player, ActionInfo actionInfo, ActionLevelInfo info, ActionData action)
         {
-            var damageType = (DamageType)info.Get(AbilityProperty.DamageType, (int)DamageType.Physical);
+            var damageType = (DamageType)info.Get(AbilityProperty.DamageType, (int)DefaultDamageTypeOf(actionInfo.Module));
             var scaleType = info.Get(AbilityProperty.DamageScaleType);
             var min = info.Get(AbilityProperty.DamageAmountMin);
             var max = Math.Max(min, info.Get(AbilityProperty.DamageAmountMax, min));
 
+            // The recruit's lightning at a Bootcamp practice target: a hit on the target, nothing else.
             if (action.TargetObject != null)
             {
-                if (lightningLanding?.PracticeTarget == null ||
-                    !PracticeTargetManager.CanHit(mapChannel, player, lightningLanding.PracticeTarget))
+                var practiceTarget = ResolvePracticeTarget(mapChannel, player, info, action.TargetId);
+
+                if (practiceTarget == null || !ReferenceEquals(practiceTarget, action.TargetObject))
                     return;
-                var practiceTarget = lightningLanding.PracticeTarget;
-                var amount = GameEffectManager.ApplyDamageDealt(
+
+                var practiceAmount = GameEffectManager.ApplyDamageDealt(
                     player, Scale(player.Level, _random.Next(min, max + 1), scaleType));
-                var result = new AbilityRecoveryPacket(
+                var practice = new AbilityRecoveryPacket(
                     action.ActionId, action.ActionArgId, AbilityRecoveryPacket.HitDataKind.Damage)
                 {
                     ArcData = true
                 };
-                result.Hits.Add(new AbilityHit
+                practice.Hits.Add(new AbilityHit
                 {
                     EntityId = practiceTarget.EntityId,
-                    Amount = amount,
+                    Amount = practiceAmount,
                     DamageType = damageType
                 });
                 ManifestationManager.Instance.EnterCombat(client);
-                CellManager.Instance.CellCallMethod(mapChannel, player, result);
-                if (amount > 0)
+                CellManager.Instance.CellCallMethod(mapChannel, player, practice);
+                if (practiceAmount > 0)
                     PracticeTargetManager.RecordHit(
-                        mapChannel, player, practiceTarget, action.ActionId, _missionManager, amount);
+                        mapChannel, player, practiceTarget, action.ActionId, _missionManager, practiceAmount);
                 return;
             }
 
             var targets = new List<Creature>();
-            var primary = action.TargetId != 0
-                ? ResolveTarget(mapChannel, action.TargetId) as Creature
-                : null;
-            var lightning = actionInfo.Module == "abilities.lightning";
-            var lightningArc = (Radius: 0f, Damage: 0, MaximumTargets: 0);
-            var lightningPrimaryPosition = Vector3.Zero;
-            IReadOnlyList<Creature> lightningArcTargets = Array.Empty<Creature>();
+            var primary = action.TargetId != 0 ? ResolveTarget(mapChannel, action.TargetId) as Creature : null;
 
-            if (lightning)
+            // Lightning's bolt strikes its target alone; what else it reaches is its arc and its
+            // storm (ResolveLightningExtras), not an area around the target.
+            if (actionInfo.Module == "abilities.lightning")
             {
-                if (lightningLanding == null &&
-                    !TrySnapshotLightningLanding(
-                        mapChannel,
-                        player,
-                        info,
-                        action,
-                        out lightningLanding))
-                    return;
-
-                primary = lightningLanding.Primary;
-                if (!IsValidPrimaryTarget(mapChannel, player, primary))
-                    return;
-
-                lightningPrimaryPosition =
-                    lightningLanding.PrimaryPosition;
-                lightningArc =
-                    (lightningLanding.ArcRadius,
-                        lightningLanding.ArcDamage,
-                        lightningLanding.ArcTargets.Count);
-                lightningArcTargets = lightningLanding.ArcTargets;
-                targets.Add(primary);
+                if (primary != null && IsHostile(player, primary))
+                    targets.Add(primary);
             }
-            else if (info.Has(AbilityProperty.RadiusAroundSource) || info.Has(AbilityProperty.ConeRadius))
+            else if (info.Has(AbilityProperty.ConeRadius))
             {
-                var radius = Math.Max(info.Get(AbilityProperty.RadiusAroundSource), info.Get(AbilityProperty.ConeRadius));
-                targets.AddRange(HostilesWithin(mapChannel, player, player.Position, radius));
+                // A cone: the action's range long, CONE_RADIUS degrees either side of the aim -
+                // at the target when there is one, otherwise the way the player faces.
+                var aim = primary != null && IsHostile(player, primary)
+                    ? primary.Position - player.Position
+                    : FacingOf(player);
+
+                targets.AddRange(HostilesInCone(mapChannel, player, aim, Math.Max(1, info.MaxRange) + RangeSlack, info.Get(AbilityProperty.ConeRadius)));
+            }
+            else if (info.Has(AbilityProperty.RadiusAroundSource))
+            {
+                targets.AddRange(HostilesWithin(mapChannel, player, player.Position, info.Get(AbilityProperty.RadiusAroundSource)));
             }
             else if (info.Has(AbilityProperty.RadiusAroundTarget))
             {
@@ -903,172 +1192,136 @@ namespace Rasa.Managers
                 targets.Add(primary);
             }
 
-            var recovery = new AbilityRecoveryPacket(action.ActionId, action.ActionArgId, AbilityRecoveryPacket.HitDataKind.Damage)
+            // A creature attack's client class wants each hit's rawInfo as it is (KaelSmashAbility and
+            // the rest); the players' abilities, DamageBase's (rawInfo, onHitData).
+            var recovery = new AbilityRecoveryPacket(action.ActionId, action.ActionArgId,
+                RawInfoModules.Contains(actionInfo.Module) ? AbilityRecoveryPacket.HitDataKind.RawInfo : AbilityRecoveryPacket.HitDataKind.Damage)
             {
-                ArcData = lightning
+                ArcData = actionInfo.Module == "abilities.lightning"
             };
 
             if (targets.Count > 0)
                 ManifestationManager.Instance.EnterCombat(client);
 
+            var critChance = CriticalHits.AttackerChance(player, false);
+            var stun = Stuns.OfAbility(actionInfo.Module, info);
+            var knockback = info.Get(AbilityProperty.KnockbackDistance);
+
             foreach (var target in targets)
             {
                 // Rolled, scaled to the performer's level, raised or lowered by the effects on
-                // them (Rage, Sacrifice), and cut by what the target's effects resist.
+                // them (Rage, Sacrifice), made a crit or not, and cut by what the target's
+                // effects resist.
                 var rolled = GameEffectManager.ApplyDamageDealt(player, Scale(player.Level, _random.Next(min, max + 1), scaleType));
-                var amount = GameEffectManager.ApplyResist(target, rolled, out var resisted);
-                var taken = ActorManager.Instance.Damage(mapChannel, target, amount, player);
+                var crit = CriticalHits.Resolve(player, target, false, critChance, ref rolled);
+                var amount = GameEffectManager.ApplyResist(target, rolled, out var resisted, damageType);
+                var taken = ActorManager.Instance.Damage(mapChannel, target, amount, player, out var outcome, damageType);
 
                 var hit = new AbilityHit
                 {
                     EntityId = target.EntityId,
-                    Amount = amount,
+                    Amount = outcome.Delivered,
+                    Absorbed = outcome.Absorbed,
+                    WasImmune = outcome.Immune,
                     Resisted = resisted,
                     DamageType = damageType,
+                    IsCritical = crit,
                     DeathBlow = taken > 0 && target.Attributes[Attributes.Health].Current <= 0
                 };
 
-                if (lightning && target == primary)
-                    ApplyLightningArcs(
-                        mapChannel,
-                        player,
-                        primary.EntityId,
-                        lightningPrimaryPosition,
-                        lightningArc.Radius,
-                        lightningArc.Damage,
-                        damageType,
-                        lightningArcTargets,
-                        hit);
-
                 recovery.Hits.Add(hit);
-                if (taken > 0 &&
-                    target.DbId != 0)
+
+                // A hit on a creature a mission counts.
+                if (taken > 0 && target.DbId != 0)
                     (_missionManager ?? MissionApplication.Instance).RecordProgress(
                         client,
-                        MissionProgressEvent.AbilityHit(
-                            (uint)action.ActionId,
-                            target.DbId));
+                        MissionProgressEvent.AbilityHit((uint)action.ActionId, target.DbId));
+
+                // Still standing: the stuns the hit carries - the ability's own, and an Ice or
+                // Sonic crit's - each of which opens the Critical Death window if it is low enough.
+                if (target.State != CharacterState.Dead && target.State != CharacterState.Dying && target.Attributes[Attributes.Health].Current > 0)
+                {
+                    if (crit && !outcome.Immune)
+                        CritEffects.OnCritical(mapChannel, target, player, damageType, amount);
+
+                    if (target.State != CharacterState.Dying && stun.Ms > 0 && Stuns.Roll(stun.Chance))
+                        Stuns.Apply(mapChannel, target, player, Stuns.StunTypeId, stun.Ms, damageType);
+
+                    // KNOCKBACK_DISTANCE: Tectonic Strike, Concussive Wave, Rushing Blow, Force Blast P6/P7.
+                    if (target.State != CharacterState.Dying && knockback > 0)
+                        CrowdControl.Knockback(mapChannel, target, player, knockback, CrowdControl.KnockbackTypeId, damageType);
+
+                    // Vortex drags them in, over the flail the client plays on them for the
+                    // action's recovery time.
+                    if (target.State != CharacterState.Dying && actionInfo.Module == VortexModule)
+                        CrowdControl.Pull(mapChannel, target, player, (int)info.RecoveryMs);
+                }
+
+                // Lightning's arc, extra sonic damage and storm (AbilityManager.Lightning.cs).
+                if (recovery.ArcData)
+                    ResolveLightningExtras(mapChannel, player, info, target, rolled, hit);
             }
 
             CellManager.Instance.CellCallMethod(mapChannel, player, recovery);
         }
 
-        private static bool TrySnapshotLightningLanding(
-            MapChannel mapChannel,
-            Manifestation player,
-            ActionLevelInfo info,
-            ActionData action,
-            out LightningLanding landing)
+        /// <summary>
+        /// The way a player faces, flat: their yaw (Actor.Rotation, the client's
+        /// Movement.ViewDirection.X) in the convention creature movement uses - facing along
+        /// (-sin yaw, -cos yaw).
+        /// </summary>
+        public static Vector3 FacingOf(Actor actor)
         {
-            landing = null;
-            if (action.TargetObject != null)
-            {
-                var practiceTarget = ResolvePracticeTarget(mapChannel, player, info, action.TargetId);
-                if (practiceTarget == null || !ReferenceEquals(practiceTarget, action.TargetObject))
-                    return false;
-                landing = new LightningLanding
-                {
-                    PracticeTarget = practiceTarget,
-                    PrimaryPosition = practiceTarget.Position,
-                    ArcTargets = Array.Empty<Creature>()
-                };
+            return new Vector3((float)-Math.Sin(actor.Rotation), 0f, (float)-Math.Cos(actor.Rotation));
+        }
+
+        /// <summary>Whether a point lies within a cone from an origin: within range, and within halfAngleDegrees of the aim on the flat.</summary>
+        public static bool InCone(Vector3 origin, Vector3 aim, Vector3 point, float range, float halfAngleDegrees)
+        {
+            var to = new Vector2(point.X - origin.X, point.Z - origin.Z);
+            var distance = to.Length();
+
+            if (distance > range)
+                return false;
+
+            // Standing on the caster counts as in front of them.
+            if (distance < 0.5f)
                 return true;
-            }
-            var primary = action.TargetId != 0
-                ? ResolveTarget(mapChannel, action.TargetId) as Creature
-                : null;
-            if (!IsValidPrimaryTarget(mapChannel, player, primary) ||
-                !IsFinite(primary.Position))
-                return false;
 
-            var arc = GetLightningArcSpec(info, player.Level);
-            landing = new LightningLanding
-            {
-                Primary = primary,
-                PrimaryPosition = primary.Position,
-                ArcRadius = arc.Radius,
-                ArcDamage = arc.Damage,
-                ArcTargets = SelectLightningArcTargets(
-                    mapChannel,
-                    player,
-                    primary,
-                    arc.Radius,
-                    arc.MaximumTargets)
-            };
-            return true;
+            var dir = new Vector2(aim.X, aim.Z);
+
+            if (dir.LengthSquared() < 1e-6f)
+                return true;
+
+            var cos = Vector2.Dot(Vector2.Normalize(dir), to / distance);
+
+            return cos >= Math.Cos(halfAngleDegrees * Math.PI / 180.0);
         }
 
-        private static void ApplyLightningArcs(
-            MapChannel mapChannel,
-            Manifestation player,
-            ulong primaryEntityId,
-            Vector3 primaryPosition,
-            float radius,
-            int damage,
-            DamageType damageType,
-            IReadOnlyList<Creature> arcTargets,
-            AbilityHit primaryHit)
+        /// <summary>Living creatures a player may attack in a cone from the performer.</summary>
+        internal static List<Creature> HostilesInCone(MapChannel mapChannel, Manifestation player, Vector3 aim, float range, float halfAngleDegrees)
         {
-            if (damage <= 0 || !float.IsFinite(radius) || radius <= 0 ||
-                !IsFinite(primaryPosition) || arcTargets == null)
-                return;
-
-            var radiusSquared = radius * radius;
-            foreach (var arcTarget in arcTargets)
-            {
-                if (!IsValidLightningArcTarget(
-                        mapChannel,
-                        player,
-                        arcTarget,
-                        primaryEntityId,
-                        primaryPosition,
-                        radiusSquared))
-                    continue;
-
-                var arcTaken = ActorManager.Instance.Damage(
-                    mapChannel, arcTarget, damage, player);
-                primaryHit.Arcs.Add(new AbilityHit
-                {
-                    EntityId = arcTarget.EntityId,
-                    Amount = damage,
-                    DamageType = damageType,
-                    DeathBlow = arcTaken > 0 &&
-                                arcTarget.Attributes[Attributes.Health].Current <= 0
-                });
-            }
+            return HostilesWithin(mapChannel, player, player.Position, range)
+                .Where(c => InCone(player.Position, aim, c.Position, range, halfAngleDegrees))
+                .ToList();
         }
 
-        private static bool IsValidLightningArcTarget(
-            MapChannel mapChannel,
-            Manifestation player,
-            Creature candidate,
-            ulong primaryEntityId,
-            Vector3 primaryPosition,
-            float radiusSquared)
+        /// <summary>
+        /// Living creatures a player's summon goes looking for within radius metres of a point:
+        /// HOSTILE only (TargetCategories.AlliesSeek) - a turret or a crab mine leaves NEUTRAL
+        /// creatures alone, as a FRIENDLY creature's scan does. Blasts and areas use HostilesWithin.
+        /// </summary>
+        internal static List<Creature> EnemiesWithin(MapChannel mapChannel, Manifestation player, Vector3 centre, float radius)
         {
-            if (mapChannel == null || player == null || candidate == null ||
-                candidate.EntityId == primaryEntityId ||
-                candidate.MapContextId != mapChannel.MapInfo.MapContextId ||
-                EntityManager.Instance.GetEntityType(candidate.EntityId) !=
-                EntityType.Creature ||
-                !EntityManager.Instance.Creatures.TryGetValue(
-                    candidate.EntityId, out var registered) ||
-                !ReferenceEquals(candidate, registered) ||
-                !IsHostile(player, candidate) ||
-                !IsFinite(candidate.Position))
-                return false;
-
-            var distance = Vector3.DistanceSquared(
-                primaryPosition, candidate.Position);
-            return float.IsFinite(distance) && distance <= radiusSquared;
+            return HostilesWithin(mapChannel, player, centre, radius).Where(c => TargetCategories.AlliesSeek(c.TargetCategory)).ToList();
         }
 
-        /// <summary>Living, non-AFS creatures within radius metres of a point, from the cells around the performer.</summary>
+        /// <summary>Living creatures a player may attack within radius metres of a point, from the cells around the performer.</summary>
         internal static List<Creature> HostilesWithin(MapChannel mapChannel, Manifestation player, Vector3 centre, float radius)
         {
             var found = new List<Creature>();
 
-            if (radius <= 0)
+            if (!(radius > 0))
                 return found;
 
             foreach (var cell in CellManager.CellsIn(mapChannel, player.Cells))
@@ -1078,87 +1331,6 @@ namespace Rasa.Managers
 
             return found;
         }
-
-        internal static (float Radius, int Damage, int MaximumTargets) GetLightningArcSpec(
-            ActionLevelInfo info,
-            int actorLevel)
-        {
-            if (info == null)
-                return (0, 0, 0);
-
-            var radius = info.Get(AbilityProperty.ArcRadius);
-            var baseDamage = info.Get(AbilityProperty.ArcDamage);
-            if (radius <= 0 || baseDamage <= 0)
-                return (0, 0, 0);
-
-            return (
-                radius,
-                Scale(actorLevel, baseDamage, info.Get(AbilityProperty.DamageScaleType)),
-                1);
-        }
-
-        internal static List<Creature> SelectLightningArcTargets(
-            MapChannel mapChannel,
-            Manifestation player,
-            Creature primary,
-            float radius,
-            int maximumTargets)
-        {
-            if (mapChannel == null || player == null || primary == null ||
-                maximumTargets <= 0 || !float.IsFinite(radius) || radius <= 0 ||
-                !IsValidPrimaryTarget(mapChannel, player, primary) ||
-                !IsFinite(primary.Position))
-                return new List<Creature>();
-
-            var radiusSquared = radius * radius;
-
-            return mapChannel.MapCellInfo.Cells.Values
-                .SelectMany(cell => cell.CreatureList)
-                .Where(candidate => candidate != null &&
-                                    candidate.EntityId != primary.EntityId &&
-                                    candidate.MapContextId == mapChannel.MapInfo.MapContextId &&
-                                    candidate.RuntimeMapChannel == mapChannel &&
-                                    candidate.State != CharacterState.Dead &&
-                                    EntityManager.Instance.GetEntityType(candidate.EntityId) == EntityType.Creature &&
-                                    EntityManager.Instance.Creatures.TryGetValue(candidate.EntityId, out var registered) &&
-                                    ReferenceEquals(candidate, registered) &&
-                                    IsHostile(player, candidate))
-                .Select(candidate => new
-                {
-                    Target = candidate,
-                    Distance = Vector3.DistanceSquared(primary.Position, candidate.Position)
-                })
-                .Where(entry => float.IsFinite(entry.Distance) && entry.Distance <= radiusSquared)
-                .GroupBy(entry => entry.Target.EntityId)
-                .Select(group => group.First())
-                .OrderBy(entry => entry.Distance)
-                .ThenBy(entry => entry.Target.EntityId)
-                .Take(maximumTargets)
-                .Select(entry => entry.Target)
-                .ToList();
-        }
-
-        private static bool IsValidPrimaryTarget(
-            MapChannel mapChannel,
-            Manifestation player,
-            Actor target)
-        {
-            return target is Creature creature &&
-                   mapChannel != null &&
-                   player != null &&
-                   creature.MapContextId == mapChannel.MapInfo.MapContextId &&
-                   creature.RuntimeMapChannel == mapChannel &&
-                   EntityManager.Instance.GetEntityType(creature.EntityId) == EntityType.Creature &&
-                   EntityManager.Instance.Creatures.TryGetValue(
-                       creature.EntityId, out var registered) &&
-                   ReferenceEquals(creature, registered) &&
-                   IsHostile(player, creature);
-        }
-
-        private static bool IsFinite(Vector3 position) =>
-            float.IsFinite(position.X) &&
-            float.IsFinite(position.Y) &&
-            float.IsFinite(position.Z);
 
         /// <summary>
         /// The performer and the living members of their squad within radius metres of them, from
@@ -1189,6 +1361,7 @@ namespace Rasa.Managers
                     if (Vector3.Distance(player.Position, other.Position) <= radius)
                         found.Add(other);
                 }
+
             return found;
         }
 

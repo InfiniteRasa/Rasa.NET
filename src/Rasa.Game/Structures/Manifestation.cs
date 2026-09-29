@@ -56,7 +56,9 @@ namespace Rasa.Structures
         public Dictionary<uint, uint> PlayerFlags { get; set; } = new();
         public DateTime LoginTime { get; set; }
         public List<uint> Logos = new();
-        public ulong TrackingTargetEntityId { get; set; }
+
+        /// <summary>Actions this player may not perform, each with the reasons it is blocked for; see Managers.ActionBlocks.</summary>
+        public Dictionary<ActionId, HashSet<string>> ActionBlocks { get; } = new();
         public byte ActiveWeapon { get; set; }
         public List<CharacterTeleporterEntry> GainedWaypoints = new();
         public bool IsAFK { get; set; }
@@ -107,12 +109,47 @@ namespace Rasa.Structures
         /// measuring the client's next Move from wherever the player used to be, which reads as
         /// one enormous step and refuses a move nobody made.
         /// </summary>
+        /// <summary>Polymorph: the creature weapon the player fires while morphed; null when they are themselves.</summary>
+        public Item MorphWeapon { get; set; }
+
+        /// <summary>The creature's combat actions a polymorphed player has in their drawer, and may perform (AbilityManager.Polymorph).</summary>
+        public System.Collections.Generic.List<(Data.ActionId ActionId, uint Level)> MorphAbilities { get; set; } = new System.Collections.Generic.List<(Data.ActionId, uint)>();
+
+        /// <summary>
+        /// What the player counts as to creatures: FRIENDLY, whatever they look like. Polymorph
+        /// used to make a morphed player their disguise's side, which read well against the
+        /// tooltip's "including their faction" but played badly: the aggro scan passed over
+        /// them, so a morph in the middle of a fight was a way out of it and a morphed player
+        /// could walk through a Bane camp untouched.
+        /// </summary>
+        public Data.TargetCategory CombatCategory => Data.TargetCategory.Friendly;
+
         public void PlaceAt(Vector3 position)
         {
             Position = position;
             MoveBudget = 0;
             MoveBudgetTick = Environment.TickCount64;
+
+            // Put somewhere, not fallen there: whatever descent was under way is over.
+            Fall.Reset();
+
+            // Where to put them back if they fall out of the world before they have stood anywhere
+            // (Managers.SafetyFloor). Map changes set MapContextId before placing.
+            ArrivalPosition = position;
+            ArrivalMapContextId = MapContextId;
         }
+
+        /// <summary>The last place on the map the player stood on walkable ground (Managers.SafetyFloor), and which map; null until they have.</summary>
+        public Vector3? LastSafePosition { get; set; }
+        public uint LastSafeMapContextId { get; set; }
+        public long LastSafeTick { get; set; }
+
+        /// <summary>Where the player was last put or entered the world, and on which map (Managers.SafetyFloor).</summary>
+        public Vector3? ArrivalPosition { get; set; }
+        public uint ArrivalMapContextId { get; set; }
+
+        /// <summary>The descent under way, if any, for falling damage (Managers.FallDamage).</summary>
+        public FallTracker Fall { get; } = new FallTracker();
 
         /// <summary>
         /// Always false: this server has no trial accounts. The single source for every packet
@@ -121,6 +158,13 @@ namespace Rasa.Structures
         /// channels - ever applies.
         /// </summary>
         public bool IsTrialAccount => false;
+
+        /// <summary>
+        /// Whether the player's helmet is drawn, as their client last said (ChangeShowHelmet); null
+        /// until it has said, when the saved User.Appearance.ShowHelmet option stands in
+        /// (ManifestationManager.ShowsHelmet).
+        /// </summary>
+        public bool? ShowHelmet { get; set; }
 
         // Inventory
         public Inventory Inventory { get; set; } = new Inventory();
@@ -159,8 +203,27 @@ namespace Rasa.Structures
         /// </summary>
         public bool InCombat { get; set; }
 
+        /// <summary>The combat stance the player's own client asked to hold (RequestVisualCombatMode); see ActorManager.CombatModeOf.</summary>
+        public bool RequestedCombatMode { get; set; }
+
+        /// <summary>Whether the player is holding auto-fire down, which holds the stance for the others who see them.</summary>
+        public bool AutoFireCombatMode { get; set; }
+
+        /// <summary>
+        /// The buffs taken off at the last map change that go on again on arrival, their clocks
+        /// stopped in between, and whether each was already paused before (Managers.EffectCarry).
+        /// </summary>
+        public List<(GameEffect Effect, bool WasPaused)> CarriedEffects { get; } = new();
+
         /// <summary>Environment.TickCount64 at which combat lapses, refreshed by every hit.</summary>
         public long CombatExpiresAt { get; set; }
+
+        /// <summary>
+        /// Armour regeneration per second from the armour worn (armorclass.regen_rate summed),
+        /// set by UpdateStatsValues. Armor.RefreshAmount carries it out of combat and 0 in combat
+        /// (ManifestationManager.ApplyRegenPeriod).
+        /// </summary>
+        public int ArmorRegenRate { get; set; }
 
         /// <summary>Seconds of regeneration ticked so far (ActorManager.Regenerate); the in-combat period is a multiple of them.</summary>
         public long RegenSeconds { get; set; }
@@ -175,11 +238,27 @@ namespace Rasa.Structures
         public long NextShotAt { get; set; }
 
         /// <summary>
+        /// The aiming bead as the client runs it (Managers.Accuracy): where it is, the ceiling it
+        /// is heading for, how fast (per ms, negative when falling), and when it was last brought
+        /// up to date.
+        /// </summary>
+        public double AccuracyValue { get; set; }
+        public double AccuracyMax { get; set; }
+        public double AccuracyRate { get; set; }
+        public long AccuracyUpdatedTick { get; set; }
+
+        /// <summary>
         /// Environment.TickCount64 at which this player's next melee (alternate) attack is due.
         /// Its own clock: a swing does not wait on the gun's refire, nor the gun on the swing, as
         /// the client times them separately - each from its own action's recovery and reuse.
         /// </summary>
         public long NextMeleeAt { get; set; }
+
+        /// <summary>
+        /// Percent of a creature's aggro range at which it notices this player: 100 normally, less
+        /// in Stealth Armor (ManifestationManager.SyncSkillPassives keeps it).
+        /// </summary>
+        public int DetectionRangePercent { get; set; } = 100;
 
         /// <summary>Environment.TickCount64 when the pending logout was requested.</summary>
         public long LogoutRequestedTick { get; set; }
@@ -206,6 +285,18 @@ namespace Rasa.Structures
         // gm flags
         public bool GmFlagAlwaysFriendly { get; set; }
 
+        /// <summary>The camera script the player's client is running, 0 for none (CameraScripts).</summary>
+        public uint CameraScriptId { get; set; }
+
+        /// <summary>When the player stops counting as watching it if FinishedCameraScript never comes (TickCount64).</summary>
+        public long CameraScriptUntil { get; set; }
+
+        /// <summary>The scriptable client events the player's client is reporting (ScriptableClientEvents). Lock it to use it.</summary>
+        internal readonly HashSet<ScriptableClientEvent> TrackedClientEvents = new();
+
+        /// <summary>Set by .clientevent: each tracked event that comes back is also told to the player.</summary>
+        public bool EchoClientEvents { get; set; }
+
 
         public Manifestation()
         {
@@ -227,7 +318,9 @@ namespace Rasa.Structures
             Credits.Add(CurencyType.Credits, character.Credit);
             Credits.Add(CurencyType.Prestige, character.Prestige);
             ActiveWeapon = character.ActiveWeapon;
-            CurrentAbilityDrawer = character.CurrentAbilitySlot;
+            // A saved slot the drawer does not have (none can be saved, but the column is only a
+            // byte) is the first one.
+            CurrentAbilityDrawer = character.CurrentAbilitySlot < Managers.ManifestationManager.AbilityDrawerSlots ? character.CurrentAbilitySlot : 0;
             NumLogins = character.NumLogins + 1;
             TotalTimePlayed = character.TotalTimePlayed;
             TimeSinceLastPlayed = character.LastLogin;

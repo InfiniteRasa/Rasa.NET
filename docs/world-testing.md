@@ -3,16 +3,22 @@
 The first world-reliability target is **Concordia Wilderness**, map context
 `1220` (`adv_foreas_concordia_wilderness`). New Deployment 11 characters enter
 private Bootcamp `1985` first; legacy and skipped characters use their saved map.
-The checked-in seed contains 218 spawn pools there: 183 have a nonzero configured
-population and 35 are empty. Empty pools are not populated with invented defaults.
+PR105 replaces the old hostile pools with `580001..580075`; Wilderness's
+mission-specific public pools use the reserved `630001..630199` namespace.
+Use the relevant source bindings rather than a legacy aggregate pool count.
+Empty pools are not populated with invented defaults.
 
 For mission creation, use [mission authoring and operations](missions.md) and
 the [data/script reference](mission-reference.md). This page describes behavior
 and acceptance checks. Mission data is installed by the normal provider
 migrations: automatically at SQLite startup and manually for MySQL.
-The consolidated baseline targets fresh databases; the later Wilderness
-migrations are forward upgrades from that merged baseline. Upgrade fixtures must
-retain existing Char state and the same active Targets of Opportunity assignment.
+The rollout targets fresh merged databases and PR105-existing databases.
+The 17 Wilderness provider pairs run after the PR105 tail, from
+`20261104000000` through `20261104001600`; the unshipped September Wilderness
+histories are not supported upgrade sources. Regression fixtures within the new
+lineage retain their Char state and the same active Targets of Opportunity
+assignment. `WildernessMigrationTests` checks PR105 row preservation, the
+separate World ID namespaces, all 69 enabled definitions and class-sourced armor.
 Do not reset a user database to run these checks.
 
 ## Run the automated checks

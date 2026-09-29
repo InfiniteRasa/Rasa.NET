@@ -93,17 +93,17 @@ namespace Rasa.Test.Missions.Wilderness
         }
 
         [TestMethod]
-        [DataRow(530100U, -72.0, 216.892554, 120.0, 0.4092564, 216.79255359731442)]
-        [DataRow(530101U, -116.0, 216.282193, 100.0, -1.308520799, 216.18219272144657)]
-        [DataRow(530102U, -93.0, 209.812367, 48.0, -2.945533632, 209.71236743724728)]
+        [DataRow(630100U, -72.0, 216.892554, 120.0, 0.4092564, 216.79255359731442)]
+        [DataRow(630101U, -116.0, 216.282193, 100.0, -1.308520799, 216.18219272144657)]
+        [DataRow(630102U, -93.0, 209.812367, 48.0, -2.945533632, 209.71236743724728)]
         public void WorldBProvidesTheAdoptedMachinaPopulationAndNativeAttack(
             uint spawnId, double x, double y, double z, double heading, double nativeSupportY)
         {
             using var harness = Create();
-            var creature = harness.World.Set<CreatureEntry>().Single(entry => entry.Id == 530100);
+            var creature = harness.World.Set<CreatureEntry>().Single(entry => entry.Id == 630100);
             Assert.AreEqual(6236U, creature.ClassId);
             var weapon = harness.World.Set<CreatureAppearanceEntry>()
-                .Single(entry => entry.Id == 530100 && entry.SlotId == 13);
+                .Single(entry => entry.Id == 630100 && entry.SlotId == 13);
             Assert.AreEqual(6019U, weapon.ClassId);
             var attack = harness.World.Set<CreatureActionEntry>().Single(entry => entry.Id == creature.Action1);
             Assert.AreEqual(1U, attack.ActionId);
@@ -111,7 +111,7 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.AreEqual(40.0, attack.RangeMax, 0.000001);
             Assert.IsTrue(attack.MinDamage > 0 && attack.MaxDamage >= attack.MinDamage);
             var spawn = harness.World.Set<SpawnPoolEntry>().Single(entry => entry.Id == spawnId);
-            Assert.IsTrue(Spawns(spawn, 530100));
+            Assert.IsTrue(Spawns(spawn, 630100));
             Assert.AreEqual(1220U, spawn.MapContextId);
             Assert.AreEqual(x, spawn.PosX, 0.000001);
             Assert.AreEqual(y, spawn.PosY, 0.000001);
@@ -120,7 +120,7 @@ namespace Rasa.Test.Missions.Wilderness
             harness.SpawnWorld(spawnId);
             var actor = harness.Map.MapCellInfo.Cells.Values.SelectMany(cell => cell.CreatureList)
                 .Single(entry => entry.SpawnPool?.DbId == spawnId);
-            Assert.AreEqual(530100U, actor.DbId);
+            Assert.AreEqual(630100U, actor.DbId);
             AssertQualifiedRuntimeGrounding(harness, actor, new Vector3((float)x, (float)y, (float)z), nativeSupportY);
         }
 
@@ -356,12 +356,12 @@ namespace Rasa.Test.Missions.Wilderness
         {
             var drop = harness.Manager.LoadedMissions[574].Items["machina-remains"].Drop;
             var creatureId = drop.CreatureIds.Single();
-            Assert.AreEqual(530100U, creatureId);
+            Assert.AreEqual(630100U, creatureId);
             var source = harness.World.Set<CreatureEntry>().Single(creature => creature.Id == creatureId);
             Assert.AreEqual(6236U, source.ClassId);
             for (uint count = 0; count < 10; count++)
             {
-                var spawnId = 530100U + count % 3;
+                var spawnId = 630100U + count % 3;
                 harness.SpawnWorldAfter(60000, spawnId);
                 var creature = harness.Map.MapCellInfo.Cells.Values.SelectMany(cell => cell.CreatureList)
                     .FirstOrDefault(actor => actor.DbId == creatureId &&
@@ -484,9 +484,9 @@ namespace Rasa.Test.Missions.Wilderness
                 ActorManager.Instance.Regenerate(harness.Map);
             var armorBeforeHit = harness.Client.Player.Attributes[Attributes.Armor].Current;
             Assert.IsTrue(armorBeforeHit >= 5, "Real armor regeneration must fill the equipped capacity.");
-            harness.SpawnWorldAfter(60000, 530100);
+            harness.SpawnWorldAfter(60000, 630100);
             var attacker = harness.Map.MapCellInfo.Cells.Values.SelectMany(cell => cell.CreatureList)
-                .First(actor => actor.DbId == 530100 && actor.State != CharacterState.Dead);
+                .First(actor => actor.DbId == 630100 && actor.State != CharacterState.Dead);
             harness.MoveTo(attacker.Position + new Vector3(2, 0, 0));
             var healthBeforeHit = harness.Client.Player.Attributes[Attributes.Health].Current;
 

@@ -88,7 +88,7 @@ namespace Rasa.Test.World
                 Position = new Vector3(20, 0, 20),
                 Rotation = 2,
                 DynamicObjectType = DynamicObjectType.ControlPoint,
-                Faction = Factions.AFS,
+                TargetCategory = TargetCategory.Friendly,
                 StateId = UseObjectState.CpointStateFactionAOwned,
                 ObjectData = new ControlPointStatus(1, 1, 1, 30000)
             });
@@ -164,11 +164,11 @@ namespace Rasa.Test.World
             Assert.AreNotSame(publicTeleporter.ObjectData, ownedTeleporter.ObjectData);
 
             ownedPool.UpdateTimer = 0;
-            ownedControlPoint.Faction = Factions.Bane;
+            ownedControlPoint.TargetCategory = TargetCategory.Hostile;
             ownedTeleporter.Comment = "owned-waypoint";
 
             Assert.AreEqual(3000L, publicPool.UpdateTimer);
-            Assert.AreEqual(Factions.AFS, publicControlPoint.Faction);
+            Assert.AreEqual(TargetCategory.Friendly, publicControlPoint.TargetCategory);
             Assert.AreEqual("public-waypoint", publicTeleporter.Comment);
             maps.ReleaseOwnedPrivateInstances(7);
         }
@@ -275,7 +275,7 @@ namespace Rasa.Test.World
                 MapContextId = second.MapInfo.MapContextId,
                 Position = Vector3.Zero,
                 DynamicObjectType = DynamicObjectType.ControlPoint,
-                Faction = Factions.AFS,
+                TargetCategory = TargetCategory.Friendly,
                 StateId = UseObjectState.CpointStateFactionAOwned
             };
             second.ControlPoints.Add(1, controlPoint);
@@ -302,7 +302,7 @@ namespace Rasa.Test.World
                 DynamicObjectManager.ControlPointUseArgId,
                 0));
 
-            Assert.AreEqual(Factions.AFS, controlPoint.Faction);
+            Assert.AreEqual(TargetCategory.Friendly, controlPoint.TargetCategory);
             Assert.AreEqual(UseObjectState.CpointStateFactionAOwned, controlPoint.StateId);
             Assert.AreEqual(0, controlPoint.TriggeredByPlayers.Count);
 
@@ -327,7 +327,7 @@ namespace Rasa.Test.World
                 MapContextId = second.MapInfo.MapContextId,
                 Position = Vector3.Zero,
                 State = CharacterState.Normal,
-                Faction = Factions.Bane,
+                TargetCategory = TargetCategory.Hostile,
                 AppearanceData = new Dictionary<EquipmentData, AppearanceData>(),
                 Attributes = new Dictionary<Attributes, ActorAttributes>
                 {
@@ -584,7 +584,7 @@ namespace Rasa.Test.World
 
         private static Dropship AddDropship(DynamicObjectManager objects, MapChannel map, uint spawnPoolId)
         {
-            var dropship = new Dropship(Factions.AFS, DropshipType.Spawner, new SpawnPool
+            var dropship = new Dropship(TargetCategory.Friendly, DropshipType.Spawner, new SpawnPool
             {
                 DbId = spawnPoolId,
                 MapContextId = map.MapInfo.MapContextId,

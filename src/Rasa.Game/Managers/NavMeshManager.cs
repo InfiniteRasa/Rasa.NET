@@ -73,10 +73,28 @@ namespace Rasa.Managers
             }
 
             var missing = new List<string>();
+            var covers = 0;
 
             foreach (var mapChannel in MapChannelManager.Instance.MapChannelArray.Values)
             {
                 var path = NavMeshFile.PathFor(Directory, mapChannel.MapInfo.MapName);
+                var coverPath = CoverMesh.PathFor(Directory, mapChannel.MapInfo.MapName);
+
+                // Cover rides along with the navmesh but stands on its own: a map may have one
+                // without the other.
+                if (File.Exists(coverPath))
+                {
+                    try
+                    {
+                        mapChannel.Cover = CoverMesh.Read(coverPath);
+                        covers++;
+                    }
+                    catch (Exception e)
+                    {
+                        Logger.WriteLog(LogType.Error, $"Could not load cover {coverPath}: {e.Message}");
+                        MapErrorManager.Instance.Record(mapChannel.MapInfo.MapContextId, $"cover {coverPath} could not be loaded: {e.Message}");
+                    }
+                }
 
                 if (!File.Exists(path))
                 {
@@ -88,6 +106,13 @@ namespace Rasa.Managers
                 {
                     mapChannel.NavMesh = new NavMeshQuery(NavMeshFile.Read(path));
                     LoadedMaps++;
+
+                    // The floor under the map, for players who fall out of the world (SafetyFloor).
+                    if (mapChannel.NavMesh.HeightRange() is var (lowest, highest))
+                    {
+                        mapChannel.SafetyFloorY = SafetyFloor.FloorFor(lowest);
+                        mapChannel.TopWalkableY = highest;
+                    }
                 }
                 catch (Exception e)
                 {
@@ -97,6 +122,9 @@ namespace Rasa.Managers
             }
 
             Logger.WriteLog(LogType.Initialize, $"Loaded navmeshes for {LoadedMaps} of {MapChannelManager.Instance.MapChannelArray.Count} maps from {Path.GetFullPath(Directory)}");
+            Logger.WriteLog(LogType.Initialize, covers > 0
+                ? $"Loaded cover for {covers} maps"
+                : "No cover files (<map>.cover, Rasa.NavMesh --cover-only); ranged attacks ignore cover");
 
             if (missing.Count > 0 && missing.Count <= 12)
                 Logger.WriteLog(LogType.Initialize, $"  no navmesh for: {string.Join(", ", missing)}");
@@ -159,6 +187,15 @@ namespace Rasa.Managers
         public static Vector3? RandomPointAround(MapChannel mapChannel, Vector3 centre, float radius)
         {
             return mapChannel?.NavMesh?.RandomPointAround(centre, radius);
+        }
+
+        /// <summary>
+        /// The walkable point nearest to the position anywhere within <paramref name="height"/>
+        /// above or below it: for a position whose height is a guess. Null without a navmesh.
+        /// </summary>
+        public static Vector3? NearestInColumn(MapChannel mapChannel, Vector3 position, float height = 200f)
+        {
+            return mapChannel?.NavMesh?.NearestInColumn(position, height);
         }
 
         /// <summary>

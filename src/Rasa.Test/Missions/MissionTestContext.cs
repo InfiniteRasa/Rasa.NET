@@ -749,6 +749,8 @@ namespace Rasa.Test.Missions
                 State = CharacterState.Idle,
                 AppearanceData = new Dictionary<EquipmentData, AppearanceData>()
             };
+            npc.Attributes[Attributes.Health] = new ActorAttributes(Attributes.Health, 100, 100, 100, 0, 0);
+            npc.Attributes[Attributes.Armor] = new ActorAttributes(Attributes.Armor, 0, 0, 0, 0, 0);
             _npcs.Add(npc);
             EntityManager.Instance.RegisterEntity(npc.EntityId, EntityType.Creature);
             EntityManager.Instance.RegisterCreature(npc);
@@ -885,7 +887,7 @@ namespace Rasa.Test.Missions
                 characterAppearances: new CharacterAppearanceRepository(context),
                 characterInventories: new CharacterInventoryRepository(context),
                 characterLockboxes: new CharacterLockboxRepository(context),
-                characterLogoses: new CharacterLogosRepository(context),
+                characterLogoses: new CharacterLogosRepository(context), characterActionReuses: new Rasa.Repositories.Char.CharacterActionReuse.CharacterActionReuseRepository(context),
                 characterMissions: new CharacterMissionRepository(context),
                 characterMissionDeadlines: new CharacterMissionDeadlineRepository(context),
                 characterMissionProgress: new CharacterMissionProgressRepository(context),

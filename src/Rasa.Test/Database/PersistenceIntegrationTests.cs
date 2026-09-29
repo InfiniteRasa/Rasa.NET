@@ -256,27 +256,38 @@ namespace Rasa.Test.Database
         }
 
         [TestMethod]
-        [DataRow(typeof(SqliteAuthContext), 0)]
-        [DataRow(typeof(MySqlAuthContext), 0)]
-        [DataRow(typeof(SqliteCharContext), 1)]
-        [DataRow(typeof(MySqlCharContext), 1)]
-        [DataRow(typeof(SqliteWorldContext), 2)]
-        [DataRow(typeof(MySqlWorldContext), 2)]
-        public void ConsolidatedBaselineRetainsExpectedDatabaseMigrations(Type contextType, int expectedCount)
+        [DataRow(typeof(SqliteAuthContext), 0, "202609")]
+        [DataRow(typeof(MySqlAuthContext), 0, "202609")]
+        [DataRow(typeof(SqliteCharContext), 1, "20260926185812_ConsolidatedCharacterSchema")]
+        [DataRow(typeof(MySqlCharContext), 1, "20260926190339_ConsolidatedCharacterSchema")]
+        [DataRow(typeof(SqliteWorldContext), 2, "20260926190153_SeedWorldContent")]
+        [DataRow(typeof(MySqlWorldContext), 2, "20260926190349_SeedWorldContent")]
+        public void ConsolidatedBaselineRetainsExpectedDatabaseMigrations(
+            Type contextType, int expectedCount, string consolidationBoundary)
         {
             using var context = CreateContext(contextType, "unused");
-            // Freeze the September 26 consolidation boundary, not subsequent content migrations.
+            // PR105 adds migrations later on September 26, after each database's fixed baseline.
             var added = context.Database.GetMigrations()
-                .Where(id => string.CompareOrdinal(id, "202609") >= 0 &&
-                    string.CompareOrdinal(id, "20260927") < 0).ToArray();
+                .Where(id => string.CompareOrdinal(id, "202609") >= 0).ToArray();
+            var baseline = added
+                .Where(id => string.CompareOrdinal(id, consolidationBoundary) <= 0).ToArray();
+            var later = added
+                .Where(id => string.CompareOrdinal(id, consolidationBoundary) > 0).ToArray();
 
-            Assert.AreEqual(expectedCount, added.Length, contextType.Name);
+            Assert.AreEqual(expectedCount, baseline.Length, contextType.Name);
+            if (expectedCount == 0)
+                Assert.HasCount(0, later, contextType.Name);
+            else
+            {
+                Assert.AreEqual(consolidationBoundary, baseline[^1], contextType.Name);
+                Assert.IsTrue(later.All(id => string.CompareOrdinal(id, baseline[^1]) > 0), contextType.Name);
+            }
             if (expectedCount == 1)
-                StringAssert.EndsWith(added[0], "_ConsolidatedCharacterSchema");
+                StringAssert.EndsWith(baseline[0], "_ConsolidatedCharacterSchema");
             if (expectedCount == 2)
             {
-                StringAssert.EndsWith(added[0], "_ConsolidatedWorldSchema");
-                StringAssert.EndsWith(added[1], "_SeedWorldContent");
+                StringAssert.EndsWith(baseline[0], "_ConsolidatedWorldSchema");
+                StringAssert.EndsWith(baseline[1], "_SeedWorldContent");
             }
         }
 
@@ -903,7 +914,7 @@ namespace Rasa.Test.Database
                 characterAppearances: null,
                 characterInventories: new CharacterInventoryRepository(context),
                 characterLockboxes: null,
-                characterLogoses: null,
+                characterLogoses: null, characterActionReuses: new Rasa.Repositories.Char.CharacterActionReuse.CharacterActionReuseRepository(context),
                 characterMissions: new CharacterMissionRepository(context),
                 characterMissionDeadlines: deadlines,
                 characterMissionProgress: progress,
@@ -971,6 +982,7 @@ namespace Rasa.Test.Database
             public uint Color { get; set; }
             public uint CurrentAmmo { get; set; }
             public string Crafter { get; set; } = string.Empty;
+            public uint BoundCharacterId { get; set; }
         }
     }
 }

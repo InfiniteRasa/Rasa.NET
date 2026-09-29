@@ -255,7 +255,7 @@ namespace Rasa.Managers
                         new UpdateCreditsPacket(
                             type,
                             total,
-                            (uint)(total - previous))),
+                            total - previous)),
                     $"mission {type} total");
             }
         }

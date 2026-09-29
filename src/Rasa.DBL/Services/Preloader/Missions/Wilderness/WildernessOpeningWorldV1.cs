@@ -4,8 +4,8 @@ namespace Rasa.Services.Preloader.Missions.Wilderness
 {
     public static class WildernessOpeningWorldV1
     {
-        public const uint RangerCreatureId = 530001;
-        public const uint RangerSpawnId = 530001;
+        public const uint RangerCreatureId = 630001;
+        public const uint RangerSpawnId = 630001;
 
         public static void Up(MigrationBuilder migration)
         {
@@ -32,7 +32,7 @@ namespace Rasa.Services.Preloader.Missions.Wilderness
             migration.Sql(
                 "INSERT INTO creature (id, comment, class_id, faction, level, max_hp, name_id, " +
                 "run_speed, walk_speed, action1, action2, action3, action4, action5, action6, action7, action8) " +
-                "SELECT 530001, 'Alia escort ranger (reconstructed)', class_id, faction, 4, 600, 0, " +
+                "SELECT 630001, 'Alia escort ranger (reconstructed)', class_id, faction, 4, 600, 0, " +
                 "6.5, 3, action1, action2, action3, action4, action5, action6, action7, action8 " +
                 "FROM creature WHERE id = 37;");
             migration.InsertData("spawnpool",

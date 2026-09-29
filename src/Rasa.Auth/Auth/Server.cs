@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Security.Cryptography;
+using System.Text;
 
 using Microsoft.Extensions.Hosting;
 
@@ -78,18 +80,21 @@ namespace Rasa.Auth
         #region Configuration
         private static void ConfigReLoaded()
         {
+            // Configuration re-registers for every change and runs ConfigLoaded after this; it no
+            // longer needs a Load() from here to hear the next one.
             Logger.WriteLog(LogType.Initialize, "Config file reloaded by external change!");
-
-            // Totally reload the configuration, because it's automatic reload case can only handle one reload. Our code's bug?
-            Configuration.Load();
         }
 
         private void ConfigLoaded()
         {
             var oldConfig = Config;
 
-            Config = new Config();
-            Configuration.Bind(Config);
+            // Built and bound before it replaces the one in force: a reload runs on the file
+            // watcher's thread, and anything reading Config halfway through a Bind saw a new,
+            // empty Config with every value zero.
+            var config = new Config();
+            Configuration.Bind(config);
+            Config = config;
 
             Logger.UpdateConfig(Config.LoggerConfig);
 
@@ -184,6 +189,69 @@ namespace Rasa.Auth
                 args.AcceptSocket.Shutdown(SocketShutdown.Both);
         }
 
+        /// <summary>
+        /// Auth connections allowed from one address at once. Each login is its own short
+        /// connection, and nothing capped how many one address could hold open.
+        /// </summary>
+        private const int MaxConnectionsPerAddress = 16;
+
+        private long _nextAcceptRefusalLogTick;
+        private int _acceptRefusalsSinceLog;
+
+        /// <summary>
+        /// Failed logins per address. Every attempt is a database read and a hash on this loop,
+        /// and nothing slowed a guesser down: one connection per guess, as fast as they could open
+        /// them. After MaxLoginFailures within LoginFailureWindow the address is refused without a
+        /// look at the database for LoginBlock. Kept per address rather than per account, so a
+        /// stranger cannot lock someone else out by getting their password wrong.
+        /// Main loop only: logins are handled there.
+        /// </summary>
+        private readonly Dictionary<IPAddress, (int Count, DateTime WindowStart, DateTime BlockedUntil)> _loginFailures = new();
+
+        private const int MaxLoginFailures = 5;
+        private static readonly TimeSpan LoginFailureWindow = TimeSpan.FromMinutes(5);
+        private static readonly TimeSpan LoginBlock = TimeSpan.FromMinutes(5);
+
+        public bool IsLoginBlocked(IPAddress address)
+        {
+            return _loginFailures.TryGetValue(address, out var record) && record.BlockedUntil > DateTime.UtcNow;
+        }
+
+        public void RecordLoginFailure(IPAddress address)
+        {
+            var now = DateTime.UtcNow;
+
+            // Forget addresses whose window and block are both over, so the table stays the size
+            // of the current trouble rather than of every address that ever mistyped.
+            if (_loginFailures.Count > 1024)
+                foreach (var stale in _loginFailures.Where(f => f.Value.BlockedUntil < now && now - f.Value.WindowStart > LoginFailureWindow).Select(f => f.Key).ToList())
+                    _loginFailures.Remove(stale);
+
+            var (count, windowStart, blockedUntil) = _loginFailures.TryGetValue(address, out var record)
+                ? record
+                : (0, now, DateTime.MinValue);
+
+            if (now - windowStart > LoginFailureWindow)
+                (count, windowStart) = (0, now);
+
+            count++;
+
+            if (count >= MaxLoginFailures && blockedUntil < now)
+            {
+                blockedUntil = now + LoginBlock;
+                (count, windowStart) = (0, now);
+
+                Logger.WriteLog(LogType.Security, $"{MaxLoginFailures} failed logins from {address} within {LoginFailureWindow.TotalMinutes:F0} min; refusing its logins for {LoginBlock.TotalMinutes:F0} min.");
+            }
+
+            _loginFailures[address] = (count, windowStart, blockedUntil);
+        }
+
+        public void RecordLoginSuccess(IPAddress address)
+        {
+            _loginFailures.Remove(address);
+        }
+
         private void OnAccept(LengthedSocket newSocket)
         {
             ListenerSocket.AcceptAsync();
@@ -191,8 +259,29 @@ namespace Rasa.Auth
             if (newSocket == null)
                 return;
 
+            var address = newSocket.RemoteAddress;
+
             lock (Clients)
-                Clients.Add(new Client(newSocket, this, _authUnitOfWorkFactory));
+            {
+                if (Clients.Count(c => c.State != ClientState.Disconnected && address.Equals(c.Socket.RemoteAddress)) < MaxConnectionsPerAddress)
+                {
+                    Clients.Add(new Client(newSocket, this, _authUnitOfWorkFactory));
+                    return;
+                }
+            }
+
+            newSocket.Close();
+
+            var refused = System.Threading.Interlocked.Increment(ref _acceptRefusalsSinceLog);
+            var now = Environment.TickCount64;
+
+            if (now < System.Threading.Interlocked.Read(ref _nextAcceptRefusalLogTick))
+                return;
+
+            System.Threading.Interlocked.Exchange(ref _nextAcceptRefusalLogTick, now + 5000);
+            System.Threading.Interlocked.Exchange(ref _acceptRefusalsSinceLog, 0);
+
+            Logger.WriteLog(LogType.Security, $"Refused an auth connection from {address}: {MaxConnectionsPerAddress} already open from it ({refused} refused since the last of these).");
         }
         #endregion
 
@@ -220,6 +309,8 @@ namespace Rasa.Auth
                 return false;
             }
 
+            WarnAboutCommunicatorExposure();
+
             AuthCommunicator.AcceptAsync();
 
             Timer.Add("ServerInfoUpdate", 1000, true, () =>
@@ -230,19 +321,97 @@ namespace Rasa.Auth
                             server.Value.RequestServerInfo();
             });
 
+            Timer.Add("CommunicatorLoginExpire", 5000, true, ExpireCommunicatorLogins);
+
             Logger.WriteLog(LogType.Network, $"*** Listening for Game servers on port {Config.CommunicatorConfig.Port}");
 
             return true;
+        }
+
+        /// <summary>
+        /// The communicator port hands whoever logs in on it every player's world login key. The
+        /// only thing guarding it is the per-server password, so say so at startup when it is
+        /// listening beyond this machine with a password anyone could guess.
+        /// </summary>
+        private void WarnAboutCommunicatorExposure()
+        {
+            var bound = IPAddress.Parse(Config.CommunicatorConfig.Address);
+
+            if (IPAddress.IsLoopback(bound))
+                return;
+
+            var weak = (Config.Servers ?? new Dictionary<string, string>())
+                .Where(s => string.IsNullOrEmpty(s.Value) || s.Value.Length < 12 || s.Value.StartsWith("test", StringComparison.OrdinalIgnoreCase))
+                .Select(s => s.Key)
+                .ToList();
+
+            if (weak.Count == 0)
+                return;
+
+            Logger.WriteLog(LogType.Security,
+                $"The communicator listens on {bound}:{Config.CommunicatorConfig.Port}, beyond this machine, and server "
+                + $"slot(s) {string.Join(", ", weak)} have a default, empty or short password. Anyone who can reach that port "
+                + "with the password can register as a game server and receive players' login keys. Set long passwords in "
+                + "Servers (and the matching ServerInfoConfig.Password on each game server), or bind the communicator to "
+                + "127.0.0.1 when auth and game run on the same machine, or firewall the port.");
+        }
+
+        /// <summary>How long a connection to the communicator port has to log in as a game server.</summary>
+        private static readonly TimeSpan CommunicatorLoginTimeout = TimeSpan.FromSeconds(30);
+
+        /// <summary>
+        /// Closes communicator connections that have not logged in within CommunicatorLoginTimeout.
+        ///
+        /// A connection sat in GameServerQueue until it sent a LoginRequest or its socket failed.
+        /// A game server logs in the moment it connects, so anything still waiting after that is
+        /// not one - a port scanner, a health check, a misconfigured server - and each held a
+        /// pooled receive buffer and its args for as long as it stayed open. Run from the auth
+        /// loop's timer; the closes happen outside the GameServers lock, because closing goes
+        /// through DisconnectCommunicator, which regenerates the server list.
+        /// </summary>
+        private void ExpireCommunicatorLogins()
+        {
+            List<CommunicatorClient> stale;
+            var cutoff = DateTime.UtcNow - CommunicatorLoginTimeout;
+
+            lock (GameServers)
+            {
+                // A connection that has logged in is a game server, however it got into the
+                // queue; it goes out of the queue, not off the link. One already let go (a login
+                // refused before its accept was handled) has nothing left to close.
+                GameServerQueue.RemoveAll(c => c.ServerId != 0 || c.IsDisconnected);
+
+                stale = GameServerQueue.Where(c => c.ConnectedTime < cutoff).ToList();
+            }
+
+            if (stale.Count == 0)
+                return;
+
+            Logger.WriteLog(LogType.Network, $"Closing {stale.Count} communicator connection(s) that did not log in as a game server within {CommunicatorLoginTimeout.TotalSeconds:F0} s.");
+
+            foreach (var client in stale)
+                client.Disconnect();
         }
 
         private void OnCommunicatorAccept(LengthedSocket socket)
         {
             AuthCommunicator.AcceptAsync();
 
-            lock (GameServers)
-                GameServerQueue.Add(new CommunicatorClient(socket, this));
-
             Logger.WriteLog(LogType.Network, $"A Game server has connected! Remote: {socket.RemoteAddress}");
+
+            // The client starts receiving in its constructor, and a game server sends its login the
+            // moment it connects, so the login can be handled on a completion thread before this
+            // line runs - it used to be, every time on loopback ("has authenticated!" logged before
+            // "has connected!"). AuthenticateGameServer then found nothing to take out of the queue,
+            // the connection was added to it here afterwards as if still waiting, and 30 s later
+            // ExpireCommunicatorLogins closed the live game server. Both sides decide under the
+            // GameServers lock: a connection that has already claimed a server id, or has already
+            // been refused and let go, is not queued.
+            var client = new CommunicatorClient(socket, this);
+
+            lock (GameServers)
+                if (client.ServerId == 0 && !client.IsDisconnected)
+                    GameServerQueue.Add(client);
         }
 
         public bool AuthenticateGameServer(LoginRequestPacket packet, CommunicatorClient client)
@@ -256,7 +425,20 @@ namespace Rasa.Auth
 
             lock (GameServers)
             {
-                if (GameServers.ContainsKey(packet.ServerId))
+                if (client.ServerId != 0)
+                {
+                    // One login per connection. A second one naming another id would have left
+                    // the first slot pointing at this connection with nothing to remove it.
+                    rejection = $"Game server {client.ServerId} tried to log in again, as {packet.ServerId}!";
+                    rejectionLogType = LogType.Security;
+                }
+                else if (packet.ServerId == 0)
+                {
+                    // 0 means "not logged in" everywhere in CommunicatorClient.
+                    rejection = "A server tried to connect to server slot 0!";
+                    rejectionLogType = LogType.Security;
+                }
+                else if (GameServers.ContainsKey(packet.ServerId))
                 {
                     rejection = "A server tried to connect to an already in use server slot!";
                     rejectionLogType = LogType.Debug;
@@ -266,13 +448,19 @@ namespace Rasa.Auth
                     rejection = "A server tried to connect to a non-defined server slot!";
                     rejectionLogType = LogType.Debug;
                 }
-                else if (Config.Servers[packet.ServerId.ToString()] != packet.Password)
+                else if (!PasswordMatches(Config.Servers[packet.ServerId.ToString()], packet.Password))
                 {
                     rejection = "A server tried to log in with an invalid password!";
-                    rejectionLogType = LogType.Error;
+                    rejectionLogType = LogType.Security;
                 }
                 else
                 {
+                    // Taken on only now, in the same locked step that claims the slot, so there
+                    // is no moment where the connection holds the slot without the id that
+                    // DisconnectCommunicator gives it back by.
+                    client.ServerId = packet.ServerId;
+                    client.PublicAddress = packet.PublicAddress;
+
                     GameServerQueue.Remove(client);
                     GameServers.Add(packet.ServerId, client);
 
@@ -286,6 +474,21 @@ namespace Rasa.Auth
             Logger.WriteLog(rejectionLogType, $"{rejection} Remote Address: {client.Socket.RemoteAddress}");
 
             return false;
+        }
+
+        /// <summary>
+        /// The configured password against the one offered, in time that does not depend on how
+        /// much of it matched. An empty configured password matches nothing.
+        /// </summary>
+        private static bool PasswordMatches(string expected, string offered)
+        {
+            if (string.IsNullOrEmpty(expected) || offered == null)
+                return false;
+
+            var expectedHash = SHA256.HashData(Encoding.UTF8.GetBytes(expected));
+            var offeredHash = SHA256.HashData(Encoding.UTF8.GetBytes(offered));
+
+            return CryptographicOperations.FixedTimeEquals(expectedHash, offeredHash);
         }
 
         public void UpdateServerInfo(CommunicatorClient client, ServerInfoResponsePacket packet)
@@ -326,7 +529,9 @@ namespace Rasa.Auth
             {
                 GameServerQueue.Remove(client);
 
-                if (client.ServerId != 0)
+                // Only this connection's own entry. Removing by id alone took out whichever
+                // server held that slot - the live one, when a rejected login carried its id.
+                if (client.ServerId != 0 && GameServers.TryGetValue(client.ServerId, out var registered) && registered == client)
                     GameServers.Remove(client.ServerId);
             }
 

@@ -36,7 +36,7 @@ namespace Rasa.Services.Preloader.Missions.Wilderness
         {
             RiverRecon(migration, new ScenePosition(309.512878f, 271.17935f, 436.969f), 6, 2);
             FieldReports(migration);
-            SnipeHunt(migration, 530046, new ScenePosition[]
+            SnipeHunt(migration, 630046, new ScenePosition[]
             {
                 new(243.340721f, 227.445074f, 241.396381f),
                 new(255.207849f, 230.380794f, 263.403659f),
@@ -47,7 +47,7 @@ namespace Rasa.Services.Preloader.Missions.Wilderness
             });
             GasHarvesters(migration);
             Rendezvous(migration);
-            MamaMiasma(migration, 530040, new ScenePosition[]
+            MamaMiasma(migration, 630040, new ScenePosition[]
             {
                 new(330, 203.8f, 526),
                 new(338.5f, 213.1f, 552),
@@ -142,7 +142,7 @@ namespace Rasa.Services.Preloader.Missions.Wilderness
             mission.Evidence(1, MissionEvidenceSourceKind.Client, "native:missiontext/758/759/6701",
                 "Six snipers and one physically retrieved datapad. Native text explicitly permits Glognar82, Phlegg83 or Rankash84 despite the Glognar-only counter label.");
             mission.Evidence(2, MissionEvidenceSourceKind.Reconstruction, "repository:docs/wilderness-missions.md",
-                $"Agent reconstruction: sniper template{sniperCreatureId}, native body7120/name406/weapon7119, dedicated server action530052 using compatible native1/149 with60m range, and six qualified pillbox/ridge poses. This is not a recovered retail class/stat association; ordinary Lightbender530071 is ineligible.");
+                $"Agent reconstruction: sniper template{sniperCreatureId}, native body7120/name406/weapon7119, dedicated server action630052 using compatible native1/149 with60m range, and six qualified pillbox/ridge poses. This is not a recovered retail class/stat association; ordinary Lightbender630071 is ineligible.");
             mission.Evidence(3, MissionEvidenceSourceKind.Reconstruction, "repository:docs/wilderness-missions.md",
                 "Existing datapad2239/class10211 drops from one eligible overseer and costs one item at turn-in. Historical6000XP/900credits; base Hazmat Gloves20399 and Shotgun3603 omit unsupported Olympia/ChiTech prefixes. Level6 is reconstructed.");
             mission.Enable(new MissionSceneDefinition

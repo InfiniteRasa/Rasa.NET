@@ -147,6 +147,12 @@ namespace Rasa.Test.Missions
             try
             {
                 abilities.RequestPerformAbility(harness.Client, request);
+                Assert.IsFalse(harness.Map.PerformRecovery.Any(entry => entry.ActionId == ActionId.AaRecruitLightning),
+                    "Learning the pump alone must not bypass the upstream Power Logos requirement.");
+                using (var unit = harness.CreateChar())
+                    unit.CharacterLogoses.SetLogos(harness.Client.Player.Id, AbilityLogos.Power);
+                harness.Client.Player.Logos.Add(AbilityLogos.Power);
+                abilities.RequestPerformAbility(harness.Client, request);
                 var action = harness.Map.PerformRecovery.SingleOrDefault(entry => entry.ActionId == ActionId.AaRecruitLightning);
                 Assert.IsNotNull(action, "A learned higher pump must reach the real object damage recovery.");
 
@@ -214,8 +220,8 @@ namespace Rasa.Test.Missions
         public void ArrivedRouteCannotPublishCompletionForAZeroHealthOrDyingActor(int health, CharacterState state)
         {
             using var harness = WildernessRuntimeTestHarness.Create();
-            harness.SpawnWorld(530070);
-            var actor = harness.Npc(530070);
+            harness.SpawnWorld(630070);
+            var actor = harness.Npc(630070);
             Assert.IsNotNull(actor);
             var handle = new ActorHandle(Guid.NewGuid().ToString("N"), "pierre", 1, harness.Map.MissionEpoch);
             var observations = new List<SceneObservation>();

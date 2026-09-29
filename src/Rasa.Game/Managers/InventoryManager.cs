@@ -26,27 +26,41 @@ namespace Rasa.Managers
          *  - AddBuybackItem
          *  - InventoryAddItem
          *  - InventoryCreate
+         *  - InventoryReload                       => InventoryReloadPacket; the clan lockbox after each change
          *  - InventoryRemoveItem
          *  - LockboxTabPermissions
          *  - RemoveBuybackItem
+         *  - ResetBuybackInventory
+         *  - AddInboxItem / RemoveInboxItem / ResetInboxInventory (ShowInbox on every arrival)
+         *  - AddAuctionItem / RemoveAuctionItem / ResetAuctionInventory (ShowAuctions on every
+         *    arrival, AuctionHouseManager for listing, sale, expiry, cancel and status)
          *  
          *      ToDo:
-         *  - AddAuctionItem
-         *  - AddInboxItem
          *  - AddOverflowItem
          *  - AddWagerItem
-         *  - InventoryDestroy
-         *  - InventoryMoveFailed
-         *  - InventoryReload
-         *  - RemoveAuctionItem
-         *  - RemoveInboxItem
          *  - RemoveOverflowItem
          *  - RemoveWagerItem
-         *  - ResetAuctionInventory
-         *  - ResetBuybackInventory
-         *  - ResetInboxInventory
          *  - ResetOverflowInventory
          *  - ResetWagerInventory
+         *
+         *      Intentionally not sent:
+         *  - InventoryDisabled (291)               => the 1.16.5 client ignores it. clientmethod.py
+         *                                             Recv_InventoryDisabled(bDisabled) only posts
+         *                                             UI_DISABLE_INVENTORY, and no window registers a
+         *                                             handler for that event (inventory, lockbox and clan
+         *                                             lockbox included; the name appears only where it is
+         *                                             defined and posted, in the source and the shipped
+         *                                             .pyo files). Whatever locked the inventory for it was
+         *                                             removed before this build, so sending it does nothing.
+         *  - InventoryMoveFailed (464)             => the 1.16.5 client's Recv_InventoryMoveFailed is a bare
+         *                                             return. A refused move needs no answer: the client
+         *                                             changes its slots only on InventoryRemoveItem and
+         *                                             InventoryAddItem, so the item stays put. See
+         *                                             InventoryMoveFailedPacket.
+         *  - InventoryDestroy (87)                 => InventoryReload with the new contents does the same
+         *                                             and says what is there; the request it answered
+         *                                             (closing the home lockbox) is gone. See
+         *                                             InventoryDestroyPacket.
          *  
          *    Inventory Handlers:
          *  - ClanLockbox_DepositItemInSlot         => implemented
@@ -56,7 +70,7 @@ namespace Rasa.Managers
          *  - ClanLockbox_WithdrawItem              => implemented
          *  - HomeInventory_DestroyItem             => implemented
          *  - HomeInventory_MoveItem                => implemented
-         *  - OverflowTransfer                      => ToDo
+         *  - OverflowTransfer                      => placeholder (no overflow inventory; see ClientPacketHandler)
          *  - PersonalInventory_DestroyItem         => implemented
          *  - PersonalInventory_MoveItem            => implemented
          *  - PurchaseClanLockboxTab                => ToDo
@@ -281,14 +295,20 @@ namespace Rasa.Managers
                 return;
             }
 
+            // The tab is recorded first and the price taken second, as the clan lockbox's tabs are:
+            // taken first, a failure writing the tab left the player charged for nothing. If the
+            // charge is refused the tab goes back.
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+            unitOfWork.CharacterLockboxes.UpdatePurashedTabs(client.AccountEntry.Id, packet.TabId);
+
             if (!_currencyManager.LossCredits(client, price))
+            {
+                unitOfWork.CharacterLockboxes.UpdatePurashedTabs(client.AccountEntry.Id, owned);
                 return;
+            }
 
             // update Player
             client.Player.LockboxTabs = packet.TabId;
-            // update Db
-            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
-            unitOfWork.CharacterLockboxes.UpdatePurashedTabs(client.AccountEntry.Id, packet.TabId);
             // send data to client
             client.CallMethod(SysEntity.ClientInventoryManagerId, new LockboxTabPermissionsPacket(packet.TabId));
         }
@@ -311,6 +331,18 @@ namespace Rasa.Managers
             if (packet.DestSlot >= client.Player.Inventory.EquippedInventory.Count)
             {
                 Logger.WriteLog(LogType.Debug, $"DestSlot out of range => {packet.DestSlot}");
+                return;
+            }
+
+            // Index 13 is not an armour slot: it mirrors WeaponDrawer[ActiveWeapon], the weapon in
+            // hand. Taken out through here, the dequip branch below cleared the mirror and put the
+            // weapon in the pack while the drawer still held it - one item in two inventories,
+            // which could be sold from one and re-equipped from the other as often as liked, or
+            // handed over from one and its row moved back from the other.
+            if (packet.DestSlot == (uint)EquipmentData.Weapon)
+            {
+                Logger.WriteLog(LogType.Security,
+                    $"AccountId = {client.AccountEntry.Id} sent RequestEquipArmor for slot {packet.DestSlot}, the weapon in hand; ignored.");
                 return;
             }
 
@@ -366,6 +398,9 @@ namespace Rasa.Managers
             if (entityIdInventoryItem != 0)
                 AddItemBySlot(client, InventoryType.EquipedInventory, entityIdInventoryItem, packet.DestSlot, true);
 
+            // The client asked the player first (PM_BIND_ON_EQUIP) and sent this on OK.
+            ItemManager.Instance.BindOnEquip(client, itemToEquip);
+
             // update appearance
             if (itemToEquip == null)
             {
@@ -381,6 +416,9 @@ namespace Rasa.Managers
             ManifestationManager.Instance.UpdateAppearance(client);
             ManifestationManager.Instance.UpdateStatsValues(client, false);
             ManifestationManager.Instance.NotifyEquipmentUpdate(client);
+
+            // A piece of armour on or off changes what its armour skill gives.
+            ManifestationManager.Instance.SyncSkillPassives(client);
 
             // Send Data to client
             client.CallMethod(client.Player.EntityId, new AttributeInfoPacket(client.Player.Attributes));
@@ -465,6 +503,10 @@ namespace Rasa.Managers
             if (entityIdInventoryItem != 0)
                 AddItemBySlot(client, InventoryType.WeaponDrawerInventory, entityIdInventoryItem, destSlot, true);
 
+            // Into the drawer is equipping, for the client as for this: weapondrawerwindow asks
+            // the Bind on Equip question on a drop there, not only on the active slot.
+            ItemManager.Instance.BindOnEquip(client, itemToEquip);
+
             if (destSlot == client.Player.ActiveWeapon)
                 if (itemToEquip == null)
                 {
@@ -503,6 +545,52 @@ namespace Rasa.Managers
             Logger.WriteLog(LogType.Debug, $"ToDO: RequestMoveItemToClanLockboxPacket");
         }
 
+        /// <summary>
+        /// Whether an item from the pack may go into the footlocker or, with clan set, the clan
+        /// lockbox; says why not when it may not. The footlocker refuses not_placable_in_lockbox
+        /// ("That item cannot be put in footlocker."); the clan lockbox, where anyone of the right
+        /// rank can take it out, also refuses anything bound or not tradable ("Non tradable items
+        /// cannot be placed in clan lockbox."). Mission items are all three.
+        /// </summary>
+        private static bool MayStore(Client client, ulong entityId, bool clan)
+        {
+            var item = EntityManager.Instance.GetItem(entityId);
+            var template = item?.ItemTemplate;
+
+            if (template == null)
+                return true;
+
+            PlayerMessage? refusal = null;
+
+            if (clan && (item.IsBound || template.NotTradable))
+                refusal = PlayerMessage.PmClanLockboxItemNotTradable;
+            else if (template.NotPlaceableInLockbox)
+                refusal = PlayerMessage.PmNotPlaceableInLockbox;
+
+            if (refusal == null)
+                return true;
+
+            client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(refusal.Value, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
+            return false;
+        }
+
+        /// <summary>
+        /// Whether an item in the footlocker may come out to this character. The footlocker is
+        /// the account's, shared by all its characters, so an item bound to one of them can be
+        /// put in by that character and seen by the others; only its own character takes it out
+        /// ("That item is bound on a different character.").
+        /// </summary>
+        private static bool MayTakeFromHome(Client client, ulong entityId)
+        {
+            var item = EntityManager.Instance.GetItem(entityId);
+
+            if (item == null || item.BoundCharacterId == 0 || item.BoundCharacterId == client.Player.Id)
+                return true;
+
+            client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(PlayerMessage.PmItemBoundOnDiffCharacter, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
+            return false;
+        }
+
         public void RequestMoveItemToHomeInventory(Client client, RequestMoveItemToHomeInventoryPacket packet)
         {
             // remove item
@@ -518,6 +606,13 @@ namespace Rasa.Managers
             var entityId = client.Player.Inventory.PersonalInventory[(int)packet.SrcSlot];
 
             if (entityId == 0 || HasProtected(entityId, client.Player.Inventory.HomeInventory[(int)packet.DestSlot]))
+                return;
+
+            if (!MayStore(client, entityId, false))
+                return;
+
+            // A swap takes the footlocker's item out into the pack.
+            if (client.Player.Inventory.HomeInventory[(int)packet.DestSlot] != 0 && !MayTakeFromHome(client, client.Player.Inventory.HomeInventory[(int)packet.DestSlot]))
                 return;
 
             RemoveItemBySlot(client, InventoryType.Personal, packet.SrcSlot);
@@ -545,6 +640,9 @@ namespace Rasa.Managers
             var entityId = client.Player.Inventory.PersonalInventory[(int)packet.SrcSlot];
 
             if (entityId == 0 || HasProtected(entityId, client.Player.Inventory.ClanInventory[(int)packet.DestSlot]))
+                return;
+
+            if (!MayStore(client, entityId, true))
                 return;
 
             // If DestSlot is not empty, move current item to SrcSlot (item swap)
@@ -627,6 +725,9 @@ namespace Rasa.Managers
             var entityId = client.Player.Inventory.PersonalInventory[(int)packet.SrcSlot];
 
             if (entityId == 0)
+                return;
+
+            if (!MayStore(client, entityId, true))
                 return;
 
             var tempItem = EntityManager.Instance.GetItem(entityId);
@@ -719,6 +820,11 @@ namespace Rasa.Managers
 
             var tempItem = EntityManager.Instance.GetItem(entityId);
             bool wasSwap = client.Player.Inventory.PersonalInventory[(int)packet.DestSlot] != 0;
+
+            // A swap puts the pack's item in the lockbox.
+            if (wasSwap && !packet.ManagePersonalSlot && !MayStore(client, client.Player.Inventory.PersonalInventory[(int)packet.DestSlot], true))
+                return;
+
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
 
             if (packet.ManagePersonalSlot)
@@ -826,6 +932,13 @@ namespace Rasa.Managers
             if (entityId == 0 || HasProtected(entityId, client.Player.Inventory.PersonalInventory[(int)packet.DestSlot]))
                 return;
 
+            if (!MayTakeFromHome(client, entityId))
+                return;
+
+            // A swap puts the pack's item in the footlocker.
+            if (client.Player.Inventory.PersonalInventory[(int)packet.DestSlot] != 0 && !MayStore(client, client.Player.Inventory.PersonalInventory[(int)packet.DestSlot], false))
+                return;
+
             RemoveItemBySlot(client, InventoryType.HomeInventory, packet.SrcSlot);
             // if toSlot is not empty, move current item to SrcSlot (item swap)
             if (client.Player.Inventory.PersonalInventory[(int)packet.DestSlot] != 0)
@@ -872,6 +985,44 @@ namespace Rasa.Managers
             // The row exists already - it was written when the item entered the inbox - so this
             // moves it rather than inserting a second one.
             AddItemBySlot(client, InventoryType.Personal, packet.ItemEntityId, packet.DestSlot, true);
+        }
+
+        /// <summary>
+        /// Whether the character already has an item of this template: carried, equipped, in a
+        /// weapon drawer, waiting in the inbox, or in the footlocker. The footlocker is the
+        /// account's, shared by all its characters, so there only an item bound to this
+        /// character - or to no one - is theirs. What Character Unique is tested against.
+        /// </summary>
+        public bool HoldsTemplate(Manifestation player, uint itemTemplateId)
+        {
+            var inventory = player?.Inventory;
+
+            if (inventory == null)
+                return false;
+
+            bool Is(ulong entityId, bool sharedLockbox)
+            {
+                if (entityId == 0)
+                    return false;
+
+                var item = EntityManager.Instance.GetItem(entityId);
+
+                if (item?.ItemTemplate == null || item.ItemTemplate.ItemTemplateId != itemTemplateId)
+                    return false;
+
+                return !sharedLockbox || item.BoundCharacterId == 0 || item.BoundCharacterId == player.Id;
+            }
+
+            foreach (var list in new[] { inventory.PersonalInventory, inventory.EquippedInventory, inventory.WeaponDrawer, inventory.InboxItems })
+                foreach (var entityId in list)
+                    if (Is(entityId, false))
+                        return true;
+
+            foreach (var entityId in inventory.HomeInventory)
+                if (Is(entityId, true))
+                    return true;
+
+            return false;
         }
 
         /// <summary>
@@ -956,50 +1107,65 @@ namespace Rasa.Managers
              * we can take closer look at this later
              */
 
-            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
-
-            //deposit
-            if (amount >= 500)
+            if (amount > -500 && amount < 500)
             {
-                if (client.Player.Credits[CurencyType.Credits] >= amount)
-                {
-                    var deposit = client.Player.LockboxCredits + amount;
-
-                    // The lockbox is credited only if the purse was actually debited. The check
-                    // above already covers it, but the two halves are written separately here and
-                    // a lockbox that gains what nobody lost is credits made out of nothing.
-                    if (!_currencyManager.LossCredits(client, amount))
-                        return;
-
-                    client.CallMethod(client.Player.EntityId, new LockboxFundsPacket(deposit));
-
-                    client.Player.LockboxCredits = deposit;
-                    unitOfWork.CharacterLockboxes.UpdateCredits(client.AccountEntry.Id, deposit);
-                }
-                else
-                    CommunicatorManager.Instance.SystemMessage(client, "Not enof credit's in inventory\nP.S. Go earn some credits :)");
-            }
-            // withdraw
-            else if (amount <= -500)
-            {
-                if (client.Player.LockboxCredits >= -amount)
-                {
-                    var withdraw = client.Player.LockboxCredits + amount;
-
-                    if (!_currencyManager.GainCredits(client, -amount))
-                        return;
-
-                    client.CallMethod(client.Player.EntityId, new LockboxFundsPacket(withdraw));
-
-                    client.Player.LockboxCredits = withdraw;
-                    unitOfWork.CharacterLockboxes.UpdateCredits(client.AccountEntry.Id, withdraw);
-                }
-                else
-                    CommunicatorManager.Instance.SystemMessage(client, "Not enof credit's in Lockbox\nP.S. Dont be greedy :)");
-            }
-            else
                 CommunicatorManager.Instance.SystemMessage(client, "Minimum transfer value is 500 credits");
+                return;
+            }
 
+            // Worked in long: purse and lockbox are both int columns. The sums were int + int, so a
+            // big enough deposit wrapped the lockbox negative (and stranded it, since a withdrawal
+            // needs the balance to cover it), a withdrawal past int.MaxValue was clamped off the
+            // purse while the lockbox still paid it out in full, and -int.MinValue is itself
+            // negative, which made a withdrawal of int.MinValue pass the balance check.
+            long purse = client.Player.Credits[CurencyType.Credits];
+            long lockbox = client.Player.LockboxCredits;
+
+            var purseAfter = purse - amount;
+            var lockboxAfter = lockbox + amount;
+
+            if (purseAfter < 0)
+            {
+                CommunicatorManager.Instance.SystemMessage(client, "Not enof credit's in inventory\nP.S. Go earn some credits :)");
+                return;
+            }
+
+            if (lockboxAfter < 0)
+            {
+                CommunicatorManager.Instance.SystemMessage(client, "Not enof credit's in Lockbox\nP.S. Dont be greedy :)");
+                return;
+            }
+
+            if (purseAfter > int.MaxValue || lockboxAfter > int.MaxValue)
+            {
+                client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(PlayerMessage.PmInsufficientDepositFunds, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
+                return;
+            }
+
+            // Both balances in one transaction: the purse and the lockbox used to be written by two
+            // separate commits, so a failure between them made or lost the difference.
+            try
+            {
+                using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+                using var transaction = unitOfWork.BeginTransaction();
+
+                unitOfWork.Characters.UpdateCharacterCredits(client.Player.Id, (int)purseAfter);
+                unitOfWork.CharacterLockboxes.UpdateCredits(client.AccountEntry.Id, (int)lockboxAfter);
+
+                unitOfWork.Complete();
+                transaction.Commit();
+            }
+            catch (Exception e)
+            {
+                Logger.WriteLog(LogType.Error, $"Lockbox transfer of {amount} for {client.Player.FamilyName} failed to commit; nothing moved: {e}");
+                return;
+            }
+
+            client.Player.Credits[CurencyType.Credits] = (int)purseAfter;
+            client.Player.LockboxCredits = (int)lockboxAfter;
+
+            client.CallMethod(client.Player.EntityId, new UpdateCreditsPacket(CurencyType.Credits, (int)purseAfter, (int)(purseAfter - purse)));
+            client.CallMethod(client.Player.EntityId, new LockboxFundsPacket((int)lockboxAfter));
         }
 
         /// <summary>
@@ -1229,14 +1395,36 @@ namespace Rasa.Managers
             // amount was boxed and unboxed as an int, an InvalidCastException, so the clan
             // kept every deposit, the depositor kept the money, and the client was
             // disconnected. If the second step fails now the player is short, not the clan.
-            if (!_characterManager.UpdateCharacter(
-                    client, characterUpdate, (int)(-amount)))
-                return;
+            //
+            // Both sides are now written in one transaction, so a failure between them leaves
+            // neither changed. The character side used to go through CharacterManager on a unit of
+            // work of its own and commit on its own, before the clan's.
+            try
+            {
+                using var transaction = unitOfWork.BeginTransaction();
 
-            if (creditType == 1)
-                unitOfWork.Clans.UpdateCredits(client.Player.ClanId, (uint)lockboxAfter);
-            else
-                unitOfWork.Clans.UpdatePrestige(client.Player.ClanId, (uint)lockboxAfter);
+                if (creditType == 1)
+                {
+                    unitOfWork.Characters.UpdateCharacterCredits(client.Player.Id, (int)playerAfter);
+                    unitOfWork.Clans.UpdateCredits(client.Player.ClanId, (uint)lockboxAfter);
+                }
+                else
+                {
+                    unitOfWork.Characters.UpdateCharacterPrestige(client.Player.Id, (int)playerAfter);
+                    unitOfWork.Clans.UpdatePrestige(client.Player.ClanId, (uint)lockboxAfter);
+                }
+
+                unitOfWork.Complete();
+                transaction.Commit();
+            }
+            catch (Exception e)
+            {
+                Logger.WriteLog(LogType.Error, $"Clan transfer of {amount} {currency} for {client.Player.FamilyName} failed to commit; nothing moved: {e}");
+                return;
+            }
+
+            client.Player.Credits[currency] = (int)playerAfter;
+            client.CallMethod(client.Player.EntityId, new UpdateCreditsPacket(currency, (int)playerAfter, (int)-amount));
 
             var lockboxCredits = creditType == 1 ? (uint)lockboxAfter : clanInfo.Credits;
             var lockboxPrestige = creditType == 2 ? (uint)lockboxAfter : clanInfo.Prestige;
@@ -1309,6 +1497,31 @@ namespace Rasa.Managers
             if (IsProtected(tempItem) && (updateDB || inventoryType != InventoryType.Personal ||
                 tempItem.OwnerId != client.Player.Id || tempItem.OwnerSlotId != slotId))
                 return;
+
+            // A move rewrites the row it finds by item id, whoever it belongs to. Every item in
+            // this player's lists has its row on this account, with this character's id or the
+            // home lockbox's 0; one that does not has been handed over, sold, or never had a row,
+            // and moving it would take that row over. Checked before anything changes, so a refusal
+            // leaves both the lists and the database as they were.
+            if (updateDB && !actuallyAdd && inventoryType != InventoryType.ClanInventory)
+            {
+                using var check = _gameUnitOfWorkFactory.CreateChar();
+
+                if (!check.CharacterInventories.IsHeldBy(tempItem.Id, client.AccountEntry.Id, client.Player.Id))
+                {
+                    Logger.WriteLog(LogType.Security,
+                        $"AccountId = {client.AccountEntry.Id} ({client.Player.FamilyName}) moved item {tempItem.Id} (entity {entityId}) to {inventoryType} slot {slotId}, "
+                        + "but its inventory row is not theirs; refused.");
+                    return;
+                }
+            }
+
+            // The item's own record of where it is follows it. InventoryPlan checks every personal
+            // stack's OwnerSlotId against its slot before any grant, loot claim or mission accept,
+            // and this was left to the callers: an equip swap put the outgoing item in the pack
+            // with its old equipment slot still on it, and every later inventory change for that
+            // character was refused until they logged in again.
+            tempItem.OwnerSlotId = slotId;
 
             // set entityId in slot
             switch (inventoryType)
@@ -1466,12 +1679,14 @@ namespace Rasa.Managers
             if (!usable)
                 return AddItemToInventory(client, item, recordAcquisition);
 
-            var itemClassInfo = EntityClassManager.Instance.GetItemClassInfo(item);
             var acquired = item.StackSize;
 
             item.OwnerId = client.Player.Id;
             item.OwnerSlotId = destSlot;
-            item.CurrentHitPoints = itemClassInfo.MaxHitPoints;
+            // Its condition comes with it. This used to put every item back to its maximum on the
+            // way in, which was harmless while nothing wore - and a free repair once things do: sell
+            // a worn piece and buy it back, or put it in the clan lockbox and take it out again. Every
+            // item is made at its maximum (ItemManager.CreateItem), so there is nothing to top up.
 
             ItemManager.Instance.SendItemDataToClient(client, item, false);
             AddItemBySlot(client, InventoryType.Personal, item.EntityId, destSlot, true, true);
@@ -1588,7 +1803,6 @@ namespace Rasa.Managers
                 {
                     item.OwnerId = client.Player.Id;
                     item.OwnerSlotId = (uint)(itemCategoryOffset + i);
-                    item.CurrentHitPoints = itemClassInfo.MaxHitPoints;
                     // send data to client
                     ItemManager.Instance.SendItemDataToClient(client, item, false);
                     // add item to empty slot
@@ -1692,7 +1906,6 @@ namespace Rasa.Managers
                     // AddItemBySlot sets OwnerId for the destination; SelectedSlot (a pod
                     // number) used to be stored here as if it were a character id.
                     item.OwnerSlotId = (uint)(i);
-                    item.CurrentHitPoints = itemClassInfo.MaxHitPoints;
                     // send data to client
                     ItemManager.Instance.SendItemDataToClient(client, item, false);
                     // add item to empty slot
@@ -1825,6 +2038,12 @@ namespace Rasa.Managers
                 }
             }
             client.CallMethod(SysEntity.ClientInventoryManagerId, new LockboxTabPermissionsPacket(client.Player.LockboxTabs));
+
+            // The inbox's items survive the map change too, and were never shown again.
+            ShowInbox(client, true);
+
+            // So do the listed ones.
+            ShowAuctions(client, true);
         }
 
         public void SetupLocalClanInventory(Client client)
@@ -1894,6 +2113,49 @@ namespace Rasa.Managers
             client.Player.Inventory.ResetClanInventory();
 
             SetupLocalClanInventory(client);
+        }
+
+        private static bool IsSlotFree(Client client, InventoryType inventoryType, uint slotId)
+        {
+            var inventory = client.Player.Inventory;
+
+            return inventoryType switch
+            {
+                InventoryType.Personal => slotId < inventory.PersonalInventory.Count && inventory.PersonalInventory[(int)slotId] == 0,
+                InventoryType.EquipedInventory => slotId < inventory.EquippedInventory.Count && inventory.EquippedInventory[(int)slotId] == 0,
+                InventoryType.WeaponDrawerInventory => slotId < inventory.WeaponDrawer.Count && inventory.WeaponDrawer[(int)slotId] == 0,
+                _ => false,
+            };
+        }
+
+        /// <summary>
+        /// An Item for a row read from the database, registered with the EntityManager. Whoever
+        /// holds it is responsible for destroying it.
+        /// </summary>
+        internal static Item CreateLoadedItem(Structures.Char.ItemEntry itemData, ItemTemplate itemTemplate, uint ownerId, uint slotId)
+        {
+            var newItem = new Item
+            {
+                OwnerId = ownerId,
+                OwnerSlotId = slotId,
+                ItemTemplate = itemTemplate,
+                ItemTemplateId = itemTemplate.ItemTemplateId,
+                StackSize = itemData.StackSize,
+                CurrentHitPoints = itemData.CurrentHitPoints,
+                Color = itemData.Color,
+                Id = itemData.ItemId,
+                Crafter = itemData.CrafterName,
+                BoundCharacterId = itemData.BoundCharacterId
+            };
+
+            // check if item is weapon
+            if (newItem.ItemTemplate.WeaponInfo != null)
+                newItem.CurrentAmmo = itemData.AmmoCount;
+
+            EntityManager.Instance.RegisterEntity(newItem.EntityId, EntityType.Item);
+            EntityManager.Instance.RegisterItem(newItem.EntityId, newItem);
+
+            return newItem;
         }
 
         public void InitCharacterInventory(Client client)
@@ -1978,28 +2240,24 @@ namespace Rasa.Managers
                     continue;
                 }
 
-                var newItem = new Item
+                // A listed item is the auction house's, and may already be registered - found by a
+                // search while this character was away, or kept from their last session. The one
+                // object is shared rather than a second made for the same row.
+                var newItem = inventoryType == InventoryType.AuctionInventory
+                    ? AuctionHouseManager.Instance.ListedItem(item.ItemId)
+                    : null;
+
+                if (newItem == null)
                 {
-                    OwnerId = item.CharacterId,
-                    OwnerSlotId = item.SlotId,
-                    ItemTemplate = itemTemplate,
-                    ItemTemplateId = itemTemplate.ItemTemplateId,
-                    StackSize = itemData.StackSize,
-                    CurrentHitPoints = itemData.CurrentHitPoints,
-                    Color = itemData.Color,
-                    Id = item.ItemId,
-                    Crafter = itemData.CrafterName,
-                    MissionOwnership = missionItems.TryGetValue(item.ItemId, out var provenance)
-                        ? InventoryPlan.ToOwnership(provenance) : null
-                };
+                    newItem = CreateLoadedItem(itemData, itemTemplate, item.CharacterId, item.SlotId);
 
-                // check if item is weapon
-                if (newItem.ItemTemplate.WeaponInfo != null)
-                    newItem.CurrentAmmo = itemData.AmmoCount;
+                    if (inventoryType == InventoryType.AuctionInventory)
+                        AuctionHouseManager.Instance.List(newItem);
+                }
 
-                // register item
-                EntityManager.Instance.RegisterEntity(newItem.EntityId, EntityType.Item);
-                EntityManager.Instance.RegisterItem(newItem.EntityId, newItem);
+                // What a mission gave, and to whom (MissionItemProtection).
+                newItem.MissionOwnership = missionItems.TryGetValue(item.ItemId, out var provenance)
+                    ? InventoryPlan.ToOwnership(provenance) : null;
 
                 // fill invenoty slot
                 ItemManager.Instance.SendItemDataToClient(client, newItem, false);
@@ -2021,21 +2279,17 @@ namespace Rasa.Managers
 
                     else if ((InventoryType)item.InventoryType == InventoryType.InboxInventory)
                     {
-                        // Waiting at an auction house. The client's Pick Up Items tab reads a
-                        // list only AddInboxItem and CreateInventory fill, and CreateInventory
-                        // iterates its argument expecting bare entity ids while
-                        // InventoryCreatePacket writes (index, entityId) pairs - so the items go
-                        // over one at a time.
+                        // Waiting at an auction house: listed to the client once the list is
+                        // complete and in slot order (ShowInbox, below).
                         client.Player.Inventory.InboxItems.Add(newItem.EntityId);
-                        client.CallMethod(SysEntity.ClientInventoryManagerId, new AddInboxItemPacket(newItem.EntityId));
                     }
 
                     else if ((InventoryType)item.InventoryType == InventoryType.AuctionInventory)
                     {
                         // Listed at an auction house. SendItemDataToClient above already created
                         // the entity, which is all the client needs to render the row when it
-                        // asks for auction status; it belongs in no inventory list it can move
-                        // items in, so it only goes in the server's own auction list.
+                        // asks for auction status; listed to the client with the rest of the
+                        // auction list once the load is done (ShowAuctions, below).
                         client.Player.Inventory.AuctionItems.Add(newItem.EntityId);
                     }
                 }
@@ -2063,6 +2317,83 @@ namespace Rasa.Managers
 
             SortBySlot(client.Player.Inventory.AuctionItems);
             SortBySlot(client.Player.Inventory.InboxItems);
+
+            // Item data went out in the loop above.
+            ShowInbox(client, false);
+            ShowAuctions(client, false);
+        }
+
+        /// <summary>
+        /// Lists the character's auctions - the auction house's Your Auctions tab - to their
+        /// client afresh: ResetAuctionInventory, then AddAuctionItem for each listed item. The
+        /// figures (price, time left) arrive with the next AuctionStatusSuccess, which the tab
+        /// asks for whenever it is opened.
+        ///
+        /// The same problem as <see cref="ShowInbox"/>: the client empties its auction list by
+        /// itself only on the way back to the login screen, and AuctionStatusSuccess only adds
+        /// to it. A character chosen at character select inherited the list of whoever played
+        /// before them, and those entries counted towards MAX_AUCTION_ITEMS, which the Create
+        /// Auction button checks before it asks the server anything. On a teleport or map link
+        /// the client dropped the listed items' entities with the rest of the map and was never
+        /// sent them again, so Your Auctions skipped every row until the next login.
+        ///
+        /// <paramref name="sendItemData"/> is false where the caller has just sent every item's
+        /// data itself (the login load).
+        /// </summary>
+        internal void ShowAuctions(Client client, bool sendItemData)
+        {
+            var listed = client?.Player?.Inventory?.AuctionItems;
+
+            if (listed == null)
+                return;
+
+            listed.RemoveAll(entityId => EntityManager.Instance.GetItem(entityId) == null);
+
+            client.CallMethod(SysEntity.ClientInventoryManagerId, new ResetAuctionInventoryPacket());
+
+            foreach (var entityId in listed)
+            {
+                if (sendItemData)
+                    ItemManager.Instance.SendItemDataToClient(client, EntityManager.Instance.GetItem(entityId), false);
+
+                client.CallMethod(SysEntity.ClientInventoryManagerId, new AddAuctionItemPacket(entityId));
+            }
+        }
+
+        /// <summary>
+        /// Lists the character's inbox - the auction house's Pick Up Items tab - to their client
+        /// afresh: ResetInboxInventory, then AddInboxItem for each item in slot order.
+        ///
+        /// The client empties that list by itself only on the way back to the login screen. A
+        /// character chosen at character select inherited the list of whoever played before
+        /// them, and each login added the new ids to the old ones: ids of entities destroyed at
+        /// logout, which entity id recycling (EntityManager.GetEntityId) later hands to other
+        /// entities that then show up as rows, and which keep Receive All enabled over an
+        /// empty list. On a teleport or map link the items stay registered under the same ids
+        /// but the client drops their entities with the rest of the map, and nothing sent them
+        /// again: the tab was empty until the next login, with the items still in the inbox.
+        ///
+        /// <paramref name="sendItemData"/> is false where the caller has just sent every item's
+        /// data itself (the login load).
+        /// </summary>
+        internal void ShowInbox(Client client, bool sendItemData)
+        {
+            var inbox = client?.Player?.Inventory?.InboxItems;
+
+            if (inbox == null)
+                return;
+
+            inbox.RemoveAll(entityId => EntityManager.Instance.GetItem(entityId) == null);
+
+            client.CallMethod(SysEntity.ClientInventoryManagerId, new ResetInboxInventoryPacket());
+
+            foreach (var entityId in inbox)
+            {
+                if (sendItemData)
+                    ItemManager.Instance.SendItemDataToClient(client, EntityManager.Instance.GetItem(entityId), false);
+
+                client.CallMethod(SysEntity.ClientInventoryManagerId, new AddInboxItemPacket(entityId));
+            }
         }
 
         /// <summary>How many items of the entity class the player carries in their personal inventory, all stacks together.</summary>
@@ -2257,13 +2588,16 @@ namespace Rasa.Managers
         {
 
             var itemTemplate = ItemManager.Instance.GetItemTemplateById(itemTemplateId);
-            var classInfo = EntityClassManager.Instance.GetClassInfo(itemTemplate.Class);
 
+            // Checked before its class is read: the other way round, the client's own requests for
+            // templates this server does not have disconnected it.
             if (itemTemplate == null)
             {
                 Logger.WriteLog(LogType.Error, $"RequestTooltipForItemTemplateId: Unknown itemTemplateId {itemTemplateId}");
                 return; // todo: even answer on a unknown template, else the client will continue to spam us with requests
             }
+
+            var classInfo = EntityClassManager.Instance.GetClassInfo(itemTemplate.Class);
             client.CallMethod(SysEntity.ClientGameUIManagerId, new ItemTemplateTooltipInfoPacket(itemTemplate, classInfo));
         }
 
@@ -2374,7 +2708,7 @@ namespace Rasa.Managers
                 ClanManager.Instance.CallMethodForOnlineMembers(clanId, (client) => AddItemBySlot(client, InventoryType.ClanInventory, entityId, slotId, false), characterId);
 
             ClanManager.Instance.CallMethodForOnlineMembers(clanId, (client) => UpdateItemSlot(client, entityId), characterId);
-            ClanManager.Instance.CallMethodForOnlineMembers(clanId, (uint)SysEntity.ClientInventoryManagerId, new ClanInventoryReload(InventoryType.ClanInventory, clanInventory, 500));
+            ClanManager.Instance.CallMethodForOnlineMembers(clanId, (uint)SysEntity.ClientInventoryManagerId, new InventoryReloadPacket(InventoryType.ClanInventory, clanInventory, 500));
         }
 
         public void RemoveItemBySlotForClan(uint clanId, uint slotId, uint skipThisCharacter)

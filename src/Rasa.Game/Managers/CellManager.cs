@@ -215,8 +215,17 @@ namespace Rasa.Managers
                 return false;
 
             LootDispenserManager.Instance.RemoveForCreature(mapChannel, creature);
+
+            // Its entries in the per-creature tables keyed by entity id, before the id is freed
+            // for the next creature.
+            CreatureHabits.Forget(creature);
+            CreatureBuffs.Forget(creature);
+
+            // Unregister once, whoever was or was not watching.
             EntityManager.Instance.ReleaseEntity(creature.EntityId, EntityType.Creature);
             creature.RuntimeMapChannel = null;
+
+            // A corpse taken away frees its place in the pool's dead count; callers do not.
             if (creature.State == CharacterState.Dead && creature.SpawnPool != null)
                 SpawnPoolManager.Instance.DecreaseDeadCreatureCount(creature.SpawnPool);
             return true;
@@ -524,21 +533,29 @@ namespace Rasa.Managers
         }
 
         #region SendPackets
+        /// <summary>
+        /// A creature's movement, to everyone who can see it: the clients in the cells of the
+        /// creature's own matrix - the one it is registered under, and so the one its visibility
+        /// to each client was decided by.
+        ///
+        /// This and <see cref="CellCallMethod(Creature, PythonPacket)"/> used to build a fresh
+        /// matrix from the creature's position on every call: 25 GetCells, two dictionary lookups
+        /// each, and a new cell created for any of them the map had not got - for every moving
+        /// creature on every think, and every creature action. That was most of what made the
+        /// cell table grow toward every cell ever within two of a creature. The stored matrix is
+        /// the one the introductions used, so it is also the right set of clients: one computed
+        /// from a position that had just crossed a boundary named clients who had never been
+        /// told the creature existed, and missed some who had.
+        /// </summary>
         internal void CellMoveObject(Creature creature, Movement movementData)
         {
             var mapChannel = creature?.RuntimeMapChannel;
             if (mapChannel == null)
                 return;
 
-            // calculate initial cell(x, z)
-            var cellPosX = (uint)(creature.Position.X / CellSize + CellBias);
-            var cellPosZ = (uint)(creature.Position.Z / CellSize + CellBias);
-
-            // create matrix
-            var cellMatrix = CreateCellMatrix(mapChannel, cellPosX, cellPosZ);
-
-            foreach (var client in GetClientsInCells(mapChannel, cellMatrix))
-                client.MoveObject(creature.EntityId, movementData);
+            foreach (var cell in CellsIn(mapChannel, creature.Cells))
+                foreach (var client in cell.ClientList)
+                    client.MoveObject(creature.EntityId, movementData);
         }
 
         internal void CellCallMethod(DynamicObject obj, PythonPacket packet)
@@ -559,21 +576,33 @@ namespace Rasa.Managers
                 client.CallMethod(obj.EntityId, packet);
         }
 
+        /// <summary>
+        /// A method call on an entity the server does not hold - one the client builds itself from
+        /// the .map (a teleporter, a switch) - to everyone in range of where it stands.
+        /// </summary>
+        internal void CellCallMethod(MapChannel mapChannel, Vector3 position, ulong entityId, PythonPacket packet)
+        {
+            if (mapChannel == null)
+                return;
+
+            var cellPosX = (uint)(position.X / CellSize + CellBias);
+            var cellPosZ = (uint)(position.Z / CellSize + CellBias);
+
+            foreach (var cell in CellsIn(mapChannel, CreateCellMatrix(mapChannel, cellPosX, cellPosZ)))
+                foreach (var client in cell.ClientList)
+                    client.CallMethod(entityId, packet);
+        }
+
+        /// <summary>A method call on a creature, to everyone who can see it; see <see cref="CellMoveObject(Creature, Movement)"/> for which cells.</summary>
         internal void CellCallMethod(Creature creature, PythonPacket packet)
         {
             var mapChannel = creature?.RuntimeMapChannel;
             if (mapChannel == null)
                 return;
 
-            // calculate initial cell(x, z)
-            var cellPosX = (uint)(creature.Position.X / CellSize + CellBias);
-            var cellPosZ = (uint)(creature.Position.Z / CellSize + CellBias);
-
-            // create matrix
-            var cellMatrix = CreateCellMatrix(mapChannel, cellPosX, cellPosZ);
-
-            foreach (var client in GetClientsInCells(mapChannel, cellMatrix))
-                client.CallMethod(creature.EntityId, packet);
+            foreach (var cell in CellsIn(mapChannel, creature.Cells))
+                foreach (var client in cell.ClientList)
+                    client.CallMethod(creature.EntityId, packet);
         }
 
         internal void CellCallMethod(MapChannel mapChannel, Actor origin, PythonPacket packet)

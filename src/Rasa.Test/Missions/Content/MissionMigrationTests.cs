@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Linq;
 using System.Collections.Generic;
 using System.Text.Json;
@@ -63,12 +64,28 @@ namespace Rasa.Test.Missions.Content
         [TestMethod]
         public void SeedWorldBaselineEnablesExactlyTheProtectedBootcampDefinitions()
         {
-            using var harness = global::Rasa.Test.Missions.Wilderness.WildernessRuntimeTestHarness.Create(
-                targetWorldMigration: "20260926190153_SeedWorldContent");
-            CollectionAssert.AreEquivalent(new uint[] { 1990, 1992, 1994, 1995, 2005 },
-                harness.World.MissionContentDefinitionEntries.Where(entry => entry.Enabled)
-                    .Select(entry => entry.MissionId).ToArray());
-            Assert.IsTrue(harness.Manager.Scenes.OwnsExperience(1985));
+            var directory = Path.Combine(Path.GetTempPath(), "rasa-seed-boundary-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(directory);
+            try
+            {
+                using var world = (SqliteWorldContext)Database.PersistenceIntegrationTests.CreateContext(
+                    typeof(SqliteWorldContext), Path.Combine(directory, "world"));
+                world.GetService<IMigrator>().Migrate("20260926190153_SeedWorldContent");
+                CollectionAssert.AreEquivalent(new uint[] { 1990, 1992, 1994, 1995, 2005 },
+                    world.MissionContentDefinitionEntries.Where(entry => entry.Enabled)
+                        .Select(entry => entry.MissionId).ToArray());
+                var experience = world.Set<MissionExperienceBindingEntry>().Single(entry => entry.Enabled);
+                Assert.AreEqual(1985U, experience.MapContextId);
+                var binding = JsonSerializer.Deserialize<MissionExperienceDefinition>(
+                    experience.Bindings, MissionContentCodec.Options);
+                Assert.IsNotNull(binding);
+                Assert.AreEqual(1985U, binding.MapContextId);
+            }
+            finally
+            {
+                Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+                Directory.Delete(directory, true);
+            }
         }
 
         [TestMethod]

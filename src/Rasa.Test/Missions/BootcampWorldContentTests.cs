@@ -978,6 +978,8 @@ namespace Rasa.Test.Missions
             public INpcPackageRepository NpcPackages { get; }
             public IPlayerRandomNameRepository RandomNames { get; }
             public ISpawnpoolRepository Spawnpools { get; }
+            public IMapEmitterRepository MapEmitters { get; }
+            public ISpawnPoolArrivalRepository SpawnPoolArrivals { get; }
             public ITeleporterRepository Teleporters { get; }
             public void Complete() { }
             public void Reject() { }

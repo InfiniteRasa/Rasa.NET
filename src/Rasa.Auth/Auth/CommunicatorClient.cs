@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading;
 
 namespace Rasa.Auth
 {
@@ -22,6 +23,9 @@ namespace Rasa.Auth
         public ushort CurrentPlayers { get; set; }
         public ushort MaxPlayers { get; set; }
         public DateTime LastRequestTime { get; set; }
+
+        /// <summary>When the connection was accepted; one that has not logged in within Server.CommunicatorLoginTimeout is closed.</summary>
+        public DateTime ConnectedTime { get; } = DateTime.UtcNow;
         public IPAddress PublicAddress { get; set; }
 
         private readonly PacketRouter<CommunicatorClient, CommOpcode> _router = new PacketRouter<CommunicatorClient, CommOpcode>();
@@ -35,6 +39,7 @@ namespace Rasa.Auth
 
             Socket.OnReceive += OnReceive;
             Socket.OnError += OnError;
+            Socket.OnDrop += OnDrop;
 
             Socket.ReceiveAsync();
         }
@@ -75,6 +80,35 @@ namespace Rasa.Auth
 
         private void OnError(SocketAsyncEventArgs args)
         {
+            Disconnect();
+        }
+
+        /// <summary>
+        /// The socket layer gave up on this link without a socket error - no buffer to re-arm the
+        /// receive with, a full send queue, a frame that would not decode. The socket stays open
+        /// and Connected after that, and with only OnError handled the game server stayed
+        /// registered and listed as up while nothing it sent was read and nothing reached it.
+        /// It is let go the same way a socket error lets it go; the game server reconnects.
+        /// </summary>
+        private void OnDrop(string reason)
+        {
+            Disconnect();
+        }
+
+        private int _disconnected;
+
+        /// <summary>Whether this link has been let go (Disconnect has run).</summary>
+        internal bool IsDisconnected => Volatile.Read(ref _disconnected) != 0;
+
+        /// <summary>
+        /// Once per link: a drop closes the socket, and the close completes the receive that
+        /// was still armed with an error, which comes back through OnError.
+        /// </summary>
+        internal void Disconnect()
+        {
+            if (Interlocked.Exchange(ref _disconnected, 1) != 0)
+                return;
+
             Socket.Close();
 
             Server.DisconnectCommunicator(this);
@@ -102,19 +136,14 @@ namespace Rasa.Auth
         [PacketHandler(CommOpcode.LoginRequest)]
         private void MsgLoginRequest(LoginRequestPacket packet)
         {
-            // Set before the slot is claimed, not after. DisconnectCommunicator gives the slot
-            // back only when ServerId is non-zero, and this used to be assigned four statements
-            // and two sends later - so a game server whose socket died in that window left its
-            // entry in GameServers forever, pointing at a dead connection. It could then never
-            // reconnect (the slot reads as in use) and the auth server went on asking that dead
-            // socket for its player counts once a second until it was restarted.
-            ServerId = packet.ServerId;
-            PublicAddress = packet.PublicAddress;
-
+            // ServerId and PublicAddress are assigned by AuthenticateGameServer, under the
+            // GameServers lock and in the same step that claims the slot, so a socket that dies
+            // right after is still given its slot back by DisconnectCommunicator. They used to be
+            // taken from the packet here, before the password was checked: a rejected login then
+            // carried the id of the server it had failed to be, and DisconnectCommunicator removed
+            // GameServers[id] - the real server's entry - for it.
             if (!Server.AuthenticateGameServer(packet, this))
             {
-                ServerId = 0;
-
                 Socket.Send(new LoginResponsePacket
                 {
                     Response = CommLoginReason.Failure
@@ -134,6 +163,10 @@ namespace Rasa.Auth
         [PacketHandler(CommOpcode.ServerInfoResponse)]
         private void MsgGameInfoResponse(ServerInfoResponsePacket packet)
         {
+            // Only from a connection that has logged in as a game server.
+            if (ServerId == 0)
+                return;
+
             Server.UpdateServerInfo(this, packet);
         }
 
@@ -141,6 +174,10 @@ namespace Rasa.Auth
         [PacketHandler(CommOpcode.RedirectResponse)]
         private void MsgRedirectResponse(RedirectResponsePacket packet)
         {
+            // Only from a connection that has logged in as a game server.
+            if (ServerId == 0)
+                return;
+
             Server.RedirectResponse(this, packet);
         }
     }

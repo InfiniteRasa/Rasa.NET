@@ -39,5 +39,31 @@ namespace Rasa.Repositories.Char.CharacterLogos
                 Logger.WriteLog(LogType.Error, e);
             }
         }
+
+        public bool DeleteLogos(uint characterId, uint logosId)
+        {
+            return Delete(_charContext.CharacterLogosEntries.Where(e => e.CharacterId == characterId && e.LogosId == logosId));
+        }
+
+        public bool DeleteAllLogos(uint characterId)
+        {
+            return Delete(_charContext.CharacterLogosEntries.Where(e => e.CharacterId == characterId));
+        }
+
+        private bool Delete(IQueryable<CharacterLogosEntry> rows)
+        {
+            try
+            {
+                _charContext.CharacterLogosEntries.RemoveRange(rows.ToList());
+                _charContext.SaveChanges();
+                return true;
+            }
+            catch (Exception e)
+            {
+                Logger.WriteLog(LogType.Error, "Error removing logos:");
+                Logger.WriteLog(LogType.Error, e);
+                return false;
+            }
+        }
     }
 }

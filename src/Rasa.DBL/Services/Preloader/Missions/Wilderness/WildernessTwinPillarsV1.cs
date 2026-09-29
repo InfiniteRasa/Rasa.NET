@@ -17,7 +17,7 @@ namespace Rasa.Services.Preloader.Missions.Wilderness
         public const uint StimDustTemplate = 2226;
         public const uint BloodAnalyzerClass = 7123;
         public const uint ForeanMachinaClass = 6236;
-        public const uint ForeanMachinaCreatureId = 530100;
+        public const uint ForeanMachinaCreatureId = 630100;
         public const double BloodAnalyzerYaw = Math.PI;
         public static readonly ScenePosition BloodAnalyzerRoot = new(-124.8f, 222.04809f, -479.2f);
         public static readonly ScenePosition BloodAnalyzerApproach = new(-124.8f, 220.91783f, -477.2f);
@@ -197,8 +197,8 @@ namespace Rasa.Services.Preloader.Missions.Wilderness
             mission.Action(3, 1, MissionActionKind.GrantReward, reward: 1);
             mission.Indicator(3, 1, -701.8125, 202.5625, 65.83984);
             Evidence(mission, 574, "Machinations",
-                "Requires rewarded570. Ten actual Forean Machina Remains753/class7991; source is adopted WorldB creature530100, " +
-                "native class6236 and weapon6019, with public spawns530100..530102 around the Memory Tree, never Hominis8. " +
+                "Requires rewarded570. Ten actual Forean Machina Remains753/class7991; source is adopted WorldB creature630100, " +
+                "native class6236 and weapon6019, with public spawns630100..630102 around the Memory Tree, never Hominis8. " +
                 "One guaranteed eligible corpse item until ten are held; " +
                 "the reward transaction consumes ten. Parsons119/package450 finishes outdoors. No593 handoff. " +
                 "Hazmat helmet20548 and Reflective vest36083 replace historical Pulsar/Olympia prefixes.");

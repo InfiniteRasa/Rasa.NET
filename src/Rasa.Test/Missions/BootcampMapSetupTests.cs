@@ -44,6 +44,7 @@ namespace Rasa.Test.Missions
             var previousLogging = Logger.Config;
             using var output = new StringWriter();
             Logger.UpdateConfig(new Logger.LoggerConfig { IsDebugMode = true, LogToFile = false });
+            global::Rasa.Logger.Flush();
             Console.SetOut(output);
             try
             {
@@ -91,6 +92,7 @@ namespace Rasa.Test.Missions
             }
             finally
             {
+                global::Rasa.Logger.Flush();
                 Console.SetOut(previousOutput);
                 Logger.UpdateConfig(previousLogging);
             }
@@ -340,7 +342,7 @@ namespace Rasa.Test.Missions
             Assert.AreEqual(2.175, alister.Rotation, 0.001);
             Assert.IsFalse(alister.IsRunning);
             var neighbor = harness.AddNpc(7777, position: AlisterDestination + new Vector3(0.3f, 0, 0));
-            neighbor.Faction = Factions.AFS;
+            neighbor.TargetCategory = TargetCategory.Friendly;
             for (var tick = 0; tick < 240; tick++)
                 BehaviorManager.Instance.MapChannelThink(harness.BootcampMap, 250);
             Assert.IsTrue(Vector3.Distance(AlisterDestination, alister.Position) < 0.01f);

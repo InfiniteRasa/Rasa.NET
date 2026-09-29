@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Diagnostics;
 using System.IO;
 
 namespace Rasa.Packets.Auth.Server
@@ -9,15 +8,10 @@ namespace Rasa.Packets.Auth.Server
     public class BlockedAccountWithMsgPacket : IOpcodedPacket<ServerOpcode>
     {
         public ServerOpcode Opcode { get; } = ServerOpcode.BlockedAccountWithMessage;
+        /// <summary>A server-to-client packet: the auth server writes it and never reads one.</summary>
         public void Read(BinaryReader reader)
         {
-            var count = reader.ReadByte();
-            for (var i = 0; i < count; ++i)
-            {
-                Debugger.Break();
-            }
-
-            throw new NotImplementedException();
+            throw new NotSupportedException("BlockedAccountWithMsgPacket is sent by the server, not read by it.");
         }
 
         public void Write(BinaryWriter writer)

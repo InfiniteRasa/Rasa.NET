@@ -1,16 +1,21 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Rasa.Data;
+using Rasa.Game;
+using Rasa.Game.Missions.Persistence;
 using Rasa.Managers;
 using Rasa.Missions.Content;
 using Rasa.Missions.Definitions;
 using Rasa.Missions.Scenes;
 using Rasa.Packets.Inventory.Client;
 using Rasa.Packets.LootDispenser.Client;
+using Rasa.Packets.LootDispenser.Server;
+using Rasa.Packets.Party.Server;
 using Rasa.Structures;
 using Rasa.Structures.World;
 
@@ -67,7 +72,7 @@ namespace Rasa.Test.Missions
                 context.Client, context.AddNpc(77).EntityId, missionId));
             var corpse = context.AddNpc(3);
             corpse.Npc = null;
-            corpse.Faction = Factions.Bane;
+            corpse.TargetCategory = TargetCategory.Hostile;
             corpse.State = CharacterState.Dead;
             corpse.Attributes[Attributes.Health] = new ActorAttributes(Attributes.Health, 100, 100, 0, 0, 0);
             CellManager.Instance.UpdateVisibility(context.Client);
@@ -111,6 +116,185 @@ namespace Rasa.Test.Missions
             {
                 manager.RemoveForOwner(context.Map, context.Client);
             }
+        }
+
+        [TestMethod]
+        [DataRow(PartyLootMethod.FreeForAll)]
+        [DataRow(PartyLootMethod.Rotation)]
+        [DataRow(PartyLootMethod.DiceRoll)]
+        public void SquadAllocationKeepsQualifiedLootWithTheKillerAndOutOfRolls(PartyLootMethod method)
+        {
+            using var fixture = new Fixture(questTemplateId: 30);
+            var context = fixture.Context;
+            var member = context.CreateAdditionalClient(2);
+            member.Player.Attributes[Attributes.Health] = new ActorAttributes(Attributes.Health, 100, 100, 100, 0, 0);
+            using var party = new PartyScope(method, context.Client, member);
+            using var items = new ItemManagerScope(context);
+            party.Party.LootRotation = 1;
+            ItemManager.Instance.GetItemTemplateById(28).QualityId = (int)LootQuality.Normal;
+            ItemManager.Instance.GetItemTemplateById(30).QualityId = (int)LootQuality.Epic;
+
+            var loot = fixture.Spawn(squadLoot: true);
+            var quest = loot.LootItems.Single(item => item.ItemTemplateId == 30);
+            var expectedOwner = method == PartyLootMethod.Rotation ? member : context.Client;
+            Assert.AreEqual(expectedOwner.Player.EntityId, loot.Owner);
+            Assert.AreEqual(context.Client.Player.EntityId, quest.ActorId);
+            Assert.AreEqual(context.Client.Player.EntityId, quest.ReservedFor);
+            Assert.AreEqual(0U, quest.PartyId);
+            Assert.IsTrue(loot.Looters.Contains(context.Client.Player.EntityId),
+                "Rotation must still show the killer their personal quest drop.");
+            CollectionAssert.AreEquivalent(new[] { context.Client.Player.EntityId, member.Player.EntityId },
+                loot.CreditSharers.ToArray());
+            Assert.IsTrue(LootDispenserManager.LootableBy(loot, context.Client.Player.EntityId).Contains(quest));
+            Assert.IsFalse(LootDispenserManager.LootableBy(loot, member.Player.EntityId).Contains(quest));
+            foreach (var ordinary in loot.LootItems.Where(item => item != quest))
+                if (method == PartyLootMethod.DiceRoll)
+                {
+                    Assert.AreNotEqual(0UL, ordinary.ReservedFor);
+                    Assert.AreEqual(ordinary.ReservedFor, ordinary.ActorId);
+                    Assert.AreEqual(0U, ordinary.PartyId);
+                }
+                else
+                {
+                    Assert.AreEqual(expectedOwner.Player.EntityId, ordinary.ActorId);
+                    Assert.AreEqual(method == PartyLootMethod.FreeForAll ? party.Party.Id : 0U, ordinary.PartyId);
+                    Assert.AreEqual(0UL, ordinary.ReservedFor);
+                }
+            var packets = context.Drain();
+            Assert.IsTrue(packets.OfType<CanLootItemsPacket>().Any());
+            Assert.IsFalse(packets.OfType<PartyMemberRollPacket>().Any(packet => packet.ItemClassId == quest.ItemClassId));
+            Assert.IsFalse(MissionTestContext.Drain(member).OfType<PartyMemberRollPacket>()
+                .Any(packet => packet.ItemClassId == quest.ItemClassId));
+            Assert.AreEqual(0U, fixture.Counter);
+            Assert.AreEqual(0U, fixture.HeldQuantity);
+
+            LootRolls.Distribute(loot, party.Party, new List<Client> { context.Client, member }, () => 100);
+            Assert.AreEqual(context.Client.Player.EntityId, quest.ReservedFor,
+                "A qualified item must also remain personal if squad distribution is repeated.");
+            Assert.IsFalse(context.Drain().OfType<PartyMemberRollPacket>()
+                .Any(packet => packet.ItemClassId == quest.ItemClassId));
+
+            fixture.Manager.RequestLootItemFromCorpse(member,
+                new RequestLootItemFromCorpsePacket { EntityId = loot.EntityId, ItemId = quest.EntityId, DestSlot = 50 });
+            Assert.IsFalse(quest.Taken);
+            Assert.AreEqual(0U, fixture.Counter);
+            fixture.Manager.RequestLootItemFromCorpse(context.Client,
+                new RequestLootItemFromCorpsePacket { EntityId = loot.EntityId, ItemId = quest.EntityId, DestSlot = 50 });
+            Assert.IsTrue(quest.Taken);
+            Assert.AreEqual(1U, fixture.HeldQuantity);
+            Assert.AreEqual(1U, fixture.Counter);
+        }
+
+        [TestMethod]
+        [DataRow(false)]
+        [DataRow(true)]
+        public void OrdinaryItemsAllocatedToAnotherMemberDoNotFillTheKillersQualifiedDeficit(bool rolled)
+        {
+            using var fixture = new Fixture();
+            var context = fixture.Context;
+            var member = context.CreateAdditionalClient(2);
+            using var party = new PartyScope(rolled ? PartyLootMethod.FreeForAll : PartyLootMethod.Rotation,
+                context.Client, member);
+            party.Party.LootThreshold = PartyLootThreshold.Junk;
+            ItemManager.Instance.GetItemTemplateById(28).QualityId = (int)LootQuality.Normal;
+            var looters = rolled ? new List<Client> { context.Client, member } : new List<Client> { member };
+            var loot = fixture.Manager.Create(context.Client, fixture.CreateCorpse(), looters,
+                rolled ? party.Party.Id : 0, new ActorGameplayPolicy
+                {
+                    Loot = new AuthoredLootProfile(new[] { new LootDrop(28, 100, 2, 2) })
+                });
+            if (rolled)
+            {
+                var dice = new Queue<int>(new[] { 1, 100 });
+                LootRolls.Distribute(loot, party.Party, new List<Client> { context.Client, member }, dice.Dequeue);
+            }
+            var ordinary = loot.LootItems.Single();
+            Assert.IsFalse(ordinary.MayTake(context.Client.Player.EntityId));
+            Assert.IsTrue(ordinary.MayTake(member.Player.EntityId));
+
+            using var unit = context.CreateChar();
+            unit.ExecuteTransaction(() =>
+            {
+                var drops = MissionLootPlanner.Plan(context.Client, loot, context.Manager, unit, (minimum, maximum) => minimum);
+                Assert.AreEqual(1, drops.Count);
+                Assert.AreEqual(1U, drops[0].Quantity);
+                Assert.AreEqual(context.Client.Player.Id, drops[0].CharacterId);
+            });
+            Assert.AreEqual(0U, fixture.Counter);
+            Assert.AreEqual(0U, fixture.HeldQuantity);
+        }
+
+        [TestMethod]
+        [DataRow(false)]
+        [DataRow(true)]
+        public void SharedOrdinaryPickupLeavesQualifiedLootPersonalAndSplitsCreditsOnce(bool failFirstClaim)
+        {
+            using var fixture = new Fixture();
+            var context = fixture.Context;
+            var member = context.CreateAdditionalClient(2);
+            member.Player.Attributes[Attributes.Health] = new ActorAttributes(Attributes.Health, 100, 100, 100, 0, 0);
+            using var party = new PartyScope(PartyLootMethod.FreeForAll, context.Client, member);
+            var loot = fixture.Spawn();
+            var ordinary = loot.LootItems.Single(item => item.ItemTemplateId == 29);
+            var quest = loot.LootItems.Single(item => item.ItemTemplateId == 28);
+            ordinary.PartyId = party.Party.Id;
+            loot.Looters.Add(member.Player.EntityId);
+            loot.CreditSharers.AddRange(new[] { context.Client.Player.EntityId, member.Player.EntityId });
+            loot.Credits = 7;
+            var request = new RequestLootAllFromCorpsePacket { EntityId = loot.EntityId };
+            if (failFirstClaim)
+            {
+                var injected = false;
+                context.AfterSave = database =>
+                {
+                    if (database.CharacterInventoryEntries.Local.Any(row => row.ItemId == ordinary.Item.Id))
+                    {
+                        injected = true;
+                        throw new DbUpdateException("Injected shared ordinary loot inventory failure.");
+                    }
+                };
+
+                fixture.Manager.RequestLootAllFromCorpse(member, request);
+
+                context.AfterSave = null;
+                Assert.IsTrue(injected, "Shared loot must reach the inventory transaction before failing.");
+                Assert.IsFalse(ordinary.Taken);
+                Assert.IsFalse(quest.Taken);
+                Assert.IsTrue(member.Player.Inventory.PersonalInventory.All(id => id == 0));
+                using var verifyRollback = context.CreateChar();
+                Assert.IsFalse(verifyRollback.CharacterInventories.GetItems(member.AccountEntry.Id)
+                    .Any(row => row.ItemId == ordinary.Item.Id));
+            }
+
+            fixture.Manager.RequestLootAllFromCorpse(member, request);
+
+            Assert.IsTrue(ordinary.Taken, "PR105 Free For All loot must be claimable by a squad member other than ActorId.");
+            Assert.IsFalse(quest.Taken);
+            Assert.IsFalse(loot.FullyLooted);
+            Assert.AreEqual(0U, fixture.Counter);
+            Assert.AreEqual(7, loot.Credits);
+            using (var verify = context.CreateChar())
+                Assert.AreEqual(member.Player.Id, verify.CharacterInventories.GetItems(member.AccountEntry.Id)
+                    .Single(row => row.ItemId == ordinary.Item.Id).CharacterId);
+
+            fixture.Take(loot);
+
+            Assert.IsTrue(quest.Taken);
+            Assert.IsTrue(loot.FullyLooted);
+            Assert.AreEqual(1U, fixture.HeldQuantity);
+            Assert.AreEqual(1U, fixture.Counter);
+            Assert.AreEqual(104, context.Client.Player.Credits[CurencyType.Credits]);
+            Assert.AreEqual(103, member.Player.Credits[CurencyType.Credits]);
+            using (var verify = context.CreateChar())
+            {
+                Assert.AreEqual(104, verify.Characters.Find(context.Client.Player.Id).Credit);
+                Assert.AreEqual(103, verify.Characters.Find(member.Player.Id).Credit);
+            }
+            fixture.Take(loot);
+            fixture.Manager.RequestLootAllFromCorpse(member, request);
+            Assert.AreEqual(1U, fixture.Counter);
+            Assert.AreEqual(104, context.Client.Player.Credits[CurencyType.Credits]);
+            Assert.AreEqual(103, member.Player.Credits[CurencyType.Credits]);
         }
 
         [TestMethod]
@@ -337,6 +521,41 @@ namespace Rasa.Test.Missions
         }
 
         [TestMethod]
+        [DataRow(false)]
+        [DataRow(true)]
+        public void MissionDropCreationRollsBackWhenTheRegisteredCorpseChangesBeforeCommit(bool retired)
+        {
+            using var fixture = new Fixture();
+            var context = fixture.Context;
+            var corpse = fixture.CreateCorpse();
+            var injected = false;
+            context.AfterSave = database =>
+            {
+                if (!database.ItemEntries.Local.Any(item => item.ItemTemplateId == 28))
+                    return;
+                injected = true;
+                if (retired)
+                    context.Map.LootDispensers[corpse.CorpseLootEntityId].IsLootable = false;
+                else
+                    corpse.CorpseLootEntityId = 0;
+            };
+
+            var loot = fixture.Manager.Create(context.Client, corpse, new ActorGameplayPolicy
+            {
+                Loot = new AuthoredLootProfile(new[] { new LootDrop(29, 100, 1, 1) })
+            });
+
+            context.AfterSave = null;
+            Assert.IsTrue(injected);
+            CollectionAssert.AreEqual(new uint[] { 29 }, loot.LootItems.Select(item => item.ItemTemplateId).ToArray());
+            Assert.AreEqual(0U, fixture.Counter);
+            Assert.AreEqual(0U, fixture.HeldQuantity);
+            using var verify = context.Open();
+            Assert.AreEqual(0, verify.ItemEntries.Count(item => item.ItemTemplateId == 28));
+            Assert.AreEqual(1, verify.ItemEntries.Count(item => item.ItemTemplateId == 29));
+        }
+
+        [TestMethod]
         public void AssignmentIssuedItemsCannotBeAuthoredAsUnboundCorpseDrops()
         {
             var binding = new MissionItemBinding("issued", 28, MissionItemScope.AssignmentIssued, 2,
@@ -370,14 +589,16 @@ namespace Rasa.Test.Missions
         {
             internal MissionTestContext Context { get; }
             internal LootDispenserManager Manager { get; }
+            internal uint QuestTemplateId { get; }
             internal uint Counter => Context.Client.Player.Missions[901].Objectives[1].ItemCounters[3147];
             internal uint HeldQuantity => (uint)Context.Client.Player.Inventory.PersonalInventory.Where(id => id != 0)
-                .Select(EntityManager.Instance.GetItem).Where(item => item.ItemTemplate.ItemTemplateId == 28)
+                .Select(EntityManager.Instance.GetItem).Where(item => item.ItemTemplate.ItemTemplateId == QuestTemplateId)
                 .Sum(item => (long)item.StackSize);
 
             internal Fixture(int chance = 100, uint quantity = 1, bool accept = true, bool authorDrop = true,
-                int percentile = 0, bool issueProtected = false)
+                int percentile = 0, bool issueProtected = false, uint questTemplateId = 28)
             {
+                QuestTemplateId = questTemplateId;
                 var objective = new MissionObjectiveDefinition(1, 1001, 1002, new uint?[] { null, null, null }, 1,
                     MissionObjectiveState.Incomplete, true, null,
                     new Dictionary<uint, MissionObjectiveItemCounterDefinition>
@@ -386,25 +607,27 @@ namespace Rasa.Test.Missions
                     }, Array.Empty<MissionObjectiveConversation>(), Array.Empty<uint>(), Array.Empty<uint>(),
                     Array.Empty<MissionIndicator>(), MissionProgressRule.IncrementItemCounterOnExactSubject(
                         MissionProgressEventKind.ItemAcquired, 3147, 0, 2));
-                var binding = new MissionItemBinding("collected-item", 28, MissionItemScope.CharacterOwned, 2,
+                var binding = new MissionItemBinding("collected-item", questTemplateId, MissionItemScope.CharacterOwned, 2,
                     MissionItemCleanupDisposition.Retain, MissionItemCleanupDisposition.Retain,
                     MissionItemCleanupDisposition.Retain, TurnInQuantity: 2,
                     Drop: authorDrop ? new MissionItemDropDefinition(new uint[] { 3 }, 1, 1220, chance, quantity) : null);
                 var bindings = new List<MissionItemBinding> { binding };
                 if (issueProtected)
-                    bindings.Add(new MissionItemBinding("protected", 28, MissionItemScope.AssignmentIssued, 2,
+                    bindings.Add(new MissionItemBinding("protected", questTemplateId, MissionItemScope.AssignmentIssued, 2,
                         MissionItemCleanupDisposition.Remove, MissionItemCleanupDisposition.Remove,
                         MissionItemCleanupDisposition.Remove));
                 var mission = new Mission(901, "Corpse collection", 901, 77, 88, 1, 1, 1, false, false,
                     new[] { objective }, true, items: bindings, acceptanceItems: issueProtected
-                        ? new[] { new IssueMissionItemIntent("accept-protected", 901, "protected", 28, 2) } : null);
+                        ? new[] { new IssueMissionItemIntent("accept-protected", 901, "protected", questTemplateId, 2) } : null);
                 Context = MissionTestContext.WithCustomDefinitions(new Dictionary<uint, Mission> { [901] = mission },
                     new Dictionary<uint, MissionRewardDefinition>
                     {
                         [901] = new MissionRewardDefinition(0, new Dictionary<CurencyType, int>
                             { [CurencyType.Credits] = 7 }, null, null)
                     });
-                Context.AddRewardTemplate(28, 3147);
+                Context.AddRewardTemplate(questTemplateId, 3147);
+                if (questTemplateId != 28)
+                    Context.AddRewardTemplate(28, 3149);
                 Context.AddRewardTemplate(29, 3148);
                 Context.Client.Player.Attributes[Attributes.Health] = new ActorAttributes(Attributes.Health, 100, 100, 100, 0, 0);
                 Manager = new LootDispenserManager(Context, missionManager: Context.Manager,
@@ -414,17 +637,23 @@ namespace Rasa.Test.Missions
                 Context.Drain();
             }
 
-            internal LootDispenser Spawn(uint creatureId = 3)
+            internal Creature CreateCorpse(uint creatureId = 3)
             {
                 var corpse = Context.AddNpc(creatureId);
                 corpse.Npc = null;
-                corpse.Faction = Factions.Bane;
+                corpse.TargetCategory = TargetCategory.Hostile;
                 corpse.State = CharacterState.Dead;
                 corpse.Attributes[Attributes.Health] = new ActorAttributes(Attributes.Health, 100, 100, 0, 0, 0);
                 CellManager.Instance.UpdateVisibility(Context.Client);
+                return corpse;
+            }
+
+            internal LootDispenser Spawn(uint creatureId = 3, bool squadLoot = false)
+            {
+                var corpse = CreateCorpse(creatureId);
                 Manager.Loot(Context.Client, corpse, new ActorGameplayPolicy
                 {
-                    Loot = new AuthoredLootProfile(new[] { new LootDrop(29, 100, 1, 1) })
+                    Loot = squadLoot ? null : new AuthoredLootProfile(new[] { new LootDrop(29, 100, 1, 1) })
                 });
                 return Context.Map.LootDispensers[corpse.CorpseLootEntityId];
             }
@@ -454,9 +683,59 @@ namespace Rasa.Test.Missions
             public void Dispose()
             {
                 Context.AfterSave = null;
-                Manager.RemoveForOwner(Context.Map, Context.Client);
+                foreach (var loot in Context.Map.LootDispensers.Values.ToArray())
+                    Manager.RemoveForCreature(Context.Map, loot.Corpse);
                 Context.Dispose();
             }
+        }
+
+        private sealed class PartyScope : IDisposable
+        {
+            private readonly Client[] _clients;
+            internal Party Party { get; }
+
+            internal PartyScope(PartyLootMethod method, params Client[] clients)
+            {
+                _clients = clients;
+                var id = PartyManager.Instance.GetPartyId;
+                Party = new Party(id, clients[0].AccountEntry.Id, clients.Select(client => new PartyMember(client)).ToList())
+                {
+                    LootMethod = method,
+                    LootThreshold = PartyLootThreshold.Prototype
+                };
+                PartyManager.Instance.Parties.Add(id, Party);
+                foreach (var client in clients)
+                    client.Player.PartyId = id;
+                lock (Server.Clients)
+                    Server.Clients.AddRange(clients);
+            }
+
+            public void Dispose()
+            {
+                foreach (var client in _clients)
+                    client.Player.PartyId = 0;
+                lock (Server.Clients)
+                    foreach (var client in _clients)
+                        Server.Clients.Remove(client);
+                PartyManager.Instance.Parties.Remove(Party.Id);
+                PartyManager.Instance.FreePartyId(Party.Id);
+            }
+        }
+
+        private sealed class ItemManagerScope : IDisposable
+        {
+            private readonly FieldInfo _field = typeof(ItemManager).GetField("_instance", BindingFlags.Static | BindingFlags.NonPublic)!;
+            private readonly ItemManager _previous = ItemManager.Instance;
+
+            internal ItemManagerScope(MissionTestContext context)
+            {
+                var items = (ItemManager)Activator.CreateInstance(typeof(ItemManager),
+                    BindingFlags.Instance | BindingFlags.NonPublic, binder: null, args: new object[] { context }, culture: null)!;
+                items.ItemTemplateItemClass = new Dictionary<uint, EntityClasses>(_previous.ItemTemplateItemClass);
+                _field.SetValue(null, items);
+            }
+
+            public void Dispose() => _field.SetValue(null, _previous);
         }
     }
 }

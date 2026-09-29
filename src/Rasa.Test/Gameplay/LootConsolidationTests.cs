@@ -367,17 +367,19 @@ namespace Rasa.Test.Gameplay
             var info = new LootInfoPacket(context.Loot.LootItems);
             var corpse = new LootCorpsePacket(context.Client.Player.EntityId, context.Loot.LootItems);
             var canLoot = new CanLootItemsPacket(true, context.Loot.LootItems);
-            var actorGot = new ActorGotLootPacket(context.Loot);
+            var actorGot = new ActorGotLootPacket(context.Loot.AttachedTo, context.Loot.LootItems.Select(i => i.EntityId).ToList());
             var taken = new TakenInfoPacket(context.Client.Player.EntityId, context.Loot.LootItems);
-            var got = new GotLootPacket(context.Loot);
+            var got = new GotLootPacket(context.Loot.AttachedTo, context.Loot.LootItems, context.Loot.Credits);
             var expectedInfo = Encode(new LootInfoPacket(context.Loot.LootItems));
             var expectedCorpse = Encode(new LootCorpsePacket(
                 context.Client.Player.EntityId, context.Loot.LootItems));
             var expectedCanLoot = Encode(new CanLootItemsPacket(true, context.Loot.LootItems));
-            var expectedActorGot = Encode(new ActorGotLootPacket(context.Loot));
+            var expectedActorGot = Encode(new ActorGotLootPacket(
+                context.Loot.AttachedTo, context.Loot.LootItems.Select(i => i.EntityId).ToList()));
             var expectedTaken = Encode(new TakenInfoPacket(
                 context.Client.Player.EntityId, context.Loot.LootItems));
-            var expectedGot = Encode(new GotLootPacket(context.Loot));
+            var expectedGot = Encode(new GotLootPacket(
+                context.Loot.AttachedTo, context.Loot.LootItems, context.Loot.Credits));
 
             item.ItemTemplateId++;
             item.ItemClassId++;
@@ -477,7 +479,7 @@ namespace Rasa.Test.Gameplay
                     MapContextId = Map.MapInfo.MapContextId,
                     Position = Vector3.Zero,
                     State = CharacterState.Dead,
-                    Faction = Factions.Bane,
+                    TargetCategory = TargetCategory.Hostile,
                     AppearanceData = new(),
                     Attributes = new Dictionary<Attributes, ActorAttributes>
                     {

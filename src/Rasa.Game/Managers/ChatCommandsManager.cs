@@ -104,7 +104,7 @@ namespace Rasa.Managers
             registered.Handler(parts);
         }
 
-        private static bool HasLevel(Client client, GmLevel required)
+        internal static bool HasLevel(Client client, GmLevel required)
         {
             return client?.AccountEntry != null && client.AccountEntry.Level >= (byte)required;
         }
@@ -130,15 +130,34 @@ namespace Rasa.Managers
             RegisterCommand(".help", GmLevel.Observer, HelpGmCommand);
             RegisterCommand(".links", GmLevel.Observer, LinksCommand);
             RegisterCommand(".regions", GmLevel.Observer, RegionsCommand);
+            RegisterCommand(".emitters", GmLevel.Observer, EmittersCommand);
+            RegisterCommand(".fxpackages", GmLevel.Observer, FxPackagesCommand);
             RegisterCommand(".navmesh", GmLevel.Observer, NavMeshCommand);
             RegisterCommand(".near", GmLevel.Observer, NearCommand);
             RegisterCommand(".npcinfo", GmLevel.Observer, NpcInfoCommand);
             RegisterCommand(".rqs", GmLevel.Observer, RqsWindowCommand);
             RegisterCommand(".where", GmLevel.Observer, WhereCommand);
+            RegisterCommand(".cover", GmLevel.Observer, CoverCommand);
+            RegisterCommand(".los", GmLevel.Observer, LosCommand);
+            RegisterCommand(".camerascript", GmLevel.Observer, CameraScriptCommand);
+            RegisterCommand(".clientevent", GmLevel.Observer, ClientEventCommand);
 
             // GameMaster: moves you, spawns and drives scenery and creatures, drives
             // your own client. A restart undoes all of it.
             RegisterCommand(".actorstate", GmLevel.GameMaster, ActorStateCommand);
+            RegisterCommand(".usermissions", GmMissionCommands.Level,
+                parts => GmMissionCommands.ShowUserMissions(_client, string.Join(" ", parts.Skip(1))));
+            RegisterCommand(".completeobjective", GmMissionCommands.Level,
+                parts => GmMissionCommands.CompleteObjective(_client, parts));
+            RegisterCommand(".givemission", GmMissionCommands.Level,
+                parts => GmMissionCommands.GiveMission(_client, parts));
+            RegisterCommand(".track", GmLevel.GameMaster, TrackCommand);
+            RegisterCommand(".vamp", GmLevel.GameMaster, VampCommand);
+            RegisterCommand(".effect", GmLevel.GameMaster, EffectCommand);
+            RegisterCommand(".moveflags", GmLevel.GameMaster, MoveFlagsCommand);
+            RegisterCommand(".falldamage", GmLevel.GameMaster, FallDamageCommand);
+            RegisterCommand(".immune", GmLevel.GameMaster, ImmuneCommand);
+            RegisterCommand(".feud", GmLevel.GameMaster, FeudCommand);
             RegisterCommand(".bark", GmLevel.GameMaster, BarkCommand);
             RegisterCommand(".comehere", GmLevel.GameMaster, ComeHereCommand);
             RegisterCommand(".createobj", GmLevel.GameMaster, CreateObjectCommand);
@@ -155,9 +174,13 @@ namespace Rasa.Managers
             RegisterCommand(".linkhere", GmLevel.GameMaster, LinkHereCommand);
             RegisterCommand(".kraftwerks", GmLevel.GameMaster, KraftwerksCommand);
             RegisterCommand(".region", GmLevel.GameMaster, RegionCommand);
+            RegisterCommand(".emitter", GmLevel.GameMaster, EmitterCommand);
             RegisterCommand(".notify", GmLevel.GameMaster, NotifyCommand);
             RegisterCommand(".msg", GmLevel.GameMaster, MessageCommand);
+            RegisterCommand(".destination", GmLevel.GameMaster, DestinationCommand);
+            RegisterCommand(".placefield", GmLevel.GameMaster, PlaceFieldCommand);
             RegisterCommand(".removeobj", GmLevel.GameMaster, RemoveObjectCommand);
+            RegisterCommand(".moveobj", GmLevel.GameMaster, MoveObjectCommand);
             RegisterCommand(".rename", GmLevel.GameMaster, RenameCommand);
             RegisterCommand(".setkillstreak", GmLevel.GameMaster, SetKillStreakCommand);
             RegisterCommand(".setregion", GmLevel.GameMaster, SetRegionCommand);
@@ -165,6 +188,9 @@ namespace Rasa.Managers
             RegisterCommand(".tele", GmLevel.GameMaster, TeleCommand);
             RegisterCommand(".teleport", GmLevel.GameMaster, TeleportCommand);
             RegisterCommand(".teleup", GmLevel.GameMaster, TeleUpCommand);
+            RegisterCommand(".targetcategory", GmLevel.GameMaster, TargetCategoryCommand);
+            RegisterCommand(".blockaction", GmLevel.GameMaster, BlockActionCommand);
+            RegisterCommand(".usable", GmLevel.GameMaster, UsableCommand);
 
             // Admin: hands out progression, changes who a player is, reloads server data.
             // A restart does not undo these.
@@ -174,8 +200,10 @@ namespace Rasa.Managers
             RegisterCommand(".givecredits", GmLevel.Admin, GiveCreditsCommand);
             RegisterCommand(".giveitem", GmLevel.Admin, GiveItemCommand);
             RegisterCommand(".givelogos", GmLevel.Admin, GiveLogosCommand);
+            RegisterCommand(".removelogos", GmLevel.Admin, RemoveLogosCommand);
             RegisterCommand(".givepads", GmLevel.Admin, GivePadsCommand);
             RegisterCommand(".givexp", GmLevel.Admin, GiveXpCommand);
+            RegisterCommand(".setlevel", GmLevel.Admin, SetLevelCommand);
             RegisterCommand(".failmission", GmLevel.Admin, FailMissionCommand);
             RegisterCommand(".failobjective", GmLevel.Admin, FailObjectiveCommand);
             RegisterCommand(".reloadcreatures", GmLevel.Admin, ReloadCreaturesCommand);
@@ -220,41 +248,444 @@ namespace Rasa.Managers
                     $"Mission {missionId} objective {objectiveId} is not active.");
         }
 
+        /// <summary>
+        /// .addtitle titleId: gives you the title (titledata id), saved with the character, as a
+        /// title item does. The client lists it in the Titles window and prints "you have gained
+        /// the title".
+        /// </summary>
         private void AddTitleCommand(string[] parts)
         {
-            if (parts.Length == 1)
+            if (parts.Length != 2 || !uint.TryParse(parts[1], out var titleId) || titleId == 0)
             {
                 CommunicatorManager.Instance.SystemMessage(_client, "usage: .addtitle titleId");
                 return;
             }
 
-            if (parts.Length == 2)
-            {
-                if (uint.TryParse(parts[1], out var titleId))
-                {
-                    _client.CallMethod(_client.Player.EntityId, new TitleAddedPacket(titleId));
-                }
-            }
+            if (!ManifestationManager.Instance.GrantTitle(_client, titleId))
+                CommunicatorManager.Instance.SystemMessage(_client, $"You already have title {titleId}, or it could not be saved.");
         }
 
+        /// <summary>
+        /// .actorstate &lt;state&gt; [state ...] [#entityId]: a StateCorrection on yourself, or on the
+        /// creature or player the #entityId names, to everyone who can see it
+        /// (ActorManager.CorrectState). States by the client's name (standing, sitting,
+        /// lying_down, flailing, crouched, dead, stunned, combat_engaged ...) or id. What it looks
+        /// like, not what it is: see CorrectState. .speed sets the movement speed this used to.
+        /// </summary>
         private void ActorStateCommand(string[] parts)
         {
-            if (parts.Length == 1)
+            var idPart = parts.Skip(1).FirstOrDefault(p => p.StartsWith("#"));
+            var stateParts = parts.Skip(1).Where(p => p != idPart).ToList();
+
+            if (stateParts.Count == 0)
             {
-                CommunicatorManager.Instance.SystemMessage(_client, "usage: .actorstate stateId speed");
+                CommunicatorManager.Instance.SystemMessage(_client, "usage: .actorstate <state> [state ...] [#entityId] - states by name or id: "
+                    + string.Join(", ", Enum.GetNames(typeof(CharacterState)).Select(n => n.ToLowerInvariant())));
                 return;
             }
 
-            if (parts.Length == 3)
+            var states = new List<CharacterState>();
+
+            foreach (var part in stateParts)
             {
-                if (Enum.TryParse(parts[1], out CharacterState stateId))
-                    if (double.TryParse(parts[2], out var speed))
-                    {
-                        _client.Player.State = stateId;
-                        _client.Player.MovementSpeed = speed;
-                        _client.CallMethod(_client.Player.EntityId, new ActorInfoPacket(_client.Player));
-                    }
+                if (!ActorManager.TryParseState(part, out var state))
+                {
+                    CommunicatorManager.Instance.SystemMessage(_client, $"No character state '{part}'.");
+                    return;
+                }
+
+                states.Add(state);
             }
+
+            Actor actor = _client.Player;
+
+            if (idPart != null)
+            {
+                actor = ulong.TryParse(idPart.Substring(1), out var entityId)
+                    ? EntityManager.Instance.GetEntityType(entityId) switch
+                    {
+                        EntityType.Creature => EntityManager.Instance.GetCreature(entityId),
+                        EntityType.Character => EntityManager.Instance.GetPlayer(entityId),
+                        _ => null
+                    }
+                    : null;
+
+                if (actor == null || actor.MapContextId != _client.Player.MapContextId)
+                {
+                    CommunicatorManager.Instance.SystemMessage(_client, $"No creature or player {idPart} on this map.");
+                    return;
+                }
+            }
+
+            ActorManager.CorrectState(_client.Player.MapChannel, actor, states);
+            CommunicatorManager.Instance.SystemMessage(_client, $"{actor.EntityId}: {string.Join(", ", states)}.");
+        }
+
+        /// <summary>
+        /// .track &lt;targetId|me|target|0&gt; [#entityId|#target]: sets the tracking target
+        /// (Recv_SetTrackingTarget) of yourself, or of the creature or player named, for everyone
+        /// who can see it - what a player's client does on its own body while following or
+        /// walking up to something. The client never shows what the engine does with a tracked
+        /// body; this is for watching. "me" is you, "target" what you have selected, 0 clears.
+        /// With nothing after it, says what you and your target are tracking.
+        /// </summary>
+        private void TrackCommand(string[] parts)
+        {
+            var player = _client.Player;
+            var mapChannel = player.MapChannel;
+
+            Actor ActorById(ulong entityId) => EntityManager.Instance.GetEntityType(entityId) switch
+            {
+                EntityType.Creature => EntityManager.Instance.GetCreature(entityId),
+                EntityType.Character => EntityManager.Instance.GetPlayer(entityId),
+                _ => null
+            };
+
+            string Describe(Actor a) => a == null ? "-" : $"{a.EntityId} ({(string.IsNullOrEmpty(a.Name) ? a.EntityClass.ToString() : a.Name)})";
+
+            if (parts.Length < 2)
+            {
+                var selected = player.Target != 0 ? ActorById(player.Target) : null;
+                CommunicatorManager.Instance.SystemMessage(_client,
+                    "usage: .track <targetId|me|target|0> [#entityId|#target] - "
+                    + $"you track {TrackingTargets.Current(player)}"
+                    + (selected != null ? $", your target {Describe(selected)} tracks {TrackingTargets.Current(selected)}" : ""));
+                return;
+            }
+
+            var idPart = parts.Skip(1).FirstOrDefault(p => p.StartsWith("#"));
+            var targetPart = parts.Skip(1).FirstOrDefault(p => !p.StartsWith("#"));
+
+            Actor actor = player;
+
+            if (idPart != null)
+            {
+                actor = idPart.Equals("#target", StringComparison.OrdinalIgnoreCase)
+                    ? (player.Target != 0 ? ActorById(player.Target) : null)
+                    : ulong.TryParse(idPart.Substring(1), out var entityId) ? ActorById(entityId) : null;
+
+                if (actor == null || actor.MapContextId != player.MapContextId)
+                {
+                    CommunicatorManager.Instance.SystemMessage(_client, $"No creature or player {idPart} on this map.");
+                    return;
+                }
+            }
+
+            ulong targetId;
+
+            if (targetPart == null)
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, "Track what? A target id, me, target, or 0 to clear.");
+                return;
+            }
+            else if (targetPart.Equals("me", StringComparison.OrdinalIgnoreCase))
+                targetId = player.EntityId;
+            else if (targetPart.Equals("target", StringComparison.OrdinalIgnoreCase))
+                targetId = player.Target;
+            else if (!ulong.TryParse(targetPart, out targetId))
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, $"'{targetPart}' is not an entity id, me, target or 0.");
+                return;
+            }
+
+            if (!TrackingTargets.IsValid(actor, targetId))
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, targetId == actor.EntityId
+                    ? "An actor cannot track itself."
+                    : $"No entity {targetId} here.");
+                return;
+            }
+
+            TrackingTargets.Set(mapChannel, actor, targetId);
+            CommunicatorManager.Instance.SystemMessage(_client, targetId == 0
+                ? $"{Describe(actor)} tracks nothing."
+                : $"{Describe(actor)} tracks {targetId}.");
+        }
+
+        /// <summary>
+        /// .vamp &lt;health|power|armor|adrenaline&gt; &lt;amount&gt; [#entityId]: you steal up to the
+        /// amount from your target, or the creature or player named (VampiricDamage.Steal) - what
+        /// the Vamp item modules will do on a hit, with the client's AnnounceVamp floats.
+        /// </summary>
+        private void VampCommand(string[] parts)
+        {
+            var player = _client.Player;
+            var idPart = parts.Skip(1).FirstOrDefault(p => p.StartsWith("#"));
+            var args = parts.Skip(1).Where(p => p != idPart).ToList();
+
+            Attributes? attribute = args.Count > 0 ? args[0].ToLowerInvariant() switch
+            {
+                "health" => Attributes.Health,
+                "power" => Attributes.Power,
+                "armor" or "armour" => Attributes.Armor,
+                "adrenaline" or "chi" => Attributes.Chi,
+                _ => null
+            } : null;
+
+            if (attribute == null || args.Count < 2 || !int.TryParse(args[1], out var amount) || amount <= 0)
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, "usage: .vamp <health|power|armor|adrenaline> <amount> [#entityId] - from your target, or the one named");
+                return;
+            }
+
+            var victimId = idPart != null && ulong.TryParse(idPart.Substring(1), out var named) ? named : player.Target;
+            var victim = EntityManager.Instance.GetEntityType(victimId) switch
+            {
+                EntityType.Creature => (Actor)EntityManager.Instance.GetCreature(victimId),
+                EntityType.Character => EntityManager.Instance.GetPlayer(victimId),
+                _ => null
+            };
+
+            if (victim == null || victim == player || victim.MapContextId != player.MapContextId)
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, idPart != null ? $"No creature or player {idPart} on this map." : "Target a creature or another player first.");
+                return;
+            }
+
+            var lost = VampiricDamage.Steal(player.MapChannel, player, victim, attribute.Value, amount);
+
+            CommunicatorManager.Instance.SystemMessage(_client, lost > 0
+                ? $"Stole {lost} {args[0].ToLowerInvariant()} from {victim.EntityId}."
+                : $"Nothing to steal from {victim.EntityId}: it has none, is down, or turned the effect away.");
+        }
+
+        /// <summary>
+        /// .effect [list] [#entityId|#target]: the effects on you, or on the creature or player
+        /// named - id, type, level, buff or debuff, who put it there, time left, paused or not.
+        /// .effect pause|restart &lt;effectId|all&gt; [#entityId|#target]: stops or starts an
+        /// effect's clock (GameEffectManager.Pause / Restart), with the client's "Paused" tooltip.
+        /// </summary>
+        private void EffectCommand(string[] parts)
+        {
+            var player = _client.Player;
+            var mapChannel = player.MapChannel;
+            var idPart = parts.Skip(1).FirstOrDefault(p => p.StartsWith("#"));
+            var args = parts.Skip(1).Where(p => p != idPart).ToList();
+            const string usage = "usage: .effect [list] [#entityId|#target] | .effect pause|restart <effectId|all> [#entityId|#target]";
+
+            Actor actor = player;
+
+            if (idPart != null)
+            {
+                var entityId = idPart.Equals("#target", StringComparison.OrdinalIgnoreCase)
+                    ? player.Target
+                    : ulong.TryParse(idPart.Substring(1), out var named) ? named : 0;
+
+                actor = EntityManager.Instance.GetEntityType(entityId) switch
+                {
+                    EntityType.Creature => EntityManager.Instance.GetCreature(entityId),
+                    EntityType.Character => EntityManager.Instance.GetPlayer(entityId),
+                    _ => null
+                };
+
+                if (actor == null || actor.MapContextId != player.MapContextId)
+                {
+                    CommunicatorManager.Instance.SystemMessage(_client, $"No creature or player {idPart} on this map.");
+                    return;
+                }
+            }
+
+            var verb = args.Count > 0 ? args[0].ToLowerInvariant() : "list";
+
+            if (verb == "list")
+            {
+                var effects = actor.ActiveEffects.Values.OrderBy(e => e.EffectId).ToList();
+
+                CommunicatorManager.Instance.SystemMessage(_client, $"{actor.EntityId}: {effects.Count} effect(s)");
+
+                foreach (var e in effects)
+                    CommunicatorManager.Instance.SystemMessage(_client,
+                        $"  #{e.EffectId} type {e.TypeId} L{e.EffectLevel} {(e.IsBuff ? "buff" : "debuff")} from {e.SourceId}"
+                        + (e.HasDuration ? $", {e.RemainingMs / 1000.0:0.0} s left" : ", no end")
+                        + (e.IsPaused ? ", PAUSED" : "")
+                        + (e.ServerOnly ? ", server only" : e.IsSkillPassive ? ", skill passive" : "")
+                        + (actor is Manifestation holder && EffectCarry.Carries(holder, e) ? ", carried across maps" : ""));
+
+                return;
+            }
+
+            if ((verb != "pause" && verb != "restart") || args.Count < 2)
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, usage);
+                return;
+            }
+
+            var all = args[1].Equals("all", StringComparison.OrdinalIgnoreCase);
+            var chosen = all
+                ? actor.ActiveEffects.Values.Where(e => e.Parent?.Holder != actor).OrderBy(e => e.EffectId).ToList()   // an aura of its own takes its copies with it
+                : int.TryParse(args[1], out var effectId) && actor.ActiveEffects.TryGetValue(effectId, out var one)
+                    ? new List<GameEffect> { one }
+                    : null;
+
+            if (chosen == null)
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, $"No effect {args[1]} on {actor.EntityId}; .effect list{(idPart != null ? " " + idPart : "")} shows them.");
+                return;
+            }
+
+            var changed = chosen.Count(e => verb == "pause"
+                ? GameEffectManager.Instance.Pause(mapChannel, actor, e)
+                : GameEffectManager.Instance.Restart(mapChannel, actor, e));
+
+            CommunicatorManager.Instance.SystemMessage(_client, verb == "pause"
+                ? $"Paused {changed} effect(s) on {actor.EntityId}{(changed < chosen.Count ? $"; {chosen.Count - changed} already paused" : "")}."
+                : $"Restarted {changed} effect(s) on {actor.EntityId}{(changed < chosen.Count ? $"; {chosen.Count - changed} not paused" : "")}.");
+        }
+
+        /// <summary>
+        /// .moveflags: shows your Move packets' flags byte and leading bytes whenever they change,
+        /// with your height, the step, and whether you are in one of the map's water planes. Run
+        /// it again to stop. For finding out whether the client marks being in the air or swimming.
+        /// </summary>
+        private void MoveFlagsCommand(string[] parts)
+        {
+            var tracker = _client.Player.Fall;
+
+            tracker.WatchFlags = !tracker.WatchFlags;
+            tracker.LastFlags = -1;
+
+            CommunicatorManager.Instance.SystemMessage(_client, tracker.WatchFlags
+                ? "Watching your move flags: jump, fall and swim, and each change is shown. .moveflags again to stop."
+                : "Stopped watching your move flags.");
+        }
+
+        /// <summary>
+        /// .feud: clan feuds (ClanFeuds).
+        ///  - .feud - the feuds running, with time left and score, and the challenges waiting;
+        ///  - .feud start &lt;clan&gt; &lt;clan&gt; - starts one between two clans, by id or by a name with no
+        ///    spaces, skipping every rule (PvP, leaders online) - for testing with few players;
+        ///  - .feud end &lt;id&gt; [tie|cancel|&lt;winning clan&gt;] - ends one, as its clock would (most kills
+        ///    wins) unless told otherwise;
+        ///  - .feud length [minutes] - how long a feud started from now lasts.
+        /// </summary>
+        private void FeudCommand(string[] parts)
+        {
+            var feuds = ClanFeuds.Instance;
+            var sub = parts.Length > 1 ? parts[1].ToLowerInvariant() : "list";
+
+            Structures.Char.ClanEntry Clan(string text) =>
+                uint.TryParse(text, out var id) ? ClanManager.Instance.Clans.GetValueOrDefault(id)?.Value
+                    : ClanManager.Instance.Clans.Values.Select(c => c.Value).FirstOrDefault(c => c != null && string.Equals(c.Name, text, StringComparison.OrdinalIgnoreCase));
+
+            string Name(uint clanId) => $"{ClanManager.Instance.Clans.GetValueOrDefault(clanId)?.Value?.Name ?? "?"} ({clanId})";
+
+            switch (sub)
+            {
+                case "list":
+                {
+                    var running = feuds.Feuds;
+                    var waiting = feuds.Challenges;
+
+                    if (running.Count == 0 && waiting.Count == 0)
+                    {
+                        CommunicatorManager.Instance.SystemMessage(_client, $"No clan feuds or challenges. New feuds last {feuds.Duration.TotalMinutes:0} minutes.");
+                        return;
+                    }
+
+                    foreach (var feud in running.OrderBy(f => f.Id))
+                        CommunicatorManager.Instance.SystemMessage(_client,
+                            $"Feud {feud.Id}: {Name(feud.ChallengerClanId)} {feud.ChallengerKills} : {feud.TargetKills} {Name(feud.TargetClanId)}, {feuds.SecondsLeft(feud) / 60}m {feuds.SecondsLeft(feud) % 60}s left");
+
+                    foreach (var challenge in waiting.OrderBy(c => c.WargameId))
+                        CommunicatorManager.Instance.SystemMessage(_client,
+                            $"Challenge {challenge.WargameId}: {Name(challenge.ChallengerClanId)} challenged {Name(challenge.TargetClanId)}, unanswered");
+
+                    return;
+                }
+
+                case "start" when parts.Length >= 4:
+                {
+                    var first = Clan(parts[2]);
+                    var second = Clan(parts[3]);
+
+                    if (first == null || second == null || first.Id == second.Id)
+                    {
+                        CommunicatorManager.Instance.SystemMessage(_client, "usage: .feud start <clan> <clan> - two different clans, by id or by a name with no spaces");
+                        return;
+                    }
+
+                    var feud = feuds.Start(first, second);
+
+                    CommunicatorManager.Instance.SystemMessage(_client, feud == null
+                        ? $"{first.Name} and {second.Name} are already at feud."
+                        : $"Feud {feud.Id} started: {first.Name} against {second.Name}, {feuds.Duration.TotalMinutes:0} minutes.");
+                    return;
+                }
+
+                case "end" when parts.Length >= 3 && uint.TryParse(parts[2], out var feudId):
+                {
+                    var feud = feuds.Feuds.Find(f => f.Id == feudId);
+
+                    if (feud == null)
+                    {
+                        CommunicatorManager.Instance.SystemMessage(_client, $"No feud {feudId}.");
+                        return;
+                    }
+
+                    var how = parts.Length >= 4 ? parts[3] : null;
+
+                    if (how == null)
+                        feuds.Expire(feud);
+                    else if (how.Equals("tie", StringComparison.OrdinalIgnoreCase))
+                        feuds.End(feud, ClanFeuds.Outcome.Tied);
+                    else if (how.Equals("cancel", StringComparison.OrdinalIgnoreCase))
+                        feuds.End(feud, ClanFeuds.Outcome.Cancelled);
+                    else if (Clan(how) is Structures.Char.ClanEntry winner && feud.Involves(winner.Id))
+                        feuds.End(feud, ClanFeuds.Outcome.Won, winner.Id);
+                    else
+                    {
+                        CommunicatorManager.Instance.SystemMessage(_client, "usage: .feud end <id> [tie|cancel|<winning clan>]");
+                        return;
+                    }
+
+                    CommunicatorManager.Instance.SystemMessage(_client, $"Feud {feudId} ended.");
+                    return;
+                }
+
+                case "length":
+                {
+                    if (parts.Length >= 3)
+                    {
+                        if (!double.TryParse(parts[2], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var minutes) || minutes <= 0 || minutes > 7 * 24 * 60)
+                        {
+                            CommunicatorManager.Instance.SystemMessage(_client, "usage: .feud length <minutes> - more than 0, at most a week");
+                            return;
+                        }
+
+                        feuds.Duration = TimeSpan.FromMinutes(minutes);
+                    }
+
+                    CommunicatorManager.Instance.SystemMessage(_client, $"Clan feuds started from now last {feuds.Duration.TotalMinutes:0.#} minutes (default {ClanFeuds.DefaultDuration.TotalMinutes:0}).");
+                    return;
+                }
+
+                default:
+                    CommunicatorManager.Instance.SystemMessage(_client, "usage: .feud [list] | start <clan> <clan> | end <id> [tie|cancel|<winning clan>] | length [minutes]");
+                    return;
+            }
+        }
+
+        /// <summary>
+        /// .falldamage &lt;metres&gt;: takes what a fall of that height would (FallDamage), straight off
+        /// your health, announced as map damage - to see what the client shows. Says whether you
+        /// are standing in water, where a real fall would have done nothing.
+        /// </summary>
+        private void FallDamageCommand(string[] parts)
+        {
+            var player = _client.Player;
+
+            if (parts.Length < 2 || !float.TryParse(parts[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var metres) || metres <= 0)
+            {
+                CommunicatorManager.Instance.SystemMessage(_client,
+                    $"usage: .falldamage <metres> - a fall does {FallDamage.PercentPerMetre}% of maximum health a metre past {FallDamage.SafeDrop:0} m");
+                return;
+            }
+
+            var water = FallDamage.InWater(player.MapChannel?.MapInfo?.MapName, player.Position);
+            var taken = FallDamage.Apply(player.MapChannel, player, metres);
+
+            CommunicatorManager.Instance.SystemMessage(_client,
+                $"A {metres:0.#} m fall: {taken} health taken{(water ? "; you are in water, where a real fall would have taken nothing" : "")}.");
         }
 
         private void BarkCommand(string[] parts)
@@ -598,6 +1029,292 @@ namespace Rasa.Managers
                 communicator.DisplayPlayerNotification(_client, type, (PlayerMessage)msgId, args);
         }
 
+        /// <summary>
+        /// .destination &lt;contextId|map name&gt;: DisplayDestinationContextNotification to every
+        /// player in the world - the map's name on the sub-region strip of their screens. A number
+        /// is sent as it is, any of the client's game contexts; a name is looked up among the
+        /// loaded maps as /gotomap looks it up.
+        /// </summary>
+        private void DestinationCommand(string[] parts)
+        {
+            var communicator = CommunicatorManager.Instance;
+
+            if (parts.Length < 2)
+            {
+                communicator.SystemMessage(_client, "usage: .destination <contextId|map name> - shows that map's name to every player in the world");
+                return;
+            }
+
+            uint contextId;
+            string label;
+
+            if (uint.TryParse(parts[1], out contextId) && contextId != 0)
+                label = MapChannelManager.Instance.MapChannelArray.TryGetValue(contextId, out var known) ? known.MapInfo.MapName : $"context {contextId}";
+            else
+            {
+                var token = string.Join(" ", parts.Skip(1));
+                var matching = GmMapCommands.MapsMatching(GmMapCommands.Maps(MapChannelManager.Instance.MapChannelArray.Values), token);
+
+                if (matching.Count != 1)
+                {
+                    communicator.SystemMessage(_client, matching.Count == 0
+                        ? $"No loaded map '{token}'; a context id sends any map's name."
+                        : $"'{token}' is in more than one map's name: {string.Join(", ", matching.Take(8).Select(m => $"{m.MapInfo.MapName} ({m.MapInfo.MapContextId})"))}.");
+                    return;
+                }
+
+                contextId = matching[0].MapInfo.MapContextId;
+                label = matching[0].MapInfo.MapName;
+            }
+
+            List<Client> recipients;
+
+            lock (Server.Clients)
+                recipients = Server.Clients.Where(c => c.State == ClientState.Ingame && c.Player != null).ToList();
+
+            foreach (var recipient in recipients)
+                recipient.CallMethod(SysEntity.ClientMethodId, new Packets.ClientMethod.Server.DisplayDestinationContextNotificationPacket(contextId));
+
+            Logger.WriteLog(LogType.Command, $"AccountId = {_client.AccountEntry?.Id}: .destination {contextId} to {recipients.Count} player(s)");
+            communicator.SystemMessage(_client, $"Showed {label} ({contextId}) to {recipients.Count} player(s) in the world.");
+        }
+
+        /// <summary>How far .placefield looks for the nearest field when no id is given.</summary>
+        private const float NearestFieldRange = 50f;
+
+        /// <summary>
+        /// .placefield: force fields (ForceFields), placed by hand to see what they did.
+        ///   .placefield &lt;kind|classId&gt; [a|b] [hp]   - at your feet, facing the way you face
+        ///   .placefield kinds | list
+        ///   .placefield remove|repair [#id]
+        ///   .placefield side &lt;a|b&gt; [#id]
+        ///   .placefield turn &lt;degrees&gt; [#id]
+        ///   .placefield nudge &lt;along&gt; &lt;through&gt; [up] [#id]   - metres, in the field's own frame
+        ///   .placefield damage &lt;amount&gt; [#id]
+        /// Without a #id, the nearest field within NearestFieldRange.
+        /// </summary>
+        private void PlaceFieldCommand(string[] parts)
+        {
+            var communicator = CommunicatorManager.Instance;
+            var player = _client.Player;
+            var mapChannel = player.MapChannel;
+            var sub = parts.Length > 1 ? parts[1].ToLowerInvariant() : string.Empty;
+
+            void Say(string text) => communicator.SystemMessage(_client, text);
+
+            string Describe(ForceFields.Field f) =>
+                $"#{f.Id} {f.Class.Key} ({f.Class.ClassId}) side {f.Side}, {f.Health}/{f.MaxHealth} hp, {ForceFields.StateOf(f)}, "
+                + $"{Vector3.Distance(f.Position, player.Position):0.0} m away, yaw {f.Yaw * 180 / Math.PI:0}"
+                + $", {(ForceFields.StopsPlayer(f) ? "stops players" : "lets players through")}";
+
+            // The field a "#id" names, or the nearest one when there is no #id.
+            var idPart = parts.Skip(2).FirstOrDefault(p => p.StartsWith("#"));
+
+            parts = parts.Where(p => p != idPart).ToArray();
+
+            ForceFields.Field Target()
+            {
+                if (idPart != null)
+                {
+                    if (!int.TryParse(idPart.Substring(1), out var id))
+                    {
+                        Say($"{idPart} is not a field id; .placefield list shows them.");
+                        return null;
+                    }
+
+                    var byId = ForceFields.FindById(id);
+
+                    if (byId == null || byId.MapChannel != mapChannel)
+                        Say($"No force field #{id} on this map.");
+
+                    return byId?.MapChannel == mapChannel ? byId : null;
+                }
+
+                var nearest = ForceFields.OnMap(mapChannel)
+                    .OrderBy(f => Vector3.DistanceSquared(f.Position, player.Position))
+                    .FirstOrDefault(f => Vector3.Distance(f.Position, player.Position) <= NearestFieldRange);
+
+                if (nearest == null)
+                    Say($"No force field within {NearestFieldRange:0} m. .placefield list shows this map's.");
+
+                return nearest;
+            }
+
+            bool TryParseSide(string value, out ForceFields.Side side)
+            {
+                side = ForceFields.Side.A;
+
+                switch (value?.ToLowerInvariant())
+                {
+                    case "a": case "afs": side = ForceFields.Side.A; return true;
+                    case "b": case "bane": side = ForceFields.Side.B; return true;
+                    default: return false;
+                }
+            }
+
+            switch (sub)
+            {
+                case "":
+                    Say("usage: .placefield <kind|classId> [a|b] [hp] - at your feet, facing your way; a = AFS, b = Bane");
+                    Say("       .placefield kinds | list | remove [#id] | repair [#id] | side <a|b> [#id]");
+                    Say("       .placefield turn <degrees> [#id] | nudge <along> <through> [up] [#id] | damage <amount> [#id]");
+                    return;
+
+                case "kinds":
+                    foreach (var c in ForceFields.Classes)
+                        Say($"{c.Key} ({c.ClassId}, {c.Kind}): {c.Gate}, {c.Max.X - c.Min.X:0.#} x {c.Max.Y - c.Min.Y:0.#} m");
+                    return;
+
+                case "list":
+                    {
+                        var onMap = ForceFields.OnMap(mapChannel);
+
+                        if (onMap.Count == 0)
+                            Say("No force fields on this map.");
+
+                        foreach (var f in onMap)
+                            Say(Describe(f));
+
+                        return;
+                    }
+
+                case "remove":
+                    {
+                        var f = Target();
+
+                        if (f == null)
+                            return;
+
+                        ForceFields.Remove(f);
+                        Say($"Removed force field #{f.Id}.");
+                        return;
+                    }
+
+                case "repair":
+                    {
+                        var f = Target();
+
+                        if (f == null)
+                            return;
+
+                        ForceFields.Repair(f, player.EntityId);
+                        Say(Describe(f));
+                        return;
+                    }
+
+                case "side":
+                    {
+                        if (parts.Length < 3 || !TryParseSide(parts[2], out var side))
+                        {
+                            Say("usage: .placefield side <a|b> [#id]");
+                            return;
+                        }
+
+                        var f = Target();
+
+                        if (f == null)
+                            return;
+
+                        ForceFields.SetSide(f, side);
+                        Say(Describe(f));
+                        return;
+                    }
+
+                case "turn":
+                    {
+                        if (parts.Length < 3 || !float.TryParse(parts[2], out var degrees))
+                        {
+                            Say("usage: .placefield turn <degrees> [#id]");
+                            return;
+                        }
+
+                        var f = Target();
+
+                        if (f == null)
+                            return;
+
+                        ForceFields.Move(f, f.Position, f.Yaw + degrees * (float)Math.PI / 180f);
+                        Say(Describe(f));
+                        return;
+                    }
+
+                case "nudge":
+                    {
+                        if (parts.Length < 4 || !float.TryParse(parts[2], out var along) || !float.TryParse(parts[3], out var through))
+                        {
+                            Say("usage: .placefield nudge <along> <through> [up] [#id] - metres along the field's width, through it, and up");
+                            return;
+                        }
+
+                        var up = 0f;
+
+                        if (parts.Length > 4 && !float.TryParse(parts[4], out up))
+                        {
+                            Say("usage: .placefield nudge <along> <through> [up] [#id]");
+                            return;
+                        }
+
+                        var f = Target();
+
+                        if (f == null)
+                            return;
+
+                        var offset = Vector3.Transform(new Vector3(along, up, through), Quaternion.CreateFromYawPitchRoll(f.Yaw, 0f, 0f));
+
+                        ForceFields.Move(f, f.Position + offset, f.Yaw);
+                        Say(Describe(f));
+                        return;
+                    }
+
+                case "damage":
+                    {
+                        if (parts.Length < 3 || !int.TryParse(parts[2], out var amount) || amount <= 0)
+                        {
+                            Say("usage: .placefield damage <amount> [#id]");
+                            return;
+                        }
+
+                        var f = Target();
+
+                        if (f == null)
+                            return;
+
+                        var taken = ForceFields.Damage(f, amount, player.EntityId);
+                        Say($"#{f.Id} took {taken}. " + Describe(f));
+                        return;
+                    }
+            }
+
+            var fieldClass = ForceFields.ClassOf(parts[1]);
+
+            if (fieldClass == null)
+            {
+                Say($"No force field kind '{parts[1]}'. .placefield kinds lists them.");
+                return;
+            }
+
+            var placeSide = ForceFields.Side.A;
+
+            if (parts.Length > 2 && !TryParseSide(parts[2], out placeSide))
+            {
+                Say("The side is a (AFS) or b (Bane).");
+                return;
+            }
+
+            var health = ForceFields.DefaultHealth;
+
+            if (parts.Length > 3 && (!int.TryParse(parts[3], out health) || health <= 0))
+            {
+                Say("The hit points are a whole number above 0.");
+                return;
+            }
+
+            var placed = ForceFields.Place(mapChannel, fieldClass, placeSide, player.Position, _client.Movement.ViewDirection.X, health);
+
+            Logger.WriteLog(LogType.Command, $"AccountId = {_client.AccountEntry?.Id}: .placefield {fieldClass.Key} {placeSide} at {player.Position} on {mapChannel.MapInfo.MapContextId}");
+            Say("Placed " + Describe(placed));
+        }
+
         /// <summary>Accepts the client's own tutorial name or its raw id.</summary>
         private static bool TryParseTutorial(string value, out TutorialId tutorial)
         {
@@ -859,8 +1576,8 @@ namespace Rasa.Managers
             }
 
             // On the player's side whatever the row says, or the thing they just summoned shoots
-            // them. The seeded bots are already AFS; this covers spawning anything else.
-            creature.Faction = Factions.AFS;
+            // them. The seeded bots are already FRIENDLY; this covers spawning anything else.
+            creature.TargetCategory = TargetCategory.Friendly;
 
             CreatureManager.Instance.SetLocation(creature, _client.Movement.Position, _client.Movement.ViewDirection.X, _client.Player.MapContextId);
             CellManager.Instance.AddToWorld(_client.Player.MapChannel, creature);
@@ -1030,18 +1747,191 @@ namespace Rasa.Managers
             CommunicatorManager.Instance.SystemMessage(_client, $"{given} dropship pad{(given == 1 ? "" : "s")} gained; step onto a pad to see them.");
         }
 
+        /// <summary>
+        /// .blockaction [actionId [off]]: blocks an action for yourself, or unblocks it, the way
+        /// the server blocks an unimplemented ability or a fourth crab mine (ActionBlocks) - the
+        /// client greys it out in the ability drawer and refuses it itself. Alone, lists what is
+        /// blocked for you and why. Only the GM's own block is taken away by off; the others stay
+        /// as long as their reasons do.
+        /// </summary>
+        private void BlockActionCommand(string[] parts)
+        {
+            var player = _client.Player;
+
+            if (parts.Length == 1)
+            {
+                if (player.ActionBlocks.Count == 0)
+                {
+                    CommunicatorManager.Instance.SystemMessage(_client, "No actions are blocked for you.");
+                    return;
+                }
+
+                foreach (var entry in player.ActionBlocks.OrderBy(e => (uint)e.Key))
+                    CommunicatorManager.Instance.SystemMessage(_client,
+                        $"{(uint)entry.Key} {AbilityManager.Instance.ActionName(entry.Key) ?? entry.Key.ToString()}: {string.Join(", ", entry.Value)}");
+
+                return;
+            }
+
+            var off = parts.Length == 3 && string.Equals(parts[2], "off", StringComparison.OrdinalIgnoreCase);
+
+            if ((parts.Length != 2 && !off) || !uint.TryParse(parts[1], out var id))
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, "usage: .blockaction [actionId [off]]");
+                return;
+            }
+
+            var actionId = (ActionId)id;
+            var name = AbilityManager.Instance.ActionName(actionId) ?? $"action {id}";
+
+            ActionBlocks.Set(_client, actionId, ActionBlocks.Gm, !off);
+
+            var reasons = ActionBlocks.ReasonsFor(player, actionId);
+
+            CommunicatorManager.Instance.SystemMessage(_client, reasons.Count == 0
+                ? $"{name} is not blocked."
+                : $"{name} is blocked: {string.Join(", ", reasons)}.");
+        }
+
+        /// <summary>Ours: how far .usable looks for an object when none is named or targeted.</summary>
+        private const float UsableCommandReach = 10f;
+
+        /// <summary>
+        /// .usable [on|off] [#entityId|#target]: puts an object in or out of service
+        /// (DynamicObjectManager.SetEnabled, SetUsable) or, with neither, says which it is in. The
+        /// object is the one named, else your target if that is an object, else the nearest object
+        /// within UsableCommandReach. An object out of service cannot be moused over, so bringing it
+        /// back takes its id - which this prints - or standing next to it.
+        /// </summary>
+        private void UsableCommand(string[] parts)
+        {
+            var player = _client.Player;
+            var idPart = parts.Skip(1).FirstOrDefault(p => p.StartsWith("#"));
+            var args = parts.Skip(1).Where(p => p != idPart).Select(p => p.ToLowerInvariant()).ToList();
+            const string usage = "usage: .usable [on|off] [#entityId|#target]";
+
+            if (args.Count > 1 || (args.Count == 1 && args[0] != "on" && args[0] != "off"))
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, usage);
+                return;
+            }
+
+            DynamicObject obj = null;
+
+            if (idPart != null)
+            {
+                var entityId = idPart.Equals("#target", StringComparison.OrdinalIgnoreCase)
+                    ? player.Target
+                    : ulong.TryParse(idPart.Substring(1), out var named) ? named : 0;
+
+                if (!EntityManager.Instance.TryGetObject(entityId, out obj) || obj.MapContextId != player.MapContextId)
+                {
+                    CommunicatorManager.Instance.SystemMessage(_client, $"No object {idPart} on this map.");
+                    return;
+                }
+            }
+            else if (player.Target != 0 && EntityManager.Instance.TryGetObject(player.Target, out var targeted) && targeted.MapContextId == player.MapContextId)
+                obj = targeted;
+            else
+            {
+                // The map loop adds and removes objects as this runs; a look that loses the race
+                // finds nothing, and saying so beats taking the command handler down.
+                try
+                {
+                    obj = EntityManager.Instance.DynamicObjects.Values
+                        .Where(o => o.MapContextId == player.MapContextId && Vector3.Distance(o.Position, player.Position) <= UsableCommandReach)
+                        .OrderBy(o => Vector3.Distance(o.Position, player.Position))
+                        .FirstOrDefault();
+                }
+                catch (InvalidOperationException)
+                {
+                    obj = null;
+                }
+            }
+
+            if (obj == null)
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, $"No object named, targeted or within {UsableCommandReach:F0} m. {usage}");
+                return;
+            }
+
+            var label = $"Object {obj.EntityId} ({obj.EntityClassId}, {obj.DynamicObjectType})";
+
+            if (args.Count == 0)
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, $"{label} is {(obj.IsEnabled ? "in" : "out of")} service.");
+                return;
+            }
+
+            var enabled = args[0] == "on";
+            var changed = DynamicObjectManager.Instance.SetEnabled(obj, enabled);
+
+            CommunicatorManager.Instance.SystemMessage(_client, changed
+                ? $"{label} is now {(enabled ? "in" : "out of")} service."
+                : $"{label} was already {(enabled ? "in" : "out of")} service.");
+        }
+
+        /// <summary>
+        /// .givelogos logosId: puts a Logos in your own Tabula. Only a Logos the client knows
+        /// (LogosStones.KnownLogosIds) - any other id was taken, saved and announced as a missing
+        /// translation - and only one you do not already have.
+        /// </summary>
         private void GiveLogosCommand(string[] parts)
         {
-            if (parts.Length == 1)
+            if (parts.Length != 2 || !uint.TryParse(parts[1], out var logosId))
             {
                 CommunicatorManager.Instance.SystemMessage(_client, "usage: .givelogos logosId");
                 return;
             }
-            if (parts.Length == 2)
-                if (uint.TryParse(parts[1], out uint logosId))
-                    CharacterManager.Instance.UpdateCharacter(_client, CharacterUpdate.Logos, logosId);
 
-            return;
+            if (!LogosStones.IsKnownLogos(logosId))
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, $"There is no Logos {logosId}: the client's ids run from 1 to 408, with gaps.");
+                return;
+            }
+
+            if (_client.Player.Logos.Contains(logosId))
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, $"Logos {logosId} is already in your Tabula.");
+                return;
+            }
+
+            CharacterManager.Instance.UpdateCharacter(_client, CharacterUpdate.Logos, logosId);
+        }
+
+        /// <summary>
+        /// .removelogos logosId|all: takes a Logos, or every Logos, out of your own Tabula - the
+        /// character's list, its saved rows and the client's Tabula (LogosStoneRemoved). Players
+        /// never lose a Logos in play; this is for testing shrines and stones from scratch, and for
+        /// putting right a Tabula a GM got wrong.
+        /// </summary>
+        private void RemoveLogosCommand(string[] parts)
+        {
+            if (parts.Length != 2)
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, "usage: .removelogos logosId|all");
+                return;
+            }
+
+            if (string.Equals(parts[1], "all", StringComparison.OrdinalIgnoreCase))
+            {
+                var removed = CharacterManager.Instance.RemoveAllLogos(_client);
+
+                CommunicatorManager.Instance.SystemMessage(_client,
+                    removed == 0 ? "Your Tabula is already empty." : $"Removed all {removed} Logos from your Tabula.");
+                return;
+            }
+
+            if (!uint.TryParse(parts[1], out var logosId))
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, "usage: .removelogos logosId|all");
+                return;
+            }
+
+            CommunicatorManager.Instance.SystemMessage(_client,
+                CharacterManager.Instance.RemoveLogos(_client, logosId) == 0
+                    ? $"Logos {logosId} is not in your Tabula."
+                    : $"Removed Logos {logosId} from your Tabula.");
         }
 
         private void GiveXpCommand(string[] parts)
@@ -1055,6 +1945,22 @@ namespace Rasa.Managers
                 CommunicatorManager.Instance.SystemMessage(_client, "usage: .givexp ammount");
 
             return;
+        }
+
+        /// <summary>
+        /// .setlevel level: puts your own character at that level, 1 to 50. Up levels you through
+        /// every level between, as experience would; down resets what the new level no longer
+        /// allows. See ManifestationManager.SetLevel.
+        /// </summary>
+        private void SetLevelCommand(string[] parts)
+        {
+            if (parts.Length != 2 || !int.TryParse(parts[1], out var level))
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, $"usage: .setlevel level (1 to {ManifestationManager.MaxPlayerLevel})");
+                return;
+            }
+
+            CommunicatorManager.Instance.SystemMessage(_client, ManifestationManager.Instance.SetLevel(_client, level));
         }
 
         private void ChangeClassCommand(string[] parts)
@@ -1173,6 +2079,276 @@ namespace Rasa.Managers
             return;
         }
 
+        /// <summary>
+        /// .immune [all | off | &lt;damage type&gt;... | -&lt;damage type&gt;...]: makes your target
+        /// (yourself with none) immune to every hit, or to hits of the named types, so "Immune"
+        /// shows as the hit lands (DamageImmunity) - a type's name or number, a leading - takes it
+        /// off again. With nothing after it, says what the target is immune to. Held in memory
+        /// only: a restart, or the creature respawning, ends it.
+        /// </summary>
+        private void ImmuneCommand(string[] parts)
+        {
+            var communicator = CommunicatorManager.Instance;
+            var targetId = _client.Player.Target;
+            var target = targetId != 0 ? EntityManager.Instance.GetActor(targetId) : null;
+
+            target ??= _client.Player;
+
+            string Describe() =>
+                target.ImmuneToAllDamage ? "all damage"
+                : target.DamageImmunities.Count == 0 ? "nothing"
+                : string.Join(", ", target.DamageImmunities.OrderBy(type => type).Select(type => $"{type} ({(int)type})"));
+
+            var name = target == _client.Player ? "You are" : $"{target.Name ?? target.EntityId.ToString()} is";
+
+            if (parts.Length < 2)
+            {
+                communicator.SystemMessage(_client, $"{name} immune to {Describe()}. usage: .immune [all|off|<damage type>...|-<damage type>...]");
+                return;
+            }
+
+            foreach (var word in parts.Skip(1))
+            {
+                var text = word.ToLowerInvariant();
+
+                if (text == "all")
+                {
+                    target.ImmuneToAllDamage = true;
+                    continue;
+                }
+
+                if (text == "off" || text == "none")
+                {
+                    target.ImmuneToAllDamage = false;
+                    target.DamageImmunities.Clear();
+                    continue;
+                }
+
+                var remove = text.StartsWith("-");
+                var typeText = remove ? text.Substring(1) : text;
+
+                if (!Enum.TryParse<DamageType>(typeText, true, out var type) || !Enum.IsDefined(typeof(DamageType), type) || type == 0)
+                {
+                    communicator.SystemMessage(_client, $"Unknown damage type {word}; use one of {string.Join(", ", Enum.GetNames(typeof(DamageType)))}, or all, or off.");
+                    return;
+                }
+
+                if (remove)
+                    target.DamageImmunities.Remove(type);
+                else
+                    target.DamageImmunities.Add(type);
+            }
+
+            communicator.SystemMessage(_client, $"{name} now immune to {Describe()}.");
+        }
+
+        /// <summary>
+        /// .targetcategory [hostile|friendly|object|neutral|decoration|decorationproxy|ignore|0-6]:
+        /// shows the targeted creature's target category, or sets it and tells the clients, so a
+        /// NEUTRAL or inert creature can be tried out without touching the creature table.
+        /// </summary>
+        private void TargetCategoryCommand(string[] parts)
+        {
+            var entityId = _client.Player.Target;
+
+            if (entityId == 0 || EntityManager.Instance.GetEntityType(entityId) != EntityType.Creature)
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, "Target a creature to use .targetcategory [hostile|friendly|object|neutral|decoration|decorationproxy|ignore]");
+                return;
+            }
+
+            var creature = EntityManager.Instance.GetCreature(entityId);
+
+            if (parts.Length < 2)
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, $"Target category: {creature.TargetCategory} ({(int)creature.TargetCategory})");
+                return;
+            }
+
+            if (!Enum.TryParse<TargetCategory>(parts[1], true, out var category) || !Enum.IsDefined(typeof(TargetCategory), category))
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, $"Unknown target category {parts[1]}; use hostile, friendly, object, neutral, decoration, decorationproxy, ignore or 0-6");
+                return;
+            }
+
+            creature.TargetCategory = category;
+            creature.Hate.Clear();
+            BehaviorManager.Instance.StopFighting(creature);
+            CellManager.Instance.CellCallMethod(creature, new TargetCategoryPacket(category));
+
+            CommunicatorManager.Instance.SystemMessage(_client, $"Target category set to {category} ({(int)category})");
+        }
+
+        /// <summary>
+        /// .cover: the cover between you and your target, both ways - how many of the body points
+        /// each can see of the other, and the damage share a ranged hit would do (Managers.Cover).
+        /// Crouch and move about to see what a sandbag or a wall is worth.
+        /// </summary>
+        private void CoverCommand(string[] parts)
+        {
+            var player = _client.Player;
+            var mapChannel = player.MapChannel;
+
+            if (mapChannel?.Cover == null)
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, "No cover file for this map (navmesh/<map>.cover, Rasa.NavMesh --cover-only)");
+                return;
+            }
+
+            var targetId = player.Target;
+            Actor target = EntityManager.Instance.GetEntityType(targetId) switch
+            {
+                EntityType.Creature => EntityManager.Instance.GetCreature(targetId),
+                EntityType.Character => EntityManager.Instance.GetPlayer(targetId),
+                _ => null
+            };
+
+            if (target == null || target.MapContextId != player.MapContextId)
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, "Target a creature or player to use .cover");
+                return;
+            }
+
+            string Describe(Actor from, Actor to)
+            {
+                var eye = Cover.EyeOf(from);
+                var points = Cover.SamplePoints(to, eye);
+                var clear = points.Count(p => !mapChannel.Cover.Blocked(eye, p));
+                var modifier = Cover.Modifier(mapChannel, from, to);
+
+                return $"{clear}/{points.Length} points clear{(to.IsCrouching ? " (crouched)" : "")}, damage x{modifier:0.00}";
+            }
+
+            CommunicatorManager.Instance.SystemMessage(_client, $"Its shots at you: {Describe(target, player)}");
+            CommunicatorManager.Instance.SystemMessage(_client, $"Your shots at it: {Describe(player, target)}");
+        }
+
+        /// <summary>
+        /// .los [entityId]: the server's line of sight report (LosReport) from you to your target,
+        /// or to the entity given - what the client's unshipped LOS slash commands asked for with
+        /// RequestLOSReport.
+        /// </summary>
+        private void LosCommand(string[] parts)
+        {
+            var targetId = _client.Player.Target;
+
+            if (parts.Length > 1 && !ulong.TryParse(parts[1], out targetId))
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, "Usage: .los [entityId] - your target when no id is given");
+                return;
+            }
+
+            LosReport.Send(_client, targetId);
+        }
+
+        /// <summary>
+        /// .camerascript list | &lt;id&gt;: the camera scripts of the map you are on (CameraScriptTable),
+        /// or one of them played on your own client (CameraScripts). Space or escape cuts it short.
+        /// </summary>
+        private void CameraScriptCommand(string[] parts)
+        {
+            var mapInfo = _client.Player.MapChannel?.MapInfo;
+
+            if (mapInfo == null)
+                return;
+
+            var onMap = CameraScriptTable.OnMap(mapInfo.MapName).ToList();
+
+            if (parts.Length < 2 || parts[1].ToLowerInvariant() == "list")
+            {
+                if (onMap.Count == 0)
+                {
+                    CommunicatorManager.Instance.SystemMessage(_client, $"{mapInfo.MapName} has no camera scripts.");
+                    return;
+                }
+
+                CommunicatorManager.Instance.SystemMessage(_client, $"{mapInfo.MapName}: {onMap.Count} camera script(s). .camerascript <id> plays one; space or escape ends it.");
+
+                foreach (var s in onMap)
+                    CommunicatorManager.Instance.SystemMessage(_client, $"  {s.ScriptId}: {s.Keyframes} keyframe(s), {s.LengthMs / 1000.0:0.#} s");
+
+                return;
+            }
+
+            if (!uint.TryParse(parts[1], out var scriptId) || !CameraScripts.Run(_client, scriptId))
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, $"{mapInfo.MapName} has no camera script {parts[1]}. .camerascript list shows its scripts.");
+                return;
+            }
+
+            CommunicatorManager.Instance.SystemMessage(_client, $"Playing camera script {scriptId}.");
+        }
+
+        /// <summary>
+        /// .clientevent [list] | track &lt;event&gt;... | stop &lt;event&gt;... | stop all: the scriptable client
+        /// events on your own client (ScriptableClientEvents). An event is its id or its name (8,
+        /// crouched, MOVE_FORWARD). Events tracked here are echoed to you as they come back; "all" on
+        /// track tracks every one.
+        /// </summary>
+        private void ClientEventCommand(string[] parts)
+        {
+            var player = _client.Player;
+            var verb = parts.Length > 1 ? parts[1].ToLowerInvariant() : "list";
+
+            if (verb == "list")
+            {
+                var tracked = ScriptableClientEvents.Tracked(player);
+
+                CommunicatorManager.Instance.SystemMessage(_client,
+                    $"Scriptable client events ({tracked.Count} tracked). .clientevent track|stop <id|name>... or all.");
+
+                foreach (ScriptableClientEvent value in Enum.GetValues(typeof(ScriptableClientEvent)))
+                    CommunicatorManager.Instance.SystemMessage(_client,
+                        $"  {(uint)value}: {value}{(tracked.Contains(value) ? " (tracked)" : "")}");
+
+                return;
+            }
+
+            if ((verb != "track" && verb != "stop") || parts.Length < 3)
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, "usage: .clientevent [list] | track <id|name>... | stop <id|name>... | stop all");
+                return;
+            }
+
+            if (parts[2].ToLowerInvariant() == "all")
+            {
+                if (verb == "stop")
+                {
+                    var stopped = ScriptableClientEvents.StopAll(_client);
+                    player.EchoClientEvents = false;
+                    CommunicatorManager.Instance.SystemMessage(_client, $"Stopped {stopped} client event(s).");
+                    return;
+                }
+
+                parts = new[] { parts[0], parts[1] }
+                    .Concat(Enum.GetValues(typeof(ScriptableClientEvent)).Cast<ScriptableClientEvent>().Select(value => ((uint)value).ToString()))
+                    .ToArray();
+            }
+
+            var done = new List<ScriptableClientEvent>();
+
+            foreach (var text in parts.Skip(2))
+            {
+                if (!ScriptableClientEvents.TryParse(text, out var eventId))
+                {
+                    CommunicatorManager.Instance.SystemMessage(_client, $"{text} is not a client event. .clientevent list shows them.");
+                    continue;
+                }
+
+                if (verb == "track" ? ScriptableClientEvents.Start(_client, eventId) : ScriptableClientEvents.Stop(_client, eventId))
+                    done.Add(eventId);
+            }
+
+            if (verb == "track" && done.Count > 0)
+                player.EchoClientEvents = true;
+            else if (verb == "stop" && ScriptableClientEvents.Tracked(player).Count == 0)
+                player.EchoClientEvents = false;
+
+            if (done.Count > 0)
+                CommunicatorManager.Instance.SystemMessage(_client,
+                    $"{(verb == "track" ? "Tracking" : "Stopped")}: {string.Join(", ", done)}.");
+        }
+
         private void NpcInfoCommand(string[] parts)
         {
             if (parts.Length == 1)
@@ -1197,6 +2373,14 @@ namespace Rasa.Managers
                     var creature = EntityManager.Instance.GetCreature(entityId);
 
                     msg += $"CreatureDbId = {creature.DbId}\n";
+                    msg += $"TargetCategory = {creature.TargetCategory}\n";
+
+                    if (creature.Attributes.TryGetValue(Attributes.Health, out var npcHealth))
+                        msg += $"Health = {npcHealth.Current} / {npcHealth.CurrentMax}\n";
+
+                    // Armour, and what it regenerates with the effects on it (CreatureArmor).
+                    if (creature.Attributes.TryGetValue(Attributes.Armor, out var npcArmor))
+                        msg += $"Armor = {npcArmor.Current} / {npcArmor.CurrentMax}, +{GameEffectManager.RegenAmount(creature, npcArmor)} every {npcArmor.RefreshPeriod} s\n";
 
                     if (creature.SpawnPool != null)
                         msg += $"SpawnPoolDbId = {creature.SpawnPool.DbId}\n";
@@ -1239,6 +2423,102 @@ namespace Rasa.Managers
             }
             return;
         }
+
+        /// <summary>
+        /// .moveobj &lt;entityId&gt; &lt;x&gt; &lt;y&gt; &lt;z&gt; [yawDegrees | qx qy qz qw] - moves an object that is not
+        /// an actor, for every client on your map: an experiment in moving what MoveObject cannot.
+        ///
+        /// The client's MoveObject only reaches entities registered as moving (Python's
+        /// RegisterAsMovingEntity, which only actors call), and an in-world body refuses
+        /// SetPosition. UpdatePhysicalEntity takes the entity out of the world first, then runs
+        /// WorldLocationDescriptor, which sets the position and orientation and adds it back.
+        ///
+        /// Works on objects the server made (ids below 2^32) and, as far as the client's code goes,
+        /// on the static objects each client builds from the map file (ids above it) - those are in
+        /// its entity list too, but were made on a separate static path whose culling bounds are
+        /// set once, so what they do when moved is what this is for finding out. A static object is
+        /// only moved for the clients on the map now: a client that loads the map later builds it
+        /// where the map file says. Orientation: none given is yaw 0; one number is a yaw in
+        /// degrees; four are a quaternion (x y z w), which keeps a prop's tilt.
+        /// </summary>
+        private void MoveObjectCommand(string[] parts)
+        {
+            if ((parts.Length != 5 && parts.Length != 6 && parts.Length != 9)
+                || !ulong.TryParse(parts[1], out var entityId)
+                || !TryFloat(parts[2], out var x) || !TryFloat(parts[3], out var y) || !TryFloat(parts[4], out var z))
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, "usage: .moveobj entityId x y z [yawDegrees | qx qy qz qw]");
+                return;
+            }
+
+            var mapChannel = _client.Player?.MapChannel;
+
+            if (mapChannel == null)
+                return;
+
+            var position = new Vector3(x, y, z);
+            var rotation = Quaternion.Identity;
+
+            if (parts.Length == 6)
+            {
+                if (!TryFloat(parts[5], out var yawDegrees))
+                {
+                    CommunicatorManager.Instance.SystemMessage(_client, $"{parts[5]} is not a number");
+                    return;
+                }
+
+                rotation = Quaternion.CreateFromYawPitchRoll(yawDegrees * MathF.PI / 180f, 0f, 0f);
+            }
+            else if (parts.Length == 9)
+            {
+                if (!TryFloat(parts[5], out var qx) || !TryFloat(parts[6], out var qy) || !TryFloat(parts[7], out var qz) || !TryFloat(parts[8], out var qw))
+                {
+                    CommunicatorManager.Instance.SystemMessage(_client, "the quaternion is four numbers: qx qy qz qw");
+                    return;
+                }
+
+                rotation = Quaternion.Normalize(new Quaternion(qx, qy, qz, qw));
+            }
+
+            switch (EntityManager.Instance.GetEntityType(entityId))
+            {
+                case EntityType.Character:
+                case EntityType.Creature:
+                case EntityType.Npc:
+                    CommunicatorManager.Instance.SystemMessage(_client, $"{entityId} is an actor, and actors move with MoveObject; use .tele or .teleport for yourself.");
+                    return;
+            }
+
+            // An object the server made: its own position too, so anyone who comes into range later
+            // is told the new one. Its cell is not changed; a move within the cell is what that suits.
+            var dynamicObject = mapChannel.DynamicObjects.Find(o => o.EntityId == entityId);
+
+            if (dynamicObject != null)
+            {
+                dynamicObject.Position = position;
+                dynamicObject.Rotation = Math.Atan2(2.0 * (rotation.W * rotation.Y + rotation.X * rotation.Z), 1.0 - 2.0 * (rotation.Y * rotation.Y + rotation.X * rotation.X));
+            }
+
+            var update = new UpdatePhysicalEntityPacket(entityId, new List<Packets.PythonPacket> { new WorldLocationDescriptorPacket(position, rotation) });
+            var sent = 0;
+
+            foreach (var client in mapChannel.ClientList)
+            {
+                if (client?.Player == null || client.State != ClientState.Ingame)
+                    continue;
+
+                client.CallMethod(SysEntity.ClientMethodId, update);
+                sent++;
+            }
+
+            var kind = entityId > uint.MaxValue ? "a static object from the map file" : dynamicObject != null ? "a server object" : "an id the server does not know";
+
+            CommunicatorManager.Instance.SystemMessage(_client, $"Moved {entityId} ({kind}) to {x} {y} {z} for {sent} client(s) on this map.");
+            Logger.WriteLog(LogType.Command, $"{_client.Player.FamilyName} moved entity {entityId} ({kind}) on map {mapChannel.MapInfo.MapContextId} to {position}, rotation {rotation}.");
+        }
+
+        private static bool TryFloat(string text, out float value) =>
+            float.TryParse(text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out value);
 
         /// <summary>
         /// .rename first|last &lt;NewName&gt; [familyName] - renames yourself, or the player with
@@ -1964,6 +3244,154 @@ namespace Rasa.Managers
                 : $"Region volume #{id} could not be saved; see the server log.");
         }
 
+        #region FX emitters
+
+        /// <summary>The FX emitters on this map, nearest first.</summary>
+        private void EmittersCommand(string[] parts)
+        {
+            var player = _client.Player;
+            var emitters = EmitterManager.Instance.OnMap(player.MapContextId, player.Position);
+
+            if (emitters.Count == 0)
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, $"No FX emitters on map {player.MapContextId}.");
+                return;
+            }
+
+            CommunicatorManager.Instance.SystemMessage(_client, $"{emitters.Count} FX emitter(s) on map {player.MapContextId}, nearest first:");
+
+            foreach (var emitter in emitters.Take(15))
+                CommunicatorManager.Instance.SystemMessage(_client, $"{Vector3.Distance(emitter.Position, player.Position):0} m: {emitter.Describe()}");
+
+            if (emitters.Count > 15)
+                CommunicatorManager.Instance.SystemMessage(_client, $"... and {emitters.Count - 15} more.");
+        }
+
+        /// <summary>The client's FX packages whose names contain every word given.</summary>
+        private void FxPackagesCommand(string[] parts)
+        {
+            if (parts.Length < 2)
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, $"usage: .fxpackages word [word ...] - searches the client's {FxPackages.Names.Count} FX packages by name");
+                return;
+            }
+
+            var found = FxPackages.Search(parts.Skip(1));
+
+            if (found.Count == 0)
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, "No FX package matches.");
+                return;
+            }
+
+            CommunicatorManager.Instance.SystemMessage(_client, $"{found.Count} FX package(s):");
+
+            foreach (var (id, name) in found.Take(25))
+                CommunicatorManager.Instance.SystemMessage(_client, $"{id} {name}");
+
+            if (found.Count > 25)
+                CommunicatorManager.Instance.SystemMessage(_client, $"... and {found.Count - 25} more; add a word to narrow it.");
+        }
+
+        private const string EmitterUsage = "usage: .emitter here package [off] [comment] | id on | id off | id package package | id here | id goto | id comment text | id delete - a package is a name from .fxpackages or its id";
+
+        /// <summary>Places and edits FX emitters; see EmitterManager. Everything but goto is saved to map_emitter.</summary>
+        private void EmitterCommand(string[] parts)
+        {
+            var client = _client;
+            var player = client.Player;
+
+            if (parts.Length < 3)
+            {
+                CommunicatorManager.Instance.SystemMessage(client, EmitterUsage);
+                return;
+            }
+
+            if (parts[1] == "here")
+            {
+                if (!FxPackages.TryResolve(parts[2], out var packageId))
+                {
+                    CommunicatorManager.Instance.SystemMessage(client, $"{parts[2]} is not one of the client's FX packages; .fxpackages finds them.");
+                    return;
+                }
+
+                var on = !(parts.Length > 3 && parts[3] == "off");
+                var created = EmitterManager.Instance.Add(new MapEmitter
+                {
+                    MapContextId = player.MapContextId,
+                    Position = player.Position,
+                    Rotation = player.Rotation,
+                    PackageId = packageId,
+                    OnByDefault = on,
+                    IsOn = on,
+                    Comment = ClampComment(string.Join(' ', parts.Skip(on ? 3 : 4)))
+                });
+
+                CommunicatorManager.Instance.SystemMessage(client, created == null
+                    ? "The emitter could not be created; see the server log."
+                    : $"Created {created.Describe()}");
+                return;
+            }
+
+            if (!uint.TryParse(parts[1], out var id) || !EmitterManager.Instance.TryGet(id, out var emitter))
+            {
+                CommunicatorManager.Instance.SystemMessage(client, EmitterUsage);
+                return;
+            }
+
+            switch (parts[2])
+            {
+                case "on":
+                    EmitterManager.Instance.TurnOn(emitter);
+                    emitter.OnByDefault = true;
+                    break;
+
+                case "off":
+                    EmitterManager.Instance.TurnOff(emitter);
+                    emitter.OnByDefault = false;
+                    break;
+
+                case "package" when parts.Length > 3:
+                    if (!FxPackages.TryResolve(parts[3], out var packageId))
+                    {
+                        CommunicatorManager.Instance.SystemMessage(client, $"{parts[3]} is not one of the client's FX packages; .fxpackages finds them.");
+                        return;
+                    }
+
+                    EmitterManager.Instance.SetPackage(emitter, packageId);
+                    break;
+
+                case "here":
+                    EmitterManager.Instance.MoveTo(emitter, player.MapContextId, player.Position, player.Rotation);
+                    break;
+
+                case "goto":
+                    if (!MapChannelManager.Instance.ChangeMap(client, emitter.MapContextId, emitter.Position, (float)emitter.Rotation))
+                        CommunicatorManager.Instance.SystemMessage(client, $"Map {emitter.MapContextId} is not loaded, or you cannot teleport right now.");
+                    return;
+
+                case "comment":
+                    emitter.Comment = ClampComment(string.Join(' ', parts.Skip(3)));
+                    break;
+
+                case "delete":
+                    CommunicatorManager.Instance.SystemMessage(client, EmitterManager.Instance.Delete(emitter)
+                        ? $"Deleted FX emitter #{id}."
+                        : $"FX emitter #{id} could not be deleted; see the server log.");
+                    return;
+
+                default:
+                    CommunicatorManager.Instance.SystemMessage(client, EmitterUsage);
+                    return;
+            }
+
+            CommunicatorManager.Instance.SystemMessage(client, EmitterManager.Instance.Save(emitter)
+                ? $"Updated {emitter.Describe()}"
+                : $"FX emitter #{id} could not be saved; see the server log.");
+        }
+
+        #endregion
+
         private static string ClampComment(string comment)
         {
             return comment.Length > 96 ? comment.Substring(0, 96) : comment;
@@ -2014,9 +3442,67 @@ namespace Rasa.Managers
 
         #endregion
 
+        /// <summary>A slash command the client sends as PrivilegedCommand, and the account level it takes.</summary>
+        private sealed class PrivilegedChatCommand
+        {
+            public PrivilegedChatCommand(GmLevel level, Action<Client, string> handler)
+            {
+                Level = level;
+                Handler = handler;
+            }
+
+            public GmLevel Level { get; }
+            public Action<Client, string> Handler { get; }
+        }
+
+        private static readonly Dictionary<string, PrivilegedChatCommand> PrivilegedCommands = new Dictionary<string, PrivilegedChatCommand>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["gotomap"] = new PrivilegedChatCommand(GmLevel.GameMaster, GmMapCommands.GotoMap),
+            ["gotostartgroup"] = new PrivilegedChatCommand(GmLevel.GameMaster, GmMapCommands.GotoStartGroup),
+            ["killmap"] = new PrivilegedChatCommand(GmLevel.Admin, GmMapCommands.KillMap),
+            ["usermissions"] = new PrivilegedChatCommand(GmMissionCommands.Level, GmMissionCommands.ShowUserMissions),
+            ["givemission"] = new PrivilegedChatCommand(GmMissionCommands.Level, GmMissionCommands.GiveMission)
+
+            // "getservercollisiondata" is intentionally not registered: it asks for
+            // ServerCollisionData, which the retail client cannot load and this server has no
+            // shapes for. See ServerCollisionDataPacket.
+        };
+
+        /// <summary>
+        /// A slash command the client has no handler of its own for: client/communicator.py's
+        /// ProcessSlashCommand sends whatever is not a local command as (command, arg), and the
+        /// client's GM pickers send their picks the same way. The ones the server knows are in
+        /// <see cref="PrivilegedCommands"/>, each with the level it takes; anything else, or one
+        /// above the account's level, is answered as the dot commands answer it.
+        /// </summary>
         internal void PrivilegedCommand(Client client, PrivilegedCommandPacket packet)
         {
-            Logger.WriteLog(LogType.Debug, "ToDo: PrivilegedCommand");
+            if (client?.Player == null || string.IsNullOrWhiteSpace(packet.Command))
+                return;
+
+            var command = packet.Command.Trim();
+
+            if (!PrivilegedCommands.TryGetValue(command, out var registered))
+            {
+                Logger.WriteLog(LogType.Command, $"Invalid slash command: /{command} {packet.Args}");
+                CommunicatorManager.Instance.SystemMessage(client, $"Unknown command: /{command}");
+                return;
+            }
+
+            if (!HasLevel(client, registered.Level))
+            {
+                Logger.WriteLog(LogType.Security,
+                    $"AccountId = {client.AccountEntry?.Id} (level {client.AccountEntry?.Level}) tried to use /{command}, which needs {(byte)registered.Level}");
+
+                CommunicatorManager.Instance.SystemMessage(client,
+                    client.AccountEntry?.Level > 0
+                        ? $"/{command} needs account level {(byte)registered.Level}; yours is {client.AccountEntry.Level}."
+                        : $"Unknown command: /{command}");
+                return;
+            }
+
+            Logger.WriteLog(LogType.Command, $"AccountId = {client.AccountEntry.Id}: /{command} {packet.Args}");
+            registered.Handler(client, packet.Args ?? "");
         }
     }
 }

@@ -70,6 +70,7 @@ namespace Rasa.Test.Missions
             var bootstrap = CreateBootstrap(useWorldContent, configureScenes);
             initializeMaps?.Invoke(bootstrap.Maps);
             ConfigureRuntimePlayer(bootstrap.Context.Client);
+            GrantStartingLogos(bootstrap.Context, bootstrap.Context.Client.Player);
             var bootcampMap = bootstrap.Maps.GetOrCreatePrivateInstance(
                 BootcampMapContextId,
                 bootstrap.Context.Client.Player.Id);
@@ -400,7 +401,7 @@ namespace Rasa.Test.Missions
             Directory.CreateDirectory(databaseDirectory);
             var worldDatabase = Path.Combine(databaseDirectory, "world");
             var worldContext = (SqliteWorldContext)CreateContext(typeof(SqliteWorldContext), worldDatabase);
-            worldContext.Initialize();
+            Rasa.Test.Database.MigratedDatabaseTemplates.Migrate(worldContext, worldContext.Initialize);
             Content.MissionContentTestSupport.ConfigureScenes(worldContext, configureScenes);
 
             var context = MissionTestContext.WithCustomDefinitions(new Dictionary<uint, Mission>());
@@ -428,7 +429,7 @@ namespace Rasa.Test.Missions
                 creatures.LoadedCreatures[creatureId] = new Creature
                 {
                     DbId = creatureId,
-                    Faction = creatureId == 510227 ? Factions.AFS : Factions.Bane,
+                    TargetCategory = creatureId == 510227 ? TargetCategory.Friendly : TargetCategory.Hostile,
                     EntityClass = (EntityClasses)4001,
                     Npc = new Npc
                     {
@@ -638,10 +639,28 @@ namespace Rasa.Test.Missions
                 NavMeshFile.PathFor(Path.Combine(root.FullName, "navmesh"), "adv_bootcamp")));
         }
 
+        // What character creation puts in a new character's Tabula (CharacterManager.StartingLogos):
+        // POWER, without which Recruit Lightning is refused.
+        private static void GrantStartingLogos(MissionTestContext context, uint characterId)
+        {
+            using var unit = context.CreateChar();
+            var held = unit.CharacterLogoses.GetLogos(characterId);
+            foreach (var logosId in CharacterManager.StartingLogos.Where(logosId => !held.Contains(logosId)))
+                unit.CharacterLogoses.SetLogos(characterId, logosId);
+        }
+
+        private static void GrantStartingLogos(MissionTestContext context, Manifestation player)
+        {
+            GrantStartingLogos(context, player.Id);
+            foreach (var logosId in CharacterManager.StartingLogos.Where(logosId => !player.Logos.Contains(logosId)))
+                player.Logos.Add(logosId);
+        }
+
         private static void SeedFreshPendingCharacter(MissionTestContext context)
         {
             context.SeedCharacter(
                 FreshPendingAccountId, FreshPendingSlot, FreshPendingCharacterId, (byte)Race.Human);
+            GrantStartingLogos(context, FreshPendingCharacterId);
             using var unit = context.CreateChar();
             unit.CharacterStartingExperience.Add(
                 new CharacterStartingExperienceEntry(
@@ -861,7 +880,7 @@ namespace Rasa.Test.Missions
                     creatures.LoadedCreatures[creatureId] = new Creature
                     {
                         DbId = creatureId,
-                        Faction = creatureId == 510227 ? Factions.AFS : Factions.Bane,
+                        TargetCategory = creatureId == 510227 ? TargetCategory.Friendly : TargetCategory.Hostile,
                         EntityClass = (EntityClasses)4001,
                         Npc = new Npc
                         {
@@ -1328,6 +1347,8 @@ namespace Rasa.Test.Missions
                 NpcPackages = new NpcPackageRepository(context);
                 RandomNames = null;
                 Spawnpools = new SpawnpoolRepository(context);
+                MapEmitters = new MapEmitterRepository(context);
+                SpawnPoolArrivals = new SpawnPoolArrivalRepository(context);
                 Teleporters = new TeleporterRepository(context);
             }
 
@@ -1349,6 +1370,8 @@ namespace Rasa.Test.Missions
             public INpcPackageRepository NpcPackages { get; }
             public IPlayerRandomNameRepository RandomNames { get; }
             public ISpawnpoolRepository Spawnpools { get; }
+            public IMapEmitterRepository MapEmitters { get; }
+            public ISpawnPoolArrivalRepository SpawnPoolArrivals { get; }
             public ITeleporterRepository Teleporters { get; }
             public void Complete() { }
             public void Reject() { }

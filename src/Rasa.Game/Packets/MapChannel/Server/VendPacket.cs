@@ -12,8 +12,12 @@ namespace Rasa.Packets.MapChannel.Server
 
         public List<Item> VendorItems { get; set; }
 
-        public VendPacket(List<Item> vendorItems)
+        /// <summary>The vendor the stock belongs to, which prices it.</summary>
+        public Vendor Vendor { get; set; }
+
+        public VendPacket(Vendor vendor, List<Item> vendorItems)
         {
+            Vendor = vendor;
             VendorItems = vendorItems;
         }
 
@@ -25,7 +29,7 @@ namespace Rasa.Packets.MapChannel.Server
             {
                 pw.WriteULong(VendorItems[i].EntityId);
                 pw.WriteTuple(2);
-                pw.WriteInt(VendorItems[i].ItemTemplate.BuyPrice);
+                pw.WriteInt(Vendor.PriceOf(VendorItems[i]));
                 pw.WriteInt(i);
             }
         }

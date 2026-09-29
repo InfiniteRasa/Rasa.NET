@@ -411,25 +411,32 @@ The following placement/profile choices are `R`; native names, classes and
 packages remain independently identified. Installing these World rows alone
 does not enable a hub's mission definitions.
 
+Mission-specific World creatures, pools and attack rows use the reserved
+`630001..630199` namespace. Their unshipped `530xxx` bindings were moved before
+release because PR105 owns the Divide creatures and pools in that range.
+Only the explicitly authored World identities and their references changed;
+native classes, item templates, coordinates and mission IDs did not. Persistent
+Char outcome flags `530002` (Milpas) and `530003` (Corman finale) remain unchanged.
+
 | Role | Canonical binding | Reconstruction or correction |
 | --- | --- | --- |
 | Rogers | Creature/spawn `100`, package `116` | Retain his pose and Bootcamp receiver identity; use the later native dialogue package, not a client alias or duplicate Rogers |
 | Witherspoon | `101/101`, package `208` | Enable his zero-count pool and place him at `(505,238.757,223)`, beside the actual Lower Eloh waypoint rather than at Alia |
 | Kincaid | `510006/510006`, name `10604`, package `2588` | Training Officer at `(774.5,294.05008,393)`; reuse the existing generic trainer service and preserve Soldier/Specialist trainers `501001/501002` |
 | Quillas | `114/192`, name `9518`, package `1646` | `(783,303.317277,130)` on native platform `6086`, entity `133079561791363`; the old X/Z has no support on this deck |
-| Milpas | `530010/530010`, class `26833`, name `9519` | Separate mobile unarmed Forean at `(778,303.32,127)`, with no invented package; arrest and release use measured, grounded routes |
+| Milpas | `630010/630010`, class `26833`, name `9519` | Separate mobile unarmed Forean at `(778,303.32,127)`, with no invented package; arrest and release use measured, grounded routes |
 | Supplies crate | Native object class `26721` | `(456,233.9,193)` on the bridge bank; active class shares mesh `20300` with the deleted medical dispenser, but is not claimed as a recovered retail spawn |
-| Fulgor | Existing `76/157`, class `10857`, effective name `10100` | Retain the real pillbox-floor actor; the older "southeast of Oliver" wording conflicts with the prepared Oliver seed pose |
-| Pierre | `530070/530070`, female class `6340`, name `3097` | Native text identifies her as female; the six compatible AFS appearance pieces and starting pose `(-279,170.1,87)` are reconstructed |
-| Mortars | `530076..530079`, native class `7482` | Four distinct creatures on actual base-`7478` anchors, numbered south to north; the existing generic emplacement attack profile is functional reconstruction, not recovered retail mortar AI |
-| Lightbenders | Creature `530071`, pools `530071..530074`, class `7120` | Ordinary compound population using the compatible Lightbender weapon/profile, separate from Fulgor and any sniper variant |
-| Egg-layers | Creature `530040`, pools `530040..530042`, class `10240` | Three supported interior Pinhole cave sites, not the ordinary surface Miasma pools |
-| Treeback herd | Creature `530043`, pools `530043..530045`, class `6038` | Three non-aggressive animals on the hill above the caverns; emanator activation remains nonlethal |
+| Fulgor | Existing creature `76`, PR105 pool `580010`, class `10857`, effective name `10100` | Retain the real pillbox-floor actor through PR105's replacement of old pool `157`; the older "southeast of Oliver" wording conflicts with the prepared Oliver seed pose |
+| Pierre | `630070/630070`, female class `6340`, name `3097` | Native text identifies her as female; the six compatible AFS appearance pieces and starting pose `(-279,170.1,87)` are reconstructed |
+| Mortars | `630076..630079`, native class `7482` | Four distinct creatures on actual base-`7478` anchors, numbered south to north; the existing generic emplacement attack profile is functional reconstruction, not recovered retail mortar AI |
+| Lightbenders | Creature `630071`, pools `630071..630074`, class `7120` | Ordinary compound population using the compatible Lightbender weapon/profile, separate from Fulgor and any sniper variant |
+| Egg-layers | Creature `630040`, pools `630040..630042`, class `10240` | Three supported interior Pinhole cave sites, not the ordinary surface Miasma pools |
+| Treeback herd | Creature `630043`, pools `630043..630045`, class `6038` | Three non-aggressive animals on the hill above the caverns; emanator activation remains nonlethal |
 | George | Creature/spawn `510005` | Hospital pose `(-698,170.233,-345)`; delivery approach `(-696,170.233,-343)`, not the elevated marker |
 | Corman analyzer | Object class `7123`, package `1486` | Desk root `(-124.8,222.04809,-479.2)`, yaw pi, with player approach `(-124.8,220.91783,-477.2)`; native object conversation, not a fake creature |
-| Forean Machina | Creature `530100`, pools `530100..530102`, class `6236` | Ordinary corpse-loot source with native weapon `6019`, not Hominis |
-| Predator | Creature `530120`, pools `530120/530121`, class `3902` | Ordinary outdoor collection source, not a substituted named boss or instance requirement |
-| Skeev | Creature/spawn `530130`, class `28589`, name `6734`, package `595` | Explicit 1500-HP reconstruction deployed together with W7's manual-combat binding |
+| Forean Machina | Creature `630100`, pools `630100..630102`, class `6236` | Ordinary corpse-loot source with native weapon `6019`, not Hominis |
+| Predator | Creature `630120`, pools `630120/630121`, class `3902` | Ordinary outdoor collection source, not a substituted named boss or instance requirement |
+| Skeev | Creature/spawn `630130`, class `28589`, name `6734`, package `595` | Explicit 1500-HP reconstruction deployed together with W7's manual-combat binding |
 
 Milpas's last release points are `(900.3,277.1,44)` and
 `(899.45,276,39.9)` on the Wilderness side of
@@ -464,7 +471,7 @@ from the verified public approach to the actual survey site.
 
 The accepted asset SHA-256 is
 `C1623440A8B4D6219B7DAF27C4E15052038409AAD9647D7EC6D2D22F04AACBF3`.
-Sniper pool `530050` has a separate forward placement correction to
+Sniper pool `630050` has a separate forward placement correction to
 Z `297.786076`; its other coordinates, heading and native attack profile stay
 unchanged. Neither asset verification nor source-grounding proves a native-client
 walkthrough.
@@ -519,9 +526,9 @@ No existing character inventory is converted.
 
 The provider evidence-capacity correction keeps all authored provenance text
 unchanged. Twenty-seven Wilderness notes exceeded the baseline's 256-character
-MySQL column, first occurring in W2. W2's unshipped wrappers now widen storage
-before those insertions; the paired `WildernessEvidenceCapacity` forward
-migration widens already-applied databases. Rollback retains `TEXT` capacity,
+MySQL column, first occurring in W2. Both W2 wrappers widen storage before
+calling the content helper. The later paired `WildernessEvidenceCapacity`
+migration retains the additive capacity boundary. Rollback retains `TEXT` capacity,
 never truncates notes and does not modify gameplay data or earlier helper bodies.
 An ordered offline test checks insertion capacity on both Up and Down paths;
 this is not live MySQL acceptance.
@@ -535,36 +542,37 @@ request for an already-deleted one-unit item.
 ### Base equipment and quest items
 
 Functional base equipment must have the metadata its runtime consumes, not
-just a template/class mapping and preview icon. Selected Wilderness armor templates
-were missing `itemtemplate_armor` values. The scoped forward correction assigns
-the following explicit `R` base capacities: one tenth of the existing native
-class minimum absorption, rounded down. This follows the existing Bootcamp
-boot/glove scale; it does not reconstruct historical prefixes or retail balance.
+just a template/class mapping and preview icon. PR105's `Add_armor_values`
+precedes every Wilderness migration and populates `itemtemplate_armor` from
+the authoritative native class `itemclass.max_hp`. These values replace the
+unreleased floor-of-absorption reconstruction; they do not reconstruct historical
+prefixes. `WildernessRewardEquipment` remains an explicit no-op marker in both
+directions, so it neither duplicates nor deletes PR105-owned armor rows.
 
-| Template | Native class | Class minimum absorption | Reconstructed base armor |
-| --- | ---: | ---: | ---: |
-| `20250` Hazmat boots | 13618 | 710 | 71 |
-| `35486` Reflective boots | 18412 | 946 | 94 |
-| `26996` Motor Assist boots | 15696 | 542 | 54 |
-| `20697` Hazmat legs | 13756 | 1183 | 118 |
-| `20399` Hazmat gloves | 13664 | 473 | 47 |
-| `20846` Hazmat vest | 13802 | 1419 | 141 |
-| `20548` Hazmat helmet | 13710 | 946 | 94 |
-| `36083` Reflective vest | 18596 | 1892 | 189 |
-| `12827` Hazmat boots | 13483 | 912 | 91 |
-| `12855` Hazmat gloves | 13511 | 608 | 60 |
-| `11567` Motor Assist boots | 6495 | 836 | 83 |
-| `11568` Motor Assist legs | 6498 | 1394 | 139 |
-| `12887` Hazmat helmet | 13543 | 1875 | 187 |
-| `12831` Hazmat boots | 13487 | 1406 | 140 |
-| `12943` Hazmat vest | 13599 | 2812 | 281 |
-| `12915` Hazmat legs | 13571 | 2344 | 234 |
-| `13388` Reflective helmet | 18337 | 2500 | 250 |
-| `35784` Reflective helmet | 18504 | 1261 | 126 |
-| `35933` Reflective legs | 18550 | 1577 | 157 |
-| `13744` Motor Assist legs | 16351 | 1672 | 167 |
-| `28692` Motor Assist gloves | 16251 | 669 | 66 |
-| `13739` Motor Assist boots | 16201 | 1003 | 100 |
+| Template | Native class | PR105 armor (`itemclass.max_hp`) |
+| --- | ---: | ---: |
+| `20250` Hazmat boots | 13618 | 71 |
+| `35486` Reflective boots | 18412 | 95 |
+| `26996` Motor Assist boots | 15696 | 54 |
+| `20697` Hazmat legs | 13756 | 118 |
+| `20399` Hazmat gloves | 13664 | 47 |
+| `20846` Hazmat vest | 13802 | 142 |
+| `20548` Hazmat helmet | 13710 | 95 |
+| `36083` Reflective vest | 18596 | 189 |
+| `12827` Hazmat boots | 13483 | 91 |
+| `12855` Hazmat gloves | 13511 | 61 |
+| `11567` Motor Assist boots | 6495 | 84 |
+| `11568` Motor Assist legs | 6498 | 139 |
+| `12887` Hazmat helmet | 13543 | 188 |
+| `12831` Hazmat boots | 13487 | 141 |
+| `12943` Hazmat vest | 13599 | 281 |
+| `12915` Hazmat legs | 13571 | 234 |
+| `13388` Reflective helmet | 18337 | 250 |
+| `35784` Reflective helmet | 18504 | 126 |
+| `35933` Reflective legs | 18550 | 158 |
+| `13744` Motor Assist legs | 16351 | 167 |
+| `28692` Motor Assist gloves | 16251 | 67 |
+| `13739` Motor Assist boots | 16201 | 100 |
 
 The level-5 cipher selection uses template `97328`, not `110835`: both map to
 native class `25828`, but only `97328` has the weapon metadata needed for

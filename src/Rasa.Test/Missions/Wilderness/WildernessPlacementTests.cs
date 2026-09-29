@@ -85,9 +85,9 @@ namespace Rasa.Test.Missions.Wilderness
             using var harness = WildernessRuntimeTestHarness.Create();
             foreach (var (spawn, health) in new[]
             {
-                (530001U, 600), (530010U, 800), (530040U, 900), (530043U, 900),
-                (530046U, 600), (530070U, 1000), (530071U, 600), (530076U, 750),
-                (530100U, 900), (530120U, 1500)
+                (630001U, 600), (630010U, 800), (630040U, 900), (630043U, 900),
+                (630046U, 600), (630070U, 1000), (630071U, 600), (630076U, 750),
+                (630100U, 900), (630120U, 1500)
             })
             {
                 harness.SpawnWorld(spawn);

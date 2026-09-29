@@ -65,6 +65,9 @@ namespace Rasa.Managers
             internal ulong LootEntityId;
             internal CanLootItemsPacket CanLoot;
             internal DestroyPhysicalEntityPacket Destroy;
+
+            /// <summary>The rolled items nobody took, whose entities go from the client with the corpse.</summary>
+            internal List<ulong> ItemEntityIds = new();
         }
 
         public static LootDispenserManager Instance
@@ -116,14 +119,84 @@ namespace Rasa.Managers
             client.CallMethod(loot.EntityId, new OverallQualityPacket(loot.LootQuality));
         }
 
+        /// <summary>
+        /// What this looter may take: the corpse window draws only the items named here
+        /// (IsItemLootable), so a squad mate's rolled item, or under Rotation the holder's, is
+        /// left out of everyone else's.
+        /// </summary>
         internal void CanLootItems(Client client, LootDispenser loot)
         {
-            client.CallMethod(loot.EntityId, new CanLootItemsPacket(loot.IsLootable, loot.LootItems));
+            client.CallMethod(loot.EntityId, new CanLootItemsPacket(loot.IsLootable, LootableBy(loot, client.Player.EntityId)));
         }
 
-        internal void GotLoot(Client client, LootDispenser loot)
+        /// <summary>The corpse's items this manifestation may take (LootItem.MayTake).</summary>
+        public static List<LootItem> LootableBy(LootDispenser loot, ulong entityId) =>
+            loot.LootItems.FindAll(i => i.MayTake(entityId));
+
+        /// <summary>What one take gave this player - the items they took and their share of the credits - if anything.</summary>
+        internal void GotLoot(Client client, LootDispenser loot, List<LootItem> items, int credits)
         {
-            client.CallMethod(SysEntity.ClientMethodId, new GotLootPacket(loot));
+            if ((items == null || items.Count == 0) && credits <= 0)
+                return;
+
+            client.CallMethod(SysEntity.ClientMethodId, new GotLootPacket(loot.AttachedTo, items, credits));
+        }
+
+        /// <summary>
+        /// A corpse's credits divided among those sharing them: an equal share each, the odd
+        /// credits one apiece from the first on (the looter who emptied the corpse is first).
+        /// Nobody is left out of a share for being last; a pot smaller than the squad gives the
+        /// first ones a credit each and the rest nothing.
+        /// </summary>
+        public static List<int> SplitCredits(int credits, int recipients)
+        {
+            var shares = new List<int>();
+
+            if (recipients <= 0)
+                return shares;
+
+            var each = Math.Max(0, credits) / recipients;
+            var odd = Math.Max(0, credits) % recipients;
+
+            for (var i = 0; i < recipients; i++)
+                shares.Add(each + (i < odd ? 1 : 0));
+
+            return shares;
+        }
+
+        /// <summary>
+        /// Who the credits of an emptied corpse go to: the looter who emptied it, first, and the
+        /// rest of the squad that shared in the kill (CreditSharers) who are still in the world on
+        /// this map. A corpse that was one player's goes to that player.
+        /// </summary>
+        public static List<Client> CreditRecipients(Client taker, LootDispenser loot)
+        {
+            var recipients = new List<Client> { taker };
+            var mapChannel = taker.Player?.MapChannel;
+
+            if (mapChannel == null || loot.CreditSharers.Count == 0)
+                return recipients;
+
+            foreach (var entityId in loot.CreditSharers)
+            {
+                if (entityId == taker.Player.EntityId)
+                    continue;
+
+                var sharer = mapChannel.ClientList.Find(c => c?.Player != null && c.Player.EntityId == entityId
+                    && c.State == ClientState.Ingame && c.Player.MapChannel == mapChannel);
+
+                if (sharer != null && !recipients.Contains(sharer))
+                    recipients.Add(sharer);
+            }
+
+            return recipients;
+        }
+
+        /// <summary>The looters of a dispenser who are on this map now.</summary>
+        private static List<Client> LootersHere(MapChannel mapChannel, LootDispenser loot)
+        {
+            return mapChannel?.ClientList.FindAll(c => c?.Player != null
+                && (loot.Looters.Contains(c.Player.EntityId) || c.Player.EntityId == loot.Owner)) ?? new List<Client>();
         }
 
         /// <summary>How long a corpse with nothing left on it stays in the world.</summary>
@@ -204,22 +277,39 @@ namespace Rasa.Managers
 
         internal LootDispenser Create(Client killer, Creature creature, ActorGameplayPolicy policy = null)
         {
+            var loot = Create(killer, creature, new List<Client> { killer }, 0, policy);
+            AppendMissionLoot(killer, loot);
+            return loot;
+        }
+
+        /// <summary>
+        /// The ordinary loot dispenser, owned by the first of the looters - the killer, or the squad
+        /// member whose turn it is - and open to all of them. partyId marks its items as the
+        /// squad's (Free For All). Qualified drops are appended after squad allocation.
+        /// </summary>
+        internal LootDispenser Create(Client killer, Creature creature, List<Client> looters, uint partyId, ActorGameplayPolicy policy = null)
+        {
             RetryPendingRetirements();
             var mapChannel = killer.Player.MapChannel;
+            var owner = looters.Count > 0 ? looters[0] : killer;
             var loot = new LootDispenser();
             loot.IsLootable = true;
             loot.AttachedTo = creature.EntityId;
-            loot.Owner = killer.Player.EntityId;
-            loot.OwnerClient = killer;
-            loot.Player = killer.Player;
+            loot.Owner = owner.Player.EntityId;
+            loot.OwnerClient = owner;
+            loot.Player = owner.Player;
             loot.Map = mapChannel;
             loot.Corpse = creature;
-            loot.CharacterId = killer.Player.Id;
-            loot.AccountId = killer.AccountEntry?.Id ?? 0;
+            loot.CharacterId = owner.Player.Id;
+            loot.AccountId = owner.AccountEntry?.Id ?? 0;
             loot.UnitOfWorkFactory = _gameUnitOfWorkFactory;
 
-            CreateLoot(killer, loot, (policy ?? Game.Missions.World.CreatureGameplayRules.Policy(creature)).Loot);
-            AppendMissionLoot(killer, loot);
+            foreach (var looter in looters)
+                loot.Looters.Add(looter.Player.EntityId);
+
+            loot.Looters.Add(loot.Owner);
+
+            CreateLoot(owner, loot, (policy ?? Game.Missions.World.CreatureGameplayRules.Policy(creature)).Loot, partyId);
 
             lock (mapChannel.LootSyncRoot)
             {
@@ -234,6 +324,12 @@ namespace Rasa.Managers
         {
             if (owner.Player.Missions.Count == 0)
                 return;
+            lock (loot.Map.LootSyncRoot)
+                AppendMissionLootLocked(owner, loot);
+        }
+
+        private void AppendMissionLootLocked(Client owner, LootDispenser loot)
+        {
             var missions = _missionManager ?? MissionApplication.Instance;
             if (!MissionLootPlanner.HasCandidates(owner, missions))
                 return;
@@ -275,13 +371,18 @@ namespace Rasa.Managers
             {
                 EntityManager.Instance.RegisterEntity(entry.Item.EntityId, EntityType.Item);
                 EntityManager.Instance.RegisterItem(entry.Item.EntityId, entry.Item);
-                var item = new LootItem(entry.Item, owner.Player.EntityId, 0);
+                var item = new LootItem(entry.Item, owner.Player.EntityId, 0)
+                {
+                    ReservedFor = owner.Player.EntityId
+                };
                 MissionLootPlanner.Attach(item, entry.Drop);
                 loot.LootItems.Add(item);
                 var quality = (LootQuality)entry.Item.ItemTemplate.QualityId;
                 if (quality.Rank() > loot.LootQuality.Rank())
                     loot.LootQuality = quality;
             }
+            if (staged.Count > 0)
+                loot.Looters.Add(owner.Player.EntityId);
         }
 
         /// <summary>
@@ -290,10 +391,10 @@ namespace Rasa.Managers
         /// </summary>
         private static readonly Random Roll = new Random();
 
-        private LootDispenser CreateLoot(Client killer, LootDispenser loot, AuthoredLootProfile profile)
+        private LootDispenser CreateLoot(Client killer, LootDispenser loot, AuthoredLootProfile profile, uint partyId = 0)
         {
             if (profile != null)
-                return CreateAuthoredLoot(killer, loot, profile);
+                return CreateAuthoredLoot(killer, loot, profile, partyId);
 
             int giveLoot;
 
@@ -314,13 +415,13 @@ namespace Rasa.Managers
                 var item = ItemManager.Instance.CreateFromTemplateId(28, (uint)giveLoot * 3);
 
                 if (item != null)
-                    loot.LootItems.Add(new LootItem(item, killer.Player.EntityId, 0));
+                    loot.LootItems.Add(new LootItem(item, killer.Player.EntityId, partyId));
             }
 
             return loot;
         }
 
-        private LootDispenser CreateAuthoredLoot(Client owner, LootDispenser loot, AuthoredLootProfile profile)
+        private LootDispenser CreateAuthoredLoot(Client owner, LootDispenser loot, AuthoredLootProfile profile, uint partyId = 0)
         {
             var staged = new List<Item>();
             var committed = false;
@@ -358,7 +459,7 @@ namespace Rasa.Managers
             {
                 EntityManager.Instance.RegisterEntity(item.EntityId, EntityType.Item);
                 EntityManager.Instance.RegisterItem(item.EntityId, item);
-                loot.LootItems.Add(new LootItem(item, owner.Player.EntityId, 0));
+                loot.LootItems.Add(new LootItem(item, owner.Player.EntityId, partyId));
                 var quality = (LootQuality)item.ItemTemplate.QualityId;
                 if (quality.Rank() > loot.LootQuality.Rank())
                     loot.LootQuality = quality;
@@ -366,16 +467,63 @@ namespace Rasa.Managers
             return loot;
         }
 
+        /// <summary>
+        /// The corpse's loot, for whoever the killer's squad loot method gives it to
+        /// (PartyManager.LootersFor): each of them is shown the dispenser. A mission's authored
+        /// loot is the killer's alone.
+        /// </summary>
         internal void Loot(Client client, Creature creature, ActorGameplayPolicy policy = null)
         {
-            var loot = Create(client, creature, policy);
+            policy ??= Game.Missions.World.CreatureGameplayRules.Policy(creature);
 
-            client.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(loot.EntityId, loot.EntityClassId));
+            List<Client> looters, eligible;
+            uint partyId;
+            Party party;
 
-            AttachInfo(client, loot);
-            LootInfo(client, loot);
-            OverallQuality(client, loot);
-            CanLootItems(client, loot);
+            if (policy.Loot != null)
+            {
+                looters = new List<Client> { client };
+                eligible = looters;
+                partyId = 0;
+                party = null;
+            }
+            else
+                (looters, partyId, party, eligible) = PartyManager.Instance.LootersFor(client, creature.Position);
+
+            var loot = Create(client, creature, looters, partyId, policy);
+
+            // Everyone who shared in the kill shares in its credits, whatever the method does
+            // with the items.
+            if (party != null && eligible.Count > 1)
+                foreach (var member in eligible)
+                    loot.CreditSharers.Add(member.Player.EntityId);
+
+            // What is at or over the squad's threshold is rolled for among everyone sharing in
+            // the corpse; a winner the method had left out is shown it too.
+            var shownTo = new List<Client>(looters);
+
+            foreach (var winner in LootRolls.Distribute(loot, party, eligible))
+                if (!shownTo.Contains(winner))
+                {
+                    shownTo.Add(winner);
+                    loot.Looters.Add(winner.Player.EntityId);
+                }
+
+            // Plan personal drops after ordinary allocations: another member's items cannot
+            // fill the killer's collection deficit, and qualified drops never enter squad rolls.
+            AppendMissionLoot(client, loot);
+            if (loot.Looters.Contains(client.Player.EntityId) && !shownTo.Contains(client))
+                shownTo.Add(client);
+
+            foreach (var looter in shownTo)
+            {
+                looter.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(loot.EntityId, loot.EntityClassId));
+
+                AttachInfo(looter, loot);
+                LootInfo(looter, loot);
+                OverallQuality(looter, loot);
+                CanLootItems(looter, loot);
+            }
         }
 
         internal void AttachRewardLoot(Client owner, MapChannel mapChannel, DynamicObject obj)
@@ -398,6 +546,7 @@ namespace Rasa.Managers
                     AttachedTo = obj.EntityId,
                     AttachedObject = obj,
                     Owner = owner.Player.EntityId,
+                    Looters = { owner.Player.EntityId },
                     OwnerClient = owner,
                     Player = owner.Player,
                     Map = mapChannel,
@@ -509,7 +658,7 @@ namespace Rasa.Managers
             lock (mapChannel.LootSyncRoot)
                 if (mapChannel.LootDispensers.TryGetValue(obj.LootDispenserEntityId, out var loot) &&
                     ReferenceEquals(loot.AttachedObject, obj))
-                    notices.Add(Retire(mapChannel, loot, true));
+                    notices.AddRange(Retire(mapChannel, loot, true));
             Publish(notices);
         }
 
@@ -528,7 +677,7 @@ namespace Rasa.Managers
                 foreach (var loot in mapChannel.LootDispensers.Values
                              .Where(entry => ReferenceEquals(entry.Corpse, creature) ||
                                              entry.AttachedTo == creature.EntityId).ToArray())
-                    notices.Add(Retire(mapChannel, loot, true));
+                    notices.AddRange(Retire(mapChannel, loot, true));
             Publish(notices);
         }
 
@@ -542,10 +691,39 @@ namespace Rasa.Managers
             lock (client.SyncRoot)
             {
                 lock (mapChannel.LootSyncRoot)
-                    foreach (var loot in mapChannel.LootDispensers.Values
-                                 .Where(entry => ReferenceEquals(entry.OwnerClient, client) ||
-                                                 entry.Owner == client.Player?.EntityId).ToArray())
-                        notices.Add(Retire(mapChannel, loot, true));
+                    foreach (var loot in mapChannel.LootDispensers.Values.ToArray())
+                    {
+                        var owned = ReferenceEquals(loot.OwnerClient, client) || loot.Owner == client.Player?.EntityId;
+
+                        // A squad mate's corpse the player could also loot: they are simply no
+                        // longer among its looters.
+                        if (!owned)
+                        {
+                            if (client.Player != null)
+                                loot.Looters.Remove(client.Player.EntityId);
+                            continue;
+                        }
+
+                        // Shared with a squad still here: the next of them holds it.
+                        var heir = loot.AttachedObject == null
+                            ? LootersHere(mapChannel, loot).Find(c => c != client && c.State == ClientState.Ingame)
+                            : null;
+
+                        if (heir != null)
+                        {
+                            loot.Looters.Remove(client.Player?.EntityId ?? 0);
+                            loot.Owner = heir.Player.EntityId;
+                            loot.OwnerClient = heir;
+                            loot.Player = heir.Player;
+                            loot.CharacterId = heir.Player.Id;
+                            loot.AccountId = heir.AccountEntry?.Id ?? 0;
+                            if (loot.CurrentLooter == client.Player?.EntityId)
+                                loot.CurrentLooter = 0;
+                            continue;
+                        }
+
+                        notices.AddRange(Retire(mapChannel, loot, true));
+                    }
                 Publish(notices);
             }
         }
@@ -639,6 +817,14 @@ namespace Rasa.Managers
                         return;
                     }
 
+                    // Someone else's: a squad mate won it, or Rotation gave the corpse to someone
+                    // else. The window never showed it; the list of what this player may take goes again.
+                    if (!lootItem.MayTake(client.Player.EntityId))
+                    {
+                        CanLootItems(client, loot);
+                        return;
+                    }
+
                     Claim(client, loot, new[] { lootItem }, packet.DestSlot, false);
                 }
             }
@@ -680,7 +866,9 @@ namespace Rasa.Managers
                         return;
 
                     var threshold = client.Player.AutoLootThreshold;
+                    // Only what is theirs to take: a squad mate's rolled item stays for them.
                     var selected = loot.Remaining()
+                        .Where(item => item.MayTake(client.Player.EntityId))
                         .Where(item => !packet.AutoLootOnly || WithinThreshold(item, threshold))
                         .ToArray();
                     Claim(client, loot, selected, null, true);
@@ -728,12 +916,31 @@ namespace Rasa.Managers
             uint? destSlot,
             bool includeCredits)
         {
+            // The credits go when the corpse's last item does, split among everyone sharing the
+            // kill (CreditRecipients); a corpse that is one player's pays them on Loot All too.
+            var emptiesItems = loot.LootItems.All(item => item.Taken || items.Contains(item));
+            includeCredits = loot.Credits > 0 &&
+                ((includeCredits && loot.CreditSharers.Count == 0) || emptiesItems);
+
+            var recipients = includeCredits ? CreditRecipients(client, loot) : new List<Client> { client };
+            var shares = includeCredits ? SplitCredits(loot.Credits, recipients.Count) : new List<int> { 0 };
             var currentCredits = client.Player.Credits.GetValueOrDefault(CurencyType.Credits);
-            var creditsGranted = includeCredits && loot.Credits != 0;
+            var ownShare = shares[0];
+            var creditsGranted = includeCredits && ownShare != 0;
+            var others = new List<(Client Recipient, int Share, int Before, int After)>();
             int creditsAfter;
             try
             {
-                creditsAfter = checked(currentCredits + (includeCredits ? loot.Credits : 0));
+                creditsAfter = checked(currentCredits + ownShare);
+
+                for (var i = 1; i < recipients.Count; i++)
+                {
+                    if (shares[i] <= 0)
+                        continue;
+
+                    var before = recipients[i].Player.Credits.GetValueOrDefault(CurencyType.Credits);
+                    others.Add((recipients[i], shares[i], before, checked(before + shares[i])));
+                }
             }
             catch (OverflowException)
             {
@@ -799,9 +1006,20 @@ namespace Rasa.Managers
                     if (completesReward && rewardObjective.ObjectiveState != (byte)MissionObjectiveState.Completed)
                         throw new GameplayRejectionException("Reward loot did not complete its objective.");
 
-                    if (includeCredits && loot.Credits != 0)
+                    if (creditsGranted)
                         unitOfWork.Characters.UpdateCharacterCredits(
                             client.Player.Id, creditsAfter);
+
+                    // The rest of the squad's shares, in the same write: each one's purse as the
+                    // server has it, or none of it happens.
+                    foreach (var other in others)
+                    {
+                        var row = unitOfWork.Characters.Find(other.Recipient.Player.Id);
+                        if (row == null || row.Credit != other.Before)
+                            throw new GameplayRejectionException(
+                                "A squad member's durable credits changed.");
+                        unitOfWork.Characters.UpdateCharacterCredits(other.Recipient.Player.Id, other.After);
+                    }
 
                     if (!TryGetLoot(client, loot.EntityId, out var current) ||
                         !ReferenceEquals(current, loot))
@@ -821,10 +1039,15 @@ namespace Rasa.Managers
 
             grant.Publish(client);
 
-            if (creditsGranted)
+            if (includeCredits)
             {
                 loot.Credits = 0;
-                client.Player.Credits[CurencyType.Credits] = creditsAfter;
+
+                if (creditsGranted)
+                    client.Player.Credits[CurencyType.Credits] = creditsAfter;
+
+                foreach (var other in others)
+                    other.Recipient.Player.Credits[CurencyType.Credits] = other.After;
             }
 
             if (!loot.HasLoot)
@@ -852,27 +1075,64 @@ namespace Rasa.Managers
                         new UpdateCreditsPacket(
                             CurencyType.Credits,
                             creditsAfter,
-                            0)),
+                            ownShare)),
                     $"corpse {loot.EntityId} credits");
-            MissionApplication.TryPublish(
-                () => client.CallMethod(
-                    loot.EntityId,
-                    new ActorGotLootPacket(loot)),
-                $"corpse {loot.EntityId} actor loot result");
-            MissionApplication.TryPublish(
-                () => client.CallMethod(
-                    loot.EntityId,
-                    new TakenInfoPacket(
-                        client.Player.EntityId,
-                        Taken(loot))),
-                $"corpse {loot.EntityId} taken state");
-            MissionApplication.TryPublish(
-                () => CanLootItems(client, loot),
-                $"corpse {loot.EntityId} lootability");
-            if (!loot.HasLoot)
+            foreach (var other in others)
                 MissionApplication.TryPublish(
-                    () => GotLoot(client, loot),
-                    $"corpse {loot.EntityId} completion");
+                    () => other.Recipient.CallMethod(
+                        other.Recipient.Player.EntityId,
+                        new UpdateCreditsPacket(CurencyType.Credits, other.After, other.Share)),
+                    $"corpse {loot.EntityId} squad credits");
+
+            // No ActorGotLoot: its only effect is the pick-up sound, which the GotLoot below plays
+            // as well. Everyone sharing the corpse sees the rows go, not only the one who took them.
+            var lootersHere = LootersHere(client.Player.MapChannel, loot);
+            if (!lootersHere.Contains(client))
+                lootersHere.Add(client);
+
+            foreach (var looter in lootersHere)
+            {
+                MissionApplication.TryPublish(
+                    () => looter.CallMethod(
+                        loot.EntityId,
+                        new TakenInfoPacket(
+                            client.Player.EntityId,
+                            Taken(loot))),
+                    $"corpse {loot.EntityId} taken state");
+
+                if (looter == client || !loot.HasLoot)
+                    MissionApplication.TryPublish(
+                        () => CanLootItems(looter, loot),
+                        $"corpse {loot.EntityId} lootability");
+            }
+
+            // What the take gave the looter - the items and their share - and each other sharer
+            // their share; the rest of the squad hears what was taken and who got the credits.
+            var takenItems = items.ToList();
+            MissionApplication.TryPublish(
+                () => GotLoot(client, loot, takenItems, ownShare),
+                $"corpse {loot.EntityId} loot result");
+
+            var paid = new List<(Client Recipient, int Share)>();
+            if (creditsGranted)
+                paid.Add((client, ownShare));
+
+            foreach (var other in others)
+            {
+                paid.Add((other.Recipient, other.Share));
+                MissionApplication.TryPublish(
+                    () => GotLoot(other.Recipient, loot, null, other.Share),
+                    $"corpse {loot.EntityId} squad share");
+            }
+
+            MissionApplication.TryPublish(
+                () => PartyManager.Instance.AnnounceLoot(client, loot.AttachedTo, takenItems, ownShare),
+                $"corpse {loot.EntityId} squad loot notice");
+
+            if (loot.CreditSharers.Count > 0 && paid.Count > 0)
+                MissionApplication.TryPublish(
+                    () => PartyManager.Instance.AnnounceCredits(paid),
+                    $"corpse {loot.EntityId} squad credits notice");
 
             progressPlan.Publish(client);
         }
@@ -892,12 +1152,12 @@ namespace Rasa.Managers
                 !ReferenceEquals(player, registeredPlayer) ||
                 !map.LootDispensers.TryGetValue(entityId, out loot) ||
                 !loot.IsLootable || loot.FullyLooted ||
-                loot.Owner != player.EntityId ||
-                (loot.OwnerClient != null && !ReferenceEquals(loot.OwnerClient, client)) ||
-                (loot.Player != null && !ReferenceEquals(loot.Player, player)) ||
+                (loot.Owner != player.EntityId && !loot.Looters.Contains(player.EntityId)) ||
+                (loot.Owner == player.EntityId && loot.OwnerClient != null && !ReferenceEquals(loot.OwnerClient, client)) ||
+                (loot.Owner == player.EntityId && loot.Player != null && !ReferenceEquals(loot.Player, player)) ||
                 (loot.Map != null && !ReferenceEquals(loot.Map, map)) ||
-                (loot.CharacterId != 0 && loot.CharacterId != player.Id) ||
-                (loot.AccountId != 0 && loot.AccountId != client.AccountEntry?.Id) ||
+                (loot.Owner == player.EntityId && loot.CharacterId != 0 && loot.CharacterId != player.Id) ||
+                (loot.Owner == player.EntityId && loot.AccountId != 0 && loot.AccountId != client.AccountEntry?.Id) ||
                 !IsFinite(player.Position))
                 return false;
 
@@ -929,6 +1189,7 @@ namespace Rasa.Managers
                 !corpse.Attributes.TryGetValue(Attributes.Health, out var corpseHealth) ||
                 corpseHealth.Current > 0 ||
                 corpse.MapContextId != player.MapContextId ||
+                (corpse.RuntimeMapChannel != null && !ReferenceEquals(corpse.RuntimeMapChannel, map)) ||
                 !map.MapCellInfo.Cells.Values.Any(cell => cell.CreatureList.Contains(corpse)) ||
                 !IsFinite(corpse.Position) ||
                 HasExpired(loot, corpse))
@@ -949,11 +1210,11 @@ namespace Rasa.Managers
             float.IsFinite(value.Y) &&
             float.IsFinite(value.Z);
 
-        private RetirementNotice Retire(MapChannel map, LootDispenser loot, bool notify)
+        private List<RetirementNotice> Retire(MapChannel map, LootDispenser loot, bool notify)
         {
             if (!map.LootDispensers.TryGetValue(loot.EntityId, out var current) ||
                 !ReferenceEquals(current, loot))
-                return null;
+                return new List<RetirementNotice>();
 
             var unclaimed = loot.LootItems
                 .Where(item => !item.Taken && item.Item?.Id > 0)
@@ -995,17 +1256,28 @@ namespace Rasa.Managers
             loot.FullyLooted = true;
             loot.CurrentLooter = 0;
 
-            var owner = loot.OwnerClient ??
-                        map.ClientList.Find(client => client.Player?.EntityId == loot.Owner);
-            var notice = notify && owner != null
-                ? new RetirementNotice
-                {
-                    Client = owner,
-                    LootEntityId = loot.EntityId,
-                    CanLoot = new CanLootItemsPacket(false, loot.LootItems),
-                    Destroy = new DestroyPhysicalEntityPacket(loot.EntityId)
-                }
-                : null;
+            // Everyone it was shown to: the owner, and a squad sharing it.
+            var notices = new List<RetirementNotice>();
+
+            if (notify)
+            {
+                var shownTo = LootersHere(map, loot);
+
+                if (loot.OwnerClient != null && !shownTo.Contains(loot.OwnerClient))
+                    shownTo.Add(loot.OwnerClient);
+
+                var untaken = loot.LootItems.Where(item => !item.Taken && item.Item != null).Select(item => item.EntityId).ToList();
+
+                foreach (var looter in shownTo)
+                    notices.Add(new RetirementNotice
+                    {
+                        Client = looter,
+                        LootEntityId = loot.EntityId,
+                        CanLoot = new CanLootItemsPacket(false, loot.LootItems),
+                        Destroy = new DestroyPhysicalEntityPacket(loot.EntityId),
+                        ItemEntityIds = untaken
+                    });
+            }
 
             foreach (var item in loot.LootItems)
                 if (!item.Taken && item.Item != null)
@@ -1030,7 +1302,7 @@ namespace Rasa.Managers
             if (loot.AttachedObject?.LootDispenserEntityId == loot.EntityId)
                 loot.AttachedObject.LootDispenserEntityId = 0;
 
-            return notice;
+            return notices;
         }
 
         private static long LifetimeLimit(LootDispenser loot)
@@ -1129,6 +1401,10 @@ namespace Rasa.Managers
                 {
                     notice.Client.CallMethod(notice.LootEntityId, notice.CanLoot);
                     notice.Client.CallMethod(SysEntity.ClientMethodId, notice.Destroy);
+
+                    // The rolled items went with it; the client was given each one.
+                    foreach (var itemEntityId in notice.ItemEntityIds)
+                        notice.Client.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(itemEntityId));
                 }
         }
 

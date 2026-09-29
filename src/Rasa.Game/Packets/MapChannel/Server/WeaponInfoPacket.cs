@@ -33,12 +33,16 @@
             // None. Sending the 0 through made every tool in the game an area tool with no
             // target, so a healing disc could not be aimed at anyone.
             // ItemTemplateTooltipInfo already writes it this way.
-            if (Item.ItemTemplate.WeaponInfo.AeType == 0)
+            // Shotguns and propellant guns are sent as cones (Managers.ConeWeapons): the rows say
+            // nothing, and a cone is what puts the client's targeting in cone mode.
+            var (aeType, aeRadius) = Managers.ConeWeapons.AeOf(Item.ItemTemplate.WeaponInfo, ClassInfo.WeaponClassInfo);
+
+            if (aeType == 0)
                 pw.WriteNoneStruct();
             else
-                pw.WriteUInt(Item.ItemTemplate.WeaponInfo.AeType);
+                pw.WriteUInt(aeType);
 
-            pw.WriteUInt(Item.ItemTemplate.WeaponInfo.AeRadius);
+            pw.WriteUInt(aeRadius);
             pw.WriteUInt(Item.ItemTemplate.WeaponInfo.RecoilAmount);
             pw.WriteNoneStruct();       // ReuseOverride ToDo
             pw.WriteUInt(Item.ItemTemplate.WeaponInfo.CoolRate);
@@ -46,7 +50,8 @@
             pw.WriteInt((int)Item.ItemTemplate.WeaponInfo.ToolType);
             pw.WriteBool(Item.IsJammed);
             pw.WriteUInt(Item.ItemTemplate.WeaponInfo.AmmoPerShot);
-            pw.WriteInt(Item.CammeraProfile);
+            // The scope the Toggle Zoom key looks through, 0 for none (WeaponScopes).
+            pw.WriteInt(WeaponScopes.ProfileOf(ClassInfo.ClassId));
         }
     }
 }

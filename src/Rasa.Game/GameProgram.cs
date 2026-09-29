@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Diagnostics;
 using System.Threading.Tasks;
 
 using Microsoft.Extensions.Configuration;
@@ -25,6 +24,7 @@ namespace Rasa
     using Repositories.Char.CharacterInventory;
     using Repositories.Char.CharacterLockbox;
     using Repositories.Char.CharacterLogos;
+    using Repositories.Char.CharacterActionReuse;
     using Repositories.Char.CharacterMission;
     using Repositories.Char.CharacterMissionDeadline;
     using Repositories.Char.CharacterMissionProgress;
@@ -69,7 +69,6 @@ namespace Rasa
             {
                 Console.WriteLine("Game server ended unexpectedly. Exception:");
                 Console.WriteLine(e);
-                Debugger.Break();
                 return e.HResult;
             }
         }
@@ -111,6 +110,7 @@ namespace Rasa
             services.AddScoped<ICharacterInventoryRepository, CharacterInventoryRepository>();
             services.AddScoped<ICharacterLockboxRepository, CharacterLockboxRepository>();
             services.AddScoped<ICharacterLogosRepository, CharacterLogosRepository>();
+            services.AddScoped<ICharacterActionReuseRepository, CharacterActionReuseRepository>();
             services.AddScoped<ICharacterMissionRepository, CharacterMissionRepository>();
             services.AddScoped<ICharacterMissionDeadlineRepository, CharacterMissionDeadlineRepository>();
             services.AddScoped<ICharacterMissionProgressRepository, CharacterMissionProgressRepository>();
@@ -144,6 +144,8 @@ namespace Rasa
             services.AddScoped<IMapLinkRepository, MapLinkRepository>();
             services.AddScoped<IKraftwerksRepository, KraftwerksRepository>();
             services.AddScoped<IMapRegionRepository, MapRegionRepository>();
+            services.AddScoped<IMapEmitterRepository, MapEmitterRepository>();
+            services.AddScoped<ISpawnPoolArrivalRepository, SpawnPoolArrivalRepository>();
             services.AddScoped<IMapMarkerRepository, MapMarkerRepository>();
             services.AddScoped<IRecipeRepository, RecipeRepository>();
             services.AddScoped<INpcMissionRepository, NpcMissionRepository>();

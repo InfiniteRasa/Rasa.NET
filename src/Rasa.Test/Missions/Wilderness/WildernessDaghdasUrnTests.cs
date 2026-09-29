@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System.Threading;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Rasa.Data;
 using Rasa.Game;
@@ -27,7 +28,7 @@ namespace Rasa.Test.Missions.Wilderness
         public void AriochsCodexRequiresActualCorpseLootAndJuvaksSelectedRewardPaysOnce(int selection, uint rewardTemplate)
         {
             using var harness = CreateIntegratedHub();
-            harness.SpawnWorld(179, 158);
+            harness.SpawnWorld(179, 580011);
             var juvak = harness.Npc(179);
             Assert.IsNotNull(juvak);
             Assert.AreEqual(102U, juvak.DbId);
@@ -35,7 +36,7 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, juvak.EntityId, 696));
             Assert.IsFalse(harness.Manager.CompleteOfferedObjective(harness.Client, juvak.EntityId, 696, 2, 1));
 
-            var arioch = LiveCreature(harness, 77, 158);
+            var arioch = LiveCreature(harness, 77, 580011);
             Kill(harness, arioch);
             Assert.AreEqual(0U, Held(harness, 2328));
             Assert.AreEqual(MissionObjectiveState.Incomplete, harness.Client.Player.Missions[696].Objectives[1].State,
@@ -53,9 +54,9 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.IsFalse(harness.Manager.CompleteOfferedMission(harness.Client, juvak.EntityId, 696, selection));
             Assert.AreEqual(1U, Held(harness, rewardTemplate));
             if (selection == 0)
-                VerifyArmorReward(harness, 12887, 1, 187, CharacterClass.Specialist, 30);
+                VerifyArmorReward(harness, 12887, 1, 188, CharacterClass.Specialist, 30);
             else
-                VerifyWeaponReward(harness, 164);
+                VerifyWeaponReward(harness, 164, 1);
         }
 
         [TestMethod]
@@ -63,7 +64,7 @@ namespace Rasa.Test.Missions.Wilderness
         public void ChildhoodsEndRequiresThreeEncounterXanxAndPreservesTheNativeContactOrder()
         {
             using var harness = CreateIntegratedHub();
-            harness.SpawnWorld(174, 175, 176, 177, 160);
+            harness.SpawnWorld(174, 175, 176, 177, 580053);
             var todae = harness.Npc(174);
             var anjuhi = harness.Npc(176);
             var tirna = harness.Npc(177);
@@ -78,7 +79,7 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.IsFalse(harness.Manager.CompleteOfferedObjective(harness.Client, tirna.EntityId, 682, 4, 1));
             Assert.IsTrue(harness.Manager.CompleteOfferedObjective(harness.Client, anjuhi.EntityId, 682, 2, 1));
             harness.Tick();
-            Kill(harness, LiveCreature(harness, 87, 160));
+            Kill(harness, LiveCreature(harness, 87, 580053));
             Assert.AreEqual(0U, harness.Client.Player.Missions[682].Objectives[3].Counters[0],
                 "An ordinary public Xanx cannot count as one of Anjuhi's attackers.");
             Assert.IsFalse(harness.Manager.CompleteOfferedObjective(harness.Client, anjuhi.EntityId, 682, 5, 1));
@@ -108,7 +109,7 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.IsTrue(harness.Manager.CompleteOfferedObjective(harness.Client, doyan.EntityId, 682, 6, 1));
             Assert.IsTrue(harness.Manager.CompleteOfferedMission(harness.Client, doyan.EntityId, 682, 1));
             Assert.AreEqual(1U, Held(harness, 166));
-            VerifyWeaponReward(harness, 166);
+            VerifyWeaponReward(harness, 166, 3);
         }
 
         [TestMethod]
@@ -118,7 +119,7 @@ namespace Rasa.Test.Missions.Wilderness
         public void ActualAnjuhiDeathFailsTheCurrentStageAndCannotFailARetry(bool attackStarted)
         {
             using var harness = CreateIntegratedHub();
-            harness.SpawnWorld(174, 176, 160);
+            harness.SpawnWorld(174, 176, 580053);
             SeedHistory(harness, 451);
             var todae = harness.Npc(174);
             var anjuhi = harness.Npc(176);
@@ -133,7 +134,7 @@ namespace Rasa.Test.Missions.Wilderness
             var assignment = harness.Client.Player.Missions[682].AssignmentId;
             var lease = harness.Manager.PublicActors.Handle(harness.Map, 176);
             Assert.IsNotNull(lease);
-            var killer = LiveCreature(harness, 87, 160);
+            var killer = LiveCreature(harness, 87, 580053);
             anjuhi.Attributes[Attributes.Health].Current = 0;
             harness.Creatures.HandleCreatureKill(harness.Map, anjuhi, killer);
             harness.Tick();
@@ -161,7 +162,7 @@ namespace Rasa.Test.Missions.Wilderness
         public void HerbalRemedyRequiresFivePhysicalHerbsAndAllThreeDevilsWithoutStealingOpportunityCredit()
         {
             using var harness = CreateIntegratedHub();
-            harness.SpawnWorld(175, 191, 196, 156, 520065);
+            harness.SpawnWorld(175, 191, 196, 580009, 580013, 520065);
             SeedHistory(harness, 682);
             Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, harness.Npc(196).EntityId, 1449));
             Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, harness.Npc(175).EntityId, 695));
@@ -169,17 +170,17 @@ namespace Rasa.Test.Missions.Wilderness
             harness.Tick();
             Assert.AreEqual(0, harness.Client.Player.Missions[695].Objectives[1].Counters.Count,
                 "Native herb objective1 has no authored counter label; completion must not invent visible counter0.");
-            var scratch = LiveCreature(harness, 80, 156);
+            var scratch = LiveCreature(harness, 80, 580013);
             Kill(harness, scratch);
-            Kill(harness, LiveCreature(harness, 75, 156));
+            Kill(harness, LiveCreature(harness, 75, 580009));
             Assert.AreEqual(2U, harness.Client.Player.Missions[695].Objectives[5].Counters[0]);
             Assert.AreEqual(MissionObjectiveState.Completed, harness.Client.Player.Missions[1449].Objectives[24].State);
             Assert.AreEqual(MissionObjectiveState.Completed, harness.Client.Player.Missions[1449].Objectives[25].State);
             Assert.AreEqual(MissionObjectiveState.Incomplete, harness.Client.Player.Missions[1449].Objectives[23].State);
 
-            var pool = harness.Map.SpawnPools.Single(entry => entry.DbId == 156);
-            harness.SpawnWorldAfter(pool.RespawnTime, 156);
-            var repeatedScratch = LiveCreature(harness, 80, 156);
+            var pool = harness.Map.SpawnPools.Single(entry => entry.DbId == 580013);
+            harness.SpawnWorldAfter(pool.RespawnTime, 580013);
+            var repeatedScratch = LiveCreature(harness, 80, 580013);
             Assert.AreNotEqual(scratch.EntityId, repeatedScratch.EntityId);
             Kill(harness, repeatedScratch);
             Assert.AreEqual(2U, harness.Client.Player.Missions[695].Objectives[5].Counters[0],
@@ -268,7 +269,7 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.AreEqual(0U, Owned(harness, 698, 2355));
             Assert.AreEqual(1U, Held(harness, 12831));
             Assert.IsFalse(harness.Manager.CompleteOfferedMission(harness.Client, eleanor.EntityId, 698, 0));
-            VerifyArmorReward(harness, 12831, 2, 140, CharacterClass.Specialist, 30);
+            VerifyArmorReward(harness, 12831, 2, 141, CharacterClass.Specialist, 30);
         }
 
         internal static WildernessRuntimeTestHarness CreateIntegratedHub() =>
@@ -323,9 +324,10 @@ namespace Rasa.Test.Missions.Wilderness
             int expectedArmorValue, CharacterClass characterClass, uint skillId)
         {
             MissileManager.Instance.DoWork(harness.Map, 10000);
+            WaitForCombatIdle(harness);
             var armor = PersonalItem(harness, template);
             Assert.AreEqual(expectedArmorValue, armor.ItemTemplate.ArmorValue,
-                "The granted item must load the centrally reconstructed World armor row.");
+                "The granted item must load PR105's class-sourced World armor row.");
             Assert.AreEqual(slot, (uint)EntityClassManager.Instance.GetEquipableClassInfo(armor).EquipmentSlotId);
             Assert.AreEqual(skillId, (uint)armor.ItemTemplate.EquipableInfo.SkillId);
             PrepareEquipmentEligibility(harness, characterClass, skillId);
@@ -354,9 +356,10 @@ namespace Rasa.Test.Missions.Wilderness
             var armorBeforeHit = harness.Client.Player.Attributes[Attributes.Armor].Current;
             Assert.IsTrue(armorBeforeHit > 10);
             var healthBeforeHit = harness.Client.Player.Attributes[Attributes.Health].Current;
-            harness.SpawnWorld(46);
-            var attacker = LiveCreature(harness, 3, 46);
+            harness.SpawnWorld(580019);
+            var attacker = LiveCreature(harness, 3, 580019);
             harness.MoveTo(attacker.Position + new Vector3(0, 0, 2));
+            var hitStartedAt = Environment.TickCount64;
             MissileManager.Instance.MissileLaunch(harness.Map,
                 new ActionData(attacker, ActionId.WeaponAttack, 133, harness.Client.Player.EntityId, 0), 10);
             MissileManager.Instance.DoWork(harness.Map, 2000);
@@ -364,10 +367,26 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.IsTrue(damagedArmor < armorBeforeHit, "The ordinary combat path must consume armor protection.");
             Assert.AreEqual(healthBeforeHit, harness.Client.Player.Attributes[Attributes.Health].Current,
                 "A protected, non-bypassing hit must not be charged to health instead of the equipped armor.");
+            Assert.IsTrue(harness.Client.Player.InCombat);
+            Assert.IsTrue(harness.Client.Player.CombatExpiresAt >= hitStartedAt + CombatRegen.CombatTimeoutMs,
+                "Real damage must start the normal combat-idle timeout.");
+            Assert.AreEqual(0, harness.Client.Player.Attributes[Attributes.Armor].RefreshAmount,
+                "PR105 body armor does not regenerate in combat.");
+            for (var second = 0; second < 10; second++)
+                ActorManager.Instance.Regenerate(harness.Map);
+            Assert.AreEqual(damagedArmor, harness.Client.Player.Attributes[Attributes.Armor].Current,
+                "Regeneration ticks must leave damaged armor unchanged during combat.");
+            ManifestationManager.Instance.CombatWorker(harness.Map);
+            Assert.IsTrue(harness.Client.Player.InCombat, "An idle check must not bypass the damage timeout.");
+
+            WaitForCombatIdle(harness);
+            Assert.AreEqual(harness.Client.Player.ArmorRegenRate,
+                harness.Client.Player.Attributes[Attributes.Armor].RefreshAmount);
+            Assert.IsTrue(harness.Client.Player.Attributes[Attributes.Armor].RefreshAmount > 0);
             for (var second = 0; second < 10; second++)
                 ActorManager.Instance.Regenerate(harness.Map);
             Assert.IsTrue(harness.Client.Player.Attributes[Attributes.Armor].Current > damagedArmor,
-                "The equipped reward must regenerate through the real actor tick.");
+                "After the real combat-idle transition, the equipped reward must recover through actor ticks.");
 
             InventoryManager.Instance.RequestEquipArmor(harness.Client, request);
             Assert.AreEqual(0UL, harness.Client.Player.Inventory.EquippedInventory[(int)slot]);
@@ -383,7 +402,8 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.AreEqual(equippedMaximum, harness.Client.Player.Attributes[Attributes.Armor].CurrentMax);
         }
 
-        internal static void VerifyWeaponReward(WildernessRuntimeTestHarness harness, uint template)
+        internal static void VerifyWeaponReward(WildernessRuntimeTestHarness harness, uint template,
+            uint expectedAmmoPerShot)
         {
             MissileManager.Instance.DoWork(harness.Map, 10000);
             InventoryManager.Instance.InitCharacterInventory(harness.Client);
@@ -391,6 +411,9 @@ namespace Rasa.Test.Missions.Wilderness
                 "Native inventory initialization must create the five weapon-drawer slots before equip.");
             var weapon = PersonalItem(harness, template);
             Assert.IsNotNull(weapon.ItemTemplate.WeaponInfo);
+            var ammoPerShot = weapon.ItemTemplate.WeaponInfo.AmmoPerShot;
+            Assert.AreEqual(expectedAmmoPerShot, ammoPerShot,
+                "The native reward pistol spends one round; the native reward shotgun spends three.");
             var weaponClass = EntityClassManager.Instance.GetWeaponClassInfo(weapon);
             Assert.IsNotNull(weaponClass);
             Assert.AreEqual(13U, (uint)EntityClassManager.Instance.GetEquipableClassInfo(weapon).EquipmentSlotId);
@@ -416,26 +439,47 @@ namespace Rasa.Test.Missions.Wilderness
             ActorActionManager.Instance.DoWork(harness.Map, 10000);
             MissileManager.Instance.DoWork(harness.Map, 10000);
             Assert.IsTrue(weapon.CurrentAmmo > 0);
-            harness.SpawnWorld(46);
-            var target = LiveCreature(harness, 3, 46);
+            harness.SpawnWorld(580019);
+            var target = LiveCreature(harness, 3, 580019);
             harness.MoveTo(target.Position + new Vector3(0, 0, 2));
             harness.Client.Player.Target = target.EntityId;
             var before = target.Attributes[Attributes.Health].Current + target.Attributes[Attributes.Armor].Current;
             var clip = weapon.CurrentAmmo;
+            Assert.IsTrue(clip >= ammoPerShot);
+            var ammoAfterShot = clip - ammoPerShot;
+            var reserveBeforeShot = Held(harness, 28);
             Assert.IsTrue(ManifestationManager.Instance.PlayerTryFireWeapon(harness.Client),
                 "The awarded gun must fire through the normal weapon handler.");
             MissileManager.Instance.DoWork(harness.Map, 2000);
             Assert.IsTrue(target.Attributes[Attributes.Health].Current + target.Attributes[Attributes.Armor].Current < before);
-            Assert.AreEqual(clip - 1, weapon.CurrentAmmo);
+            Assert.AreEqual(ammoAfterShot, weapon.CurrentAmmo);
+            Assert.AreEqual(reserveBeforeShot, Held(harness, 28), "Firing consumes the clip, not reserve stacks.");
+            using (var shot = harness.CreateChar())
+                Assert.AreEqual(ammoAfterShot, shot.Items.GetItem(weapon.Id).AmmoCount);
             var reserve = Held(harness, 28);
             ManifestationManager.Instance.RequestWeaponReload(harness.Client, true);
             ActorActionManager.Instance.DoWork(harness.Map, 10000);
-            Assert.IsTrue(weapon.CurrentAmmo > clip - 1);
-            Assert.IsTrue(Held(harness, 28) < reserve);
+            Assert.IsTrue(weapon.CurrentAmmo > ammoAfterShot);
+            var reloaded = weapon.CurrentAmmo - ammoAfterShot;
+            Assert.IsTrue(reloaded <= reserve);
+            Assert.AreEqual(reserve - reloaded, Held(harness, 28));
             using var verify = harness.CreateChar();
             Assert.AreEqual(weapon.CurrentAmmo, verify.Items.GetItem(weapon.Id).AmmoCount);
             Assert.AreEqual((uint)InventoryType.WeaponDrawerInventory,
                 verify.CharacterInventories.FindByItemId(weapon.Id).InventoryType);
+        }
+
+        private static void WaitForCombatIdle(WildernessRuntimeTestHarness harness)
+        {
+            var deadline = harness.Client.Player.CombatExpiresAt;
+            Assert.IsTrue(SpinWait.SpinUntil(() =>
+            {
+                ManifestationManager.Instance.CombatWorker(harness.Map);
+                return !harness.Client.Player.InCombat;
+            }, TimeSpan.FromMilliseconds(CombatRegen.CombatTimeoutMs + 1000)),
+                "The normal idle worker must end combat after its actual damage timeout.");
+            Assert.IsTrue(Environment.TickCount64 >= deadline,
+                "The fixture must not force an early combat exit to restore armor regeneration.");
         }
 
         private static Item PersonalItem(WildernessRuntimeTestHarness harness, uint template) =>

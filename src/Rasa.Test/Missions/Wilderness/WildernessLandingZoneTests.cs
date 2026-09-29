@@ -5,6 +5,7 @@ using System.Numerics;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Rasa.Data;
 using Rasa.Managers;
+using Rasa.Packets.Communicator.Server;
 using Rasa.Packets.Inventory.Client;
 using Rasa.Packets.LootDispenser.Client;
 using Rasa.Packets.MapChannel.Client;
@@ -55,9 +56,9 @@ namespace Rasa.Test.Missions.Wilderness
         }
 
         [TestMethod]
-        [DataRow(776U, 2U, 2524U, 11150U, 10U, 3U, 46U, 0U, 46U)]
-        [DataRow(795U, 3U, 2557U, 11317U, 4U, 530071U, 530071U, 776U, 530071U)]
-        [DataRow(771U, 2U, 2527U, 11153U, 6U, 85U, 127U, 795U, 128U)]
+        [DataRow(776U, 2U, 2524U, 11150U, 10U, 3U, 580019U, 0U, 580019U)]
+        [DataRow(795U, 3U, 2557U, 11317U, 4U, 630071U, 630071U, 776U, 630071U)]
+        [DataRow(771U, 2U, 2527U, 11153U, 6U, 85U, 580033U, 795U, 580034U)]
         public void OjyCollectionRequiresEligibleCorpsePickupAndChargesTheExactItemOnce(
             uint missionId, uint objectiveId, uint templateId, uint classId, uint quantity,
             uint creatureId, uint spawnId, uint prerequisite, uint postQuotaSpawnId)
@@ -68,7 +69,7 @@ namespace Rasa.Test.Missions.Wilderness
             var ojy = Accept(harness, 188, missionId);
             var npcs = new NpcManager(harness, harness.Manager);
             Assert.IsFalse(harness.Manager.CompleteOfferedMission(harness.Client, ojy.EntityId, missionId, null));
-            var wrong = Kill(harness, creatureId == 3 ? 85U : 3U, creatureId == 3 ? 127U : 46U);
+            var wrong = Kill(harness, creatureId == 3 ? 85U : 3U, creatureId == 3 ? 580033U : 580019U);
             Assert.IsFalse(wrong.LootItems.Any(item => item.ItemTemplateId == templateId));
 
             for (uint collected = 0; collected < quantity; collected++)
@@ -179,19 +180,19 @@ namespace Rasa.Test.Missions.Wilderness
         {
             using var harness = WildernessRuntimeTestHarness.Create();
             var wagner = Accept(harness, 181, 430);
-            foreach (var id in new uint[] { 530076, 530077, 530078, 530079 })
+            foreach (var id in new uint[] { 630076, 630077, 630078, 630079 })
                 Assert.AreEqual(7482U, harness.World.CreatureEntries.Single(creature => creature.Id == id).ClassId);
             for (var repeat = 0; repeat < 4; repeat++)
-                Kill(harness, 530076, 530076);
+                Kill(harness, 630076, 630076);
             Assert.AreEqual(MissionObjectiveState.Completed, harness.Client.Player.Missions[430].Objectives[3].State);
             foreach (var objective in new uint[] { 4, 5, 6 })
                 Assert.AreEqual(MissionObjectiveState.Incomplete, harness.Client.Player.Missions[430].Objectives[objective].State);
             Assert.IsFalse(harness.Client.Player.Missions[430].Completeable);
-            Kill(harness, 530079, 530079);
-            Kill(harness, 530077, 530077);
+            Kill(harness, 630079, 630079);
+            Kill(harness, 630077, 630077);
             Assert.IsFalse(harness.Client.Player.Missions[430].Completeable);
 
-            Kill(harness, 530078, 530078);
+            Kill(harness, 630078, 630078);
 
             Assert.IsTrue(harness.Client.Player.Missions[430].Completeable);
             harness.MoveTo(wagner.Position);
@@ -213,9 +214,9 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.IsFalse(harness.Manager.AcceptOfferedMission(harness.Client, ojy.EntityId, 771));
             foreach (var (missionId, quantity, creatureId, spawnId, templateId) in new[]
             {
-                (776U, 10, 3U, 46U, 2524U),
-                (795U, 4, 530071U, 530071U, 2557U),
-                (771U, 6, 85U, 127U, 2527U)
+                (776U, 10, 3U, 580019U, 2524U),
+                (795U, 4, 630071U, 630071U, 2557U),
+                (771U, 6, 85U, 580033U, 2527U)
             })
             {
                 if (missionId != 776)
@@ -243,7 +244,7 @@ namespace Rasa.Test.Missions.Wilderness
             using var harness = WildernessRuntimeTestHarness.Create();
             Accept(harness, 188, 776);
             Grant(harness, 747, 50);
-            var loot = Kill(harness, 3, 46);
+            var loot = Kill(harness, 3, 580019);
             var before = harness.Context.ReadRewardTotals();
 
             Take(harness, loot);
@@ -272,7 +273,7 @@ namespace Rasa.Test.Missions.Wilderness
             using var harness = WildernessRuntimeTestHarness.Create();
             var ojy = Accept(harness, 188, 776);
             var oldAssignment = harness.Client.Player.Missions[776].AssignmentId;
-            var loot = Kill(harness, 3, 46);
+            var loot = Kill(harness, 3, 580019);
             var npcs = new NpcManager(harness, harness.Manager);
             npcs.AbandonMission(harness.Client, new AbandonMissionPacket { MissionId = 776 });
             harness.MoveTo(ojy.Position);
@@ -295,9 +296,9 @@ namespace Rasa.Test.Missions.Wilderness
             using var harness = WildernessRuntimeTestHarness.Create();
             Accept(harness, 188, 776);
             var assignment = harness.Client.Player.Missions[776].AssignmentId;
-            Take(harness, Kill(harness, 3, 46));
-            Take(harness, Kill(harness, 3, 46));
-            Kill(harness, 3, 46);
+            Take(harness, Kill(harness, 3, 580019));
+            Take(harness, Kill(harness, 3, 580019));
+            Kill(harness, 3, 580019);
 
             var reconnected = harness.Context.CreateCompetingClient(harness.Manager);
             harness.Manager.PublishInitialState(reconnected);
@@ -320,7 +321,7 @@ namespace Rasa.Test.Missions.Wilderness
             var ojy = Accept(harness, 188, 776);
             var oldAssignment = harness.Client.Player.Missions[776].AssignmentId;
             for (var count = 0U; count < retained; count++)
-                Take(harness, Kill(harness, 3, 46));
+                Take(harness, Kill(harness, 3, 580019));
             var npcs = new NpcManager(harness, harness.Manager);
             if (fail)
                 Assert.IsTrue(harness.Manager.TryFailMission(harness.Client, 776));
@@ -339,7 +340,7 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.AreEqual(retained, harness.Client.Player.Missions[776].Objectives[2].ItemCounters[11150],
                 "Existing inventory must be reconciled as an absolute lower bound, not repeatedly added.");
             for (var count = retained; count < 10; count++)
-                Take(harness, Kill(harness, 3, 46));
+                Take(harness, Kill(harness, 3, 580019));
             Assert.AreEqual(10U, HeldQuantity(harness, 2524));
             Assert.IsTrue(harness.Client.Player.Missions[776].Completeable);
             harness.MoveTo(ojy.Position);
@@ -359,7 +360,7 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.AreEqual(0U, harness.Client.Player.Missions[776].Objectives[2].ItemCounters[11150]);
             Assert.IsFalse(harness.Client.Player.Missions[776].Completeable);
             for (var count = 0; count < 10; count++)
-                Take(harness, Kill(harness, 3, 46));
+                Take(harness, Kill(harness, 3, 580019));
             harness.MoveTo(ojy.Position);
             var npcs = new NpcManager(harness, harness.Manager);
             npcs.RequestNpcConverse(harness.Client, new RequestNPCConversePacket { EntityId = ojy.EntityId });
@@ -377,24 +378,24 @@ namespace Rasa.Test.Missions.Wilderness
         [DataRow(776U, true)]
         [DataRow(771U, false)]
         [DataRow(771U, true)]
-        public void ActiveAliasAcquisitionDoesNotAdvanceOjyCollectionsThroughGrantOrNativeBuyback(
-            uint missionId, bool buyback)
+        public void ActiveAliasGrantOrRejectedNativeSaleDoesNotAdvanceOjyCollections(
+            uint missionId, bool attemptSale)
         {
             var (alias, template, itemClass, quantity, creature, spawn, prerequisite) = missionId switch
             {
-                776 => (16572U, 2524U, 11150U, 10U, 3U, 46U, 0U),
-                771 => (16575U, 2527U, 11153U, 6U, 85U, 127U, 795U),
+                776 => (16572U, 2524U, 11150U, 10U, 3U, 580019U, 0U),
+                771 => (16575U, 2527U, 11153U, 6U, 85U, 580033U, 795U),
                 _ => throw new ArgumentOutOfRangeException(nameof(missionId))
             };
             using var harness = WildernessRuntimeTestHarness.Create();
             if (prerequisite != 0)
                 CompleteHistory(harness, prerequisite);
-            if (buyback)
+            if (attemptSale)
                 Grant(harness, alias, quantity);
             Accept(harness, 188, missionId);
             Assert.AreEqual(0U, harness.Client.Player.Missions[missionId].Objectives[2].ItemCounters[itemClass]);
 
-            if (buyback)
+            if (attemptSale)
             {
                 harness.SpawnWorld(120);
                 var vendor = harness.Npc(120);
@@ -409,19 +410,34 @@ namespace Rasa.Test.Missions.Wilderness
                 Assert.IsTrue(conversation.ConvoDataDict.ContainsKey(ConversationType.Vending));
                 var item = harness.Client.Player.Inventory.PersonalInventory.Where(id => id != 0)
                     .Select(EntityManager.Instance.GetItem).Single(item => item.ItemTemplate.ItemTemplateId == alias);
+                Assert.AreEqual((int)LootQuality.Mission, item.ItemTemplate.QualityId);
+                Assert.IsFalse(item.ItemTemplate.HasSellableFlag);
+                Assert.IsTrue(item.ItemTemplate.NotTradable);
+                var inventoryBefore = harness.Client.Player.Inventory.PersonalInventory.ToArray();
+                var buybackBefore = harness.Client.Player.Inventory.BuybackItems.ToArray();
+                var creditsBefore = harness.Client.Player.Credits[CurencyType.Credits];
+                var totalsBefore = harness.Context.ReadRewardTotals();
+                Assert.IsFalse(buybackBefore.Contains(item.EntityId));
+
                 npcs.RequestVendorSale(harness.Client, new RequestVendorSalePacket
                 {
                     VendorEntityId = vendor.EntityId, ItemEntityId = item.EntityId, Quantity = quantity
                 });
-                Assert.AreEqual(0U, HeldQuantity(harness, alias));
-                Assert.IsTrue(harness.Client.Player.Inventory.BuybackItems.Contains(item.EntityId));
 
-                npcs.RequestVendorBuyback(harness.Client, new RequestVendorBuybackPacket
-                {
-                    VendorEntityId = vendor.EntityId, ItemEntityId = item.EntityId
-                });
-
-                Assert.IsFalse(harness.Client.Player.Inventory.BuybackItems.Contains(item.EntityId));
+                Assert.AreEqual(quantity, item.StackSize);
+                Assert.AreEqual(quantity, HeldQuantity(harness, alias));
+                Assert.AreSame(item, EntityManager.Instance.GetItem(item.EntityId));
+                CollectionAssert.AreEqual(inventoryBefore, harness.Client.Player.Inventory.PersonalInventory.ToArray());
+                CollectionAssert.AreEqual(buybackBefore, harness.Client.Player.Inventory.BuybackItems.ToArray());
+                Assert.AreEqual(creditsBefore, harness.Client.Player.Credits[CurencyType.Credits]);
+                Assert.AreEqual(totalsBefore, harness.Context.ReadRewardTotals());
+                using var verify = harness.CreateChar();
+                var owned = verify.CharacterInventories.FindByItemId(item.Id);
+                Assert.IsNotNull(owned);
+                Assert.AreEqual(harness.Client.Player.Id, owned.CharacterId);
+                Assert.AreEqual((uint)InventoryType.Personal, owned.InventoryType);
+                Assert.AreEqual(item.OwnerSlotId, owned.SlotId);
+                Assert.AreEqual(quantity, verify.Items.GetItem(item.Id).StackSize);
             }
             else
             {
@@ -433,13 +449,19 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.AreEqual(quantity, HeldQuantity(harness, alias));
             Assert.AreEqual(0U, HeldQuantity(harness, template));
             Assert.AreEqual(0U, harness.Client.Player.Missions[missionId].Objectives[2].ItemCounters[itemClass],
-                "Acquiring a same-class alias while active must not advance the exact-template collection.");
+                "An alias grant or rejected sale must not advance the exact-template collection.");
             Assert.AreEqual(MissionObjectiveState.Incomplete, harness.Client.Player.Missions[missionId].Objectives[2].State);
             Assert.IsFalse(harness.Client.Player.Missions[missionId].Completeable);
-            Assert.IsFalse(harness.Drain().OfType<ObjectiveCompletedPacket>().Any(packet => packet.MissionId == missionId));
+            var packets = harness.Drain();
+            if (attemptSale)
+                Assert.AreEqual(1, packets.OfType<DisplayClientMessagePacket>()
+                    .Count(packet => packet.MsgId == PlayerMessage.PmItemCanNotBeSold),
+                    "The native no-sale guard must reject the quest alias, not an unrelated admission check.");
+            Assert.IsFalse(packets.OfType<ObjectiveCompletedPacket>().Any(packet => packet.MissionId == missionId));
 
             Take(harness, Kill(harness, creature, spawn));
 
+            Assert.AreEqual(quantity, HeldQuantity(harness, alias));
             Assert.AreEqual(1U, HeldQuantity(harness, template));
             Assert.AreEqual(1U, harness.Client.Player.Missions[missionId].Objectives[2].ItemCounters[itemClass],
                 "The first real corpse claim must count only its exact bound template, not the held aliases.");
@@ -645,6 +667,18 @@ namespace Rasa.Test.Missions.Wilderness
         private static LootDispenser Kill(WildernessRuntimeTestHarness harness, uint creatureId, uint spawnId)
         {
             var pool = harness.Map.SpawnPools.Single(pool => pool.DbId == spawnId);
+            var living = harness.Map.MapCellInfo.Cells.Values.SelectMany(cell => cell.CreatureList)
+                .Where(creature => creature.SpawnPool?.DbId == spawnId && creature.State != CharacterState.Dead)
+                .Distinct().ToArray();
+            if (living.Length > 0 && living.All(creature => creature.DbId != creatureId))
+            {
+                // PR105's mixed squads respawn only after their remaining members die.
+                foreach (var companion in living)
+                {
+                    companion.Attributes[Attributes.Health].Current = 0;
+                    harness.Creatures.HandleCreatureKill(harness.Map, companion, harness.Client.Player);
+                }
+            }
             harness.SpawnWorldAfter(pool.RespawnTime, spawnId);
             var creature = harness.Map.MapCellInfo.Cells.Values.SelectMany(cell => cell.CreatureList)
                 .FirstOrDefault(creature => creature.DbId == creatureId && creature.SpawnPool?.DbId == spawnId &&

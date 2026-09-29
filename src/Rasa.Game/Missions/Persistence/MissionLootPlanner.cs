@@ -34,7 +34,8 @@ namespace Rasa.Game.Missions.Persistence
             var planned = new List<QualifiedDrop>();
             if (!IsCurrentSource(client, loot))
                 return planned;
-            var incoming = loot.LootItems.GroupBy(item => item.ItemTemplateId)
+            var incoming = loot.LootItems.Where(item => !item.Taken && item.MayTake(client.Player.EntityId))
+                .GroupBy(item => item.ItemTemplateId)
                 .ToDictionary(group => group.Key, group => group.Sum(item => (long)item.ItemQuantity));
             foreach (var log in client.Player.Missions.Values.OrderBy(log => log.MissionId))
             {
@@ -110,9 +111,12 @@ namespace Rasa.Game.Missions.Persistence
             var map = player.MapChannel;
             var corpse = loot.Corpse;
             return map != null && !map.IsPrivateInstance && map.OwnerCharacterId == 0 &&
-                ReferenceEquals(map, loot.Map) && client.PendingTransfer == null &&
+                ReferenceEquals(map, loot.Map) && loot.IsLootable && !loot.FullyLooted &&
+                map.LootDispensers.TryGetValue(loot.EntityId, out var dispenser) && ReferenceEquals(loot, dispenser) &&
+                client.PendingTransfer == null &&
                 client.State == ClientState.Ingame && player.State != CharacterState.Dead &&
                 player.MapContextId == map.MapInfo.MapContextId && corpse != null &&
+                corpse.CorpseLootEntityId == loot.EntityId &&
                 corpse.State == CharacterState.Dead && corpse.MapContextId == player.MapContextId &&
                 EntityManager.Instance.Creatures.TryGetValue(corpse.EntityId, out var registered) &&
                 ReferenceEquals(corpse, registered) &&

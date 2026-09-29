@@ -98,6 +98,21 @@ namespace Rasa.Repositories.Char.CharacterInventory
             return characterInventoryEntries;
         }
 
+        /// <summary>
+        /// Whether the item's inventory row belongs to this account and either to this character
+        /// or to the account's home lockbox (character id 0). MoveInvItem finds its row by item id
+        /// alone and rewrites the owner, so a slot move for an item the caller does not hold in the
+        /// database - one handed to another player, or one whose row is gone - would otherwise
+        /// take that row over.
+        /// </summary>
+        public bool IsHeldBy(uint itemId, uint accountId, uint characterId)
+        {
+            var query = _charContext.CreateNoTrackingQuery(_charContext.CharacterInventoryEntries);
+
+            return query.Any(e => e.ItemId == itemId && e.AccountId == accountId
+                                  && (e.CharacterId == characterId || e.CharacterId == 0));
+        }
+
         public void MoveInvItem(uint accountId, uint characterId, uint inventoryType, uint slotId, uint itemId)
         {
             CharacterMissionItem.MissionItemMutationGuard.RequireUnbound(_charContext, itemId);

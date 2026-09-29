@@ -7,5 +7,6 @@ namespace Rasa.Repositories.Char.CharacterSkills
     {
         void AddOrUpdate(uint characterId, uint skillId, int abilityId, int skillLevel);
         List<CharacterSkillsEntry> GetCharacterSkills(uint characterId);
+        void Delete(uint characterId, IEnumerable<uint> skillIds);
     }
 }

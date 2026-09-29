@@ -131,10 +131,14 @@ namespace Rasa.Game.Missions.World
             if (!world.Actors.TryGetValue(intent.Role, out var actor) || !IsCurrent(world, actor))
                 TryBindExisting(world, definition, out actor);
             if (actor == null || !IsCurrent(world, actor))
+            {
+                if (intent is AttackActorIntent)
+                    RevokeAttackOperation(world, actor, intent.OperationKey);
                 return intent is RemoveActorIntent ? WorldEffectResult.Applied() :
                     intent is SetInteractionIntent { IfPresent: true } ? WorldEffectResult.Suppressed("Optional actor is absent.") :
                     IsAwaitingPrivateSpawn(world, definition) ? WorldEffectResult.Deferred() :
                     WorldEffectResult.Failed($"Actor role {intent.Role} is unavailable.");
+            }
             if (intent is RemoveActorIntent)
             {
                 _routes.Cancel(run.Id, intent.Role);
@@ -200,10 +204,14 @@ namespace Rasa.Game.Missions.World
                 {
                     if (world.Owner?.State != ClientState.Ingame || world.Owner.PendingTransfer != null ||
                         !CreatureManager.IsLivingOnMap(world.Map, world.Owner.Player))
+                    {
+                        RevokeAttackOperation(world, actor, intent.OperationKey);
                         return WorldEffectResult.Deferred();
+                    }
                     target = world.Owner.Player;
                     if (world.Owner.Player.GmFlagAlwaysFriendly)
-                        return WorldEffectResult.Suppressed("The owner is protected from hostile targeting.");
+                        return SuppressAttack(world, actor, intent.OperationKey,
+                            "The owner is protected from hostile targeting.");
                 }
                 else
                 {
@@ -213,12 +221,23 @@ namespace Rasa.Game.Missions.World
                     target = targetActor?.Creature;
                 }
                 if (actor.Creature == null || !CreatureManager.IsLivingOnMap(world.Map, actor.Creature) ||
-                    !CreatureManager.IsLivingOnMap(world.Map, target) ||
-                    actor.Creature.Faction == (target is Creature enemy ? enemy.Faction : Factions.AFS))
+                    !CreatureManager.IsLivingOnMap(world.Map, target))
+                {
+                    RevokeAttackOperation(world, actor, intent.OperationKey);
                     return WorldEffectResult.Failed("Combat requires living hostile actors in the same runtime map.");
+                }
+                if (!BehaviorManager.CanSetActionFighting(actor.Creature, target.EntityId,
+                        requireCombatAuthorization: false))
+                    return SuppressAttack(world, actor, intent.OperationKey,
+                        "The actor's current AI state or target category does not permit this fight.");
                 if (!_leases.AuthorizeCombat(world.Map, actor.Handle, actor.Creature, intent.OperationKey))
+                {
+                    RevokeAttackOperation(world, actor, intent.OperationKey);
                     return WorldEffectResult.Failed("Scripted combat requires this actor's current public lease.");
-                BehaviorManager.Instance.SetActionFighting(actor.Creature, target.EntityId);
+                }
+                if (!BehaviorManager.Instance.TrySetActionFighting(actor.Creature, target.EntityId))
+                    return SuppressAttack(world, actor, intent.OperationKey,
+                        "The actor refused the fight after its combat authorization was checked.");
                 world.Attacks[intent.Role] = (intent.OperationKey, target.EntityId);
                 return WorldEffectResult.Applied();
             }
@@ -245,6 +264,19 @@ namespace Rasa.Game.Missions.World
                 return WorldEffectResult.Applied();
             }
             return WorldEffectResult.Failed($"Unsupported world intent {intent.GetType().Name}.");
+        }
+
+        private void RevokeAttackOperation(WorldRun world, BoundActor actor, string operationKey)
+        {
+            CancelOperation(world.Run.Id, world.Run.Generation, operationKey);
+            if (actor?.Creature != null)
+                _leases.RevokeCombat(world.Map, actor.Handle, operationKey);
+        }
+
+        private WorldEffectResult SuppressAttack(WorldRun world, BoundActor actor, string operationKey, string reason)
+        {
+            RevokeAttackOperation(world, actor, operationKey);
+            return WorldEffectResult.Suppressed(reason);
         }
 
         private WorldEffectResult Ensure(WorldRun world, SceneActorDefinition definition)
@@ -515,13 +547,19 @@ namespace Rasa.Game.Missions.World
             foreach (var control in world.Attacks.Where(entry => entry.Value.OperationKey == operationKey).ToArray())
             {
                 world.Attacks.Remove(control.Key);
+                var ownedCombat = false;
                 if (world.Actors.TryGetValue(control.Key, out var controlled))
+                {
+                    ownedCombat = controlled.Creature?.ScriptedCombatAuthorization is { } authorization &&
+                        authorization.Handle == controlled.Handle && authorization.OperationKey == operationKey;
                     _leases.RevokeCombat(world.Map, controlled.Handle, operationKey);
+                }
                 if (!world.Actors.TryGetValue(control.Key, out var actor) || !IsCurrent(world, actor) ||
                     actor.Creature is not { } creature ||
                     creature.Controller.CurrentAction != BehaviorManager.BehaviorActionFighting ||
-                    creature.Controller.ActionFighting.TargetEntityId != control.Value.TargetId)
+                    (!ownedCombat && creature.Controller.ActionFighting.TargetEntityId != control.Value.TargetId))
                     continue;
+                BehaviorManager.Instance.GiveUp(creature);
                 creature.Controller.ActionFighting.TargetEntityId = 0;
                 creature.Target = 0;
                 if (world.Follows.TryGetValue(control.Key, out var follow))

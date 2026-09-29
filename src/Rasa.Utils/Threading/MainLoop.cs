@@ -11,10 +11,32 @@ namespace Rasa.Threading
         public ILoopable Object { get; }
         public Thread LoopThread { get; private set; }
 
-        private static long CurrentMs()
-        {
-            return (DateTime.UtcNow - new DateTime(1970, 1, 1)).Ticks / TimeSpan.TicksPerMillisecond;
-        }
+        /// <summary>
+        /// The loop's clock: milliseconds on the Stopwatch, which only ever runs forward.
+        ///
+        /// It used to be DateTime.UtcNow, the wall clock, and every tick's delta was the
+        /// difference of two readings of it - so the loop inherited every step the wall clock
+        /// takes: an NTP or w32time correction, a VM snapshot restored, somebody setting the time.
+        /// A step back of S ms gave a delta of about -S, and the sleep that paces the loop is
+        /// LoopTime less the delta, so the loop slept for S: the world, every timer and every
+        /// client frozen for as long as the correction was big. A step forward handed the next
+        /// tick S ms at once, and everything driven by the delta - timers, creature movement,
+        /// cooldowns, regeneration - jumped that far ahead in one go.
+        /// </summary>
+        private static readonly Stopwatch Clock = Stopwatch.StartNew();
+
+        private static long CurrentMs() => Clock.ElapsedMilliseconds;
+
+        /// <summary>
+        /// The most one tick hands on as its delta. Even a clock that cannot step can see a gap
+        /// no tick should act on: a debugger break, a process suspended and resumed, a machine
+        /// that slept. A tick that really did take this long still advances the world by this
+        /// much, so a slow server runs slow rather than skipping; what the clamp stops is a
+        /// single tick moving every creature and every timer by minutes.
+        /// </summary>
+        private int MaxDeltaMs => Math.Max(1000, LoopTime * 10);
+
+        private long _nextClampLogMs;
 
         public MainLoop(ILoopable obj, int loopTime)
         {
@@ -145,6 +167,16 @@ namespace Rasa.Threading
                 var realTime = CurrentMs();
 
                 var delta = realTime - prevTime;
+                var tickDelta = Math.Clamp(delta, 0, MaxDeltaMs);
+
+                if (tickDelta != delta && realTime >= _nextClampLogMs)
+                {
+                    _nextClampLogMs = realTime + 60000;
+
+                    Logger.WriteLog(LogType.Error,
+                        $"The main loop of {Object.GetType().FullName} went {delta} ms between ticks; this tick advances the world by {tickDelta} ms. " +
+                        "(A stall this long is a debugger break, a suspended process or a machine that slept - or a tick that did this much work.)");
+                }
 
                 var workFrom = Stopwatch.GetTimestamp();
 
@@ -156,7 +188,7 @@ namespace Rasa.Threading
                 // that is simply gone with nothing to say why.
                 try
                 {
-                    Object.MainLoop(delta);
+                    Object.MainLoop(tickDelta);
 
                     _consecutiveFaults = 0;
                 }

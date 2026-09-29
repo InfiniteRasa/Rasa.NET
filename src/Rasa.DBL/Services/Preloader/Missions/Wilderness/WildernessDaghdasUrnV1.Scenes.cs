@@ -48,8 +48,8 @@ namespace Rasa.Services.Preloader.Missions.Wilderness
 
     public static partial class WildernessDaghdasUrnV1
     {
-        public const uint SkeevCreatureId = 530130;
-        public const uint SkeevSpawnId = 530130;
+        public const uint SkeevCreatureId = 630130;
+        public const uint SkeevSpawnId = 630130;
         public const uint OutcomeFlagId = 530003;
         public const uint TinctuObjectClassId = 10512;
         public const uint TinctuUseArgument = 3;

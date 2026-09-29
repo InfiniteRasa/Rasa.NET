@@ -15,6 +15,7 @@ namespace Rasa.Repositories.Char.Items
         public int CurrentHitPoints { get; set; }
         public uint StackSize { get; set; }
         public uint CurrentAmmo { get; set; }
+        public uint BoundCharacterId { get; set; }
 
     }
 }

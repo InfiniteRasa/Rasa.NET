@@ -21,7 +21,7 @@ namespace Rasa.Test.Missions.Wilderness
     [DoNotParallelize]
     public class WildernessRewardReconstructionTests
     {
-        private const string WaveABoundary = "20260929090436_WildernessLandingZone";
+        private const string WaveABoundary = "20261104001100_WildernessLandingZone";
         private static readonly Dictionary<(uint Mission, uint Item), (uint Before, uint After)> Corrections = new()
         {
             [(1390, 1)] = (111247, 44918),

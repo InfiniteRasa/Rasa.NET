@@ -337,7 +337,7 @@ namespace Rasa.Services.Preloader.Missions.Wilderness
             mission.Evidence(2, MissionEvidenceSourceKind.Reconstruction, "repository:docs/wilderness-missions.md",
                 "Only the original carried700 batch qualifies. Surrender consumes its remaining stock via atomic failure/cleanup and unlocks820. Refusal and timeout fight Skeev without surrender. Burke1=refusal victory,26=surrender,27=timeout victory; level15 reconstructed.");
             mission.Evidence(3, MissionEvidenceSourceKind.Reconstruction, "coordinator:w5-w7-bindings.json/skeev701",
-                "Canonical public Skeev530130 retains native class28589/name6734/package595 at(-400,173.679004,178), heading-1.19028995 near Burke. Storage flag530003 is centrally allocated; native Burke topic flags remain1/26/27.");
+                "Canonical public Skeev630130 retains native class28589/name6734/package595 at(-400,173.679004,178), heading-1.19028995 near Burke. Storage flag530003 is centrally allocated; native Burke topic flags remain1/26/27.");
             mission.Enable(scene);
         }
 

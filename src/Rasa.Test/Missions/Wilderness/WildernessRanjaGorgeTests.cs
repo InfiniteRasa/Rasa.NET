@@ -62,7 +62,7 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.AreEqual(MissionObjectiveState.Incomplete,
                 harness.Client.Player.Missions[425].Objectives[2].State);
 
-            LootOne(harness, 169, 90, 620, () =>
+            LootOne(harness, 580018, 90, 620, () =>
                 Assert.AreEqual(MissionObjectiveState.Incomplete,
                     harness.Client.Player.Missions[425].Objectives[2].State,
                     "Killing Graal is not recovery of the sample vials."));
@@ -139,7 +139,7 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, soji.EntityId, 758));
             for (uint count = 1; count <= 10; count++)
             {
-                LootOne(harness, 144, 1, 2533);
+                LootOne(harness, 580052, 1, 2533);
                 Assert.AreEqual(count, harness.Client.Player.Missions[758].Objectives[3].ItemCounters[11161]);
             }
             Reload(harness);
@@ -153,7 +153,7 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, soji.EntityId, 787));
             for (uint count = 1; count <= 4; count++)
             {
-                LootOne(harness, 160, 87, 2532);
+                LootOne(harness, 580053, 87, 2532);
                 Assert.AreEqual(count, harness.Client.Player.Missions[787].Objectives[3].ItemCounters[11160]);
             }
             CompleteAndCheckReward(harness, soji, 787, null, 4000, 600);
@@ -175,12 +175,12 @@ namespace Rasa.Test.Missions.Wilderness
         {
             var collection = missionId switch
             {
-                758U => (Prerequisite: 771U, Objective: 3U, Count: 10U, Spawn: 144U,
+                758U => (Prerequisite: 771U, Objective: 3U, Count: 10U, Spawn: 580052U,
                     Creature: 1U, Template: 2533U, ItemClass: 11161U),
-                787U => (Prerequisite: 758U, Objective: 3U, Count: 4U, Spawn: 160U,
+                787U => (Prerequisite: 758U, Objective: 3U, Count: 4U, Spawn: 580053U,
                     Creature: 87U, Template: 2532U, ItemClass: 11160U),
-                769U => (Prerequisite: 787U, Objective: 2U, Count: 3U, Spawn: 530120U,
-                    Creature: 530120U, Template: 2531U, ItemClass: 11159U),
+                769U => (Prerequisite: 787U, Objective: 2U, Count: 3U, Spawn: 630120U,
+                    Creature: 630120U, Template: 2531U, ItemClass: 11159U),
                 _ => throw new ArgumentOutOfRangeException(nameof(missionId))
             };
             using var harness = CreateMigrated(collection.Prerequisite);
@@ -289,7 +289,7 @@ namespace Rasa.Test.Missions.Wilderness
             harness.MoveTo(soji.Position);
             Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, soji.EntityId, 758));
             for (var count = 0; count < 10; count++)
-                LootOne(harness, 144, 1, 2533);
+                LootOne(harness, 580052, 1, 2533);
             var fillers = FillConsumableBag(harness);
             harness.MoveTo(soji.Position);
             var before = harness.Context.ReadRewardTotals();
@@ -542,7 +542,7 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.IsTrue(harness.Manager.LoadedMissions.TryGetValue(769, out var definition) &&
                 definition.IsOperational, "Predatory requires the integrated outdoor Predator binding, not an instance bypass.");
             Assert.IsFalse(harness.Map.IsPrivateInstance);
-            harness.SpawnWorld(189, 530120, 530121);
+            harness.SpawnWorld(189, 630120, 630121);
             var soji = RequireNpc(harness, 189, 111);
             using (var unit = harness.CreateChar())
             {
@@ -558,19 +558,19 @@ namespace Rasa.Test.Missions.Wilderness
                 "Opening Soji must retain the authoritative prerequisite history.");
             Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, soji.EntityId, 769));
             var sources = definition.Items["predator-parts"].Drop.CreatureIds;
-            CollectionAssert.AreEqual(new uint[] { 530120 }, sources.ToArray());
+            CollectionAssert.AreEqual(new uint[] { 630120 }, sources.ToArray());
             var classes = harness.World.Set<CreatureEntry>().Where(creature => sources.Contains(creature.Id))
                 .Select(creature => creature.ClassId).ToArray();
             Assert.AreEqual(sources.Count, classes.Length);
             Assert.IsTrue(classes.All(classId => classId == 3902),
                 "The outdoor corpse sources must be native Predators, not renamed or unrelated creatures.");
-            foreach (var spawnId in new uint[] { 530120, 530121 })
+            foreach (var spawnId in new uint[] { 630120, 630121 })
             {
                 var predator = harness.Map.MapCellInfo.Cells.Values.SelectMany(cell => cell.CreatureList)
                     .Distinct().SingleOrDefault(creature => creature.SpawnPool?.DbId == spawnId &&
                         creature.State != CharacterState.Dead);
                 Assert.IsNotNull(predator, $"Actual outdoor Predator pool{spawnId} must be populated.");
-                Assert.AreEqual(530120U, predator.DbId);
+                Assert.AreEqual(630120U, predator.DbId);
                 var ground = harness.Map.NavMesh.GroundHeight(predator.Position);
                 Assert.IsNotNull(ground);
                 var huntingGround = new Vector3(predator.Position.X, ground.Value, predator.Position.Z);
@@ -581,7 +581,7 @@ namespace Rasa.Test.Missions.Wilderness
             }
             for (uint count = 1; count <= 3; count++)
             {
-                LootOne(harness, count == 2 ? 530121U : 530120U, 530120, 2531);
+                LootOne(harness, count == 2 ? 630121U : 630120U, 630120, 2531);
                 Assert.AreEqual(count, harness.Client.Player.Missions[769].Objectives[2].ItemCounters[11159]);
             }
             CompleteAndCheckReward(harness, soji, 769, null, 4000, 600);
@@ -916,7 +916,7 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, eleanor.EntityId, 425));
             harness.MoveTo(samuel.Position);
             Assert.IsTrue(harness.Manager.CompleteOfferedObjective(harness.Client, samuel.EntityId, 425, 1, 1));
-            LootOne(harness, 169, 90, 620);
+            LootOne(harness, 580018, 90, 620);
             return samuel;
         }
 
@@ -1140,10 +1140,10 @@ namespace Rasa.Test.Missions.Wilderness
 
         private static Creature SpawnEquipmentTarget(WildernessRuntimeTestHarness harness)
         {
-            harness.SpawnWorld(46);
+            harness.SpawnWorld(580019);
             var target = harness.Map.MapCellInfo.Cells.Values.SelectMany(cell => cell.CreatureList)
                 .Distinct().FirstOrDefault(creature => creature.DbId == 3 &&
-                    creature.SpawnPool?.DbId == 46 && creature.State != CharacterState.Dead);
+                    creature.SpawnPool?.DbId == 580019 && creature.State != CharacterState.Dead);
             Assert.IsNotNull(target, "Use a real migrated Thrax combat actor, not a test-only class.");
             harness.MoveTo(target.Position + new Vector3(0, 0, 2));
             return target;

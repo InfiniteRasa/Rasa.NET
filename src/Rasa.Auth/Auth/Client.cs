@@ -50,6 +50,9 @@ namespace Rasa.Auth
 
         /// <summary>Packets read off the socket but not yet handled by the main loop.</summary>
         private int _queuedPackets;
+
+        /// <summary>How long a new connection has to send its login.</summary>
+        private const int LoginTimeoutMs = 30000;
         private const int MaxQueuedPackets = 64;
 
         public Client(LengthedSocket socket, Server server, IAuthUnitOfWorkFactory authUnitOfWorkFactory)
@@ -69,16 +72,30 @@ namespace Rasa.Auth
 
             Socket.ReceiveAsync();
 
-            var rnd = new Random();
-
-            OneTimeKey = rnd.NextUInt();
-            SessionId1 = rnd.NextUInt();
-            SessionId2 = rnd.NextUInt();
+            // The one-time key is the credential the world server logs this account in with, and
+            // the session ids gate AboutToPlay. They came from System.Random, cast from its
+            // non-negative int - 31 bits from a generator that is not meant to be unpredictable.
+            OneTimeKey = RandomUInt();
+            SessionId1 = RandomUInt();
+            SessionId2 = RandomUInt();
 
             SendPacket(new ProtocolVersionPacket(OneTimeKey));
 
             // This is here (after ProtocolVersionPacket), so it won't get encrypted
             Socket.OnEncrypt += OnEncrypt;
+
+            // A connection gets LoginTimeoutMs to send its login; the idle timeout below is for a
+            // logged-in one between steps, and is minutes long. Before this a connection that never
+            // logged in held its slot and buffer for the whole of it.
+            Timer.Add("login", LoginTimeoutMs, false, () =>
+            {
+                if (State != ClientState.Connected)
+                    return;
+
+                Logger.WriteLog(LogType.Network, "*** Client did not log in within {0} s! Ip: {1}", LoginTimeoutMs / 1000, Socket.RemoteAddress);
+
+                Close();
+            });
 
             Timer.Add("timeout", Server.Config.AuthConfig.ClientTimeout * 1000, false, () =>
             {
@@ -89,6 +106,9 @@ namespace Rasa.Auth
 
             Logger.WriteLog(LogType.Network, "*** Client connected from {0}", Socket.RemoteAddress);
         }
+
+        /// <summary>A full 32 bits from the cryptographic generator.</summary>
+        private static uint RandomUInt() => BitConverter.ToUInt32(System.Security.Cryptography.RandomNumberGenerator.GetBytes(4), 0);
 
         public void Update(long delta)
         {
@@ -361,6 +381,15 @@ namespace Rasa.Auth
         #region Handlers
         private void MsgLogin(LoginPacket packet)
         {
+            // Too many wrong passwords from here lately: refused as a wrong password, without
+            // looking, so the answer says nothing about this one.
+            if (Server.IsLoginBlocked(Socket.RemoteAddress))
+            {
+                SendPacket(new LoginFailPacket(FailReason.UserNameOrPassword));
+                Close();
+                return;
+            }
+
             using var unitOfWork = _authUnitOfWorkFactory.Create();
 
             try
@@ -369,6 +398,7 @@ namespace Rasa.Auth
             }
             catch (EntityNotFoundException)
             {
+                Server.RecordLoginFailure(Socket.RemoteAddress);
                 SendPacket(new LoginFailPacket(FailReason.UserNameOrPassword));
                 Close();
                 Logger.WriteLog(LogType.Security, $"User ({packet.UserName}) tried to log in with an invalid username!");
@@ -376,6 +406,7 @@ namespace Rasa.Auth
             }
             catch (PasswordCheckFailedException e)
             {
+                Server.RecordLoginFailure(Socket.RemoteAddress);
                 SendPacket(new LoginFailPacket(FailReason.UserNameOrPassword));
                 Close();
                 Logger.WriteLog(LogType.Security, e.Message);
@@ -388,6 +419,8 @@ namespace Rasa.Auth
                 Logger.WriteLog(LogType.Security, e.Message);
                 return;
             }
+
+            Server.RecordLoginSuccess(Socket.RemoteAddress);
 
             unitOfWork.AuthAccountRepository.UpdateLoginData(AccountEntry.Id, Socket.RemoteAddress);
             unitOfWork.Complete();

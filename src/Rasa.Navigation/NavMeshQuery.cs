@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Numerics;
 using DotRecast.Core;
@@ -38,10 +38,55 @@ namespace Rasa.Navigation
 
         public DtNavMesh NavMesh => _navMesh;
 
+        /// <summary>
+        /// How low and how high the map goes, as far as the navmesh knows. Lowest is the lowest
+        /// of any walkable vertex and of the tiles' bounds, which are the bounds of all the
+        /// geometry the mesh was built from, walkable or not; highest is the highest walkable
+        /// vertex. Null for a mesh with no tiles.
+        /// </summary>
+        public (float Lowest, float HighestWalkable)? HeightRange()
+        {
+            var lowest = float.MaxValue;
+            var highest = float.MinValue;
+
+            for (var i = 0; i < _navMesh.GetMaxTiles(); i++)
+            {
+                var data = _navMesh.GetTile(i)?.data;
+
+                if (data?.header == null)
+                    continue;
+
+                lowest = Math.Min(lowest, data.header.bmin.Y);
+
+                for (var k = 1; k < data.header.vertCount * 3; k += 3)
+                {
+                    lowest = Math.Min(lowest, data.verts[k]);
+                    highest = Math.Max(highest, data.verts[k]);
+                }
+            }
+
+            return lowest <= highest ? (lowest, highest) : null;
+        }
+
         /// <summary>The nearest walkable point to <paramref name="position"/>, or null when nothing is within the search extents.</summary>
         public Vector3? Nearest(Vector3 position)
         {
             return FindPoly(position, out var point) != 0 ? ToVector(point) : (Vector3?)null;
+        }
+
+        /// <summary>
+        /// The walkable point nearest to <paramref name="position"/> anywhere in the column above
+        /// and below it, up to <paramref name="height"/> each way: for a point whose height is only
+        /// a guess - a map label, the average height of a camp's props - where the ordinary query's
+        /// 8 m either way finds nothing. Of several floors in the column, the nearest in 3D wins,
+        /// so a guess near the surface lands on the surface and not in the cave under it.
+        /// </summary>
+        public Vector3? NearestInColumn(Vector3 position, float height)
+        {
+            var extents = new RcVec3f(SearchExtents.X, height, SearchExtents.Z);
+            var status = _query.FindNearestPoly(ToRc(position), extents, _filter, out var poly, out var point, out _);
+
+            return status.Succeeded() && poly != 0 ? ToVector(point) : (Vector3?)null;
         }
 
         /// <summary>Whether there is walkable surface within the search extents of the point.</summary>

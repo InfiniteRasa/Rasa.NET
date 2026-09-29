@@ -507,7 +507,7 @@ namespace Rasa.Test.Missions.Encounters
             using var fixture = new Fixture();
             var context = fixture.Context;
             fixture.Creatures.LoadedCreatures[510207] = new Creature(fixture.Creatures.LoadedCreatures[510210])
-                { DbId = 510207, Faction = Factions.AFS };
+                { DbId = 510207, TargetCategory = TargetCategory.Friendly };
             var run = context.Manager.Scenes.Start(context.Client, "data.sequence", Bindings(
                 Enemy("defender", new ActorGameplayPolicy { DefenseRadius = 10, DefenseTargetTag = "target" })
                     with { TemplateId = 510207 },
@@ -624,7 +624,7 @@ namespace Rasa.Test.Missions.Encounters
                 new ActorGameplayPolicy { TrackParticipation = true });
             CreatureManager.RecordCombatDamage(context.Map, actor, context.Client.Player, 1);
             fixture.Creatures.LoadedCreatures[510207] = new Creature(fixture.Creatures.LoadedCreatures[510210])
-                { DbId = 510207, Faction = Factions.AFS };
+                { DbId = 510207, TargetCategory = TargetCategory.Friendly };
             var bindings = Bindings(
                 new SceneActorDefinition("guide", SceneActorKind.PublicSpawn, 77,
                     GameplayPolicy: new ActorGameplayPolicy { TrackParticipation = true, RewardScenarioKills = true }),
@@ -709,7 +709,7 @@ namespace Rasa.Test.Missions.Encounters
                 Creatures = new CreatureManager(Context, new ManifestationManager(Context), Context.Manager);
                 Creatures.LoadedCreatures[510210] = new Creature
                 {
-                    DbId = 510210, EntityClass = EntityClasses.HumanBaseMale, Faction = Factions.Bane,
+                    DbId = 510210, EntityClass = EntityClasses.HumanBaseMale, TargetCategory = TargetCategory.Hostile,
                     Level = 1, AppearanceData = new(), State = CharacterState.Idle
                 };
                 SetSingleton(typeof(MissionApplication), Context.Manager);
@@ -750,7 +750,7 @@ namespace Rasa.Test.Missions.Encounters
             internal Creature PublicActor()
             {
                 var actor = Context.AddNpc(77);
-                actor.Faction = Factions.Bane;
+                actor.TargetCategory = TargetCategory.Hostile;
                 actor.Level = 1;
                 actor.SpawnPool = new SpawnPool
                 {

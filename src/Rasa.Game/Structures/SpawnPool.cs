@@ -11,7 +11,18 @@ namespace Rasa.Structures
 
         public Vector3 Position { get; set; }
         public double Rotation { get; set; }
+
+        /// <summary>
+        /// How far from Position its creatures may stand. Zero: the old two units of scatter.
+        /// </summary>
+        public float Radius { get; set; }
         public List<SpawnPoolSlot> SpawnSlot { get; set; }
+
+        /// <summary>Where its creatures arrive (spawnpool_arrival): a pad or bay the Bane dropship lands on, a teleporter. Empty: they appear on its ground.</summary>
+        public List<World.SpawnPoolArrivalEntry> Arrivals { get; } = new List<World.SpawnPoolArrivalEntry>();
+
+        /// <summary>Whether it has spawned since the server started: the first spawn stocks the world and uses no arrival point.</summary>
+        public bool HasSpawned { get; set; }
         // different spawn points
         //public int LocationCount { get; set; }
         //public Position[] LocationList { get; set; }

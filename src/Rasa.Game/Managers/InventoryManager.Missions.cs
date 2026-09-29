@@ -294,7 +294,7 @@ namespace Rasa.Managers
             {
                 var item = loot?.Item;
                 if (item?.ItemTemplate == null || item.Id == 0 || item.StackSize == 0 || loot.Taken ||
-                    loot.EntityId != item.EntityId || loot.ActorId != _client.Player.EntityId || loot.PartyId != 0 ||
+                    loot.EntityId != item.EntityId || !loot.MayTake(_client.Player.EntityId) ||
                     EntityManager.Instance.GetEntityType(item.EntityId) != EntityType.Item ||
                     !ReferenceEquals(EntityManager.Instance.GetItem(item.EntityId), item) ||
                     loot.ItemTemplateId != item.ItemTemplate.ItemTemplateId || loot.ItemClassId != (uint)item.ItemTemplate.Class ||

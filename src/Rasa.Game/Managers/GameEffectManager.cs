@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -6,6 +6,7 @@ namespace Rasa.Managers
 {
     using Data;
     using Game;
+    using Packets;
     using Packets.MapChannel.Server;
     using Structures;
 
@@ -60,15 +61,20 @@ namespace Rasa.Managers
         {
             actor.ActiveEffects[gameEffect.EffectId] = gameEffect;
             gameEffect.Holder = actor;
-            MapChannelManager.Instance.FindByContextId(actor.MapContextId)?.ActorsWithEffects.Add(actor);
+            MapOf(actor)?.ActorsWithEffects.Add(actor);
         }
+
+        // The map channel the actor is in: its own when it has one (a private instance), else
+        // the map of its context.
+        private static MapChannel MapOf(Actor actor)
+            => actor.RuntimeMapChannel ?? MapChannelManager.Instance.FindByContextId(actor.MapContextId);
 
         public void RemoveFromList(Actor actor, GameEffect gameEffect)
         {
             actor.ActiveEffects.Remove(gameEffect.EffectId);
 
             if (actor.ActiveEffects.Count == 0)
-                MapChannelManager.Instance.FindByContextId(actor.MapContextId)?.ActorsWithEffects.Remove(actor);
+                MapOf(actor)?.ActorsWithEffects.Remove(actor);
         }
 
         /// <summary>Allocates the next effect id on the map. Effect ids are per map, like entity cells.</summary>
@@ -79,7 +85,7 @@ namespace Rasa.Managers
         }
 
         /// <summary>The client of a player on this map, or null for a creature or a player who has gone.</summary>
-        private static Client ClientOf(MapChannel mapChannel, Actor actor)
+        internal static Client ClientOf(MapChannel mapChannel, Actor actor)
         {
             if (!(actor is Manifestation player))
                 return null;
@@ -105,6 +111,17 @@ namespace Rasa.Managers
         /// </summary>
         public void Attach(MapChannel mapChannel, Actor actor, GameEffect effect, params object[] attachArgs)
         {
+            // Cure P4 keeps debuffs off whoever it was cast on for its duration - and says so:
+            // the client floats "Immune" over them (COMBAT_IMMUNE_ANNOUNCED).
+            // So does a creature running home after a leash (BehaviorManager.Leash): a slow would
+            // keep it from getting there, a DoT would hurt what it is immune to.
+            if (!effect.IsBuff && (DebuffsBlocked(actor) || actor is Creature returning && BehaviorManager.IsReturning(returning)))
+            {
+                CellManager.Instance.CellCallMethod(mapChannel, actor,
+                    new GameEffectAttachFailedPacket(effect.TypeId, GameEffectAttachFailedPacket.FailReason.Immune, effect.SourceId));
+                return;
+            }
+
             // A skill's standing effects are one per skill and share a type (two heat bonuses
             // are two SKILL_LIMITED_COOL_RATE_MODIFIER_EFFECTs); the rest replace their own kind.
             if (!effect.IsSkillPassive)
@@ -116,28 +133,30 @@ namespace Rasa.Managers
             if (effect.TickDamageMax > 0 && actor is Creature attackedCreature)
                 CreatureManager.RecordOwnerAttack(mapChannel, effect.Source, attackedCreature);
 
-            if (effect.MaxHealthPercent != 0)
-                ApplyMaxHealth(mapChannel, actor, effect);
-
-            var attached = new GameEffectAttachedPacket
+            // A player's attributes are worked out in one place, UpdateStatsValues, which reads
+            // the effects; anything else would be undone by the next time it runs - putting on a
+            // piece of armour, spending a point. A creature has no such place, and takes a
+            // maximum-health or attribute change directly.
+            if (actor is Manifestation && ChangesStats(effect))
+                ManifestationManager.Instance.RefreshStats(actor as Manifestation);
+            else
             {
-                EffectTypeId = effect.TypeId,
-                EffectId = effect.EffectId,
-                EffectLevel = effect.EffectLevel,
-                SourceId = effect.SourceId,
-                Announced = effect.AnnounceOnAttach,
-                Duration = effect.HasDuration ? effect.RemainingSeconds : (int?)null,
-                DamageType = effect.TickDamageMax > 0 ? (int)effect.TickDamageType : 0,
-                AttrId = 1,
-                IsActive = true,
-                IsBuff = effect.IsBuff,
-                IsDebuff = !effect.IsBuff,
-                IsNegativeEffect = !effect.IsBuff,
-                Extras = effect.Tooltip,
-                Args = attachArgs.ToList()
-            };
+                if (effect.MaxHealthPercent != 0)
+                    ApplyMaxHealth(mapChannel, actor, effect);
 
-            if (effect.IsSkillPassive)
+                if (!(actor is Manifestation) && effect.AttributeId.HasValue && effect.AttributePercent != 0)
+                    ApplyAttribute(mapChannel, actor, effect);
+            }
+
+            effect.AttachArgs = attachArgs.ToList();
+
+            var attached = AttachedPacket(effect, effect.AnnounceOnAttach);
+
+            if (effect.ServerOnly)
+            {
+                // nobody is told
+            }
+            else if (effect.IsSkillPassive)
                 ClientOf(mapChannel, actor)?.CallMethod(actor.EntityId, attached);
             else
                 CellManager.Instance.CellCallMethod(mapChannel, actor, attached);
@@ -145,8 +164,100 @@ namespace Rasa.Managers
             if (effect.MovementModifierPercent != 0)
                 UpdateMovementMod(mapChannel, actor);
 
-            if (effect.RegenPercent != 0 || effect.ArmorRegenPercent != 0)
+            if (effect.ChangesRegen)
                 SyncRegen(mapChannel, actor);
+
+            // Out of sight: after the attach has gone out, so that the clients about to lose the
+            // entity have been told what is on it first, and their own copy of the player goes
+            // with the cloak's own visuals rather than before them.
+            if (effect.Hides && actor is Manifestation hidden)
+                Detection.Hide(mapChannel, hidden);
+
+            // Blinded: it drops what it was fighting, and the scan will pass over everything
+            // until this wears off.
+            if (effect.Blinds && actor is Creature blinded)
+                BehaviorManager.Instance.StopFighting(blinded);
+        }
+
+        /// <summary>
+        /// A client has just been given an entity that already carries effects - it walked into
+        /// range, arrived on the map, or the entity came out of a cloak - and every attach went
+        /// out before it was there: without this a squad mate's Rage, a DoT on a mob, a turret's
+        /// look or a Target Painting were simply not there for anyone who turned up later. Sent
+        /// straight after the entity is created: a polymorphed player's weapon entity first,
+        /// since the morph's announce looks it up, then each effect in the order it went on, so
+        /// an aura comes before its children.
+        ///
+        /// One Recv_GameEffectAttached per effect rather than Recv_GameEffects (279), which does
+        /// the same attach for a whole list but announces every one of them unconditionally and
+        /// has no guard against an effect the client already holds. Announced as the effect
+        /// asks (AnnounceToNewcomers). A skill's standing effects only ever go to their own
+        /// player, and an effect whose time has run out is left for the worker to take off. An
+        /// effect whose clock is stopped is followed by its OnPaused, so the newcomer's tooltip
+        /// says so too; its attach already carries the time it has left.
+        /// </summary>
+        public static void ShowEffectsTo(Client viewer, Actor actor)
+        {
+            if (viewer == null || actor == null)
+                return;
+
+            if (actor is Manifestation player)
+                AbilityManager.ShowMorphWeaponTo(viewer, player);
+
+            foreach (var packet in NewcomerPackets(actor, viewer.Player))
+                viewer.CallMethod(actor.EntityId, packet);
+        }
+
+        /// <summary>What ShowEffectsTo sends of the actor's effects to a client whose player is viewer, in order: each attach, and the pause of a paused one straight after it.</summary>
+        public static List<PythonPacket> NewcomerPackets(Actor actor, Actor viewer)
+        {
+            var packets = new List<PythonPacket>();
+
+            foreach (var effect in actor.ActiveEffects.Values.OrderBy(e => e.EffectId))
+            {
+                if (effect.IsExpired)
+                    continue;
+
+                if (effect.ServerOnly || effect.IsSkillPassive && viewer != actor)
+                    continue;
+
+                packets.Add(AttachedPacket(effect, effect.AnnounceToNewcomers));
+
+                if (effect.IsPaused)
+                    packets.Add(new GameEffectPausePacket(effect.EffectId, true));
+            }
+
+            return packets;
+        }
+
+        /// <summary>The attaches of <see cref="NewcomerPackets"/>.</summary>
+        public static List<GameEffectAttachedPacket> EffectsForNewcomer(Actor actor, Actor viewer) =>
+            NewcomerPackets(actor, viewer).OfType<GameEffectAttachedPacket>().ToList();
+
+        /// <summary>
+        /// The Recv_GameEffectAttached for an effect already on its holder: what Attach sent,
+        /// with the time that is left - and announced or not, for a client meeting the holder
+        /// after the effect went on.
+        /// </summary>
+        public static GameEffectAttachedPacket AttachedPacket(GameEffect effect, bool announced)
+        {
+            return new GameEffectAttachedPacket
+            {
+                EffectTypeId = effect.TypeId,
+                EffectId = effect.EffectId,
+                EffectLevel = effect.EffectLevel,
+                SourceId = effect.SourceId,
+                Announced = announced,
+                Duration = effect.HasDuration && effect.ShowsDuration ? effect.RemainingSeconds : (int?)null,
+                DamageType = effect.TickDamageMax > 0 ? (int)effect.TickDamageType : 0,
+                AttrId = effect.TooltipAttrId,
+                IsActive = true,
+                IsBuff = effect.IsBuff,
+                IsDebuff = !effect.IsBuff,
+                IsNegativeEffect = !effect.IsBuff,
+                Extras = effect.Tooltip,
+                Args = effect.AttachArgs.ToList()
+            };
         }
 
         /// <summary>
@@ -210,7 +321,11 @@ namespace Rasa.Managers
 
             // inform clients (Recv_GameEffectDetached 75)
             // Told to whoever was told of it.
-            if (gameEffect.IsSkillPassive)
+            if (gameEffect.ServerOnly)
+            {
+                // nobody was told of it
+            }
+            else if (gameEffect.IsSkillPassive)
                 ClientOf(mapChannel, actor)?.CallMethod(actor.EntityId, new GameEffectDetachedPacket { EffectId = gameEffect.EffectId });
             else
                 CellManager.Instance.CellCallMethod(mapChannel, actor, new GameEffectDetachedPacket { EffectId = gameEffect.EffectId });
@@ -222,12 +337,23 @@ namespace Rasa.Managers
 
             if (gameEffect.MaxHealthApplied != 0)
                 RevertMaxHealth(mapChannel, actor, gameEffect, true);
+            else if (actor is Manifestation && ChangesStats(gameEffect))
+                ManifestationManager.Instance.RefreshStats(actor as Manifestation);
+
+            if (gameEffect.AttributeApplied != 0)
+                RevertAttribute(mapChannel, actor, gameEffect, true);
 
             if (gameEffect.MovementModifierPercent != 0)
                 UpdateMovementMod(mapChannel, actor);
 
-            if (gameEffect.RegenPercent != 0 || gameEffect.ArmorRegenPercent != 0)
+            if (gameEffect.ChangesRegen)
                 SyncRegen(mapChannel, actor);
+
+            // Back in sight, unless something else is still hiding them.
+            if (gameEffect.Hides && actor is Manifestation seen && !Detection.IsHidden(seen))
+                Detection.Reveal(mapChannel, seen);
+
+            gameEffect.OnDetached?.Invoke(mapChannel, actor, gameEffect);
         }
 
         /// <summary>
@@ -246,7 +372,9 @@ namespace Rasa.Managers
         /// </summary>
         public void ClearEffects(MapChannel mapChannel, Actor actor)
         {
-            foreach (var effect in actor.ActiveEffects.Values.ToList())
+            var cleared = actor.ActiveEffects.Values.ToList();
+
+            foreach (var effect in cleared)
             {
                 foreach (var child in effect.Children.ToList())
                     if (child.Holder != null && mapChannel != null)
@@ -257,11 +385,109 @@ namespace Rasa.Managers
 
                 if (effect.MaxHealthApplied != 0)
                     RevertMaxHealth(mapChannel, actor, effect, false);
+
+                if (effect.AttributeApplied != 0)
+                    RevertAttribute(mapChannel, actor, effect, false);
             }
 
             actor.ActiveEffects.Clear();
             actor.MovementSpeed = 1.0d;
             mapChannel?.ActorsWithEffects.Remove(actor);
+
+            foreach (var effect in cleared)
+                effect.OnDetached?.Invoke(mapChannel, actor, effect);
+        }
+
+        #endregion
+
+        #region Pause and restart
+
+        /// <summary>
+        /// Stops an effect's clock: it neither runs out nor ticks until it is restarted, and
+        /// whatever it changes while it is on stays changed. Told to whoever was told of the
+        /// effect (OnPaused), whose tooltip then says "Paused" in place of its timer. An aura's
+        /// copies on the squad stop with it - they share its end, and its tick is what keeps
+        /// them - and no new ones go out while it is stopped. False when the effect is not on
+        /// the actor or was already stopped.
+        /// </summary>
+        public bool Pause(MapChannel mapChannel, Actor actor, GameEffect effect)
+        {
+            if (actor == null || effect == null || !actor.ActiveEffects.ContainsKey(effect.EffectId))
+                return false;
+
+            if (!effect.Freeze(Environment.TickCount64))
+                return false;
+
+            if (mapChannel != null)
+                TellHolder(mapChannel, actor, effect, new GameEffectPausePacket(effect.EffectId, true));
+
+            foreach (var child in effect.Children.ToList())
+                if (child.Holder != null)
+                    Pause(mapChannel, child.Holder, child);
+
+            return true;
+        }
+
+        /// <summary>
+        /// Starts a stopped effect's clock again with the time it had left when it stopped, and
+        /// its next tick as far off as it was. Told as OnRestart, and then - for an effect that
+        /// runs out - a GameEffectUpdateTooltip carrying that time: the client's timer is set
+        /// from a tooltip and from nothing else, and without one would run on from the moment
+        /// the effect was attached as if the pause had never been. The aura's copies go with it.
+        /// False when the effect is not on the actor or was not stopped.
+        /// </summary>
+        public bool Restart(MapChannel mapChannel, Actor actor, GameEffect effect)
+        {
+            if (actor == null || effect == null || !actor.ActiveEffects.ContainsKey(effect.EffectId))
+                return false;
+
+            if (!effect.Thaw(Environment.TickCount64))
+                return false;
+
+            if (mapChannel != null)
+            {
+                TellHolder(mapChannel, actor, effect, new GameEffectPausePacket(effect.EffectId, false));
+
+                if (effect.HasDuration && effect.ShowsDuration)
+                    UpdateTooltip(mapChannel, actor, effect);
+            }
+
+            foreach (var child in effect.Children.ToList())
+                if (child.Holder != null)
+                    Restart(mapChannel, child.Holder, child);
+
+            return true;
+        }
+
+        /// <summary>
+        /// Tells whoever was told of an effect what its tooltip says now - the time it has left and
+        /// its own values - after either changed on the server (GameEffectUpdateTooltip, 660). The
+        /// client replaces the whole dictionary, so it goes out whole, written as the attach writes
+        /// it. What that reaches is the tooltip: the timer the icons on the buff bar, the target
+        /// window and the party window draw is copied from the effect only when an effect on that
+        /// actor comes or goes, and stays on the old time until then. False when the effect is
+        /// not on the actor.
+        /// </summary>
+        public bool UpdateTooltip(MapChannel mapChannel, Actor actor, GameEffect effect)
+        {
+            if (mapChannel == null || actor == null || effect == null || !actor.ActiveEffects.ContainsKey(effect.EffectId))
+                return false;
+
+            TellHolder(mapChannel, actor, effect, new GameEffectUpdateTooltipPacket(AttachedPacket(effect, false)));
+
+            return true;
+        }
+
+        /// <summary>Sends something about an effect to whoever its attach went to: nobody for a server-only one, its own player for a skill's, everyone who can see the holder otherwise.</summary>
+        private static void TellHolder(MapChannel mapChannel, Actor actor, GameEffect effect, PythonPacket packet)
+        {
+            if (effect.ServerOnly)
+                return;
+
+            if (effect.IsSkillPassive)
+                ClientOf(mapChannel, actor)?.CallMethod(actor.EntityId, packet);
+            else
+                CellManager.Instance.CellCallMethod(mapChannel, actor, packet);
         }
 
         #endregion
@@ -282,6 +508,13 @@ namespace Rasa.Managers
                     continue;
                 }
 
+                // In another channel of the same map (a private instance): that channel ticks it.
+                if (actor.RuntimeMapChannel != null && !ReferenceEquals(actor.RuntimeMapChannel, mapChannel))
+                {
+                    mapChannel.ActorsWithEffects.Remove(actor);
+                    continue;
+                }
+
                 // Dead, or not on this map any more: nothing to tick and nobody to tell.
                 if (actor.State == CharacterState.Dead || actor.MapContextId != mapChannel.MapInfo.MapContextId)
                 {
@@ -295,9 +528,20 @@ namespace Rasa.Managers
                     if (!actor.ActiveEffects.ContainsKey(effect.EffectId))
                         continue;
 
+                    // A creature held in its Critical Death window keeps only the window and
+                    // its animations: a Ruin ticking on something that takes no damage would float
+                    // numbers over it for nothing. Taken off here, on the pass after the window
+                    // opened, so the tick that brought it down is told before its effect goes.
+                    if (actor.State == CharacterState.Dying && actor is Creature && !CritDeathManager.IsCritDeathType(effect.TypeId))
+                    {
+                        DettachEffect(mapChannel, actor, effect);
+                        continue;
+                    }
+
                     if (effect.IsExpired)
                     {
                         DettachEffect(mapChannel, actor, effect);
+                        effect.OnExpired?.Invoke(mapChannel, actor, effect);
                         continue;
                     }
 
@@ -317,6 +561,12 @@ namespace Rasa.Managers
             // A worker that fell behind does not make up the missed ticks in a burst.
             if (effect.NextTickTick <= now)
                 effect.NextTickTick = now + effect.TickIntervalMs;
+
+            if (effect.OnTick != null)
+            {
+                effect.OnTick(mapChannel, actor, effect);
+                return;
+            }
 
             if (effect.AdrenalineDrainPercentPerSecond > 0)
             {
@@ -433,6 +683,8 @@ namespace Rasa.Managers
             {
                 if (actor is Manifestation holder)
                     targets.AddRange(AbilityManager.HostilesWithin(mapChannel, holder, actor.Position, effect.TickRadius));
+                else if (actor is Creature creatureHolder)
+                    targets.AddRange(CreatureBombs.Caught(mapChannel, creatureHolder, actor.Position, effect.TickRadius));   // a Thrax's Scourge
             }
             else
                 targets.Add(actor);
@@ -442,20 +694,22 @@ namespace Rasa.Managers
             foreach (var target in targets)
             {
                 var rolled = AbilityManager.Scale(effect.SourceLevel, _random.Next(effect.TickDamageMin, effect.TickDamageMax + 1), effect.TickScaleType);
-                var amount = ApplyResist(target, rolled, out var resisted);
-                var taken = ActorManager.Instance.Damage(mapChannel, target, amount, source, isPeriodic: true);
+                var amount = ApplyResist(target, rolled, out var resisted, effect.TickDamageType);
+                var taken = ActorManager.Instance.Damage(mapChannel, target, amount, source, out var outcome, effect.TickDamageType, isPeriodic: true);
 
                 hits.Add(new TickEntry
                 {
                     EntityId = target.EntityId,
-                    Amount = amount,
+                    Amount = outcome.Delivered,
+                    Absorbed = outcome.Absorbed,
+                    WasImmune = outcome.Immune,
                     Resisted = resisted,
                     DamageType = effect.TickDamageType,
                     DeathBlow = taken > 0 && target.Attributes[Attributes.Health].Current <= 0
                 });
             }
 
-            if (effect.TickRadius > 0)
+            if (effect.TickRadius > 0 && !effect.TickRadiusAsTick)
             {
                 // The holder is not the one hurt, so the effect announces the damage on their
                 // behalf; the client's ScourgeEffect ticks on damage, so this is its tick too.
@@ -484,9 +738,12 @@ namespace Rasa.Managers
         /// </summary>
         private void TickAura(MapChannel mapChannel, Actor actor, GameEffect effect)
         {
+            // A player's aura reaches their squad; a creature's (a Thrax boss's Rage), its own side.
             var members = actor is Manifestation holder
-                ? AbilityManager.SquadWithin(mapChannel, holder, effect.AuraRadius).Where(m => m != actor).ToList()
-                : new List<Manifestation>();
+                ? AbilityManager.SquadWithin(mapChannel, holder, effect.AuraRadius).Where(m => m != actor).Cast<Actor>().ToList()
+                : actor is Creature creatureHolder
+                    ? CreatureBuffs.AlliesWithin(mapChannel, creatureHolder, creatureHolder.Position, effect.AuraRadius).Cast<Actor>().ToList()
+                    : new List<Actor>();
 
             foreach (var child in effect.Children.ToList())
             {
@@ -526,6 +783,11 @@ namespace Rasa.Managers
                     ResistModifier = effect.ResistModifier,
                     RegenPercent = effect.RegenPercent,
                     ArmorRegenPercent = effect.ArmorRegenPercent,
+                    HealthRegenPercent = effect.HealthRegenPercent,
+                    AbsorbPercent = effect.AbsorbPercent,
+                    AbsorbPool = effect.AbsorbPool,
+                    PowerRegenPercent = effect.PowerRegenPercent,
+                    MissPercent = effect.MissPercent,
                     Parent = effect
                 };
 
@@ -555,12 +817,214 @@ namespace Rasa.Managers
             return resist < 0 ? (100.0 - resist) / 100.0 : 1.0 / ((100.0 + 2.0 * resist) / 100.0);
         }
 
-        public static int ResistModifierOf(Actor actor)
+        /// <param name="damageType">The hit's type; an effect limited to one type (Polarity Field) counts only against that type, and not against an untyped hit.</param>
+        public static int ResistModifierOf(Actor actor, DamageType damageType = 0)
         {
             var total = 0;
 
             foreach (var effect in actor.ActiveEffects.Values)
-                total += effect.ResistModifier;
+                if (effect.ResistDamageType == 0 || effect.ResistDamageType == damageType)
+                    total += effect.ResistModifier;
+
+            return total;
+        }
+
+        /// <summary>How much of the actor's cover still counts, in percent: the least any effect on it allows (Target Painting), 100 with none.</summary>
+        public static int CoverCountsPercentOf(Actor actor)
+        {
+            var percent = 100;
+
+            foreach (var effect in actor.ActiveEffects.Values)
+                if (effect.CoverCountsPercent.HasValue)
+                    percent = Math.Min(percent, effect.CoverCountsPercent.Value);
+
+            return Math.Max(0, percent);
+        }
+
+        /// <summary>Percent of each hit on the actor that goes past its armour (Target Painting), at most 100.</summary>
+        public static int ArmorPiercePercentOf(Actor actor)
+        {
+            var total = 0;
+
+            foreach (var effect in actor.ActiveEffects.Values)
+                total += effect.ArmorPiercePercent;
+
+            return Math.Max(0, Math.Min(100, total));
+        }
+
+        /// <summary>Whether an effect changes what UpdateStatsValues works out for a player.</summary>
+        private static bool ChangesStats(GameEffect effect)
+        {
+            return effect.MaxHealthPercent != 0 || (effect.AttributeId.HasValue && effect.AttributePercent != 0);
+        }
+
+        /// <summary>
+        /// The percent the effects on an actor add to an attribute: Bio Augmentation's
+        /// AttributePercent for its attribute, and for Health also Reconstruction's
+        /// MaxHealthPercent. Read by ManifestationManager.UpdateStatsValues.
+        /// </summary>
+        public static int AttributePercentOf(Actor actor, Attributes attribute)
+        {
+            var total = 0;
+
+            foreach (var effect in actor.ActiveEffects.Values)
+            {
+                if (effect.AttributeId == attribute)
+                    total += effect.AttributePercent;
+
+                if (attribute == Attributes.Health)
+                    total += effect.MaxHealthPercent;
+            }
+
+            return total;
+        }
+
+        /// <summary>
+        /// Shields: what of an incoming hit the effects on the victim take instead of them. The
+        /// first effect with something left in its pool takes AbsorbPercent of the hit, up to
+        /// what the pool holds; a pool emptied ends its shield - the aura, and with it every copy
+        /// it put on the squad. Returns what is left of the hit; absorbed is what the shield took.
+        /// </summary>
+        public int ApplyAbsorb(MapChannel mapChannel, Actor victim, int amount, out int absorbed)
+        {
+            absorbed = 0;
+
+            if (victim == null || amount <= 0)
+                return amount;
+
+            foreach (var effect in victim.ActiveEffects.Values.ToList())
+            {
+                var pool = effect.AbsorbPool;
+
+                if (pool == null || pool.Remaining <= 0 || effect.AbsorbPercent <= 0)
+                    continue;
+
+                absorbed = Math.Min(pool.Remaining, (int)Math.Round(amount * Math.Min(100, effect.AbsorbPercent) / 100.0));
+                pool.Remaining -= absorbed;
+
+                if (pool.Remaining <= 0)
+                {
+                    var shield = effect.Parent ?? effect;
+
+                    if (shield.Holder != null)
+                        DettachEffect(mapChannel, shield.Holder, shield);
+                }
+
+                break;
+            }
+
+            return amount - absorbed;
+        }
+
+        /// <summary>Percent chance, summed over the effects on an actor, that a stun or knockback is resisted (Graviton Armor).</summary>
+        public static int KnockbackStunResistOf(Actor actor)
+        {
+            if (actor == null)
+                return 0;
+
+            var total = 0;
+
+            foreach (var effect in actor.ActiveEffects.Values)
+                total += effect.KnockbackStunResistPercent;
+
+            return Math.Max(0, total);
+        }
+
+        /// <summary>Percent of damage taken that the effects on an actor reflect back at the attacker (Reflective Armor).</summary>
+        /// <param name="damageType">The hit's type; an effect that reflects only some types (Reflection) answers its own alone.</param>
+        public static int ReflectPercentOf(Actor actor, DamageType damageType = 0)
+        {
+            var total = 0;
+
+            foreach (var effect in actor.ActiveEffects.Values)
+                if (effect.ReflectTypes.Count == 0 || effect.ReflectTypes.Contains(damageType))
+                    total += effect.ReflectPercent;
+
+            return total;
+        }
+
+        /// <summary>Whether a debuff guard on the actor is keeping debuffs off them (Cure P4).</summary>
+        public static bool DebuffsBlocked(Actor actor)
+        {
+            foreach (var effect in actor.ActiveEffects.Values)
+                if (effect.BlocksDebuffs)
+                    return true;
+
+            return false;
+        }
+
+        /// <summary>Whether an EMP crit is suppressing the actor's armour.</summary>
+        public static bool ArmorSuppressed(Actor actor)
+        {
+            foreach (var effect in actor.ActiveEffects.Values)
+                if (effect.SuppressesArmor && !effect.IsExpired)
+                    return true;
+
+            return false;
+        }
+
+        /// <summary>The actor's ranged damage after the effects on it (Laser crit): amount x (100 + sum of RangedDamagePercent) / 100, never below 0.</summary>
+        public static int ApplyRangedDamage(Actor actor, int amount)
+        {
+            var percent = 0;
+
+            foreach (var effect in actor.ActiveEffects.Values)
+                percent += effect.RangedDamagePercent;
+
+            return percent == 0 ? amount : Math.Max(0, amount * (100 + percent) / 100);
+        }
+
+        /// <summary>
+        /// What the actor's action cooldowns are multiplied by, the effects on it multiplied
+        /// together (Called Shot: Arm); 1 when nothing slows it.
+        /// </summary>
+        public static double AttackRateModifierOf(Actor actor)
+        {
+            var modifier = 1.0;
+
+            foreach (var effect in actor.ActiveEffects.Values)
+                if (effect.AttackRateModifier > 0)
+                    modifier *= effect.AttackRateModifier;
+
+            return modifier;
+        }
+
+        /// <summary>Ranged damage landing on the actor after the smoke screens on it: amount x (100 - the sum) / 100, never below 0.</summary>
+        public static int ApplyIncomingRanged(Actor actor, int amount)
+        {
+            var percent = 0;
+
+            foreach (var effect in actor.ActiveEffects.Values)
+                percent += effect.IncomingRangedPercent;
+
+            if (percent <= 0 || amount <= 0)
+                return amount;
+
+            return Math.Max(0, amount * Math.Max(0, 100 - percent) / 100);
+        }
+
+        /// <summary>The share of shots at the actor that miss it for the effects on it (Chaff): the strongest, 0 to 100.</summary>
+        public static int MissPercentOf(Actor actor)
+        {
+            var percent = 0;
+
+            if (actor == null)
+                return 0;
+
+            foreach (var effect in actor.ActiveEffects.Values)
+                if (!effect.IsExpired && effect.MissPercent > percent)
+                    percent = effect.MissPercent;
+
+            return Math.Min(100, percent);
+        }
+
+        /// <summary>Percent added to the actor's chance of a critical hit by the effects on them (Crit Wave).</summary>
+        public static int CritChancePercentOf(Actor actor)
+        {
+            var total = 0;
+
+            foreach (var effect in actor.ActiveEffects.Values)
+                total += effect.CritChancePercent;
 
             return total;
         }
@@ -592,17 +1056,24 @@ namespace Rasa.Managers
 
         /// <summary>
         /// Damage a victim takes, after the resistance the effects on them add up to (Rage,
-        /// Resistance, Sacrifice, Base Wave); resisted is what came off. The armour's own
-        /// resistance list is not in this yet - incoming damage does not carry a type.
+        /// Resistance, Sacrifice, Base Wave) and, for damage of a known type, a player's own
+        /// resistance to that type (armour and Hazmat Armor, Manifestation.ResistanceData);
+        /// resisted is what came off. A creature's attack carries the type of the weapon it plays
+        /// (Managers.CreatureAttacks), so a player's own resistances meet it as well.
         /// </summary>
-        public static int ApplyResist(Actor target, int amount, out int resisted)
+        public static int ApplyResist(Actor target, int amount, out int resisted, DamageType damageType = 0)
         {
             resisted = 0;
 
             if (target == null || amount <= 0)
                 return amount;
 
-            var resist = ResistModifierOf(target);
+            var resist = ResistModifierOf(target, damageType);
+
+            if (damageType != 0 && target is Manifestation player)
+                foreach (var own in player.ResistanceData)
+                    if (own.ResistanceType == damageType)
+                        resist += own.ResistanceAmmount;
 
             if (resist == 0)
                 return amount;
@@ -615,8 +1086,9 @@ namespace Rasa.Managers
 
         /// <summary>
         /// What an attribute regenerates per period with the effects on its owner: health and
-        /// power take RegenPercent (Regeneration Wave), armour takes ArmorRegenPercent (Base
-        /// Wave); 400 is five times the base.
+        /// power take RegenPercent (Regeneration Wave) and their own HealthRegenPercent (Bio
+        /// Armor) or PowerRegenPercent (Mech Armor), armour takes ArmorRegenPercent (Base Wave,
+        /// Graviton Armor); 400 is five times the base.
         /// </summary>
         public static int RegenAmount(Actor actor, ActorAttributes attribute)
         {
@@ -627,8 +1099,10 @@ namespace Rasa.Managers
                 switch (attribute.AttributeId)
                 {
                     case Attributes.Health:
+                        percent += effect.RegenPercent + effect.HealthRegenPercent;
+                        break;
                     case Attributes.Power:
-                        percent += effect.RegenPercent;
+                        percent += effect.RegenPercent + effect.PowerRegenPercent;
                         break;
                     case Attributes.Armor:
                         percent += effect.ArmorRegenPercent;
@@ -645,8 +1119,22 @@ namespace Rasa.Managers
         /// would show as a bar that jumps on every real update; the attribute itself keeps the
         /// base rate, since UpdateStatsValues rebuilds it from the stats.
         /// </summary>
-        private static void SyncRegen(MapChannel mapChannel, Actor actor)
+        public static void SyncRegen(MapChannel mapChannel, Actor actor)
         {
+            // A creature's bars are predicted by everyone who sees it from the rates it was last
+            // given; Disease P4 stopping its regeneration has to reach them too.
+            if (actor is Creature)
+            {
+                if (actor.Attributes.TryGetValue(Attributes.Health, out var creatureHealth))
+                    CellManager.Instance.CellCallMethod(mapChannel, actor, new UpdateHealthPacket(WithRegen(actor, creatureHealth), actor.EntityId));
+
+                // Its armour's too: Target Painting stops it regenerating (CreatureArmor).
+                if (actor.Attributes.TryGetValue(Attributes.Armor, out var creatureArmor))
+                    CellManager.Instance.CellCallMethod(mapChannel, actor, new UpdateArmorPacket(WithRegen(actor, creatureArmor), actor.EntityId));
+
+                return;
+            }
+
             var client = ClientOf(mapChannel, actor);
 
             if (client == null)
@@ -662,7 +1150,8 @@ namespace Rasa.Managers
                 client.CallMethod(actor.EntityId, new UpdatePowerPacket(WithRegen(actor, power), 0));
         }
 
-        private static ActorAttributes WithRegen(Actor actor, ActorAttributes attribute)
+        /// <summary>A copy of the attribute carrying the regeneration rate the effects on the actor make, for sending.</summary>
+        public static ActorAttributes WithRegen(Actor actor, ActorAttributes attribute)
         {
             return new ActorAttributes(attribute.AttributeId, attribute.NormalMax, attribute.CurrentMax, attribute.Current, RegenAmount(actor, attribute), attribute.RefreshPeriod);
         }
@@ -695,6 +1184,68 @@ namespace Rasa.Managers
             effect.MaxHealthApplied = delta;
 
             CellManager.Instance.CellCallMethod(mapChannel, actor, new UpdateHealthPacket(health, 0));
+        }
+
+        /// <summary>
+        /// AttributePercent on an actor that is not a player (a creature under Disease): the
+        /// attribute's maximum moves by that share, at least 1 left; the current value is capped
+        /// to it, or raised with it for a raise - the same rules as ApplyMaxHealth. The points
+        /// moved are kept on the effect and are exactly what RevertAttribute puts back. A health
+        /// change is told to the clients; the others are the server's own figures.
+        /// </summary>
+        private static void ApplyAttribute(MapChannel mapChannel, Actor actor, GameEffect effect)
+        {
+            if (!actor.Attributes.TryGetValue(effect.AttributeId.Value, out var attribute) || attribute.CurrentMax <= 0)
+                return;
+
+            var delta = (int)Math.Round(attribute.CurrentMax * effect.AttributePercent / 100.0);
+
+            delta = Math.Max(delta, 1 - attribute.CurrentMax);
+
+            attribute.CurrentMax += delta;
+
+            if (delta > 0 && attribute.Current > 0)
+                attribute.Current += delta;
+
+            attribute.Current = Math.Min(attribute.CurrentMax, attribute.Current);
+            effect.AttributeApplied = delta;
+
+            if (attribute.AttributeId == Attributes.Health)
+                CellManager.Instance.CellCallMethod(mapChannel, actor, new UpdateHealthPacket(attribute, actor.EntityId));
+        }
+
+        private static void RevertAttribute(MapChannel mapChannel, Actor actor, GameEffect effect, bool announce)
+        {
+            var delta = effect.AttributeApplied;
+            effect.AttributeApplied = 0;
+
+            if (!effect.AttributeId.HasValue || !actor.Attributes.TryGetValue(effect.AttributeId.Value, out var attribute))
+                return;
+
+            attribute.CurrentMax = Math.Max(1, attribute.CurrentMax - delta);
+
+            // A cut coming off gives the maximum back, and the value as far as it was cut.
+            if (delta < 0 && attribute.AttributeId != Attributes.Health)
+                attribute.Current -= delta;
+
+            attribute.Current = Math.Min(attribute.CurrentMax, attribute.Current);
+
+            if (announce && mapChannel != null && attribute.AttributeId == Attributes.Health)
+                CellManager.Instance.CellCallMethod(mapChannel, actor, new UpdateHealthPacket(attribute, actor.EntityId));
+        }
+
+        /// <summary>
+        /// Whether something on the actor stops it being healed (Disease P5, "All Healing:
+        /// Disabled"). ActorManager.Heal asks; so should anything else that heals, creatures
+        /// included.
+        /// </summary>
+        public static bool HealingBlocked(Actor actor)
+        {
+            foreach (var effect in actor.ActiveEffects.Values)
+                if (effect.BlocksHealing && !effect.IsExpired)
+                    return true;
+
+            return false;
         }
 
         private static void RevertMaxHealth(MapChannel mapChannel, Actor actor, GameEffect effect, bool announce)

@@ -394,7 +394,8 @@ namespace Rasa.Test.Missions.Wilderness
             using var harness = CreateIntegratedHub();
             harness.SpawnWorld(173, 171);
             var skeev = SpawnSkeev(harness);
-            Assert.AreNotEqual(Factions.AFS, skeev.Faction, "The real hostile faction must not be changed to fake passivity.");
+            Assert.AreEqual(TargetCategory.Hostile, skeev.TargetCategory,
+                "The real hostile category must not be changed to fake passivity.");
             ManifestationManager.Instance.UpdateStatsValues(harness.Client, true);
             harness.MoveTo(skeev.Position + new Vector3(0, 0, 2));
             var before = harness.Client.Player.Attributes[Attributes.Health].Current +
@@ -615,8 +616,8 @@ namespace Rasa.Test.Missions.Wilderness
         public void CormanArcRunsFromQuarantineThroughTheOutdoorCouncilChainToBeacham()
         {
             using var harness = WildernessRuntimeTestHarness.Create();
-            harness.SpawnWorld(218, 203, 173, 178, 169, 170, 174, 175, 176, 177, 191,
-                156, 520065, 171, 510002, 510004, 186);
+            harness.SpawnWorld(218, 203, 173, 178, 580018, 170, 174, 175, 176, 177, 191,
+                580009, 580013, 520065, 171, 510002, 510004, 186);
             var skeev = SpawnSkeev(harness);
             using (var unit = harness.CreateChar())
                 unit.ExecuteTransaction(() => unit.CharacterFlags.Set(harness.Client.Player.Id, CharacterFlagIds.BootcampComplete, 1));
@@ -654,7 +655,7 @@ namespace Rasa.Test.Missions.Wilderness
             var samuel = harness.Npc(178);
             Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, eleanor.EntityId, 425));
             Assert.IsTrue(harness.Manager.CompleteOfferedObjective(harness.Client, samuel.EntityId, 425, 1, 1));
-            var graal = LiveCreature(harness, 90, 169);
+            var graal = LiveCreature(harness, 90, 580018);
             Kill(harness, graal);
             var loot = harness.Map.LootDispensers[graal.CorpseLootEntityId];
             LootDispenserManager.Instance.RequestLootAllFromCorpse(harness.Client,
@@ -695,8 +696,8 @@ namespace Rasa.Test.Missions.Wilderness
             var gadfly = harness.Npc(191);
             Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, doyan.EntityId, 695));
             Assert.IsTrue(harness.Manager.CompleteOfferedObjective(harness.Client, gadfly.EntityId, 695, 4, 1));
-            Kill(harness, LiveCreature(harness, 80, 156));
-            Kill(harness, LiveCreature(harness, 75, 156));
+            Kill(harness, LiveCreature(harness, 80, 580013));
+            Kill(harness, LiveCreature(harness, 75, 580009));
             Kill(harness, LiveCreature(harness, 79, 520065));
             for (var index = 1; index <= 5; index++)
                 Use(harness, Object(harness, 695, $"tinctu-{index}"));
@@ -776,11 +777,11 @@ namespace Rasa.Test.Missions.Wilderness
         {
             var template = harness.World.Set<CreatureEntry>().SingleOrDefault(entry => entry.ClassId == 28589 && entry.NameId == 6734);
             Assert.IsNotNull(template, "The coordinator's native Skeev World actor is required; do not substitute another boss.");
-            Assert.AreEqual(530130U, template.Id);
+            Assert.AreEqual(630130U, template.Id);
             var spawn = harness.World.Set<SpawnPoolEntry>().SingleOrDefault(entry =>
                 entry.MapContextId == 1220 && entry.Creature1Id == template.Id);
             Assert.IsNotNull(spawn, "Skeev requires one centrally allocated public spawn.");
-            Assert.AreEqual(530130U, spawn.Id);
+            Assert.AreEqual(630130U, spawn.Id);
             Assert.IsTrue(Vector3.Distance(new Vector3(-400, 173.679004f, 178), spawn.Position) < 0.001f);
             Assert.AreEqual(-1.19028995, spawn.Rotation, 0.000001);
             harness.SpawnWorld(spawn.Id);

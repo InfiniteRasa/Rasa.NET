@@ -52,7 +52,20 @@ namespace Rasa.Packets.MapChannel.Server
             pw.WriteULong(SourceId);        //sourceId
             pw.WriteBool(Announced);        //announce
 
-            pw.WriteDictionary(5 + (Duration.HasValue ? 1 : 0) + (DamageType != 0 ? 1 : 0) + Extras.Count);  //tooltipDict
+            WriteTooltip(pw);               //tooltipDict
+
+            foreach (var arg in Args)
+                DamageInfoWriter.WriteValue(pw, arg);
+        }
+
+        /// <summary>
+        /// The tooltip dictionary alone - also what Recv_GameEffectUpdateTooltip takes
+        /// (GameEffectUpdateTooltipPacket), which the client reads the same way and puts in place
+        /// of the whole of the old one.
+        /// </summary>
+        public void WriteTooltip(PythonWriter pw)
+        {
+            pw.WriteDictionary(5 + (Duration.HasValue ? 1 : 0) + (DamageType != 0 ? 1 : 0) + Extras.Count);
 
             if (Duration.HasValue)
             {
@@ -83,9 +96,6 @@ namespace Rasa.Packets.MapChannel.Server
                 pw.WriteString(key);
                 DamageInfoWriter.WriteValue(pw, value);
             }
-
-            foreach (var arg in Args)
-                DamageInfoWriter.WriteValue(pw, arg);
         }
     }
 }

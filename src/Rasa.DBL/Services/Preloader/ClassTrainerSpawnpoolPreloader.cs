@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace Rasa.Services.Preloader
@@ -14,9 +14,20 @@ namespace Rasa.Services.Preloader
     /// </summary>
     public class ClassTrainerSpawnpoolPreloader : PreloaderBase, IPreloader
     {
+        private static readonly string[] Columns =
+        {
+            "id", "mode", "anim_type", "respown_time", "pos_x", "pos_y", "pos_z", "rotation", "map_context_id",
+            "creature_1_Id", "creature_1_min_count", "creature_1_max_count",
+            "creature_2_Id", "creature_2_min_count", "creature_2_max_count",
+            "creature_3_Id", "creature_3_min_count", "creature_3_max_count",
+            "creature_4_Id", "creature_4_min_count", "creature_4_max_count",
+            "creature_5_Id", "creature_5_min_count", "creature_5_max_count",
+            "creature_6_Id", "creature_6_min_count", "creature_6_max_count"
+        };
+
         public void Preload(MigrationBuilder migrationBuilder)
         {
-            Insert(migrationBuilder, SpawnPoolEntry.TableName, typeof(SpawnPoolEntry));
+            Insert(migrationBuilder, SpawnPoolEntry.TableName, Columns);
         }
 
         protected override IEnumerable<object[]> GetRows()

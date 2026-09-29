@@ -188,6 +188,26 @@ namespace Rasa.Game.Missions
             { row.State = MissionOfferState.Cancelled; row.Version++; }
         }
 
+        /// <summary>
+        /// DeclineSharedMission: the recipient's pending party offer of this mission, from the sharer
+        /// whose entity it names, made to this session - cancelled, so the pending slot is free and
+        /// the same sharer can offer it again at once. Anything else (no offer, an expired one, one
+        /// from another source or an earlier session) is left as it is. Returns the party source of
+        /// the offer it cancelled, or null.
+        /// </summary>
+        internal MissionPartyOfferSource DeclineShared(ICharUnitOfWork unit, Client client, uint missionId,
+            ulong sourceEntityId)
+        {
+            var row = unit.MissionOffers.Get(client.Player.Id, missionId);
+            if (row?.State != MissionOfferState.Pending || row.SourceKind != MissionOfferSourceKind.Party ||
+                row.PartySource == null || row.PartySource.SourceEntityId != sourceEntityId ||
+                row.SessionId != client.MissionSessionId || UtcNow() >= row.ExpiresAtUtc)
+                return null;
+            row.State = MissionOfferState.Cancelled;
+            row.Version++;
+            return row.PartySource;
+        }
+
         internal void ValidateConsumed(Client client, Mission definition, Authorization offer,
             MissionLog assignment, ICharUnitOfWork unit)
         {

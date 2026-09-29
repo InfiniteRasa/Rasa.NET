@@ -17,6 +17,19 @@ namespace Rasa.Structures
         public List<LootItem> LootItems = new List<LootItem>();
         public int Credits { get; set; }
         public ulong Owner { get; set; }
+
+        /// <summary>
+        /// Who may loot it: the owner alone, or - a squad on Free For All - every member it was
+        /// shared with (PartyManager.LootersFor). Owner is always among them.
+        /// </summary>
+        public HashSet<ulong> Looters = new HashSet<ulong>();
+
+        /// <summary>
+        /// The squad members whose manifestations share in the corpse's credits - everyone who
+        /// shared in the kill (PartyManager.LootersFor's eligible list) under a squad loot method,
+        /// whoever takes the items. Empty for a corpse that is one player's.
+        /// </summary>
+        public List<ulong> CreditSharers = new List<ulong>();
         public ulong AttachedTo { get; set; }
         public bool FullyLooted { get; set; }
         public bool IsLootable { get; set; }

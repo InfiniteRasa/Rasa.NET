@@ -109,5 +109,15 @@ namespace Rasa.Repositories.World
 
             return vendorEntries;
         }
+
+        public List<VendorPriceEntry> GetVendorPrices()
+        {
+            return _worldContext.CreateNoTrackingQuery(_worldContext.VendorPriceEntries).ToList();
+        }
+
+        public List<CreatureActorNameEntry> GetActorNames()
+        {
+            return _worldContext.CreateNoTrackingQuery(_worldContext.CreatureActorNameEntries).ToList();
+        }
     }
 }

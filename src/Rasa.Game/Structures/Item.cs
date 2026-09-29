@@ -32,11 +32,24 @@
         public string Crafter { get; set; }
         public int CurrentHitPoints { get; set; }
         public uint StackSize { get; set; }
+
+        /// <summary>
+        /// The character this item was bound to when it was equipped (Bind on Equip) or bound on
+        /// request, 0 when it has not been. Persisted in items.bound_character_id.
+        /// </summary>
+        public uint BoundCharacterId { get; set; }
+
+        /// <summary>
+        /// Bound on Character, either way it can be: this item was bound to a character, or its
+        /// template is bound from the start (mission items, GM and event gear, account rewards).
+        /// What the client is sent as boundToCharacter, and what trade, the auction house and the
+        /// clan lockbox refuse.
+        /// </summary>
+        public bool IsBound => BoundCharacterId != 0 || (ItemTemplate?.BoundToCharacter ?? false);
         public MissionItemOwnership MissionOwnership { get; internal set; }
         // weapon specific
         public uint CurrentAmmo { get; set; }
         public bool IsJammed { get; set; }
-        public int CammeraProfile { get; set; }
 
         /// <summary>
         /// Heat in the barrel, 0 to <see cref="Data.WeaponHeat.Capacity"/>. Not persisted: the
@@ -51,6 +64,14 @@
 
         /// <summary>When <see cref="Heat"/> was last brought up to date, in Environment.TickCount64 ms.</summary>
         public long HeatUpdatedAt { get; set; }
+
+        /// <summary>
+        /// Wear not yet taken off <see cref="CurrentHitPoints"/>, in hit points, 0 to 1. A shot
+        /// costs a weapon a few thousandths of a hit point; they add up here until they make a
+        /// whole one (Managers.Durability). Not persisted: what is lost with it at logout is less
+        /// than a hit point.
+        /// </summary>
+        public double WearCarry { get; set; }
     }
 
     public sealed record MissionItemOwnership(uint CharacterId, uint MissionId, string AssignmentId,

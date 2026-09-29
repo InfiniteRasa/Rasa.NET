@@ -21,5 +21,19 @@ namespace Rasa.Repositories.Char.CharacterTitle
 
             return entries;
         }
+
+        public bool Add(uint characterId, uint titleId)
+        {
+            if (characterId == 0 || titleId == 0)
+                throw new System.ArgumentOutOfRangeException(characterId == 0 ? nameof(characterId) : nameof(titleId));
+
+            if (_charContext.CreateNoTrackingQuery(_charContext.CharacterTitleEntries)
+                .Any(e => e.CharacterId == characterId && e.TitleId == titleId))
+                return false;
+
+            _charContext.CharacterTitleEntries.Add(new Structures.Char.CharacterTitleEntry(characterId, titleId));
+            _charContext.SaveChanges();
+            return true;
+        }
     }
 }

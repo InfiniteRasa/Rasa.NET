@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Text.RegularExpressions;
 
 namespace Rasa.Packets.Game.Client
@@ -13,6 +14,9 @@ namespace Rasa.Packets.Game.Client
         public const double MinHeight = 0.90000000000000002;
         public const double MaxHeight = 1.0600000000000001;
 
+        /// <summary>Slack for a single-precision float that meant exactly the bound.</summary>
+        public const double HeightTolerance = 1e-6;
+
         public override GameOpcode Opcode { get; } = GameOpcode.RequestCloneCharacterToSlot;
         
         public byte CloneSlotNum { get; set; }
@@ -24,7 +28,7 @@ namespace Rasa.Packets.Game.Client
 
         public Dictionary<EquipmentData, AppearanceData> AppearanceData { get; } = new Dictionary<EquipmentData, AppearanceData>();
 
-        private static readonly Regex NameRegex = new Regex(@"^\w{3,20}$", RegexOptions.Compiled);
+        private static readonly Regex NameRegex = new Regex(@"^\w{3,20}\z", RegexOptions.Compiled);
 
         public override void Read(PythonReader pr)
         {
@@ -48,6 +52,9 @@ namespace Rasa.Packets.Game.Client
 
         public CreateCharacterResult Validate()
         {
+            if (CharacterName == null)
+                return CreateCharacterResult.InvalidEncoding;
+
             if (CharacterName.Length < 3)
                 return CreateCharacterResult.NameTooShort;
 
@@ -57,8 +64,21 @@ namespace Rasa.Packets.Game.Client
             if (!NameRegex.IsMatch(CharacterName))
                 return CreateCharacterResult.NameFormatInvalid;
 
-            if (Scale < MinHeight || Scale > MaxHeight)
+            // The client sends the height as a single-precision float, and 0.9f widened to
+            // double is 0.89999997..., below MinHeight: the slider at its leftmost stop was
+            // "Invalid value entered for character height". Anything within float rounding of
+            // the range is accepted and snapped to it, so the stored scale is exact.
+            if (Scale < MinHeight - HeightTolerance || Scale > MaxHeight + HeightTolerance)
                 return CreateCharacterResult.InvalidCharacterHeight;
+
+            Scale = Math.Clamp(Scale, MinHeight, MaxHeight);
+
+            // As creation holds them: a real race, and male or female.
+            if (RaceId < Race.Human || RaceId > Race.Thrax)
+                return CreateCharacterResult.CharacterCreationInvalidRace;
+
+            if (Gender > 1)
+                return CreateCharacterResult.InvalidEncoding;
 
             return CreateCharacterResult.Success;
         }

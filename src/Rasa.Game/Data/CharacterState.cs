@@ -38,7 +38,7 @@ namespace Rasa.Data
         Recovery      = 19, // Action
         Windup        = 20, // Action
         NoTool        = 21, // Tool
-        ToolReady     = 22, // Tool
+        ToolReady     = 24, // Tool: the client's characterstatedata has TOOL_READY at 24, and no 22
         Special       = 25, // Movement
         Dying         = 26, // Control
     }

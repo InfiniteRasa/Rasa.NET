@@ -676,8 +676,8 @@ namespace Rasa.Test.Missions
         {
             using var fixture = new SharedActorRepeatFixture();
             var context = fixture.Context;
-            fixture.Guide.Faction = Factions.Bane;
-            fixture.Independent.Faction = Factions.AFS;
+            fixture.Guide.TargetCategory = TargetCategory.Hostile;
+            fixture.Independent.TargetCategory = TargetCategory.Friendly;
             Assert.IsTrue(context.Manager.AcceptOfferedMission(context.Client, fixture.Giver.EntityId, 321));
             var old = context.ReadMission(321);
             Assert.IsTrue(context.Manager.Scenes.ExecuteNamed(context.Client, 321, control));

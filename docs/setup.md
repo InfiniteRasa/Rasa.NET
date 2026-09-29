@@ -122,6 +122,22 @@ If you want to overwrite one or multiple settings from the appsettings.json of `
 
 - The env.json files is ignored in git. Keep it that way, this configuration applies only for your development enviroment.
 
+### Squad voice chat
+`Rasa.Game` runs the voice server the game client's built-in squad voice chat connects to. It is configured in the `VoiceConfig` section of its appsettings.json:
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `Enabled` | `true` | `false` turns squad voice chat off; clients are told it is unavailable and never try to connect. A missing section also means off. |
+| `PublicAddress` | `""` | Host or IP clients connect to for voice. Empty uses `GameConfig.PublicAddress`. |
+| `BindAddress` | `0.0.0.0` | Local address the UDP socket binds to. |
+| `Port` | `8103` | UDP port. Forward it as **UDP** on your router or firewall (docker-compose maps `8103/udp`). |
+| `MaxTalkTime` | `60` | Seconds of talk time shown on the player's talk-time bar. Display only. |
+| `TalkTimeRegen` | `1` | Seconds of talk time regained per second of silence. |
+| `TimeoutSeconds` | `30` | A voice connection silent this long is dropped. |
+| `TokenLifetimeSeconds` | `60` | How long a voice login token stays valid. |
+| `LogSessions` | `true` | Log voice logins, logouts and refusals. |
+
+Changes are picked up when the file is reloaded; a new `BindAddress` or `Port` restarts the voice listener. Type `voice` on the game server console to see who is connected. Players talk with the game's push-to-talk key while in a squad, with voice enabled in their options.
 ### Game configuration ownership
 
 `Rasa.Game\Config` owns the server settings loaded from `src\Rasa.Game\appsettings.json`:
@@ -266,8 +282,8 @@ starting Game. Both providers use shared C# mission-data helpers.
 
 The mission baseline consolidates its 162 development-time migration steps
 into **six**, counting SQLite and MySQL separately. Migrations already on
-`development` remain unchanged. The Wilderness rollout appends paired forward
-World migrations after that baseline.
+`development` remain unchanged. The Wilderness rollout appends paired World
+migrations after the complete PR105 history.
 
 | Database | New migrations for each provider |
 | --- | --- |
@@ -282,11 +298,46 @@ paths, or remove your own disposable files when you intend to start over.
 Do not rewrite `__EFMigrationsHistory` to make an old branch database appear
 compatible. The server does not delete databases or reset characters.
 
-Databases already at `SeedWorldContent` or a supported Wilderness migration
-can apply the later Wilderness migrations normally. Those upgrades preserve
-existing Char assignments, inventory, flags and history, including partial
-Targets of Opportunity progress. This does not make the removed experimental
-migration histories supported upgrade sources.
+The supported rollout targets are a fresh merged database and an existing
+PR105 database. PR105's final World migration is
+`20261103000000_Snowball_stacks_not_unique`. All 17 Wilderness migration pairs
+follow it, in the order below; each timestamp is identical for SQLite and MySQL.
+The Wilderness-only World updates do not reset existing PR105 Char assignments,
+inventory, flags or history.
+
+| Timestamp | Wilderness migration |
+| --- | --- |
+| `20261104000000` | `WildernessOpeningWorld` |
+| `20261104000100` | `NativeMissionCategory` |
+| `20261104000200` | `WildernessAliaOpening` |
+| `20261104000300` | `WildernessHubWorld` |
+| `20261104000400` | `RelatedMissionFailureAction` |
+| `20261104000500` | `WildernessRewardEquipment` |
+| `20261104000600` | `WildernessAdditionalWorld` |
+| `20261104000700` | `WildernessSpawnStatistics` |
+| `20261104000800` | `WildernessAliaBranches` |
+| `20261104000900` | `WildernessSniperPlacement` |
+| `20261104001000` | `WildernessElohPinhole` |
+| `20261104001100` | `WildernessLandingZone` |
+| `20261104001200` | `WildernessSupportedRewards` |
+| `20261104001300` | `WildernessTwinPillars` |
+| `20261104001400` | `WildernessRanjaGorge` |
+| `20261104001500` | `WildernessDaghdasUrn` |
+| `20261104001600` | `WildernessEvidenceCapacity` |
+
+The earlier September Wilderness migration IDs were unshipped and are not an
+upgrade source for this integration. Their development databases are disposable;
+use fresh configured paths rather than rewriting `__EFMigrationsHistory`.
+Intermediate-upgrade fixtures use the November lineage and retain their own
+active mission progress. That regression coverage does not convert old
+experimental or September Wilderness saves.
+
+Mission-authored World creatures, pools and attack rows now use the allocated
+`630001..630199` namespace, leaving PR105's Divide `530xxx` rows untouched.
+Char outcome flags `530002` and `530003` are separate identities and do not move.
+PR105's `Add_armor_values` supplies native `itemclass.max_hp` armor values before
+Wilderness starts. `WildernessRewardEquipment` is a no-op compatibility marker
+and cannot insert duplicates or delete those PR105-owned rows on rollback.
 
 `SeedWorldContent` installs shared World content, including the five enabled
 Bootcamp missions and their private experience bindings. Both providers call

@@ -18,9 +18,9 @@ namespace Rasa.Services.Preloader.Missions.Wilderness
         public const uint QuincyCreatureId = 124;
         public const uint QuincySpawnId = 202;
         public const uint EggClusterClassId = 10180;
-        public const uint PredatorCreatureId = 530120;
-        public const uint PredatorPrimarySpawnId = 530120;
-        public const uint PredatorSecondarySpawnId = 530121;
+        public const uint PredatorCreatureId = 630120;
+        public const uint PredatorPrimarySpawnId = 630120;
+        public const uint PredatorSecondarySpawnId = 630121;
 
         public static void Up(MigrationBuilder migration) =>
             Up(migration, CandidateMatthewRoute(), ProvisionalEggClusters(),
@@ -270,7 +270,7 @@ namespace Rasa.Services.Preloader.Missions.Wilderness
             mission.Evidence(3, MissionEvidenceSourceKind.Reconstruction, "repository:docs/wilderness-missions.md",
                 "Six Standard Med Packs44921 remain unchanged. Approved R substitute111227->44920 preserves the other quantity as two Class II Basic Med Packs instead of the sourced EMP Bombs, without a bomb-effect claim. Display level10 reconstructed; sourced4000XP/600credits.");
             mission.Evidence(4, MissionEvidenceSourceKind.Reconstruction, "repository:WildernessAdditionalWorldV1",
-                "The adopted outdoor source is creature530120/native class3902 in spawn pools530120 and530121. These are coordinator-owned terrain population rows, not the named Incline boss520022. Walking access and return to Soji require the final navigation acceptance gate.");
+                "The adopted outdoor source is creature630120/native class3902 in spawn pools630120 and630121. These are coordinator-owned terrain population rows, not the named Incline boss520022. Walking access and return to Soji require the final navigation acceptance gate.");
             mission.Enable(Collection("predator-parts", 2531, 3, 2, predatorCreatureIds));
         }
 

@@ -9,10 +9,6 @@
 
         public TargetCategory TargetCategory { get; set; }
 
-        public TargetCategoryPacket(Factions targetCategory) : this((TargetCategory)targetCategory)
-        {
-        }
-
         public TargetCategoryPacket(TargetCategory targetCategory)
         {
             TargetCategory = targetCategory;

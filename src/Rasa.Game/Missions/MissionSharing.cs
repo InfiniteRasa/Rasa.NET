@@ -5,6 +5,7 @@ using Rasa.Data;
 using Rasa.Game.Missions.Integration;
 using Rasa.Managers;
 using Rasa.Missions.Definitions;
+using Rasa.Packets.Communicator.Server;
 using Rasa.Repositories.Char;
 using Rasa.Repositories.UnitOfWork;
 using Rasa.Structures;
@@ -89,6 +90,56 @@ namespace Rasa.Game.Missions
 
         public bool TryAccept(Client recipient, ulong sourcePlayerEntityId, uint missionId) =>
             _missions.TryAcceptSharedMission(recipient, sourcePlayerEntityId, missionId);
+
+        /// <summary>
+        /// DeclineSharedMission: the recipient turned the offer down. Its pending offer from that
+        /// sharer is cancelled, so the slot is free for another share, and the sharer - if still on
+        /// the recipient's map - is told "%(player)s declined %(missionId)s"
+        /// (PM_MISSION_SHARING_DECLINED). A decline with no such offer, expired or from someone else,
+        /// changes nothing and is only logged.
+        /// </summary>
+        public bool TryDecline(Client recipient, ulong sourcePlayerEntityId, uint missionId)
+        {
+            if (!MissionInteractionPolicy.IsActivePlayer(recipient))
+                return Reject($"Shared mission {missionId} decline has no active recipient.");
+            if (sourcePlayerEntityId == 0)
+                return Reject($"Shared mission {missionId} decline requires a nonzero source actor.");
+
+            MissionPartyOfferSource declined = null;
+            lock (recipient.SyncRoot)
+            {
+                try
+                {
+                    using var unit = _factory.CreateChar();
+                    unit.ExecuteTransaction(() =>
+                        declined = _missions.Offers.DeclineShared(unit, recipient, missionId, sourcePlayerEntityId));
+                }
+                catch (Exception error) when (GameplayRejectionException.IsExpected(error))
+                {
+                    return Reject($"Unable to decline shared mission {missionId}: {error.Message}");
+                }
+            }
+
+            if (declined == null)
+            {
+                Logger.WriteLog(LogType.Debug,
+                    $"{recipient.Player.Name} declined mission {missionId} from entity {sourcePlayerEntityId}, but holds no pending offer of it from that sharer.");
+                return false;
+            }
+
+            var sender = recipient.Player.MapChannel.ClientList.FirstOrDefault(client =>
+                client?.Player is { } player && player.EntityId == declined.SourceEntityId &&
+                player.Id == declined.SourceCharacterId);
+            if (sender == null)
+                return true;
+
+            var message = new DisplayClientMessagePacket(PlayerMessage.PmMissionSharingDeclined,
+                new() { ["player"] = $"{recipient.Player.Name} {recipient.Player.FamilyName}" },
+                MsgFilterId.GeneralSystemMessages);
+            message.NumberArgs["missionId"] = missionId;
+            sender.CallMethod(SysEntity.CommunicatorId, message);
+            return true;
+        }
 
         internal bool SourceIsCurrent(Client recipient, Mission definition, MissionOfferSourceIdentity source,
             ICharUnitOfWork unit)

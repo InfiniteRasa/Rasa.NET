@@ -244,7 +244,9 @@ namespace Rasa.Managers
                 return;
             }
 
-            if (item.ItemTemplate.BoundToCharacter ||
+            // Bound on Character - bound when it was equipped, or bound by its template - or Not
+            // Tradable (mission items are both), or held for a mission: "This item cannot be traded."
+            if (item.IsBound || item.ItemTemplate.NotTradable ||
                 Game.Missions.Persistence.MissionItemProtection.IsProtected(item, Server.GameUnitOfWorkFactory))
             {
                 Decline(client, PlayerMessage.PmTradeItemCanNotBeTraded);
@@ -471,6 +473,11 @@ namespace Rasa.Managers
                 if (item == null || item.MissionOwnership != null || !HoldsInPersonalInventory(client, offered.EntityId))
                     return false;
 
+                // Equipped and taken off again between the offer and the exchange: a Bind on
+                // Equip item is back in the pack, bound, and is no longer the player's to give.
+                if (item.IsBound)
+                    return false;
+
                 if (offered.Matches(item))
                     continue;
 
@@ -572,9 +579,11 @@ namespace Rasa.Managers
         /// <summary>Applies a new credit total in memory and tells the player.</summary>
         private static void SetCredits(Client client, int amount)
         {
+            var before = client.Player.Credits.GetValueOrDefault(CurencyType.Credits);
+
             client.Player.Credits[CurencyType.Credits] = amount;
             client.CallMethod(client.Player.EntityId,
-                new UpdateCreditsPacket(CurencyType.Credits, amount, 0));
+                new UpdateCreditsPacket(CurencyType.Credits, amount, amount - before));
         }
 
         /// <summary>

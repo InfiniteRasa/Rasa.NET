@@ -83,10 +83,10 @@ namespace Rasa.Services.Preloader.Missions.Wilderness
             mission.Reward(6000, 900, selectableItems: new (uint, uint)[] { (26940, 1), (13739, 1) });
             var targets = new[]
             {
-                (Objective: 3U, Name: 7581U, Body: 7582U, Creature: 530076U, X: 360.8660888671875, Y: 218.5, Z: 95.262939453125),
-                (Objective: 4U, Name: 7583U, Body: 7584U, Creature: 530077U, X: 212.7183837890625, Y: 227.7, Z: 286.189453125),
-                (Objective: 5U, Name: 7585U, Body: 7586U, Creature: 530078U, X: 185.026123046875, Y: 238.3, Z: 399.9229736328125),
-                (Objective: 6U, Name: 7587U, Body: 7588U, Creature: 530079U, X: 99.7130355834961, Y: 232.5, Z: 551.562255859375)
+                (Objective: 3U, Name: 7581U, Body: 7582U, Creature: 630076U, X: 360.8660888671875, Y: 218.5, Z: 95.262939453125),
+                (Objective: 4U, Name: 7583U, Body: 7584U, Creature: 630077U, X: 212.7183837890625, Y: 227.7, Z: 286.189453125),
+                (Objective: 5U, Name: 7585U, Body: 7586U, Creature: 630078U, X: 185.026123046875, Y: 238.3, Z: 399.9229736328125),
+                (Objective: 6U, Name: 7587U, Body: 7588U, Creature: 630079U, X: 99.7130355834961, Y: 232.5, Z: 551.562255859375)
             };
             foreach (var target in targets)
             {
@@ -100,7 +100,7 @@ namespace Rasa.Services.Preloader.Missions.Wilderness
             mission.Evidence(1, MissionEvidenceSourceKind.Client, "native:missionobjective/430",
                 "All four native objectives3/4/5/6 are required. Damageable mortar class7482 is distinct from static base7478.");
             mission.Evidence(2, MissionEvidenceSourceKind.Reconstruction, "repository:docs/wilderness-missions.md",
-                "Four coordinator-owned mortar identities530076..530079 map the measured creek/ridge bases south-to-north, excluding the Imperial Valley bases. Base Leech Gun26940/Motor Assist boots13739 replace unsupported ChiTech/Olympia modifiers.");
+                "Four coordinator-owned mortar identities630076..630079 map the measured creek/ridge bases south-to-north, excluding the Imperial Valley bases. Base Leech Gun26940/Motor Assist boots13739 replace unsupported ChiTech/Olympia modifiers.");
             mission.Enable();
         }
 
@@ -133,8 +133,8 @@ namespace Rasa.Services.Preloader.Missions.Wilderness
             mission.Evidence(1, MissionEvidenceSourceKind.Client, "native:missionobjective/795",
                 "Native objective3 requires four Lightbender Glands, class11317/template2557, after Soldier's Blood776.");
             mission.Evidence(2, MissionEvidenceSourceKind.Reconstruction, "repository:docs/wilderness-missions.md",
-                "Eligible ordinary Lightbender530071/class7120 has four coordinator-owned grounded camp spawns530071..530074. Fulgor and other class variants are not substituted; one personal gland per corpse.");
-            mission.Enable(Collection("glands", 2557, 4, 3, 530071));
+                "Eligible ordinary Lightbender630071/class7120 has four coordinator-owned grounded camp spawns630071..630074. Fulgor and other class variants are not substituted; one personal gland per corpse.");
+            mission.Enable(Collection("glands", 2557, 4, 3, 630071));
         }
 
         private static void DroningOn(MigrationBuilder migration)
@@ -220,7 +220,7 @@ namespace Rasa.Services.Preloader.Missions.Wilderness
         private static void EscapeVelocity(MigrationBuilder migration)
         {
             var mission = new WildernessMissionDataV1(migration, 666, "Escape Velocity",
-                2666, 530070, 97, 7);
+                2666, 630070, 97, 7);
             mission.Objective(1, 2670, 6618, 0, MissionObjectiveState.Incomplete);
             mission.Reward(14000, 1400, selectableItems: new (uint, uint)[] { (13744, 1), (28692, 1) });
             mission.Scenario(1, "Pierre boards at the Wilderness L.Z.");
@@ -253,7 +253,7 @@ namespace Rasa.Services.Preloader.Missions.Wilderness
                 Script = "wilderness.escape-velocity",
                 Actors = new()
                 {
-                    ["pierre"] = new SceneActorDefinition("pierre", SceneActorKind.PublicSpawn, 530070),
+                    ["pierre"] = new SceneActorDefinition("pierre", SceneActorKind.PublicSpawn, 630070),
                     ["forcefield"] = new SceneActorDefinition("forcefield", SceneActorKind.Object, 20000003,
                         new ScenePosition(-273, 170, 91), Orientation: -1.570796327,
                         InitialObjectState: 196,
@@ -311,7 +311,7 @@ namespace Rasa.Services.Preloader.Missions.Wilderness
                     [1] = new SceneSequenceDefinition()
                 },
                 Names = new() { ["forcefield-open-state"] = 199 },
-                PublicEncounter = new PublicEncounterBinding(666, 530070, "pierre", "wilderness.escape-velocity",
+                PublicEncounter = new PublicEncounterBinding(666, 630070, "pierre", "wilderness.escape-velocity",
                     OwnerLossPolicy: "Fail")
             });
         }

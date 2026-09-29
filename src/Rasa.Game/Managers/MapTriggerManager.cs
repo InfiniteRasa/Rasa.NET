@@ -77,7 +77,7 @@ namespace Rasa.Managers
                 var dropshipInfoList = Objects.CreateListOfDropships(client, mapTrigger.TriggerId);
 
                 client.CallMethod(SysEntity.ClientMethodId,
-                    new EnteredWaypointPacket(client.Player.MapChannel.InstanceId, mapTrigger.MapContextId,
+                    new EnteredWaypointPacket(client.Player.MapChannel.MapInfo.MapContextId, mapTrigger.MapContextId,
                         dropshipInfoList, WaypointType.Dropship, mapTrigger.TriggerId));
             }
         }

@@ -120,12 +120,26 @@ namespace Rasa.Services.Preloader
             }
         }
 
-        private static string[] GetColumns(System.Type entityType) =>
-            entityType.GetProperties(BindingFlags.Instance | BindingFlags.Public)
+        /// <summary>
+        /// Columns a migration after SeedWorldContent adds to a table this seed writes. The seed
+        /// runs against the table as it stood at that point in the history, so these are left
+        /// out of its inserts and the later migration's default fills them.
+        /// </summary>
+        private static readonly Dictionary<System.Type, string[]> ColumnsAddedAfterSeed = new Dictionary<System.Type, string[]>
+        {
+            [typeof(SpawnPoolEntry)] = new[] { "radius" }   // 20260926200300_Add_spawn_areas
+        };
+
+        private static string[] GetColumns(System.Type entityType)
+        {
+            var later = ColumnsAddedAfterSeed.TryGetValue(entityType, out var added) ? added : System.Array.Empty<string>();
+
+            return entityType.GetProperties(BindingFlags.Instance | BindingFlags.Public)
                 .SelectMany(property => property.GetCustomAttributes<ColumnAttribute>())
                 .Select(attribute => attribute.Name)
-                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Where(name => !string.IsNullOrWhiteSpace(name) && !later.Contains(name))
                 .ToArray();
+        }
 
         private static string ToSqlLiteral(object value)
         {

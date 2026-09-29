@@ -10,6 +10,11 @@ namespace Rasa.Packets.MapChannel.Server
     {
         public override GameOpcode Opcode { get; } = GameOpcode.EnteredWaypoint;
 
+        /// <summary>
+        /// The map the player is on, by the id its row in the list is keyed by - its context id
+        /// (MapInstanceInfo's mapId). The window marks that row "(current)" and starts with it
+        /// selected; sent as the instance number, it matched no row.
+        /// </summary>
         internal uint CurrentMapId { get; set; }
         internal uint GameContextId { get; set; }
         public Dictionary<uint, MapWaypointInfoList> MapWaypointInfoList { get; set; }

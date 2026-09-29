@@ -28,7 +28,7 @@ namespace Rasa.Test.Missions.Wilderness
         public void ApirkaOffersConscientiousObjectorOnlyAfterFormingAlliances()
         {
             using var harness = CreateHarness();
-            harness.SpawnWorld(219, 530010);
+            harness.SpawnWorld(219, 630010);
             var apirka = harness.Npc(219);
             Assert.IsNotNull(apirka, "Apirka must be an actual migrated public NPC.");
             Assert.AreEqual(43U, apirka.DbId);
@@ -127,7 +127,7 @@ namespace Rasa.Test.Missions.Wilderness
             using var harness = CreateHarness();
             var npcs = new NpcManager(harness, harness.Manager);
             var milpas = StartMilpasEscort(harness, npcs, 1);
-            var firstLease = harness.Manager.PublicActors.Handle(harness.Map, 530010);
+            var firstLease = harness.Manager.PublicActors.Handle(harness.Map, 630010);
             Assert.IsNotNull(firstLease);
             var next = harness.Context.CreateAdditionalClient(2, manager: harness.Manager);
             try
@@ -144,15 +144,15 @@ namespace Rasa.Test.Missions.Wilderness
                 npcs.RequestNpcConverse(next, new RequestNPCConversePacket { EntityId = apirka.EntityId });
                 npcs.AssignNPCMission(next, new AssignNPCMissionPacket { NpcEntityId = apirka.EntityId, MissionId = 1390 });
                 Assert.IsTrue(next.Player.Missions.ContainsKey(1390));
-                var secondLease = harness.Manager.PublicActors.Handle(harness.Map, 530010);
+                var secondLease = harness.Manager.PublicActors.Handle(harness.Map, 630010);
                 Assert.IsNotNull(secondLease);
                 Assert.AreNotEqual(firstLease.RunId, secondLease.RunId);
                 Assert.IsFalse(harness.Manager.PublicActors.TryResolve(harness.Map, firstLease, out _));
                 Assert.AreEqual(1, harness.Map.MapCellInfo.Cells.Values.SelectMany(cell => cell.CreatureList)
-                    .Count(creature => creature.DbId == 530010 && creature.State != CharacterState.Dead));
+                    .Count(creature => creature.DbId == 630010 && creature.State != CharacterState.Dead));
                 CompleteObjective(harness, npcs, 219, 1390, 11);
                 TurnIn(harness, npcs, 219, 1390, 0);
-                Assert.AreEqual(secondLease, harness.Manager.PublicActors.Handle(harness.Map, 530010));
+                Assert.AreEqual(secondLease, harness.Manager.PublicActors.Handle(harness.Map, 630010));
             }
             finally
             {
@@ -197,18 +197,18 @@ namespace Rasa.Test.Missions.Wilderness
         public void FulgorsRealCorpseSuppliesTheShipmentOnlyAfterLootFits()
         {
             using var harness = CreateHarness();
-            harness.SpawnWorld(210, 180, 157, 46);
+            harness.SpawnWorld(210, 180, 580010, 580019);
             SeedCompletedHistory(harness, 1407, 1069, 479);
             var npcs = new NpcManager(harness, harness.Manager);
             var offer = Accept(harness, npcs, 210, 427);
             CollectionAssert.AreEqual(new uint[] { 20697 },
                 Preview(offer, 427).FixedReward.FixedItems.Select(item => item.ItemTemplateId).ToArray());
             CompleteObjective(harness, npcs, 180, 427, 1);
-            var thrax = KillSource(harness, 46, 3, expectSingle: false);
+            var thrax = KillSource(harness, 580019, 3, expectSingle: false);
             Assert.IsFalse(harness.Map.LootDispensers[thrax.CorpseLootEntityId].LootItems
                 .Any(item => item.ItemTemplateId == 3786));
             FillCategory(harness, 11519, 50);
-            var fulgor = KillSource(harness, 157, 76);
+            var fulgor = KillSource(harness, 580010, 76);
             Assert.AreEqual(10857U, (uint)fulgor.EntityClass);
             Assert.AreEqual(10100U, fulgor.NameId);
             Assert.AreEqual(1, harness.Map.LootDispensers[fulgor.CorpseLootEntityId].LootItems
@@ -240,13 +240,13 @@ namespace Rasa.Test.Missions.Wilderness
         public void StaleFulgorLootCannotCreditANewAttemptAndRetainedShipmentDoesNotDeadlockRetry()
         {
             using var harness = CreateHarness();
-            harness.SpawnWorld(210, 180, 157);
+            harness.SpawnWorld(210, 180, 580010);
             SeedCompletedHistory(harness, 1407, 1069, 479);
             var npcs = new NpcManager(harness, harness.Manager);
             Accept(harness, npcs, 210, 427);
             CompleteObjective(harness, npcs, 180, 427, 1);
             var oldAssignment = harness.Client.Player.Missions[427].AssignmentId;
-            var oldCorpse = KillSource(harness, 157, 76);
+            var oldCorpse = KillSource(harness, 580010, 76);
             npcs.AbandonMission(harness.Client, new AbandonMissionPacket { MissionId = 427 });
             Accept(harness, npcs, 210, 427);
             Assert.AreNotEqual(oldAssignment, harness.Client.Player.Missions[427].AssignmentId);
@@ -254,7 +254,7 @@ namespace Rasa.Test.Missions.Wilderness
             LootSource(harness, oldCorpse);
             Assert.AreEqual(0U, HeldQuantity(harness, 3786));
             Assert.AreEqual(0U, harness.Client.Player.Missions[427].Objectives[6].ItemCounters[12714]);
-            var freshCorpse = KillSource(harness, 157, 76);
+            var freshCorpse = KillSource(harness, 580010, 76);
             Assert.AreNotEqual(oldCorpse.EntityId, freshCorpse.EntityId);
             LootSource(harness, freshCorpse);
             Assert.AreEqual(1U, HeldQuantity(harness, 3786));
@@ -273,7 +273,7 @@ namespace Rasa.Test.Missions.Wilderness
 
         private static Creature StartMilpasEscort(WildernessRuntimeTestHarness harness, NpcManager npcs, int choice)
         {
-            harness.SpawnWorld(100, 192, 219, 530010);
+            harness.SpawnWorld(100, 192, 219, 630010);
             SeedCompletedHistory(harness, 1407, 1069, 479);
             var offer = Accept(harness, npcs, 219, 1390);
             CollectionAssert.AreEqual(new uint[] { 44918, 44917 },
@@ -295,7 +295,7 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.AreEqual(MissionObjectiveState.Inactive,
                 harness.Client.Player.Missions[1390].Objectives[choice == 1 ? 3U : 2U].State);
             CompleteObjective(harness, npcs, 192, 1390, choice == 1 ? 2U : 3U);
-            var milpas = LiveCreature(harness, 530010, 530010);
+            var milpas = LiveCreature(harness, 630010, 630010);
             Assert.AreEqual(9519U, milpas.NameId);
             Assert.AreEqual(26833U, (uint)milpas.EntityClass);
             Assert.AreEqual(MissionObjectiveState.Incomplete,
@@ -335,12 +335,12 @@ namespace Rasa.Test.Missions.Wilderness
 
         private static void WaitForMilpasRelease(WildernessRuntimeTestHarness harness)
         {
-            for (var tick = 0; tick < 1200 && harness.Manager.PublicActors.Handle(harness.Map, 530010) != null; tick++)
+            for (var tick = 0; tick < 1200 && harness.Manager.PublicActors.Handle(harness.Map, 630010) != null; tick++)
             {
-                harness.SpawnWorldAfter(1000, 530010);
+                harness.SpawnWorldAfter(1000, 630010);
                 harness.Tick(1000);
             }
-            Assert.IsNull(harness.Manager.PublicActors.Handle(harness.Map, 530010),
+            Assert.IsNull(harness.Manager.PublicActors.Handle(harness.Map, 630010),
                 "The completed or failed public encounter must release Milpas.");
         }
 
