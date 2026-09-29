@@ -264,9 +264,10 @@ SQLite startup creates missing files and applies pending schema/data migrations.
 MySQL requires the normal explicit `dotnet ef database update` commands before
 starting Game. Both providers use shared C# mission-data helpers.
 
-This branch consolidates its 162 development-time migration steps into **six**,
-counting SQLite and MySQL separately. Migrations already on `development` remain
-unchanged.
+The mission baseline consolidates its 162 development-time migration steps
+into **six**, counting SQLite and MySQL separately. Migrations already on
+`development` remain unchanged. The Wilderness rollout appends paired forward
+World migrations after that baseline.
 
 | Database | New migrations for each provider |
 | --- | --- |
@@ -274,12 +275,18 @@ unchanged.
 | Char | `ConsolidatedCharacterSchema` |
 | World | `ConsolidatedWorldSchema`, then `SeedWorldContent` |
 
-The consolidated history targets **fresh databases**. It does not upgrade
+The consolidated baseline targets **fresh databases**. It does not upgrade
 databases that recorded the removed branch migration IDs, convert experimental
 mission releases, or backfill intermediate character saves. Use fresh database
 paths, or remove your own disposable files when you intend to start over.
 Do not rewrite `__EFMigrationsHistory` to make an old branch database appear
 compatible. The server does not delete databases or reset characters.
+
+Databases already at `SeedWorldContent` or a supported Wilderness migration
+can apply the later Wilderness migrations normally. Those upgrades preserve
+existing Char assignments, inventory, flags and history, including partial
+Targets of Opportunity progress. This does not make the removed experimental
+migration histories supported upgrade sources.
 
 `SeedWorldContent` installs shared World content, including the five enabled
 Bootcamp missions and their private experience bindings. Both providers call

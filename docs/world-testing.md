@@ -10,7 +10,10 @@ For mission creation, use [mission authoring and operations](missions.md) and
 the [data/script reference](mission-reference.md). This page describes behavior
 and acceptance checks. Mission data is installed by the normal provider
 migrations: automatically at SQLite startup and manually for MySQL.
-This branch's migration-owned design targets fresh databases.
+The consolidated baseline targets fresh databases; the later Wilderness
+migrations are forward upgrades from that merged baseline. Upgrade fixtures must
+retain existing Char state and the same active Targets of Opportunity assignment.
+Do not reset a user database to run these checks.
 
 ## Run the automated checks
 
@@ -1018,13 +1021,15 @@ NPC conversations derive dispense, objective-complete, and mission-complete
 entries from the character's current lifecycle state. A rewarded mission is not
 offered again by its giver or receiver.
 Vending, auction, and clan behavior remains the fallback when no mission state
-applies. The recovered opening Wilderness metadata identifies missions
+applies. The preserved, source-only Wilderness catalog identifies missions
 `1449` (Wilderness Targets of Opportunity), `1407` (Too Close For Comfort) and
 `1069` (Receptive Reception), including source-backed objective text identities
 and four completion-conversation bindings. Missing ordinals, initial/required
 states, transitions, indicators, counters, prerequisites, repeatability, and
-rewards remain null/absent, so these definitions stay inactive and never appear
-in conversation packets.
+rewards remain null/absent in that fallback catalog. Those incomplete fallback
+definitions never appear in conversation packets. The later World migrations
+install separate, complete operational definitions for the same native IDs;
+do not confuse source preservation with the latest deployed content.
 
 The source-only catalog also preserves these bounded progress slices:
 
@@ -1046,9 +1051,16 @@ The source-only catalog also preserves these bounded progress slices:
   inferred from corroborating rows. Every objective outside the exact listed
   rules has no progress rule.
 
-All three definitions have `IsOperational == false`, carry no production
+All three fallback definitions have `IsOperational == false`, carry no production
 rewards, and produce no character mission/objective/counter writes or mission
 packets for any progress event. Source preservation is not activation.
+
+The current Wilderness providers enable exactly 64 outdoor definitions plus
+the five protected Bootcamp missions. `1449` retains its assignment, counters
+and instance-dependent goals across hub upgrades. Outdoor progress cannot
+unlock its final reward. Conditional, retired, unmatched and other-zone
+candidates remain excluded according to the
+[native coverage ledger](wilderness-missions.md#excluded-and-conditional-inventory).
 
 Run the progress and adapter boundary checks with:
 
@@ -1083,6 +1095,81 @@ rerolling them. Alive creatures, reserved deliveries and in-flight dropships
 block another generation. The last such reference leaving starts cooldown;
 remaining corpses do not delay the next generation. Each death and terminal
 corpse removal changes counters once, independently of observer count.
+
+## Wilderness integration and native-client acceptance
+
+The automated release gate uses the real migrated catalog, native request
+handlers, disposable character persistence and public-map actors:
+
+```powershell
+dotnet test src\Rasa.Test\Rasa.Test.csproj --configuration Release --no-restore --filter "TestCategory=WildernessG2|FullyQualifiedName~WildernessCoverageTests|FullyQualifiedName~WildernessProgressionAcceptanceTests|FullyQualifiedName~WildernessRewardReconstructionTests"
+dotnet build Rasa.NET.sln --configuration Release --no-restore
+dotnet test Rasa.NET.sln --configuration Release --no-restore
+```
+
+The G2 category includes the full Quarantine -> council -> Daghda -> medicine ->
+Beacham chain and the surrender, refusal and timeout branches. Hub tests use
+ordinary latest World migrations rather than reapplying their data helpers.
+Provider checks retain baseline round trips and active `1449` identity,
+flags, inventory and partial counters. MySQL SQL is generated offline.
+
+Supported consumable rewards use existing medpack action `419`, not the
+replaced EMP, grenade, adrenaline, trauma or module effects. Tests cover actual
+earned rewards, injured-player healing, commit-before-consumption publication,
+rejected input and cooldown replay. A recovered ability action is single-use;
+replaying its callback cannot consume a second unit from a surviving stack.
+
+Native-client and live-MySQL acceptance for this rollout remain **unperformed**.
+W6's scoped healing-disc and salvage-tool cases establish equip/profile/persistence,
+not native tool-operation acceptance. They also do not establish an OS-process
+restart midway through Matthew's escort.
+Before claiming either, use separately authorized, disposable environments:
+
+Record the server commit and uncommitted changes, applied World/Char migrations,
+provider/version, client version, character class/level and public map instance.
+For every check, record **passed**, **failed** or **not run**, together with the
+mission/objective ID, exact action, expected/actual result and supporting evidence.
+A packet emitted by the server is not sufficient evidence of native presentation.
+
+1. Exercise normal Bootcamp extraction, its retry path, account skip and an
+   existing public-world character. Verify arrival and Rogers's existing
+   final turn-in without duplicate starting inventory, rewards, entitlements
+   or assignments.
+2. Open native offers, reminders, objective conversations, choices and the
+   journal. Check text, objective order, category and counters, with no blank
+   bookkeeping objectives. Closing a conversation must not progress it or
+   grant items; out-of-range and stale callbacks must be rejected.
+3. Walk each hub and the Solis, Milpas, Pierre, Ranja and survey approaches with
+   the native 1.16.5.0 client. Check floor, collision, headings, markers and
+   reachable interactions. For escorts, cover combat, blocked movement and
+   actual arrival; a transport or respawn shortcut must not complete the route.
+4. Verify collection from actual eligible corpse pickups, not death alone.
+   Mission `479` requires twelve physical hearts. Check exact turn-in costs,
+   full-bag rejection/retry and cleanup. Destruction needs actual zero HP;
+   reusing or destroying one object cannot replace distinct targets.
+5. Exercise public encounters with two players at incompatible stages,
+   including owner departure, failure, abandonment, reconnect and actor reuse.
+   Check explicit party acceptance where authored and independent inventory,
+   choices and rewards. Private copies of named public actors are not substitutes.
+6. Use separate characters for mutually exclusive contraband outcomes. Follow
+   the plague chain through both vaccine outcomes and the timed replacement.
+   Check radio expiry, reissue, last-second completion, timeout, new-session
+   authority and Beacham's turn-in. Unowned or old-assignment items must not
+   authorize vaccine or contraband actions.
+7. Verify native reward previews, selectable alternatives, medpack use and
+   inventory persistence. Missions `422` and `434` each grant two units of
+   `44918`; they must not lose a unit when their fixed rows share a template.
+8. Accept `1449` early and reconnect after partial progress. Check numeric and
+   distinct counters, previously owned Logos/waypoints, and branch-aware story
+   groups. Preserve assignment identity and earned progress. Unbound cave
+   objectives and genuine instance goals must remain incomplete; proximity to
+   a cave or outdoor-only completion must not unlock the final reward.
+9. Confirm retired, unqualified conditional/event, other-zone and unfinished
+   instance missions are not advertised as normal outdoor offers. `1449` is
+   the deliberate partial-progress exception.
+
+Do not modify an installed client, run acceptance against user saves, or label
+offline SQL generation and source-geometry checks as live acceptance.
 
 ## Acceptance still requiring external evidence
 
