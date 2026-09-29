@@ -1326,9 +1326,18 @@ namespace Rasa.Managers
                     return;
                 }
 
+                // The travel window names the map by the id its row was listed under, and every
+                // row is listed under its map's context id (MapInstanceInfo: ordinal, mapId,
+                // status - the client keys its rows by mapId, and a dropship list has one row per
+                // map, all instance 1). Picking a waypoint selects its row, so this is that
+                // context id - 1220 for a teleporter in Alia Das - which never equals an instance
+                // number, and every pick was refused as "not in the selected instance". It is
+                // the instance that row was listed for: the waypoint's own.
+                var instanceId = packet.MapInstanceId == teleporter.MapContextId ? 0 : packet.MapInstanceId;
+
                 var destinationMap = teleporter.RuntimeMapChannel ??
-                    (packet.MapInstanceId > 1
-                        ? Maps.FindByContextAndInstance(teleporter.MapContextId, packet.MapInstanceId)
+                    (instanceId > 1
+                        ? Maps.FindByContextAndInstance(teleporter.MapContextId, instanceId)
                         : Maps.FindByContextId(teleporter.MapContextId));
                 if (destinationMap == null)
                 {
@@ -1345,7 +1354,7 @@ namespace Rasa.Managers
                     RejectTravel(client, "One-way extraction is not a travel destination.");
                     return;
                 }
-                if ((packet.MapInstanceId != 0 && packet.MapInstanceId != destinationMap.InstanceId) ||
+                if ((instanceId != 0 && instanceId != destinationMap.InstanceId) ||
                     info.Contested ||
                     (!isStartingExperienceExit &&
                         !client.Player.GainedWaypoints.Any(waypoint => waypoint.WaypointId == packet.WaypointId &&
@@ -1802,7 +1811,7 @@ namespace Rasa.Managers
                 var waypointInfoList = CreateListOfWaypoints(client, objectData.WaypointType);
 
                 client.CallMethod(SysEntity.ClientMethodId,
-                    new EnteredWaypointPacket(mapChannel.InstanceId, obj.MapContextId,
+                    new EnteredWaypointPacket(mapChannel.MapInfo.MapContextId, obj.MapContextId,
                         waypointInfoList, objectData.WaypointType, objectData.WaypointId));
 
                 // check if we already added him to the waypoint
