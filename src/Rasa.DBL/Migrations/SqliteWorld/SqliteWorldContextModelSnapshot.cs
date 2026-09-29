@@ -1404,7 +1404,7 @@ namespace Rasa.Migrations.SqliteWorld
 
                     b.Property<string>("ReconstructionNote")
                         .IsRequired()
-                        .HasColumnType("varchar(256)")
+                        .HasColumnType("text")
                         .HasColumnName("reconstruction_note");
 
                     b.Property<byte>("SourceKind")
