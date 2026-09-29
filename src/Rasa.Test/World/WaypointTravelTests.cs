@@ -74,6 +74,31 @@ namespace Rasa.Test.World
             Assert.AreEqual(1, saved);
         }
 
+        // The client acknowledges a Teleport only when a BeginTeleport has queued the answer
+        // (actor.py BeginTeleport -> _TeleportAckQueue, Recv_Teleport -> _TeleportAck), so the
+        // BeginTeleport has to come first or the transfer is never completed.
+        [TestMethod]
+        public void BeginTeleportComesBeforeTheTeleportSoTheClientAcknowledgesIt()
+        {
+            using var world = new WorldTestContext();
+            var client = world.CreateClient();
+            CellManager.Instance.AddToWorld(client);
+            WorldTestContext.Drain(client);
+            var manager = CreateManager(world);
+            AddWaypoint(manager, world.Map, 10, Vector3.Zero);
+            AddWaypoint(manager, world.Map, 20, new Vector3(200, 5, 0));
+            client.Player.GainedWaypoints.Add(new CharacterTeleporterEntry(client.Player.Id, 20, (byte)WaypointType.Waypoint));
+
+            manager.SelectWaypoint(client, new SelectWaypointPacket { MapInstanceId = world.Map.MapInfo.MapContextId, WaypointId = 20 });
+
+            var sent = WorldTestContext.Drain(client).Select(p => p.Message)
+                .OfType<CallMethodMessage>().Select(p => p.Packet).ToList();
+            var begin = sent.FindIndex(packet => packet is BeginTeleportPacket);
+            var teleport = sent.FindIndex(packet => packet is TeleportPacket);
+            Assert.IsTrue(begin >= 0, "BeginTeleport sent");
+            Assert.IsLessThan(teleport, begin, "BeginTeleport first");
+        }
+
         [TestMethod]
         [DataRow(false, false)]
         [DataRow(true, true)]

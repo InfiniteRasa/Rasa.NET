@@ -1445,9 +1445,17 @@ namespace Rasa.Managers
                 client.State = ClientState.Teleporting;
                 client.SetWorldPosition(destination, teleporter.Rotation);
                 CellManager.Instance.UpdateVisibility(client);
+
+                // BeginTeleport before the Teleport, as the dropships send it. The client answers a
+                // Teleport with TeleportAcknowledge only if a BeginTeleport has queued the answer
+                // (actor.py BeginTeleport -> _TeleportAckQueue; Recv_Teleport -> _TeleportAck, which
+                // sends nothing with none queued). Sent the other way round the ack was queued
+                // after the one chance to send it had gone: the player played the teleport, stayed
+                // held by RequestMovementBlock with the transfer never completed, and was dropped
+                // when it timed out.
+                client.CallMethod(SysEntity.ClientMethodId, new BeginTeleportPacket());
                 client.CallMethod(client.Player.EntityId,
                     new TeleportPacket(destination, teleporter.Rotation, TeleportType.Default, 5));
-                client.CallMethod(SysEntity.ClientMethodId, new BeginTeleportPacket());
                 client.CellMoveObject(client, new MoveObjectMessage(client.Player.EntityId, client.Movement), false);
             }
         }
