@@ -295,14 +295,14 @@ namespace Rasa.Test.Gameplay
                 characterMissionDeadlines: null,
                 characterMissionProgress: null,
                 characterMissionScenario: null,
-                characterOptions: null,
+                characterOptions: new Rasa.Repositories.Char.CharacterOption.CharacterOptionRepository(context),
                 characterFlags: null,
                 characterSkills: new Rasa.Repositories.Char.CharacterSkills.CharacterSkillsRepository(context),
                 characterStartingExperience: null,
                 characterTeleporters: null,
                 characterTitles: null, auctions: new AuctionRepository(context), clans: null, clanInventories: null, clanMembers: null,
                 clanLockboxLogs: null, friends: null, ignoreds: null, items: new ItemRepository(context),
-                petitions: null, userOptions: null);
+                petitions: null, userOptions: new Rasa.Repositories.Char.UserOption.UserOptionRepository(context));
         }
 
         public IWorldUnitOfWork CreateWorld() => throw new InvalidOperationException("Unexpected world database access.");

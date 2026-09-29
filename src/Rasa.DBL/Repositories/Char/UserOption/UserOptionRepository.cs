@@ -38,6 +38,23 @@ namespace Rasa.Repositories.Char.UserOption
             }
         }
 
+        public void Replace(uint accountId, IReadOnlyCollection<(uint OptionId, string Value)> options)
+        {
+            var wanted = options.ToDictionary(option => option.OptionId, option => option.Value ?? string.Empty);
+            var existing = _charContext.UserOptionEntries.Where(e => e.AccountId == accountId).ToList();
+
+            foreach (var entry in existing)
+            {
+                if (wanted.Remove(entry.OptionId, out var value))
+                    entry.Value = value;
+                else
+                    _charContext.UserOptionEntries.Remove(entry);
+            }
+
+            foreach (var (optionId, value) in wanted)
+                _charContext.UserOptionEntries.Add(new UserOptionEntry(accountId, optionId, value));
+        }
+
         public List<UserOptionEntry> Get(uint accountId)
         {
             var query = _charContext.CreateNoTrackingQuery(_charContext.UserOptionEntries);

@@ -42,6 +42,23 @@ namespace Rasa.Repositories.Char.CharacterOption
             }
         }
 
+        public void Replace(uint characterId, IReadOnlyCollection<(uint OptionId, string Value)> options)
+        {
+            var wanted = options.ToDictionary(option => option.OptionId, option => option.Value ?? string.Empty);
+            var existing = _charContext.CharacterOptionEntries.Where(e => e.CharacterId == characterId).ToList();
+
+            foreach (var entry in existing)
+            {
+                if (wanted.Remove(entry.OptionId, out var value))
+                    entry.Value = value;
+                else
+                    _charContext.CharacterOptionEntries.Remove(entry);
+            }
+
+            foreach (var (optionId, value) in wanted)
+                _charContext.CharacterOptionEntries.Add(new CharacterOptionEntry { CharacterId = characterId, OptionId = optionId, Value = value });
+        }
+
         public List<CharacterOptionEntry> Get(uint characterId)
         {
             // This ignored its argument and returned the whole table, which went unnoticed

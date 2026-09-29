@@ -3704,9 +3704,16 @@ namespace Rasa.Managers
             return byId.Select(kv => (kv.Key, kv.Value)).ToList();
         }
 
+        /// <summary>
+        /// SaveCharacterOptions: the character's options that differ from their defaults, the
+        /// whole set each time (clientmethod.py keeps the last one sent and sends only a change),
+        /// so the rows become exactly these - an option set back to its default is one missing
+        /// from the list, and an empty list is every option back to its default. A value cleared
+        /// on the client is an empty string (UserOptions/CharacterOptions.Read).
+        /// </summary>
         public void SaveCharacterOptions(Client client, SaveCharacterOptionsPacket packet)
         {
-            if (packet.OptionsList.Count == 0)
+            if (client?.Player == null || packet == null)
                 return;
 
             var options = SaneOptions(client, packet.OptionsList.Select(o => ((uint)o.OptionId, o.Value)), packet.OptionsList.Count, "SaveCharacterOptions");
@@ -3714,32 +3721,56 @@ namespace Rasa.Managers
             if (options == null)
                 return;
 
-            client.Player.CharacterOptions = packet.OptionsList;
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
 
-            foreach (var (id, value) in options)
-                unitOfWork.CharacterOptions.AddOrUpdate(client.Player.Id, id, value);
+            try
+            {
+                unitOfWork.CharacterOptions.Replace(client.Player.Id, options);
 
-            // AddOrUpdate only stages the rows; without this they were thrown away on dispose,
-            // and every option the client saved was back to its default at the next login.
-            unitOfWork.Complete();
+                // Replace only stages the rows; without this they were thrown away on dispose,
+                // and every option the client saved was back to its default at the next login.
+                unitOfWork.Complete();
+            }
+            catch (Exception error) when (error is DbUpdateException || error is DbException)
+            {
+                Logger.WriteLog(LogType.Error, $"Could not save the options of character {client.Player.Id}: {error.Message}");
+                return;
+            }
+
+            client.Player.CharacterOptions = options.Select(o => new CharacterOptions((CharacterOption)o.Id, o.Value)).ToList();
         }
 
+        /// <summary>
+        /// SaveUserOptions: the account's options that differ from their defaults - the camera,
+        /// the key bindings (User.Input.MappedCommands.*) - the whole set each time, as
+        /// SaveCharacterOptions. A key unbound on the client is an empty string, and a binding
+        /// put back to its default is left out of the list, which removes its row.
+        /// </summary>
         // maybe move this to other manager becose it's account related
         public void SaveUserOptions(Client client, SaveUserOptionsPacket packet)
         {
+            if (client?.AccountEntry == null || packet == null)
+                return;
+
             var options = SaneOptions(client, packet.OptionsList.Select(o => ((uint)o.OptionId, o.Value)), packet.OptionsList.Count, "SaveUserOptions");
 
             if (options == null)
                 return;
 
-            client.UserOptions = packet.OptionsList;
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
 
-            foreach (var (id, value) in options)
-                unitOfWork.UserOptions.AddOrUpdate(client.AccountEntry.Id, id, value);
+            try
+            {
+                unitOfWork.UserOptions.Replace(client.AccountEntry.Id, options);
+                unitOfWork.Complete();
+            }
+            catch (Exception error) when (error is DbUpdateException || error is DbException)
+            {
+                Logger.WriteLog(LogType.Error, $"Could not save the options of account {client.AccountEntry.Id}: {error.Message}");
+                return;
+            }
 
-            unitOfWork.Complete();
+            client.UserOptions = options.Select(o => new UserOptions((UserOption)o.Id, o.Value)).ToList();
         }
 
         internal void SendAvailableAllocationPoints(Client client)
