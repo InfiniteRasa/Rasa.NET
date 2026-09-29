@@ -1019,7 +1019,7 @@ namespace Rasa.Managers
             // Launchers on a grenade launcher: a chance to stun ("Grenades: +25% Stun Chance" from pump 3).
             var grenades = skillId == WeaponSkills.Launchers && weapon.ItemTemplate.WeaponInfo.ToolType == ToolType.GrenadeLauncher;
 
-            // A constant-fire weapon (the leech gun) is not fired as a missile: this interval of
+            // A constant-fire weapon (leech, polarity and propellant guns, machine guns) is not fired as a missile: this interval of
             // the fire is a tick of the effect on the shooter (ConstantFire).
             if (ConstantFire.Handles(weaponClassInfo))
             {

@@ -50,8 +50,21 @@ namespace Rasa.Managers
     /// own range (maxRange 10 on every (140, arg) row) and 45 degrees either side. The
     /// pool the propellant leaves (PROPELLANT_POOL_EFFECT 10000047, with FX for each damage type)
     /// and PROPELLANT_PUMP_EFFECT 10000046 have no numbers or behaviour in the client and are
-    /// not done. Machine guns have constant-fire effects of their own (CF_MACHINEGUN_EFFECT and
-    /// the rest) and are still fired as single shots.
+    /// not done.
+    ///
+    /// Machine guns (WEAPON_MACHINEGUN 149, a charged action in actionModules): the client's
+    /// MachinegunAttack is a ConstantFireAttack like the rest - a looping windup while the
+    /// trigger is held, the shots its effect's ticks - and each kind has its effect: the
+    /// Chaingun, Pulse, Laser and Electric Chainguns CF_MACHINEGUN_EFFECT (107, FX at levels 1,
+    /// 5, 6 and 13), the Series 2 and 3 Chainguns CF_MACHINEGUN_S2_EFFECT (443) and _S3_ (445),
+    /// the Series 2 Laser Pistol CF_PISTOL_S2_EFFECT (455), the Series 3 Laser Pistols
+    /// CF_PISTOL_S3_EFFECT (456) and the Auto Cannon CF_HUMAN_MECH_PAU (462), picked by the
+    /// action argument each weapon class fires with (<see cref="EffectTypeOf"/>); the level is
+    /// the damage type as for the others, and every kind has its FX at its own weapons' type.
+    /// They were fired as single shots, which the client took as the charged attack's one
+    /// shot: the windup ran, the recovery played a rifle's shot and nothing looped, and no
+    /// effect ever came off to stop the charge (ConstantFireEffect.OnDetach calls
+    /// StopChargingWeapon), so the weapon could not be put away until the next login.
     ///
     /// The server's auto-fire timer is what drives it: each refire the timer's shot comes here
     /// instead of MissileManager, the first one attaching the effect; StopAutoFire, a shot that
@@ -99,10 +112,23 @@ namespace Rasa.Managers
         public static bool Handles(WeaponClassInfo weapon) => weapon != null && IsConstantFire(weapon.WeaponAttackActionId);
 
         public static bool IsConstantFire(ActionId actionId) =>
-            actionId == ActionId.WeaponDensitygun || actionId == ActionId.WeaponPolaritygun || actionId == ActionId.WeaponFlamethrower;
+            actionId == ActionId.WeaponDensitygun || actionId == ActionId.WeaponPolaritygun || actionId == ActionId.WeaponFlamethrower
+            || actionId == ActionId.WeaponMachinegun;
 
-        /// <summary>The constant-fire effect an attack action plays.</summary>
-        public static int EffectTypeOf(ActionId actionId)
+        public const int MachinegunTypeId = 107;            // CF_MACHINEGUN_EFFECT
+        public const int MachinegunS2TypeId = 443;          // CF_MACHINEGUN_S2_EFFECT
+        public const int MachinegunS3TypeId = 445;          // CF_MACHINEGUN_S3_EFFECT
+        public const int PistolS2TypeId = 455;              // CF_PISTOL_S2_EFFECT
+        public const int PistolS3TypeId = 456;              // CF_PISTOL_S3_EFFECT
+        public const int MechPauTypeId = 462;               // CF_HUMAN_MECH_PAU
+
+        /// <summary>
+        /// The constant-fire effect an attack plays. A machine gun's is by the argument its weapon
+        /// class fires with: 7 the Series 3 Chaingun, 8 the Series 2, 9 the Series 2 Laser Pistol,
+        /// 10 the Series 3 Laser Pistols, 11, 12 and 16 the Auto Cannon; 1, 3, 4 and 5 (Chaingun,
+        /// Pulse, Laser, Electric) and anything else the plain machine gun's.
+        /// </summary>
+        public static int EffectTypeOf(ActionId actionId, uint actionArgId = 0)
         {
             switch (actionId)
             {
@@ -110,6 +136,18 @@ namespace Rasa.Managers
                     return PolarityGunTypeId;
                 case ActionId.WeaponFlamethrower:
                     return PropellantTypeId;
+                case ActionId.WeaponMachinegun:
+                    switch (actionArgId)
+                    {
+                        case 7: return MachinegunS3TypeId;
+                        case 8: return MachinegunS2TypeId;
+                        case 9: return PistolS2TypeId;
+                        case 10: return PistolS3TypeId;
+                        case 11:
+                        case 12:
+                        case 16: return MechPauTypeId;
+                        default: return MachinegunTypeId;
+                    }
                 default:
                     return DensityGunTypeId;
             }
@@ -298,7 +336,7 @@ namespace Rasa.Managers
 
             var effect = new GameEffect
             {
-                TypeId = EffectTypeOf(action.ActionId),
+                TypeId = EffectTypeOf(action.ActionId, action.ActionArgId),
                 EffectId = GameEffectManager.Instance.NextEffectId(mapChannel),
                 // The beam's FX: specialFX is keyed (typeId, level), the level a damage type.
                 EffectLevel = (uint)(damageType == 0 ? DamageType.Physical : damageType),

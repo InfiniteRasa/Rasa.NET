@@ -461,6 +461,14 @@ namespace Rasa.Managers
                 return;
             }
 
+            // A constant-fire weapon (leech, polarity and propellant guns, machine guns) is fired
+            // by the held trigger - StartAutoFire until StopAutoFire - and nothing else stops its
+            // effect. A lone request would put the effect on with no trigger to take it off, and
+            // the client, charging until it comes off, would not let the weapon be put away.
+            var weapon = InventoryManager.Instance.CurrentWeapon(client);
+            if (weapon != null && ConstantFire.Handles(EntityClassManager.Instance.GetWeaponClassInfo(weapon)))
+                return;
+
             ManifestationManager.Instance.PlayerTryFireWeapon(client);
 
                 /*
