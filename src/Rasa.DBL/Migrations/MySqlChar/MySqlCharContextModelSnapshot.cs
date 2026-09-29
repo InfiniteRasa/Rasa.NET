@@ -100,6 +100,10 @@ namespace Rasa.Migrations.MySqlChar
                         .HasColumnType("int unsigned")
                         .HasColumnName("ability_level");
 
+                    b.Property<uint?>("ItemId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("item_id");
+
                     b.HasKey("CharacterId", "AbilitySlot");
 
                     b.ToTable("character_ability_drawer");

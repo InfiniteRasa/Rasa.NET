@@ -1607,7 +1607,8 @@ namespace Rasa.Managers
             // Every call wrote a character_ability_drawer row for whatever slot, ability id and
             // level it named, and the whole drawer goes to everyone who meets the player. The slot
             // has to be one of the drawer's, and anything put in it an ability one of the player's
-            // skills grants at that rank or higher.
+            // skills grants at that rank or higher - or, for a usable item dragged from the pack
+            // (a pet, a medpack), exactly the action that item of theirs performs.
             if (packet.SlotId < 0 || packet.SlotId >= AbilityDrawerSlots)
             {
                 Logger.WriteLog(LogType.Security, $"{client.Player.Name} asked to set ability drawer slot {packet.SlotId}; there are {AbilityDrawerSlots}. Refused.");
@@ -1615,8 +1616,21 @@ namespace Rasa.Managers
             }
 
             var clearing = packet.AbilityId == 0 && packet.AbilityLevel == 0;
+            Item item = null;
 
-            if (!clearing &&
+            if (!clearing && packet.ItemId != 0)
+            {
+                item = EntityManager.Instance.GetItem(packet.ItemId);
+
+                if (item == null || packet.AbilityId <= 0 || packet.AbilityId > int.MaxValue ||
+                    packet.AbilityLevel <= 0 || packet.AbilityLevel > uint.MaxValue ||
+                    !AbilityManager.Instance.ItemPerforms(client.Player, item, (ActionId)packet.AbilityId, (uint)packet.AbilityLevel))
+                {
+                    Logger.WriteLog(LogType.Security, $"{client.Player.Name} asked to put action {packet.AbilityId} at level {packet.AbilityLevel} of item {packet.ItemId} in drawer slot {packet.SlotId}, which no item of theirs performs. Refused.");
+                    return;
+                }
+            }
+            else if (!clearing &&
                 (packet.AbilityId <= 0 || packet.AbilityId > int.MaxValue ||
                  packet.AbilityLevel <= 0 || packet.AbilityLevel > MaxSkillLevel ||
                  !client.Player.Skills.Values.Any(skill =>
@@ -1634,7 +1648,7 @@ namespace Rasa.Managers
             try
             {
                 unitOfWork.ExecuteTransaction(() => unitOfWork.CharacterAbilityDrawers.AddOrUpdate(
-                    client.Player.Id, packet.SlotId, (int)packet.AbilityId, (uint)packet.AbilityLevel));
+                    client.Player.Id, packet.SlotId, (int)packet.AbilityId, (uint)packet.AbilityLevel, item?.Id));
             }
             catch (Exception error) when (error is DbUpdateException || error is DbException)
             {
@@ -1647,9 +1661,9 @@ namespace Rasa.Managers
                 client.Player.Abilities.Remove(packet.SlotId);
             else
                 client.Player.Abilities[packet.SlotId] =
-                    new AbilityDrawerData(packet.SlotId, (int)packet.AbilityId, (uint)packet.AbilityLevel);
+                    new AbilityDrawerData(packet.SlotId, (int)packet.AbilityId, (uint)packet.AbilityLevel, item?.Id);
 
-            client.CallMethod(client.Player.EntityId, new AbilityDrawerPacket(client.Player.Abilities));
+            client.CallMethod(client.Player.EntityId, new AbilityDrawerPacket(client.Player.Abilities, client.Player));
         }
 
         public void RequestSwapAbilitySlots(Client client, RequestSwapAbilitySlotsPacket packet)
@@ -1671,17 +1685,17 @@ namespace Rasa.Managers
 
             var next = abilities.ToDictionary(
                 entry => entry.Key,
-                entry => new AbilityDrawerData(entry.Key, entry.Value.AbilityId, entry.Value.AbilityLevel));
+                entry => new AbilityDrawerData(entry.Key, entry.Value.AbilityId, entry.Value.AbilityLevel, entry.Value.ItemId));
 
             if (to == null)
                 next.Remove(packet.FromSlot);
             else
-                next[packet.FromSlot] = new AbilityDrawerData(packet.FromSlot, to.AbilityId, to.AbilityLevel);
+                next[packet.FromSlot] = new AbilityDrawerData(packet.FromSlot, to.AbilityId, to.AbilityLevel, to.ItemId);
 
             if (from == null)
                 next.Remove(packet.ToSlot);
             else
-                next[packet.ToSlot] = new AbilityDrawerData(packet.ToSlot, from.AbilityId, from.AbilityLevel);
+                next[packet.ToSlot] = new AbilityDrawerData(packet.ToSlot, from.AbilityId, from.AbilityLevel, from.ItemId);
 
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
 
@@ -1695,9 +1709,9 @@ namespace Rasa.Managers
                     var fromValue = next.GetValueOrDefault(packet.FromSlot);
                     var toValue = next.GetValueOrDefault(packet.ToSlot);
                     unitOfWork.CharacterAbilityDrawers.AddOrUpdate(client.Player.Id, packet.FromSlot,
-                        fromValue?.AbilityId ?? 0, fromValue?.AbilityLevel ?? 0);
+                        fromValue?.AbilityId ?? 0, fromValue?.AbilityLevel ?? 0, fromValue?.ItemId);
                     unitOfWork.CharacterAbilityDrawers.AddOrUpdate(client.Player.Id, packet.ToSlot,
-                        toValue?.AbilityId ?? 0, toValue?.AbilityLevel ?? 0);
+                        toValue?.AbilityId ?? 0, toValue?.AbilityLevel ?? 0, toValue?.ItemId);
                 });
             }
             catch (Exception error) when (error is DbUpdateException || error is DbException)
@@ -1708,7 +1722,7 @@ namespace Rasa.Managers
             }
 
             client.Player.Abilities = next;
-            client.CallMethod(client.Player.EntityId, new AbilityDrawerPacket(next));
+            client.CallMethod(client.Player.EntityId, new AbilityDrawerPacket(next, client.Player));
         }
 
         public void StartAutoFire(Client client, double yaw)
@@ -1893,7 +1907,7 @@ namespace Rasa.Managers
 
             // don't send this packet if abilityDrawer is empty
             if (player.Abilities.Count > 0)
-                client.CallMethod(player.EntityId, new AbilityDrawerPacket(player.Abilities));
+                client.CallMethod(player.EntityId, new AbilityDrawerPacket(player.Abilities, player));
 
             client.CallMethod(player.EntityId, new TitlesPacket(player.Titles));
 
@@ -1923,7 +1937,7 @@ namespace Rasa.Managers
                 return;
 
             client.CallMethod(client.Player.EntityId,
-                new AbilityDrawerPacket(client.Player.Abilities));
+                new AbilityDrawerPacket(client.Player.Abilities, client.Player));
             // Not an answer to a request: the client takes it as its requested slot as well.
             client.CallMethod(client.Player.EntityId,
                 new AbilityDrawerSlotPacket(client.Player.CurrentAbilityDrawer, false));

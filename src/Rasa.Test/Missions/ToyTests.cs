@@ -445,7 +445,7 @@ namespace Rasa.Test.Missions
             ItemManager.Instance.ItemTemplateItemClass[template] = classId;
         }
 
-        private static Item Grant(BootcampRuntimeTestHarness.Harness harness, uint template, uint quantity = 1)
+        internal static Item Grant(BootcampRuntimeTestHarness.Harness harness, uint template, uint quantity = 1)
         {
             LoadTemplate(harness, template);
             using (var unit = harness.Context.CreateChar())
@@ -506,7 +506,7 @@ namespace Rasa.Test.Missions
         }
 
         /// <summary>An AbilityManager with the one action level loaded from the seeded world tables, and the item that performs it.</summary>
-        private static AbilityManager CreateManager(BootcampRuntimeTestHarness.Harness harness, uint actionId, uint levelId, uint template)
+        internal static AbilityManager CreateManager(BootcampRuntimeTestHarness.Harness harness, uint actionId, uint levelId, uint template)
         {
             var manager = (AbilityManager)Activator.CreateInstance(typeof(AbilityManager),
                 BindingFlags.Instance | BindingFlags.NonPublic, null,

@@ -545,6 +545,14 @@ namespace Rasa.Managers
         }
 
         /// <summary>
+        /// Whether this item of the player's performs the action at this level: theirs, in their
+        /// pack, not used up, and its template's action is exactly this one (ItemTemplateActions).
+        /// What a tray slot holding an item has to be (ManifestationManager.RequestSetAbilitySlot).
+        /// </summary>
+        public bool ItemPerforms(Manifestation player, Item item, ActionId actionId, uint level) =>
+            player != null && item != null && Grants(player, actionId, level, item);
+
+        /// <summary>
         /// Whether the player may use the action at this level: a skill of theirs grants the
         /// ability at that level or higher, or the item they are using performs exactly it.
         /// </summary>

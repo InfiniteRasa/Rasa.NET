@@ -195,7 +195,7 @@ namespace Rasa.Managers
             {
                 if (ability.AbilityId == 0) continue;
 
-                abilities.Add(ability.AbilitySlot, new AbilityDrawerData(ability.AbilitySlot, ability.AbilityId, ability.AbilityLevel));
+                abilities.Add(ability.AbilitySlot, new AbilityDrawerData(ability.AbilitySlot, ability.AbilityId, ability.AbilityLevel, ability.ItemId));
             }
 
             return abilities;
