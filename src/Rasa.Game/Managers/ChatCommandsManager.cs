@@ -25,14 +25,16 @@ namespace Rasa.Managers
         /// <summary>A registered dot command and the account level it takes to run it.</summary>
         private class ChatCommand
         {
-            public ChatCommand(GmLevel level, Action<string[]> handler)
+            public ChatCommand(GmLevel level, Action<string[]> handler, params string[] arguments)
             {
                 Level = level;
                 Handler = handler;
+                Arguments = arguments ?? Array.Empty<string>();
             }
 
             public GmLevel Level { get; }
             public Action<string[]> Handler { get; }
+            public string[] Arguments { get; }
         }
         private Client _client { get; set; }
         public static ChatCommandsManager Instance
@@ -109,9 +111,22 @@ namespace Rasa.Managers
             return client?.AccountEntry != null && client.AccountEntry.Level >= (byte)required;
         }
 
-        public void RegisterCommand(string name, GmLevel level, Action<string[]> handler)
+        public void RegisterCommand(string name, GmLevel level, Action<string[]> handler, params string[] arguments)
         {
-            _commands.Add(name, new ChatCommand(level, handler));
+            _commands.Add(name, new ChatCommand(level, handler, arguments));
+        }
+
+        private string BuildCommandUsage(string name)
+        {
+            if (!_commands.TryGetValue(name, out var registered) || registered.Arguments.Length == 0)
+                return $"usage: {name}";
+
+            return $"usage: {name} {string.Join(" ", registered.Arguments)}";
+        }
+
+        private void SendCommandUsage(string name)
+        {
+            CommunicatorManager.Instance.SystemMessage(_client, BuildCommandUsage(name));
         }
 
         public void RemoveCommand(string name)
@@ -125,87 +140,87 @@ namespace Rasa.Managers
             // Observer: reads the world, changes nothing in it.
             RegisterCommand(".getdistance", GmLevel.Observer, GetDistanceCommand);
             RegisterCommand(".maperrors", GmLevel.Observer, MapErrorsCommand);
-            RegisterCommand(".missions", GmLevel.Observer, MissionInspectionCommand);
+            RegisterCommand(".missions", GmLevel.Observer, MissionInspectionCommand, "characterId");
             RegisterCommand(".gm", GmLevel.Observer, EnterGmModCommand);
-            RegisterCommand(".help", GmLevel.Observer, HelpGmCommand);
+            RegisterCommand(".help", GmLevel.Observer, HelpGmCommand, "command");
             RegisterCommand(".links", GmLevel.Observer, LinksCommand);
             RegisterCommand(".regions", GmLevel.Observer, RegionsCommand);
             RegisterCommand(".emitters", GmLevel.Observer, EmittersCommand);
             RegisterCommand(".fxpackages", GmLevel.Observer, FxPackagesCommand);
-            RegisterCommand(".navmesh", GmLevel.Observer, NavMeshCommand);
+            RegisterCommand(".navmesh", GmLevel.Observer, NavMeshCommand, "action", "x", "y", "z");
             RegisterCommand(".near", GmLevel.Observer, NearCommand);
             RegisterCommand(".npcinfo", GmLevel.Observer, NpcInfoCommand);
             RegisterCommand(".rqs", GmLevel.Observer, RqsWindowCommand);
             RegisterCommand(".where", GmLevel.Observer, WhereCommand);
             RegisterCommand(".cover", GmLevel.Observer, CoverCommand);
-            RegisterCommand(".los", GmLevel.Observer, LosCommand);
-            RegisterCommand(".camerascript", GmLevel.Observer, CameraScriptCommand);
-            RegisterCommand(".clientevent", GmLevel.Observer, ClientEventCommand);
+            RegisterCommand(".los", GmLevel.Observer, LosCommand, "entityId");
+            RegisterCommand(".camerascript", GmLevel.Observer, CameraScriptCommand, "id");
+            RegisterCommand(".clientevent", GmLevel.Observer, ClientEventCommand, "action", "event");
 
             // GameMaster: moves you, spawns and drives scenery and creatures, drives
             // your own client. A restart undoes all of it.
-            RegisterCommand(".actorstate", GmLevel.GameMaster, ActorStateCommand);
+            RegisterCommand(".actorstate", GmLevel.GameMaster, ActorStateCommand, "state", "entityId");
             RegisterCommand(".usermissions", GmMissionCommands.Level,
-                parts => GmMissionCommands.ShowUserMissions(_client, string.Join(" ", parts.Skip(1))));
+                parts => GmMissionCommands.ShowUserMissions(_client, string.Join(" ", parts.Skip(1))), "query");
             RegisterCommand(".completeobjective", GmMissionCommands.Level,
-                parts => GmMissionCommands.CompleteObjective(_client, parts));
+                parts => GmMissionCommands.CompleteObjective(_client, parts), "missionId", "objectiveId");
             RegisterCommand(".givemission", GmMissionCommands.Level,
-                parts => GmMissionCommands.GiveMission(_client, parts));
-            RegisterCommand(".track", GmLevel.GameMaster, TrackCommand);
-            RegisterCommand(".vamp", GmLevel.GameMaster, VampCommand);
-            RegisterCommand(".effect", GmLevel.GameMaster, EffectCommand);
+                parts => GmMissionCommands.GiveMission(_client, parts), "missionId");
+            RegisterCommand(".track", GmLevel.GameMaster, TrackCommand, "targetId", "entityId");
+            RegisterCommand(".vamp", GmLevel.GameMaster, VampCommand, "attribute", "amount", "entityId");
+            RegisterCommand(".effect", GmLevel.GameMaster, EffectCommand, "action", "effectId", "entityId");
             RegisterCommand(".moveflags", GmLevel.GameMaster, MoveFlagsCommand);
-            RegisterCommand(".falldamage", GmLevel.GameMaster, FallDamageCommand);
-            RegisterCommand(".immune", GmLevel.GameMaster, ImmuneCommand);
-            RegisterCommand(".feud", GmLevel.GameMaster, FeudCommand);
-            RegisterCommand(".bark", GmLevel.GameMaster, BarkCommand);
-            RegisterCommand(".comehere", GmLevel.GameMaster, ComeHereCommand);
-            RegisterCommand(".createobj", GmLevel.GameMaster, CreateObjectCommand);
-            RegisterCommand(".createobjonloc", GmLevel.GameMaster, CreateObjectOnLocationCommand);
-            RegisterCommand(".creature", GmLevel.GameMaster, CreateCreatureCommand);
-            RegisterCommand(".creatureappearance", GmLevel.GameMaster, SetCreatureAppearanceCommand);
-            RegisterCommand(".creatureloc", GmLevel.GameMaster, SetCreatureLocation);
-            RegisterCommand(".deleteobj", GmLevel.GameMaster, DeleteObjectCommand);
-            RegisterCommand(".error", GmLevel.GameMaster, ErrorCommand);
-            RegisterCommand(".forcestate", GmLevel.GameMaster, ForceStateCommand);
-            RegisterCommand(".heal", GmLevel.GameMaster, HealCommand);
-            RegisterCommand(".link", GmLevel.GameMaster, LinkCommand);
-            RegisterCommand(".minion", GmLevel.GameMaster, MinionCommand);
-            RegisterCommand(".linkhere", GmLevel.GameMaster, LinkHereCommand);
-            RegisterCommand(".kraftwerks", GmLevel.GameMaster, KraftwerksCommand);
-            RegisterCommand(".region", GmLevel.GameMaster, RegionCommand);
-            RegisterCommand(".emitter", GmLevel.GameMaster, EmitterCommand);
-            RegisterCommand(".notify", GmLevel.GameMaster, NotifyCommand);
-            RegisterCommand(".msg", GmLevel.GameMaster, MessageCommand);
-            RegisterCommand(".destination", GmLevel.GameMaster, DestinationCommand);
-            RegisterCommand(".placefield", GmLevel.GameMaster, PlaceFieldCommand);
-            RegisterCommand(".removeobj", GmLevel.GameMaster, RemoveObjectCommand);
-            RegisterCommand(".moveobj", GmLevel.GameMaster, MoveObjectCommand);
-            RegisterCommand(".rename", GmLevel.GameMaster, RenameCommand);
-            RegisterCommand(".setkillstreak", GmLevel.GameMaster, SetKillStreakCommand);
-            RegisterCommand(".setregion", GmLevel.GameMaster, SetRegionCommand);
-            RegisterCommand(".speed", GmLevel.GameMaster, SpeedCommand);
-            RegisterCommand(".tele", GmLevel.GameMaster, TeleCommand);
-            RegisterCommand(".teleport", GmLevel.GameMaster, TeleportCommand);
-            RegisterCommand(".teleup", GmLevel.GameMaster, TeleUpCommand);
-            RegisterCommand(".targetcategory", GmLevel.GameMaster, TargetCategoryCommand);
-            RegisterCommand(".blockaction", GmLevel.GameMaster, BlockActionCommand);
-            RegisterCommand(".usable", GmLevel.GameMaster, UsableCommand);
+            RegisterCommand(".falldamage", GmLevel.GameMaster, FallDamageCommand, "metres");
+            RegisterCommand(".immune", GmLevel.GameMaster, ImmuneCommand, "damageType");
+            RegisterCommand(".feud", GmLevel.GameMaster, FeudCommand, "action", "arg1", "arg2");
+            RegisterCommand(".bark", GmLevel.GameMaster, BarkCommand, "creatureEntityId", "barkId");
+            RegisterCommand(".comehere", GmLevel.GameMaster, ComeHereCommand, "creatureEntityId");
+            RegisterCommand(".createobj", GmLevel.GameMaster, CreateObjectCommand, "entityClassId");
+            RegisterCommand(".createobjonloc", GmLevel.GameMaster, CreateObjectOnLocationCommand, "entityClassId", "posX", "posY", "posZ", "orientation");
+            RegisterCommand(".creature", GmLevel.GameMaster, CreateCreatureCommand, "dbId");
+            RegisterCommand(".creatureappearance", GmLevel.GameMaster, SetCreatureAppearanceCommand, "creatureEntityId", "slotId", "classId", "color");
+            RegisterCommand(".creatureloc", GmLevel.GameMaster, SetCreatureLocation, "entityClassId", "posX", "posY", "posZ");
+            RegisterCommand(".deleteobj", GmLevel.GameMaster, DeleteObjectCommand, "entityId");
+            RegisterCommand(".error", GmLevel.GameMaster, ErrorCommand, "kind", "playerMessageId", "keyValuePairs");
+            RegisterCommand(".forcestate", GmLevel.GameMaster, ForceStateCommand, "entityId", "stateId");
+            RegisterCommand(".heal", GmLevel.GameMaster, HealCommand, "amount", "familyName");
+            RegisterCommand(".link", GmLevel.GameMaster, LinkCommand, "id", "action", "value");
+            RegisterCommand(".minion", GmLevel.GameMaster, MinionCommand, "creatureDbIdOrAction");
+            RegisterCommand(".linkhere", GmLevel.GameMaster, LinkHereCommand, "destMapId", "destX", "destY", "destZ", "radius", "kind");
+            RegisterCommand(".kraftwerks", GmLevel.GameMaster, KraftwerksCommand, "stationIdOrHere", "action", "value");
+            RegisterCommand(".region", GmLevel.GameMaster, RegionCommand, "modeOrId", "regionOrAction", "arg1", "arg2", "comment");
+            RegisterCommand(".emitter", GmLevel.GameMaster, EmitterCommand, "emitterId", "action", "value");
+            RegisterCommand(".notify", GmLevel.GameMaster, NotifyCommand, "action", "arg1", "arg2", "extra");
+            RegisterCommand(".msg", GmLevel.GameMaster, MessageCommand, "type", "value", "extra");
+            RegisterCommand(".destination", GmLevel.GameMaster, DestinationCommand, "contextIdOrMapName");
+            RegisterCommand(".placefield", GmLevel.GameMaster, PlaceFieldCommand, "action", "arg1", "arg2", "arg3");
+            RegisterCommand(".removeobj", GmLevel.GameMaster, RemoveObjectCommand, "entityId");
+            RegisterCommand(".moveobj", GmLevel.GameMaster, MoveObjectCommand, "entityId", "x", "y", "z", "rotation");
+            RegisterCommand(".rename", GmLevel.GameMaster, RenameCommand, "part", "newName", "familyName");
+            RegisterCommand(".setkillstreak", GmLevel.GameMaster, SetKillStreakCommand, "streakCount");
+            RegisterCommand(".setregion", GmLevel.GameMaster, SetRegionCommand, "regionIdsOrOff");
+            RegisterCommand(".speed", GmLevel.GameMaster, SpeedCommand, "value");
+            RegisterCommand(".tele", GmLevel.GameMaster, TeleCommand, "posX", "posY", "posZ");
+            RegisterCommand(".teleport", GmLevel.GameMaster, TeleportCommand, "posX", "posY", "posZ", "mapId");
+            RegisterCommand(".teleup", GmLevel.GameMaster, TeleUpCommand, "posY");
+            RegisterCommand(".targetcategory", GmLevel.GameMaster, TargetCategoryCommand, "category");
+            RegisterCommand(".blockaction", GmLevel.GameMaster, BlockActionCommand, "actionId", "off");
+            RegisterCommand(".usable", GmLevel.GameMaster, UsableCommand, "state", "entityId");
 
             // Admin: hands out progression, changes who a player is, reloads server data.
             // A restart does not undo these.
-            RegisterCommand(".addtitle", GmLevel.Admin, AddTitleCommand);
-            RegisterCommand(".chg_class", GmLevel.Admin, ChangeClassCommand);
-            RegisterCommand(".flag", GmLevel.Admin, FlagCommand);
-            RegisterCommand(".givecredits", GmLevel.Admin, GiveCreditsCommand);
-            RegisterCommand(".giveitem", GmLevel.Admin, GiveItemCommand);
-            RegisterCommand(".givelogos", GmLevel.Admin, GiveLogosCommand);
-            RegisterCommand(".removelogos", GmLevel.Admin, RemoveLogosCommand);
+            RegisterCommand(".addtitle", GmLevel.Admin, AddTitleCommand, "titleId");
+            RegisterCommand(".chg_class", GmLevel.Admin, ChangeClassCommand, "className");
+            RegisterCommand(".flag", GmLevel.Admin, FlagCommand, "action", "nameOrId");
+            RegisterCommand(".givecredits", GmLevel.Admin, GiveCreditsCommand, "amount", "familyName");
+            RegisterCommand(".giveitem", GmLevel.Admin, GiveItemCommand, "itemTemplateId", "quantity");
+            RegisterCommand(".givelogos", GmLevel.Admin, GiveLogosCommand, "logosId");
+            RegisterCommand(".removelogos", GmLevel.Admin, RemoveLogosCommand, "logosIdOrAll");
             RegisterCommand(".givepads", GmLevel.Admin, GivePadsCommand);
-            RegisterCommand(".givexp", GmLevel.Admin, GiveXpCommand);
-            RegisterCommand(".setlevel", GmLevel.Admin, SetLevelCommand);
-            RegisterCommand(".failmission", GmLevel.Admin, FailMissionCommand);
-            RegisterCommand(".failobjective", GmLevel.Admin, FailObjectiveCommand);
+            RegisterCommand(".givexp", GmLevel.Admin, GiveXpCommand, "ammount");
+            RegisterCommand(".setlevel", GmLevel.Admin, SetLevelCommand, "level");
+            RegisterCommand(".failmission", GmLevel.Admin, FailMissionCommand, "missionId");
+            RegisterCommand(".failobjective", GmLevel.Admin, FailObjectiveCommand, "missionId", "objectiveId");
             RegisterCommand(".reloadcreatures", GmLevel.Admin, ReloadCreaturesCommand);
         }
 
@@ -221,8 +236,7 @@ namespace Rasa.Managers
         {
             if (parts.Length != 2 || !uint.TryParse(parts[1], out var missionId))
             {
-                CommunicatorManager.Instance.SystemMessage(
-                    _client, "usage: .failmission missionId");
+                SendCommandUsage(".failmission");
                 return;
             }
 
@@ -237,8 +251,7 @@ namespace Rasa.Managers
                 !uint.TryParse(parts[1], out var missionId) ||
                 !uint.TryParse(parts[2], out var objectiveId))
             {
-                CommunicatorManager.Instance.SystemMessage(
-                    _client, "usage: .failobjective missionId objectiveId");
+                SendCommandUsage(".failobjective");
                 return;
             }
 
@@ -257,7 +270,7 @@ namespace Rasa.Managers
         {
             if (parts.Length != 2 || !uint.TryParse(parts[1], out var titleId) || titleId == 0)
             {
-                CommunicatorManager.Instance.SystemMessage(_client, "usage: .addtitle titleId");
+                SendCommandUsage(".addtitle");
                 return;
             }
 
@@ -692,7 +705,7 @@ namespace Rasa.Managers
         {
             if (parts.Length == 1)
             {
-                CommunicatorManager.Instance.SystemMessage(_client, "usage: .bark creatureEntityId barkId");
+                SendCommandUsage(".bark");
                 return;
             }
 
@@ -1470,7 +1483,7 @@ namespace Rasa.Managers
         {
             if (parts.Length == 1)
             {
-                CommunicatorManager.Instance.SystemMessage(_client, "usage: .comehere creatureEntityId");
+                SendCommandUsage(".comehere");
                 return;
             }
 
@@ -1487,7 +1500,7 @@ namespace Rasa.Managers
         {
             if (parts.Length == 1)
             {
-                CommunicatorManager.Instance.SystemMessage(_client, "usage: .creature dbId");
+                SendCommandUsage(".creature");
                 return;
             }
 
@@ -1592,7 +1605,7 @@ namespace Rasa.Managers
         {
             if (parts.Length == 1)
             {
-                CommunicatorManager.Instance.SystemMessage(_client, "usage: .createobj entityClassId");
+                SendCommandUsage(".createobj");
                 return;
             }
             if (parts.Length == 2)
@@ -1618,7 +1631,7 @@ namespace Rasa.Managers
         {
             if (parts.Length != 6)
             {
-                CommunicatorManager.Instance.SystemMessage(_client, "usage: .createobjonloc entityClassId posX posY posZ orientation");
+                SendCommandUsage(".createobjonloc");
                 return;
             }
 
@@ -1646,7 +1659,7 @@ namespace Rasa.Managers
         {
             if (parts.Length != 2)
             {
-                CommunicatorManager.Instance.SystemMessage(_client, "usage: .deleteobj entityId");
+                SendCommandUsage(".deleteobj");
                 return;
             }
 
@@ -1668,7 +1681,7 @@ namespace Rasa.Managers
         {
             if (parts.Length == 1)
             {
-                CommunicatorManager.Instance.SystemMessage(_client, "usage: .forcestate entityId stateId");
+                SendCommandUsage(".forcestate");
                 return;
             }
             // if only item template, give max stack size
@@ -1715,7 +1728,7 @@ namespace Rasa.Managers
         {
             if (parts.Length == 1)
             {
-                CommunicatorManager.Instance.SystemMessage(_client, "usage: .giveitem itemTemplateId quantity");
+                SendCommandUsage(".giveitem");
                 return;
             }
             // if only item template, give max stack size
@@ -1880,7 +1893,7 @@ namespace Rasa.Managers
         {
             if (parts.Length != 2 || !uint.TryParse(parts[1], out var logosId))
             {
-                CommunicatorManager.Instance.SystemMessage(_client, "usage: .givelogos logosId");
+                SendCommandUsage(".givelogos");
                 return;
             }
 
@@ -1942,7 +1955,7 @@ namespace Rasa.Managers
                     ManifestationManager.Instance.GainExperience(_client, xp);
             }
             else
-                CommunicatorManager.Instance.SystemMessage(_client, "usage: .givexp ammount");
+                SendCommandUsage(".givexp");
 
             return;
         }
@@ -2042,13 +2055,33 @@ namespace Rasa.Managers
         {
             var client = _client;
 
-            CommunicatorManager.Instance.SystemMessage(client,
-                $"Commands available at account level {client.AccountEntry.Level}:");
+            if (parts.Length == 1)
+            {
+                CommunicatorManager.Instance.SystemMessage(client,
+                    $"Commands available at account level {client.AccountEntry.Level}:");
 
-            foreach (var command in _commands.Where(c => HasLevel(client, c.Value.Level))
-                                            .OrderBy(c => c.Value.Level)
-                                            .ThenBy(c => c.Key))
-                CommunicatorManager.Instance.SystemMessage(client, $"{command.Key} ({command.Value.Level})");
+                foreach (var command in _commands.Where(c => HasLevel(client, c.Value.Level))
+                                                .OrderBy(c => c.Value.Level)
+                                                .ThenBy(c => c.Key))
+                    CommunicatorManager.Instance.SystemMessage(client, $"{command.Key} ({command.Value.Level})");
+
+                return;
+            }
+
+            var requested = parts[1];
+
+            if (!requested.StartsWith("."))
+                requested = "." + requested;
+
+            if (!_commands.TryGetValue(requested, out var requestedCommand) ||
+                !HasLevel(client, requestedCommand.Level))
+            {
+                CommunicatorManager.Instance.SystemMessage(client, $"Unknown command: {requested}");
+                return;
+            }
+
+            CommunicatorManager.Instance.SystemMessage(client,
+                requestedCommand.Arguments.Length == 0 ? "Usage: No arguments" : BuildCommandUsage(requested));
         }
 
         private void NearCommand(string[] parts)
@@ -2410,7 +2443,7 @@ namespace Rasa.Managers
         {
             if (parts.Length == 1)
             {
-                CommunicatorManager.Instance.SystemMessage(_client, "usage: .removeobj entityId");
+                SendCommandUsage(".removeobj");
                 return;
             }
             if (parts.Length == 2)
@@ -2564,7 +2597,7 @@ namespace Rasa.Managers
         {
             if (parts.Length == 1)
             {
-                CommunicatorManager.Instance.SystemMessage(_client, "usage: .setkillstreak streakCount");
+                SendCommandUsage(".setkillstreak");
                 return;
             }
             if (parts.Length == 2)
@@ -2578,7 +2611,7 @@ namespace Rasa.Managers
         {
             if (parts.Length != 4)
             {
-                CommunicatorManager.Instance.SystemMessage(_client, "usage: .tele posX posY posZ");
+                SendCommandUsage(".tele");
                 return;
             }
 
@@ -2600,7 +2633,7 @@ namespace Rasa.Managers
         {
             if (parts.Length == 1)
             {
-                CommunicatorManager.Instance.SystemMessage(_client, "usage: .teleport posX posY posZ mapId");
+                SendCommandUsage(".teleport");
                 return;
             }
             if (parts.Length == 5)
@@ -2623,7 +2656,7 @@ namespace Rasa.Managers
         {
             if (parts.Length != 2)
             {
-                CommunicatorManager.Instance.SystemMessage(_client, "usage: .teleup posY");
+                SendCommandUsage(".teleup");
                 return;
             }
 
@@ -2640,7 +2673,7 @@ namespace Rasa.Managers
         {
             if (parts.Length == 1)
             {
-                CommunicatorManager.Instance.SystemMessage(_client, "usage: .creatureappearance creatureEntityId slotId classId color");
+                SendCommandUsage(".creatureappearance");
                 return;
             }
             if (parts.Length == 5)
@@ -3401,7 +3434,7 @@ namespace Rasa.Managers
         {
             if (parts.Length == 1)
             {
-                CommunicatorManager.Instance.SystemMessage(_client, "usage: .speed value");
+                SendCommandUsage(".speed");
                 return;
             }
             if (parts.Length == 2)
