@@ -482,9 +482,20 @@ namespace Rasa.Managers
                 return;
             }
 
-            if (wantsHostile && target != null && !IsHostile(player, target))
+            // A damage ability may be aimed at an enemy player across a wargame too (Pvp); the
+            // effect abilities still take creatures alone.
+            if (wantsHostile && target != null && !IsHostile(player, target)
+                && !(IsDirectDamage(action, info) && Pvp.IsEnemyTarget(player, target)))
             {
                 Fail(client, actionId, level, PlayerMessage.PmActionFailedActorFriendly);
+                return;
+            }
+
+            // And a friendly one not at an enemy player: the client refuses it too
+            // (targetedaction.py SetTarget, Actor.GetWargameParticipantStatus).
+            if (!wantsHostile && FriendlyEffectModules.Contains(action.Module) && target is Manifestation foe && Pvp.AreEnemies(player, foe))
+            {
+                Fail(client, actionId, level, PlayerMessage.PmTargetInvalid);
                 return;
             }
 
@@ -706,9 +717,19 @@ namespace Rasa.Managers
             => MapInstanceScope.Contains(mapChannel, actor);
 
         /// <summary>
-        /// Who a player's damage may land on: HOSTILE and NEUTRAL creatures (TargetCategories.
-        /// PlayerMayAttack). Other players are not targets - there is no PvP to speak of yet - and
-        /// FRIENDLY creatures are the friendly NPCs.
+        /// A target for a player's damage ability: a creature they may attack (IsHostile), or an
+        /// enemy player across a wargame (Pvp.IsEnemyTarget).
+        /// </summary>
+        internal static bool IsAttackable(Manifestation player, Actor target)
+        {
+            return IsHostile(player, target) || Pvp.IsEnemyTarget(player, target);
+        }
+
+        /// <summary>
+        /// Which creatures a player's damage may land on: HOSTILE and NEUTRAL ones (TargetCategories.
+        /// PlayerMayAttack). FRIENDLY creatures are the friendly NPCs. Other players are not here:
+        /// an enemy player across a wargame is a target for weapons and damage abilities alone
+        /// (IsAttackable, Pvp), and the effect abilities that use this take creatures.
         /// </summary>
         internal static bool IsHostile(Manifestation player, Actor target)
         {
@@ -1146,39 +1167,47 @@ namespace Rasa.Managers
                 return;
             }
 
-            var targets = new List<Creature>();
-            var primary = action.TargetId != 0 ? ResolveTarget(mapChannel, action.TargetId) as Creature : null;
+            // Creatures a player may attack, and enemy players across a wargame (Pvp).
+            var targets = new List<Actor>();
+            var primary = action.TargetId != 0 ? ResolveTarget(mapChannel, action.TargetId) : null;
+
+            if (primary != null && !IsAttackable(player, primary))
+                primary = null;
 
             // Lightning's bolt strikes its target alone; what else it reaches is its arc and its
             // storm (ResolveLightningExtras), not an area around the target.
             if (actionInfo.Module == "abilities.lightning")
             {
-                if (primary != null && IsHostile(player, primary))
+                if (primary != null)
                     targets.Add(primary);
             }
             else if (info.Has(AbilityProperty.ConeRadius))
             {
                 // A cone: the action's range long, CONE_RADIUS degrees either side of the aim -
                 // at the target when there is one, otherwise the way the player faces.
-                var aim = primary != null && IsHostile(player, primary)
+                var aim = primary != null
                     ? primary.Position - player.Position
                     : FacingOf(player);
+                var range = Math.Max(1, info.MaxRange) + RangeSlack;
 
-                targets.AddRange(HostilesInCone(mapChannel, player, aim, Math.Max(1, info.MaxRange) + RangeSlack, info.Get(AbilityProperty.ConeRadius)));
+                targets.AddRange(HostilesInCone(mapChannel, player, aim, range, info.Get(AbilityProperty.ConeRadius)));
+                targets.AddRange(Pvp.EnemiesInCone(mapChannel, player, aim, range, info.Get(AbilityProperty.ConeRadius)));
             }
             else if (info.Has(AbilityProperty.RadiusAroundSource))
             {
                 targets.AddRange(HostilesWithin(mapChannel, player, player.Position, info.Get(AbilityProperty.RadiusAroundSource)));
+                targets.AddRange(Pvp.EnemiesWithin(mapChannel, player, player.Position, info.Get(AbilityProperty.RadiusAroundSource)));
             }
             else if (info.Has(AbilityProperty.RadiusAroundTarget))
             {
                 var centre = primary?.Position ?? action.TargetLocation ?? player.Position;
                 targets.AddRange(HostilesWithin(mapChannel, player, centre, info.Get(AbilityProperty.RadiusAroundTarget)));
+                targets.AddRange(Pvp.EnemiesWithin(mapChannel, player, centre, info.Get(AbilityProperty.RadiusAroundTarget)));
 
-                if (primary != null && !targets.Contains(primary) && IsHostile(player, primary))
+                if (primary != null && !targets.Contains(primary))
                     targets.Add(primary);
             }
-            else if (primary != null && IsHostile(player, primary))
+            else if (primary != null)
             {
                 targets.Add(primary);
             }
@@ -1223,34 +1252,53 @@ namespace Rasa.Managers
                 recovery.Hits.Add(hit);
 
                 // A hit on a creature a mission counts.
-                if (taken > 0 && target.DbId != 0)
+                if (taken > 0 && target is Creature counted && counted.DbId != 0)
                     (_missionManager ?? MissionApplication.Instance).RecordProgress(
                         client,
-                        MissionProgressEvent.AbilityHit((uint)action.ActionId, target.DbId));
+                        MissionProgressEvent.AbilityHit((uint)action.ActionId, counted.DbId));
+
+                // An enemy player still standing: the ability's stun and knockback, for
+                // PVP_EFFECT_DURATION_MODIFIER of the time (Pvp). A crit's effects, a pull and
+                // lightning's arc and storm take creatures alone.
+                if (target is Manifestation enemy)
+                {
+                    if (taken > 0 && enemy.Attributes[Attributes.Health].Current > 0 && !Pvp.IsSafe(enemy))
+                    {
+                        if (stun.Ms > 0 && Stuns.Roll(stun.Chance))
+                            PlayerCrowdControl.Stun(mapChannel, enemy, player, Pvp.ScaleDuration(player, enemy, stun.Ms));
+
+                        if (knockback > 0)
+                            PlayerCrowdControl.Knockback(mapChannel, enemy, player, knockback);
+                    }
+
+                    continue;
+                }
 
                 // Still standing: the stuns the hit carries - the ability's own, and an Ice or
                 // Sonic crit's - each of which opens the Critical Death window if it is low enough.
-                if (target.State != CharacterState.Dead && target.State != CharacterState.Dying && target.Attributes[Attributes.Health].Current > 0)
+                var creature = (Creature)target;
+
+                if (creature.State != CharacterState.Dead && creature.State != CharacterState.Dying && creature.Attributes[Attributes.Health].Current > 0)
                 {
                     if (crit && !outcome.Immune)
-                        CritEffects.OnCritical(mapChannel, target, player, damageType, amount);
+                        CritEffects.OnCritical(mapChannel, creature, player, damageType, amount);
 
-                    if (target.State != CharacterState.Dying && stun.Ms > 0 && Stuns.Roll(stun.Chance))
-                        Stuns.Apply(mapChannel, target, player, Stuns.StunTypeId, stun.Ms, damageType);
+                    if (creature.State != CharacterState.Dying && stun.Ms > 0 && Stuns.Roll(stun.Chance))
+                        Stuns.Apply(mapChannel, creature, player, Stuns.StunTypeId, stun.Ms, damageType);
 
                     // KNOCKBACK_DISTANCE: Tectonic Strike, Concussive Wave, Rushing Blow, Force Blast P6/P7.
-                    if (target.State != CharacterState.Dying && knockback > 0)
-                        CrowdControl.Knockback(mapChannel, target, player, knockback, CrowdControl.KnockbackTypeId, damageType);
+                    if (creature.State != CharacterState.Dying && knockback > 0)
+                        CrowdControl.Knockback(mapChannel, creature, player, knockback, CrowdControl.KnockbackTypeId, damageType);
 
                     // Vortex drags them in, over the flail the client plays on them for the
                     // action's recovery time.
-                    if (target.State != CharacterState.Dying && actionInfo.Module == VortexModule)
-                        CrowdControl.Pull(mapChannel, target, player, (int)info.RecoveryMs);
+                    if (creature.State != CharacterState.Dying && actionInfo.Module == VortexModule)
+                        CrowdControl.Pull(mapChannel, creature, player, (int)info.RecoveryMs);
                 }
 
                 // Lightning's arc, extra sonic damage and storm (AbilityManager.Lightning.cs).
                 if (recovery.ArcData)
-                    ResolveLightningExtras(mapChannel, player, info, target, rolled, hit);
+                    ResolveLightningExtras(mapChannel, player, info, creature, rolled, hit);
             }
 
             CellManager.Instance.CellCallMethod(mapChannel, player, recovery);

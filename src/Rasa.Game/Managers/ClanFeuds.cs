@@ -14,9 +14,8 @@ namespace Rasa.Managers
     /// <summary>
     /// Clan Feuds: one PvP clan's leader challenges another's, the other accepts, and for a while
     /// the two clans are at war. This is the social half - challenges, answers, the running feud,
-    /// its clock and its end - with no kills in it: players cannot yet damage one another, so the
-    /// score stays 0 : 0 and a feud that runs out is a tie. <see cref="Kill"/> is where a
-    /// feud kill would be counted once they can.
+    /// its clock and its end. The fighting is Pvp's: the two clans' members are enemies there, and
+    /// a player an enemy brings to zero is a <see cref="Kill"/> for the feud (Pvp.Defeat).
     ///
     /// From the client (client/wargame.py, communicator.py, ui/clandeclarationofwar.py):
     ///
@@ -443,8 +442,8 @@ namespace Rasa.Managers
         }
 
         /// <summary>
-        /// A kill between the two clans of a feud. Nothing calls this yet: players cannot damage
-        /// each other. It counts the kill for the killer's clan and sends the score.
+        /// A kill between the two clans of a feud (Pvp.Defeat): counted for the killer's clan, and
+        /// the score sent.
         /// </summary>
         public bool Kill(Client killer, Client victim)
         {
@@ -638,6 +637,9 @@ namespace Rasa.Managers
                 client.CallMethod(player.EntityId, packet);
             else
                 CellManager.Instance.CellCallMethod(player.MapChannel, player, packet);
+
+            // And who is now an enemy: HOSTILE across the feud, FRIENDLY again after it (Pvp).
+            Pvp.RefreshCategories(client);
         }
 
         private void SeparateSquads(Feud feud)

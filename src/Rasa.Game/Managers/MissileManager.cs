@@ -338,12 +338,11 @@ namespace Rasa.Managers
         }
 
         /// <summary>
-        /// Whether one player's weapon may hurt another. Never, for now: abilities already hold to
-        /// that (AbilityManager.IsHostile, "Other players are not targets"), and there is no feud,
-        /// wargame or PvP flag wired up yet to allow anything else. This is the one place to change
-        /// when there is.
+        /// Whether one player's weapon may hurt another: when they are enemies across a wargame
+        /// (Pvp.AreEnemies). PvP Safety on either of them is checked where the hit lands, which
+        /// shows it as Immune.
         /// </summary>
-        private static bool PlayersMayFight(Manifestation attacker, Manifestation defender) => false;
+        private static bool PlayersMayFight(Manifestation attacker, Manifestation defender) => Pvp.AreEnemies(attacker, defender);
 
         private void DoDamageToPlayer(MapChannel mapChannel, Missile missile)
         {
@@ -369,6 +368,22 @@ namespace Rasa.Managers
             {
                 missile.DamageA = 0;
                 return;
+            }
+
+            // An enemy player's: none of it while either holds PvP Safety - the hit shows Immune -
+            // and PVP_DAMAGE_MODIFIER of it otherwise (Pvp).
+            var pvp = Pvp.IsPvp(missile.Source, actor);
+
+            if (pvp)
+            {
+                if (Pvp.Shielded(missile.Source, actor))
+                {
+                    Immune(missile, actor);
+                    return;
+                }
+
+                missile.DamageA = Pvp.ScaleDamage(missile.Source, actor, missile.DamageA);
+                Pvp.RecordEngagement(missile.Source, actor);
             }
 
             // Both ends: whoever was hit, and whoever hit them if that was a player too.
@@ -415,11 +430,23 @@ namespace Rasa.Managers
             actor.Attributes[Attributes.Health].Current -= healthDecrease;
             CellManager.Instance.CellCallMethod(mapChannel, actor, new UpdateHealthPacket(actor.Attributes[Attributes.Health], 0));
 
+            var defeated = false;
+
             if(actor.Attributes[Attributes.Health].Current == 0)
             {
-                // we won't die yet :D
-                actor.Attributes[Attributes.Health].Current = actor.Attributes[Attributes.Health].CurrentMax;
-                //actor.State = CharacterState.Dying;
+                // Brought down by an enemy player: defeated - the kill counted, back on full and
+                // safe for a while (Pvp.Defeat).
+                if (actor is Manifestation beaten && Pvp.Defeats(missile.Source, beaten))
+                {
+                    Pvp.Defeat(mapChannel, beaten, missile.Source);
+                    defeated = true;
+                }
+                else
+                {
+                    // we won't die yet :D
+                    actor.Attributes[Attributes.Health].Current = actor.Attributes[Attributes.Health].CurrentMax;
+                    //actor.State = CharacterState.Dying;
+                }
             }
 
             if (actor.State == CharacterState.Dying)
@@ -447,6 +474,19 @@ namespace Rasa.Managers
             {
                 PlayerCrowdControl.CreatureActionHit(mapChannel, striker, struck, missile.ActionId, missile.ActionArgId);
                 CreatureEffectAttacks.OnHit(mapChannel, striker, struck, missile);
+            }
+
+            // An enemy player's grenade stuns and shotgun or Hand to Hand knocks back as they do a
+            // creature, for PVP_EFFECT_DURATION_MODIFIER of the time (Pvp.ScaleDuration). Not on a
+            // player just defeated, who is back on their feet under PvP Safety.
+            if (pvp && !defeated && missile.DamageA > 0 && actor is Manifestation enemy)
+            {
+                if (missile.StunMs > 0 && Stuns.Roll(missile.StunChance))
+                    PlayerCrowdControl.Stun(mapChannel, enemy, missile.Source, Pvp.ScaleDuration(missile.Source, enemy, missile.StunMs));
+
+                if (missile.KnockbackChance > 0 && Stuns.Roll(missile.KnockbackChance))
+                    PlayerCrowdControl.Knockback(mapChannel, enemy, missile.Source, CrowdControl.DefaultKnockbackDistance,
+                        Pvp.ScaleDuration(missile.Source, enemy, missile.KnockbackStunMs));
             }
         }
 
@@ -680,8 +720,8 @@ namespace Rasa.Managers
                                 targetActor = EntityManager.Instance.GetPlayer(action.TargetId);
                                 missile.TargetEntityId = action.TargetId;
 
-                                // A player's weapon at another player. The client does not offer it,
-                                // but the target is whatever SetTargetId named, and nothing refused it.
+                                // A player's weapon at another player: only at an enemy across a
+                                // wargame (Pvp), which the client offers once it is shown HOSTILE.
                                 if (action.Actor is Manifestation shootingPlayer && targetActor is Manifestation shotPlayer
                                     && !PlayersMayFight(shootingPlayer, shotPlayer))
                                     return;

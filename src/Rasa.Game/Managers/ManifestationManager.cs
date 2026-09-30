@@ -2121,7 +2121,8 @@ namespace Rasa.Managers
                 new CharacterNamePacket(player.Name),
                 new ActorNamePacket(player.FamilyName),
                 new IsRunningPacket(player.IsRunning),
-                new TargetCategoryPacket(TargetCategory.Friendly),
+                // HOSTILE to an enemy across a wargame, FRIENDLY to everyone else (Pvp).
+                new TargetCategoryPacket(forSelf ? TargetCategory.Friendly : Pvp.CategoryFor(player, recipient?.Player)),
                 new PlayerFlagsPacket(ReferenceEquals(client, recipient)
                     ? CharacterFlagProjection.ToNativeIds(player.PlayerFlags)
                     : Array.Empty<uint>()),

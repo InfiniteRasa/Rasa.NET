@@ -226,6 +226,10 @@ namespace Rasa.Managers
             if (GameEffectManager.HealingBlocked(target))
                 return 0;
 
+            // A player's heal on a player in a fight with another player: PVP_HEALING_MODIFIER of it (Pvp).
+            if (sourceEntityId != 0 && target is Manifestation)
+                amount = Pvp.ScaleHealing(target, EntityManager.Instance.GetActor(sourceEntityId), amount);
+
             var applied = Math.Min(amount, health.CurrentMax - health.Current);
 
             if (applied <= 0)
@@ -269,10 +273,11 @@ namespace Rasa.Managers
         /// Takes health from an actor, armour first: damage eats the armour bar until it is
         /// empty and the rest comes off health. Returns what was actually taken off health and
         /// armour together. A creature brought to zero is killed and its killer credited; one
-        /// that survives and was minding its own business turns on the attacker. Players are
-        /// left at zero for now, the same way weapon fire leaves them (MissileManager): dying
-        /// is not wired yet, and a character stuck dead with no way back is worse than one
-        /// standing at zero.
+        /// that survives and was minding its own business turns on the attacker. A player brought
+        /// to zero by an enemy player is defeated (Pvp.Defeat); any other player at zero stands
+        /// back up at full, as weapon fire leaves them (MissileManager): dying is not wired yet,
+        /// and a character stuck dead with no way back is worse than one standing up again.
+        /// A player's hit on a player is PvP (Pvp): halved, and stopped by PvP Safety.
         /// </summary>
         /// <param name="source">Who did it; credited with a kill, and what a surviving creature turns on.</param>
         /// <param name="damageType">What it was, for the death animation of a creature it brings to its Critical Death window.</param>
@@ -315,11 +320,20 @@ namespace Rasa.Managers
                 return 0;
 
             // Immune: nothing taken, nothing started - a creature running home after a leash
-            // (BehaviorManager.Leash) does not turn round for it.
-            if (DamageImmunity.IsImmune(target, damageType))
+            // (BehaviorManager.Leash) does not turn round for it. Nor a player's hit on a player
+            // while either holds PvP Safety.
+            if (DamageImmunity.IsImmune(target, damageType) || Pvp.Shielded(source, target))
             {
                 outcome = new DamageOutcome { Immune = true };
                 return 0;
+            }
+
+            // A player's hit on a player does PVP_DAMAGE_MODIFIER of itself (Pvp).
+            if (Pvp.IsPvp(source, target))
+            {
+                amount = Pvp.ScaleDamage(source, target, amount);
+                outcome = new DamageOutcome { Delivered = amount };
+                Pvp.RecordEngagement(source, target);
             }
 
             if (!isPeriodic && target is Creature attackedCreature)
@@ -399,7 +413,12 @@ namespace Rasa.Managers
                 AbilityManager.OnPlayerDamaged(mapChannel, victim, armorTaken + healthTaken);
             }
 
-            if (!(target is Creature) && health.Current <= 0)
+            if (target is Manifestation beaten && health.Current <= 0 && Pvp.Defeats(source, beaten))
+            {
+                // Brought down by an enemy player: defeated (Pvp.Defeat).
+                Pvp.Defeat(mapChannel, beaten, source);
+            }
+            else if (!(target is Creature) && health.Current <= 0)
             {
                 // A player at zero stands back up at full: see the remarks.
                 health.Current = health.CurrentMax;

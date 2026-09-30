@@ -212,12 +212,21 @@ namespace Rasa.Managers
 
             tick.Pulses.Add(pulse);
 
-            // A propellant gun sprays the cone in front of the shooter; the others hit what they aim at.
-            var targets = session.ActionId == ActionId.WeaponFlamethrower
-                ? AbilityManager.HostilesInCone(mapChannel, player, AbilityManager.FacingOf(player),
-                    ConeWeapons.RangeOf(session.ActionId, session.ActionArgId) + ConeWeapons.RangeSlack,
-                    ConeWeapons.HalfAngleOf(weapon.ItemTemplate.WeaponInfo))
-                : ResolveTarget(mapChannel, player) is Creature aimed ? new List<Creature> { aimed } : new List<Creature>();
+            // A propellant gun sprays the cone in front of the shooter; the others hit what they aim
+            // at. An enemy player across a wargame is a target like a creature (Pvp).
+            var targets = new List<Actor>();
+
+            if (session.ActionId == ActionId.WeaponFlamethrower)
+            {
+                var range = ConeWeapons.RangeOf(session.ActionId, session.ActionArgId) + ConeWeapons.RangeSlack;
+                var halfAngle = ConeWeapons.HalfAngleOf(weapon.ItemTemplate.WeaponInfo);
+                var facing = AbilityManager.FacingOf(player);
+
+                targets.AddRange(AbilityManager.HostilesInCone(mapChannel, player, facing, range, halfAngle));
+                targets.AddRange(Pvp.EnemiesInCone(mapChannel, player, facing, range, halfAngle));
+            }
+            else if (ResolveTarget(mapChannel, player) is Actor aimed && (aimed is Creature || Pvp.IsEnemyTarget(player, aimed)))
+                targets.Add(aimed);
 
             foreach (var target in targets)
             {
@@ -242,12 +251,12 @@ namespace Rasa.Managers
                     DeathBlow = landed > 0 && target.Attributes[Attributes.Health].Current <= 0
                 });
 
-                if (crit && !outcome.Immune && target.State != CharacterState.Dead && target.State != CharacterState.Dying && target.Attributes[Attributes.Health].Current > 0)
-                    CritEffects.OnCritical(mapChannel, target, player, damageType, amount);
+                if (crit && !outcome.Immune && target is Creature critted && critted.State != CharacterState.Dead && critted.State != CharacterState.Dying && critted.Attributes[Attributes.Health].Current > 0)
+                    CritEffects.OnCritical(mapChannel, critted, player, damageType, amount);
 
                 if (leech)
                     Leech(mapChannel, player, landed, tick);
-                else if (session.ActionId == ActionId.WeaponPolaritygun)
+                else if (session.ActionId == ActionId.WeaponPolaritygun && target is Creature)
                     (session.ChargeTargetId, session.Charge, session.ChargePulses) =
                         AddCharge(session.ChargeTargetId, session.Charge, session.ChargePulses, target.EntityId, rolled);
             }
