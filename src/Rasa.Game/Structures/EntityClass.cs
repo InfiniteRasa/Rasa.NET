@@ -24,6 +24,11 @@ namespace Rasa.Structures
         public int CastsShadowFlag { get; set; }
         public int PickableFlag { get; set; }
         public int TargetPickOverride { get; set; }
+        /// <summary>
+        /// Not read or filled by anything; the client's class data has no such field, and its
+        /// own hasServerSkeleton is set only by Recv_ServerSkeleton, which the retail client cannot
+        /// complete (see ServerSkeletonPacket).
+        /// </summary>
         public int HasServerSkeleton { get; set; }
 
         /// <summary>
@@ -43,7 +48,7 @@ namespace Rasa.Structures
         {
             ClassId = classId;
             ClassName = className;
-            MeshId = MeshId;
+            MeshId = (int)meshId;
             ClassCollisionRole = classCollisionRole;
             Augmentations = augList;
             TargetFlag = targetFlag;

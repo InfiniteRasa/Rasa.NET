@@ -20,6 +20,8 @@ namespace Rasa.Repositories.World
             IKraftwerksRepository kraftwerksRepository,
             IMapRegionRepository mapRegionRepository,
             IMapMarkerRepository mapMarkerRepository,
+            IMapEmitterRepository mapEmitterRepository,
+            ISpawnPoolArrivalRepository spawnPoolArrivalRepository,
             IRecipeRepository recipeRepository,
             INpcMissionRepository npcMissionRepository,
             INpcMissionRewardRepository npcMissionRewardRepository,
@@ -41,6 +43,8 @@ namespace Rasa.Repositories.World
             Kraftwerks = kraftwerksRepository;
             MapRegions = mapRegionRepository;
             MapMarkers = mapMarkerRepository;
+            MapEmitters = mapEmitterRepository;
+            SpawnPoolArrivals = spawnPoolArrivalRepository;
             Recipes = recipeRepository;
             NpcMissions = npcMissionRepository;
             NpcMissionRewards = npcMissionRewardRepository;
@@ -62,6 +66,8 @@ namespace Rasa.Repositories.World
         public IKraftwerksRepository Kraftwerks { get; }
         public IMapRegionRepository MapRegions { get; }
         public IMapMarkerRepository MapMarkers { get; }
+        public IMapEmitterRepository MapEmitters { get; }
+        public ISpawnPoolArrivalRepository SpawnPoolArrivals { get; }
         public IRecipeRepository Recipes { get; }
         public INpcMissionRepository NpcMissions { get; }
         public INpcMissionRewardRepository NpcMissionRewards { get; }

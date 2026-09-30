@@ -1,5 +1,4 @@
 ﻿using System.Collections.Generic;
-using System.Diagnostics;
 
 namespace Rasa.Managers
 {
@@ -15,7 +14,14 @@ namespace Rasa.Managers
         private static readonly object InstanceLock = new object();
         private ulong _entityId = 1000;
         private object _entityIdLock = new object();
-        private List<ulong> _freeEntityIds = new List<ulong>();
+        /// <summary>
+        /// Ids given back, handed out again first-in first-out, and a set of the same ids for the
+        /// is-it-already-there check. This was one List: the check was a linear Contains and the
+        /// hand-out a RemoveAt(0) that shifts the whole list, both O(n) in the number of ids
+        /// waiting - and a map reset or a restart of a busy zone puts thousands there at once.
+        /// </summary>
+        private readonly Queue<ulong> _freeEntityIds = new Queue<ulong>();
+        private readonly HashSet<ulong> _freeEntityIdSet = new HashSet<ulong>();
 
         public Dictionary<ulong, EntityType> RegisteredEntities = new Dictionary<ulong, EntityType>();
         public Dictionary<ulong, Item> Items = new Dictionary<ulong, Item>();
@@ -88,7 +94,10 @@ namespace Rasa.Managers
                 case EntityType.VendorItem:
                     break;
                 default:
-                    Debugger.Break();
+                    // Every EntityType the server registers is handled above; an id registered as
+                    // something else is logged and left, rather than stopping the process at a
+                    // Debugger.Break() on the map worker.
+                    Logger.WriteLog(LogType.Error, $"DestroyPhysicalEntity: entity {entityId} has unhandled type {entityType}; not freed.");
                     break;
             }
         }
@@ -101,9 +110,9 @@ namespace Rasa.Managers
                 {
                     if (_freeEntityIds.Count > 0)
                     {
-                        var freeEntityId = _freeEntityIds[0];
+                        var freeEntityId = _freeEntityIds.Dequeue();
 
-                        _freeEntityIds.RemoveAt(0);
+                        _freeEntityIdSet.Remove(freeEntityId);
 
                         return freeEntityId;
                     }
@@ -170,8 +179,8 @@ namespace Rasa.Managers
             }
 
             lock (_entityIdLock)
-                if(!_freeEntityIds.Contains(id))
-                    _freeEntityIds.Add(id);
+                if (_freeEntityIdSet.Add(id))
+                    _freeEntityIds.Enqueue(id);
         }
 
         public void RegisterEntity(ulong entityId, EntityType type)
@@ -200,9 +209,19 @@ namespace Rasa.Managers
                 MissionInteractionPolicy.InvalidateTarget(obj.RuntimeMapChannel, entityId);
         }
         // Actors
+        /// <summary>
+        /// The player or creature with this id, or null. Actors holds players only - nothing else
+        /// registers there - and this used to index it directly, so every caller handed a
+        /// creature's id (a fight target, a hate list entry, a player's current target) threw
+        /// KeyNotFoundException while treating the result as possibly null. From the map worker
+        /// that cost every map the rest of its tick.
+        /// </summary>
         public Actor GetActor(ulong entityId)
         {
-            return Actors[entityId];
+            if (Actors.TryGetValue(entityId, out var actor))
+                return actor;
+
+            return Creatures.TryGetValue(entityId, out var creature) ? creature : null;
         }
 
         public void RegisterActor(ulong entityId, Actor actor)

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 
 namespace Rasa.Data
@@ -21,19 +21,45 @@ namespace Rasa.Data
     ///
     /// The heat and reload bonuses the client predicts for itself, from hidden game effects the
     /// original server attached to the player (SKILL_LIMITED_COOL_RATE_MODIFIER_EFFECT and
-    /// SKILL_LIMITED_BY_TYPE_RELOAD_MODIFIER_EFFECT, see ManifestationManager.SyncWeaponSkills):
+    /// SKILL_LIMITED_BY_TYPE_RELOAD_MODIFIER_EFFECT, see ManifestationManager.SyncSkillPassives):
     /// its heat meter cools at coolRate x modifier, its reload bar runs reloadTime / (1 + sum of
     /// modifiers). The numbers here are in those terms so the server's clock and the client's
     /// agree.
     ///
-    /// Not here, because nothing on the server yet does what they modify: Firearms' rifle crit
-    /// and shotgun knockback, Hand to Hand's knockback and stun, Launchers' grenade stun, Staff
-    /// deflect, Blades backstab, Leech Guns' conversion to health.
+    /// Firearms' rifle crit is CriticalHits.FirearmsRifleChance (+3/5/7%), and its larger figure
+    /// "with full bead" (+5/10/15%) CriticalHits.FirearmsRifleFullBeadChance - the server keeps
+    /// the bead itself (Managers.Accuracy), since the attack request does not say how far it had
+    /// closed. Firearms' shotguns knock back what they hit +15/20/25% of the time
+    /// (FirearmsShotgunKnockbackChance): the weapon's own KB_CHANCE is a weapon property that
+    /// survives in nothing we have, so the skill's figure is the whole chance.
+    ///
+    /// Staff deflects +5/10/15% of the weapon hits on whoever holds one drawn
+    /// (StaffDeflectChance), and Blades hit +100/150/200% harder from behind
+    /// (BladesBackstabPercent, Managers.Facing). The leech guns' conversion to health is
+    /// Managers.ConstantFire.
     /// </summary>
     public static class WeaponSkills
     {
         // skilldata ids.
         public const int Firearms = 1;
+
+        /// <summary>"Deflect Chance: +5%", +10%, +15% - by Staff pump.</summary>
+        private static readonly int[] StaffDeflectByPump = { 0, 0, 0, 5, 10, 15 };
+
+        /// <summary>"Backstab Damage: +100%", +150%, +200% - by Blades pump.</summary>
+        private static readonly int[] BladesBackstabByPump = { 0, 0, 0, 100, 150, 200 };
+
+        /// <summary>The chance, in percent, that a weapon hit on someone holding a staff drawn is deflected, at their Staff pump.</summary>
+        public static int StaffDeflectChance(int pump) => StaffDeflectByPump[Math.Max(0, Math.Min(5, pump))];
+
+        /// <summary>The percent a blade hit from behind adds to its damage, at the attacker's Blades pump.</summary>
+        public static int BladesBackstabPercent(int pump) => BladesBackstabByPump[Math.Max(0, Math.Min(5, pump))];
+
+        /// <summary>"Shotguns: +15% Knockback chance", +20%, +25% - by pump.</summary>
+        private static readonly int[] FirearmsShotgunKnockbackByPump = { 0, 0, 0, 15, 20, 25 };
+
+        /// <summary>The chance, in percent, that a Firearms shotgun hit knocks its creature back at this pump.</summary>
+        public static int FirearmsShotgunKnockbackChance(int pump) => FirearmsShotgunKnockbackByPump[Math.Max(0, Math.Min(5, pump))];
         public const int HandToHand = 8;
         public const int MachineGuns = 22;
         public const int Staff = 23;

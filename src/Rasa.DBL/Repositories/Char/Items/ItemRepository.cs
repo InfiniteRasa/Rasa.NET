@@ -50,6 +50,21 @@ namespace Rasa.Repositories.Char.Items
             _charContext.SaveChanges();
         }
 
+        /// <summary>Stages the item rows for deletion; the caller saves.</summary>
+        public void DeleteItems(IEnumerable<uint> itemIds)
+        {
+            var ids = itemIds.ToList();
+
+            if (ids.Count == 0)
+                return;
+
+            var rows = _charContext.CreateTrackingQuery(_charContext.ItemEntries)
+                .Where(e => ids.Contains(e.ItemId))
+                .ToList();
+
+            _charContext.ItemEntries.RemoveRange(rows);
+        }
+
         /// <summary>
         /// Writes one column of one item's row, without reading the row first.
         ///
@@ -123,6 +138,11 @@ namespace Rasa.Repositories.Char.Items
         public void UpdateAmmo(IItemChange item)
         {
             UpdateColumn(item, nameof(ItemEntry.AmmoCount), entry => entry.AmmoCount = item.CurrentAmmo);
+        }
+
+        public void UpdateBoundCharacter(IItemChange item)
+        {
+            UpdateColumn(item, nameof(ItemEntry.BoundCharacterId), entry => entry.BoundCharacterId = item.BoundCharacterId);
         }
 
         public void UpdateCurrentHitPoints(IItemChange item)

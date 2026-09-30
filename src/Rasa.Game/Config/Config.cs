@@ -9,5 +9,6 @@
         public ServerInfoConfig ServerInfoConfig { get; set; }
         public QueueConfig QueueConfig { get; set; }
         public GameDataConfig GameDataConfig { get; set; }
+        public VoiceConfig VoiceConfig { get; set; }
     }
 }

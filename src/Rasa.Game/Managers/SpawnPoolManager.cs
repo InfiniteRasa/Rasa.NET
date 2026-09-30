@@ -9,6 +9,7 @@ namespace Rasa.Managers
     using Game;
     using Repositories.UnitOfWork;
     using Structures;
+    using Structures.World;
 
     public class SpawnPoolManager
     {
@@ -17,6 +18,34 @@ namespace Rasa.Managers
         private readonly IGameUnitOfWorkFactory _gameUnitOfWorkFactory;
 
         public readonly Dictionary<uint, SpawnPool> LoadedSpawnPools = new Dictionary<uint, SpawnPool>();
+
+        /// <summary>spawnpool.mode: the pool spawns on its own timer. Every pool before mode was used.</summary>
+        public const short ModeAutomatic = 0;
+
+        /// <summary>
+        /// spawnpool.mode: the pool is a control point's garrison. At a control point the Bane
+        /// camp is the control point itself, and the hospital, token banker and vendors the
+        /// client labels "(Control Point)" are what stands there once AFS has taken it; the two
+        /// never stand together. The server has no control point ownership yet and the AFS side
+        /// is what it seeds, so these pools are dormant: the garrison of a point AFS holds.
+        /// </summary>
+        public const short ModeControlPoint = 1;
+
+        /// <summary>
+        /// spawnpool.mode: spawned only when something asks for it - a script, a GM. Also where a
+        /// mined pool goes that stood on a place players revive at and could not be moved blind.
+        /// </summary>
+        public const short ModeScripted = 2;
+
+        /// <summary>How close a hostile pool's area may come to a friendly NPC, a hospital or a waypoint.</summary>
+        public const float SafeClearance = 15f;
+
+        /// <summary>
+        /// How close a hostile pool's ground may come to a turret: a creature's scan
+        /// (Creature.AggroRange). Nearer, the turret and the camp find each other and fight for
+        /// as long as the server runs.
+        /// </summary>
+        public const float TurretScan = 18f;
 
         public static SpawnPoolManager Instance
         {
@@ -114,7 +143,8 @@ namespace Rasa.Managers
                 if (data.Creature6Id > 0)
                     spawnPoolSlots.Add(new SpawnPoolSlot(data.Creature6Id, data.Creature6MinCount, data.Creature6MaxCount));
 
-                var respawnMilliseconds = data.RespawnTime * 1000L;
+                // spawnpool.respawn_time is in tenths of a second: 900 is a minute and a half.
+                var respawnMilliseconds = data.RespawnTime * 100L;
                 var spawnPool = new SpawnPool
                 {
                     AnimType = data.AnimType,
@@ -122,6 +152,7 @@ namespace Rasa.Managers
                     DbId = data.Id,
                     Position = data.Position,
                     Rotation = (float)data.Rotation,
+                    Radius = (float)data.Radius,
                     Mode = data.Mode,
                     RespawnTime = respawnMilliseconds,
                     UpdateTimer = respawnMilliseconds,
@@ -131,10 +162,24 @@ namespace Rasa.Managers
                 LoadedSpawnPools.Add(data.Id, spawnPool);
             }
 
+            var arrivals = 0;
+
+            foreach (var arrival in unitOfWork.SpawnPoolArrivals.GetArrivals())
+            {
+                if (!LoadedSpawnPools.TryGetValue(arrival.PoolId, out var pool))
+                {
+                    Logger.WriteLog(LogType.Error, $"spawnpool_arrival {arrival.Id} names spawnpool {arrival.PoolId}, which is not loaded.");
+                    continue;
+                }
+
+                pool.Arrivals.Add(arrival);
+                arrivals++;
+            }
+
             foreach (var mapChannel in MapChannelManager.Instance.MapChannelArray.Values)
                 InitializeMapChannel(mapChannel);
 
-            Logger.WriteLog(LogType.Initialize, $"Loaded {LoadedSpawnPools.Count} SpawnPools");
+            Logger.WriteLog(LogType.Initialize, $"Loaded {LoadedSpawnPools.Count} SpawnPools, {arrivals} arrival points");
         }
 
         internal void InitializeMapChannel(MapChannel mapChannel)
@@ -165,6 +210,8 @@ namespace Rasa.Managers
         // timePassed is elapsed milliseconds since this map's previous spawn-pool update.
         public void SpawnPoolWorker(MapChannel mapChannel, long timePassed)
         {
+            BaneArrivals.TeleportWorker(mapChannel, timePassed);
+
             var spawnPools = mapChannel.SpawnPools.Count > 0
                 ? mapChannel.SpawnPools
                 : LoadedSpawnPools.Values.Where(pool => pool.MapContextId == mapChannel.MapInfo.MapContextId).ToList();
@@ -174,7 +221,8 @@ namespace Rasa.Managers
                 if (spawnPool.SpawnPolicy == Structures.World.MissionSpawnGroupPolicy.ScenarioControlled)
                     continue;
 
-                if (spawnPool.Mode != 0 || spawnPool.AnimType < 0 || spawnPool.AnimType > 2)
+                // A control point's garrison or a scripted pool: not on a timer.
+                if (spawnPool.Mode != ModeAutomatic || spawnPool.AnimType < 0 || spawnPool.AnimType > 2)
                     continue;
 
                 if (spawnPool.AliveCreatures > 0 || spawnPool.QueuedCreatures > 0 || spawnPool.DropshipQueue > 0)
@@ -192,7 +240,16 @@ namespace Rasa.Managers
                 if (creatureList.Count == 0)
                     continue; // nothing to spawn
 
-                if (spawnPool.AnimType == 0)    // animType==0; spawn without animation
+                // An arrival point: through a teleporter, or off a dropship on a pad or in a bay.
+                var arrival = BaneArrivals.Pick(spawnPool);
+
+                spawnPool.HasSpawned = true;
+
+                if (arrival?.Kind == SpawnPoolArrivalEntry.KindTeleporter)
+                    BaneArrivals.BeginTeleport(mapChannel, spawnPool, arrival, creatureList.Count);
+                else if (arrival?.Kind == SpawnPoolArrivalEntry.KindDropship)
+                    EnqueueDropship(mapChannel, spawnPool, creatureList, arrival);
+                else if (spawnPool.AnimType == 0)    // animType==0; spawn without animation
                 {
                     IncreaseQueuedCreatureCount(spawnPool, creatureList.Count);
 
@@ -212,14 +269,23 @@ namespace Rasa.Managers
             }
         }
 
-        private void EnqueueDropship(MapChannel mapChannel, SpawnPool spawnPool, List<Creature> creatureList)
+        /// <param name="arrival">An arrival point the dropship lands on (a pad, a bay); null: the pool's own ground.</param>
+        private void EnqueueDropship(MapChannel mapChannel, SpawnPool spawnPool, List<Creature> creatureList, SpawnPoolArrivalEntry arrival = null)
         {
             Dropship dropship = null;
             var reserved = false;
             try
             {
-                dropship = new Dropship(spawnPool.AnimType == 1 ? Factions.Bane : Factions.AFS,
+                dropship = new Dropship(arrival != null || spawnPool.AnimType == 1 ? TargetCategory.Hostile : TargetCategory.Friendly,
                     DropshipType.Spawner, spawnPool);
+
+                if (arrival != null)
+                {
+                    dropship.Position = arrival.Position;
+                    dropship.Rotation = arrival.Rotation;
+                    dropship.Arrival = arrival;
+                }
+
                 spawnPool.QueuedCreatureList = creatureList;
                 IncreaseQueueCount(spawnPool);
                 IncreaseQueuedCreatureCount(spawnPool, creatureList.Count);
@@ -285,7 +351,8 @@ namespace Rasa.Managers
             }
         }
 
-        internal void SpawnCreatures(SpawnPool spawnPool,List<Creature> creatureList)
+        /// <param name="arrival">Where they arrive, when they come by an arrival point: they step out there and walk to the pool's ground.</param>
+        internal void SpawnCreatures(SpawnPool spawnPool, List<Creature> creatureList, SpawnPoolArrivalEntry arrival = null)
         {
             var mapChannel = spawnPool.RuntimeMapChannel ??
                 MapChannelManager.Instance.FindByContextId(spawnPool.MapContextId);
@@ -299,13 +366,21 @@ namespace Rasa.Managers
 
                 try
                 {
-                    RandomizePosition(creature, creatureList.Count);
+                    if (arrival == null)
+                        RandomizePosition(creature, creatureList.Count);
+                    else
+                        CreatureManager.Instance.SetLocation(creature, BaneArrivals.StepOut(mapChannel, arrival), arrival.Rotation, spawnPool.MapContextId);
+
                     if (spawnPool.FollowOwnerCharacterId != 0 ||
                         spawnPool.FollowTargetEntityId != 0)
                         BehaviorManager.Instance.SetActionFollow(
                             creature,
                             spawnPool.FollowTargetEntityId);
                     CellManager.Instance.AddToWorld(mapChannel, creature);
+
+                    if (arrival != null)
+                        BehaviorManager.Instance.WalkIn(creature, SpawnPoint(mapChannel, spawnPool, creatureList.Count));
+
                     MissionApplication.Instance.Scenes.ActorAvailable(mapChannel, spawnPool.DbId);
                 }
                 catch
@@ -384,8 +459,11 @@ namespace Rasa.Managers
 
                 var spawnCreatureCount = random.Next(spawnSlot.CountMin, spawnSlot.CountMax + 1);
 
+                // The loaded template itself, once per creature to make: SpawnCreatures reads its
+                // DbId and CreateCreature makes the real one. A new Creature per entry took an
+                // entity id that nothing ever freed.
                 for (var i = 0; i < spawnCreatureCount && creatureList.Count < 64; i++)
-                    creatureList.Add(new Creature(definition));
+                    creatureList.Add(definition);
             }
 
             return creatureList;
@@ -393,23 +471,15 @@ namespace Rasa.Managers
 
         internal void RandomizePosition(Creature creature, int count)
         {
-            var pos = creature.SpawnPool.Position;
+            var pool = creature.SpawnPool;
+            var mapChannel = pool.RuntimeMapChannel ?? MapChannelManager.Instance.FindByContextId(pool.MapContextId);
 
-            if (count != 1)
-            {
-                pos.X += new Random().Next() % 5 - 2;
-                pos.Z += new Random().Next() % 5 - 2;
-            }
+            // An emplacement stands on its mount, which is exactly where its pool is.
+            var pos = Emplacements.Is(creature) ? pool.Position : SpawnPoint(mapChannel, pool, count);
 
-            // Spawn pools were placed by hand; on a slope the offset members would hang in the
-            // air or start in the ground. With a navmesh they stand on it.
-            pos = NavMeshManager.SnapToGround(
-                creature.SpawnPool?.RuntimeMapChannel ??
-                MapChannelManager.Instance.FindByContextId(creature.SpawnPool.MapContextId),
-                pos);
-
-            var map = creature.SpawnPool.RuntimeMapChannel;
-            var pose = creature.SpawnPool.ScenePose;
+            // A mission scene's recovered pose, in the private instance it belongs to.
+            var map = pool.RuntimeMapChannel;
+            var pose = pool.ScenePose;
             if (pose != null && map?.IsPrivateInstance == true &&
                 pose.OwnerCharacterId == map.OwnerCharacterId && pose.Handle.MapEpoch == map.MissionEpoch)
             {
@@ -422,16 +492,175 @@ namespace Rasa.Managers
                 creature.Controller.CurrentAction = BehaviorManager.BehaviorActionScriptedMove;
                 creature.IsRunning = false;
             }
-            CreatureManager.Instance.SetLocation(creature, pos, creature.SpawnPool.Rotation, creature.SpawnPool.MapContextId);
+            CreatureManager.Instance.SetLocation(creature, pos, pool.Rotation, pool.MapContextId);
+        }
+
+        /// <summary>
+        /// Where one of the pool's creatures stands. A pool with a radius is an area - a camp,
+        /// a nest - and its creatures are spread across it: a walkable point anywhere inside the
+        /// radius when the map has a navmesh, otherwise a point in the disc snapped to whatever
+        /// ground there is. A pool without one is the old point: two units of scatter when more
+        /// than one creature shares it, then snapped to the ground so members on a slope neither
+        /// hang in the air nor start in it.
+        ///
+        /// A mined area's centre is the middle of the props it was built from, and its height
+        /// their average: it can be inside a pillbox, or a few metres above or below the floor,
+        /// where the navmesh's point query (4 m across, 8 m up and down) finds nothing. Then the
+        /// nearest walkable point to the centre, within the pool's own radius, stands in for it -
+        /// or, for a centre whose height is a map label's guess, the nearest walkable point in
+        /// the column above and below it.
+        /// </summary>
+        internal static Vector3 SpawnPoint(MapChannel mapChannel, SpawnPool pool, int count)
+        {
+            var pos = pool.Position;
+
+            if (pool.Radius > 0)
+            {
+                var walkable = NavMeshManager.RandomPointAround(mapChannel, pos, pool.Radius);
+
+                if (!walkable.HasValue
+                    && (NavMeshManager.NearestWalkable(mapChannel, pos, Math.Max(32f, pool.Radius))
+                        ?? NavMeshManager.NearestInColumn(mapChannel, pos)) is Vector3 anchor)
+                    walkable = NavMeshManager.RandomPointAround(mapChannel, anchor, pool.Radius) ?? anchor;
+
+                if (walkable.HasValue)
+                    return walkable.Value;
+
+                pos += InDisc(pool.Radius);
+            }
+            else if (count != 1)
+            {
+                pos.X += Random.Shared.Next() % 5 - 2;
+                pos.Z += Random.Shared.Next() % 5 - 2;
+            }
+
+            return NavMeshManager.SnapToGround(mapChannel, pos);
+        }
+
+        /// <summary>
+        /// Every automatic pool of hostile creatures whose area comes within SafeClearance of a
+        /// friendly NPC's pool, a hospital or a waypoint pad: a player reviving or arriving there
+        /// would stand in a fight. A pool of friendly soldiers (see IsSafeGround) is not safe
+        /// ground: a skirmish set up on purpose, like boot camp's bridge, is not reported. And every one whose area comes within TurretScan of a turret
+        /// (an emplacement's pool, which is not safe ground): the two would fight for good.
+        /// Logged and recorded for the map; nothing is changed. Run once
+        /// the creatures, the pools and the teleporters are all loaded.
+        /// </summary>
+        public void ValidatePools()
+        {
+            var safe = new Dictionary<uint, List<(Vector3 Position, string What)>>();
+
+            void Add(uint map, Vector3 position, string what)
+            {
+                if (!safe.TryGetValue(map, out var list))
+                    safe[map] = list = new List<(Vector3, string)>();
+
+                list.Add((position, what));
+            }
+
+            // A turret is friendly, but no hospital: its ground is where the fighting is.
+            var turrets = new List<SpawnPool>();
+
+            foreach (var pool in LoadedSpawnPools.Values)
+            {
+                if (pool.SpawnSlot.Count > 0 && pool.SpawnSlot.TrueForAll(s => IsEmplacement(s.CreatureId)))
+                    turrets.Add(pool);
+                else if (pool.SpawnSlot.Exists(s => IsSafeGround(s.CreatureId)))
+                    Add(pool.MapContextId, pool.Position, $"the NPCs of pool {pool.DbId}");
+            }
+
+            foreach (var teleporter in DynamicObjectManager.Instance.Teleporters.Values)
+                if (teleporter.ObjectData is WaypointInfo info && (info.WaypointType == WaypointType.Hospital || info.WaypointType == WaypointType.Waypoint))
+                    Add(teleporter.MapContextId, teleporter.Position, $"{info.WaypointType} {info.WaypointId}");
+
+            var bad = 0;
+
+            foreach (var pool in LoadedSpawnPools.Values)
+            {
+                // Not on a timer, never brings anything (min and max 0), or not all hostile.
+                if (pool.Mode != ModeAutomatic || !pool.SpawnSlot.Exists(s => s.CountMax > 0)
+                    || !pool.SpawnSlot.TrueForAll(s => Side(s.CreatureId) == TargetCategory.Hostile))
+                    continue;
+
+                // A turret that can see the camp from its mount: the two fight for as long as the
+                // server runs, and the camp is never there for a player.
+                var fought = false;
+
+                foreach (var turret in turrets)
+                {
+                    if (turret.MapContextId != pool.MapContextId || turret.Mode != ModeAutomatic)
+                        continue;
+
+                    var reach = Vector2.Distance(new Vector2(turret.Position.X, turret.Position.Z), new Vector2(pool.Position.X, pool.Position.Z)) - pool.Radius;
+
+                    if (reach >= TurretScan)
+                        continue;
+
+                    var fight = $"spawnpool {pool.DbId}: its creatures can stand {Math.Max(0, reach):0} m from the turret of pool {turret.DbId}, inside its scan; they will fight for good.";
+                    Logger.WriteLog(LogType.Error, fight);
+                    MapErrorManager.Instance.Record(pool.MapContextId, fight);
+                    bad++;
+                    fought = true;
+                    break;
+                }
+
+                if (fought || !safe.TryGetValue(pool.MapContextId, out var points))
+                    continue;
+
+                foreach (var (position, what) in points)
+                {
+                    var gap = Vector2.Distance(new Vector2(position.X, position.Z), new Vector2(pool.Position.X, pool.Position.Z)) - pool.Radius;
+
+                    if (gap >= SafeClearance)
+                        continue;
+
+                    bad++;
+                    var message = $"spawnpool {pool.DbId}: its creatures can stand {Math.Max(0, gap):0} m from {what}, which should be safe ground.";
+                    Logger.WriteLog(LogType.Error, message);
+                    MapErrorManager.Instance.Record(pool.MapContextId, message);
+                    break;
+                }
+            }
+
+            Logger.WriteLog(LogType.Initialize, $"SpawnPools checked against safe ground and turrets: {bad} too close.");
+        }
+
+        private static bool IsEmplacement(uint creatureId) =>
+            CreatureManager.Instance.LoadedCreatures.TryGetValue(creatureId, out var creature) && Emplacements.Classes.Contains(creature.EntityClass);
+
+        /// <summary>
+        /// A friendly creature a player can stand beside: one with the NPC augmentation (a vendor,
+        /// trainer, mission giver...), or one with no attack. A friendly with attacks and no NPC
+        /// augmentation is a soldier, there to fight - boot camp's AFS bridge squad (pools 510216,
+        /// 510217) holds its line 14 m from the Thrax initiates it faces (510218-510220). The old
+        /// data's named base staff on soldier classes carry no attack, so they stay safe ground.
+        /// </summary>
+        private static bool IsSafeGround(uint creatureId) =>
+            CreatureManager.Instance.LoadedCreatures.TryGetValue(creatureId, out var creature)
+            && creature.TargetCategory == TargetCategory.Friendly
+            && (creature.Npc != null || creature.Actions.Count == 0);
+
+        private static TargetCategory Side(uint creatureId) =>
+            CreatureManager.Instance.LoadedCreatures.TryGetValue(creatureId, out var creature) ? creature.TargetCategory : TargetCategory.Hostile;
+
+        /// <summary>A point uniformly inside a disc of this radius, on the ground plane.</summary>
+        internal static Vector3 InDisc(float radius)
+        {
+            var random = new Random();
+            var angle = random.NextDouble() * Math.PI * 2;
+            var distance = radius * Math.Sqrt(random.NextDouble());
+
+            return new Vector3((float)(Math.Cos(angle) * distance), 0, (float)(Math.Sin(angle) * distance));
         }
 
         private static SpawnPool CloneSpawnPool(SpawnPool template, MapChannel mapChannel)
         {
-            return new SpawnPool
+            var clone = new SpawnPool
             {
                 DbId = template.DbId,
                 Position = template.Position,
                 Rotation = template.Rotation,
+                Radius = template.Radius,
                 SpawnSlot = template.SpawnSlot?.Select(slot =>
                     new SpawnPoolSlot(slot.CreatureId, slot.CountMin, slot.CountMax)).ToList() ?? new List<SpawnPoolSlot>(),
                 Mode = template.Mode,
@@ -448,6 +677,11 @@ namespace Rasa.Managers
                 FollowOwnerCharacterId = template.FollowOwnerCharacterId,
                 FollowTargetEntityId = template.FollowTargetEntityId
             };
+
+            // Where its creatures arrive is the pool's, in every copy of the map.
+            clone.Arrivals.AddRange(template.Arrivals);
+
+            return clone;
         }
     }
 }

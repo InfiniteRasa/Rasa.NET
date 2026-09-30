@@ -109,6 +109,7 @@ namespace Rasa.Game
             CommandProcessor.RegisterCommand("perf", ProcessPerfCommand);
             CommandProcessor.RegisterCommand("maperrors", ProcessMapErrorsCommand);
             CommandProcessor.RegisterCommand("kb", ProcessKbCommand);
+            CommandProcessor.RegisterCommand("voice", ProcessVoiceCommand);
         }
 
         ~Server()
@@ -119,24 +120,36 @@ namespace Rasa.Game
         #region Configuration
         private static void ConfigReLoaded()
         {
+            // Configuration re-registers for every change and runs ConfigLoaded after this; it no
+            // longer needs a Load() from here to hear the next one.
             Logger.WriteLog(LogType.Initialize, "Config file reloaded by external change!");
-
-            // Totally reload the configuration, because it's automatic reload case can only handle one reload. Our code's bug?
-            Configuration.Load();
         }
 
         private void ConfigLoaded()
         {
-            Config = new Config();
-            Configuration.Bind(Config);
+            // Built and bound before it replaces the one in force: a reload runs on the file
+            // watcher's thread, and the loop reading Config halfway through a Bind saw a new,
+            // empty Config with every value zero.
+            var config = new Config();
+            Configuration.Bind(config);
+            Config = config;
 
             Logger.UpdateConfig(Config.LoggerConfig);
 
             ServerFlagManager.Instance.LoadConfiguredFlags(Config.GameDataConfig?.ServerFlags);
+            CharacterManager.LoadEnabledRaces(Config.GameDataConfig?.EnabledRaces);
 
             if (!KnowledgeBaseManager.Instance.Load(Config.GameDataConfig?.KnowledgeBaseFile, out var kbProblem))
                 Logger.WriteLog(LogType.Initialize, $"Knowledge base: {kbProblem}. SearchKB will answer with nothing.");
+
+            // A reload turns voice on or off, or moves it, without a restart. The first load comes
+            // before the world is up; Start opens the voice port with the others.
+            if (_voiceApplied)
+                Voice.VoiceServer.Instance.Apply(Config.VoiceConfig, Config.GameConfig?.PublicAddress);
         }
+
+        /// <summary>Set once Start has applied VoiceConfig, so reloads apply it too.</summary>
+        private bool _voiceApplied;
         #endregion
 
         public void Disconnect(Client client)
@@ -257,6 +270,16 @@ namespace Rasa.Game
                 return false;
             }
 
+            // The world first, then the doors. Everything but the mission check used to come
+            // after the loop ticking, the auth link logging in (which puts this world on the
+            // server list), and both the world and queue ports accepting - while about twenty
+            // loaders still had the maps, clans, dynamic objects, navmesh and abilities to build.
+            // The first connection to finish its key exchange had the map worker walking
+            // MapChannelArray while MapChannelInit was still adding to it. A restart is exactly
+            // when everyone reconnects at once. ServerStartupLifecycle runs these in that order:
+            // load everything; then bind and listen; then start accepting; then start the loop;
+            // and last of all log in to the auth server, which is what tells players this world
+            // is up.
             return new ServerStartupLifecycle(
                 ValidateMissionReadiness,
                 () => Loop.Start(),
@@ -305,6 +328,13 @@ namespace Rasa.Game
         {
             ListenerSocket.AcceptAsync();
             Logger.WriteLog(LogType.Network, "*** Listening for clients on port {0}", Config.GameConfig.Port);
+
+            // Squad voice chat. A voice port that cannot be bound leaves voice off, not the world.
+            _voiceApplied = true;
+            Voice.VoiceServer.Instance.Apply(Config.VoiceConfig, Config.GameConfig.PublicAddress);
+
+            if (Config.VoiceConfig?.Enabled != true)
+                Logger.WriteLog(LogType.Initialize, "Squad voice chat is off (VoiceConfig.Enabled).");
         }
 
         private void RegisterStartupTimers()
@@ -339,6 +369,8 @@ namespace Rasa.Game
             // was down are caught by this first pass and by the check at login.
             Timer.Add("AuctionExpire", 300000, true, () => AuctionHouseManager.Instance.ExpireAuctions());
 
+            Timer.Add("PreLoginExpire", 5000, true, ExpirePreLogin);
+
             Timer.Add("QueueManagerUpdate", Config.QueueConfig.UpdateInterval, true, () =>
             {
                 QueueManager.Update(Config.ServerInfoConfig.MaxPlayers - CurrentPlayers);
@@ -364,10 +396,15 @@ namespace Rasa.Game
             MapTriggerManager.Instance.MapTriggerInit();
             MapLinkManager.Instance.MapLinkInit();
             RegionManager.Instance.RegionInit();
+            EmitterManager.Instance.EmitterInit();
             MapMarkerManager.Instance.MapMarkerInit();
+            SpawnPoolManager.Instance.ValidatePools();
             RecipeManager.Instance.RecipeInit();
             AbilityManager.Instance.AbilityInit();
             ManifestationManager.Instance.LoadSkillClasses();
+
+            // After AbilityInit, which loads the action data it checks the creature rows against.
+            CreatureManager.Instance.ValidateActions();
         }
 
         private void PublishReady()
@@ -414,6 +451,19 @@ namespace Rasa.Game
                 args.AcceptSocket.Shutdown(SocketShutdown.Both);
         }
 
+        /// <summary>How long a world connection has to finish the key exchange, and then to log in.</summary>
+        private static readonly TimeSpan PreLoginTimeout = TimeSpan.FromSeconds(30);
+
+        /// <summary>
+        /// World connections from one address that may be short of a login at once. Logged-in
+        /// connections are limited by accounts; these were limited by nothing, and each holds a
+        /// receive buffer from the pool the whole process shares.
+        /// </summary>
+        private const int MaxPreLoginPerAddress = 8;
+
+        private long _nextAcceptRefusalLogTick;
+        private int _acceptRefusalsSinceLog;
+
         private void OnAccept(LengthedSocket newSocket)
         {
             ListenerSocket.AcceptAsync();
@@ -421,7 +471,54 @@ namespace Rasa.Game
             if (newSocket == null)
                 return;
 
+            var address = newSocket.RemoteAddress;
+            int pending;
+
+            lock (Clients)
+                pending = Clients.Count(c => c.State == ClientState.Connected && address.Equals(c.Socket.RemoteAddress));
+
+            pending += LoginManager.CountFrom(address);
+
+            if (pending >= MaxPreLoginPerAddress)
+            {
+                newSocket.Close();
+
+                var refused = System.Threading.Interlocked.Increment(ref _acceptRefusalsSinceLog);
+                var now = Environment.TickCount64;
+
+                if (now >= System.Threading.Interlocked.Read(ref _nextAcceptRefusalLogTick))
+                {
+                    System.Threading.Interlocked.Exchange(ref _nextAcceptRefusalLogTick, now + 5000);
+                    System.Threading.Interlocked.Exchange(ref _acceptRefusalsSinceLog, 0);
+
+                    Logger.WriteLog(LogType.Security, $"Refused a world connection from {address}: {MaxPreLoginPerAddress} already waiting to log in from it ({refused} refused since the last of these).");
+                }
+
+                return;
+            }
+
             LoginManager.LoginSocket(newSocket);
+        }
+
+        /// <summary>
+        /// Closes world connections that have sat in the key exchange, or after it without logging
+        /// in, for longer than PreLoginTimeout. Neither stage had any timeout.
+        /// </summary>
+        private void ExpirePreLogin()
+        {
+            var exchanges = LoginManager.ExpireStalled(PreLoginTimeout);
+
+            List<Client> stalled;
+            var cutoff = DateTime.UtcNow - PreLoginTimeout;
+
+            lock (Clients)
+                stalled = Clients.Where(c => c.State == ClientState.Connected && c.ConnectedTime < cutoff).ToList();
+
+            foreach (var client in stalled)
+                client.Close(false);
+
+            if (exchanges + stalled.Count > 0)
+                Logger.WriteLog(LogType.Network, $"Closed {exchanges + stalled.Count} world connection(s) that did not log in within {PreLoginTimeout.TotalSeconds:F0} s.");
         }
 
         public LoginAccountEntry AuthenticateClient(Client client, uint accountId, uint oneTimeKey)
@@ -446,20 +543,85 @@ namespace Rasa.Game
             return entry;
         }
 
+        /// <summary>
+        /// Whether the auth server has sent a redirect for this account with this key that has
+        /// not expired and not been taken up at the world port. Read only: AuthenticateClient is
+        /// what consumes it.
+        /// </summary>
+        public bool HasPendingLogin(uint accountId, uint oneTimeKey)
+        {
+            lock (IncomingClients)
+                return IncomingClients.TryGetValue(accountId, out var entry)
+                       && entry != null
+                       && entry.OneTimeKey == oneTimeKey
+                       && entry.ExpireTime >= DateTime.Now;
+        }
+
         public bool IsBanned(uint accountId)
         {
             lock (_lockedAccounts)
                 return _lockedAccounts.Contains(accountId);
         }
 
-        public bool IsAlreadyLoggedIn(uint accountId)
+        /// <summary>
+        /// Called by a world login for its account, after the one-time key and the ban check.
+        /// Closes every other connection that account holds, and says whether the new login can
+        /// go ahead now.
+        ///
+        /// This used to refuse the new login instead and leave the old connection alone - and a
+        /// connection whose peer vanished without closing it (a power cut, a sleeping laptop, a
+        /// dropped Wi-Fi link, a client that crashed on the loading screen) is never noticed at
+        /// the character screen or on a loading screen, so the player was told the account was
+        /// in use until the server restarted. The one asking now is the one who just passed the
+        /// auth server with the account's password; the older connection is either dead or the
+        /// same person somewhere else, and in both cases the newest one should win.
+        ///
+        /// A connection with no character in the world - logged in, or at the character screen
+        /// - is gone as soon as it is closed, and the login carries on. One that has a character
+        /// in the world, or on its way into it, leaves a manifestation that the map worker takes
+        /// out over the next tick or so (Close only flags it; see RemovePlayer). Loading the same
+        /// character again while that one is still registered puts two of it in the world, so
+        /// that login is refused with AlreadyLoggedIn; by the time the player has been through
+        /// the auth server again the old one has left, and the next attempt goes through. The
+        /// same holds while any map still has a connection of this account waiting to be removed,
+        /// whatever became of the connection itself.
+        /// </summary>
+        public bool TakeOverSessions(Client newClient, uint accountId)
         {
-            lock (Clients)
-                foreach (var client in Clients)
-                    if (client.IsAuthenticated() && client.AccountEntry.Id == accountId)
-                        return true;
+            List<Client> others;
 
-            return false;
+            lock (Clients)
+                others = Clients.Where(c => c != newClient && c.IsAuthenticated() && c.AccountEntry?.Id == accountId).ToList();
+
+            var inWorld = false;
+
+            foreach (var old in others)
+            {
+                // Decided before the close, which moves the state to Disconnected.
+                var hadCharacter = HasCharacterInWorld(old);
+
+                inWorld |= hadCharacter;
+
+                Logger.WriteLog(LogType.Security,
+                    $"Account {accountId} logged in from {newClient.Socket?.RemoteAddress}; closing its earlier connection from {old.Socket?.RemoteAddress} (state {old.State}{(hadCharacter ? ", character in the world" : "")}).");
+
+                old.Close();
+            }
+
+            return !inWorld && !MapChannelManager.Instance.HoldsClientOf(accountId);
+        }
+
+        /// <summary>Whether this connection's character is in a map, on its way into one, or still registered from one.</summary>
+        private static bool HasCharacterInWorld(Client client)
+        {
+            if (client.State == ClientState.Loading || client.State == ClientState.Ingame || client.State == ClientState.Teleporting)
+                return true;
+
+            var player = client.Player;
+
+            return player != null
+                   && EntityManager.Instance.Players.TryGetValue(player.EntityId, out var registered)
+                   && registered == player;
         }
 
         public void Shutdown()
@@ -469,6 +631,8 @@ namespace Rasa.Game
 
             ListenerSocket?.Close();
             ListenerSocket = null;
+
+            Voice.VoiceServer.Instance.Stop();
 
             Loop.Stop();
         }
@@ -493,10 +657,13 @@ namespace Rasa.Game
 
             try
             {
-                AuthCommunicator = new LengthedSocket(SizeType.Word);
-                AuthCommunicator.OnConnect += OnCommunicatorConnect;
-                AuthCommunicator.OnError += OnCommunicatorError;
-                AuthCommunicator.ConnectAsync(new IPEndPoint(IPAddress.Parse(Config.CommunicatorConfig.Address), Config.CommunicatorConfig.Port));
+                var socket = new LengthedSocket(SizeType.Word);
+
+                AuthCommunicator = socket;
+                socket.OnConnect += OnCommunicatorConnect;
+                socket.OnError += OnCommunicatorError;
+                socket.OnDrop += reason => OnCommunicatorDrop(socket, reason);
+                socket.ConnectAsync(new IPEndPoint(IPAddress.Parse(Config.CommunicatorConfig.Address), Config.CommunicatorConfig.Port));
             }
             catch (Exception e)
             {
@@ -509,13 +676,49 @@ namespace Rasa.Game
 
         private void OnCommunicatorError(SocketAsyncEventArgs args)
         {
+            ScheduleCommunicatorReconnect();
+
+            Logger.WriteLog(LogType.Error, "Could not connect to the Auth server! Trying again in a few seconds...");
+        }
+
+        private void ScheduleCommunicatorReconnect()
+        {
             Timer.Add("CommReconnect", 10000, false, () =>
             {
                 if (!AuthCommunicator?.Connected ?? true)
                     ConnectCommunicator();
             });
+        }
 
-            Logger.WriteLog(LogType.Error, "Could not connect to the Auth server! Trying again in a few seconds...");
+        /// <summary>
+        /// The socket layer gave up on the auth link without a socket error: no pooled buffer to
+        /// re-arm its receive with (it re-arms after every message), none to send with, a full
+        /// send queue, or a frame that would not decode. It logs that once and raises OnDrop;
+        /// after a receive-side drop nothing reads the link again, after a send-side one nothing
+        /// is written to it, and the socket itself stays open and Connected.
+        ///
+        /// Nothing handled OnDrop here, and the reconnect only ever came from OnError, so a
+        /// dropped link stayed dropped: RedirectRequests went unread, every world login failed
+        /// its session check, the auth server went on listing this world as up, and only a
+        /// restart brought it back. The link is closed now - which is what makes Connected false,
+        /// the condition the reconnect waits for - and a reconnect is scheduled exactly as a
+        /// socket error schedules one. A drop from the connect itself (no args left to connect
+        /// with) is retried the same way.
+        /// </summary>
+        private void OnCommunicatorDrop(LengthedSocket socket, string reason)
+        {
+            // Only the link in use: one already replaced by a reconnect has nothing left to say.
+            if (socket != AuthCommunicator)
+                return;
+
+            Logger.WriteLog(LogType.Error, $"The link to the Auth server was dropped ({reason}); world logins cannot complete until it is back. Reconnecting in a few seconds...");
+
+            // Closing completes any receive still armed with an error; this is not a failed
+            // connect, and the reconnect below is already on its way.
+            socket.OnError -= OnCommunicatorError;
+            socket.Close();
+
+            ScheduleCommunicatorReconnect();
         }
 
         private void OnCommunicatorConnect(SocketAsyncEventArgs args)
@@ -893,6 +1096,13 @@ namespace Rasa.Game
                 foreach (var error in errors.ErrorsFor(mapContextId))
                     Logger.WriteLog(LogType.Command, $"   {error}");
             }
+        }
+
+        /// <summary>voice: whether voice chat is on, and who is in which squad's group.</summary>
+        private void ProcessVoiceCommand(string[] parts)
+        {
+            foreach (var line in Voice.VoiceServer.Instance.Describe())
+                Logger.WriteLog(LogType.Command, line);
         }
 
         private void ProcessPerfCommand(string[] parts)

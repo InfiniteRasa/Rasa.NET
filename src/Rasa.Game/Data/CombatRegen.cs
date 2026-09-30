@@ -54,5 +54,13 @@ namespace Rasa.Data
         /// without holding them there long after a fight is over.
         /// </summary>
         public const long CombatTimeoutMs = 15000;
+
+        /// <summary>
+        /// Body armour does not regenerate at all while its wearer is in combat: "Body Armor
+        /// doesn't regenerate during combat, and the moments of respite during a bonus experience
+        /// run are few and far between" (strategy guide). IN_COMBAT_REGEN_MODIFIER is left to
+        /// health. Players only; creature armour keeps the fifth (CreatureArmor).
+        /// </summary>
+        public const bool ArmorRegeneratesInCombat = false;
     }
 }

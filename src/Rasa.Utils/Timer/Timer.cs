@@ -31,64 +31,61 @@ namespace Rasa.Timer
         /// Fires whatever is due. Driven by a server's main loop, so nothing here may throw:
         /// the loop thread has no handler above it and an escaping exception ends the process.
         ///
-        /// Two ways that used to happen, both fixed here rather than in the callbacks:
+        /// Each callback is caught and logged against the timer's name, and the rest of the
+        /// pass still runs - one broken timer must not stop the others from firing.
         ///
-        /// A callback threw, and it came straight back out through the main loop. Each one is
-        /// now caught and logged against the timer's name, and the rest of the pass still runs -
-        /// one broken timer must not stop the others from firing.
+        /// The callbacks run after the lock is released, not under it. The lock guards the
+        /// dictionary; holding it while running arbitrary code made it the outer lock of
+        /// whatever that code took. Rasa.Auth's Client is the case that bit: its "login" and
+        /// "timeout" callbacks call Close(), which takes the client's own lock and then
+        /// Timer.Remove - while a socket thread closing the same client takes the client's
+        /// lock first and then wants this one for the same Remove. Opposite orders on two
+        /// threads, and the auth loop, which runs every client's timers under lock(Clients),
+        /// stopped for good. With nothing called out under it, this lock is always the
+        /// innermost one taken, and no ordering can form around it.
         ///
-        /// A callback added or removed a timer, which invalidated the enumerator and threw
-        /// "Collection was modified" on the next step - from the loop, not from the callback,
-        /// so catching around the call would not have covered it. This lock is reentrant, so a
-        /// callback reaching Add or Remove on the same thread walks straight into the dictionary
-        /// being walked. Game.Server does exactly that: the CommReconnect callback calls
-        /// ConnectCommunicator, and LengthedSocket.ConnectAsync runs the completion inline when
-        /// the connect finishes synchronously - which a refused connection does - so the error
-        /// handler reaches Timer.Add while this is still iterating. A game server running with
-        /// the auth server down could take itself out that way. Iterating a snapshot removes
-        /// the hazard for every caller instead of asking each not to touch the timer.
+        /// It also means a callback may Add, Remove or reset any timer, its own included,
+        /// without touching a dictionary that is being walked: the due items are collected
+        /// first and the walk is over before any of them runs.
         /// </summary>
         public void Update(long delta)
         {
+            List<TimedItem> due = null;
+
             lock (_timedItems)
             {
-                List<string> toRemove = null;
-
-                foreach (var item in new List<KeyValuePair<string, TimedItem>>(_timedItems))
+                foreach (var item in _timedItems.Values)
                 {
-                    if (!item.Value.Update(delta))
+                    if (!item.Update(delta))
                         continue;
 
-                    // Before the callback: a non-repeating timer is spent once it has fired,
-                    // and one that throws would otherwise be left behind to throw again on
-                    // every tick from here on.
-                    if (!item.Value.Repeating)
-                    {
-                        if (toRemove == null)
-                            toRemove = new();
+                    if (due == null)
+                        due = new();
 
-                        toRemove.Add(item.Key);
-                    }
-
-                    try
-                    {
-                        item.Value.Action?.Invoke();
-                    }
-                    catch (Exception e)
-                    {
-                        ReportFault(item.Key, item.Value, e);
-                    }
+                    due.Add(item);
                 }
 
-                if (toRemove == null)
+                if (due == null)
                     return;
 
-                foreach (var key in toRemove)
+                // A non-repeating timer is spent once it has fired, and goes before its
+                // callback runs: one that throws would otherwise be left behind to throw again
+                // on every tick, and a callback that re-adds a timer under the same name is
+                // adding a new one that must stay.
+                foreach (var item in due)
+                    if (!item.Repeating && _timedItems.TryGetValue(item.Name, out var current) && ReferenceEquals(current, item))
+                        _timedItems.Remove(item.Name);
+            }
+
+            foreach (var item in due)
+            {
+                try
                 {
-                    // Only if it is still the item that fired: a callback is allowed to have
-                    // re-added a timer under the same name, and that one is not spent.
-                    if (_timedItems.TryGetValue(key, out var current) && current.Triggered)
-                        _timedItems.Remove(key);
+                    item.Action?.Invoke();
+                }
+                catch (Exception e)
+                {
+                    ReportFault(item.Name, item, e);
                 }
             }
         }

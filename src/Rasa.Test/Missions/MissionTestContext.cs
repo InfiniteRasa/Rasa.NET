@@ -885,7 +885,7 @@ namespace Rasa.Test.Missions
                 characterAppearances: new CharacterAppearanceRepository(context),
                 characterInventories: new CharacterInventoryRepository(context),
                 characterLockboxes: new CharacterLockboxRepository(context),
-                characterLogoses: new CharacterLogosRepository(context),
+                characterLogoses: new CharacterLogosRepository(context), characterActionReuses: new Rasa.Repositories.Char.CharacterActionReuse.CharacterActionReuseRepository(context),
                 characterMissions: new CharacterMissionRepository(context),
                 characterMissionDeadlines: new CharacterMissionDeadlineRepository(context),
                 characterMissionProgress: new CharacterMissionProgressRepository(context),

@@ -46,15 +46,18 @@ namespace Rasa.Game
             if (!_validateMissionReadiness())
                 return false;
 
+            // The world first, then the doors: everything loaded before anything can connect,
+            // the loop started once there are ports to serve, and the auth server told last,
+            // since that is what puts this world on the server list.
             try
             {
-                _startLoop();
-                _setupCommunicator();
+                _loadRemainingData();
                 _createListener();
                 _registerLoginAndQueue();
-                _beginAccept();
                 _registerTimers();
-                _loadRemainingData();
+                _beginAccept();
+                _startLoop();
+                _setupCommunicator();
                 _publishReady();
                 return true;
             }

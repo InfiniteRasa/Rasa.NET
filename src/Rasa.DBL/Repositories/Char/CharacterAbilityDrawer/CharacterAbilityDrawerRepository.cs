@@ -14,7 +14,7 @@ namespace Rasa.Repositories.Char.CharacterAbilityDrawer
             _charContext = charContext;
         }
 
-        public void AddOrUpdate(uint characterId, int abilitySlot, int abilityId, uint abilityLevel)
+        public void AddOrUpdate(uint characterId, int abilitySlot, int abilityId, uint abilityLevel, uint? itemId = null)
         {
             var query = _charContext.CreateNoTrackingQuery(_charContext.CharacterAbilityDrawerEntries);
             var entry = query.Where(e => e.CharacterId == characterId && e.AbilitySlot == abilitySlot).FirstOrDefault();
@@ -23,11 +23,12 @@ namespace Rasa.Repositories.Char.CharacterAbilityDrawer
             {
                 entry.AbilityId = abilityId;
                 entry.AbilityLevel = abilityLevel;
+                entry.ItemId = itemId;
                 _charContext.CharacterAbilityDrawerEntries.Update(entry);
             }
             else
             {
-                var newEntry = new CharacterAbilityDrawerEntry(characterId, abilitySlot, abilityId, abilityLevel);
+                var newEntry = new CharacterAbilityDrawerEntry(characterId, abilitySlot, abilityId, abilityLevel, itemId);
 
                 _charContext.CharacterAbilityDrawerEntries.Add(newEntry);
             }

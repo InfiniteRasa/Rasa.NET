@@ -63,6 +63,9 @@ namespace Rasa.Managers
         private readonly uint _minClanNameLength = 3;
         private readonly uint _maxClanNameLength = 20;
         private readonly byte _clankRankLeader = 3;
+
+        /// <summary>The longest rank title stored; the column is varchar(64).</summary>
+        private const int MaxRankTitleLength = 32;
         private readonly int _requiredCreditsForClanCreation = 10000;
 
         // Arbitrary limit right now
@@ -205,7 +208,8 @@ namespace Rasa.Managers
                         CurrentHitPoints = itemData.CurrentHitPoints,
                         Color = itemData.Color,
                         Id = item.ItemId,
-                        Crafter = itemData.CrafterName
+                        Crafter = itemData.CrafterName,
+                        BoundCharacterId = itemData.BoundCharacterId
                     };
 
                     // check if item is weapon
@@ -667,6 +671,9 @@ namespace Rasa.Managers
 
             //update clan inventory from db
             InventoryManager.Instance.SetupLocalClanInventory(client);
+
+            // Into the clan's feuds, if it is in any.
+            ClanFeuds.Instance.MemberJoined(client);
         }
 
         internal void CleanupClan(Client client)
@@ -677,7 +684,12 @@ namespace Rasa.Managers
             // way through, disconnecting whoever sent it with the rows deleted and the cache not.
             client.Player.Inventory.ResetClanInventory();
 
+            var oldClanId = client.Player.ClanId;
+
             client.Player.ClanId = 0;
+
+            // Out of the clan's feuds: a kick, a leave or a disband all come through here.
+            ClanFeuds.Instance.MemberLeft(client, oldClanId);
         }
 
         internal void InviteToClanByName(Client client, InviteToClanByNamePacket packet)
@@ -796,16 +808,33 @@ namespace Rasa.Managers
             if (packet == null)
                 throw new ArgumentNullException(nameof(packet));
 
+            // Four ranks, 0 to the leader's; a title that is text of a sensible length. Nothing was
+            // checked: a clanless caller dereferenced a null clan, a null title broke the NOT NULL
+            // column, and an oversized one made every later SetClanData for the clan too big to
+            // send, so its members stopped getting clan data at all.
+            var title = packet.Title?.Trim();
+
+            if (packet.Rank > _clankRankLeader || string.IsNullOrEmpty(title) || title.Length > MaxRankTitleLength
+                || title.Any(char.IsControl))
+                return;
+
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
 
             ClanEntry clan = unitOfWork.Clans.GetClanByCharacterId(client.Player.Id);
+
+            if (clan == null)
+                return;
+
+            if (new Censor(unitOfWork.CensoredWords.GetCensoredWords()).ContainsProfanity(title))
+                return;
+
             List<ClanMemberEntry> allMembers = GetClanMembers(clan.Id);
             ClanMemberEntry clanLeader = allMembers.FirstOrDefault(x => x.Rank == _clankRankLeader);
 
             // Only the clan leader can change ranks
             if (clanLeader != null && clanLeader.CharacterId == client.Player.Id)
             {
-                if(unitOfWork.Clans.UpdateRankTitleByClanId(clan.Id, packet.Rank, packet.Title))
+                if(unitOfWork.Clans.UpdateRankTitleByClanId(clan.Id, packet.Rank, title))
                 {   
                     // Get the clan now that the rank title is updated
                     ClanEntry updatedClan = unitOfWork.Clans.GetClanById(clan.Id);
@@ -894,6 +923,9 @@ namespace Rasa.Managers
                 RefuseClanAction(client, PlayerMessage.PmClanInsufficientPermissions);
                 return;
             }
+
+            // Its feuds are cancelled and its challenges dropped while the members are still in it.
+            ClanFeuds.Instance.ClanDisbanded(clan.Id);
 
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
 
@@ -1193,6 +1225,15 @@ namespace Rasa.Managers
 
             if (inviteeClient?.Player == null)
                 return;
+
+            // Someone who has the inviter ignored is not asked by them.
+            if (inviteeClient.Player.IgnoredPlayers.Contains(client.AccountEntry.Id))
+            {
+                client.CallMethod(SysEntity.ClientClanManagerId,
+                    new DisplayClanMessagePacket((int)PlayerMessage.PmUserIgnoringYou,
+                        CreatePlayerMessageArgs("name", inviteeClient.Player.FamilyName)));
+                return;
+            }
 
             // One open invitation per character, as the client shows one dialog.
             if (_invites.ContainsKey(inviteeClient.Player.Id))
@@ -1637,6 +1678,96 @@ namespace Rasa.Managers
             // A character is in one clan at a time, so a row for another clan is not a member of
             // this one.
             return stored != null && stored.ClanId == clanId ? stored : null;
+        }
+
+        #endregion
+
+        #region Clan warfare search
+
+        /// <summary>Ours: the most clans one clan war search lists.</summary>
+        public const int ClanWarfareSearchMaxResults = 50;
+
+        /// <summary>
+        /// ClanWarfareSearch, from the clan war search window a leader opens with Declare War: the
+        /// PvP clans other than their own whose name holds the word typed (any case), with the
+        /// average level of their members inside the range - 0 is no limit on that side - listed by
+        /// member count, average level and whether anyone in them is online. Online clans first,
+        /// then by name, up to ClanWarfareSearchMaxResults.
+        ///
+        /// Always answered, with an empty list when there is nothing to show: the window disables
+        /// its Search button until an answer comes (or 1.5 seconds pass). A player in no clan, or
+        /// below CLAN_RANK_TO_CHALLENGE - who the client never offers the window - gets the empty
+        /// one. The window leaves out the searcher's own clan itself; so does this.
+        ///
+        /// Only PvP clans: a feud is clan PvP, and the window's own docstring calls its list "the
+        /// list of PvP clans". Whether the searcher's clan has to be PvP as well is not known, and
+        /// is not asked. A clan with no members is left out; it has no level to average.
+        ///
+        /// Declaring war from the list sends ChallengeClanToFeud, which is not implemented yet.
+        /// </summary>
+        internal void ClanWarfareSearch(Client client, ClanWarfareSearchPacket packet)
+        {
+            var player = client?.Player;
+
+            if (player == null)
+                return;
+
+            var matches = new List<ClanWarfareSearchResultsPacket.Match>();
+            var member = player.ClanId == 0 ? null : GetClanMember(player.ClanId, player.Id);
+
+            if (member == null || member.Rank < ClanRank.MinRankToChallenge)
+                Logger.WriteLog(LogType.Debug,
+                    $"{player.Name} searched for clans to fight without leading a clan; answered with none.");
+            else
+            {
+                try
+                {
+                    matches = FindWarfareMatches(player.ClanId, packet.NameContains?.Trim() ?? "", packet.MinLevel, packet.MaxLevel);
+                }
+                catch (Exception e)
+                {
+                    // A search that fails is an empty list, not a lost connection.
+                    Logger.WriteLog(LogType.Error, $"Clan war search for {player.Name} failed: {e.Message}");
+                }
+            }
+
+            client.CallMethod(SysEntity.ClientWargameManagerId, new ClanWarfareSearchResultsPacket(packet.RequestId, matches));
+        }
+
+        private List<ClanWarfareSearchResultsPacket.Match> FindWarfareMatches(uint ownClanId, string nameContains, int minLevel, int maxLevel)
+        {
+            var candidates = Clans.Values
+                .Select(c => c.Value)
+                .Where(c => c != null && c.IsPvP && c.Id != ownClanId
+                    && (nameContains.Length == 0 || (c.Name ?? "").IndexOf(nameContains, StringComparison.OrdinalIgnoreCase) >= 0))
+                .ToDictionary(c => c.Id);
+
+            if (candidates.Count == 0)
+                return new List<ClanWarfareSearchResultsPacket.Match>();
+
+            List<ClanRosterEntry> rosters;
+
+            using (var unitOfWork = _gameUnitOfWorkFactory.CreateChar())
+                rosters = unitOfWork.ClanMembers.GetRosters(candidates.Keys);
+
+            var online = OnlineCharacters();
+
+            return rosters
+                .GroupBy(r => r.ClanId)
+                .Where(g => candidates.ContainsKey(g.Key))
+                .Select(g => new ClanWarfareSearchResultsPacket.Match
+                {
+                    ClanId = g.Key,
+                    ClanName = candidates[g.Key].Name,
+                    MemberCount = g.Count(),
+                    AverageLevel = (int)Math.Round(g.Average(r => (double)r.Level), MidpointRounding.AwayFromZero),
+                    IsOnline = g.Any(r => online.ContainsKey(r.CharacterId))
+                })
+                .Where(m => (minLevel <= 0 || m.AverageLevel >= minLevel) && (maxLevel <= 0 || m.AverageLevel <= maxLevel))
+                .OrderByDescending(m => m.IsOnline)
+                .ThenBy(m => m.ClanName, StringComparer.OrdinalIgnoreCase)
+                .Take(ClanWarfareSearchMaxResults)
+                .ToList();
         }
 
         #endregion

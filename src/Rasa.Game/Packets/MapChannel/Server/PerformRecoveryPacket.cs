@@ -87,7 +87,7 @@ namespace Rasa.Packets.MapChannel.Server
                                 pw.WriteLong(hit.FinalAmt);         // self.finalAmt
                                 pw.WriteInt(hit.IsCritical);        // self.isCrit
                                 pw.WriteInt(hit.DeathBlow);         // self.deathBlow    ToDo => maybe bool
-                                pw.WriteUInt(hit.CoverModifier);    // self.coverModifier
+                                pw.WriteDouble(hit.CoverModifier);    // self.coverModifier
                                 pw.WriteInt(hit.WasImune);          // self.wasImmune
                                 pw.WriteList(0);                    // ToDo: targetEffectIds
                                 pw.WriteList(0);                    // ToDo: sourceEffectIds

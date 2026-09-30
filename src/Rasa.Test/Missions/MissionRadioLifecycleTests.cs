@@ -562,6 +562,55 @@ namespace Rasa.Test.Missions
         }
 
         [TestMethod]
+        public void RewardRadioMissionPaysAnOwedRewardOnceThroughTheHandler()
+        {
+            using var context = RadioContext();
+            context.SeedMission(1, 731, (uint)MissionState.Success, false);
+            context.ReloadPlayerMissions();
+            var singleton = typeof(MissionApplication).GetField("_instance", BindingFlags.Static | BindingFlags.NonPublic)!;
+            var previous = singleton.GetValue(null);
+            singleton.SetValue(null, context.Manager);
+            try
+            {
+                var router = new PacketRouter<ClientPacketHandler, GameOpcode>();
+                var handler = new ClientPacketHandler();
+                handler.RegisterClient(context.Client);
+                router.RoutePacket(handler, new RewardRadioMissionPacket { MissionId = 731, SelectionIdx = 0 });
+                Assert.AreEqual(MissionState.Completed, context.Client.Player.Missions[731].State);
+                Assert.AreEqual(107, context.ReadRewardTotals().Credits);
+                router.RoutePacket(handler, new RewardRadioMissionPacket { MissionId = 731, SelectionIdx = 0 });
+                Assert.AreEqual(107, context.ReadRewardTotals().Credits, "An owed reward is paid once.");
+            }
+            finally { singleton.SetValue(null, previous); }
+        }
+
+        [TestMethod]
+        public void RewardRadioMissionRefusesAnActiveMissionEvenWhenItIsCompleteable()
+        {
+            using var context = RadioContext();
+            Ready(context);
+            var before = context.ReadRewardTotals();
+            Assert.IsFalse(context.Manager.TryRewardRadioMission(context.Client, 731, 0, null));
+            Assert.AreEqual(MissionState.Active, context.Client.Player.Missions[731].State);
+            Assert.AreEqual(before.Credits, context.ReadRewardTotals().Credits);
+            Assert.IsFalse(context.Manager.TryRewardRadioMission(context.Client, 999, 0, null), "No such mission.");
+            Assert.IsTrue(context.Manager.TryCompleteRadioMission(context.Client, 731, 0, null));
+            Assert.AreEqual(107, context.ReadRewardTotals().Credits);
+        }
+
+        [TestMethod]
+        public void RewardRadioMissionKeepsTheCompletionChannel()
+        {
+            using var context = RadioContext(RadioMission(completion: MissionChannel.Npc));
+            context.SeedMission(1, 731, (uint)MissionState.Success, false);
+            context.ReloadPlayerMissions();
+            var before = context.ReadRewardTotals();
+            Assert.IsFalse(context.Manager.TryRewardRadioMission(context.Client, 731, 0, null));
+            Assert.AreEqual(MissionState.Success, context.Client.Player.Missions[731].State);
+            Assert.AreEqual(before.Credits, context.ReadRewardTotals().Credits);
+        }
+
+        [TestMethod]
         public void RepeatAttemptsHaveIndependentIdentityReceiptsAndRejectAStaleRuntime()
         {
             using var context = RadioContext();

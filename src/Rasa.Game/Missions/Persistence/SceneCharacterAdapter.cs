@@ -86,7 +86,7 @@ namespace Rasa.Game.Missions.Persistence
                             new Packets.MapChannel.Server.SkillsPacket(client.Player.Skills));
                         if (ability.Slot.HasValue)
                             client.CallMethod(client.Player.EntityId,
-                                new Packets.MapChannel.Server.AbilityDrawerPacket(client.Player.Abilities));
+                                new Packets.MapChannel.Server.AbilityDrawerPacket(client.Player.Abilities, client.Player));
                     });
                     break;
                 case SetQualificationIntent qualification:

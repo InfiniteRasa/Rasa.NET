@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using DotRecast.Core.Numerics;
 using DotRecast.Detour;
@@ -48,10 +49,16 @@ namespace Rasa.NavMesh
             var tilesZ = (gridH + s.TileSize - 1) / s.TileSize;
             log($"  grid {gridW} x {gridH} cells, {tilesX} x {tilesZ} tiles of {s.TileSize * s.CellSize:0.#} m");
 
-            // Recast's detail-mesh code reports every dangling Delaunay face on the console; on a
-            // 2 km map that is thousands of lines saying nothing actionable.
-            var console = Console.Out;
-            Console.SetOut(System.IO.TextWriter.Null);
+            // Recast's detail-mesh step writes "delaunayHull: Removing dangling face" to stderr
+            // for every triangle its per-polygon height triangulation could not close - a known
+            // and harmless recastnavigation message (the polygon keeps its walkable area, the
+            // height detail in that corner is a little coarser). On a 2 km map it is thousands
+            // of lines, so both streams are captured for the duration and summarized.
+            var stdout = Console.Out;
+            var stderr = Console.Error;
+            var captured = new CountingWriter();
+            Console.SetOut(captured);
+            Console.SetError(captured);
             List<RcBuilderResult> results;
 
             try
@@ -60,8 +67,15 @@ namespace Rasa.NavMesh
             }
             finally
             {
-                Console.SetOut(console);
+                Console.SetOut(stdout);
+                Console.SetError(stderr);
             }
+
+            if (captured.DanglingFaces > 0)
+                log($"  {captured.DanglingFaces} dangling detail-mesh faces dropped by Recast (harmless)");
+
+            foreach (var line in captured.Other.Take(5))
+                log($"  recast: {line}");
 
             var tileBits = Math.Min(DtUtils.Ilog2(DtUtils.NextPow2(tilesX * tilesZ)), 14);
             var navMeshParams = new DtNavMeshParams
@@ -188,6 +202,48 @@ namespace Rasa.NavMesh
             }
 
             return count > 0 && under * 2 > count;
+        }
+
+        /// <summary>Swallows Recast's console chatter, counting the one message it emits in bulk and keeping the rest.</summary>
+        private sealed class CountingWriter : System.IO.TextWriter
+        {
+            private readonly System.Text.StringBuilder _line = new System.Text.StringBuilder();
+            public int DanglingFaces;
+            public readonly List<string> Other = new List<string>();
+
+            public override System.Text.Encoding Encoding => System.Text.Encoding.UTF8;
+
+            public override void Write(char value)
+            {
+                if (value == '\r')
+                    return;
+
+                if (value != '\n')
+                {
+                    _line.Append(value);
+                    return;
+                }
+
+                var text = _line.ToString();
+                _line.Clear();
+
+                lock (Other)
+                {
+                    if (text.Contains("Removing dangling face"))
+                        DanglingFaces++;
+                    else if (text.Length > 0 && Other.Count < 100)
+                        Other.Add(text);
+                }
+            }
+
+            public override void Write(string value)
+            {
+                if (value == null)
+                    return;
+
+                foreach (var c in value)
+                    Write(c);
+            }
         }
     }
 }

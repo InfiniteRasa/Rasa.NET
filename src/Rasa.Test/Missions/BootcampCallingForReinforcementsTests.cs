@@ -56,7 +56,7 @@ namespace Rasa.Test.Missions
                 .Where(actor => actor.SpawnPool?.SceneActorRole?.StartsWith("assault-", StringComparison.Ordinal) == true)
                 .ToArray();
             Assert.HasCount(6, attackers, "Planting must begin the authored uphill assault.");
-            Assert.IsTrue(attackers.All(actor => actor.Faction == Factions.Bane));
+            Assert.IsTrue(attackers.All(actor => actor.TargetCategory == TargetCategory.Hostile));
             Assert.IsTrue(attackers.All(actor =>
                 actor.SpawnPool.ScenarioOwnerCharacterId == harness.Client.Player.Id));
             Assert.IsTrue(attackers.All(actor => actor.Position.Y < 96),
@@ -84,7 +84,7 @@ namespace Rasa.Test.Missions
                 .Where(actor => actor.SpawnPool?.SceneActorRole?.StartsWith("reinforcement-", StringComparison.Ordinal) == true)
                 .ToArray();
             Assert.HasCount(2, soldiers);
-            Assert.IsTrue(soldiers.All(actor => actor.Faction == Factions.AFS && actor.Actions.Count > 0));
+            Assert.IsTrue(soldiers.All(actor => actor.TargetCategory == TargetCategory.Friendly && actor.Actions.Count > 0));
             var van = BootcampRuntimeTestHarness.FindNpcByPackage(
                 harness.BootcampMap, BootcampRuntimeTestHarness.CorporalVanValkenbergPackageId);
             Assert.IsNotNull(van);

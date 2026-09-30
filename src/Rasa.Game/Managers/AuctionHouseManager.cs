@@ -124,7 +124,7 @@ namespace Rasa.Managers
                     lock (InstanceLock)
                     {
                         if (_instance == null)
-                            _instance = new AuctionHouseManager(Server.GameUnitOfWorkFactory);
+                            _instance = new AuctionHouseManager(Server.GameUnitOfWorkFactory, null, requireAuctioneer: true);
                     }
                 }
 
@@ -137,16 +137,29 @@ namespace Rasa.Managers
         {
         }
 
+        /// <param name="requireAuctioneer">
+        /// Whether each request must name an auctioneer in reach. The server's instance
+        /// (<see cref="Instance"/>) does; one made on its own - a test harness with no auctioneer
+        /// standing in it - leaves it off.
+        /// </param>
         internal AuctionHouseManager(
             IGameUnitOfWorkFactory gameUnitOfWorkFactory,
             MissionApplication missionManager,
-            Action<PythonPacket> beforeBuyoutPublication = null)
+            Action<PythonPacket> beforeBuyoutPublication = null,
+            bool requireAuctioneer = false)
         {
             _gameUnitOfWorkFactory = gameUnitOfWorkFactory;
             _currencyManager = new ManifestationManager(gameUnitOfWorkFactory);
             _missionManager = missionManager;
             _beforeBuyoutPublication = beforeBuyoutPublication;
+            _requireAuctioneer = requireAuctioneer;
         }
+
+        private readonly bool _requireAuctioneer;
+
+        /// <summary>At an auction house: the auctioneer the window was opened from has to be in reach.</summary>
+        private bool AuctioneerInReach(Client client, ulong entityId)
+            => !_requireAuctioneer || NpcManager.NpcInReach(client, entityId, NpcManager.IsAuctioneerNpc, "an auctioneer") != null;
 
         #region Handlers
 
@@ -158,6 +171,10 @@ namespace Rasa.Managers
         /// </summary>
         public void RequestAuctionBuyout(Client client, RequestAuctionBuyoutPacket packet)
         {
+            // At an auction house: the auctioneer the window was opened from has to be in reach.
+            if (!AuctioneerInReach(client, packet.EntityId))
+                return;
+
             var item = EntityManager.Instance.GetItem(packet.ItemId);
 
             if (item == null)
@@ -176,6 +193,9 @@ namespace Rasa.Managers
                 return;
             }
 
+            var buyerBefore = client.Player.Credits.GetValueOrDefault(CurencyType.Credits);
+            var sellerBefore = result.Seller?.Player.Credits.GetValueOrDefault(CurencyType.Credits) ?? 0;
+
             client.Player.Credits[CurencyType.Credits] = result.BuyerCredits;
             if (result.Seller != null)
                 result.Seller.Player.Credits[CurencyType.Credits] =
@@ -193,7 +213,7 @@ namespace Rasa.Managers
                 new UpdateCreditsPacket(
                     CurencyType.Credits,
                     result.BuyerCredits,
-                    0),
+                    result.BuyerCredits - buyerBefore),
                 $"auction item {item.Id} buyer credits");
             if (result.Seller != null)
                 MissionApplication.TryPublish(
@@ -202,7 +222,7 @@ namespace Rasa.Managers
                         new UpdateCreditsPacket(
                             CurencyType.Credits,
                             result.SellerCredits,
-                            0)),
+                            result.SellerCredits - sellerBefore)),
                     $"auction item {item.Id} seller credits");
             MissionApplication.TryPublish(
                 () => ItemManager.Instance.SendItemDataToClient(
@@ -236,6 +256,9 @@ namespace Rasa.Managers
                 new AuctionBuyoutSuccessPacket(item.EntityId),
                 $"auction item {item.Id} buyout result");
             result.ProgressPlan.Publish(client);
+
+            // The buyer is the one asking, so they are logged in and it is in their inbox now.
+            Unlist(item, true);
         }
 
         private BuyoutResult ConsumeBuyoutLocked(
@@ -385,11 +408,18 @@ namespace Rasa.Managers
         }
 
         /// <summary>
-        /// Fills the "My Auctions" tab. The client asks for this every time the tab is opened,
-        /// and replaces its whole auction dictionary with what comes back.
+        /// Fills the "My Auctions" tab. The client asks for this every time the tab is opened.
+        /// AuctionStatusSuccess only adds to and updates the client's auction dictionary
+        /// (inventory.UpdateAuctionItems), so ResetAuctionInventory goes first and the answer
+        /// replaces the list: a listing that has since sold, expired or been skipped below
+        /// does not stay behind in it.
         /// </summary>
         public void RequestAuctionStatus(Client client, RequestAuctionStatusPacket packet)
         {
+            // At an auction house: the auctioneer the window was opened from has to be in reach.
+            if (!AuctioneerInReach(client, packet.EntityId))
+                return;
+
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
             var auctions = unitOfWork.Auctions.GetAuctionsBySeller(client.Player.Id);
             var now = DateTime.UtcNow;
@@ -410,12 +440,17 @@ namespace Rasa.Managers
                 rows.Add(new AuctionStatus(entityId, auction.Price, auction.RemainingHours(now)));
             }
 
+            client.CallMethod(SysEntity.ClientInventoryManagerId, new ResetAuctionInventoryPacket());
             client.CallMethod(SysEntity.ClientAuctionHouseManagerId, new AuctionStatusSuccessPacket(rows));
         }
 
         /// <summary>Takes a listing down and puts the item back in the seller's pack. The deposit is not refunded.</summary>
         public void RequestCancelAuction(Client client, RequestCancelAuctionPacket packet)
         {
+            // At an auction house: the auctioneer the window was opened from has to be in reach.
+            if (!AuctioneerInReach(client, packet.EntityId))
+                return;
+
             CancelResult result;
             lock (AuctionSyncRoot)
                 result = ConsumeCancellationLocked(client, packet.ItemEntityId);
@@ -439,6 +474,8 @@ namespace Rasa.Managers
                     InventoryType.Personal, result.Item.EntityId, result.Slot));
             client.CallMethod(SysEntity.ClientAuctionHouseManagerId,
                 new CancelAuctionSuccessPacket(packet.ItemEntityId));
+
+            Unlist(result.Item, true);
         }
 
         private CancelResult ConsumeCancellationLocked(
@@ -534,6 +571,10 @@ namespace Rasa.Managers
 
         public void RequestCreateAuction(Client client, RequestCreateAuctionPacket packet)
         {
+            // At an auction house: the auctioneer the window was opened from has to be in reach.
+            if (!AuctioneerInReach(client, packet.EntityId))
+                return;
+
             var item = EntityManager.Instance.GetItem(packet.ItemEntityId);
             var slotId = FindPersonalSlotOf(client, packet.ItemEntityId);
 
@@ -613,6 +654,7 @@ namespace Rasa.Managers
 
             var auctionSlot = NextAuctionSlot(client);
             client.Player.Inventory.AuctionItems.Add(item.EntityId);
+            List(item);
             item.OwnerSlotId = auctionSlot;
 
             unitOfWork.CharacterInventories.MoveInvItem(client.AccountEntry.Id, client.Player.Id,
@@ -629,6 +671,10 @@ namespace Rasa.Managers
         /// </summary>
         public void RequestQueryAuctions(Client client, RequestQueryAuctionsPacket packet)
         {
+            // At an auction house: the auctioneer the window was opened from has to be in reach.
+            if (!AuctioneerInReach(client, packet.EntityId))
+                return;
+
             if (!AuctionCategory.Names.TryGetValue(packet.CategoryId, out var category))
             {
                 QueryFailed(client, PlayerMessage.PmAuctionNoResultsFound);
@@ -645,7 +691,7 @@ namespace Rasa.Managers
                 if (auction.SellerId == client.Player.Id)
                     continue;               // the browse tab is for other people's auctions
 
-                var item = FindAuctionedItem(auction);
+                var item = FindAuctionedItem(auction, unitOfWork);
 
                 if (item?.ItemTemplate == null)
                     continue;
@@ -795,7 +841,7 @@ namespace Rasa.Managers
             if (item?.ItemTemplate == null || item.MissionOwnership != null)
                 return false;
 
-            if (item.ItemTemplate.BoundToCharacter)
+            if (item.IsBound)
                 return false;
 
             if (!item.ItemTemplate.HasSellableFlag)
@@ -844,6 +890,7 @@ namespace Rasa.Managers
                             OnlineSeller(result.SellerId), result.Item);
                         RemoveFromSellersAuctionList(
                             result.SellerId, result.Item.EntityId, null);
+                        Unlist(result.Item, InSomeonesInbox(result.Item.EntityId));
                     }
 
                     consecutiveFailures = 0;
@@ -897,10 +944,16 @@ namespace Rasa.Managers
 
                         if (!unitOfWork.Auctions.DeleteAuction(auction.ItemId))
                             throw new ExpiryDeferred();
+
+                        // And its item, if one was loaded for it: there is nobody to hold it now.
+                        var orphan = ListedItem(auction.ItemId);
+
+                        if (orphan != null)
+                            Unlist(orphan, false);
                         return;
                     }
 
-                    var item = FindAuctionedItem(auction);
+                    var item = FindAuctionedItem(auction, unitOfWork);
                     var durableItem =
                         unitOfWork.CharacterInventories.FindByItemId(itemId);
                     if (item == null ||
@@ -970,11 +1023,76 @@ namespace Rasa.Managers
             Server.Clients.Find(c => c?.Player != null && c.Player.Id == sellerId && c.State == ClientState.Ingame);
 
         /// <summary>
-        /// The live Item behind an auction row. A seller who is logged in has it in their
-        /// auction list; otherwise it is whichever registered item carries that database id.
+        /// The Item behind each listing, by database item id: one object per listing, owned here
+        /// from the moment it is listed until the listing ends, whether or not the seller is
+        /// logged in. Loading a seller's inventory reuses it (InventoryManager), a logout leaves it
+        /// alone, and a search finds it here.
+        ///
+        /// Searches used to find listed items by scanning every registered item for the database
+        /// id - which only worked because every login left the account's items registered for
+        /// good, several copies of each, and found nothing for a seller who had not logged in since
+        /// a restart.
         /// </summary>
-        private static Item FindAuctionedItem(AuctionEntry auction)
+        private static readonly Dictionary<uint, Item> Listed = new();
+
+        /// <summary>The registered Item for a listing, or null if none is loaded.</summary>
+        public Item ListedItem(uint itemId)
         {
+            lock (Listed)
+            {
+                if (!Listed.TryGetValue(itemId, out var item))
+                    return null;
+
+                if (EntityManager.Instance.GetItem(item.EntityId) == item)
+                    return item;
+
+                Listed.Remove(itemId);
+                return null;
+            }
+        }
+
+        /// <summary>Hands an item to the auction house for as long as it is listed.</summary>
+        public void List(Item item)
+        {
+            lock (Listed)
+                Listed[item.Id] = item;
+        }
+
+        /// <summary>
+        /// The listing is over; the item belongs to whoever it went to. If nobody who is logged in
+        /// holds it now - it went to the inbox of someone who is not - its entity is let go here, and
+        /// that player's login loads it from the row again.
+        /// </summary>
+        private static void Unlist(Item item, bool heldByOnlinePlayer)
+        {
+            if (item == null)
+                return;
+
+            lock (Listed)
+                Listed.Remove(item.Id);
+
+            if (heldByOnlinePlayer)
+                return;
+
+            EntityManager.Instance.ReleaseEntity(item.EntityId, EntityType.Item);
+        }
+
+        /// <summary>Whether any logged-in player has this entity in their inbox.</summary>
+        private static bool InSomeonesInbox(ulong entityId) =>
+            Server.Clients.Exists(c => c?.Player != null && c.Player.Inventory.InboxItems.Contains(entityId));
+
+        /// <summary>
+        /// The live Item behind an auction row: the auction house's own, or else loaded from the
+        /// database now and kept.
+        /// </summary>
+        private static Item FindAuctionedItem(AuctionEntry auction, ICharUnitOfWork unitOfWork)
+        {
+            var listed = Instance.ListedItem(auction.ItemId);
+
+            if (listed != null)
+                return listed;
+
+            // A seller who is logged in holds it among their auction items.
             var seller = OnlineSeller(auction.SellerId);
 
             if (seller != null)
@@ -983,14 +1101,27 @@ namespace Rasa.Managers
                     var held = EntityManager.Instance.GetItem(entityId);
 
                     if (held != null && held.Id == auction.ItemId)
+                    {
+                        Instance.List(held);
                         return held;
+                    }
                 }
 
-            foreach (var entry in EntityManager.Instance.Items)
-                if (entry.Value != null && entry.Value.Id == auction.ItemId)
-                    return entry.Value;
+            var itemData = unitOfWork.Items.GetItem(auction.ItemId);
 
-            return null;
+            if (itemData == null)
+                return null;
+
+            var itemTemplate = ItemManager.Instance.GetItemTemplateById(itemData.ItemTemplateId);
+
+            if (itemTemplate == null)
+                return null;
+
+            var item = InventoryManager.CreateLoadedItem(itemData, itemTemplate, auction.SellerId, 0);
+
+            Instance.List(item);
+
+            return item;
         }
 
         /// <summary>

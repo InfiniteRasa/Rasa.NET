@@ -206,6 +206,7 @@ namespace Rasa.Test.Missions
 
             var originalOut = Console.Out;
             using var writer = new StringWriter();
+            global::Rasa.Logger.Flush();
             Console.SetOut(writer);
             try
             {
@@ -213,6 +214,7 @@ namespace Rasa.Test.Missions
             }
             finally
             {
+                global::Rasa.Logger.Flush();
                 Console.SetOut(originalOut);
             }
 
@@ -262,6 +264,8 @@ namespace Rasa.Test.Missions
             public INpcPackageRepository NpcPackages { get; }
             public IPlayerRandomNameRepository RandomNames { get; }
             public ISpawnpoolRepository Spawnpools { get; }
+            public IMapEmitterRepository MapEmitters { get; }
+            public ISpawnPoolArrivalRepository SpawnPoolArrivals { get; }
             public ITeleporterRepository Teleporters { get; }
             public void Complete() { }
             public void Reject() { }

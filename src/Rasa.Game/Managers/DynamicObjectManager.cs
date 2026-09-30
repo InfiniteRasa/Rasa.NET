@@ -170,6 +170,25 @@ namespace Rasa.Managers
             CellManager.Instance.CellCallMethod(obj, new ForceStatePacket(state, delta));
         }
 
+        /// <summary>
+        /// Puts an object in or out of service and tells everyone who can see it (SetUsable). Out
+        /// of service it offers no Use and cannot be moused over on the client, and a use request
+        /// for it is refused here. A client meeting it later has the flag in UsableInfo. Returns
+        /// whether it changed; setting what it already is sends nothing.
+        /// </summary>
+        internal bool SetEnabled(DynamicObject obj, bool enabled)
+        {
+            if (obj == null || obj.IsEnabled == enabled)
+                return false;
+
+            obj.IsEnabled = enabled;
+
+            if ((obj.RuntimeMapChannel ?? MapChannelManager.Instance.FindByContextId(obj.MapContextId)) != null)
+                CellManager.Instance.CellCallMethod(obj, new SetUsablePacket(enabled));
+
+            return true;
+        }
+
         internal void RequestUseObjectPacket(Client client, RequestUseObjectPacket packet)
         {
             // Teleporting counts as being in the world for the packet gate - a dropship ride keeps
@@ -187,9 +206,13 @@ namespace Rasa.Managers
                 return;
             }
 
+            // Out of service (SetEnabled): the client offers no Use for it, so only a client that
+            // did not know yet - or did not care - asks. Refused as the client itself would put it,
+            // and the request closed and cancelled.
             if (!obj.IsEnabled)
             {
                 Logger.WriteLog(LogType.Debug, $"{client.Player.FamilyName} asked to use {packet.EntityId}, which is not enabled right now.");
+                ActorManager.RefuseRequest(client, packet.ActionId, packet.ActionArgId, PlayerMessage.PmUseObjectNotUsable);
                 return;
             }
 
@@ -251,15 +274,34 @@ namespace Rasa.Managers
                     return;
             }
 
+            // One use at a time. Every request queued another windup and recovery, and each
+            // recovery goes to everyone nearby, with no limit on how many one player could have
+            // waiting. The client's own action queue holds one use; a second is not it.
+            if (client.Player.MapChannel.PerformRecovery.Any(a => a.Actor == client.Player && a.ActionId == ActionId.UseObject))
+                return;
+
+            // Whoever is using it, once each (added below only if absent). The list was appended to on every request and
+            // nothing removes a footlocker's users, so it grew for as long as the server ran;
+            // connections that have closed are dropped from it here as well.
+            obj.TriggeredByPlayers.RemoveAll(c => c.State == ClientState.Disconnected);
+
             switch (obj.DynamicObjectType)
             {
                 case DynamicObjectType.ControlPoint:
                     {
+                        if (!TryLockForUse(client, obj, packet))
+                            break;
+
+                        // The object's id rides on the action so its recovery can find the lock.
+                        var controlAction = new ActionData(client.Player, packet.ActionId, packet.ActionArgId, 10000);
+                        controlAction.SourceId = obj.EntityId;
+
                         client.CallMethod(client.Player.EntityId, new PerformWindupPacket(PerformType.TwoArgs, packet.ActionId, packet.ActionArgId));
                         client.CallMethod(packet.EntityId, new UsePacket(client.Player.EntityId, obj.StateId, 10000));
-                        client.Player.MapChannel.PerformRecovery.Add(new ActionData(client.Player, packet.ActionId, packet.ActionArgId, 10000));
+                        client.Player.MapChannel.PerformRecovery.Add(controlAction);
 
-                        obj.TriggeredByPlayers.Add(client);
+                        if (!obj.TriggeredByPlayers.Contains(client))
+                            obj.TriggeredByPlayers.Add(client);
                         break;
                     }
                 case DynamicObjectType.Lockbox:
@@ -268,11 +310,15 @@ namespace Rasa.Managers
                         client.CallMethod(packet.EntityId, new UsePacket(client.Player.EntityId, obj.StateId, 100));
                         client.Player.MapChannel.PerformRecovery.Add(new ActionData(client.Player, packet.ActionId, packet.ActionArgId, 100));
 
-                        obj.TriggeredByPlayers.Add(client);
+                        if (!obj.TriggeredByPlayers.Contains(client))
+                            obj.TriggeredByPlayers.Add(client);
                         break;
                     }
                 case DynamicObjectType.Logos:
                     {
+                        if (!TryLockForUse(client, obj, packet))
+                            break;
+
                         var windupTime = obj.WindupTime == 0
                             ? DefaultScenarioUseWindupMs
                             : obj.WindupTime;
@@ -283,15 +329,22 @@ namespace Rasa.Managers
                         client.CallMethod(packet.EntityId, new UsePacket(client.Player.EntityId, obj.StateId, (int)windupTime));
                         client.Player.MapChannel.PerformRecovery.Add(actionData);
 
-                        obj.TriggeredByPlayers.Add(client);
+                        if (!obj.TriggeredByPlayers.Contains(client))
+                            obj.TriggeredByPlayers.Add(client);
                         break;
                     }
                 case DynamicObjectType.Kraftwerks:
                     KraftwerksManager.Instance.Use(client, obj, packet.ActionArgId);
                     break;
+                case DynamicObjectType.Hortimonculus:
+                    AbilityManager.Instance.RequestUseHortimonculus(client, obj, packet);
+                    break;
                 case DynamicObjectType.DropshipPad:
                     // The hovering ship is a two-state switch to the client, so it offers a use;
                     // there is nothing to do with one - the pad works by walking into the beam.
+                    break;
+                case DynamicObjectType.DropshipBeacon:
+                    DropshipBeacons.Use(client, obj, packet);
                     break;
                 default:
                     Logger.WriteLog(LogType.Debug, $"ToDo: RequestUseObjectPacket: unsuported object type {obj.DynamicObjectType}");
@@ -515,6 +568,13 @@ namespace Rasa.Managers
             if (classInfo == null)
                 return;
 
+            // An FX emitter is no usable - it has no Recv_UsableInfo to take the state below.
+            if (dynamicObject.DynamicObjectType == DynamicObjectType.Emitter)
+            {
+                client.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(dynamicObject.EntityId, dynamicObject.EntityClassId, EmitterManager.EntityData(dynamicObject, classInfo)));
+                return;
+            }
+
             var entityData = new List<PythonPacket>
             {
                 // PhysicalEntity
@@ -528,7 +588,12 @@ namespace Rasa.Managers
                 entityData.Add((_missionManager ?? MissionApplication.Instance).ObjectConversations.Status(client, dynamicObject));
             }
             else
-                entityData.Add(new UsableInfoPacket(dynamicObject.IsEnabled, dynamicObject.StateId, 0,
+                entityData.Add(new UsableInfoPacket(
+                    // A beacon's ship is in service for its deployer's squad alone (DropshipBeacons).
+                    dynamicObject.DynamicObjectType == DynamicObjectType.DropshipBeacon
+                        ? DropshipBeacons.ShowTo(client, dynamicObject)
+                        : dynamicObject.IsEnabled,
+                    dynamicObject.StateId, 0,
                     dynamicObject.WindupTime, dynamicObject.ActivateMission));
 
             // Only for an object that actually has a lock. An unlocked usable is the default the
@@ -546,6 +611,22 @@ namespace Rasa.Managers
 
             client.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(dynamicObject.EntityId, dynamicObject.EntityClassId, entityData));
             PublishRewardLoot(client, dynamicObject);
+
+            // A Hortimonculus plant: its owner and its hit points.
+            if (dynamicObject.DynamicObjectType == DynamicObjectType.Hortimonculus)
+                AbilityManager.ShowPlantTo(client, dynamicObject);
+
+            // A force field: its hit points, and whether it blocks this client's avatar.
+            if (dynamicObject.DynamicObjectType == DynamicObjectType.ForceField)
+                ForceFields.ShowTo(client, dynamicObject);
+
+            // Someone is partway through using it. Players are introduced before objects, and the
+            // user is standing at it, so this client already has the actor the effect runs to.
+            if (dynamicObject.UsedBy != null)
+            {
+                client.CallMethod(dynamicObject.EntityId, new LockToActorPacket(dynamicObject.UsedBy.EntityId));
+                client.CallMethod(dynamicObject.EntityId, new UseInterruptiblePacket(dynamicObject.UsedBy.EntityId));
+            }
         }
 
         private static void PublishRewardLoot(Client client, DynamicObject dynamicObject)
@@ -600,6 +681,82 @@ namespace Rasa.Managers
             Logger.WriteLog(LogType.Debug, "ToDO remove dynamic object from server");
         }
 
+        #region Use lock
+
+        /// <summary>
+        /// Starts a timed use of an object, or refuses it because someone else is partway through
+        /// one. Control points and logos objects only: a capture or a tablet is one player's at a
+        /// time, and both classes have an in-use effect for the client to play.
+        ///
+        /// Everyone in range, the user included, gets LockToActor(user) and then
+        /// UseInterruptible(user). The lock turns the HUD's use prompt into the in-use text for
+        /// everyone else and is what the client checks before it plays the effect; the effect runs
+        /// from the object to the user until the use ends (<see cref="ReleaseUseLock"/>).
+        ///
+        /// A holder that is no longer waiting on a use of this object - one whose action was
+        /// dropped without a recovery - does not keep it: the lock passes to the new user.
+        ///
+        /// A refusal is ActorManager.RefuseRequest - UserActionFailed and ActionFailed - which ends
+        /// the client's windup and clears its pending action. The client has no in-use message, so
+        /// it shows its generic "cannot do that now".
+        /// </summary>
+        private bool TryLockForUse(Client client, DynamicObject obj, RequestUseObjectPacket packet)
+        {
+            var user = client.Player;
+            var holder = obj.UsedBy;
+
+            if (holder != null && IsUsing(user.MapChannel, holder, obj))
+            {
+                Logger.WriteLog(LogType.Debug, $"{user.FamilyName} asked to use object {obj.EntityId}, which {(holder == user ? "they are already using" : $"entity {holder.EntityId} is using")}. Refused.");
+                ActorManager.RefuseRequest(client, packet.ActionId, packet.ActionArgId, PlayerMessage.PmCannotPerformActionNow);
+                return false;
+            }
+
+            obj.UsedBy = user;
+
+            CellManager.Instance.CellCallMethod(obj, new LockToActorPacket(user.EntityId));
+            CellManager.Instance.CellCallMethod(obj, new UseInterruptiblePacket(user.EntityId));
+
+            return true;
+        }
+
+        /// <summary>Whether <paramref name="actor"/> still has a use of <paramref name="obj"/> waiting to finish.</summary>
+        private static bool IsUsing(MapChannel mapChannel, Actor actor, DynamicObject obj)
+        {
+            return mapChannel != null
+                   && mapChannel.PerformRecovery.Any(a => a.Actor == actor && a.ActionId == ActionId.UseObject && a.SourceId == obj.EntityId);
+        }
+
+        /// <summary>
+        /// Ends the lock a use-object action holds, if it holds one: when the use finishes, when it
+        /// is interrupted, or when its actor leaves the map with it still pending. An interrupted
+        /// use - or one whose actor died, or left - gets UseInterrupted first, which takes the
+        /// in-use effect off; LockToActor(0) then clears the lock, which also takes the effect off
+        /// and puts the object's state effect back. Either way, nothing is left showing the object
+        /// as in use.
+        ///
+        /// The object is the action's SourceId, and it is only unlocked if this action's actor is
+        /// the one holding it, so a use of anything else - a footlocker, a station, a
+        /// Hortimonculus plant - passes through untouched.
+        /// </summary>
+        internal void ReleaseUseLock(ActionData action, bool interrupted)
+        {
+            if (action.ActionId != ActionId.UseObject || action.SourceId == 0)
+                return;
+
+            if (!EntityManager.Instance.TryGetObject(action.SourceId, out var obj) || obj.UsedBy != action.Actor)
+                return;
+
+            obj.UsedBy = null;
+
+            if (interrupted || action.IsInrerrupted || action.Actor.State == CharacterState.Dead)
+                CellManager.Instance.CellCallMethod(obj, new UseInterruptedPacket(action.Actor.EntityId));
+
+            CellManager.Instance.CellCallMethod(obj, new LockToActorPacket(0));
+        }
+
+        #endregion
+
         #region ControlPoint
 
         internal void InitControlPoints()
@@ -650,7 +807,7 @@ namespace Rasa.Managers
 
                         Logger.WriteLog(LogType.Debug, $"Action Exicuted");
                         controlpoint.TriggeredByPlayers.Remove(client);
-                        controlpoint.Faction = controlpoint.Faction == Factions.AFS ? Factions.Bane : Factions.AFS;
+                        controlpoint.TargetCategory = controlpoint.TargetCategory == TargetCategory.Friendly ? TargetCategory.Hostile : TargetCategory.Friendly;
                         controlpoint.StateId = controlpoint.StateId == UseObjectState.CpointStateFactionAOwned ? UseObjectState.CpointStateFactionBOwned : UseObjectState.CpointStateFactionAOwned;
 
                         CellManager.Instance.CellCallMethod(
@@ -661,7 +818,7 @@ namespace Rasa.Managers
                             mapChannel,
                             controlpoint,
                             new UsableInfoPacket(
-                                true,
+                                controlpoint.IsEnabled,
                                 controlpoint.StateId,
                                 0,
                                 10000,
@@ -738,6 +895,18 @@ namespace Rasa.Managers
                             dropship.Client.CallMethod(SysEntity.ClientMethodId, new BeginTeleportPacket());
                         }
 
+                        if (dropship.DropshipType == DropshipType.Teleporter && dropship.Role == DropshipRole.Arrival &&
+                            dropship.Client.Player.MapContextId == dropship.MapContextId)
+                        {
+                            // Down the beam, now the ship is over the pad: TeleportArrival stops the
+                            // fade the player has been held in and plays the arrival effect on them
+                            // (actor.py _PlayTeleportArrivalFX). Everyone else's clients only: the
+                            // passenger's own plays it on its own clock - the Teleport's delay on
+                            // this map, leaving the loading screen on another - and a second one
+                            // would play the effect twice.
+                            dropship.Client.CellIgnoreSelfCallMethod(dropship.Client, new TeleportArrivalPacket());
+                        }
+
                         if (dropship.DropshipType == DropshipType.Spawner)
                         {
                             // create list of creatures to spawn
@@ -746,7 +915,7 @@ namespace Rasa.Managers
                             // spawn creatures
                             try
                             {
-                                SpawnPoolManager.Instance.SpawnCreatures(dropship.SpawnPool, creatureList);
+                                SpawnPoolManager.Instance.SpawnCreatures(dropship.SpawnPool, creatureList, dropship.Arrival);
                             }
                             finally
                             {
@@ -765,23 +934,28 @@ namespace Rasa.Managers
                         dropship.PhaseTimeleft = 5000;
 
                         if (dropship.DropshipType == DropshipType.Teleporter && dropship.Role == DropshipRole.Arrival)
+                        {
+                            // Free to go as the ship lifts off - and in the world as far as the
+                            // server is concerned from the same moment. It used to wait for the
+                            // ship to be gone five seconds later, and every step the player took
+                            // in between was dropped ("Ignored movement outside the active world
+                            // state: Teleporting").
                             dropship.Client.CallMethod(SysEntity.ClientMethodId, new UnrequestMovementBlockPacket());
+
+                            if (dropship.Client.PendingTransfer == null &&
+                                dropship.Client.Player.MapContextId == dropship.MapContextId)
+                            {
+                                dropship.Client.State = ClientState.Ingame;
+                                Maps.ResumeMissionScenes(dropship.Client);
+                                ManifestationManager.Instance.ResetInactivity(dropship.Client);
+                            }
+                        }
                         break;
                     case 5:
                         if (dropship.DropshipType == DropshipType.Teleporter)
                         {
                             if (dropship.Role == DropshipRole.Departure)
                                 DepartDropship(dropship.Client, dropship);
-                            else
-                            {
-                                if (dropship.Client.PendingTransfer == null &&
-                                    dropship.Client.Player.MapContextId == dropship.MapContextId)
-                                {
-                                    dropship.Client.State = ClientState.Ingame;
-                                    Maps.ResumeMissionScenes(dropship.Client);
-                                    ManifestationManager.Instance.ResetInactivity(dropship.Client);
-                                }
-                            }
                         }
 
                         if (dropship.DropshipType == DropshipType.Spawner)
@@ -846,7 +1020,7 @@ namespace Rasa.Managers
                     CellManager.Instance.CellCallMethod(
                         obj,
                         new UsableInfoPacket(
-                            true,
+                            obj.IsEnabled,
                             obj.StateId,
                             0,
                             obj.WindupTime == 0 ? DefaultScenarioUseWindupMs : obj.WindupTime,
@@ -921,7 +1095,7 @@ namespace Rasa.Managers
                         CellManager.Instance.CellCallMethod(
                             obj,
                             new UsableInfoPacket(
-                                true,
+                                obj.IsEnabled,
                                 obj.StateId,
                                 0,
                                 obj.WindupTime == 0 ? DefaultScenarioUseWindupMs : obj.WindupTime,
@@ -1010,7 +1184,7 @@ namespace Rasa.Managers
                             Position = teleporter.Position,
                             Rotation = teleporter.Rotation,
                             MapContextId = teleporter.MapContextId,
-                            Faction = Factions.AFS,
+                            TargetCategory = TargetCategory.Friendly,
                             StateId = UseObjectState.TsState1,
                             Comment = teleporter.Description
                         });
@@ -1160,9 +1334,18 @@ namespace Rasa.Managers
                     return;
                 }
 
+                // The travel window names the map by the id its row was listed under, and every
+                // row is listed under its map's context id (MapInstanceInfo: ordinal, mapId,
+                // status - the client keys its rows by mapId, and a dropship list has one row per
+                // map, all instance 1). Picking a waypoint selects its row, so this is that
+                // context id - 1220 for a teleporter in Alia Das - which never equals an instance
+                // number, and every pick was refused as "not in the selected instance". It is
+                // the instance that row was listed for: the waypoint's own.
+                var instanceId = packet.MapInstanceId == teleporter.MapContextId ? 0 : packet.MapInstanceId;
+
                 var destinationMap = teleporter.RuntimeMapChannel ??
-                    (packet.MapInstanceId > 1
-                        ? Maps.FindByContextAndInstance(teleporter.MapContextId, packet.MapInstanceId)
+                    (instanceId > 1
+                        ? Maps.FindByContextAndInstance(teleporter.MapContextId, instanceId)
                         : Maps.FindByContextId(teleporter.MapContextId));
                 if (destinationMap == null)
                 {
@@ -1179,7 +1362,7 @@ namespace Rasa.Managers
                     RejectTravel(client, "One-way extraction is not a travel destination.");
                     return;
                 }
-                if ((packet.MapInstanceId != 0 && packet.MapInstanceId != destinationMap.InstanceId) ||
+                if ((instanceId != 0 && instanceId != destinationMap.InstanceId) ||
                     info.Contested ||
                     (!isStartingExperienceExit &&
                         !client.Player.GainedWaypoints.Any(waypoint => waypoint.WaypointId == packet.WaypointId &&
@@ -1211,7 +1394,9 @@ namespace Rasa.Managers
                     source.ObjectData is WaypointInfo sourceInfo && sourceInfo.WaypointType == info.WaypointType &&
                     (isStartingExperienceExit || !Characters.StartingExperience.IsExitWaypoint(sourceInfo.WaypointId)) &&
                     MapInstanceScope.Contains(origin, source) &&
-                    (isDropship ? client.Player.IsNear5m(source) : client.Player.IsNear2m(source)));
+                    (isDropship ? client.Player.IsNear5m(source) : client.Player.IsNear2m(source))) ||
+                    // A Dropship Extraction Beacon's ship: one way out onto the network.
+                    isDropship && !isStartingExperienceExit && DropshipBeacons.IsNearUsable(client, origin);
                 var destination = isDropship ? teleporter.Position : teleporter.Position + new Vector3(0, 1, 0);
                 if (!nearbySource || !CellManager.TryGetCellCoordinates(destination, out _, out _) ||
                     !double.IsFinite(teleporter.Rotation) || !float.IsFinite((float)teleporter.Rotation))
@@ -1260,9 +1445,17 @@ namespace Rasa.Managers
                 client.State = ClientState.Teleporting;
                 client.SetWorldPosition(destination, teleporter.Rotation);
                 CellManager.Instance.UpdateVisibility(client);
+
+                // BeginTeleport before the Teleport, as the dropships send it. The client answers a
+                // Teleport with TeleportAcknowledge only if a BeginTeleport has queued the answer
+                // (actor.py BeginTeleport -> _TeleportAckQueue; Recv_Teleport -> _TeleportAck, which
+                // sends nothing with none queued). Sent the other way round the ack was queued
+                // after the one chance to send it had gone: the player played the teleport, stayed
+                // held by RequestMovementBlock with the transfer never completed, and was dropped
+                // when it timed out.
+                client.CallMethod(SysEntity.ClientMethodId, new BeginTeleportPacket());
                 client.CallMethod(client.Player.EntityId,
                     new TeleportPacket(destination, teleporter.Rotation, TeleportType.Default, 5));
-                client.CallMethod(SysEntity.ClientMethodId, new BeginTeleportPacket());
                 client.CellMoveObject(client, new MoveObjectMessage(client.Player.EntityId, client.Movement), false);
             }
         }
@@ -1312,7 +1505,7 @@ namespace Rasa.Managers
                     Deadline = checked(_clock() + timeout * 1000L), IsDropship = true,
                     ReleaseOwnedPrivateInstancesForCharacterId = releaseOwnedPrivateInstancesForCharacterId
                 };
-                var ship = new Dropship(Factions.AFS, DropshipType.Teleporter, client, DropshipRole.Departure,
+                var ship = new Dropship(TargetCategory.Friendly, DropshipType.Teleporter, client, DropshipRole.Departure,
                     position, destination.MapInfo.MapContextId) { DestinationRotation = rotation };
                 if (departurePosition.HasValue)
                     ship.Position = departurePosition.Value;
@@ -1418,13 +1611,18 @@ namespace Rasa.Managers
 
                     client.PendingTransfer = null;
                     CellManager.Instance.UpdateVisibility(client);
+
+                    // The player is still faded out from boarding (PreTeleport). The Teleport's
+                    // delay is how long their client leaves them so before it plays the arrival
+                    // (actor.py Recv_Teleport, _TelportMovementCompleted): until the arrival ship
+                    // below is over the pad, rather than at once, ahead of the ship.
                     client.CallMethod(
                         client.Player.EntityId,
                         new TeleportPacket(
                             transfer.DestinationPosition,
                             transfer.DestinationRotation,
                             TeleportType.Default,
-                            5));
+                            Dropship.BeamDownMs));
                     client.CellMoveObject(
                         client,
                         new MoveObjectMessage(
@@ -1433,7 +1631,7 @@ namespace Rasa.Managers
                         false);
 
                     var arrival = new Dropship(
-                        Factions.AFS,
+                        TargetCategory.Friendly,
                         DropshipType.Teleporter,
                         client,
                         DropshipRole.Arrival);
@@ -1441,6 +1639,18 @@ namespace Rasa.Managers
                     Dropships.Add(arrival.EntityId, arrival);
                     return;
                 }
+
+                // Effects end with the map, as MapChannelManager.RemovePlayer ends them - a
+                // dropship ride never goes through it. A sprint used to ride along: the arrival
+                // introduced the player to everyone without it, their own client included, while
+                // the arrival's ActorInfo gave that client the sprint's speed and its drain picked
+                // up again, under an effect id handed out by the map they had left and with no
+                // buff on any screen to show for it. The timed buffs are kept aside, clocks stopped,
+                // and go on again when the ride lands them (EffectCarry).
+                EffectCarry.Stash(client.Player);
+                GameEffectManager.Instance.ClearEffects(transfer.OriginMap, client.Player);
+                ManifestationManager.Instance.RemovePlayerCharacter(client);
+                ForgetPlayer(transfer.OriginMap, client);
 
                 CommunicatorManager.Instance.LeaveMapChannels(client);
                 LootDispenserManager.Instance.RemoveForOwner(transfer.OriginMap, client);
@@ -1529,6 +1739,58 @@ namespace Rasa.Managers
             }
         }
 
+        /// <summary>
+        /// Takes a player leaving the map out of every object's and trigger's list of who is at
+        /// it: waypoints and teleporters, dropship pads, control points, logos, crafting stations,
+        /// footlockers - anything with a TriggeredByPlayers or TriggeredBy.
+        ///
+        /// Those lists are left by walking away: the proximity workers drop a client whose
+        /// player is no longer near, and a use's recovery drops its user. A player who logged
+        /// out, dropped or zoned while standing on a waypoint keeps the last position they had,
+        /// so they were near it for good; the pad worker only ever tests clients still on the
+        /// map's list; and RemovePlayer cancels the queued recoveries that would have let a
+        /// station or a logos go. Each such entry kept the whole Client - manifestation,
+        /// inventory lists, packet queues, socket - alive for the rest of the process, in a list
+        /// scanned every second. Waypoints are where people log out.
+        ///
+        /// Called from RemovePlayer and the map changes. It walks every object and trigger on the
+        /// map, which is fine for something that happens once per player per map change.
+        /// </summary>
+        internal void ForgetPlayer(MapChannel mapChannel, Client client)
+        {
+            if (mapChannel == null || client == null)
+                return;
+
+            static void Forget(DynamicObject obj, Client leaving)
+            {
+                obj?.TriggeredByPlayers.RemoveAll(c => c == leaving);
+            }
+
+            foreach (var obj in mapChannel.DynamicObjects)
+                Forget(obj, client);
+
+            foreach (var obj in mapChannel.Teleporters.Values)
+                Forget(obj, client);
+
+            foreach (var obj in mapChannel.ControlPoints.Values)
+                Forget(obj, client);
+
+            foreach (var obj in mapChannel.FootLockers.Values)
+                Forget(obj, client);
+
+            foreach (var obj in mapChannel.Kraftwerks.Values)
+                Forget(obj, client);
+
+            foreach (var cell in mapChannel.MapCellInfo.Cells.Values)
+            {
+                foreach (var obj in cell.DynamicObjectList)
+                    Forget(obj, client);
+
+                foreach (var trigger in cell.MapTriggers)
+                    trigger.TriggeredBy.RemoveAll(c => c == client);
+            }
+        }
+
         internal void PlayerEnterWaypoint(DynamicObject obj)
         {
             var mapChannel = obj.RuntimeMapChannel;
@@ -1567,7 +1829,7 @@ namespace Rasa.Managers
                 var waypointInfoList = CreateListOfWaypoints(client, objectData.WaypointType);
 
                 client.CallMethod(SysEntity.ClientMethodId,
-                    new EnteredWaypointPacket(mapChannel.InstanceId, obj.MapContextId,
+                    new EnteredWaypointPacket(mapChannel.MapInfo.MapContextId, obj.MapContextId,
                         waypointInfoList, objectData.WaypointType, objectData.WaypointId));
 
                 // check if we already added him to the waypoint
@@ -1728,7 +1990,7 @@ namespace Rasa.Managers
             clone.Position = source.Position;
             clone.Rotation = source.Rotation;
             clone.MapContextId = mapChannel.MapInfo.MapContextId;
-            clone.Faction = source.Faction;
+            clone.TargetCategory = source.TargetCategory;
             clone.RespawnTime = source.RespawnTime;
             clone.DynamicObjectType = source.DynamicObjectType;
             clone.Comment = source.Comment;

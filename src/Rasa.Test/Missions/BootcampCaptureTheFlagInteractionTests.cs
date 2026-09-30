@@ -31,7 +31,7 @@ namespace Rasa.Test.Missions
             var infantry = actors.Where(actor => actor.NameId == 7674).ToArray();
             Assert.IsTrue(infantry.Length >= 2, "The bridge needs Thrax Infantry Initiates.");
             Assert.IsTrue(infantry.All(actor => (uint)actor.EntityClass == 29769));
-            var soldiers = actors.Where(actor => actor.Faction == Factions.AFS &&
+            var soldiers = actors.Where(actor => actor.TargetCategory == TargetCategory.Friendly &&
                 actor.Position.X > 280 && actor.Position.X < 345 && actor.Position.Z > 50 && actor.Position.Z < 80).ToArray();
             Assert.IsTrue(soldiers.Length >= 2, "AFS soldiers must already be fighting on the bridge.");
             foreach (var actor in infantry.Concat(soldiers))
@@ -277,6 +277,10 @@ namespace Rasa.Test.Missions
             CellManager.Instance.UpdateVisibility(harness.Client);
             harness.Client.Player.Attributes[Attributes.Health] =
                 new ActorAttributes(Attributes.Health, 100000, 100000, 100000, 0, 0);
+            // The route, not the fights on it: the Thrax at the base deal real damage (creature
+            // attacks), and a Forean killed there would lie where it fell.
+            foreach (var forean in foreans)
+                forean.Attributes[Attributes.Health] = new ActorAttributes(Attributes.Health, 100000, 100000, 100000, 0, 0);
             var route = harness.BootcampMap.NavMesh.FindPath(exit.Position, destination, out var complete);
 
             AdvanceCombat(harness, 1200);
@@ -321,9 +325,18 @@ namespace Rasa.Test.Missions
         {
             harness.MovePlayerTo(target.Position + new Vector3(0, 0, 6));
             CellManager.Instance.UpdateVisibility(harness.Client);
-            MissileManager.Instance.MissileLaunch(harness.BootcampMap,
-                new ActionData(harness.Client.Player, ActionId.WeaponAttack, 133, target.EntityId, 0), 10000);
-            MissileManager.Instance.DoWork(harness.BootcampMap, 1000);
+            if (TargetCategories.PlayerMayAttack(target.TargetCategory))
+            {
+                MissileManager.Instance.MissileLaunch(harness.BootcampMap,
+                    new ActionData(harness.Client.Player, ActionId.WeaponAttack, 133, target.EntityId, 0), 10000);
+                MissileManager.Instance.DoWork(harness.BootcampMap, 1000);
+            }
+            else
+            {
+                // A player's shot does not land on a FRIENDLY creature (TargetCategories.PlayerMayAttack);
+                // the kill these tests need is dealt directly instead.
+                ActorManager.Instance.Damage(harness.BootcampMap, target, 100000, harness.Client.Player);
+            }
             Assert.AreEqual(CharacterState.Dead, target.State);
         }
 

@@ -72,10 +72,31 @@
         private void AssignSharedMission(AssignSharedMissionPacket packet) =>
             MissionApplication.Instance.Sharing.TryAccept(Client, packet.SourcePlayerEntityId, packet.MissionId);
 
+        /// <summary>
+        /// Until this existed the opcode had no handler, and an unhandled opcode fails the packet
+        /// terminator check and closes the connection: Decline on a shared mission disconnected the
+        /// recipient.
+        /// </summary>
+        [PacketHandler(GameOpcode.DeclineSharedMission)]
+        private void DeclineSharedMission(DeclineSharedMissionPacket packet) =>
+            MissionApplication.Instance.Sharing.TryDecline(Client, packet.SourcePlayerEntityId, packet.MissionId);
+
         [PacketHandler(GameOpcode.AutoFireKeepAlive)]
         private void AutoFireKeepAlive(AutoFireKeepAlivePacket packet)
         {
             ManifestationManager.Instance.AutoFireKeepAlive(Client, packet.KeepAliveDelay);
+        }
+
+        /// <summary>
+        /// A client effect calling the server (BaseGameEffect.SendMethodCall). Nothing in the
+        /// client's Python ever does, and no effect here takes calls, so it is logged and
+        /// dropped - handled so that one arriving is read to its end rather than closing the
+        /// connection over a payload nobody could parse.
+        /// </summary>
+        [PacketHandler(GameOpcode.CallGameEffectMethod)]
+        private void CallGameEffectMethod(CallGameEffectMethodPacket packet)
+        {
+            Logger.WriteLog(LogType.Debug, $"{Client.Player?.Name} called {packet.MethodName} on effect {packet.EffectId}; no server effect takes calls.");
         }
 
         [PacketHandler(GameOpcode.CancelLogoutRequest)]
@@ -124,6 +145,19 @@
         private void CompleteRadioMission(CompleteRadioMissionPacket packet) =>
             MissionApplication.Instance.TryCompleteRadioMission(Client, packet.MissionId, packet.SelectionIdx, packet.Rating);
 
+        /// <summary>
+        /// Until this existed the opcode had no handler, and an unhandled opcode fails the packet
+        /// terminator check and closes the connection. The retail client never sends it (see
+        /// RewardRadioMissionPacket).
+        /// </summary>
+        [PacketHandler(GameOpcode.ForceCompleteObjective)]
+        private void ForceCompleteObjective(ForceCompleteObjectivePacket packet) =>
+            GmMissionCommands.ForceCompleteObjective(Client, packet);
+
+        [PacketHandler(GameOpcode.RewardRadioMission)]
+        private void RewardRadioMission(RewardRadioMissionPacket packet) =>
+            MissionApplication.Instance.TryRewardRadioMission(Client, packet.MissionId, packet.SelectionIdx, packet.Rating);
+
         [PacketHandler(GameOpcode.CompleteNPCObjective)]
         private void CompleteNPCObjective(CompleteNPCObjectivePacket packet)
         {
@@ -140,6 +174,61 @@
         private void CreateClan(CreateClanPacket packet)
         {
             ClanManager.Instance.CreateClan(Client, packet);
+        }
+
+        /// <summary>
+        /// ExamineHack (67), and the ExamineResults (68) it would be answered with: a developer's
+        /// readout of an entity. Deliberately a placeholder that sends nothing.
+        ///
+        /// The request is client/physicalentity.py OnExamine:
+        /// <c>SendCallUserMethod('ExamineHack', (self.entityId,))</c>, for any entity. Nothing in the
+        /// retail client calls OnExamine - no slash command, key binding, menu or UI element, and the
+        /// string "examine" appears nowhere in tabula_rasa.exe - so, like the developer commands in
+        /// client_nca_internal, which the retail client does not ship, it was reached from tools the
+        /// players never had. The only reference is the method's own definition.
+        ///
+        /// The answer is Recv_ExamineResults(resultDict) on the examined entity. The dict it reads:
+        ///  - every entity: 'repr', 'classId', 'classCollisionRole', 'collisionRole',
+        ///    'position' (x, y, z) and 'quaternion' (x, y, z, w);
+        ///  - an actor, when 'isActor' is present: 'isPlayer', 'level', 'xp', 'abilities',
+        ///    'targetId', 'factions' and 'attributes'.
+        /// It formats them under "===[SERVER]===", adds the client's own position and rotation under
+        /// "===[CLIENT]===" and the server-to-client position delta and distance - a check for
+        /// position drift. Then it fetches the OK button's text and returns: in the shipped build
+        /// (trpython.zip, client/physicalentity.pyo) the call that would have shown the report is
+        /// gone, so a reply would be built and thrown away.
+        ///
+        /// Neither server answered it: the C++ server lists the method ids only. The handler exists
+        /// so that a client that does send it is not disconnected - an opcode with no handler fails
+        /// the packet terminator check and closes the connection. The same information for a GM is
+        /// what .npcinfo, .where and .los give in chat.
+        /// </summary>
+        [PacketHandler(GameOpcode.ExamineHack)]
+        private void ExamineHack(ExamineHackPacket packet)
+        {
+            Logger.WriteLog(LogType.Debug, $"{Client.Player?.Name} sent ExamineHack for entity {packet.EntityId}; ExamineResults is not sent (developer-only, and the retail client does not display it).");
+        }
+
+        /// <summary>
+        /// GetServerSkeleton (281), and the ServerSkeleton (361) it would be answered with: an
+        /// entity's server-side physics skeleton, for a developer to draw over the client's own
+        /// collision. Deliberately a placeholder that sends nothing.
+        ///
+        /// The request is client/physicalentity.py GetServerSkeleton, marked "DEVELOPMENT ONLY":
+        /// <c>SendCallUserMethod('GetServerSkeleton', (self.entityId,))</c>. Nothing calls it -
+        /// only physicalentity.pyo in trpython.zip has the name, and tabula_rasa.exe does not - so,
+        /// like ExamineHack and the server collision overlay, it was reached from developer tools
+        /// the retail client does not ship. The answer could not be used anyway: the exe's entity
+        /// body has no SetServerSkeleton, so a skeleton with data raises AttributeError (see
+        /// ServerSkeletonPacket). This server has no skeletons to send either.
+        ///
+        /// The handler exists so that a client that does send it is not disconnected - an opcode
+        /// with no handler fails the packet terminator check and closes the connection.
+        /// </summary>
+        [PacketHandler(GameOpcode.GetServerSkeleton)]
+        private void GetServerSkeleton(GetServerSkeletonPacket packet)
+        {
+            Logger.WriteLog(LogType.Debug, $"{Client.Player?.Name} sent GetServerSkeleton for entity {packet.EntityId}; ServerSkeleton is not sent (developer-only, and the retail client cannot load it).");
         }
         
         [PacketHandler(GameOpcode.GetCustomizationChoices)]
@@ -312,11 +401,11 @@
             GestureManager.Instance.RequestGesture(Client, packet);
         }
 
-        /*[PacketHandler(GameOpcode.RequestGestureWeapon)]
+        [PacketHandler(GameOpcode.RequestGestureWeapon)]
         private void RequestGestureWeapon(RequestGestureWeaponPacket packet)
         {
-            // ToDo
-        }*/
+            GestureManager.Instance.RequestGestureWeapon(Client, packet);
+        }
         
         [PacketHandler(GameOpcode.RequestLogout)]
         private void RequestLogout(RequestLogoutPacket packet)
@@ -364,6 +453,30 @@
         private void RequestUseCloneCredit(RequestUseCloneCreditPacket packet)
         {
             ManifestationManager.Instance.RequestUseCloneCredit(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.RequestUseTransferCredit)]
+        private void RequestUseTransferCredit(RequestUseTransferCreditPacket packet)
+        {
+            ManifestationManager.Instance.RequestUseTransferCredit(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.FinishedCameraScript)]
+        private void FinishedCameraScript(FinishedCameraScriptPacket packet)
+        {
+            CameraScripts.Finished(Client, packet.ScriptId);
+        }
+
+        [PacketHandler(GameOpcode.ScriptableClientEvent)]
+        private void ScriptableClientEvent(ScriptableClientEventPacket packet)
+        {
+            ScriptableClientEvents.Received(Client, packet.EventId);
+        }
+
+        [PacketHandler(GameOpcode.RequestAddLogosStoneToTabula)]
+        private void RequestAddLogosStoneToTabula(RequestAddLogosStoneToTabulaPacket packet)
+        {
+            ManifestationManager.Instance.RequestAddLogosStoneToTabula(Client, packet);
         }
 
         [PacketHandler(GameOpcode.RequestSetAbilitySlot)]
@@ -452,6 +565,55 @@
             KraftwerksManager.Instance.RequestRetrieveAllFinishedItems(Client, packet);
         }
 
+        /// <summary>
+        /// RequestDisassembleItem (676) and RequestModifyItem (677): the Reverse Engineering and
+        /// Modification pages of the old crafting window. Deliberately placeholders that do
+        /// nothing and send nothing.
+        ///
+        /// client/ui/craftingwindow.py is the Crafting v1 window - Fabrication, Modification and
+        /// Disassembly ("Reverse Engineering") tabs. Its disassembly page takes an item from the
+        /// personal inventory that has at least one loot module with a row in the module crafting
+        /// table, lists each module's ComponentItemClassId with its ReverseEngineerChance, and on
+        /// the button sends <c>RequestDisassembleItem((kraftwerksId, itemId))</c>, a 5 s job
+        /// (shared/crafting.py g_disassemblyTime; failure is PM_CRAFTING_DISASSEMBLY_FAILED,
+        /// 10000115). Its modification page applies a modification recipe to one of the item's
+        /// modules, sending <c>RequestModifyItem((kraftwerksId, recipeId, itemId,
+        /// selectedModuleClassId, attemptCriticalSuccess))</c>.
+        ///
+        /// In the 1.16.5 client neither can be sent:
+        ///  - the window never opens. A station posts UI_CRAFTINGSTATION_ACTIVATE on Recv_Use, which
+        ///    only craftingwindownew.py - the Crafting v2 window (fabrication, salvage, extraction,
+        ///    integration, upgrade) - handles. The old window opens on UI_KRAFTWERKS_ACTIVATED, and
+        ///    nothing posts that: only uieventmanager.pyo and craftingwindow.pyo in trpython.zip
+        ///    name it. Tabula_Rasa_UI_EXPORT.xml still defines both, CraftingWindow (script
+        ///    craftingwindow) and CraftingWindow_NEW;
+        ///  - the data behind both pages is empty. generated.shared.recipe's
+        ///    spGenShared_ModuleClassCrafting and spGenShared_RecipeModuleEnhancement have no rows
+        ///    (the recipe templates, their inputs and the module classes do), so no item passes the
+        ///    disassembly slot's check and there is no modification recipe;
+        ///  - here, items carry no modules: ItemInfo sends empty classModuleIds and lootModuleIds.
+        ///
+        /// The C++ server only listed the ids. The v2 pages' requests are answered by
+        /// KraftwerksManager.
+        ///
+        /// The handlers exist so that a client that does send one is not disconnected - an opcode
+        /// with no handler fails the packet terminator check and closes the connection.
+        /// </summary>
+        [PacketHandler(GameOpcode.RequestDisassembleItem)]
+        private void RequestDisassembleItem(RequestDisassembleItemPacket packet)
+        {
+            Logger.WriteLog(LogType.Debug,
+                $"{Client.Player?.Name} sent RequestDisassembleItem (station {packet.KraftwerksId}, item {packet.ItemId}); the old crafting window's reverse engineering is not supported, nothing done.");
+        }
+
+        /// <inheritdoc cref="RequestDisassembleItem"/>
+        [PacketHandler(GameOpcode.RequestModifyItem)]
+        private void RequestModifyItem(RequestModifyItemPacket packet)
+        {
+            Logger.WriteLog(LogType.Debug,
+                $"{Client.Player?.Name} sent RequestModifyItem (station {packet.KraftwerksId}, recipe {packet.RecipeId}, item {packet.ItemId}, module {packet.SelectedModuleClassId}, critical {packet.AttemptCriticalSuccess}); the old crafting window's modification is not supported, nothing done.");
+        }
+
         [PacketHandler(GameOpcode.RequestVendorBuyback)]
         private void RequestVendorBuyback(RequestVendorBuybackPacket packet)
         {
@@ -492,6 +654,12 @@
         private void RequestVisualCombatMode(RequestVisualCombatModePacket packet)
         {
             ActorManager.Instance.RequestVisualCombatMode(Client, packet.CombatMode);
+        }
+
+        [PacketHandler(GameOpcode.RequestCritDeathFinish)]
+        private void RequestCritDeathFinish(RequestCritDeathFinishPacket packet)
+        {
+            CritDeathManager.Instance.RequestCritDeathFinish(Client, packet);
         }
 
         [PacketHandler(GameOpcode.RequestWeaponAttack)]
@@ -545,7 +713,7 @@
         [PacketHandler(GameOpcode.SetDesiredCrouchState)]
         private void SetDesiredCrouchState(SetDesiredCrouchStatePacket packet)
         {
-            ActorManager.Instance.SetDesiredCrouchState(Client, packet.DesiredCrouchState);
+            ManifestationManager.Instance.SetDesiredCrouchState(Client, packet.DesiredCrouchState);
         }
 
         [PacketHandler(GameOpcode.SetTargetId)]
@@ -610,6 +778,12 @@
             ClanManager.Instance.ClanPromotePlayer(Client, packet);
         }
 
+        [PacketHandler(GameOpcode.ClanWarfareSearch)]
+        private void ClanWarfareSearch(ClanWarfareSearchPacket packet)
+        {
+            ClanManager.Instance.ClanWarfareSearch(Client, packet);
+        }
+
         [PacketHandler(GameOpcode.DisbandClan)]
         private void DisbandClan(DisbandClanPacket packet)
         {
@@ -658,7 +832,7 @@
         [PacketHandler(GameOpcode.ChallengeClanToFeud)]
         private void ChallengeClanToFeud(ChallengeClanToFeudPacket packet)
         {
-            Logger.WriteLog(LogType.Debug, "ToDo: ChallengeClanToFeudPacket");
+            ClanFeuds.Instance.ChallengeClanToFeud(Client, packet.ClanName, packet.Invite);
         }
 
         [PacketHandler(GameOpcode.ChangeClanName)]
@@ -706,7 +880,7 @@
         [PacketHandler(GameOpcode.FeudChallengeResponse)]
         private void FeudChallengeResponse(FeudChallengeResponsePacket packet)
         {
-            Logger.WriteLog(LogType.Debug, "ToDo: FeudChallengeResponsePacket");
+            ClanFeuds.Instance.FeudChallengeResponse(Client, packet.ClanName, packet.AcceptChalange);
         }
 
         [PacketHandler(GameOpcode.GotoMob)]
@@ -748,13 +922,13 @@
         [PacketHandler(GameOpcode.RequestLOSReport)]
         private void RequestLOSReport(RequestLOSReportPacket packet)
         {
-            Logger.WriteLog(LogType.Debug, "ToDo: RequestLOSReportPacket");
+            LosReport.Answer(Client, packet.TargetId);
         }
 
         [PacketHandler(GameOpcode.RevokeClanFeud)]
         private void RevokeClanFeud(RevokeClanFeudPacket packet)
         {
-            Logger.WriteLog(LogType.Debug, "ToDo: RevokeClanFeudPacket");
+            ClanFeuds.Instance.RevokeClanFeud(Client, packet.ClanName);
         }
 
         [PacketHandler(GameOpcode.Shout)]
@@ -766,7 +940,7 @@
         [PacketHandler(GameOpcode.SurrenderClanFeud)]
         private void SurrenderClanFeud(SurrenderClanFeudPacket packet)
         {
-            Logger.WriteLog(LogType.Debug, "ToDo: SurrenderClanFeudPacket");
+            ClanFeuds.Instance.SurrenderClanFeud(Client, packet.ClanName);
         }
 
         [PacketHandler(GameOpcode.SurrenderWargame)]
@@ -839,7 +1013,94 @@
             InventoryManager.Instance.HomeInventory_MoveItem(Client, packet);
         }
 
-        // ToDo: OverflowTransfer(destType, entityId, quantity, slot)
+        /// <summary>
+        /// OverflowTransfer (308): taking an item out of the overflow inventory. Deliberately a
+        /// placeholder that moves nothing and sends nothing.
+        ///
+        /// The overflow inventory is inventory type 7 (InventoryType.OverflowInventory), a list
+        /// without slots. The server would fill it with AddOverflowItem, RemoveOverflowItem and
+        /// ResetOverflowInventory, and client/inventory.py keeps the ids in g_overflowItems - a
+        /// holding area for items the server could not fit in the pack.
+        /// _TransferOverflowItem(entityId, quantity, slot, destType) takes one out, sending
+        /// <c>OverflowTransfer((destType, entityId, quantity, slot))</c>, and refuses any destination
+        /// but PERSONALINVENTORY (">>> Can only transfer overflow items to personal storage!").
+        ///
+        /// In the 1.16.5 client none of it can be used:
+        ///  - nothing calls _TransferOverflowItem, in the decompiled source or the shipped
+        ///    inventory.pyo in trpython.zip;
+        ///  - no window lists overflow items and nothing calls HaveOverflow() (the only "Overflow"
+        ///    widget in Tabula_Rasa_UI_EXPORT.xml is the status updater's "more" button);
+        ///  - _SendServerRequest, which picks the request for a drag between two inventories, has
+        ///    no case for OVERFLOWINVENTORY as the source, so a drag out of it fails on the client.
+        /// A server that filled the list would leave items the player could neither see nor
+        /// retrieve. The feature was abandoned before this build.
+        ///
+        /// This server has no overflow inventory. A full pack is handled where the item comes
+        /// from: a harvest is refused with "Your inventory is full", crafting keeps what did not fit
+        /// on the job, and a purchase or buyback charges only for what fitted.
+        ///
+        /// The handler exists so that a client that does send it is not disconnected - an opcode
+        /// with no handler fails the packet terminator check and closes the connection.
+        /// </summary>
+        [PacketHandler(GameOpcode.OverflowTransfer)]
+        private void OverflowTransfer(OverflowTransferPacket packet)
+        {
+            Logger.WriteLog(LogType.Debug,
+                $"{Client.Player?.Name} sent OverflowTransfer (destType {packet.DestType}, entity {packet.EntityId}, quantity {packet.Quantity}, slot {packet.Slot}); there is no overflow inventory, nothing moved.");
+        }
+
+        /// <summary>
+        /// RequestReturnItemToInventory (349) and RequestPlaceObject (344): taking a placed
+        /// decoration back into the inventory, and placing one. Player housing - apartment
+        /// decorating - which was cut. Deliberately placeholders that move nothing and send
+        /// nothing.
+        ///
+        /// client/augmentations/decoration.py is what is left of it:
+        ///  - OnDesignateCurrentItem picks an inventory item to place, spawns a half-transparent
+        ///    proxy of it on every free decoration socket its plug fits (sockets the map loader
+        ///    records from any entity that has them, gamemap.py), posts
+        ///    PM_DECORATION_SELECT_LOCATION or PM_DECORATION_NO_LOCATIONS_AVAILABLE, and switches to
+        ///    the homedecoration input state;
+        ///  - OnPlaceItemAtSelectedLocation, on a proxy, sends
+        ///    <c>RequestPlaceObject((itemId, destEntityId or None, socketId))</c>. The proxies are
+        ///    put on their sockets with the client's own Recv_WorldPlacementDescriptor, and the
+        ///    placed item would have come back the same way (WorldPlacementDescriptorPacket);
+        ///  - OnReturnItemToInventory, on a placed decoration, sends
+        ///    <c>RequestReturnItemToInventory((entityId,))</c>;
+        ///  - OnCancelPlacement posts PM_DECORATION_CANCELLED. Around it: apartment point and
+        ///    directional lights (APARTMENT_LIGHT_GROUP), the DECORATION and DECORATIONPROXY target
+        ///    categories (targeting.py refuses to target a decoration) and CUSTOMIZE_HUE_DECORATION
+        ///    in the customization window.
+        ///
+        /// In the 1.16.5 client none of it can be reached:
+        ///  - OnDesignateCurrentItem, OnPlaceItemAtSelectedLocation and OnReturnItemToInventory are
+        ///    defined and never called - in the decompiled source, or the 970 shipped .pyo files in
+        ///    trpython.zip, where only decoration.pyo has the names; tabula_rasa.exe and
+        ///    Tabula_Rasa_UI_EXPORT.xml have none of them;
+        ///  - client/inputstate/homedecoration.py only stores a cancel callback: it has no key or
+        ///    mouse handlers, so there is no way to pick a location in it;
+        ///  - no entity class in the client's data carries the DECORATION augmentation (36), so no
+        ///    entity is a Decoration to have the methods.
+        ///
+        /// This server has no apartments or decorations, and the C++ server only listed the ids.
+        ///
+        /// The handlers exist so that a client that does send one is not disconnected - an opcode
+        /// with no handler fails the packet terminator check and closes the connection.
+        /// </summary>
+        [PacketHandler(GameOpcode.RequestReturnItemToInventory)]
+        private void RequestReturnItemToInventory(RequestReturnItemToInventoryPacket packet)
+        {
+            Logger.WriteLog(LogType.Debug,
+                $"{Client.Player?.Name} sent RequestReturnItemToInventory (entity {packet.EntityId}); there are no decorations, nothing moved.");
+        }
+
+        /// <inheritdoc cref="RequestReturnItemToInventory"/>
+        [PacketHandler(GameOpcode.RequestPlaceObject)]
+        private void RequestPlaceObject(RequestPlaceObjectPacket packet)
+        {
+            Logger.WriteLog(LogType.Debug,
+                $"{Client.Player?.Name} sent RequestPlaceObject (item {packet.ItemId}, destination {packet.DestEntityId}, socket {packet.SocketId}); there are no decorations, nothing placed.");
+        }
 
         [PacketHandler(GameOpcode.PersonalInventory_DestroyItem)]
         private void PersonalInventory_DestroyItem(PersonalInventory_DestroyItemPacket packet)
@@ -875,6 +1136,12 @@
         private void RequestEquipWeapon(RequestEquipWeaponPacket packet)
         {
             InventoryManager.Instance.RequestEquipWeapon(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.RequestBind)]
+        private void RequestBind(RequestBindPacket packet)
+        {
+            ItemManager.Instance.RequestBind(Client, packet);
         }
 
         [PacketHandler(GameOpcode.RequestLockboxTabPermissions)]
@@ -1023,6 +1290,18 @@
         private void LeaveParty(LeavePartyPacket packet)
         {
             PartyManager.Instance.LeaveParty(Client);
+        }
+
+        [PacketHandler(GameOpcode.RequestJoinVoiceChannel)]
+        private void RequestJoinVoiceChannel(RequestJoinVoiceChannelPacket packet)
+        {
+            PartyManager.Instance.RequestJoinVoiceChannel(Client);
+        }
+
+        [PacketHandler(GameOpcode.RequestLeaveVoiceChannel)]
+        private void RequestLeaveVoiceChannel(RequestLeaveVoiceChannelPacket packet)
+        {
+            PartyManager.Instance.RequestLeaveVoiceChannel(Client);
         }
 
         [PacketHandler(GameOpcode.KickUserFromParty)]

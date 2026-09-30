@@ -672,7 +672,7 @@ namespace Rasa.Test.Missions
                 MapContextId = context.Map.MapInfo.MapContextId,
                 Position = Vector3.Zero,
                 State = CharacterState.Dead,
-                Faction = Factions.Bane,
+                TargetCategory = TargetCategory.Hostile,
                 AppearanceData = new(),
                 Attributes = new Dictionary<Attributes, ActorAttributes>
                 {
@@ -716,7 +716,9 @@ namespace Rasa.Test.Missions
                 AssertAcquisitionPrecedesMissionProgress(
                     packets,
                     typeof(UpdateCreditsPacket),
-                    typeof(ActorGotLootPacket),
+                    // The taker's own acquisition: GotLoot (the items and their credit share);
+                    // the server sends no ActorGotLoot.
+                    typeof(Rasa.Packets.ClientMethod.Server.GotLootPacket),
                     typeof(TakenInfoPacket));
                 Assert.AreEqual(3U,
                     context.Client.Player.Missions[321]
@@ -1248,7 +1250,7 @@ namespace Rasa.Test.Missions
                 MapContextId = context.Map.MapInfo.MapContextId,
                 Position = Vector3.Zero,
                 State = CharacterState.Dead,
-                Faction = Factions.Bane,
+                TargetCategory = TargetCategory.Hostile,
                 AppearanceData = new(),
                 Attributes = new Dictionary<Attributes, ActorAttributes>
                 {
@@ -1378,6 +1380,8 @@ namespace Rasa.Test.Missions
             public INpcPackageRepository NpcPackages => null;
             public IPlayerRandomNameRepository RandomNames => null;
             public ISpawnpoolRepository Spawnpools => null;
+            public IMapEmitterRepository MapEmitters => null;
+            public ISpawnPoolArrivalRepository SpawnPoolArrivals => null;
             public ITeleporterRepository Teleporters => null;
             public void Complete() { }
             public void Reject() { }

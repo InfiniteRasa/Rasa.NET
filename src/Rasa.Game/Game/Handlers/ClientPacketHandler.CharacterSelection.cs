@@ -31,6 +31,12 @@
             CharacterManager.Instance.RequestCreateCharacterInSlot(Client, packet);
         }
 
+        [PacketHandler(GameOpcode.CreateCharacter)]
+        private void CreateCharacter(CreateCharacterPacket packet)
+        {
+            CharacterManager.Instance.CreateCharacter(Client, packet);
+        }
+
         [PacketHandler(GameOpcode.RequestDeleteCharacterInSlot)]
         private void RequestDeleteCharacterInSlot(RequestDeleteCharacterInSlotPacket packet)
         {

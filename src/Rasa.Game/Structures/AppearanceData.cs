@@ -1,6 +1,4 @@
-﻿using System.Diagnostics;
-
-namespace Rasa.Structures
+﻿namespace Rasa.Structures
 {
     using Char;
     using Data;
@@ -29,12 +27,19 @@ namespace Rasa.Structures
         {
             SlotId = (EquipmentData) pr.ReadUInt();
 
+            // (classId, color) from the creation and clone windows. Fewer is not an appearance
+            // and fails the read, which the packet path answers by closing that connection; any
+            // more (the hue2 the server writes back) are read past. This was a Debugger.Break(),
+            // reachable from the character screen.
             var count = pr.ReadTuple();
-            if (count != 2)
-                Debugger.Break();
+            if (count < 2)
+                throw new System.IO.InvalidDataException($"Appearance tuple for slot {SlotId} has {count} values, not 2.");
 
             Class = pr.ReadUInt();
             Color = pr.ReadStruct<Color>();
+
+            for (var i = 2; i < count; i++)
+                pr.SkipValue();
         }
 
         public void Write(PythonWriter pw)

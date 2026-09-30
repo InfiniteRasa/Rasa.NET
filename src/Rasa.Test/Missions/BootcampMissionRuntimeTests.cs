@@ -357,7 +357,7 @@ namespace Rasa.Test.Missions
             Directory.CreateDirectory(databaseDirectory);
             var worldDatabase = Path.Combine(databaseDirectory, "world");
             var worldContext = (SqliteWorldContext)CreateContext(typeof(SqliteWorldContext), worldDatabase);
-            worldContext.Database.Migrate();
+            Rasa.Test.Database.MigratedDatabaseTemplates.Migrate(worldContext, () => worldContext.Database.Migrate());
 
 
             var context = MissionTestContext.WithCustomDefinitions(new Dictionary<uint, Mission>());
@@ -602,6 +602,8 @@ namespace Rasa.Test.Missions
                 NpcPackages = new NpcPackageRepository(context);
                 RandomNames = null;
                 Spawnpools = new SpawnpoolRepository(context);
+                MapEmitters = new MapEmitterRepository(context);
+                SpawnPoolArrivals = new SpawnPoolArrivalRepository(context);
                 Teleporters = new TeleporterRepository(context);
             }
 
@@ -623,6 +625,8 @@ namespace Rasa.Test.Missions
             public INpcPackageRepository NpcPackages { get; }
             public IPlayerRandomNameRepository RandomNames { get; }
             public ISpawnpoolRepository Spawnpools { get; }
+            public IMapEmitterRepository MapEmitters { get; }
+            public ISpawnPoolArrivalRepository SpawnPoolArrivals { get; }
             public ITeleporterRepository Teleporters { get; }
             public void Complete() { }
             public void Reject() { }

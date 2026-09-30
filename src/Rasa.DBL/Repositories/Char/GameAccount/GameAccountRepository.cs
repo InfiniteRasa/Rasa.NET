@@ -83,7 +83,15 @@ namespace Rasa.Repositories.Char.GameAccount
 
         public bool CanChangeFamilyName(uint id, string newFamilyName)
         {
-            var hasOtherAccountWithName = _charContext.GameAccountEntries.Any(e => e.Id != id && e.FamilyName == newFamilyName);
+            if (string.IsNullOrEmpty(newFamilyName))
+                return false;
+
+            // Compared without case, like FindByFamilyName above and like every lookup of a player
+            // by the name someone typed. With Sqlite's case-sensitive ==, "Smith", "smith" and
+            // "SMITH" could all be taken by different accounts, and a whisper or invite for one
+            // went to whichever of them was found first.
+            var lowered = newFamilyName.ToLower();
+            var hasOtherAccountWithName = _charContext.GameAccountEntries.Any(e => e.Id != id && e.FamilyName.ToLower() == lowered);
             return !hasOtherAccountWithName;
         }
 

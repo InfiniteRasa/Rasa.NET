@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Diagnostics;
 using System.IO;
 using System.Text;
 
@@ -28,6 +27,9 @@ namespace Rasa.Packets.Protocol
 
         private byte[] Payload { get; set; }
 
+        /// <summary>A by-name call whose name is not a method in the client's method table.</summary>
+        private bool UnknownMethodName { get; set; }
+
         public void Read(ProtocolBufferReader reader)
         {
             switch (Subtype)
@@ -45,13 +47,37 @@ namespace Rasa.Packets.Protocol
                 case CallServerMethodSubtype.ActorMethodByName:
                 case CallServerMethodSubtype.ChatMsgByName:
                 case CallServerMethodSubtype.WorldMsgByName:
+                    // The by-name subtypes carry the method's name in place of its id. The names are
+                    // generated.client.methodid's, which GameOpcode matches one for one, so the name
+                    // resolves to the same opcode and the call goes on as the by-id form would.
+                    // This used to stop at a Debugger.Break(): a stall with a debugger attached, and
+                    // a crash on a Windows box without one, from one message any client could send.
                     MethodName = reader.ReadString();
-
-                    Debugger.Break(); // This isn't supported yet
+                    UnknownMethodName = !TryResolve(MethodName, out var methodId);
+                    MethodId = methodId;
                     break;
             }
 
             Payload = reader.ReadArray();
+        }
+
+        /// <summary>
+        /// The opcode a method name stands for: an identifier that names a GameOpcode exactly.
+        /// Enum.TryParse alone would also take a number ("145") or a comma list ("A, B") and
+        /// hand back an opcode, or a value no method has.
+        /// </summary>
+        public static bool TryResolve(string name, out GameOpcode methodId)
+        {
+            methodId = default;
+
+            if (string.IsNullOrEmpty(name) || name.Length > 64 || !char.IsLetter(name[0]))
+                return false;
+
+            foreach (var c in name)
+                if (!char.IsLetterOrDigit(c) && c != '_')
+                    return false;
+
+            return Enum.TryParse(name, false, out methodId) && Enum.IsDefined(typeof(GameOpcode), methodId);
         }
 
         public void Write(ProtocolBufferWriter writer)
@@ -80,6 +106,12 @@ namespace Rasa.Packets.Protocol
 
         public bool ReadPacket()
         {
+            if (UnknownMethodName)
+            {
+                Logger.WriteLog(LogType.Security, $"By-name call to '{MethodName}', which is not a method in the client's table. Skipping packet...");
+                return false;
+            }
+
             using (var ms = new MemoryStream(Payload, false))
             {
                 using var br = new BinaryReader(ms, Encoding.UTF8, true);

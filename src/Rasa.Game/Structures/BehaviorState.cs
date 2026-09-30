@@ -8,9 +8,11 @@ namespace Rasa.Structures
 
     public class BehaviorState
     {
+        /// <summary>When the ability the creature is winding up is done winding up (CreatureWindups): until then it does nothing else.</summary>
+        public long WindupUntil { get; set; }
+
         public long DeadTime { get; set; } // amount of time that has passed since the actor died
         public byte CurrentAction { get; set; }
-        public Factions Faction { get; set; }
         // combat info
         public long TimerPathUpdateLock = 5000; // avoids path-update-spamming for permanently moving units => ToDo: see to we need to increase or decrease value
         // path info
@@ -21,6 +23,7 @@ namespace Rasa.Structures
         public ActionFighting ActionFighting = new ActionFighting();
         public ActionWander ActionWander = new ActionWander();
         public ActionFollow ActionFollow = new ActionFollow();
+        public ActionReturning ActionReturning = new ActionReturning();
         internal ScriptedMove ScriptedMove { get; set; }
         internal Movement LastMovement { get; set; }
         //public long[] ActionLockTime { get; set; }
@@ -37,6 +40,32 @@ namespace Rasa.Structures
     {
         public Vector3 LockedTargetPosition = new Vector3();    // the creature position we are pathing to
         public ulong TargetEntityId { get; set; }
+
+        /// <summary>Whom the last line-of-sight test was against, and whether it was clear (BehaviorManager.HasLineOfSight).</summary>
+        public ulong SightTargetId { get; set; }
+        public bool SightClear { get; set; }
+
+        /// <summary>Milliseconds until the line of sight is tested again.</summary>
+        public long SightRecheckIn { get; set; }
+
+        /// <summary>Whether the creature has made its first attack of this fight (BehaviorManager.OpensNow).</summary>
+        public bool Opened { get; set; }
+
+        /// <summary>How many thinks it has had an attack ready this fight and held it (BehaviorManager.OpensNow).</summary>
+        public int OpeningRolls { get; set; }
+    }
+
+    /// <summary>
+    /// A creature that chased too far from home and is running back to it (BehaviorManager.Leash):
+    /// it takes no damage and picks no fight on the way, and is whole again when it arrives.
+    /// </summary>
+    public class ActionReturning
+    {
+        /// <summary>How long it has been running back.</summary>
+        public long Elapsed { get; set; }
+
+        /// <summary>When it is put home however far it got - off the navmesh, stuck on a rock.</summary>
+        public long TimeoutMs { get; set; }
     }
 
     /// <summary>
@@ -80,8 +109,23 @@ namespace Rasa.Structures
         public byte State { get; set; }
         public Vector3 WanderDestination = new Vector3();
 
-        /// <summary>How long this idle spell lasts before the next stroll; drawn anew each time the creature stops.</summary>
-        public long RestDuration { get; set; }
+        /// <summary>How long it has stood since it last stopped; at BehaviorManager.WanderIntervalMs it strolls again.</summary>
+        public long IdleMs { get; set; }
+
+        /// <summary>How long the current stroll has taken; one that runs over BehaviorManager's timeout ends where it is.</summary>
+        public long MovingMs { get; set; }
+
+        /// <summary>Running away (Mind Control's Frighten) rather than strolling: the walk is at run speed.</summary>
+        public bool Fleeing { get; set; }
+
+        /// <summary>Walking to a corpse its habit sent it to (CreatureHabits): it runs, and does the habit when it gets there.</summary>
+        public bool Errand { get; set; }
+
+        /// <summary>Walking in from an arrival point to its pool's ground: at walk speed, however far, with ArrivalTimeoutMs to get there.</summary>
+        public bool Arriving { get; set; }
+
+        /// <summary>How long a walk in from an arrival point may take.</summary>
+        public long ArrivalTimeoutMs { get; set; }
     }
     
     public class AiPathFollowing

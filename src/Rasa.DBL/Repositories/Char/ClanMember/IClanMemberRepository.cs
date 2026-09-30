@@ -13,6 +13,9 @@ namespace Rasa.Repositories.Char.ClanMember
         /// <summary>Every member of a clan with their character's name, level and map and their account's family name, in one query.</summary>
         List<ClanRosterEntry> GetRoster(uint clanId);
 
+        /// <summary>The roster lines of every member of the given clans, in one query: what a clan war search counts and averages.</summary>
+        List<ClanRosterEntry> GetRosters(ICollection<uint> clanIds);
+
         /// <summary>One character's roster line, or null when they are in no clan.</summary>
         ClanRosterEntry GetRosterEntry(uint characterId);
 

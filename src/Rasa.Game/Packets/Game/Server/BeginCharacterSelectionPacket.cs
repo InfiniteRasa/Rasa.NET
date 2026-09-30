@@ -15,23 +15,31 @@ namespace Rasa.Packets.Game.Server
         public List<Race> EnabledRaceList { get; } = new List<Race>();
         public bool CanSkipBootcamp { get; set; }
 
-        public BeginCharacterSelectionPacket(string familyName, bool hasCharacters, uint accountId, bool canSkipBootcamp = true)
+        /// <param name="enabledRaces">
+        /// The races the character creation window lets the player pick: the rest show locked, with
+        /// "Unlock this hybrid by completing certain missions in game." (CharacterManager.EnabledRaces).
+        /// </param>
+        public BeginCharacterSelectionPacket(string familyName, bool hasCharacters, uint accountId, IEnumerable<Race> enabledRaces, bool canSkipBootcamp = true)
         {
             FamilyName = familyName;
             HasCharacters = hasCharacters;
             AccountId = accountId;
             CanSkipBootcamp = canSkipBootcamp;
 
-            EnabledRaceList.Add(Race.Human);
-            EnabledRaceList.Add(Race.Forean);
-            EnabledRaceList.Add(Race.Brann);
-            EnabledRaceList.Add(Race.Thrax);
+            EnabledRaceList.AddRange(enabledRaces ?? new[] { Race.Human });
         }
 
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(5);
-            pw.WriteUnicodeString(FamilyName);
+
+            // None for an account that has no family name yet, not an empty string: the client
+            // then creates its first character with CreateCharacter, asking the player first to
+            // confirm the last name every character will share (PM_CONFIRM_SET_CHARACTER_LAST_NAME).
+            if (string.IsNullOrWhiteSpace(FamilyName))
+                pw.WriteNoneStruct();
+            else
+                pw.WriteUnicodeString(FamilyName);
             pw.WriteBool(HasCharacters);
             pw.WriteUInt(AccountId);
 

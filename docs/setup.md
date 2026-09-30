@@ -122,6 +122,22 @@ If you want to overwrite one or multiple settings from the appsettings.json of `
 
 - The env.json files is ignored in git. Keep it that way, this configuration applies only for your development enviroment.
 
+### Squad voice chat
+`Rasa.Game` runs the voice server the game client's built-in squad voice chat connects to. It is configured in the `VoiceConfig` section of its appsettings.json:
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `Enabled` | `true` | `false` turns squad voice chat off; clients are told it is unavailable and never try to connect. A missing section also means off. |
+| `PublicAddress` | `""` | Host or IP clients connect to for voice. Empty uses `GameConfig.PublicAddress`. |
+| `BindAddress` | `0.0.0.0` | Local address the UDP socket binds to. |
+| `Port` | `8103` | UDP port. Forward it as **UDP** on your router or firewall (docker-compose maps `8103/udp`). |
+| `MaxTalkTime` | `60` | Seconds of talk time shown on the player's talk-time bar. Display only. |
+| `TalkTimeRegen` | `1` | Seconds of talk time regained per second of silence. |
+| `TimeoutSeconds` | `30` | A voice connection silent this long is dropped. |
+| `TokenLifetimeSeconds` | `60` | How long a voice login token stays valid. |
+| `LogSessions` | `true` | Log voice logins, logouts and refusals. |
+
+Changes are picked up when the file is reloaded; a new `BindAddress` or `Port` restarts the voice listener. Type `voice` on the game server console to see who is connected. Players talk with the game's push-to-talk key while in a squad, with voice enabled in their options.
 ### Game configuration ownership
 
 `Rasa.Game\Config` owns the server settings loaded from `src\Rasa.Game\appsettings.json`:

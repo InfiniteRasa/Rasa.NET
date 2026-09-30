@@ -91,6 +91,16 @@ namespace Rasa.Test.Missions
             }));
             Assert.IsNull(ratedRadio.SelectionIdx);
             Assert.AreEqual(2, ratedRadio.Rating);
+            var radioReward = Decode<RewardRadioMissionPacket>(WritePayload(writer =>
+            {
+                writer.WriteTuple(3);
+                writer.WriteUInt(731);
+                writer.WriteInt(1);
+                writer.WriteNoneStruct();
+            }));
+            Assert.AreEqual(731U, radioReward.MissionId);
+            Assert.AreEqual(1, radioReward.SelectionIdx);
+            Assert.IsNull(radioReward.Rating);
 
             var objective = Decode<CompleteNPCObjectivePacket>(WritePayload(writer =>
             {
@@ -162,6 +172,8 @@ namespace Rasa.Test.Missions
             AssertWrongTuple<CompleteRadioMissionPacket>(2);
             AssertWrongTuple<CompleteRadioMissionPacket>(4);
             AssertWrongTuple<RewardNPCMissionPacket>(3);
+            AssertWrongTuple<RewardRadioMissionPacket>(2);
+            AssertWrongTuple<RewardRadioMissionPacket>(4);
             AssertWrongTuple<AbandonMissionPacket>(2);
         }
 
@@ -177,7 +189,8 @@ namespace Rasa.Test.Missions
                 (new CompleteNPCObjectivePacket(), GameOpcode.CompleteNPCObjective, 431,
                     typeof(CompleteNPCObjectivePacket)),
                 (new CompleteRadioMissionPacket(), GameOpcode.CompleteRadioMission, 432, typeof(CompleteRadioMissionPacket)),
-                (new RewardNPCMissionPacket(), GameOpcode.RewardNPCMission, 540, typeof(RewardNPCMissionPacket))
+                (new RewardNPCMissionPacket(), GameOpcode.RewardNPCMission, 540, typeof(RewardNPCMissionPacket)),
+                (new RewardRadioMissionPacket(), GameOpcode.RewardRadioMission, 541, typeof(RewardRadioMissionPacket))
             };
             var router = new PacketRouter<ClientPacketHandler, GameOpcode>();
 

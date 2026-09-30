@@ -18,10 +18,9 @@ namespace Rasa.Managers
     /// controlled by a player; these are summoned using the Create Clone, Spotter, and Bot
     /// Construction ability." Everything here is about those - not turrets, not mission NPCs.
     ///
-    /// Nothing summons one yet, because there is no ability framework to fire Bot Construction
-    /// from. <c>.minion</c> stands in for that: it adopts a creature as the caller's minion so the
-    /// command layer can be exercised against a real client before the thing that will eventually
-    /// create them exists.
+    /// Spotter, Bot Construction and Create Clone summon them (AbilityManager.SummonMinion).
+    /// <c>.minion</c> is a GM tool that adopts any creature as the caller's minion, for
+    /// exercising the command layer without the abilities.
     ///
     /// Two client-side facts shape all of this:
     ///
@@ -114,6 +113,10 @@ namespace Rasa.Managers
             // setting to follow their master."
             BehaviorManager.Instance.SetActionFollow(minion, master.Player.EntityId);
 
+            // And fight what they fight: assisting the master, so a bot goes for whatever its
+            // owner targets until told to assist someone else (Assist Target).
+            minion.Controller.ActionFollow.AssistTargetId = master.Player.EntityId;
+
             master.CallMethod(master.Player.EntityId, new MinionAddedPacket(minion.EntityId));
         }
 
@@ -141,6 +144,26 @@ namespace Rasa.Managers
                     return list[i];
 
             return null;
+        }
+
+        /// <summary>
+        /// Unlinks a minion and leaves it where it is - a summon killed in the fight, whose corpse
+        /// goes the usual way. It is nobody's to command any more.
+        /// </summary>
+        public void Release(Creature minion)
+        {
+            if (minion == null)
+                return;
+
+            if (_byMaster.TryGetValue(minion.MasterEntityId, out var list))
+            {
+                list.Remove(minion);
+
+                if (list.Count == 0)
+                    _byMaster.Remove(minion.MasterEntityId);
+            }
+
+            minion.MasterEntityId = 0;
         }
 
         /// <summary>Unlinks a minion and takes it out of the world.</summary>
@@ -581,7 +604,7 @@ namespace Rasa.Managers
                 return true;
 
             if (EntityManager.Instance.Creatures.TryGetValue(target.EntityId, out var creature))
-                return creature.Faction == Factions.AFS;
+                return creature.TargetCategory == TargetCategory.Friendly;
 
             return false;
         }

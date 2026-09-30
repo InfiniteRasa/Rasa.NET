@@ -404,7 +404,7 @@ namespace Rasa.Test.Gameplay
                 charContext.Database.Migrate();
 
             _worldContext = OpenWorld();
-            _worldContext.Database.Migrate();
+            Rasa.Test.Database.MigratedDatabaseTemplates.Migrate(_worldContext, () => _worldContext.Database.Migrate());
 
 
             Missions = new MissionApplication(
@@ -639,7 +639,7 @@ namespace Rasa.Test.Gameplay
                 if (!destination.ClientList.Contains(client))
                     destination.ClientList.Add(client);
                 CellManager.Instance.AddToWorld(client);
-                var arrival = new Dropship(Factions.AFS, DropshipType.Teleporter, client, DropshipRole.Arrival);
+                var arrival = new Dropship(TargetCategory.Friendly, DropshipType.Teleporter, client, DropshipRole.Arrival);
                 CellManager.Instance.AddToWorld(destination, arrival);
                 Objects.Dropships.Add(arrival.EntityId, arrival);
                 for (var phase = 0; phase < 6; phase++)
@@ -743,7 +743,7 @@ namespace Rasa.Test.Gameplay
                 characterAppearances: new CharacterAppearanceRepository(context),
                 characterInventories: new CharacterInventoryRepository(context),
                 characterLockboxes: new CharacterLockboxRepository(context),
-                characterLogoses: new CharacterLogosRepository(context),
+                characterLogoses: new CharacterLogosRepository(context), characterActionReuses: new Rasa.Repositories.Char.CharacterActionReuse.CharacterActionReuseRepository(context),
                 characterMissions: new CharacterMissionRepository(context),
                 characterMissionDeadlines: new CharacterMissionDeadlineRepository(context),
                 characterMissionProgress: new CharacterMissionProgressRepository(context),
@@ -830,6 +830,8 @@ namespace Rasa.Test.Gameplay
                 NpcPackages = new NpcPackageRepository(context);
                 RandomNames = null;
                 Spawnpools = new SpawnpoolRepository(context);
+                MapEmitters = new MapEmitterRepository(context);
+                SpawnPoolArrivals = new SpawnPoolArrivalRepository(context);
                 Teleporters = new TeleporterRepository(context);
             }
 
@@ -851,6 +853,8 @@ namespace Rasa.Test.Gameplay
             public INpcPackageRepository NpcPackages { get; }
             public IPlayerRandomNameRepository RandomNames { get; }
             public ISpawnpoolRepository Spawnpools { get; }
+            public IMapEmitterRepository MapEmitters { get; }
+            public ISpawnPoolArrivalRepository SpawnPoolArrivals { get; }
             public ITeleporterRepository Teleporters { get; }
             public void Complete() { }
             public void Reject() { }

@@ -63,6 +63,17 @@ namespace Rasa.Repositories.Char.ClanMember
             return ToRosterEntries(query.Where(e => e.ClanId == clanId)).ToList();
         }
 
+        public List<ClanRosterEntry> GetRosters(ICollection<uint> clanIds)
+        {
+            if (clanIds == null || clanIds.Count == 0)
+                return new List<ClanRosterEntry>();
+
+            var ids = clanIds.ToList();
+            var query = _charContext.CreateNoTrackingQuery(_charContext.ClanMemberEntries);
+
+            return ToRosterEntries(query.Where(e => ids.Contains(e.ClanId))).ToList();
+        }
+
         public ClanRosterEntry GetRosterEntry(uint characterId)
         {
             var query = _charContext.CreateNoTrackingQuery(_charContext.ClanMemberEntries);

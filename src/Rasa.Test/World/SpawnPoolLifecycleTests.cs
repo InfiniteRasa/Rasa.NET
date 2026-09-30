@@ -48,9 +48,9 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
-        [DataRow(20U, 20000L)]
-        [DataRow(uint.MaxValue, 4294967295000L)]
-        public void LoaderConvertsPersistedSecondsToMillisecondsWithoutOverflow(uint seconds, long milliseconds)
+        [DataRow(200U, 20000L)]
+        [DataRow(uint.MaxValue, 429496729500L)]
+        public void LoaderConvertsPersistedTenthsOfASecondToMillisecondsWithoutOverflow(uint seconds, long milliseconds)
         {
             var data = new SpawnData();
             data.Pools.Add(new SpawnPoolEntry { Id = 55, MapContextId = 1220, RespawnTime = seconds });
@@ -206,7 +206,7 @@ namespace Rasa.Test.World
                 Assert.AreEqual(2, pool.QueuedCreatures);
                 var dropship = DynamicObjectManager.Instance.Dropships.Values.Single(ship => ship.SpawnPool == pool);
                 Assert.AreEqual(1220U, dropship.MapContextId);
-                Assert.AreEqual(animation == 1 ? Data.Factions.Bane : Data.Factions.AFS, dropship.Faction);
+                Assert.AreEqual(animation == 1 ? Data.TargetCategory.Hostile : Data.TargetCategory.Friendly, dropship.TargetCategory);
 
                 pool.SpawnSlot[0].CountMin = 64;
                 pool.SpawnSlot[0].CountMax = 64;
@@ -256,7 +256,7 @@ namespace Rasa.Test.World
             var otherPool = CreatePool();
             otherPool.DbId = 56;
             otherPool.Position = origin;
-            var unrelated = new Dropship(Data.Factions.AFS, Data.DropshipType.Spawner, otherPool);
+            var unrelated = new Dropship(Data.TargetCategory.Friendly, Data.DropshipType.Spawner, otherPool);
             CellManager.Instance.AddToWorld(world.Map, unrelated);
             DynamicObjectManager.Instance.Dropships.Add(unrelated.EntityId, unrelated);
             runtime.Creatures.LoadedCreatures[3] = new Creature { DbId = 3 };
@@ -309,7 +309,7 @@ namespace Rasa.Test.World
                 manager.SpawnPoolWorker(world.Map, 1);
 
                 var retry = workers.Values.Single(ship => ship.SpawnPool == pool);
-                Assert.AreEqual(animation == 1 ? Data.Factions.Bane : Data.Factions.AFS, retry.Faction);
+                Assert.AreEqual(animation == 1 ? Data.TargetCategory.Hostile : Data.TargetCategory.Friendly, retry.TargetCategory);
                 Assert.AreEqual(1, pool.DropshipQueue);
                 Assert.AreEqual(1, pool.QueuedCreatures);
                 Assert.AreEqual(Data.EntityType.Object, entities.RegisteredEntities[retry.EntityId]);
@@ -686,11 +686,14 @@ namespace Rasa.Test.World
             }
         }
 
-        private sealed class SpawnData : IGameUnitOfWorkFactory, IWorldUnitOfWork, ISpawnpoolRepository, ICreatureRepository
+        private sealed class SpawnData : IGameUnitOfWorkFactory, IWorldUnitOfWork, ISpawnpoolRepository, ISpawnPoolArrivalRepository, ICreatureRepository
         {
             public List<SpawnPoolEntry> Pools { get; } = new();
             public Action<uint> ReadStats { get; set; }
             public ISpawnpoolRepository Spawnpools => this;
+            public IMapEmitterRepository MapEmitters => null;
+            public ISpawnPoolArrivalRepository SpawnPoolArrivals => this;
+            public List<SpawnPoolArrivalEntry> GetArrivals() => new List<SpawnPoolArrivalEntry>();
             public IWorldUnitOfWork CreateWorld() => this;
             public ICharUnitOfWork CreateChar() => throw new NotSupportedException();
             public List<SpawnPoolEntry> Get() => Pools;
@@ -729,6 +732,8 @@ namespace Rasa.Test.World
             public List<CreatureAppearanceEntry> GetCreatureAppearances(uint creatureId) => throw new NotSupportedException();
             public List<VendorItemEntry> GetVendorItems() => throw new NotSupportedException();
             public List<VendorEntry> GetVendors() => throw new NotSupportedException();
+            public List<VendorPriceEntry> GetVendorPrices() => throw new NotSupportedException();
+            public List<CreatureActorNameEntry> GetActorNames() => throw new NotSupportedException();
         }
     }
 }

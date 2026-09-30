@@ -310,7 +310,7 @@ namespace Rasa.Test.Missions
             Place(harness, enemy, position + new Vector3(0, 0, 6));
             enemy.Actions.Clear();
             if (invalid == "friendly")
-                enemy.Faction = Factions.AFS;
+                enemy.TargetCategory = TargetCategory.Friendly;
             if (invalid == "dead")
                 enemy.State = CharacterState.Dead;
             if (invalid == "removed")
@@ -362,7 +362,9 @@ namespace Rasa.Test.Missions
             CellManager.Instance.UpdateVisibility(harness.Client);
             var xp = harness.Client.Player.Experience;
             Shoot(harness, harness.Client.Player, escort, 100000);
-            Assert.AreEqual(CharacterState.Dead, escort.State);
+            // A player's shot does not land on a FRIENDLY creature at all
+            // (TargetCategories.PlayerMayAttack), so there is nothing to reward.
+            Assert.AreNotEqual(CharacterState.Dead, escort.State);
             Assert.AreEqual(xp, harness.Client.Player.Experience);
             Assert.AreEqual(0UL, escort.CorpseLootEntityId);
         }
@@ -404,7 +406,7 @@ namespace Rasa.Test.Missions
             if (foreign)
                 enemy.RuntimeMapChannel = harness.Maps.GetOrCreatePrivateInstance(1985, 999);
             else
-                enemy.Faction = Factions.AFS;
+                enemy.TargetCategory = TargetCategory.Friendly;
 
             MissileManager.Instance.DoWork(harness.BootcampMap, 250);
 
@@ -617,7 +619,13 @@ namespace Rasa.Test.Missions
             try
             {
                 if (attack == "missile")
-                    Shoot(harness, harness.Client.Player, enemy, 1);
+                {
+                    // Without a crit: the player's 5% base chance turned the 1 into 2 now and then.
+                    MissileManager.Instance.MissileLaunch(harness.BootcampMap,
+                        new ActionData(harness.Client.Player, ActionId.WeaponAttack, 133, enemy.EntityId, 0), 1);
+                    harness.BootcampMap.QueuedMissiles.Single().CritChance = 0;
+                    MissileManager.Instance.DoWork(harness.BootcampMap, 250);
+                }
                 else if (attack == "direct")
                     ActorManager.Instance.Damage(harness.BootcampMap, enemy, 1, harness.Client.Player);
                 else

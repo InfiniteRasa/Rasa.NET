@@ -420,6 +420,8 @@ namespace Rasa.Test.Missions
             public INpcPackageRepository NpcPackages { get; }
             public IPlayerRandomNameRepository RandomNames => null;
             public ISpawnpoolRepository Spawnpools => null;
+            public IMapEmitterRepository MapEmitters => null;
+            public ISpawnPoolArrivalRepository SpawnPoolArrivals => null;
             public ITeleporterRepository Teleporters => null;
             public void Complete() { }
             public void Reject() { }
@@ -529,6 +531,8 @@ namespace Rasa.Test.Missions
             public List<CreatureAppearanceEntry> GetCreatureAppearances(uint creatureId) => new();
             public List<VendorItemEntry> GetVendorItems() => new();
             public List<VendorEntry> GetVendors() => new();
+            public List<VendorPriceEntry> GetVendorPrices() => new();
+            public List<CreatureActorNameEntry> GetActorNames() => new();
         }
 
         private sealed class FakeEquipmentRepository : IEquipmentRepository

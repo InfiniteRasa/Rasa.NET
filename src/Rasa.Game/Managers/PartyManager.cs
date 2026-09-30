@@ -64,10 +64,14 @@ namespace Rasa.Managers
          * - DisplayPartyMessage(msgId, args = { })              => implemented
          * - PartyMemberRoll(itemClassId, winnerUserId, rolls, isGreedRoll)
          * - PartyMemberLoot(userId, creatureEntityId, lootClassIds, moneyAmount)
-         * - VoiceChatAvailable(isAvail)                        => implemented (always false)
-         * - PartyMemberVoiceId(userId, voiceId)
-         * - PartyMemberVoiceIds(memberList)
-         * - VoiceChatConnectInfo(serverAddr, groupId, playerId, token)
+         * - VoiceChatAvailable(isAvail)                        => implemented (VoiceConfig.Enabled)
+         * - PartyMemberVoiceId(userId, voiceId)                => implemented
+         * - PartyMemberVoiceIds(memberList)                    => implemented
+         * - VoiceChatConnectInfo(serverAddr, groupId, playerId, token) => implemented
+         *
+         *   Voice (chat messages):
+         * - RequestJoinVoiceChannel', ())                      => implemented
+         * - RequestLeaveVoiceChannel', ())                     => implemented
          */
 
         #region Singleton
@@ -108,22 +112,15 @@ namespace Rasa.Managers
         public const long HeldSpotMs = 5 * 60 * 1000;
 
         /// <summary>
-        /// Whether squad voice chat is offered. False: there is no voice server.
+        /// Whether squad voice chat is offered: VoiceConfig.Enabled, with the voice server listening.
         ///
         /// The client's voice chat is complete and native - Talkback in tabula_rasa.exe, with the
-        /// Sase 3200/6500, Speex, GSM and Clear codecs, and Sase6500_ncsoft.dll beside it - but it
-        /// talks to a voice server of its own at an address this server would have to hand it, and
-        /// no such server exists. Answering false is what keeps it dormant: the client's
-        /// g_voiceAvailable starts at 0 and only Recv_VoiceChatAvailable assigns it, so it never
-        /// sends RequestJoinVoiceChannel and never opens a session for push-to-talk to feed.
-        ///
-        /// Flipping this to true is not enough on its own. It also needs VoiceChatConnectInfo
-        /// (serverAddr, groupId, playerId, token) in answer to RequestJoinVoiceChannel, handlers for
-        /// RequestJoinVoiceChannel and RequestLeaveVoiceChannel, PartyMemberVoiceId(s) to map voice
-        /// ids onto squad members for the speaking indicators, and a Talkback voice server to point
-        /// it all at.
+        /// Sase 3200/6500, Speex, GSM and Clear codecs - and talks to a voice server at an address
+        /// this server hands it; Voice.VoiceServer is that server. False keeps the client's voice
+        /// dormant: g_voiceAvailable starts at 0 and only Recv_VoiceChatAvailable assigns it, so it
+        /// never sends RequestJoinVoiceChannel and never opens a session for push-to-talk to feed.
         /// </summary>
-        public const bool VoiceChatAvailable = false;
+        public static bool VoiceChatAvailable => Voice.VoiceServer.Instance.Available;
 
         public uint GetPartyId
         {
@@ -430,6 +427,13 @@ namespace Rasa.Managers
                 return;
             }
 
+            if (!CanSquadTogether(requesterParty, requester, leaderParty, client))
+            {
+                Message(client, PlayerMessage.PmPartyJoinFailedFeudingMembers);
+                Message(requester, PlayerMessage.PmPartyJoinFailedFeudingMembers);
+                return;
+            }
+
             Message(client, PlayerMessage.PmPartyInvitationAccepted, "invitee", requester.Player.FamilyName);
 
             if (leaderParty == null)
@@ -499,6 +503,14 @@ namespace Rasa.Managers
             {
                 Message(client, PlayerMessage.PmPartyIsFull);
                 Message(inviter, PlayerMessage.PmPartyIsFull);
+                inviter.CallMethod(SysEntity.ClientPartyManagerId, new SquadRequestSuccessPacket(invite.DisplayName));
+                return;
+            }
+
+            if (!CanSquadTogether(inviterParty, inviter, inviteeParty, client))
+            {
+                Message(client, PlayerMessage.PmPartyJoinFailedFeudingMembers);
+                Message(inviter, PlayerMessage.PmPartyJoinFailedFeudingMembers);
                 inviter.CallMethod(SysEntity.ClientPartyManagerId, new SquadRequestSuccessPacket(invite.DisplayName));
                 return;
             }
@@ -647,6 +659,13 @@ namespace Rasa.Managers
             if (party == null)
                 return;
 
+            // The client offers Free For All and Rotation; the packet can say anything.
+            if (!Enum.IsDefined(typeof(PartyLootMethod), packet.PartyLootMethod))
+            {
+                Message(client, PlayerMessage.PmInvalidLootMethod);
+                return;
+            }
+
             party.LootMethod = packet.PartyLootMethod;
 
             foreach (var member in OnlineClients(party))
@@ -660,10 +679,60 @@ namespace Rasa.Managers
             if (party == null)
                 return;
 
+            // One of the five qualities the client offers, or nothing: the threshold picks what
+            // is rolled for (LootRolls), and an unknown one would rank above everything.
+            if (!Enum.IsDefined(typeof(PartyLootThreshold), packet.PartyLootThreshold))
+            {
+                Logger.WriteLog(LogType.Security,
+                    $"AccountId = {client.AccountEntry?.Id} sent squad loot threshold {(int)packet.PartyLootThreshold}, which is not a quality.");
+                return;
+            }
+
             party.LootThreshold = packet.PartyLootThreshold;
 
             foreach (var member in OnlineClients(party))
                 member.CallMethod(SysEntity.ClientPartyManagerId, new ChangePartyLootThresholdPacket(packet.PartyLootThreshold));
+        }
+
+        #endregion
+
+        #region Voice chat
+
+        /// <summary>
+        /// A squad member's client asking for voice (it heard VoiceChatAvailable(true)). Answers with
+        /// where the voice server is and a login token for the squad's voice group, and makes sure
+        /// every voice-connected member can tell whose voice is whose: the voice id is the account
+        /// id, the requester gets the whole squad's and the others get the requester's.
+        /// </summary>
+        internal void RequestJoinVoiceChannel(Client client)
+        {
+            if (!InWorld(client) || !VoiceChatAvailable)
+                return;
+
+            var party = PartyOf(client);
+
+            if (party == null)
+                return;
+
+            var accountId = client.AccountEntry.Id;
+            var token = Voice.VoiceServer.Instance.IssueTicket(party.Id, accountId);
+
+            client.CallMethod(SysEntity.ClientPartyManagerId,
+                new PartyMemberVoiceIdsPacket(party.Members.Select(m => (m.UserId, m.UserId)).ToList()));
+
+            foreach (var other in OnlineClients(party))
+                if (other != client)
+                    other.CallMethod(SysEntity.ClientPartyManagerId, new PartyMemberVoiceIdPacket(accountId, accountId));
+
+            client.CallMethod(SysEntity.ClientPartyManagerId,
+                new VoiceChatConnectInfoPacket(Voice.VoiceServer.Instance.ClientAddress, party.Id, accountId, token));
+        }
+
+        /// <summary>The client's voice connection ended or could not be made. Anything left of it on the voice server goes.</summary>
+        internal void RequestLeaveVoiceChannel(Client client)
+        {
+            if (client?.AccountEntry != null)
+                Voice.VoiceServer.Instance.Leave(client.AccountEntry.Id);
         }
 
         #endregion
@@ -693,6 +762,10 @@ namespace Rasa.Managers
             }
 
             DropInvites(client.AccountEntry.Id);
+
+            // Out of the world is out of voice; the squad's own client disconnects too, but a
+            // dropped connection never says so.
+            Voice.VoiceServer.Instance.Leave(client.AccountEntry.Id);
 
             var party = FindPartyOfAccount(client.AccountEntry.Id);
 
@@ -902,6 +975,13 @@ namespace Rasa.Managers
                 return;
             }
 
+            // Someone who has the inviter ignored is not asked by them.
+            if (recipient.Player.IgnoredPlayers.Contains(inviter.AccountEntry.Id))
+            {
+                Message(inviter, PlayerMessage.PmUserIgnoringYou, "name", displayName);
+                return;
+            }
+
             if (_invites.ContainsKey(recipient.AccountEntry.Id))
             {
                 // Includes a repeat invitation from this inviter: every InviteToParty adds
@@ -986,6 +1066,10 @@ namespace Rasa.Managers
             source.Members.Clear();
             Parties.Remove(source.Id);
             FreePartyId(source.Id);
+
+            // The arrivals' clients drop their voice connection when their party id is cleared
+            // and ask to join the new squad's group with the state SendPartyState sends.
+            Voice.VoiceServer.Instance.GroupDisbanded(source.Id);
 
             foreach (var member in moving)
                 AddMemberEntry(party, member, existing);
@@ -1097,6 +1181,8 @@ namespace Rasa.Managers
             member.InvalidateMissionMembership();
             party.Members.Remove(member);
 
+            Voice.VoiceServer.Instance.Leave(member.UserId);
+
             if (member.IsOnline)
             {
                 var leaver = FindIngame(member.UserId);
@@ -1148,6 +1234,8 @@ namespace Rasa.Managers
             party.Members.Clear();
             Parties.Remove(party.Id);
             FreePartyId(party.Id);
+
+            Voice.VoiceServer.Instance.GroupDisbanded(party.Id);
 
             AdsChanged(null, former);
         }
@@ -1323,6 +1411,61 @@ namespace Rasa.Managers
             return party.Members.ToList();
         }
 
+        /// <summary>
+        /// Whether two sides - each a squad, or a lone player when their squad is null - may become
+        /// one squad: not if it would hold members of two clans at feud
+        /// (PM_PARTY_JOIN_FAILED_FEUDING_MEMBERS). Members online are the ones whose clan is known.
+        /// </summary>
+        internal static bool CanSquadTogether(Party first, Client firstAlone, Party second, Client secondAlone)
+        {
+            var clans = ClansOf(first, firstAlone).Concat(ClansOf(second, secondAlone));
+
+            return !ClanFeuds.Instance.AnyFeuding(clans);
+        }
+
+        private static IEnumerable<uint> ClansOf(Party party, Client alone) =>
+            party != null
+                ? OnlineClients(party).Select(c => c.Player?.ClanId ?? 0)
+                : new[] { alone?.Player?.ClanId ?? 0 };
+
+        /// <summary>
+        /// A feud has begun between two clans (or a member joined one of them): no squad may hold
+        /// both. From each squad that does, the members of the clan its leader is not in are taken
+        /// out - of the smaller side if the leader is in neither - each told why
+        /// (PM_PARTY_KICKED_BY_FEUDING). Only members online are known to be in a clan.
+        /// </summary>
+        internal void SeparateFeuding(uint clanA, uint clanB)
+        {
+            if (clanA == 0 || clanB == 0 || clanA == clanB)
+                return;
+
+            foreach (var party in Parties.Values.ToList())
+            {
+                if (!Parties.ContainsKey(party.Id))
+                    continue;
+
+                var online = OnlineClients(party);
+                var sideA = online.Where(c => c.Player?.ClanId == clanA).ToList();
+                var sideB = online.Where(c => c.Player?.ClanId == clanB).ToList();
+
+                if (sideA.Count == 0 || sideB.Count == 0)
+                    continue;
+
+                var leaderClan = online.Find(c => c.AccountEntry?.Id == party.PartyLeaderId)?.Player?.ClanId ?? 0;
+                var keepA = leaderClan == clanA || leaderClan != clanB && sideA.Count >= sideB.Count;
+
+                foreach (var client in keepA ? sideB : sideA)
+                {
+                    // Taking members out can disband the squad under us.
+                    if (!Parties.ContainsKey(party.Id))
+                        break;
+
+                    RemoveMember(party, party.Find(client.AccountEntry.Id), false);
+                    Message(client, PlayerMessage.PmPartyKickedByFeuding);
+                }
+            }
+        }
+
         private static List<Client> OnlineClients(Party party)
         {
             var clients = new List<Client>();
@@ -1349,6 +1492,122 @@ namespace Rasa.Managers
             return Parties.TryGetValue(client.Player.PartyId, out var party) && party.Find(client.AccountEntry.Id) != null
                 ? party
                 : null;
+        }
+
+        /// <summary>How far from a corpse a squad member may be and still share in its loot.</summary>
+        public const float LootShareRange = 200f;
+
+        /// <summary>
+        /// Who may loot a corpse the killer earned, by the squad's loot method:
+        /// - no squad, or Individual: the killer;
+        /// - Free For All: every member in the world on the killer's map within LootShareRange (200 m) of
+        ///   the corpse, the killer first - anyone of them may take anything;
+        /// - Rotation: the whole corpse goes to the next of those members in join order, the
+        ///   rotation moving on one member a corpse.
+        /// Random and Dice Roll cannot be chosen in the client and are treated as Free For All.
+        /// The flag is whether the corpse is shared (partyId on its items). Party and Eligible -
+        /// every member who shares in the corpse, whoever Rotation hands it to - are for the
+        /// items at or over the squad's threshold, which are rolled for among them (LootRolls).
+        /// </summary>
+        internal (List<Client> Looters, uint PartyId, Party Party, List<Client> Eligible) LootersFor(Client killer, System.Numerics.Vector3 corpse)
+        {
+            var party = PartyOf(killer);
+
+            if (party == null || party.LootMethod == PartyLootMethod.Individual)
+                return (new List<Client> { killer }, 0, null, new List<Client> { killer });
+
+            var mapChannel = killer.Player.MapChannel;
+            var eligible = new List<Client>();
+
+            foreach (var member in party.Members)
+            {
+                if (!member.IsOnline)
+                    continue;
+
+                var client = FindMember(member.UserId);
+
+                if (client == null || client.State != ClientState.Ingame || client.Player.MapChannel != mapChannel
+                    || client.Player.MapContextId != killer.Player.MapContextId)
+                    continue;
+
+                if (client != killer && System.Numerics.Vector3.Distance(client.Player.Position, corpse) > LootShareRange)
+                    continue;
+
+                eligible.Add(client);
+            }
+
+            if (!eligible.Contains(killer))
+                eligible.Insert(0, killer);
+
+            if (party.LootMethod == PartyLootMethod.Rotation)
+            {
+                var next = eligible[party.LootRotation % eligible.Count];
+
+                party.LootRotation++;
+
+                return (new List<Client> { next }, 0, party, eligible);
+            }
+
+            // Free For All (and the two the client never sends): the killer first, then the rest.
+            eligible.Remove(killer);
+            eligible.Insert(0, killer);
+
+            return (eligible, party.Id, party, eligible);
+        }
+
+        /// <summary>
+        /// A corpse's credits as paid out (LootDispenserManager.Settle): every squad member who did
+        /// not get a share of them is told who did - "X received N credits." (264), which
+        /// PartyMemberLoot cannot say, since the client reads its amount and never prints it.
+        /// Those who shared have their own "You received" from GotLoot and are not told the rest.
+        /// </summary>
+        internal void AnnounceCredits(List<(Client Recipient, int Share)> shares)
+        {
+            if (shares == null || shares.Count == 0)
+                return;
+
+            var party = PartyOf(shares[0].Recipient);
+
+            if (party == null)
+                return;
+
+            var paid = shares.Select(s => s.Recipient).ToList();
+
+            foreach (var (recipient, share) in shares)
+            {
+                if (share <= 0 || recipient.AccountEntry == null)
+                    continue;
+
+                var name = party.Find(recipient.AccountEntry.Id)?.MemberName ?? recipient.Player?.Name ?? string.Empty;
+                var args = new Dictionary<string, string> { ["player"] = name, ["amount"] = share.ToString() };
+
+                foreach (var other in OnlineClients(party))
+                    if (!paid.Contains(other))
+                        other.CallMethod(SysEntity.ClientPartyManagerId, new DisplayPartyMessagePacket(PlayerMessage.PmPartyMemberGotMoneyLootFromUnknown, args));
+            }
+        }
+
+        /// <summary>
+        /// PartyMemberLoot: the rest of a squad hears what one of them took from a corpse the squad
+        /// shared in (any loot method but Individual) - "X looted 1 Y." Not the taker, whose own
+        /// client says it from GotLoot and would say it twice.
+        /// </summary>
+        internal void AnnounceLoot(Client taker, ulong creatureEntityId, List<LootItem> taken, int credits)
+        {
+            if (taker?.AccountEntry == null || taken == null || taken.Count == 0 && credits <= 0)
+                return;
+
+            var party = PartyOf(taker);
+
+            if (party == null || party.LootMethod == PartyLootMethod.Individual)
+                return;
+
+            var packet = new PartyMemberLootPacket(taker.AccountEntry.Id, creatureEntityId,
+                taken.Select(i => (i.ItemClassId, i.ItemQuantity, i.EntityId)).ToList(), credits);
+
+            foreach (var other in OnlineClients(party))
+                if (other != taker)
+                    other.CallMethod(SysEntity.ClientPartyManagerId, packet);
         }
 
         internal bool TryGetLiveMembership(Client client, out Party party, out PartyMember member)
@@ -1440,7 +1699,9 @@ namespace Rasa.Managers
             string.IsNullOrEmpty(familyName)
                 ? null
                 : Server.Clients.Find(c => c.State == ClientState.Ingame && c.Player != null && c.AccountEntry != null
-                                           && string.Equals(c.Player.FamilyName, familyName, StringComparison.OrdinalIgnoreCase));
+                                           && string.Equals(c.Player.FamilyName, familyName, StringComparison.Ordinal))
+                  ?? Server.Clients.Find(c => c.State == ClientState.Ingame && c.Player != null && c.AccountEntry != null
+                                              && string.Equals(c.Player.FamilyName, familyName, StringComparison.OrdinalIgnoreCase));
 
         /// <summary>
         /// One message to everyone in the squad who is in the world, on the party manager's own

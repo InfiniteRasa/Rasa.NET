@@ -34,7 +34,7 @@
             pw.WriteList(0);                    // 'classModuleIds'         // ToDo
             pw.WriteList(0);                    // 'lootModuleIds'          // ToDo
             pw.WriteInt(Item.ItemTemplate.QualityId);
-            pw.WriteBool(Item.ItemTemplate.BoundToCharacter);
+            pw.WriteBool(Item.IsBound);         // 'boundToCharacter': this item, not its template
             pw.WriteBool(Item.ItemTemplate.ItemInfo.Tradable);
             pw.WriteBool(Item.ItemTemplate.NotPlaceableInLockbox);
             pw.WriteInt((int)Item.ItemTemplate.InventoryCategory);

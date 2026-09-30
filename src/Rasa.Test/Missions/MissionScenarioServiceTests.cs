@@ -335,7 +335,7 @@ namespace Rasa.Test.Missions
                 DbId = 501,
                 EntityClass = (EntityClasses)4001,
                 Npc = new Npc { NpcPackageId = 501 },
-                Faction = Factions.AFS,
+                TargetCategory = TargetCategory.Friendly,
                 AppearanceData = new Dictionary<EquipmentData, AppearanceData>()
             };
             creatures.LoadedCreatures[502] = new Creature
@@ -343,7 +343,7 @@ namespace Rasa.Test.Missions
                 DbId = 502,
                 EntityClass = (EntityClasses)4001,
                 Npc = new Npc { NpcPackageId = 502 },
-                Faction = Factions.Bane,
+                TargetCategory = TargetCategory.Hostile,
                 AppearanceData = new Dictionary<EquipmentData, AppearanceData>()
             };
             var service = new MissionSceneHost(

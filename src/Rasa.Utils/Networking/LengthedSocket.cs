@@ -115,12 +115,28 @@ namespace Rasa.Networking
         private bool _receiveDeferred;
 
         /// <summary>
-        /// How far a client is allowed to fall behind before it is dropped. Each queued send holds
-        /// a pooled SocketAsyncEventArgs and its buffer, and the pool is shared by every
-        /// connection, so one client that has stopped reading must not be able to starve the rest.
-        /// The same reasoning as the inbound flood cap, in the other direction.
+        /// How far a client is allowed to fall behind before it is dropped, in pooled blocks. Each
+        /// queued send holds a SocketAsyncEventArgs and a block from pools every connection shares,
+        /// so one client that has stopped reading must not be able to starve the rest - the same
+        /// reasoning as the inbound flood cap, in the other direction.
+        ///
+        /// This was 512, when every packet had a block to itself: 512 packets, however small, and
+        /// twenty stalled connections were enough to empty a 10,240 block pool. Frames are packed
+        /// into blocks now (<see cref="Send(IReadOnlyList{IBasePacket})"/>), so 128 is a megabyte
+        /// behind at the default block size - a whole login's worth of inventory and entities on a
+        /// slow link - and eighty stalled connections, not twenty, to empty the pool.
         /// </summary>
-        private const int MaxQueuedSends = 512;
+        private const int MaxQueuedSends = 128;
+
+        /// <summary>
+        /// How long a send may sit on the socket without completing, while more wait behind it,
+        /// before the connection is taken for one whose peer has stopped reading. A queue under
+        /// the cap used to be able to hold its blocks for as long as TCP kept retransmitting.
+        /// </summary>
+        private const long SendStallMs = 30000;
+
+        /// <summary>When the send now on the socket was issued (Environment.TickCount64).</summary>
+        private long _sendIssuedAt;
 
         #endregion
 
@@ -377,6 +393,9 @@ namespace Rasa.Networking
 
                     var client = new LengthedSocket(accepted, SizeHeaderLength, CountSize);
 
+                    client.EnableKeepAlive();
+                    client.DisableNagle();
+
                     // The accept args is never torn down and is re-armed by the handler itself,
                     // so a fault here is dealt with on the spot: the connection that could not
                     // be set up is shut, and the listener carries on as if it had been refused.
@@ -555,6 +574,76 @@ namespace Rasa.Networking
         }
         #endregion
 
+        /// <summary>Idle time before the first keepalive probe, the gap between probes, and how many go unanswered before the connection is given up.</summary>
+        public const int KeepAliveIdleSeconds = 30;
+        public const int KeepAliveIntervalSeconds = 10;
+        public const int KeepAliveProbes = 5;
+
+        /// <summary>
+        /// Turns on TCP keepalive, so a peer that has gone without a word - power cut, sleep, a
+        /// NAT or Wi-Fi drop, a client that died on a loading screen - surfaces as a socket error
+        /// within about a minute and a half (KeepAliveIdleSeconds + KeepAliveIntervalSeconds x
+        /// KeepAliveProbes) instead of never.
+        ///
+        /// Without it the only thing that ever noticed a vanished peer was a send timing out,
+        /// and a connection nothing is sent to - a player at the character screen, a queue
+        /// connection that has been handed off, a world login that stalled mid-load - sat open
+        /// for as long as the process ran, holding its pooled receive buffer and, on the world
+        /// port, counting as the account being logged in. The probes only go out while the
+        /// connection is idle, so a player in the world, whose client talks constantly, sends
+        /// none of them.
+        ///
+        /// Set on every accepted socket. Each option is tried on its own and a refusal is
+        /// ignored: the interval and probe count need a Windows 10 of 1703 or later, and a
+        /// system without them keeps its own defaults for those, which only makes detection
+        /// slower.
+        /// </summary>
+        public void EnableKeepAlive()
+        {
+            try
+            {
+                Socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
+            }
+            catch (Exception)
+            {
+                return;
+            }
+
+            TrySetTcpOption(SocketOptionName.TcpKeepAliveTime, KeepAliveIdleSeconds);
+            TrySetTcpOption(SocketOptionName.TcpKeepAliveInterval, KeepAliveIntervalSeconds);
+            TrySetTcpOption(SocketOptionName.TcpKeepAliveRetryCount, KeepAliveProbes);
+        }
+
+        private void TrySetTcpOption(SocketOptionName option, int value)
+        {
+            try
+            {
+                Socket.SetSocketOption(SocketOptionLevel.Tcp, option, value);
+            }
+            catch (Exception)
+            {
+                // Not supported here; the system's own value stands.
+            }
+        }
+
+        /// <summary>
+        /// Sends go out as they are issued rather than held for an ACK. Frames are already packed
+        /// into blocks by <see cref="Send(IReadOnlyList{IBasePacket})"/>, usually one a tick
+        /// for a world client, so Nagle's algorithm has nothing left to coalesce and only adds its
+        /// wait - up to a delayed ACK - to every movement update.
+        /// </summary>
+        public void DisableNagle()
+        {
+            try
+            {
+                Socket.NoDelay = true;
+            }
+            catch (Exception)
+            {
+                // Not a TCP socket, or already closed.
+            }
+        }
+
         public void Bind(EndPoint ep)
         {
             Socket.Bind(ep);
@@ -672,106 +761,199 @@ namespace Rasa.Networking
 
         public void Send(IBasePacket packet)
         {
-            if (_sendClosed)
-                return;
-
-            // The args and its buffer are taken from the pool *before* the send lock, never
-            // while holding it. TeardownEventArgs takes the pool lock too, and it runs on the
-            // completion path which then takes the send lock to start the next send - so a Send
-            // that held the send lock while reaching for the pool would be waiting for a lock
-            // held by a thread waiting for this one.
-            var args = SetupEventArgs(SocketAsyncOperation.Send);
-
-            if (args == null)
-            {
-                Drop("no buffers left to send with");
-                return;
-            }
-
-            var start = false;
-            var discard = false;
-            var overflowed = false;
-
-            // Writing and encrypting happen under the send lock, not just the handing-off. The
-            // encryption is a stream cipher, so its state has to advance in the same order the
-            // bytes reach the socket; building two packets at once on two threads would advance
-            // it twice and send both with the wrong keystream.
-            lock (_sendLock)
-            {
-                if (_sendClosed)
-                {
-                    discard = true;
-                }
-                else if (!TryWriteFrame(packet, args))
-                {
-                    // Logged by TryWriteFrame. The packet is skipped; nothing of it reached the
-                    // socket, and every frame stands on its own, so the stream is intact.
-                    discard = true;
-                }
-                else
-                {
-                    if (!_sending)
-                    {
-                        _sending = true;
-                        start = true;
-                    }
-                    else if (_sendQueue.Count < MaxQueuedSends)
-                    {
-                        _sendQueue.Enqueue(args);
-                    }
-                    else
-                    {
-                        // Too far behind to catch up. Drop the packet and the connection with it -
-                        // silently discarding one packet out of a stream the other side is framing
-                        // would desync it just as surely as interleaving would.
-                        _sendClosed = true;
-                        overflowed = true;
-                    }
-                }
-            }
-
-            if (start)
-            {
-                SendAsync(args);
-                return;
-            }
-
-            if (!discard && !overflowed)
-                return;
-
-            TeardownEventArgs(args);
-
-            if (!overflowed)
-                return;
-
-            // Hand the queued buffers back here rather than leaving it to whoever handles the
-            // drop. Nothing else will ever go out on this socket, and the pool entries the queue
-            // is sitting on belong to every other connection.
-            DiscardQueuedSends();
-
-            Drop($"send queue full at {MaxQueuedSends} packets");
+            Send(new[] { packet });
         }
 
         /// <summary>
-        /// Serialises and encrypts the packet into the args' buffer and sets the frame up to
-        /// send, or returns false having logged why it could not. A throw out of the packet's
-        /// Write - a body larger than the pool block, a null string, a writer bug - or out of
-        /// OnEncrypt used to leave Send by way of the exception, with the args and its buffer
-        /// never returned to their pools; every such packet cost the whole process one of each
-        /// for good, and once they ran out nothing could be sent or received.
+        /// Sends the packets in order, as many frames to a pooled block as fit, and one SendAsync
+        /// per block.
+        ///
+        /// Every packet used to take a block and a SendAsync of its own: a 40-byte movement update
+        /// held 8 KB of a pool every connection shares until it went out, and each one was a trip
+        /// into the socket layer. The world sends a player one relayed packet for every move,
+        /// shot and hit within a hundred metres, so both costs grew with the square of how many
+        /// were standing together. The other side reads a length-prefixed stream and does not
+        /// care where one send ends and the next begins - Nagle's algorithm was already gluing
+        /// these together on the wire, a delayed ACK late - so frames are laid end to end in a
+        /// block, and a block goes out when it is full or the packets are done.
+        ///
+        /// A packet that does not fit in what is left of a block starts the next one. One that
+        /// does not fit in an empty block, or cannot be written at all, is logged and skipped as
+        /// before: every frame stands on its own, so the stream is intact without it.
+        ///
+        /// Each block is written and queued under the send lock, as a single packet was, because
+        /// the order the bytes are handed to the socket is the order they are framed in. The block
+        /// is taken from the pool before the lock, never while holding it (see below).
         /// </summary>
-        private bool TryWriteFrame(IBasePacket packet, SocketAsyncEventArgs args)
+        public void Send(IReadOnlyList<IBasePacket> packets)
+        {
+            if (packets == null)
+                return;
+
+            var next = 0;
+
+            while (next < packets.Count)
+            {
+                if (_sendClosed)
+                    return;
+
+                // Taken before the send lock: TeardownEventArgs takes the pool lock too, and it
+                // runs on the completion path which then takes the send lock to start the next
+                // send - so holding the send lock while reaching for the pool would wait on a
+                // thread that is waiting for this one.
+                var args = SetupEventArgs(SocketAsyncOperation.Send);
+
+                if (args == null)
+                {
+                    Drop("no buffers left to send with");
+                    return;
+                }
+
+                var start = false;
+                var discard = false;
+                var overflowed = false;
+                var stalled = false;
+
+                lock (_sendLock)
+                {
+                    if (_sendClosed)
+                    {
+                        discard = true;
+                        next = packets.Count;
+                    }
+                    else
+                    {
+                        var used = FillBlock(packets, ref next, args);
+
+                        if (used == 0)
+                        {
+                            // Everything that was left was skipped.
+                            discard = true;
+                        }
+                        else if (!_sending)
+                        {
+                            _sending = true;
+                            start = true;
+                        }
+                        else if (Environment.TickCount64 - Interlocked.Read(ref _sendIssuedAt) > SendStallMs)
+                        {
+                            _sendClosed = true;
+                            stalled = true;
+                        }
+                        else if (_sendQueue.Count < MaxQueuedSends)
+                        {
+                            _sendQueue.Enqueue(args);
+                        }
+                        else
+                        {
+                            // Too far behind to catch up. Drop the block and the connection with
+                            // it - silently discarding frames out of a stream the other side is
+                            // reading would desync it just as surely as interleaving would.
+                            _sendClosed = true;
+                            overflowed = true;
+                        }
+                    }
+                }
+
+                if (start)
+                {
+                    SendAsync(args);
+                    continue;
+                }
+
+                if (!discard && !overflowed && !stalled)
+                    continue;
+
+                TeardownEventArgs(args);
+
+                if (!overflowed && !stalled)
+                    continue;
+
+                // Hand the queued buffers back here rather than leaving it to whoever handles the
+                // drop. Nothing else will ever go out on this socket, and the pool entries the
+                // queue is sitting on belong to every other connection.
+                DiscardQueuedSends();
+
+                Drop(stalled
+                    ? $"a send has not completed in {SendStallMs / 1000} s with more waiting behind it"
+                    : $"send queue full at {MaxQueuedSends} blocks");
+
+                return;
+            }
+        }
+
+        private enum FrameResult
+        {
+            Written,
+
+            /// <summary>Did not fit behind the frames already in the block; it goes in the next one.</summary>
+            NoRoom,
+
+            /// <summary>Could not be written into an empty block. Logged; the packet is skipped.</summary>
+            Skipped
+        }
+
+        /// <summary>
+        /// Lays frames from <paramref name="packets"/>, starting at <paramref name="next"/>, end to
+        /// end in the args' block and sets the args up to send them. Advances next past every
+        /// packet it wrote or skipped, and returns the bytes used.
+        /// </summary>
+        private int FillBlock(IReadOnlyList<IBasePacket> packets, ref int next, SocketAsyncEventArgs args)
         {
             var data = args.GetUserToken<BufferData>();
+            var used = 0;
+
+            while (next < packets.Count)
+            {
+                var result = TryWriteFrame(packets[next], data, used, out var frameLength);
+
+                if (result == FrameResult.NoRoom)
+                    break;
+
+                if (result == FrameResult.Written)
+                    used += frameLength;
+
+                next++;
+            }
+
+            data.Offset = 0;
+            data.Length = used;
+            data.ByteCount = 0;
+
+            if (used > 0)
+                args.SetBuffer(data.BaseOffset, used);
+
+            return used;
+        }
+
+        /// <summary>
+        /// Serialises and encrypts one packet at <paramref name="at"/> in the block, with its
+        /// length header in front.
+        ///
+        /// A packet that overruns the block - the writer's stream is the rest of the block, and
+        /// is not expandable; the cipher's padding has to fit too - behind other frames is NoRoom
+        /// and is written again at the start of the next block. The same failure in an empty
+        /// block is a packet no block can hold, and any other throw out of the packet's Write or
+        /// OnEncrypt is a packet that cannot be sent; both are logged and skipped. Before the
+        /// send path was made safe, such a throw left the args and its buffer out of the pools
+        /// for good. Nothing written for a frame that failed goes anywhere: the block ends where
+        /// the last good frame did.
+        /// </summary>
+        private FrameResult TryWriteFrame(IBasePacket packet, BufferData data, int at, out int frameLength)
+        {
+            frameLength = 0;
+
+            if (at + LengthSize >= data.MaxLength)
+                return FrameResult.NoRoom;
 
             try
             {
                 int length;
 
-                // Keep space for the length header
-                data.Offset = LengthSize;
+                // Room for the length header, then the packet in whatever the block has left.
+                data.Offset = at + LengthSize;
+                data.Length = data.MaxLength;
 
-                // Write the packet data to the buffer
                 using (var sw = data.CreateWriter())
                 {
                     packet.Write(sw);
@@ -781,25 +963,26 @@ namespace Rasa.Networking
 
                 OnEncrypt?.Invoke(data, ref length);
 
-                // Reset the offset to send everything (including the size header)
-                data.Offset = 0;
-                data.Length = length + LengthSize;
+                if (at + LengthSize + length > data.MaxLength)
+                    throw new InvalidOperationException($"A {length} byte frame does not fit in the {data.MaxLength - at - LengthSize} bytes left in the block.");
 
                 var sizeLen = CountSize ? length + LengthSize : length;
 
-                // Copy the size header into the buffer
                 for (var i = 0; i < LengthSize; ++i)
-                    data[i] = (byte) ((sizeLen >> (i * 8)) & 0xFF);
+                    data[at + i] = (byte) ((sizeLen >> (i * 8)) & 0xFF);
 
-                args.SetBuffer(data.BaseOffset, data.Length);
+                frameLength = length + LengthSize;
 
-                return true;
+                return FrameResult.Written;
             }
             catch (Exception e)
             {
-                SafeLog($"Could not send a {packet.GetType().Name} to {SafeRemoteAddress()}, skipping it: {e}");
+                if (at > 0)
+                    return FrameResult.NoRoom;
 
-                return false;
+                SafeLog($"Could not send a {packet?.GetType().Name ?? "null packet"} to {SafeRemoteAddress()}, skipping it: {e}");
+
+                return FrameResult.Skipped;
             }
         }
 
@@ -893,6 +1076,10 @@ namespace Rasa.Networking
         private void SendAsync(SocketAsyncEventArgs args)
         {
             bool pending;
+
+            // Every issue counts as progress, including the rest of a partial send: a peer that is
+            // taking bytes, however slowly, is not stalled.
+            Interlocked.Exchange(ref _sendIssuedAt, Environment.TickCount64);
 
             try
             {

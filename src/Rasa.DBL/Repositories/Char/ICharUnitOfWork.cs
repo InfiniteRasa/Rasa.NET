@@ -15,6 +15,7 @@
     using CharacterInventory;
     using CharacterLockbox;
     using CharacterLogos;
+    using CharacterActionReuse;
     using CharacterMission;
     using CharacterMissionDeadline;
     using CharacterMissionProgress;
@@ -47,6 +48,7 @@
         ICharacterInventoryRepository CharacterInventories { get; }
         ICharacterLockboxRepository CharacterLockboxes { get; }
         ICharacterLogosRepository CharacterLogoses { get; }
+        ICharacterActionReuseRepository CharacterActionReuses { get; }
         ICharacterMissionRepository CharacterMissions { get; }
         MissionOffer.MissionOfferRepository MissionOffers =>
             throw new System.NotSupportedException("This character unit of work has no mission offer authority store.");

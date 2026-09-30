@@ -32,7 +32,7 @@ namespace Rasa.Structures
 
         public static Color RandomColor()
         {
-            return new Color((byte)new Random().Next(0,255), (byte)new Random().Next(0, 255), (byte)new Random().Next(0, 255));
+            return new Color((byte)Random.Shared.Next(0,255), (byte)Random.Shared.Next(0, 255), (byte)Random.Shared.Next(0, 255));
         }
 
         public void Read(PythonReader pr)

@@ -336,6 +336,18 @@ namespace Rasa.Repositories.Char.Character
             _charContext.SaveChanges();
         }
 
+        public void UpdateCharacterCurrentTitle(uint id, uint titleId)
+        {
+            var entry = GetWritable(id);
+
+            if (entry == null)
+                return;
+
+            entry.CurrentTitleId = titleId;
+
+            _charContext.SaveChanges();
+        }
+
         public void UpdateCharacterAbilitySlot(uint id, byte slot)
         {
             var entry = _charContext.GetWritableEnsuring(_charContext.CharacterEntries, id);

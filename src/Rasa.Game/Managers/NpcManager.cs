@@ -5,6 +5,7 @@ namespace Rasa.Managers
 {
     using Data;
     using Game;
+    using Packets;
     using Packets.Communicator.Server;
     using Packets.Inventory.Server;
     using Packets.MapChannel.Client;
@@ -453,9 +454,57 @@ namespace Rasa.Managers
         }
         #endregion
 
+        #region Reach
+
+        /// <summary>
+        /// How far from an NPC a player may talk to it, trade with it or use its auction house.
+        /// The same allowance RequestUseObject gives objects: the client opens these windows from
+        /// a few metres, and a player who steps back while one is open is still served.
+        /// </summary>
+        public const float NpcInteractionRange = 20f;
+
+        /// <summary>
+        /// The NPC with this id, if it is alive on the player's map within NpcInteractionRange
+        /// and is what the request needs it to be; otherwise null. Nothing checked any of this:
+        /// every vendor, repair, sale and auction request named an NPC by id and was served from
+        /// anywhere on any map - the vendor's stock and every auction house were a click away
+        /// from the middle of a fight or a dungeon.
+        /// </summary>
+        public static Creature NpcInReach(Client client, ulong entityId, Func<Npc, bool> isRole, string role)
+        {
+            var player = client?.Player;
+            var creature = EntityManager.Instance.GetCreature(entityId);
+
+            if (player == null || creature?.Npc == null || (isRole != null && !isRole(creature.Npc)))
+            {
+                Logger.WriteLog(LogType.Security, $"AccountId = {client?.AccountEntry?.Id} named {entityId} as {role}, and it is not one.");
+                return null;
+            }
+
+            // Same map and the same copy of it: a private instance shares its map's context id.
+            if (creature.State == CharacterState.Dead || creature.MapContextId != player.MapContextId
+                || (creature.RuntimeMapChannel != null && player.MapChannel != null && creature.RuntimeMapChannel != player.MapChannel)
+                || System.Numerics.Vector3.Distance(player.Position, creature.Position) > NpcInteractionRange)
+            {
+                Logger.WriteLog(LogType.Debug, $"{player.FamilyName} asked {role} {entityId} for something from out of reach; ignored.");
+                return null;
+            }
+
+            return creature;
+        }
+
+        public static bool IsVendorNpc(Npc npc) => npc.Vendor != null;
+
+        public static bool IsAuctioneerNpc(Npc npc) => npc.NpcIsAuctioneer;
+
+        #endregion
+
         #region Auctioneer
         public void RequestNPCOpenAuctionHouse(Client client, ulong entityId)
         {
+            if (NpcInReach(client, entityId, IsAuctioneerNpc, "an auctioneer") == null)
+                return;
+
             client.CallMethod(entityId, new OpenAuctionHousePacket());
         }
         #endregion
@@ -484,6 +533,9 @@ namespace Rasa.Managers
             var creature = EntityManager.Instance.GetCreature(packet.EntityId);
 
             if (creature?.Npc?.Vendor?.VendorItems == null)
+                return;
+
+            if (NpcInReach(client, packet.EntityId, IsVendorNpc, "a vendor") == null)
                 return;
 
             if (!EntityManager.Instance.VendorItems.TryGetValue(packet.EntityId, out var entityList))
@@ -522,7 +574,7 @@ namespace Rasa.Managers
                 itemList.Add(item);
             }
 
-            client.CallMethod(packet.EntityId, new VendPacket(itemList));
+            client.CallMethod(packet.EntityId, new VendPacket(creature.Npc.Vendor, itemList));
         }
 
         public void RequestCancelVendor(Client client, ulong entityId)
@@ -538,6 +590,9 @@ namespace Rasa.Managers
             // its sell price. Adding an item that was already there merged it with itself and
             // wrote the doubled stack to the row, then inserted a second inventory row for the
             // same item id; on the next login the player had two of it, both doubled.
+            if (NpcInReach(client, packet.VendorEntityId, IsVendorNpc, "a vendor") == null)
+                return;
+
             var buyback = client.Player.Inventory.BuybackItems;
 
             if (!buyback.Contains(packet.ItemEntityId))
@@ -609,6 +664,11 @@ namespace Rasa.Managers
             // stock: without that, any item entity id the client had ever been shown - another
             // player's rifle, a corpse's loot - could be "bought" here at its template's BuyPrice,
             // which is 0 for anything no vendor sells.
+            var vendor = NpcInReach(client, packet.VendorEntityId, IsVendorNpc, "a vendor")?.Npc?.Vendor;
+
+            if (vendor == null)
+                return;
+
             if (!EntityManager.Instance.VendorItems.TryGetValue(packet.VendorEntityId, out var stock)
                 || !stock.Contains(packet.ItemEntityId))
             {
@@ -625,6 +685,15 @@ namespace Rasa.Managers
                 return;
             }
 
+            // Character Unique ("Item is unique per character"): one per character. A stack is
+            // still one item, so a unique stackable can be bought as one stack of any size.
+            if (vendorItem.ItemTemplate.HasCharacterUniqueFlag &&
+                InventoryManager.Instance.HoldsTemplate(client.Player, vendorItem.ItemTemplate.ItemTemplateId))
+            {
+                client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(PlayerMessage.PmItemCharacterUnique, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
+                return;
+            }
+
             // Quantity is unsigned on the wire. It used to be cast to int and multiplied by the
             // price, so a value of 2^31 or more made the total negative: it passed the credit
             // check, CreateItem clamped the stack to the class maximum, and the debit added the
@@ -638,11 +707,12 @@ namespace Rasa.Managers
                 return;
             }
 
-            var unitPrice = vendorItem.ItemTemplate.BuyPrice;
+            // The price the counter showed: the vendor's own (vendor_price) when it has one.
+            var unitPrice = vendor.PriceOf(vendorItem);
 
             if (unitPrice < 0)
             {
-                Logger.WriteLog(LogType.Error, $"RequestVendorPurchase: item template {vendorItem.ItemTemplate.ItemTemplateId} has a negative BuyPrice.");
+                Logger.WriteLog(LogType.Error, $"RequestVendorPurchase: item template {vendorItem.ItemTemplate.ItemTemplateId} is priced {unitPrice} at vendor {packet.VendorEntityId}.");
                 return;
             }
 
@@ -762,7 +832,7 @@ namespace Rasa.Managers
                 return false;
 
             if (EntityManager.Instance.VendorItems.ContainsKey(vendorEntityId))
-                return true;
+                return NpcInReach(client, vendorEntityId, IsVendorNpc, "a vendor") != null;
 
             Logger.WriteLog(LogType.Security, $"AccountId = {client.AccountEntry.Id} asked {vendorEntityId} for repairs, and it is not a vendor.");
 
@@ -804,7 +874,11 @@ namespace Rasa.Managers
             if (item.CurrentHitPoints >= maxHitPoints)
                 return false;
 
-            cost = (int)Math.Round((double)(maxHitPoints - item.CurrentHitPoints) * item.ItemTemplate.SellPrice / 100);
+            // The client's price, so the repair window charges what it shows (Durability.RepairCost).
+            // The old (max - current) x sell / 100 grew with the item's maximum: a chest piece of
+            // 3,600 hit points fully worn cost 36 times its sell price, where the client showed
+            // at most one.
+            cost = Durability.RepairCost(item);
 
             return true;
         }
@@ -825,6 +899,7 @@ namespace Rasa.Managers
                 return RepairResult.Unaffordable;
 
             item.CurrentHitPoints = maxHitPoints;
+            item.WearCarry = 0;
             ItemManager.Instance.SendItemDataToClient(client, item, true);
 
             // The condition change itself. SendItemDataToClient carries the new hit points in
@@ -835,6 +910,11 @@ namespace Rasa.Managers
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
             unitOfWork.Items.UpdateCurrentHitPoints(item);
 
+            // Worn armour that is being worn gave less to the armour bar than it will now.
+            if (client.Player.Inventory.EquippedInventory.Contains(itemEntityId)
+                && EntityClassManager.Instance.GetClassInfo(item.ItemTemplate.Class)?.ArmorClassInfo != null)
+                ManifestationManager.Instance.RefreshStats(client.Player);
+
             return RepairResult.Repaired;
         }
 
@@ -844,6 +924,23 @@ namespace Rasa.Managers
 
             if (packet.Quantity <= 0)
                 return;
+
+            if (NpcInReach(client, packet.VendorEntityId, IsVendorNpc, "a vendor") == null)
+                return;
+
+            // Sold already, or also held somewhere a sale does not clear. An item is in one list
+            // at a time; one that is in the pack and on the buyback list, the drawer or the
+            // equipped list at once would be paid for here and still be there afterwards.
+            var inventory = client.Player.Inventory;
+
+            if (inventory.BuybackItems.Contains(itemEntityId)
+                || inventory.WeaponDrawer.Contains(itemEntityId)
+                || inventory.EquippedInventory.Contains(itemEntityId))
+            {
+                Logger.WriteLog(LogType.Security,
+                    $"AccountId = {client.AccountEntry.Id} ({client.Player.FamilyName}) tried to sell entity {itemEntityId}, which is on the buyback list or equipped; refused.");
+                return;
+            }
 
             // note: Players can only sell items directly from their personal inventory
             //       so we only have to scan there for the item entityId
@@ -873,9 +970,17 @@ namespace Rasa.Managers
                 return;
             }
 
+            // "Not Sellable" on the tooltip (has_sellable_flag clear - mission items): "This item cannot be sold".
+            if (!soldItem.ItemTemplate.HasSellableFlag)
+            {
+                client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(PlayerMessage.PmItemCanNotBeSold, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
+                return;
+            }
+
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
             if (Game.Missions.Persistence.MissionItemProtection.IsProtected(soldItem, unitOfWork))
                 return;
+
             var quantity = (uint) Math.Min(packet.Quantity, soldItem.StackSize);
             var sellPrice = Math.Min((long) Math.Max(soldItem.ItemTemplate.SellPrice, 0) * quantity, int.MaxValue);
 
@@ -924,6 +1029,49 @@ namespace Rasa.Managers
             client.CallMethod(SysEntity.ClientInventoryManagerId, new AddBuybackItemPacket(soldItem.EntityId, (int) sellPrice, buyback.Count));
         }
 
+        /// <summary>What an item on the buyback list costs to buy back: what it sold for, its unit sell price times the stack.</summary>
+        public static int BuybackPrice(Item item) =>
+            item?.ItemTemplate == null ? 0 : (int)Math.Min((long)Math.Max(item.ItemTemplate.SellPrice, 0) * item.StackSize, int.MaxValue);
+
+        /// <summary>
+        /// The buyback list as the client should have it: a ResetBuybackInventory, then each item
+        /// still on the list in order - an AddBuybackItem at positions 1..N, with its price. Items
+        /// no longer registered are dropped from the list on the way.
+        /// </summary>
+        public static List<PythonPacket> BuybackListPackets(List<ulong> buyback, Func<ulong, Item> itemOf)
+        {
+            var packets = new List<PythonPacket> { new ResetBuybackInventoryPacket() };
+
+            buyback.RemoveAll(id => itemOf(id) == null);
+
+            for (var i = 0; i < buyback.Count; i++)
+                packets.Add(new AddBuybackItemPacket(buyback[i], BuybackPrice(itemOf(buyback[i])), i + 1));
+
+            return packets;
+        }
+
+        /// <summary>
+        /// On arriving on a map - a login, a map link or teleport, a dropship ride. The client
+        /// builds its world afresh on every map, the sold items with it, so they are shown to it
+        /// again and the list is rebuilt from the server's; the Recently Sold tab had kept the ids
+        /// of items the client no longer had ("Unknown entity"), or a previous character's. On a
+        /// login the list is empty and this only clears what the client still held.
+        /// </summary>
+        public void ResendBuyback(Client client)
+        {
+            if (client?.Player == null)
+                return;
+
+            var buyback = client.Player.Inventory.BuybackItems;
+            var packets = BuybackListPackets(buyback, id => EntityManager.Instance.GetItem(id));
+
+            foreach (var entityId in buyback)
+                ItemManager.Instance.SendItemDataToClient(client, EntityManager.Instance.GetItem(entityId), false);
+
+            foreach (var packet in packets)
+                client.CallMethod(SysEntity.ClientInventoryManagerId, packet);
+        }
+
         /// <summary>
         /// A sold item nobody can buy back any more: off the client, out of the entity tables,
         /// and its row out of the items table.
@@ -939,13 +1087,17 @@ namespace Rasa.Managers
         }
 
         /// <summary>
-        /// Called when the character leaves the world. Whatever was still on the buyback list
-        /// is gone for good, so its entities and rows go with it; they used to be left
-        /// registered for the life of the process.
+        /// Called when the character leaves the world - a logout, or a connection lost - and not on
+        /// a map change, which the list survives (ResendBuyback). Whatever was still on it is gone
+        /// for good, so its entities and rows go with it; they used to be left registered for the
+        /// life of the process. The client is told its list is empty, or the next character to
+        /// enter the world from its character select would be shown this one's.
         /// </summary>
         public void DiscardBuybackItems(Client client)
         {
             var buyback = client.Player.Inventory.BuybackItems;
+
+            client.CallMethod(SysEntity.ClientInventoryManagerId, new ResetBuybackInventoryPacket());
 
             if (buyback.Count == 0)
                 return;

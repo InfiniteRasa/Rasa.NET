@@ -128,5 +128,92 @@ namespace Rasa.Data
         };
 
         public static bool TryGet(uint argId, out GestureInfo info) => Table.TryGetValue(argId, out info);
+
+        /// <summary>
+        /// The emote player flag each reward emote needs (actiondata playerFlagReqs, (2, argId)),
+        /// which the client checks before it sends RequestGesture. Most are set by the matching
+        /// ACCOUNTREWARD_EMOTE_ITEM (AbilityManager.AccountRewards); gestures not listed need none.
+        /// </summary>
+        private static readonly Dictionary<uint, uint> EmoteFlags = new()
+        {
+            [6] = 750,  // /shakefist
+            [15] = 749,  // /idiot
+            [16] = 748,  // /kiss
+            [28] = 646,  // /golfclap
+            [35] = 752,  // /shootme
+            [36] = 20000005,  // /airguitar9000
+            [39] = 745,  // /headbow
+            [40] = 767,
+            [41] = 746,  // /propose
+            [42] = 743,  // /raisedfist
+            [43] = 747,  // /hug
+            [44] = 742,  // /toast
+            [45] = 741,  // /trickortreat
+            [46] = 768,  // /momentofsilence
+            [47] = 389,  // /logosphi
+            [48] = 388,  // /logosfist
+            [49] = 390,  // /rave
+            [50] = 391,  // /thumbs
+            [51] = 761,  // /jumpforjoy
+            [52] = 762,  // /defeat
+            [53] = 757,  // /stomp
+            [55] = 756,
+            [56] = 763,
+            [57] = 760,  // /logoslove
+            [58] = 759,  // /logosiloveyou
+            [59] = 758,  // /logosihateyou
+            [61] = 744,
+            [67] = 754,  // /ballet
+            [68] = 792,  // /poledance
+            [72] = 780,
+            [73] = 781,
+            [74] = 782,
+            [75] = 791,  // /robot
+            [76] = 794,  // /submission
+            [77] = 793,  // /logosangry
+            [78] = 795,  // /logosgood
+            [79] = 796,  // /logosevil
+            [80] = 797,  // /logoshappy
+            [81] = 798,  // /logossad
+            [82] = 799,  // /logosplanet
+            [84] = 802,  // /cutthroat
+            [85] = 803,  // /ymca
+            [88] = 810,  // /logosgreet
+            [89] = 809,  // /logosstop
+            [90] = 811,  // /situps
+            [91] = 812,  // /windmill
+            [92] = 815,  // /warmth
+            [93] = 819,  // /fixit
+            [94] = 820,  // /scan
+            [95] = 828,  // /read
+            [96] = 835,  // /logospcgameruk
+            [97] = 859,  // /taichi
+            [98] = 860,  // /breakdance
+            [99] = 948,  // /drunk
+        };
+
+        /// <summary>The player flag the gesture needs; false when it needs none.</summary>
+        public static bool TryGetEmoteFlag(uint argId, out uint playerFlagId) => EmoteFlags.TryGetValue(argId, out playerFlagId);
+
+        /// <summary>
+        /// The (474, argId) rows - GESTURE_WEAPON, client/actions/gestureweapon.py: military hand
+        /// signals made with the weapon kept in hand (hideWeapon False), requested with
+        /// RequestGestureWeapon. None loops. Each needs its emote player flag (actiondata
+        /// playerFlagReqs), which the client checks before it sends.
+        /// </summary>
+        private static readonly Dictionary<uint, (GestureInfo Info, uint PlayerFlagId)> WeaponTable = new()
+        {
+            [63] = (new GestureInfo(3000, false), 765),  // /eyes: "You signal: X spotted!"
+            [65] = (new GestureInfo(3000, false), 766),  // /quiet: "You signal X to be quiet."
+            [66] = (new GestureInfo(2666, false), 764),  // /crouch: "You face X and signal: get down!"
+        };
+
+        public static bool TryGetWeapon(uint argId, out GestureInfo info, out uint playerFlagId)
+        {
+            var found = WeaponTable.TryGetValue(argId, out var row);
+            info = row.Info;
+            playerFlagId = row.PlayerFlagId;
+            return found;
+        }
     }
 }

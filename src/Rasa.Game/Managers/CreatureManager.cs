@@ -100,6 +100,10 @@ namespace Rasa.Managers
         {
             var haveWeapon = creature.AppearanceData.ContainsKey(EquipmentData.Weapon);
 
+            // A summoned minion wears what it was given: a clone of an unarmed player stays unarmed.
+            if (creature.MasterEntityId != 0)
+                return;
+
             if (!haveWeapon)
             {
                 var weapon = new AppearanceData
@@ -132,20 +136,63 @@ namespace Rasa.Managers
             }
         }
 
-        internal void HandleCreatureKill(MapChannel mapChannel, Creature creature, Actor killedBy)
+        /// <param name="critKill">A Critical Death finish: the experience and adrenaline are paid twice over, the client is told how the second award was earned, and the body cannot be revived.</param>
+        internal void HandleCreatureKill(MapChannel mapChannel, Creature creature, Actor killedBy, CritKill critKill = CritKill.None)
         {
             if (creature.State == CharacterState.Dead || Game.Missions.World.CreatureGameplayRules.IsInvulnerable(creature))
                 return; // creature already dead
 
+            // A crab mine killed: it goes off where it fell, and is nobody's kill or loot.
+            if (creature.IsScripted && AbilityManager.IsCrabMine(creature))
+            {
+                AbilityManager.Instance.CrabMineKilled(mapChannel, creature);
+                return;
+            }
+
+            // A trap destroyed strikes back at whoever did it; a turret is simply gone. Neither is
+            // anybody's kill or loot.
+            if (creature.IsScripted && AbilityManager.IsTrap(creature))
+            {
+                AbilityManager.Instance.TrapKilled(mapChannel, creature, killedBy);
+                return;
+            }
+
+            // A reality ripper destroyed: it closes and lets everything go.
+            if (creature.IsScripted && AbilityManager.IsRealityRipper(creature))
+            {
+                AbilityManager.Instance.RealityRipperKilled(mapChannel, creature);
+                return;
+            }
+
+            // A finishing move destroys the body. Recorded before anything else looks at the
+            // death, so the self revive below and a Caretaker's revive later both see it.
+            creature.CritKilled = critKill != CritKill.None;
+
+            // A Machina's first death in a life is not its end (CreatureSupport): it goes down,
+            // and gets up again - unless it was finished, which is its end whatever it had left.
+            if (creature.CritKilled)
+                CreatureSupport.ForgetSelfRevive(creature);
+            else if (CreatureSupport.DefersDeath(mapChannel, creature))
+                return;
+
+            // Killed by something fighting for a player - a trap's shot, a creature turned by
+            // Traitor, a minion: the kill is that player's, experience, adrenaline, loot and
+            // harvest rights alike. The blow stays the creature's for threat.
+            if (killedBy is Creature planted && planted.MasterEntityId != 0
+                && EntityManager.Instance.Players.TryGetValue(planted.MasterEntityId, out var master)
+                && MapInstanceScope.Contains(mapChannel, master))
+                killedBy = master;
+
             var policy = Game.Missions.World.CreatureGameplayRules.Policy(creature);
             var participant = creature.CombatParticipant;
-            var canReward = creature.Faction != Factions.AFS &&
+            var canReward = creature.TargetCategory != TargetCategory.Friendly &&
                 Game.Missions.World.CreatureGameplayRules.RewardsKills(creature);
 
             // kill creature
             var stateIds = new List<CharacterState> { CharacterState.Dead };
 
             creature.State = CharacterState.Dead;
+            creature.KnockbackTo = null;
             Game.Missions.World.CreatureGameplayRules.ClearRole(creature);
             CellManager.Instance.CellCallMethod(mapChannel, creature, new StateChangePacket(stateIds));
             if (creature.SpawnPool?.FollowOwnerCharacterId > 0)
@@ -154,6 +201,13 @@ namespace Rasa.Managers
             // A debuff does not outlive what it was on: a Ruin still ticking on a corpse would
             // try to damage it every second until it expired.
             GameEffectManager.Instance.ClearEffects(mapChannel, creature);
+
+            // Nor does a grudge.
+            creature.Hate.Clear();
+
+            // A creature that explodes when it dies does so now (CreatureBombs): a Warden's
+            // blast, a Howler's or a Predator's bomb.
+            CreatureBombs.OnDeath(mapChannel, creature);
 
             // tell spawnpool if set
             if (creature.SpawnPool != null)
@@ -167,6 +221,8 @@ namespace Rasa.Managers
             // todo: How were credits and experience calculated when multiple players attacked the same creature? Did only the player with the first strike get experience?
 
             Client client = null;
+
+            // get client if it's killed by player
             foreach (var cell in CellManager.CellsIn(mapChannel, killedBy?.Cells))
                 foreach (var candidate in cell.ClientList)
                     if (candidate.Player == killedBy && MapInstanceScope.Contains(mapChannel, killedBy))
@@ -175,46 +231,64 @@ namespace Rasa.Managers
                         break;
                     }
 
-            if (client == null && killedBy is Creature killer && killer.Faction != creature.Faction)
+            // A mission escort's kill is its owner's, and a scene defender's is the player who
+            // fought beside it.
+            if (client == null && killedBy is Creature killer && killer.TargetCategory != creature.TargetCategory)
                 client = FindEscortOwner(mapChannel, killer);
             if (client == null && killedBy is Creature defender &&
                 Game.Missions.World.CreatureGameplayRules.IsDefender(defender) && policy.TrackParticipation &&
-                defender.Faction != creature.Faction && IsLivingOnMap(mapChannel, defender))
+                defender.TargetCategory != creature.TargetCategory && IsLivingOnMap(mapChannel, defender))
                 client = FindCombatPlayer(mapChannel, participant);
             creature.CombatParticipant = null;
             canReward &= client != null &&
                 (!mapChannel.IsPrivateInstance || mapChannel.OwnerCharacterId == client.Player.Id);
 
-            if (client != null)
+            if (client != null && canReward)
             {
-                if (canReward)
-                {
-                    // give experience
-                    var experience = creature.Level * 100; // base experience
-                    var experienceRange = creature.Level * 10;
-                    experience += (uint)(new Random().Next() % (experienceRange * 2 + 1)) - experienceRange;
+                // give experience
+                var experience = creature.Level * 100; // base experience
+                var experienceRange = creature.Level * 10;
+                experience += (uint)(Random.Shared.Next() % (experienceRange * 2 + 1)) - experienceRange;
 
-                    // todo: Depending on level difference reduce experience
-                    _manifestationManager.GainExperience(client, experience);
+                // todo: Depending on level difference reduce experience
+                _manifestationManager.GainExperience(client, experience);
 
-                    // Adrenaline is earned here and nowhere else: it does not regenerate. See
-                    // ManifestationManager.AdrenalinePerKillPercent.
-                    _manifestationManager.GainAdrenaline(
-                        client,
-                        _manifestationManager.AdrenalineForKill(client));
-                }
+                // A finishing move pays the kill over again: "You get full experience for killing
+                // the enemy, and you get full experience again at the end of the Finishing Move.
+                // This means you get double the experience and Adrenaline for the kill" (the
+                // strategy guide). Paid as a second award flagged as the crit kill, so the client
+                // prints the ordinary line and then its "by Crit Killing" line, one for each.
+                if (critKill != CritKill.None)
+                    _manifestationManager.GainExperience(client, experience, critKill);
+
+                // Adrenaline is earned here and nowhere else: it does not regenerate. See
+                // ManifestationManager.AdrenalinePerKillPercent. Doubled for a finish, in one
+                // award rather than two, so the bar shows one number rather than two on top of
+                // each other.
+                var adrenaline = _manifestationManager.AdrenalineForKill(client);
+
+                _manifestationManager.GainAdrenaline(client, critKill != CritKill.None ? adrenaline * 2 : adrenaline);
             }
 
-            // Only the credited player may harvest; unowned deaths clear any previous claim.
-            creature.HarvestOwnerEntityId = canReward && client != null
-                ? client.Player.EntityId
-                : 0;
-            creature.HarvestAttemptsLeft = canReward && client != null
-                ? Harvest.AttemptsPerCorpse
-                : 0;
+            // The corpse is harvestable by whoever earned it, a fixed number of times. Set here
+            // rather than at the first harvest so that a creature that died without a player
+            // behind it - a minion's kill, a fall, a despawn - is left at zero and nobody can
+            // harvest it at all.
+            //
+            // Written on every kill and not only on a claimed one: a spawn pool puts the same
+            // Creature back on its feet, so a claim left over from a previous life would still be
+            // sitting there the next time it died to something that was not a player, and that
+            // player would be handed a corpse they did not earn.
+            // A turret or a pet another creature brought in is nothing to loot or harvest
+            // (CreatureSummons): only its experience is earned.
+            var summoned = CreatureSummons.IsSummoned(creature);
+            var earned = canReward && client != null && !summoned;
+
+            creature.HarvestOwnerEntityId = earned ? client.Player.EntityId : 0;
+            creature.HarvestAttemptsLeft = earned ? Harvest.AttemptsPerCorpse : 0;
 
             // spawn loot
-            if (killedBy != null && client != null && canReward)
+            if (killedBy != null && earned)
             {
                 try
                 {
@@ -274,7 +348,7 @@ namespace Rasa.Managers
 
         internal static bool IsHostileTarget(MapChannel map, Actor source, Creature target) =>
             IsLivingOnMap(map, source) && IsLivingOnMap(map, target) &&
-            target.Faction != (source is Creature creature ? creature.Faction : Factions.AFS);
+            target.TargetCategory != (source is Creature creature ? creature.TargetCategory : TargetCategory.Friendly);
 
         internal static void RecordOwnerAttack(MapChannel map, Actor source, Creature target)
         {
@@ -388,7 +462,8 @@ namespace Rasa.Managers
                 creature.Attributes.Add(Attributes.Chi, new ActorAttributes(Attributes.Chi, 0, 0, 0, 0, 0));
                 creature.Attributes.Add(Attributes.Power, new ActorAttributes(Attributes.Power, 0, 0, 0, 0, 0));
                 creature.Attributes.Add(Attributes.Aware, new ActorAttributes(Attributes.Aware, 0, 0, 0, 0, 0));
-                creature.Attributes.Add(Attributes.Armor, new ActorAttributes(Attributes.Armor, creatureStats.Armor, creatureStats.Armor, creatureStats.Armor, 5, 1000));
+                // Armour regenerates (CreatureArmor): its rate is sent from the start.
+                creature.Attributes.Add(Attributes.Armor, new ActorAttributes(Attributes.Armor, creatureStats.Armor, creatureStats.Armor, creatureStats.Armor, CreatureArmor.BaseRegen(creatureStats.Armor), CombatRegen.RegenPeriodSeconds));
                 creature.Attributes.Add(Attributes.Speed, new ActorAttributes(Attributes.Speed, 1, 1, 1, 0, 0));
                 creature.Attributes.Add(Attributes.Regen, new ActorAttributes(Attributes.Regen, 0, 0, 0, 0, 0));
             }
@@ -401,13 +476,12 @@ namespace Rasa.Managers
                 creature.Attributes.Add(Attributes.Chi, new ActorAttributes(Attributes.Chi, 0, 0, 0, 0, 0));
                 creature.Attributes.Add(Attributes.Power, new ActorAttributes(Attributes.Power, 0, 0, 0, 0, 0));
                 creature.Attributes.Add(Attributes.Aware, new ActorAttributes(Attributes.Aware, 0, 0, 0, 0, 0));
-                creature.Attributes.Add(Attributes.Armor, new ActorAttributes(Attributes.Armor, 100, 100, 100, 5, 1000));
+                creature.Attributes.Add(Attributes.Armor, new ActorAttributes(Attributes.Armor, 100, 100, 100, CreatureArmor.BaseRegen(100), CombatRegen.RegenPeriodSeconds));
                 creature.Attributes.Add(Attributes.Speed, new ActorAttributes(Attributes.Speed, 1, 1, 1, 0, 0));
                 creature.Attributes.Add(Attributes.Regen, new ActorAttributes(Attributes.Regen, 0, 0, 0, 0, 0));
             }
 
-            creature.Controller.CurrentAction = BehaviorManager.BehaviorActionWander;
-            creature.Controller.ActionWander.State = BehaviorManager.WanderIdle; //wanderstate: calc new position
+            BehaviorManager.StartWandering(creature, true);
 
             if (spawnPool != null)
                 SpawnPoolManager.Instance.IncreaseAliveCreatureCount(spawnPool);
@@ -468,7 +542,7 @@ namespace Rasa.Managers
                 new AppearanceDataPacket(creature.AppearanceData),
                 new LevelPacket(creature.Level),
                 new AttributeInfoPacket(creature.Attributes),
-                new TargetCategoryPacket(creature.Faction),
+                new TargetCategoryPacket(creature.TargetCategory),
                 new UpdateAttributesPacket(creature.Attributes, 0),
                 new IsRunningPacket(creature.IsRunning)
             };
@@ -476,6 +550,16 @@ namespace Rasa.Managers
                 creature.SpawnPool?.FollowOwnerCharacterId is > 0 &&
                 creature.SpawnPool?.FollowOwnerCharacterId == client.Player?.Id)
                 entityData.Add(new UpdateEscortStatusPacket(true));
+
+            // A clone's "Clone of %s" takes its master's name from here, and an NPC with no
+            // creature name id (creature_actor_name) shows it as its whole name - which the
+            // client's SetText only takes as unicode.
+            if (creature.ActorName != null)
+                entityData.Add(new ActorNamePacket(creature.ActorName, true));
+
+            // What it is fighting: a turret's gun, a Stalker's or a Strider's comes round to it.
+            if (Targets.Current(creature) is var target && target != 0)
+                entityData.Add(new TargetIdPacket(target));
 
             client.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(creature.EntityId, creature.EntityClass, entityData));
 
@@ -494,6 +578,10 @@ namespace Rasa.Managers
 
             // give some weapon to creature's
             GiveWeapon(creature);
+
+            // What is on it - a DoT, a mark, a minion's or a risen corpse's effect, a turret's
+            // look - went out before this client was here.
+            GameEffectManager.ShowEffectsTo(client, creature);
         }
 
         internal Creature CreateScenarioCreature(
@@ -573,6 +661,12 @@ namespace Rasa.Managers
 
             var vendorsList = unitOfWork.Creatures.GetVendors();
             var vendorItemList = unitOfWork.Creatures.GetVendorItems();
+            var vendorPrices = new Dictionary<uint, int>();
+            foreach (var entry in unitOfWork.Creatures.GetVendorPrices())
+                vendorPrices[entry.Id] = entry.ItemPrice;
+            var actorNames = new Dictionary<uint, string>();
+            foreach (var entry in unitOfWork.Creatures.GetActorNames())
+                actorNames[entry.Id] = entry.ActorName;
 
             foreach (var data in creatureList)
             {
@@ -620,6 +714,10 @@ namespace Rasa.Managers
                     AppearanceData = tempAppearanceData,
                 };
 
+                // An NPC named by the server rather than by the client's creaturenamelanguage.
+                if (actorNames.TryGetValue(data.Id, out var actorName) && !string.IsNullOrWhiteSpace(actorName))
+                    creature.ActorName = actorName;
+
                 // load Creature Actions
                 if (data.Action1 != 0)
                     creature.Actions.Add(new CreatureAction(creatureActions[data.Action1]));
@@ -657,6 +755,15 @@ namespace Rasa.Managers
                         if (vendor.Id == data.Id)
                         {
                             creature.Npc.Vendor = new Vendor(vendor.PackageId);
+
+                            if (vendorPrices.TryGetValue(data.Id, out var itemPrice))
+                            {
+                                if (itemPrice >= 0)
+                                    creature.Npc.Vendor.ItemPrice = itemPrice;
+                                else
+                                    Logger.WriteLog(LogType.Error, $"vendor_price for vendor {data.Id} is {itemPrice}; its stock sells at buy_price.");
+                            }
+
                             break;
                         }
 
@@ -711,6 +818,56 @@ namespace Rasa.Managers
                         $"NPC package {package.PackageId} names creature {package.Id}, which is not in the database.");
                 }
             }
+        }
+
+        /// <summary>
+        /// Checks that every creature_action row names an attack the client can actually draw.
+        ///
+        /// A row states its attack as an (action, argument) pair, and that pair is what the client
+        /// resolves to decide the animation, the FX families and the timings. A pair the client has
+        /// no row for does not fail: client/actions/__init__.py logs to its own console and hands
+        /// back a default ActorActionInfo - no windup animation, no FX - so the attack still lands
+        /// its damage and draws nothing whatsoever. Eight of the forty-four shipped rows were in
+        /// that state, and the only way to find out was to stand in front of one and notice that a
+        /// creature hitting you was doing it in silence.
+        ///
+        /// The client's own table of valid pairs is already in the database as action_level, which
+        /// is what AbilityManager loads, so the check is a single lookup per row. That is also why
+        /// this runs from Server after AbilityInit rather than from CreatureInit: the table it
+        /// checks against does not exist yet at the point the creatures are read.
+        ///
+        /// Reported once per row rather than once per creature - one bad row is usually shared by
+        /// a whole family - and server-wide, because a creature is not tied to a map until it is
+        /// spawned and MapErrorManager shows server-wide entries on every map anyway.
+        /// </summary>
+        public void ValidateActions()
+        {
+            var seen = new HashSet<uint>();
+            var bad = 0;
+
+            foreach (var creature in LoadedCreatures.Values)
+            {
+                foreach (var action in creature.Actions)
+                {
+                    if (!seen.Add(action.Id))
+                        continue;
+
+                    if (AbilityManager.Instance.TryGetLevel(action.ActionId, action.ActionArgId, out _))
+                        continue;
+
+                    bad++;
+
+                    Logger.WriteLog(LogType.Error,
+                        $"creature_action {action.Id} ({action.Description}) performs {(uint)action.ActionId}/{action.ActionArgId}, " +
+                        "which the client has no action data for: it will deal its damage and draw nothing.");
+
+                    MapErrorManager.Instance.Record(
+                        $"creature_action {action.Id} ({action.Description}) names {(uint)action.ActionId}/{action.ActionArgId}, which the client cannot draw.");
+                }
+            }
+
+            Logger.WriteLog(LogType.Initialize,
+                $"CreatureActions = {seen.Count}, undrawable = {bad}");
         }
 
         public void CellDiscardCreaturesToClient(Client client, List<Creature> discardCreatures)

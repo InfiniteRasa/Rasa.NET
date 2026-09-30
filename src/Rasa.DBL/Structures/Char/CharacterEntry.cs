@@ -74,9 +74,15 @@ namespace Rasa.Structures.Char
         [Required]
         public byte ActiveWeapon { get; set; }
 
+        /// <summary>The armed ability drawer slot, 0 to 24 (five loadouts of five).</summary>
         [Column("current_ability_slot")]
         [Required]
         public byte CurrentAbilitySlot { get; set; }
+
+        /// <summary>The title the character wears (titledata id), 0 for none. One of character_title's.</summary>
+        [Column("current_title_id")]
+        [Required]
+        public uint CurrentTitleId { get; set; }
 
         [Column("body")]
         [Required]

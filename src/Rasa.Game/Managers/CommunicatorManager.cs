@@ -112,6 +112,25 @@ namespace Rasa.Managers
 
         #region Handlers
 
+        /// <summary>
+        /// The longest chat line relayed. Nothing limited it: a CallServerMethod body can inflate
+        /// to 256 KB, so one message could be tens of thousands of characters, sent on to every
+        /// listener. Far above anything typed into the client's chat box.
+        /// </summary>
+        public const int MaxChatLength = 512;
+
+        /// <summary>Something worth relaying: present, and no longer than MaxChatLength.</summary>
+        private static bool IsSayable(string message) =>
+            !string.IsNullOrEmpty(message) && message.Length <= MaxChatLength;
+
+        /// <summary>
+        /// Whether the listener has the speaker on their ignore list. Whisper and channel chat
+        /// already held to it; every other kind of chat reached them anyway.
+        /// </summary>
+        private static bool Ignores(Client listener, Client speaker) =>
+            listener != speaker && speaker.AccountEntry != null
+            && listener.Player?.IgnoredPlayers.Contains(speaker.AccountEntry.Id) == true;
+
         internal void ClanChat(Client client, ClanChatPacket packet)
         {
             // The clan id in the packet is the client's word; the sender's clan is the server's.
@@ -127,13 +146,14 @@ namespace Rasa.Managers
                 return;
             }
 
-            if (string.IsNullOrEmpty(packet.Message))
+            if (!IsSayable(packet.Message))
                 return;
 
             var clanMembers = Server.Clients.FindAll(c => c.State == ClientState.Ingame && c.Player.ClanId == clanId);
 
             foreach(var member in clanMembers)
-                member.CallMethod(SysEntity.CommunicatorId, new ClanChatPacket(client.Player.FamilyName, packet.Message));
+                if (!Ignores(member, client))
+                    member.CallMethod(SysEntity.CommunicatorId, new ClanChatPacket(client.Player.FamilyName, packet.Message));
         }
 
         /// <summary>
@@ -158,7 +178,7 @@ namespace Rasa.Managers
                 return;
             }
 
-            if (string.IsNullOrEmpty(packet.Message))
+            if (!IsSayable(packet.Message))
                 return;
 
             var sender = ClanManager.Instance.GetClanMember(clanId, client.Player.Id);
@@ -174,7 +194,7 @@ namespace Rasa.Managers
             {
                 var listener = ClanManager.Instance.GetClanMember(clanId, member.Player.Id);
 
-                if (listener == null || listener.Rank < ClanRank.MinRankToSpeakInLeadersChannel)
+                if (listener == null || listener.Rank < ClanRank.MinRankToSpeakInLeadersChannel || Ignores(member, client))
                     continue;
 
                 member.CallMethod(SysEntity.CommunicatorId, new ClanLeadersChatPacket(client.Player.FamilyName, packet.Message));
@@ -192,7 +212,7 @@ namespace Rasa.Managers
         /// </summary>
         internal void ChannelChat(Client client, ChannelChatPacket packet)
         {
-            if (client.Player == null || string.IsNullOrEmpty(packet.Message))
+            if (client.Player == null || !IsSayable(packet.Message))
                 return;
 
             var chatChannel = ChannelOf(client, packet.ChannelId);
@@ -240,7 +260,7 @@ namespace Rasa.Managers
 
         internal void Emote(Client client, EmotePacket packet)
         {
-            if (client.Player == null)
+            if (client.Player == null || !IsSayable(packet.Emote))
                 return;
 
             // The client files this under RADIAL_EMOTE, so it is local chat like RadialChat
@@ -253,7 +273,7 @@ namespace Rasa.Managers
             {
                 var tempClient = mapChannel.ClientList[i];
 
-                if (tempClient.Player == null)
+                if (tempClient.Player == null || Ignores(tempClient, client))
                     continue;
 
                 if (Vector3.Distance(client.Player.Position, tempClient.Player.Position) <= RadialRange)
@@ -270,6 +290,9 @@ namespace Rasa.Managers
 
         internal void PartyChat(Client client, PartyChatPacket packet)
         {
+            if (!IsSayable(packet.Message))
+                return;
+
             var party = PartyManager.Instance.PartyOf(client);
 
             if (party == null)
@@ -290,7 +313,10 @@ namespace Rasa.Managers
                 var tempClient = Server.Clients.Find(c =>
                     c.State == ClientState.Ingame && c.AccountEntry != null && c.AccountEntry.Id == partyMember.UserId);
 
-                tempClient?.CallMethod(SysEntity.CommunicatorId, new PartyChatPacket
+                if (tempClient == null || Ignores(tempClient, client))
+                    continue;
+
+                tempClient.CallMethod(SysEntity.CommunicatorId, new PartyChatPacket
                 {
                     Sender = client.Player.FamilyName,
                     Message = packet.Message,
@@ -314,6 +340,9 @@ namespace Rasa.Managers
         /// </summary>
         private void DeliverWhisper(Client sender, string targetName, string message)
         {
+            if (!IsSayable(message))
+                return;
+
             var name = targetName?.Trim() ?? string.Empty;
 
             if (name.Length > 0 && string.Equals(name, sender.Player.FamilyName, StringComparison.OrdinalIgnoreCase))
@@ -322,12 +351,17 @@ namespace Rasa.Managers
                 return;
             }
 
-            // Family names are unique; typed names should not have to match their case.
+            // Typed names should not have to match their case. Family names are unique without
+            // case now, but accounts made before that was enforced can differ only in case, so the
+            // exact spelling wins over a case-insensitive match rather than whichever is first.
             var target = name.Length == 0
                 ? null
                 : Server.Clients.Find(c =>
-                    c.State == ClientState.Ingame &&
-                    string.Equals(c.Player.FamilyName, name, StringComparison.OrdinalIgnoreCase));
+                      c.State == ClientState.Ingame &&
+                      string.Equals(c.Player.FamilyName, name, StringComparison.Ordinal))
+                  ?? Server.Clients.Find(c =>
+                      c.State == ClientState.Ingame &&
+                      string.Equals(c.Player.FamilyName, name, StringComparison.OrdinalIgnoreCase));
 
             if (target == null)
             {
@@ -575,6 +609,10 @@ namespace Rasa.Managers
 
         public void RadialChat(Client client, string textMsg)
         {
+            // An empty or None message indexed textMsg[0] below and disconnected the sender.
+            if (!IsSayable(textMsg))
+                return;
+
             // A leading dot is a command, whoever typed it. ProcessCommand decides whether this
             // account has the level for that particular one - this used to hold a single check
             // for all of them, which is why every command needed the same rank. Either way the
@@ -591,7 +629,7 @@ namespace Rasa.Managers
             for (var i = 0; i < mapChannel.ClientList.Count; i++)
             {
                 var tempClient = mapChannel.ClientList[i];
-                if (tempClient.Player != null)
+                if (tempClient.Player != null && !Ignores(tempClient, client))
                 {
                     var distance = Vector3.Distance(client.Player.Position, tempClient.Player.Position);
                     if (distance <= RadialRange)
@@ -624,7 +662,7 @@ namespace Rasa.Managers
 
         public void Shout(Client client, string textMsg)
         {
-            if (client.Player == null)
+            if (client.Player == null || !IsSayable(textMsg))
                 return;
 
             // Same iteration style as RadialChat: the map channel's client list does not
@@ -635,7 +673,7 @@ namespace Rasa.Managers
             {
                 var tempClient = mapChannel.ClientList[i];
 
-                if (tempClient.Player == null)
+                if (tempClient.Player == null || Ignores(tempClient, client))
                     continue;
 
                 if (Vector3.Distance(client.Player.Position, tempClient.Player.Position) <= ShoutRange)

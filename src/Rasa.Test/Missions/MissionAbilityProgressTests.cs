@@ -257,7 +257,7 @@ namespace Rasa.Test.Missions
                 RuntimeMapChannel = context.Map,
                 Position = position,
                 State = CharacterState.Normal,
-                Faction = Factions.Bane,
+                TargetCategory = TargetCategory.Hostile,
                 AppearanceData = new(),
                 Attributes = new Dictionary<Attributes, ActorAttributes>
                 {

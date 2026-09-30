@@ -56,7 +56,12 @@ namespace Rasa.Test.Gameplay
 
             Assert.AreEqual(0, context.Client.Player.CurrentAbilityDrawer);
             Assert.AreEqual(saves, context.SaveAttempts);
-            Assert.AreEqual(0, WorldTestContext.Drain(context.Client).Count);
+            // Only the refusal, which puts the client's drawer back on the armed slot.
+            var published = WorldTestContext.Drain(context.Client)
+                .Select(packet => packet.Message).OfType<Rasa.Packets.Protocol.CallMethodMessage>()
+                .Select(message => message.Packet).ToArray();
+            Assert.HasCount(1, published);
+            Assert.IsInstanceOfType<Rasa.Packets.MapChannel.Server.ArmAbilityFailedPacket>(published[0]);
         }
 
         [TestMethod]

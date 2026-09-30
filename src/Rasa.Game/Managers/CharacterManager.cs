@@ -38,6 +38,7 @@ namespace Rasa.Managers
         private const uint StartingPistolTemplateId = 17131;
         private const uint StartingAmmoTemplateId = 28;
         private const uint StartingAmmoQuantity = 1000;
+        internal static readonly IReadOnlyList<uint> StartingLogos = new[] { AbilityLogos.Power };
         internal Game.Missions.Integration.IStartingExperiencePolicy StartingExperience { get; }
 
         public const ulong SelectionPodStartEntityId = 100;
@@ -70,12 +71,54 @@ namespace Rasa.Managers
             StartingExperience = Game.Missions.Integration.StartingExperienceComposition.Create(gameUnitOfWorkFactory, missionManager);
         }
 
+        private static readonly Race[] AllRaces = { Race.Human, Race.Forean, Race.Brann, Race.Thrax };
+
+        /// <summary>
+        /// The races a character can be created or cloned as - GameDataConfig.EnabledRaces, which was
+        /// read by nothing: BeginCharacterSelection offered all four whatever it said. Human is
+        /// always among them (the client has nothing to lock it behind); unknown ids are dropped. No
+        /// setting at all means all four, as before.
+        /// </summary>
+        public static IReadOnlyList<Race> EnabledRaces { get; private set; } = AllRaces;
+
+        /// <summary>
+        /// Takes EnabledRaces from the configuration, on load and on every reload. Static, as the
+        /// configuration is read before the managers have their database factory.
+        /// </summary>
+        public static void LoadEnabledRaces(int[] configured)
+        {
+            if (configured == null)
+            {
+                EnabledRaces = AllRaces;
+                return;
+            }
+
+            var races = new List<Race> { Race.Human };
+
+            foreach (var id in configured)
+            {
+                if (!Enum.IsDefined(typeof(Race), id))
+                {
+                    Logger.WriteLog(LogType.Initialize, $"GameDataConfig.EnabledRaces: {id} is not a race (1 to 4); ignored.");
+                    continue;
+                }
+
+                if (!races.Contains((Race)id))
+                    races.Add((Race)id);
+            }
+
+            races.Sort();
+            EnabledRaces = races;
+        }
+
+        public static bool IsRaceEnabled(Race race) => EnabledRaces.Contains(race);
+
         public void StartCharacterSelection(Client client)
         {
             if (client.State != ClientState.LoggedIn)
                 return;
 
-            client.CallMethod(SysEntity.ClientMethodId, new BeginCharacterSelectionPacket(client.AccountEntry.FamilyName, client.AccountEntry.Characters.Any(), client.AccountEntry.Id, StartingExperience.CanSkip(client.AccountEntry)));
+            client.CallMethod(SysEntity.ClientMethodId, new BeginCharacterSelectionPacket(client.AccountEntry.FamilyName, client.AccountEntry.Characters.Any(), client.AccountEntry.Id, EnabledRaces, StartingExperience.CanSkip(client.AccountEntry)));
 
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
             var charactersBySlot = unitOfWork.Characters.GetByAccountId(client.AccountEntry.Id);
@@ -103,6 +146,10 @@ namespace Rasa.Managers
 
         public void RequestCharacterName(Client client, int gender)
         {
+            // Asked for by the character creation screen and nowhere else.
+            if (client.State != ClientState.CharacterSelection)
+                return;
+
             using var unitOfWork = _gameUnitOfWorkFactory.CreateWorld();
             var name = unitOfWork.RandomNames.GetFirstName((Gender)gender);
             client.CallMethod(SysEntity.ClientMethodId, new GeneratedCharacterNamePacket
@@ -113,6 +160,10 @@ namespace Rasa.Managers
 
         public void RequestFamilyName(Client client)
         {
+            // Asked for by the character creation screen and nowhere else.
+            if (client.State != ClientState.CharacterSelection)
+                return;
+
             using var unitOfWork = _gameUnitOfWorkFactory.CreateWorld();
             var name = unitOfWork.RandomNames.GetLastName();
             client.CallMethod(SysEntity.ClientMethodId, new GeneratedFamilyNamePacket
@@ -149,6 +200,15 @@ namespace Rasa.Managers
             }
 
             var result = packet.Validate();
+
+            // The window only offers the enabled races, so another one is a client that was not
+            // shown this list.
+            if (result == CreateCharacterResult.Success && !IsRaceEnabled(packet.RaceId))
+            {
+                Logger.WriteLog(LogType.Security, $"Account {client.AccountEntry.Id} asked for a {packet.RaceId} character, a race this server does not offer.");
+                result = CreateCharacterResult.CharacterCreationInvalidRace;
+            }
+
             if (result != CreateCharacterResult.Success)
             {
                 SendCharacterCreateFailed(client, result);
@@ -246,6 +306,20 @@ namespace Rasa.Managers
         /// </summary>
         private uint? InternalClone(Client client, RequestCloneCharacterToSlotPacket packet, ICharUnitOfWork unitOfWork)
         {
+            var nameResult = CheckNewName(unitOfWork, packet.CharacterName);
+
+            if (nameResult == CreateCharacterResult.Success && !AppearanceIsValid(packet.AppearanceData))
+                nameResult = CreateCharacterResult.InvalidEncoding;
+
+            if (nameResult == CreateCharacterResult.Success && !AppearanceFitsRace(packet.AppearanceData, packet.RaceId))
+                nameResult = CreateCharacterResult.CharacterCreationInvalidRace;
+
+            if (nameResult != CreateCharacterResult.Success)
+            {
+                SendCharacterCreateFailed(client, nameResult);
+                return null;
+            }
+
             var characterEntry = unitOfWork.Characters.Create(client.AccountEntry, packet.SlotNum,
                 packet.CharacterName,
                 (byte)packet.RaceId,
@@ -297,6 +371,40 @@ namespace Rasa.Managers
                     new CharacterTeleporterEntry(cloneId, teleporter.WaypointId, teleporter.WaypointType));
         }
 
+        /// <summary>
+        /// CreateCharacter(familyName, characterName, gender, height, appearanceData, raceId): the
+        /// first character of an account with no family name yet - the client sends it in place
+        /// of RequestCreateCharacterInSlot when character selection began with no family name
+        /// (BeginCharacterSelectionPacket), after the player has confirmed the last name every
+        /// character will share. It carries no slot, so the character goes in the first free pod
+        /// (FirstFreeSlot), and from there it is created exactly as RequestCreateCharacterInSlot
+        /// creates one - every check included - and the client is sent to that pod.
+        /// </summary>
+        public void CreateCharacter(Client client, CreateCharacterPacket packet)
+        {
+            var slot = FirstFreeSlot(s => client.AccountEntry?.GetCharacterBySlot(s) != null);
+
+            if (slot == 0)
+            {
+                SendCharacterCreateFailed(client, CreateCharacterResult.CharacterSlotInUse);
+                return;
+            }
+
+            packet.SlotNum = slot;
+
+            RequestCreateCharacterInSlot(client, packet);
+        }
+
+        /// <summary>The lowest pod, 1..MaxSelectionPods, that nothing occupies; 0 when all are taken.</summary>
+        public static byte FirstFreeSlot(Func<byte, bool> occupied)
+        {
+            for (byte slot = 1; slot <= MaxSelectionPods; slot++)
+                if (!occupied(slot))
+                    return slot;
+
+            return 0;
+        }
+
         public void RequestCreateCharacterInSlot(Client client, RequestCreateCharacterInSlotPacket packet)
         {
             // The selection screen is the only place the client sends this from. Nothing else here
@@ -313,6 +421,15 @@ namespace Rasa.Managers
             }
 
             var result = packet.Validate();
+
+            // The window only offers the enabled races, so another one is a client that was not
+            // shown this list.
+            if (result == CreateCharacterResult.Success && !IsRaceEnabled(packet.RaceId))
+            {
+                Logger.WriteLog(LogType.Security, $"Account {client.AccountEntry.Id} asked for a {packet.RaceId} character, a race this server does not offer.");
+                result = CreateCharacterResult.CharacterCreationInvalidRace;
+            }
+
             if (result != CreateCharacterResult.Success)
             {
                 SendCharacterCreateFailed(client, result);
@@ -425,7 +542,7 @@ namespace Rasa.Managers
 
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
 
-            if (new Censor(unitOfWork.CensoredWords.GetCensoredWords()).ContainsProfanity(name))
+            if (unitOfWork.CensoredWords != null && new Censor(unitOfWork.CensoredWords.GetCensoredWords()).ContainsProfanity(name))
             {
                 NameMessage(requester, PlayerMessage.PmNameUnacceptable);
                 return false;
@@ -485,6 +602,70 @@ namespace Rasa.Managers
             Logger.WriteLog(LogType.Command, $"{requester.AccountEntry.FamilyName} changed {(familyName ? "the family name" : "the character name")} of account {target.AccountEntry.Id} from {oldName} to {name}");
 
             return true;
+        }
+
+        /// <summary>
+        /// A name being given out now, at creation or cloning: the rename rules (IsValidName) and
+        /// the censor. Creation only had a \w{3,20} pattern, which took digits, underscores, any
+        /// script's letters and a trailing newline, and never asked the censor - so names could be
+        /// made that look like someone else's, or that rename would have refused.
+        /// </summary>
+        /// <summary>
+        /// Every appearance entry names a real equipment slot and an item template the server
+        /// knows. An unknown template threw in CreateCharacterAppearanceEntries after the character
+        /// row was already saved, leaving a character with no appearance, no starter kit and, on
+        /// a first character, no family name; and any slot number was stored and shown to others.
+        /// </summary>
+        private static bool AppearanceIsValid(IDictionary<EquipmentData, AppearanceData> appearance)
+        {
+            if (appearance == null || appearance.Count > 32)
+                return false;
+
+            foreach (var entry in appearance)
+                if (!Enum.IsDefined(typeof(EquipmentData), entry.Key)
+                    || entry.Value == null
+                    || entry.Value.SlotId != entry.Key
+                    || !ItemManager.Instance.ItemTemplateItemClass.ContainsKey(entry.Value.Class))
+                    return false;
+
+            return true;
+        }
+
+        /// <summary>
+        /// Every face, hair and head chosen may be worn by the race: the item race requirements
+        /// (item_template_requirement_race) the equip and loot checks already hold to. The window
+        /// only lists a race's own heads - a hybrid gets one of its race's three heads and bald
+        /// hair, a human the human faces and hair - so a mismatch is a client that did not use it,
+        /// and would show a human head on a hybrid or the other way round.
+        /// </summary>
+        private static bool AppearanceFitsRace(IDictionary<EquipmentData, AppearanceData> appearance, Race race)
+        {
+            foreach (var entry in appearance.Values)
+            {
+                var template = ItemManager.Instance.GetItemTemplateById(entry.Class);
+                var raceReq = template?.ItemInfo?.RaceReq ?? 0;
+
+                if (raceReq != 0 && raceReq != (int)race)
+                    return false;
+            }
+
+            return true;
+        }
+
+        private static CreateCharacterResult CheckNewName(ICharUnitOfWork unitOfWork, string name)
+        {
+            if (!IsValidName(name, out var error))
+                return error switch
+                {
+                    PlayerMessage.PmNameTooShort => CreateCharacterResult.NameTooShort,
+                    PlayerMessage.PmNameTooLong => CreateCharacterResult.NameTooLong,
+                    _ => CreateCharacterResult.NameFormatInvalid
+                };
+
+            if (unitOfWork.CensoredWords != null && new Censor(unitOfWork.CensoredWords.GetCensoredWords()).ContainsProfanity(name))
+                return CreateCharacterResult.NameUnacceptable;
+
+            return CreateCharacterResult.Success;
         }
 
         public static bool IsValidName(string name, out PlayerMessage error)
@@ -554,6 +735,26 @@ namespace Rasa.Managers
 
         private uint? InternalCreate(Client client, RequestCreateCharacterInSlotPacket packet, ICharUnitOfWork unitOfWork)
         {
+            var nameResult = CheckNewName(unitOfWork, packet.CharacterName);
+
+            if (nameResult == CreateCharacterResult.Success && !AppearanceIsValid(packet.AppearanceData))
+                nameResult = CreateCharacterResult.InvalidEncoding;
+
+            if (nameResult == CreateCharacterResult.Success && !AppearanceFitsRace(packet.AppearanceData, packet.RaceId))
+                nameResult = CreateCharacterResult.CharacterCreationInvalidRace;
+
+            // The family name is new unless it is exactly the one the account already has, which
+            // was accepted under whatever rules were current then and is left alone.
+            if (nameResult == CreateCharacterResult.Success
+                && !string.Equals(packet.FamilyName, client.AccountEntry.FamilyName, StringComparison.Ordinal))
+                nameResult = CheckNewName(unitOfWork, packet.FamilyName);
+
+            if (nameResult != CreateCharacterResult.Success)
+            {
+                SendCharacterCreateFailed(client, nameResult);
+                return null;
+            }
+
             var changeFamilyName = false;
             if (!string.IsNullOrWhiteSpace(client.AccountEntry.FamilyName) && packet.FamilyName != client.AccountEntry.FamilyName)
             {
@@ -627,6 +828,10 @@ namespace Rasa.Managers
                 characterId, 0, (int)ActionId.AaRecruitLightning, 1);
             unitOfWork.CharacterAbilityDrawers.AddOrUpdate(
                 characterId, 1, (int)ActionId.AaRecruitSprint, 1);
+
+            // The Logos the drawer's abilities need (AbilityLogos): POWER, for Recruit Lightning.
+            foreach (var logosId in StartingLogos)
+                unitOfWork.CharacterLogoses.SetLogos(characterId, logosId);
 
             foreach (var (templateId, quantity, inventoryType, slot) in new[]
                      {
@@ -753,6 +958,9 @@ namespace Rasa.Managers
                         // character deleted with listings running used to leave them standing.
                         listings = unitOfWork.Auctions?.DeleteAuctionsBySeller(
                             charactersBySlot.Id) ?? 0;
+
+                        // And the cooldowns it logged out with.
+                        unitOfWork.CharacterActionReuses.DeleteForCharacter(charactersBySlot.Id);
 
                         // TODO delete ClanMember entry
                         unitOfWork.Characters.Delete(charactersBySlot.Id);
@@ -946,8 +1154,16 @@ namespace Rasa.Managers
                 Logos = logos
             };
             HydrateMissions(newCharacter, unitOfWork);
+
+            // The title it wore, if it still has it.
+            newCharacter.CurrentTitle = newCharacter.Titles.Contains(character.CurrentTitleId) ? character.CurrentTitleId : 0;
             newCharacter.StartingExperienceCompleted =
                 Game.Missions.Persistence.MissionRequirementFactsAdapter.HasCompletedStartingExperience(unitOfWork, character.Id);
+
+            // The cooldowns it logged out with, on the server's clock; ActionReuseTimes takes
+            // them to the client when it arrives in the world.
+            ActionReuse.Restore(newCharacter, unitOfWork.CharacterActionReuses.Take(character.Id),
+                Environment.TickCount64, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
 
             return newCharacter;
         }
@@ -982,6 +1198,60 @@ namespace Rasa.Managers
             }
 
             return (int)balance;
+        }
+
+        /// <summary>
+        /// Takes a Logos out of the character's Tabula: the list, the character_logos row, and the
+        /// client's Tabula through LogosStoneRemoved. Every copy goes - the list could hold one
+        /// twice before CharacterUpdate.Logos refused a second add - and the client is told once per
+        /// copy, since it removes one occurrence per message. Nothing else is told: the server's
+        /// ability check and the LogosStoneTabula sent on map entry both read the list.
+        ///
+        /// Players never lose a Logos in play; this is for the GM's .removelogos. Returns how many
+        /// copies went, 0 if the character did not have it.
+        /// </summary>
+        public int RemoveLogos(Client client, uint logosId)
+        {
+            var player = client?.Player;
+
+            if (player == null)
+                return 0;
+
+            var copies = player.Logos.RemoveAll(id => id == logosId);
+
+            if (copies == 0)
+                return 0;
+
+            using (var unitOfWork = _gameUnitOfWorkFactory.CreateChar())
+                unitOfWork.CharacterLogoses.DeleteLogos(player.Id, logosId);
+
+            for (var i = 0; i < copies; i++)
+                client.CallMethod(player.EntityId, new LogosStoneRemovedPacket(logosId));
+
+            return copies;
+        }
+
+        /// <summary>
+        /// Empties the character's Tabula, as <see cref="RemoveLogos"/> for every Logos in it.
+        /// Returns how many Logos went.
+        /// </summary>
+        public int RemoveAllLogos(Client client)
+        {
+            var player = client?.Player;
+
+            if (player == null || player.Logos.Count == 0)
+                return 0;
+
+            var held = player.Logos.ToList();
+            player.Logos.Clear();
+
+            using (var unitOfWork = _gameUnitOfWorkFactory.CreateChar())
+                unitOfWork.CharacterLogoses.DeleteAllLogos(player.Id);
+
+            foreach (var logosId in held)
+                client.CallMethod(player.EntityId, new LogosStoneRemovedPacket(logosId));
+
+            return held.Distinct().Count();
         }
 
         public bool UpdateCharacter(Client client, CharacterUpdate job, object value = null)
@@ -1056,6 +1326,11 @@ namespace Rasa.Managers
                 case CharacterUpdate.ActiveWeapon:
                     client.Player.ActiveWeapon = (byte)value;
                     unitOfWork.Characters.UpdateCharacterActiveWeapon(client.Player.Id, client.Player.ActiveWeapon);
+                    break;
+
+                case CharacterUpdate.ActiveAbilitySlot:
+                    client.Player.CurrentAbilityDrawer = (byte)value;
+                    unitOfWork.Characters.UpdateCharacterAbilitySlot(client.Player.Id, (byte)value);
                     break;
                 case CharacterUpdate.Teleporter:
                     var teleporter = (CharacterTeleporterEntry)value;
@@ -1145,7 +1420,7 @@ namespace Rasa.Managers
 
             client.Player.Credits[type] = next;
             client.CallMethod(client.Player.EntityId,
-                new UpdateCreditsPacket(type, next, 0));
+                new UpdateCreditsPacket(type, next, next - current));
             return true;
         }
     }

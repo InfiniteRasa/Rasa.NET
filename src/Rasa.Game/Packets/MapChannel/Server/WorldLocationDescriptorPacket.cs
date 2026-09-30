@@ -18,6 +18,13 @@ namespace Rasa.Packets.MapChannel.Server
             Rotation = Quaternion.CreateFromYawPitchRoll((float)orientation, 0f, 0f);
         }
 
+        /// <summary>A full orientation, for objects that are tilted as well as turned - map props are.</summary>
+        public WorldLocationDescriptorPacket(Vector3 position, Quaternion rotation)
+        {
+            Position = position;
+            Rotation = rotation;
+        }
+
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(2);

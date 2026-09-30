@@ -23,6 +23,7 @@ using Rasa.Missions.Content;
 using Rasa.Missions.Runtime;
 using Rasa.Missions.Scenes;
 using Rasa.Packets;
+using Rasa.Packets.Communicator.Server;
 using Rasa.Packets.MapChannel.Client;
 using Rasa.Packets.MapChannel.Server;
 using Rasa.Packets.Mission.Server;
@@ -42,6 +43,7 @@ namespace Rasa.Test.Missions
         [TestMethod]
         [DataRow("ShareMissionPacket", 547, false)]
         [DataRow("AssignSharedMissionPacket", 409, true)]
+        [DataRow("DeclineSharedMissionPacket", 440, true)]
         public void NativeSharingRequestsPreserveTupleShapeAndWideActorIdentity(string name, int opcode, bool accept)
         {
             var type = typeof(AssignRadioMissionPacket).Assembly.GetType("Rasa.Packets.MapChannel.Client." + name);
@@ -124,6 +126,75 @@ namespace Rasa.Test.Missions
             Assert.AreEqual(1U, assignment.Generation);
             Assert.AreEqual(MissionOfferState.Consumed, final.MissionOffers.Read(2, 321).State);
             Assert.AreEqual(assignment.AssignmentId, final.MissionOffers.Read(2, 321).ConsumedAssignmentId);
+        }
+
+        [TestMethod]
+        public void DeclineCancelsTheOfferTellsTheSharerAndFreesTheSlotForAnotherShare()
+        {
+            using var fixture = new SharingFixture();
+            Assert.IsTrue(fixture.Offer());
+            Assert.HasCount(1, fixture.DrainRecipient().Where(packet => (int)packet.Opcode == 445).ToArray());
+            MissionTestContext.Drain(fixture.Sender);
+
+            Route(fixture.Context, fixture.Recipient, new DeclineSharedMissionPacket
+                { SourcePlayerEntityId = fixture.Sender.Player.EntityId, MissionId = 321 });
+
+            Assert.AreEqual(MissionOfferState.Cancelled, fixture.Pending().State);
+            Assert.IsFalse(fixture.Recipient.Player.Missions.ContainsKey(321));
+            var message = MissionTestContext.Drain(fixture.Sender).OfType<DisplayClientMessagePacket>().Single();
+            Assert.AreEqual(PlayerMessage.PmMissionSharingDeclined, message.MsgId);
+            Assert.AreEqual(MsgFilterId.GeneralSystemMessages, message.Filterid);
+            Assert.IsTrue(message.Args.ContainsKey("player"));
+            Assert.AreEqual(321U, message.NumberArgs["missionId"], "The client names the mission only from a number.");
+            using (var reader = new PythonReader(new BinaryReader(new MemoryStream(MissionTestContext.Encode(message)))))
+            {
+                Assert.AreEqual(3, reader.ReadTuple());
+                Assert.AreEqual((uint)PlayerMessage.PmMissionSharingDeclined, reader.ReadUInt());
+                Assert.AreEqual(2, reader.ReadDictionary());
+                Assert.AreEqual("player", reader.ReadString());
+                reader.ReadString();
+                Assert.AreEqual("missionId", reader.ReadString());
+                Assert.AreEqual(PythonType.Int, reader.PeekType());
+                Assert.AreEqual(321U, reader.ReadUInt());
+            }
+
+            Assert.IsTrue(fixture.Offer(), "A declined offer no longer holds the slot.");
+            Assert.HasCount(1, fixture.DrainRecipient().Where(packet => (int)packet.Opcode == 445).ToArray());
+            Assert.AreEqual(MissionOfferState.Pending, fixture.Pending().State);
+            Assert.IsTrue(fixture.Accept());
+        }
+
+        [TestMethod]
+        [DataRow("other-source")]
+        [DataRow("zero-source")]
+        [DataRow("other-mission")]
+        [DataRow("no-offer")]
+        [DataRow("twice")]
+        public void DeclineWithoutItsPendingOfferChangesNothingAndTellsNoOne(string change)
+        {
+            using var fixture = new SharingFixture();
+            if (change != "no-offer")
+                Assert.IsTrue(fixture.Offer());
+            var source = change switch
+            {
+                "other-source" => fixture.Sender.Player.EntityId + 1,
+                "zero-source" => 0UL,
+                _ => fixture.Sender.Player.EntityId
+            };
+            var missionId = change == "other-mission" ? 322U : 321U;
+            if (change == "twice")
+                Assert.IsTrue(fixture.Context.Manager.Sharing.TryDecline(fixture.Recipient, source, missionId));
+            MissionTestContext.Drain(fixture.Sender);
+
+            Route(fixture.Context, fixture.Recipient, new DeclineSharedMissionPacket
+                { SourcePlayerEntityId = source, MissionId = missionId });
+
+            Assert.IsEmpty(MissionTestContext.Drain(fixture.Sender).OfType<DisplayClientMessagePacket>().ToArray());
+            var pending = fixture.Pending();
+            if (change == "no-offer")
+                Assert.IsNull(pending);
+            else
+                Assert.AreEqual(change == "twice" ? MissionOfferState.Cancelled : MissionOfferState.Pending, pending.State);
         }
 
         [TestMethod]

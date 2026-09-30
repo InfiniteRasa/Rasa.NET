@@ -493,12 +493,27 @@ namespace Rasa.Managers
             sourceEntityId != 0 ? TryAcceptMission(client, missionId, null, sourceEntityId) :
                 Reject("Shared assignment requires a nonzero source actor.");
 
+        /// <summary>
+        /// /givemission and .givemission: a GM hands a mission to a player. The assignment is made
+        /// as an acceptance makes it - the same transaction, retirement of a failed attempt,
+        /// initial objectives, scene preparation, items and publication - but from no source: no
+        /// acceptance channel, NPC topic or pending offer, and neither prerequisites nor the
+        /// authored admission requirement are asked, nor the repeat policy. Refused, as the
+        /// client's Give Mission list marks it: a mission the player has active, succeeded with
+        /// its reward owed, or completed. The 30-mission journal still limits it. Logged at
+        /// Security with <paramref name="by"/>.
+        /// </summary>
+        internal bool TryGiveMission(Client client, uint missionId, string by) =>
+            TryAcceptMission(client, missionId, null, null, by ?? "a GM");
+
         private bool TryAcceptMission(
             Client client,
             uint missionId,
             ulong? npcEntityId,
-            ulong? sharedSourceEntityId = null)
+            ulong? sharedSourceEntityId = null,
+            string giftBy = null)
         {
+            var gift = giftBy != null;
             if (client == null)
                 return false;
 
@@ -508,8 +523,8 @@ namespace Rasa.Managers
                     return Reject($"Rejected mission {missionId}: character is not active in the world.");
                 if (!TryGetOperationalMission(missionId, out var definition))
                     return Reject($"Rejected mission {missionId}: definition is not operational.");
-                if (sharedSourceEntityId.HasValue ? !Sharing.CanShare(definition) :
-                    !definition.AcceptanceChannel.HasFlag(npcEntityId.HasValue ? MissionChannel.Npc : MissionChannel.Radio))
+                if (!gift && (sharedSourceEntityId.HasValue ? !Sharing.CanShare(definition) :
+                    !definition.AcceptanceChannel.HasFlag(npcEntityId.HasValue ? MissionChannel.Npc : MissionChannel.Radio)))
                     return Reject($"Rejected mission {missionId}: the acceptance channel is not authorized.");
                 MissionConversationSession conversation = null;
                 MissionConversationTopic offeredTopic = null;
@@ -523,10 +538,12 @@ namespace Rasa.Managers
                     if (npc.Npc == null || npc.DbId != definition.MissionGiver)
                         return Reject($"Rejected mission {missionId}: NPC {npc.DbId} is not its authoritative giver.");
                 }
-                if (!ArePrerequisitesSatisfied(client.Player, missionId, out var prerequisiteFailure))
+                string prerequisiteFailure = null;
+                if (!gift && !ArePrerequisitesSatisfied(client.Player, missionId, out prerequisiteFailure))
                     return Reject($"Rejected mission {missionId}: {prerequisiteFailure}");
                 if (client.Player.Missions.TryGetValue(missionId, out var previousLog) &&
-                    previousLog.State is MissionState.Active or MissionState.Success)
+                    (previousLog.State is MissionState.Active or MissionState.Success ||
+                        gift && previousLog.State == MissionState.Completed))
                     return Reject($"Rejected mission {missionId}: character {client.Player.Id} already has it.");
 
                 Game.Missions.World.PublicActorLeaseService.Reservation reservation = null;
@@ -551,7 +568,7 @@ namespace Rasa.Managers
                         if (npcEntityId.HasValue && !Interactions.ValidateDurable(
                             client, conversation, offeredTopic, unitOfWork, admission))
                             throw new GameplayRejectionException("Mission offer changed before acceptance.");
-                        if (!npcEntityId.HasValue &&
+                        if (!npcEntityId.HasValue && !gift &&
                             !Offers.TryResolve(client, definition, unitOfWork, out radioOffer))
                         {
                             prerequisiteFailure = "the character is not eligible for this radio mission offer.";
@@ -565,7 +582,8 @@ namespace Rasa.Managers
                             prerequisiteFailure = "the callback does not match this offer's source and channel.";
                             return;
                         }
-                        if (!CanAdmit(client.Player, definition, unitOfWork, out prerequisiteFailure))
+                        if (gift ? !CanGive(client.Player, definition, unitOfWork, out prerequisiteFailure)
+                            : !CanAdmit(client.Player, definition, unitOfWork, out prerequisiteFailure))
                             return;
                         var previous = unitOfWork.CharacterMissions.GetByCharacterAndMission(client.Player.Id, missionId);
                         if (!HasJournalCapacity(client.Player.Id, missionId, unitOfWork))
@@ -573,13 +591,13 @@ namespace Rasa.Managers
                             durableLogFull = true;
                             return;
                         }
-                        if (!ArePrerequisitesSatisfied(
+                        if (!gift && !ArePrerequisitesSatisfied(
                                 client.Player,
                                 missionId,
                                 unitOfWork,
                                 out prerequisiteFailure))
                             return;
-                        var requirements = _requirements.Capture(
+                        var requirements = gift ? null : _requirements.Capture(
                             client.Player, AdmissionRequirement(definition, radioOffer == null ? null :
                                 Offers.SourceRequirement(definition, radioOffer.Source)), unitOfWork);
                         var latest = unitOfWork.CharacterMissions.Runtime.LatestTerminal(client.Player.Id, missionId);
@@ -689,6 +707,9 @@ namespace Rasa.Managers
                         : $"Rejected mission {missionId}: {prerequisiteFailure}");
 
                 admission?.Commit();
+                if (gift)
+                    Logger.WriteLog(LogType.Security,
+                        $"{giftBy} gave mission {missionId} to {client.Player.Name} {client.Player.FamilyName} (character {client.Player.Id}).");
                 if (npcEntityId.HasValue)
                     client.MissionConversation = null;
                 client.Player.Missions[missionId] = log;
@@ -720,6 +741,32 @@ namespace Rasa.Managers
                 return true;
             }
         }
+
+        /// <summary>
+        /// A GM's gift: no assignment, or a failed one to retire, and no reward still owed. The
+        /// repeat policy is not asked.
+        /// </summary>
+        private static bool CanGive(Manifestation player, Mission definition, ICharUnitOfWork unit, out string failure)
+        {
+            var assignment = unit.CharacterMissions.GetByCharacterAndMission(player.Id, definition.MissionId);
+            failure = assignment != null && assignment.MissionState != (uint)MissionState.Failed ||
+                unit.CharacterMissions.Runtime.HasPendingReward(player.Id, definition.MissionId)
+                ? "an active, succeeded or completed assignment, or an unsettled reward, already exists."
+                : null;
+            return failure == null;
+        }
+
+        /// <summary>
+        /// The client's Give Mission list (QAGiveMissionAck): every operational mission by id with
+        /// the player's state in it, NotAssigned when they have none.
+        /// </summary>
+        internal IReadOnlyList<(uint MissionId, MissionState State)> GiveMissionList(Manifestation player) =>
+            _catalog.View.Values
+                .Where(definition => definition.IsOperational)
+                .OrderBy(definition => definition.MissionId)
+                .Select(definition => (definition.MissionId,
+                    player.Missions.TryGetValue(definition.MissionId, out var mission) ? mission.State : MissionState.NotAssigned))
+                .ToArray();
 
         internal bool CanAdmit(Manifestation player, Mission definition, ICharUnitOfWork unit, out string failure)
         {
@@ -786,6 +833,29 @@ namespace Rasa.Managers
                 missionId,
                 selectionIndex,
                 null);
+
+        /// <summary>
+        /// RewardRadioMission: the reward of a radio mission already succeeded and not yet paid - what
+        /// RewardNPCMission is for a receiver NPC. Only a mission in Success: an active one, however
+        /// completeable, is refused rather than completed, so this cannot stand in for the turn-in.
+        /// CompleteRadioMission pays the same owed reward, and is what the retail client sends.
+        /// </summary>
+        internal bool TryRewardRadioMission(Client client, uint missionId, int? selectionIndex, int? rating)
+        {
+            if (client == null)
+                return false;
+            lock (client.SyncRoot)
+            {
+                if (!IsActivePlayer(client))
+                    return Reject($"Rejected mission {missionId} radio reward: character is not active in the world.");
+                if (!client.Player.Missions.TryGetValue(missionId, out var mission) ||
+                    mission.State != MissionState.Success)
+                    return Reject($"Rejected mission {missionId} radio reward: only a succeeded mission with its reward owed is rewarded.");
+                return TryGrantMission(client, null, missionId, selectionIndex, rating, MissionState.Success,
+                    requireCompletable: false, publishCompleted: false,
+                    topicKind: MissionConversationTopicKind.MissionCompletion);
+            }
+        }
 
         internal bool TryCompleteRadioMission(Client client, uint missionId, int? selectionIndex, int? rating)
         {
@@ -1252,6 +1322,69 @@ namespace Rasa.Managers
                 requireCompletable: false,
                 publishCompleted: false,
                 topicKind: MissionConversationTopicKind.LegacyReward);
+        }
+
+        /// <summary>
+        /// ForceCompleteObjective and .completeobjective: a GM completes one of a player's objectives
+        /// as if it had been done. The objective's authored transition to Completed runs with its
+        /// progress rule set aside - its reveals, activations, flags, spawns and scenarios happen,
+        /// its counters stay where they are - or, for an objective with none, a bare completion.
+        /// Objective requirements are not asked; the mission's own completeability, the durable
+        /// checks and the publication to the player are the normal progress path's. Only an
+        /// incomplete objective of an active mission. <paramref name="by"/> goes in the log.
+        /// </summary>
+        internal bool TryForceCompleteObjective(Client client, uint missionId, uint objectiveId, string by)
+        {
+            if (client == null)
+                return false;
+
+            lock (client.SyncRoot)
+            {
+                if (!IsActivePlayer(client))
+                    return Reject($"Rejected forced completion of mission {missionId} objective {objectiveId}: character is not active in the world.");
+                if (!TryGetOperationalMission(missionId, out var definition) ||
+                    !definition.Objectives.TryGetValue(objectiveId, out var objectiveDefinition))
+                    return Reject($"Rejected forced completion of mission {missionId} objective {objectiveId}: no such operational objective.");
+                if (!client.Player.Missions.TryGetValue(missionId, out var runtimeMission) ||
+                    runtimeMission.State != MissionState.Active ||
+                    !runtimeMission.Objectives.TryGetValue(objectiveId, out var runtimeObjective) ||
+                    runtimeObjective.State != MissionObjectiveState.Incomplete)
+                    return Reject($"Rejected forced completion of mission {missionId} objective {objectiveId}: it is not an incomplete objective of an active mission.");
+
+                var authored = objectiveDefinition.GetExecutableTransitionsOrLegacyDefault()
+                    .Where(transition => (transition.ToState ?? MissionObjectiveState.Completed) == MissionObjectiveState.Completed)
+                    .OrderBy(transition => transition.Sequence)
+                    .ThenBy(transition => transition.TransitionId)
+                    .FirstOrDefault();
+                var forced = new MissionObjectiveExecutableTransition(authored?.TransitionId ?? 0, authored?.Sequence ?? 0,
+                    MissionObjectiveState.Completed, null, null, null, null, authored?.Actions);
+
+                var plan = MissionProgressPublicationPlan.Empty;
+                try
+                {
+                    using var unit = _gameUnitOfWorkFactory.CreateChar();
+                    unit.ExecuteTransaction(() =>
+                    {
+                        plan = PlanTransitionCandidates(client, new[]
+                        {
+                            new ProgressCandidate(definition, runtimeMission, objectiveDefinition, runtimeObjective, forced, default)
+                        }, unit, requirementsFrozen: true);
+                        if (!plan.HasChanges)
+                            throw new GameplayRejectionException("Forced objective completion changed nothing.");
+                    });
+                }
+                catch (Exception error) when (GameplayRejectionException.IsExpected(error))
+                {
+                    Logger.WriteLog(LogType.Error,
+                        $"Unable to force mission {missionId} objective {objectiveId} complete for character {client.Player.Id}: {error.Message}");
+                    return false;
+                }
+
+                plan.Publish(client);
+                Logger.WriteLog(LogType.Security,
+                    $"{by} forced mission {missionId} objective {objectiveId} complete for {client.Player.Name} {client.Player.FamilyName} (character {client.Player.Id}).");
+                return true;
+            }
         }
 
         internal bool TryFailObjective(

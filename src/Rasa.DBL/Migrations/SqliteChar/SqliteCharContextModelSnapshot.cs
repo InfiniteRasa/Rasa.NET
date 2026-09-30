@@ -92,9 +92,32 @@ namespace Rasa.Migrations.SqliteChar
                         .HasColumnType("INTEGER")
                         .HasColumnName("ability_level");
 
+                    b.Property<uint?>("ItemId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("item_id");
+
                     b.HasKey("CharacterId", "AbilitySlot");
 
                     b.ToTable("character_ability_drawer");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.Char.CharacterActionReuseEntry", b =>
+                {
+                    b.Property<uint>("CharacterId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("character_id");
+
+                    b.Property<uint>("ActionId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("action_id");
+
+                    b.Property<long>("ReadyAt")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ready_at");
+
+                    b.HasKey("CharacterId", "ActionId");
+
+                    b.ToTable("character_action_reuse");
                 });
 
             modelBuilder.Entity("Rasa.Structures.Char.CharacterAppearanceEntry", b =>
@@ -180,6 +203,10 @@ namespace Rasa.Migrations.SqliteChar
                     b.Property<byte>("CurrentAbilitySlot")
                         .HasColumnType("INTEGER")
                         .HasColumnName("current_ability_slot");
+
+                    b.Property<uint>("CurrentTitleId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("current_title_id");
 
                     b.Property<uint>("Experience")
                         .ValueGeneratedOnAdd()
@@ -901,7 +928,6 @@ namespace Rasa.Migrations.SqliteChar
             modelBuilder.Entity("Rasa.Structures.Char.CharacterTitleEntry", b =>
                 {
                     b.Property<uint>("CharacterId")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
                         .HasColumnName("character_id");
 
@@ -909,7 +935,7 @@ namespace Rasa.Migrations.SqliteChar
                         .HasColumnType("INTEGER")
                         .HasColumnName("title_id");
 
-                    b.HasKey("CharacterId");
+                    b.HasKey("CharacterId", "TitleId");
 
                     b.ToTable("character_title");
                 });
@@ -1185,6 +1211,10 @@ namespace Rasa.Migrations.SqliteChar
                     b.Property<uint>("AmmoCount")
                         .HasColumnType("INTEGER")
                         .HasColumnName("ammo_count");
+
+                    b.Property<uint>("BoundCharacterId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("bound_character_id");
 
                     b.Property<uint>("Color")
                         .HasColumnType("INTEGER")

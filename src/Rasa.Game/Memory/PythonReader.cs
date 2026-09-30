@@ -346,6 +346,51 @@ namespace Rasa.Memory
             }
         }
 
+        /// <summary>
+        /// Reads past one value of whatever kind it is - containers and all - for a packet that
+        /// has to consume arguments it does not use: CallServerMethodMessage.ReadPacket wants
+        /// the payload's end mark straight after the packet, and closes the connection when it
+        /// is not there. Nesting deeper than MaxSkipDepth is refused rather than followed.
+        /// </summary>
+        public void SkipValue(int depth = 0)
+        {
+            if (depth > MaxSkipDepth)
+                throw new Exception($"Python value nested deeper than {MaxSkipDepth}");
+
+            switch (PeekType())
+            {
+                case PythonType.Structs: ReadUnkStruct(); break;
+                case PythonType.Int: ReadInt(); break;
+                case PythonType.Long: ReadLong(); break;
+                case PythonType.Double: ReadDouble(); break;
+                case PythonType.String: ReadString(); break;
+                case PythonType.UnicodeString: ReadUnicodeString(); break;
+
+                case PythonType.Dictionary:
+                    for (var i = ReadDictionary(); i > 0; i--)
+                    {
+                        SkipValue(depth + 1);
+                        SkipValue(depth + 1);
+                    }
+                    break;
+
+                case PythonType.List:
+                    for (var i = ReadList(); i > 0; i--)
+                        SkipValue(depth + 1);
+                    break;
+
+                case PythonType.Tuple:
+                    for (var i = ReadTuple(); i > 0; i--)
+                        SkipValue(depth + 1);
+                    break;
+
+                default:
+                    throw new Exception($"Unknown python value type {PeekType()}");
+            }
+        }
+
+        private const int MaxSkipDepth = 32;
+
         public T ReadStruct<T>()
             where T : IPythonDataStruct, new()
         {

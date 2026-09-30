@@ -44,5 +44,21 @@ namespace Rasa.Repositories.Char.CharacterSkills
 
             _charContext.SaveChanges();
         }
+
+        /// <summary>Removes the character's rows for these skills: untrained, as a new character has none.</summary>
+        public void Delete(uint characterId, IEnumerable<uint> skillIds)
+        {
+            var ids = skillIds.ToList();
+
+            if (ids.Count == 0)
+                return;
+
+            var rows = _charContext.CreateTrackingQuery(_charContext.CharacterSkillsEntries)
+                .Where(e => e.CharacterId == characterId && ids.Contains(e.SkillId))
+                .ToList();
+
+            _charContext.CharacterSkillsEntries.RemoveRange(rows);
+            _charContext.SaveChanges();
+        }
     }
 }

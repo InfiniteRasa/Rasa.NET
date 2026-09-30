@@ -3,6 +3,7 @@
 namespace Rasa.Packets.MapChannel.Server
 {
     using Data;
+    using Managers;
     using Memory;
     using Structures;
 
@@ -14,43 +15,27 @@ namespace Rasa.Packets.MapChannel.Server
         public ulong TrackingTarget { get; set; }
         public double Yaw { get; set; }
         public double MovementMode { get; set; }
-        public CharacterStateType DesiredPostureId { get; set; }
+        /// <summary>
+        /// The posture the actor wants to be in, as a state id (client Recv_ActorInfo passes it to
+        /// GetStateFromId and, when it is Crouched, SetDesiredPosture). It used to be the posture's
+        /// state *type* (1..6), which the client read as a state id: an idle actor's 3 as LyingDown,
+        /// a dead one's 5 as Dead.
+        /// </summary>
+        public CharacterState DesiredPostureId { get; set; }
         public bool CombatMode { get; set; }
-
-
-        public Dictionary<CharacterState, CharacterStateType> Tester = new Dictionary<CharacterState, CharacterStateType> {
-            { CharacterState.Standing, CharacterStateType.Posture },
-            { CharacterState.Sitting, CharacterStateType.Posture },
-            { CharacterState.LyingDown,CharacterStateType.Posture},
-            { CharacterState.Swimming, CharacterStateType.Posture},
-            { CharacterState.Dead, CharacterStateType.Control},
-            { CharacterState.Stopped, CharacterStateType.Movement},
-            { CharacterState.Slow, CharacterStateType.Movement},
-            { CharacterState.Fast, CharacterStateType.Movement},
-            { CharacterState.Flying, CharacterStateType.Posture},
-            { CharacterState.Flailing, CharacterStateType.Posture},
-            { CharacterState.Normal, CharacterStateType.Control},
-            { CharacterState.Uncontrolled, CharacterStateType.Control},
-            { CharacterState.Stunned, CharacterStateType.Control},
-            { CharacterState.Crouched, CharacterStateType.Posture},
-            { CharacterState.AtPeace, CharacterStateType.Combat},
-            { CharacterState.CombatEngaged, CharacterStateType.Combat},
-            { CharacterState.Idle, CharacterStateType.Action},
-            { CharacterState.Recovery, CharacterStateType.Action},
-            { CharacterState.Windup, CharacterStateType.Action},
-            { CharacterState.NoTool, CharacterStateType.Tool},
-            { CharacterState.ToolReady, CharacterStateType.Tool},
-            { CharacterState.Special, CharacterStateType.Movement},
-            { CharacterState.Dying, CharacterStateType.Control}
-        };
 
         public ActorInfoPacket(Actor actor)
         {
             StateIds.Add(actor.State);
-            TrackingTarget = actor.Target;
+
+            // A creature with its weapon out (CreatureWeaponDraw): drawn for whoever meets it now.
+            if (actor is Creature { WeaponDrawn: true })
+                StateIds.Add(CharacterState.ToolReady);
+            // What its movement is locked on, not what it has selected; nothing if that has gone.
+            TrackingTarget = TrackingTargets.Current(actor);
             Yaw = actor.Rotation;
             MovementMode = actor.MovementSpeed;
-            DesiredPostureId = Tester[actor.State];
+            DesiredPostureId = actor.IsCrouching ? CharacterState.Crouched : CharacterState.Standing;
             CombatMode = actor.InCombatMode;
         }
 

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Linq;
 
 using JetBrains.Annotations;
@@ -11,6 +12,14 @@ namespace Rasa.Repositories.World
     public class PlayerRandomNameRepository : IPlayerRandomNameRepository
     {
         private readonly WorldContext _worldContext;
+
+        /// <summary>
+        /// The names each (type, gender) request can draw from, read from the table the first time
+        /// that pair is asked for and kept for the life of the process. The table is seed data and
+        /// does not change at runtime. Keyed by the raw gender byte the client sent, so at most 2 x
+        /// 256 entries can ever exist.
+        /// </summary>
+        private static readonly ConcurrentDictionary<(byte Type, byte Gender), string[]> Pools = new();
 
         public PlayerRandomNameRepository(WorldContext worldContext)
         {
@@ -40,21 +49,21 @@ namespace Rasa.Repositories.World
         [CanBeNull]
         private RandomNameEntry GetRandomNameEntry(Gender gender, NameType nameType)
         {
-            var query = _worldContext.CreateNoTrackingQuery(_worldContext.RandomNameEntries);
+            // This used to read every matching row and sort them all by a fresh Guid on each call,
+            // on the world's only thread - about 2,600 rows per request, and the request can be
+            // sent as fast as a connection can send anything. Now the rows are read once per
+            // (type, gender) and one is picked by index.
+            var pool = Pools.GetOrAdd(((byte)nameType, (byte)gender), key =>
+                _worldContext.CreateNoTrackingQuery(_worldContext.RandomNameEntries)
+                    .Where(e => e.Type == key.Type)
+                    .Where(e => e.Gender == key.Gender || e.Gender == (byte)Gender.Neutral)
+                    .Select(e => e.Name)
+                    .ToArray());
 
-            // This is not the fastest implementation, as the random evaluation is done on client side to be DBMS agnostic.
-            // Execution is still so fast that no wait time occurs in the client.
-            // An alternative but more complex way would be to load count per name type (first/male, first/female, last),
-            // get a random between 0 and the count and call "query.Skip(random).FirstOrDefault();"
-            // This is possible, as the random names provided by the database don't change (at runtime).
-            var randomEntry = query
-                .Where(e => e.Type == (byte)nameType)
-                .Where(e => e.Gender == (byte)gender || e.Gender == (byte)Gender.Neutral)
-                .AsEnumerable()
-                .OrderBy(e => Guid.NewGuid())
-                .FirstOrDefault();
+            if (pool.Length == 0)
+                return null;
 
-            return randomEntry;
+            return new RandomNameEntry { Name = pool[Random.Shared.Next(pool.Length)] };
         }
 
         public enum NameType : byte

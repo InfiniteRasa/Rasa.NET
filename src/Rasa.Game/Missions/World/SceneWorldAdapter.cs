@@ -210,7 +210,7 @@ namespace Rasa.Game.Missions.World
                 }
                 if (actor.Creature == null || !CreatureManager.IsLivingOnMap(world.Map, actor.Creature) ||
                     !CreatureManager.IsLivingOnMap(world.Map, target) ||
-                    actor.Creature.Faction == (target is Creature enemy ? enemy.Faction : Factions.AFS))
+                    actor.Creature.TargetCategory == (target is Creature enemy ? enemy.TargetCategory : TargetCategory.Friendly))
                     return WorldEffectResult.Failed("Combat requires living hostile actors in the same runtime map.");
                 BehaviorManager.Instance.SetActionFighting(actor.Creature, target.EntityId);
                 world.Attacks[intent.Role] = (intent.OperationKey, target.EntityId);

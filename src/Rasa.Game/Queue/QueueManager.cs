@@ -60,6 +60,23 @@ namespace Rasa.Queue
         private static readonly TimeSpan RedirectTimeout = TimeSpan.FromSeconds(60);
 
         /// <summary>
+        /// How long a connection has to get through the key exchange and the queue login. The real
+        /// client sends both as soon as it connects. A connection that has done neither holds a
+        /// receive buffer from the pool the world port draws on too, and used to hold it for as
+        /// long as it stayed open.
+        /// </summary>
+        private static readonly TimeSpan HandshakeTimeout = TimeSpan.FromSeconds(30);
+
+        /// <summary>
+        /// Open queue connections allowed from one address. Generous for players sharing an
+        /// address; small against the thousands it takes to empty the shared buffer pool.
+        /// </summary>
+        private const int MaxConnectionsPerAddress = 32;
+
+        private long _nextRefusalLogTick;
+        private int _refusalsSinceLog;
+
+        /// <summary>
         /// The account has logged in at the world port: its queue connection, if still open,
         /// stops counting as a slot.
         /// </summary>
@@ -90,6 +107,40 @@ namespace Rasa.Queue
                 Logger.WriteLog(LogType.Network, $"Queue client for account {client.UserId} was handed off {RedirectTimeout.TotalSeconds:F0} s ago and never logged in; closing it.");
                 client.Close();
             }
+        }
+
+        /// <summary>Closes connections that have not finished the handshake within HandshakeTimeout.</summary>
+        private void ExpireHandshakes()
+        {
+            List<QueueClient> expired;
+            var cutoff = DateTime.Now - HandshakeTimeout;
+
+            lock (Clients)
+                expired = Clients.Where(c => (c.State == QueueState.Authenticating || c.State == QueueState.Authenticated)
+                                             && c.ConnectedTime < cutoff).ToList();
+
+            if (expired.Count > 0)
+                Logger.WriteLog(LogType.Network, $"Closing {expired.Count} queue connection(s) that did not log in within {HandshakeTimeout.TotalSeconds:F0} s.");
+
+            // QueueClient.Close removes the client from Clients, so close outside the lock.
+            foreach (var client in expired)
+                client.Close();
+        }
+
+        /// <summary>
+        /// Closes the other connections for the same account that are still waiting - in the queue
+        /// or handed off - so an account holds one place, and one slot, at a time.
+        /// </summary>
+        public void CloseEarlierConnections(QueueClient current)
+        {
+            List<QueueClient> earlier;
+
+            lock (Clients)
+                earlier = Clients.Where(c => c != current && c.UserId == current.UserId
+                                             && (c.State == QueueState.InQueue || c.State == QueueState.Redirecting)).ToList();
+
+            foreach (var client in earlier)
+                client.Close();
         }
 
         /// <summary>Closes every queue connection belonging to an account.</summary>
@@ -161,9 +212,26 @@ namespace Rasa.Queue
 
         internal void AcceptClient(LengthedSocket socket)
         {
+            var address = socket.RemoteAddress;
             var client = new QueueClient(this, socket, false);
+
+            // Counted and added under the lock, so two accepts from one address cannot both
+            // pass the check; started after it, because starting runs socket I/O whose
+            // completion can run the whole handshake on this thread.
             lock (Clients)
-                Clients.Add(client);
+            {
+                if (address != null && Clients.Count(c => address.Equals(c.Socket.RemoteAddress)) >= MaxConnectionsPerAddress)
+                    client = null;
+                else
+                    Clients.Add(client);
+            }
+
+            if (client == null)
+            {
+                socket.Close();
+                ReportRefusal(address);
+                return;
+            }
 
             try
             {
@@ -176,6 +244,24 @@ namespace Rasa.Queue
             }
         }
 
+        /// <summary>
+        /// One line for the first refusal and then at most one every five seconds with the count,
+        /// since a flood of connections is exactly when a line apiece would hurt.
+        /// </summary>
+        private void ReportRefusal(IPAddress address)
+        {
+            var now = Environment.TickCount64;
+            var count = System.Threading.Interlocked.Increment(ref _refusalsSinceLog);
+
+            if (now < System.Threading.Interlocked.Read(ref _nextRefusalLogTick))
+                return;
+
+            System.Threading.Interlocked.Exchange(ref _nextRefusalLogTick, now + 5000);
+            System.Threading.Interlocked.Exchange(ref _refusalsSinceLog, 0);
+
+            Logger.WriteLog(LogType.Security, $"Refused a queue connection from {address}: {MaxConnectionsPerAddress} already open from it ({count} refused since the last of these).");
+        }
+
         public void Disconnect(QueueClient client)
         {
             lock (Clients)
@@ -186,11 +272,15 @@ namespace Rasa.Queue
         {
             _beforeAdmission?.Invoke();
             var position = 0;
-            bool queued;
+
+            // Read before the queue lock, not under it: IsFull counts Server.Clients, which the
+            // world loop holds for its whole tick, and waiting for it while holding a queue lock
+            // nests the queue's locks inside the world's in one place and outside them in
+            // another. The count was only ever a snapshot, free to change the moment it was taken.
+            var queued = _isFull();
 
             lock (_queuedClients)
             {
-                queued = _isFull();
 
                 if (!client.TryAdmit(queued, DateTime.Now))
                     return;
@@ -255,6 +345,7 @@ namespace Rasa.Queue
 
         public void Update(int freeSlots)
         {
+            ExpireHandshakes();
             ExpireRedirects();
             List<QueueClient> redirects;
             List<(QueueClient Client, int Position)> positionUpdates;

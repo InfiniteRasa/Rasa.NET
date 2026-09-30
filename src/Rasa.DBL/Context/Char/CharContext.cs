@@ -37,6 +37,8 @@ namespace Rasa.Context.Char
         public DbSet<CharacterInventoryEntry> CharacterInventoryEntries { get; set; }
         public DbSet<CharacterLockboxEntry> CharacterLockboxEntries { get; set; }
         public DbSet<CharacterLogosEntry> CharacterLogosEntries { get; set; }
+
+        public DbSet<CharacterActionReuseEntry> CharacterActionReuseEntries { get; set; }
         public DbSet<CharacterMissionEntry> CharacterMissionEntries { get; set; }
         public DbSet<CharacterMissionOfferEntry> CharacterMissionOfferEntries { get; set; }
         public DbSet<CharacterMissionItemEntry> CharacterMissionItemEntries { get; set; }
@@ -114,6 +116,7 @@ namespace Rasa.Context.Char
             SetupCharacterTable(modelBuilder);
             SetupCharacterAppearanceTable(modelBuilder);
             SetupCharacterLogosTable(modelBuilder);
+            SetupCharacterActionReuseTable(modelBuilder);
             SetupCharacterMissionTable(modelBuilder);
             SetupCharacterMissionObjectiveTables(modelBuilder);
             SetupCharacterMissionDurabilityTables(modelBuilder);
@@ -123,6 +126,7 @@ namespace Rasa.Context.Char
             SetupCharacterStartingExperienceTables(modelBuilder);
             SetupCharacterFlagTable(modelBuilder);
             SetupCharacterTeleporterTable(modelBuilder);
+            SetupCharacterTitleTable(modelBuilder);
             SetupCharacterOptionsTable(modelBuilder);
             SetupClanMemberTable(modelBuilder);
             SetupClanTable(modelBuilder);
@@ -304,6 +308,12 @@ namespace Rasa.Context.Char
                 .HasKey(e => new { e.CharacterId, e.LogosId });
         }
 
+        private void SetupCharacterActionReuseTable(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<CharacterActionReuseEntry>()
+                .HasKey(e => new { e.CharacterId, e.ActionId });
+        }
+
         private void SetupCharacterMissionTable(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<CharacterMissionEntry>()
@@ -426,6 +436,12 @@ namespace Rasa.Context.Char
         {
             modelBuilder.Entity<CharacterTeleporterEntry>()
                 .HasKey(e => new { e.CharacterId, e.WaypointId });
+        }
+
+        private void SetupCharacterTitleTable(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<CharacterTitleEntry>()
+                .HasKey(e => new { e.CharacterId, e.TitleId });
         }
 
         private void SetupCharacterStartingExperienceTables(ModelBuilder modelBuilder)

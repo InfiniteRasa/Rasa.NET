@@ -8,9 +8,19 @@ namespace Rasa.Services.Preloader
 
     public class CreatureActionPreloader : PreloaderBase, IPreloader
     {
+        /// <summary>
+        /// The columns as the table had them when these rows were written: damage_type came later
+        /// and is filled by the migration that adds it.
+        /// </summary>
+        private static readonly string[] Columns =
+        {
+            "id", "description", "action_id", "action_arg_id", "range_min", "range_max",
+            "cooldown", "windup", "min_damage", "max_damage"
+        };
+
         public void Preload(MigrationBuilder migrationBuilder)
         {
-            Insert(migrationBuilder, CreatureActionEntry.TableName, typeof(CreatureActionEntry));
+            Insert(migrationBuilder, CreatureActionEntry.TableName, Columns);
         }
 
         protected override IEnumerable<object[]> GetRows()

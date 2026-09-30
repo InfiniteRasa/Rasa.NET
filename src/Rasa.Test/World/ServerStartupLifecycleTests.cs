@@ -38,7 +38,7 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
-        public void SuccessfulStartupValidatesMissionContentBeforeLoopCommunicatorAndAccept()
+        public void SuccessfulStartupLoadsTheWorldBeforeAcceptLoopAndCommunicator()
         {
             var calls = new List<string>();
             var lifecycle = new ServerStartupLifecycle(
@@ -62,13 +62,13 @@ namespace Rasa.Test.World
                 new[]
                 {
                     "validate-missions",
-                    "start-loop",
-                    "setup-communicator",
+                    "load-remaining",
                     "create-listener",
                     "register-login-queue",
-                    "begin-accept",
                     "register-timers",
-                    "load-remaining",
+                    "begin-accept",
+                    "start-loop",
+                    "setup-communicator",
                     "publish-ready"
                 },
                 calls.ToArray());
@@ -103,8 +103,7 @@ namespace Rasa.Test.World
                 new[]
                 {
                     "validate-missions",
-                    "start-loop",
-                    "setup-communicator",
+                    "load-remaining",
                     "create-listener",
                     "cleanup"
                 },

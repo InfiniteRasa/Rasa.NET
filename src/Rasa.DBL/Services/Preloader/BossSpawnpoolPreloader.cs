@@ -12,12 +12,27 @@ namespace Rasa.Services.Preloader
     /// 1 of them point at a creature row the fork already had and nothing spawned:
     /// the Thrax Technician Boss, Horntail, the Bane Hunter Boss and the Linker were defined years ago
     /// and never placed.
+    ///
+    /// Five had landed on safe ground - Phuumz, Nyxroq, the Fithik Hive Master, Quarm and Prysiam, each
+    /// on the friendly post, NPC or hospital sharing its place name. Move_bosses_off_safe_ground moved
+    /// them, and their rows here are the moved positions.
     /// </summary>
     public class BossSpawnpoolPreloader : PreloaderBase, IPreloader
     {
+        private static readonly string[] Columns =
+        {
+            "id", "mode", "anim_type", "respown_time", "pos_x", "pos_y", "pos_z", "rotation", "map_context_id",
+            "creature_1_Id", "creature_1_min_count", "creature_1_max_count",
+            "creature_2_Id", "creature_2_min_count", "creature_2_max_count",
+            "creature_3_Id", "creature_3_min_count", "creature_3_max_count",
+            "creature_4_Id", "creature_4_min_count", "creature_4_max_count",
+            "creature_5_Id", "creature_5_min_count", "creature_5_max_count",
+            "creature_6_Id", "creature_6_min_count", "creature_6_max_count"
+        };
+
         public void Preload(MigrationBuilder migrationBuilder)
         {
-            Insert(migrationBuilder, SpawnPoolEntry.TableName, typeof(SpawnPoolEntry));
+            Insert(migrationBuilder, SpawnPoolEntry.TableName, Columns);
         }
 
         protected override IEnumerable<object[]> GetRows()
@@ -41,10 +56,10 @@ namespace Rasa.Services.Preloader
             yield return new object[] { 520017, 0, 0, 500, -50.0000f, 48.6000f, -120.0000f, 0, 1148, 520017, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
             yield return new object[] { 520018, 0, 0, 500, 102.0000f, 114.1400f, -700.0000f, 0, 1148, 520018, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
             yield return new object[] { 520019, 0, 0, 500, 543.0000f, 49.0000f, -532.0000f, 0, 1148, 520019, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-            yield return new object[] { 520020, 0, 0, 500, 382.4000f, 216.1000f, 108.7000f, 0, 2051, 520020, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+            yield return new object[] { 520020, 0, 0, 500, 388.3000f, 212.2000f, 152.6000f, 0, 2051, 520020, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
             yield return new object[] { 520021, 0, 0, 500, 4.8000f, 181.6000f, -301.8000f, 0, 2162, 520021, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
             yield return new object[] { 520022, 0, 0, 500, 840.9000f, 281.7000f, 306.6000f, 0, 1761, 520022, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-            yield return new object[] { 520023, 0, 0, 500, -185.3000f, 234.9000f, -226.6000f, 0, 1761, 520023, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+            yield return new object[] { 520023, 0, 0, 500, -464.0000f, 254.6000f, -61.0000f, 0, 1761, 520023, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
             yield return new object[] { 520024, 0, 0, 500, -175.0000f, 279.3000f, 309.5000f, 0, 1761, 520024, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
             yield return new object[] { 520025, 0, 0, 500, -175.0000f, 279.3000f, 309.5000f, 0, 1761, 520025, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
             yield return new object[] { 520026, 0, 0, 500, -175.0000f, 279.3000f, 309.5000f, 0, 1761, 520026, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -59,7 +74,7 @@ namespace Rasa.Services.Preloader
             yield return new object[] { 520035, 0, 0, 500, 350.0000f, 217.8000f, -525.0000f, 0, 1454, 520035, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
             yield return new object[] { 520036, 0, 0, 500, -505.0000f, 217.4000f, 51.0000f, 0, 1454, 520036, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
             yield return new object[] { 520037, 0, 0, 500, 437.0000f, 117.0000f, -308.0000f, 0, 1244, 520037, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-            yield return new object[] { 520038, 0, 0, 500, 14.6000f, 107.0000f, -376.5000f, 0, 1394, 520038, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+            yield return new object[] { 520038, 0, 0, 500, -80.3000f, 170.0000f, 327.5000f, 0, 1394, 520038, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
             yield return new object[] { 520039, 0, 0, 500, -347.0000f, 174.0000f, -803.0000f, 0, 1244, 520039, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
             yield return new object[] { 520040, 0, 0, 500, 305.0000f, 114.0000f, 295.0000f, 0, 1244, 520040, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
             yield return new object[] { 520041, 0, 0, 500, 384.0000f, 123.0000f, -406.0000f, 0, 1244, 520041, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -69,7 +84,7 @@ namespace Rasa.Services.Preloader
             yield return new object[] { 520045, 0, 0, 500, 590.0000f, 116.5000f, -560.0000f, 0, 1244, 520045, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
             yield return new object[] { 520046, 0, 0, 500, -42.3000f, 116.3000f, 478.7000f, 0, 1148, 520046, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
             yield return new object[] { 520047, 0, 0, 500, -213.0000f, 424.0105f, -471.0000f, 0, 1764, 520047, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-            yield return new object[] { 520048, 0, 0, 500, 375.0000f, 448.6000f, -91.0000f, 0, 1764, 520048, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+            yield return new object[] { 520048, 0, 0, 500, -984.9000f, 431.4000f, -218.8000f, 0, 1764, 520048, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
             yield return new object[] { 520049, 0, 0, 500, 330.0000f, 432.1000f, 370.0000f, 0, 1764, 520049, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
             yield return new object[] { 520050, 0, 0, 500, -598.0000f, 432.0000f, -278.0000f, 0, 1764, 520050, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
             yield return new object[] { 520051, 0, 0, 500, -440.0000f, 442.9000f, -230.0000f, 0, 1497, 520051, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -83,7 +98,7 @@ namespace Rasa.Services.Preloader
             yield return new object[] { 520059, 0, 0, 500, 260.0000f, 686.7000f, -254.0000f, 0, 1304, 520059, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
             yield return new object[] { 520060, 0, 0, 500, -655.0000f, 810.0000f, 115.0000f, 0, 1304, 520060, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
             yield return new object[] { 520061, 0, 0, 500, 580.0000f, 686.5000f, 620.0000f, 0, 1304, 520061, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-            yield return new object[] { 520062, 0, 0, 500, -859.6000f, 791.2000f, 35.2000f, 0, 1304, 520062, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+            yield return new object[] { 520062, 0, 0, 500, -837.2000f, 791.2000f, -14.3000f, 0, 1304, 520062, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
             yield return new object[] { 520063, 0, 0, 500, 550.0000f, 393.6000f, 350.0000f, 0, 1911, 520063, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
             yield return new object[] { 520064, 0, 0, 500, -830.0000f, 390.9000f, 110.0000f, 0, 1911, 520064, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
             yield return new object[] { 520065, 0, 0, 500, 615.0000f, 284.0000f, 737.0000f, 0, 1220, 79, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
