@@ -302,6 +302,7 @@ namespace Rasa.Managers
             RegisterCommand(".flag", GmLevel.Admin, FlagCommand, "action", "nameOrId");
             RegisterCommand(".givecredits", GmLevel.Admin, GiveCreditsCommand, "amount", "familyName");
             RegisterCommand(".giveitem", GmLevel.Admin, GiveItemCommand, "itemTemplateId", "quantity");
+            RegisterCommand(".mailitem", GmLevel.Admin, MailItemCommand, "familyName", "itemTemplateId", "quantity");
             RegisterCommand(".givelogos", GmLevel.Admin, GiveLogosCommand, "logosId");
             RegisterCommand(".module", GmLevel.Admin, ModuleCommand, "item|find", "add|remove|text", "moduleId|slot|all", "slot");
             RegisterCommand(".removelogos", GmLevel.Admin, RemoveLogosCommand, "logosIdOrAll");
@@ -2526,24 +2527,62 @@ namespace Rasa.Managers
             }
 
             // if only item template, give max stack size
-            if (parts.Length == 2)
-                if (uint.TryParse(parts[1], out uint itemTemplateId))
-                {
-                    var classInfo = EntityClassManager.Instance.GetClassInfo(ItemManager.Instance.ItemTemplateItemClass[itemTemplateId]);
-                    var item = ItemManager.Instance.CreateFromTemplateId(itemTemplateId, classInfo.ItemClassInfo.StackSize, _client.Player.FamilyName);
-                    item.Crafter = _client.Player.FamilyName;
-                    InventoryManager.Instance.GrantItemToInventory(_client, item);
-                }
-            if (parts.Length == 3)
-                if (uint.TryParse(parts[1], out uint itemTemplateId))
-                    if (uint.TryParse(parts[2], out uint quantity))
-                    {
-                        var item = ItemManager.Instance.CreateFromTemplateId(itemTemplateId, quantity, _client.Player.FamilyName);
-                        item.Crafter = _client.Player.FamilyName;
-                        InventoryManager.Instance.GrantItemToInventory(_client, item);
-                    }
+            if (!uint.TryParse(parts[1], out var itemTemplateId)
+                || !ItemManager.Instance.ItemTemplateItemClass.TryGetValue(itemTemplateId, out var itemClass))
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, $"There is no item template {parts[1]}.");
+                return;
+            }
 
-            return;
+            // With no quantity, a full stack.
+            var quantity = EntityClassManager.Instance.GetClassInfo(itemClass).ItemClassInfo.StackSize;
+
+            if (parts.Length > 2 && !uint.TryParse(parts[2], out quantity))
+            {
+                SendCommandUsage(".giveitem");
+                return;
+            }
+
+            var item = ItemManager.Instance.CreateFromTemplateId(itemTemplateId, quantity, _client.Player.FamilyName);
+
+            if (item == null)
+                return;
+
+            item.Crafter = _client.Player.FamilyName;
+
+            // What does not fit goes to the inbox rather than nowhere: the item row was left behind
+            // with no inventory row before.
+            if (InventoryManager.Instance.GrantItemToInventory(_client, item) != null)
+                return;
+
+            if (InventoryManager.Instance.SendToInbox(_client, item))
+                InventoryManager.TellSentToInbox(_client, 1);
+            else
+            {
+                EntityManager.Instance.DestroyPhysicalEntity(_client, item.EntityId, EntityType.Item);
+                CommunicatorManager.Instance.SystemMessage(_client, "Your backpack and your pick-up box are both full.");
+            }
+        }
+
+        /// <summary>.mailitem familyName itemTemplateId [quantity]: new items into a player's inbox, online or not.</summary>
+        private void MailItemCommand(string[] parts)
+        {
+            if (parts.Length < 3 || !uint.TryParse(parts[2], out var itemTemplateId))
+            {
+                SendCommandUsage(".mailitem");
+                return;
+            }
+
+            uint quantity = 0;
+
+            if (parts.Length > 3 && !uint.TryParse(parts[3], out quantity))
+            {
+                SendCommandUsage(".mailitem");
+                return;
+            }
+
+            var result = InventoryManager.Instance.MailItems(parts[1], itemTemplateId, quantity, _client.Player?.FamilyName);
+            CommunicatorManager.Instance.SystemMessage(_client, result.Text);
         }
 
         /// <summary>

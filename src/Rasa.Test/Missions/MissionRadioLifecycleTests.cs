@@ -1218,6 +1218,13 @@ namespace Rasa.Test.Missions
             using (var unit = context.CreateChar())
                 unit.ExecuteTransaction(() => unit.CharacterFlags.Set(1, 92, 1));
             context.FillRewardCategory();
+
+            // Reward items that do not fit go to the inbox; only with that full as well is
+            // there no room.
+            var inventory = new InventoryManager(context);
+            for (var i = 0; i < Rasa.Structures.Inventory.MaxInboxItems; i++)
+                Assert.IsTrue(inventory.SendToInbox(context.Client, context.CreateInventoryItem(28, 3147, 1)));
+            context.Drain();
             var full = context.ReadRewardTotals();
             Assert.IsFalse(context.Manager.TryCompleteRadioMission(context.Client, 731, 0, null));
             Assert.AreEqual(full, context.ReadRewardTotals());

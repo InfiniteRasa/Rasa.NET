@@ -627,8 +627,10 @@ namespace Rasa.Managers
 
         /// <summary>
         /// Creates the result of a finished job in the player's inventory, in stacks of the class's
-        /// stack size. What does not fit stays on the job, so the player can make room and take it
-        /// again. Returns true when the whole job was handed over.
+        /// stack size. What does not fit goes to the player's inbox (the auction house's Pick Up
+        /// Items); only what the inbox cannot take either stays on the job, so the player can make
+        /// room and take it again - jobs are held in memory, so a restart would lose it. Returns
+        /// true when the whole job was handed over.
         ///
         /// What was fabricated carries its maker's name. Mimeogel and modules do not: they were
         /// salvaged, taken out or upgraded, not made.
@@ -644,7 +646,20 @@ namespace Rasa.Managers
 
             var classInfo = EntityClassManager.Instance.GetClassInfo((EntityClasses)job.ResultClassId);
             var stackSize = Math.Max(1u, classInfo?.ItemClassInfo?.StackSize ?? 1u);
+            var inboxed = 0;
 
+            try
+            {
+                return HandOver(client, job, stackSize, ref inboxed);
+            }
+            finally
+            {
+                InventoryManager.TellSentToInbox(client, inboxed);
+            }
+        }
+
+        private bool HandOver(Client client, CraftingJob job, uint stackSize, ref int inboxed)
+        {
             while (job.Count > 0)
             {
                 var amount = Math.Min(job.Count, stackSize);
@@ -662,9 +677,18 @@ namespace Rasa.Managers
                     continue;
                 }
 
-                // Some or none of this stack fitted; the remainder's row and entity go away and
-                // the job keeps what the player has not got yet.
+                // Some or none of this stack fitted; the rest goes to the inbox.
                 var placed = amount - item.StackSize;
+
+                if (InventoryManager.Instance.SendToInbox(client, item))
+                {
+                    job.Count -= amount;
+                    inboxed++;
+                    continue;
+                }
+
+                // The inbox is full too: the remainder's row and entity go away and the job keeps
+                // what the player has not got yet.
                 EntityManager.Instance.DestroyPhysicalEntity(client, item.EntityId, EntityType.Item);
 
                 if (item.Id != 0)

@@ -36,8 +36,11 @@ namespace Rasa.Managers
             internal void PlanAndSave(Client client, IReadOnlyList<InventoryItemGrant> grants, ICharUnitOfWork unit)
             {
                 _plan = InventoryPlan.For(client, unit);
+
+                // Reward items: what the backpack cannot take goes to the inbox rather than
+                // refusing the turn-in.
                 foreach (var grant in grants)
-                    _plan.Grant(grant.ItemTemplateId, grant.Quantity, beforeRegister: _beforeRegister);
+                    _plan.Grant(grant.ItemTemplateId, grant.Quantity, beforeRegister: _beforeRegister, overflowToInbox: true);
             }
 
             internal void ConvergeRuntime(Client client) => _plan?.ConvergeRuntime(client);
@@ -66,6 +69,19 @@ namespace Rasa.Managers
                 internal Action<Item> BeforeRegister;
                 internal bool Changed => Count != OriginalCount || Existing != null && Index != OriginalIndex;
             }
+
+            /// <summary>A new stack that did not fit the backpack, for the inbox slot given (overflowToInbox).</summary>
+            private sealed class InboxStack
+            {
+                internal ItemTemplate Template;
+                internal uint Count;
+                internal uint Slot;
+                internal Item Staged;
+                internal Action<Item> BeforeRegister;
+            }
+
+            private readonly List<InboxStack> _inbox = new();
+            private List<uint> _freeInboxSlots;
 
             private readonly Client _client;
             private readonly Manifestation _player;
@@ -260,7 +276,7 @@ namespace Rasa.Managers
             }
 
             internal void Grant(uint templateId, uint quantity, MissionItemOwnership owner = null,
-                Action<Item> beforeRegister = null)
+                Action<Item> beforeRegister = null, bool overflowToInbox = false)
             {
                 if (quantity == 0)
                     throw new GameplayRejectionException("Invalid inventory item grant quantity.");
@@ -286,8 +302,25 @@ namespace Rasa.Managers
                         Ownership = owner, BeforeRegister = beforeRegister });
                     remaining -= added;
                 }
+
+                // Never an item bound to an assignment: those have to be carried.
+                if (remaining != 0 && overflowToInbox && owner == null)
+                {
+                    _freeInboxSlots ??= FreeInboxSlots(_unit, _accountId, _characterId);
+
+                    while (remaining > 0 && _freeInboxSlots.Count > 0)
+                    {
+                        var added = Math.Min(remaining, maximum);
+                        _inbox.Add(new InboxStack { Template = template, Count = added, Slot = _freeInboxSlots[0], BeforeRegister = beforeRegister });
+                        _freeInboxSlots.RemoveAt(0);
+                        remaining -= added;
+                    }
+                }
+
                 if (remaining != 0)
-                    throw new GameplayRejectionException("The complete item grant does not fit its inventory categories.");
+                    throw new GameplayRejectionException(overflowToInbox
+                        ? "The complete item grant fits neither its inventory categories nor the inbox."
+                        : "The complete item grant does not fit its inventory categories.");
             }
 
             private void ValidateLoot(LootItem loot, IReadOnlyList<CharacterInventoryEntry> rows)
@@ -391,6 +424,18 @@ namespace Rasa.Managers
                             Generation = owner.Generation, ItemKey = owner.ItemKey, ItemId = item.Id, Quantity = stack.Count
                         });
                 }
+
+                foreach (var box in _inbox)
+                {
+                    var item = box.Staged = ItemManager.StageItem(box.Template, box.Count, "");
+                    item.OwnerId = _characterId;
+                    item.OwnerSlotId = box.Slot;
+                    item.Id = _unit.Items.CreateItem(item);
+                    if (item.Id == 0)
+                        throw new GameplayRejectionException("Item creation returned an invalid durable identity.");
+                    _unit.CharacterInventories.AddInvItem(_accountId, _characterId,
+                        (uint)InventoryType.InboxInventory, box.Slot, item.Id);
+                }
             }
 
             public void Committed() => _committed = true;
@@ -437,6 +482,21 @@ namespace Rasa.Managers
                 foreach (var itemId in removed)
                     if (savedItems.ContainsKey(itemId) || itemOwners.ContainsKey(itemId) || rowCounts.ContainsKey(itemId))
                         throw new GameplayRejectionException("A consumed item survived final persistence.");
+
+                if (_inbox.Count > 0)
+                {
+                    var inboxItems = _unit.Items.GetItems(_inbox.Select(box => box.Staged.Id).ToArray()).ToDictionary(item => item.ItemId);
+
+                    foreach (var box in _inbox)
+                    {
+                        var boxRows = rows.Where(row => row.ItemId == box.Staged.Id).ToArray();
+                        inboxItems.TryGetValue(box.Staged.Id, out var saved);
+                        if (boxRows.Length != 1 || boxRows[0].CharacterId != _characterId ||
+                            boxRows[0].InventoryType != (uint)InventoryType.InboxInventory || boxRows[0].SlotId != box.Slot ||
+                            saved?.ItemTemplateId != box.Template.ItemTemplateId || saved.StackSize != box.Count)
+                            throw new GameplayRejectionException("Final inbox identity, slot or count does not match the transaction plan.");
+                    }
+                }
             }
 
             internal void ConvergeRuntime(Client client)
@@ -486,6 +546,16 @@ namespace Rasa.Managers
                     client.Player.Inventory.PersonalInventory[stack.Index] = item.EntityId;
                     MissionApplication.TryPublish(() => stack.BeforeRegister?.Invoke(item),
                         $"inventory item {item.Id} publication hook");
+                }
+                foreach (var box in _inbox)
+                {
+                    var item = box.Staged;
+                    EntityManager.Instance.RegisterEntity(item.EntityId, EntityType.Item);
+                    EntityManager.Instance.RegisterItem(item.EntityId, item);
+                    if (!client.Player.Inventory.InboxItems.Contains(item.EntityId))
+                        client.Player.Inventory.InboxItems.Add(item.EntityId);
+                    MissionApplication.TryPublish(() => box.BeforeRegister?.Invoke(item),
+                        $"inbox item {item.Id} publication hook");
                 }
             }
 
@@ -537,6 +607,16 @@ namespace Rasa.Managers
                             new InventoryAddItemPacket(InventoryType.Personal, item.EntityId, (uint)stack.Index)), $"item {item.Id} slot");
                     }
                 }
+                foreach (var box in _inbox)
+                {
+                    var item = box.Staged;
+                    MissionApplication.TryPublish(() => ItemManager.Instance.SendItemDataToClient(client, item, false),
+                        $"inbox item {item.Id} entity data");
+                    MissionApplication.TryPublish(() => client.CallMethod(SysEntity.ClientInventoryManagerId,
+                        new AddInboxItemPacket(item.EntityId)), $"inbox item {item.Id}");
+                }
+                if (_inbox.Count > 0)
+                    MissionApplication.TryPublish(() => TellSentToInbox(client, _inbox.Count), "inbox notice");
             }
 
             internal static ItemTemplate RequireTemplate(uint id)
@@ -555,8 +635,12 @@ namespace Rasa.Managers
             public void Dispose()
             {
                 if (!_committed)
+                {
                     foreach (var stack in _stacks.Where(stack => stack.Staged != null))
                         EntityManager.Instance.FreeEntity(stack.Staged.EntityId);
+                    foreach (var box in _inbox.Where(box => box.Staged != null))
+                        EntityManager.Instance.FreeEntity(box.Staged.EntityId);
+                }
             }
 
             private void RequireCharacter()

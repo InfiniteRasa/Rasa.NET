@@ -127,6 +127,7 @@ namespace Rasa.Game
             CommandProcessor.RegisterCommand("mute", Audited(ProcessMuteCommand));
             CommandProcessor.RegisterCommand("unmute", Audited(ProcessUnmuteCommand));
             CommandProcessor.RegisterCommand("motd", Audited(ProcessMotdCommand));
+            CommandProcessor.RegisterCommand("mailitem", Audited(ProcessMailItemCommand));
         }
 
         /// <summary>A console command's handler, with what was typed put on the audit log (GmAudit) before it runs.</summary>
@@ -971,6 +972,20 @@ namespace Rasa.Game
             }
 
             RunOnLoop("unmute", () => Logger.WriteLog(LogType.Command, Moderation.Unmute(parts[1], null).Text));
+        }
+
+        /// <summary>mailitem &lt;familyName&gt; &lt;itemTemplateId&gt; [quantity]: new items into a player's inbox, online or not.</summary>
+        private void ProcessMailItemCommand(string[] parts)
+        {
+            uint quantity = 0;
+
+            if (parts.Length < 3 || !uint.TryParse(parts[2], out var itemTemplateId) || (parts.Length > 3 && !uint.TryParse(parts[3], out quantity)))
+            {
+                Logger.WriteLog(LogType.Command, "Usage: mailitem <familyName> <itemTemplateId> [quantity]");
+                return;
+            }
+
+            RunOnLoop("mailitem", () => Logger.WriteLog(LogType.Command, InventoryManager.Instance.MailItems(parts[1], itemTemplateId, quantity, null).Text));
         }
 
         /// <summary>motd: the message of the day in force.</summary>

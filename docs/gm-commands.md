@@ -169,7 +169,8 @@ A map's start groups are generated in this order:
 | `.givexp <amount>` | Admin | Gives you experience. |
 | `.chg_class <class>` | Admin | Changes your class. Class names: RECRUIT, SOLDIER, SPECIALIST, COMMANDO, RANGER, SAPPER, BIOTECHNICIAN, GRENADIER, GUARDIAN, SNIPER, SPY, DEMOLITIONIST, ENGINEER, MEDIC, EXOBIOLOGIST. |
 | `.givecredits <amount> [familyName]` | Admin | Credits for you or a player in the world. A negative amount takes credits away; the balance stops at zero and never goes negative. The player is told. |
-| `.giveitem <itemTemplateId> [quantity]` | Admin | Puts an item in your own inventory. With no quantity you get a full stack. You are recorded as the crafter, which the item's tooltip shows as "Modified By" and your family name. |
+| `.giveitem <itemTemplateId> [quantity]` | Admin | Puts an item in your own inventory. With no quantity you get a full stack. You are recorded as the crafter, which the item's tooltip shows as "Modified By" and your family name. If your backpack is full, it goes to your pick-up box (see `.mailitem`). |
+| `.mailitem <familyName> <itemTemplateId> [quantity]` | Admin | Sends new items to a player's pick-up box: the Pick Up Items tab of any auctioneer, where they take them into their backpack. Works whether or not the player is online. It goes to the character in the world, otherwise the one selected at character selection. With no quantity, a full stack; a larger quantity is split into stacks. Refused, with nothing made, if the box (30 stacks) has no room for all of it. A Character Unique item is one stack at most, and refused to a character who already has one. |
 | `.givelogos <logosId>` | Admin | Adds a Logos (1–408, with gaps) to your Tabula. Ids the client doesn't know and Logos you already have are refused. |
 | `.removelogos <logosId\|all>` | Admin | Removes one Logos, or all of them, from your Tabula, including the saved rows. |
 | `.givepads` | Admin | Unlocks every dropship pad in the world for you. |
@@ -382,6 +383,7 @@ Typed in the game server's window. There is no account check; the console is the
 | `voice` | Whether voice chat is on, and who is in each squad's group. |
 | `reload config` | Re-reads the configuration. |
 | `motd` | The message of the day in force, how it is shown (once per change or every login), and its translations. |
+| `mailitem <familyName> <itemTemplateId> [quantity]` | The same as `.mailitem`. |
 | `announce <message>` | The same as `.announce`. |
 | `kick <familyName> [reason]` | The same as `.kick`, for any account. |
 | `mute <familyName> <minutes> [reason]` / `unmute <familyName>` | The same as `.mute` / `.unmute`, for any account. |

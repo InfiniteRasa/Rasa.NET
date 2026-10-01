@@ -35,7 +35,7 @@ namespace Rasa.Managers
     ///    is the account's, so another character may have put a second one there;
     ///  - a clan feud's forfeit wager, which stays with its owner rather than reach the inbox of a
     ///    recipient who holds one, logged in or not;
-    ///  - .giveitem.
+    ///  - .giveitem, and .mailitem, for a character logged in or not.
     /// Not checked: an item a mission issues and takes back again (MissionItemPlanner), which is
     /// the mission's; an inbox item taken into the pack, which was checked on its way in; and an
     /// auction cancelled or run out, as an item listed is still held.
