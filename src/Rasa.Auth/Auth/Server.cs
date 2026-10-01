@@ -98,6 +98,8 @@ namespace Rasa.Auth
 
             Logger.UpdateConfig(Config.LoggerConfig);
 
+            ReportPasswordHashing(oldConfig?.PasswordHashConfig, Config.PasswordHashConfig);
+
             // Handle reloading the config and updating the list visibility
             if (oldConfig == null || oldConfig.AuthListType == Config.AuthListType)
                 return;
@@ -108,6 +110,35 @@ namespace Rasa.Auth
                 SetupServerList();
                 GenerateServerList();
             }
+        }
+
+        /// <summary>
+        /// What account passwords are hashed with, at startup and whenever it changes - and, at
+        /// error level, a pepper changed or removed once set, which leaves every account hashed
+        /// with the old one unable to log in.
+        /// </summary>
+        private static void ReportPasswordHashing(PasswordHashConfig old, PasswordHashConfig current)
+        {
+            current ??= new PasswordHashConfig();
+
+            var pepper = current.Pepper ?? string.Empty;
+            var oldPepper = old?.Pepper ?? string.Empty;
+            var iterations = Services.Passwords.PasswordHasher.IterationsOf(current);
+
+            if (old != null && oldPepper == pepper && Services.Passwords.PasswordHasher.IterationsOf(old) == iterations)
+                return;
+
+            Logger.WriteLog(LogType.Initialize,
+                $"Passwords: PBKDF2-HMAC-SHA256, {iterations} iterations, per-account salt, "
+                + (pepper.Length > 0 ? "pepper set." : "no pepper (PasswordHashConfig.Pepper is empty)."));
+
+            if (current.Iterations > 0 && current.Iterations < Services.Passwords.PasswordHasher.MinimumIterations)
+                Logger.WriteLog(LogType.Error,
+                    $"PasswordHashConfig.Iterations {current.Iterations} is below {Services.Passwords.PasswordHasher.MinimumIterations}; using {iterations}.");
+
+            if (old != null && oldPepper.Length > 0 && oldPepper != pepper)
+                Logger.WriteLog(LogType.Error,
+                    "PasswordHashConfig.Pepper was changed or removed: accounts hashed with the old pepper cannot log in until it is put back.");
         }
         #endregion
 
@@ -794,7 +825,8 @@ namespace Rasa.Auth
                 unitOfWork.AuthAccountRepository.Create(email, userName, password);
                 unitOfWork.Complete();
 
-                Logger.WriteLog(LogType.Command, $"Created account: {parts[2]}! (Password: {parts[3]})");
+                // Not the password: the log is a file anyone with the server's folder can read.
+                Logger.WriteLog(LogType.Command, $"Created account: {userName}!");
             }
             catch
             {

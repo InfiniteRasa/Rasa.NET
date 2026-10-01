@@ -12,5 +12,6 @@ namespace Rasa.Config
         public AuthConfig AuthConfig { get; set; }
         public CommunicatorConfig CommunicatorConfig { get; set; }
         public Logger.LoggerConfig LoggerConfig { get; set; }
+        public PasswordHashConfig PasswordHashConfig { get; set; } = new PasswordHashConfig();
     }
 }

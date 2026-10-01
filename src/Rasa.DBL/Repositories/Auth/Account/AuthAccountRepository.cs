@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Rasa.Repositories.Auth.Account
 {
     using Context.Auth;
+    using Services.Passwords;
     using Services.Random;
     using Structures.Auth;
 
@@ -16,11 +17,13 @@ namespace Rasa.Repositories.Auth.Account
     {
         private readonly AuthContext _dbContext;
         private readonly IRandomNumberService _randomNumberService;
+        private readonly IPasswordHashSettings _passwordHashSettings;
 
-        public AuthAccountRepository(AuthContext dbContext, IRandomNumberService randomNumberService)
+        public AuthAccountRepository(AuthContext dbContext, IRandomNumberService randomNumberService, IPasswordHashSettings passwordHashSettings)
         {
             _dbContext = dbContext;
             _randomNumberService = randomNumberService;
+            _passwordHashSettings = passwordHashSettings;
         }
 
         public void Create(string email, string userName, string password)
@@ -35,7 +38,7 @@ namespace Rasa.Repositories.Auth.Account
             }
 
             var salt = CreateSalt();
-            var hashedPassword = Hash(password ?? string.Empty, salt);
+            var hashedPassword = PasswordHasher.Create(password ?? string.Empty, salt, _passwordHashSettings);
 
             var entry = new AuthAccountEntry
             {
@@ -59,7 +62,7 @@ namespace Rasa.Repositories.Auth.Account
             {
                 // The same work as a wrong password, so an unknown name does not answer faster than
                 // a known one: that difference told anyone timing the reply which names existed.
-                Hash(password ?? string.Empty, UnknownAccountSalt);
+                PasswordHasher.Burn(password, _passwordHashSettings);
 
                 throw new EntityNotFoundException(AuthAccountEntry.TableName, nameof(AuthAccountEntry.Username), name);
             }
@@ -74,7 +77,34 @@ namespace Rasa.Repositories.Auth.Account
                 throw new AccountLockedException(entry);
             }
 
+            // The password is known to be right, which is the only time an account's hash can
+            // be brought up to the current settings: the old SHA-256 format, an older iteration
+            // count, or a pepper configured since.
+            if (PasswordHasher.NeedsRehash(entry.Password, _passwordHashSettings))
+            {
+                try
+                {
+                    entry.Password = Rehash(entry.Id, password, entry.Salt);
+                }
+                catch (DbUpdateException e)
+                {
+                    // The old hash still verifies; the login goes ahead and the next one tries again.
+                    Logger.WriteLog(LogType.Error, $"Could not rehash the password of account {entry.Id}: {e.Message}");
+                }
+            }
+
             return entry;
+        }
+
+        private string Rehash(uint id, string password, string salt)
+        {
+            var hashed = PasswordHasher.Create(password ?? string.Empty, salt, _passwordHashSettings);
+            var writable = _dbContext.GetWritableEnsuring(_dbContext.AuthAccountEntries, id);
+
+            writable.Password = hashed;
+            _dbContext.SaveChanges();
+
+            return hashed;
         }
 
         public void UpdateLoginData(uint id, IPAddress remoteAddress)
@@ -120,22 +150,12 @@ namespace Rasa.Repositories.Auth.Account
                 .ToLower();
         }
 
-        /// <summary>A salt of the usual shape, hashed against when the name is unknown.</summary>
-        private const string UnknownAccountSalt = "0000000000000000000000000000000000000000";
-
         public bool CheckPassword(AuthAccountEntry entry, string password)
         {
-            var expectedPasswordHash = Hash(password ?? string.Empty, entry.Salt);
-
-            // In time that does not depend on how much of the hash matched.
-            return entry.Password != null && CryptographicOperations.FixedTimeEquals(
-                Encoding.ASCII.GetBytes(expectedPasswordHash), Encoding.ASCII.GetBytes(entry.Password));
+            return PasswordHasher.Verify(password, entry.Salt, entry.Password, _passwordHashSettings);
         }
 
-        public static string Hash(string password, string salt)
-        {
-            using var sha = SHA256.Create();
-            return BitConverter.ToString(sha.ComputeHash(Encoding.UTF8.GetBytes($"{salt}:{password}"))).Replace("-", "").ToLower();
-        }
+        /// <summary>The hash format before PBKDF2 (<see cref="PasswordHasher.LegacyHash"/>); verified, never written.</summary>
+        public static string Hash(string password, string salt) => PasswordHasher.LegacyHash(password, salt);
     }
 }

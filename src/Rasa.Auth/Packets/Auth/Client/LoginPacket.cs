@@ -75,7 +75,8 @@ namespace Rasa.Packets.Auth.Client
 
         public override string ToString()
         {
-            return $"LoginPacket(\"{UserName}\", \"{Password}\", {GameId}, {CDKey})";
+            // Never the password: this is what a log line or a debugger shows of the packet.
+            return $"LoginPacket(\"{UserName}\", \"***\", {GameId}, {CDKey})";
         }
     }
 }
