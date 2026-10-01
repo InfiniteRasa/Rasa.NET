@@ -379,13 +379,14 @@ namespace Rasa.Managers
                 return;
             }
 
-            // An enemy player's: none of it while either holds PvP Safety - the hit shows Immune -
-            // and PVP_DAMAGE_MODIFIER of it otherwise (Pvp).
+            // An enemy player's: none of it while the one hit holds PvP Safety - the hit shows
+            // Immune - and PVP_DAMAGE_MODIFIER of it otherwise (Pvp). Firing on an enemy player
+            // ends the shooter's own Safety (Pvp.Attack).
             var pvp = Pvp.IsPvp(missile.Source, actor);
 
             if (pvp)
             {
-                if (Pvp.Shielded(missile.Source, actor))
+                if (Pvp.Attack(mapChannel, missile.Source, actor))
                 {
                     Immune(missile, actor);
                     return;

@@ -124,7 +124,7 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
-        public void PvpSafetyTurnsAnEnemyHitImmuneBothWays()
+        public void PvpSafetyTurnsAnEnemyHitOnItsHolderImmune()
         {
             using var world = new WorldTestContext();
             var red = Fighter(world, RedClanId);
@@ -139,13 +139,113 @@ namespace Rasa.Test.World
                 Assert.AreEqual(1000, Health(blue));
                 Assert.AreEqual(1, onSafe.Args.HitData.Single().WasImune);
 
-                Shoot(world, blue, red, 100);
-                Assert.AreEqual(1000, Health(red), "a safe player deals no PvP damage either");
-
                 Assert.AreEqual(0, ActorManager.Instance.Damage(world.Map, blue.Player, 100, red.Player, out var outcome));
                 Assert.IsTrue(outcome.Immune);
+
+                var debuff = Debuff(world, red.Player);
+                GameEffectManager.Instance.Attach(world.Map, blue.Player, debuff);
+                Assert.IsFalse(blue.Player.ActiveEffects.ContainsKey(debuff.EffectId), "nor does a debuff land");
+
+                Assert.IsTrue(Pvp.IsSafe(blue.Player), "being attacked does not end it");
             });
         }
+
+        [TestMethod]
+        public void ASafePlayersAttackLandsAndEndsTheirSafety()
+        {
+            using var world = new WorldTestContext();
+            var red = Fighter(world, RedClanId);
+            var blue = Fighter(world, BlueClanId, 10);
+            PlaceAll(red, blue);
+
+            WithFeud(world, () =>
+            {
+                Pvp.GiveSafety(world.Map, blue.Player);
+
+                Shoot(world, blue, red, 100);
+                Assert.AreEqual(950, Health(red), "a safe player's hit lands, halved");
+                Assert.IsFalse(Pvp.IsSafe(blue.Player), "and their Safety is over");
+
+                Shoot(world, red, blue, 100);
+                Assert.AreEqual(950, Health(blue), "so the enemy's hits land on them again");
+            });
+        }
+
+        [TestMethod]
+        public void AttackingASafeEnemyStillEndsTheAttackersSafety()
+        {
+            using var world = new WorldTestContext();
+            var red = Fighter(world, RedClanId);
+            var blue = Fighter(world, BlueClanId, 10);
+            PlaceAll(red, blue);
+
+            WithFeud(world, () =>
+            {
+                Pvp.GiveSafety(world.Map, red.Player);
+                Pvp.GiveSafety(world.Map, blue.Player);
+
+                Shoot(world, blue, red, 100);
+
+                Assert.AreEqual(1000, Health(red), "red is safe");
+                Assert.IsTrue(Pvp.IsSafe(red.Player));
+                Assert.IsFalse(Pvp.IsSafe(blue.Player), "blue attacked");
+            });
+        }
+
+        [TestMethod]
+        public void ADebuffOnAnEnemyEndsSafetyAndATickOfAnOldOneDoesNot()
+        {
+            using var world = new WorldTestContext();
+            var red = Fighter(world, RedClanId);
+            var blue = Fighter(world, BlueClanId, 10);
+            PlaceAll(red, blue);
+
+            WithFeud(world, () =>
+            {
+                Pvp.GiveSafety(world.Map, blue.Player);
+
+                ActorManager.Instance.Damage(world.Map, red.Player, 100, blue.Player, isPeriodic: true);
+                Assert.AreEqual(950, Health(red), "a tick lands");
+                Assert.IsTrue(Pvp.IsSafe(blue.Player), "but is not a new attack");
+
+                var debuff = Debuff(world, blue.Player);
+                GameEffectManager.Instance.Attach(world.Map, red.Player, debuff);
+                Assert.IsTrue(red.Player.ActiveEffects.ContainsKey(debuff.EffectId));
+                Assert.IsFalse(Pvp.IsSafe(blue.Player));
+            });
+        }
+
+        [TestMethod]
+        public void HelpingOrHittingSomeoneNotAnEnemyLeavesSafetyOn()
+        {
+            using var world = new WorldTestContext();
+            var red = Fighter(world, RedClanId);
+            var redMate = Fighter(world, RedClanId, 5);
+            var loner = Fighter(world, 0, 15);
+            PlaceAll(red, redMate, loner);
+
+            WithFeud(world, () =>
+            {
+                Pvp.GiveSafety(world.Map, red.Player);
+
+                GameEffectManager.Instance.Attach(world.Map, redMate.Player, Debuff(world, red.Player));
+                Shoot(world, red, loner, 100);
+
+                Assert.IsTrue(Pvp.IsSafe(red.Player));
+            });
+        }
+
+        private static GameEffect Debuff(WorldTestContext world, Actor source) => new GameEffect
+        {
+            TypeId = 285,
+            EffectId = GameEffectManager.Instance.NextEffectId(world.Map),
+            EffectLevel = 1,
+            SourceId = source.EntityId,
+            Source = source,
+            SourceLevel = 1,
+            IsBuff = false,
+            ExpiresTick = Environment.TickCount64 + 10000
+        };
 
         [TestMethod]
         public void AnEnemyBroughtToZeroInAFeudDiesTheKillCountedAndComesBackSafe()

@@ -324,8 +324,10 @@ namespace Rasa.Managers
 
             // Immune: nothing taken, nothing started - a creature running home after a leash
             // (BehaviorManager.Leash) does not turn round for it. Nor a player's hit on a player
-            // while either holds PvP Safety.
-            if (DamageImmunity.IsImmune(target, damageType) || Pvp.Shielded(source, target))
+            // who holds PvP Safety. A fresh hit on an enemy player ends the attacker's own Safety
+            // (Pvp.Attack); a tick of something started earlier does not.
+            if (DamageImmunity.IsImmune(target, damageType)
+                || (isPeriodic ? Pvp.Shielded(source, target) : Pvp.Attack(mapChannel, source, target)))
             {
                 outcome = new DamageOutcome { Immune = true };
                 return 0;

@@ -53,8 +53,10 @@ namespace Rasa.Managers
     ///    penalty - the loser is defeated, not killed: the kill counts, they are back on full
     ///    health and armour, and have PvP Safety for its 60 seconds (<see cref="Defeat"/>). So is
     ///    a GM who may not die.
-    ///  - PvP Safety stops PvP damage both ways: its holder takes none from an enemy player (the hit
-    ///    shows Immune) and deals none to one.
+    ///  - PvP Safety protects its holder only: they take nothing from another player or a creature
+    ///    of one (the hit shows Immune), but what they do lands. Attacking an enemy player - a hit,
+    ///    a debuff or a control, theirs or their creature's, landing or not - ends it at once
+    ///    (<see cref="Attack"/>). A damage-over-time tick is not an attack: it was started before.
     ///  - The healing modifier applies to a heal from a player on a player who has dealt or taken
     ///    PvP damage within the combat timeout (CombatRegen.CombatTimeoutMs).
     /// </summary>
@@ -175,12 +177,42 @@ namespace Rasa.Managers
         }
 
         /// <summary>
-        /// Whether PvP Safety stops a hit: a player's (or their creature's) on a player, when
-        /// either player holds it. The hit lands as Immune.
+        /// Whether PvP Safety stops a hit: a player's (or their creature's) on a player who holds
+        /// it. The attacker's own Safety stops nothing. The hit lands as Immune.
         /// </summary>
         public static bool Shielded(Actor source, Actor target)
         {
-            return IsPvp(source, target) && (IsSafe(Controller(source)) || IsSafe(target)) || Restrained(source, target);
+            return IsPvp(source, target) && IsSafe(target) || Restrained(source, target);
+        }
+
+        /// <summary>
+        /// A player (or their creature) is attacking a player: if it is an enemy, the attacker's
+        /// PvP Safety comes off first, whether or not the attack then lands. Returns whether the
+        /// attack is stopped (<see cref="Shielded"/>).
+        /// </summary>
+        public static bool Attack(MapChannel mapChannel, Actor source, Actor target)
+        {
+            if (Controller(source) is Manifestation attacker && target is Manifestation victim && AreEnemies(attacker, victim))
+                EndSafety(mapChannel ?? attacker.MapChannel, attacker);
+
+            return Shielded(source, target);
+        }
+
+        /// <summary>Takes PvP Safety off the player ("PvP damage enabled"). False when they had none.</summary>
+        public static bool EndSafety(MapChannel mapChannel, Manifestation player)
+        {
+            var safety = player?.ActiveEffects.Values.Where(e => e.TypeId == SafetyTypeId).ToList();
+
+            if (safety == null || safety.Count == 0)
+                return false;
+
+            foreach (var effect in safety)
+                if (mapChannel != null)
+                    GameEffectManager.Instance.DettachEffect(mapChannel, player, effect);
+                else
+                    player.ActiveEffects.Remove(effect.EffectId);
+
+            return true;
         }
 
         /// <summary>

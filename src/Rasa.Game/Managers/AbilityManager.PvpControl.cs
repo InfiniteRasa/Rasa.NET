@@ -49,7 +49,7 @@ namespace Rasa.Managers
         {
             shownTypeId = MindControlTypeId;
 
-            if (!Pvp.IsEnemyTarget(player, enemy) || Pvp.Shielded(player, enemy))
+            if (!Pvp.IsEnemyTarget(player, enemy) || Pvp.Attack(mapChannel, player, enemy))
                 return false;
 
             var now = Environment.TickCount64;
@@ -105,7 +105,7 @@ namespace Rasa.Managers
         /// <summary>Traitor on an enemy player; false when it did not land.</summary>
         private bool AttachPlayerTraitor(MapChannel mapChannel, Manifestation player, Manifestation enemy, ActionLevelInfo info)
         {
-            if (!Pvp.IsEnemyTarget(player, enemy) || Pvp.Shielded(player, enemy))
+            if (!Pvp.IsEnemyTarget(player, enemy) || Pvp.Attack(mapChannel, player, enemy))
                 return false;
 
             var traitor = NewEffect(mapChannel, player, info, TraitorTypeId, info.Get(AbilityProperty.Duration, 10));
@@ -214,7 +214,7 @@ namespace Rasa.Managers
         {
             foreach (var enemy in Pvp.EnemiesWithin(mapChannel, player, player.Position, radius))
             {
-                if (Pvp.Shielded(player, enemy))
+                if (Pvp.Attack(mapChannel, player, enemy))
                     continue;
 
                 var flash = NewEffect(mapChannel, player, info, MagFlashTypeId, null);

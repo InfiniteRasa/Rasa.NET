@@ -127,9 +127,10 @@ namespace Rasa.Managers
             if (effect.IsBuff && effect.Source is Manifestation helper && !ReferenceEquals(helper, actor) && Pvp.MayNotAssist(helper))
                 return;
 
-            // Nor does a debuff from an enemy player while either holds PvP Safety, or from a player
-            // an enemy's Traitor holds back from that side (Pvp.Shielded).
-            if (!effect.IsBuff && effect.Source != null && Pvp.Shielded(effect.Source, actor))
+            // Nor does a debuff from a player on one who holds PvP Safety, or from a player an
+            // enemy's Traitor holds back from that side (Pvp.Shielded). Putting one on an enemy
+            // player ends the attacker's own Safety (Pvp.Attack).
+            if (!effect.IsBuff && effect.Source != null && Pvp.Attack(mapChannel, effect.Source, actor))
             {
                 CellManager.Instance.CellCallMethod(mapChannel, actor,
                     new GameEffectAttachFailedPacket(effect.TypeId, GameEffectAttachFailedPacket.FailReason.Immune, effect.SourceId));
