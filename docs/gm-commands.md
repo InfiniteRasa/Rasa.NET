@@ -1,10 +1,11 @@
 # GM commands
 
 Every GM command the game and auth servers understand: the level each one needs, what it takes and what it does.
-Checked against `development` at `38b92814`. The sources are:
+Checked against `development` at `f4439234`. The sources are:
 
 - `Rasa.Game/Managers/ChatCommandsManager.cs`: dot commands and the privileged slash-command table.
 - `GmMapCommands.cs` and `GmMissionCommands.cs`: map and mission commands.
+- `Moderation.cs` and `MessageOfTheDay.cs`: announcements, kicks, silences, and the message of the day.
 - `Game/Server.cs` and `Auth/Server.cs`: console commands.
 
 When a command is added or its level changes, update this page with it.
@@ -76,6 +77,7 @@ These change nothing in the world, except where noted.
 | `.clientevent [list]` | Observer | The client's scriptable events, marking which ones you are tracking. |
 | `.clientevent track <id\|name\|all> ...` / `stop <id\|name> ...` / `stop all` | Observer | Starts or stops tracking scriptable client events on your own client; tracked events are echoed to you. |
 | `.rqs` | Observer | Opens the client's developer RQS window (`DevRQSWindow`). |
+| `.motd` | Observer | Shows you the message of the day as players get it, even if your client has seen it before. Says so if there is none. |
 | `.moveflags` | GameMaster | Toggle. Shows the flags byte of your `Move` packets each time it changes, with your height and whether you are in water. |
 
 These also happen automatically, without a command:
@@ -206,6 +208,24 @@ Map links, region volumes, FX emitters and crafting stations are **saved to the 
 | `.kraftwerks` | GameMaster | Crafting stations on this map, nearest first. |
 | `.kraftwerks here [comment]` / `.kraftwerks <id> here \| rotate <yaw> \| comment <text> \| delete` | GameMaster | Creates or edits a station. `rotate` takes the yaw in radians. |
 
+## Moderation
+
+Commands that act on other players. A GM can only use them on accounts **below their own level**; the console can use them on anyone. Each one is also on the game server console without the dot (see Console: game server). Kicks, silences and lifted silences are logged as `Security`, with who did it and the reason.
+
+| Command | Level | What it does |
+|---|---|---|
+| `.announce <message>` | GameMaster | Sends `[Announcement] <message>` as a system message to everyone in the world or loading into it. The message may contain spaces. |
+| `.kick <familyName> [reason]` | GameMaster | Tells the player "You have been disconnected by a game master" (with the reason, if given), then closes every connection of that account a second later. The character leaves as if the connection had dropped, but never stays behind in a fight. Works at character selection too. |
+| `.mute <familyName> <minutes> [reason]` | GameMaster | Silences the account's chat for 1 to 525,600 minutes (one year). Works on accounts that are not online. The player gets the client's own "You are now blocked from sending chat messages for the duration of N minutes", plus the reason if given; you get "User ... is silenced". |
+| `.unmute <familyName>` | GameMaster | Lifts a silence. Answers "User ... is not currently silenced" if there is none. |
+
+How a silence works:
+
+- It is saved on the account (`account.muted_until`), so logging out, switching character or restarting the server does not lift it.
+- A silenced player cannot say, shout, emote, or use squad, clan, clan leader, channel or whisper/reply chat. Each attempt is answered with "You have been silenced by a game master."
+- They can still **whisper a GM** (GameMaster level and above), send petitions, and use dot commands.
+- They are reminded when they enter the world, and told "You are no longer silenced" when the time runs out.
+
 ## Client messages and presentation
 
 | Command | Level | What it does |
@@ -253,7 +273,17 @@ Typed in the game server's window. There is no account check; the console is the
 | `kb` / `kb show <id>` / `kb reload` | The knowledge base: list, one article, or re-read the file. |
 | `voice` | Whether voice chat is on, and who is in each squad's group. |
 | `reload config` | Re-reads the configuration. |
-| `exit [minutes]` | Shuts the server down now, or after that many minutes. |
+| `motd` | The message of the day in force, how it is shown (once per change or every login), and its translations. |
+| `announce <message>` | The same as `.announce`. |
+| `kick <familyName> [reason]` | The same as `.kick`, for any account. |
+| `mute <familyName> <minutes> [reason]` / `unmute <familyName>` | The same as `.mute` / `.unmute`, for any account. |
+| `exit` | Saves every player the way a logout does, then shuts the server down. |
+| `exit <minutes> [reason]` | The same, after a countdown. Minutes may be fractional (`exit 0.5`). Players are warned in chat at the start, at 60, 30, 15 and 10 minutes, each minute from 5, and at 30 and 10 seconds. New connections to the world are refused in the last minute. |
+| `exit cancel` | Calls off a countdown and tells the players. |
+
+Stopping the game server any other way (Ctrl+C, stopping the service, `docker stop`) also saves every player first, waiting up to 8 seconds for it.
+
+The message of the day itself is set in `appsettings.json` under `MessageOfTheDay` (`Text`, `ShowEveryLogin`, `Translations`), not by a command. Editing the file sends a changed message to everyone online.
 
 ## Console: auth server
 
