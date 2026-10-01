@@ -120,7 +120,7 @@ namespace Rasa.Managers
             public float StrikeRadius;
             public int HateTransferPercent;
             public uint Level;
-            public Creature Aim;
+            public Actor Aim;
             public long ExpiresAt;
             public long NextShotAt;
             public long RemoveAt;
@@ -305,7 +305,7 @@ namespace Rasa.Managers
 
             if (trap.Aim == null || trap.Aim.State == CharacterState.Dead || trap.Aim.State == CharacterState.Dying
                 || Vector3.Distance(trap.Aim.Position, turret.Position) > trap.Range)
-                trap.Aim = EnemiesWithin(mapChannel, trap.Owner, turret.Position, trap.Range)
+                trap.Aim = FoesWithin(mapChannel, trap.Owner, turret.Position, trap.Range)
                     .Where(c => c.State != CharacterState.Dead && c.State != CharacterState.Dying)
                     .OrderBy(c => Vector3.DistanceSquared(c.Position, turret.Position))
                     .FirstOrDefault();
@@ -417,7 +417,7 @@ namespace Rasa.Managers
             var strike = new GameEffectAnnounceDamagePacket(trap.Death.EffectId);
             var critChance = CriticalHits.AttackerChance(owner, false);
 
-            foreach (var victim in HostilesWithin(mapChannel, owner, killedBy.Position, trap.StrikeRadius))
+            foreach (var victim in VictimsWithin(mapChannel, owner, killedBy.Position, trap.StrikeRadius))
             {
                 if (victim.State == CharacterState.Dead || victim.State == CharacterState.Dying || victim.Attributes[Attributes.Health].Current <= 0)
                     continue;

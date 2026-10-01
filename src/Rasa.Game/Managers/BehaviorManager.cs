@@ -187,7 +187,10 @@ namespace Rasa.Managers
                 // Cell lists can hold a client whose character is already gone. A player is
                 // FRIENDLY - sought by HOSTILE creatures only - whatever Polymorph has made
                 // them look like.
-                if (client.Player == null || !TargetCategories.Seeks(creature.TargetCategory, client.Player.CombatCategory))
+                // An Aggressive summon also goes for its master's enemies across a wargame, unless
+                // PvP Safety is on them (Pvp.SummonMayFight).
+                if (client.Player == null || (!TargetCategories.Seeks(creature.TargetCategory, client.Player.CombatCategory)
+                    && !(Pvp.SummonMayFight(creature, client.Player.EntityId) && !Pvp.IsSafe(client.Player))))
                     continue;
 
                 // Gone, and waiting to be taken out of the world: nothing to pick a fight with.
@@ -231,7 +234,7 @@ namespace Rasa.Managers
                 if (tCreature == creature)
                     continue;
 
-                if (!TargetCategories.Seeks(creature.TargetCategory, tCreature.TargetCategory))
+                if (!TargetCategories.Seeks(creature.TargetCategory, tCreature.TargetCategory) && !Pvp.SummonMayFight(creature, tCreature.EntityId))
                     continue;
 
                 // check distance
@@ -1983,6 +1986,10 @@ namespace Rasa.Managers
 
             if (pump == AbilityManager.MindControlFrighten)
                 return false;
+
+            // A player's creature fights its master's enemies across a wargame, and theirs (Pvp).
+            if (Pvp.SummonMayFight(creature, entityId))
+                return true;
 
             if (EntityManager.Instance.Creatures.TryGetValue(entityId, out var other))
             {

@@ -38,6 +38,15 @@ namespace Rasa.Managers
     ///    client/gameeffects/pvpsafety.py), which says "PvP damage temporarily disabled" as it goes
     ///    on and "PvP damage enabled" as it comes off, and marks its holder safe overhead.
     ///
+    /// What belongs to a player fights for them (<see cref="Controller"/>): a turret, trap, crab
+    /// mine, rift, minion, bot, clone or reanimated corpse of theirs may attack their enemies and
+    /// is shown HOSTILE to them and attackable by them, and its hits on a player count as its
+    /// master's - halved, stopped by PvP Safety, and a defeat credited to the master.
+    ///
+    /// The debuffs a player puts on an enemy player last PVP_EFFECT_DURATION_MODIFIER less
+    /// (GameEffectManager.Attach); stuns and knockbacks are scaled where they are made
+    /// (<see cref="ScaleDuration"/>).
+    ///
     /// Ours, since nothing in the client says:
     ///  - A player brought to zero by an enemy is defeated, not killed - there is no player death
     ///    yet (BuryMe, PlayerDead and the revive are not wired). The kill counts for the feud, the
@@ -104,8 +113,59 @@ namespace Rasa.Managers
             return AreEnemies(shown, viewer) ? TargetCategory.Hostile : TargetCategory.Friendly;
         }
 
-        /// <summary>Whether this is damage from one player to another: what the PvP numbers apply to.</summary>
-        public static bool IsPvp(Actor source, Actor target) => source is Manifestation && target is Manifestation && !ReferenceEquals(source, target);
+        /// <summary>
+        /// The player behind an actor: a player themselves, or the master of a creature that belongs
+        /// to one (Creature.MasterEntityId - a turret, trap, crab mine, rift, minion, bot, clone,
+        /// reanimated corpse or pet). Null for anything else.
+        /// </summary>
+        public static Manifestation Controller(Actor actor)
+        {
+            if (actor is Manifestation player)
+                return player;
+
+            if (actor is Creature creature && creature.MasterEntityId != 0
+                && EntityManager.Instance.Players.TryGetValue(creature.MasterEntityId, out var master))
+                return master;
+
+            return null;
+        }
+
+        /// <summary>Whether the creature belongs to an enemy of this player: theirs to shoot, and shown to them HOSTILE.</summary>
+        public static bool IsEnemySummon(Manifestation player, Creature creature)
+        {
+            return creature != null && creature.MasterEntityId != 0 && creature.MasterEntityId != player?.EntityId
+                   && AreEnemies(player, Controller(creature));
+        }
+
+        /// <summary>How a creature is to be shown to a player: HOSTILE if it belongs to an enemy of theirs, its own category otherwise.</summary>
+        public static TargetCategory CategoryFor(Creature creature, Manifestation viewer)
+        {
+            return IsEnemySummon(viewer, creature) ? TargetCategory.Hostile : creature.TargetCategory;
+        }
+
+        /// <summary>
+        /// Whether a player's creature may fight this entity because of a wargame: an enemy of its
+        /// master, or a creature that belongs to one (BehaviorManager.MayFight).
+        /// </summary>
+        public static bool SummonMayFight(Creature creature, ulong entityId)
+        {
+            var master = Controller(creature);
+
+            if (master == null || creature is null || creature.MasterEntityId == 0)
+                return false;
+
+            if (EntityManager.Instance.Players.TryGetValue(entityId, out var player))
+                return AreEnemies(master, player);
+
+            return EntityManager.Instance.Creatures.TryGetValue(entityId, out var other) && IsEnemySummon(master, other);
+        }
+
+        /// <summary>
+        /// Whether this is damage to a player from another player, or from a creature of theirs:
+        /// what the PvP numbers apply to.
+        /// </summary>
+        public static bool IsPvp(Actor source, Actor target) =>
+            target is Manifestation victim && Controller(source) is Manifestation attacker && !ReferenceEquals(attacker, victim);
 
         /// <summary>Whether a player has PvP Safety on.</summary>
         public static bool IsSafe(Actor actor)
@@ -114,18 +174,18 @@ namespace Rasa.Managers
         }
 
         /// <summary>
-        /// Whether PvP Safety stops a hit: a player's on a player, when either of them holds it.
-        /// The hit lands as Immune.
+        /// Whether PvP Safety stops a hit: a player's (or their creature's) on a player, when
+        /// either player holds it. The hit lands as Immune.
         /// </summary>
         public static bool Shielded(Actor source, Actor target)
         {
-            return IsPvp(source, target) && (IsSafe(source) || IsSafe(target));
+            return IsPvp(source, target) && (IsSafe(Controller(source)) || IsSafe(target));
         }
 
-        /// <summary>Whether a player brought to zero by this source is defeated: an enemy player's doing.</summary>
+        /// <summary>Whether a player brought to zero by this source is defeated: an enemy player's doing, or their creature's.</summary>
         public static bool Defeats(Actor source, Manifestation victim)
         {
-            return source is Manifestation attacker && AreEnemies(attacker, victim);
+            return Controller(source) is Manifestation attacker && AreEnemies(attacker, victim);
         }
 
         #endregion
@@ -170,7 +230,7 @@ namespace Rasa.Managers
 
             var now = Now();
 
-            Engagements.GetOrCreateValue((Manifestation)source).LastTick = now;
+            Engagements.GetOrCreateValue(Controller(source)).LastTick = now;
             Engagements.GetOrCreateValue((Manifestation)target).LastTick = now;
         }
 
@@ -242,6 +302,24 @@ namespace Rasa.Managers
                 if (!Detection.IsHiddenFrom(other.Player, client))
                     client.CallMethod(other.Player.EntityId, new TargetCategoryPacket(CategoryFor(other.Player, player)));
             }
+
+            // The creatures that belong to players: the player's own, to everyone around them, and
+            // everyone else's, to the player.
+            foreach (var cell in CellManager.CellsIn(mapChannel, player.Cells))
+                foreach (var creature in cell.CreatureList.ToList())
+                {
+                    if (creature.MasterEntityId == 0)
+                        continue;
+
+                    if (creature.MasterEntityId == player.EntityId)
+                    {
+                        foreach (var onlooker in CellManager.Instance.GetClientsInCells(mapChannel, creature.Cells ?? player.Cells, client))
+                            if (onlooker.Player != null)
+                                onlooker.CallMethod(creature.EntityId, new TargetCategoryPacket(CategoryFor(creature, onlooker.Player)));
+                    }
+                    else
+                        client.CallMethod(creature.EntityId, new TargetCategoryPacket(CategoryFor(creature, player)));
+                }
         }
 
         #endregion
@@ -257,7 +335,7 @@ namespace Rasa.Managers
             if (victim == null)
                 return;
 
-            var killer = source as Manifestation;
+            var killer = Controller(source);
 
             if (victim.Attributes.TryGetValue(Attributes.Health, out var health))
             {

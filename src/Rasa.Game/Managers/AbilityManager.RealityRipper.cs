@@ -65,7 +65,7 @@ namespace Rasa.Managers
             public uint Level;
             public long ExpiresAt;
             public long NextPullAt;
-            public readonly Dictionary<Creature, GameEffect> Taken = new Dictionary<Creature, GameEffect>();
+            public readonly Dictionary<Actor, GameEffect> Taken = new Dictionary<Actor, GameEffect>();
         }
 
         private static readonly List<Ripper> Rippers = new List<Ripper>();
@@ -230,18 +230,20 @@ namespace Rasa.Managers
 
                 ripper.NextPullAt = now + ripper.IntervalMs;
 
-                // Let go of the ones that died or were taken off it some other way.
-                foreach (var gone in ripper.Taken.Where(t => t.Key.State == CharacterState.Dead || !t.Key.ActiveEffects.ContainsKey(t.Value.EffectId)).Select(t => t.Key).ToList())
+                // Let go of the ones that died or were taken off it some other way. An enemy player
+                // is held for half the time (Pvp.ScaleDuration) and is not taken in again after.
+                foreach (var gone in ripper.Taken.Where(t => t.Key.State == CharacterState.Dead
+                             || (t.Key is Creature && !t.Key.ActiveEffects.ContainsKey(t.Value.EffectId))).Select(t => t.Key).ToList())
                     ripper.Taken.Remove(gone);
 
-                foreach (var creature in HostilesWithin(mapChannel, ripper.Owner, rift.Position, ripper.Radius))
-                    if (!ripper.Taken.ContainsKey(creature) && creature.State != CharacterState.Dead && creature.State != CharacterState.Dying)
-                        Take(ripper, creature, now);
+                foreach (var victim in VictimsWithin(mapChannel, ripper.Owner, rift.Position, ripper.Radius))
+                    if (!ripper.Taken.ContainsKey(victim) && victim.State != CharacterState.Dead && victim.State != CharacterState.Dying && !Pvp.IsSafe(victim))
+                        Take(ripper, victim, now);
             }
         }
 
-        /// <summary>Drags a creature in and holds it there, hurting it, for as long as the rift is open.</summary>
-        private void Take(Ripper ripper, Creature creature, long now)
+        /// <summary>Drags a creature or an enemy player in and holds it there, hurting it, for as long as the rift is open.</summary>
+        private void Take(Ripper ripper, Actor victim, long now)
         {
             var mapChannel = ripper.MapChannel;
             var remaining = ripper.ExpiresAt - now;
@@ -249,7 +251,10 @@ namespace Rasa.Managers
             if (remaining <= 0)
                 return;
 
-            CrowdControl.Pull(mapChannel, creature, ripper.Creature, RipperTeleportMs);
+            if (victim is Creature pulled)
+                CrowdControl.Pull(mapChannel, pulled, ripper.Creature, RipperTeleportMs);
+            else if (victim is Manifestation enemy)
+                PlayerCrowdControl.Pull(mapChannel, enemy, ripper.Creature, RipperTeleportMs);
 
             var held = new GameEffect
             {
@@ -276,11 +281,15 @@ namespace Rasa.Managers
             };
 
             // RealityRipperTargetEffect.OnAttach(target, bRootTarget, bTeleportTarget, teleportDuration).
-            GameEffectManager.Instance.Attach(mapChannel, creature, held, 1, 1, RipperTeleportMs);
+            if (victim is Manifestation player)
+                PlayerCrowdControl.HoldInPlace(mapChannel, player, held, 1, 1, RipperTeleportMs);
+            else
+                GameEffectManager.Instance.Attach(mapChannel, victim, held, 1, 1, RipperTeleportMs);
 
-            ripper.Taken[creature] = held;
+            ripper.Taken[victim] = held;
 
-            Threat.FromDamage(creature, ripper.Owner, 0);
+            if (victim is Creature creature)
+                Threat.FromDamage(creature, ripper.Owner, 0);
         }
 
         /// <summary>The rift was destroyed: it closes now.</summary>
@@ -305,13 +314,14 @@ namespace Rasa.Managers
             var mapChannel = ripper.MapChannel;
             var rift = ripper.Creature;
 
-            foreach (var (creature, held) in ripper.Taken)
+            foreach (var (victim, held) in ripper.Taken)
             {
-                if (creature.ActiveEffects.ContainsKey(held.EffectId))
-                    GameEffectManager.Instance.DettachEffect(mapChannel, creature, held);
+                if (victim.ActiveEffects.ContainsKey(held.EffectId))
+                    GameEffectManager.Instance.DettachEffect(mapChannel, victim, held);
 
                 // Nothing left to hate there.
-                creature.Hate.Remove(rift.EntityId);
+                if (victim is Creature creature)
+                    creature.Hate.Remove(rift.EntityId);
             }
 
             if (rift.ActiveEffects.ContainsKey(ripper.Source.EffectId))

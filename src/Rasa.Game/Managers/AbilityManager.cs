@@ -727,13 +727,13 @@ namespace Rasa.Managers
 
         /// <summary>
         /// Which creatures a player's damage may land on: HOSTILE and NEUTRAL ones (TargetCategories.
-        /// PlayerMayAttack). FRIENDLY creatures are the friendly NPCs. Other players are not here:
-        /// an enemy player across a wargame is a target for weapons and damage abilities alone
-        /// (IsAttackable, Pvp), and the effect abilities that use this take creatures.
+        /// PlayerMayAttack), and those that belong to an enemy of theirs across a wargame (Pvp).
+        /// FRIENDLY creatures are the friendly NPCs. Players are not here: an enemy player is
+        /// IsAttackable, and the areas reach them through VictimsWithin.
         /// </summary>
         internal static bool IsHostile(Manifestation player, Actor target)
         {
-            return target is Creature creature && TargetCategories.PlayerMayAttack(creature.TargetCategory)
+            return target is Creature creature && (TargetCategories.PlayerMayAttack(creature.TargetCategory) || Pvp.IsEnemySummon(player, creature))
                    && creature.State != CharacterState.Dead && creature.State != CharacterState.Dying
                    && creature.Attributes.TryGetValue(Attributes.Health, out var health) && health.Current > 0;
         }
@@ -822,6 +822,9 @@ namespace Rasa.Managers
             }
 
             StartCooldown(client, player, info);
+
+            // A Feedback on them watches what they do (Feedback).
+            OnPlayerActed(mapChannel, player, IsCombatAction(actionInfo, info, action.ItemId));
 
             // The charge has arrived: the blow lands from where it ends.
             if (actionInfo.Module == RushingBlowModule)
@@ -1257,19 +1260,29 @@ namespace Rasa.Managers
                         client,
                         MissionProgressEvent.AbilityHit((uint)action.ActionId, counted.DbId));
 
-                // An enemy player still standing: the ability's stun and knockback, for
-                // PVP_EFFECT_DURATION_MODIFIER of the time (Pvp). A crit's effects, a pull and
-                // lightning's arc and storm take creatures alone.
+                // An enemy player still standing: what the hit does to a creature, with the player's
+                // own stun, knockback and pull (PlayerCrowdControl), for PVP_EFFECT_DURATION_MODIFIER
+                // of the time (Pvp).
                 if (target is Manifestation enemy)
                 {
                     if (taken > 0 && enemy.Attributes[Attributes.Health].Current > 0 && !Pvp.IsSafe(enemy))
                     {
+                        if (crit && !outcome.Immune)
+                            CritEffects.OnCritical(mapChannel, enemy, player, damageType, amount);
+
                         if (stun.Ms > 0 && Stuns.Roll(stun.Chance))
                             PlayerCrowdControl.Stun(mapChannel, enemy, player, Pvp.ScaleDuration(player, enemy, stun.Ms));
 
                         if (knockback > 0)
                             PlayerCrowdControl.Knockback(mapChannel, enemy, player, knockback);
+
+                        if (actionInfo.Module == VortexModule)
+                            PlayerCrowdControl.Pull(mapChannel, enemy, player, (int)info.RecoveryMs);
                     }
+
+                    // Lightning's arc, extra sonic damage and storm.
+                    if (recovery.ArcData)
+                        ResolveLightningExtras(mapChannel, player, info, enemy, rolled, hit);
 
                     continue;
                 }
@@ -1352,7 +1365,54 @@ namespace Rasa.Managers
         /// </summary>
         internal static List<Creature> EnemiesWithin(MapChannel mapChannel, Manifestation player, Vector3 centre, float radius)
         {
-            return HostilesWithin(mapChannel, player, centre, radius).Where(c => TargetCategories.AlliesSeek(c.TargetCategory)).ToList();
+            return HostilesWithin(mapChannel, player, centre, radius)
+                .Where(c => TargetCategories.AlliesSeek(c.TargetCategory) || Pvp.IsEnemySummon(player, c)).ToList();
+        }
+
+        /// <summary>
+        /// What a player's summon goes looking for within radius metres of a point: the creatures
+        /// EnemiesWithin finds, and the player's enemies across a wargame (Pvp).
+        /// </summary>
+        internal static List<Actor> FoesWithin(MapChannel mapChannel, Manifestation player, Vector3 centre, float radius)
+        {
+            var found = EnemiesWithin(mapChannel, player, centre, radius).Cast<Actor>().ToList();
+
+            // A summon leaves an enemy under PvP Safety alone: its shots could not land.
+            found.AddRange(Pvp.EnemiesWithin(mapChannel, player, centre, radius).Where(p => !Pvp.IsSafe(p)));
+            return found;
+        }
+
+        /// <summary>
+        /// Everything a player's blast or area catches within radius metres of a point: the
+        /// creatures they may attack (HostilesWithin) and their enemies across a wargame (Pvp).
+        /// </summary>
+        internal static List<Actor> VictimsWithin(MapChannel mapChannel, Manifestation player, Vector3 centre, float radius)
+        {
+            var found = HostilesWithin(mapChannel, player, centre, radius).Cast<Actor>().ToList();
+            found.AddRange(Pvp.EnemiesWithin(mapChannel, player, centre, radius));
+            return found;
+        }
+
+        /// <summary>
+        /// Stuns what a player's blast caught: a creature through Stuns, an enemy player through
+        /// PlayerCrowdControl for half the time (Pvp.ScaleDuration).
+        /// </summary>
+        internal static bool StunVictim(MapChannel mapChannel, Actor victim, Manifestation player, int durationMs, DamageType damageType)
+        {
+            return victim switch
+            {
+                Creature creature => Stuns.Apply(mapChannel, creature, player, Stuns.StunTypeId, durationMs, damageType),
+                Manifestation enemy => PlayerCrowdControl.Stun(mapChannel, enemy, player, Pvp.ScaleDuration(player, enemy, durationMs)),
+                _ => false
+            };
+        }
+
+        /// <summary>VictimsWithin, in a cone from the performer.</summary>
+        internal static List<Actor> VictimsInCone(MapChannel mapChannel, Manifestation player, Vector3 aim, float range, float halfAngleDegrees)
+        {
+            var found = HostilesInCone(mapChannel, player, aim, range, halfAngleDegrees).Cast<Actor>().ToList();
+            found.AddRange(Pvp.EnemiesInCone(mapChannel, player, aim, range, halfAngleDegrees));
+            return found;
         }
 
         /// <summary>Living creatures a player may attack within radius metres of a point, from the cells around the performer.</summary>

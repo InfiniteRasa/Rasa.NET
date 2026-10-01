@@ -131,9 +131,9 @@ namespace Rasa.Managers
 
             var blast = new GameEffectAnnounceDamagePacket(burning.EffectId, "DoExplosion");
             var critChance = CriticalHits.AttackerChance(player, false);
-            var crits = new List<(Creature Victim, int Amount)>();
+            var crits = new List<(Actor Victim, int Amount)>();
 
-            foreach (var victim in HostilesWithin(mapChannel, player, corpse.Position, burning.Radius))
+            foreach (var victim in VictimsWithin(mapChannel, player, corpse.Position, burning.Radius))
             {
                 var rolled = GameEffectManager.ApplyDamageDealt(player, Scale(player.Level, BombRandom.Next(burning.DamageMin, burning.DamageMax + 1), burning.ScaleType));
                 var crit = CriticalHits.Resolve(player, victim, false, critChance, ref rolled);

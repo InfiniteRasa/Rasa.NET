@@ -80,9 +80,9 @@ namespace Rasa.Managers
             // P2 / P4: the ion strike on a target.
             if (hasDuration && !hasInterval)
             {
-                var target = action.TargetId != 0 ? ResolveTarget(mapChannel, action.TargetId) as Creature : null;
+                var target = action.TargetId != 0 ? ResolveTarget(mapChannel, action.TargetId) : null;
 
-                if (target == null || !IsHostile(player, target))
+                if (target == null || !IsAttackable(player, target))
                     return;
 
                 var stunMs = info.Get(AbilityProperty.EffectDurationMs);
@@ -162,15 +162,16 @@ namespace Rasa.Managers
         /// <summary>The ion strike's blast around the effect's holder: damage, then the stun on whoever still stands.</summary>
         private void IonBlast(MapChannel mapChannel, Actor holder, GameEffect ion, int min, int max, int scaleType, int stunMs)
         {
-            if (!(ion.Source is Manifestation player) || player.MapContextId != mapChannel.MapInfo.MapContextId || !(holder is Creature target))
+            if (!(ion.Source is Manifestation player) || player.MapContextId != mapChannel.MapInfo.MapContextId || holder == null)
             {
                 GameEffectManager.Instance.DettachEffect(mapChannel, holder, ion);
                 return;
             }
 
-            var victims = HostilesWithin(mapChannel, player, target.Position, ion.TickRadius);
+            var target = holder;
+            var victims = VictimsWithin(mapChannel, player, target.Position, ion.TickRadius);
 
-            if (!victims.Contains(target) && IsHostile(player, target))
+            if (!victims.Contains(target) && IsAttackable(player, target))
                 victims.Insert(0, target);
 
             var blast = new GameEffectAnnounceDamagePacket(ion.EffectId, "DoExplosion");
@@ -186,7 +187,7 @@ namespace Rasa.Managers
 
             foreach (var victim in victims)
                 if (victim.State != CharacterState.Dead && victim.State != CharacterState.Dying && victim.Attributes[Attributes.Health].Current > 0)
-                    Stuns.Apply(mapChannel, victim, player, Stuns.StunTypeId, stunMs, DamageType.Physical);
+                    StunVictim(mapChannel, victim, player, stunMs, DamageType.Physical);
         }
 
         /// <summary>Runs the beacon strikes on this map: explosions, napalm ticks, and taking the beacons away.</summary>
@@ -250,7 +251,7 @@ namespace Rasa.Managers
                 {
                     var blast = new GameEffectAnnounceDamagePacket(strike.EffectId, "DoExplosion");
 
-                    foreach (var victim in HostilesWithin(mapChannel, player, strike.Beacon.Position, strike.Radius))
+                    foreach (var victim in VictimsWithin(mapChannel, player, strike.Beacon.Position, strike.Radius))
                         blast.Hits.Add(StrikeHit(strike, victim, DamageType.Physical));
 
                     CellManager.Instance.CellCallMethod(strike.Beacon, blast);
@@ -282,7 +283,7 @@ namespace Rasa.Managers
             if (strike.NextPoolTick <= now)
                 strike.NextPoolTick = now + strike.PoolIntervalMs;
 
-            var victims = HostilesWithin(mapChannel, player, strike.Beacon.Position, strike.Radius);
+            var victims = VictimsWithin(mapChannel, player, strike.Beacon.Position, strike.Radius);
 
             if (victims.Count == 0)
                 return;
@@ -295,7 +296,7 @@ namespace Rasa.Managers
             CellManager.Instance.CellCallMethod(strike.Beacon, tick);
         }
 
-        private TickEntry StrikeHit(Strike strike, Creature victim, DamageType damageType)
+        private TickEntry StrikeHit(Strike strike, Actor victim, DamageType damageType)
         {
             var rolled = GameEffectManager.ApplyDamageDealt(strike.Player, Scale(strike.Player.Level, BombRandom.Next(strike.DamageMin, strike.DamageMax + 1), strike.ScaleType));
 

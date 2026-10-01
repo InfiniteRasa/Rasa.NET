@@ -99,6 +99,17 @@ namespace Rasa.Managers
             if (damage > 0)
                 Stealth.Break(mapChannel, player);
 
+            // An enemy's Called Shot aim lands on the first hit that does damage, as on a creature.
+            if (damage > 0)
+                foreach (var armed in player.ActiveEffects.Values.Where(e => e.OnDamaged != null).ToList())
+                {
+                    var land = armed.OnDamaged;
+
+                    armed.OnDamaged = null;
+                    GameEffectManager.Instance.DettachEffect(mapChannel, player, armed);
+                    land(mapChannel, player, armed);
+                }
+
             // A Thrax's Explosive Nanites go off on the damage its holder takes.
             if (damage > 0)
                 OnPlayerNanites(mapChannel, player);
@@ -113,8 +124,8 @@ namespace Rasa.Managers
 
             var blast = new GameEffectAnnounceDamagePacket(bomb.EffectId, "DoExplosion");
             var critChance = CriticalHits.AttackerChance(player, false);
-            var victims = HostilesWithin(mapChannel, player, player.Position, bomb.TickRadius);
-            var crits = new List<(Creature Victim, int Amount)>();
+            var victims = VictimsWithin(mapChannel, player, player.Position, bomb.TickRadius);
+            var crits = new List<(Actor Victim, int Amount)>();
 
             foreach (var victim in victims)
             {
@@ -225,7 +236,7 @@ namespace Rasa.Managers
 
                 var blast = new GameEffectAnnounceDamagePacket(effectId, "DoExplosion");
 
-                foreach (var victim in HostilesWithin(mapChannel, player, bomb.Position, reach))
+                foreach (var victim in VictimsWithin(mapChannel, player, bomb.Position, reach))
                 {
                     if (victim.State == CharacterState.Dead || victim.State == CharacterState.Dying || victim.Attributes[Attributes.Health].Current <= 0)
                         continue;

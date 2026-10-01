@@ -198,6 +198,9 @@ namespace Rasa.Managers
         {
             var player = client.Player;
             var session = Begin(mapChannel, client, weapon, action, damageType);
+
+            // Weakened as any of the player's ranged attacks are (a Laser crit, Called Shot: Eye).
+            damage = GameEffectManager.ApplyRangedDamage(player, damage);
             var leech = session.ActionId == ActionId.WeaponDensitygun;
 
             session.CritBonus = critBonus;
@@ -205,6 +208,7 @@ namespace Rasa.Managers
             // Firing is firing: it is a fight, and it gives a cloaked shooter away.
             ManifestationManager.Instance.EnterCombat(client);
             Stealth.Break(mapChannel, player);
+            AbilityManager.OnPlayerActed(mapChannel, player, true);
 
             // The leech gun's tick is (healData, damageData); every other constant fire's is the pulses alone.
             var tick = new ConstantFireTickPacket(session.Effect.EffectId, leech);
@@ -251,12 +255,12 @@ namespace Rasa.Managers
                     DeathBlow = landed > 0 && target.Attributes[Attributes.Health].Current <= 0
                 });
 
-                if (crit && !outcome.Immune && target is Creature critted && critted.State != CharacterState.Dead && critted.State != CharacterState.Dying && critted.Attributes[Attributes.Health].Current > 0)
-                    CritEffects.OnCritical(mapChannel, critted, player, damageType, amount);
+                if (crit && !outcome.Immune && target.State != CharacterState.Dead && target.State != CharacterState.Dying && target.Attributes[Attributes.Health].Current > 0)
+                    CritEffects.OnCritical(mapChannel, target, player, damageType, amount);
 
                 if (leech)
                     Leech(mapChannel, player, landed, tick);
-                else if (session.ActionId == ActionId.WeaponPolaritygun && target is Creature)
+                else if (session.ActionId == ActionId.WeaponPolaritygun)
                     (session.ChargeTargetId, session.Charge, session.ChargePulses) =
                         AddCharge(session.ChargeTargetId, session.Charge, session.ChargePulses, target.EntityId, rolled);
             }
@@ -308,8 +312,10 @@ namespace Rasa.Managers
             if (amount <= 0 || session.ChargeTargetId == 0)
                 return;
 
-            if (!(EntityManager.Instance.GetActor(session.ChargeTargetId) is Creature target) || target.MapContextId != mapChannel.MapInfo.MapContextId
-                || target.State == CharacterState.Dead || target.State == CharacterState.Dying)
+            // A creature, or an enemy player who is still one (Pvp).
+            if (!(EntityManager.Instance.GetActor(session.ChargeTargetId) is Actor target) || target.MapContextId != mapChannel.MapInfo.MapContextId
+                || target.State == CharacterState.Dead || target.State == CharacterState.Dying
+                || !(target is Creature || Pvp.IsEnemyTarget(player, target)))
                 return;
 
             var crit = CriticalHits.Resolve(player, target, false, CriticalHits.AttackerChance(player, false, session.CritBonus), ref amount);

@@ -43,7 +43,7 @@ namespace Rasa.Managers
         private const int CalledShotChestTypeId = 294;      // CALLED_SHOT_CHEST
         private const int CalledShotHeadTypeId = 295;       // CALLED_SHOT_HEAD
 
-        private void ArmCalledShot(MapChannel mapChannel, Client client, Manifestation player, Creature target, ActionLevelInfo info)
+        private void ArmCalledShot(MapChannel mapChannel, Client client, Manifestation player, Actor target, ActionLevelInfo info)
         {
             var aim = NewEffect(mapChannel, player, info, CalledShotAimTypeId, info.Get(AbilityProperty.Duration, 20));
 
@@ -57,15 +57,15 @@ namespace Rasa.Managers
 
             aim.OnDamaged = (m, holder, effect) =>
             {
-                if (holder is Creature wounded)
-                    LandCalledShot(m, wounded, effect, info, weaponMin, weaponMax);
+                if (holder != null)
+                    LandCalledShot(m, holder, effect, info, weaponMin, weaponMax);
             };
 
             GameEffectManager.Instance.Attach(mapChannel, target, aim);
         }
 
         /// <summary>The aim has been taken off: the pump's own effect goes on in its place.</summary>
-        private void LandCalledShot(MapChannel mapChannel, Creature target, GameEffect aim, ActionLevelInfo info, int weaponMin, int weaponMax)
+        private void LandCalledShot(MapChannel mapChannel, Actor target, GameEffect aim, ActionLevelInfo info, int weaponMin, int weaponMax)
         {
             if (!(aim.Source is Manifestation player) || player.MapContextId != mapChannel.MapInfo.MapContextId)
                 return;
