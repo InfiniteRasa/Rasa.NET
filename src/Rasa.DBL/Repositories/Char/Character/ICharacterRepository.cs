@@ -41,6 +41,7 @@ namespace Rasa.Repositories.Char.Character
         void UpdateCharacterActiveWeapon(uint id, byte activeWeapon);
         void UpdateCharacterAbilitySlot(uint id, byte slot);
         void UpdateCharacterCurrentTitle(uint id, uint titleId);
+        void UpdateCharacterVitals(uint id, int health, int armor, int power, uint rezTraumaStacks, long rezTraumaEndsAt, long noHealEndsAt);
         void UpdateCharacterName(uint id, string name);
 
         /// <summary>Whether another character already has this name, matched case-insensitively.</summary>

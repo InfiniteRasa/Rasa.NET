@@ -193,8 +193,9 @@ namespace Rasa.Managers
                     && !(Pvp.SummonMayFight(creature, client.Player.EntityId) && !Pvp.IsSafe(client.Player))))
                     continue;
 
-                // Gone, and waiting to be taken out of the world: nothing to pick a fight with.
-                if (client.Player.Disconected)
+                // Gone, and waiting to be taken out of the world: nothing to pick a fight with -
+                // unless the connection dropped mid-fight and the body is still in it (CombatLogout).
+                if (client.Player.IsGone)
                     continue;
 
                 if (client.Player.GmFlagAlwaysFriendly)

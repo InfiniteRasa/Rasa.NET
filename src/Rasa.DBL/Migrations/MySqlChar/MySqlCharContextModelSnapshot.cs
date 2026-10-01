@@ -214,6 +214,18 @@ namespace Rasa.Migrations.MySqlChar
                         .HasColumnType("tinyint unsigned")
                         .HasColumnName("current_ability_slot");
 
+                    b.Property<int>("CurrentArmor")
+                        .HasColumnType("int")
+                        .HasColumnName("current_armor");
+
+                    b.Property<int>("CurrentHealth")
+                        .HasColumnType("int")
+                        .HasColumnName("current_health");
+
+                    b.Property<int>("CurrentPower")
+                        .HasColumnType("int")
+                        .HasColumnName("current_power");
+
                     b.Property<uint>("CurrentTitleId")
                         .HasColumnType("int unsigned")
                         .HasColumnName("current_title_id");
@@ -257,6 +269,10 @@ namespace Rasa.Migrations.MySqlChar
                         .HasColumnType("varchar(64)")
                         .HasColumnName("name");
 
+                    b.Property<long>("NoHealEndsAt")
+                        .HasColumnType("bigint")
+                        .HasColumnName("no_heal_ends_at");
+
                     b.Property<uint>("NumLogins")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int(11) unsigned")
@@ -270,6 +286,14 @@ namespace Rasa.Migrations.MySqlChar
                     b.Property<byte>("Race")
                         .HasColumnType("tinyint(3) unsigned")
                         .HasColumnName("race");
+
+                    b.Property<long>("RezTraumaEndsAt")
+                        .HasColumnType("bigint")
+                        .HasColumnName("rez_trauma_ends_at");
+
+                    b.Property<uint>("RezTraumaStacks")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("rez_trauma_stacks");
 
                     b.Property<double>("Rotation")
                         .HasColumnType("double")

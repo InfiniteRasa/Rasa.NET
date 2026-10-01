@@ -219,6 +219,29 @@ namespace Rasa.Structures
         public long CombatExpiresAt { get; set; }
 
         /// <summary>
+        /// What the character left the world with last time - health, armour, power, Rez Trauma -
+        /// read from its row at load and put back as it arrives (Managers.RelogVitals); null once
+        /// that is done, or for a character with nothing saved.
+        /// </summary>
+        public SavedVitals LeftWith { get; set; }
+
+        /// <summary>
+        /// Environment.TickCount64 until which a player whose connection dropped in a fight stays
+        /// in the world - still there to be fought - before the map worker takes them out; 0 for
+        /// none (Managers.CombatLogout).
+        /// </summary>
+        public long LingerUntil { get; set; }
+
+        /// <summary>Whether this player's connection has gone but their character is still in the fight it dropped out of.</summary>
+        public bool IsLingering => LingerUntil != 0 && Environment.TickCount64 < LingerUntil;
+
+        /// <summary>
+        /// Whether this player is gone for anything that would fight them: the connection has
+        /// dropped and they are not lingering (<see cref="IsLingering"/>).
+        /// </summary>
+        public bool IsGone => Disconected && !IsLingering;
+
+        /// <summary>
         /// Armour regeneration per second from the armour worn (armorclass.regen_rate summed),
         /// set by UpdateStatsValues. Armor.RefreshAmount carries it out of combat and 0 in combat
         /// (ManifestationManager.ApplyRegenPeriod).

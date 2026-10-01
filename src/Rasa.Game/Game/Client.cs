@@ -286,6 +286,8 @@ namespace Rasa.Game
 
                 Logger.WriteLog(LogType.Network, "*** Client disconnected! Ip: {0}", Socket.RemoteAddress);
 
+                var stateBefore = State;
+
                 State = ClientState.Disconnected;
 
                 Socket.Close();
@@ -304,8 +306,17 @@ namespace Rasa.Game
                 RestoreTransferOrigin();
                 if (Player != null && Player.MapChannel != null)
                 {
+                    // Dropped mid-fight: the character stays in it a while (CombatLogout). Worked
+                    // out before RemoveFromMap is set, which is also the Logout button's mark.
+                    var lingerUntil = CombatLogout.LingerUntil(Player, stateBefore, Environment.TickCount64);
+
+                    Player.LingerUntil = lingerUntil;
                     Player.Disconected = true;
                     Player.RemoveFromMap = true;
+
+                    if (lingerUntil != 0)
+                        Logger.WriteLog(LogType.Network,
+                            $"{Player.FamilyName} dropped in combat; the character stays in the world for {lingerUntil - Environment.TickCount64} ms.");
                 }
 
                 DiscardPendingChunks();

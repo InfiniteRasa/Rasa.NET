@@ -482,6 +482,10 @@ namespace Rasa.Managers
                     foreach (var client in mapChannel.ClientList.ToArray())
                         if (client != null && client.Player.RemoveFromMap)
                         {
+                            // Dropped mid-fight and still in it (CombatLogout): a later tick.
+                            if (CombatLogout.Holds(client.Player))
+                                continue;
+
                             if (removed > 0 && System.Diagnostics.Stopwatch.GetElapsedTime(removalFrom).TotalMilliseconds >= RemovalBudgetMs)
                                 break;
 
@@ -496,11 +500,28 @@ namespace Rasa.Managers
                             try
                             {
                                 RemovePlayer(client, true);
+
+                                // A dropped connection's character: whatever else the main loop
+                                // would have cleared up for it, which it left to this (CleanupDisconnected).
+                                if (client.State == ClientState.Disconnected)
+                                    CleanupDisconnected(client);
                             }
                             catch (Exception e)
                             {
                                 Logger.WriteLog(LogType.Error, $"Failed to remove {client.Player.FamilyName} from map {mapChannel.MapInfo.MapContextId}: {e}");
                                 mapChannel.ClientList.Remove(client);
+
+                                if (client.State == ClientState.Disconnected)
+                                {
+                                    try
+                                    {
+                                        CleanupDisconnected(client);
+                                    }
+                                    catch (Exception inner)
+                                    {
+                                        Logger.WriteLog(LogType.Error, $"And clearing up after {client.Player.FamilyName} threw as well: {inner}");
+                                    }
+                                }
                             }
                         }
                 }
@@ -631,6 +652,9 @@ namespace Rasa.Managers
             ManifestationManager.Instance.UpdateStatsValues(client, true);
             client.Player.Attributes[Attributes.Chi].Current = 0;
 
+            // Worked out on full; a character just loaded goes back to what it left with.
+            RelogVitals.ApplyVitals(client.Player);
+
             // register new Player
             EntityManager.Instance.RegisterEntity(client.Player.EntityId, EntityType.Character);
             EntityManager.Instance.RegisterPlayer(client.Player.EntityId, client.Player);
@@ -661,6 +685,10 @@ namespace Rasa.Managers
             // the gate on this side, and must walk out of it before it can send them back.
             MapLinkManager.Instance.PlayerEnteredMap(client);
             ManifestationManager.Instance.AssignPlayer(client);
+
+            // The Rez Trauma and no-healing a character just loaded left with, as its client now
+            // has its actor to show them on (nothing on any other arrival).
+            RelogVitals.RestorePenalties(client, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
 
             // The buffs brought from the map left (nothing on a login): after the player is in
             // the cells and their own client has its actor's info, so the attach reaches it and
@@ -829,6 +857,15 @@ namespace Rasa.Managers
             if (player == null)
                 return;
 
+            // A character flagged for removal and still on a map's list is that map's worker's:
+            // it takes them out with RemovePlayer - the position, cooldowns, health and death
+            // penalties saved, a dead player sent to their hospital - and then comes back here.
+            // This used to run first whenever the connection closed during a tick, after that
+            // tick's worker: the character was taken out without any of the saves, and a body
+            // left in a fight it dropped out of (CombatLogout) vanished at once.
+            if (IsLeftToWorker(client))
+                return;
+
             ManifestationManager.Instance.RemovePlayerCharacter(client);
             if (player.ClanId != 0)
                 ClanManager.Instance.RemovePlayer(client);
@@ -859,6 +896,24 @@ namespace Rasa.Managers
             player.RemoveFromMap = false;
             ReleaseOwnedPrivateInstances(player.Id);
             player.Disconected = true;
+        }
+
+        /// <summary>
+        /// Whether a map worker will take this client's character out: flagged for removal and on
+        /// the list of a map the worker visits.
+        /// </summary>
+        private bool IsLeftToWorker(Client client)
+        {
+            var player = client.Player;
+
+            if (player == null || !player.RemoveFromMap)
+                return false;
+
+            foreach (var map in MapChannelArray.Values.Concat(_privateInstances.Snapshot()))
+                if (map?.ClientList != null && map.ClientList.Contains(client))
+                    return true;
+
+            return false;
         }
 
         internal void DetachMissionScenes(Client client, MapChannel map) =>
@@ -1057,6 +1112,12 @@ namespace Rasa.Managers
                 RemovalStep(client, "discarding the buyback list", () => NpcManager.Instance.DiscardBuybackItems(client));
 
             RemovalStep(client, "removing queued actions", () => ActorActionManager.Instance.RemoveActor(player));
+
+            // Leaving the world: health, armour, power and the death penalties to the database,
+            // while the effects are still on to be read (RelogVitals). After the removal of the
+            // character, which takes a dead player to their hospital first.
+            if (logout)
+                RemovalStep(client, "saving health and death penalties", () => RelogVitals.Save(client));
 
             // Effects are per map as far as the clients know - nobody on the next map was told
             // about them - and a sprint left running would keep draining adrenaline unseen.

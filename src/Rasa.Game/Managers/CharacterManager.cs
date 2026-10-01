@@ -1165,6 +1165,10 @@ namespace Rasa.Managers
             ActionReuse.Restore(newCharacter, unitOfWork.CharacterActionReuses.Take(character.Id),
                 Environment.TickCount64, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
 
+            // The health, armour, power and death penalties it left with, put back as it arrives
+            // (RelogVitals).
+            newCharacter.LeftWith = SavedVitals.From(character);
+
             return newCharacter;
         }
 

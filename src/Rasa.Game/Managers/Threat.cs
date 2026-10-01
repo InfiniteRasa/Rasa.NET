@@ -208,10 +208,11 @@ namespace Rasa.Managers
                 {
                     var player = EntityManager.Instance.GetPlayer(entityId);
 
-                    // Disconected: a connection that has gone, whose character is waiting for the
-                    // map worker to take it out. It cannot fight back or be healed, and a creature
-                    // that kept at it would be beating on an empty body.
-                    return player != null && !player.Disconected && player.MapContextId == creature.MapContextId
+                    // Gone: a connection that has gone, whose character is waiting for the map
+                    // worker to take it out. It cannot fight back or be healed, and a creature
+                    // that kept at it would be beating on an empty body - unless it dropped out of
+                    // this very fight, when the body stays to be fought (CombatLogout).
+                    return player != null && !player.IsGone && player.MapContextId == creature.MapContextId
                         && player.State != CharacterState.Dead && player.Attributes[Attributes.Health].Current > 0
                         && !Detection.IsHidden(player) && !CameraScripts.IsWatching(player);
                 }

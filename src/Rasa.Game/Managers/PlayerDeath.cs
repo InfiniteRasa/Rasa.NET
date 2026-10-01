@@ -65,6 +65,8 @@ namespace Rasa.Managers
     /// on the body goes off as they get up, however they do (AbilityManager.OnCorpseRising).
     ///
     /// Leaving the game dead sends them to their hospital first, so they come back alive there.
+    /// Rez Trauma and the no-healing go with them: across a map change (EffectCarry) and a logout
+    /// (RelogVitals), so neither a map link nor a relog is a way out of them.
     /// </summary>
     public static class PlayerDeath
     {
@@ -328,6 +330,33 @@ namespace Rasa.Managers
             var leftMs = current != null ? Math.Max(0, current.ExpiresTick - now) : 0;
             var durationMs = Math.Min(RezSicknessMaxSeconds * 1000L, leftMs + RezSicknessSeconds * 1000L);
 
+            AttachRezTrauma(mapChannel, player, stacks, durationMs);
+        }
+
+        /// <summary>Whether an effect type is one of the penalties a revive leaves: Rez Trauma or the no-healing after it.</summary>
+        public static bool IsDeathPenalty(int typeId) => typeId == RezSicknessTypeId || typeId == RezSicknessNoHealTypeId;
+
+        /// <summary>
+        /// The penalties a player left the world with, back on as they arrive (RelogVitals): Rez
+        /// Trauma at that many deaths' worth for what it had left, and the no-healing for its. Each
+        /// is bounded by what a revive can give, so a row cannot hand out more than the game would.
+        /// </summary>
+        public static void RestorePenalties(MapChannel mapChannel, Manifestation player, int traumaStacks, long traumaMs, long noHealMs)
+        {
+            if (mapChannel == null || player == null || player.State == CharacterState.Dead)
+                return;
+
+            if (traumaStacks > 0 && traumaMs > 0)
+                AttachRezTrauma(mapChannel, player, Math.Min(traumaStacks, RezSicknessMaxStack), Math.Min(traumaMs, RezSicknessMaxSeconds * 1000L));
+
+            if (noHealMs > 0)
+                AttachNoHeal(mapChannel, player, Math.Min(noHealMs, NoHealSeconds * 1000L));
+        }
+
+        private static void AttachRezTrauma(MapChannel mapChannel, Manifestation player, int stacks, long durationMs)
+        {
+            var now = Environment.TickCount64;
+
             var trauma = new GameEffect
             {
                 TypeId = RezSicknessTypeId,
@@ -347,7 +376,10 @@ namespace Rasa.Managers
             GameEffectManager.Instance.Attach(mapChannel, player, trauma);
         }
 
-        private static void AddNoHeal(MapChannel mapChannel, Manifestation player)
+        private static void AddNoHeal(MapChannel mapChannel, Manifestation player) =>
+            AttachNoHeal(mapChannel, player, NoHealSeconds * 1000L);
+
+        private static void AttachNoHeal(MapChannel mapChannel, Manifestation player, long durationMs)
         {
             GameEffectManager.Instance.Attach(mapChannel, player, new GameEffect
             {
@@ -360,7 +392,7 @@ namespace Rasa.Managers
                 IsBuff = false,
                 AnnounceOnAttach = true,
                 BlocksHealing = true,
-                ExpiresTick = Environment.TickCount64 + NoHealSeconds * 1000L
+                ExpiresTick = Environment.TickCount64 + durationMs
             });
         }
 
