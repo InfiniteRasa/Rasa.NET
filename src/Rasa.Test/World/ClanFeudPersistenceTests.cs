@@ -1,0 +1,268 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+
+using Microsoft.EntityFrameworkCore;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+
+namespace Rasa.Test.World
+{
+    using Rasa.Context.Char;
+    using Rasa.Data;
+    using Rasa.Game;
+    using Rasa.Managers;
+    using Rasa.Packets;
+    using Rasa.Packets.Wargame.Server;
+    using Rasa.Repositories.Char.ClanFeud;
+    using Rasa.Structures.Char;
+    using Rasa.Test.Database;
+    using Rasa.Test.Missions;
+
+    // Clan feuds and feud challenges kept through a restart (ClanFeuds.Load, the clan_feud and
+    // clan_feud_challenge tables): each restart is a new ClanFeuds reading the same database.
+    [TestClass]
+    [DoNotParallelize]
+    public class ClanFeudPersistenceTests
+    {
+        private const uint RedId = 1, BlueId = 2, GreenId = 3;
+        private const long Hour = 60 * 60 * 1000L;
+
+        private string _directory;
+        private string _database;
+        private long _utc = 1_800_000_000_000;
+
+        [TestInitialize]
+        public void MigrateACharacterDatabase()
+        {
+            _directory = Path.Combine(AppContext.BaseDirectory, "TestDatabases", Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(_directory);
+            _database = Path.Combine(_directory, "database");
+
+            using var context = PersistenceIntegrationTests.CreateContext(typeof(SqliteCharContext), _database);
+            context.Database.Migrate();
+        }
+
+        [TestCleanup]
+        public void DeleteTheDatabase()
+        {
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+            Directory.Delete(_directory, true);
+        }
+
+        [TestMethod]
+        public void AFeudAndAChallengeComeBackAfterARestart()
+        {
+            using var world = new WorldTestContext();
+            var clans = new Clans(world);
+            var first = Restart(clans, tick: 1_000_000);
+
+            var feud = first.Start(clans.All[RedId], clans.All[BlueId]);
+            Assert.IsTrue(first.Kill(clans.Leader(RedId), clans.Member(BlueId)));
+            first.ChallengeClanToFeud(clans.Leader(GreenId), "Blue", true);
+            var challenge = first.Challenges.Single();
+
+            // An hour down, and the new process's clock starts somewhere else.
+            _utc += Hour;
+            var second = Restart(clans, tick: 50);
+
+            var back = second.Feuds.Single();
+            Assert.AreEqual(feud.Id, back.Id);
+            Assert.AreEqual(RedId, back.ChallengerClanId);
+            Assert.AreEqual(BlueId, back.TargetClanId);
+            Assert.AreEqual(1, back.ChallengerKills);
+            Assert.AreEqual(0, back.TargetKills);
+            Assert.AreEqual((int)((ClanFeuds.DefaultDuration.TotalMilliseconds - Hour) / 1000), second.SecondsLeft(back), 1, "the clock ran on while it was down");
+            Assert.IsTrue(second.AreFeuding(RedId, BlueId));
+
+            var backChallenge = second.Challenges.Single();
+            Assert.AreEqual(challenge.WargameId, backChallenge.WargameId);
+            Assert.AreEqual(GreenId, backChallenge.ChallengerClanId);
+            Assert.AreEqual(BlueId, backChallenge.TargetClanId);
+
+            // New ids follow on from the kept ones.
+            Assert.IsTrue(second.Start(clans.All[RedId], clans.All[GreenId]).Id > challenge.WargameId);
+        }
+
+        [TestMethod]
+        public void TheChallengedLeaderIsRemindedOnceAndCanStillAnswer()
+        {
+            using var world = new WorldTestContext();
+            var clans = new Clans(world);
+            Restart(clans, tick: 1000).ChallengeClanToFeud(clans.Leader(GreenId), "Blue", true);
+
+            var second = Restart(clans, tick: 1000);
+            var blueLead = clans.Leader(BlueId);
+            Drain(blueLead);
+
+            second.PlayerEnteredWorld(clans.Member(BlueId));
+            Assert.AreEqual(0, Drain(clans.Member(BlueId)).OfType<ClanWargameInviteReceivedPacket>().Count(), "only the leader answers");
+
+            second.PlayerEnteredWorld(blueLead);
+            var invite = Drain(blueLead).OfType<ClanWargameInviteReceivedPacket>().Single();
+            Assert.AreEqual("Green", invite.ClanName);
+
+            second.PlayerEnteredWorld(blueLead);
+            Assert.AreEqual(0, Drain(blueLead).OfType<ClanWargameInviteReceivedPacket>().Count(), "once: a map link is not a new client");
+
+            second.FeudChallengeResponse(blueLead, "Green", true);
+            Assert.IsTrue(second.AreFeuding(GreenId, BlueId));
+            Assert.AreEqual(invite.WargameId, second.Feuds.Single().Id, "the feud takes the challenge's id");
+
+            Assert.AreEqual(0, Rows().Challenges.Count);
+            Assert.AreEqual(invite.WargameId, Rows().Feuds.Single().Id);
+        }
+
+        [TestMethod]
+        public void AnEndedFeudAndAnAnsweredOrRevokedChallengeAreNotKept()
+        {
+            using var world = new WorldTestContext();
+            var clans = new Clans(world);
+            var first = Restart(clans, tick: 1000);
+
+            first.End(first.Start(clans.All[RedId], clans.All[BlueId]), ClanFeuds.Outcome.Tied);
+            first.ChallengeClanToFeud(clans.Leader(GreenId), "Blue", true);
+            first.FeudChallengeResponse(clans.Leader(BlueId), "Green", false);
+            first.ChallengeClanToFeud(clans.Leader(RedId), "Green", true);
+            first.RevokeClanFeud(clans.Leader(RedId), "Green");
+
+            Assert.AreEqual(0, Rows().Feuds.Count);
+            Assert.AreEqual(0, Rows().Challenges.Count);
+
+            var second = Restart(clans, tick: 1000);
+            Assert.AreEqual(0, second.Feuds.Count);
+            Assert.AreEqual(0, second.Challenges.Count);
+        }
+
+        [TestMethod]
+        public void AFeudThatRanOutWhileTheServerWasDownEndsOnTheFirstTick()
+        {
+            using var world = new WorldTestContext();
+            var clans = new Clans(world);
+            var first = Restart(clans, tick: 1000);
+            first.Start(clans.All[RedId], clans.All[BlueId]);
+            first.Kill(clans.Member(BlueId), clans.Leader(RedId));
+
+            _utc += 8 * 24 * Hour;
+            var second = Restart(clans, tick: 1000);
+            var blueMate = clans.Member(BlueId);
+            Drain(blueMate);
+
+            Assert.AreEqual(0, second.SecondsLeft(second.Feuds.Single()));
+            second.Worker();
+
+            Assert.AreEqual(0, second.Feuds.Count);
+            Assert.AreEqual(GameOpcode.WargameVictory, Drain(blueMate).OfType<WargameResultPacket>().Single().Opcode, "the score it was left on decides it");
+            Assert.AreEqual(0, Rows().Feuds.Count);
+        }
+
+        [TestMethod]
+        public void RowsNamingAClanThatIsGoneAreDropped()
+        {
+            using var world = new WorldTestContext();
+            var clans = new Clans(world);
+            var first = Restart(clans, tick: 1000);
+            first.Start(clans.All[RedId], clans.All[BlueId]);
+            first.ChallengeClanToFeud(clans.Leader(GreenId), "Red", true);
+
+            // Red is gone by the time the server comes back.
+            clans.All.Remove(RedId);
+            var second = Restart(clans, tick: 1000);
+
+            Assert.AreEqual(0, second.Feuds.Count);
+            Assert.AreEqual(0, second.Challenges.Count);
+            Assert.AreEqual(0, Rows().Feuds.Count);
+            Assert.AreEqual(0, Rows().Challenges.Count);
+        }
+
+        [TestMethod]
+        public void WithoutAStoreNothingIsKept()
+        {
+            using var world = new WorldTestContext();
+            var clans = new Clans(world);
+            var feuds = new ClanFeuds(clans);
+            feuds.Load(null);
+
+            feuds.Start(clans.All[RedId], clans.All[BlueId]);
+
+            Assert.AreEqual(0, Rows().Feuds.Count);
+        }
+
+        /// <summary>A server starting: a new ClanFeuds with its own clock, reading the database back.</summary>
+        private ClanFeuds Restart(Clans clans, long tick)
+        {
+            var feuds = new ClanFeuds(clans) { Now = () => tick, UtcNow = () => _utc };
+            feuds.Load(new SqliteStore(_database));
+            return feuds;
+        }
+
+        private (List<ClanFeudEntry> Feuds, List<ClanFeudChallengeEntry> Challenges) Rows() => new SqliteStore(_database).Load();
+
+        private static List<PythonPacket> Drain(Client client) => MissionTestContext.Drain(client).ToList();
+
+        /// <summary>The store the server has, over a database file: a context per call.</summary>
+        private sealed class SqliteStore : ClanFeuds.IStore
+        {
+            private readonly string _database;
+
+            public SqliteStore(string database)
+            {
+                _database = database;
+            }
+
+            private T With<T>(Func<ClanFeudRepository, T> action)
+            {
+                using var context = (CharContext)PersistenceIntegrationTests.CreateContext(typeof(SqliteCharContext), _database);
+                return action(new ClanFeudRepository(context));
+            }
+
+            public (List<ClanFeudEntry> Feuds, List<ClanFeudChallengeEntry> Challenges) Load() => With(r => (r.GetFeuds(), r.GetChallenges()));
+            public void SaveFeud(ClanFeudEntry feud) => With(r => { r.SaveFeud(feud); return 0; });
+            public void DeleteFeud(uint id) => With(r => { r.DeleteFeud(id); return 0; });
+            public void SaveChallenge(ClanFeudChallengeEntry challenge) => With(r => { r.SaveChallenge(challenge); return 0; });
+            public void DeleteChallenge(uint wargameId) => With(r => { r.DeleteChallenge(wargameId); return 0; });
+        }
+
+        /// <summary>Three PvP clans, each with a leader and a member online.</summary>
+        private sealed class Clans : ClanFeuds.IClans
+        {
+            public Dictionary<uint, ClanEntry> All { get; } = new Dictionary<uint, ClanEntry>();
+            private readonly Dictionary<uint, List<Client>> _members = new Dictionary<uint, List<Client>>();
+
+            public Clans(WorldTestContext world)
+            {
+                foreach (var (id, name) in new[] { (RedId, "Red"), (BlueId, "Blue"), (GreenId, "Green") })
+                {
+                    All[id] = new ClanEntry { Id = id, Name = name, IsPvP = true };
+                    _members[id] = new List<Client>();
+
+                    for (var i = 0; i < 2; i++)
+                    {
+                        var client = world.CreateClient(id * 10 + i, 0);
+                        client.Player.ClanId = id;
+                        client.Player.FamilyName = name + (i == 0 ? "Lead" : "Mate");
+                        _members[id].Add(client);
+                    }
+                }
+            }
+
+            public Client Leader(uint clanId) => _members[clanId][0];
+            public Client Member(uint clanId) => _members[clanId][1];
+
+            public ClanEntry Find(uint clanId) => All.GetValueOrDefault(clanId);
+
+            public ClanEntry FindByName(string name) => All.Values.FirstOrDefault(c => string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase));
+
+            public byte? RankOf(uint clanId, uint characterId)
+            {
+                if (!_members.TryGetValue(clanId, out var members))
+                    return null;
+
+                var index = members.FindIndex(c => c.Player.Id == characterId);
+                return index < 0 ? null : index == 0 ? ClanRank.MinRankToChallenge : (byte)0;
+            }
+
+            public List<Client> Online(uint clanId) => _members.TryGetValue(clanId, out var members) ? members.ToList() : new List<Client>();
+        }
+    }
+}

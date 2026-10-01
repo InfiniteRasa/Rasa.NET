@@ -418,6 +418,10 @@ namespace Rasa.Game
             MapChannelManager.Instance.MapChannelInit();
             NavMeshManager.Instance.NavMeshInit(Config.GameDataConfig?.NavMeshPath);
             ClanManager.Instance.ClansInit();
+
+            // The clan feuds and challenges kept through the last restart; from here on every
+            // change to them is kept.
+            ClanFeuds.Instance.Load(new ClanFeuds.ServerStore(GameUnitOfWorkFactory));
             DynamicObjectManager.Instance.InitDynamicObjects();
             MapTriggerManager.Instance.MapTriggerInit();
             MapLinkManager.Instance.MapLinkInit();

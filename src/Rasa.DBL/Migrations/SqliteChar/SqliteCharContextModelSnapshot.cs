@@ -1023,6 +1023,56 @@ namespace Rasa.Migrations.SqliteChar
                     b.ToTable("clan");
                 });
 
+            modelBuilder.Entity("Rasa.Structures.Char.ClanFeudChallengeEntry", b =>
+                {
+                    b.Property<uint>("WargameId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("wargame_id");
+
+                    b.Property<uint>("ChallengerClanId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("challenger_clan_id");
+
+                    b.Property<uint>("TargetClanId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("target_clan_id");
+
+                    b.HasKey("WargameId");
+
+                    b.ToTable("clan_feud_challenge");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.Char.ClanFeudEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("id");
+
+                    b.Property<uint>("ChallengerClanId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("challenger_clan_id");
+
+                    b.Property<int>("ChallengerKills")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("challenger_kills");
+
+                    b.Property<long>("EndsAt")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("ends_at");
+
+                    b.Property<uint>("TargetClanId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("target_clan_id");
+
+                    b.Property<int>("TargetKills")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("target_kills");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("clan_feud");
+                });
+
             modelBuilder.Entity("Rasa.Structures.Char.ClanInventoryEntry", b =>
                 {
                     b.Property<uint>("ItemId")

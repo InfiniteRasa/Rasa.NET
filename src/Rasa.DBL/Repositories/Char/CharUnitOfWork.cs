@@ -80,6 +80,7 @@ namespace Rasa.Repositories.Char
             CharacterActionReuses = characterActionReuses;
             CharacterMissions = characterMissions;
             MissionOffers = new MissionOffer.MissionOfferRepository(dbContext);
+            ClanFeuds = new ClanFeud.ClanFeudRepository(dbContext);
             CharacterMissionItems = new CharacterMissionItem.CharacterMissionItemRepository(dbContext);
             CharacterMissionDeadlines = characterMissionDeadlines;
             CharacterMissionProgress = characterMissionProgress;
@@ -112,6 +113,7 @@ namespace Rasa.Repositories.Char
         public ICharacterActionReuseRepository CharacterActionReuses { get; }
         public ICharacterMissionRepository CharacterMissions { get; }
         public MissionOffer.MissionOfferRepository MissionOffers { get; }
+        public ClanFeud.IClanFeudRepository ClanFeuds { get; }
         public CharacterMissionItem.ICharacterMissionItemRepository CharacterMissionItems { get; }
         public ICharacterMissionDeadlineRepository CharacterMissionDeadlines { get; }
         public ICharacterMissionProgressRepository CharacterMissionProgress { get; }

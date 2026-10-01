@@ -56,6 +56,8 @@ namespace Rasa.Context.Char
         public DbSet<CharacterTeleporterEntry> CharacterTeleporterEntries { get; set; }
         public DbSet<CharacterTitleEntry> CharacterTitleEntries { get; set; }
         public DbSet<ClanEntry> ClanEntries { get; set; }
+        public DbSet<ClanFeudEntry> ClanFeudEntries { get; set; }
+        public DbSet<ClanFeudChallengeEntry> ClanFeudChallengeEntries { get; set; }
         public DbSet<AuctionEntry> AuctionEntries { get; set; }
 
         public DbSet<ClanInventoryEntry> ClanInventoryEntries { get; set; }
@@ -130,6 +132,7 @@ namespace Rasa.Context.Char
             SetupCharacterOptionsTable(modelBuilder);
             SetupClanMemberTable(modelBuilder);
             SetupClanTable(modelBuilder);
+            SetupClanFeudTables(modelBuilder);
             SetupFriendTable(modelBuilder);
             SetupIgnoredTable(modelBuilder);
             SetupPetitionTable(modelBuilder);
@@ -530,6 +533,18 @@ namespace Rasa.Context.Char
             modelBuilder.Entity<ClanEntry>()
                 .Property(e => e.CreatedAt)
                 .AsCurrentDateTime(_dbContextPropertyModifier);
+        }
+
+        // Keyed by the feud's wargame id, which the server hands out: never generated here.
+        private void SetupClanFeudTables(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<ClanFeudEntry>()
+                .Property(e => e.Id)
+                .ValueGeneratedNever();
+
+            modelBuilder.Entity<ClanFeudChallengeEntry>()
+                .Property(e => e.WargameId)
+                .ValueGeneratedNever();
         }
 
         // One row per (owner, contact). These were keyed on account_id alone, which capped

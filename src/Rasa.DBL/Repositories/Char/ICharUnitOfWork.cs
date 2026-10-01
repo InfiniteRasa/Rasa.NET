@@ -54,6 +54,8 @@
             throw new System.NotSupportedException("This character unit of work has no mission offer authority store.");
         CharacterMissionItem.ICharacterMissionItemRepository CharacterMissionItems =>
             throw new System.NotSupportedException("This character unit of work has no mission item ledger.");
+        ClanFeud.IClanFeudRepository ClanFeuds =>
+            throw new System.NotSupportedException("This character unit of work has no clan feud store.");
         ICharacterMissionDeadlineRepository CharacterMissionDeadlines { get; }
         ICharacterMissionProgressRepository CharacterMissionProgress { get; }
         ICharacterMissionScenarioRepository CharacterMissionScenario { get; }
