@@ -9,12 +9,12 @@ namespace Rasa.Managers
     /// <summary>
     /// What every kind of wargame shares: the sides a player is on, as the client's WargameData
     /// carries them (<c>{wargameId: side}</c>, Actor.Recv_WargameData), and the showing of them.
-    /// Clan feuds (ClanFeuds) and duels (Duels) each give their own entries; their ids do not
-    /// overlap. Pvp reads the sides from here to tell enemies apart.
+    /// Clan feuds (ClanFeuds), duels (Duels) and squad wargames (SquadWargames) each give their
+    /// own entries; their ids do not overlap. Pvp reads the sides from here to tell enemies apart.
     /// </summary>
     public static class Wargames
     {
-        /// <summary>The player's WargameData: every feud their clan is in and their duel.</summary>
+        /// <summary>The player's WargameData: every feud their clan is in, their duel and their squad wargame.</summary>
         public static Dictionary<uint, bool> DataOf(Manifestation player)
         {
             var data = ClanFeuds.Instance.WargameDataOf(player);
@@ -22,8 +22,19 @@ namespace Rasa.Managers
             foreach (var duel in Duels.Instance.WargameDataOf(player))
                 data[duel.Key] = duel.Value;
 
+            foreach (var war in SquadWargames.Instance.WargameDataOf(player))
+                data[war.Key] = war.Value;
+
             return data;
         }
+
+        /// <summary>Whether the player is in a duel or a squad wargame.</summary>
+        public static bool IsWargaming(Client client) =>
+            Duels.Instance.IsDueling(client) || SquadWargames.Instance.IsWargaming(client);
+
+        /// <summary>Whether the player has a duel or squad wargame challenge open, made or received.</summary>
+        public static bool HasChallenge(Client client) =>
+            Duels.Instance.HasChallenge(client) || SquadWargames.Instance.HasChallenge(client);
 
         /// <summary>
         /// The player's WargameData to everyone who can see them, themselves included, and who is

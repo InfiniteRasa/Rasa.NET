@@ -298,6 +298,9 @@ namespace Rasa.Managers
             // Duel challenges that lapsed and duels whose time is up.
             Guard("Duels.Worker", null, () => Duels.Instance.Worker());
 
+            // Squad wargame challenges that lapsed and squad wargames whose time is up.
+            Guard("SquadWargames.Worker", null, () => SquadWargames.Instance.Worker());
+
             // Server-wide lists, ticked once. These used to run inside the per-map loop below,
             // guarded by that map having players, so with N populated maps every auto-fire
             // timer and every dropship advanced N times per tick.

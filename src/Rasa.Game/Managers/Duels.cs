@@ -36,8 +36,8 @@ namespace Rasa.Managers
     ///
     /// The refusals are the client's messages: a name nobody in the world has, oneself, the other
     /// map, a duel or a challenge already open on either side, an ignore, the same squad, a squad on
-    /// one side only, and a squad invitation still open. Two squads challenging each other is a
-    /// Squad Wargame, which is not here yet: it is refused as a squad on the other side.
+    /// one side only, and a squad invitation still open. Two players each in a squad of their own
+    /// challenging each other is a Squad Wargame (SquadWargames), which takes the challenge from here.
     ///
     /// Ours, since nothing in the client says: a challenge lapses after <see cref="ChallengeTimeout"/>;
     /// a duel is for one kill unless more were asked for (at most <see cref="MaxKillsLimit"/>) and
@@ -146,6 +146,16 @@ namespace Rasa.Managers
                 return;
             }
 
+            // Both in squads, and not the same one: a Squad Wargame.
+            var mySquad = client.Player.PartyId;
+            var theirSquad = target.Player.PartyId;
+
+            if (mySquad != 0 && theirSquad != 0 && mySquad != theirSquad)
+            {
+                SquadWargames.Instance.ChallengeSquad(client, target, timeMins, maxKills);
+                return;
+            }
+
             if (Refusal(client, target) is (PlayerMessage message, bool named))
             {
                 if (named)
@@ -169,7 +179,7 @@ namespace Rasa.Managers
 
                 challenge = new Challenge
                 {
-                    WargameId = _nextId++,
+                    WargameId = NextWargameId(),
                     Challenger = client,
                     Target = target,
                     ExpiresTick = Now() + (long)ChallengeTimeout.TotalMilliseconds,
@@ -492,6 +502,13 @@ namespace Rasa.Managers
 
         public int MillisecondsLeft(Duel duel) => (int)Math.Max(0, Math.Min(int.MaxValue, duel.EndTick - Now()));
 
+        /// <summary>The next wargame id, for a duel or a squad wargame: the two share the numbers.</summary>
+        internal uint NextWargameId()
+        {
+            lock (_sync)
+                return _nextId++;
+        }
+
         #endregion
 
         #region Helpers
@@ -520,11 +537,8 @@ namespace Rasa.Managers
                     return (PlayerMessage.PmWargameAlreadyChallenging, true);
             }
 
-            if (client.Player.MapChannel == null || client.Player.MapChannel != target.Player.MapChannel)
-                return (PlayerMessage.PmWargameChallengeNotOnSameMap, true);
-
-            if (client.AccountEntry != null && target.Player.IgnoredPlayers.Contains(client.AccountEntry.Id))
-                return (PlayerMessage.PmWargameInviteIgnored, true);
+            if (SameMapRefusal(client, target) is PlayerMessage elsewhere)
+                return (elsewhere, true);
 
             var mySquad = client.Player.PartyId;
             var theirSquad = target.Player.PartyId;
@@ -538,19 +552,37 @@ namespace Rasa.Managers
             if (theirSquad != 0)
                 return (PlayerMessage.PmWargameFailTargetInSquad, true);
 
+            return InviteRefusal(client, target) is PlayerMessage inviting ? (inviting, true) : null;
+        }
+
+        /// <summary>A challenge to a player on another map, or to one who has the challenger ignored; null otherwise. Duels and squads alike.</summary>
+        internal static PlayerMessage? SameMapRefusal(Client client, Client target)
+        {
+            if (client.Player.MapChannel == null || client.Player.MapChannel != target.Player.MapChannel)
+                return PlayerMessage.PmWargameChallengeNotOnSameMap;
+
+            if (client.AccountEntry != null && target.Player.IgnoredPlayers.Contains(client.AccountEntry.Id))
+                return PlayerMessage.PmWargameInviteIgnored;
+
+            return null;
+        }
+
+        /// <summary>A challenge while either side has a squad invitation open, given or received; null otherwise. Duels and squads alike.</summary>
+        internal static PlayerMessage? InviteRefusal(Client client, Client target)
+        {
             var party = PartyManager.Instance;
 
             if (party.IsInviting(client))
-                return (PlayerMessage.PmWargameYouInvitingToParty, true);
+                return PlayerMessage.PmWargameYouInvitingToParty;
 
             if (party.IsInvited(client))
-                return (PlayerMessage.PmWargameYouInvitedToParty, true);
+                return PlayerMessage.PmWargameYouInvitedToParty;
 
             if (party.IsInviting(target))
-                return (PlayerMessage.PmWargameTheyInvitingToParty, true);
+                return PlayerMessage.PmWargameTheyInvitingToParty;
 
             if (party.IsInvited(target))
-                return (PlayerMessage.PmWargameTheyInvitedToParty, true);
+                return PlayerMessage.PmWargameTheyInvitedToParty;
 
             return null;
         }

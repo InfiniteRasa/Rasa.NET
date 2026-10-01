@@ -115,8 +115,9 @@ namespace Rasa.Managers
 
             if (Pvp.Defeats(source, victim))
             {
-                // A duel ends in a defeat; so does anything for a GM who may not die.
-                if (client == null || Pvp.InDuel(mapChannel, Pvp.Controller(source), victim) || IsDeathless(client))
+                // A duel or a squad wargame ends in a defeat; so does anything for a GM who may not die.
+                if (client == null || Pvp.InDuel(mapChannel, Pvp.Controller(source), victim)
+                    || Pvp.InSquadWargame(mapChannel, Pvp.Controller(source), victim) || IsDeathless(client))
                 {
                     Pvp.Defeat(mapChannel, victim, source);
                     return false;

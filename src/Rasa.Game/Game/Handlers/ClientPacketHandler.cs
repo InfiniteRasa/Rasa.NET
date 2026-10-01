@@ -971,7 +971,8 @@
         [PacketHandler(GameOpcode.SurrenderWargame)]
         private void SurrenderWargame(SurrenderWargamePacket packet)
         {
-            Duels.Instance.SurrenderWargame(Client);
+            if (!SquadWargames.Instance.SurrenderWargame(Client))
+                Duels.Instance.SurrenderWargame(Client);
         }
 
         [PacketHandler(GameOpcode.ChallengeUserToWargameByName)]
@@ -983,13 +984,15 @@
         [PacketHandler(GameOpcode.WargameChallengeResponse)]
         private void WargameChallengeResponse(WargameChallengeResponsePacket packet)
         {
-            Duels.Instance.WargameChallengeResponse(Client, packet.Accepted);
+            if (!SquadWargames.Instance.WargameChallengeResponse(Client, packet.Accepted))
+                Duels.Instance.WargameChallengeResponse(Client, packet.Accepted);
         }
 
         [PacketHandler(GameOpcode.WargameChallengeRevoked)]
         private void WargameChallengeRevoked(WargameChallengeRevokedPacket packet)
         {
-            Duels.Instance.WargameChallengeRevoked(Client);
+            if (!SquadWargames.Instance.WargameChallengeRevoked(Client))
+                Duels.Instance.WargameChallengeRevoked(Client);
         }
 
         [PacketHandler(GameOpcode.ToggleAfk)]

@@ -420,6 +420,14 @@ namespace Rasa.Managers
                 return;
             }
 
+            // Neither squad joins another while in a wargame or with a challenge open (SquadWargames).
+            if (WargameRefusal(client, requester) is PlayerMessage leaderBusy)
+            {
+                Message(client, leaderBusy, "invitee", requester.Player.FamilyName);
+                Message(requester, PlayerMessage.PmPartyRequestIsNoLongerValid);
+                return;
+            }
+
             if (JoiningSize(requesterParty) + (leaderParty?.Members.Count ?? 1) > MaxPartySize)
             {
                 Message(client, PlayerMessage.PmPartyIsFull);
@@ -451,6 +459,24 @@ namespace Rasa.Managers
                 AddMember(leaderParty, requester);
             else
                 MergeInto(leaderParty, requesterParty);
+        }
+
+        /// <summary>Why a squad leader may not take this player in for a wargame, on either side; null if they may.</summary>
+        private static PlayerMessage? WargameRefusal(Client leader, Client joining)
+        {
+            if (Wargames.IsWargaming(leader))
+                return PlayerMessage.PmPartyInviteFailedYouAreInWargame;
+
+            if (Wargames.IsWargaming(joining))
+                return PlayerMessage.PmPartyInviteFailedTheyAreInWargame;
+
+            if (Wargames.HasChallenge(leader))
+                return PlayerMessage.PmPartyInviteFailedYouAreInWgChallenge;
+
+            if (Wargames.HasChallenge(joining))
+                return PlayerMessage.PmPartyInviteFailedTheyAreInWgChallenge;
+
+            return null;
         }
 
         internal void PartyInvitationResponse(Client client, PartyInvitationResponsePacket packet)
@@ -990,26 +1016,27 @@ namespace Rasa.Managers
                 return;
             }
 
-            // A duel, or a challenge to one still open, keeps either side out of squads (Duels).
-            if (Duels.Instance.IsDueling(inviter))
+            // A duel or a squad wargame, or a challenge to one still open, keeps either side out of
+            // squads (Duels, SquadWargames): nobody joins a squad in a wargame.
+            if (Wargames.IsWargaming(inviter))
             {
                 Message(inviter, PlayerMessage.PmPartyInviteFailedYouAreInWargame, "invitee", displayName);
                 return;
             }
 
-            if (Duels.Instance.IsDueling(recipient))
+            if (Wargames.IsWargaming(recipient))
             {
                 Message(inviter, PlayerMessage.PmPartyInviteFailedTheyAreInWargame, "invitee", displayName);
                 return;
             }
 
-            if (Duels.Instance.HasChallenge(inviter))
+            if (Wargames.HasChallenge(inviter))
             {
                 Message(inviter, PlayerMessage.PmPartyInviteFailedYouAreInWgChallenge, "invitee", displayName);
                 return;
             }
 
-            if (Duels.Instance.HasChallenge(recipient))
+            if (Wargames.HasChallenge(recipient))
             {
                 Message(inviter, PlayerMessage.PmPartyInviteFailedTheyAreInWgChallenge, "invitee", displayName);
                 return;
@@ -1224,6 +1251,9 @@ namespace Rasa.Managers
                 {
                     leaver.Player.PartyId = 0;
                     ResetClient(leaver, kicked);
+
+                    // Out of the squad is out of its wargame and its challenge.
+                    SquadWargames.Instance.LeftSquad(leaver);
                 }
             }
 
@@ -1254,7 +1284,9 @@ namespace Rasa.Managers
 
         private void Disband(Party party)
         {
-            foreach (var member in OnlineClients(party))
+            var online = OnlineClients(party);
+
+            foreach (var member in online)
             {
                 member.Player.PartyId = 0;
                 member.CallMethod(SysEntity.ClientPartyManagerId, new PartyDisbandedPacket());
@@ -1271,6 +1303,10 @@ namespace Rasa.Managers
             Voice.VoiceServer.Instance.GroupDisbanded(party.Id);
 
             AdsChanged(null, former);
+
+            // A squad disbanded is out of its wargame and its challenge.
+            foreach (var member in online)
+                SquadWargames.Instance.LeftSquad(member);
         }
 
         /// <summary>
@@ -1498,6 +1534,9 @@ namespace Rasa.Managers
                 }
             }
         }
+
+        /// <summary>The squad's members the squad counts online (SquadWargames).</summary>
+        internal static List<Client> OnlineMembers(Party party) => OnlineClients(party);
 
         private static List<Client> OnlineClients(Party party)
         {

@@ -24,7 +24,7 @@ namespace Rasa.Managers
     ///    client's hostile targeting, right-click Attack, overhead colour and radar pip (PLAYER_PVP)
     ///    go by (targeting.py _IsTargetType, radarwindow.py _GetManifestationType).
     ///
-    /// The wargames are Clan Feuds (ClanFeuds) and Duels (Duels); <see cref="AreEnemies"/> reads
+    /// The wargames are Clan Feuds (ClanFeuds), Duels (Duels) and Squad Wargames (SquadWargames); <see cref="AreEnemies"/> reads
     /// the sides from their WargameData (Wargames.DataOf), as the client does.
     ///
     /// shared/gameconstants.py has the numbers:
@@ -418,7 +418,14 @@ namespace Rasa.Managers
                 return;
 
             Duels.Instance.Kill(killerClient, victimClient);
+            SquadWargames.Instance.Kill(killerClient, victimClient);
             ClanFeuds.Instance.Kill(killerClient, victimClient);
+        }
+
+        /// <summary>Whether the two are on opposite sides of a squad wargame: as in a duel, its loser is defeated, not killed (PlayerDeath).</summary>
+        public static bool InSquadWargame(MapChannel mapChannel, Manifestation one, Manifestation other)
+        {
+            return SquadWargames.Instance.AreOpposed(ClientOf(mapChannel, one), ClientOf(mapChannel, other));
         }
 
         /// <summary>Whether the two are dueling each other: a duel's loser is defeated, not killed (PlayerDeath).</summary>

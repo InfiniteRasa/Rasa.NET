@@ -3104,8 +3104,10 @@ namespace Rasa.Managers
             RemoveAutoFire(client);
             ConstantFire.Stop(client, release: false);
 
-            // Leaving the map or the world: an open duel challenge is off, a duel is forfeit.
+            // Leaving the map or the world: an open duel challenge is off, a duel is forfeit, and
+            // a squad wargame goes on without them.
             Duels.Instance.PlayerLeft(client);
+            SquadWargames.Instance.PlayerLeft(client);
         }
 
         public void RemoveAppearanceItem(Client client, EquipmentData equipmentSlotId)
