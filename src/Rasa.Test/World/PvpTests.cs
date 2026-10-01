@@ -52,6 +52,18 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
+        public void AFeudLastsAWeek()
+        {
+            using var world = new WorldTestContext();
+            Fighter(world, RedClanId);
+            Fighter(world, BlueClanId, 10);
+
+            Assert.AreEqual(TimeSpan.FromDays(7), ClanFeuds.DefaultDuration);
+
+            WithFeud(world, feud => Assert.AreEqual(7 * 24 * 60 * 60, ClanFeuds.Instance.SecondsLeft(feud), 5));
+        }
+
+        [TestMethod]
         public void AnEnemyIsIntroducedHostileAndEveryoneElseFriendly()
         {
             using var world = new WorldTestContext();

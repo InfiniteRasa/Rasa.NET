@@ -36,7 +36,7 @@ namespace Rasa.Managers
     /// challenge, in either direction, or one feud between two clans. A squad cannot hold members
     /// of two clans at feud (PartyManager.SeparateFeuding, CanSquadTogether).
     ///
-    /// Ours, since nothing in the client says: a feud lasts <see cref="Duration"/> (an hour
+    /// Ours, since nothing in the client says: a feud lasts <see cref="Duration"/> (a week
     /// unless a GM changes it with .feud length); a challenge waits until it is answered or
     /// revoked, or a clan disbands; the side a member is on is true for the challenging clan.
     /// Nothing here is saved: a restart ends every feud and challenge. A clan that disbands
@@ -60,7 +60,7 @@ namespace Rasa.Managers
             }
         }
 
-        public static readonly TimeSpan DefaultDuration = TimeSpan.FromHours(1);
+        public static readonly TimeSpan DefaultDuration = TimeSpan.FromDays(7);
 
         /// <summary>How long a feud started from now lasts.</summary>
         public TimeSpan Duration { get; set; } = DefaultDuration;
