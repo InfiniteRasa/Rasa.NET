@@ -436,6 +436,7 @@ namespace Rasa.Managers
                         case Outcome.Won when clanId == winnerClanId:
                             member.CallMethod(SysEntity.ClientWargameManagerId, WargameResultPacket.Victory(feud.Id));
                             Say(member, PlayerMessage.PmWargameFeudYourClanWon);
+                            PvpPrestige.FeudWon(member);
                             break;
 
                         case Outcome.Won:
@@ -484,8 +485,11 @@ namespace Rasa.Managers
         }
 
         /// <summary>
-        /// A kill between the two clans of a feud (Pvp.Defeat): counted for the killer's clan, and
-        /// the score sent.
+        /// A kill between the two clans of a feud (Pvp.Defeat): counted for the killer's clan, the
+        /// score sent, and the killer's prestige given (PvpPrestige.FeudKill). A kill across too
+        /// many levels has no credit (PvpPrestige.HasKillCredit): it is not counted and gives no
+        /// prestige, and both are told (PM_WARGAME_FEUD_NO_KILL_CREDIT_LEVELS). Returns whether
+        /// the kill was counted.
         /// </summary>
         public bool Kill(Client killer, Client victim)
         {
@@ -498,6 +502,24 @@ namespace Rasa.Managers
                 feud = _feuds.Values.FirstOrDefault(f => f.Between(killerClan, victimClan) && killerClan != victimClan);
 
                 if (feud == null)
+                    return false;
+            }
+
+            if (!PvpPrestige.HasKillCredit(killer.Player.Level, victim.Player.Level))
+            {
+                var clanName = _clans.Find(killerClan)?.Name ?? "";
+
+                foreach (var told in new[] { killer, victim })
+                    Say(told, PlayerMessage.PmWargameFeudNoKillCreditLevels,
+                        ("killerClanName", clanName), ("victimName", victim.Player.FamilyName), ("killerName", killer.Player.FamilyName));
+
+                return false;
+            }
+
+            lock (_sync)
+            {
+                // Ended between the two looks: nothing to count.
+                if (!_feuds.ContainsKey(feud.Id))
                     return false;
 
                 if (killerClan == feud.ChallengerClanId)
@@ -513,6 +535,9 @@ namespace Rasa.Managers
 
             Say(victim, PlayerMessage.PmWargameFeudYouWereKilled, ("killerName", killer.Player.FamilyName), ("killerClanName", killerClanName));
             Say(killer, PlayerMessage.PmWargameFeudYouMadeAKill, ("victimName", victim.Player.FamilyName), ("victimClanName", victimClanName));
+
+            // A feud kill generates prestige for the killer and steals some of the victim's.
+            PvpPrestige.FeudKill(killer, victim);
 
             foreach (var clanId in new[] { feud.ChallengerClanId, feud.TargetClanId })
             {
