@@ -180,6 +180,9 @@ namespace Rasa.Managers
             _protocol.BuildStatusSnapshot(player);
         internal void PublishMissionStatus(Client client, uint missionId, string description) =>
             _protocol.PublishMissionStatus(client, missionId, description);
+
+        internal void PublishMissionStatus(Client client, IEnumerable<uint> missionIds, string description) =>
+            _protocol.PublishMissionStatus(client, missionIds, description);
         internal MissionInfo BuildPublishedMissionInfo(Manifestation player, Mission definition, MissionLog mission) =>
             _protocol.BuildPublishedMissionInfo(player, definition, mission);
         internal void PublishAnnouncementAudio(Client client, uint missionId, uint greetingId) =>

@@ -84,6 +84,32 @@ namespace Rasa.Test.Missions
         }
 
         [TestMethod]
+        public void AStatusRefreshForOneMissionCarriesTheWholeJournal()
+        {
+            // The client replaces its whole mission log with the dictionary in MissionStatusInfo
+            // and untracks whatever is missing from it: a refresh holding one mission emptied the
+            // journal and the tracker of all the others.
+            using var context = MissionTestContext.WithDefinitions(321, 429, 666);
+            context.SeedMission(context.Client.Player.Id, 321, (uint)MissionState.Active, false);
+            context.SeedMission(context.Client.Player.Id, 429, (uint)MissionState.Active, true);
+            context.SeedMission(context.Client.Player.Id, 666, (uint)MissionState.Failed, false);
+            context.ReloadPlayerMissions();
+            context.Drain();
+
+            context.Manager.PublishMissionStatus(context.Client, 666, "after a failure");
+
+            var packet = context.Drain().OfType<MissionStatusInfoPacket>().Single();
+            CollectionAssert.AreEquivalent(new uint[] { 321, 429, 666 }, packet.MissionStatusDict.Keys.ToArray());
+            Assert.AreEqual(MissionState.Failed, packet.MissionStatusDict[666].MissionState);
+
+            context.Manager.PublishMissionStatus(context.Client, new uint[] { 321, 429 }, "two at once");
+            Assert.AreEqual(1, context.Drain().OfType<MissionStatusInfoPacket>().Count(), "one snapshot for both");
+
+            context.Manager.PublishMissionStatus(context.Client, 12345, "a mission they do not have");
+            Assert.AreEqual(0, context.Drain().OfType<MissionStatusInfoPacket>().Count());
+        }
+
+        [TestMethod]
         public void InitialSnapshotMapsOnlySupportedDurableCharacterRows()
         {
             using var context = MissionTestContext.WithDefinitions(321, 429, 666, 777, 888);

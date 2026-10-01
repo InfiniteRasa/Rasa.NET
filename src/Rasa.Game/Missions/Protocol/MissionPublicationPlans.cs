@@ -326,11 +326,12 @@ namespace Rasa.Managers
                 if (publication.ShownIndicatorIds.Count > 0)
                     indicatorRefreshMissionIds.Add(publication.MissionId);
 
-            foreach (var missionId in indicatorRefreshMissionIds)
+            // One snapshot covers them all (PublishMissionStatus sends the whole journal).
+            if (indicatorRefreshMissionIds.Count > 0)
                 _manager.PublishMissionStatus(
                     client,
-                    missionId,
-                    $"mission {missionId} status after deadline start or indicator reveal");
+                    indicatorRefreshMissionIds,
+                    $"mission {string.Join(", ", indicatorRefreshMissionIds)} status after deadline start or indicator reveal");
 
             foreach (var missionId in _completableMissions)
             {
