@@ -280,9 +280,10 @@ SQLite startup creates missing files and applies pending schema/data migrations.
 MySQL requires the normal explicit `dotnet ef database update` commands before
 starting Game. Both providers use shared C# mission-data helpers.
 
-This branch consolidates its 162 development-time migration steps into **six**,
-counting SQLite and MySQL separately. Migrations already on `development` remain
-unchanged.
+The mission baseline consolidates its 162 development-time migration steps
+into **six**, counting SQLite and MySQL separately. Migrations already on
+`development` remain unchanged. The Wilderness rollout appends paired World
+migrations after the complete PR105 history.
 
 | Database | New migrations for each provider |
 | --- | --- |
@@ -290,12 +291,53 @@ unchanged.
 | Char | `ConsolidatedCharacterSchema` |
 | World | `ConsolidatedWorldSchema`, then `SeedWorldContent` |
 
-The consolidated history targets **fresh databases**. It does not upgrade
+The consolidated baseline targets **fresh databases**. It does not upgrade
 databases that recorded the removed branch migration IDs, convert experimental
 mission releases, or backfill intermediate character saves. Use fresh database
 paths, or remove your own disposable files when you intend to start over.
 Do not rewrite `__EFMigrationsHistory` to make an old branch database appear
 compatible. The server does not delete databases or reset characters.
+
+The supported rollout targets are a fresh merged database and an existing
+PR105 database. PR105's final World migration is
+`20261103000000_Snowball_stacks_not_unique`. All 17 Wilderness migration pairs
+follow it, in the order below; each timestamp is identical for SQLite and MySQL.
+The Wilderness-only World updates do not reset existing PR105 Char assignments,
+inventory, flags or history.
+
+| Timestamp | Wilderness migration |
+| --- | --- |
+| `20261104000000` | `WildernessOpeningWorld` |
+| `20261104000100` | `NativeMissionCategory` |
+| `20261104000200` | `WildernessAliaOpening` |
+| `20261104000300` | `WildernessHubWorld` |
+| `20261104000400` | `RelatedMissionFailureAction` |
+| `20261104000500` | `WildernessRewardEquipment` |
+| `20261104000600` | `WildernessAdditionalWorld` |
+| `20261104000700` | `WildernessSpawnStatistics` |
+| `20261104000800` | `WildernessAliaBranches` |
+| `20261104000900` | `WildernessSniperPlacement` |
+| `20261104001000` | `WildernessElohPinhole` |
+| `20261104001100` | `WildernessLandingZone` |
+| `20261104001200` | `WildernessSupportedRewards` |
+| `20261104001300` | `WildernessTwinPillars` |
+| `20261104001400` | `WildernessRanjaGorge` |
+| `20261104001500` | `WildernessDaghdasUrn` |
+| `20261104001600` | `WildernessEvidenceCapacity` |
+
+The earlier September Wilderness migration IDs were unshipped and are not an
+upgrade source for this integration. Their development databases are disposable;
+use fresh configured paths rather than rewriting `__EFMigrationsHistory`.
+Intermediate-upgrade fixtures use the November lineage and retain their own
+active mission progress. That regression coverage does not convert old
+experimental or September Wilderness saves.
+
+Mission-authored World creatures, pools and attack rows now use the allocated
+`630001..630199` namespace, leaving PR105's Divide `530xxx` rows untouched.
+Char outcome flags `530002` and `530003` are separate identities and do not move.
+PR105's `Add_armor_values` supplies native `itemclass.max_hp` armor values before
+Wilderness starts. `WildernessRewardEquipment` is a no-op compatibility marker
+and cannot insert duplicates or delete those PR105-owned rows on rollback.
 
 `SeedWorldContent` installs shared World content, including the five enabled
 Bootcamp missions and their private experience bindings. Both providers call

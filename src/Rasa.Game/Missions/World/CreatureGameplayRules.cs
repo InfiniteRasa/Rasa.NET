@@ -9,6 +9,7 @@ namespace Rasa.Game.Missions.World
 
     internal sealed record ActorGameplayBinding(MapChannel Map, SpawnPool SpawnPool, uint TemplateId,
         ActorHandle Handle, ActorGameplayPolicy Policy, Func<bool> OwnsActor);
+    internal sealed record ScriptedCombatAuthorization(ActorHandle Handle, string OperationKey);
 
     internal static class CreatureGameplayRules
     {
@@ -76,7 +77,10 @@ namespace Rasa.Game.Missions.World
                 creature.SpawnPool?.ScenarioKey == null || Policy(creature).RewardScenarioKills);
 
         internal static bool IsDefender(Creature creature) => Policy(creature).Defends;
-        internal static bool IsInvulnerable(Creature creature) => Policy(creature).Invulnerable;
+        internal static bool CanParticipateInCombat(Creature creature) =>
+            creature?.ScriptedCombatGate?.Invoke() != false;
+        internal static bool IsInvulnerable(Creature creature) =>
+            Policy(creature).Invulnerable || !CanParticipateInCombat(creature);
         internal static bool TracksParticipation(Creature creature) => Policy(creature).TrackParticipation;
     }
 }

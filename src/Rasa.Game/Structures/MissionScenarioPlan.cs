@@ -20,6 +20,8 @@ namespace Rasa.Structures
         private readonly List<MissionRewardGrant> _rewardGrants = new();
         private readonly Dictionary<uint, MissionLog> _committedMissions = new();
         private IReadOnlyDictionary<uint, uint> _flags;
+        internal IEnumerable<MissionLog> CommittedMissions =>
+            _progressPlans.SelectMany(plan => plan.CommittedMissions.Values).Concat(_committedMissions.Values);
 
         internal List<string> StepKeysToAdd { get; } = new();
         internal List<string> StepKeyPrefixesToRemove { get; } = new();
@@ -93,8 +95,7 @@ namespace Rasa.Structures
 
         internal void ApplyRuntime(Client client, ManifestationManager manifestationManager, MissionApplication missionManager)
         {
-            if (!MissionStatePublication.Converge(client,
-                _progressPlans.SelectMany(plan => plan.CommittedMissions.Values).Concat(_committedMissions.Values)))
+            if (!MissionStatePublication.Converge(client, CommittedMissions))
                 return;
             if (_flags != null)
             {

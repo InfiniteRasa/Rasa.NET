@@ -6,6 +6,7 @@ using System.Numerics;
 namespace Rasa.Managers
 {
     using Data;
+    using Game.Missions.World;
     using Packets.MapChannel.Server;
     using Structures;
 
@@ -39,7 +40,8 @@ namespace Rasa.Managers
     /// that runs sideways gets out of the way; one that stays, or runs straight away but not
     /// fifteen metres, does not. The charge follows the line along the navmesh and stops where
     /// the ground ends, as a knockback does. A Kael killed or put into its Critical Death window
-    /// mid-charge never lands the blow.
+    /// mid-charge never lands the blow. A manually authorized charge also requires its original
+    /// combat grant when it lands; rearming the creature cannot revive an old charge.
     /// </summary>
     public static class KaelRushingBlow
     {
@@ -64,6 +66,7 @@ namespace Rasa.Managers
             public float Radius;
             public int Damage;
             public long LandsAt;
+            public ScriptedCombatAuthorization CombatAuthorization;
         }
 
         private static readonly List<Charge> Charges = new List<Charge>();
@@ -116,6 +119,10 @@ namespace Rasa.Managers
             if (mapChannel == null || kael == null || target == null)
                 return;
 
+            var authorization = kael.ScriptedCombatAuthorization;
+            if (!CreatureWindups.HasCombatAuthorization(mapChannel, kael, authorization))
+                return;
+
             AbilityManager.Instance.TryGetLevel(action.ActionId, action.ActionArgId, out var level);
 
             var velocity = level != null && level.Get(AbilityProperty.VfxVelocity) > 0 ? level.Get(AbilityProperty.VfxVelocity) : DefaultVelocity;
@@ -148,12 +155,13 @@ namespace Rasa.Managers
                     Impact = impact,
                     Radius = radius,
                     Damage = damage,
-                    LandsAt = Environment.TickCount64 + windupMs
+                    LandsAt = Environment.TickCount64 + windupMs,
+                    CombatAuthorization = authorization
                 });
             }
         }
 
-        /// <summary>Lands the blows whose charge is over on this map, and drops those whose Kael has fallen.</summary>
+        /// <summary>Lands due blows on this map, unless their Kael has fallen or their manual combat grant has expired.</summary>
         public static void Worker(MapChannel mapChannel)
         {
             List<Charge> due;
@@ -174,6 +182,19 @@ namespace Rasa.Managers
                 if (!Standing(kael) || kael.MapContextId != mapChannel.MapInfo.MapContextId)
                     continue;
 
+                if (!CreatureWindups.HasCombatAuthorization(mapChannel, kael, charge.CombatAuthorization))
+                {
+                    if (CreatureManager.IsLivingOnMap(mapChannel, kael))
+                    {
+                        kael.KnockbackTo = null;
+                        kael.KnockbackSpeed = 0;
+                        kael.KnockbackIsPull = false;
+                        BehaviorManager.Instance.StopMoving(kael);
+                        CreatureWindups.Interrupt(mapChannel, kael, charge.Action.ActionId, charge.Action.ActionArgId);
+                    }
+                    continue;
+                }
+
                 // Wherever the carry has got to, it is over.
                 kael.KnockbackTo = null;
                 kael.KnockbackSpeed = 0;
@@ -186,7 +207,7 @@ namespace Rasa.Managers
                     : null;
 
                 MissileManager.Instance.CreatureStrike(mapChannel, kael, charge.Action, aimedAt, charge.Damage,
-                    CreatureArea.AroundPoint(charge.Radius), charge.Impact);
+                    CreatureArea.AroundPoint(charge.Radius), charge.Impact, charge.CombatAuthorization);
             }
         }
 

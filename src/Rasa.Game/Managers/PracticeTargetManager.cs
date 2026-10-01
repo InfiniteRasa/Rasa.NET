@@ -17,6 +17,7 @@ namespace Rasa.Managers
             if (map == null || !EntityManager.Instance.TryGetObject(entityId, out var candidate) ||
                 candidate.DynamicObjectType != DynamicObjectType.PracticeDummy ||
                 !candidate.IsInWorld || !candidate.IsEnabled ||
+                candidate.MissionDestruction != null && candidate.CurrentHitPoints == 0 ||
                 !ReferenceEquals(candidate.RuntimeMapChannel, map) ||
                 !map.DynamicObjects.Contains(candidate) ||
                 !IsFinite(candidate.Position))
@@ -35,13 +36,15 @@ namespace Rasa.Managers
                 EntityManager.Instance.Players.TryGetValue(player.EntityId, out var registered) &&
                 ReferenceEquals(player, registered) &&
                 (!map.IsPrivateInstance || map.OwnerCharacterId == player.Id) &&
+                (target?.MissionDestruction == null ||
+                    target.SceneOwnerCharacterId == player.Id && target.CurrentHitPoints > 0) &&
                 TryGetTarget(map, target?.EntityId ?? 0, out var current) &&
                 ReferenceEquals(current, target);
         }
 
         internal static void RecordHit(
             MapChannel map, Actor source, DynamicObject target, ActionId actionId,
-            MissionApplication missions = null)
+            MissionApplication missions = null, int damage = 1)
         {
             if (!CanHit(map, source, target))
                 return;
@@ -50,6 +53,11 @@ namespace Rasa.Managers
             if (client?.State != ClientState.Ingame || client.PendingTransfer != null)
                 return;
 
+            if (target.MissionDestruction != null)
+            {
+                (missions ?? MissionApplication.Instance).Scenes.DamageObject(client, target, damage);
+                return;
+            }
             (missions ?? MissionApplication.Instance).RecordProgress(client,
                 MissionProgressEvent.ObjectHit((uint)target.EntityClassId, (uint)actionId));
         }

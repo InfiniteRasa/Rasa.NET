@@ -63,6 +63,7 @@ namespace Rasa.Data
             { 501004, new TrainerInfo(CharacterClass.Ranger, 113) },
             { 501005, new TrainerInfo(CharacterClass.Sapper, 121) },
             { 501006, new TrainerInfo(CharacterClass.Biotechnician, 97) },
+            { 510006, new TrainerInfo(CharacterClass.None, 337) },
 
             // Twin Pillars, map 1220
             { 501007, new TrainerInfo(CharacterClass.Soldier, 9) },

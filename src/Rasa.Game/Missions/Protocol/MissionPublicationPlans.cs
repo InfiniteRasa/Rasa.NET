@@ -86,6 +86,7 @@ namespace Rasa.Managers
         private readonly Action<Client> _inventoryPublication;
         private readonly IReadOnlyDictionary<uint, uint> _flags;
         private readonly MissionLog _assignment;
+        private readonly MissionScenarioPlan[] _relatedEffects;
         internal IReadOnlyDictionary<uint, uint> FlagSnapshot => _flags;
         internal uint MissionId => _missionId;
         internal bool ChangesFlags { get; }
@@ -102,7 +103,8 @@ namespace Rasa.Managers
             Action<Client> inventoryPublication = null,
             bool changesFlags = false,
             IReadOnlyDictionary<uint, uint> flags = null,
-            MissionLog assignment = null)
+            MissionLog assignment = null,
+            IEnumerable<MissionScenarioPlan> relatedEffects = null)
         {
             _missionId = missionId;
             _objectiveId = objectiveId;
@@ -113,6 +115,7 @@ namespace Rasa.Managers
             _inventoryPublication = inventoryPublication;
             _flags = flags;
             _assignment = assignment;
+            _relatedEffects = (relatedEffects ?? Array.Empty<MissionScenarioPlan>()).ToArray();
             ChangesFlags = changesFlags;
             StartScenarioIds = Array.AsReadOnly(
                 (startScenarioIds ?? Array.Empty<uint>()).ToArray());
@@ -135,6 +138,8 @@ namespace Rasa.Managers
                 Logger.WriteLog(LogType.Error, $"Discarded failure publication for retired assignment {_assignment.AssignmentId}.");
                 return;
             }
+            if (!MissionStatePublication.Converge(client, _relatedEffects.SelectMany(plan => plan.CommittedMissions)))
+                return;
 
             if (convergeMission)
             {
@@ -150,6 +155,8 @@ namespace Rasa.Managers
                 manager.PublishCharacterFlags(client);
             }
             _inventoryPublication?.Invoke(client);
+            foreach (var related in _relatedEffects)
+                manager.ApplyScenarioPlan(client, related);
 
             manager.PublishMissionPacket(
                 client,
@@ -194,21 +201,61 @@ namespace Rasa.Managers
                 null,
                 null);
 
-        private readonly ProgressPublication[] _publications;
+        private ProgressPublication[] _publications;
         private readonly MissionFailurePublicationPlan[] _failurePlans;
-        private readonly uint[] _completableMissions;
+        private uint[] _completableMissions;
         private readonly uint[] _missionStatusMissionIds;
         private readonly Func<Client, uint, uint, bool> _startScenario;
         private readonly Func<Client, uint, uint, bool> _startFailureScenario;
         private readonly Func<Client, uint, uint, bool> _activateSpawnGroup;
         private readonly MissionApplication _manager;
         private readonly Action<Client> _inventoryPublication;
+        private readonly MissionScenarioPlan[] _relatedEffects;
         private readonly IReadOnlyDictionary<uint, uint> _flags;
-        private readonly IReadOnlyDictionary<uint, MissionLog> _committedMissions;
+        private IReadOnlyDictionary<uint, MissionLog> _committedMissions;
+        private MissionProgressPublicationPlan _aggregates;
+        private bool _pendingAggregates;
+        private bool _publishOnce;
+        private bool _published;
+        private HashSet<uint> _silentMissions;
         internal IReadOnlyDictionary<uint, uint> FlagSnapshot => _flags;
-        internal IReadOnlyDictionary<uint, MissionLog> CommittedMissions => _committedMissions;
+        internal IReadOnlyDictionary<uint, MissionLog> CommittedMissions =>
+            _committedMissions.Values.Concat(_relatedEffects.SelectMany(plan => plan.CommittedMissions))
+                .Concat(_aggregates?.CommittedMissions.Values ?? Array.Empty<MissionLog>())
+                .GroupBy(mission => mission.MissionId).ToDictionary(group => group.Key, group => group.Last());
 
-        internal bool HasChanges => _publications.Length > 0 || _failurePlans.Length > 0;
+        internal bool HasDirectChanges => _publications.Length > 0 || _failurePlans.Length > 0;
+        internal bool HasChanges => _pendingAggregates || HasDirectChanges || _aggregates?.HasChanges == true;
+
+        internal void SuppressObjectivePackets(uint missionId)
+        {
+            (_silentMissions ??= new()).Add(missionId);
+            _aggregates?.SuppressObjectivePackets(missionId);
+        }
+
+        private bool PublishesObjectives(uint missionId) => _silentMissions?.Contains(missionId) != true;
+
+        internal static MissionProgressPublicationPlan PendingAggregates(MissionApplication manager) =>
+            new(Array.Empty<ProgressPublication>(), Array.Empty<MissionFailurePublicationPlan>(),
+                Array.Empty<uint>(), Array.Empty<uint>(), null, null, manager)
+            { _pendingAggregates = true, _publishOnce = true };
+
+        internal void AttachAggregates(MissionProgressPublicationPlan aggregates)
+        {
+            if (aggregates != null && !ReferenceEquals(this, aggregates))
+                _aggregates = aggregates;
+        }
+
+        internal void CompleteAggregates(IEnumerable<ProgressPublication> publications,
+            IEnumerable<uint> completable, IReadOnlyDictionary<uint, MissionLog> committed)
+        {
+            if (!_pendingAggregates)
+                throw new InvalidOperationException("Aggregate publication was already finalized.");
+            _publications = publications.OrderBy(value => value.MissionId).ThenBy(value => value.ObjectiveId).ToArray();
+            _completableMissions = completable.Distinct().OrderBy(id => id).ToArray();
+            _committedMissions = new ReadOnlyDictionary<uint, MissionLog>(new Dictionary<uint, MissionLog>(committed));
+            _pendingAggregates = false;
+        }
 
         internal MissionProgressPublicationPlan(
             IEnumerable<ProgressPublication> publications,
@@ -221,9 +268,12 @@ namespace Rasa.Managers
             Func<Client, uint, uint, bool> activateSpawnGroup = null,
             Action<Client> inventoryPublication = null,
             IReadOnlyDictionary<uint, uint> flags = null,
-            IReadOnlyDictionary<uint, MissionLog> committedMissions = null)
+            IReadOnlyDictionary<uint, MissionLog> committedMissions = null,
+            IEnumerable<MissionScenarioPlan> reconciliations = null)
         {
             _publications = publications.ToArray();
+            _relatedEffects = _publications.SelectMany(publication => publication.RelatedEffects)
+                .Concat(reconciliations ?? Array.Empty<MissionScenarioPlan>()).ToArray();
             _failurePlans = failurePlans.ToArray();
             _completableMissions = completableMissions.ToArray();
             _missionStatusMissionIds = missionStatusMissionIds.ToArray();
@@ -238,8 +288,13 @@ namespace Rasa.Managers
 
         internal void Publish(Client client, bool convergeFlags = true, bool convergeMissions = true)
         {
-            if (!MissionStatePublication.Converge(client, _committedMissions.Values, convergeMissions))
+            if (_pendingAggregates)
+                throw new InvalidOperationException("Aggregate publication requires a finalized transaction.");
+            if (_publishOnce && _published)
                 return;
+            if (!MissionStatePublication.Converge(client, CommittedMissions.Values, convergeMissions))
+                return;
+            _published = true;
             if (convergeFlags && _flags != null)
             {
                 client.FlagProjection.ApplyCommitted(client, _flags);
@@ -250,7 +305,9 @@ namespace Rasa.Managers
             foreach (var publication in _publications.Where(
                 publication =>
                     publication.CounterId.HasValue &&
-                    !publication.IsItemCounter))
+                    !publication.IsItemCounter &&
+                    PublishesObjectives(publication.MissionId) &&
+                    publication.Definition.Objectives[publication.ObjectiveId].IsVisible))
                 MissionApplication.TryPublish(
                     () => client.CallMethod(
                         client.Player.EntityId,
@@ -264,7 +321,9 @@ namespace Rasa.Managers
                     $"mission {publication.MissionId} objective counter");
 
             foreach (var publication in _publications.Where(
-                publication => publication.IsItemCounter))
+                publication => publication.IsItemCounter &&
+                    PublishesObjectives(publication.MissionId) &&
+                    publication.Definition.Objectives[publication.ObjectiveId].IsVisible))
                 MissionApplication.TryPublish(
                     () => client.CallMethod(
                         client.Player.EntityId,
@@ -277,7 +336,9 @@ namespace Rasa.Managers
                     $"mission {publication.MissionId} objective item counter");
 
             foreach (var publication in _publications.Where(
-                publication => publication.Completed))
+                publication => publication.Completed &&
+                    PublishesObjectives(publication.MissionId) &&
+                    publication.Definition.Objectives[publication.ObjectiveId].IsVisible))
             {
                 MissionApplication.TryPublish(
                     () => client.CallMethod(
@@ -290,7 +351,8 @@ namespace Rasa.Managers
 
             foreach (var publication in _publications)
             {
-                foreach (var objectiveId in publication.RevealedObjectiveIds)
+                foreach (var objectiveId in publication.RevealedObjectiveIds
+                    .Where(id => PublishesObjectives(publication.MissionId) && publication.Definition.Objectives[id].IsVisible))
                     MissionApplication.TryPublish(
                         () => client.CallMethod(
                             client.Player.EntityId,
@@ -302,7 +364,8 @@ namespace Rasa.Managers
                                     publication.Definition,
                                     client.Player.Missions[publication.MissionId]))),
                         $"mission {publication.MissionId} objective {objectiveId} revealed");
-                foreach (var objectiveId in publication.ActivatedObjectiveIds)
+                foreach (var objectiveId in publication.ActivatedObjectiveIds
+                    .Where(id => PublishesObjectives(publication.MissionId) && publication.Definition.Objectives[id].IsVisible))
                     MissionApplication.TryPublish(
                         () => client.CallMethod(
                             client.Player.EntityId,
@@ -334,11 +397,12 @@ namespace Rasa.Managers
 
             foreach (var missionId in _completableMissions)
             {
-                MissionApplication.TryPublish(
-                    () => client.CallMethod(
-                        client.Player.EntityId,
-                        new MissionCompleteablePacket(missionId, true)),
-                    $"mission {missionId} completable");
+                if (PublishesObjectives(missionId))
+                    MissionApplication.TryPublish(
+                        () => client.CallMethod(
+                            client.Player.EntityId,
+                            new MissionCompleteablePacket(missionId, true)),
+                        $"mission {missionId} completable");
                 MissionApplication.TryPublish(
                     () => _manager.Scenes.MissionChanged(client, missionId, "Completeable"),
                     $"mission {missionId} experience ready state");
@@ -352,6 +416,8 @@ namespace Rasa.Managers
                     _startFailureScenario,
                     convergeFlags: false,
                     convergeMission: false);
+            foreach (var related in _relatedEffects)
+                _manager.ApplyScenarioPlan(client, related);
 
             foreach (var publication in _publications)
                 _manager.PublishStartedScenarios(
@@ -365,6 +431,8 @@ namespace Rasa.Managers
                     MissionApplication.TryPublish(
                         () => _activateSpawnGroup?.Invoke(client, publication.MissionId, spawnGroupId),
                         $"mission {publication.MissionId} activate spawn group {spawnGroupId}");
+
+            _aggregates?.Publish(client, convergeFlags: false, convergeMissions: false);
 
             // ObjectiveState triggers have no other way to fire: nothing re-evaluates a
             // transition just because a *different* objective's state changed underneath it.
@@ -423,6 +491,7 @@ namespace Rasa.Managers
         internal IReadOnlyList<uint> ShownIndicatorIds { get; }
         internal IReadOnlyList<MissionApplication.PlayerFlagChange> PlayerFlagChanges { get; }
         internal IReadOnlyList<uint> ActivateSpawnGroupIds { get; }
+        internal IReadOnlyList<MissionScenarioPlan> RelatedEffects { get; }
 
         private ProgressPublication(
             Mission definition,
@@ -459,6 +528,7 @@ namespace Rasa.Managers
             ShownIndicatorIds = Array.AsReadOnly(actionApplication.ShownIndicatorIds.ToArray());
             PlayerFlagChanges = Array.AsReadOnly(actionApplication.PlayerFlagChanges.ToArray());
             ActivateSpawnGroupIds = Array.AsReadOnly(actionApplication.ActivateSpawnGroupIds.ToArray());
+            RelatedEffects = actionApplication.RelatedEffects;
         }
 
         internal static ProgressPublication ForCompleted(
@@ -532,5 +602,13 @@ namespace Rasa.Managers
                 completed,
                 actionApplication,
                 isItemCounter: true);
+
+        internal static ProgressPublication Aggregate(Mission definition, MissionLog committed,
+            uint objectiveId, uint? counterId, uint? counterValue, bool completed) =>
+            new(definition, committed, definition.MissionId, objectiveId,
+                completed ? MissionObjectiveState.Completed : null, counterId, counterValue,
+                counterId.HasValue ? 0U : null,
+                counterId.HasValue ? definition.Objectives[objectiveId].Counters[counterId.Value].TargetValue : null,
+                completed, MissionApplication.TransitionActionApplication.Empty);
     }
 }

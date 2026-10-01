@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Text.Json.Serialization;
+using Rasa.Missions.Runtime;
 
 namespace Rasa.Missions.Definitions
 {
@@ -18,11 +19,16 @@ namespace Rasa.Missions.Definitions
         public uint? TransitionId { get; }
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public IReadOnlyDictionary<int, uint> Choices { get; }
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public MissionRequirement Requirement { get; }
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public uint? SourceCreatureId { get; }
 
         [JsonConstructor]
         public MissionDialogueTopicDefinition(uint objectiveId, uint npcPackageId, uint playerFlagId,
             MissionDialogueKind kind = MissionDialogueKind.Completion, uint? transitionId = null,
-            IReadOnlyDictionary<int, uint> choices = null, uint? dialogObjectiveId = null)
+            IReadOnlyDictionary<int, uint> choices = null, uint? dialogObjectiveId = null,
+            MissionRequirement requirement = null, uint? sourceCreatureId = null)
         {
             ObjectiveId = objectiveId;
             NpcPackageId = npcPackageId;
@@ -30,6 +36,8 @@ namespace Rasa.Missions.Definitions
             Kind = kind;
             TransitionId = transitionId;
             DialogObjectiveId = dialogObjectiveId;
+            Requirement = requirement;
+            SourceCreatureId = sourceCreatureId;
             Choices = choices == null ? null :
                 new ReadOnlyDictionary<int, uint>(new Dictionary<int, uint>(choices));
         }

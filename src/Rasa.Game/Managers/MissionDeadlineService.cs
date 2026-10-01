@@ -114,6 +114,20 @@ namespace Rasa.Managers
                 objective.GetExecutableTransitionsOrLegacyDefault().Any(transition =>
                     transition.ProgressRule?.Kind == MissionProgressEventKind.DeadlineElapsed));
 
+        internal static bool BlocksProgress(Mission definition, CharacterMissionDeadlineEntry deadline,
+            IReadOnlyDictionary<uint, CharacterMissionObjectiveEntry> objectives, DateTime utcNow)
+        {
+            if (deadline == null || deadline.State != CharacterMissionDeadlineState.Expired &&
+                (deadline.State != CharacterMissionDeadlineState.Active || deadline.DueAtUtc > utcNow))
+                return false;
+            var timed = definition.Objectives.Values.Where(objective =>
+                objective.GetExecutableTransitionsOrLegacyDefault().Any(transition =>
+                    transition.ProgressRule?.Kind == MissionProgressEventKind.DeadlineElapsed)).ToArray();
+            return timed.Length == 0 || timed.Any(objective =>
+                objectives.TryGetValue(objective.ObjectiveId, out var state) &&
+                state.ObjectiveState == (byte)MissionObjectiveState.Incomplete);
+        }
+
         private static (uint ObjectiveId, MissionProgressRule Rule)? GetActiveDeadlineObjective(
             Mission definition,
             CharacterMissionEntry durableMission,

@@ -25,7 +25,7 @@ namespace Rasa.Structures
         public uint? MissionReciver { get; }
         public uint? Level { get; }
         public byte? GroupType { get; }
-        public byte? CategoryId { get; }
+        public uint? CategoryId { get; }
         public bool? Shareable { get; }
         public bool? RadioCompletable => IsOperational && CompletionChannel.HasFlag(MissionChannel.Radio);
         public IReadOnlyDictionary<uint, MissionObjectiveDefinition> Objectives { get; }
@@ -43,7 +43,7 @@ namespace Rasa.Structures
             uint? missionReciver,
             uint? level,
             byte? groupType,
-            byte? categoryId,
+            uint? categoryId,
             bool? shareable,
             bool? radioCompletable,
             IEnumerable<MissionObjectiveDefinition> objectives,
@@ -110,6 +110,10 @@ namespace Rasa.Structures
                 .Any(objectiveId => !objectiveDictionary.ContainsKey(objectiveId)))
                 diagnostics.Add("an objective successor is missing");
             diagnostics.AddRange(MissionDialogueValidation.Errors(this));
+            diagnostics.AddRange(MissionObjectiveAggregation.Errors(Objectives));
+            if (Objectives.Values.Any(objective => objective.HistoryAggregation?.Groups
+                .Any(group => group.Contains(MissionId)) == true))
+                diagnostics.Add("a history aggregate cannot require its own mission");
             if (!string.IsNullOrWhiteSpace(operationalDiagnostic))
                 diagnostics.Add(operationalDiagnostic);
 
