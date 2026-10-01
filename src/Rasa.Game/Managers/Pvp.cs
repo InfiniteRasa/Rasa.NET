@@ -24,9 +24,8 @@ namespace Rasa.Managers
     ///    client's hostile targeting, right-click Attack, overhead colour and radar pip (PLAYER_PVP)
     ///    go by (targeting.py _IsTargetType, radarwindow.py _GetManifestationType).
     ///
-    /// The only wargame there is yet is a Clan Feud (ClanFeuds); <see cref="AreEnemies"/> reads
-    /// the sides from its WargameData, as the client does, so a duel or squad wargame that adds its
-    /// own entries there is covered without changing anything here.
+    /// The wargames are Clan Feuds (ClanFeuds) and Duels (Duels); <see cref="AreEnemies"/> reads
+    /// the sides from their WargameData (Wargames.DataOf), as the client does.
     ///
     /// shared/gameconstants.py has the numbers:
     ///  - PVP_DAMAGE_MODIFIER = 0.5: what a player's hit on a player does (<see cref="ScaleDamage"/>);
@@ -82,12 +81,12 @@ namespace Rasa.Managers
             if (one == null || other == null || ReferenceEquals(one, other) || one.Id == 0 || other.Id == 0)
                 return false;
 
-            var mine = ClanFeuds.Instance.WargameDataOf(one);
+            var mine = Wargames.DataOf(one);
 
             if (mine.Count == 0)
                 return false;
 
-            var theirs = ClanFeuds.Instance.WargameDataOf(other);
+            var theirs = Wargames.DataOf(other);
 
             return mine.Any(w => theirs.TryGetValue(w.Key, out var side) && side != w.Value);
         }
@@ -280,7 +279,10 @@ namespace Rasa.Managers
             var killerClient = ClientOf(mapChannel, killer);
 
             if (victimClient != null && killerClient != null)
+            {
+                Duels.Instance.Kill(killerClient, victimClient);
                 ClanFeuds.Instance.Kill(killerClient, victimClient);
+            }
 
             Logger.WriteLog(LogType.Debug, $"PvP: {victim.FamilyName} ({victim.Id}) defeated by {killer?.FamilyName} ({killer?.Id}).");
 

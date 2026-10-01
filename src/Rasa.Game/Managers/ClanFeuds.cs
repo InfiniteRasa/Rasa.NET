@@ -592,7 +592,7 @@ namespace Rasa.Managers
             return false;
         }
 
-        /// <summary>The player's WargameData: {feudId: side}, true for the challenging clan.</summary>
+        /// <summary>The player's feuds in WargameData: {feudId: side}, true for the challenging clan. Wargames.DataOf adds their duel.</summary>
         public Dictionary<uint, bool> WargameDataOf(Manifestation player)
         {
             var clanId = player?.ClanId ?? 0;
@@ -623,24 +623,11 @@ namespace Rasa.Managers
                 mine ? feud.TargetKills : feud.ChallengerKills));
         }
 
-        /// <summary>The player's WargameData to everyone who can see them, themselves included.</summary>
-        private void ShowWargameData(Client client)
-        {
-            var player = client?.Player;
-
-            if (player == null)
-                return;
-
-            var packet = new WargameDataPacket(WargameDataOf(player));
-
-            if (player.MapChannel == null)
-                client.CallMethod(player.EntityId, packet);
-            else
-                CellManager.Instance.CellCallMethod(player.MapChannel, player, packet);
-
-            // And who is now an enemy: HOSTILE across the feud, FRIENDLY again after it (Pvp).
-            Pvp.RefreshCategories(client);
-        }
+        /// <summary>
+        /// The player's WargameData - their feuds and any duel - to everyone who can see them,
+        /// themselves included, and who is now an enemy (Wargames.Show).
+        /// </summary>
+        private static void ShowWargameData(Client client) => Wargames.Show(client);
 
         private void SeparateSquads(Feud feud)
         {

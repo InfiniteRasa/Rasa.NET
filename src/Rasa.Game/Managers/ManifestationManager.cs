@@ -2148,9 +2148,9 @@ namespace Rasa.Managers
             if (player.CurrentTitle != 0)
                 entityData.Add(new TitleChangedPacket(player.CurrentTitle));
 
-            // The clan feuds they are in, to their own client and everyone who meets them: the
-            // client tells ally from enemy by it. Every actor starts in none.
-            var wargames = ClanFeuds.Instance.WargameDataOf(player);
+            // The clan feuds and duel they are in, to their own client and everyone who meets them:
+            // the client tells ally from enemy by it. Every actor starts in none.
+            var wargames = Wargames.DataOf(player);
 
             if (wargames.Count > 0)
                 entityData.Add(new WargameDataPacket(wargames));
@@ -3075,6 +3075,9 @@ namespace Rasa.Managers
             // was null, and the next tick dereferenced it on the main loop.
             RemoveAutoFire(client);
             ConstantFire.Stop(client, release: false);
+
+            // Leaving the map or the world: an open duel challenge is off, a duel is forfeit.
+            Duels.Instance.PlayerLeft(client);
         }
 
         public void RemoveAppearanceItem(Client client, EquipmentData equipmentSlotId)

@@ -964,6 +964,14 @@ namespace Rasa.Managers
         /// plain invitation, where the recipient is the player who was named, and a squad
         /// invitation, where it is the leader of that player's squad.
         /// </summary>
+        /// <summary>Whether the player has a squad invitation of their own still open.</summary>
+        internal bool IsInviting(Client client) =>
+            client?.AccountEntry != null && _invites.Values.Any(i => i.InviterId == client.AccountEntry.Id);
+
+        /// <summary>Whether the player has a squad invitation still to answer.</summary>
+        internal bool IsInvited(Client client) =>
+            client?.AccountEntry != null && _invites.ContainsKey(client.AccountEntry.Id);
+
         private void Invite(Client inviter, Client recipient, string displayName)
         {
             var inviterParty = PartyOf(inviter);
@@ -979,6 +987,31 @@ namespace Rasa.Managers
             if (recipient.Player.IgnoredPlayers.Contains(inviter.AccountEntry.Id))
             {
                 Message(inviter, PlayerMessage.PmUserIgnoringYou, "name", displayName);
+                return;
+            }
+
+            // A duel, or a challenge to one still open, keeps either side out of squads (Duels).
+            if (Duels.Instance.IsDueling(inviter))
+            {
+                Message(inviter, PlayerMessage.PmPartyInviteFailedYouAreInWargame, "invitee", displayName);
+                return;
+            }
+
+            if (Duels.Instance.IsDueling(recipient))
+            {
+                Message(inviter, PlayerMessage.PmPartyInviteFailedTheyAreInWargame, "invitee", displayName);
+                return;
+            }
+
+            if (Duels.Instance.HasChallenge(inviter))
+            {
+                Message(inviter, PlayerMessage.PmPartyInviteFailedYouAreInWgChallenge, "invitee", displayName);
+                return;
+            }
+
+            if (Duels.Instance.HasChallenge(recipient))
+            {
+                Message(inviter, PlayerMessage.PmPartyInviteFailedTheyAreInWgChallenge, "invitee", displayName);
                 return;
             }
 

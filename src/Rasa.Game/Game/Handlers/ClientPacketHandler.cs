@@ -19,6 +19,7 @@
     using Packets.Summon.Client;
     using Packets.Social.Client;
     using Packets.Trade.Client;
+    using Packets.Wargame.Client;
 
     public partial class ClientPacketHandler
     {
@@ -946,7 +947,25 @@
         [PacketHandler(GameOpcode.SurrenderWargame)]
         private void SurrenderWargame(SurrenderWargamePacket packet)
         {
-            Logger.WriteLog(LogType.Debug, "ToDo: SurrenderWargamePacket");
+            Duels.Instance.SurrenderWargame(Client);
+        }
+
+        [PacketHandler(GameOpcode.ChallengeUserToWargameByName)]
+        private void ChallengeUserToWargameByName(ChallengeUserToWargameByNamePacket packet)
+        {
+            Duels.Instance.ChallengeUserToWargameByName(Client, packet.TargetName, packet.TimeMins, packet.MaxKills);
+        }
+
+        [PacketHandler(GameOpcode.WargameChallengeResponse)]
+        private void WargameChallengeResponse(WargameChallengeResponsePacket packet)
+        {
+            Duels.Instance.WargameChallengeResponse(Client, packet.Accepted);
+        }
+
+        [PacketHandler(GameOpcode.WargameChallengeRevoked)]
+        private void WargameChallengeRevoked(WargameChallengeRevokedPacket packet)
+        {
+            Duels.Instance.WargameChallengeRevoked(Client);
         }
 
         [PacketHandler(GameOpcode.ToggleAfk)]
