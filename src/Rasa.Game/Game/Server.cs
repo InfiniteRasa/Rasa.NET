@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Globalization;
+using System.Threading;
 using Microsoft.Extensions.Hosting;
 
 namespace Rasa.Game
@@ -136,6 +138,8 @@ namespace Rasa.Game
 
             Logger.UpdateConfig(Config.LoggerConfig);
 
+            AutoSave.IntervalMinutes = Config.GameConfig?.AutoSaveMinutes ?? AutoSave.DefaultMinutes;
+
             ServerFlagManager.Instance.LoadConfiguredFlags(Config.GameDataConfig?.ServerFlags);
             CharacterManager.LoadEnabledRaces(Config.GameDataConfig?.EnabledRaces);
 
@@ -160,6 +164,28 @@ namespace Rasa.Game
 
         public void MainLoop(long delta)
         {
+            // The host is stopping (Ctrl+C, a service stop, docker stop): everyone saved and out,
+            // on this thread, which owns the world (EvacuateForHost waits for it).
+            var evacuation = Interlocked.Exchange(ref _evacuationRequest, null);
+
+            if (evacuation != null)
+            {
+                try
+                {
+                    EvacuateAll();
+                }
+                catch (Exception e)
+                {
+                    Logger.WriteLog(LogType.Error, $"Saving the players before the server stopped failed: {e}");
+                }
+                finally
+                {
+                    evacuation.Set();
+                }
+
+                return;
+            }
+
             // One thread runs the timers, the world and every client in turn. Anything that
             // escapes here costs the rest of the tick - the clients after the one that threw
             // are not serviced at all - so each part is held to its own failure.
@@ -466,10 +492,18 @@ namespace Rasa.Game
 
         private void OnAccept(LengthedSocket newSocket)
         {
-            ListenerSocket.AcceptAsync();
+            // Null once Shutdown has closed it; a last accept can still complete after that.
+            ListenerSocket?.AcceptAsync();
 
             if (newSocket == null)
                 return;
+
+            // Going down: nobody new into a world about to close (ShutdownSchedule).
+            if (RefusesArrivals)
+            {
+                newSocket.Close();
+                return;
+            }
 
             var address = newSocket.RemoteAddress;
             int pending;
@@ -626,6 +660,12 @@ namespace Rasa.Game
 
         public void Shutdown()
         {
+            // Reached from the exit countdown, the host stopping, a failed start and the
+            // finalizer; the second and later are nothing. MainLoop.Stop throws on a loop that is
+            // not running.
+            if (Interlocked.Exchange(ref _shutDown, 1) == 1)
+                return;
+
             AuthCommunicator?.Close();
             AuthCommunicator = null;
 
@@ -634,7 +674,212 @@ namespace Rasa.Game
 
             Voice.VoiceServer.Instance.Stop();
 
-            Loop.Stop();
+            if (Loop.Running)
+                Loop.Stop();
+        }
+
+        private int _shutDown;
+        #endregion
+
+        #region Shutting down with the players saved
+
+        /// <summary>The exit countdown under way, or null; set from the console thread, read on the loop.</summary>
+        private ShutdownSchedule _shutdownSchedule;
+
+        /// <summary>1 once every player has been saved and taken out (EvacuateAll).</summary>
+        private int _evacuated;
+
+        /// <summary>Set by EvacuateForHost for the loop to act on; set again by the loop when done.</summary>
+        private ManualResetEventSlim _evacuationRequest;
+
+        /// <summary>Whether the world is being emptied for a shutdown: no connection that drops lingers in a fight (CombatLogout).</summary>
+        public bool IsShuttingDown => Volatile.Read(ref _evacuated) == 1;
+
+        /// <summary>Whether new connections to the world are turned away: the last minute of a countdown, or after.</summary>
+        public bool RefusesArrivals =>
+            IsShuttingDown || (Volatile.Read(ref _shutdownSchedule)?.RefusesArrivals(Environment.TickCount64) ?? false);
+
+        private const string CountdownTimer = "ShutdownCountdown";
+
+        /// <summary>
+        /// exit                      - save everyone and stop now
+        /// exit &lt;minutes&gt; [reason] - warn the players, then save everyone and stop
+        /// exit cancel               - call off a countdown
+        ///
+        /// The players are warned in chat as the time runs down (ShutdownSchedule). At the end
+        /// every connection is closed and every character taken out of the world the way a
+        /// logout does it - position, time played, health, death penalties and cooldowns saved,
+        /// a dead player sent to their hospital - before the server stops. It used to stop with
+        /// no warning and nobody saved: every player came back where they had last logged in.
+        /// </summary>
+        private void ProcessExitCommand(string[] parts)
+        {
+            if (parts.Length > 1 && string.Equals(parts[1], "cancel", StringComparison.OrdinalIgnoreCase))
+            {
+                if (Interlocked.Exchange(ref _shutdownSchedule, null) == null)
+                {
+                    Logger.WriteLog(LogType.Command, "There is no shutdown to cancel.");
+                    return;
+                }
+
+                Timer.Remove(CountdownTimer);
+                Timer.Add("ShutdownCancelled", 1, false, () => Announce(ShutdownSchedule.CancelledMessage));
+                Logger.WriteLog(LogType.Command, "Shutdown cancelled.");
+                return;
+            }
+
+            var minutes = 0d;
+
+            if (parts.Length > 1 && (!double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out minutes)
+                                     || minutes < 0 || minutes > ShutdownSchedule.MaxMinutes || double.IsNaN(minutes)))
+            {
+                Logger.WriteLog(LogType.Command, "Usage: exit [minutes] [reason] | exit cancel");
+                return;
+            }
+
+            var reason = string.Join(" ", parts.Skip(2)).Trim();
+            var schedule = new ShutdownSchedule(Environment.TickCount64, (long)Math.Round(minutes * 60000), reason);
+
+            // A new exit replaces a countdown already running.
+            Volatile.Write(ref _shutdownSchedule, schedule);
+            Timer.Add(CountdownTimer, 1000, true, ShutdownTick);
+
+            // The first warning goes out on the loop's next pass rather than from this thread.
+            Timer.Add("ShutdownFirstWarning", 1, false, ShutdownTick);
+
+            Logger.WriteLog(LogType.Command, minutes > 0
+                ? $"Shutting down in {ShutdownSchedule.Describe(schedule.SecondsLeft(Environment.TickCount64))}" + (schedule.Reason == null ? "." : $" ({schedule.Reason}).") + " 'exit cancel' calls it off."
+                : "Saving everyone and shutting down now.");
+        }
+
+        /// <summary>The countdown, every second on the loop: the warnings due, and at the end the shutdown.</summary>
+        private void ShutdownTick()
+        {
+            var schedule = Volatile.Read(ref _shutdownSchedule);
+
+            if (schedule == null)
+                return;
+
+            var now = Environment.TickCount64;
+
+            if (schedule.IsDue(now))
+            {
+                Timer.Remove(CountdownTimer);
+                Interlocked.CompareExchange(ref _shutdownSchedule, null, schedule);
+
+                EvacuateAll();
+                Shutdown();
+                _hostApplicationLifetime.StopApplication();
+                return;
+            }
+
+            var warning = schedule.WarningDue(now);
+
+            if (warning != null)
+                Announce(warning);
+        }
+
+        /// <summary>A system message to every player in the world, and the console.</summary>
+        private void Announce(string message)
+        {
+            List<Client> listeners;
+
+            lock (Clients)
+                listeners = Clients.Where(c => c.State == ClientState.Ingame || c.State == ClientState.Teleporting || c.State == ClientState.Loading).ToList();
+
+            foreach (var client in listeners)
+            {
+                try
+                {
+                    CommunicatorManager.Instance.SystemMessage(client, message);
+                }
+                catch (Exception e)
+                {
+                    Logger.WriteLog(LogType.Error, $"Could not send the shutdown notice to a client: {e.Message}");
+                }
+            }
+
+            Logger.WriteLog(LogType.Command, $"Announced to {listeners.Count} player(s): {message}");
+        }
+
+        /// <summary>
+        /// Every connection closed and every character saved and taken out of the world, now, on
+        /// the loop thread: what each one's logout would have done, all at once (RemoveAllFlaggedPlayers
+        /// has no time budget). Once only.
+        /// </summary>
+        private void EvacuateAll()
+        {
+            if (Interlocked.Exchange(ref _evacuated, 1) == 1)
+                return;
+
+            List<Client> clients;
+            var removed = 0;
+
+            lock (Clients)
+            {
+                clients = Clients.ToList();
+
+                // Close flags each character in the world for removal (no lingering: IsShuttingDown)
+                // and saves its position.
+                foreach (var client in clients)
+                {
+                    try
+                    {
+                        client.Close(false);
+                    }
+                    catch (Exception e)
+                    {
+                        Logger.WriteLog(LogType.Error, $"Closing a connection for the shutdown threw: {e}");
+                    }
+                }
+
+                try
+                {
+                    removed = MapChannelManager.Instance.RemoveAllFlaggedPlayers();
+                }
+                catch (Exception e)
+                {
+                    Logger.WriteLog(LogType.Error, $"Taking the players out of the world for the shutdown threw: {e}");
+                }
+            }
+
+            // Those on no map's list - on a loading screen, mid-transfer - and whatever else the
+            // main loop clears up after a dropped connection.
+            foreach (var client in clients)
+            {
+                try
+                {
+                    MapChannelManager.Instance.CleanupDisconnected(client);
+                }
+                catch (Exception e)
+                {
+                    Logger.WriteLog(LogType.Error, $"Clearing up a connection for the shutdown threw: {e}");
+                }
+            }
+
+            Logger.WriteLog(LogType.Initialize, $"Shutdown: {clients.Count} connection(s) closed, {removed} character(s) saved and taken out of the world.");
+        }
+
+        /// <summary>
+        /// The host is stopping: has the loop save everyone and take them out (EvacuateAll), waits
+        /// up to <paramref name="timeout"/> for it, then shuts down. Nothing if that is done already.
+        /// </summary>
+        public void EvacuateForHost(TimeSpan timeout)
+        {
+            if (!IsShuttingDown && Running)
+            {
+                using var done = new ManualResetEventSlim(false);
+
+                Volatile.Write(ref _evacuationRequest, done);
+
+                if (!done.Wait(timeout))
+                {
+                    Interlocked.CompareExchange(ref _evacuationRequest, null, done);
+                    Logger.WriteLog(LogType.Error, $"The world loop did not save the players within {timeout.TotalSeconds:0} s of the stop; stopping anyway.");
+                }
+            }
+
+            Shutdown();
         }
         #endregion
 
@@ -1293,22 +1538,6 @@ namespace Rasa.Game
 
             Logger.WriteLog(LogType.Command,
                 $"Petition #{id} resolved" + (string.IsNullOrWhiteSpace(note) ? "." : $": {note}"));
-        }
-
-        private void ProcessExitCommand(string[] parts)
-        {
-            var minutes = 0;
-
-            if (parts.Length > 1)
-                minutes = int.Parse(parts[1]);
-
-            Timer.Add("exit", minutes * 60000, false, () =>
-            {
-                Shutdown();
-                _hostApplicationLifetime.StopApplication();
-            });
-
-            Logger.WriteLog(LogType.Command, $"Exiting the server in {minutes} minute(s).");
         }
 
         private static void ProcessReloadCommand(string[] parts)

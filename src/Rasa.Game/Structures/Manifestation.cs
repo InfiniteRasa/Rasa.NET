@@ -232,6 +232,9 @@ namespace Rasa.Structures
         /// </summary>
         public long LingerUntil { get; set; }
 
+        /// <summary>Environment.TickCount64 at which this player is next saved (Managers.AutoSave); 0 until first seen.</summary>
+        public long NextAutoSaveTick { get; set; }
+
         /// <summary>Whether this player's connection has gone but their character is still in the fight it dropped out of.</summary>
         public bool IsLingering => LingerUntil != 0 && Environment.TickCount64 < LingerUntil;
 

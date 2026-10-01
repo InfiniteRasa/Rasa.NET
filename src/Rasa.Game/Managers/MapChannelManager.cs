@@ -248,6 +248,7 @@ namespace Rasa.Managers
             Timer.Add("CheckForMapTriggers", 1000, true, null);
             Timer.Add("MissionDeadlineUpdate", 1000, true, null);
             Timer.Add("Regenerate", 1000, true, null);
+            Timer.Add("AutoSave", AutoSave.PassIntervalMs, true, null);
         }
 
         private readonly Dictionary<string, long> _workerFaultQuietUntil = new();
@@ -464,6 +465,10 @@ namespace Rasa.Managers
 
                     _missionScenarioService?.TickMap(mapChannel);
 
+                    // the players due a save (AutoSave)
+                    if (Timer.IsTriggered("AutoSave"))
+                        Guard("AutoSave.Worker", mapChannel, () => AutoSave.Worker(mapChannel, Environment.TickCount64));
+
                     // warn idle players and flag long-idle ones for removal below
                     ManifestationManager.Instance.CheckInactivity(mapChannel);
 
@@ -476,56 +481,91 @@ namespace Rasa.Managers
                     // character still registered, in the cells and fought by creatures meanwhile.
                     // RemovePlayer writes to the database, so a crowd is spread over a few ticks
                     // by RemovalBudgetMs rather than stalling one; the first always goes.
-                    var removalFrom = System.Diagnostics.Stopwatch.GetTimestamp();
-                    var removed = 0;
-
-                    foreach (var client in mapChannel.ClientList.ToArray())
-                        if (client != null && client.Player.RemoveFromMap)
-                        {
-                            // Dropped mid-fight and still in it (CombatLogout): a later tick.
-                            if (CombatLogout.Holds(client.Player))
-                                continue;
-
-                            if (removed > 0 && System.Diagnostics.Stopwatch.GetElapsedTime(removalFrom).TotalMilliseconds >= RemovalBudgetMs)
-                                break;
-
-                            removed++;
-
-                            // The MainLoop thread has no handler of its own, so an exception
-                            // escaping here stops the whole server ticking. Clear the flag
-                            // first and drop the entry on failure so a bad removal is logged
-                            // once instead of retried - and thrown - on every tick.
-                            client.Player.RemoveFromMap = false;
-
-                            try
-                            {
-                                RemovePlayer(client, true);
-
-                                // A dropped connection's character: whatever else the main loop
-                                // would have cleared up for it, which it left to this (CleanupDisconnected).
-                                if (client.State == ClientState.Disconnected)
-                                    CleanupDisconnected(client);
-                            }
-                            catch (Exception e)
-                            {
-                                Logger.WriteLog(LogType.Error, $"Failed to remove {client.Player.FamilyName} from map {mapChannel.MapInfo.MapContextId}: {e}");
-                                mapChannel.ClientList.Remove(client);
-
-                                if (client.State == ClientState.Disconnected)
-                                {
-                                    try
-                                    {
-                                        CleanupDisconnected(client);
-                                    }
-                                    catch (Exception inner)
-                                    {
-                                        Logger.WriteLog(LogType.Error, $"And clearing up after {client.Player.FamilyName} threw as well: {inner}");
-                                    }
-                                }
-                            }
-                        }
+                    RemoveFlaggedPlayers(mapChannel, budgeted: true);
                 }
             }
+        }
+
+        /// <summary>
+        /// Takes every player on every map who is flagged for removal out of the world now, with
+        /// no time budget and no player left lingering in a fight (CombatLogout): for a shutdown,
+        /// after every connection has been closed. Returns how many.
+        /// </summary>
+        public int RemoveAllFlaggedPlayers()
+        {
+            var removed = 0;
+
+            foreach (var mapChannel in MapChannelArray.Values
+                         .Concat(_privateInstances.Snapshot())
+                         .Distinct()
+                         .ToArray())
+            {
+                foreach (var client in mapChannel.ClientList.ToArray())
+                    if (client?.Player != null)
+                        client.Player.LingerUntil = 0;
+
+                removed += RemoveFlaggedPlayers(mapChannel, budgeted: false);
+            }
+
+            return removed;
+        }
+
+        /// <summary>
+        /// One map's removal pass: each player flagged for removal (RemoveFromMap) taken out with
+        /// RemovePlayer. Budgeted, it stops after RemovalBudgetMs, the first always going.
+        /// </summary>
+        private int RemoveFlaggedPlayers(MapChannel mapChannel, bool budgeted)
+        {
+            var removalFrom = System.Diagnostics.Stopwatch.GetTimestamp();
+            var removed = 0;
+
+            foreach (var client in mapChannel.ClientList.ToArray())
+                if (client != null && client.Player.RemoveFromMap)
+                {
+                    // Dropped mid-fight and still in it (CombatLogout): a later tick.
+                    if (CombatLogout.Holds(client.Player))
+                        continue;
+
+                    if (budgeted && removed > 0 && System.Diagnostics.Stopwatch.GetElapsedTime(removalFrom).TotalMilliseconds >= RemovalBudgetMs)
+                        break;
+
+                    removed++;
+
+                    // The MainLoop thread has no handler of its own, so an exception
+                    // escaping here stops the whole server ticking. Clear the flag
+                    // first and drop the entry on failure so a bad removal is logged
+                    // once instead of retried - and thrown - on every tick.
+                    client.Player.RemoveFromMap = false;
+
+                    try
+                    {
+                        RemovePlayer(client, true);
+
+                        // A dropped connection's character: whatever else the main loop
+                        // would have cleared up for it, which it left to this (CleanupDisconnected).
+                        if (client.State == ClientState.Disconnected)
+                            CleanupDisconnected(client);
+                    }
+                    catch (Exception e)
+                    {
+                        Logger.WriteLog(LogType.Error, $"Failed to remove {client.Player.FamilyName} from map {mapChannel.MapInfo.MapContextId}: {e}");
+                        mapChannel.ClientList.Remove(client);
+
+                        if (client.State == ClientState.Disconnected)
+                        {
+                            try
+                            {
+                                CleanupDisconnected(client);
+                            }
+                            catch (Exception inner)
+                            {
+                                Logger.WriteLog(LogType.Error, $"And clearing up after {client.Player.FamilyName} threw as well: {inner}");
+                            }
+                        }
+                    }
+                }
+
+            return removed;
         }
 
         /// <summary>How long one map's removal pass may run in a tick before the rest wait for the next; see MapChannelWorker.</summary>
