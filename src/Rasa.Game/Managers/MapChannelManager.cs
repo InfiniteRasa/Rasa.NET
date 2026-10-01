@@ -249,6 +249,7 @@ namespace Rasa.Managers
             Timer.Add("MissionDeadlineUpdate", 1000, true, null);
             Timer.Add("Regenerate", 1000, true, null);
             Timer.Add("AutoSave", AutoSave.PassIntervalMs, true, null);
+            Timer.Add("MuteExpiry", 1000, true, null);
         }
 
         private readonly Dictionary<string, long> _workerFaultQuietUntil = new();
@@ -468,6 +469,10 @@ namespace Rasa.Managers
                     // the players due a save (AutoSave)
                     if (Timer.IsTriggered("AutoSave"))
                         Guard("AutoSave.Worker", mapChannel, () => AutoSave.Worker(mapChannel, Environment.TickCount64));
+
+                    // silences that have run out (Moderation)
+                    if (Timer.IsTriggered("MuteExpiry"))
+                        Guard("Moderation.Worker", mapChannel, () => Moderation.Worker(mapChannel));
 
                     // warn idle players and flag long-idle ones for removal below
                     ManifestationManager.Instance.CheckInactivity(mapChannel);

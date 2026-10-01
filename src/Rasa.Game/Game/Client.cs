@@ -114,6 +114,12 @@ namespace Rasa.Game
             }
         }
         internal MissionConversationSession MissionConversation { get; set; }
+
+        /// <summary>Whether this connection has been sent the message of the day (Managers.MessageOfTheDay).</summary>
+        internal bool MotdSent { get; set; }
+
+        /// <summary>Set by a game master's kick: the character leaves at once, fight or not (CombatLogout).</summary>
+        internal bool SkipCombatLinger { get; set; }
         internal Guid MissionSessionId { get; private set; } = Guid.NewGuid();
         internal void InvalidateMissionSession()
         {
@@ -309,7 +315,7 @@ namespace Rasa.Game
                     // Dropped mid-fight: the character stays in it a while (CombatLogout). Worked
                     // out before RemoveFromMap is set, which is also the Logout button's mark.
                     // Not while the server is shutting down: everyone goes, saved.
-                    var lingerUntil = Server?.IsShuttingDown == true
+                    var lingerUntil = Server?.IsShuttingDown == true || SkipCombatLinger
                         ? 0
                         : CombatLogout.LingerUntil(Player, stateBefore, Environment.TickCount64);
 

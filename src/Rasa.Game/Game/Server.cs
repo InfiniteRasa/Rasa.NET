@@ -112,6 +112,11 @@ namespace Rasa.Game
             CommandProcessor.RegisterCommand("maperrors", ProcessMapErrorsCommand);
             CommandProcessor.RegisterCommand("kb", ProcessKbCommand);
             CommandProcessor.RegisterCommand("voice", ProcessVoiceCommand);
+            CommandProcessor.RegisterCommand("announce", ProcessAnnounceCommand);
+            CommandProcessor.RegisterCommand("kick", ProcessKickCommand);
+            CommandProcessor.RegisterCommand("mute", ProcessMuteCommand);
+            CommandProcessor.RegisterCommand("unmute", ProcessUnmuteCommand);
+            CommandProcessor.RegisterCommand("motd", ProcessMotdCommand);
         }
 
         ~Server()
@@ -140,6 +145,22 @@ namespace Rasa.Game
 
             AutoSave.IntervalMinutes = Config.GameConfig?.AutoSaveMinutes ?? AutoSave.DefaultMinutes;
 
+            // A message changed by editing the file goes to everyone in the world, from the loop;
+            // the first load is before anyone is here.
+            if (MessageOfTheDay.Apply(Config.MessageOfTheDay) && _motdApplied)
+                RunOnLoop("motd", () =>
+                {
+                    List<Client> clients;
+
+                    lock (Clients)
+                        clients = Clients.ToList();
+
+                    var sent = MessageOfTheDay.SendToAll(clients);
+                    Logger.WriteLog(LogType.Initialize, $"Message of the day changed; sent to {sent} player(s).");
+                });
+
+            _motdApplied = true;
+
             ServerFlagManager.Instance.LoadConfiguredFlags(Config.GameDataConfig?.ServerFlags);
             CharacterManager.LoadEnabledRaces(Config.GameDataConfig?.EnabledRaces);
 
@@ -154,6 +175,18 @@ namespace Rasa.Game
 
         /// <summary>Set once Start has applied VoiceConfig, so reloads apply it too.</summary>
         private bool _voiceApplied;
+
+        /// <summary>Set after the first config load, so only a change made later is pushed to players.</summary>
+        private bool _motdApplied;
+
+        private long _loopWorkSequence;
+
+        /// <summary>
+        /// Runs work on the main loop's next pass. The console and the config watcher have threads
+        /// of their own; anything that sends to clients or walks the world goes through here.
+        /// </summary>
+        private void RunOnLoop(string name, Action work) =>
+            Timer.Add($"{name}:{Interlocked.Increment(ref _loopWorkSequence)}", 1, false, work);
         #endregion
 
         public void Disconnect(Client client)
@@ -754,6 +787,75 @@ namespace Rasa.Game
             Logger.WriteLog(LogType.Command, minutes > 0
                 ? $"Shutting down in {ShutdownSchedule.Describe(schedule.SecondsLeft(Environment.TickCount64))}" + (schedule.Reason == null ? "." : $" ({schedule.Reason}).") + " 'exit cancel' calls it off."
                 : "Saving everyone and shutting down now.");
+        }
+
+        /// <summary>announce &lt;message&gt;: a line in chat for everyone in the world (Moderation).</summary>
+        private void ProcessAnnounceCommand(string[] parts)
+        {
+            var text = string.Join(" ", parts.Skip(1)).Trim();
+
+            if (text.Length == 0)
+            {
+                Logger.WriteLog(LogType.Command, "Usage: announce <message>");
+                return;
+            }
+
+            RunOnLoop("announce", () => Moderation.Announce(text));
+        }
+
+        /// <summary>kick &lt;familyName&gt; [reason]</summary>
+        private void ProcessKickCommand(string[] parts)
+        {
+            if (parts.Length < 2)
+            {
+                Logger.WriteLog(LogType.Command, "Usage: kick <familyName> [reason]");
+                return;
+            }
+
+            var reason = string.Join(" ", parts.Skip(2));
+            RunOnLoop("kick", () => Logger.WriteLog(LogType.Command, Moderation.Kick(parts[1], reason, null).Text));
+        }
+
+        /// <summary>mute &lt;familyName&gt; &lt;minutes&gt; [reason]</summary>
+        private void ProcessMuteCommand(string[] parts)
+        {
+            if (parts.Length < 3 || !int.TryParse(parts[2], out var minutes))
+            {
+                Logger.WriteLog(LogType.Command, "Usage: mute <familyName> <minutes> [reason]");
+                return;
+            }
+
+            var reason = string.Join(" ", parts.Skip(3));
+            RunOnLoop("mute", () => Logger.WriteLog(LogType.Command, Moderation.Mute(parts[1], minutes, reason, null).Text));
+        }
+
+        /// <summary>unmute &lt;familyName&gt;</summary>
+        private void ProcessUnmuteCommand(string[] parts)
+        {
+            if (parts.Length < 2)
+            {
+                Logger.WriteLog(LogType.Command, "Usage: unmute <familyName>");
+                return;
+            }
+
+            RunOnLoop("unmute", () => Logger.WriteLog(LogType.Command, Moderation.Unmute(parts[1], null).Text));
+        }
+
+        /// <summary>motd: the message of the day in force.</summary>
+        private static void ProcessMotdCommand(string[] parts)
+        {
+            var config = MessageOfTheDay.Current;
+
+            if (!MessageOfTheDay.HasMessage(config))
+            {
+                Logger.WriteLog(LogType.Command, "There is no message of the day (MessageOfTheDay.Text is empty).");
+                return;
+            }
+
+            Logger.WriteLog(LogType.Command, $"Message of the day ({(config.ShowEveryLogin ? "every login" : "once per change")}): {config.Text}");
+
+            foreach (var (languageId, text) in MessageOfTheDay.Messages(config).Where(m => m.Key != 1))
+                Logger.WriteLog(LogType.Command, $"  language {languageId}: {text}");
         }
 
         /// <summary>The countdown, every second on the loop: the warnings due, and at the end the shutdown.</summary>

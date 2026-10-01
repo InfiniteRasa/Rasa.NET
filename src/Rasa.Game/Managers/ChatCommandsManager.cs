@@ -152,6 +152,7 @@ namespace Rasa.Managers
             RegisterCommand(".npcinfo", GmLevel.Observer, NpcInfoCommand);
             RegisterCommand(".rqs", GmLevel.Observer, RqsWindowCommand);
             RegisterCommand(".where", GmLevel.Observer, WhereCommand);
+            RegisterCommand(".motd", GmLevel.Observer, MotdCommand);
             RegisterCommand(".cover", GmLevel.Observer, CoverCommand);
             RegisterCommand(".los", GmLevel.Observer, LosCommand, "entityId");
             RegisterCommand(".camerascript", GmLevel.Observer, CameraScriptCommand, "id");
@@ -207,6 +208,10 @@ namespace Rasa.Managers
             RegisterCommand(".targetcategory", GmLevel.GameMaster, TargetCategoryCommand, "category");
             RegisterCommand(".blockaction", GmLevel.GameMaster, BlockActionCommand, "actionId", "off");
             RegisterCommand(".usable", GmLevel.GameMaster, UsableCommand, "state", "entityId");
+            RegisterCommand(".announce", GmLevel.GameMaster, AnnounceCommand, "message");
+            RegisterCommand(".kick", GmLevel.GameMaster, KickCommand, "familyName", "reason");
+            RegisterCommand(".mute", GmLevel.GameMaster, MuteCommand, "familyName", "minutes", "reason");
+            RegisterCommand(".unmute", GmLevel.GameMaster, UnmuteCommand, "familyName");
 
             // Admin: hands out progression, changes who a player is, reloads server data.
             // A restart does not undo these.
@@ -958,6 +963,73 @@ namespace Rasa.Managers
 
             communicator.SystemMessage(_client,
                 flags.Clear(flag) ? $"{flag} is now clear for everyone." : $"{flag} was already clear.");
+        }
+
+        /// <summary>.motd: the message of the day as players get it, shown to you whatever your client has seen.</summary>
+        private void MotdCommand(string[] parts)
+        {
+            if (!MessageOfTheDay.Preview(_client))
+                CommunicatorManager.Instance.SystemMessage(_client, "There is no message of the day (MessageOfTheDay.Text in appsettings.json is empty).");
+        }
+
+        /// <summary>.announce message: a line in chat for everyone in the world (Moderation).</summary>
+        private void AnnounceCommand(string[] parts)
+        {
+            var text = string.Join(" ", parts.Skip(1)).Trim();
+
+            if (text.Length == 0)
+            {
+                SendCommandUsage(".announce");
+                return;
+            }
+
+            Logger.WriteLog(LogType.Command, $"{_client.AccountEntry?.FamilyName} announced: {text}");
+            Moderation.Announce(text);
+        }
+
+        /// <summary>.kick familyName [reason]: disconnects that player after telling them why.</summary>
+        private void KickCommand(string[] parts)
+        {
+            if (parts.Length < 2)
+            {
+                SendCommandUsage(".kick");
+                return;
+            }
+
+            var result = Moderation.Kick(parts[1], string.Join(" ", parts.Skip(2)), _client);
+            CommunicatorManager.Instance.SystemMessage(_client, result.Text);
+        }
+
+        /// <summary>.mute familyName minutes [reason]: silences that account's chat, online or not.</summary>
+        private void MuteCommand(string[] parts)
+        {
+            if (parts.Length < 3 || !int.TryParse(parts[2], out var minutes))
+            {
+                SendCommandUsage(".mute");
+                return;
+            }
+
+            var result = Moderation.Mute(parts[1], minutes, string.Join(" ", parts.Skip(3)), _client);
+
+            // A silence that went on is confirmed in the client's own words (PM_GM_USER_SILENCED).
+            if (!result.Told)
+                CommunicatorManager.Instance.SystemMessage(_client, result.Text);
+        }
+
+        /// <summary>.unmute familyName: lifts a silence.</summary>
+        private void UnmuteCommand(string[] parts)
+        {
+            if (parts.Length < 2)
+            {
+                SendCommandUsage(".unmute");
+                return;
+            }
+
+            var result = Moderation.Unmute(parts[1], _client);
+
+            // "Lifted" and "was not silenced" are told in the client's own words.
+            if (!result.Told)
+                CommunicatorManager.Instance.SystemMessage(_client, result.Text);
         }
 
         private void MessageCommand(string[] parts)

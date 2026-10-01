@@ -133,6 +133,9 @@ namespace Rasa.Managers
 
         internal void ClanChat(Client client, ClanChatPacket packet)
         {
+            if (Moderation.RefuseIfMuted(client))
+                return;
+
             // The clan id in the packet is the client's word; the sender's clan is the server's.
             // The broadcast used to go to whatever id the packet named, so a modified client could
             // post into any clan's chat, and with id 0 - no clan - reach every connection that is
@@ -168,6 +171,9 @@ namespace Rasa.Managers
         /// </summary>
         internal void ClanLeadersChat(Client client, ClanLeadersChatPacket packet)
         {
+            if (Moderation.RefuseIfMuted(client))
+                return;
+
             // The clan id in the packet is the client's word; the sender's clan is the server's.
             var clanId = client.Player.ClanId;
 
@@ -212,7 +218,7 @@ namespace Rasa.Managers
         /// </summary>
         internal void ChannelChat(Client client, ChannelChatPacket packet)
         {
-            if (client.Player == null || !IsSayable(packet.Message))
+            if (client.Player == null || !IsSayable(packet.Message) || Moderation.RefuseIfMuted(client))
                 return;
 
             var chatChannel = ChannelOf(client, packet.ChannelId);
@@ -260,7 +266,7 @@ namespace Rasa.Managers
 
         internal void Emote(Client client, EmotePacket packet)
         {
-            if (client.Player == null || !IsSayable(packet.Emote))
+            if (client.Player == null || !IsSayable(packet.Emote) || Moderation.RefuseIfMuted(client))
                 return;
 
             // The client files this under RADIAL_EMOTE, so it is local chat like RadialChat
@@ -290,7 +296,7 @@ namespace Rasa.Managers
 
         internal void PartyChat(Client client, PartyChatPacket packet)
         {
-            if (!IsSayable(packet.Message))
+            if (!IsSayable(packet.Message) || Moderation.RefuseIfMuted(client))
                 return;
 
             var party = PartyManager.Instance.PartyOf(client);
@@ -369,6 +375,10 @@ namespace Rasa.Managers
                     new WhisperFailAckPacket(name, PlayerMessage.PmWhisperTargetNotInGame));
                 return;
             }
+
+            // A silenced player may still whisper a game master - the way to ask about it.
+            if ((target.AccountEntry?.Level ?? 0) < (byte)GmLevel.GameMaster && Moderation.RefuseIfMuted(sender))
+                return;
 
             // Ignore lists hold account ids, loaded by SocialManager.SetSocialContactList.
             if (target.Player.IgnoredPlayers.Contains(sender.AccountEntry.Id))
@@ -563,10 +573,14 @@ namespace Rasa.Managers
         {
             // send LoginOk (despite the original description in the python files, this will only show 'You have arrived at ....' msg in chat)
             client.CallMethod(SysEntity.CommunicatorId, new LoginOkPacket(client.Player.Name));
-            // send MOTD ( Recv_SendMOTD - receives MOTDDict {languageId: text} )
-            // SendMOTD = 770		// Displayed only if different
-            // PreviewMOTD = 769	// Displayed always
-            client.CallMethod(SysEntity.CommunicatorId, new PreviewMOTDPacket("Welcome to the Infinite Rasa server."));
+
+            // LoginOk also follows every dropship ride; the message of the day and a silenced
+            // player's reminder are for entering the world, once per connection.
+            if (!client.MotdSent)
+            {
+                MessageOfTheDay.SendOnLogin(client);
+                Moderation.OnEnteredWorld(client);
+            }
         }
 
         public void PlayerEnterMap(Client client)
@@ -622,7 +636,7 @@ namespace Rasa.Managers
                 ChatCommandsManager.Instance.ProcessCommand(client, textMsg);
                 return;
             } 
-            if (client.Player == null)
+            if (client.Player == null || Moderation.RefuseIfMuted(client))
                 return;
             // go through all players and send chat message ( can ignore sync because playerList will not change )
             var mapChannel = client.Player.MapChannel;
@@ -662,7 +676,7 @@ namespace Rasa.Managers
 
         public void Shout(Client client, string textMsg)
         {
-            if (client.Player == null || !IsSayable(textMsg))
+            if (client.Player == null || !IsSayable(textMsg) || Moderation.RefuseIfMuted(client))
                 return;
 
             // Same iteration style as RadialChat: the map channel's client list does not

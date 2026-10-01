@@ -1264,6 +1264,10 @@ namespace Rasa.Migrations.MySqlChar
                         .HasDefaultValue((byte)0)
                         .HasColumnName("level");
 
+                    b.Property<long>("MutedUntil")
+                        .HasColumnType("bigint")
+                        .HasColumnName("muted_until");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("varchar(64)")
