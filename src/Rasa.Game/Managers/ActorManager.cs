@@ -51,7 +51,7 @@ namespace Rasa.Managers
          *  - SetDesiredCrouchState(self, desiredStateId)
          *  - RequestVisualCombatMode(self, goToCombatMode)
          *  - LevelUp(self, newLevel)
-         *  - PlayerDead(self, sourceId, graveyardList, canRevive = 0)
+         *  - PlayerDead(self, sourceId, graveyardList, canRevive = 0)   => implemented (PlayerDeath)
          *  - AnnounceMapDamage(self, rawInfo)
          *  - MadeDead(self)
          *  - ActorKilled(self)
@@ -65,8 +65,8 @@ namespace Rasa.Managers
          *  - WargameData(self, wargameData)
          *  
          *      Actor Hanlders:
-         *  - BuryMe                    => ToDo
-         *  - ReviveMe                  => ToDo
+         *  - BuryMe                    => implemented, PlayerDeath (to the hospital)
+         *  - ReviveMe                  => implemented, PlayerDeath (to the hospital chosen)
          *  - RequestActionInterrupt    => ToDo
          *  - RequestDetachGameEffect   => gesture effects only, GestureManager
          *  - RequestVisualCombatMode   => implemented, RequestVisualCombatMode (relayed to the others)
@@ -279,9 +279,7 @@ namespace Rasa.Managers
         /// empty and the rest comes off health. Returns what was actually taken off health and
         /// armour together. A creature brought to zero is killed and its killer credited; one
         /// that survives and was minding its own business turns on the attacker. A player brought
-        /// to zero by an enemy player is defeated (Pvp.Defeat); any other player at zero stands
-        /// back up at full, as weapon fire leaves them (MissileManager): dying is not wired yet,
-        /// and a character stuck dead with no way back is worse than one standing up again.
+        /// to zero dies, unless a duel defeats them or they are a GM who may not die (PlayerDeath).
         /// A player's hit on a player is PvP (Pvp): halved, and stopped by PvP Safety.
         /// </summary>
         /// <param name="source">Who did it; credited with a kill, and what a surviving creature turns on.</param>
@@ -419,17 +417,9 @@ namespace Rasa.Managers
                 AbilityManager.OnPlayerDamaged(mapChannel, victim, armorTaken + healthTaken);
             }
 
-            if (target is Manifestation beaten && health.Current <= 0 && Pvp.Defeats(source, beaten))
-            {
-                // Brought down by an enemy player: defeated (Pvp.Defeat).
-                Pvp.Defeat(mapChannel, beaten, source);
-            }
-            else if (!(target is Creature) && health.Current <= 0)
-            {
-                // A player at zero stands back up at full: see the remarks.
-                health.Current = health.CurrentMax;
-                CellManager.Instance.CellCallMethod(mapChannel, target, new UpdateHealthPacket(health, 0));
-            }
+            // A player at zero dies - or is defeated, or stands back up (PlayerDeath).
+            if (target is Manifestation fallen && health.Current <= 0)
+                PlayerDeath.AtZero(mapChannel, fallen, source);
 
             return armorTaken + healthTaken;
         }

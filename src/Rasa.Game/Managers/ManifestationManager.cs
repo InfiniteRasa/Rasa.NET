@@ -69,7 +69,7 @@ namespace Rasa.Managers
          *  - PlayerFlags
          *  - CloneCredits
          *  - WaypointGained
-         *  - GraveyardGained
+         *  - GraveyardGained                  => implemented (Hospitals)
          *  - CharacterName
          *  - RaceId                           => implemented
          *  - PlayerAfk                        => implemented
@@ -836,7 +836,7 @@ namespace Rasa.Managers
             // Stunned or knocked down: the client holds the trigger back itself, and the server
             // does not fire for an auto-fire it left running.
             // Under an enemy's Mind Control P2-P5 nothing is fired either (Pvp.MayNotAttack).
-            if (Stuns.IsStunned(client.Player) || Pvp.MayNotAttack(client.Player))
+            if (Stuns.IsStunned(client.Player) || Pvp.MayNotAttack(client.Player) || client.Player.State == CharacterState.Dead)
                 return FireResult.NotFired;
 
             // Polymorphed: the creature's weapon, whatever is in the player's own hands.
@@ -2156,6 +2156,10 @@ namespace Rasa.Managers
             if (!forSelf && Targets.Current(player) is var target && target != 0)
                 entityData.Add(new TargetIdPacket(target));
 
+            // Dead, to anyone who meets them so: lying there, no death blow played (Recv_DeadOnArrival).
+            if (!forSelf && player.State == CharacterState.Dead)
+                entityData.Add(new DeadOnArrivalPacket());
+
             // Stealth Armor's radar signature, to everyone who meets them; and to their own client
             // how far their radar reaches for a stealthed enemy (a Spotter). Both start at 1.0.
             if (!forSelf && player.DetectionRangePercent != 100)
@@ -3079,7 +3083,7 @@ namespace Rasa.Managers
             return true;
         }
 
-        private static void RemoveAutoFire(Client client)
+        internal static void RemoveAutoFire(Client client)
         {
             for (var i = AutoFire.Count - 1; i >= 0; i--)
                 if (AutoFire[i].Client == client)
@@ -3090,6 +3094,9 @@ namespace Rasa.Managers
         {
             if (client?.Player?.MapChannel != null)
                 LootDispenserManager.Instance.RemoveForOwner(client.Player.MapChannel, client);
+
+            // Leaving dead: to their hospital first, so they come back alive there (PlayerDeath).
+            PlayerDeath.PlayerLeaving(client);
 
             // Called from MapChannelManager.RemovePlayer. A client that dropped while holding
             // fire stayed in the auto-fire list; once its items were destroyed CurrentWeapon
@@ -3219,6 +3226,13 @@ namespace Rasa.Managers
             if (Stuns.IsStunned(player))
             {
                 RefuseMove(client, movement, "while stunned");
+                return false;
+            }
+
+            // Dead (PlayerDeath): nowhere until they are back.
+            if (player.State == CharacterState.Dead)
+            {
+                RefuseMove(client, movement, "while dead");
                 return false;
             }
 

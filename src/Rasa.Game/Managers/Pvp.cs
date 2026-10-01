@@ -48,10 +48,11 @@ namespace Rasa.Managers
     /// (<see cref="ScaleDuration"/>).
     ///
     /// Ours, since nothing in the client says:
-    ///  - A player brought to zero by an enemy is defeated, not killed - there is no player death
-    ///    yet (BuryMe, PlayerDead and the revive are not wired). The kill counts for the feud, the
-    ///    loser is back on full health and armour, and has PvP Safety for its 60 seconds
-    ///    (<see cref="Defeat"/>).
+    ///  - A player brought to zero by an enemy dies in a clan feud, the kill counted, and comes
+    ///    back from a hospital with PvP Safety (PlayerDeath). In a duel - whose flags carry no
+    ///    penalty - the loser is defeated, not killed: the kill counts, they are back on full
+    ///    health and armour, and have PvP Safety for its 60 seconds (<see cref="Defeat"/>). So is
+    ///    a GM who may not die.
     ///  - PvP Safety stops PvP damage both ways: its holder takes none from an enemy player (the hit
     ///    shows Immune) and deals none to one.
     ///  - The healing modifier applies to a heal from a player on a player who has dealt or taken
@@ -399,19 +400,34 @@ namespace Rasa.Managers
                     CellManager.Instance.CellCallMethod(mapChannel, victim, new UpdateArmorPacket(armor, 0));
             }
 
-            var victimClient = ClientOf(mapChannel, victim);
-            var killerClient = ClientOf(mapChannel, killer);
-
-            if (victimClient != null && killerClient != null)
-            {
-                Duels.Instance.Kill(killerClient, victimClient);
-                ClanFeuds.Instance.Kill(killerClient, victimClient);
-            }
+            CountKill(mapChannel, victim, source);
 
             Logger.WriteLog(LogType.Debug, $"PvP: {victim.FamilyName} ({victim.Id}) defeated by {killer?.FamilyName} ({killer?.Id}).");
 
             if (mapChannel != null)
                 GiveSafety(mapChannel, victim);
+        }
+
+        /// <summary>An enemy player (or their creature) has brought this player down: the kill counts for the duel or feud between them.</summary>
+        public static void CountKill(MapChannel mapChannel, Manifestation victim, Actor source)
+        {
+            var victimClient = ClientOf(mapChannel, victim);
+            var killerClient = ClientOf(mapChannel, Controller(source));
+
+            if (victimClient == null || killerClient == null)
+                return;
+
+            Duels.Instance.Kill(killerClient, victimClient);
+            ClanFeuds.Instance.Kill(killerClient, victimClient);
+        }
+
+        /// <summary>Whether the two are dueling each other: a duel's loser is defeated, not killed (PlayerDeath).</summary>
+        public static bool InDuel(MapChannel mapChannel, Manifestation one, Manifestation other)
+        {
+            var client = ClientOf(mapChannel, one);
+            var otherClient = ClientOf(mapChannel, other);
+
+            return client != null && otherClient != null && Duels.Instance.DuelOf(client)?.Involves(otherClient) == true;
         }
 
         /// <summary>PvP Safety on a player for PVP_SAFETY_DURATION, replacing any they had.</summary>

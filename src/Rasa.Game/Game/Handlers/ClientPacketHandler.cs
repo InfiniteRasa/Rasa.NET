@@ -711,6 +711,30 @@
             LootDispenserManager.Instance.SetAutoLootThreshold(Client, packet);
         }
 
+        [PacketHandler(GameOpcode.ReviveMe)]
+        private void ReviveMe(ReviveMePacket packet)
+        {
+            PlayerDeath.ReviveMe(Client, packet.GraveyardId);
+        }
+
+        [PacketHandler(GameOpcode.BuryMe)]
+        private void BuryMe(BuryMePacket packet)
+        {
+            PlayerDeath.ReviveMe(Client, null);
+        }
+
+        [PacketHandler(GameOpcode.RequestRevive)]
+        private void RequestRevive(RequestRevivePacket packet)
+        {
+            PlayerDeath.RequestRevive(Client, packet.ReviverId);
+        }
+
+        [PacketHandler(GameOpcode.RefuseRevive)]
+        private void RefuseRevive(RefuseRevivePacket packet)
+        {
+            PlayerDeath.RefuseRevive(Client, packet.ReviverId);
+        }
+
         [PacketHandler(GameOpcode.SetDesiredCrouchState)]
         private void SetDesiredCrouchState(SetDesiredCrouchStatePacket packet)
         {

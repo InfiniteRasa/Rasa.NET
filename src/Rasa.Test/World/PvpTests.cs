@@ -136,7 +136,7 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
-        public void AnEnemyBroughtToZeroIsDefeatedCountedRestoredAndMadeSafe()
+        public void AnEnemyBroughtToZeroInAFeudDiesTheKillCountedAndComesBackSafe()
         {
             using var world = new WorldTestContext();
             var red = Fighter(world, RedClanId);
@@ -151,15 +151,40 @@ namespace Rasa.Test.World
 
                 Shoot(world, red, blue, 100);
 
-                Assert.AreEqual(1000, Health(blue), "back on full");
-                Assert.AreEqual(200, blue.Player.Attributes[Attributes.Armor].Current, "armour too");
-                Assert.IsTrue(Pvp.IsSafe(blue.Player));
+                Assert.AreEqual(CharacterState.Dead, blue.Player.State, "a feud kills (PlayerDeath)");
                 Assert.AreEqual(1, feud.ChallengerKills, "red challenged, red scored");
                 Assert.AreEqual(0, feud.TargetKills);
 
                 var packets = MissionTestContext.Drain(blue);
                 Assert.IsTrue(packets.OfType<WargameScoreboardPacket>().Any());
-                Assert.IsTrue(packets.OfType<GameEffectAttachedPacket>().Any(p => p.EffectTypeId == Pvp.SafetyTypeId));
+                Assert.IsTrue(packets.OfType<PlayerDeadPacket>().Any());
+
+                PlayerDeath.ReviveMe(blue, null);
+
+                Assert.AreEqual(1000, Health(blue), "back on full");
+                Assert.AreEqual(200, blue.Player.Attributes[Attributes.Armor].Current, "armour too");
+                Assert.IsTrue(Pvp.IsSafe(blue.Player), "and safe for a while");
+            });
+        }
+
+        [TestMethod]
+        public void AGmWhoMayNotDieIsDefeatedInAFeudInstead()
+        {
+            using var world = new WorldTestContext();
+            var red = Fighter(world, RedClanId);
+            var blue = Fighter(world, BlueClanId, 10);
+            PlaceAll(red, blue);
+            PlayerDeathTests.GameMaster(blue);
+            blue.Player.Attributes[Attributes.Health].Current = 40;
+
+            WithFeud(world, feud =>
+            {
+                Shoot(world, red, blue, 100);
+
+                Assert.AreNotEqual(CharacterState.Dead, blue.Player.State);
+                Assert.AreEqual(1000, Health(blue), "back on full");
+                Assert.IsTrue(Pvp.IsSafe(blue.Player));
+                Assert.AreEqual(1, feud.ChallengerKills, "the kill still counts");
             });
         }
 

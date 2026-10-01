@@ -81,10 +81,13 @@ namespace Rasa.Test.World
                     red.Player.Attributes[Attributes.Health].Current = 40;
                     ActorManager.Instance.Damage(world.Map, red.Player, 100, mine);
 
-                    Assert.AreEqual(1000, Health(red), "defeated: back on full");
-                    Assert.IsTrue(Pvp.IsSafe(red.Player));
+                    Assert.AreEqual(CharacterState.Dead, red.Player.State, "killed in the feud (PlayerDeath)");
                     Assert.AreEqual(1, feud.TargetKills, "blue's mine, blue's kill");
                     Assert.AreEqual(0, feud.ChallengerKills);
+
+                    PlayerDeath.ReviveMe(red, null);
+                    Assert.AreEqual(1000, Health(red), "back from the hospital on full");
+                    Assert.IsTrue(Pvp.IsSafe(red.Player));
 
                     Assert.AreEqual(0, ActorManager.Instance.Damage(world.Map, red.Player, 100, mine, out var outcome), "PvP Safety");
                     Assert.IsTrue(outcome.Immune);

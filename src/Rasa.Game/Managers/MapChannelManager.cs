@@ -400,6 +400,9 @@ namespace Rasa.Managers
                     {
                         Guard("MapTriggerManager.TriggersProximityWorker", mapChannel, () => MapTriggerManager.Instance.TriggersProximityWorker(mapChannel));
 
+                        // hospitals gained by walking up to them
+                        Guard("Hospitals.Worker", mapChannel, () => Hospitals.Worker(mapChannel));
+
                         // zone borders and instance doors: anyone standing in one leaves the map
                         Guard("MapLinkManager.Worker", mapChannel, () => MapLinkManager.Instance.Worker(mapChannel));
 

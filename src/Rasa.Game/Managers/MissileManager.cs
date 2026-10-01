@@ -441,28 +441,15 @@ namespace Rasa.Managers
             actor.Attributes[Attributes.Health].Current -= healthDecrease;
             CellManager.Instance.CellCallMethod(mapChannel, actor, new UpdateHealthPacket(actor.Attributes[Attributes.Health], 0));
 
+            // Brought to zero: dead, or defeated in a duel - the kill counted, back on full and safe
+            // for a while - or a GM who may not die back on their feet (PlayerDeath). Either way the
+            // hit carries nothing more.
             var defeated = false;
 
-            if(actor.Attributes[Attributes.Health].Current == 0)
+            if (actor.Attributes[Attributes.Health].Current == 0 && actor is Manifestation fallen)
             {
-                // Brought down by an enemy player: defeated - the kill counted, back on full and
-                // safe for a while (Pvp.Defeat).
-                if (actor is Manifestation beaten && Pvp.Defeats(missile.Source, beaten))
-                {
-                    Pvp.Defeat(mapChannel, beaten, missile.Source);
-                    defeated = true;
-                }
-                else
-                {
-                    // we won't die yet :D
-                    actor.Attributes[Attributes.Health].Current = actor.Attributes[Attributes.Health].CurrentMax;
-                    //actor.State = CharacterState.Dying;
-                }
-            }
-
-            if (actor.State == CharacterState.Dying)
-            {
-
+                PlayerDeath.AtZero(mapChannel, fallen, missile.Source);
+                defeated = true;
             }
 
             // Reflective Armor and the Guardian's Reflection send some of it back (Reflection).
@@ -481,7 +468,7 @@ namespace Rasa.Managers
             // A creature attack that knocks back or stuns does so to a player as well, and one
             // that carries a game effect puts it on them (CreatureEffectAttacks) - before the
             // recovery goes out, which is what announces it.
-            if (missile.Source is Creature striker && actor is Manifestation struck)
+            if (missile.Source is Creature striker && actor is Manifestation struck && struck.State != CharacterState.Dead)
             {
                 PlayerCrowdControl.CreatureActionHit(mapChannel, striker, struck, missile.ActionId, missile.ActionArgId);
                 CreatureEffectAttacks.OnHit(mapChannel, striker, struck, missile);
@@ -939,7 +926,7 @@ namespace Rasa.Managers
                 DoDamageToCreature(mapChannel, extra);
 
             hit.FinalAmt = extra.DamageA;
-            hit.DeathBlow = creature is Creature && creature.Attributes[Attributes.Health].Current <= 0 ? 1 : 0;
+            hit.DeathBlow = creature.Attributes[Attributes.Health].Current <= 0 ? 1 : 0;
 
             missile.Args.HitEntities.Add(creature.EntityId);
             missile.Args.HitData.Add(hit);
@@ -1171,7 +1158,9 @@ namespace Rasa.Managers
             // hit in the recovery carries its own amount now that a launcher lists several.
             hitData.FinalAmt = missile.DamageA;
 
-            if (targetType == EntityType.Creature && missile.TargetActor.Attributes[Attributes.Health].Current <= 0)
+            // A creature killed, or a player (PlayerDeath): the client plays the death from it.
+            if ((targetType == EntityType.Creature || targetType == EntityType.Character)
+                && missile.TargetActor?.Attributes.TryGetValue(Attributes.Health, out var struckHealth) == true && struckHealth.Current <= 0)
                 hitData.DeathBlow = 1;
 
             // A creature's lightning: its extra damage and its arc, carried in this hit.

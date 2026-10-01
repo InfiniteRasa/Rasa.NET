@@ -172,6 +172,7 @@ namespace Rasa.Managers
             RegisterCommand(".moveflags", GmLevel.GameMaster, MoveFlagsCommand);
             RegisterCommand(".falldamage", GmLevel.GameMaster, FallDamageCommand, "metres");
             RegisterCommand(".immune", GmLevel.GameMaster, ImmuneCommand, "damageType");
+            RegisterCommand(".allowdeath", GmLevel.GameMaster, AllowDeathCommand, "on|off");
             RegisterCommand(".feud", GmLevel.GameMaster, FeudCommand, "action", "arg1", "arg2");
             RegisterCommand(".bark", GmLevel.GameMaster, BarkCommand, "creatureEntityId", "barkId");
             RegisterCommand(".comehere", GmLevel.GameMaster, ComeHereCommand, "creatureEntityId");
@@ -2119,6 +2120,40 @@ namespace Rasa.Managers
         /// off again. With nothing after it, says what the target is immune to. Held in memory
         /// only: a restart, or the creature respawning, ends it.
         /// </summary>
+        /// <summary>
+        /// .allowdeath [on|off]: whether this GM dies at zero health like anyone else, or stands
+        /// back up (PlayerDeath.IsDeathless). With no argument it toggles. For this session only.
+        /// </summary>
+        private void AllowDeathCommand(string[] parts)
+        {
+            var player = _client.Player;
+            var word = parts.Length > 1 ? parts[1].ToLowerInvariant() : null;
+
+            switch (word)
+            {
+                case null:
+                    player.AllowDeath = !player.AllowDeath;
+                    break;
+                case "on":
+                case "1":
+                case "true":
+                    player.AllowDeath = true;
+                    break;
+                case "off":
+                case "0":
+                case "false":
+                    player.AllowDeath = false;
+                    break;
+                default:
+                    SendCommandUsage(".allowdeath");
+                    return;
+            }
+
+            CommunicatorManager.Instance.SystemMessage(_client, player.AllowDeath
+                ? "Death is on: you die at zero health like anyone else. .allowdeath off to stop."
+                : "Death is off: at zero health you stand back up. .allowdeath on to die.");
+        }
+
         private void ImmuneCommand(string[] parts)
         {
             var communicator = CommunicatorManager.Instance;

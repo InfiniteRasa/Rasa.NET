@@ -384,6 +384,14 @@ namespace Rasa.Managers
             {
                 case ActionId.ToolHealingDisc:
                 {
+                    // A dead player, at Healing 3 (healdisc.py canTargetDead): offered a revive
+                    // with what the disc would have healed (PlayerDeath).
+                    if (target is Manifestation fallen && fallen.State == CharacterState.Dead && action.Actor is Manifestation medic)
+                    {
+                        PlayerDeath.OfferRevive(mapChannel, medic, fallen, amount);
+                        break;
+                    }
+
                     var healed = ActorManager.Instance.Heal(target, amount, action.Actor.EntityId);
 
                     if (healed > 0)

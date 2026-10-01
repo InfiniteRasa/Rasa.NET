@@ -882,7 +882,7 @@ namespace Rasa.Managers
         /// <summary>Whether an effect changes what UpdateStatsValues works out for a player.</summary>
         private static bool ChangesStats(GameEffect effect)
         {
-            return effect.MaxHealthPercent != 0 || (effect.AttributeId.HasValue && effect.AttributePercent != 0);
+            return effect.MaxHealthPercent != 0 || (effect.AttributeId.HasValue && effect.AttributePercent != 0) || effect.PrimaryAttributesPercent != 0;
         }
 
         /// <summary>
@@ -901,6 +901,10 @@ namespace Rasa.Managers
 
                 if (attribute == Attributes.Health)
                     total += effect.MaxHealthPercent;
+
+                // Rez Trauma: Body, Mind and Spirit alike.
+                if (attribute == Attributes.Body || attribute == Attributes.Mind || attribute == Attributes.Spirit)
+                    total += effect.PrimaryAttributesPercent;
             }
 
             return total;

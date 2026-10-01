@@ -1326,6 +1326,7 @@ namespace Rasa.Managers
                 }
                 if (client.State != ClientState.Ingame || client.Player?.MapChannel == null || client.Player.Id == 0 ||
                     client.Player.Disconected || client.Player.RemoveFromMap || client.Player.LogoutActive ||
+                    client.Player.State == CharacterState.Dead ||
                     !CellManager.Instance.IsInWorld(client) ||
                     !Teleporters.TryGetValue(packet.WaypointId, out var teleporter) ||
                     teleporter.ObjectData is not WaypointInfo info)

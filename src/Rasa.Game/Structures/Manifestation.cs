@@ -291,6 +291,19 @@ namespace Rasa.Structures
         // gm flags
         public bool GmFlagAlwaysFriendly { get; set; }
 
+        /// <summary>
+        /// A GM who has said they may die (.allowdeath). A GameMaster account is otherwise put
+        /// back on its feet at zero health instead of dying (PlayerDeath.IsDeathless). Not kept
+        /// past the session.
+        /// </summary>
+        public bool AllowDeath { get; set; }
+
+        /// <summary>Killed by an enemy player across a wargame: back from a hospital with PvP Safety.</summary>
+        public bool DiedInPvp { get; set; }
+
+        /// <summary>The state the player was in when they died, to go back to when revived.</summary>
+        public CharacterState StateBeforeDeath { get; set; }
+
         /// <summary>The camera script the player's client is running, 0 for none (CameraScripts).</summary>
         public uint CameraScriptId { get; set; }
 

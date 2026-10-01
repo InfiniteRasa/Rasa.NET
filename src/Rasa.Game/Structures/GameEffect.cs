@@ -204,6 +204,15 @@ namespace Rasa.Structures
         /// </summary>
         public bool BreaksOnDamage { get; set; }
 
+        /// <summary>
+        /// Percent change to Body, Mind and Spirit together while on - Rez Trauma (REZ_SICKNESS)'s
+        /// penalty after a death (PlayerDeath). Players only, as AttributePercent is.
+        /// </summary>
+        public int PrimaryAttributesPercent { get; set; }
+
+        /// <summary>How many deaths a Rez Trauma stands for (REZ_SICKNESS_MAX_STACK at most).</summary>
+        public int Stacks { get; set; }
+
         /// <summary>Percent chance that a stun or knockback on the holder does not land (Graviton Armor). See Managers.PlayerCrowdControl.</summary>
         public int KnockbackStunResistPercent { get; set; }
 

@@ -432,6 +432,10 @@ namespace Rasa.Managers
                         return;
                     }
                 }
+                else if (action.Module == "abilities.cure" && Resuscitates(level) && target is Manifestation)
+                {
+                    // Resuscitate wants a dead player (CureAction.CheckAction); offered a revive.
+                }
                 else if (target.State == CharacterState.Dead)
                 {
                     Fail(client, actionId, level, PlayerMessage.PmActionFailedTargetDead);

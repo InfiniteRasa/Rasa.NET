@@ -111,6 +111,12 @@ namespace Rasa.Managers
                 client.CallMethod(SysEntity.ClientMapStateId, new MapMarkerInfoPacket(state));
         }
 
+        /// <summary>Whether the map screen marks this teleporter a safe zone (Map_SafeZone): a hospital everyone may go back to (Hospitals).</summary>
+        public bool IsSafeZone(uint teleporterId)
+        {
+            return _byTeleporter.TryGetValue(teleporterId, out var marker) && marker.MarkerType == MapMarkerType.SafeZone;
+        }
+
         /// <summary>
         /// A waypoint or hospital has just been found. The client is already being told it gained
         /// the waypoint; this is the same news for the map, and it refreshes that one marker

@@ -24,8 +24,7 @@ namespace Rasa.Managers
     /// straight off health, armour or not, and is announced to everyone around as map damage of
     /// type Environmental. Landing in water costs nothing: the water planes the maps place
     /// (WaterSurfaces, generated from the client's .map files) are checked where the descent
-    /// ended. Player death is not wired yet (ActorManager.Damage), so a fall that would kill leaves
-    /// the player at 1 health rather than announcing a death the server does not carry out.
+    /// ended. A fall that takes the last of a player's health kills them (PlayerDeath).
     ///
     /// Anything that puts a player somewhere (Manifestation.PlaceAt: a teleport, a map change, a
     /// dropship) ends the descent, so no relocation is ever taken for a fall. None of the numbers
@@ -173,21 +172,30 @@ namespace Rasa.Managers
         }
 
         /// <summary>
-        /// The fall's damage, off health alone, announced to everyone who can see the player.
-        /// Leaves them at 1 at least. Returns what was taken.
+        /// The fall's damage, off health alone, announced to everyone who can see the player. A
+        /// fall that takes the last of it kills (PlayerDeath), announced as a death blow. Returns
+        /// what was taken.
         /// </summary>
         public static int Apply(MapChannel mapChannel, Manifestation player, float drop)
         {
             if (player == null || player.State == CharacterState.Dead || player.State == CharacterState.Dying
-                || !player.Attributes.TryGetValue(Attributes.Health, out var health) || health.Current <= 1)
+                || !player.Attributes.TryGetValue(Attributes.Health, out var health) || health.Current <= 0)
                 return 0;
 
-            var taken = Math.Min(DamageFor(drop, health.CurrentMax), health.Current - 1);
+            var taken = Math.Min(DamageFor(drop, health.CurrentMax), health.Current);
 
             if (taken <= 0)
                 return 0;
 
             health.Current -= taken;
+
+            if (health.Current <= 0 && PlayerDeath.AtZero(mapChannel, player, null))
+            {
+                if (mapChannel != null)
+                    CellManager.Instance.CellCallMethod(mapChannel, player, new AnnounceMapDamagePacket(taken, deathBlow: true));
+
+                return taken;
+            }
 
             if (mapChannel != null)
             {
