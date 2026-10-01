@@ -63,7 +63,14 @@ namespace Rasa.Managers
         internal static void OnCreatureActed(MapChannel mapChannel, Creature creature, bool hostile) => OnActed(mapChannel, creature, hostile);
 
         /// <summary>A player has just performed an action: their Feedback, as a creature's (OnCreatureActed).</summary>
-        internal static void OnPlayerActed(MapChannel mapChannel, Manifestation player, bool hostile) => OnActed(mapChannel, player, hostile);
+        internal static void OnPlayerActed(MapChannel mapChannel, Manifestation player, bool hostile)
+        {
+            // Attacking lets go of their machines an enemy hacked (Pvp).
+            if (hostile)
+                ReleaseHackedPets(mapChannel, player);
+
+            OnActed(mapChannel, player, hostile);
+        }
 
         /// <summary>
         /// The abilities that are a combat action to Feedback: damage, a debuff on an enemy, or
@@ -77,7 +84,11 @@ namespace Rasa.Managers
         };
 
         private static bool IsCombatAction(ActionInfo action, ActionLevelInfo info, ulong itemId) =>
-            itemId == 0 && (IsDirectDamage(action, info) || HostileEffectModules.Contains(action.Module) || CombatActionModules.Contains(action.Module));
+            itemId == 0 && IsAttackAction(action, info);
+
+        /// <summary>An attack, whoever performs it and however: damage, a debuff on an enemy, or something put down to hurt enemies.</summary>
+        internal static bool IsAttackAction(ActionInfo action, ActionLevelInfo info) =>
+            IsDirectDamage(action, info) || HostileEffectModules.Contains(action.Module) || CombatActionModules.Contains(action.Module);
 
         private static void OnActed(MapChannel mapChannel, Actor creature, bool hostile)
         {

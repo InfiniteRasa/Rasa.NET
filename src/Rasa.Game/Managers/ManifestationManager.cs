@@ -445,8 +445,9 @@ namespace Rasa.Managers
             if (mapChannel == null || client.State != ClientState.Ingame || player.State == CharacterState.Dead)
                 return;
 
-            // Stunned or knocked down: no swing until it ends.
-            if (Stuns.IsStunned(player))
+            // Stunned or knocked down: no swing until it ends. Nor under an enemy's Mind Control
+            // P2-P5 (Pvp.MayNotAttack).
+            if (Stuns.IsStunned(player) || Pvp.MayNotAttack(player))
                 return;
 
             var weapon = InventoryManager.Instance.CurrentWeapon(client);
@@ -691,7 +692,18 @@ namespace Rasa.Managers
             (pump, pieces) = ArmorOf(player, ArmorSkills.Stealth);
             var stealth = ArmorSkills.DetectionCutPercent(pump, pieces);
 
-            player.DetectionRangePercent = Math.Max(0, 100 - stealth);
+            var detection = Math.Max(0, 100 - stealth);
+
+            // And enemy players' radars pick them up that much closer: the client takes twice the
+            // cut off its radar range (radarwindow.py kRadarPerceptionFactor), which is the
+            // "Radar Signature" figure, double the "Detection Range" one.
+            if (detection != player.DetectionRangePercent)
+            {
+                player.DetectionRangePercent = detection;
+
+                if (mapChannel != null)
+                    CellManager.Instance.CellCallMethod(mapChannel, player, new ToBePerceivedModifierPacket(detection / 100.0));
+            }
 
             if (stealth > 0)
             {
@@ -823,7 +835,8 @@ namespace Rasa.Managers
 
             // Stunned or knocked down: the client holds the trigger back itself, and the server
             // does not fire for an auto-fire it left running.
-            if (Stuns.IsStunned(client.Player))
+            // Under an enemy's Mind Control P2-P5 nothing is fired either (Pvp.MayNotAttack).
+            if (Stuns.IsStunned(client.Player) || Pvp.MayNotAttack(client.Player))
                 return FireResult.NotFired;
 
             // Polymorphed: the creature's weapon, whatever is in the player's own hands.
@@ -2142,6 +2155,14 @@ namespace Rasa.Managers
             // And what they have targeted, which their combat stance aims at.
             if (!forSelf && Targets.Current(player) is var target && target != 0)
                 entityData.Add(new TargetIdPacket(target));
+
+            // Stealth Armor's radar signature, to everyone who meets them; and to their own client
+            // how far their radar reaches for a stealthed enemy (a Spotter). Both start at 1.0.
+            if (!forSelf && player.DetectionRangePercent != 100)
+                entityData.Add(new ToBePerceivedModifierPacket(player.DetectionRangePercent / 100.0));
+
+            if (forSelf && player.ToPerceiveModifier != 1.0)
+                entityData.Add(new ToPerceiveModifierPacket(player.ToPerceiveModifier));
 
             // The title they wear, to their own client and everyone who meets them. Every
             // manifestation starts with none.

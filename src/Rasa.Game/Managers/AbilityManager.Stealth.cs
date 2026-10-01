@@ -140,6 +140,9 @@ namespace Rasa.Managers
                 Hit(recovery, creature);
             }
 
+            // Enemy players across a wargame: a whiteout and no target lock (Pvp).
+            FlashEnemies(mapChannel, player, info, radius, durationMs, recovery);
+
             if (recovery.Hits.Count > 0)
                 ManifestationManager.Instance.EnterCombat(client);
         }

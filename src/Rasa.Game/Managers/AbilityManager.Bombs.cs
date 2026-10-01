@@ -193,6 +193,9 @@ namespace Rasa.Managers
 
             var now = Environment.TickCount64;
 
+            // An enemy's Hack lets go of a machine that is hurt.
+            ReleaseOnDamage(mapChannel, creature);
+
             // An armed Called Shot goes off first: taken off, then run, so the wound it opens
             // cannot set it off a second time.
             foreach (var armed in creature.ActiveEffects.Values.Where(e => e.OnDamaged != null).ToList())

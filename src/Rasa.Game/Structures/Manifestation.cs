@@ -260,6 +260,12 @@ namespace Rasa.Structures
         /// </summary>
         public int DetectionRangePercent { get; set; } = 100;
 
+        /// <summary>
+        /// How far this player's radar picks up a stealthed enemy, as the client's
+        /// ToPerceiveModifier: 1.0 normally, more with a Spotter out (AbilityManager.SyncRadar).
+        /// </summary>
+        public double ToPerceiveModifier { get; set; } = 1.0;
+
         /// <summary>Environment.TickCount64 when the pending logout was requested.</summary>
         public long LogoutRequestedTick { get; set; }
         public bool RemoveFromMap { get; set; }

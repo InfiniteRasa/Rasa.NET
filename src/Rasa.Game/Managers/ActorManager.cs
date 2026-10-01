@@ -226,6 +226,11 @@ namespace Rasa.Managers
             if (GameEffectManager.HealingBlocked(target))
                 return 0;
 
+            // Under an enemy's Mind Control P4-P5 a player heals nobody but themselves (Pvp.MayNotAssist).
+            if (sourceEntityId != 0 && sourceEntityId != target.EntityId
+                && EntityManager.Instance.Actors.TryGetValue(sourceEntityId, out var healer) && Pvp.MayNotAssist(healer))
+                return 0;
+
             // A player's heal on a player in a fight with another player: PVP_HEALING_MODIFIER of it (Pvp).
             if (sourceEntityId != 0 && target is Manifestation)
                 amount = Pvp.ScaleHealing(target, EntityManager.Instance.GetActor(sourceEntityId), amount);
@@ -334,6 +339,7 @@ namespace Rasa.Managers
                 amount = Pvp.ScaleDamage(source, target, amount);
                 outcome = new DamageOutcome { Delivered = amount };
                 Pvp.RecordEngagement(source, target);
+                Pvp.OnHit(mapChannel, source, target);
             }
 
             if (!isPeriodic && target is Creature attackedCreature)

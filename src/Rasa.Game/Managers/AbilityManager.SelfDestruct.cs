@@ -95,9 +95,12 @@ namespace Rasa.Managers
             // Conversion turns what the hit took into healing for the squad.
             ConvertDamage(mapChannel, player, damage);
 
-            // Being hit gives a cloaked player away.
+            // Being hit gives a cloaked player away, and lets go of their machines an enemy hacked.
             if (damage > 0)
+            {
                 Stealth.Break(mapChannel, player);
+                ReleaseHackedPets(mapChannel, player);
+            }
 
             // An enemy's Called Shot aim lands on the first hit that does damage, as on a creature.
             if (damage > 0)

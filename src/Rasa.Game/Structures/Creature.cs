@@ -19,6 +19,12 @@ namespace Rasa.Structures
         public uint Level { get; set; }
         public uint MaxHitPoints { get; set; }
         public uint NameId { get; set; }
+
+        /// <summary>
+        /// Creature flags this one has beyond its class's (CreatureManager.CreatureFlagsOf): a
+        /// player's construction bot is MECHANICAL, though its class carries no flags.
+        /// </summary>
+        public List<CreatureFlag> ExtraFlags { get; set; } = new List<CreatureFlag>();
         public long UpdatePositionCounter;                                       // decreases, when it hits 0 and the cell position changed, call creature_updateCellLocation()
         public Dictionary<EquipmentData, AppearanceData> AppearanceData { get; set; }
         //sint32 lastattack;

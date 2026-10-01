@@ -118,16 +118,28 @@ namespace Rasa.Managers
                 case TraitorModule:
                 case HackModule:
                 {
-                    var target = action.TargetId != 0 ? ResolveTarget(mapChannel, action.TargetId) as Creature : null;
-                    var turned = target != null && (actionInfo.Module == HackModule
-                        ? AttachHack(mapChannel, player, target, info)
-                        : AttachTraitor(mapChannel, player, target, info));
+                    var aimed = action.TargetId != 0 ? ResolveTarget(mapChannel, action.TargetId) : null;
+                    var target = aimed as Creature;
+                    bool turned;
+
+                    // Across a wargame (Pvp): Traitor holds an enemy player back from the caster's
+                    // side, Hack holds an enemy player's machine still; neither turns their creature.
+                    if (aimed is Manifestation enemy)
+                        turned = actionInfo.Module == TraitorModule && AttachPlayerTraitor(mapChannel, player, enemy, info);
+                    else if (actionInfo.Module == HackModule && target != null && Pvp.IsEnemySummon(player, target))
+                        turned = HackPet(mapChannel, player, target, info);
+                    else if (RefuseEnemyPet(mapChannel, player, target, TraitorTypeId))
+                        turned = false;
+                    else
+                        turned = target != null && (actionInfo.Module == HackModule
+                            ? AttachHack(mapChannel, player, target, info)
+                            : AttachTraitor(mapChannel, player, target, info));
 
                     // Hit: the client's targetGameEffect announces TRAITOR_EFFECT / HACKED_EFFECT on it.
                     if (turned)
                     {
                         ManifestationManager.Instance.EnterCombat(client);
-                        Hit(recovery, target);
+                        Hit(recovery, aimed);
                     }
 
                     break;
@@ -135,10 +147,21 @@ namespace Rasa.Managers
 
                 case MindControlModule:
                 {
-                    var target = action.TargetId != 0 ? ResolveTarget(mapChannel, action.TargetId) as Creature : null;
+                    var aimed = action.TargetId != 0 ? ResolveTarget(mapChannel, action.TargetId) : null;
+                    var target = aimed as Creature;
 
                     // MindControlAction's DoAbility announces each (entityId, effectTypeId) hit as an attach.
-                    if (target != null && AttachMindControl(mapChannel, player, target, info))
+                    if (aimed is Manifestation enemy)
+                    {
+                        // An enemy player across a wargame (Pvp): a stun, or no attacking.
+                        if (AttachPlayerMindControl(mapChannel, player, enemy, info, out var shown))
+                        {
+                            ManifestationManager.Instance.EnterCombat(client);
+                            recovery = new AbilityRecoveryPacket(action.ActionId, action.ActionArgId, AbilityRecoveryPacket.HitDataKind.EffectAttach);
+                            Hit(recovery, enemy, shown);
+                        }
+                    }
+                    else if (target != null && !RefuseEnemyPet(mapChannel, player, target, MindControlTypeId) && AttachMindControl(mapChannel, player, target, info))
                     {
                         ManifestationManager.Instance.EnterCombat(client);
                         recovery = new AbilityRecoveryPacket(action.ActionId, action.ActionArgId, AbilityRecoveryPacket.HitDataKind.EffectAttach);

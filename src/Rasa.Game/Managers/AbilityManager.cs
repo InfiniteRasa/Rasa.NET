@@ -482,12 +482,21 @@ namespace Rasa.Managers
                 return;
             }
 
-            // A damage ability may be aimed at an enemy player across a wargame too (Pvp); the
-            // effect abilities still take creatures alone.
-            if (wantsHostile && target != null && !IsHostile(player, target)
-                && !(IsDirectDamage(action, info) && Pvp.IsEnemyTarget(player, target)))
+            // A damage or debuff ability may be aimed at an enemy player across a wargame too (Pvp).
+            // Hack takes a machine alone, which the client holds to (HackAction.CheckAction).
+            if (wantsHostile && target != null && !IsAttackable(player, target))
             {
                 Fail(client, actionId, level, PlayerMessage.PmActionFailedActorFriendly);
+                return;
+            }
+
+            // An enemy's Mind Control: P2-P5 let them attack nobody, P4-P5 help nobody else
+            // either (Pvp.MayNotAttack, MayNotAssist). The client knows nothing of it, so the
+            // server says no.
+            if (Pvp.MayNotAttack(player) && IsAttackAction(action, info)
+                || Pvp.MayNotAssist(player) && !wantsHostile && target is Manifestation helped && helped != player)
+            {
+                Fail(client, actionId, level, PlayerMessage.PmCannotPerformActionNow);
                 return;
             }
 
@@ -1440,7 +1449,8 @@ namespace Rasa.Managers
         {
             var found = new List<Manifestation> { player };
 
-            if (radius <= 0 || player.PartyId == 0)
+            // Under an enemy's Mind Control P4-P5 they help nobody but themselves (Pvp.MayNotAssist).
+            if (radius <= 0 || player.PartyId == 0 || Pvp.MayNotAssist(player))
                 return found;
 
             foreach (var cell in CellManager.CellsIn(mapChannel, player.Cells))

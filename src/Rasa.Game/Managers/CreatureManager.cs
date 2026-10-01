@@ -76,10 +76,17 @@ namespace Rasa.Managers
             if (creature == null)
                 return new List<int>();
 
-            return EntityClassManager.Instance.LoadedEntityClasses
+            var flags = EntityClassManager.Instance.LoadedEntityClasses
                 .TryGetValue(creature.EntityClass, out var entityClass) && entityClass != null
                 ? entityClass.CreatureFlags.ConvertAll(f => (int)f)
                 : new List<int>();
+
+            if (creature.ExtraFlags != null)
+                foreach (var extra in creature.ExtraFlags)
+                    if (!flags.Contains((int)extra))
+                        flags.Add((int)extra);
+
+            return flags;
         }
 
         // 1 creature to n client's

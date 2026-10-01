@@ -179,8 +179,54 @@ namespace Rasa.Managers
         /// </summary>
         public static bool Shielded(Actor source, Actor target)
         {
-            return IsPvp(source, target) && (IsSafe(Controller(source)) || IsSafe(target));
+            return IsPvp(source, target) && (IsSafe(Controller(source)) || IsSafe(target)) || Restrained(source, target);
         }
+
+        /// <summary>
+        /// Whether a Traitor on the attacking player (GameEffect.Restrains) stops this hit: one on
+        /// its caster, on a player on the caster's side, or on a creature of theirs. The hit
+        /// lands as Immune.
+        /// </summary>
+        public static bool Restrained(Actor source, Actor target)
+        {
+            if (!(Controller(source) is Manifestation attacker) || target == null)
+                return false;
+
+            var victim = target is Creature creature ? Controller(creature) : target as Manifestation;
+
+            if (victim == null || ReferenceEquals(victim, attacker))
+                return false;
+
+            foreach (var effect in attacker.ActiveEffects.Values)
+            {
+                if (!effect.Restrains || effect.IsExpired || !(Controller(effect.Source) is Manifestation caster))
+                    continue;
+
+                if (ReferenceEquals(victim, caster) || !AreEnemies(caster, victim))
+                    return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// A hit has landed: a Traitor's caster attacking the player they turned lets them go
+        /// ("ends when you attack it").
+        /// </summary>
+        public static void OnHit(MapChannel mapChannel, Actor source, Actor target)
+        {
+            if (!(target is Manifestation victim) || !(Controller(source) is Manifestation attacker) || mapChannel == null)
+                return;
+
+            foreach (var effect in victim.ActiveEffects.Values.Where(e => e.Restrains && ReferenceEquals(Controller(e.Source), attacker)).ToList())
+                GameEffectManager.Instance.DettachEffect(mapChannel, victim, effect);
+        }
+
+        /// <summary>Whether the player is held from attacking (Mind Control P2-P5, GameEffect.NoAttack).</summary>
+        public static bool MayNotAttack(Actor actor) => actor != null && actor.ActiveEffects.Values.Any(e => e.NoAttack && !e.IsExpired);
+
+        /// <summary>Whether the player is held from helping anyone else (Mind Control P4-P5, GameEffect.NoAssist).</summary>
+        public static bool MayNotAssist(Actor actor) => actor != null && actor.ActiveEffects.Values.Any(e => e.NoAssist && !e.IsExpired);
 
         /// <summary>Whether a player brought to zero by this source is defeated: an enemy player's doing, or their creature's.</summary>
         public static bool Defeats(Actor source, Manifestation victim)

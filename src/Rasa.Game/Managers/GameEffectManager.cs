@@ -122,6 +122,20 @@ namespace Rasa.Managers
                 return;
             }
 
+            // A buff from a player under an enemy's Mind Control P4-P5 goes on nobody but them
+            // (Pvp.MayNotAssist).
+            if (effect.IsBuff && effect.Source is Manifestation helper && !ReferenceEquals(helper, actor) && Pvp.MayNotAssist(helper))
+                return;
+
+            // Nor does a debuff from an enemy player while either holds PvP Safety, or from a player
+            // an enemy's Traitor holds back from that side (Pvp.Shielded).
+            if (!effect.IsBuff && effect.Source != null && Pvp.Shielded(effect.Source, actor))
+            {
+                CellManager.Instance.CellCallMethod(mapChannel, actor,
+                    new GameEffectAttachFailedPacket(effect.TypeId, GameEffectAttachFailedPacket.FailReason.Immune, effect.SourceId));
+                return;
+            }
+
             // A debuff from an enemy player (or their creature) lasts PVP_EFFECT_DURATION_MODIFIER
             // less (Pvp). Stuns and knockbacks are scaled where they are made, their flight and
             // getup being worked out from the time; a bomb's clock is its fuse, not a duration.

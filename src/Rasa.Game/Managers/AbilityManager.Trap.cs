@@ -288,6 +288,13 @@ namespace Rasa.Managers
                     continue;
                 }
 
+                // Held by an enemy's Hack (or any stun): it holds its fire.
+                if (Stuns.IsStunned(turret))
+                {
+                    StopTrapFire(trap);
+                    continue;
+                }
+
                 if (now < trap.NextShotAt)
                     continue;
 

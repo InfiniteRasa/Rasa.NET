@@ -84,7 +84,7 @@ namespace Rasa.Managers
             // StunEffect.OnAnnounceAttach: uncontrolled, movement blocked.
             GameEffectManager.Instance.Attach(mapChannel, player, stun);
 
-            return true;
+            return player.ActiveEffects.ContainsKey(stun.EffectId);
         }
 
         /// <summary>
@@ -123,14 +123,12 @@ namespace Rasa.Managers
             };
 
             // Held until it ends, however it ends - run out, cleared on leaving the map.
-            if (client != null)
-            {
-                client.CallMethod(SysEntity.ClientMethodId, new RequestMovementBlockPacket());
-                knock.OnDetached = (map, actor, e) => client.CallMethod(SysEntity.ClientMethodId, new UnrequestMovementBlockPacket());
-            }
-
             // KnockbackEffect.OnAttach(target, duration).
-            GameEffectManager.Instance.Attach(mapChannel, player, knock, downMs / 1000.0);
+            HoldInPlace(mapChannel, player, knock, downMs / 1000.0);
+
+            // Refused (Cure's immunity, PvP Safety): not moved either.
+            if (!player.ActiveEffects.ContainsKey(knock.EffectId))
+                return false;
 
             if (travelled > 0.1f && client != null)
             {
@@ -238,7 +236,10 @@ namespace Rasa.Managers
 
             HoldInPlace(mapChannel, player, hold);
 
-            if (client != null && player.ActiveEffects.ContainsKey(hold.EffectId))
+            if (!player.ActiveEffects.ContainsKey(hold.EffectId))
+                return false;
+
+            if (client != null)
             {
                 player.PlaceAt(destination);
 

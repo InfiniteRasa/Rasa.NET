@@ -162,6 +162,13 @@ namespace Rasa.Managers
                 return;
             }
 
+            // A player under an enemy's Traitor may not hurt the creatures of the caster's side (Pvp.Restrained).
+            if (Pvp.Restrained(missile.Source, creature))
+            {
+                Immune(missile, creature);
+                return;
+            }
+
             // Shooting something is being in a fight, not only being shot at - otherwise a player
             // who opens fire and wins never enters combat at all.
             EnterCombat(missile.Source);
@@ -386,6 +393,7 @@ namespace Rasa.Managers
 
                 missile.DamageA = Pvp.ScaleDamage(missile.Source, actor, missile.DamageA);
                 Pvp.RecordEngagement(missile.Source, actor);
+                Pvp.OnHit(mapChannel, missile.Source, actor);
             }
 
             // Both ends: whoever was hit, and whoever hit them if that was a player too.
