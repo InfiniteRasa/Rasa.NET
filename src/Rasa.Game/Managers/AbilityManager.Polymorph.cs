@@ -47,9 +47,9 @@ namespace Rasa.Managers
     ///   and for the client's own colours, not a side the server puts the player on.
     /// - The drawer holds the creature's combat actions the pump's tooltip names, at their
     ///   player-facing levels (MorphVariant.Abilities, AbilityManager.MorphAbilities): Kick; Mini
-    ///   Turret and Repair; Revitalize and Noxious Burst; Smash and Ground Pound. The revives -
-    ///   the Technician's Jumpstart, the Caretaker's Resuscitate, the Machina's Self Revive - wait
-    ///   on death and are left out.
+    ///   Turret and Repair; Revitalize and Noxious Burst; Smash and Ground Pound; the Machina's
+    ///   Self Revive (PlayerDeath.SelfRevive). The other revives - the Technician's Jumpstart, the
+    ///   Caretaker's Resuscitate - bring back a creature, and are left out.
     /// - Abilities are refused while morphed, bar Polymorph itself and those.
     /// - Level 5's POLYMORPH_HOMINUS_MACHINA (106, GAME_EFFECT_ARG1 25, ARG2 -50) is attached and
     ///   announced for its FX; the client gives it no tooltip and no behaviour, so what 25 and -50
@@ -106,7 +106,9 @@ namespace Rasa.Managers
             [1864] = new MorphVariant { Name = "Kael", CreatureClassId = 4046, MeshId = 14434, WeaponClassId = 3952, WeaponTemplateId = 75, TargetCategory = TargetCategory.Hostile,
                              Abilities = new[] { (ActionId.CrKaelSmash, 5u), (ActionId.CrKaelGroundPound, 5u) } },
             // Pump 5: Hominis Machina - Bane_Hominis_Machina, Weapon_Creature_Hominis_Machina (1/97, laser).
-            [1869] = new MorphVariant { Name = "Hominis Machina", CreatureClassId = 3868, MeshId = 15868, WeaponClassId = 4365, WeaponTemplateId = 118, TargetCategory = TargetCategory.Hostile },
+            // "Ability: Self Revive (useable once)": POLY_SELF_RES 417/1, abilities.selfres.
+            [1869] = new MorphVariant { Name = "Hominis Machina", CreatureClassId = 3868, MeshId = 15868, WeaponClassId = 4365, WeaponTemplateId = 118, TargetCategory = TargetCategory.Hostile,
+                             Abilities = new[] { (ActionId.PolySelfRes, 1u) } },
             // PAU Angel activator - PAU_Vehicle_ANGEL, Weapon_PAU_ANGEL_LeechGun_Physical (constant fire 179/8).
             [4733] = new MorphVariant { Name = "PAU Angel", CreatureClassId = 30079, MeshId = 50218, WeaponClassId = 30652, WeaponTemplateId = 131962, TargetCategory = TargetCategory.Friendly },
             // PAU Vulcan activator - PAU_Vehicle_VULCAN, Weapon_PAU_Vulcan_GrenadeLauncher_Fire (141/19, fire).

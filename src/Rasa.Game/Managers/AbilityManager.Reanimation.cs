@@ -43,7 +43,9 @@ namespace Rasa.Managers
     /// - HATE_TRANSFER_PERCENT: of the hate the player earns on a creature within the risen
     ///   creature's attack range, 50% goes to it instead (HateSinkFor, Threat).
     ///
-    /// Not done: player corpses (the PvP clone and forced hospital revive).
+    /// A dead enemy player across a wargame (Pvp) is a body too: it rises as their clone - the
+    /// look and weapon Create Clone gives a clone of the caster, at the risen level - and they
+    /// are sent to their nearest hospital (PlayerDeath.ForceToHospital).
     /// </summary>
     public partial class AbilityManager
     {
@@ -87,17 +89,27 @@ namespace Rasa.Managers
         private void Reanimate(MapChannel mapChannel, Manifestation player, ActionLevelInfo info, ActionData action)
         {
             var recovery = new AbilityRecoveryPacket(action.ActionId, action.ActionArgId, AbilityRecoveryPacket.HitDataKind.None);
-            var corpse = action.TargetId != 0 ? ResolveTarget(mapChannel, action.TargetId) as Creature : null;
+            var corpse = action.TargetId != 0 ? ResolveTarget(mapChannel, action.TargetId) : null;
+            var fallen = new List<Manifestation>();
 
-            if (IsUsableCorpse(corpse))
+            if (IsUsableCorpse(corpse, player))
             {
-                var risen = Raise(mapChannel, player, corpse, info, true);
+                var risen = corpse is Manifestation enemy ? RaiseClone(mapChannel, player, enemy, info, true) : Raise(mapChannel, player, (Creature)corpse, info, true);
 
                 if (risen != null)
+                {
                     Hit(recovery, risen);
+
+                    if (corpse is Manifestation taken)
+                        fallen.Add(taken);
+                }
             }
 
             CellManager.Instance.CellCallMethod(mapChannel, player, recovery);
+
+            // An enemy player's body taken: they are sent to their nearest hospital (PlayerDeath).
+            foreach (var enemy in fallen)
+                PlayerDeath.ForceToHospital(mapChannel, enemy);
         }
 
         /// <summary>Reanimation Wave: every usable corpse within RADIUS_AROUND_SOURCE rises.</summary>
@@ -112,6 +124,15 @@ namespace Rasa.Managers
                     if (!corpses.Contains(creature) && Vector3.Distance(player.Position, creature.Position) <= radius && IsUsableCorpse(creature))
                         corpses.Add(creature);
 
+            // And the bodies of enemy players across a wargame (Pvp).
+            var fallen = new List<Manifestation>();
+
+            foreach (var cell in CellManager.CellsIn(mapChannel, player.Cells))
+                foreach (var client in cell.ClientList)
+                    if (client?.Player is Manifestation enemy && !fallen.Contains(enemy)
+                        && Vector3.Distance(player.Position, enemy.Position) <= radius && IsUsableCorpse(enemy, player))
+                        fallen.Add(enemy);
+
             // The client's targetGameEffect announces REANIMATED on each hit.
             foreach (var corpse in corpses)
             {
@@ -121,13 +142,77 @@ namespace Rasa.Managers
                     Hit(recovery, risen);
             }
 
+            var taken = new List<Manifestation>();
+
+            foreach (var enemy in fallen)
+            {
+                var risen = RaiseClone(mapChannel, player, enemy, info, false);
+
+                if (risen == null)
+                    continue;
+
+                Hit(recovery, risen);
+                taken.Add(enemy);
+            }
+
             CellManager.Instance.CellCallMethod(mapChannel, player, recovery);
+
+            foreach (var enemy in taken)
+                PlayerDeath.ForceToHospital(mapChannel, enemy);
+        }
+
+        /// <summary>
+        /// A dead enemy player's body rises as their clone - "Clone of" them, on their body model,
+        /// in their appearance, firing their weapon in hand at the risen level, with their
+        /// maximum health and armour - fighting for the player as any risen creature does.
+        /// </summary>
+        private Creature RaiseClone(MapChannel mapChannel, Manifestation player, Manifestation enemy, ActionLevelInfo info, bool announce)
+        {
+            var level = ReanimatedLevel(player.Level, info.Get(AbilityProperty.CreatureLevelDifference));
+            var health = enemy.Attributes.TryGetValue(Attributes.Health, out var enemyHealth) ? Math.Max(1, enemyHealth.CurrentMax) : 100;
+            var armor = enemy.Attributes.TryGetValue(Attributes.Armor, out var enemyArmor) ? Math.Max(0, enemyArmor.CurrentMax) : 0;
+
+            var clone = new Creature
+            {
+                EntityClass = (EntityClasses)(enemy.Gender == 0 ? CloneMaleClassId : CloneFemaleClassId),
+                NameId = CloneNameId,
+                Name = $"Clone of {enemy.Name}",
+                ActorName = enemy.Name,
+                Level = level,
+                MaxHitPoints = (uint)health,
+                RunSpeed = 9f,
+                WalkSpeed = 5f,
+                AggroRange = 20f,
+                AppearanceData = CopyAppearance(enemy.AppearanceData),
+                Scale = enemy.Scale > 0 ? enemy.Scale : 1.0d,
+                State = CharacterState.Idle
+            };
+
+            var enemyClient = mapChannel.ClientList.Find(c => c?.Player == enemy);
+            var weaponItem = enemyClient != null ? InventoryManager.Instance.CurrentWeapon(enemyClient) : null;
+            var weapon = EntityClassManager.Instance.GetWeaponClassInfo(weaponItem);
+
+            if (weapon != null)
+                clone.Actions.Add(CloneAttackFor(weapon, (int)(weaponItem?.ItemTemplate?.WeaponInfo?.Refire ?? 0), enemy.Level, (int)level));
+
+            clone.Attributes.Add(Attributes.Body, new ActorAttributes(Attributes.Body, 1, 1, 1, 0, 0));
+            clone.Attributes.Add(Attributes.Mind, new ActorAttributes(Attributes.Mind, 1, 1, 1, 0, 0));
+            clone.Attributes.Add(Attributes.Spirit, new ActorAttributes(Attributes.Spirit, 1, 1, 1, 0, 0));
+            clone.Attributes.Add(Attributes.Health, new ActorAttributes(Attributes.Health, health, health, health, 5, 1000));
+            clone.Attributes.Add(Attributes.Chi, new ActorAttributes(Attributes.Chi, 0, 0, 0, 0, 0));
+            clone.Attributes.Add(Attributes.Power, new ActorAttributes(Attributes.Power, 0, 0, 0, 0, 0));
+            clone.Attributes.Add(Attributes.Aware, new ActorAttributes(Attributes.Aware, 0, 0, 0, 0, 0));
+            clone.Attributes.Add(Attributes.Armor, new ActorAttributes(Attributes.Armor, armor, armor, armor, 5, 1000));
+            clone.Attributes.Add(Attributes.Speed, new ActorAttributes(Attributes.Speed, 1, 1, 1, 0, 0));
+            clone.Attributes.Add(Attributes.Regen, new ActorAttributes(Attributes.Regen, 0, 0, 0, 0, 0));
+
+            return Rise(mapChannel, player, clone, enemy.Position, enemy.Rotation, info, announce);
         }
 
         /// <summary>A creature of the corpse's kind, fighting for the player, where the corpse lay; the corpse goes.</summary>
         private Creature Raise(MapChannel mapChannel, Manifestation player, Creature corpse, ActionLevelInfo info, bool announce)
         {
-            var risen = new Creature(corpse)
+            var raised = new Creature(corpse)
             {
                 TargetCategory = TargetCategory.Friendly,
                 Level = ReanimatedLevel(player.Level, info.Get(AbilityProperty.CreatureLevelDifference)),
@@ -141,12 +226,28 @@ namespace Rasa.Managers
 
             // Back to full: each attribute at its maximum.
             foreach (var (id, attribute) in corpse.Attributes)
-                risen.Attributes[id] = new ActorAttributes(id, attribute.NormalMax, attribute.CurrentMax, attribute.CurrentMax, attribute.RefreshAmount, attribute.RefreshPeriod);
+                raised.Attributes[id] = new ActorAttributes(id, attribute.NormalMax, attribute.CurrentMax, attribute.CurrentMax, attribute.RefreshAmount, attribute.RefreshPeriod);
+
+            var risen = Rise(mapChannel, player, raised, corpse.Position, corpse.Rotation, info, announce);
+
+            // What rose from the body takes its place; the body goes the usual way, loot and all.
+            if (risen != null && corpse.Controller != null)
+                corpse.Controller.DeadTime = long.MaxValue / 2;
+
+            return risen;
+        }
+
+        /// <summary>The risen creature into the world at the body's place, following the player, under REANIMATED.</summary>
+        private Creature Rise(MapChannel mapChannel, Manifestation player, Creature risen, Vector3 position, double rotation, ActionLevelInfo info, bool announce)
+        {
+            risen.TargetCategory = TargetCategory.Friendly;
+            risen.MasterEntityId = player.EntityId;
+            risen.Stance = MinionStance.Aggressive;     // it looks for the fight; a creature with a master only scans when aggressive
 
             if (!risen.Attributes.TryGetValue(Attributes.Health, out var health) || health.CurrentMax <= 0)
                 return null;
 
-            CreatureManager.Instance.SetLocation(risen, corpse.Position, corpse.Rotation, corpse.MapContextId);
+            CreatureManager.Instance.SetLocation(risen, position, rotation, player.MapContextId);
             CellManager.Instance.AddToWorld(mapChannel, risen);
 
             BehaviorManager.Instance.SetActionFollow(risen, player.EntityId);
@@ -170,10 +271,6 @@ namespace Rasa.Managers
                     Effect = effect,
                     HateTransferPercent = info.Get(AbilityProperty.HateTransferPercent)
                 });
-
-            // What rose from the body takes its place; the body goes the usual way, loot and all.
-            if (corpse.Controller != null)
-                corpse.Controller.DeadTime = long.MaxValue / 2;
 
             return risen;
         }

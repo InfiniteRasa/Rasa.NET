@@ -186,10 +186,10 @@ namespace Rasa.Managers
                 case "abilities.corpseexplode":
                 {
                     // The one ability that wants a dead target: a biological body, which the
-                    // client has already checked before asking.
-                    var corpse = action.TargetId != 0 ? ResolveTarget(mapChannel, action.TargetId) as Creature : null;
+                    // client has already checked before asking - or a dead enemy player's (Pvp).
+                    var corpse = action.TargetId != 0 ? ResolveTarget(mapChannel, action.TargetId) : null;
 
-                    if (IsBiologicalCorpse(corpse))
+                    if (corpse is Creature body ? IsBiologicalCorpse(body) : IsUsableCorpse(corpse, player))
                     {
                         ImmolateCorpse(mapChannel, player, corpse, info);
                         ManifestationManager.Instance.EnterCombat(client);

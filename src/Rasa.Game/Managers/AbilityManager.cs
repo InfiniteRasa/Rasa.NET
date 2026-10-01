@@ -278,7 +278,9 @@ namespace Rasa.Managers
                 return;
             }
 
-            if (player.State == CharacterState.Dead)
+            // The dead do nothing, bar the one thing that is for them: a Machina's Self Revive
+            // (SelfResAction.canDoWhileDead).
+            if (player.State == CharacterState.Dead && action.Module != SelfResModule)
             {
                 Fail(client, actionId, level, PlayerMessage.PmActionFailedActorDead);
                 return;
@@ -426,7 +428,7 @@ namespace Rasa.Managers
                 }
                 else if (CorpseModules.Contains(action.Module))
                 {
-                    if (!IsUsableCorpse(target))
+                    if (!IsUsableCorpse(target, player))
                     {
                         Fail(client, actionId, level, PlayerMessage.PmTargetInvalid);
                         return;
@@ -498,7 +500,7 @@ namespace Rasa.Managers
             // either (Pvp.MayNotAttack, MayNotAssist). The client knows nothing of it, so the
             // server says no.
             if (Pvp.MayNotAttack(player) && IsAttackAction(action, info)
-                || Pvp.MayNotAssist(player) && !wantsHostile && target is Manifestation helped && helped != player)
+                || Pvp.MayNotAssist(player) && !wantsHostile && !CorpseModules.Contains(action.Module) && target is Manifestation helped && helped != player)
             {
                 Fail(client, actionId, level, PlayerMessage.PmCannotPerformActionNow);
                 return;
@@ -671,7 +673,7 @@ namespace Rasa.Managers
         /// <summary>Whether this server knows how to apply the ability; see the class remarks.</summary>
         private static bool CanResolve(ActionInfo action, ActionLevelInfo info)
         {
-            return action.Module == "abilities.sprint" || action.Module == PolymorphModule || action.Module == CrabMinesModule || action.Module == RealityRipperModule || action.Module == TrapModule || action.Module == TurretModule
+            return action.Module == "abilities.sprint" || action.Module == PolymorphModule || action.Module == SelfResModule || action.Module == CrabMinesModule || action.Module == RealityRipperModule || action.Module == TrapModule || action.Module == TurretModule
                 || action.Module == HortimonculusModule || action.Module == ReanimationModule || action.Module == ReanimationWaveModule
                 || action.Module == SpotterModule || action.Module == BotConstructionModule || action.Module == CreateCloneModule
                 || MorphSupportModules.Contains(action.Module)
@@ -787,7 +789,7 @@ namespace Rasa.Managers
             if (!_actions.TryGetValue(action.ActionId, out var actionInfo) || !actionInfo.Levels.TryGetValue(action.ActionArgId, out var info))
                 return;
 
-            if (action.IsInrerrupted || player.State == CharacterState.Dead)
+            if (action.IsInrerrupted || player.State == CharacterState.Dead && actionInfo.Module != SelfResModule)
             {
                 // The others are still showing the windup. The performer's client cancelled its
                 // own when it sent the interrupt; a performer who died mid-windup is told, so the
@@ -884,6 +886,17 @@ namespace Rasa.Managers
             if (actionInfo.Module == CreateCloneModule)
             {
                 CreateClone(mapChannel, client, player, info, action);
+                return;
+            }
+
+            if (actionInfo.Module == SelfResModule)
+            {
+                // SelfResAction.DoAbility announces the revive on the performer's own client.
+                if (PlayerDeath.SelfRevive(client))
+                    CellManager.Instance.CellCallMethod(mapChannel, player, new AbilityRecoveryPacket(action.ActionId, action.ActionArgId, AbilityRecoveryPacket.HitDataKind.None));
+                else
+                    Fail(client, action.ActionId, action.ActionArgId, PlayerMessage.PmCannotPerformActionNow);
+
                 return;
             }
 

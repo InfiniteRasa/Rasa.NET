@@ -11,7 +11,9 @@ namespace Rasa.Managers
     /// <summary>
     /// Cadaver Immolation (abilities.corpseexplode), the Exobiologist's use for a body. The client
     /// (actions/abilities/corpseexplode.py) sets canTargetDead and refuses anything that is not a
-    /// dead, targetable, BIOLOGICAL creature or player, so the target is a corpse: CORPSE_IMMOLATION
+    /// dead, targetable, BIOLOGICAL creature or player - a dead enemy player across a wargame
+    /// (Pvp) is a body too, whose bomb goes off early if they get up before it does
+    /// (OnCorpseRising) - so the target is a corpse: CORPSE_IMMOLATION
     /// 126, a BombEffect, goes on it, and DELAY (5 s) later it bursts, dealing DAMAGE_AMOUNT
     /// (300-450 → 300-750, scaled) of DAMAGE_TYPE (2, incendiary) to every hostile within
     /// EFFECT_RADIUS (12 → 20 m) of it, with a crit roll like any ability damage.
@@ -31,7 +33,7 @@ namespace Rasa.Managers
         {
             public MapChannel MapChannel;
             public Manifestation Player;
-            public Creature Corpse;
+            public Actor Corpse;
             public int EffectId;
             public long ExplodeAt;
             public float Radius;
@@ -51,7 +53,7 @@ namespace Rasa.Managers
             return CreatureManager.CreatureFlagsOf(creature).Contains((int)CreatureFlag.Biological);
         }
 
-        private void ImmolateCorpse(MapChannel mapChannel, Manifestation player, Creature corpse, ActionLevelInfo info)
+        private void ImmolateCorpse(MapChannel mapChannel, Manifestation player, Actor corpse, ActionLevelInfo info)
         {
             var effectId = GameEffectManager.Instance.NextEffectId(mapChannel);
             var damageType = (DamageType)info.Get(AbilityProperty.DamageType, (int)DamageType.Fire);
@@ -118,15 +120,41 @@ namespace Rasa.Managers
             }
         }
 
-        private void Immolate(BurningCorpse burning)
+        /// <summary>
+        /// A dead player is getting up - at a hospital, or revived where they lie - with a Cadaver
+        /// Immolation burning on their body: it goes off now, where the body lay, before they
+        /// stand.
+        /// </summary>
+        internal static void OnCorpseRising(MapChannel mapChannel, Manifestation player)
+        {
+            List<BurningCorpse> theirs;
+
+            lock (BurningCorpsesLock)
+            {
+                theirs = BurningCorpses.Where(c => c.Corpse == player).ToList();
+
+                foreach (var burning in theirs)
+                    BurningCorpses.Remove(burning);
+            }
+
+            foreach (var burning in theirs)
+                Immolate(burning);
+        }
+
+        private static void Immolate(BurningCorpse burning)
         {
             var mapChannel = burning.MapChannel;
             var corpse = burning.Corpse;
             var player = burning.Player;
 
-            // The body was cleared away, or the one who lit it has left the map.
-            if (corpse.Controller == null || player == null || player.MapContextId != mapChannel.MapInfo.MapContextId
-                || EntityManager.Instance.GetCreature(corpse.EntityId) != corpse)
+            // The body was cleared away - a creature's despawned, a player's up and gone - or the
+            // one who lit it has left the map.
+            if (player == null || player.MapContextId != mapChannel.MapInfo.MapContextId)
+                return;
+
+            if (corpse is Creature body
+                    ? body.Controller == null || EntityManager.Instance.GetCreature(body.EntityId) != body
+                    : !(corpse is Manifestation fallen) || fallen.State != CharacterState.Dead || fallen.MapChannel != mapChannel)
                 return;
 
             var blast = new GameEffectAnnounceDamagePacket(burning.EffectId, "DoExplosion");
@@ -162,9 +190,11 @@ namespace Rasa.Managers
                 if (victim.State != CharacterState.Dead && victim.State != CharacterState.Dying && victim.Attributes[Attributes.Health].Current > 0)
                     CritEffects.OnCritical(mapChannel, victim, player, burning.DamageType, amount);
 
-            // The clients have taken the body away with the blast; the server gives it up too, on
-            // the deletion path that tidies its loot dispenser rather than by dropping it here.
-            corpse.Controller.DeadTime = long.MaxValue / 2;
+            // The clients have taken a creature's body away with the blast (a player's they leave,
+            // BombEffect.DoExplosion); the server gives it up too, on the deletion path that tidies
+            // its loot dispenser rather than by dropping it here.
+            if (corpse is Creature burnt && burnt.Controller != null)
+                burnt.Controller.DeadTime = long.MaxValue / 2;
         }
     }
 }

@@ -56,6 +56,14 @@ namespace Rasa.Managers
     /// A clan feud's deaths cost the same (WARGAME_FLAGS_CLAN carries WARGAME_REZ_SICKNESS and
     /// WARGAME_WEAPON_DECAY).
     ///
+    /// A Hominis Machina's Self Revive (POLY_SELF_RES, "useable once") gets them up where they fell
+    /// on full health: the morph, and the button in its drawer, outlast the death while it is
+    /// unspent (<see cref="SelfRevive"/>); going to a hospital instead ends the morph.
+    ///
+    /// An enemy who takes their body - Reanimation, Reanimation Wave, Hortimonculus - sends them
+    /// to their nearest hospital (<see cref="ForceToHospital"/>), and a Cadaver Immolation burning
+    /// on the body goes off as they get up, however they do (AbilityManager.OnCorpseRising).
+    ///
     /// Leaving the game dead sends them to their hospital first, so they come back alive there.
     /// </summary>
     public static class PlayerDeath
@@ -161,8 +169,12 @@ namespace Rasa.Managers
                 // Nothing goes on fighting a dead player.
                 Threat.Forget(mapChannel, victim);
 
-                // Their effects end with them; Rez Trauma is what stays.
-                foreach (var effect in victim.ActiveEffects.Values.Where(e => !e.IsSkillPassive && e.TypeId != RezSicknessTypeId && e.Parent == null).ToList())
+                // Their effects end with them; Rez Trauma is what stays, and a Hominis Machina's
+                // morph while its Self Revive is unspent - the button is in the morph's drawer.
+                var keepMorph = AbilityManager.CanSelfRevive(victim);
+
+                foreach (var effect in victim.ActiveEffects.Values.Where(e => !e.IsSkillPassive && e.TypeId != RezSicknessTypeId && e.Parent == null
+                             && !(keepMorph && e.TypeId == AbilityManager.PolymorphTypeId)).ToList())
                     GameEffectManager.Instance.DettachEffect(mapChannel, victim, effect);
 
                 if (health != null)
@@ -189,6 +201,43 @@ namespace Rasa.Managers
 
         #region Going back
 
+        /// <summary>
+        /// A Hominis Machina's Self Revive (POLY_SELF_RES): up where they fell on full health,
+        /// once. False when they are not dead or have no Self Revive left.
+        /// </summary>
+        public static bool SelfRevive(Client client)
+        {
+            var player = client?.Player;
+            var mapChannel = player?.MapChannel;
+
+            if (player == null || mapChannel == null || player.State != CharacterState.Dead || !AbilityManager.CanSelfRevive(player))
+                return false;
+
+            AbilityManager.SpendSelfRevive(player);
+
+            var health = player.Attributes.TryGetValue(Attributes.Health, out var attribute) ? attribute.CurrentMax : 1;
+
+            Revive(mapChannel, client, player.Position, health, player, atHospital: false);
+
+            return true;
+        }
+
+        /// <summary>
+        /// Sends a dead player to the nearest of their hospitals, whether they asked or not: an
+        /// enemy has taken their body (Reanimation, Hortimonculus). Returns whether they went.
+        /// </summary>
+        public static bool ForceToHospital(MapChannel mapChannel, Manifestation player)
+        {
+            var client = ClientOf(mapChannel, player);
+
+            if (client == null || player.State != CharacterState.Dead)
+                return false;
+
+            ReviveMe(client, null);
+
+            return player.State != CharacterState.Dead;
+        }
+
         /// <summary>ReviveMe(graveyardId): to that hospital, or the nearest of theirs.</summary>
         public static void ReviveMe(Client client, int? graveyardId)
         {
@@ -202,6 +251,10 @@ namespace Rasa.Managers
             var hospital = graveyardId.HasValue ? available.FirstOrDefault(h => h.GraveyardId == (uint)graveyardId.Value) : null;
 
             hospital ??= Hospitals.Nearest(available, player.Position);
+
+            // A morph kept for its Self Revive does not come along to the hospital.
+            foreach (var morph in player.ActiveEffects.Values.Where(e => e.TypeId == AbilityManager.PolymorphTypeId).ToList())
+                GameEffectManager.Instance.DettachEffect(mapChannel, player, morph);
 
             var at = hospital != null ? hospital.Position + new Vector3(0f, GmMapCommands.PadHeight, 0f) : player.Position;
             var health = player.Attributes.TryGetValue(Attributes.Health, out var attribute) ? attribute.CurrentMax : 1;
@@ -218,6 +271,9 @@ namespace Rasa.Managers
             var player = client.Player;
 
             DropOffers(player);
+
+            // The body is getting up: a Cadaver Immolation on it goes off now, where it lay.
+            AbilityManager.OnCorpseRising(mapChannel, player);
 
             player.State = player.StateBeforeDeath == CharacterState.Dead ? 0 : player.StateBeforeDeath;
 

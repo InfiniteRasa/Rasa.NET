@@ -34,7 +34,9 @@ namespace Rasa.Managers
     ///   (Resuscitate, 242/5, is a revive and not given.)
     /// - P4 Kael: Smash, CR_KAEL_SMASH 433/5 - 188-250 physical to every enemy within 10 m; and
     ///   Ground Pound, CR_KAEL_GROUND_POUND 171/5 - 125-188 within 5 m and a 10 m knockback.
-    /// - P5 Hominis Machina: Self Revive only, which waits on death; the drawer is empty.
+    /// - P5 Hominis Machina: Self Revive only, POLY_SELF_RES 417/1 - SelfResAction, canDoWhileDead,
+    ///   "Self Revive (useable once)": a Machina who dies keeps the morph, and with it the button,
+    ///   and may get up where they fell (PlayerDeath.SelfRevive) once.
     ///
     /// The attacks go through ResolveDirectDamage (DirectDamageModules), their hits written as
     /// the bare rawInfo the creature abilities' DoAbility reads (RawInfoModules); Noxious Burst's
@@ -64,6 +66,17 @@ namespace Rasa.Managers
         public static DamageType DefaultDamageTypeOf(string module)
         {
             return module == CaretakerAttackModule ? DamageType.Virulent : DamageType.Physical;
+        }
+
+        public const string SelfResModule = "abilities.selfres";
+
+        /// <summary>Whether the player's morph still has its Self Revive to use (Hominis Machina).</summary>
+        public static bool CanSelfRevive(Manifestation player) => IsMorphAbility(player, ActionId.PolySelfRes, 1);
+
+        /// <summary>The Self Revive is spent: "useable once".</summary>
+        public static void SpendSelfRevive(Manifestation player)
+        {
+            player.MorphAbilities = player.MorphAbilities.Where(a => a.ActionId != ActionId.PolySelfRes).ToList();
         }
 
         /// <summary>Whether this is one of the combat actions the player's current morph gave them.</summary>
