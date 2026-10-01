@@ -273,9 +273,9 @@ namespace Rasa.Test.Database
             added = added.Take(expectedCount).ToArray();
 
             Assert.AreEqual(expectedCount, added.Length, contextType.Name);
-            if (expectedCount == 0)
-                Assert.HasCount(0, later, contextType.Name);
-            else
+            // A database with nothing consolidated (auth) has nothing for the later ones to come
+            // after; MigrationIdsAreUniqueAndOrdered keeps them in order.
+            if (expectedCount > 0)
                 Assert.IsTrue(later.All(id => string.CompareOrdinal(id, added[^1]) > 0), contextType.Name);
             if (expectedCount == 1)
                 StringAssert.EndsWith(added[0], "_ConsolidatedCharacterSchema");
