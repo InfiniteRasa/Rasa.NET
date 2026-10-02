@@ -184,7 +184,7 @@ namespace Rasa.Managers
             {
                 // nobody is told
             }
-            else if (effect.IsSkillPassive)
+            else if (effect.IsSkillPassive || effect.OwnerOnly)
                 ClientOf(mapChannel, actor)?.CallMethod(actor.EntityId, attached);
             else
                 CellManager.Instance.CellCallMethod(mapChannel, actor, attached);
@@ -246,7 +246,7 @@ namespace Rasa.Managers
                 if (effect.IsExpired)
                     continue;
 
-                if (effect.ServerOnly || effect.IsSkillPassive && viewer != actor)
+                if (effect.ServerOnly || (effect.IsSkillPassive || effect.OwnerOnly) && viewer != actor)
                     continue;
 
                 packets.Add(AttachedPacket(effect, effect.AnnounceToNewcomers));
@@ -353,7 +353,7 @@ namespace Rasa.Managers
             {
                 // nobody was told of it
             }
-            else if (gameEffect.IsSkillPassive)
+            else if (gameEffect.IsSkillPassive || gameEffect.OwnerOnly)
                 ClientOf(mapChannel, actor)?.CallMethod(actor.EntityId, new GameEffectDetachedPacket { EffectId = gameEffect.EffectId });
             else
                 CellManager.Instance.CellCallMethod(mapChannel, actor, new GameEffectDetachedPacket { EffectId = gameEffect.EffectId });

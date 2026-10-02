@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Rasa.Context.Char;
 
@@ -11,9 +12,10 @@ using Rasa.Context.Char;
 namespace Rasa.Migrations.MySqlChar
 {
     [DbContext(typeof(MySqlCharContext))]
-    partial class MySqlCharContextModelSnapshot : ModelSnapshot
+    [Migration("20261103000000_Add_wagering")]
+    partial class Add_wagering
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

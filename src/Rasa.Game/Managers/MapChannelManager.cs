@@ -683,6 +683,9 @@ namespace Rasa.Managers
                 // The buffs brought from the map left, now there is somebody to show them to.
                 EffectCarry.Restore(client);
 
+                // And the padlock on a locked wagered item.
+                InventoryManager.SyncWagerLock(client.Player);
+
                 // And what they sold before the ride, still to be bought back.
                 NpcManager.Instance.ResendBuyback(client);
 
@@ -734,6 +737,10 @@ namespace Rasa.Managers
             // The Rez Trauma and no-healing a character just loaded left with, as its client now
             // has its actor to show them on (nothing on any other arrival).
             RelogVitals.RestorePenalties(client, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+
+            // The padlock on a wagered item that is locked in its slot: on every arrival, the
+            // effects of the map left having gone with it.
+            InventoryManager.SyncWagerLock(client.Player);
 
             // The buffs brought from the map left (nothing on a login): after the player is in
             // the cells and their own client has its actor's info, so the attach reaches it and
@@ -816,8 +823,10 @@ namespace Rasa.Managers
             MapLinkManager.Instance.PlayerEnteredMap(client);
             _assignPlayer(client);
 
-            // As on any arrival: the buffs carried over, the buyback list, the clan's feuds.
+            // As on any arrival: the buffs carried over, the padlock of a locked wagered item, the
+            // buyback list, the clan's feuds.
             EffectCarry.Restore(client);
+            InventoryManager.SyncWagerLock(client.Player);
             NpcManager.Instance.ResendBuyback(client);
             ClanFeuds.Instance.PlayerEnteredWorld(client);
 
@@ -1144,6 +1153,13 @@ namespace Rasa.Managers
                 // The auction house's pick-up items are this player's; they are loaded again from
                 // their rows on arrival, like the lists above, and were left registered each time.
                 DestroyInventory(client, player.Inventory.InboxItems);
+
+                // So is the wagered item.
+                if (player.Inventory.WagerItem != 0)
+                {
+                    EntityManager.Instance.DestroyPhysicalEntity(client, player.Inventory.WagerItem, EntityType.Item);
+                    player.Inventory.WagerItem = 0;
+                }
 
                 // Listed items are the auction house's (AuctionHouseManager.Listed), which keeps
                 // them while the seller is away and gives the same objects back on their next

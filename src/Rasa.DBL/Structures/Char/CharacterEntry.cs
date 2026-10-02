@@ -185,6 +185,14 @@ namespace Rasa.Structures.Char
         [Required]
         public long NoHealEndsAt { get; set; }
 
+        /// <summary>
+        /// Whether the item in the character's wager slot is locked there: it has been taken into
+        /// combat since it was wagered (the game server's InventoryManager.Wager).
+        /// </summary>
+        [Column("wager_locked")]
+        [Required]
+        public bool WagerLocked { get; set; }
+
         /// <summary>The value of the current_* columns for a character that has not saved one.</summary>
         public const int VitalNotSaved = -1;
 

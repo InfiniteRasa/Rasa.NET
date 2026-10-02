@@ -160,7 +160,7 @@ These are testing tools. Their changes are held in memory only.
 | `.targetcategory [category]` | GameMaster | With no argument, shows the targeted creature's category. With one, sets it and tells nearby clients; the creature's hate list is cleared. |
 | `.feud [list]` | GameMaster | Clan feuds running (with score and time left) and challenges waiting. |
 | `.feud start <clan> <clan>` | GameMaster | Starts a feud and skips every rule (PvP, leaders online). A clan is an id or a name with no spaces. |
-| `.feud end <id> [tie\|cancel\|<winning clan>]` | GameMaster | Ends a feud. With no outcome, it is decided as its clock would decide it (most kills wins). |
+| `.feud end <id> [tie\|cancel\|<winning clan>]` | GameMaster | Ends a feud. With no outcome, it is decided as its clock would decide it (most kills wins). A feud that ends with a winner, here or on its own, takes the wagered items of the losing clan's members: they go to the winning clan's lockbox, or by mail to the winning clan's leader of the challenge when the lockbox is full. `tie` and `cancel` take nothing. |
 | `.feud length [minutes]` | GameMaster | Shows or sets how long new feuds last. Maximum one week. |
 
 Values these commands accept:

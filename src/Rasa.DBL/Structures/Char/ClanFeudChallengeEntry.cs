@@ -24,5 +24,10 @@ namespace Rasa.Structures.Char
         [Column("target_clan_id")]
         [Required]
         public uint TargetClanId { get; set; }
+
+        /// <summary>The character who made the challenge.</summary>
+        [Column("challenger_character_id")]
+        [Required]
+        public uint ChallengerCharacterId { get; set; }
     }
 }

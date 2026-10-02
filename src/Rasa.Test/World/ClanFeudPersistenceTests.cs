@@ -85,6 +85,49 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
+        public void WhoMadeAndAcceptedTheChallengeIsKeptAndAWonFeudForfeitsToTheWinners()
+        {
+            using var world = new WorldTestContext();
+            var clans = new Clans(world);
+            var greenLead = clans.Leader(GreenId).Player.Id;
+            var blueLead = clans.Leader(BlueId).Player.Id;
+
+            Restart(clans, tick: 1000).ChallengeClanToFeud(clans.Leader(GreenId), "Blue", true);
+            Assert.AreEqual(greenLead, Rows().Challenges.Single().ChallengerCharacterId);
+
+            Restart(clans, tick: 1000).FeudChallengeResponse(clans.Leader(BlueId), "Green", true);
+
+            var row = Rows().Feuds.Single();
+            Assert.AreEqual(greenLead, row.ChallengerCharacterId);
+            Assert.AreEqual(blueLead, row.TargetCharacterId);
+
+            var feuds = Restart(clans, tick: 1000);
+            var forfeits = new List<(uint Loser, uint Winner, uint Character, string LoserName, string WinnerName)>();
+            feuds.Forfeit = (loser, winner, character, loserName, winnerName) => forfeits.Add((loser, winner, character, loserName, winnerName));
+
+            // The challenged clan wins: the one who accepted stands for it.
+            feuds.End(feuds.Feuds.Single(), ClanFeuds.Outcome.Won, BlueId);
+            CollectionAssert.AreEqual(new[] { (GreenId, BlueId, blueLead, "Green", "Blue") }, forfeits);
+
+            // The challenger wins: the one who made the challenge.
+            feuds.End(feuds.Start(clans.All[RedId], clans.All[BlueId], 0, 41, 42), ClanFeuds.Outcome.Won, RedId);
+            Assert.AreEqual((BlueId, RedId, 41u, "Blue", "Red"), forfeits[1]);
+
+            // A feud nobody challenged for names nobody; a tie and a cancelled feud forfeit nothing.
+            feuds.End(feuds.Start(clans.All[RedId], clans.All[GreenId]), ClanFeuds.Outcome.Won, GreenId);
+            Assert.AreEqual((RedId, GreenId, 0u, "Red", "Green"), forfeits[2]);
+
+            feuds.End(feuds.Start(clans.All[RedId], clans.All[GreenId]), ClanFeuds.Outcome.Tied);
+            feuds.End(feuds.Start(clans.All[RedId], clans.All[GreenId]), ClanFeuds.Outcome.Cancelled);
+            Assert.AreEqual(3, forfeits.Count);
+
+            // A forfeit that throws does not stop the feud from ending.
+            feuds.Forfeit = (loser, winner, character, loserName, winnerName) => throw new InvalidOperationException("no lockbox");
+            feuds.End(feuds.Start(clans.All[RedId], clans.All[GreenId]), ClanFeuds.Outcome.Won, RedId);
+            Assert.AreEqual(0, feuds.Feuds.Count);
+        }
+
+        [TestMethod]
         public void TheChallengedLeaderIsRemindedOnceAndCanStillAnswer()
         {
             using var world = new WorldTestContext();

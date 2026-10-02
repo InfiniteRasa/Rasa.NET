@@ -98,6 +98,14 @@ namespace Rasa.Structures
         public bool IsSkillPassive { get; set; }
 
         /// <summary>
+        /// Told to the holder's own client and nobody else's, like a skill's standing effect but
+        /// one of a kind: an effect whose client class changes the viewer's own windows whoever it
+        /// is attached to (LockWageredItemEffect puts the padlock on the prestige window of every
+        /// client that hears of it).
+        /// </summary>
+        public bool OwnerOnly { get; set; }
+
+        /// <summary>
         /// Kept on the server and told to no client: an effect the server needs whose type the
         /// client has no class for (a grub's cocoon, CreatureSummons). Its attach, detach and
         /// its introduction to newcomers are not sent.

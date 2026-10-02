@@ -33,7 +33,9 @@ namespace Rasa.Repositories.Char.ClanFeud
                     TargetClanId = feud.TargetClanId,
                     EndsAt = feud.EndsAt,
                     ChallengerKills = feud.ChallengerKills,
-                    TargetKills = feud.TargetKills
+                    TargetKills = feud.TargetKills,
+                    ChallengerCharacterId = feud.ChallengerCharacterId,
+                    TargetCharacterId = feud.TargetCharacterId
                 });
             else
             {
@@ -42,6 +44,8 @@ namespace Rasa.Repositories.Char.ClanFeud
                 row.EndsAt = feud.EndsAt;
                 row.ChallengerKills = feud.ChallengerKills;
                 row.TargetKills = feud.TargetKills;
+                row.ChallengerCharacterId = feud.ChallengerCharacterId;
+                row.TargetCharacterId = feud.TargetCharacterId;
             }
 
             _charContext.SaveChanges();
@@ -67,12 +71,14 @@ namespace Rasa.Repositories.Char.ClanFeud
                 {
                     WargameId = challenge.WargameId,
                     ChallengerClanId = challenge.ChallengerClanId,
-                    TargetClanId = challenge.TargetClanId
+                    TargetClanId = challenge.TargetClanId,
+                    ChallengerCharacterId = challenge.ChallengerCharacterId
                 });
             else
             {
                 row.ChallengerClanId = challenge.ChallengerClanId;
                 row.TargetClanId = challenge.TargetClanId;
+                row.ChallengerCharacterId = challenge.ChallengerCharacterId;
             }
 
             _charContext.SaveChanges();

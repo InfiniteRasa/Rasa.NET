@@ -203,6 +203,12 @@ namespace Rasa.Structures
         /// </summary>
         public bool InCombat { get; set; }
 
+        /// <summary>
+        /// Whether the wagered item (Inventory.WagerItem) is locked in its slot: it has been taken
+        /// into combat since it was wagered. Kept on the character (InventoryManager.Wager).
+        /// </summary>
+        public bool WagerLocked { get; set; }
+
         /// <summary>The combat stance the player's own client asked to hold (RequestVisualCombatMode); see ActorManager.CombatModeOf.</summary>
         public bool RequestedCombatMode { get; set; }
 
@@ -363,6 +369,7 @@ namespace Rasa.Structures
             Credits.Add(CurencyType.Credits, character.Credit);
             Credits.Add(CurencyType.Prestige, character.Prestige);
             ActiveWeapon = character.ActiveWeapon;
+            WagerLocked = character.WagerLocked;
             // A saved slot the drawer does not have (none can be saved, but the column is only a
             // byte) is the first one.
             CurrentAbilityDrawer = character.CurrentAbilitySlot < Managers.ManifestationManager.AbilityDrawerSlots ? character.CurrentAbilitySlot : 0;

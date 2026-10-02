@@ -27,6 +27,7 @@ namespace Rasa.Test.World
         private const uint BlueClanId = 900042;
 
         private Func<Client, int, bool> _change;
+        private Func<Client, int> _wagerBonus;
         private Func<long> _now;
         private int _victory;
         private long _tick;
@@ -35,6 +36,7 @@ namespace Rasa.Test.World
         public void KeepPrestigeInMemory()
         {
             _change = PvpPrestige.Change;
+            _wagerBonus = PvpPrestige.WagerBonusPercent;
             _now = PvpPrestige.Now;
             _victory = PvpPrestige.FeudVictoryPrestige;
             _tick = 1_000_000;
@@ -52,6 +54,7 @@ namespace Rasa.Test.World
         public void Restore()
         {
             PvpPrestige.Change = _change;
+            PvpPrestige.WagerBonusPercent = _wagerBonus;
             PvpPrestige.Now = _now;
             PvpPrestige.FeudVictoryPrestige = _victory;
             PvpPrestige.Reset();
@@ -116,6 +119,46 @@ namespace Rasa.Test.World
                 var lost = Messages(blue).Single(m => m.MsgId == PlayerMessage.PmPrestigePointsRemovedPvpdeath);
                 Assert.AreEqual("10", lost.Args["amount"]);
                 Assert.AreEqual(red.Player.FamilyName, lost.Args["playerName"]);
+            });
+        }
+
+        [TestMethod]
+        public void AWageredItemAddsItsBonusToWhatAKillGenerates()
+        {
+            Assert.AreEqual(6, PvpPrestige.WagerBonus(30, 20));
+            Assert.AreEqual(10, PvpPrestige.WagerBonus(30, 35), "rounded down");
+            Assert.AreEqual(25, PvpPrestige.WagerBonus(50, 50), "past the maximum a kill generates");
+            Assert.AreEqual(0, PvpPrestige.WagerBonus(30, 0));
+            Assert.AreEqual(0, PvpPrestige.WagerBonus(0, 50));
+
+            using var world = new WorldTestContext();
+            var red = Fighter(world, RedClanId, level: 10, prestige: 0);
+            var blue = Fighter(world, BlueClanId, level: 10, prestige: 1000, x: 10);
+
+            Assert.AreEqual(0, PvpPrestige.WagerBonusPercent(red), "nothing wagered");
+
+            PvpPrestige.WagerBonusPercent = client => ReferenceEquals(client, red) ? 35 : 0;
+
+            WithFeud(world, feud =>
+            {
+                ClanFeuds.Instance.Kill(red, blue);
+
+                Assert.AreEqual(50, Prestige(red), "30 generated, 10 more for the wager, 10 stolen");
+                Assert.AreEqual(990, Prestige(blue), "the bonus is not the victim's to pay");
+
+                var gained = Messages(red).Single(m => m.MsgId == PlayerMessage.PmPrestigePointsReceivedPvpkill);
+                Assert.AreEqual("50", gained.Args["amount"]);
+                Assert.AreEqual("40", gained.Args["amountGenerated"]);
+                Assert.AreEqual("10", gained.Args["amountStolen"]);
+
+                // Within the interval nothing is generated, so there is nothing for the bonus to add to.
+                _tick += 60_000;
+                ClanFeuds.Instance.Kill(red, blue);
+                Assert.AreEqual(59, Prestige(red), "1% of 990 stolen");
+
+                // The victim's wager does nothing for the killer.
+                ClanFeuds.Instance.Kill(blue, red);
+                Assert.AreEqual(981 + 30, Prestige(blue), "30 generated, 1% of 59 is nothing");
             });
         }
 

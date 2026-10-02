@@ -313,6 +313,10 @@ namespace Rasa.Migrations.SqliteChar
                         .HasDefaultValue(0u)
                         .HasColumnName("total_time_played");
 
+                    b.Property<bool>("WagerLocked")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("wager_locked");
+
                     b.HasKey("Id");
 
                     b.HasIndex(new[] { "AccountId" }, "character_index_account");
@@ -1029,6 +1033,10 @@ namespace Rasa.Migrations.SqliteChar
                         .HasColumnType("INTEGER")
                         .HasColumnName("wargame_id");
 
+                    b.Property<uint>("ChallengerCharacterId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("challenger_character_id");
+
                     b.Property<uint>("ChallengerClanId")
                         .HasColumnType("INTEGER")
                         .HasColumnName("challenger_clan_id");
@@ -1048,6 +1056,10 @@ namespace Rasa.Migrations.SqliteChar
                         .HasColumnType("INTEGER")
                         .HasColumnName("id");
 
+                    b.Property<uint>("ChallengerCharacterId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("challenger_character_id");
+
                     b.Property<uint>("ChallengerClanId")
                         .HasColumnType("INTEGER")
                         .HasColumnName("challenger_clan_id");
@@ -1059,6 +1071,10 @@ namespace Rasa.Migrations.SqliteChar
                     b.Property<long>("EndsAt")
                         .HasColumnType("INTEGER")
                         .HasColumnName("ends_at");
+
+                    b.Property<uint>("TargetCharacterId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("target_character_id");
 
                     b.Property<uint>("TargetClanId")
                         .HasColumnType("INTEGER")

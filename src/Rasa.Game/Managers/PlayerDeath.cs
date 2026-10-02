@@ -318,6 +318,9 @@ namespace Rasa.Managers
 
             player.DiedInPvp = false;
 
+            // The padlock of a locked wagered item went with the rest of their effects.
+            InventoryManager.SyncWagerLock(player);
+
             Logger.WriteLog(LogType.Debug, $"{player.FamilyName} ({player.Id}) is back{(atHospital ? " at a hospital" : $", revived by {reviver?.EntityId}")}.");
         }
 

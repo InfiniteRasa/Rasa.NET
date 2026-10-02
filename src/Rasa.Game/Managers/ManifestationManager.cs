@@ -1215,6 +1215,9 @@ namespace Rasa.Managers
 
             client.CallMethod(client.Player.EntityId, new PlayerEnteredCombatPacket());
 
+            // "Once wagered, the item will be locked upon entering combat."
+            InventoryManager.WagerEnteredCombat(client);
+
             // The rate change is not in that packet - it carries nothing - so the attributes go
             // too. AttributeInfo rather than UpdateAttributes because only AttributeInfo carries
             // refreshPeriod, which is the field the modifier moves.
@@ -2319,7 +2322,10 @@ namespace Rasa.Managers
             player.Level = grant.FinalLevel;
             player.CloneCredits = grant.FinalCloneCredits;
             if (grant.FinalLevel != grant.PreviousLevel)
+            {
                 PartyManager.Instance.MemberInfoChanged(client);
+                InventoryManager.WagerLevelChanged(client, grant.PreviousLevel);
+            }
         }
 
         internal bool ValidateProgressionForClient(Client client)
@@ -2454,7 +2460,10 @@ namespace Rasa.Managers
             }
 
             if (levelAfter != levelBefore)
+            {
                 PartyManager.Instance.MemberInfoChanged(client);
+                InventoryManager.WagerLevelChanged(client, levelBefore);
+            }
         }
 
         /// <summary>
@@ -2779,6 +2788,7 @@ namespace Rasa.Managers
                 client.CellIgnoreSelfCallMethod(client, new LevelPacket(level));
 
             PartyManager.Instance.MemberInfoChanged(client);
+            InventoryManager.WagerLevelChanged(client, from);
 
             Logger.WriteLog(LogType.Command, $"{player.FamilyName} set from level {from} to {level}" + (notes.Count > 0 ? $": {string.Join(", ", notes)}" : ""));
 

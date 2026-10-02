@@ -59,7 +59,11 @@ namespace Rasa.Managers
             {
                 if (_instance == null)
                     lock (InstanceLock)
-                        _instance ??= new ClanFeuds(new ServerClans());
+                        _instance ??= new ClanFeuds(new ServerClans())
+                        {
+                            Forfeit = (loser, winner, character, loserName, winnerName) =>
+                                InventoryManager.Instance.ForfeitWagers(loser, winner, character, loserName, winnerName)
+                        };
 
                 return _instance;
             }
@@ -89,6 +93,9 @@ namespace Rasa.Managers
             public uint ChallengerClanId { get; set; }
             public uint TargetClanId { get; set; }
 
+            /// <summary>The character who made the challenge.</summary>
+            public uint ChallengerCharacterId { get; set; }
+
             /// <summary>Read back at startup: the challenged leader's client has not been told of it since.</summary>
             public bool Restored { get; set; }
         }
@@ -112,6 +119,15 @@ namespace Rasa.Managers
             public int ChallengerKills { get; set; }
             public int TargetKills { get; set; }
 
+            /// <summary>The character who made the challenge; 0 for a feud nobody challenged for (a game master's).</summary>
+            public uint ChallengerCharacterId { get; set; }
+
+            /// <summary>The character who accepted the challenge; 0 likewise.</summary>
+            public uint TargetCharacterId { get; set; }
+
+            /// <summary>The character who stood for a clan when the feud was made: its challenger, or the one who accepted.</summary>
+            public uint CharacterFor(uint clanId) => clanId == ChallengerClanId ? ChallengerCharacterId : clanId == TargetClanId ? TargetCharacterId : 0;
+
             public bool Involves(uint clanId) => clanId != 0 && (ChallengerClanId == clanId || TargetClanId == clanId);
             public bool Between(uint a, uint b) => ChallengerClanId == a && TargetClanId == b || ChallengerClanId == b && TargetClanId == a;
             public uint OtherThan(uint clanId) => ChallengerClanId == clanId ? TargetClanId : ChallengerClanId;
@@ -128,6 +144,14 @@ namespace Rasa.Managers
 
         /// <summary>Where feuds and challenges are kept; null keeps nothing. Set by <see cref="Load"/>.</summary>
         public IStore Store { get; private set; }
+
+        /// <summary>
+        /// What the losers of a feud that was won forfeit: (losing clan, winning clan, the winning
+        /// clan's character of the challenge, the two clans' names). The live server's is
+        /// InventoryManager.ForfeitWagers - their wagered items, to the winners' lockbox; null does
+        /// nothing.
+        /// </summary>
+        public Action<uint, uint, uint, string, string> Forfeit { get; set; }
 
         /// <summary>The wall clock a kept feud's end is written in: Unix milliseconds, UTC. Replaceable for tests.</summary>
         public Func<long> UtcNow { get; set; } = () => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
@@ -222,7 +246,7 @@ namespace Rasa.Managers
                     return;
                 }
 
-                challenge = new Challenge { WargameId = _nextId++, ChallengerClanId = own.Id, TargetClanId = target.Id };
+                challenge = new Challenge { WargameId = _nextId++, ChallengerClanId = own.Id, TargetClanId = target.Id, ChallengerCharacterId = client.Player.Id };
                 _challenges.Add(challenge);
             }
 
@@ -281,7 +305,7 @@ namespace Rasa.Managers
                 return;
             }
 
-            Start(challenger, own, challenge.WargameId);
+            Start(challenger, own, challenge.WargameId, challenge.ChallengerCharacterId, client.Player.Id);
         }
 
         /// <summary>RevokeClanFeud: the challenger's leader withdraws a challenge not yet answered.</summary>
@@ -360,9 +384,10 @@ namespace Rasa.Managers
         /// <summary>
         /// Starts a feud between two clans: everyone in either who is online is told, put in it and
         /// shown to everyone around as being in it, and squads holding both clans are split.
-        /// Returns null if the two are already at feud.
+        /// Returns null if the two are already at feud. The two characters are who made the
+        /// challenge and who accepted it, when anyone did.
         /// </summary>
-        public Feud Start(ClanEntry challenger, ClanEntry target, uint wargameId = 0)
+        public Feud Start(ClanEntry challenger, ClanEntry target, uint wargameId = 0, uint challengerCharacterId = 0, uint targetCharacterId = 0)
         {
             if (challenger == null || target == null || challenger.Id == target.Id)
                 return null;
@@ -385,7 +410,9 @@ namespace Rasa.Managers
                     Id = wargameId != 0 ? wargameId : _nextId++,
                     ChallengerClanId = challenger.Id,
                     TargetClanId = target.Id,
-                    EndTick = Now() + (long)Duration.TotalMilliseconds
+                    EndTick = Now() + (long)Duration.TotalMilliseconds,
+                    ChallengerCharacterId = challengerCharacterId,
+                    TargetCharacterId = targetCharacterId
                 };
 
                 _feuds[feud.Id] = feud;
@@ -413,7 +440,8 @@ namespace Rasa.Managers
 
         /// <summary>
         /// Ends a feud: each member online hears how it went and has it taken off their tracker,
-        /// and everyone around sees them out of it.
+        /// and everyone around sees them out of it. A feud that was won costs the losing clan's
+        /// members what they wagered (<see cref="Forfeit"/>).
         /// </summary>
         public void End(Feud feud, Outcome outcome, uint winnerClanId = 0)
         {
@@ -457,6 +485,14 @@ namespace Rasa.Managers
                     member.CallMethod(SysEntity.ClientWargameManagerId, new RemoveFromClanWargamePacket(feud.Id));
                     ShowWargameData(member);
                 }
+
+            if (outcome == Outcome.Won && feud.Involves(winnerClanId) && Forfeit != null)
+            {
+                var loserClanId = feud.OtherThan(winnerClanId);
+
+                Try($"forfeiting the wagers of feud {feud.Id}", () => Forfeit(loserClanId, winnerClanId, feud.CharacterFor(winnerClanId),
+                    _clans.Find(loserClanId)?.Name ?? "", _clans.Find(winnerClanId)?.Name ?? ""));
+            }
         }
 
         /// <summary>The feud's clock has run out: the clan with more kills wins, equal is a tie.</summary>
@@ -706,7 +742,9 @@ namespace Rasa.Managers
                         TargetClanId = row.TargetClanId,
                         EndTick = now + (row.EndsAt - utcNow),
                         ChallengerKills = row.ChallengerKills,
-                        TargetKills = row.TargetKills
+                        TargetKills = row.TargetKills,
+                        ChallengerCharacterId = row.ChallengerCharacterId,
+                        TargetCharacterId = row.TargetCharacterId
                     };
                 }
 
@@ -727,6 +765,7 @@ namespace Rasa.Managers
                         WargameId = row.WargameId,
                         ChallengerClanId = row.ChallengerClanId,
                         TargetClanId = row.TargetClanId,
+                        ChallengerCharacterId = row.ChallengerCharacterId,
                         Restored = true
                     });
                 }
@@ -764,7 +803,9 @@ namespace Rasa.Managers
                     TargetClanId = feud.TargetClanId,
                     EndsAt = UtcNow() + (feud.EndTick - Now()),
                     ChallengerKills = feud.ChallengerKills,
-                    TargetKills = feud.TargetKills
+                    TargetKills = feud.TargetKills,
+                    ChallengerCharacterId = feud.ChallengerCharacterId,
+                    TargetCharacterId = feud.TargetCharacterId
                 };
 
             Try($"saving feud {feud.Id}", () => store.SaveFeud(row));
@@ -787,7 +828,8 @@ namespace Rasa.Managers
                 {
                     WargameId = challenge.WargameId,
                     ChallengerClanId = challenge.ChallengerClanId,
-                    TargetClanId = challenge.TargetClanId
+                    TargetClanId = challenge.TargetClanId,
+                    ChallengerCharacterId = challenge.ChallengerCharacterId
                 }));
         }
 

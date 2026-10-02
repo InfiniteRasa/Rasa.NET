@@ -365,6 +365,18 @@ namespace Rasa.Repositories.Char.Character
             _charContext.SaveChanges();
         }
 
+        public void UpdateWagerLocked(uint id, bool locked)
+        {
+            var entry = GetWritable(id);
+
+            if (entry == null || entry.WagerLocked == locked)
+                return;
+
+            entry.WagerLocked = locked;
+
+            _charContext.SaveChanges();
+        }
+
         public void UpdateCharacterAbilitySlot(uint id, byte slot)
         {
             var entry = _charContext.GetWritableEnsuring(_charContext.CharacterEntries, id);

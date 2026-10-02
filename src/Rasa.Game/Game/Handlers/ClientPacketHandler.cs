@@ -1220,6 +1220,18 @@
             InventoryManager.Instance.RequestTakeItemFromInboxInventory(Client, packet);
         }
 
+        [PacketHandler(GameOpcode.WagerItem)]
+        private void WagerItem(WagerItemPacket packet)
+        {
+            InventoryManager.Instance.WagerItem(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.RemoveWageredItem)]
+        private void RemoveWageredItem(RemoveWageredItemPacket packet)
+        {
+            InventoryManager.Instance.RemoveWageredItem(Client);
+        }
+
         [PacketHandler(GameOpcode.TransferCreditToLockbox)]
         private void TransferCreditToLockbox(TransferCreditToLockboxPacket packet)
         {

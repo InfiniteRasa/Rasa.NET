@@ -38,5 +38,15 @@ namespace Rasa.Structures.Char
         [Column("target_kills")]
         [Required]
         public int TargetKills { get; set; }
+
+        /// <summary>The character who made the challenge; 0 when nobody did (a feud a game master started).</summary>
+        [Column("challenger_character_id")]
+        [Required]
+        public uint ChallengerCharacterId { get; set; }
+
+        /// <summary>The character who accepted the challenge; 0 when nobody did.</summary>
+        [Column("target_character_id")]
+        [Required]
+        public uint TargetCharacterId { get; set; }
     }
 }

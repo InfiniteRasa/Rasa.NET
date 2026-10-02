@@ -52,6 +52,13 @@ namespace Rasa.Structures
         public const int MaxInboxItems = 30;
 
         /// <summary>
+        /// The item in the wager slot of the prestige window, 0 for none: a character_inventory
+        /// row of type WagerInventory, slot 0 (InventoryManager.Wager). Whether it is locked there
+        /// is the character's (Manifestation.WagerLocked).
+        /// </summary>
+        public ulong WagerItem;
+
+        /// <summary>
         /// Empties the clan lockbox list to exactly <see cref="ClanLockboxTab.TotalSlots"/> empty
         /// slots, however many it held before - none at all for a character still on the loading
         /// screen of their login. Every clan lockbox handler indexes the list by slot, and the

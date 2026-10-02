@@ -41,9 +41,13 @@ namespace Rasa.Managers
     ///  - the prestige is the killer's alone, whoever else was in the fight, and a creature's
     ///    kill is its master's;
     ///  - winning a feud is worth <see cref="FeudVictoryPrestige"/> to each member of the winning
-    ///    clan in the world when it ends: nothing, until a value is chosen.
-    ///
-    /// Not here: a wagered item's bonus (WARGAME_ITEM_WAGERING) - there is no wagering yet.
+    ///    clan in the world when it ends: nothing, until a value is chosen;
+    ///  - the killer's wagered item (WARGAME_ITEM_WAGERING, InventoryManager.Wager) adds its
+    ///    quality's percent - 20, 35 or 50 - to what the kill generates, rounded down, and so may
+    ///    take it past the maximum. Nothing is added to what is stolen: that is the victim's own
+    ///    prestige changing hands, and a bonus on it would be prestige made from nothing at every
+    ///    kill, with no interval to hold it back. The bonus is counted as generated in the
+    ///    killer's message.
     /// </summary>
     public static class PvpPrestige
     {
@@ -78,6 +82,9 @@ namespace Rasa.Managers
         /// </summary>
         public static Func<Client, int, bool> Change { get; set; } = Persist;
 
+        /// <summary>The percent the killer's wagered item adds to what a kill generates. Replaceable for tests.</summary>
+        public static Func<Client, int> WagerBonusPercent { get; set; } = client => InventoryManager.WagerBonusOf(client?.Player);
+
         private static readonly object Sync = new object();
 
         /// <summary>When each killer last generated prestige from each victim, by character id.</summary>
@@ -95,6 +102,12 @@ namespace Rasa.Managers
         public static int Generated(int killerLevel, int victimLevel)
         {
             return Math.Clamp(BaseGenerated + GeneratedLevelModifier * (victimLevel - killerLevel), MinGenerated, MaxGenerated);
+        }
+
+        /// <summary>What a wagered item worth this percent adds to a generated amount.</summary>
+        public static int WagerBonus(int generated, int percent)
+        {
+            return generated <= 0 || percent <= 0 ? 0 : (int)Math.Floor(generated * percent / 100.0);
         }
 
         /// <summary>The share of the victim's prestige a kill takes, in percent.</summary>
@@ -118,8 +131,9 @@ namespace Rasa.Managers
 
         /// <summary>
         /// A kill in a clan feud that has credit (ClanFeuds.Kill): the killer's generated prestige,
-        /// if they have had none from this victim within the interval, and the victim's stolen.
-        /// Returns what the killer gained.
+        /// if they have had none from this victim within the interval, with their wagered item's
+        /// bonus on it, and the victim's stolen. Returns what the killer gained, the bonus in the
+        /// generated.
         /// </summary>
         public static (int Generated, int Stolen) FeudKill(Client killer, Client victim)
         {
@@ -131,6 +145,10 @@ namespace Rasa.Managers
                 return (0, 0);
 
             var generated = MayGenerate(killerPlayer.Id, victimPlayer.Id) ? Generated(killerPlayer.Level, victimPlayer.Level) : 0;
+            var bonus = generated > 0 ? WagerBonus(generated, WagerBonusPercent(killer)) : 0;
+
+            generated += bonus;
+
             var stolen = Stolen(killerPlayer.Level, victimPlayer.Level, PrestigeOf(victim));
 
             // Taken before it is given: prestige that could not be taken was not stolen.
@@ -152,7 +170,7 @@ namespace Rasa.Managers
                 lock (Sync)
                     Generations[(killerPlayer.Id, victimPlayer.Id)] = Now();
 
-            Logger.WriteLog(LogType.Debug, $"PvP prestige: {killerPlayer.FamilyName} +{generated + stolen} for {victimPlayer.FamilyName} ({generated} generated, {stolen} stolen).");
+            Logger.WriteLog(LogType.Debug, $"PvP prestige: {killerPlayer.FamilyName} +{generated + stolen} for {victimPlayer.FamilyName} ({generated} generated, {bonus} of it for their wagered item, {stolen} stolen).");
 
             Say(killer, PlayerMessage.PmPrestigePointsReceivedPvpkill,
                 ("amount", (generated + stolen).ToString()),

@@ -32,16 +32,15 @@ namespace Rasa.Managers
          *  - RemoveBuybackItem
          *  - ResetBuybackInventory
          *  - AddInboxItem / RemoveInboxItem / ResetInboxInventory (ShowInbox on every arrival)
+         *  - AddWagerItem / RemoveWagerItem / ResetWagerInventory (InventoryManager.Wager; ShowWager
+         *    on every arrival)
          *  - AddAuctionItem / RemoveAuctionItem / ResetAuctionInventory (ShowAuctions on every
          *    arrival, AuctionHouseManager for listing, sale, expiry, cancel and status)
          *  
          *      ToDo:
          *  - AddOverflowItem
-         *  - AddWagerItem
          *  - RemoveOverflowItem
-         *  - RemoveWagerItem
          *  - ResetOverflowInventory
-         *  - ResetWagerInventory
          *
          *      Intentionally not sent:
          *  - InventoryDisabled (291)               => the 1.16.5 client ignores it. clientmethod.py
@@ -81,6 +80,7 @@ namespace Rasa.Managers
          *  - RequestMoveItemToHomeInventory        => implemented
          *  - RequestTakeItemFromHomeInventory      => implemented
          *  - RequestTakeItemFromInboxInventory     => done
+         *  - WagerItem / RemoveWageredItem         => InventoryManager.Wager
          *  - TransferCreditToLockbox               => implemented
          *  - WeaponDrawerInventory_MoveItem        => implemented
          */
@@ -1017,6 +1017,9 @@ namespace Rasa.Managers
                 foreach (var entityId in list)
                     if (Is(entityId, false))
                         return true;
+
+            if (Is(inventory.WagerItem, false))
+                return true;
 
             foreach (var entityId in inventory.HomeInventory)
                 if (Is(entityId, true))
@@ -2042,6 +2045,9 @@ namespace Rasa.Managers
             // The inbox's items survive the map change too, and were never shown again.
             ShowInbox(client, true);
 
+            // And the wagered one.
+            ShowWager(client, true);
+
             // So do the listed ones.
             ShowAuctions(client, true);
         }
@@ -2194,6 +2200,7 @@ namespace Rasa.Managers
             client.Player.Inventory.WeaponDrawer.Clear();
             client.Player.Inventory.AuctionItems.Clear();
             client.Player.Inventory.InboxItems.Clear();
+            client.Player.Inventory.WagerItem = 0;
 
             for (uint i = 0; i < 22; i++)
                 client.Player.Inventory.EquippedInventory.Add(0);
@@ -2284,6 +2291,16 @@ namespace Rasa.Managers
                         client.Player.Inventory.InboxItems.Add(newItem.EntityId);
                     }
 
+                    else if ((InventoryType)item.InventoryType == InventoryType.WagerInventory)
+                    {
+                        // The wager slot of the prestige window: shown once the load is done
+                        // (ShowWager, below). The slot holds one item.
+                        if (client.Player.Inventory.WagerItem == 0)
+                            client.Player.Inventory.WagerItem = newItem.EntityId;
+                        else
+                            Logger.WriteLog(LogType.Error, $"Character {client.Player.Id} has a second wagered item, {item.ItemId}; ignored.");
+                    }
+
                     else if ((InventoryType)item.InventoryType == InventoryType.AuctionInventory)
                     {
                         // Listed at an auction house. SendItemDataToClient above already created
@@ -2321,6 +2338,7 @@ namespace Rasa.Managers
             // Item data went out in the loop above.
             ShowInbox(client, false);
             ShowAuctions(client, false);
+            ShowWager(client, false);
         }
 
         /// <summary>
