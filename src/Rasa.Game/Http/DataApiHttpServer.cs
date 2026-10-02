@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -12,6 +13,7 @@ using System.Threading.Tasks;
 namespace Rasa.Http
 {
     using Config;
+    using Game;
     using Data;
     using Managers;
     using Structures;
@@ -33,12 +35,16 @@ namespace Rasa.Http
         };
 
         private readonly object _lock = new();
+        private readonly object _authLock = new();
+        private readonly Dictionary<string, PendingChallenge> _pendingChallenges = new(StringComparer.Ordinal);
         private TcpListener _listener;
         private CancellationTokenSource _cancellation;
         private Task _acceptTask;
         private string _bindAddress;
         private int _port;
         private int _backlog;
+        private byte[] _jwtSecret;
+        private int _tokenLifetimeSeconds;
 
         public static DataApiHttpServer Instance => LazyInstance.Value;
 
@@ -64,6 +70,8 @@ namespace Rasa.Http
                     : config.BindAddress.Trim();
                 var port = config.Port;
                 var backlog = config.Backlog > 0 ? config.Backlog : 64;
+                var jwtSecret = config.JwtSecret ?? string.Empty;
+                var tokenLifetimeSeconds = config.TokenLifetimeSeconds;
 
                 if (port <= 0 || port > 65535)
                 {
@@ -72,11 +80,34 @@ namespace Rasa.Http
                     return;
                 }
 
+                if (Encoding.UTF8.GetByteCount(jwtSecret) < 32)
+                {
+                    StopLocked();
+                    Logger.WriteLog(LogType.Error,
+                        "DataApiConfig.JwtSecret must be at least 32 UTF-8 bytes. Data API is off.");
+                    return;
+                }
+
+                if (tokenLifetimeSeconds <= 0)
+                {
+                    StopLocked();
+                    Logger.WriteLog(LogType.Error,
+                        $"Invalid DataApiConfig.TokenLifetimeSeconds: {tokenLifetimeSeconds}. Data API is off.");
+                    return;
+                }
+
+                var jwtSecretBytes = Encoding.UTF8.GetBytes(jwtSecret);
                 if (_listener != null
                     && string.Equals(_bindAddress, bindAddress, StringComparison.OrdinalIgnoreCase)
                     && _port == port
-                    && _backlog == backlog)
+                    && _backlog == backlog
+                    && _tokenLifetimeSeconds == tokenLifetimeSeconds
+                    && _jwtSecret != null
+                    && CryptographicOperations.FixedTimeEquals(_jwtSecret, jwtSecretBytes))
+                {
+                    CryptographicOperations.ZeroMemory(jwtSecretBytes);
                     return;
+                }
 
                 StopLocked();
 
@@ -93,6 +124,8 @@ namespace Rasa.Http
                     _bindAddress = bindAddress;
                     _port = port;
                     _backlog = backlog;
+                    _jwtSecret = jwtSecretBytes;
+                    _tokenLifetimeSeconds = tokenLifetimeSeconds;
                     _cancellation = new CancellationTokenSource();
                     _acceptTask = Task.Run(() => AcceptLoop(_listener, _cancellation.Token));
 
@@ -132,12 +165,23 @@ namespace Rasa.Http
             }
 
             _listener = null;
+            lock (_authLock)
+            {
+                _pendingChallenges.Clear();
+            }
+
             _cancellation?.Dispose();
             _cancellation = null;
             _acceptTask = null;
             _bindAddress = null;
             _port = 0;
             _backlog = 0;
+            if (_jwtSecret != null)
+            {
+                CryptographicOperations.ZeroMemory(_jwtSecret);
+                _jwtSecret = null;
+            }
+            _tokenLifetimeSeconds = 0;
         }
 
         private static bool TryResolveBindAddress(string value, out IPAddress address)
@@ -157,7 +201,7 @@ namespace Rasa.Http
             return IPAddress.TryParse(value, out address);
         }
 
-        private static void AcceptLoop(TcpListener listener, CancellationToken cancellation)
+        private void AcceptLoop(TcpListener listener, CancellationToken cancellation)
         {
             while (!cancellation.IsCancellationRequested)
             {
@@ -183,7 +227,32 @@ namespace Rasa.Http
             }
         }
 
-        private static void HandleClient(TcpClient client)
+        public bool AuthorizeChallenge(Client client, string challenge)
+        {
+            if (client?.Socket == null || string.IsNullOrWhiteSpace(challenge))
+                return false;
+
+            lock (_lock)
+            {
+                if (_listener == null)
+                    return false;
+            }
+
+            if (!ChatCommandsManager.Instance.CanUseCommand(client, ".giveitem"))
+                return false;
+
+            lock (_authLock)
+            {
+                if (!_pendingChallenges.TryGetValue(challenge, out var pending)
+                    || !pending.RemoteAddress.Equals(client.Socket.RemoteAddress))
+                    return false;
+
+                pending.Client = client;
+                return true;
+            }
+        }
+
+        private void HandleClient(TcpClient client)
         {
             using (client)
             {
@@ -199,12 +268,16 @@ namespace Rasa.Http
                     if (string.IsNullOrWhiteSpace(requestLine))
                         return;
 
+                    var headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                     string header;
-                    do
+                    while (!string.IsNullOrEmpty(header = reader.ReadLine()))
                     {
-                        header = reader.ReadLine();
+                        var colon = header.IndexOf(':');
+                        if (colon <= 0)
+                            continue;
+
+                        headers[header.Substring(0, colon).Trim()] = header.Substring(colon + 1).Trim();
                     }
-                    while (!string.IsNullOrEmpty(header));
 
                     var requestParts = requestLine.Split(' ');
                     if (requestParts.Length < 2)
@@ -219,7 +292,8 @@ namespace Rasa.Http
                         return;
                     }
 
-                    Route(stream, requestParts[1]);
+                    var remoteAddress = (client.Client.RemoteEndPoint as IPEndPoint)?.Address;
+                    Route(stream, requestParts[1], headers, remoteAddress);
                 }
                 catch (IOException)
                 {
@@ -232,7 +306,7 @@ namespace Rasa.Http
             }
         }
 
-        private static void Route(NetworkStream stream, string rawTarget)
+        private void Route(NetworkStream stream, string rawTarget, Dictionary<string, string> headers, IPAddress remoteAddress)
         {
             var queryIndex = rawTarget.IndexOf('?');
             var rawPath = queryIndex >= 0 ? rawTarget.Substring(0, queryIndex) : rawTarget;
@@ -241,6 +315,49 @@ namespace Rasa.Http
 
             if (path.Length == 0)
                 path = "/";
+
+            if (string.Equals(path, "/api/session/challenge", StringComparison.OrdinalIgnoreCase))
+            {
+                if (remoteAddress == null)
+                {
+                    WriteJson(stream, 400, new ErrorResponse("Unable to identify the caller."));
+                    return;
+                }
+
+                WriteJson(stream, 200, new ChallengeResponse(CreateChallenge(remoteAddress)));
+                return;
+            }
+
+            if (string.Equals(path, "/api/session/exchange", StringComparison.OrdinalIgnoreCase))
+            {
+                var query = ParseQuery(rawQuery);
+                if (!query.TryGetValue("challenge", out var challenge) || string.IsNullOrWhiteSpace(challenge))
+                {
+                    WriteJson(stream, 400, new ErrorResponse("challenge is required."));
+                    return;
+                }
+
+                if (!TryExchangeChallenge(remoteAddress, challenge, out var token, out var exchangeError))
+                {
+                    WriteJson(stream, 409, new ErrorResponse(exchangeError));
+                    return;
+                }
+
+                WriteJson(stream, 200, new SessionResponse(token));
+                return;
+            }
+
+            if (!TryAuthenticate(headers, remoteAddress, out var authenticatedClient))
+            {
+                WriteJson(stream, 401, new ErrorResponse("A valid in-game Data API session is required."));
+                return;
+            }
+
+            if (!ChatCommandsManager.Instance.CanUseCommand(authenticatedClient, ".giveitem"))
+            {
+                WriteJson(stream, 403, new ErrorResponse("This account does not have permission to use .giveitem."));
+                return;
+            }
 
             if (string.Equals(path, "/api/items/categories", StringComparison.OrdinalIgnoreCase))
             {
@@ -269,6 +386,235 @@ namespace Rasa.Http
             }
 
             WriteJson(stream, 404, new ErrorResponse("Not found."));
+        }
+
+        private string CreateChallenge(IPAddress remoteAddress)
+        {
+            var challenge = Convert.ToHexString(RandomNumberGenerator.GetBytes(24));
+            lock (_authLock)
+                _pendingChallenges[challenge] = new PendingChallenge(remoteAddress);
+            return challenge;
+        }
+
+        private bool TryExchangeChallenge(IPAddress remoteAddress, string challenge, out string token, out string error)
+        {
+            token = null;
+            error = "The in-game session has not approved this challenge yet.";
+
+            if (remoteAddress == null)
+                return false;
+
+            byte[] jwtSecret;
+            int tokenLifetimeSeconds;
+            lock (_lock)
+            {
+                if (_listener == null || _jwtSecret == null)
+                {
+                    error = "The Data API is not available.";
+                    return false;
+                }
+
+                jwtSecret = (byte[])_jwtSecret.Clone();
+                tokenLifetimeSeconds = _tokenLifetimeSeconds;
+            }
+
+            try
+            {
+                Client client;
+
+                lock (_authLock)
+                {
+                    if (!_pendingChallenges.TryGetValue(challenge, out var pending)
+                        || !pending.RemoteAddress.Equals(remoteAddress)
+                        || pending.Client == null)
+                        return false;
+
+                    client = pending.Client;
+                    if (client.State != ClientState.Ingame
+                        || client.AccountEntry == null
+                        || !ChatCommandsManager.Instance.CanUseCommand(client, ".giveitem"))
+                    {
+                        _pendingChallenges.Remove(challenge);
+                        error = "The approving game session is no longer authorized.";
+                        return false;
+                    }
+
+                    _pendingChallenges.Remove(challenge);
+                }
+
+                token = CreateJwt(
+                    client.AccountEntry.Id,
+                    client.ConnectionId,
+                    remoteAddress,
+                    jwtSecret,
+                    tokenLifetimeSeconds);
+                return true;
+            }
+            finally
+            {
+                CryptographicOperations.ZeroMemory(jwtSecret);
+            }
+        }
+
+        private bool TryAuthenticate(Dictionary<string, string> headers, IPAddress remoteAddress, out Client client)
+        {
+            client = null;
+            if (remoteAddress == null
+                || !headers.TryGetValue("Authorization", out var authorization)
+                || !authorization.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            var token = authorization.Substring("Bearer ".Length).Trim();
+            if (token.Length == 0)
+                return false;
+
+            byte[] jwtSecret;
+            lock (_lock)
+            {
+                if (_listener == null || _jwtSecret == null)
+                    return false;
+                jwtSecret = (byte[])_jwtSecret.Clone();
+            }
+
+            try
+            {
+                if (!TryValidateJwt(token, remoteAddress, jwtSecret, out var accountId, out var connectionId))
+                    return false;
+
+                lock (Server.Clients)
+                {
+                    client = Server.Clients.FirstOrDefault(candidate =>
+                        candidate.ConnectionId == connectionId
+                        && candidate.State == ClientState.Ingame
+                        && candidate.AccountEntry?.Id == accountId
+                        && candidate.Socket?.RemoteAddress != null
+                        && candidate.Socket.RemoteAddress.Equals(remoteAddress));
+                }
+
+                if (client == null || !ChatCommandsManager.Instance.CanUseCommand(client, ".giveitem"))
+                {
+                    client = null;
+                    return false;
+                }
+
+                return true;
+            }
+            finally
+            {
+                CryptographicOperations.ZeroMemory(jwtSecret);
+            }
+        }
+
+        private static string CreateJwt(
+            uint accountId,
+            Guid connectionId,
+            IPAddress remoteAddress,
+            byte[] secret,
+            int lifetimeSeconds)
+        {
+            var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var headerJson = JsonSerializer.Serialize(new Dictionary<string, object>
+            {
+                ["alg"] = "HS256",
+                ["typ"] = "JWT"
+            });
+            var payloadJson = JsonSerializer.Serialize(new Dictionary<string, object>
+            {
+                ["iss"] = "rasa-data-api",
+                ["sub"] = accountId.ToString(),
+                ["cid"] = connectionId.ToString("N"),
+                ["ip"] = remoteAddress.ToString(),
+                ["iat"] = now,
+                ["exp"] = checked(now + lifetimeSeconds)
+            });
+
+            var header = Base64UrlEncode(Encoding.UTF8.GetBytes(headerJson));
+            var payload = Base64UrlEncode(Encoding.UTF8.GetBytes(payloadJson));
+            var signingInput = $"{header}.{payload}";
+
+            using var hmac = new HMACSHA256(secret);
+            var signature = hmac.ComputeHash(Encoding.ASCII.GetBytes(signingInput));
+            return $"{signingInput}.{Base64UrlEncode(signature)}";
+        }
+
+        private static bool TryValidateJwt(
+            string token,
+            IPAddress remoteAddress,
+            byte[] secret,
+            out uint accountId,
+            out Guid connectionId)
+        {
+            accountId = 0;
+            connectionId = Guid.Empty;
+
+            try
+            {
+                var parts = token.Split('.');
+                if (parts.Length != 3)
+                    return false;
+
+                var headerBytes = Base64UrlDecode(parts[0]);
+                var payloadBytes = Base64UrlDecode(parts[1]);
+                var suppliedSignature = Base64UrlDecode(parts[2]);
+
+                using (var header = JsonDocument.Parse(headerBytes))
+                {
+                    if (!header.RootElement.TryGetProperty("alg", out var algorithm)
+                        || !string.Equals(algorithm.GetString(), "HS256", StringComparison.Ordinal))
+                        return false;
+                }
+
+                using var hmac = new HMACSHA256(secret);
+                var expectedSignature = hmac.ComputeHash(Encoding.ASCII.GetBytes($"{parts[0]}.{parts[1]}"));
+                if (suppliedSignature.Length != expectedSignature.Length
+                    || !CryptographicOperations.FixedTimeEquals(suppliedSignature, expectedSignature))
+                    return false;
+
+                using var payload = JsonDocument.Parse(payloadBytes);
+                var root = payload.RootElement;
+
+                if (!root.TryGetProperty("iss", out var issuer)
+                    || !string.Equals(issuer.GetString(), "rasa-data-api", StringComparison.Ordinal)
+                    || !root.TryGetProperty("sub", out var subject)
+                    || !uint.TryParse(subject.GetString(), out accountId)
+                    || !root.TryGetProperty("cid", out var connection)
+                    || !Guid.TryParseExact(connection.GetString(), "N", out connectionId)
+                    || !root.TryGetProperty("ip", out var ip)
+                    || !string.Equals(ip.GetString(), remoteAddress.ToString(), StringComparison.Ordinal)
+                    || !root.TryGetProperty("exp", out var expiration)
+                    || !expiration.TryGetInt64(out var expiresAt))
+                    return false;
+
+                var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                return expiresAt > now;
+            }
+            catch (Exception)
+            {
+                accountId = 0;
+                connectionId = Guid.Empty;
+                return false;
+            }
+        }
+
+        private static string Base64UrlEncode(byte[] value) =>
+            Convert.ToBase64String(value).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+
+        private static byte[] Base64UrlDecode(string value)
+        {
+            var base64 = value.Replace('-', '+').Replace('_', '/');
+            switch (base64.Length % 4)
+            {
+                case 2:
+                    base64 += "==";
+                    break;
+                case 3:
+                    base64 += "=";
+                    break;
+                case 1:
+                    throw new FormatException("Invalid Base64URL value.");
+            }
+
+            return Convert.FromBase64String(base64);
         }
 
         private static void HandleItemSearch(NetworkStream stream, Dictionary<string, string> query)
@@ -429,8 +775,11 @@ namespace Rasa.Http
             {
                 200 => "OK",
                 400 => "Bad Request",
+                401 => "Unauthorized",
+                403 => "Forbidden",
                 404 => "Not Found",
                 405 => "Method Not Allowed",
+                409 => "Conflict",
                 _ => "Error"
             };
 
@@ -448,7 +797,20 @@ namespace Rasa.Http
             stream.Flush();
         }
 
+        private sealed class PendingChallenge
+        {
+            public PendingChallenge(IPAddress remoteAddress)
+            {
+                RemoteAddress = remoteAddress;
+            }
+
+            public IPAddress RemoteAddress { get; }
+            public Client Client { get; set; }
+        }
+
         private sealed record ErrorResponse(string Error);
+        private sealed record ChallengeResponse(string Challenge);
+        private sealed record SessionResponse(string Token);
         private sealed record ItemSearchResponse(string Category, string Search, List<ItemSummary> Items);
         private sealed record ItemSummary(uint TemplateId, uint ItemClassId, string Name, string Category, uint StackSize, int QualityId);
 

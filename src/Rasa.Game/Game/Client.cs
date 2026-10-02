@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Buffers;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -40,6 +40,14 @@ namespace Rasa.Game
         public LengthedSocket Socket { get; private set; }
         public ClientCryptData Data { get; private set; }
         public GameAccountEntry AccountEntry { get; private set; }
+
+        /// <summary>
+        /// Unique identifier for this accepted game connection. A new Client instance is
+        /// created for every connection, so this stays stable for the lifetime of the
+        /// connection and changes when the player reconnects.
+        /// </summary>
+        public Guid ConnectionId { get; } = Guid.NewGuid();
+
         public uint LoadingMap { get; set; }
 
         /// <summary>
