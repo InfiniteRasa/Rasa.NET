@@ -343,7 +343,8 @@ namespace Rasa.Managers
                             // has a windup of its own (animation family 1264, FX family 1490),
                             // which their clients play only if told, with the object as its
                             // argument (UseObject.Windup); the recovery ends it, or
-                            // ActionInterrupt (CaptureControlPointRecovery).
+                            // ActionInterrupt (CaptureControlPointRecovery). Whoever comes into
+                            // view later is shown it then (ShowClaimsTo).
                             if (client.Player.MapChannel != null)
                                 client.CellIgnoreSelfCallMethod(client,
                                     new PerformWindupPacket(PerformType.ThreeArgs, packet.ActionId, packet.ActionArgId, obj.EntityId));
@@ -843,11 +844,61 @@ namespace Rasa.Managers
         /// </summary>
         internal bool IsInterruptedClaim(ActionData action)
         {
-            return action != null && action.IsInrerrupted
+            return action != null && action.IsInrerrupted && ClaimedBy(action) != null;
+        }
+
+        /// <summary>The control point somebody fights over that an action is a use of, or null.</summary>
+        private static DynamicObject ClaimedBy(ActionData action)
+        {
+            return action != null
                    && action.ActionId == ActionId.UseObject && action.ActionArgId == ControlPointUseArgId
                    && action.SourceId != 0
                    && EntityManager.Instance.TryGetObject(action.SourceId, out var obj)
-                   && obj.DynamicObjectType == DynamicObjectType.ControlPoint && IsFoughtOver(obj);
+                   && obj.DynamicObjectType == DynamicObjectType.ControlPoint && IsFoughtOver(obj)
+                ? obj
+                : null;
+        }
+
+        /// <summary>
+        /// Shows a client the claims under way by players it has just been given: the claimant's
+        /// windup, which went to whoever could see them when the claim began (RequestUseObject)
+        /// and to nobody since. Without it a player arriving partway through sees the object's
+        /// contested effect run to somebody standing idle.
+        ///
+        /// Called once the client has everything else of the same change of view (CellManager),
+        /// objects included: the windup's effect is aimed at the object, and a client that has
+        /// not got the object yet aims it at nothing. It goes once for each time the claimant's
+        /// entity is made there, and is not sent again to aim it better: the client ignores a
+        /// windup of the action an actor is already winding up (Recv_PerformWindup returns on
+        /// doneWindup).
+        /// </summary>
+        internal void ShowClaimsTo(Client viewer, IEnumerable<Client> introduced)
+        {
+            var mapChannel = viewer?.Player?.MapChannel;
+
+            if (mapChannel == null || introduced == null || mapChannel.PerformRecovery.Count == 0)
+                return;
+
+            foreach (var action in mapChannel.PerformRecovery.ToArray())
+            {
+                if (action == null || action.IsInrerrupted || action.Actor == null || action.Actor == viewer.Player)
+                    continue;
+
+                var obj = ClaimedBy(action);
+
+                if (obj == null || obj.UsedBy != action.Actor)
+                    continue;
+
+                if (!introduced.Any(client => client != null && client != viewer && client.Player == action.Actor))
+                    continue;
+
+                // Cloaked, and not to this one's squad: their entity was not made there.
+                if (action.Actor is Manifestation claimant && Detection.IsHiddenFrom(claimant, viewer))
+                    continue;
+
+                viewer.CallMethod(action.Actor.EntityId,
+                    new PerformWindupPacket(PerformType.ThreeArgs, action.ActionId, action.ActionArgId, obj.EntityId));
+            }
         }
 
         /// <summary>

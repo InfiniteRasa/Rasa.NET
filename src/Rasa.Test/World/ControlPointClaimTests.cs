@@ -11,6 +11,7 @@ namespace Rasa.Test.World
     using Rasa.Managers;
     using Rasa.Packets;
     using Rasa.Packets.Communicator.Server;
+    using Rasa.Packets.Game.Server;
     using Rasa.Packets.MapChannel.Client;
     using Rasa.Packets.MapChannel.Server;
     using Rasa.Structures;
@@ -188,6 +189,135 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
+        public void APlayerWhoArrivesMidClaimIsShownTheClaimantAtItAfterTheObject()
+        {
+            using var world = new WorldTestContext();
+            world.AddClass((EntityClasses)3814);
+            var f = new Fixture(world);
+
+            try
+            {
+                f.Request();
+                Drain(f.Onlooker);
+                Drain(f.Claimant);
+
+                var arrival = Arrive(world, 12, 14);
+                var packets = Drain(arrival);
+
+                var windup = packets.OfType<PerformWindupPacket>().Single();
+                Assert.AreEqual(PerformType.ThreeArgs, windup.PerformType);
+                Assert.AreEqual(ActionId.UseObject, windup.ActionId);
+                Assert.AreEqual(DynamicObjectManager.ControlPointUseArgId, windup.ActionArgId);
+                Assert.AreEqual(f.Object.EntityId, windup.Arg);
+
+                var made = packets.OfType<CreatePhysicalEntityPacket>().ToList();
+                var claimant = made.Single(p => p.EntityId == f.Claimant.Player.EntityId);
+                var point = made.Single(p => p.EntityId == f.Object.EntityId);
+
+                Assert.IsTrue(packets.IndexOf(claimant) < packets.IndexOf(windup), "the claimant is there to wind up");
+                Assert.IsTrue(packets.IndexOf(point) < packets.IndexOf(windup), "and the object to aim it at");
+                Assert.AreEqual(f.Claimant.Player.EntityId, packets.OfType<LockToActorPacket>().Single().ActorId, "with its contested effect");
+
+                Assert.AreEqual(0, Drain(f.Onlooker).OfType<PerformWindupPacket>().Count(), "nobody who had it is sent it again");
+                Assert.AreEqual(0, Drain(f.Claimant).OfType<PerformWindupPacket>().Count());
+            }
+            finally
+            {
+                f.Remove();
+            }
+        }
+
+        [TestMethod]
+        public void APlayerWhoWalksIntoViewMidClaimIsShownItOnce()
+        {
+            using var world = new WorldTestContext();
+            var f = new Fixture(world);
+
+            try
+            {
+                var walker = Arrive(world, 600, 10);
+                Drain(walker);
+
+                f.Request();
+                Assert.AreEqual(0, Drain(walker).OfType<PerformWindupPacket>().Count(), "out of sight when it began");
+
+                walker.Player.Position = new Vector3(40, 0, 10);
+                CellManager.Instance.UpdateVisibility(walker);
+                Assert.AreEqual(f.Object.EntityId, Drain(walker).OfType<PerformWindupPacket>().Single().Arg);
+
+                // Another cell, the claimant still in view: nothing new to show.
+                walker.Player.Position = new Vector3(14, 0, 10);
+                CellManager.Instance.UpdateVisibility(walker);
+                CellManager.Instance.UpdateVisibility(walker);
+                Assert.AreEqual(0, Drain(walker).OfType<PerformWindupPacket>().Count());
+
+                // Out of sight and back: the claimant's entity is made again, and shown again.
+                walker.Player.Position = new Vector3(600, 0, 10);
+                CellManager.Instance.UpdateVisibility(walker);
+                Drain(walker);
+                walker.Player.Position = new Vector3(14, 0, 10);
+                CellManager.Instance.UpdateVisibility(walker);
+                Assert.AreEqual(1, Drain(walker).OfType<PerformWindupPacket>().Count());
+            }
+            finally
+            {
+                f.Remove();
+            }
+        }
+
+        [TestMethod]
+        public void AnArrivalIsShownNoClaimThatIsOverOrInterrupted()
+        {
+            using var world = new WorldTestContext();
+            var f = new Fixture(world);
+
+            try
+            {
+                // Nobody claiming.
+                Assert.AreEqual(0, Drain(Arrive(world, 12, 14)).OfType<PerformWindupPacket>().Count());
+
+                // Interrupted, and waiting for the worker to take it off.
+                f.Request();
+                world.Map.PerformRecovery.Single().IsInrerrupted = true;
+                Assert.AreEqual(0, Drain(Arrive(world, 12, 15)).OfType<PerformWindupPacket>().Count());
+
+                // Run to its end.
+                f.Finish(interrupted: false);
+                Assert.AreEqual(0, Drain(Arrive(world, 12, 16)).OfType<PerformWindupPacket>().Count());
+            }
+            finally
+            {
+                f.Remove();
+            }
+        }
+
+        [TestMethod]
+        public void AClaimantWhoseCloakEndsMidClaimIsShownAtIt()
+        {
+            using var world = new WorldTestContext();
+            var f = new Fixture(world);
+
+            try
+            {
+                f.Request();
+                Drain(f.Onlooker);
+
+                Detection.Reveal(world.Map, f.Claimant.Player);
+
+                var packets = Drain(f.Onlooker);
+                var made = packets.OfType<CreatePhysicalEntityPacket>().Single(p => p.EntityId == f.Claimant.Player.EntityId);
+                var windup = packets.OfType<PerformWindupPacket>().Single();
+
+                Assert.AreEqual(f.Object.EntityId, windup.Arg);
+                Assert.IsTrue(packets.IndexOf(made) < packets.IndexOf(windup));
+            }
+            finally
+            {
+                f.Remove();
+            }
+        }
+
+        [TestMethod]
         public void AnInterruptedUseOfASceneObjectOfTheKindIsRecoveredAsItWas()
         {
             using var world = new WorldTestContext();
@@ -327,6 +457,18 @@ namespace Rasa.Test.World
         }
 
         private static List<PythonPacket> Drain(Client client) => MissionTestContext.Drain(client).ToList();
+
+        /// <summary>A player set down on the map, with whatever that shows them still to be read.</summary>
+        private static Client Arrive(WorldTestContext world, float x, float z)
+        {
+            var client = world.CreateClient(x, z);
+
+            client.Player.Attributes[Attributes.Health] = new ActorAttributes(Attributes.Health, 1000, 1000, 1000, 0, 0);
+            client.Player.Attributes[Attributes.Armor] = new ActorAttributes(Attributes.Armor, 0, 0, 0, 0, 0);
+            CellManager.Instance.AddToWorld(client);
+
+            return client;
+        }
 
         #endregion
     }

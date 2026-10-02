@@ -106,6 +106,9 @@ namespace Rasa.Managers
                 viewer.CallMethod(SysEntity.ClientMethodId,
                     new CreatePhysicalEntityPacket(player.EntityId, player.EntityClass, ManifestationManager.Instance.CreatePlayerEntityData(client, viewer)));
                 GameEffectManager.ShowEffectsTo(viewer, player);
+
+                // Partway through claiming a control point: shown at it.
+                DynamicObjectManager.Instance.ShowClaimsTo(viewer, new[] { client });
             }
         }
 

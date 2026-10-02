@@ -196,6 +196,9 @@ namespace Rasa.Managers
 
             CreatureManager.Instance.CellIntroduceCreaturesToClient(client, ListOfCreatures);
             DynamicObjectManager.Instance.CellIntroduceDynamicObjectsToClient(client, ListOfObjects);
+
+            // Last, with the players and the objects there: anyone among them claiming a control point.
+            DynamicObjectManager.Instance.ShowClaimsTo(client, ListOfClients);
         }
 
         internal bool RemoveCreatureFromWorld(MapChannel mapChannel, Creature creature)
@@ -422,6 +425,9 @@ namespace Rasa.Managers
                 addedCells.SelectMany(cell => cell.CreatureList).Distinct().ToList());
             DynamicObjectManager.Instance.CellIntroduceDynamicObjectsToClient(client,
                 addedCells.SelectMany(cell => cell.DynamicObjectList).Distinct().ToList());
+
+            // Last, with the players and the objects there: anyone among them claiming a control point.
+            DynamicObjectManager.Instance.ShowClaimsTo(client, entering);
         }
 
         internal static bool TryGetCellCoordinates(Vector3 position, out uint x, out uint z)
