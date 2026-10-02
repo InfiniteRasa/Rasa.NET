@@ -178,11 +178,12 @@ namespace Rasa.Managers
 
         /// <summary>
         /// Whether PvP Safety stops a hit: a player's (or their creature's) on a player who holds
-        /// it. The attacker's own Safety stops nothing. The hit lands as Immune.
+        /// it. The attacker's own Safety stops nothing. So does a battleground's base, for a hit
+        /// into it or out of it (Battlegrounds.Sheltered). The hit lands as Immune.
         /// </summary>
         public static bool Shielded(Actor source, Actor target)
         {
-            return IsPvp(source, target) && IsSafe(target) || Restrained(source, target);
+            return IsPvp(source, target) && IsSafe(target) || Restrained(source, target) || Battlegrounds.Instance.Sheltered(source, target);
         }
 
         /// <summary>
@@ -452,6 +453,7 @@ namespace Rasa.Managers
             Duels.Instance.Kill(killerClient, victimClient);
             SquadWargames.Instance.Kill(killerClient, victimClient);
             ClanFeuds.Instance.Kill(killerClient, victimClient);
+            Battlegrounds.Instance.Kill(killerClient, victimClient);
         }
 
         /// <summary>Whether the two are on opposite sides of a squad wargame: as in a duel, its loser is defeated, not killed (PlayerDeath).</summary>

@@ -416,6 +416,9 @@ namespace Rasa.Managers
                         // control points: in service once the garrison is down, lost when its own is
                         Guard("ControlPoints.Worker", mapChannel, () => ControlPoints.Instance.Worker(mapChannel));
 
+                        // a battleground's match: its teams kept where they may be, its clock and its points
+                        Guard("Battlegrounds.Worker", mapChannel, () => Battlegrounds.Instance.Worker(mapChannel));
+
                         // zone borders and instance doors: anyone standing in one leaves the map
                         Guard("MapLinkManager.Worker", mapChannel, () => MapLinkManager.Instance.Worker(mapChannel));
 
@@ -694,6 +697,9 @@ namespace Rasa.Managers
                 // And the padlock on a locked wagered item.
                 InventoryManager.SyncWagerLock(client.Player);
 
+                // A battleground's teams, clock and scoreboard.
+                Battlegrounds.Instance.PlayerEntered(client);
+
                 // And what they sold before the ride, still to be bought back.
                 NpcManager.Instance.ResendBuyback(client);
 
@@ -749,6 +755,9 @@ namespace Rasa.Managers
             // The padlock on a wagered item that is locked in its slot: on every arrival, the
             // effects of the map left having gone with it.
             InventoryManager.SyncWagerLock(client.Player);
+
+            // A battleground's teams, clock and scoreboard.
+            Battlegrounds.Instance.PlayerEntered(client);
 
             // The buffs brought from the map left (nothing on a login): after the player is in
             // the cells and their own client has its actor's info, so the attach reaches it and
@@ -837,6 +846,7 @@ namespace Rasa.Managers
             InventoryManager.SyncWagerLock(client.Player);
             NpcManager.Instance.ResendBuyback(client);
             ClanFeuds.Instance.PlayerEnteredWorld(client);
+            Battlegrounds.Instance.PlayerEntered(client);
 
             client.PendingTransfer = null;
             client.State = ClientState.Ingame;

@@ -14,6 +14,9 @@ namespace Rasa.Config
         public VoiceConfig VoiceConfig { get; set; }
         public MessageOfTheDayConfig MessageOfTheDay { get; set; } = new MessageOfTheDayConfig();
 
+        /// <summary>The numbers of the Edmund Range match (Managers.Battlegrounds).</summary>
+        public BattlegroundConfig Battleground { get; set; } = new BattlegroundConfig();
+
         /// <summary>
         /// The maps that run in several shared copies, by map context id. Edmund Range (2374) is
         /// one without an entry in the file; an entry there for it replaces this one.

@@ -104,6 +104,11 @@ These also happen automatically, without a command:
 | `.instance go <number>` | GameMaster | Moves you to that copy, at the point you are standing on. Ignores the copy's capacity. |
 | `.instance pick` | GameMaster | Shows the client's instance picker for this map, as a door does once the map has more than one copy. |
 | `.instance close <number>` | GameMaster | Closes an empty copy. `#1`, the map's own channel, is never closed. |
+| `.bg` | GameMaster | The match of the battleground channel you are on (Edmund Range): its phase and clock, each team's players, points and kills, and each control point's owner and whether its Simulated Bane stand. |
+| `.bg team red \| blue \| none` | GameMaster | Puts you on a team and in its base, or off it and back in the staging area. Ignores team balance and desertion. |
+| `.bg start` | GameMaster | Begins the match now, without the wait or the preparation. A match started this way runs with a team of nobody, until its clock or `.bg end`. |
+| `.bg end [red \| blue \| none]` | GameMaster | Ends the running match for that team, or for whoever leads it. A match ended before its minimum time gives no prestige. |
+| `.bg capture <point> red \| blue \| none` | GameMaster | Gives a control point (by name or id) to a team, or to nobody. |
 
 A map's start groups are generated in this order:
 

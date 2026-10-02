@@ -61,7 +61,9 @@ namespace Rasa.Managers
     ///    when the server starts.
     ///
     /// Control points are the open world's alone: they stand on a map's own channel, and a
-    /// copy of the map - private or shared - has the objects out of service.
+    /// copy of the map - private or shared - has the objects out of service. The points of a map
+    /// that has a match (Battlegrounds) are in the same tables and are its teams' to fight over:
+    /// they are listed and moved from here (".cp"), and nothing else here touches them.
     /// </summary>
     public class ControlPoints
     {
@@ -124,6 +126,12 @@ namespace Rasa.Managers
 
             /// <summary>The Bane garrison has been let back and has yet to arrive: its pools are not held.</summary>
             public bool Returning { get; set; }
+
+            /// <summary>
+            /// On a map that has a match (Battlegrounds): its teams fight over it there, on every
+            /// channel of the map, and nothing here touches it but its row.
+            /// </summary>
+            public bool IsBattleground { get; set; }
 
             public bool HeldByAfs => Owner == Afs;
             public HashSet<uint> PoolsOf(byte owner) => owner == Afs ? AfsPools : BanePools;
@@ -214,7 +222,8 @@ namespace Rasa.Managers
                     Rotation = entry.Rotation,
                     MarkerEntityId = entry.MarkerEntityId,
                     DefaultOwner = entry.DefaultOwner == Afs ? Afs : Bane,
-                    Owner = entry.DefaultOwner == Afs ? Afs : Bane
+                    Owner = entry.DefaultOwner == Afs ? Afs : Bane,
+                    IsBattleground = Battlegrounds.Instance.IsBattleground(entry.MapContextId)
                 };
 
             foreach (var link in links)
@@ -222,6 +231,22 @@ namespace Rasa.Managers
                 if (!_points.TryGetValue(link.ControlPointId, out var point))
                 {
                     Logger.WriteLog(LogType.Error, $"control_point_link names control point {link.ControlPointId}, which there is none of.");
+                    continue;
+                }
+
+                // A battleground's point has its links and is found by none of them: its pools,
+                // hospital and waypoint are its match's to run (Battlegrounds).
+                if (point.IsBattleground)
+                {
+                    switch (link.Kind)
+                    {
+                        case ControlPointLinkEntry.KindBanePool: point.BanePools.Add(link.ObjectId); break;
+                        case ControlPointLinkEntry.KindAfsPool: point.AfsPools.Add(link.ObjectId); break;
+                        case ControlPointLinkEntry.KindHospital: point.Hospitals.Add(link.ObjectId); break;
+                        case ControlPointLinkEntry.KindWaypoint: point.Waypoints.Add(link.ObjectId); break;
+                        case ControlPointLinkEntry.KindBoss: point.Bosses.Add(link.ObjectId); break;
+                    }
+
                     continue;
                 }
 
@@ -263,7 +288,7 @@ namespace Rasa.Managers
             try
             {
                 foreach (var state in store.Load())
-                    if (_points.TryGetValue(state.ControlPointId, out var point))
+                    if (_points.TryGetValue(state.ControlPointId, out var point) && !point.IsBattleground)
                         point.Owner = state.Owner == Afs ? Afs : Bane;
             }
             catch (Exception e)
@@ -282,7 +307,7 @@ namespace Rasa.Managers
             if (mapChannel?.MapInfo == null || mapChannel.IsCopy)
                 return;
 
-            foreach (var point in _points.Values.Where(p => p.MapContextId == mapChannel.MapInfo.MapContextId))
+            foreach (var point in _points.Values.Where(p => p.MapContextId == mapChannel.MapInfo.MapContextId && !p.IsBattleground))
             {
                 if (point.Object == null)
                 {
@@ -376,7 +401,7 @@ namespace Rasa.Managers
             if (mapChannel?.MapInfo == null || mapChannel.IsCopy || _points.Count == 0)
                 return;
 
-            foreach (var point in _points.Values.Where(p => p.MapContextId == mapChannel.MapInfo.MapContextId).ToList())
+            foreach (var point in _points.Values.Where(p => p.MapContextId == mapChannel.MapInfo.MapContextId && !p.IsBattleground).ToList())
             {
                 if (point.Object == null)
                     continue;
@@ -457,7 +482,7 @@ namespace Rasa.Managers
         {
             owner = owner == Afs ? Afs : Bane;
 
-            if (point == null || point.Owner == owner)
+            if (point == null || point.IsBattleground || point.Owner == owner)
                 return false;
 
             point.Owner = owner;
@@ -567,6 +592,12 @@ namespace Rasa.Managers
             point.Position = position;
             point.Rotation = rotation;
 
+            if (point.IsBattleground)
+            {
+                Battlegrounds.Instance.PointMoved(point);
+                return true;
+            }
+
             var obj = point.Object;
             var mapChannel = obj?.RuntimeMapChannel;
 
@@ -633,7 +664,7 @@ namespace Rasa.Managers
         /// Takes the living creatures of these pools off the map, and whatever is theirs in turn.
         /// The dead stay: a corpse and what it holds is its killer's, and goes in its own time.
         /// </summary>
-        private static void TakeOffLiving(MapChannel mapChannel, List<SpawnPool> pools)
+        internal static void TakeOffLiving(MapChannel mapChannel, List<SpawnPool> pools)
         {
             if (pools.Count == 0 || pools.All(p => p.AliveCreatures <= 0) || mapChannel?.MapCellInfo?.Cells == null)
                 return;

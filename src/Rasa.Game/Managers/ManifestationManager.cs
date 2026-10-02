@@ -3118,6 +3118,9 @@ namespace Rasa.Managers
             // a squad wargame goes on without them.
             Duels.Instance.PlayerLeft(client);
             SquadWargames.Instance.PlayerLeft(client);
+
+            // Off their team of a battleground's match: a deserter, if it is being played.
+            Battlegrounds.Instance.PlayerLeft(client);
         }
 
         public void RemoveAppearanceItem(Client client, EquipmentData equipmentSlotId)

@@ -679,7 +679,7 @@ namespace Rasa.Test.World
                         connection.Open();
 
                     using var command = connection.CreateCommand();
-                    command.CommandText = "select id, map_context_id, dest_map_context_id, kind, enabled, comment from map_link where id > 141 order by id";
+                    command.CommandText = "select id, map_context_id, dest_map_context_id, kind, enabled, comment from map_link where id in (9001, 9002) order by id";
 
                     using var reader = command.ExecuteReader();
 

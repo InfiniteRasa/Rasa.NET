@@ -211,6 +211,14 @@ namespace Rasa.Managers
 
         private void Fire(Client client, MapLink link)
         {
+            // A team's teleporter, or the way back out of its base: a battleground's own.
+            if (Battlegrounds.Instance.TakeLink(client, link))
+                return;
+
+            // "You must be level 45 or higher to enter this map."
+            if (!Battlegrounds.Instance.MayEnter(client, link.DestMapContextId))
+                return;
+
             if (!MapChannelManager.Instance.MapChannelArray.ContainsKey(link.DestMapContextId))
             {
                 MapErrorManager.Instance.Record(link.MapContextId, $"map_link {link.Id} ({link.Comment}) leads to map {link.DestMapContextId}, which is not loaded");

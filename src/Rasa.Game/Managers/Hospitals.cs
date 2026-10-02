@@ -30,6 +30,9 @@ namespace Rasa.Managers
     /// not offered and is not gained by walking up to it. A player who had gained it keeps it, and
     /// has it back when the point is retaken. Nobody is stranded: with every hospital on the map
     /// lost, the nearest is offered all the same.
+    ///
+    /// On a map that has a match (Battlegrounds) a team's players go back to their team's
+    /// hospitals and no others, and no hospital there is gained.
     /// </summary>
     public static class Hospitals
     {
@@ -168,6 +171,12 @@ namespace Rasa.Managers
         /// </summary>
         public static List<Hospital> AvailableTo(Manifestation player, uint mapContextId)
         {
+            // On a team of a battleground's match: the team's own, whatever they have gained.
+            var teams = Battlegrounds.Instance.HospitalsFor(player);
+
+            if (teams != null)
+                return teams;
+
             var all = OnMap(mapContextId);
             var open = all.Where(h => IsOpen(h.TeleporterId)).ToList();
             var available = open.Where(h => h.IsFree || Knows(player, h.TeleporterId)).ToList();
@@ -199,8 +208,10 @@ namespace Rasa.Managers
                 if (player == null || client.State != ClientState.Ingame || player.Disconected || player.State == CharacterState.Dead)
                     continue;
 
+                // A battleground's hospitals are its teams' (Battlegrounds): there is nothing to gain.
                 foreach (var hospital in hospitals)
-                    if (Vector3.Distance(player.Position, hospital.Position) <= DiscoveryRadius && IsOpen(hospital.TeleporterId))
+                    if (Vector3.Distance(player.Position, hospital.Position) <= DiscoveryRadius && IsOpen(hospital.TeleporterId)
+                        && !Battlegrounds.Instance.OwnsTeleporter(hospital.MapContextId, hospital.TeleporterId))
                         Gain(client, hospital);
             }
         }

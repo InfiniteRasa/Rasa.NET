@@ -242,6 +242,9 @@ namespace Rasa.Managers
 
             health.Current += applied;
 
+            // For the healer's row of a battleground's scoreboard.
+            Battlegrounds.Instance.Healed(sourceEntityId, target, applied);
+
             var mapChannel = target switch
             {
                 Manifestation player => player.MapChannel,
@@ -340,6 +343,7 @@ namespace Rasa.Managers
                 outcome = new DamageOutcome { Delivered = amount };
                 Pvp.RecordEngagement(source, target);
                 Pvp.OnHit(mapChannel, source, target);
+                Battlegrounds.Instance.Damaged(source, target, amount);
             }
 
             if (!isPeriodic && target is Creature attackedCreature)

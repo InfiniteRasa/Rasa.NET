@@ -145,6 +145,7 @@ namespace Rasa.Managers
                 return false;
 
             CleanupPrivateMapChannel(map);
+            Battlegrounds.Instance.Forget(map);
 
             Logger.WriteLog(LogType.Debug, $"Map {map.MapInfo.MapContextId}: shared copy closed, instance {map.InstanceId}.");
 

@@ -192,6 +192,7 @@ namespace Rasa.Managers
             RegisterCommand(".kraftwerks", GmLevel.GameMaster, KraftwerksCommand, "stationIdOrHere", "action", "value");
             RegisterCommand(".cp", GmLevel.GameMaster, ControlPointCommand, "id", "action");
             RegisterCommand(".instance", GmLevel.GameMaster, InstanceCommand, "action", "number");
+            RegisterCommand(".bg", GmLevel.GameMaster, BattlegroundCommand, "action", "arg1", "arg2");
             RegisterCommand(".region", GmLevel.GameMaster, RegionCommand, "modeOrId", "regionOrAction", "arg1", "arg2", "comment");
             RegisterCommand(".emitter", GmLevel.GameMaster, EmitterCommand, "emitterId", "action", "value");
             RegisterCommand(".notify", GmLevel.GameMaster, NotifyCommand, "action", "arg1", "arg2", "extra");
@@ -3015,6 +3016,130 @@ namespace Rasa.Managers
             }
         }
 
+        /// <summary>
+        /// .bg: the match of the battleground channel the game master is on (Battlegrounds) - how
+        /// it stands, starting and ending it, a team for themselves whatever the rules say, and
+        /// a control point for a team.
+        /// </summary>
+        private void BattlegroundCommand(string[] parts)
+        {
+            const string usage = "usage: .bg | .bg start | .bg end [red|blue|none] | .bg team red|blue|none | .bg capture <point> red|blue|none";
+            var client = _client;
+            var player = client.Player;
+            var grounds = Battlegrounds.Instance;
+            var match = grounds.MatchOf(player.MapChannel);
+
+            void Say(string text) => CommunicatorManager.Instance.SystemMessage(client, text);
+
+            static uint? Team(string word) => word switch
+            {
+                "red" => Battlegrounds.Red,
+                "blue" => Battlegrounds.Blue,
+                "none" => 0u,
+                _ => null
+            };
+
+            if (match == null)
+            {
+                Say($"Map {player.MapContextId} has no battleground.");
+                return;
+            }
+
+            if (parts.Length == 1)
+            {
+                var clock = match.Phase == Battlegrounds.Phase.Waiting ? "" : $", {grounds.SecondsLeft(match)} s left";
+
+                Say($"Instance {match.Map.InstanceId}: {match.Phase}{clock}{(match.Forced ? ", started by a game master" : "")}. "
+                    + $"Red {match.Count(Battlegrounds.Red)}, Blue {match.Count(Battlegrounds.Blue)}; each needs {Math.Max(1, grounds.Config.MinPlayersPerTeam)}.");
+
+                foreach (var team in new[] { Battlegrounds.Red, Battlegrounds.Blue })
+                    Say($"{Battlegrounds.TeamName(team)}: {match.Held(team)} point(s), {match.Kills(team)} kill(s) - "
+                        + (match.Count(team) == 0 ? "nobody" : string.Join(", ", match.Team(team).Select(m => m.Client.Player.FamilyName))));
+
+                foreach (var point in match.Points)
+                {
+                    var garrison = grounds.GarrisonOf(match.Map, point.Source) switch
+                    {
+                        ControlPoints.Garrison.None => "no Bane",
+                        ControlPoints.Garrison.Down => "Bane down",
+                        _ => "Bane standing"
+                    };
+
+                    Say($"#{point.Id} {point.Name}: {Battlegrounds.TeamName(point.Owner)}, {garrison}, {(point.Object.IsEnabled ? "open" : "shut")}");
+                }
+
+                var deserted = grounds.DesertedTeamOf(player.Id);
+
+                if (deserted != 0)
+                    Say($"You are a deserter of {Battlegrounds.TeamName(deserted)}.");
+
+                return;
+            }
+
+            switch (parts[1])
+            {
+                case "start" when parts.Length == 2:
+                    if (match.Phase == Battlegrounds.Phase.Running)
+                    {
+                        Say("The match is running.");
+                        return;
+                    }
+
+                    grounds.Start(match, forced: true);
+                    Logger.WriteLog(LogType.Command, $"{player.FamilyName} started the battleground match on map {player.MapContextId}, instance {match.Map.InstanceId}.");
+                    Say("The match has begun. It runs until its clock or .bg end, whatever the teams have in them.");
+                    return;
+
+                case "end" when parts.Length == 2 || parts.Length == 3 && Team(parts[2]).HasValue:
+                    if (match.Phase != Battlegrounds.Phase.Running)
+                    {
+                        Say("No match is running.");
+                        return;
+                    }
+
+                    var winner = parts.Length == 3 ? Team(parts[2]).Value : Battlegrounds.Leader(match);
+
+                    grounds.End(match, winner);
+                    Logger.WriteLog(LogType.Command, $"{player.FamilyName} ended the battleground match on map {player.MapContextId}, instance {match.Map.InstanceId}: {Battlegrounds.TeamName(winner)}.");
+                    Say($"The match is over: {Battlegrounds.TeamName(winner)} won.");
+                    return;
+
+                case "team" when parts.Length == 3 && Team(parts[2]).HasValue:
+                {
+                    var team = Team(parts[2]).Value;
+
+                    if (team == 0)
+                        Say(grounds.LeaveTeam(client) ? "You are on no team." : "You were on no team.");
+                    else
+                        Say(grounds.Join(client, team, force: true) ? $"You are on {Battlegrounds.TeamName(team)}." : $"You could not be put on {Battlegrounds.TeamName(team)}.");
+
+                    return;
+                }
+
+                case "capture" when parts.Length == 4 && Team(parts[3]).HasValue:
+                {
+                    var point = match.Points.Find(p => p.Id.ToString() == parts[2] || string.Equals(p.Name, parts[2], StringComparison.OrdinalIgnoreCase));
+
+                    if (point == null)
+                    {
+                        Say($"There is no control point {parts[2]} here: .bg lists them.");
+                        return;
+                    }
+
+                    var team = Team(parts[3]).Value;
+
+                    Say(grounds.SetOwner(match, point, team)
+                        ? $"{point.Name} is {Battlegrounds.TeamName(team)}'s."
+                        : $"{point.Name} is {Battlegrounds.TeamName(team)}'s already.");
+                    return;
+                }
+
+                default:
+                    Say(usage);
+                    return;
+            }
+        }
+
         private void ControlPointCommand(string[] parts)
         {
             const string usage = "usage: .cp | .cp all | .cp <id> afs | bane | goto | here";
@@ -3051,8 +3176,9 @@ namespace Rasa.Managers
                         ? $"map {point.MapContextId}"
                         : $"{Vector3.Distance(point.Object?.Position ?? point.Position, player.Position):0.#} m";
 
-                    CommunicatorManager.Instance.SystemMessage(client,
-                        $"#{point.Id} {point.Name}: {ControlPoints.FactionName(point.Owner)}, {garrison}, {where}");
+                    CommunicatorManager.Instance.SystemMessage(client, point.IsBattleground
+                        ? $"#{point.Id} {point.Name}: a battleground's (.bg), {where}"
+                        : $"#{point.Id} {point.Name}: {ControlPoints.FactionName(point.Owner)}, {garrison}, {where}");
                 }
 
                 return;
@@ -3066,6 +3192,11 @@ namespace Rasa.Managers
 
             switch (parts[2])
             {
+                case "afs" when target.IsBattleground:
+                case "bane" when target.IsBattleground:
+                    CommunicatorManager.Instance.SystemMessage(client, $"Control point #{id} {target.Name} is a battleground's: .bg capture gives it to a team.");
+                    return;
+
                 case "afs":
                 case "bane":
                     var owner = parts[2] == "afs" ? ControlPoints.Afs : ControlPoints.Bane;

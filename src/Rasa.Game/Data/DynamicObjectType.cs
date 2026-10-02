@@ -16,6 +16,7 @@
         Emitter             = 12,   // an FXPackageEmitter playing an FX package (EmitterManager)
         ForceField          = 13,   // a force field a GM has placed (ForceFields)
         PracticeDummy       = 14,   // a Bootcamp practice target (PracticeTargetManager)
-        DropshipBeacon      = 15    // a Dropship Extraction Beacon's personal dropship (DropshipBeacons)
+        DropshipBeacon      = 15,   // a Dropship Extraction Beacon's personal dropship (DropshipBeacons)
+        TeamTeleporter      = 16    // the pad at a team's teleporter in a battleground's staging area (Battlegrounds)
     }
 }

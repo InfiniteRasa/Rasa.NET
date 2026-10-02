@@ -280,7 +280,11 @@ namespace Rasa.Managers
 
             player.State = player.StateBeforeDeath == CharacterState.Dead ? 0 : player.StateBeforeDeath;
 
-            if (player.Level >= PenaltyMinLevel)
+            // A death in a battleground's match costs nothing: its wargame has neither the
+            // sickness nor the wear (WARGAME_FLAGS_TEAM).
+            var penalised = player.Level >= PenaltyMinLevel && !Battlegrounds.Instance.NoDeathPenalty(player);
+
+            if (penalised)
             {
                 AddRezTrauma(mapChannel, player);
                 Durability.WearForDeath(client);
@@ -309,7 +313,7 @@ namespace Rasa.Managers
             // Actor.Recv_Revived: stood up, and the death, hospital and revive windows closed.
             CellManager.Instance.CellCallMethod(mapChannel, player, new RevivedPacket(reviver?.EntityId ?? player.EntityId));
 
-            if (player.Level >= PenaltyMinLevel)
+            if (penalised)
                 AddNoHeal(mapChannel, player);
 
             // Back from a PvP death at a hospital: safe for a while, as a defeated player is.

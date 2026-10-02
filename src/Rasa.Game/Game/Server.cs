@@ -148,6 +148,9 @@ namespace Rasa.Game
             // The maps that run in several shared copies. A copy already open stays as it is.
             MapInstancePolicies.Apply(Config.MapInstances);
 
+            // The numbers of the Edmund Range match; a match being played keeps its clock.
+            Battlegrounds.Instance.Config = Config.Battleground ?? new BattlegroundConfig();
+
             // A message changed by editing the file goes to everyone in the world, from the loop;
             // the first load is before anyone is here.
             if (MessageOfTheDay.Apply(Config.MessageOfTheDay) && _motdApplied)
@@ -461,6 +464,9 @@ namespace Rasa.Game
             DynamicObjectManager.Instance.InitDynamicObjects();
             MapTriggerManager.Instance.MapTriggerInit();
             MapLinkManager.Instance.MapLinkInit();
+
+            // After the control points and the map links: a battleground's are both.
+            Battlegrounds.Instance.Init();
             RegionManager.Instance.RegionInit();
             EmitterManager.Instance.EmitterInit();
             MapMarkerManager.Instance.MapMarkerInit();

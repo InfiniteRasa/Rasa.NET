@@ -442,6 +442,13 @@ namespace Rasa.Managers
                 return;
             }
 
+            if (OnDifferentTeams(requesterParty, requester, leaderParty, client))
+            {
+                Message(client, PlayerMessage.PmPartyJoinFailedOnDifferentTeams);
+                Message(requester, PlayerMessage.PmPartyJoinFailedOnDifferentTeams);
+                return;
+            }
+
             Message(client, PlayerMessage.PmPartyInvitationAccepted, "invitee", requester.Player.FamilyName);
 
             if (leaderParty == null)
@@ -537,6 +544,14 @@ namespace Rasa.Managers
             {
                 Message(client, PlayerMessage.PmPartyJoinFailedFeudingMembers);
                 Message(inviter, PlayerMessage.PmPartyJoinFailedFeudingMembers);
+                inviter.CallMethod(SysEntity.ClientPartyManagerId, new SquadRequestSuccessPacket(invite.DisplayName));
+                return;
+            }
+
+            if (OnDifferentTeams(inviterParty, inviter, inviteeParty, client))
+            {
+                Message(client, PlayerMessage.PmPartyJoinFailedOnDifferentTeams);
+                Message(inviter, PlayerMessage.PmPartyJoinFailedOnDifferentTeams);
                 inviter.CallMethod(SysEntity.ClientPartyManagerId, new SquadRequestSuccessPacket(invite.DisplayName));
                 return;
             }
@@ -1490,6 +1505,42 @@ namespace Rasa.Managers
             var clans = ClansOf(first, firstAlone).Concat(ClansOf(second, secondAlone));
 
             return !ClanFeuds.Instance.AnyFeuding(clans);
+        }
+
+        /// <summary>
+        /// Whether two sides - each a squad, or a lone player when their squad is null - would
+        /// make a squad with players on both teams of a battleground's match
+        /// (PM_PARTY_JOIN_FAILED_ON_DIFFERENT_TEAMS).
+        /// </summary>
+        internal static bool OnDifferentTeams(Party first, Client firstAlone, Party second, Client secondAlone)
+        {
+            return Battlegrounds.Instance.OnDifferentTeams(
+                first != null ? OnlineClients(first) : new List<Client> { firstAlone },
+                second != null ? OnlineClients(second) : new List<Client> { secondAlone });
+        }
+
+        /// <summary>
+        /// A player has joined a team of a battleground's match: no squad holds both teams, so
+        /// if theirs has somebody on the other they are out of it, and told why
+        /// (PM_TEAM_CHANGE_FORCED_SQUAD_CHANGE).
+        /// </summary>
+        internal void SeparateTeams(Client client)
+        {
+            if (client?.AccountEntry == null)
+                return;
+
+            var party = PartyOf(client);
+
+            if (party == null || !Parties.ContainsKey(party.Id))
+                return;
+
+            var others = OnlineClients(party).Where(c => c != client).ToList();
+
+            if (!Battlegrounds.Instance.OnDifferentTeams(new List<Client> { client }, others))
+                return;
+
+            RemoveMember(party, party.Find(client.AccountEntry.Id), false);
+            Message(client, PlayerMessage.PmTeamChangeForcedSquadChange);
         }
 
         private static IEnumerable<uint> ClansOf(Party party, Client alone) =>

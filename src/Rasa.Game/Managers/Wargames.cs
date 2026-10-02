@@ -9,12 +9,12 @@ namespace Rasa.Managers
     /// <summary>
     /// What every kind of wargame shares: the sides a player is on, as the client's WargameData
     /// carries them (<c>{wargameId: side}</c>, Actor.Recv_WargameData), and the showing of them.
-    /// Clan feuds (ClanFeuds), duels (Duels) and squad wargames (SquadWargames) each give their
-    /// own entries; their ids do not overlap. Pvp reads the sides from here to tell enemies apart.
+    /// Clan feuds (ClanFeuds), duels (Duels), squad wargames (SquadWargames) and a battleground's
+    /// match (Battlegrounds) each give their own entries; their ids do not overlap. Pvp reads the sides from here to tell enemies apart.
     /// </summary>
     public static class Wargames
     {
-        /// <summary>The player's WargameData: every feud their clan is in, their duel and their squad wargame.</summary>
+        /// <summary>The player's WargameData: every feud their clan is in, their duel, their squad wargame and their team's match.</summary>
         public static Dictionary<uint, bool> DataOf(Manifestation player)
         {
             var data = ClanFeuds.Instance.WargameDataOf(player);
@@ -24,6 +24,9 @@ namespace Rasa.Managers
 
             foreach (var war in SquadWargames.Instance.WargameDataOf(player))
                 data[war.Key] = war.Value;
+
+            foreach (var match in Battlegrounds.Instance.WargameDataOf(player))
+                data[match.Key] = match.Value;
 
             return data;
         }

@@ -395,6 +395,7 @@ namespace Rasa.Managers
                 missile.DamageA = Pvp.ScaleDamage(missile.Source, actor, missile.DamageA);
                 Pvp.RecordEngagement(missile.Source, actor);
                 Pvp.OnHit(mapChannel, missile.Source, actor);
+                Battlegrounds.Instance.Damaged(missile.Source, actor, missile.DamageA);
             }
 
             // Both ends: whoever was hit, and whoever hit them if that was a player too.

@@ -9,9 +9,10 @@ namespace Rasa.Managers
     using Packets.Communicator.Server;
 
     /// <summary>
-    /// Prestige from fighting players. Only a clan feud gives any: of the client's wargame flags
-    /// (shared/gameconstants.py) WARGAME_FLAGS_CLAN alone has both WARGAME_GENERATE_PRESTIGE and
-    /// WARGAME_STEAL_PRESTIGE; a duel and a squad wargame have neither. The client's help says the
+    /// Prestige from fighting players. A clan feud gives it both ways: of the client's wargame
+    /// flags (shared/gameconstants.py) WARGAME_FLAGS_CLAN alone has both WARGAME_GENERATE_PRESTIGE
+    /// and WARGAME_STEAL_PRESTIGE. A team wargame - a battleground's match - generates it and
+    /// steals none (<see cref="TeamKill"/>); a duel and a squad wargame have neither. The client's help says the
     /// same: prestige comes from "killing a player your clan is at war with".
     ///
     /// The numbers are gameconstants.py's, which the client itself never reads:
@@ -184,6 +185,39 @@ namespace Rasa.Managers
                     ("playerName", killerPlayer.FamilyName ?? ""));
 
             return (generated, stolen);
+        }
+
+        /// <summary>
+        /// A kill between the teams of a battleground's match (Battlegrounds.Kill): a team wargame
+        /// generates prestige and steals none (WARGAME_FLAGS_TEAM). The killer's generated
+        /// prestige, by the feud's rules - the levels' credit, once from a victim in the
+        /// interval - and without a wagered item's bonus, a team wargame having no wagering.
+        /// Returns what the killer gained.
+        /// </summary>
+        public static int TeamKill(Client killer, Client victim)
+        {
+            var killerPlayer = killer?.Player;
+            var victimPlayer = victim?.Player;
+
+            if (killerPlayer == null || victimPlayer == null || ReferenceEquals(killerPlayer, victimPlayer)
+                || !HasKillCredit(killerPlayer.Level, victimPlayer.Level) || !MayGenerate(killerPlayer.Id, victimPlayer.Id))
+                return 0;
+
+            var generated = Generated(killerPlayer.Level, victimPlayer.Level);
+
+            if (generated <= 0 || !TryChange(killer, generated))
+                return 0;
+
+            lock (Sync)
+                Generations[(killerPlayer.Id, victimPlayer.Id)] = Now();
+
+            Say(killer, PlayerMessage.PmPrestigePointsReceivedPvpkill,
+                ("amount", generated.ToString()),
+                ("playerName", victimPlayer.FamilyName ?? ""),
+                ("amountGenerated", generated.ToString()),
+                ("amountStolen", "0"));
+
+            return generated;
         }
 
         /// <summary>

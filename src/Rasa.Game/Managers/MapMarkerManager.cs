@@ -110,14 +110,56 @@ namespace Rasa.Managers
                         state[marker.MarkerEntityId] = value;
                 }
 
-            // The control points are the open world's: a copy of the map has none to hold.
-            if (!client.Player.MapChannel.IsCopy)
-                foreach (var point in ControlPoints.Instance.OnMap(mapContextId))
-                    if (point.MarkerEntityId != 0)
-                        state[point.MarkerEntityId] = MapMarkerState.ControlPoint(point.HeldByAfs);
+            // The control points are the open world's: a copy of the map has none to hold. A
+            // battleground's are its teams', on whichever channel the match is (Battlegrounds).
+            foreach (var point in ControlPoints.Instance.OnMap(mapContextId))
+            {
+                if (point.MarkerEntityId == 0)
+                    continue;
+
+                if (point.IsBattleground)
+                    state[point.MarkerEntityId] = Battlegrounds.Instance.MarkerStateOf(client.Player.MapChannel, point);
+                else if (!client.Player.MapChannel.IsCopy)
+                    state[point.MarkerEntityId] = MapMarkerState.ControlPoint(point.HeldByAfs);
+            }
+
+            // And a battleground's hospitals are friendly to the team that may go back to them.
+            foreach (var hospital in TeamHospitals(client, mapContextId))
+                state[hospital.Key] = hospital.Value;
 
             if (state.Count > 0)
                 client.CallMethod(SysEntity.ClientMapStateId, new MapMarkerInfoPacket(state));
+        }
+
+        /// <summary>
+        /// A battleground's hospital markers as this player has them (Battlegrounds): found, and
+        /// friendly if their team may go back to it - its own, and a control point's it holds.
+        /// </summary>
+        private Dictionary<ulong, MapMarkerState> TeamHospitals(Client client, uint mapContextId)
+        {
+            var states = new Dictionary<ulong, MapMarkerState>();
+
+            if (!Battlegrounds.Instance.IsBattleground(mapContextId) || !_byMap.TryGetValue(mapContextId, out var markers))
+                return states;
+
+            var open = Battlegrounds.Instance.HospitalsFor(client.Player)?.Select(h => h.TeleporterId).ToHashSet() ?? new HashSet<uint>();
+
+            foreach (var marker in markers)
+                if (marker.Source == MapMarkerSource.Teleporter && (marker.MarkerType == MapMarkerType.Hospital || marker.MarkerType == MapMarkerType.SafeZone)
+                    && Battlegrounds.Instance.OwnsTeleporter(mapContextId, marker.ObjectId))
+                    states[marker.MarkerEntityId] = MapMarkerState.Teleporter(marker.MarkerType, isKnown: true, isFriendly: open.Contains(marker.ObjectId));
+
+            return states;
+        }
+
+        /// <summary>A player's team, or what it holds, has changed: the battleground's hospital markers, as they now have them.</summary>
+        public void TeamHospitalsChanged(Client client, uint mapContextId)
+        {
+            if (client?.Player?.MapChannel == null)
+                return;
+
+            foreach (var hospital in TeamHospitals(client, mapContextId))
+                client.CallMethod(SysEntity.ClientMapStateId, new UpdateMapMarkerPacket(hospital.Key, hospital.Value));
         }
 
         /// <summary>Whether the map screen marks this teleporter a safe zone (Map_SafeZone): a hospital everyone may go back to (Hospitals).</summary>

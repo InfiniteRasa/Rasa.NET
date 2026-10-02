@@ -303,7 +303,12 @@ namespace Rasa.Managers
                         // behind at most. A scene's own object of this kind is only used.
                         var point = ControlPoints.Instance.PointOf(obj);
 
-                        if (point != null && !ControlPoints.Instance.MayCapture(client.Player.MapChannel, point))
+                        // One of a match's (Battlegrounds) is for a team that does not hold it,
+                        // while the match runs and with its Simulated Bane dead.
+                        var teamPoint = Battlegrounds.Instance.PointOf(obj);
+
+                        if (point != null && !ControlPoints.Instance.MayCapture(client.Player.MapChannel, point)
+                            || teamPoint != null && !Battlegrounds.Instance.MayCapture(client, teamPoint))
                         {
                             ActorManager.RefuseRequest(client, packet.ActionId, packet.ActionArgId, PlayerMessage.PmUseObjectNotUsable);
                             break;
@@ -312,12 +317,17 @@ namespace Rasa.Managers
                         if (!TryLockForUse(client, obj, packet))
                             break;
 
+                        var captureMs = teamPoint != null ? Battlegrounds.Instance.CaptureMsOf(teamPoint) : ControlPoints.CaptureMs;
+
                         // The object's id rides on the action so its recovery can find the lock.
-                        var controlAction = new ActionData(client.Player, packet.ActionId, packet.ActionArgId, ControlPoints.CaptureMs);
+                        var controlAction = new ActionData(client.Player, packet.ActionId, packet.ActionArgId, captureMs);
                         controlAction.SourceId = obj.EntityId;
 
                         client.CallMethod(client.Player.EntityId, new PerformWindupPacket(PerformType.TwoArgs, packet.ActionId, packet.ActionArgId));
-                        client.CallMethod(packet.EntityId, new UsePacket(client.Player.EntityId, obj.StateId, (int)ControlPoints.CaptureMs));
+                        client.CallMethod(packet.EntityId, new UsePacket(client.Player.EntityId, obj.StateId, (int)captureMs));
+
+                        if (teamPoint != null)
+                            Battlegrounds.Instance.Claiming(client, teamPoint);
 
                         if (point != null)
                             ControlPoints.Instance.Claiming(client.Player.MapChannel, point);
@@ -365,6 +375,9 @@ namespace Rasa.Managers
                 case DynamicObjectType.DropshipPad:
                     // The hovering ship is a two-state switch to the client, so it offers a use;
                     // there is nothing to do with one - the pad works by walking into the beam.
+                    break;
+                case DynamicObjectType.TeamTeleporter:
+                    // Likewise a team's teleporter (Battlegrounds): it is walked into.
                     break;
                 case DynamicObjectType.DropshipBeacon:
                     DropshipBeacons.Use(client, obj, packet);
@@ -647,6 +660,10 @@ namespace Rasa.Managers
             if (dynamicObject.DynamicObjectType == DynamicObjectType.ForceField)
                 ForceFields.ShowTo(client, dynamicObject);
 
+            // A battleground's control point: the team that holds it.
+            if (dynamicObject.DynamicObjectType == DynamicObjectType.ControlPoint)
+                Battlegrounds.Instance.ShowTo(client, dynamicObject);
+
             // Someone is partway through using it. Players are introduced before objects, and the
             // user is standing at it, so this client already has the actor the effect runs to.
             if (dynamicObject.UsedBy != null)
@@ -816,8 +833,14 @@ namespace Rasa.Managers
                         }
 
                         var point = ControlPoints.Instance.PointOf(controlpoint);
+                        var teamPoint = Battlegrounds.Instance.PointOf(controlpoint);
 
-                        if (point != null)
+                        if (teamPoint != null)
+                        {
+                            if (!Battlegrounds.Instance.Captured(client, teamPoint))
+                                break;
+                        }
+                        else if (point != null)
                         {
                             if (!ControlPoints.Instance.Captured(mapChannel, client, point))
                                 break;
