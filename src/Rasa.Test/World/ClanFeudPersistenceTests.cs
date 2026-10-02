@@ -103,7 +103,7 @@ namespace Rasa.Test.World
 
             var feuds = Restart(clans, tick: 1000);
             var forfeits = new List<(uint Loser, uint Winner, uint Character, string LoserName, string WinnerName)>();
-            feuds.Forfeit = (loser, winner, character, loserName, winnerName) => forfeits.Add((loser, winner, character, loserName, winnerName));
+            feuds.Forfeit = (loser, winner, character, loserName, winnerName, departed) => forfeits.Add((loser, winner, character, loserName, winnerName));
 
             // The challenged clan wins: the one who accepted stands for it.
             feuds.End(feuds.Feuds.Single(), ClanFeuds.Outcome.Won, BlueId);
@@ -122,9 +122,69 @@ namespace Rasa.Test.World
             Assert.AreEqual(3, forfeits.Count);
 
             // A forfeit that throws does not stop the feud from ending.
-            feuds.Forfeit = (loser, winner, character, loserName, winnerName) => throw new InvalidOperationException("no lockbox");
+            feuds.Forfeit = (loser, winner, character, loserName, winnerName, departed) => throw new InvalidOperationException("no lockbox");
             feuds.End(feuds.Start(clans.All[RedId], clans.All[GreenId]), ClanFeuds.Outcome.Won, RedId);
             Assert.AreEqual(0, feuds.Feuds.Count);
+        }
+
+        [TestMethod]
+        public void WhoLeavesAClanAtFeudWithAWagerStaysAtStakeThroughARestart()
+        {
+            using var world = new WorldTestContext();
+            var clans = new Clans(world);
+            var first = Restart(clans, tick: 1000);
+            var redBlue = first.Start(clans.All[RedId], clans.All[BlueId]);
+            var redGreen = first.Start(clans.All[RedId], clans.All[GreenId]);
+            var leaver = clans.Member(RedId);
+            var leaverId = leaver.Player.Id;
+
+            // Nothing wagered: nothing at stake.
+            first.HoldsWager = id => false;
+            Assert.AreEqual(0, first.MemberRemoved(leaverId, RedId, leaver).Count);
+            Assert.AreEqual(0, Stakes().Count);
+            Assert.AreEqual(0, redBlue.Departed.Count);
+
+            // A clan that is in no feud: nothing either.
+            first.HoldsWager = id => true;
+            Assert.AreEqual(0, first.MemberRemoved(leaverId, 99, leaver).Count);
+
+            // With an item wagered: at stake in each of the clan's feuds, and told so.
+            first.HoldsWager = id => id == leaverId;
+            Drain(leaver);
+            Assert.AreEqual(2, first.MemberRemoved(leaverId, RedId, leaver).Count);
+            Assert.IsTrue(Drain(leaver).OfType<Rasa.Packets.Communicator.Server.SystemMessagePacket>().Any(p => p.TextMessage.Contains("at stake")));
+
+            // Kicked while not in the world, and nobody to ask what they hold: taken to hold one.
+            first.HoldsWager = null;
+            Assert.AreEqual(1, first.MemberRemoved(500, BlueId).Count);
+
+            CollectionAssert.AreEquivalent(
+                new[] { (redBlue.Id, leaverId, RedId), (redGreen.Id, leaverId, RedId), (redBlue.Id, 500u, BlueId) },
+                Stakes().Select(s => (s.FeudId, s.CharacterId, s.ClanId)).ToArray());
+
+            // A restart, and Blue wins: who left Red is forfeit with Red; who left Blue is not.
+            var second = Restart(clans, tick: 1000);
+            var forfeits = new List<(uint Loser, uint Winner, uint[] Departed)>();
+            second.Forfeit = (loser, winner, character, loserName, winnerName, departed) => forfeits.Add((loser, winner, departed.ToArray()));
+
+            var back = second.Feuds.Single(f => f.Id == redBlue.Id);
+            Assert.AreEqual(RedId, back.Departed[leaverId]);
+            Assert.AreEqual(BlueId, back.Departed[500]);
+
+            second.End(back, ClanFeuds.Outcome.Won, BlueId);
+
+            Assert.AreEqual(1, forfeits.Count);
+            Assert.AreEqual((RedId, BlueId), (forfeits[0].Loser, forfeits[0].Winner));
+            CollectionAssert.AreEqual(new[] { leaverId }, forfeits[0].Departed);
+
+            // The stakes go with their feud; the other feud's stand until it ends.
+            CollectionAssert.AreEqual(new[] { (redGreen.Id, leaverId, RedId) }, Stakes().Select(s => (s.FeudId, s.CharacterId, s.ClanId)).ToArray());
+
+            // Red wins that one: nobody left Green, and nothing of Red's is forfeit.
+            second.End(second.Feuds.Single(), ClanFeuds.Outcome.Won, RedId);
+            Assert.AreEqual((GreenId, RedId), (forfeits[1].Loser, forfeits[1].Winner));
+            Assert.AreEqual(0, forfeits[1].Departed.Length);
+            Assert.AreEqual(0, Stakes().Count);
         }
 
         [TestMethod]
@@ -241,6 +301,8 @@ namespace Rasa.Test.World
 
         private (List<ClanFeudEntry> Feuds, List<ClanFeudChallengeEntry> Challenges) Rows() => new SqliteStore(_database).Load();
 
+        private List<ClanFeudStakeEntry> Stakes() => new SqliteStore(_database).LoadStakes();
+
         private static List<PythonPacket> Drain(Client client) => MissionTestContext.Drain(client).ToList();
 
         /// <summary>The store the server has, over a database file: a context per call.</summary>
@@ -264,6 +326,8 @@ namespace Rasa.Test.World
             public void DeleteFeud(uint id) => With(r => { r.DeleteFeud(id); return 0; });
             public void SaveChallenge(ClanFeudChallengeEntry challenge) => With(r => { r.SaveChallenge(challenge); return 0; });
             public void DeleteChallenge(uint wargameId) => With(r => { r.DeleteChallenge(wargameId); return 0; });
+            public List<ClanFeudStakeEntry> LoadStakes() => With(r => r.GetStakes());
+            public void SaveStake(ClanFeudStakeEntry stake) => With(r => { r.SaveStake(stake); return 0; });
         }
 
         /// <summary>Three PvP clans, each with a leader and a member online.</summary>

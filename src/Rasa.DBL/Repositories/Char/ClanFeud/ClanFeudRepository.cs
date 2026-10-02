@@ -54,11 +54,34 @@ namespace Rasa.Repositories.Char.ClanFeud
         public void DeleteFeud(uint id)
         {
             var rows = _charContext.CreateTrackingQuery(_charContext.ClanFeudEntries).Where(e => e.Id == id).ToList();
+            var stakes = _charContext.CreateTrackingQuery(_charContext.ClanFeudStakeEntries).Where(e => e.FeudId == id).ToList();
 
-            if (rows.Count == 0)
+            if (rows.Count == 0 && stakes.Count == 0)
                 return;
 
             _charContext.ClanFeudEntries.RemoveRange(rows);
+            _charContext.ClanFeudStakeEntries.RemoveRange(stakes);
+            _charContext.SaveChanges();
+        }
+
+        public List<ClanFeudStakeEntry> GetStakes() =>
+            _charContext.CreateNoTrackingQuery(_charContext.ClanFeudStakeEntries).OrderBy(e => e.FeudId).ThenBy(e => e.CharacterId).ToList();
+
+        public void SaveStake(ClanFeudStakeEntry stake)
+        {
+            var row = _charContext.CreateTrackingQuery(_charContext.ClanFeudStakeEntries)
+                .FirstOrDefault(e => e.FeudId == stake.FeudId && e.CharacterId == stake.CharacterId);
+
+            if (row == null)
+                _charContext.ClanFeudStakeEntries.Add(new ClanFeudStakeEntry
+                {
+                    FeudId = stake.FeudId,
+                    CharacterId = stake.CharacterId,
+                    ClanId = stake.ClanId
+                });
+            else
+                row.ClanId = stake.ClanId;
+
             _charContext.SaveChanges();
         }
 

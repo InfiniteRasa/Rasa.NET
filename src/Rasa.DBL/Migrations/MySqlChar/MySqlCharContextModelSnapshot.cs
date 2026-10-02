@@ -1105,6 +1105,25 @@ namespace Rasa.Migrations.MySqlChar
                     b.ToTable("clan_feud");
                 });
 
+            modelBuilder.Entity("Rasa.Structures.Char.ClanFeudStakeEntry", b =>
+                {
+                    b.Property<uint>("FeudId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("feud_id");
+
+                    b.Property<uint>("CharacterId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("character_id");
+
+                    b.Property<uint>("ClanId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("clan_id");
+
+                    b.HasKey("FeudId", "CharacterId");
+
+                    b.ToTable("clan_feud_stake");
+                });
+
             modelBuilder.Entity("Rasa.Structures.Char.ClanInventoryEntry", b =>
                 {
                     b.Property<uint>("ItemId")

@@ -48,7 +48,10 @@ namespace Rasa.Managers
     ///    challenge, if their clan won, or of the one who accepted it - or of the winning clan's
     ///    highest-ranking member when that character is not in the clan any more or the feud was
     ///    not started by a challenge. With no room there either the item stays where it is. A tie,
-    ///    a cancelled feud and a disbanded clan forfeit nothing (<see cref="ForfeitWagers"/>).
+    ///    a cancelled feud and a disbanded clan forfeit nothing (<see cref="ForfeitWagers"/>);
+    ///  - leaving the clan, or being kicked from it, while it is at feud saves nothing: whoever has
+    ///    an item wagered as they go stays at stake in the clan's feuds (ClanFeuds.MemberRemoved),
+    ///    and what is in their slot when a feud ends in the clan's defeat is forfeit with the rest.
     /// </summary>
     public partial class InventoryManager
     {
@@ -482,6 +485,26 @@ namespace Rasa.Managers
 
         #region Forfeits
 
+        /// <summary>Whether the character has an item in their wager slot: the loaded player's when they are in the world, else their row.</summary>
+        public bool HoldsWager(uint characterId)
+        {
+            if (characterId == 0)
+                return false;
+
+            var player = EntityManager.Instance.Players.Values.FirstOrDefault(p => p.Id == characterId)
+                         ?? ConnectedPlayers().FirstOrDefault(c => c.Player.Id == characterId)?.Player;
+
+            if (WageredItemOf(player) != null)
+                return true;
+
+            if (_gameUnitOfWorkFactory == null)
+                return false;
+
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+
+            return unitOfWork.CharacterInventories.GetByType(new[] { characterId }, (uint)InventoryType.WagerInventory).Count > 0;
+        }
+
         /// <summary>What became of the wagered items of a clan that lost a feud.</summary>
         public sealed class WagerForfeits
         {
@@ -501,13 +524,15 @@ namespace Rasa.Managers
         }
 
         /// <summary>
-        /// A clan feud is won (ClanFeuds.End): the items wagered by the members of the losing clan
-        /// go to the winning clan's lockbox, or to the inbox of <paramref name="recipientCharacterId"/>
+        /// A clan feud is won (ClanFeuds.End): the items wagered by the members of the losing clan,
+        /// and by <paramref name="departed"/> - those who left it while the feud ran - go to the
+        /// winning clan's lockbox, or to the inbox of <paramref name="recipientCharacterId"/>
         /// - the winning clan's highest-ranking member when that character is not one of its
         /// members - when the lockbox has no free unlocked slot. Each item moves in one
         /// transaction; one that cannot be moved stays with its owner.
         /// </summary>
-        public WagerForfeits ForfeitWagers(uint loserClanId, uint winnerClanId, uint recipientCharacterId, string loserClanName, string winnerClanName)
+        public WagerForfeits ForfeitWagers(uint loserClanId, uint winnerClanId, uint recipientCharacterId, string loserClanName, string winnerClanName,
+            IEnumerable<uint> departed = null)
         {
             var result = new WagerForfeits();
 
@@ -516,7 +541,8 @@ namespace Rasa.Managers
 
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
 
-            var losers = unitOfWork.ClanMembers.GetAllClanMembersByClanId(loserClanId).Select(m => m.CharacterId).ToList();
+            var members = unitOfWork.ClanMembers.GetAllClanMembersByClanId(loserClanId).Select(m => m.CharacterId).ToHashSet();
+            var losers = members.Concat(departed ?? Enumerable.Empty<uint>()).Where(id => id != 0).Distinct().ToList();
             var rows = unitOfWork.CharacterInventories.GetByType(losers, (uint)InventoryType.WagerInventory);
 
             if (rows.Count == 0)
@@ -658,8 +684,9 @@ namespace Rasa.Managers
                     }
 
                     if (ownerClient != null && ownerClient.State == ClientState.Ingame)
-                        CommunicatorManager.Instance.SystemMessage(ownerClient,
-                            $"Your clan lost its feud with {winnerClanName}: your wagered item is forfeit to them.");
+                        CommunicatorManager.Instance.SystemMessage(ownerClient, members.Contains(row.CharacterId)
+                            ? $"Your clan lost its feud with {winnerClanName}: your wagered item is forfeit to them."
+                            : $"{loserClanName}, which you left while it was at feud, lost to {winnerClanName}: your wagered item is forfeit to them.");
                 }
                 catch (Exception e)
                 {

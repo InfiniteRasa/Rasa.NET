@@ -61,8 +61,9 @@ namespace Rasa.Managers
                     lock (InstanceLock)
                         _instance ??= new ClanFeuds(new ServerClans())
                         {
-                            Forfeit = (loser, winner, character, loserName, winnerName) =>
-                                InventoryManager.Instance.ForfeitWagers(loser, winner, character, loserName, winnerName)
+                            Forfeit = (loser, winner, character, loserName, winnerName, departed) =>
+                                InventoryManager.Instance.ForfeitWagers(loser, winner, character, loserName, winnerName, departed),
+                            HoldsWager = characterId => InventoryManager.Instance.HoldsWager(characterId)
                         };
 
                 return _instance;
@@ -108,6 +109,10 @@ namespace Rasa.Managers
             void DeleteFeud(uint id);
             void SaveChallenge(ClanFeudChallengeEntry challenge);
             void DeleteChallenge(uint wargameId);
+
+            /// <summary>The stakes of those who left a clan at feud. They go with their feud (DeleteFeud).</summary>
+            List<ClanFeudStakeEntry> LoadStakes() => new List<ClanFeudStakeEntry>();
+            void SaveStake(ClanFeudStakeEntry stake) { }
         }
 
         public sealed class Feud
@@ -124,6 +129,12 @@ namespace Rasa.Managers
 
             /// <summary>The character who accepted the challenge; 0 likewise.</summary>
             public uint TargetCharacterId { get; set; }
+
+            /// <summary>
+            /// The characters who left one of the two clans while the feud ran, with an item
+            /// wagered, and the clan each left: their wager stays at stake as that clan's.
+            /// </summary>
+            public Dictionary<uint, uint> Departed { get; } = new Dictionary<uint, uint>();
 
             /// <summary>The character who stood for a clan when the feud was made: its challenger, or the one who accepted.</summary>
             public uint CharacterFor(uint clanId) => clanId == ChallengerClanId ? ChallengerCharacterId : clanId == TargetClanId ? TargetCharacterId : 0;
@@ -147,11 +158,17 @@ namespace Rasa.Managers
 
         /// <summary>
         /// What the losers of a feud that was won forfeit: (losing clan, winning clan, the winning
-        /// clan's character of the challenge, the two clans' names). The live server's is
-        /// InventoryManager.ForfeitWagers - their wagered items, to the winners' lockbox; null does
-        /// nothing.
+        /// clan's character of the challenge, the two clans' names, the characters who left the
+        /// losing clan while the feud ran). The live server's is InventoryManager.ForfeitWagers -
+        /// their wagered items, to the winners' lockbox; null does nothing.
         /// </summary>
-        public Action<uint, uint, uint, string, string> Forfeit { get; set; }
+        public Action<uint, uint, uint, string, string, IReadOnlyCollection<uint>> Forfeit { get; set; }
+
+        /// <summary>
+        /// Whether a character has an item wagered, asked as they leave a clan at feud. The live
+        /// server's is InventoryManager.HoldsWager; null takes every leaver to have one.
+        /// </summary>
+        public Func<uint, bool> HoldsWager { get; set; }
 
         /// <summary>The wall clock a kept feud's end is written in: Unix milliseconds, UTC. Replaceable for tests.</summary>
         public Func<long> UtcNow { get; set; } = () => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
@@ -441,7 +458,8 @@ namespace Rasa.Managers
         /// <summary>
         /// Ends a feud: each member online hears how it went and has it taken off their tracker,
         /// and everyone around sees them out of it. A feud that was won costs the losing clan's
-        /// members what they wagered (<see cref="Forfeit"/>).
+        /// members what they wagered (<see cref="Forfeit"/>), and those who left it while the feud
+        /// ran (<see cref="MemberRemoved"/>).
         /// </summary>
         public void End(Feud feud, Outcome outcome, uint winnerClanId = 0)
         {
@@ -489,9 +507,13 @@ namespace Rasa.Managers
             if (outcome == Outcome.Won && feud.Involves(winnerClanId) && Forfeit != null)
             {
                 var loserClanId = feud.OtherThan(winnerClanId);
+                List<uint> departed;
+
+                lock (_sync)
+                    departed = feud.Departed.Where(d => d.Value == loserClanId).Select(d => d.Key).OrderBy(id => id).ToList();
 
                 Try($"forfeiting the wagers of feud {feud.Id}", () => Forfeit(loserClanId, winnerClanId, feud.CharacterFor(winnerClanId),
-                    _clans.Find(loserClanId)?.Name ?? "", _clans.Find(winnerClanId)?.Name ?? ""));
+                    _clans.Find(loserClanId)?.Name ?? "", _clans.Find(winnerClanId)?.Name ?? "", departed));
             }
         }
 
@@ -658,6 +680,53 @@ namespace Rasa.Managers
         }
 
         /// <summary>
+        /// A character has left a clan for good - walked out or was kicked, in the world or not
+        /// (ClanManager; a logout is not this). What they have wagered stays at stake in each feud
+        /// the clan is in, as that clan's: leaving is no way to keep an item the clan then loses.
+        /// Nothing is kept for one with nothing wagered. <paramref name="client"/> is theirs when
+        /// they are in the world, to be told. Returns the feuds they stay at stake in.
+        /// </summary>
+        public List<Feud> MemberRemoved(uint characterId, uint clanId, Client client = null)
+        {
+            var feuds = FeudsOf(clanId);
+
+            if (characterId == 0 || feuds.Count == 0)
+                return new List<Feud>();
+
+            var holds = true;
+            var asked = HoldsWager;
+
+            if (asked != null)
+                Try($"reading the wager of character {characterId}", () => holds = asked(characterId));
+
+            if (!holds)
+                return new List<Feud>();
+
+            lock (_sync)
+                foreach (var feud in feuds)
+                    feud.Departed[characterId] = clanId;
+
+            var store = Store;
+
+            if (store != null)
+                foreach (var feud in feuds)
+                    Try($"saving the stake of character {characterId} in feud {feud.Id}",
+                        () => store.SaveStake(new ClanFeudStakeEntry { FeudId = feud.Id, CharacterId = characterId, ClanId = clanId }));
+
+            Logger.WriteLog(LogType.Debug, $"Clan feud: character {characterId} left clan {clanId} with an item wagered; at stake in {feuds.Count} feud(s).");
+
+            if (client?.Player != null)
+            {
+                var name = _clans.Find(clanId)?.Name ?? "your clan";
+
+                Try("telling a leaver of their stake", () => CommunicatorManager.Instance.SystemMessage(client,
+                    $"{name} is at feud: the item you have wagered stays at stake until the feud ends, and is forfeit if {name} loses."));
+            }
+
+            return feuds;
+        }
+
+        /// <summary>
         /// A clan is disbanding (before its members are cleared): its feuds are cancelled and its
         /// challenges dropped. A challenge it had made is taken back from the other leader.
         /// </summary>
@@ -709,9 +778,12 @@ namespace Rasa.Managers
             List<ClanFeudEntry> feudRows;
             List<ClanFeudChallengeEntry> challengeRows;
 
+            List<ClanFeudStakeEntry> stakeRows;
+
             try
             {
                 (feudRows, challengeRows) = store.Load();
+                stakeRows = store.LoadStakes() ?? new List<ClanFeudStakeEntry>();
             }
             catch (Exception e)
             {
@@ -769,6 +841,11 @@ namespace Rasa.Managers
                         Restored = true
                     });
                 }
+
+                // Who left a side of a kept feud with an item wagered.
+                foreach (var stake in stakeRows)
+                    if (_feuds.TryGetValue(stake.FeudId, out var staked) && staked.Involves(stake.ClanId))
+                        staked.Departed[stake.CharacterId] = stake.ClanId;
 
                 var highest = feudRows.Select(r => r.Id).Concat(challengeRows.Select(r => r.WargameId)).DefaultIfEmpty(0u).Max();
 
@@ -1004,6 +1081,18 @@ namespace Rasa.Managers
             {
                 using var unitOfWork = _factory.CreateChar();
                 unitOfWork.ClanFeuds.SaveChallenge(challenge);
+            }
+
+            public List<ClanFeudStakeEntry> LoadStakes()
+            {
+                using var unitOfWork = _factory.CreateChar();
+                return unitOfWork.ClanFeuds.GetStakes();
+            }
+
+            public void SaveStake(ClanFeudStakeEntry stake)
+            {
+                using var unitOfWork = _factory.CreateChar();
+                unitOfWork.ClanFeuds.SaveStake(stake);
             }
 
             public void DeleteChallenge(uint wargameId)

@@ -489,6 +489,10 @@ namespace Rasa.Managers
             if (!unitOfWork.ClanMembers.DeleteClanMember(memberToBeKicked))
                 return;
 
+            // What they have wagered stays at stake in the clan's feuds.
+            ClanFeuds.Instance.MemberRemoved(memberToBeKicked.CharacterId, memberToBeKicked.ClanId,
+                Server.Clients.Find(c => c?.Player != null && c.Player.Id == memberToBeKicked.CharacterId));
+
             UnregisterClanMember(memberToBeKicked);
 
             // PlayerLeftClan takes the member out of each client's roster by itself
@@ -886,7 +890,10 @@ namespace Rasa.Managers
             }
 
             if (unitOfWork.ClanMembers.DeleteClanMember(member))
-            {                
+            {
+                // What they have wagered stays at stake in the clan's feuds.
+                ClanFeuds.Instance.MemberRemoved(member.CharacterId, member.ClanId, client);
+
                 UnregisterClanMember(member);
 
                 // Notifies other players still in the clan that we left

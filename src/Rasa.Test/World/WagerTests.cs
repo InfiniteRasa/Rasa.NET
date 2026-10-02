@@ -14,6 +14,7 @@ namespace Rasa.Test.World
     using Rasa.Managers;
     using Rasa.Memory;
     using Rasa.Packets;
+    using Rasa.Packets.Clan.Client;
     using Rasa.Packets.Communicator.Server;
     using Rasa.Packets.Inventory.Client;
     using Rasa.Packets.Inventory.Server;
@@ -555,6 +556,130 @@ namespace Rasa.Test.World
                 Assert.AreEqual(2u, row.CharacterId);
                 Assert.AreEqual((uint)InventoryType.InboxInventory, row.InventoryType);
             }
+        }
+
+        [TestMethod]
+        public void LeavingOrBeingKickedDuringAFeudSavesNothing()
+        {
+            using var context = Context(out var leaver, out var inventory);
+            var winner = context.CreateAdditionalClient(2);
+            var leader = context.CreateAdditionalClient(5);
+            context.SeedCharacter(3, 0, 3);
+
+            var losers = Clan(context, "Losers", (5, ClanRank.Leader), (1, ClanRank.Member), (3, ClanRank.Member));
+            var winners = Clan(context, "Winners", (2, ClanRank.Leader));
+
+            Join(leaver, losers);
+            Join(leader, losers);
+            Join(winner, winners);
+
+            var walked = Gear(context, leaver, 9001, 0);
+            inventory.WagerItem(leaver, new WagerItemPacket { Slot = 0 });
+            inventory.SetWagerLocked(leaver, true);
+            var kicked = WageredOffline(context, 3, 3, 9002);
+
+            Assert.IsTrue(inventory.HoldsWager(1), "in the world");
+            Assert.IsTrue(inventory.HoldsWager(3), "from their row");
+            Assert.IsFalse(inventory.HoldsWager(5));
+            Assert.IsFalse(inventory.HoldsWager(0));
+
+            var clanInstance = typeof(ClanManager).GetField("_instance", BindingFlags.Static | BindingFlags.NonPublic);
+            var previousClans = clanInstance.GetValue(null);
+            var feuds = ClanFeuds.Instance;
+            var forfeit = feuds.Forfeit;
+            var holds = feuds.HoldsWager;
+            ClanFeuds.Feud feud = null;
+
+            try
+            {
+                var clans = (ClanManager)typeof(ClanManager).GetConstructor(BindingFlags.Instance | BindingFlags.NonPublic, null,
+                    new[] { typeof(Rasa.Repositories.UnitOfWork.IGameUnitOfWorkFactory) }, null).Invoke(new object[] { context });
+
+                using (var unit = context.CreateChar())
+                    foreach (var clan in new[] { losers, winners })
+                    {
+                        var entry = clan;
+                        var members = unit.ClanMembers.GetAllClanMembersByClanId(clan.Id);
+
+                        clans.Clans[clan.Id] = new Lazy<ClanEntry>(() => entry);
+                        clans.ClanMembers[clan.Id] = new Lazy<List<ClanMemberEntry>>(() => members);
+                    }
+
+                clanInstance.SetValue(null, clans);
+                feuds.Forfeit = (loser, victor, character, loserName, winnerName, departed) =>
+                    inventory.ForfeitWagers(loser, victor, character, loserName, winnerName, departed);
+                feuds.HoldsWager = inventory.HoldsWager;
+
+                feud = feuds.Start(losers, winners, 0, 5, 2);
+                Assert.IsNotNull(feud);
+                context.Drain();
+
+                // The one in the world walks out; the other is kicked while away.
+                clans.LeaveClan(leaver, new LeaveClanPacket { CharacterId = 1, ClanId = losers.Id });
+                clans.KickPlayerFromClan(leader, new KickPlayerFromClanPacket(3, losers.Id));
+
+                using (var unit = context.CreateChar())
+                    CollectionAssert.AreEqual(new uint[] { 5 }, unit.ClanMembers.GetAllClanMembersByClanId(losers.Id).Select(m => m.CharacterId).ToArray());
+
+                Assert.AreEqual(0u, leaver.Player.ClanId);
+                Assert.AreEqual(losers.Id, feud.Departed[1]);
+                Assert.AreEqual(losers.Id, feud.Departed[3]);
+                Assert.IsTrue(context.Drain().OfType<SystemMessagePacket>().Any(p => p.TextMessage.Contains("at stake")));
+                Assert.AreEqual(walked.EntityId, leaver.Player.Inventory.WagerItem, "theirs until the feud is decided");
+                Assert.IsTrue(leaver.Player.WagerLocked);
+
+                MissionTestContext.Drain(winner);
+                feuds.End(feud, ClanFeuds.Outcome.Won, winners.Id);
+                feud = null;
+
+                using (var unit = context.CreateChar())
+                    CollectionAssert.AreEquivalent(new[] { walked.Id, kicked }, unit.ClanInventories.GetItems(winners.Id).Select(row => row.ItemId).ToArray());
+
+                Assert.AreEqual(0UL, leaver.Player.Inventory.WagerItem);
+                Assert.IsFalse(leaver.Player.WagerLocked);
+
+                var lost = context.Drain();
+                Assert.AreEqual(walked.EntityId, lost.OfType<RemoveWagerItemPacket>().Single().EntityId);
+                Assert.IsTrue(lost.OfType<SystemMessagePacket>().Any(p => p.TextMessage.Contains("which you left")));
+                Assert.AreEqual(2, MissionTestContext.Drain(winner).OfType<InventoryAddItemPacket>().Count(p => p.Type == InventoryType.ClanInventory));
+            }
+            finally
+            {
+                if (feud != null)
+                    feuds.End(feud, ClanFeuds.Outcome.Cancelled);
+
+                feuds.Forfeit = forfeit;
+                feuds.HoldsWager = holds;
+                clanInstance.SetValue(null, previousClans);
+            }
+        }
+
+        [TestMethod]
+        public void WhoLeftBeforeTheFeudEndedIsForfeitWithTheMembers()
+        {
+            using var context = Context(out var leaver, out var inventory);
+            context.SeedCharacter(4, 0, 4);
+
+            var losers = Clan(context, "Losers", (4, ClanRank.Leader));
+            var winners = Clan(context, "Winners");
+
+            // In no clan now, and named as having left the losers.
+            var item = Gear(context, leaver, 9001, 0);
+            inventory.WagerItem(leaver, new WagerItemPacket { Slot = 0 });
+            context.Drain();
+
+            Assert.AreEqual(0, inventory.ForfeitWagers(losers.Id, winners.Id, 0, "Losers", "Winners").Taken, "not a member, and not named");
+            Assert.AreEqual(item.EntityId, leaver.Player.Inventory.WagerItem);
+
+            // Named twice, with a character who is gone: once, and nothing for the other.
+            var result = inventory.ForfeitWagers(losers.Id, winners.Id, 0, "Losers", "Winners", new uint[] { 1, 1, 0, 404 });
+
+            Assert.AreEqual(1, result.ToLockbox);
+            Assert.AreEqual(0, result.Kept);
+            Assert.AreEqual(0UL, leaver.Player.Inventory.WagerItem);
+
+            using var unit = context.CreateChar();
+            Assert.AreEqual(item.Id, unit.ClanInventories.GetItems(winners.Id).Single().ItemId);
         }
 
         [TestMethod]
