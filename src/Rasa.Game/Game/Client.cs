@@ -115,6 +115,16 @@ namespace Rasa.Game
         }
         internal MissionConversationSession MissionConversation { get; set; }
 
+        /// <summary>
+        /// The creatures this client has been given from beyond its player's cells: the NPCs
+        /// their finished missions are handed in to, so that the map and the radar can show
+        /// them (Managers.MissionContacts). By entity id; emptied when the player leaves the map.
+        /// </summary>
+        internal HashSet<ulong> FarContacts { get; } = new HashSet<ulong>();
+
+        /// <summary>Environment.TickCount64 at which <see cref="FarContacts"/> is next checked without a mission event asking.</summary>
+        internal long NextContactSync { get; set; }
+
         /// <summary>Whether this connection has been sent the message of the day (Managers.MessageOfTheDay).</summary>
         internal bool MotdSent { get; set; }
 

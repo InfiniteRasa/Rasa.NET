@@ -222,6 +222,9 @@ namespace Rasa.Managers
             CreatureBuffs.Forget(creature);
             AlternateMesh.Forget(creature);
 
+            // A mission's receiver given to clients beyond its cells goes for them too.
+            MissionContacts.Removed(mapChannel, creature);
+
             // Unregister once, whoever was or was not watching.
             EntityManager.Instance.ReleaseEntity(creature.EntityId, EntityType.Creature);
             creature.RuntimeMapChannel = null;
@@ -236,6 +239,9 @@ namespace Rasa.Managers
         {
             // 1 time per sec, do we need check more often?
             UpdateVisibility(mapChannel);
+
+            // The NPCs finished missions are handed in to, for clients out of their range.
+            MissionContacts.Worker(mapChannel, System.Environment.TickCount64);
             // mob work
 
             // events etc...
@@ -328,6 +334,7 @@ namespace Rasa.Managers
                 client.InvalidateMissionSession();
             if (client.MissionConversation?.Map == map)
                 client.MissionConversation = null;
+            MissionContacts.Forget(client);
             var memberships = map.MapCellInfo.Cells.Values.Where(cell => cell.ClientList.Contains(client)).ToArray();
             if (memberships.Length == 0)
                 return;
@@ -400,8 +407,10 @@ namespace Rasa.Managers
 
             ManifestationManager.Instance.CellDiscardClientToPlayers(client, leaving);
             ManifestationManager.Instance.CellDiscardPlayersToClient(client, leaving);
+            // The NPC a finished mission is handed in to stays on the client as the player
+            // walks away from it: it is what the map marker is drawn from (MissionContacts).
             CreatureManager.Instance.CellDiscardCreaturesToClient(client,
-                removedCells.SelectMany(cell => cell.CreatureList).Distinct().ToList());
+                MissionContacts.Keep(client, removedCells.SelectMany(cell => cell.CreatureList).Distinct().ToList()));
             DynamicObjectManager.Instance.CellDiscardDynamicObjectsToClient(client,
                 removedCells.SelectMany(cell => cell.DynamicObjectList).Distinct().ToList());
 

@@ -514,10 +514,12 @@ namespace Rasa.Managers
 
             mapChannel.MapCellInfo.Cells[oldCellMatrix[2, 2]].CreatureList.Remove(creature);
 
-            // remove creature for player that are not in visibility range anymore
+            // remove creature for player that are not in visibility range anymore - unless it is
+            // where one of their missions is handed in, which their client keeps (MissionContacts)
             foreach (var cellSeed in needDelete)
                 foreach (var client in mapChannel.MapCellInfo.Cells[cellSeed].ClientList)
-                    client.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(creature.EntityId));
+                    if (!MissionContacts.Keep(client, creature))
+                        client.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(creature.EntityId));
 
             // add creature to new cell
             mapChannel.MapCellInfo.Cells[newCellMatrix[2, 2]].CreatureList.Add(creature);

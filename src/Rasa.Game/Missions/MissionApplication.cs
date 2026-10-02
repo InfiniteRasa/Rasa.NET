@@ -214,8 +214,13 @@ namespace Rasa.Managers
                 !CellManager.Instance.IsInWorld(client))
                 return;
 
+            // The NPCs around the player, and the ones their client was given from afar because
+            // a mission is handed in to them (MissionContacts): those have a status to keep too.
             var npcs = CellManager.CellsIn(map, player.Cells)
                 .SelectMany(cell => cell.CreatureList)
+                .Concat(client.FarContacts
+                    .Select(entityId => MapInstanceScope.TryGetCreature(map, entityId, out var held) ? held : null)
+                    .Where(held => held != null))
                 .Where(creature => creature.Npc != null)
                 .Distinct()
                 .ToArray();
@@ -225,6 +230,43 @@ namespace Rasa.Managers
                     TryPublish(
                         () => NpcManager.Instance.UpdateConversationStatus(client, npc, this),
                         $"NPC {npc.EntityId} conversation status after mission progress");
+
+            // A mission that can now be handed in puts its receiver on the map; one handed in or
+            // abandoned takes it off.
+            TryPublish(() => MissionContacts.Sync(client), "mission contacts after mission progress");
+        }
+
+        /// <summary>
+        /// The creature rows a player can hand a mission in to now: the receivers of their
+        /// missions whose objectives are done, by the test ClassifyNpcConversation makes for the
+        /// MissionComplete status - an NPC completion, the turn-in requirement met, and for a
+        /// mission already a success, a reward to give.
+        /// </summary>
+        internal HashSet<uint> TurnInReceivers(Manifestation player)
+        {
+            var receivers = new HashSet<uint>();
+
+            if (player?.Missions == null)
+                return receivers;
+
+            foreach (var log in player.Missions.Values)
+            {
+                var ready = log.State == MissionState.Active && log.Completeable || log.State == MissionState.Success;
+
+                if (!ready || !TryGetOperationalMission(log.MissionId, out var mission))
+                    continue;
+
+                if (!mission.MissionReciver.HasValue || !mission.CompletionChannel.HasFlag(MissionChannel.Npc))
+                    continue;
+
+                if (log.State == MissionState.Success && !TryGetRewardInfo(log.MissionId, out _))
+                    continue;
+
+                if (_requirements.Evaluate(player, mission.TurnInRequirement))
+                    receivers.Add(mission.MissionReciver.Value);
+            }
+
+            return receivers;
         }
 
         internal void PublishRadioOffer(Client client, Mission definition, bool forceDialog)
