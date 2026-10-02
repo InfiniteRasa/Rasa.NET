@@ -177,7 +177,15 @@ namespace Rasa.Game
             // before the world is up; Start opens the voice port with the others.
             if (_voiceApplied)
                 Voice.VoiceServer.Instance.Apply(Config.VoiceConfig, Config.GameConfig?.PublicAddress);
+
+            // The REST API and the status port the same: keys and allow lists from the next
+            // request, a changed port by reopening the listener.
+            if (_apiApplied)
+                Api.ApiHost.Instance.Apply(Config.ApiConfig);
         }
+
+        /// <summary>Set once Start has opened the status listeners, so reloads apply ApiConfig too.</summary>
+        private bool _apiApplied;
 
         /// <summary>Set once Start has applied VoiceConfig, so reloads apply it too.</summary>
         private bool _voiceApplied;
@@ -201,8 +209,15 @@ namespace Rasa.Game
                 _clientsToRemove.Add(client);
         }
 
+        /// <summary>CurrentPlayers, as the status listeners' sample asks for it.</summary>
+        private Func<int> _playersHoldingASlot;
+
         public void MainLoop(long delta)
         {
+            // For the status listeners (Api.ServerStatus), whose threads read only what is left
+            // for them here: the loop is alive, and once a second how many players hold a slot.
+            Api.ApiHost.Instance.Status.Beat(_playersHoldingASlot ??= () => CurrentPlayers, Config?.ServerInfoConfig?.MaxPlayers ?? 0, ListenerSocket != null);
+
             // The host is stopping (Ctrl+C, a service stop, docker stop): everyone saved and out,
             // on this thread, which owns the world (EvacuateForHost waits for it).
             var evacuation = Interlocked.Exchange(ref _evacuationRequest, null);
@@ -400,6 +415,15 @@ namespace Rasa.Game
 
             if (Config.VoiceConfig?.Enabled != true)
                 Logger.WriteLog(LogType.Initialize, "Squad voice chat is off (VoiceConfig.Enabled).");
+
+            // The REST API and the status port. Either one failing to open its port leaves that
+            // one off, not the world. Until PublishReady they report the game server unhealthy.
+            var api = Api.ApiHost.Instance;
+
+            api.Status.AuthLinked = () => AuthLinkUp;
+            api.Status.Started();
+            _apiApplied = true;
+            api.Apply(Config.ApiConfig);
         }
 
         private void RegisterStartupTimers()
@@ -489,6 +513,9 @@ namespace Rasa.Game
             // to tell a server still loading from one that was up.
             Logger.WriteLog(LogType.Initialize, "");
             Logger.WriteLog(LogType.Initialize, "Server ready!");
+
+            // And only now does the health check say so.
+            Api.ApiHost.Instance.Status.Ready();
         }
 
         internal static bool LogMissionValidationAndCheckReadiness(
@@ -719,6 +746,9 @@ namespace Rasa.Game
             ListenerSocket = null;
 
             Voice.VoiceServer.Instance.Stop();
+
+            Api.ApiHost.Instance.Status.Stopped();
+            Api.ApiHost.Instance.Stop();
 
             if (Loop.Running)
                 Loop.Stop();
@@ -1022,6 +1052,7 @@ namespace Rasa.Game
                 AuthCommunicator = socket;
                 socket.OnConnect += OnCommunicatorConnect;
                 socket.OnError += OnCommunicatorError;
+                socket.OnError += _ => AuthLinkLost(socket);
                 socket.OnDrop += reason => OnCommunicatorDrop(socket, reason);
                 socket.ConnectAsync(new IPEndPoint(IPAddress.Parse(Config.CommunicatorConfig.Address), Config.CommunicatorConfig.Port));
             }
@@ -1032,6 +1063,30 @@ namespace Rasa.Game
             }
 
             Logger.WriteLog(LogType.Network, $"*** Connecting to auth server! Address: {Config.CommunicatorConfig.Address}:{Config.CommunicatorConfig.Port}");
+        }
+
+        /// <summary>
+        /// The auth link that has logged in, while it stands: what app_server_status goes by
+        /// (Api.ServerStatus). Written on socket threads and read on the status listeners'.
+        /// </summary>
+        private volatile LengthedSocket _authLinked;
+
+        /// <summary>Whether this world is connected and logged in to the Auth server, so that a login can be handed on to it.</summary>
+        internal bool AuthLinkUp
+        {
+            get
+            {
+                var link = _authLinked;
+
+                return link != null && ReferenceEquals(link, AuthCommunicator) && link.Connected;
+            }
+        }
+
+        /// <summary>That link has failed or been closed; a newer one that has logged in since is not touched.</summary>
+        private void AuthLinkLost(LengthedSocket socket)
+        {
+            if (ReferenceEquals(_authLinked, socket))
+                _authLinked = null;
         }
 
         private void OnCommunicatorError(SocketAsyncEventArgs args)
@@ -1070,6 +1125,8 @@ namespace Rasa.Game
             // Only the link in use: one already replaced by a reconnect has nothing left to say.
             if (socket != AuthCommunicator)
                 return;
+
+            AuthLinkLost(socket);
 
             Logger.WriteLog(LogType.Error, $"The link to the Auth server was dropped ({reason}); world logins cannot complete until it is back. Reconnecting in a few seconds...");
 
@@ -1142,6 +1199,7 @@ namespace Rasa.Game
         {
             if (packet.Response == CommLoginReason.Success)
             {
+                _authLinked = AuthCommunicator;
                 Logger.WriteLog(LogType.Network, "Successfully authenticated with the Auth server!");
                 return;
             }

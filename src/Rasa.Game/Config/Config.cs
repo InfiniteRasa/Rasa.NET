@@ -14,6 +14,9 @@ namespace Rasa.Config
         public VoiceConfig VoiceConfig { get; set; }
         public MessageOfTheDayConfig MessageOfTheDay { get; set; } = new MessageOfTheDayConfig();
 
+        /// <summary>The REST API and the status port (Rasa.Api); both off without the section.</summary>
+        public ApiConfig ApiConfig { get; set; } = new ApiConfig();
+
         /// <summary>The numbers of the Edmund Range match (Managers.Battlegrounds).</summary>
         public BattlegroundConfig Battleground { get; set; } = new BattlegroundConfig();
 
