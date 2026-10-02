@@ -114,6 +114,9 @@ namespace Rasa.Structures
         public MissionProgressRule ProgressRule { get; }
         public IReadOnlyList<MissionObjectiveExecutableTransition> ExecutableTransitions { get; }
         public global::Rasa.Missions.Runtime.MissionCreditPolicy CreditPolicy { get; }
+
+        /// <summary>The title the character earns when this objective completes; null for none.</summary>
+        public uint? TitleId { get; }
         public bool HasCompleteServerContract { get; }
 
         public MissionObjectiveDefinition(
@@ -133,9 +136,11 @@ namespace Rasa.Structures
             MissionProgressRule progressRule = null,
             IEnumerable<MissionObjectiveExecutableTransition> executableTransitions = null,
             MissionContentRequirement requirement = MissionContentRequirement.Required,
-            global::Rasa.Missions.Runtime.MissionCreditPolicy creditPolicy = null)
+            global::Rasa.Missions.Runtime.MissionCreditPolicy creditPolicy = null,
+            uint? titleId = null)
         {
             ObjectiveId = objectiveId;
+            TitleId = titleId;
             ClientNameTextId = clientNameTextId;
             ClientBodyTextId = clientBodyTextId;
             ClientCounterTextIds = Array.AsReadOnly(
@@ -238,7 +243,12 @@ namespace Rasa.Structures
         internal MissionObjectiveDefinition WithCreditPolicy(global::Rasa.Missions.Runtime.MissionCreditPolicy policy) =>
             new(ObjectiveId, ClientNameTextId, ClientBodyTextId, ClientCounterTextIds, Ordinal,
                 InitialState, IsRequired, Counters, ItemCounters, Conversations, RevealedObjectiveIds,
-                ActivatedObjectiveIds, Indicators, ProgressRule, ExecutableTransitions, Requirement, policy);
+                ActivatedObjectiveIds, Indicators, ProgressRule, ExecutableTransitions, Requirement, policy, TitleId);
+
+        internal MissionObjectiveDefinition WithTitle(uint? titleId) =>
+            new(ObjectiveId, ClientNameTextId, ClientBodyTextId, ClientCounterTextIds, Ordinal,
+                InitialState, IsRequired, Counters, ItemCounters, Conversations, RevealedObjectiveIds,
+                ActivatedObjectiveIds, Indicators, ProgressRule, ExecutableTransitions, Requirement, CreditPolicy, titleId);
 
         internal IReadOnlyList<MissionObjectiveExecutableTransition> GetExecutableTransitionsOrLegacyDefault()
         {

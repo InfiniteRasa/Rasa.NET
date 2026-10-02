@@ -288,6 +288,13 @@ namespace Rasa.Managers
                     $"mission {publication.MissionId} objective completion");
             }
 
+            // The title a completed objective gave, after its completion: "you have gained the title".
+            foreach (var publication in _publications.Where(
+                publication => publication.TitleId != 0))
+                MissionApplication.TryPublish(
+                    () => ManifestationManager.TitleGained(client, publication.TitleId),
+                    $"mission {publication.MissionId} objective {publication.ObjectiveId} title");
+
             foreach (var publication in _publications)
             {
                 foreach (var objectiveId in publication.RevealedObjectiveIds)
@@ -425,6 +432,9 @@ namespace Rasa.Managers
         internal IReadOnlyList<MissionApplication.PlayerFlagChange> PlayerFlagChanges { get; }
         internal IReadOnlyList<uint> ActivateSpawnGroupIds { get; }
 
+        /// <summary>The title this completion gave the character; 0 for none.</summary>
+        internal uint TitleId { get; }
+
         private ProgressPublication(
             Mission definition,
             MissionLog runtimeMission,
@@ -437,8 +447,10 @@ namespace Rasa.Managers
             uint? targetValue,
             bool completed,
             MissionApplication.TransitionActionApplication actionApplication,
-            bool isItemCounter = false)
+            bool isItemCounter = false,
+            uint titleId = 0)
         {
+            TitleId = titleId;
             Definition = definition;
             RuntimeMission = runtimeMission;
             MissionId = missionId;
@@ -464,7 +476,8 @@ namespace Rasa.Managers
 
         internal static ProgressPublication ForCompleted(
             ProgressCandidate candidate,
-            MissionApplication.TransitionActionApplication actionApplication) =>
+            MissionApplication.TransitionActionApplication actionApplication,
+            uint titleId = 0) =>
             new(
                 candidate.Definition,
                 candidate.RuntimeMission,
@@ -476,7 +489,8 @@ namespace Rasa.Managers
                 null,
                 null,
                 true,
-                actionApplication);
+                actionApplication,
+                titleId: titleId);
 
         internal static ProgressPublication ForTransition(
             ProgressCandidate candidate,
@@ -500,7 +514,8 @@ namespace Rasa.Managers
             uint counterId,
             uint counterValue,
             bool completed,
-            MissionApplication.TransitionActionApplication actionApplication) =>
+            MissionApplication.TransitionActionApplication actionApplication,
+            uint titleId = 0) =>
             new(
                 candidate.Definition,
                 candidate.RuntimeMission,
@@ -512,14 +527,16 @@ namespace Rasa.Managers
                 candidate.ExecutableTransition.ProgressRule.InitialValue,
                 candidate.ExecutableTransition.ProgressRule.TargetValue,
                 completed,
-                actionApplication);
+                actionApplication,
+                titleId: titleId);
 
         internal static ProgressPublication ItemCounter(
             ProgressCandidate candidate,
             uint itemClassId,
             uint counterValue,
             bool completed,
-            MissionApplication.TransitionActionApplication actionApplication) =>
+            MissionApplication.TransitionActionApplication actionApplication,
+            uint titleId = 0) =>
             new(
                 candidate.Definition,
                 candidate.RuntimeMission,
@@ -532,6 +549,7 @@ namespace Rasa.Managers
                 candidate.ExecutableTransition.ProgressRule.TargetValue,
                 completed,
                 actionApplication,
-                isItemCounter: true);
+                isItemCounter: true,
+                titleId: titleId);
     }
 }

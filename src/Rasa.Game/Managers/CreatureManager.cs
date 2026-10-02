@@ -317,15 +317,41 @@ namespace Rasa.Managers
             }
 
             var progressClient = client;
+            var missions = _missionManager ?? MissionApplication.Instance;
             if (creature.SpawnPool?.SceneRunId != null)
-                (_missionManager ?? MissionApplication.Instance).Scenes.RecordDefeat(mapChannel, creature,
-                    progressClient != null && CanCreditScenarioProgress(mapChannel, creature, progressClient)
-                        ? progressClient : null);
+            {
+                var credited = progressClient != null && CanCreditScenarioProgress(mapChannel, creature, progressClient);
+                missions.Scenes.RecordDefeat(mapChannel, creature, credited ? progressClient : null);
+
+                // The scene has the kill of its own actor; what kind of creature it was is
+                // anyone's count.
+                if (credited)
+                    missions.Credit.RecordKill(progressClient, KillEvents(creature, false), creature.Position);
+            }
             else if (progressClient != null && CanCreditScenarioProgress(mapChannel, creature, progressClient))
-                (_missionManager ?? MissionApplication.Instance).Credit.Record(
-                    progressClient,
-                    MissionProgressEvent.Creature(creature.DbId),
-                    creature.Position);
+                missions.Credit.RecordKill(progressClient, KillEvents(creature), creature.Position);
+        }
+
+        /// <summary>
+        /// The names a kill goes by in mission progress: the creature row ("Defeat Tizzik"), its
+        /// entity class, and each creature flag of its class - its species among them, which is
+        /// what "Kill 40 Xanx" counts.
+        /// </summary>
+        internal static IReadOnlyList<MissionProgressEvent> KillEvents(Creature creature, bool byCreature = true)
+        {
+            var events = new List<MissionProgressEvent>();
+
+            if (byCreature && creature.DbId != 0)
+                events.Add(MissionProgressEvent.Creature(creature.DbId));
+
+            if (creature.EntityClass != 0)
+                events.Add(MissionProgressEvent.CreatureClass((uint)creature.EntityClass));
+
+            foreach (var flag in CreatureFlagsOf(creature))
+                if (flag > 0)
+                    events.Add(MissionProgressEvent.CreatureFlag((uint)flag));
+
+            return events;
         }
 
         internal static Client FindEscortOwner(MapChannel mapChannel, Creature escort)

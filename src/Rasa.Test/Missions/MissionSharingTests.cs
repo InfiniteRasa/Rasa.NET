@@ -783,7 +783,13 @@ namespace Rasa.Test.Missions
                 Assert.AreEqual(MissionRepeatKind.Once, harness.Manager.LoadedMissions[id].RepeatPolicy.Kind);
                 Assert.IsFalse(harness.Manager.Sharing.TryShare(harness.Client, id));
             }
-            Assert.IsFalse(harness.WorldContext.MissionContentDefinitionEntries.Any(entry => entry.Enabled && !ids.Contains(entry.MissionId)));
+            // The rest of the enabled content is the Targets of Opportunity, unshareable as well:
+            // each character is offered their own on arriving.
+            var targets = Rasa.Services.Preloader.TargetsOfOpportunitySeed.Zones.Select(zone => zone.MissionId).ToArray();
+            Assert.IsFalse(harness.WorldContext.MissionContentDefinitionEntries.Any(entry => entry.Enabled &&
+                !ids.Contains(entry.MissionId) && !targets.Contains(entry.MissionId)));
+            foreach (var id in targets)
+                Assert.IsFalse(harness.Manager.LoadedMissions[id].Shareable);
         }
 
         [TestMethod]

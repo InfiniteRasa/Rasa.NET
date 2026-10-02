@@ -59,10 +59,12 @@ namespace Rasa.Test.Missions.Content
         public void FreshSqliteInitializationInstallsRunnableBootcampWithoutPublishing()
         {
             using var harness = BootcampRuntimeTestHarness.Create(useWorldContent: true);
-            CollectionAssert.AreEquivalent(new uint[] { 1990, 1992, 1994, 1995, 2005 },
+            // Bootcamp's five, and the fifteen battlefields' Targets of Opportunity.
+            var targets = Rasa.Services.Preloader.TargetsOfOpportunitySeed.Zones.Select(zone => zone.MissionId).ToArray();
+            CollectionAssert.AreEquivalent(new uint[] { 1990, 1992, 1994, 1995, 2005 }.Concat(targets).ToArray(),
                 harness.WorldContext.MissionContentDefinitionEntries.Where(entry => entry.Enabled)
                     .Select(entry => entry.MissionId).ToArray());
-            Assert.AreEqual(5, harness.WorldContext.Set<MissionSceneBindingEntry>().Count());
+            Assert.AreEqual(5 + targets.Length, harness.WorldContext.Set<MissionSceneBindingEntry>().Count());
             Assert.AreEqual(1, harness.WorldContext.Set<MissionExperienceBindingEntry>().Count(entry => entry.Enabled));
             harness.WorldContext.Database.OpenConnection();
             using (var command = harness.WorldContext.Database.GetDbConnection().CreateCommand())

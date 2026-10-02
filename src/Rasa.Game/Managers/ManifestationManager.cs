@@ -1896,6 +1896,7 @@ namespace Rasa.Managers
             client.CallMethod(player.EntityId, new ActorInfoPacket(player));
             MissionApplication.Instance.PublishInitialState(client);
             _characterManager.OfferStartingExperienceMission(client);
+            MissionApplication.Instance.OfferArrivalMissions(client);
 
             // Its cooldowns: the client's actor is new on every map and starts with none.
             ActionReuse.SendTo(client);

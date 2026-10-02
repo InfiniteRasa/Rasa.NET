@@ -187,6 +187,37 @@ namespace Rasa.Structures
                 initialValue,
                 targetValue);
 
+        /// <summary>
+        /// One counter fed by any of several subjects - "Destroy 5 Bane Vehicles" counts Stalkers,
+        /// Predators and Juggernauts alike. Kills only: a creature, a creature flag or a creature
+        /// class.
+        /// </summary>
+        public static MissionProgressRule IncrementCounterOnAnySubject(
+            MissionProgressEventKind kind,
+            IEnumerable<uint> subjects,
+            uint counterId,
+            uint initialValue,
+            uint targetValue)
+        {
+            if (!IsKill(kind))
+                throw new ArgumentOutOfRangeException(
+                    nameof(kind),
+                    "A counter over several subjects supports kill events.");
+            return new MissionProgressRule(
+                MissionProgressRuleType.IncrementExactCounter,
+                kind,
+                subjects,
+                counterId,
+                initialValue,
+                targetValue);
+        }
+
+        /// <summary>The three ways a kill is named: the creature, a flag of its class, its class.</summary>
+        public static bool IsKill(MissionProgressEventKind kind) =>
+            kind == MissionProgressEventKind.CreatureKilled ||
+            kind == MissionProgressEventKind.CreatureFlagKilled ||
+            kind == MissionProgressEventKind.CreatureClassKilled;
+
         public static MissionProgressRule IncrementItemCounterOnExactSubject(
             MissionProgressEventKind kind,
             uint itemClassId,

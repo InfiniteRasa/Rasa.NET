@@ -83,6 +83,11 @@ namespace Rasa.Game.Missions.Content
             if (scene.Dialogue != null && (missionId == 0 || scene.Dialogue.Any(topic => topic == null ||
                 !objectiveIds.Contains(topic.ObjectiveId))))
                 throw new MissionRuleException($"Mission {missionId}: dialogue must name this mission's objectives.");
+            if (scene.Titles != null && (missionId == 0 || scene.Titles.Any(title =>
+                title.Value == 0 || !objectiveIds.Contains(title.Key))))
+                throw new MissionRuleException($"Mission {missionId}: a title must name a title id and one of this mission's objectives.");
+            if (scene.Category == 0 || scene.Category != null && missionId == 0)
+                throw new MissionRuleException($"Mission {missionId}: a category must be a mission's, and not zero.");
             if (scene.Audio is { } audio && (audio.Events == null || audio.Announcements == null ||
                 audio.OfferAudioSetId is 0 or > int.MaxValue ||
                 audio.Events.Any(entry => !Enum.IsDefined(typeof(MissionAudioEvent), entry.Key) ||

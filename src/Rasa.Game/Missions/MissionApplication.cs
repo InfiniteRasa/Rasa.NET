@@ -276,6 +276,40 @@ namespace Rasa.Managers
                 $"radio mission {definition.MissionId} offer");
         }
 
+        /// <summary>
+        /// The character has arrived on a map: every mission with a map-arrival radio source for
+        /// it (MissionOfferSourceDefinition.MapArrivalKey, in the mission's channel policy) is
+        /// offered by radio, as a commander calls a new arrival in. Not one the character
+        /// holds, has succeeded at or has no room or standing for - nothing is offered that the
+        /// offer would refuse - and one turned down is offered again on the next arrival.
+        /// </summary>
+        internal void OfferArrivalMissions(Client client)
+        {
+            var player = client?.Player;
+            var mapContextId = player?.MapChannel?.MapInfo?.MapContextId;
+
+            if (mapContextId == null)
+                return;
+
+            foreach (var definition in _catalog.View.Values
+                .Where(definition => definition.IsOperational &&
+                    definition.AcceptanceChannel.HasFlag(MissionChannel.Radio) &&
+                    definition.RadioSources.Any(source => source.Kind == MissionOfferSourceKind.ServerEvent &&
+                        source.Key == MissionOfferSourceDefinition.MapArrivalKey && source.MapContextId == mapContextId))
+                .OrderBy(definition => definition.MissionId)
+                .ToArray())
+            {
+                if (player.Missions.ContainsKey(definition.MissionId) ||
+                    player.MissionSuccessHistory.Contains(definition.MissionId) ||
+                    player.Missions.Values.Count(mission => mission.State != MissionState.Completed) >= MissionRuntime.JournalCapacity ||
+                    !ArePrerequisitesSatisfied(player, definition.MissionId, out _))
+                    continue;
+
+                Offers.TryOffer(client, definition.MissionId,
+                    MissionOfferSourceIdentity.ServerEvent(MissionOfferSourceDefinition.MapArrivalKey));
+            }
+        }
+
         internal void PublishSharedOffer(Client client, Mission definition, ulong sourceEntityId) =>
             PublishMissionPacket(client,
                 new DispenseSharedMissionPacket(sourceEntityId, definition.MissionId, _protocol.BuildOfferInfo(definition)),
@@ -1671,6 +1705,7 @@ namespace Rasa.Managers
                     var appliedRevealed = new List<uint>();
                     var appliedActivated = new List<uint>();
                     durableObjective.ObjectiveState = (byte)MissionObjectiveState.Completed;
+                    var completionTitle = GrantObjectiveTitle(objectiveDefinition, unitOfWork, client);
                     foreach (var successorId in revealed)
                     {
                         if (!durableObjectives.TryGetValue(successorId, out var successor))
@@ -1727,6 +1762,9 @@ namespace Rasa.Managers
                             client,
                             new ObjectiveCompletedPacket(missionId, objectiveId),
                             $"mission {missionId} objective {objectiveId} completed");
+                        if (completionTitle != 0)
+                            TryPublish(() => ManifestationManager.TitleGained(client, completionTitle),
+                                $"mission {missionId} objective {objectiveId} title");
                         foreach (var successorId in revealed.Where(appliedRevealed.Contains))
                             PublishMissionPacket(
                                 client,
@@ -2054,9 +2092,17 @@ namespace Rasa.Managers
             scenarios.Values.Any(scenario =>
                 scenario.StartPolicy == MissionScenarioStartPolicy.PlayerTriggered);
 
-        internal bool RecordProgress(Client client, MissionProgressEvent progress)
+        internal bool RecordProgress(Client client, MissionProgressEvent progress) =>
+            RecordProgress(client, new[] { progress });
+
+        /// <summary>
+        /// One happening under every name it has - a kill is its creature, its creature's class
+        /// and each creature flag of that class - in one plan: an objective that answers to more
+        /// than one of the names advances once.
+        /// </summary>
+        internal bool RecordProgress(Client client, IReadOnlyList<MissionProgressEvent> progress)
         {
-            if (client == null)
+            if (client == null || progress == null)
                 return false;
 
             lock (client.SyncRoot)
@@ -2074,13 +2120,13 @@ namespace Rasa.Managers
                     unitOfWork.ExecuteTransaction(() =>
                         plan = PlanProgress(
                             client,
-                            new[] { progress },
+                            progress,
                             unitOfWork));
                 }
                 catch (Exception error) when (GameplayRejectionException.IsExpected(error))
                 {
                     Logger.WriteLog(LogType.Error,
-                        $"Unable to record mission progress {progress.Kind}:{progress.SubjectId} " +
+                        $"Unable to record mission progress {string.Join(", ", progress.Select(entry => $"{entry.Kind}:{entry.SubjectId}"))} " +
                         $"for character {client.Player.Id}: {error}");
                     return false;
                 }
@@ -2102,15 +2148,10 @@ namespace Rasa.Managers
 
         private bool HasProgressCandidate(
             Client client,
-            MissionProgressEvent progress)
+            IReadOnlyList<MissionProgressEvent> progress)
         {
-            if (!Enum.IsDefined(
-                    typeof(MissionProgressEventKind), progress.Kind) ||
-                progress.SubjectId == 0 ||
-                progress.Quantity == 0)
-                return false;
-
-            return _runtime.SelectCandidates(client.Player.Missions, new[] { progress },
+            // SelectCandidates passes over an event of no kind, subject or quantity.
+            return _runtime.SelectCandidates(client.Player.Missions, progress,
                 client.Player.GainedWaypoints.Select(entry => entry.WaypointId).ToHashSet(),
                 client.Player.Logos.ToHashSet()).Count > 0;
         }
@@ -2241,11 +2282,14 @@ namespace Rasa.Managers
                             ? ApplyTransitionActions(candidate.ObjectiveDefinition.ObjectiveId,
                                 candidate.ExecutableTransition, durableObjectives, unitOfWork, client)
                             : TransitionActionApplication.Empty;
+                        var counterTitle = completed
+                            ? GrantObjectiveTitle(candidate.ObjectiveDefinition, unitOfWork, client)
+                            : 0;
                         publications.Add(decision.IsItemCounter
                             ? ProgressPublication.ItemCounter(candidate, decision.CounterId.Value,
-                                decision.CounterValue.Value, completed, actions)
+                                decision.CounterValue.Value, completed, actions, counterTitle)
                             : ProgressPublication.Counter(candidate, decision.CounterId.Value,
-                                decision.CounterValue.Value, completed, actions));
+                                decision.CounterValue.Value, completed, actions, counterTitle));
                         continue;
                     }
                     var toState = decision.State.Value;
@@ -2329,7 +2373,8 @@ namespace Rasa.Managers
                         ApplyTransitionActions(
                             candidate.ObjectiveDefinition.ObjectiveId,
                             candidate.ExecutableTransition,
-                            durableObjectives, unitOfWork, client)));
+                            durableObjectives, unitOfWork, client),
+                        GrantObjectiveTitle(candidate.ObjectiveDefinition, unitOfWork, client)));
                 }
 
                 var completeable = first.Definition.Objectives.Values
@@ -2414,6 +2459,15 @@ namespace Rasa.Managers
                 if (unit.CharacterMissions.Runtime.ReadAssignment(characterId, missionId) != null)
                     throw new GameplayRejectionException("A different assignment appeared before journal removal committed.");
             });
+
+        /// <summary>
+        /// The title an objective gives when it completes (the scene binding's titles), saved in
+        /// the transaction that completes it. 0 when it gives none, or the character has it
+        /// already - a second character's worth of the same kills earns nothing twice.
+        /// </summary>
+        private static uint GrantObjectiveTitle(MissionObjectiveDefinition objective, ICharUnitOfWork unitOfWork, Client client) =>
+            objective.TitleId is uint titleId && titleId != 0 &&
+            unitOfWork.CharacterTitles.Add(client.Player.Id, titleId) ? titleId : 0;
 
         private TransitionActionApplication ApplyTransitionActions(
             uint currentObjectiveId,

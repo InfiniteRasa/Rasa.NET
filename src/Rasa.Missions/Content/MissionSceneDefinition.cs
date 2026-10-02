@@ -23,6 +23,16 @@ namespace Rasa.Missions.Content
         public MissionRequirement TurnInRequirement { get; set; }
         public Dictionary<uint, MissionRequirement> ObjectiveRequirements { get; set; } = new();
         public PublicEncounterBinding PublicEncounter { get; set; }
+        /// <summary>
+        /// The client's mission category (missioncategorylanguage) when it is one of the ids past
+        /// a byte, which the definition's category_id cannot hold: "Battlefield (Wilderness)" is
+        /// 10000044. The mission log files the mission under it.
+        /// </summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public uint? Category { get; set; }
+        /// <summary>Objective id to title id: the title the character earns when the objective completes.</summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public Dictionary<uint, uint> Titles { get; set; }
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public List<MissionDialogueTopicDefinition> Dialogue { get; set; }
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]

@@ -84,7 +84,9 @@ namespace Rasa.Game.Missions.Persistence
                 unit == null ? player.MissionSuccessHistory :
                     history.Where(entry => entry.Rewarded || entry.Outcome is 1 or 4).Select(entry => entry.MissionId).ToHashSet(),
                 unit == null ? player.MissionRewardTimes.Keys.ToHashSet() :
-                    history.Where(entry => entry.Rewarded).Select(entry => entry.MissionId).ToHashSet());
+                    history.Where(entry => entry.Rewarded).Select(entry => entry.MissionId).ToHashSet(),
+                // Where the character stands is the world's to say, not the character database's.
+                player.MapChannel?.MapInfo?.MapContextId ?? player.MapContextId);
         }
 
         private static bool ReadAccountEntitlement(Manifestation player, CharacterEntry character, ICharUnitOfWork unit)

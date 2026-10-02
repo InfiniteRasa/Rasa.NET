@@ -32,12 +32,21 @@ namespace Rasa.Managers
             }
 
             if (progressTriggers.Count > 1)
-                return TryBuildDistinctSet(
-                    progressTriggers,
-                    out rule,
-                    out counters,
-                    out itemCounters,
-                    out diagnostic);
+            {
+                progressTriggers[0].TryGetEventKind(out var sharedKind);
+                return MissionProgressRule.IsKill(sharedKind)
+                    ? TryBuildKillCounter(
+                        progressTriggers,
+                        out rule,
+                        out counters,
+                        out diagnostic)
+                    : TryBuildDistinctSet(
+                        progressTriggers,
+                        out rule,
+                        out counters,
+                        out itemCounters,
+                        out diagnostic);
+            }
 
             var trigger = progressTriggers[0];
             trigger.TryGetEventKind(out var kind);
@@ -219,6 +228,63 @@ namespace Rasa.Managers
             return true;
         }
 
+        /// <summary>
+        /// Several kill triggers on one transition: one counter that any of their subjects
+        /// feeds - "Destroy 5 Bane Vehicles" is Stalkers, Predators and Juggernauts. They name
+        /// their kills the same way (one event_kind) and author the same counter.
+        /// </summary>
+        private static bool TryBuildKillCounter(
+            IReadOnlyList<MissionTriggerDefinition> progressTriggers,
+            out MissionProgressRule rule,
+            out IReadOnlyDictionary<uint, MissionObjectiveCounterDefinition> counters,
+            out string diagnostic)
+        {
+            counters = new Dictionary<uint, MissionObjectiveCounterDefinition>();
+            rule = null;
+            diagnostic = null;
+
+            var first = progressTriggers[0];
+            first.TryGetEventKind(out var kind);
+            if (!first.CounterId.HasValue || !first.InitialValue.HasValue || !first.TargetValue.HasValue ||
+                !progressTriggers.All(trigger =>
+                    trigger.TryGetEventKind(out var triggerKind) &&
+                    triggerKind == kind &&
+                    trigger.SubjectId.HasValue &&
+                    trigger.SubjectId.Value != 0 &&
+                    trigger.CounterId == first.CounterId &&
+                    trigger.InitialValue == first.InitialValue &&
+                    trigger.TargetValue == first.TargetValue &&
+                    !trigger.SourceSpawnResolved.HasValue))
+            {
+                diagnostic = "several kill triggers on one transition must share one event_kind and one counter_id, initial_value and target_value, with non-zero subject_id values and no source_spawn_resolved.";
+                return false;
+            }
+
+            if (!TryValidateMonotonicRange(
+                    "counter progress rule",
+                    "counter_id",
+                    first.CounterId.Value,
+                    first.InitialValue.Value,
+                    first.TargetValue.Value,
+                    out diagnostic))
+                return false;
+
+            counters = new Dictionary<uint, MissionObjectiveCounterDefinition>
+            {
+                [first.CounterId.Value] = new(
+                    first.CounterId.Value,
+                    first.InitialValue.Value,
+                    first.TargetValue.Value)
+            };
+            rule = MissionProgressRule.IncrementCounterOnAnySubject(
+                kind,
+                progressTriggers.Select(trigger => trigger.SubjectId.Value),
+                first.CounterId.Value,
+                first.InitialValue.Value,
+                first.TargetValue.Value);
+            return true;
+        }
+
         private static bool TryBuildDistinctSet(
             IReadOnlyList<MissionTriggerDefinition> progressTriggers,
             out MissionProgressRule rule,
@@ -234,7 +300,7 @@ namespace Rasa.Managers
             progressTriggers[0].TryGetEventKind(out var aggregateKind);
             if (aggregateKind is not MissionProgressEventKind.WaypointAcquired and not MissionProgressEventKind.LogosAcquired)
             {
-                diagnostic = "multiple progress event triggers only support waypoint or Logos distinct-subject rules.";
+                diagnostic = "multiple progress event triggers only support waypoint or Logos distinct-subject rules, or kill triggers that share one counter.";
                 return false;
             }
 
