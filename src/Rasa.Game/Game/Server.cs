@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -11,6 +11,7 @@ namespace Rasa.Game
     using Config;
     using Data;
     using Hosting;
+    using Http;
     using Login;
     using Managers;
     using Memory;
@@ -146,10 +147,16 @@ namespace Rasa.Game
             // before the world is up; Start opens the voice port with the others.
             if (_voiceApplied)
                 Voice.VoiceServer.Instance.Apply(Config.VoiceConfig, Config.GameConfig?.PublicAddress);
+
+            if (_dataApiApplied)
+                DataApiHttpServer.Instance.Apply(Config.DataApiConfig);
         }
 
         /// <summary>Set once Start has applied VoiceConfig, so reloads apply it too.</summary>
         private bool _voiceApplied;
+
+        /// <summary>Set once Start has applied DataApiConfig, so reloads apply it too.</summary>
+        private bool _dataApiApplied;
         #endregion
 
         public void Disconnect(Client client)
@@ -335,6 +342,9 @@ namespace Rasa.Game
 
             if (Config.VoiceConfig?.Enabled != true)
                 Logger.WriteLog(LogType.Initialize, "Squad voice chat is off (VoiceConfig.Enabled).");
+
+            _dataApiApplied = true;
+            DataApiHttpServer.Instance.Apply(Config.DataApiConfig);
         }
 
         private void RegisterStartupTimers()
@@ -633,6 +643,7 @@ namespace Rasa.Game
             ListenerSocket = null;
 
             Voice.VoiceServer.Instance.Stop();
+            DataApiHttpServer.Instance.Stop();
 
             Loop.Stop();
         }

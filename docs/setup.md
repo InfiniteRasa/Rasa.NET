@@ -122,6 +122,22 @@ If you want to overwrite one or multiple settings from the appsettings.json of `
 
 - The env.json files is ignored in git. Keep it that way, this configuration applies only for your development enviroment.
 
+### Data API
+`Rasa.Game` includes an optional HTTP Data API. It is disabled by default and must be explicitly enabled in the `DataApiConfig` section of `appsettings.env.json`.
+
+```json
+{
+  "DataApiConfig": {
+    "Enabled": true,
+    "JwtSecret": "replace-with-a-random-secret-at-least-32-bytes"
+  }
+}
+```
+
+`JwtSecret` is required when the Data API is enabled and must be at least 32 UTF-8 bytes. Keep the secret out of source control; `appsettings.env.json` is the recommended place for it. A suitable secret can be generated with `openssl rand -hex 32`. If the API is enabled without a valid secret, the Data API will not start; the rest of the game server continues running.
+
+The API listens on port `8104` by default and issues signed session JWTs with a default lifetime of 24 hours (`TokenLifetimeSeconds: 86400`). Both values can be overridden in `DataApiConfig`.
+
 ### Squad voice chat
 `Rasa.Game` runs the voice server the game client's built-in squad voice chat connects to. It is configured in the `VoiceConfig` section of its appsettings.json:
 
