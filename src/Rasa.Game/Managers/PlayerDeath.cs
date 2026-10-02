@@ -165,6 +165,15 @@ namespace Rasa.Managers
             // What they were doing stops with them.
             ManifestationManager.RemoveAutoFire(client);
             ConstantFire.Stop(client, release: false);
+
+            // An object they were partway through using is let go: a control point they were
+            // claiming would show its contested effect, and them as its user, for as long as
+            // nobody else used it.
+            if (mapChannel != null)
+                foreach (var action in mapChannel.PerformRecovery)
+                    if (action.Actor == victim)
+                        DynamicObjectManager.Instance.ReleaseUseLock(action, true);
+
             mapChannel?.PerformRecovery.RemoveAll(a => a.Actor == victim);
 
             if (mapChannel != null)

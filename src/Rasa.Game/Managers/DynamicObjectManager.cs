@@ -324,7 +324,32 @@ namespace Rasa.Managers
                         controlAction.SourceId = obj.EntityId;
 
                         client.CallMethod(client.Player.EntityId, new PerformWindupPacket(PerformType.TwoArgs, packet.ActionId, packet.ActionArgId));
-                        client.CallMethod(packet.EntityId, new UsePacket(client.Player.EntityId, obj.StateId, (int)captureMs));
+
+                        if (point != null || teamPoint != null)
+                        {
+                            // What a claim looks like is the lock (TryLockForUse): locked to the
+                            // claimant and used interruptibly, the object puts its contested
+                            // effect on in place of its owner's - usabledata's specialFX
+                            // (class, state, state), arch_eloh_controlpoint_contested for the
+                            // Eloh point - aimed at them, until the lock is let go. It has no
+                            // claiming state: CONTROLPOINT's states are owned, owned and
+                            // unclaimed, and 177 and 180 are in no augmentation's.
+                            //
+                            // So no Use. To the state it is already in, Use is a transition from
+                            // the state to itself, which reads the same key: a second contested
+                            // effect that nothing stops, and the owner's put back under it.
+                            //
+                            // Everyone else is shown the claimant at it. A use with argument 7
+                            // has a windup of its own (animation family 1264, FX family 1490),
+                            // which their clients play only if told, with the object as its
+                            // argument (UseObject.Windup); the recovery ends it, or
+                            // ActionInterrupt (CaptureControlPointRecovery).
+                            if (client.Player.MapChannel != null)
+                                client.CellIgnoreSelfCallMethod(client,
+                                    new PerformWindupPacket(PerformType.ThreeArgs, packet.ActionId, packet.ActionArgId, obj.EntityId));
+                        }
+                        else
+                            client.CallMethod(packet.EntityId, new UsePacket(client.Player.EntityId, obj.StateId, (int)captureMs));
 
                         if (teamPoint != null)
                             Battlegrounds.Instance.Claiming(client, teamPoint);
@@ -804,6 +829,28 @@ namespace Rasa.Managers
         #region ControlPoint
 
         /// <summary>
+        /// Whether an object is a control point somebody fights over - the world's (ControlPoints)
+        /// or a match's (Battlegrounds) - and not a scene's object of the same kind.
+        /// </summary>
+        private static bool IsFoughtOver(DynamicObject obj) =>
+            ControlPoints.Instance.PointOf(obj) != null || Battlegrounds.Instance.PointOf(obj) != null;
+
+        /// <summary>
+        /// Whether an action is a claim of a control point that was interrupted. It has no
+        /// recovery to show (ActorActionManager): the others, who were shown its windup, are told
+        /// it was interrupted instead, and the claimant's request is closed
+        /// (<see cref="CaptureControlPointRecovery"/>).
+        /// </summary>
+        internal bool IsInterruptedClaim(ActionData action)
+        {
+            return action != null && action.IsInrerrupted
+                   && action.ActionId == ActionId.UseObject && action.ActionArgId == ControlPointUseArgId
+                   && action.SourceId != 0
+                   && EntityManager.Instance.TryGetObject(action.SourceId, out var obj)
+                   && obj.DynamicObjectType == DynamicObjectType.ControlPoint && IsFoughtOver(obj);
+        }
+
+        /// <summary>
         /// A control point's use has run its time (ActorActionManager): the point is the AFS's,
         /// if the player is still standing at it and its garrison is still down (ControlPoints).
         /// An object of this kind that is not one of the world's points - a scene's - changes
@@ -821,7 +868,21 @@ namespace Rasa.Managers
                         controlpoint.TriggeredByPlayers.Remove(client);
 
                         if (action.IsInrerrupted)
+                        {
+                            // The others are still showing the claimant at it. The claimant's own
+                            // client stopped when it sent the interrupt, and keeps the request
+                            // open until it is answered.
+                            if (IsFoughtOver(controlpoint))
+                            {
+                                if (client.Player?.MapChannel != null)
+                                    client.CellIgnoreSelfCallMethod(client,
+                                        new ActionInterruptPacket(action.Actor.EntityId, action.ActionId, action.ActionArgId));
+
+                                ActorManager.ResolveInterruptedRequest(client, action.ActionId, action.ActionArgId);
+                            }
+
                             break;
+                        }
 
                         // As with a logos: a capture belongs to whoever is still standing at the
                         // point when its ten seconds are up.

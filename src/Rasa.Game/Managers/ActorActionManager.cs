@@ -124,7 +124,11 @@ namespace Rasa.Managers
                     GestureManager.Instance.PerformRecovery(mapChannel, action);
                     break;
                 case ActionId.UseObject:
-                    CellManager.Instance.CellCallMethod(mapChannel, action.Actor, new PerformRecoveryPacket(PerformType.TwoArgs, action.ActionId, action.ActionArgId));
+                    // A claim of a control point that was interrupted has no recovery to show:
+                    // those who were shown its windup are told it was interrupted instead
+                    // (DynamicObjectManager.CaptureControlPointRecovery).
+                    if (!DynamicObjectManager.Instance.IsInterruptedClaim(action))
+                        CellManager.Instance.CellCallMethod(mapChannel, action.Actor, new PerformRecoveryPacket(PerformType.TwoArgs, action.ActionId, action.ActionArgId));
 
                     // The use is over, finished or not: the object is nobody's before whatever it
                     // does next (a control point changing hands) goes out.

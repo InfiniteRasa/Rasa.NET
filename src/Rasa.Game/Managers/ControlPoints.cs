@@ -44,6 +44,9 @@ namespace Rasa.Managers
     ///    may use it, <see cref="CaptureMs"/> of an interruptible use, and the point is the AFS's
     ///    if the garrison is still down when the use ends. A garrison of no pools has nobody to
     ///    kill.
+    ///  - A claim under way is shown by the use itself (DynamicObjectManager): the object's
+    ///    contested effect in place of its owner's while it is locked to the claimant, and the
+    ///    claimant's windup to everyone in range. The client has no claiming state for it.
     ///  - A Bane garrison comes back together: a pool of it that has been killed waits
     ///    (<see cref="HoldsBack"/>) until the whole garrison has been down for the shortest of
     ///    its pools' respawn times, and then all of it returns at once. So a garrison can be worn
@@ -516,12 +519,12 @@ namespace Rasa.Managers
             // Out of service until the new garrison has been dealt with - or for good, if it is the AFS's.
             DynamicObjectManager.Instance.SetEnabled(point.Object, false);
 
+            // One change of state, with the time a capture takes (ForceState sets both): the
+            // owner's effect is put on once. UsableInfo after it would start the state over and
+            // put the effect on a second time; it says nothing SetUsable and this have not.
             if (point.Object.IsInWorld)
-            {
-                CellManager.Instance.CellCallMethod(mapChannel, point.Object, new ForceStatePacket(point.Object.StateId, 100));
                 CellManager.Instance.CellCallMethod(mapChannel, point.Object,
-                    new UsableInfoPacket(point.Object.IsEnabled, point.Object.StateId, 0, point.Object.WindupTime, 0));
-            }
+                    new ForceStatePacket(point.Object.StateId, (int)point.Object.WindupTime));
 
             MapMarkerManager.Instance.ControlPointChanged(mapChannel, point);
             Announce(mapChannel, PlayerMessage.PmControlpointOwned, point, owner);
