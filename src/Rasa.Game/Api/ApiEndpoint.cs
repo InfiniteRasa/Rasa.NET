@@ -113,7 +113,7 @@ namespace Rasa.Api
         }
     }
 
-    /// <summary>GET /serverstatus: {"uptimehours":12.5,"currentconnections":3,"peakconnections":9,"maxconnections":1024}.</summary>
+    /// <summary>GET /serverstatus: {"uptimeseconds":45000,"currentconnections":3,"peakconnections":9,"maxconnections":1024}.</summary>
     public sealed class ServerStatusEndpoint : ApiEndpoint
     {
         private readonly ServerStatus _status;

@@ -24,7 +24,7 @@ namespace Rasa.Config
     }
 
     /// <summary>
-    /// The REST API: GET /&lt;endpoint&gt; over plain HTTP, answered in JSON.
+    /// The REST API: GET /&lt;endpoint&gt; over HTTP, or HTTPS with <see cref="Tls"/>, answered in JSON.
     ///
     /// An endpoint that is not public wants a key, sent as the X-API-Key header or as
     /// "Authorization: Bearer &lt;key&gt;": its own <see cref="ApiEndpointConfig.ApiKey"/> or the
@@ -61,6 +61,37 @@ namespace Rasa.Config
         /// with no entry is on, and goes by <see cref="Public"/> and <see cref="ApiKey"/>.
         /// </summary>
         public Dictionary<string, ApiEndpointConfig> Endpoints { get; set; } = new Dictionary<string, ApiEndpointConfig>();
+
+        /// <summary>HTTPS in place of HTTP on the same port.</summary>
+        public ApiTlsConfig Tls { get; set; } = new ApiTlsConfig();
+    }
+
+    /// <summary>
+    /// TLS for the REST API (Api.ApiTls). Enabled, the port speaks HTTPS and nothing else: a
+    /// certificate that cannot be loaded leaves the API off, never on in the clear.
+    ///
+    /// The files are looked at again while the server runs, so a renewed certificate is taken
+    /// up without a restart; one that will not load leaves the one in use in use.
+    /// </summary>
+    public class ApiTlsConfig
+    {
+        /// <summary>Whether the API is HTTPS.</summary>
+        public bool Enabled { get; set; }
+
+        /// <summary>
+        /// The certificate: a PKCS#12 file (.pfx, .p12) with its private key inside, or a PEM
+        /// file (which may hold the chain after the certificate, and the key).
+        /// </summary>
+        public string CertificatePath { get; set; } = "";
+
+        /// <summary>The password of the PKCS#12 file, or of an encrypted PEM key. Empty for none.</summary>
+        public string CertificatePassword { get; set; } = "";
+
+        /// <summary>The PEM private key, when it is not in the certificate's file. Empty for a PKCS#12 file.</summary>
+        public string KeyPath { get; set; } = "";
+
+        /// <summary>The oldest protocol accepted: "Tls12" (TLS 1.2 and 1.3) or "Tls13" (TLS 1.3 alone).</summary>
+        public string MinimumProtocol { get; set; } = "Tls12";
     }
 
     /// <summary>One endpoint of the REST API.</summary>

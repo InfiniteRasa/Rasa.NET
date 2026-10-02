@@ -13,7 +13,7 @@ namespace Rasa.Api
     /// sends first - one byte is enough, and what it is does not matter - with the whole server
     /// status as one line of JSON, and closes:
     ///
-    ///   {"game_server_status":"healthy","app_server_status":"healthy","uptimehours":12.5,
+    ///   {"game_server_status":"healthy","app_server_status":"healthy","uptimeseconds":45000,
     ///    "currentconnections":3,"peakconnections":9,"maxconnections":1024}
     ///
     /// No key. Who may ask is AllowedIps: with nothing on it, anybody; otherwise a connection

@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Security;
+using System.Security.Authentication;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
@@ -13,8 +15,8 @@ namespace Rasa.Api
     using Config;
 
     /// <summary>
-    /// The REST API (ApiConfig.Rest): GET /&lt;endpoint&gt; over plain HTTP on a port of its own,
-    /// answered in JSON, one request a connection.
+    /// The REST API (ApiConfig.Rest): GET /&lt;endpoint&gt; over HTTP on a port of its own, or
+    /// over HTTPS when ApiConfig.Rest.Tls is on, answered in JSON, one request a connection.
     ///
     /// Who is answered, in this order:
     ///  - an address not on AllowedIps (when there is such a list) gets 403;
@@ -27,8 +29,14 @@ namespace Rasa.Api
     ///
     /// It is HTTP written by hand on a TcpListener, not HttpListener: that one goes through
     /// http.sys on Windows, which wants an administrator or a URL reservation for any address
-    /// but localhost. There is no TLS here, so a key crosses the network as it is: where that
-    /// matters, bind it to 127.0.0.1 and put a proxy that has TLS in front.
+    /// but localhost.
+    ///
+    /// With TLS on, the port speaks TLS and nothing else (ApiTls, SslStream): a connection that
+    /// does not complete the handshake is closed, an address not on AllowedIps is closed before
+    /// it, and without a certificate that loads the API is off. It is never on in the clear by
+    /// mistake. The certificate's files are looked at again every <see cref="TlsRecheckMs"/>
+    /// and on every config reload; a renewed one is taken up, and one that will not load
+    /// leaves the one in use in use. Without TLS a key crosses the network as it is.
     /// </summary>
     public sealed class ApiServer : TcpService
     {
@@ -37,8 +45,20 @@ namespace Rasa.Api
 
         private readonly Dictionary<string, ApiEndpoint> _endpoints = new Dictionary<string, ApiEndpoint>(StringComparer.OrdinalIgnoreCase);
 
+        /// <summary>How often the certificate's files are looked at for a change, in milliseconds.</summary>
+        public const int TlsRecheckMs = 60000;
+
         private volatile RestApiConfig _config = new RestApiConfig();
         private volatile IpAllowList _allowed = IpAllowList.Open;
+        private volatile ApiTls _tls;
+        private readonly object _tlsSync = new object();
+        private long _tlsChecked;
+
+        /// <summary>The clock the certificate's recheck goes by, in milliseconds; replaceable for tests.</summary>
+        public Func<long> Now { get; set; } = () => Environment.TickCount64;
+
+        /// <summary>The certificate in use; null without TLS.</summary>
+        public ApiTls Tls => _tls;
 
         protected override string Label => "REST API";
 
@@ -79,6 +99,22 @@ namespace Rasa.Api
             if (!config.Enabled)
             {
                 Stop();
+                _tls = null;
+                _described = null;
+                return;
+            }
+
+            // The certificate before the port: with TLS asked for and none to be had, the API
+            // stays shut.
+            var tlsOn = config.Tls?.Enabled == true;
+
+            if (!tlsOn)
+            {
+                _tls = null;
+            }
+            else if (RefreshTls(config, force: true) == null)
+            {
+                Stop();
                 _described = null;
                 return;
             }
@@ -91,6 +127,14 @@ namespace Rasa.Api
 
             // Said when it opens and when a reload changed any of it, not on every reload.
             var lines = new List<string>();
+            var tls = _tls;
+
+            lines.Add(tls == null
+                ? "plain HTTP (Tls is off): keys cross the network as they are."
+                : $"HTTPS, {ProtocolsText(tls.Protocols)}, certificate {tls.Certificate.Subject} valid to {tls.Certificate.NotAfter:yyyy-MM-dd}.");
+
+            if (!ApiTls.TryProtocols(config.Tls?.MinimumProtocol, out _))
+                lines.Add($"Tls.MinimumProtocol \"{config.Tls?.MinimumProtocol}\" is neither Tls12 nor Tls13; Tls12 it is.");
 
             foreach (var entry in allowed.Invalid)
                 lines.Add($"AllowedIps entry \"{entry}\" is no address and no range; it allows nobody.");
@@ -116,10 +160,79 @@ namespace Rasa.Api
             _described = described;
 
             foreach (var line in lines)
-                Logger.WriteLog(line.StartsWith("AllowedIps", StringComparison.Ordinal) ? LogType.Error : LogType.Network, $"{Label}: {line}");
+                Logger.WriteLog(line.StartsWith("AllowedIps", StringComparison.Ordinal) || line.StartsWith("Tls.", StringComparison.Ordinal)
+                    ? LogType.Error
+                    : LogType.Network, $"{Label}: {line}");
         }
 
         private string _described;
+
+        private static string ProtocolsText(SslProtocols protocols) =>
+            protocols == SslProtocols.Tls13 ? "TLS 1.3 only" : "TLS 1.2 or newer";
+
+        /// <summary>
+        /// The certificate to shake hands with: the one in use, unless the settings or the
+        /// files have changed since it was loaded - looked into on every config reload
+        /// (<paramref name="force"/>) and otherwise every <see cref="TlsRecheckMs"/> - when it
+        /// is loaded again. One that will not load is reported, and the one in use stays; null
+        /// only when there is none at all.
+        /// </summary>
+        private ApiTls RefreshTls(RestApiConfig config, bool force)
+        {
+            var now = Now();
+            var current = _tls;
+
+            if (!force && current != null && now - Interlocked.Read(ref _tlsChecked) < TlsRecheckMs)
+                return current;
+
+            lock (_tlsSync)
+            {
+                current = _tls;
+
+                if (!force && current != null && now - Interlocked.Read(ref _tlsChecked) < TlsRecheckMs)
+                    return current;
+
+                Interlocked.Exchange(ref _tlsChecked, now);
+
+                var signature = ApiTls.SignatureOf(config.Tls);
+
+                if (current != null && current.Signature == signature)
+                    return current;
+
+                var loaded = ApiTls.Load(config.Tls, out var problem);
+
+                if (loaded == null)
+                {
+                    // Said once for each state of the files, not once a minute.
+                    if (problem != _tlsProblem)
+                        Logger.WriteLog(LogType.Error, current == null
+                            ? $"{Label}: TLS is on and {problem}. The API is off: it is not opened without TLS."
+                            : $"{Label}: {problem}. The certificate already loaded stays in use.");
+
+                    _tlsProblem = problem;
+
+                    return current;
+                }
+
+                _tlsProblem = null;
+
+                var certificate = loaded.Certificate;
+                var today = DateTime.Now;
+
+                if (current != null)
+                    Logger.WriteLog(LogType.Network, $"{Label}: certificate loaded again: {certificate.Subject}, valid to {certificate.NotAfter:yyyy-MM-dd}.");
+
+                if (today > certificate.NotAfter || today < certificate.NotBefore)
+                    Logger.WriteLog(LogType.Error,
+                        $"{Label}: the certificate {certificate.Subject} is valid from {certificate.NotBefore:yyyy-MM-dd} to {certificate.NotAfter:yyyy-MM-dd}, which today is not. Clients that check will refuse it.");
+
+                _tls = loaded;
+
+                return loaded;
+            }
+        }
+
+        private string _tlsProblem;
 
         private static ApiEndpointConfig EndpointConfigOf(RestApiConfig config, string name)
         {
@@ -204,6 +317,41 @@ namespace Rasa.Api
 
         protected override async Task Exchange(Stream stream, IPAddress remote, CancellationToken limit)
         {
+            var config = _config;
+            SslStream secure = null;
+
+            if (config.Tls?.Enabled == true)
+            {
+                // Nobody who is not allowed gets as far as a handshake.
+                if (!_allowed.Allows(remote))
+                {
+                    Refused($"{remote}, which is not on AllowedIps");
+                    return;
+                }
+
+                var tls = RefreshTls(config, force: false);
+
+                if (tls == null)
+                    return;
+
+                secure = new SslStream(stream, leaveInnerStreamOpen: false);
+
+                try
+                {
+                    await secure.AuthenticateAsServerAsync(tls.Options, limit).ConfigureAwait(false);
+                }
+                catch (Exception e) when (e is AuthenticationException || e is IOException || e is InvalidOperationException
+                                          || e is System.ComponentModel.Win32Exception)
+                {
+                    // Plain HTTP sent to the HTTPS port, a protocol too old, a scanner.
+                    Refused($"{remote}: no TLS handshake ({e.Message})");
+                    await secure.DisposeAsync().ConfigureAwait(false);
+                    return;
+                }
+
+                stream = secure;
+            }
+
             var head = await ReadHead(stream, limit).ConfigureAwait(false);
 
             if (head == null)
@@ -226,6 +374,13 @@ namespace Rasa.Api
 
             await stream.WriteAsync(bytes, 0, bytes.Length, limit).ConfigureAwait(false);
             await stream.FlushAsync(limit).ConfigureAwait(false);
+
+            // The TLS goodbye, so the client knows the answer was whole.
+            if (secure != null)
+            {
+                await secure.ShutdownAsync().ConfigureAwait(false);
+                await secure.DisposeAsync().ConfigureAwait(false);
+            }
         }
 
         /// <summary>

@@ -7,6 +7,9 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
+using System.Security.Authentication;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -20,8 +23,8 @@ namespace Rasa.Test.Networking
 
     /// <summary>
     /// The status listeners (Rasa.Api): what the server status says and when it calls the server
-    /// healthy, who the REST API answers and with which key, the status port, the allow list,
-    /// and the settings as they are read from the file.
+    /// healthy, who the REST API answers and with which key, over HTTP and over TLS, the status
+    /// port, the allow list, and the settings as they are read from the file.
     /// </summary>
     [TestClass]
     public class StatusApiTests
@@ -116,7 +119,7 @@ namespace Rasa.Test.Networking
                 return players;
             }
 
-            Assert.AreEqual("{\"uptimehours\":0,\"currentconnections\":0,\"peakconnections\":0,\"maxconnections\":0}", status.StatusJson());
+            Assert.AreEqual("{\"uptimeseconds\":0,\"currentconnections\":0,\"peakconnections\":0,\"maxconnections\":0}", status.StatusJson());
 
             status.Started();
             status.Beat(Players, 1024, true);
@@ -147,15 +150,15 @@ namespace Rasa.Test.Networking
 
             // Twelve and a half hours after the ports opened.
             now = 50_000 + 45_000_000;
-            Assert.AreEqual(12.5, status.UptimeHours);
-            Assert.AreEqual("{\"uptimehours\":12.5,\"currentconnections\":2,\"peakconnections\":9,\"maxconnections\":500}", status.StatusJson());
+            Assert.AreEqual(45000L, status.UptimeSeconds);
+            Assert.AreEqual("{\"uptimeseconds\":45000,\"currentconnections\":2,\"peakconnections\":9,\"maxconnections\":500}", status.StatusJson());
 
             // Started is the first time it is said.
             status.Started();
-            Assert.AreEqual(12.5, status.UptimeHours);
+            Assert.AreEqual(45000L, status.UptimeSeconds);
 
-            now += 36_000 + 1_000;
-            Assert.AreEqual(12.51, status.UptimeHours, "to two places");
+            now += 1999;
+            Assert.AreEqual(45001L, status.UptimeSeconds, "whole seconds, the one begun not counted");
         }
 
         [TestMethod]
@@ -226,7 +229,7 @@ namespace Rasa.Test.Networking
         public void TheFullStatusIsBothInOneObject()
         {
             Assert.AreEqual(
-                HealthyBoth.TrimEnd('}') + ",\"uptimehours\":1,\"currentconnections\":4,\"peakconnections\":4,\"maxconnections\":64}",
+                HealthyBoth.TrimEnd('}') + ",\"uptimeseconds\":3600,\"currentconnections\":4,\"peakconnections\":4,\"maxconnections\":64}",
                 Healthy(4, 64, 3_600_000).FullJson());
         }
 
@@ -245,7 +248,7 @@ namespace Rasa.Test.Networking
 
             var status = api.Respond(Get("/serverstatus"));
             Assert.AreEqual(200, status.Status);
-            Assert.AreEqual("{\"uptimehours\":0,\"currentconnections\":4,\"peakconnections\":4,\"maxconnections\":64}", status.Json);
+            Assert.AreEqual("{\"uptimeseconds\":0,\"currentconnections\":4,\"peakconnections\":4,\"maxconnections\":64}", status.Json);
 
             // Any case, a slash at the end, a query, a key nobody asked for.
             Assert.AreEqual(200, api.Respond(Get("/HealthCheck/")).Status);
@@ -504,7 +507,7 @@ namespace Rasa.Test.Networking
 
                     Assert.AreEqual(HttpStatusCode.OK, answered.StatusCode);
                     Assert.AreEqual("application/json", answered.Content.Headers.ContentType.MediaType);
-                    Assert.AreEqual("{\"uptimehours\":0,\"currentconnections\":4,\"peakconnections\":4,\"maxconnections\":64}", Wait(answered.Content.ReadAsStringAsync()));
+                    Assert.AreEqual("{\"uptimeseconds\":0,\"currentconnections\":4,\"peakconnections\":4,\"maxconnections\":64}", Wait(answered.Content.ReadAsStringAsync()));
                 }
 
                 // HEAD: the headers of the same answer.
@@ -542,6 +545,308 @@ namespace Rasa.Test.Networking
 
         #endregion
 
+        #region TLS
+
+        [TestMethod]
+        public void TheMinimumProtocolIsReadInItsUsualSpellings()
+        {
+            foreach (var spelling in new[] { null, "", "Tls12", "tls12", "TLS 1.2", "TLSv1.2", "1.2" })
+            {
+                Assert.IsTrue(ApiTls.TryProtocols(spelling, out var protocols), spelling ?? "null");
+                Assert.AreEqual(SslProtocols.Tls12 | SslProtocols.Tls13, protocols);
+            }
+
+            foreach (var spelling in new[] { "Tls13", "TLS 1.3", "TLSv1.3", "1.3" })
+            {
+                Assert.IsTrue(ApiTls.TryProtocols(spelling, out var protocols), spelling);
+                Assert.AreEqual(SslProtocols.Tls13, protocols);
+            }
+
+            // Nothing older, and nothing that is no protocol: TLS 1.2 and up.
+            foreach (var spelling in new[] { "Tls11", "1.0", "Ssl3", "newest" })
+            {
+                Assert.IsFalse(ApiTls.TryProtocols(spelling, out var protocols), spelling);
+                Assert.AreEqual(SslProtocols.Tls12 | SslProtocols.Tls13, protocols);
+            }
+        }
+
+        [TestMethod]
+        public void WithTlsTheApiAnswersOverHttpsAndNothingElse()
+        {
+            using var files = new CertificateFiles();
+            var certificate = files.Pfx("server.pfx", "pfx-password");
+            var config = new RestApiConfig
+            {
+                Enabled = true,
+                BindAddress = "127.0.0.1",
+                Port = 0,
+                ApiKey = "global-key",
+                Tls = new ApiTlsConfig { Enabled = true, CertificatePath = files.Path("server.pfx"), CertificatePassword = "pfx-password" }
+            };
+            var api = Api(config, apply: false);
+
+            api.Apply(config);
+
+            try
+            {
+                Assert.IsTrue(api.Running);
+                Assert.AreEqual(certificate, api.Tls.Certificate.Thumbprint);
+                Assert.AreEqual(SslProtocols.Tls12 | SslProtocols.Tls13, api.Tls.Protocols);
+
+                var port = api.LocalEndPoint.Port;
+                var answer = Https(port, "/serverstatus", "global-key");
+
+                Assert.AreEqual(HttpStatusCode.OK, answer.Status);
+                Assert.AreEqual("{\"uptimeseconds\":0,\"currentconnections\":4,\"peakconnections\":4,\"maxconnections\":64}", answer.Body);
+                Assert.AreEqual(certificate, answer.Certificate, "the certificate of the file");
+
+                // The key is still wanted.
+                Assert.AreEqual(HttpStatusCode.Unauthorized, Https(port, "/serverstatus", null).Status);
+
+                // Not a word in the clear.
+                Assert.AreEqual("", Exchange(port, "GET /healthcheck HTTP/1.1\r\nX-API-Key: global-key\r\n\r\n"));
+
+                using (var plain = new HttpClient { Timeout = TimeSpan.FromSeconds(10) })
+                    Assert.Throws<HttpRequestException>(() => Wait(plain.GetStringAsync($"http://127.0.0.1:{port}/healthcheck")));
+
+                // And it still answers after that.
+                Assert.AreEqual(HttpStatusCode.OK, Https(port, "/healthcheck", "global-key").Status);
+
+                // An address that is not allowed does not get a handshake.
+                config.AllowedIps = new List<string> { "10.0.0.0/8" };
+                api.Apply(config);
+                Assert.Throws<HttpRequestException>(() => Https(port, "/healthcheck", "global-key"));
+
+                // Switched off by a reload, the same port is HTTP again.
+                config.AllowedIps.Clear();
+                config.Tls.Enabled = false;
+                api.Apply(config);
+
+                Assert.AreEqual(port, api.LocalEndPoint.Port);
+                Assert.IsNull(api.Tls);
+                StringAssert.StartsWith(Exchange(port, "GET /healthcheck HTTP/1.1\r\nX-API-Key: global-key\r\n\r\n"), "HTTP/1.1 200 OK\r\n");
+            }
+            finally
+            {
+                api.Stop();
+            }
+        }
+
+        [TestMethod]
+        public void TheCertificateCanBePemWithItsKeyBesideItInItOrEncrypted()
+        {
+            using var files = new CertificateFiles();
+
+            var separate = files.Pem("separate.crt", "separate.key", keyPassword: null);
+            var together = files.Pem("together.pem", null, keyPassword: null);
+            var encrypted = files.Pem("encrypted.crt", "encrypted.key", keyPassword: "key-password");
+
+            var cases = new[]
+            {
+                (Thumbprint: separate, Tls: new ApiTlsConfig { Enabled = true, CertificatePath = files.Path("separate.crt"), KeyPath = files.Path("separate.key") }),
+                (Thumbprint: together, Tls: new ApiTlsConfig { Enabled = true, CertificatePath = files.Path("together.pem") }),
+                (Thumbprint: encrypted, Tls: new ApiTlsConfig
+                {
+                    Enabled = true,
+                    CertificatePath = files.Path("encrypted.crt"),
+                    KeyPath = files.Path("encrypted.key"),
+                    CertificatePassword = "key-password"
+                })
+            };
+
+            foreach (var (thumbprint, tls) in cases)
+            {
+                var config = new RestApiConfig { Enabled = true, BindAddress = "127.0.0.1", Port = 0, Public = true, Tls = tls };
+                var api = Api(config, apply: false);
+
+                api.Apply(config);
+
+                try
+                {
+                    Assert.IsTrue(api.Running, tls.CertificatePath);
+
+                    var answer = Https(api.LocalEndPoint.Port, "/healthcheck", null);
+
+                    Assert.AreEqual(HealthyBoth, answer.Body);
+                    Assert.AreEqual(thumbprint, answer.Certificate, tls.CertificatePath);
+                }
+                finally
+                {
+                    api.Stop();
+                }
+            }
+        }
+
+        [TestMethod]
+        public void WithTlsOnAndNoCertificateThatLoadsTheApiStaysShut()
+        {
+            using var files = new CertificateFiles();
+
+            files.Pfx("server.pfx", "pfx-password");
+            files.Pem("alone.crt", "alone.key", keyPassword: null);
+            File.WriteAllText(files.Path("garbage.pfx"), "this is no certificate");
+
+            var broken = new[]
+            {
+                new ApiTlsConfig { Enabled = true },
+                new ApiTlsConfig { Enabled = true, CertificatePath = files.Path("nowhere.pfx") },
+                new ApiTlsConfig { Enabled = true, CertificatePath = files.Path("server.pfx"), CertificatePassword = "wrong" },
+                new ApiTlsConfig { Enabled = true, CertificatePath = files.Path("server.pfx") },
+                new ApiTlsConfig { Enabled = true, CertificatePath = files.Path("garbage.pfx") },
+                new ApiTlsConfig { Enabled = true, CertificatePath = files.Path("alone.crt") },
+                new ApiTlsConfig { Enabled = true, CertificatePath = files.Path("alone.crt"), KeyPath = files.Path("nowhere.key") }
+            };
+
+            foreach (var tls in broken)
+            {
+                var config = new RestApiConfig { Enabled = true, BindAddress = "127.0.0.1", Port = 0, Public = true, Tls = tls };
+                var api = Api(config, apply: false);
+
+                api.Apply(config);
+
+                try
+                {
+                    Assert.IsNull(ApiTls.Load(tls, out var problem));
+                    Assert.IsFalse(string.IsNullOrEmpty(problem));
+                    Assert.IsFalse(api.Running, $"{tls.CertificatePath}: {problem}");
+                    Assert.IsNull(api.Tls);
+                }
+                finally
+                {
+                    api.Stop();
+                }
+            }
+
+            // Running in the clear, then told to use a certificate that is not there: closed, not left as it was.
+            var settings = new RestApiConfig { Enabled = true, BindAddress = "127.0.0.1", Port = 0, Public = true };
+            var open = Api(settings, apply: false);
+
+            open.Apply(settings);
+
+            try
+            {
+                Assert.IsTrue(open.Running);
+
+                settings.Tls = new ApiTlsConfig { Enabled = true, CertificatePath = files.Path("nowhere.pfx") };
+                open.Apply(settings);
+                Assert.IsFalse(open.Running);
+
+                // And with one that is, open again.
+                settings.Tls = new ApiTlsConfig { Enabled = true, CertificatePath = files.Path("server.pfx"), CertificatePassword = "pfx-password" };
+                open.Apply(settings);
+                Assert.IsTrue(open.Running);
+                Assert.AreEqual(HealthyBoth, Https(open.LocalEndPoint.Port, "/healthcheck", null).Body);
+            }
+            finally
+            {
+                open.Stop();
+            }
+        }
+
+        [TestMethod]
+        public void ARenewedCertificateIsTakenUpWithoutARestartAndABrokenOneIsNot()
+        {
+            using var files = new CertificateFiles();
+            var first = files.Pfx("server.pfx", "pfx-password");
+            long now = 1_000_000;
+            var config = new RestApiConfig
+            {
+                Enabled = true,
+                BindAddress = "127.0.0.1",
+                Port = 0,
+                Public = true,
+                Tls = new ApiTlsConfig { Enabled = true, CertificatePath = files.Path("server.pfx"), CertificatePassword = "pfx-password" }
+            };
+            var api = Api(config, apply: false);
+
+            api.Now = () => now;
+            api.Apply(config);
+
+            try
+            {
+                var port = api.LocalEndPoint.Port;
+
+                Assert.AreEqual(first, Https(port, "/healthcheck", null).Certificate);
+
+                // The file is replaced, as a renewal replaces it.
+                var second = files.Pfx("server.pfx", "pfx-password", writtenMinutesFromNow: 5);
+
+                Assert.AreNotEqual(first, second);
+                Assert.AreEqual(first, Https(port, "/healthcheck", null).Certificate, "not looked at on every connection");
+
+                now += ApiServer.TlsRecheckMs;
+                Assert.AreEqual(second, Https(port, "/healthcheck", null).Certificate, "looked at again after a minute");
+
+                // A file that will not load: the one in use stays, and the API with it.
+                File.WriteAllText(files.Path("server.pfx"), "half written");
+                now += ApiServer.TlsRecheckMs;
+
+                Assert.AreEqual(second, Https(port, "/healthcheck", null).Certificate);
+                Assert.IsTrue(api.Running);
+
+                // On a config reload too, without the wait.
+                api.Apply(config);
+                Assert.IsTrue(api.Running);
+                Assert.AreEqual(second, api.Tls.Certificate.Thumbprint);
+
+                var third = files.Pfx("server.pfx", "pfx-password", writtenMinutesFromNow: 10);
+
+                api.Apply(config);
+                Assert.AreEqual(third, api.Tls.Certificate.Thumbprint);
+                Assert.AreEqual(third, Https(port, "/healthcheck", null).Certificate);
+            }
+            finally
+            {
+                api.Stop();
+            }
+        }
+
+        [TestMethod]
+        public void Tls13AloneRefusesAnOlderClient()
+        {
+            using var files = new CertificateFiles();
+
+            files.Pfx("server.pfx", "pfx-password");
+
+            var config = new RestApiConfig
+            {
+                Enabled = true,
+                BindAddress = "127.0.0.1",
+                Port = 0,
+                Public = true,
+                Tls = new ApiTlsConfig
+                {
+                    Enabled = true,
+                    CertificatePath = files.Path("server.pfx"),
+                    CertificatePassword = "pfx-password",
+                    MinimumProtocol = "Tls13"
+                }
+            };
+            var api = Api(config, apply: false);
+
+            api.Apply(config);
+
+            try
+            {
+                var port = api.LocalEndPoint.Port;
+
+                Assert.AreEqual(SslProtocols.Tls13, api.Tls.Protocols);
+                Assert.AreEqual(HttpStatusCode.OK, Https(port, "/healthcheck", null, SslProtocols.Tls13).Status);
+                Assert.Throws<HttpRequestException>(() => Https(port, "/healthcheck", null, SslProtocols.Tls12));
+
+                // Back to the usual: TLS 1.2 is taken again.
+                config.Tls.MinimumProtocol = "Tls12";
+                api.Apply(config);
+                Assert.AreEqual(HttpStatusCode.OK, Https(port, "/healthcheck", null, SslProtocols.Tls12).Status);
+            }
+            finally
+            {
+                api.Stop();
+            }
+        }
+
+        #endregion
+
         #region The status port
 
         [TestMethod]
@@ -554,7 +859,7 @@ namespace Rasa.Test.Networking
             try
             {
                 var port = server.LocalEndPoint.Port;
-                var expected = HealthyBoth.TrimEnd('}') + ",\"uptimehours\":0,\"currentconnections\":4,\"peakconnections\":4,\"maxconnections\":64}\n";
+                var expected = HealthyBoth.TrimEnd('}') + ",\"uptimeseconds\":0,\"currentconnections\":4,\"peakconnections\":4,\"maxconnections\":64}\n";
 
                 Assert.AreEqual(expected, Exchange(port, "?"));
                 Assert.AreEqual(expected, Exchange(port, "\0"), "whatever it is");
@@ -689,6 +994,12 @@ namespace Rasa.Test.Networking
                   ""Endpoints"": {
                     ""healthcheck"": { ""Public"": true },
                     ""serverstatus"": { ""Enabled"": false, ""ApiKey"": ""status-key"" }
+                  },
+                  ""Tls"": {
+                    ""Enabled"": true,
+                    ""CertificatePath"": ""C:\\certs\\api.pfx"",
+                    ""CertificatePassword"": ""pfx-password"",
+                    ""MinimumProtocol"": ""Tls13""
                   }
                 },
                 ""StatusPort"": { ""Enabled"": true, ""Port"": 9101, ""AllowedIps"": [] }
@@ -712,6 +1023,12 @@ namespace Rasa.Test.Networking
             Assert.IsFalse(config.Rest.Endpoints["serverstatus"].Enabled);
             Assert.AreEqual("status-key", config.Rest.Endpoints["serverstatus"].ApiKey);
 
+            Assert.IsTrue(config.Rest.Tls.Enabled);
+            Assert.AreEqual(@"C:\certs\api.pfx", config.Rest.Tls.CertificatePath);
+            Assert.AreEqual("pfx-password", config.Rest.Tls.CertificatePassword);
+            Assert.AreEqual("", config.Rest.Tls.KeyPath);
+            Assert.AreEqual("Tls13", config.Rest.Tls.MinimumProtocol);
+
             Assert.IsTrue(config.StatusPort.Enabled);
             Assert.AreEqual("0.0.0.0", config.StatusPort.BindAddress);
             Assert.AreEqual(9101, config.StatusPort.Port);
@@ -729,6 +1046,8 @@ namespace Rasa.Test.Networking
             Assert.AreEqual(8105, config.StatusPort.Port);
             Assert.AreEqual(15, config.LoopStallSeconds);
             Assert.IsFalse(config.Rest.Public, "and a key is wanted unless it says otherwise");
+            Assert.IsFalse(config.Rest.Tls.Enabled);
+            Assert.AreEqual("Tls12", config.Rest.Tls.MinimumProtocol);
 
             // A list left blank in the file is everybody, as one left out is.
             var blank = Bind(@"{ ""ApiConfig"": { ""StatusPort"": { ""Enabled"": true, ""AllowedIps"": """" }, ""Rest"": { ""AllowedIps"": [ """" ] } } }").ApiConfig;
@@ -831,6 +1150,98 @@ namespace Rasa.Test.Networking
             }
 
             return Encoding.UTF8.GetString(received.ToArray());
+        }
+
+        /// <summary>One HTTPS request, any certificate taken: what was answered, and with which certificate.</summary>
+        private static (HttpStatusCode Status, string Body, string Certificate) Https(int port, string path, string key, SslProtocols protocols = SslProtocols.None)
+        {
+            string certificate = null;
+
+            using var handler = new SocketsHttpHandler();
+
+            handler.SslOptions.EnabledSslProtocols = protocols;
+            handler.SslOptions.RemoteCertificateValidationCallback = (sender, presented, chain, errors) =>
+            {
+                certificate = presented == null ? null : new X509Certificate2(presented).Thumbprint;
+                return true;
+            };
+
+            using var http = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(10) };
+            using var request = new HttpRequestMessage(HttpMethod.Get, $"https://127.0.0.1:{port}{path}");
+
+            if (key != null)
+                request.Headers.Add("X-API-Key", key);
+
+            using var answered = Wait(http.SendAsync(request));
+
+            return (answered.StatusCode, Wait(answered.Content.ReadAsStringAsync()), certificate);
+        }
+
+        /// <summary>Self-signed certificates written to a folder of the test's own, which goes with it.</summary>
+        private sealed class CertificateFiles : IDisposable
+        {
+            private readonly string _folder = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "rasa-api-tls-" + Guid.NewGuid().ToString("N"));
+
+            internal CertificateFiles() => Directory.CreateDirectory(_folder);
+
+            internal string Path(string name) => System.IO.Path.Combine(_folder, name);
+
+            private static X509Certificate2 Create(RSA key)
+            {
+                var request = new CertificateRequest("CN=rasa-api-test-" + Guid.NewGuid().ToString("N"), key, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+                var names = new SubjectAlternativeNameBuilder();
+
+                names.AddIpAddress(IPAddress.Loopback);
+                request.CertificateExtensions.Add(names.Build());
+
+                return request.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(30));
+            }
+
+            /// <summary>A new certificate as a PKCS#12 file; its thumbprint. The file's time can be put ahead, as a later write would.</summary>
+            internal string Pfx(string name, string password, int writtenMinutesFromNow = 0)
+            {
+                using var key = RSA.Create(2048);
+                using var certificate = Create(key);
+
+                File.WriteAllBytes(Path(name), certificate.Export(X509ContentType.Pkcs12, password));
+                File.SetLastWriteTimeUtc(Path(name), DateTime.UtcNow.AddMinutes(writtenMinutesFromNow));
+
+                return certificate.Thumbprint;
+            }
+
+            /// <summary>A new certificate as PEM, its key in a file of its own or (no key file named) after it in the same one; its thumbprint.</summary>
+            internal string Pem(string name, string keyName, string keyPassword)
+            {
+                using var key = RSA.Create(2048);
+                using var certificate = Create(key);
+
+                var keyPem = keyPassword == null
+                    ? key.ExportPkcs8PrivateKeyPem()
+                    : key.ExportEncryptedPkcs8PrivateKeyPem(keyPassword, new PbeParameters(PbeEncryptionAlgorithm.Aes256Cbc, HashAlgorithmName.SHA256, 10000));
+
+                if (keyName == null)
+                {
+                    File.WriteAllText(Path(name), certificate.ExportCertificatePem() + "\n" + keyPem + "\n");
+                }
+                else
+                {
+                    File.WriteAllText(Path(name), certificate.ExportCertificatePem() + "\n");
+                    File.WriteAllText(Path(keyName), keyPem + "\n");
+                }
+
+                return certificate.Thumbprint;
+            }
+
+            public void Dispose()
+            {
+                try
+                {
+                    Directory.Delete(_folder, true);
+                }
+                catch (IOException)
+                {
+                }
+            }
         }
 
         private sealed class Fixed : ApiEndpoint

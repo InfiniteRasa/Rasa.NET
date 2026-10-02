@@ -22,7 +22,7 @@ namespace Rasa.Api
     ///  - currentconnections is Server.CurrentPlayers, the number the server list shows and
     ///    that maxconnections (ServerInfoConfig.MaxPlayers) is the limit of;
     ///  - peakconnections is the most that number has been since the server started;
-    ///  - uptimehours is the time since the server opened its ports, in hours to two places.
+    ///  - uptimeseconds is the time since the server opened its ports, in whole seconds.
     /// </summary>
     public sealed class ServerStatus
     {
@@ -126,14 +126,14 @@ namespace Rasa.Api
             }
         }
 
-        /// <summary>Hours since <see cref="Started"/>, to two places; 0 before it.</summary>
-        public double UptimeHours
+        /// <summary>Whole seconds since <see cref="Started"/>; 0 before it.</summary>
+        public long UptimeSeconds
         {
             get
             {
                 var started = Volatile.Read(ref _startedAt);
 
-                return started < 0 ? 0 : Math.Round(Math.Max(0, Now() - started) / 3600000.0, 2);
+                return started < 0 ? 0 : Math.Max(0, Now() - started) / 1000;
             }
         }
 
@@ -149,7 +149,7 @@ namespace Rasa.Api
 
         public static string HealthJson((bool Game, bool App) health) => Json(writer => WriteHealth(writer, health));
 
-        /// <summary>{"uptimehours":12.5,"currentconnections":3,"peakconnections":9,"maxconnections":1024}</summary>
+        /// <summary>{"uptimeseconds":45000,"currentconnections":3,"peakconnections":9,"maxconnections":1024}</summary>
         public string StatusJson() => Json(WriteStatus);
 
         /// <summary>Both of the above as one object, the health first: what the status port answers.</summary>
@@ -172,7 +172,7 @@ namespace Rasa.Api
 
         private void WriteStatus(Utf8JsonWriter writer)
         {
-            writer.WriteNumber("uptimehours", UptimeHours);
+            writer.WriteNumber("uptimeseconds", UptimeSeconds);
             writer.WriteNumber("currentconnections", CurrentConnections);
             writer.WriteNumber("peakconnections", PeakConnections);
             writer.WriteNumber("maxconnections", MaxConnections);
