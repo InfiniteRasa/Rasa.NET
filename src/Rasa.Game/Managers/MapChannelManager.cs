@@ -759,6 +759,9 @@ namespace Rasa.Managers
             // A battleground's teams, clock and scoreboard.
             Battlegrounds.Instance.PlayerEntered(client);
 
+            // Why a character that left the world on a map of several copies is outside it.
+            ShowArrivalNotice(client);
+
             // The buffs brought from the map left (nothing on a login): after the player is in
             // the cells and their own client has its actor's info, so the attach reaches it and
             // everyone around.

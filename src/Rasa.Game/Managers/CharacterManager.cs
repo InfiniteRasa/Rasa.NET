@@ -1076,6 +1076,10 @@ namespace Rasa.Managers
             client.ReloadGameAccountEntry();
             client.Player = CreateCharacterManifestation(client, character);
             client.Player.MapChannel = StartingExperience.ResolveMap(character, startingState);
+
+            // A map that runs in copies: back into the copy they left, or outside its door.
+            MapChannelManager.Instance.PlaceLogin(client);
+
             client.LoadingMap = client.Player.MapContextId;
             MapChannelManager.Instance.PassClientToMapInstance(client);
         }

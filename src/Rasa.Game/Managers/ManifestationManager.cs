@@ -3121,6 +3121,9 @@ namespace Rasa.Managers
 
             // Off their team of a battleground's match: a deserter, if it is being played.
             Battlegrounds.Instance.PlayerLeft(client);
+
+            // Which copy of the map they are leaving, for when they next enter the world on it.
+            MapChannelManager.Instance.RememberCopy(client);
         }
 
         public void RemoveAppearanceItem(Client client, EquipmentData equipmentSlotId)

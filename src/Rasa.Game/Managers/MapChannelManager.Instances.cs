@@ -62,8 +62,13 @@ namespace Rasa.Managers
     ///    back to the copy they left, with no picker, and into no other until their lockout has
     ///    run out (Battlegrounds.LockoutFor);
     ///  - a copy other than the map's own closes once it has stood empty for IdleCloseSeconds;
-    ///  - a summon brings a player into the copy the summoner stands in, full or not; a login
-    ///    and a game master's teleport go to the map's own channel, as before.
+    ///  - a summon brings a player into the copy the summoner stands in, full or not; a game
+    ///    master's teleport goes to the map's own channel, as before;
+    ///  - a character entering the world on such a map goes back into the copy it left
+    ///    (<see cref="PlaceLogin"/>), if that one still stands, has room and is not shut to
+    ///    them. If not, or after a restart, which forgets who was where, it enters the world
+    ///    outside the map, where its way out leads, and comes in by the door as anybody does:
+    ///    nobody logs in to a copy they did not leave.
     /// </summary>
     public partial class MapChannelManager
     {
@@ -76,12 +81,115 @@ namespace Rasa.Managers
         /// <summary>The configured copies of a map (MapInstancePolicies); replaceable for tests.</summary>
         public Func<uint, MapInstanceConfig> InstancePolicy { get; set; } = MapInstancePolicies.For;
 
+        /// <summary>The map links of the world (MapLinkManager); replaceable for tests.</summary>
+        public Func<IEnumerable<MapLink>> MapLinks { get; set; } = () => MapLinkManager.Instance.Links;
+
+        /// <summary>The copy of a map each character was last taken out of, by character id. Not kept over a restart.</summary>
+        private readonly Dictionary<uint, (uint MapContextId, uint InstanceId)> _copyLeft = new Dictionary<uint, (uint, uint)>();
+
         /// <summary>The map's entry if it runs in more than one copy, else null.</summary>
         public MapInstanceConfig SharedPolicyOf(uint mapContextId)
         {
             var policy = InstancePolicy?.Invoke(mapContextId);
 
             return policy != null && policy.MaxCopies > 1 && policy.Capacity > 0 ? policy : null;
+        }
+
+        /// <summary>
+        /// Notes the copy a player is being taken out of, for <see cref="PlaceLogin"/>: on every
+        /// way off a map that runs in copies (ManifestationManager.RemovePlayerCharacter).
+        /// </summary>
+        public void RememberCopy(Client client)
+        {
+            var player = client?.Player;
+            var map = player?.MapChannel;
+
+            if (map?.MapInfo == null || player.Id == 0 || map.IsPrivateInstance || SharedPolicyOf(map.MapInfo.MapContextId) == null)
+                return;
+
+            _copyLeft[player.Id] = (map.MapInfo.MapContextId, map.InstanceId);
+        }
+
+        /// <summary>The copy of a map a character was last taken out of, if it still stands; else null.</summary>
+        public MapChannel CopyLeftBy(uint characterId, uint mapContextId)
+        {
+            if (!_copyLeft.TryGetValue(characterId, out var left) || left.MapContextId != mapContextId)
+                return null;
+
+            return CopiesOf(mapContextId).FirstOrDefault(copy => copy.InstanceId == left.InstanceId);
+        }
+
+        /// <summary>
+        /// Where a character entering the world on a map that runs in copies goes, their map
+        /// being its own channel as their row has it: back into the copy they left, if it
+        /// stands, has room and no lockout shuts it to them; and otherwise out of the map, to
+        /// where its way out leads (or, a map with none, to the door into it), with a word for
+        /// when they have arrived. Never into a copy they did not leave. Called between the
+        /// character being loaded and the client being told where to (CharacterManager).
+        /// </summary>
+        public void PlaceLogin(Client client)
+        {
+            var player = client?.Player;
+            var own = player?.MapChannel;
+
+            if (own?.MapInfo == null || own.IsPrivateInstance)
+                return;
+
+            var mapContextId = own.MapInfo.MapContextId;
+            var policy = SharedPolicyOf(mapContextId);
+
+            if (policy == null)
+                return;
+
+            var left = CopyLeftBy(player.Id, mapContextId);
+            Battlegrounds.Lockout lockout = null;
+
+            if (left != null && !IsFull(left, policy) && !Battlegrounds.Instance.BarredFrom(client, left, out lockout))
+            {
+                player.MapChannel = left;
+                left.EmptySince = 0;
+                return;
+            }
+
+            var links = (MapLinks?.Invoke() ?? Enumerable.Empty<MapLink>()).OrderBy(link => link.Id).ToList();
+            var exit = links.FirstOrDefault(link => link.MapContextId == mapContextId && link.DestMapContextId != mapContextId
+                                                    && MapChannelArray.ContainsKey(link.DestMapContextId));
+            var door = exit == null
+                ? links.FirstOrDefault(link => link.DestMapContextId == mapContextId && link.MapContextId != mapContextId
+                                               && MapChannelArray.ContainsKey(link.MapContextId))
+                : null;
+
+            if (exit == null && door == null)
+            {
+                Logger.WriteLog(LogType.Error,
+                    $"Map {mapContextId} runs in copies and has no map link out of it or into it: {player.FamilyName} entered the world on its first copy.");
+                return;
+            }
+
+            var outside = exit?.DestMapContextId ?? door.MapContextId;
+
+            player.MapChannel = MapChannelArray[outside];
+            player.MapContextId = outside;
+            player.PlaceAt(exit?.DestPosition ?? door.Position);
+            player.Rotation = exit?.DestRotation ?? 0;
+            client.ArrivalNotice = (left == null ? "The instance you were in has closed."
+                                       : lockout != null ? Battlegrounds.Instance.LockoutText(lockout)
+                                       : "The instance you were in is full.") + " You are outside its door.";
+
+            Logger.WriteLog(LogType.Debug,
+                $"{player.FamilyName} entered the world outside map {mapContextId}: the copy they left {(left == null ? "is gone" : "is full or shut to them")}.");
+        }
+
+        /// <summary>What <see cref="PlaceLogin"/> left to be said, now that there is a client in the world to say it to.</summary>
+        internal static void ShowArrivalNotice(Client client)
+        {
+            var notice = client?.ArrivalNotice;
+
+            if (notice == null)
+                return;
+
+            client.ArrivalNotice = null;
+            CommunicatorManager.Instance.SystemMessage(client, notice);
         }
 
         /// <summary>The copies of a map that anyone may enter: its own channel first, then the shared ones, oldest first.</summary>

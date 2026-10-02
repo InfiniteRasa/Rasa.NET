@@ -555,6 +555,206 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
+        public void ALoginGoesBackIntoTheCopyItLeft()
+        {
+            using var world = new WorldTestContext();
+            var fixture = new Fixture(world, new MapInstanceConfig { Capacity = 2, MaxCopies = 3 });
+            using var grounds = new Grounds(fixture);
+            var second = fixture.Maps.OpenSharedCopy(Range);
+            var client = fixture.Fill(second, 1).Single();
+            var position = new Vector3(-250, 30, 75);
+
+            fixture.Maps.MapLinks = () => new[] { Exit(1, world) };
+            client.Player.Position = position;
+            second.EmptySince = 5;
+
+            fixture.Relog(client);
+
+            Assert.AreSame(second, fixture.Maps.CopyLeftBy(client.Player.Id, Range));
+            Assert.IsNull(fixture.Maps.CopyLeftBy(client.Player.Id, world.Map.MapInfo.MapContextId));
+
+            fixture.Maps.PlaceLogin(client);
+
+            Assert.AreSame(second, client.Player.MapChannel);
+            Assert.AreEqual(Range, client.Player.MapContextId);
+            Assert.AreEqual(position, client.Player.Position, "where they were");
+            Assert.IsNull(client.ArrivalNotice);
+            Assert.AreEqual(0, second.EmptySince, "not closed under them");
+
+            // The client is told the copy, and counts in it from now.
+            client.State = ClientState.CharacterSelection;
+            fixture.Maps.PassClientToMapInstance(client);
+
+            Assert.AreEqual(second.InstanceId, Sent<WonkavatePacket>(client).Single().MapInstanceId);
+            Assert.AreEqual(1, fixture.Maps.PopulationOf(second));
+            Assert.AreEqual(0, fixture.Maps.PopulationOf(fixture.Own));
+
+            // The map's own channel is a copy like any other.
+            var first = fixture.Fill(fixture.Own, 1).Single();
+            fixture.Relog(first);
+            fixture.Maps.PlaceLogin(first);
+
+            Assert.AreSame(fixture.Own, first.Player.MapChannel);
+            Assert.IsNull(first.ArrivalNotice);
+        }
+
+        [TestMethod]
+        public void ALoginWithNoCopyToGoBackToEntersTheWorldOutsideTheMap()
+        {
+            using var world = new WorldTestContext();
+            var fixture = new Fixture(world, new MapInstanceConfig { Capacity = 2, MaxCopies = 4 });
+            using var grounds = new Grounds(fixture);
+            var outside = world.Map.MapInfo.MapContextId;
+            var second = fixture.Maps.OpenSharedCopy(Range);
+            var third = fixture.Maps.OpenSharedCopy(Range);
+
+            // A team's teleporter stays on the map, a link somewhere else is none of its, and of
+            // two ways out the first is the door.
+            fixture.Maps.MapLinks = () => new[]
+            {
+                Exit(7, world, new Vector3(1, 1, 1)),
+                new MapLink { Id = 2, MapContextId = Range, DestMapContextId = Range, DestPosition = new Vector3(9, 9, 9) },
+                new MapLink { Id = 3, MapContextId = outside, DestMapContextId = Range, Position = new Vector3(8, 8, 8) },
+                Exit(5, world)
+            };
+
+            void IsOutside(Client client, string why, string because)
+            {
+                Assert.AreSame(world.Map, client.Player.MapChannel, because);
+                Assert.AreEqual(outside, client.Player.MapContextId);
+                Assert.AreEqual(Door, client.Player.Position);
+                Assert.AreEqual(Door, client.Player.ArrivalPosition, "put there, as on any arrival");
+                Assert.AreEqual(outside, client.Player.ArrivalMapContextId);
+                Assert.AreEqual(1.25, client.Player.Rotation, 0.0001);
+                StringAssert.Contains(client.ArrivalNotice, why);
+                StringAssert.Contains(client.ArrivalNotice, "outside its door");
+            }
+
+            // The server has been restarted since: nobody is known to have been anywhere, and
+            // the map's first copy is not where they were.
+            var unknown = fixture.Fill(second, 1).Single();
+            fixture.Relog(unknown, remember: false);
+            fixture.Maps.PlaceLogin(unknown);
+            IsOutside(unknown, "has closed", "nothing is known of where they were");
+
+            // Their copy filled while they were away.
+            var crowded = fixture.Fill(second, 1).Single();
+            fixture.Relog(crowded);
+            fixture.Fill(second, 2);
+            fixture.Maps.PlaceLogin(crowded);
+            IsOutside(crowded, "is full", "no room, and no other copy either");
+
+            // Their copy closed while they were away.
+            var late = fixture.Fill(third, 1).Single();
+            fixture.Relog(late);
+            Assert.IsTrue(fixture.Maps.CloseSharedCopy(third));
+            fixture.Maps.PlaceLogin(late);
+            IsOutside(late, "has closed", "the copy is gone");
+
+            // A lockout that names another copy than the one they were last in.
+            var barred = fixture.Fill(fixture.Own, 1).Single();
+            fixture.Relog(barred);
+            grounds.Of.Lock(barred.Player.Id, Range, second.InstanceId);
+            fixture.Maps.PlaceLogin(barred);
+            IsOutside(barred, "you can only play in the instance you left", "shut to them");
+
+            // Said once they are in the world, and once.
+            Assert.AreEqual(0, Packets(late).Count);
+            MapChannelManager.ShowArrivalNotice(late);
+            Assert.AreEqual("The instance you were in has closed. You are outside its door.", Sent<SystemMessagePacket>(late).Single().TextMessage);
+            Assert.IsNull(late.ArrivalNotice);
+            MapChannelManager.ShowArrivalNotice(late);
+            Assert.AreEqual(0, Packets(late).Count);
+        }
+
+        [TestMethod]
+        public void ALoginIsPlacedOnlyOnAMapOfSeveralCopiesWithAWayOut()
+        {
+            using var world = new WorldTestContext();
+            var outside = world.Map.MapInfo.MapContextId;
+
+            // One copy: where the character's row says, whatever links there are.
+            var single = new Fixture(world, policy: null);
+            var plain = single.Fill(single.Own, 1).Single();
+            single.Maps.MapLinks = () => new[] { Exit(1, world) };
+            single.Relog(plain, remember: false);
+            single.Maps.RememberCopy(plain);
+            single.Maps.PlaceLogin(plain);
+
+            Assert.AreSame(single.Own, plain.Player.MapChannel);
+            Assert.IsNull(plain.ArrivalNotice);
+            Assert.IsNull(single.Maps.CopyLeftBy(plain.Player.Id, Range), "nothing is noted of a map of one copy");
+
+            // Any other map of a world that has one in copies.
+            var fixture = new Fixture(world, new MapInstanceConfig { Capacity = 2, MaxCopies = 3 });
+            var elsewhere = fixture.Player();
+            fixture.Maps.MapLinks = () => new MapLink[0];
+            fixture.Maps.RememberCopy(elsewhere);
+            fixture.Maps.PlaceLogin(elsewhere);
+
+            Assert.AreSame(world.Map, elsewhere.Player.MapChannel);
+            Assert.IsNull(elsewhere.ArrivalNotice);
+
+            // No link out and none in: nowhere to put them but where they were.
+            var stuck = fixture.Fill(fixture.Own, 1).Single();
+            fixture.Relog(stuck, remember: false);
+            fixture.Maps.PlaceLogin(stuck);
+
+            Assert.AreSame(fixture.Own, stuck.Player.MapChannel);
+            Assert.AreEqual(Range, stuck.Player.MapContextId);
+            Assert.IsNull(stuck.ArrivalNotice);
+
+            // No link out, but a door in: at the door, on its side.
+            fixture.Maps.MapLinks = () => new[]
+            {
+                new MapLink { Id = 4, MapContextId = 999, DestMapContextId = Range, Position = new Vector3(1, 2, 3) },
+                new MapLink { Id = 6, MapContextId = outside, DestMapContextId = Range, Position = new Vector3(60, 3, -20) }
+            };
+            fixture.Maps.PlaceLogin(stuck);
+
+            Assert.AreSame(world.Map, stuck.Player.MapChannel, "the first whose map is loaded");
+            Assert.AreEqual(outside, stuck.Player.MapContextId);
+            Assert.AreEqual(new Vector3(60, 3, -20), stuck.Player.Position);
+            Assert.AreEqual(0d, stuck.Player.Rotation);
+            Assert.IsNotNull(stuck.ArrivalNotice);
+        }
+
+        [TestMethod]
+        public void LeavingAMapOrTheWorldNotesTheCopyLeft()
+        {
+            using var world = new WorldTestContext();
+            var fixture = new Fixture(world, new MapInstanceConfig { Capacity = 2, MaxCopies = 3 });
+            using var grounds = new Grounds(fixture);
+            var second = fixture.Maps.OpenSharedCopy(Range);
+            var third = fixture.Maps.OpenSharedCopy(Range);
+            var client = fixture.Fill(second, 1).Single();
+
+            var instance = typeof(MapChannelManager).GetField("_instance", BindingFlags.Static | BindingFlags.NonPublic);
+            var previous = instance.GetValue(null);
+            instance.SetValue(null, fixture.Maps);
+
+            try
+            {
+                ManifestationManager.Instance.RemovePlayerCharacter(client);
+                Assert.AreSame(second, fixture.Maps.CopyLeftBy(client.Player.Id, Range));
+
+                // The last one left is the one that counts.
+                client.Player.MapChannel = third;
+                ManifestationManager.Instance.RemovePlayerCharacter(client);
+                Assert.AreSame(third, fixture.Maps.CopyLeftBy(client.Player.Id, Range));
+
+                // Leaving a map of one copy changes nothing.
+                client.Player.MapChannel = world.Map;
+                ManifestationManager.Instance.RemovePlayerCharacter(client);
+                Assert.AreSame(third, fixture.Maps.CopyLeftBy(client.Player.Id, Range));
+            }
+            finally
+            {
+                instance.SetValue(null, previous);
+            }
+        }
+
+        [TestMethod]
         public void WithEveryCopyFullAndNoMoreAllowedTheDoorStaysShut()
         {
             using var world = new WorldTestContext();
@@ -923,6 +1123,22 @@ namespace Rasa.Test.World
             Read(new SelectInstanceCancelPacket(), w => w.WriteTuple(0));
         }
 
+        /// <summary>Where the way out of the range leads, in the tests of a login.</summary>
+        private static readonly Vector3 Door = new Vector3(30, 2, 40);
+
+        /// <summary>A way out of the range to the fixture world's map.</summary>
+        private static MapLink Exit(uint id, WorldTestContext world, Vector3? destination = null) => new MapLink
+        {
+            Id = id,
+            MapContextId = Range,
+            Position = new Vector3(-62, 364, -421),
+            Radius = 3,
+            DestMapContextId = world.Map.MapInfo.MapContextId,
+            DestPosition = destination ?? Door,
+            DestRotation = 1.25f,
+            Enabled = true
+        };
+
         private static List<PythonPacket> Packets(Client client) =>
             WorldTestContext.Drain(client).Select(packet => packet.Message).OfType<CallMethodMessage>().Select(message => message.Packet).ToList();
 
@@ -1020,6 +1236,22 @@ namespace Rasa.Test.World
                 }
 
                 return added;
+            }
+
+            /// <summary>
+            /// Takes a player out of the world and brings them to where a login stands before it
+            /// is placed: on the own channel of the map they were on, and on no list.
+            /// </summary>
+            internal void Relog(Client client, bool remember = true)
+            {
+                var map = client.Player.MapChannel;
+
+                if (remember)
+                    Maps.RememberCopy(client);
+
+                map.ClientList.Remove(client);
+                client.Player.MapChannel = Maps.MapChannelArray[map.MapInfo.MapContextId];
+                WorldTestContext.Drain(client);
             }
         }
     }

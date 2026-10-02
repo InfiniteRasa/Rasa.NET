@@ -105,6 +105,9 @@ namespace Rasa.Game
         /// <summary>The instance picker this client has open, if any (MapChannelManager.Instances).</summary>
         internal InstanceChoice PendingInstanceChoice { get; set; }
 
+        /// <summary>Said to the player once they have arrived in the world: set where a login is placed (MapChannelManager.PlaceLogin).</summary>
+        internal string ArrivalNotice { get; set; }
+
         private PlayerTransfer _pendingTransfer;
         internal PlayerTransfer PendingTransfer
         {

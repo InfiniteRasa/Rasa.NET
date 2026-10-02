@@ -889,8 +889,9 @@ namespace Rasa.Managers
 
             client.CallMethod(SysEntity.ClientTeamManagerId, new SetNumberOfTeamsPacket(2));
 
-            // Here by a way that is not the door (a login lands on the map's first copy): no
-            // team of this copy takes them, and they hear why before they try one.
+            // Here by a way that is not the door, which no player has (a login goes back into
+            // the copy left, or outside: MapChannelManager.PlaceLogin): no team of this copy
+            // takes them, and they hear why before they try one.
             if (BarredFrom(client, match.Map, out var lockout))
                 Say(client, LockoutText(lockout) + " Leave by the door and come back in to return to it.");
 
