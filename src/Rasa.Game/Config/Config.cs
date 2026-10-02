@@ -10,6 +10,6 @@
         public QueueConfig QueueConfig { get; set; }
         public GameDataConfig GameDataConfig { get; set; }
         public VoiceConfig VoiceConfig { get; set; }
-        public ItemCatalogConfig ItemCatalogConfig { get; set; } = new ItemCatalogConfig();
+        public DataApiConfig DataApiConfig { get; set; } = new DataApiConfig();
     }
 }

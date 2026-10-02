@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -148,15 +148,15 @@ namespace Rasa.Game
             if (_voiceApplied)
                 Voice.VoiceServer.Instance.Apply(Config.VoiceConfig, Config.GameConfig?.PublicAddress);
 
-            if (_itemCatalogApplied)
-                ItemCatalogHttpServer.Instance.Apply(Config.ItemCatalogConfig);
+            if (_dataApiApplied)
+                DataApiHttpServer.Instance.Apply(Config.DataApiConfig);
         }
 
         /// <summary>Set once Start has applied VoiceConfig, so reloads apply it too.</summary>
         private bool _voiceApplied;
 
-        /// <summary>Set once Start has applied ItemCatalogConfig, so reloads apply it too.</summary>
-        private bool _itemCatalogApplied;
+        /// <summary>Set once Start has applied DataApiConfig, so reloads apply it too.</summary>
+        private bool _dataApiApplied;
         #endregion
 
         public void Disconnect(Client client)
@@ -343,8 +343,8 @@ namespace Rasa.Game
             if (Config.VoiceConfig?.Enabled != true)
                 Logger.WriteLog(LogType.Initialize, "Squad voice chat is off (VoiceConfig.Enabled).");
 
-            _itemCatalogApplied = true;
-            ItemCatalogHttpServer.Instance.Apply(Config.ItemCatalogConfig);
+            _dataApiApplied = true;
+            DataApiHttpServer.Instance.Apply(Config.DataApiConfig);
         }
 
         private void RegisterStartupTimers()
@@ -643,7 +643,7 @@ namespace Rasa.Game
             ListenerSocket = null;
 
             Voice.VoiceServer.Instance.Stop();
-            ItemCatalogHttpServer.Instance.Stop();
+            DataApiHttpServer.Instance.Stop();
 
             Loop.Stop();
         }

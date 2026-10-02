@@ -1,11 +1,11 @@
 namespace Rasa.Config
 {
     /// <summary>
-    /// Read-only HTTP catalog used by external development tools to browse the
-    /// server's loaded item templates. Item grants deliberately stay on the
-    /// existing authenticated GM command path (.giveitem).
+    /// Read-only HTTP API used by external development tools to query server data.
+    /// Resource-specific mutation stays on the existing authenticated game/GM
+    /// command paths rather than being exposed through this service.
     /// </summary>
-    public class ItemCatalogConfig
+    public class DataApiConfig
     {
         public bool Enabled { get; set; } = true;
         public string BindAddress { get; set; } = "0.0.0.0";

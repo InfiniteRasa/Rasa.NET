@@ -17,14 +17,14 @@ namespace Rasa.Http
     using Structures;
 
     /// <summary>
-    /// Small read-only HTTP server for the item catalog. It intentionally does
-    /// not expose any mutation route: granting items remains the job of the
-    /// normal authenticated .giveitem GM command.
+    /// Small read-only HTTP server for development/tooling data. It intentionally
+    /// exposes no mutation routes; resource-specific changes remain on the
+    /// existing authenticated game and GM command paths.
     /// </summary>
-    public sealed class ItemCatalogHttpServer
+    public sealed class DataApiHttpServer
     {
-        private static readonly Lazy<ItemCatalogHttpServer> LazyInstance =
-            new(() => new ItemCatalogHttpServer());
+        private static readonly Lazy<DataApiHttpServer> LazyInstance =
+            new(() => new DataApiHttpServer());
 
         private static readonly JsonSerializerOptions JsonOptions = new()
         {
@@ -40,22 +40,22 @@ namespace Rasa.Http
         private int _port;
         private int _backlog;
 
-        public static ItemCatalogHttpServer Instance => LazyInstance.Value;
+        public static DataApiHttpServer Instance => LazyInstance.Value;
 
-        private ItemCatalogHttpServer()
+        private DataApiHttpServer()
         {
         }
 
-        public void Apply(ItemCatalogConfig config)
+        public void Apply(DataApiConfig config)
         {
-            config ??= new ItemCatalogConfig();
+            config ??= new DataApiConfig();
 
             lock (_lock)
             {
                 if (!config.Enabled)
                 {
                     StopLocked();
-                    Logger.WriteLog(LogType.Initialize, "Item catalog HTTP API is disabled (ItemCatalogConfig.Enabled)." );
+                    Logger.WriteLog(LogType.Initialize, "Data API is disabled (DataApiConfig.Enabled)." );
                     return;
                 }
 
@@ -68,7 +68,7 @@ namespace Rasa.Http
                 if (port <= 0 || port > 65535)
                 {
                     StopLocked();
-                    Logger.WriteLog(LogType.Error, $"Invalid ItemCatalogConfig.Port: {port}. Item catalog HTTP API is off.");
+                    Logger.WriteLog(LogType.Error, $"Invalid DataApiConfig.Port: {port}. Data API is off.");
                     return;
                 }
 
@@ -82,7 +82,7 @@ namespace Rasa.Http
 
                 if (!TryResolveBindAddress(bindAddress, out var address))
                 {
-                    Logger.WriteLog(LogType.Error, $"Invalid ItemCatalogConfig.BindAddress: {bindAddress}. Item catalog HTTP API is off.");
+                    Logger.WriteLog(LogType.Error, $"Invalid DataApiConfig.BindAddress: {bindAddress}. Data API is off.");
                     return;
                 }
 
@@ -97,12 +97,12 @@ namespace Rasa.Http
                     _acceptTask = Task.Run(() => AcceptLoop(_listener, _cancellation.Token));
 
                     Logger.WriteLog(LogType.Network,
-                        $"*** Item catalog HTTP API listening on {bindAddress}:{port} (read-only)");
+                        $"*** Data API listening on {bindAddress}:{port} (read-only)");
                 }
                 catch (Exception e)
                 {
                     StopLocked();
-                    Logger.WriteLog(LogType.Error, $"Unable to start item catalog HTTP API on {bindAddress}:{port}: {e}");
+                    Logger.WriteLog(LogType.Error, $"Unable to start Data API on {bindAddress}:{port}: {e}");
                 }
             }
         }
@@ -169,7 +169,7 @@ namespace Rasa.Http
                 catch (SocketException)
                 {
                     if (!cancellation.IsCancellationRequested)
-                        Logger.WriteLog(LogType.Error, "Item catalog HTTP accept failed.");
+                        Logger.WriteLog(LogType.Error, "Data API accept failed.");
                 }
                 catch (ObjectDisposedException)
                 {
@@ -178,7 +178,7 @@ namespace Rasa.Http
                 catch (Exception e)
                 {
                     if (!cancellation.IsCancellationRequested)
-                        Logger.WriteLog(LogType.Error, $"Item catalog HTTP accept failed: {e}");
+                        Logger.WriteLog(LogType.Error, $"Data API accept failed: {e}");
                 }
             }
         }
@@ -227,7 +227,7 @@ namespace Rasa.Http
                 }
                 catch (Exception e)
                 {
-                    Logger.WriteLog(LogType.Error, $"Item catalog HTTP request failed: {e}");
+                    Logger.WriteLog(LogType.Error, $"Data API request failed: {e}");
                 }
             }
         }
