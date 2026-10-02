@@ -12,6 +12,22 @@ namespace Rasa.Structures
         public uint InstanceId { get; set; } = 1;
         public bool IsPrivateInstance { get; set; }
         public uint OwnerCharacterId { get; set; }
+
+        /// <summary>
+        /// A further copy of a map that anyone may enter (MapChannelManager.Instances): opened
+        /// when the copies before it are full, and nobody's. Unlike a private instance it is a
+        /// public place in every way but one: it is not the map's own channel.
+        /// </summary>
+        public bool IsSharedInstance { get; set; }
+
+        /// <summary>Whether this is a copy of a map - somebody's, or shared - rather than the map's own channel.</summary>
+        public bool IsCopy => IsPrivateInstance || IsSharedInstance;
+
+        /// <summary>When a shared copy was last seen with nobody in it or on the way (Environment.TickCount64 as the manager reads it); 0 while it has somebody.</summary>
+        public long EmptySince { get; set; }
+
+        /// <summary>The players sent to this channel whose clients have not arrived yet: they count towards how full it is.</summary>
+        internal HashSet<Client> Arriving { get; } = new HashSet<Client>();
         // timers
         //public int TimerClientEffectUpdate { get; set; }
         //public int TimerMissileUpdate { get; set; }

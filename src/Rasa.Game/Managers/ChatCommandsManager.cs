@@ -191,6 +191,7 @@ namespace Rasa.Managers
             RegisterCommand(".linkhere", GmLevel.GameMaster, LinkHereCommand, "destMapId", "destX", "destY", "destZ", "radius", "kind");
             RegisterCommand(".kraftwerks", GmLevel.GameMaster, KraftwerksCommand, "stationIdOrHere", "action", "value");
             RegisterCommand(".cp", GmLevel.GameMaster, ControlPointCommand, "id", "action");
+            RegisterCommand(".instance", GmLevel.GameMaster, InstanceCommand, "action", "number");
             RegisterCommand(".region", GmLevel.GameMaster, RegionCommand, "modeOrId", "regionOrAction", "arg1", "arg2", "comment");
             RegisterCommand(".emitter", GmLevel.GameMaster, EmitterCommand, "emitterId", "action", "value");
             RegisterCommand(".notify", GmLevel.GameMaster, NotifyCommand, "action", "arg1", "arg2", "extra");
@@ -2906,6 +2907,114 @@ namespace Rasa.Managers
         /// The control points (ControlPoints): those of this map, who holds each and how its
         /// garrison stands; a point given to a side, gone to, or stood where the game master is.
         /// </summary>
+        /// <summary>
+        /// .instance: the shared copies of the map the game master stands on (MapChannelManager's
+        /// instances) - listing them, opening and closing one, going to one, and showing the
+        /// client's instance picker, which otherwise takes a full copy to see.
+        /// </summary>
+        private void InstanceCommand(string[] parts)
+        {
+            const string usage = "usage: .instance | .instance open | .instance pick | .instance go <number> | .instance close <number>";
+            var client = _client;
+            var player = client.Player;
+            var maps = MapChannelManager.Instance;
+            var mapContextId = player.MapContextId;
+            var copies = maps.CopiesOf(mapContextId);
+            var policy = maps.SharedPolicyOf(mapContextId);
+
+            void Say(string text) => CommunicatorManager.Instance.SystemMessage(client, text);
+
+            if (parts.Length == 1)
+            {
+                Say(policy == null
+                    ? $"Map {mapContextId} runs in one copy (no MapInstances entry with MaxCopies above 1)."
+                    : $"Map {mapContextId}: {copies.Count} of {policy.MaxCopies} copies, {policy.Capacity} players each, closed after {policy.IdleCloseSeconds} s empty.");
+
+                for (var i = 0; i < copies.Count; i++)
+                {
+                    var copy = copies[i];
+                    var population = maps.PopulationOf(copy);
+                    var status = policy == null ? string.Empty : $", {MapChannelManager.StatusOf(population, policy.Capacity)}";
+                    var here = ReferenceEquals(copy, player.MapChannel) ? " (you are here)" : string.Empty;
+
+                    Say($"#{i + 1} instance {copy.InstanceId}: {population} player(s){status}{here}");
+                }
+
+                if (player.MapChannel != null && !copies.Contains(player.MapChannel))
+                    Say($"You are in instance {player.MapChannel.InstanceId}, which is a private one.");
+
+                return;
+            }
+
+            switch (parts[1])
+            {
+                case "open" when parts.Length == 2:
+                {
+                    if (policy == null)
+                    {
+                        Say($"Map {mapContextId} runs in one copy: give it a MapInstances entry in appsettings.json first.");
+                        return;
+                    }
+
+                    var opened = maps.OpenSharedCopy(mapContextId);
+
+                    Say(opened == null
+                        ? $"Map {mapContextId} already has its {policy.MaxCopies} copies."
+                        : $"Opened #{maps.CopiesOf(mapContextId).IndexOf(opened) + 1}, instance {opened.InstanceId}. It closes after {policy.IdleCloseSeconds} s empty.");
+                    return;
+                }
+
+                case "pick" when parts.Length == 2:
+                {
+                    if (policy == null || copies.Count < 2)
+                    {
+                        Say("The picker is shown for a map with more than one copy: .instance open first.");
+                        return;
+                    }
+
+                    if (!maps.EnterMap(client, mapContextId, player.Position, (float)player.Rotation))
+                        Say("The picker could not be shown.");
+
+                    return;
+                }
+
+                case "go" when parts.Length == 3:
+                case "close" when parts.Length == 3:
+                {
+                    if (!int.TryParse(parts[2], out var number) || number < 1 || number > copies.Count)
+                    {
+                        Say($"There is no copy #{parts[2]} of map {mapContextId}: .instance lists them.");
+                        return;
+                    }
+
+                    var copy = copies[number - 1];
+
+                    if (parts[1] == "go")
+                    {
+                        if (ReferenceEquals(copy, player.MapChannel))
+                            Say("You are in that copy.");
+                        else if (!maps.Send(client, copy, player.Position, (float)player.Rotation))
+                            Say("You could not be moved there.");
+
+                        return;
+                    }
+
+                    if (!copy.IsSharedInstance)
+                        Say("#1 is the map's own channel and is never closed.");
+                    else if (!maps.CloseSharedCopy(copy))
+                        Say($"#{number} has {maps.PopulationOf(copy)} player(s) in it or on the way: it is closed empty.");
+                    else
+                        Say($"Closed #{number}, instance {copy.InstanceId}.");
+
+                    return;
+                }
+
+                default:
+                    Say(usage);
+                    return;
+            }
+        }
+
         private void ControlPointCommand(string[] parts)
         {
             const string usage = "usage: .cp | .cp all | .cp <id> afs | bane | goto | here";
@@ -2973,7 +3082,7 @@ namespace Rasa.Managers
                     return;
 
                 case "here":
-                    if (target.MapContextId != player.MapContextId || player.MapChannel == null || player.MapChannel.IsPrivateInstance)
+                    if (target.MapContextId != player.MapContextId || player.MapChannel == null || player.MapChannel.IsCopy)
                     {
                         CommunicatorManager.Instance.SystemMessage(client, $"Control point #{id} {target.Name} is on map {target.MapContextId}; stand where it should be, on that map's own channel.");
                         return;

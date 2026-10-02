@@ -381,6 +381,18 @@ namespace Rasa.Managers
         /// </summary>
         private static void MoveTo(Client traveller, Client destination)
         {
+            // Into the shared copy of the map they are standing in, if it is one: the map's own
+            // channel is somewhere else.
+            if (destination.Player.MapChannel?.IsSharedInstance == true)
+            {
+                MapChannelManager.Instance.Send(
+                    traveller,
+                    destination.Player.MapChannel,
+                    destination.Player.Position,
+                    destination.Movement.ViewDirection.X);
+                return;
+            }
+
             MapChannelManager.Instance.ChangeMap(
                 traveller,
                 destination.Player.MapContextId,

@@ -17,7 +17,7 @@ namespace Rasa.Managers
     using Structures.World;
     using Timer;
 
-    public class MapChannelManager
+    public partial class MapChannelManager
     {
         private static MapChannelManager _instance;
         private static readonly object InstanceLock = new object();
@@ -250,6 +250,7 @@ namespace Rasa.Managers
             Timer.Add("Regenerate", 1000, true, null);
             Timer.Add("AutoSave", AutoSave.PassIntervalMs, true, null);
             Timer.Add("MuteExpiry", 1000, true, null);
+            Timer.Add("SharedInstances", 1000, true, null);
         }
 
         private readonly Dictionary<string, long> _workerFaultQuietUntil = new();
@@ -302,6 +303,10 @@ namespace Rasa.Managers
 
             // Squad wargame challenges that lapsed and squad wargames whose time is up.
             Guard("SquadWargames.Worker", null, () => SquadWargames.Instance.Worker());
+
+            // Shared copies of a map that have stood empty long enough are closed.
+            if (Timer.IsTriggered("SharedInstances"))
+                Guard("MapChannelManager.SharedInstanceWorker", null, SharedInstanceWorker);
 
             // Server-wide lists, ticked once. These used to run inside the per-map loop below,
             // guarded by that map having players, so with N populated maps every auto-fire

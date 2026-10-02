@@ -699,6 +699,18 @@
             ManifestationManager.Instance.SaveUserOptions(Client, packet);
         }
 
+        [PacketHandler(GameOpcode.SelectInstance)]
+        private void SelectInstance(SelectInstancePacket packet)
+        {
+            MapChannelManager.Instance.SelectInstance(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.SelectInstanceCancel)]
+        private void SelectInstanceCancel(SelectInstanceCancelPacket packet)
+        {
+            MapChannelManager.Instance.SelectInstanceCancel(Client);
+        }
+
         [PacketHandler(GameOpcode.SelectWaypoint)]
         private void SelectWaypoint(SelectWaypointPacket packet)
         {

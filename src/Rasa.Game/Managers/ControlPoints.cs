@@ -61,7 +61,7 @@ namespace Rasa.Managers
     ///    when the server starts.
     ///
     /// Control points are the open world's alone: they stand on a map's own channel, and a
-    /// private copy of the map has the objects out of service.
+    /// copy of the map - private or shared - has the objects out of service.
     /// </summary>
     public class ControlPoints
     {
@@ -279,7 +279,7 @@ namespace Rasa.Managers
         /// </summary>
         public void Place(MapChannel mapChannel)
         {
-            if (mapChannel?.MapInfo == null || mapChannel.IsPrivateInstance)
+            if (mapChannel?.MapInfo == null || mapChannel.IsCopy)
                 return;
 
             foreach (var point in _points.Values.Where(p => p.MapContextId == mapChannel.MapInfo.MapContextId))
@@ -373,7 +373,7 @@ namespace Rasa.Managers
         /// </summary>
         public void Worker(MapChannel mapChannel)
         {
-            if (mapChannel?.MapInfo == null || mapChannel.IsPrivateInstance || _points.Count == 0)
+            if (mapChannel?.MapInfo == null || mapChannel.IsCopy || _points.Count == 0)
                 return;
 
             foreach (var point in _points.Values.Where(p => p.MapContextId == mapChannel.MapInfo.MapContextId).ToList())

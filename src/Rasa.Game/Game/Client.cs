@@ -102,6 +102,9 @@ namespace Rasa.Game
 
         private readonly object _clientLock = new();
         internal object SyncRoot => _clientLock;
+        /// <summary>The instance picker this client has open, if any (MapChannelManager.Instances).</summary>
+        internal InstanceChoice PendingInstanceChoice { get; set; }
+
         private PlayerTransfer _pendingTransfer;
         internal PlayerTransfer PendingTransfer
         {

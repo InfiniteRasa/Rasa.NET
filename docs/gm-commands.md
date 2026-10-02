@@ -99,6 +99,11 @@ These also happen automatically, without a command:
 | `/gotomob <name>` | GameMaster | Puts you 2 m from the nearest creature of that name on this map. An exact name match wins over partial ones. |
 | `.link <id> goto` / `.link <id> gotoarrival` | GameMaster | Goes to a map link's trigger point or its arrival point. |
 | `.emitter <id> goto` | GameMaster | Goes to an FX emitter. |
+| `.instance` | GameMaster | Lists the shared copies of the map you are on (`MapInstances` in `appsettings.json`): each one's number, instance id, players and population word. |
+| `.instance open` | GameMaster | Opens another copy of this map, up to its `MaxCopies`. It closes by itself after `IdleCloseSeconds` empty. |
+| `.instance go <number>` | GameMaster | Moves you to that copy, at the point you are standing on. Ignores the copy's capacity. |
+| `.instance pick` | GameMaster | Shows the client's instance picker for this map, as a door does once the map has more than one copy. |
+| `.instance close <number>` | GameMaster | Closes an empty copy. `#1`, the map's own channel, is never closed. |
 
 A map's start groups are generated in this order:
 

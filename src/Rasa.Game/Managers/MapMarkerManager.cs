@@ -110,8 +110,8 @@ namespace Rasa.Managers
                         state[marker.MarkerEntityId] = value;
                 }
 
-            // The control points are the open world's: a private copy of the map has none to hold.
-            if (!client.Player.MapChannel.IsPrivateInstance)
+            // The control points are the open world's: a copy of the map has none to hold.
+            if (!client.Player.MapChannel.IsCopy)
                 foreach (var point in ControlPoints.Instance.OnMap(mapContextId))
                     if (point.MarkerEntityId != 0)
                         state[point.MarkerEntityId] = MapMarkerState.ControlPoint(point.HeldByAfs);

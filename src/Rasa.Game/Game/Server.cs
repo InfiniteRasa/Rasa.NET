@@ -145,6 +145,9 @@ namespace Rasa.Game
 
             AutoSave.IntervalMinutes = Config.GameConfig?.AutoSaveMinutes ?? AutoSave.DefaultMinutes;
 
+            // The maps that run in several shared copies. A copy already open stays as it is.
+            MapInstancePolicies.Apply(Config.MapInstances);
+
             // A message changed by editing the file goes to everyone in the world, from the loop;
             // the first load is before anyone is here.
             if (MessageOfTheDay.Apply(Config.MessageOfTheDay) && _motdApplied)

@@ -89,6 +89,62 @@ namespace Rasa.Managers
                 return _instancesByKey.Values.ToArray();
         }
 
+        /// <summary>
+        /// A shared copy of a map: nobody's, found by its instance id like a private one, and
+        /// ticked and cleaned up with them. The ids come from the same counter, so a map's
+        /// private and shared copies never share one.
+        /// </summary>
+        internal MapChannel CreateShared(MapChannel template, System.Action<MapChannel> initialize = null)
+        {
+            if (template == null)
+                return null;
+
+            lock (_syncRoot)
+            {
+                var instanceId = _nextInstanceId++;
+                var map = new MapChannel
+                {
+                    MapInfo = template.MapInfo,
+                    InstanceId = instanceId,
+                    PlayerLimit = template.PlayerLimit,
+                    ClientList = new List<Game.Client>(),
+                    NavMesh = template.NavMesh,
+                    Cover = template.Cover,
+                    SafetyFloorY = template.SafetyFloorY,
+                    TopWalkableY = template.TopWalkableY,
+                    IsSharedInstance = true
+                };
+                initialize?.Invoke(map);
+
+                _instancesByKey.Add(new PrivateMapInstanceKey(template.MapInfo.MapContextId, instanceId), map);
+                return map;
+            }
+        }
+
+        /// <summary>The shared copies of a map, oldest first.</summary>
+        internal IReadOnlyList<MapChannel> SharedOf(uint mapContextId)
+        {
+            lock (_syncRoot)
+                return _instancesByKey.Values
+                    .Where(map => map.IsSharedInstance && map.MapInfo.MapContextId == mapContextId)
+                    .OrderBy(map => map.InstanceId)
+                    .ToArray();
+        }
+
+        /// <summary>Takes a shared copy off the list. False when it is not one, or not on it.</summary>
+        internal bool ReleaseShared(MapChannel map)
+        {
+            if (map == null || !map.IsSharedInstance)
+                return false;
+
+            lock (_syncRoot)
+            {
+                var key = new PrivateMapInstanceKey(map.MapInfo.MapContextId, map.InstanceId);
+
+                return _instancesByKey.TryGetValue(key, out var listed) && ReferenceEquals(listed, map) && _instancesByKey.Remove(key);
+            }
+        }
+
         internal IReadOnlyList<MapChannel> ReleaseOwned(uint ownerCharacterId)
         {
             lock (_syncRoot)

@@ -219,7 +219,9 @@ namespace Rasa.Managers
 
             Logger.WriteLog(LogType.Debug, $"{client.Player.FamilyName} took map link {link.Id} ({link.Comment}): {link.MapContextId} -> {link.DestMapContextId}");
 
-            if (!MapChannelManager.Instance.ChangeMap(client, link.DestMapContextId, link.DestPosition, link.DestRotation))
+            // A map that runs in several copies is entered by its copy with room, or by the
+            // instance picker once there is more than one (MapChannelManager.EnterMap).
+            if (!MapChannelManager.Instance.EnterMap(client, link.DestMapContextId, link.DestPosition, link.DestRotation))
                 Logger.WriteLog(LogType.Error, $"map_link {link.Id} ({link.Comment}) could not move {client.Player.FamilyName} to map {link.DestMapContextId}");
         }
 
