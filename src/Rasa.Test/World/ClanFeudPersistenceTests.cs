@@ -188,6 +188,54 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
+        public void AClanThatDisbandsLosesItsFeudsWhateverTheScore()
+        {
+            using var world = new WorldTestContext();
+            var clans = new Clans(world);
+            var feuds = Restart(clans, tick: 1000);
+            var redBlue = feuds.Start(clans.All[RedId], clans.All[BlueId], 0, 41, 42);
+            var greenRed = feuds.Start(clans.All[GreenId], clans.All[RedId]);
+            var blueGreen = feuds.Start(clans.All[BlueId], clans.All[GreenId]);
+
+            // Red is ahead of Blue, and someone left Red with a wager.
+            Assert.IsTrue(feuds.Kill(clans.Leader(RedId), clans.Member(BlueId)));
+            feuds.MemberRemoved(900, RedId);
+
+            var forfeits = new List<(uint Loser, uint Winner, uint Character, uint[] Departed)>();
+            feuds.Forfeit = (loser, winner, character, loserName, winnerName, departed) => forfeits.Add((loser, winner, character, departed.ToArray()));
+
+            foreach (var id in new[] { RedId, BlueId, GreenId })
+            {
+                Drain(clans.Leader(id));
+                Drain(clans.Member(id));
+            }
+
+            feuds.ClanDisbanded(RedId);
+
+            // Both of Red's feuds are lost, oldest first, to the clan on the other side of each.
+            Assert.AreEqual(2, forfeits.Count);
+            Assert.AreEqual((RedId, BlueId, 42u), (forfeits[0].Loser, forfeits[0].Winner, forfeits[0].Character));
+            Assert.AreEqual((RedId, GreenId, 0u), (forfeits[1].Loser, forfeits[1].Winner, forfeits[1].Character));
+            CollectionAssert.AreEqual(new uint[] { 900 }, forfeits[0].Departed, "who left Red is forfeit with it");
+            Assert.IsTrue(redBlue.Id < greenRed.Id);
+
+            // The feud Red had no part in carries on; the others and their stakes are gone.
+            Assert.AreEqual(blueGreen.Id, feuds.Feuds.Single().Id);
+            Assert.AreEqual(blueGreen.Id, Rows().Feuds.Single().Id);
+            Assert.AreEqual(0, Stakes().Count);
+            Assert.IsFalse(feuds.AreFeuding(RedId, BlueId));
+
+            Assert.IsTrue(Drain(clans.Member(RedId)).OfType<DisplayWargameMessagePacket>().Any(p => p.Message == PlayerMessage.PmWargameFeudYourClanLost));
+            Assert.IsTrue(Drain(clans.Leader(BlueId)).OfType<DisplayWargameMessagePacket>().Any(p => p.Message == PlayerMessage.PmWargameFeudYourClanWon));
+            Assert.IsTrue(Drain(clans.Leader(GreenId)).OfType<DisplayWargameMessagePacket>().Any(p => p.Message == PlayerMessage.PmWargameFeudYourClanWon));
+
+            // A clan in no feud disbands with nothing to lose.
+            feuds.End(feuds.Feuds.Single(), ClanFeuds.Outcome.Cancelled);
+            feuds.ClanDisbanded(BlueId);
+            Assert.AreEqual(2, forfeits.Count);
+        }
+
+        [TestMethod]
         public void TheChallengedLeaderIsRemindedOnceAndCanStillAnswer()
         {
             using var world = new WorldTestContext();

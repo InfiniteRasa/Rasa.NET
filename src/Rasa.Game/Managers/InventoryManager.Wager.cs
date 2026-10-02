@@ -47,8 +47,10 @@ namespace Rasa.Managers
     ///    unlocked slot. With the lockbox full it goes to the inbox of the character who made the
     ///    challenge, if their clan won, or of the one who accepted it - or of the winning clan's
     ///    highest-ranking member when that character is not in the clan any more or the feud was
-    ///    not started by a challenge. With no room there either the item stays where it is. A tie,
-    ///    a cancelled feud and a disbanded clan forfeit nothing (<see cref="ForfeitWagers"/>);
+    ///    not started by a challenge. With no room there either the item stays where it is. A tie
+    ///    and a cancelled feud forfeit nothing (<see cref="ForfeitWagers"/>);
+    ///  - a clan that disbands while at feud has lost its feuds (ClanFeuds.ClanDisbanded): its
+    ///    members' wagered items go to the clan of the oldest of them;
     ///  - leaving the clan, or being kicked from it, while it is at feud saves nothing: whoever has
     ///    an item wagered as they go stays at stake in the clan's feuds (ClanFeuds.MemberRemoved),
     ///    and what is in their slot when a feud ends in the clan's defeat is forfeit with the rest.

@@ -727,8 +727,12 @@ namespace Rasa.Managers
         }
 
         /// <summary>
-        /// A clan is disbanding (before its members are cleared): its feuds are cancelled and its
-        /// challenges dropped. A challenge it had made is taken back from the other leader.
+        /// A clan is disbanding (before its members are cleared): its challenges are dropped - one
+        /// it had made is taken back from the other leader - and each of its feuds is lost to the
+        /// other clan, whatever the score. Disbanding is no way out of a feud: a cancelled feud
+        /// forfeits nothing, so a clan about to lose kept everything it had wagered by disbanding
+        /// first. The feuds end oldest first, and what the members have wagered goes with the
+        /// first: the winner of the oldest feud takes it, and the later ones find nothing left.
         /// </summary>
         public void ClanDisbanded(uint clanId)
         {
@@ -754,7 +758,7 @@ namespace Rasa.Managers
             }
 
             foreach (var feud in FeudsOf(clanId))
-                End(feud, Outcome.Cancelled);
+                End(feud, Outcome.Won, feud.OtherThan(clanId));
         }
 
         #endregion

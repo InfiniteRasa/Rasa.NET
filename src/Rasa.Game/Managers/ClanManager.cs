@@ -931,7 +931,8 @@ namespace Rasa.Managers
                 return;
             }
 
-            // Its feuds are cancelled and its challenges dropped while the members are still in it.
+            // Its feuds are lost and its challenges dropped while the members are still in it: what
+            // they have wagered is forfeit to the clan it was fighting (ClanFeuds.ClanDisbanded).
             ClanFeuds.Instance.ClanDisbanded(clan.Id);
 
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();

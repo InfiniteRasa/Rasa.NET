@@ -19,6 +19,7 @@ namespace Rasa.Test.World
     using Rasa.Packets.Inventory.Client;
     using Rasa.Packets.Inventory.Server;
     using Rasa.Packets.MapChannel.Server;
+    using Rasa.Packets.Wargame.Server;
     using Rasa.Structures;
     using Rasa.Structures.Char;
     using Rasa.Test.Missions;
@@ -583,34 +584,9 @@ namespace Rasa.Test.World
             Assert.IsFalse(inventory.HoldsWager(5));
             Assert.IsFalse(inventory.HoldsWager(0));
 
-            var clanInstance = typeof(ClanManager).GetField("_instance", BindingFlags.Static | BindingFlags.NonPublic);
-            var previousClans = clanInstance.GetValue(null);
-            var feuds = ClanFeuds.Instance;
-            var forfeit = feuds.Forfeit;
-            var holds = feuds.HoldsWager;
-            ClanFeuds.Feud feud = null;
-
-            try
+            WithLiveClans(context, inventory, new[] { losers, winners }, (clans, feuds) =>
             {
-                var clans = (ClanManager)typeof(ClanManager).GetConstructor(BindingFlags.Instance | BindingFlags.NonPublic, null,
-                    new[] { typeof(Rasa.Repositories.UnitOfWork.IGameUnitOfWorkFactory) }, null).Invoke(new object[] { context });
-
-                using (var unit = context.CreateChar())
-                    foreach (var clan in new[] { losers, winners })
-                    {
-                        var entry = clan;
-                        var members = unit.ClanMembers.GetAllClanMembersByClanId(clan.Id);
-
-                        clans.Clans[clan.Id] = new Lazy<ClanEntry>(() => entry);
-                        clans.ClanMembers[clan.Id] = new Lazy<List<ClanMemberEntry>>(() => members);
-                    }
-
-                clanInstance.SetValue(null, clans);
-                feuds.Forfeit = (loser, victor, character, loserName, winnerName, departed) =>
-                    inventory.ForfeitWagers(loser, victor, character, loserName, winnerName, departed);
-                feuds.HoldsWager = inventory.HoldsWager;
-
-                feud = feuds.Start(losers, winners, 0, 5, 2);
+                var feud = feuds.Start(losers, winners, 0, 5, 2);
                 Assert.IsNotNull(feud);
                 context.Drain();
 
@@ -630,7 +606,6 @@ namespace Rasa.Test.World
 
                 MissionTestContext.Drain(winner);
                 feuds.End(feud, ClanFeuds.Outcome.Won, winners.Id);
-                feud = null;
 
                 using (var unit = context.CreateChar())
                     CollectionAssert.AreEquivalent(new[] { walked.Id, kicked }, unit.ClanInventories.GetItems(winners.Id).Select(row => row.ItemId).ToArray());
@@ -642,16 +617,63 @@ namespace Rasa.Test.World
                 Assert.AreEqual(walked.EntityId, lost.OfType<RemoveWagerItemPacket>().Single().EntityId);
                 Assert.IsTrue(lost.OfType<SystemMessagePacket>().Any(p => p.TextMessage.Contains("which you left")));
                 Assert.AreEqual(2, MissionTestContext.Drain(winner).OfType<InventoryAddItemPacket>().Count(p => p.Type == InventoryType.ClanInventory));
-            }
-            finally
-            {
-                if (feud != null)
-                    feuds.End(feud, ClanFeuds.Outcome.Cancelled);
+            });
+        }
 
-                feuds.Forfeit = forfeit;
-                feuds.HoldsWager = holds;
-                clanInstance.SetValue(null, previousClans);
-            }
+        [TestMethod]
+        public void ADisbandedClanForfeitsItsWagersToTheClanItWasFighting()
+        {
+            using var context = Context(out var leader, out var inventory);
+            var winner = context.CreateAdditionalClient(2);
+            context.SeedCharacter(3, 0, 3);
+
+            var losers = Clan(context, "Losers", (1, ClanRank.Leader), (3, ClanRank.Member));
+            var winners = Clan(context, "Winners", (2, ClanRank.Leader));
+
+            Join(leader, losers);
+            Join(winner, winners);
+
+            var held = Gear(context, leader, 9001, 0);
+            inventory.WagerItem(leader, new WagerItemPacket { Slot = 0 });
+            inventory.SetWagerLocked(leader, true);
+            var away = WageredOffline(context, 3, 3, 9002);
+
+            WithLiveClans(context, inventory, new[] { losers, winners }, (clans, feuds) =>
+            {
+                var feud = feuds.Start(losers, winners, 0, 1, 2);
+                Assert.IsNotNull(feud);
+
+                // Ahead on kills: disbanding loses the feud all the same.
+                feud.ChallengerKills = 3;
+                context.Drain();
+                MissionTestContext.Drain(winner);
+
+                clans.DisbandClan(leader, new DisbandClanPacket { ClanId = losers.Id });
+
+                Assert.IsFalse(feuds.Feuds.Any(f => f.Id == feud.Id));
+                Assert.AreEqual(0u, leader.Player.ClanId);
+
+                using (var unit = context.CreateChar())
+                {
+                    Assert.IsNull(unit.Clans.GetClanById(losers.Id), "the clan is gone");
+                    Assert.AreEqual(0, unit.ClanMembers.GetAllClanMembersByClanId(losers.Id).Count);
+                    CollectionAssert.AreEquivalent(new[] { held.Id, away }, unit.ClanInventories.GetItems(winners.Id).Select(row => row.ItemId).ToArray());
+                    Assert.IsNull(unit.CharacterInventories.FindByItemId(held.Id));
+                    Assert.IsNull(unit.CharacterInventories.FindByItemId(away));
+                }
+
+                Assert.AreEqual(0UL, leader.Player.Inventory.WagerItem);
+                Assert.IsFalse(leader.Player.WagerLocked);
+
+                var lost = context.Drain();
+                Assert.AreEqual(held.EntityId, lost.OfType<RemoveWagerItemPacket>().Single().EntityId);
+                Assert.IsTrue(lost.OfType<SystemMessagePacket>().Any(p => p.TextMessage.Contains("forfeit")));
+                Assert.IsTrue(lost.OfType<DisplayWargameMessagePacket>().Any(p => p.Message == PlayerMessage.PmWargameFeudYourClanLost));
+
+                var won = MissionTestContext.Drain(winner).ToList();
+                Assert.AreEqual(2, won.OfType<InventoryAddItemPacket>().Count(p => p.Type == InventoryType.ClanInventory));
+                Assert.IsTrue(won.OfType<DisplayWargameMessagePacket>().Any(p => p.Message == PlayerMessage.PmWargameFeudYourClanWon));
+            });
         }
 
         [TestMethod]
@@ -720,6 +742,56 @@ namespace Rasa.Test.World
         #endregion
 
         #region Fixture
+
+        /// <summary>
+        /// The live server's clan manager and feuds over the fixture's database, for the length of
+        /// <paramref name="body"/>: the clans cached as the server holds them, and the feuds'
+        /// forfeits and wager checks going to <paramref name="inventory"/>. Feuds still running
+        /// when the body is done are cancelled.
+        /// </summary>
+        private static void WithLiveClans(MissionTestContext context, InventoryManager inventory, ClanEntry[] entries, Action<ClanManager, ClanFeuds> body)
+        {
+            var clanInstance = typeof(ClanManager).GetField("_instance", BindingFlags.Static | BindingFlags.NonPublic);
+            var previousClans = clanInstance.GetValue(null);
+            var feuds = ClanFeuds.Instance;
+            var forfeit = feuds.Forfeit;
+            var holds = feuds.HoldsWager;
+            var before = feuds.Feuds.Select(f => f.Id).ToHashSet();
+
+            try
+            {
+                var clans = (ClanManager)typeof(ClanManager).GetConstructor(BindingFlags.Instance | BindingFlags.NonPublic, null,
+                    new[] { typeof(Rasa.Repositories.UnitOfWork.IGameUnitOfWorkFactory) }, null).Invoke(new object[] { context });
+
+                using (var unit = context.CreateChar())
+                    foreach (var clan in entries)
+                    {
+                        var entry = clan;
+                        var members = unit.ClanMembers.GetAllClanMembersByClanId(clan.Id);
+
+                        clans.Clans[clan.Id] = new Lazy<ClanEntry>(() => entry);
+                        clans.ClanMembers[clan.Id] = new Lazy<List<ClanMemberEntry>>(() => members);
+                    }
+
+                clanInstance.SetValue(null, clans);
+                feuds.Forfeit = (loser, victor, character, loserName, winnerName, departed) =>
+                    inventory.ForfeitWagers(loser, victor, character, loserName, winnerName, departed);
+                feuds.HoldsWager = inventory.HoldsWager;
+
+                body(clans, feuds);
+            }
+            finally
+            {
+                feuds.Forfeit = null;
+
+                foreach (var feud in feuds.Feuds.Where(f => !before.Contains(f.Id)))
+                    feuds.End(feud, ClanFeuds.Outcome.Cancelled);
+
+                feuds.Forfeit = forfeit;
+                feuds.HoldsWager = holds;
+                clanInstance.SetValue(null, previousClans);
+            }
+        }
 
         private MissionTestContext Context(out Client client, out InventoryManager inventory)
         {
