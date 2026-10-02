@@ -72,8 +72,10 @@ namespace Rasa.Managers
     ///  - Standing in the way back out of a base for <see cref="LeaveDwellMs"/> leaves the team
     ///    and returns the player to the staging area. Leaving a running match any way at all -
     ///    that, another map, a logout, a lost connection - is desertion: the other team cannot
-    ///    be joined until a match on the first has been played to its end. Remembered until the
-    ///    server restarts.
+    ///    be joined until a match on the first has been played to its end, and for
+    ///    <see cref="BattlegroundConfig.LeaverLockoutMinutes"/> every other copy of the map is
+    ///    closed to them: the door leads them back to the copy they left or nowhere, and no team
+    ///    of another copy takes them. Both are remembered until the server restarts.
     ///  - A match with a team that has nobody left is the other team's. When the clock runs out
     ///    with the points and the kills level, nobody wins.
     ///  - Prestige: a kill generates what a clan feud's does and steals nothing
@@ -252,7 +254,21 @@ namespace Rasa.Managers
             public int Kills(uint team) => Scores.Values.Where(s => s.Team == team).Sum(s => s.Kills);
         }
 
+        /// <summary>
+        /// A player who left a match that was being played: the copy of the map they left, and
+        /// until when every other copy of it is closed to them.
+        /// </summary>
+        public sealed class Lockout
+        {
+            public uint MapContextId { get; set; }
+            public uint InstanceId { get; set; }
+            public long Until { get; set; }
+        }
+
         private readonly Dictionary<MapChannel, Match> _matches = new Dictionary<MapChannel, Match>();
+
+        /// <summary>Who is kept to the copy they left, by character id.</summary>
+        private readonly Dictionary<uint, Lockout> _lockouts = new Dictionary<uint, Lockout>();
 
         /// <summary>Who left a team in the middle of a match, by character id, and which.</summary>
         private readonly Dictionary<uint, uint> _deserters = new Dictionary<uint, uint>();
@@ -337,6 +353,81 @@ namespace Rasa.Managers
         /// <summary>The team a character deserted and has yet to finish a match on; 0 for none.</summary>
         public uint DesertedTeamOf(uint characterId) => _deserters.TryGetValue(characterId, out var team) ? team : 0;
 
+        /// <summary>The lockout a character is under, if it has not run out; null for none.</summary>
+        public Lockout LockoutOf(uint characterId)
+        {
+            if (!_lockouts.TryGetValue(characterId, out var lockout))
+                return null;
+
+            if (Now() < lockout.Until)
+                return lockout;
+
+            _lockouts.Remove(characterId);
+
+            return null;
+        }
+
+        /// <summary>
+        /// The lockout that keeps a player to one copy of a map: they left a match there that
+        /// was being played, and its time has not run out. Null for a player with none, for
+        /// another map's, and for a game master.
+        /// </summary>
+        public Lockout LockoutFor(Client client, uint mapContextId)
+        {
+            var player = client?.Player;
+
+            if (player == null || _lockouts.Count == 0)
+                return null;
+
+            var lockout = LockoutOf(player.Id);
+
+            return lockout != null && lockout.MapContextId == mapContextId && !IsExempt(client) ? lockout : null;
+        }
+
+        /// <summary>Whether a channel is closed to a player by their lockout: a copy of the map other than the one they left.</summary>
+        public bool BarredFrom(Client client, MapChannel map, out Lockout lockout)
+        {
+            lockout = map?.MapInfo == null ? null : LockoutFor(client, map.MapInfo.MapContextId);
+
+            return lockout != null && lockout.InstanceId != map.InstanceId;
+        }
+
+        /// <summary>The time left of a lockout in words, by the minute begun: "12 more minutes".</summary>
+        public string TimeLeftOf(Lockout lockout)
+        {
+            var minutes = Math.Max(1, (lockout.Until - Now() + 59999) / 60000);
+
+            return $"{minutes} more minute{(minutes == 1 ? "" : "s")}";
+        }
+
+        /// <summary>What a player kept out of a copy by a lockout is told.</summary>
+        public string LockoutText(Lockout lockout)
+        {
+            return $"You left a match in progress: for {TimeLeftOf(lockout)} you can only play in the instance you left.";
+        }
+
+        /// <summary>
+        /// Keeps a character to one copy of a map for <see cref="BattlegroundConfig.LeaverLockoutMinutes"/>
+        /// from now, in place of any lockout they had; nothing when that is no time at all.
+        /// </summary>
+        internal void Lock(uint characterId, uint mapContextId, uint instanceId)
+        {
+            var minutes = Config.LeaverLockoutMinutes;
+
+            if (characterId == 0 || minutes <= 0)
+                return;
+
+            _lockouts[characterId] = new Lockout { MapContextId = mapContextId, InstanceId = instanceId, Until = Now() + minutes * 60000L };
+        }
+
+        /// <summary>Forgets a character's desertion and lockout: a game master's. False if they had neither.</summary>
+        public bool Forgive(uint characterId)
+        {
+            var deserted = _deserters.Remove(characterId);
+
+            return _lockouts.Remove(characterId) || deserted;
+        }
+
         /// <summary>The point a control point object is, on whichever channel it stands; null if it is none of a match's.</summary>
         public Point PointOf(DynamicObject obj)
         {
@@ -365,6 +456,7 @@ namespace Rasa.Managers
         {
             _matches.Clear();
             _deserters.Clear();
+            _lockouts.Clear();
         }
 
         #endregion
@@ -603,8 +695,9 @@ namespace Rasa.Managers
 
         /// <summary>
         /// Puts a player on a team of the match of the channel they are on, and in its base.
-        /// Refused, with the client's own words, to a deserter of the other team and when the
-        /// team has too many more players than the other; <paramref name="force"/> is a game
+        /// Refused, with the client's own words, to a deserter of the other team, to a player
+        /// who left a match on another copy of the map within their lockout, and when the team
+        /// has too many more players than the other; <paramref name="force"/> is a game
         /// master's, and refuses nothing. Returns whether they are on the team.
         /// </summary>
         public bool Join(Client client, uint team, bool force)
@@ -628,6 +721,15 @@ namespace Rasa.Managers
 
             if (!force)
             {
+                // They left a match that is, or was, being played on another copy of the map.
+                if (BarredFrom(client, match.Map, out var lockout))
+                {
+                    CommunicatorManager.Instance.DisplaySystemMessage(client,
+                        team == Red ? PlayerMessage.EdmundrangeCanNotJoinRedTeamBigtext : PlayerMessage.EdmundrangeCanNotJoinBlueTeamBigtext);
+                    Say(client, LockoutText(lockout));
+                    return false;
+                }
+
                 if (_deserters.TryGetValue(player.Id, out var deserted) && deserted != team)
                 {
                     CommunicatorManager.Instance.DisplaySystemMessage(client,
@@ -701,6 +803,7 @@ namespace Rasa.Managers
 
             if (deserting && player != null)
             {
+                Lock(player.Id, match.Map.MapInfo.MapContextId, match.Map.InstanceId);
                 _deserters[player.Id] = member.Team;
                 Logger.WriteLog(LogType.Debug, $"Battleground {match.Map.MapInfo.MapContextId}/{match.Map.InstanceId}: {player.FamilyName} deserted {TeamName(member.Team)}.");
             }
@@ -785,6 +888,11 @@ namespace Rasa.Managers
                 return;
 
             client.CallMethod(SysEntity.ClientTeamManagerId, new SetNumberOfTeamsPacket(2));
+
+            // Here by a way that is not the door (a login lands on the map's first copy): no
+            // team of this copy takes them, and they hear why before they try one.
+            if (BarredFrom(client, match.Map, out var lockout))
+                Say(client, LockoutText(lockout) + " Leave by the door and come back in to return to it.");
 
             if (match.Phase == Phase.Running)
             {

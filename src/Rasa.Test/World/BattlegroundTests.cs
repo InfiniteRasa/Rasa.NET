@@ -249,6 +249,205 @@ namespace Rasa.Test.World
 
         #endregion
 
+        #region The leaver's lockout
+
+        [TestMethod]
+        public void LeavingAMatchThatIsBeingPlayedKeepsThePlayerToItsInstance()
+        {
+            using var f = new Fixture();
+            var red = f.Join(Battlegrounds.Red);
+            var blue = f.Join(Battlegrounds.Blue);
+            var stays = f.Join(Battlegrounds.Red);
+            var copy = new MapChannel { MapInfo = f.World.Map.MapInfo, InstanceId = 5, ClientList = new List<Client>(), IsSharedInstance = true };
+
+            f.Begin();
+            Assert.IsNull(f.Grounds.LockoutOf(red.Player.Id));
+
+            f.Grounds.PlayerLeft(red);
+
+            var lockout = f.Grounds.LockoutOf(red.Player.Id);
+            Assert.AreEqual(MapId, lockout.MapContextId);
+            Assert.AreEqual(f.World.Map.InstanceId, lockout.InstanceId);
+            Assert.AreEqual(f.Now + 15 * 60000L, lockout.Until);
+
+            Assert.AreSame(lockout, f.Grounds.LockoutFor(red, MapId));
+            Assert.IsNull(f.Grounds.LockoutFor(red, 999), "another map is none of its business");
+            Assert.IsNull(f.Grounds.LockoutFor(blue, MapId));
+
+            Assert.IsFalse(f.Grounds.BarredFrom(red, f.World.Map, out _), "the one they left");
+            Assert.IsTrue(f.Grounds.BarredFrom(red, copy, out var barring), "any other");
+            Assert.AreSame(lockout, barring);
+            Assert.IsFalse(f.Grounds.BarredFrom(blue, copy, out _));
+            Assert.IsFalse(f.Grounds.BarredFrom(red, null, out _));
+
+            // Back in the one they left: their team takes them as before.
+            Drain(red);
+            red.Player.Position = Staging;
+            f.Grounds.TakeLink(red, f.RedDoor);
+            Assert.AreEqual(Battlegrounds.Red, f.Grounds.TeamOf(red.Player));
+            Assert.IsFalse(Packets(red).OfType<SystemMessagePacket>().Any(m => m.TextMessage.Contains("instance you left")));
+
+            // Seen through to its end, the desertion is forgiven. The fifteen minutes are not.
+            f.Grounds.End(f.Match, Battlegrounds.Blue);
+            Assert.AreEqual(0u, f.Grounds.DesertedTeamOf(red.Player.Id));
+            Assert.IsTrue(f.Grounds.BarredFrom(red, copy, out _));
+
+            f.Now += 15 * 60000L - 1;
+            Assert.IsTrue(f.Grounds.BarredFrom(red, copy, out _));
+
+            f.Now += 1;
+            Assert.IsFalse(f.Grounds.BarredFrom(red, copy, out _));
+            Assert.IsNull(f.Grounds.LockoutOf(red.Player.Id));
+            Assert.IsNotNull(stays);
+        }
+
+        [TestMethod]
+        public void EveryWayOutOfARunningMatchLocksAndNoneBeforeItBegins()
+        {
+            using var f = new Fixture();
+            var early = f.Join(Battlegrounds.Red);
+            var walker = f.Join(Battlegrounds.Red);
+            var dropped = f.Join(Battlegrounds.Red);
+            var red = f.Join(Battlegrounds.Red);
+            var blue = f.Join(Battlegrounds.Blue);
+
+            // The staging area and the preparation: nothing is being played.
+            f.Tick(1000);
+            Assert.AreEqual(Battlegrounds.Phase.Preparing, f.Match.Phase);
+            f.Grounds.PlayerLeft(early);
+            Assert.IsNull(f.Grounds.LockoutOf(early.Player.Id));
+
+            f.Begin();
+
+            // Under the sign in the base, for its five seconds.
+            walker.Player.Position = f.RedExit.Position;
+            Assert.IsTrue(f.Grounds.TakeLink(walker, f.RedExit));
+            f.Tick(Battlegrounds.LeaveDwellMs);
+            Assert.AreEqual(0u, f.Grounds.TeamOf(walker.Player));
+            Assert.AreEqual(f.World.Map.InstanceId, f.Grounds.LockoutOf(walker.Player.Id).InstanceId);
+
+            // A connection that is gone.
+            dropped.State = ClientState.Disconnected;
+            f.Tick(1000);
+            Assert.IsNotNull(f.Grounds.LockoutOf(dropped.Player.Id));
+
+            // A game master taking somebody off a team is nobody's desertion.
+            Assert.IsTrue(f.Grounds.LeaveTeam(red));
+            Assert.IsNull(f.Grounds.LockoutOf(red.Player.Id));
+            Assert.IsNull(f.Grounds.LockoutOf(blue.Player.Id));
+        }
+
+        [TestMethod]
+        public void NoTeamOfAnotherInstanceTakesALockedOutPlayer()
+        {
+            using var f = new Fixture();
+            var player = f.Player();
+            var blue = f.Join(Battlegrounds.Blue);
+
+            // They left a match on another copy of the map; this is not it.
+            f.Grounds.Lock(player.Player.Id, MapId, f.World.Map.InstanceId + 5);
+
+            // Arriving here some way that is not the door, they hear of it.
+            f.Grounds.PlayerEntered(player);
+            var told = Packets(player).OfType<SystemMessagePacket>().Single().TextMessage;
+            StringAssert.Contains(told, "for 15 more minutes you can only play in the instance you left");
+            StringAssert.Contains(told, "Leave by the door");
+
+            f.Grounds.TakeLink(player, f.RedDoor);
+
+            Assert.AreEqual(0u, f.Grounds.TeamOf(player.Player));
+            Assert.AreEqual(0, f.Teleports.Count(t => t.Client == player));
+
+            var packets = Packets(player);
+            Assert.AreEqual(PlayerMessage.EdmundrangeCanNotJoinRedTeamBigtext, packets.OfType<DisplaySystemMessagePacket>().Single().MsgId);
+            StringAssert.Contains(packets.OfType<SystemMessagePacket>().Single().TextMessage, "15 more minutes");
+
+            // By the minute begun.
+            f.Now += 14 * 60000L + 1000;
+            f.Grounds.TakeLink(player, f.RedDoor);
+            StringAssert.Contains(Packets(player).OfType<SystemMessagePacket>().Single().TextMessage, "for 1 more minute you");
+            Assert.AreEqual(0u, f.Grounds.TeamOf(player.Player));
+
+            // And when it has run out, as anybody.
+            f.Now += 59000;
+            f.Grounds.PlayerEntered(player);
+            Assert.IsFalse(Packets(player).OfType<SystemMessagePacket>().Any());
+
+            f.Grounds.TakeLink(player, f.RedDoor);
+            Assert.AreEqual(Battlegrounds.Red, f.Grounds.TeamOf(player.Player));
+            Assert.IsNotNull(blue);
+        }
+
+        [TestMethod]
+        public void TheLockoutIsNotForAGameMasterNorForACommand()
+        {
+            using var f = new Fixture();
+            var master = f.Player();
+            var moved = f.Player();
+            var other = f.World.Map.InstanceId + 5;
+            var copy = new MapChannel { MapInfo = f.World.Map.MapInfo, InstanceId = 9, ClientList = new List<Client>(), IsSharedInstance = true };
+
+            f.Grounds.Lock(master.Player.Id, MapId, other);
+            f.Grounds.Lock(moved.Player.Id, MapId, other);
+            f.Exempt.Add(master);
+
+            Assert.IsNull(f.Grounds.LockoutFor(master, MapId));
+            Assert.IsFalse(f.Grounds.BarredFrom(master, copy, out _));
+            Assert.IsNotNull(f.Grounds.LockoutOf(master.Player.Id), "it is kept, and counts once they are no game master");
+
+            f.Grounds.TakeLink(master, f.RedDoor);
+            Assert.AreEqual(Battlegrounds.Red, f.Grounds.TeamOf(master.Player));
+
+            // .bg team, which refuses nothing.
+            Assert.IsTrue(f.Grounds.BarredFrom(moved, f.World.Map, out _));
+            Assert.IsTrue(f.Grounds.Join(moved, Battlegrounds.Blue, force: true));
+        }
+
+        [TestMethod]
+        public void ALaterDesertionReplacesTheLockoutAndForgivingClearsIt()
+        {
+            using var f = new Fixture();
+            var red = f.Join(Battlegrounds.Red);
+            var blue = f.Join(Battlegrounds.Blue);
+
+            f.Grounds.Lock(red.Player.Id, MapId, f.World.Map.InstanceId + 5);
+            f.Begin();
+            f.Now += 10 * 60000L;
+            f.Grounds.PlayerLeft(red);
+
+            var lockout = f.Grounds.LockoutOf(red.Player.Id);
+            Assert.AreEqual(f.World.Map.InstanceId, lockout.InstanceId, "the one left last");
+            Assert.AreEqual(f.Now + 15 * 60000L, lockout.Until, "and its time from then");
+
+            Assert.IsTrue(f.Grounds.Forgive(red.Player.Id));
+            Assert.IsNull(f.Grounds.LockoutOf(red.Player.Id));
+            Assert.AreEqual(0u, f.Grounds.DesertedTeamOf(red.Player.Id));
+            Assert.IsFalse(f.Grounds.Forgive(red.Player.Id), "nothing left to forgive");
+
+            f.Grounds.Lock(blue.Player.Id, MapId, 5);
+            f.Grounds.Reset();
+            Assert.IsNull(f.Grounds.LockoutOf(blue.Player.Id));
+        }
+
+        [TestMethod]
+        public void ALockoutOfNoMinutesIsNoLockout()
+        {
+            using var f = new Fixture();
+            var red = f.Join(Battlegrounds.Red);
+            var blue = f.Join(Battlegrounds.Blue);
+
+            f.Grounds.Config.LeaverLockoutMinutes = 0;
+            f.Begin();
+            f.Grounds.PlayerLeft(red);
+
+            Assert.IsNull(f.Grounds.LockoutOf(red.Player.Id));
+            Assert.AreEqual(Battlegrounds.Red, f.Grounds.DesertedTeamOf(red.Player.Id), "a deserter all the same");
+            Assert.AreEqual(15, new BattlegroundConfig().LeaverLockoutMinutes);
+            Assert.IsNotNull(blue);
+        }
+
+        #endregion
+
         #region The match
 
         [TestMethod]
@@ -1079,6 +1278,65 @@ namespace Rasa.Test.World
             master.Player.MapChannel = new MapChannel { MapInfo = new MapInfo(999, "elsewhere", 1, 0), ClientList = new List<Client>() };
             master.Player.MapContextId = 999;
             StringAssert.Contains(Say(".bg").Single(), "no battleground");
+        }
+
+        [TestMethod]
+        public void TheBattlegroundCommandShowsAndForgivesALockout()
+        {
+            using var f = new Fixture();
+            var master = f.Player();
+            var leaver = f.Player();
+
+            typeof(Client).GetProperty(nameof(Client.AccountEntry)).SetValue(master, new GameAccountEntry { Level = (byte)GmLevel.Admin });
+            f.Exempt.Add(master);
+            leaver.Player.FamilyName = "Leaver";
+
+            var commands = new ChatCommandsManager(null);
+            commands.RegisterChatCommands();
+
+            List<string> Say(string command)
+            {
+                Drain(master);
+                commands.ProcessCommand(master, command);
+                return Packets(master).OfType<SystemMessagePacket>().Select(message => message.TextMessage).ToList();
+            }
+
+            Assert.AreEqual(6, Say(".bg").Count, "nothing of a lockout while there is none");
+
+            f.Grounds.Lock(master.Player.Id, MapId, 5);
+            f.Grounds.Lock(leaver.Player.Id, MapId, 5);
+
+            var line = Say(".bg").Last();
+            StringAssert.Contains(line, "instance 5 of map " + MapId);
+            StringAssert.Contains(line, "15 more minutes");
+            StringAssert.Contains(line, "game master is not held to it");
+
+            StringAssert.Contains(Say(".bg forgive").Single(), "Fixture's desertion is forgotten");
+            Assert.IsNull(f.Grounds.LockoutOf(master.Player.Id));
+            StringAssert.Contains(Say(".bg forgive").Single(), "Fixture has deserted nothing");
+
+            StringAssert.Contains(Say(".bg forgive leaver").Single(), "leaver is not in the world");
+            Assert.IsNotNull(f.Grounds.LockoutOf(leaver.Player.Id));
+
+            lock (Server.Clients)
+                Server.Clients.Add(leaver);
+
+            try
+            {
+                // From anywhere, of anybody in the world, by their name in any case.
+                master.Player.MapChannel = new MapChannel { MapInfo = new MapInfo(999, "elsewhere", 1, 0), ClientList = new List<Client>() };
+                master.Player.MapContextId = 999;
+
+                StringAssert.Contains(Say(".bg forgive leaver").Single(), "Leaver's desertion is forgotten");
+                Assert.IsNull(f.Grounds.LockoutOf(leaver.Player.Id));
+            }
+            finally
+            {
+                lock (Server.Clients)
+                    Server.Clients.Remove(leaver);
+            }
+
+            StringAssert.Contains(Say(".bg forgive a b").Single(), "no battleground");
         }
 
         [TestMethod]

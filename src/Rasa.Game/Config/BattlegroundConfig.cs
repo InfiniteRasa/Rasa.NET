@@ -31,6 +31,12 @@ namespace Rasa.Config
         /// <summary>How far from a team's hospital its base reaches, in metres: the other team is kept out of it.</summary>
         public int BaseRadius { get; set; } = 45;
 
+        /// <summary>
+        /// How long a player who leaves a match that is being played is kept out of every other
+        /// copy of the map, in minutes: the copy they left stays open to them. 0 for no such time.
+        /// </summary>
+        public int LeaverLockoutMinutes { get; set; } = 15;
+
         /// <summary>Prestige for capturing a control point.</summary>
         public int CapturePrestige { get; set; } = 50;
 

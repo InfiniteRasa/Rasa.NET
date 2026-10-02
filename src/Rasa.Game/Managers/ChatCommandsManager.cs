@@ -3023,7 +3023,7 @@ namespace Rasa.Managers
         /// </summary>
         private void BattlegroundCommand(string[] parts)
         {
-            const string usage = "usage: .bg | .bg start | .bg end [red|blue|none] | .bg team red|blue|none | .bg capture <point> red|blue|none";
+            const string usage = "usage: .bg | .bg start | .bg end [red|blue|none] | .bg team red|blue|none | .bg capture <point> red|blue|none | .bg forgive [name]";
             var client = _client;
             var player = client.Player;
             var grounds = Battlegrounds.Instance;
@@ -3038,6 +3038,36 @@ namespace Rasa.Managers
                 "none" => 0u,
                 _ => null
             };
+
+            // Wherever the game master stands: a desertion and its lockout forgotten, their own or
+            // a player's in the world.
+            if (parts.Length >= 2 && parts[1] == "forgive" && parts.Length <= 3)
+            {
+                var whose = player;
+
+                if (parts.Length == 3)
+                {
+                    lock (Server.Clients)
+                        whose = Server.Clients.Find(c => c?.Player != null && c.State == ClientState.Ingame
+                                                         && string.Equals(c.Player.FamilyName, parts[2], StringComparison.OrdinalIgnoreCase))?.Player;
+
+                    if (whose == null)
+                    {
+                        Say($"{parts[2]} is not in the world.");
+                        return;
+                    }
+                }
+
+                if (!grounds.Forgive(whose.Id))
+                {
+                    Say($"{whose.FamilyName} has deserted nothing.");
+                    return;
+                }
+
+                Say($"{whose.FamilyName}'s desertion is forgotten: every team and every instance is open to them.");
+                Logger.WriteLog(LogType.Command, $"{player.FamilyName} forgave {whose.FamilyName}'s battleground desertion.");
+                return;
+            }
 
             if (match == null)
             {
@@ -3072,6 +3102,12 @@ namespace Rasa.Managers
 
                 if (deserted != 0)
                     Say($"You are a deserter of {Battlegrounds.TeamName(deserted)}.");
+
+                var lockout = grounds.LockoutOf(player.Id);
+
+                if (lockout != null)
+                    Say($"You left a match in progress on instance {lockout.InstanceId} of map {lockout.MapContextId}: every other is shut to you for {grounds.TimeLeftOf(lockout)}"
+                        + (grounds.IsExempt(client) ? " (a game master is not held to it)." : "."));
 
                 return;
             }

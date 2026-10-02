@@ -394,6 +394,167 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
+        public void APlayerWhoLeftAMatchIsLedBackToTheCopyTheyLeftWithNoPicker()
+        {
+            using var world = new WorldTestContext();
+            var fixture = new Fixture(world, new MapInstanceConfig { Capacity = 2, MaxCopies = 3 });
+            using var grounds = new Grounds(fixture);
+            var leaver = fixture.Player();
+            var other = fixture.Player();
+
+            var second = fixture.Maps.OpenSharedCopy(Range);
+            fixture.Fill(fixture.Own, 1);
+            grounds.Of.Lock(leaver.Player.Id, Range, second.InstanceId);
+
+            Assert.IsTrue(fixture.Maps.EnterMap(leaver, Range, Arrival, 1.5f));
+
+            Assert.AreSame(second, leaver.PendingTransfer.DestinationMap, "not the fuller one, which anybody else is offered first");
+            Assert.AreEqual(Arrival, leaver.PendingTransfer.DestinationPosition);
+            Assert.IsNull(leaver.PendingInstanceChoice);
+            Assert.AreEqual(0, Packets(leaver).Count(packet => packet is ChooseInstanceListPacket || packet is SystemMessagePacket));
+
+            // Anybody else is asked.
+            Assert.IsTrue(fixture.Maps.EnterMap(other, Range, Arrival, 0));
+            Assert.IsNull(other.PendingTransfer);
+            Assert.AreEqual(1, Sent<ChooseInstanceListPacket>(other).Count);
+
+            // The map's own channel is a copy like any other.
+            var first = fixture.Player();
+            grounds.Of.Lock(first.Player.Id, Range, fixture.Own.InstanceId);
+            Assert.IsTrue(fixture.Maps.EnterMap(first, Range, Arrival, 0));
+            Assert.AreSame(fixture.Own, first.PendingTransfer.DestinationMap);
+        }
+
+        [TestMethod]
+        public void TheDoorLeadsALockedOutPlayerNowhereWhenTheCopyTheyLeftIsFullOrClosed()
+        {
+            using var world = new WorldTestContext();
+            var fixture = new Fixture(world, new MapInstanceConfig { Capacity = 2, MaxCopies = 3 });
+            using var grounds = new Grounds(fixture);
+            var leaver = fixture.Player();
+
+            var second = fixture.Maps.OpenSharedCopy(Range);
+            grounds.Of.Lock(leaver.Player.Id, Range, second.InstanceId);
+            fixture.Fill(second, 2);
+
+            Assert.IsTrue(fixture.Maps.EnterMap(leaver, Range, Arrival, 0), "told so: nothing went wrong");
+            Assert.IsNull(leaver.PendingTransfer, "the map's own channel has room, and is not theirs");
+            Assert.IsNull(leaver.PendingInstanceChoice);
+
+            var packets = Packets(leaver);
+            Assert.IsFalse(packets.OfType<ChooseInstanceListPacket>().Any());
+            Assert.AreEqual("You left a match in progress and that instance is full: no other is open to you for 15 more minutes.",
+                packets.OfType<SystemMessagePacket>().Single().TextMessage);
+
+            // Every copy full: no copy is opened for somebody who could not go into it.
+            fixture.Fill(fixture.Own, 2);
+            Assert.IsTrue(fixture.Maps.EnterMap(leaver, Range, Arrival, 0));
+            Assert.AreEqual(2, fixture.Maps.CopiesOf(Range).Count);
+            WorldTestContext.Drain(leaver);
+
+            // Closed since: nowhere is theirs.
+            grounds.Of.Lock(leaver.Player.Id, Range, 4040);
+            fixture.Now += 5 * 60000L;
+
+            Assert.IsTrue(fixture.Maps.EnterMap(leaver, Range, Arrival, 0));
+            Assert.IsNull(leaver.PendingTransfer);
+            Assert.AreEqual("You left a match in progress and that instance has closed: no other is open to you for 10 more minutes.",
+                Sent<SystemMessagePacket>(leaver).Single().TextMessage);
+
+            // Their time up, the door is anybody's door again.
+            fixture.Now += 10 * 60000L;
+
+            Assert.IsTrue(fixture.Maps.EnterMap(leaver, Range, Arrival, 0));
+            Assert.AreEqual(3, fixture.Maps.CopiesOf(Range).Count, "a copy opened for them");
+            Assert.AreEqual(1, Sent<ChooseInstanceListPacket>(leaver).Count);
+        }
+
+        [TestMethod]
+        public void ALockoutOfAnotherMapOrOfAGameMasterDoesNotChangeTheDoor()
+        {
+            using var world = new WorldTestContext();
+            var fixture = new Fixture(world, new MapInstanceConfig { Capacity = 2, MaxCopies = 3 });
+            using var grounds = new Grounds(fixture);
+            var elsewhere = fixture.Player();
+            var master = fixture.Player();
+
+            var second = fixture.Maps.OpenSharedCopy(Range);
+            grounds.Of.Lock(elsewhere.Player.Id, 999, second.InstanceId);
+            grounds.Of.Lock(master.Player.Id, Range, second.InstanceId);
+            grounds.Of.IsExempt = client => client == master;
+
+            Assert.IsTrue(fixture.Maps.EnterMap(elsewhere, Range, Arrival, 0));
+            Assert.AreEqual(1, Sent<ChooseInstanceListPacket>(elsewhere).Count);
+
+            Assert.IsTrue(fixture.Maps.EnterMap(master, Range, Arrival, 0));
+            Assert.AreEqual(1, Sent<ChooseInstanceListPacket>(master).Count);
+
+            fixture.Maps.SelectInstance(master, new SelectInstancePacket { InstanceId = fixture.Own.InstanceId });
+            Assert.AreSame(fixture.Own, master.PendingTransfer.DestinationMap);
+        }
+
+        [TestMethod]
+        public void ThePickerRefusesALockedOutPlayerACopyTheyDidNotLeave()
+        {
+            using var world = new WorldTestContext();
+            var fixture = new Fixture(world, new MapInstanceConfig { Capacity = 2, MaxCopies = 3 });
+            using var grounds = new Grounds(fixture);
+            var client = fixture.Player();
+
+            var second = fixture.Maps.OpenSharedCopy(Range);
+            Assert.IsTrue(fixture.Maps.EnterMap(client, Range, Arrival, 0));
+            WorldTestContext.Drain(client);
+
+            // The picker was open on their screen before the lockout was theirs.
+            grounds.Of.Lock(client.Player.Id, Range, second.InstanceId);
+            fixture.Maps.SelectInstance(client, new SelectInstancePacket { InstanceId = fixture.Own.InstanceId });
+
+            Assert.IsNull(client.PendingTransfer);
+            Assert.IsNull(client.PendingInstanceChoice, "spent");
+            Assert.AreEqual("You left a match in progress: for 15 more minutes you can only play in the instance you left.",
+                Sent<SystemMessagePacket>(client).Single().TextMessage);
+
+            Assert.IsTrue(fixture.Maps.EnterMap(client, Range, Arrival, 0));
+            Assert.AreSame(second, client.PendingTransfer.DestinationMap);
+        }
+
+        [TestMethod]
+        public void ASummonDoesNotBringALockedOutPlayerIntoAnotherCopy()
+        {
+            using var world = new WorldTestContext();
+            var fixture = new Fixture(world, new MapInstanceConfig { Capacity = 2, MaxCopies = 3 });
+            using var grounds = new Grounds(fixture);
+            var second = fixture.Maps.OpenSharedCopy(Range);
+            var third = fixture.Maps.OpenSharedCopy(Range);
+            var summoner = fixture.Fill(second, 1).Single();
+            var traveller = fixture.Player();
+
+            var instance = typeof(MapChannelManager).GetField("_instance", BindingFlags.Static | BindingFlags.NonPublic);
+            var previous = instance.GetValue(null);
+            var move = typeof(SummonManager).GetMethod("MoveTo", BindingFlags.Static | BindingFlags.NonPublic);
+            instance.SetValue(null, fixture.Maps);
+
+            try
+            {
+                grounds.Of.Lock(traveller.Player.Id, Range, third.InstanceId);
+                move.Invoke(null, new object[] { traveller, summoner });
+
+                Assert.IsNull(traveller.PendingTransfer);
+                StringAssert.Contains(Sent<SystemMessagePacket>(traveller).Single().TextMessage, "instance you left");
+
+                // Into the one they left, as ever.
+                grounds.Of.Lock(traveller.Player.Id, Range, second.InstanceId);
+                move.Invoke(null, new object[] { traveller, summoner });
+
+                Assert.AreSame(second, traveller.PendingTransfer.DestinationMap);
+            }
+            finally
+            {
+                instance.SetValue(null, previous);
+            }
+        }
+
+        [TestMethod]
         public void WithEveryCopyFullAndNoMoreAllowedTheDoorStaysShut()
         {
             using var world = new WorldTestContext();
@@ -778,6 +939,27 @@ namespace Rasa.Test.World
             using var reader = new PythonReader(new BinaryReader(stream));
             packet.Read(reader);
             return packet;
+        }
+
+        /// <summary>
+        /// Battlegrounds of a test's own in place of the server's, on the fixture's clock and
+        /// with nobody a game master, for the lockouts the door goes by.
+        /// </summary>
+        private sealed class Grounds : IDisposable
+        {
+            private static readonly FieldInfo InstanceField = typeof(Battlegrounds).GetField("_instance", BindingFlags.Static | BindingFlags.NonPublic);
+
+            private readonly object _previous = InstanceField.GetValue(null);
+
+            internal Battlegrounds Of { get; }
+
+            internal Grounds(Fixture fixture)
+            {
+                Of = new Battlegrounds { Now = () => fixture.Now, IsExempt = _ => false };
+                InstanceField.SetValue(null, Of);
+            }
+
+            public void Dispose() => InstanceField.SetValue(null, _previous);
         }
 
         /// <summary>

@@ -58,6 +58,9 @@ namespace Rasa.Managers
     ///    room first, and the player goes where they pick;
     ///  - a player on the way to a copy counts towards how full it is from the moment they are
     ///    sent (MapChannel.Arriving), so a crowd at the door does not overfill it;
+    ///  - a player who left a battleground's match while it was being played is led by the door
+    ///    back to the copy they left, with no picker, and into no other until their lockout has
+    ///    run out (Battlegrounds.LockoutFor);
     ///  - a copy other than the map's own closes once it has stood empty for IdleCloseSeconds;
     ///  - a summon brings a player into the copy the summoner stands in, full or not; a login
     ///    and a game master's teleport go to the map's own channel, as before.
@@ -200,6 +203,24 @@ namespace Rasa.Managers
             if (copies.Count == 0)
                 return false;
 
+            // A player who left a match that was being played goes back to the copy they left,
+            // and to no other, until their time is up (Battlegrounds).
+            var lockout = Battlegrounds.Instance.LockoutFor(client, mapContextId);
+
+            if (lockout != null)
+            {
+                var left = copies.FirstOrDefault(copy => copy.InstanceId == lockout.InstanceId);
+
+                client.PendingInstanceChoice = null;
+
+                if (left != null && !IsFull(left, policy))
+                    return Send(client, left, position, rotation);
+
+                CommunicatorManager.Instance.SystemMessage(client,
+                    $"You left a match in progress and that instance {(left == null ? "has closed" : "is full")}: no other is open to you for {Battlegrounds.Instance.TimeLeftOf(lockout)}.");
+                return true;
+            }
+
             if (copies.All(copy => IsFull(copy, policy)))
             {
                 var opened = OpenSharedCopy(mapContextId);
@@ -288,6 +309,12 @@ namespace Rasa.Managers
             if (ReferenceEquals(map, client.Player.MapChannel))
             {
                 CommunicatorManager.Instance.SystemMessage(client, "You are in that instance.");
+                return;
+            }
+
+            if (map != null && Battlegrounds.Instance.BarredFrom(client, map, out var lockout))
+            {
+                CommunicatorManager.Instance.SystemMessage(client, Battlegrounds.Instance.LockoutText(lockout));
                 return;
             }
 
