@@ -220,6 +220,7 @@ namespace Rasa.Managers
             // for the next creature.
             CreatureHabits.Forget(creature);
             CreatureBuffs.Forget(creature);
+            AlternateMesh.Forget(creature);
 
             // Unregister once, whoever was or was not watching.
             EntityManager.Instance.ReleaseEntity(creature.EntityId, EntityType.Creature);

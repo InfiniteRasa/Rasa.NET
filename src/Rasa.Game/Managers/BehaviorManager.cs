@@ -333,11 +333,17 @@ namespace Rasa.Managers
 
             if (creature.Attributes[Attributes.Health].Current <= 0)
             {
+                // A walker that has fallen becomes its wreck (AlternateMesh).
+                AlternateMesh.DeadTick(mapChannel, creature, Environment.TickCount64);
+
                 // A corpse with loot still on it, or with someone's window open on it, stays
                 // longer than one that has been cleared: twenty seconds from the kill is about
                 // one more fight, and bodies were going before anyone could loot them. The clock
                 // runs under the map's loot lock (LootDispenserManager.AdvanceCorpseLifetime).
-                if (LootDispenserManager.Instance.AdvanceCorpseLifetime(mapChannel, creature, delta))
+                // A turret's wreck stays on its mount whatever the clock says, until its pool
+                // puts it back in service (AlternateMesh.KeepsWreck).
+                if (LootDispenserManager.Instance.AdvanceCorpseLifetime(mapChannel, creature, delta)
+                    && !AlternateMesh.KeepsWreck(creature))
                     needDeletion = true;
 
                 return; // creature dead

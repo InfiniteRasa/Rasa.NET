@@ -205,6 +205,10 @@ namespace Rasa.Managers
             if (creature.SpawnPool?.FollowOwnerCharacterId > 0)
                 PublishEscortStatus(mapChannel, creature, false);
 
+            // A turret blows up into its wreck; a Predator or Ravager is its wreck once it has
+            // fallen (AlternateMesh).
+            AlternateMesh.OnDeath(mapChannel, creature);
+
             // A debuff does not outlive what it was on: a Ruin still ticking on a corpse would
             // try to damage it every second until it expired.
             GameEffectManager.Instance.ClearEffects(mapChannel, creature);
@@ -590,6 +594,10 @@ namespace Rasa.Managers
             // What is on it - a DoT, a mark, a minion's or a risen corpse's effect, a turret's
             // look - went out before this client was here.
             GameEffectManager.ShowEffectsTo(client, creature);
+
+            // A turret or vehicle with a wreck: the effect that swaps its model, as the wreck
+            // already when that is what it is now.
+            AlternateMesh.ShowTo(client, creature);
         }
 
         internal Creature CreateScenarioCreature(

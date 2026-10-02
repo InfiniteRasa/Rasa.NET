@@ -536,6 +536,9 @@ namespace Rasa.Managers
                 SpawnPoolManager.Instance.DecreaseDeadCreatureCount(creature.SpawnPool);
             }
 
+            // A wreck is its own model again first: Revived shows its weapon on it.
+            AlternateMesh.OnRevive(mapChannel, creature);
+
             CellManager.Instance.CellCallMethod(mapChannel, creature, new RevivedPacket(source?.EntityId ?? creature.EntityId));
             CellManager.Instance.CellCallMethod(mapChannel, creature, new UpdateHealthPacket(health, creature.EntityId));
 

@@ -38,6 +38,12 @@ namespace Rasa.Structures
         public int AliveCreatures { get; set; } // number of spawned creatures that are alive
         public int DeadCreatures { get; set; }  // number of spawned creatures that are dead (either killed or spawned dead)
         internal List<Creature> QueuedCreatureList { get; set; }
+
+        /// <summary>
+        /// Its emplacements that are wrecks on their mounts (AlternateMesh): dead, kept in the
+        /// world, and put back in service when the respawn comes round in place of new ones.
+        /// </summary>
+        internal List<Creature> Wrecks { get; } = new List<Creature>();
         public string ScenarioKey { get; set; }
         public string SceneRunId { get; set; }
         public string SceneActorRole { get; set; }

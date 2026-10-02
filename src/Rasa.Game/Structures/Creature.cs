@@ -158,6 +158,18 @@ namespace Rasa.Structures
         /// </summary>
         public bool CritKilled { get; set; }
 
+        /// <summary>
+        /// Its ALTERNATE_MESH effect's id on the map (AlternateMesh): taken the first time a
+        /// client is told of it, 0 until then and for a creature with no wreck.
+        /// </summary>
+        public int AlternateMeshEffectId { get; set; }
+
+        /// <summary>Whether it is its wreck now: destroyed, and not put back since.</summary>
+        public bool AlternateMeshSwapped { get; set; }
+
+        /// <summary>Environment.TickCount64 at which a fallen walker becomes its wreck; 0 when none is waiting.</summary>
+        public long AlternateMeshSwapAt { get; set; }
+
         public Creature(CreatureEntry data)
         {
             DbId = data.Id;

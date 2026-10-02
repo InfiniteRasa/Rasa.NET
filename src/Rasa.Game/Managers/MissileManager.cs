@@ -1181,6 +1181,9 @@ namespace Rasa.Managers
                 // packet is the same shape. It fell through to the default here, which did the
                 // right thing but logged every swing as an unsupported action.
                 case ActionId.WeaponMelee:
+                // A Bane Mortar's shell (411): weapons.groundtarget is a RocketLauncherAttack, a
+                // BaseWeaponAttack with the same recovery.
+                case ActionId.WeaponGroundtarget:
                     CellManager.Instance.CellCallMethod(mapChannel, missile.Source, CreatureAttacks.RecoveryFor(missile));
                     break;
 

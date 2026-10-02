@@ -234,6 +234,11 @@ namespace Rasa.Managers
                 if (spawnPool.UpdateTimer < spawnPool.RespawnTime)
                     continue; // spawnpool is still on cooldown
 
+                // A turret's wreck is still on its mount: it is put back in service where it
+                // stands rather than a second one set down in the wreckage (AlternateMesh).
+                if (AlternateMesh.ReviveWrecks(mapChannel, spawnPool))
+                    continue;
+
                 // create list of creatures to spawn
                 var creatureList = CreateListOfCreatures(spawnPool);
 
