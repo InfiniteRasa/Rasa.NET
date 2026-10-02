@@ -190,6 +190,7 @@ namespace Rasa.Managers
             RegisterCommand(".minion", GmLevel.GameMaster, MinionCommand, "creatureDbIdOrAction");
             RegisterCommand(".linkhere", GmLevel.GameMaster, LinkHereCommand, "destMapId", "destX", "destY", "destZ", "radius", "kind");
             RegisterCommand(".kraftwerks", GmLevel.GameMaster, KraftwerksCommand, "stationIdOrHere", "action", "value");
+            RegisterCommand(".cp", GmLevel.GameMaster, ControlPointCommand, "id", "action");
             RegisterCommand(".region", GmLevel.GameMaster, RegionCommand, "modeOrId", "regionOrAction", "arg1", "arg2", "comment");
             RegisterCommand(".emitter", GmLevel.GameMaster, EmitterCommand, "emitterId", "action", "value");
             RegisterCommand(".notify", GmLevel.GameMaster, NotifyCommand, "action", "arg1", "arg2", "extra");
@@ -2901,6 +2902,94 @@ namespace Rasa.Managers
         /// The stations were seeded from the client's map markers, which have no facing; this is
         /// how they get one.
         /// </summary>
+        /// <summary>
+        /// The control points (ControlPoints): those of this map, who holds each and how its
+        /// garrison stands; a point given to a side, gone to, or stood where the game master is.
+        /// </summary>
+        private void ControlPointCommand(string[] parts)
+        {
+            const string usage = "usage: .cp | .cp all | .cp <id> afs | bane | goto | here";
+            var client = _client;
+            var player = client.Player;
+            var points = ControlPoints.Instance;
+
+            if (parts.Length == 1 || parts.Length == 2 && parts[1] == "all")
+            {
+                var all = parts.Length == 2;
+                var list = (all ? points.Points : points.OnMap(player.MapContextId))
+                    .OrderBy(p => p.MapContextId).ThenBy(p => p.Id).ToList();
+
+                if (list.Count == 0)
+                {
+                    CommunicatorManager.Instance.SystemMessage(client, all ? "There are no control points." : $"No control points on map {player.MapContextId}.");
+                    return;
+                }
+
+                CommunicatorManager.Instance.SystemMessage(client, all
+                    ? $"{list.Count} control point(s), {list.Count(p => p.HeldByAfs)} held by the AFS:"
+                    : $"{list.Count} control point(s) on map {player.MapContextId}:");
+
+                foreach (var point in list)
+                {
+                    var mapChannel = point.Object?.RuntimeMapChannel;
+                    var garrison = mapChannel == null ? "not placed" : points.GarrisonOf(mapChannel, point, point.Owner) switch
+                    {
+                        ControlPoints.Garrison.None => "no garrison",
+                        ControlPoints.Garrison.Down => "garrison down",
+                        _ => "garrison standing"
+                    };
+                    var where = all
+                        ? $"map {point.MapContextId}"
+                        : $"{Vector3.Distance(point.Object?.Position ?? point.Position, player.Position):0.#} m";
+
+                    CommunicatorManager.Instance.SystemMessage(client,
+                        $"#{point.Id} {point.Name}: {ControlPoints.FactionName(point.Owner)}, {garrison}, {where}");
+                }
+
+                return;
+            }
+
+            if (parts.Length != 3 || !uint.TryParse(parts[1], out var id) || points.ById(id) is not { } target)
+            {
+                CommunicatorManager.Instance.SystemMessage(client, usage);
+                return;
+            }
+
+            switch (parts[2])
+            {
+                case "afs":
+                case "bane":
+                    var owner = parts[2] == "afs" ? ControlPoints.Afs : ControlPoints.Bane;
+
+                    CommunicatorManager.Instance.SystemMessage(client, points.SetOwner(target, owner, null)
+                        ? $"Control point #{id} {target.Name} is the {ControlPoints.FactionName(owner)}'s."
+                        : $"Control point #{id} {target.Name} is the {ControlPoints.FactionName(owner)}'s already.");
+                    Logger.WriteLog(LogType.Command, $"{player.FamilyName} gave control point {id} ({target.Name}) to the {ControlPoints.FactionName(owner)}.");
+                    return;
+
+                case "goto":
+                    if (!MapChannelManager.Instance.ChangeMap(client, target.MapContextId, target.Object?.Position ?? target.Position, (float)player.Rotation))
+                        CommunicatorManager.Instance.SystemMessage(client, $"Map {target.MapContextId} is not loaded, or you cannot teleport right now.");
+                    return;
+
+                case "here":
+                    if (target.MapContextId != player.MapContextId || player.MapChannel == null || player.MapChannel.IsPrivateInstance)
+                    {
+                        CommunicatorManager.Instance.SystemMessage(client, $"Control point #{id} {target.Name} is on map {target.MapContextId}; stand where it should be, on that map's own channel.");
+                        return;
+                    }
+
+                    CommunicatorManager.Instance.SystemMessage(client, points.Move(target, player.Position, player.Rotation, Server.GameUnitOfWorkFactory)
+                        ? $"Control point #{id} {target.Name} now stands at ({player.Position.X:0.#}, {player.Position.Y:0.#}, {player.Position.Z:0.#})."
+                        : $"Control point #{id} {target.Name} could not be moved; see the server log.");
+                    return;
+
+                default:
+                    CommunicatorManager.Instance.SystemMessage(client, usage);
+                    return;
+            }
+        }
+
         private void KraftwerksCommand(string[] parts)
         {
             var client = _client;

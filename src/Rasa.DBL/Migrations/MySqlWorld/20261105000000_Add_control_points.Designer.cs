@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Rasa.Context.World;
 
@@ -10,9 +11,10 @@ using Rasa.Context.World;
 namespace Rasa.Migrations.MySqlWorld
 {
     [DbContext(typeof(MySqlWorldContext))]
-    partial class MySqlWorldContextModelSnapshot : ModelSnapshot
+    [Migration("20261105000000_Add_control_points")]
+    partial class Add_control_points
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

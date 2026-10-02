@@ -25,9 +25,11 @@ namespace Rasa.Managers
     /// hospital ("Hospital: Foreas Base") - so nobody is stranded on a map they have only just
     /// arrived on. Should neither give one, the hospital nearest to where they fell is offered.
     ///
-    /// Not modelled yet: a control point's hospital belonging to whoever holds the point
-    /// ("Control Point Gained - New AFS Hospital Available") - there are no control points. Those
-    /// are gained by walking up to them like the rest.
+    /// A control point's hospital belongs to whoever holds the point (ControlPoints; "Losing a
+    /// Control Point to the Bane means that the hospital ... [is] lost"): while the Bane do it is
+    /// not offered and is not gained by walking up to it. A player who had gained it keeps it, and
+    /// has it back when the point is retaken. Nobody is stranded: with every hospital on the map
+    /// lost, the nearest is offered all the same.
     /// </summary>
     public static class Hospitals
     {
@@ -57,6 +59,9 @@ namespace Rasa.Managers
 
         /// <summary>Whether the map screen marks a teleporter a safe zone. Replaceable for tests.</summary>
         public static Func<uint, bool> IsSafeZone { get; set; } = id => MapMarkerManager.Instance.IsSafeZone(id);
+
+        /// <summary>Whether a hospital is the AFS's to use: not while the Bane hold its control point. Replaceable for tests.</summary>
+        public static Func<uint, bool> IsOpen { get; set; } = id => ControlPoints.Instance.IsOpen(id);
 
         /// <summary>Writes a gained hospital to the character. Replaceable for tests.</summary>
         public static Action<Client, CharacterTeleporterEntry> Persist { get; set; } =
@@ -164,10 +169,12 @@ namespace Rasa.Managers
         public static List<Hospital> AvailableTo(Manifestation player, uint mapContextId)
         {
             var all = OnMap(mapContextId);
-            var available = all.Where(h => h.IsFree || Knows(player, h.TeleporterId)).ToList();
+            var open = all.Where(h => IsOpen(h.TeleporterId)).ToList();
+            var available = open.Where(h => h.IsFree || Knows(player, h.TeleporterId)).ToList();
 
+            // The nearest of those the AFS hold - or of them all, should the Bane hold every one.
             if (available.Count == 0 && all.Count > 0)
-                available.Add(Nearest(all, player.Position));
+                available.Add(Nearest(open.Count > 0 ? open : all, player.Position));
 
             return available;
         }
@@ -193,7 +200,7 @@ namespace Rasa.Managers
                     continue;
 
                 foreach (var hospital in hospitals)
-                    if (Vector3.Distance(player.Position, hospital.Position) <= DiscoveryRadius)
+                    if (Vector3.Distance(player.Position, hospital.Position) <= DiscoveryRadius && IsOpen(hospital.TeleporterId))
                         Gain(client, hospital);
             }
         }

@@ -59,6 +59,7 @@ namespace Rasa.Context.Char
         public DbSet<ClanFeudEntry> ClanFeudEntries { get; set; }
         public DbSet<ClanFeudChallengeEntry> ClanFeudChallengeEntries { get; set; }
         public DbSet<ClanFeudStakeEntry> ClanFeudStakeEntries { get; set; }
+        public DbSet<ControlPointStateEntry> ControlPointStateEntries { get; set; }
         public DbSet<AuctionEntry> AuctionEntries { get; set; }
 
         public DbSet<ClanInventoryEntry> ClanInventoryEntries { get; set; }
@@ -134,6 +135,7 @@ namespace Rasa.Context.Char
             SetupClanMemberTable(modelBuilder);
             SetupClanTable(modelBuilder);
             SetupClanFeudTables(modelBuilder);
+            SetupControlPointStateTable(modelBuilder);
             SetupFriendTable(modelBuilder);
             SetupIgnoredTable(modelBuilder);
             SetupPetitionTable(modelBuilder);
@@ -550,6 +552,14 @@ namespace Rasa.Context.Char
             // One row per feud and character who left a side of it.
             modelBuilder.Entity<ClanFeudStakeEntry>()
                 .HasKey(e => new { e.FeudId, e.CharacterId });
+        }
+
+        // Keyed by the world database's control point id: never generated here.
+        private void SetupControlPointStateTable(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<ControlPointStateEntry>()
+                .Property(e => e.ControlPointId)
+                .ValueGeneratedNever();
         }
 
         // One row per (owner, contact). These were keyed on account_id alone, which capped

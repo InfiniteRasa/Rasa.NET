@@ -16,6 +16,8 @@
         IMapRegionRepository MapRegions { get; }
         IMapMarkerRepository MapMarkers { get; }
         IMapEmitterRepository MapEmitters { get; }
+        IControlPointRepository ControlPoints =>
+            throw new System.NotSupportedException("This world unit of work has no control point data.");
         ISpawnPoolArrivalRepository SpawnPoolArrivals { get; }
         IRecipeRepository Recipes { get; }
         INpcMissionRepository NpcMissions { get; }

@@ -408,6 +408,9 @@ namespace Rasa.Managers
                         // hospitals gained by walking up to them
                         Guard("Hospitals.Worker", mapChannel, () => Hospitals.Worker(mapChannel));
 
+                        // control points: in service once the garrison is down, lost when its own is
+                        Guard("ControlPoints.Worker", mapChannel, () => ControlPoints.Instance.Worker(mapChannel));
+
                         // zone borders and instance doors: anyone standing in one leaves the map
                         Guard("MapLinkManager.Worker", mapChannel, () => MapLinkManager.Instance.Worker(mapChannel));
 

@@ -207,6 +207,9 @@ Map links, region volumes, FX emitters and crafting stations are **saved to the 
 | `.emitter <id> on \| off \| package <package> \| here \| comment <text> \| delete` | GameMaster | Edits an emitter; `on` and `off` also set its default state. |
 | `.kraftwerks` | GameMaster | Crafting stations on this map, nearest first. |
 | `.kraftwerks here [comment]` / `.kraftwerks <id> here \| rotate <yaw> \| comment <text> \| delete` | GameMaster | Creates or edits a station. `rotate` takes the yaw in radians. |
+| `.cp` / `.cp all` | GameMaster | Control points on this map, or everywhere: who holds each and whether its garrison stands. |
+| `.cp <id> afs \| bane` | GameMaster | Gives a control point to a side: the garrisons change over, and its hospital and waypoint open or shut. Kept through a restart. |
+| `.cp <id> goto \| here` | GameMaster | Goes to a control point, or stands its object where you are (kept in the world database). |
 
 ## Moderation
 

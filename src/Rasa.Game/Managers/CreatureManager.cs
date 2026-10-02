@@ -279,6 +279,9 @@ namespace Rasa.Managers
                 var adrenaline = _manifestationManager.AdrenalineForKill(client);
 
                 _manifestationManager.GainAdrenaline(client, critKill != CritKill.None ? adrenaline * 2 : adrenaline);
+
+                // One of a control point's Bane garrison is worth prestige as well (ControlPoints).
+                ControlPoints.Instance.CreatureKilled(creature, client);
             }
 
             // The corpse is harvestable by whoever earned it, a fixed number of times. Set here

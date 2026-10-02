@@ -56,6 +56,8 @@
             throw new System.NotSupportedException("This character unit of work has no mission item ledger.");
         ClanFeud.IClanFeudRepository ClanFeuds =>
             throw new System.NotSupportedException("This character unit of work has no clan feud store.");
+        ControlPointState.IControlPointStateRepository ControlPointStates =>
+            throw new System.NotSupportedException("This character unit of work has no control point state store.");
         ICharacterMissionDeadlineRepository CharacterMissionDeadlines { get; }
         ICharacterMissionProgressRepository CharacterMissionProgress { get; }
         ICharacterMissionScenarioRepository CharacterMissionScenario { get; }

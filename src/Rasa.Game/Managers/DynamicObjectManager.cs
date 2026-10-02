@@ -119,9 +119,11 @@ namespace Rasa.Managers
 
         internal void InitDynamicObjects()
         {
-            InitControlPoints();
             InitFootlockers();
             InitTeleporters();
+
+            // After the teleporters: a control point's hospital and waypoint are among them.
+            ControlPoints.Instance.Init(_gameUnitOfWorkFactory);
             LogosManager.Instance.LogosInit();
             KraftwerksManager.Instance.KraftwerksInit();
         }
@@ -131,9 +133,16 @@ namespace Rasa.Managers
             if (template == null || mapChannel == null)
                 return;
 
+            // The control points are the open world's (ControlPoints): a private copy of the map
+            // has the objects as they stood when it was made, and nothing to capture.
             mapChannel.ControlPoints.Clear();
             foreach (var entry in template.ControlPoints)
+            {
                 AddClonedDynamicObject(mapChannel.ControlPoints, entry.Key, entry.Value, mapChannel);
+
+                if (mapChannel.ControlPoints.TryGetValue(entry.Key, out var copy))
+                    copy.IsEnabled = false;
+            }
 
             mapChannel.FootLockers.Clear();
             foreach (var entry in template.FootLockers)
@@ -289,15 +298,29 @@ namespace Rasa.Managers
             {
                 case DynamicObjectType.ControlPoint:
                     {
+                        // One of the world's (ControlPoints) is the Bane's, with none of its
+                        // garrison standing: the worker has it out of service otherwise, a second
+                        // behind at most. A scene's own object of this kind is only used.
+                        var point = ControlPoints.Instance.PointOf(obj);
+
+                        if (point != null && !ControlPoints.Instance.MayCapture(client.Player.MapChannel, point))
+                        {
+                            ActorManager.RefuseRequest(client, packet.ActionId, packet.ActionArgId, PlayerMessage.PmUseObjectNotUsable);
+                            break;
+                        }
+
                         if (!TryLockForUse(client, obj, packet))
                             break;
 
                         // The object's id rides on the action so its recovery can find the lock.
-                        var controlAction = new ActionData(client.Player, packet.ActionId, packet.ActionArgId, 10000);
+                        var controlAction = new ActionData(client.Player, packet.ActionId, packet.ActionArgId, ControlPoints.CaptureMs);
                         controlAction.SourceId = obj.EntityId;
 
                         client.CallMethod(client.Player.EntityId, new PerformWindupPacket(PerformType.TwoArgs, packet.ActionId, packet.ActionArgId));
-                        client.CallMethod(packet.EntityId, new UsePacket(client.Player.EntityId, obj.StateId, 10000));
+                        client.CallMethod(packet.EntityId, new UsePacket(client.Player.EntityId, obj.StateId, (int)ControlPoints.CaptureMs));
+
+                        if (point != null)
+                            ControlPoints.Instance.Claiming(client.Player.MapChannel, point);
                         client.Player.MapChannel.PerformRecovery.Add(controlAction);
 
                         if (!obj.TriggeredByPlayers.Contains(client))
@@ -369,10 +392,14 @@ namespace Rasa.Managers
 
                     if (controlPoint.RespawnTime <= 0)
                     {
+                        // As its owner has it (ControlPoints); unclaimed only if nobody said.
+                        if (controlPoint.StateId == 0)
+                            controlPoint.StateId = UseObjectState.CpointStateUnclaimed;
+                        if (controlPoint.WindupTime == 0)
+                            controlPoint.WindupTime = ControlPoints.CaptureMs;
+
                         CellManager.Instance.AddToWorld(mapChannel, controlPoint);
                         controlPoint.IsInWorld = true;
-                        controlPoint.StateId = UseObjectState.CpointStateUnclaimed;
-                        controlPoint.WindupTime = 10000;
                     }
                 }
 
@@ -759,26 +786,12 @@ namespace Rasa.Managers
 
         #region ControlPoint
 
-        internal void InitControlPoints()
-        {
-            //var contolPoints = ControlPointTable.GetControlPoints();
-            var mapChannel = MapChannelManager.Instance.FindByContextId(1220);
-
-            var newControlPoint = new DynamicObject
-            {
-                Position = new Vector3(197.66f, 162.27f, -54.08f),
-                Rotation = 3.05f,
-                MapContextId = 1220,
-                EntityClassId = (EntityClasses)3814,
-                DynamicObjectType = DynamicObjectType.ControlPoint,
-                ObjectData = new ControlPointStatus(215, 1, 1, 30000)
-            };
-
-            newControlPoint.DynamicObjectType = DynamicObjectType.ControlPoint;
-
-            mapChannel.ControlPoints.Add(1, newControlPoint);
-        }
-
+        /// <summary>
+        /// A control point's use has run its time (ActorActionManager): the point is the AFS's,
+        /// if the player is still standing at it and its garrison is still down (ControlPoints).
+        /// An object of this kind that is not one of the world's points - a scene's - changes
+        /// state as it always did. Either way the use counts for a mission that asks for it.
+        /// </summary>
         internal void CaptureControlPointRecovery(MapChannel mapChannel, ActionData action)
         {
             foreach (var entry in mapChannel.ControlPoints)
@@ -788,12 +801,10 @@ namespace Rasa.Managers
                 foreach (var client in controlpoint.TriggeredByPlayers)
                     if (client.Player == action.Actor)
                     {
+                        controlpoint.TriggeredByPlayers.Remove(client);
+
                         if (action.IsInrerrupted)
-                        {
-                            Logger.WriteLog(LogType.Debug, $"Action is interupted");
-                            controlpoint.TriggeredByPlayers.Remove(client);
                             break;
-                        }
 
                         // As with a logos: a capture belongs to whoever is still standing at the
                         // point when its ten seconds are up.
@@ -801,28 +812,36 @@ namespace Rasa.Managers
                         {
                             Logger.WriteLog(LogType.Security,
                                 $"{client.Player.FamilyName} was no longer at control point {controlpoint.EntityId} when the use finished; not captured.");
-                            controlpoint.TriggeredByPlayers.Remove(client);
                             break;
                         }
 
-                        Logger.WriteLog(LogType.Debug, $"Action Exicuted");
-                        controlpoint.TriggeredByPlayers.Remove(client);
-                        controlpoint.TargetCategory = controlpoint.TargetCategory == TargetCategory.Friendly ? TargetCategory.Hostile : TargetCategory.Friendly;
-                        controlpoint.StateId = controlpoint.StateId == UseObjectState.CpointStateFactionAOwned ? UseObjectState.CpointStateFactionBOwned : UseObjectState.CpointStateFactionAOwned;
+                        var point = ControlPoints.Instance.PointOf(controlpoint);
 
-                        CellManager.Instance.CellCallMethod(
-                            mapChannel,
-                            controlpoint,
-                            new ForceStatePacket(controlpoint.StateId, 100));
-                        CellManager.Instance.CellCallMethod(
-                            mapChannel,
-                            controlpoint,
-                            new UsableInfoPacket(
-                                controlpoint.IsEnabled,
-                                controlpoint.StateId,
-                                0,
-                                10000,
-                                0));
+                        if (point != null)
+                        {
+                            if (!ControlPoints.Instance.Captured(mapChannel, client, point))
+                                break;
+                        }
+                        else
+                        {
+                            controlpoint.TargetCategory = controlpoint.TargetCategory == TargetCategory.Friendly ? TargetCategory.Hostile : TargetCategory.Friendly;
+                            controlpoint.StateId = controlpoint.StateId == UseObjectState.CpointStateFactionAOwned ? UseObjectState.CpointStateFactionBOwned : UseObjectState.CpointStateFactionAOwned;
+
+                            CellManager.Instance.CellCallMethod(
+                                mapChannel,
+                                controlpoint,
+                                new ForceStatePacket(controlpoint.StateId, 100));
+                            CellManager.Instance.CellCallMethod(
+                                mapChannel,
+                                controlpoint,
+                                new UsableInfoPacket(
+                                    controlpoint.IsEnabled,
+                                    controlpoint.StateId,
+                                    0,
+                                    10000,
+                                    0));
+                        }
+
                         (_missionManager ?? MissionApplication.Instance).RecordProgress(
                             client,
                             MissionProgressEvent.Interaction(
@@ -1804,6 +1823,11 @@ namespace Rasa.Managers
             }
             var cells = CellManager.Instance.CreateCellMatrix(mapChannel, x, z);
 
+            // The Bane hold the control point it belongs to (ControlPoints): it opens for nobody,
+            // and is not gained by standing in it.
+            if (obj.ObjectData is WaypointInfo { Contested: true })
+                return;
+
             foreach (var client in CellManager.Instance.GetClientsInCells(mapChannel, cells))
             {
                 if (client.State != ClientState.Ingame || client.PendingTransfer != null)
@@ -1843,9 +1867,11 @@ namespace Rasa.Managers
             {
                 var client = obj.TriggeredByPlayers[i];
 
+                // Out of range, gone - or the waypoint has just been lost with them standing in it.
                 if (client.State != ClientState.Ingame ||
                     client.Player?.MapChannel != obj.RuntimeMapChannel ||
-                    !client.Player.IsNear2m(obj))
+                    !client.Player.IsNear2m(obj) ||
+                    obj.ObjectData is WaypointInfo { Contested: true })
                 {
                     obj.TriggeredByPlayers.RemoveAt(i);
 

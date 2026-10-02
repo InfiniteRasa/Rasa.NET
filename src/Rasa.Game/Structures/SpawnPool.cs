@@ -21,8 +21,17 @@ namespace Rasa.Structures
         /// <summary>Where its creatures arrive (spawnpool_arrival): a pad or bay the Bane dropship lands on, a teleporter. Empty: they appear on its ground.</summary>
         public List<World.SpawnPoolArrivalEntry> Arrivals { get; } = new List<World.SpawnPoolArrivalEntry>();
 
-        /// <summary>Whether it has spawned since the server started: the first spawn stocks the world and uses no arrival point.</summary>
+        /// <summary>
+        /// Whether it has spawned since the server started - or, for a control point's garrison,
+        /// since its side took the point: the first spawn stocks the world and uses no arrival point.
+        /// </summary>
         public bool HasSpawned { get; set; }
+
+        /// <summary>Part of a control point's garrison, either side's (ControlPoints): a Bane garrison pool (mode 1) runs only as one.</summary>
+        public bool IsGarrison { get; set; }
+
+        /// <summary>The other side holds its control point (ControlPoints): it spawns nothing until its own side does.</summary>
+        public bool Suspended { get; set; }
         // different spawn points
         //public int LocationCount { get; set; }
         //public Position[] LocationList { get; set; }

@@ -23,11 +23,12 @@ namespace Rasa.Managers
         public const short ModeAutomatic = 0;
 
         /// <summary>
-        /// spawnpool.mode: the pool is a control point's garrison. At a control point the Bane
-        /// camp is the control point itself, and the hospital, token banker and vendors the
+        /// spawnpool.mode: the pool is a control point's Bane garrison. At a control point the
+        /// Bane camp is the control point itself, and the hospital, token banker and vendors the
         /// client labels "(Control Point)" are what stands there once AFS has taken it; the two
-        /// never stand together. The server has no control point ownership yet and the AFS side
-        /// is what it seeds, so these pools are dormant: the garrison of a point AFS holds.
+        /// never stand together. The pool runs while the Bane hold the point it is linked to
+        /// (ControlPoints, control_point_link) and is dormant otherwise - as is one linked to no
+        /// point at all.
         /// </summary>
         public const short ModeControlPoint = 1;
 
@@ -221,11 +222,20 @@ namespace Rasa.Managers
                 if (spawnPool.SpawnPolicy == Structures.World.MissionSpawnGroupPolicy.ScenarioControlled)
                     continue;
 
-                // A control point's garrison or a scripted pool: not on a timer.
-                if (spawnPool.Mode != ModeAutomatic || spawnPool.AnimType < 0 || spawnPool.AnimType > 2)
+                // A scripted pool is not on a timer; nor is a pool set aside for a control point
+                // that no control point has (ControlPoints). A garrison is, while its side holds
+                // the point - and not while the other does, whatever its mode.
+                if (spawnPool.Suspended
+                    || spawnPool.Mode != ModeAutomatic && !(spawnPool.Mode == ModeControlPoint && spawnPool.IsGarrison)
+                    || spawnPool.AnimType < 0 || spawnPool.AnimType > 2)
                     continue;
 
                 if (spawnPool.AliveCreatures > 0 || spawnPool.QueuedCreatures > 0 || spawnPool.DropshipQueue > 0)
+                    continue;
+
+                // A Bane garrison comes back together: a pool of it that has been killed waits
+                // until the whole garrison has been down long enough (ControlPoints.HoldsBack).
+                if (spawnPool.IsGarrison && ControlPoints.Instance.HoldsBack(spawnPool))
                     continue;
 
                 if (spawnPool.UpdateTimer < spawnPool.RespawnTime)

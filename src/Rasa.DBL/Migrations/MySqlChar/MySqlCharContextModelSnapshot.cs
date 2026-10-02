@@ -1233,6 +1233,25 @@ namespace Rasa.Migrations.MySqlChar
                     b.ToTable("clan_member");
                 });
 
+            modelBuilder.Entity("Rasa.Structures.Char.ControlPointStateEntry", b =>
+                {
+                    b.Property<uint>("ControlPointId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("control_point_id");
+
+                    b.Property<long>("ChangedAt")
+                        .HasColumnType("bigint")
+                        .HasColumnName("changed_at");
+
+                    b.Property<byte>("Owner")
+                        .HasColumnType("tinyint unsigned")
+                        .HasColumnName("owner");
+
+                    b.HasKey("ControlPointId");
+
+                    b.ToTable("control_point_state");
+                });
+
             modelBuilder.Entity("Rasa.Structures.Char.FriendEntry", b =>
                 {
                     b.Property<uint>("AccountId")

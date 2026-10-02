@@ -68,6 +68,7 @@ namespace Rasa.Repositories.UnitOfWork
         public Char.MissionOffer.MissionOfferRepository MissionOffers => _parent.MissionOffers;
         public Char.CharacterMissionItem.ICharacterMissionItemRepository CharacterMissionItems => _parent.CharacterMissionItems;
         public Char.ClanFeud.IClanFeudRepository ClanFeuds => _parent.ClanFeuds;
+        public Char.ControlPointState.IControlPointStateRepository ControlPointStates => _parent.ControlPointStates;
 
         public ICharacterMissionDeadlineRepository CharacterMissionDeadlines =>
             _parent.CharacterMissionDeadlines;

@@ -30,6 +30,9 @@
         public bool IsSafe { get; set; }
         public bool IsActive { get; set; }
 
+        /// <summary>A control point's owner under FACTION_OWNED: true for the AFS, false for the Bane.</summary>
+        public bool OwnerIsAfs { get; set; }
+
         public MapMarkerState(uint markerType)
         {
             MarkerType = markerType;
@@ -47,10 +50,24 @@
             return new MapMarkerState(MapMarkerType.CraftingStation) { IsActive = isActive };
         }
 
+        /// <summary>A control point and the faction that holds it (ControlPoints).</summary>
+        public static MapMarkerState ControlPoint(bool ownerIsAfs)
+        {
+            return new MapMarkerState(MapMarkerType.ControlPoint) { OwnerIsAfs = ownerIsAfs };
+        }
+
         public void Write(PythonWriter pw)
         {
             switch (MarkerType)
             {
+                case MapMarkerType.ControlPoint:
+                    // (ownerTypeId, ownerId). Under FACTION_OWNED the client tests the owner with
+                    // "is True" and "is False": see ControlPointOwnershipType.
+                    pw.WriteTuple(2);
+                    pw.WriteUInt(ControlPointOwnershipType.FactionOwned);
+                    pw.WriteBool(OwnerIsAfs);
+                    break;
+
                 case MapMarkerType.WaypointTeleporter:
                     pw.WriteTuple(2);
                     pw.WriteBool(IsFriendly);
