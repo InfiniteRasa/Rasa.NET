@@ -460,6 +460,15 @@ namespace Rasa.Managers
                 {
                     // Resuscitate wants a dead player (CureAction.CheckAction); offered a revive.
                 }
+                else if (MorphReviveModules.Contains(action.Module))
+                {
+                    // A Polymorph's Resuscitate or Jumpstart wants a dead friend it can bring back.
+                    if (!IsMorphRevivable(player, action.Module, target))
+                    {
+                        Fail(client, actionId, level, PlayerMessage.PmTargetInvalid);
+                        return;
+                    }
+                }
                 else if (target.State == CharacterState.Dead)
                 {
                     Fail(client, actionId, level, PlayerMessage.PmActionFailedTargetDead);
@@ -471,6 +480,13 @@ namespace Rasa.Managers
                     Fail(client, actionId, level, PlayerMessage.PmTargetOutOfRange);
                     return;
                 }
+            }
+
+            // And with nobody targeted, or themselves, there is nobody to bring back.
+            if (MorphReviveModules.Contains(action.Module) && target == null)
+            {
+                Fail(client, actionId, level, PlayerMessage.PmActionFailedNoTarget);
+                return;
             }
 
             // A point on the ground, when the ability is aimed at one: where a turret, trap, rift or

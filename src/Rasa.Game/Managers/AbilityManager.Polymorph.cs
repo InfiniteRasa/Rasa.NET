@@ -47,9 +47,10 @@ namespace Rasa.Managers
     ///   and for the client's own colours, not a side the server puts the player on.
     /// - The drawer holds the creature's combat actions the pump's tooltip names, at their
     ///   player-facing levels (MorphVariant.Abilities, AbilityManager.MorphAbilities): Kick; Mini
-    ///   Turret and Repair; Revitalize and Noxious Burst; Smash and Ground Pound; the Machina's
-    ///   Self Revive (PlayerDeath.SelfRevive). The other revives - the Technician's Jumpstart, the
-    ///   Caretaker's Resuscitate - bring back a creature, and are left out.
+    ///   Turret, Repair and Jumpstart; Revitalize, Resuscitate and Noxious Burst; Smash and Ground
+    ///   Pound; the Machina's Self Revive (PlayerDeath.SelfRevive). The two revives bring back a
+    ///   dead friend of the player's - Resuscitate a player or a creature of flesh, Jumpstart a
+    ///   machine (AbilityManager.MorphRevive).
     /// - Abilities are refused while morphed, bar Polymorph itself and those.
     /// - Level 5's POLYMORPH_HOMINUS_MACHINA (106, GAME_EFFECT_ARG1 25, ARG2 -50) is attached and
     ///   announced for its FX; the client gives it no tooltip and no behaviour, so what 25 and -50
@@ -98,10 +99,10 @@ namespace Rasa.Managers
                              Abilities = new[] { (ActionId.CrThraxKick, 5u) } },
             // Pump 2: Thrax Technician - Bane_Thrax_Technician, Weapon_Creature_Thrax_Technician (1/296, EMP).
             [1868] = new MorphVariant { Name = "Thrax Technician", CreatureClassId = 7043, MeshId = 18368, WeaponClassId = 20689, WeaponTemplateId = 11494, TargetCategory = TargetCategory.Hostile,
-                             Abilities = new[] { (ActionId.CrTechnicianTurret, 3u), (ActionId.CrTechnicianHeal, 5u) } },
+                             Abilities = new[] { (ActionId.CrTechnicianTurret, 3u), (ActionId.CrTechnicianHeal, 5u), (ActionId.CrTechnicianRevive, 5u) } },
             // Pump 3: Bane Caretaker - Bane_Caretaker; the only caretaker weapon class is the holographic copy's (1/190, physical).
             [1858] = new MorphVariant { Name = "Bane Caretaker", CreatureClassId = 9244, MeshId = 21376, WeaponClassId = 21835, WeaponTemplateId = 44831, TargetCategory = TargetCategory.Hostile,
-                             Abilities = new[] { (ActionId.CrCaretakerHeal, 5u), (ActionId.CrCaretakerAttack, 5u) } },
+                             Abilities = new[] { (ActionId.CrCaretakerHeal, 5u), (ActionId.CrCaretakerRevive, 5u), (ActionId.CrCaretakerAttack, 5u) } },
             // Pump 4: Kael - Bane_Kael_Standard, Weapon_Creature_Kael (melee 174/44, physical).
             [1864] = new MorphVariant { Name = "Kael", CreatureClassId = 4046, MeshId = 14434, WeaponClassId = 3952, WeaponTemplateId = 75, TargetCategory = TargetCategory.Hostile,
                              Abilities = new[] { (ActionId.CrKaelSmash, 5u), (ActionId.CrKaelGroundPound, 5u) } },
