@@ -828,6 +828,9 @@ namespace Rasa.Managers
                 if (mate != member)
                     mate.Client.CallMethod(SysEntity.ClientTeamManagerId, new AddTeamMemberPacket(player.EntityId));
 
+            // And in the team's chat channel: /team.
+            CommunicatorManager.Instance.JoinTeamChannel(client, match.Map, team);
+
             Tell(match, team == Red ? PlayerMessage.PmPvpRedTeam : PlayerMessage.PmPvpBlueTeam, ("player", player.FamilyName ?? ""));
 
             var arrival = BaseArrival(match, team);
@@ -891,6 +894,9 @@ namespace Rasa.Managers
                     mate.Client.CallMethod(SysEntity.ClientTeamManagerId, new RemoveTeamMemberPacket(player.EntityId));
 
                 Tell(match, member.Team == Red ? PlayerMessage.PmPvpRedTeamLeave : PlayerMessage.PmPvpBlueTeamLeave, ("player", player.FamilyName ?? ""));
+
+                // Out of the team's chat channel, whether or not there is a client left to tell.
+                CommunicatorManager.Instance.LeaveTeamChannel(client);
 
                 if (client.State != ClientState.Disconnected)
                 {

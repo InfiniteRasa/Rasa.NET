@@ -591,6 +591,9 @@ namespace Rasa.Managers
                 CellManager.Instance.CellCallMethod(mapChannel, target.Player,
                     familyName ? new ActorNamePacket(target.Player.FamilyName) : (PythonPacket)new CharacterNamePacket(target.Player.Name));
 
+            // And in the friends lists it is on, which show both names.
+            SocialManager.Instance.FriendStatusUpdate(target);
+
             var args = new Dictionary<string, string> { ["oldname"] = oldName ?? string.Empty, ["newname"] = name };
             var changed = familyName ? PlayerMessage.PmLastNameChanged : PlayerMessage.PmFirstNameChanged;
 

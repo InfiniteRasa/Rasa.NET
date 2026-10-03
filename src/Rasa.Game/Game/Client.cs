@@ -134,6 +134,13 @@ namespace Rasa.Game
         /// <summary>Whether this connection has been sent the message of the day (Managers.MessageOfTheDay).</summary>
         internal bool MotdSent { get; set; }
 
+        /// <summary>
+        /// Whether the account's friends have been told this character is in the world
+        /// (FriendLoggedIn), from entering it until leaving it. While it is set, arriving on a
+        /// map sends them FriendStatusUpdate instead (CommunicatorManager.PlayerEnterMap).
+        /// </summary>
+        internal bool FriendsToldOnline { get; set; }
+
         /// <summary>Set by a game master's kick: the character leaves at once, fight or not (CombatLogout).</summary>
         internal bool SkipCombatLinger { get; set; }
         internal Guid MissionSessionId { get; private set; } = Guid.NewGuid();

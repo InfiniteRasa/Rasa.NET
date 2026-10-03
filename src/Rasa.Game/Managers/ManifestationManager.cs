@@ -2378,6 +2378,7 @@ namespace Rasa.Managers
             if (grant.FinalLevel != grant.PreviousLevel)
             {
                 PartyManager.Instance.MemberInfoChanged(client);
+                SocialManager.Instance.FriendStatusUpdate(client);
                 InventoryManager.WagerLevelChanged(client, grant.PreviousLevel);
             }
         }
@@ -2516,6 +2517,7 @@ namespace Rasa.Managers
             if (levelAfter != levelBefore)
             {
                 PartyManager.Instance.MemberInfoChanged(client);
+                SocialManager.Instance.FriendStatusUpdate(client);
                 InventoryManager.WagerLevelChanged(client, levelBefore);
             }
         }
@@ -2842,6 +2844,7 @@ namespace Rasa.Managers
                 client.CellIgnoreSelfCallMethod(client, new LevelPacket(level));
 
             PartyManager.Instance.MemberInfoChanged(client);
+            SocialManager.Instance.FriendStatusUpdate(client);
             InventoryManager.WagerLevelChanged(client, from);
 
             Logger.WriteLog(LogType.Command, $"{player.FamilyName} set from level {from} to {level}" + (notes.Count > 0 ? $": {string.Join(", ", notes)}" : ""));

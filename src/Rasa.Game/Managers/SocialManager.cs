@@ -367,31 +367,71 @@ namespace Rasa.Managers
             return true;
         }
 
+        /// <summary>
+        /// The players in the world, or on their way into or across it, who have this client's
+        /// account on their friends list: who is told when it comes, goes or changes.
+        /// </summary>
+        private static List<Client> HavingAsFriend(Client client)
+        {
+            if (client?.AccountEntry == null)
+                return new List<Client>();
+
+            var accountId = client.AccountEntry.Id;
+
+            lock (Server.Clients)
+                return Server.Clients.Where(c => c != null && c != client && c.Player != null
+                                                 && (c.State == ClientState.Ingame || c.State == ClientState.Loading || c.State == ClientState.Teleporting)
+                                                 && c.Player.Friends.Contains(accountId)).ToList();
+        }
+
+        /// <summary>
+        /// Recv_FriendLoggedIn: the friend's row as it now reads, and "X is online" in chat. Once
+        /// for entering the world (CommunicatorManager.PlayerEnterMap), not for every map after.
+        /// </summary>
         internal void FriendLoggedIn(Client client)
         {
-            var notifyFriends = Server.Clients.FindAll(c => c.Player.Friends.Contains(client.AccountEntry.Id));
+            if (client?.AccountEntry == null || client.Player == null)
+                return;
 
-            foreach (var notifyClient in notifyFriends)
-            {
-                var friend = new Friend(client);
+            var friend = new Friend(client);
 
-                notifyClient.CallMethod(SysEntity.ClientSocialManagerId, new FriendLoggedInPacket(friend));
-            }
+            foreach (var listener in HavingAsFriend(client))
+                listener.CallMethod(SysEntity.ClientSocialManagerId, new FriendLoggedInPacket(friend));
         }
 
         internal void FriendLoggedOut(Client client)
         {
-            var notifyFriends = Server.Clients.FindAll(c => c.Player.Friends.Contains(client.AccountEntry.Id));
+            if (client?.AccountEntry == null)
+                return;
 
-            foreach (var notifyClient in notifyFriends)
-            {
-                notifyClient.CallMethod(SysEntity.ClientSocialManagerId, new FriendLoggedOutPacket(client.AccountEntry.Id));
-            }
+            foreach (var listener in HavingAsFriend(client))
+                listener.CallMethod(SysEntity.ClientSocialManagerId, new FriendLoggedOutPacket(client.AccountEntry.Id));
         }
 
-        internal void FriendStatusUpdate(Client client, Friend friend)
+        /// <summary>
+        /// Recv_FriendStatusUpdate: the friend's row as it now reads - character and family
+        /// name, level and map - put in place of the one the client holds, with nothing said in
+        /// chat. For everything that changes a row while its character stays in the world:
+        /// arriving on another map, a level gained or lost, a change of name. Until this was sent
+        /// a friends list showed the level and the map of the moment its friend logged in.
+        /// Returns how many were told.
+        /// </summary>
+        internal int FriendStatusUpdate(Client client)
         {
-            // ToDo
+            if (client?.AccountEntry == null || client.Player == null)
+                return 0;
+
+            var listeners = HavingAsFriend(client);
+
+            if (listeners.Count == 0)
+                return 0;
+
+            var friend = new Friend(client);
+
+            foreach (var listener in listeners)
+                listener.CallMethod(SysEntity.ClientSocialManagerId, new FriendStatusUpdatePacket(friend));
+
+            return listeners.Count;
         }
         
         /// <summary>

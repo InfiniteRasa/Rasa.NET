@@ -95,6 +95,59 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
+        public void ATeamHasAChatChannelOfItsOwnFromJoiningItToLeavingIt()
+        {
+            using var f = new Fixture();
+            var chat = CommunicatorManager.Instance;
+            var red = f.Player();
+            var second = f.Player();
+            var blue = f.Player();
+
+            // Joining a team puts them in its channel, and tells their client it holds it.
+            Assert.IsTrue(f.Grounds.TakeLink(red, f.RedDoor));
+            Assert.AreEqual(ChatChannelId.Team, Packets(red).OfType<ChatChannelJoinedPacket>().Single().ChannelId);
+
+            Assert.IsTrue(f.Grounds.Join(blue, Battlegrounds.Blue, force: true));
+            Assert.IsTrue(f.Grounds.Join(second, Battlegrounds.Red, force: true));
+            Assert.HasCount(1, Packets(second).OfType<ChatChannelJoinedPacket>().ToList());
+            Assert.HasCount(1, Packets(blue).OfType<ChatChannelJoinedPacket>().ToList());
+
+            CollectionAssert.AreEquivalent(new[] { red.Player.EntityId, second.Player.EntityId }, chat.TeamChannelPlayers(f.World.Map, Battlegrounds.Red).ToArray());
+            CollectionAssert.AreEqual(new[] { blue.Player.EntityId }, chat.TeamChannelPlayers(f.World.Map, Battlegrounds.Blue).ToArray());
+
+            // A game master moves one across: out of the one channel and into the other.
+            foreach (var client in new[] { red, second, blue })
+                Drain(client);
+
+            Assert.IsTrue(f.Grounds.Join(second, Battlegrounds.Blue, force: true));
+
+            var moved = Packets(second);
+
+            Assert.HasCount(1, moved.OfType<ChatChannelLeftPacket>().ToList());
+            Assert.HasCount(1, moved.OfType<ChatChannelJoinedPacket>().ToList());
+            CollectionAssert.AreEqual(new[] { red.Player.EntityId }, chat.TeamChannelPlayers(f.World.Map, Battlegrounds.Red).ToArray());
+            CollectionAssert.AreEquivalent(new[] { blue.Player.EntityId, second.Player.EntityId }, chat.TeamChannelPlayers(f.World.Map, Battlegrounds.Blue).ToArray());
+
+            // Taken off the team: out of its channel, and told.
+            Assert.IsTrue(f.Grounds.LeaveTeam(second));
+            Assert.AreEqual(ChatChannelId.Team, Packets(second).OfType<ChatChannelLeftPacket>().Single().ChannelId);
+            CollectionAssert.AreEqual(new[] { blue.Player.EntityId }, chat.TeamChannelPlayers(f.World.Map, Battlegrounds.Blue).ToArray());
+
+            // Leaving the map is leaving the team, and its channel.
+            Drain(red);
+            Drain(blue);
+            f.Grounds.PlayerLeft(red);
+            Assert.HasCount(1, Packets(red).OfType<ChatChannelLeftPacket>().ToList());
+            Assert.IsEmpty(chat.TeamChannelPlayers(f.World.Map, Battlegrounds.Red));
+
+            // And a connection that dropped is taken out with nothing sent to it.
+            blue.State = ClientState.Disconnected;
+            f.Grounds.PlayerLeft(blue);
+            Assert.IsEmpty(Packets(blue).OfType<ChatChannelLeftPacket>().ToList());
+            Assert.IsEmpty(chat.TeamChannelPlayers(f.World.Map, Battlegrounds.Blue));
+        }
+
+        [TestMethod]
         public void ATeamWithMorePlayersThanTheOtherCannotBeJoined()
         {
             using var f = new Fixture();

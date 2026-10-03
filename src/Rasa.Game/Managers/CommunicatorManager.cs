@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 
 namespace Rasa.Managers
@@ -583,6 +584,13 @@ namespace Rasa.Managers
             }
         }
 
+        /// <summary>
+        /// A player has arrived on a map: entering the world, or from another map. Their friends
+        /// are told they are online once, on entering the world; an arrival after that changes
+        /// only what their row in a friend's list reads - the map - and is sent as that
+        /// (SocialManager.FriendStatusUpdate). FriendLoggedIn went out on every arrival, and the
+        /// client prints "X is online" for each one it is sent.
+        /// </summary>
         public void PlayerEnterMap(Client client)
         {
             foreach (var channelId in GlobalChannels)
@@ -591,7 +599,14 @@ namespace Rasa.Managers
             foreach (var channelId in MapChannels)
                 JoinDefaultLocalChannel(client, channelId);
 
+            if (client.FriendsToldOnline)
+            {
+                SocialManager.Instance.FriendStatusUpdate(client);
+                return;
+            }
+
             SocialManager.Instance.FriendLoggedIn(client);
+            client.FriendsToldOnline = true;
         }
 
         public void PlayerExitMap(Client client)
@@ -604,6 +619,8 @@ namespace Rasa.Managers
 
             if (client.AccountEntry != null)
                 SocialManager.Instance.FriendLoggedOut(client);
+
+            client.FriendsToldOnline = false;
         }
 
         /// <summary>
@@ -616,10 +633,129 @@ namespace Rasa.Managers
         {
             for (var i = 0; i < client.Player.JoinedChannels; i++)
                 if (ChannelsBySeed.TryGetValue(client.Player.ChannelHashes[i], out var chatChannel))
+                {
                     chatChannel.Players.Remove(client.Player.EntityId);
+                    DropIfEmpty(client.Player.ChannelHashes[i], chatChannel);
+                }
 
             client.Player.JoinedChannels = 0;
         }
+
+        #region The team channel
+
+        // The team channel (ChatChannelId.Team: /team, and "Team" in the chat window's channel
+        // list) is one channel for each team of a match, with nobody in it but that team's
+        // players. The client sends on a channel only while it holds it (IsValidChannelId), and
+        // holds it from ChatChannelJoined to ChatChannelLeft; the server never sent either for
+        // this one, so a team had no chat of its own.
+        //
+        // A team's channel is found by what the team is - the match's map channel and the team's
+        // number - and not by the hash of a map and an instance the default channels have. Its
+        // seed is counted down from zero; the default channels' hashes are not negative for the
+        // channel and map ids there are, and a seed in use is passed over all the same. The
+        // channel goes when the last of its players does.
+        private static readonly Dictionary<(MapChannel Map, uint Team), int> TeamSeeds = new Dictionary<(MapChannel, uint), int>();
+        private static int _lastTeamSeed;
+
+        /// <summary>
+        /// Puts a player in the channel of a team of the match on a map channel, and out of any
+        /// other team's: on joining a team (Battlegrounds.Join). The client is told with
+        /// ChatChannelJoined, with no map to its name: the header reads "[18. Team]".
+        /// </summary>
+        public void JoinTeamChannel(Client client, MapChannel map, uint team)
+        {
+            var player = client?.Player;
+
+            if (player == null || map == null)
+                return;
+
+            var key = (map, team);
+
+            // In it already.
+            if (TeamSeeds.TryGetValue(key, out var seed) && Array.IndexOf(player.ChannelHashes, seed, 0, player.JoinedChannels) >= 0)
+                return;
+
+            LeaveTeamChannel(client);
+
+            if (player.JoinedChannels >= ChannelHashesPerPlayer)
+            {
+                Logger.WriteLog(LogType.Error, $"Character {player.Id} is already in {player.JoinedChannels} channels; the team channel not joined.");
+                return;
+            }
+
+            if (!TeamSeeds.TryGetValue(key, out seed) || !ChannelsBySeed.ContainsKey(seed))
+            {
+                do
+                    seed = --_lastTeamSeed;
+                while (ChannelsBySeed.ContainsKey(seed));
+
+                TeamSeeds[key] = seed;
+                ChannelsBySeed.Add(seed, new ChatChannel { ChannelId = ChatChannelId.Team });
+            }
+
+            player.ChannelHashes[player.JoinedChannels] = seed;
+            player.JoinedChannels++;
+
+            AddClientToChannel(client, seed);
+
+            client.CallMethod(SysEntity.CommunicatorId, new ChatChannelJoinedPacket(ChatChannelId.Team));
+        }
+
+        /// <summary>
+        /// Takes a player out of their team's channel: on leaving the team (Battlegrounds.Leave),
+        /// which leaving the map or the world is too. Their client is told with ChatChannelLeft
+        /// while there is one to tell. False if they were in none.
+        /// </summary>
+        public bool LeaveTeamChannel(Client client)
+        {
+            var player = client?.Player;
+
+            if (player == null)
+                return false;
+
+            for (var i = 0; i < player.JoinedChannels; i++)
+            {
+                var seed = player.ChannelHashes[i];
+
+                if (!ChannelsBySeed.TryGetValue(seed, out var channel) || channel.ChannelId != ChatChannelId.Team)
+                    continue;
+
+                channel.Players.Remove(player.EntityId);
+
+                // The channels after it move up: ChannelOf reads the first JoinedChannels of them.
+                Array.Copy(player.ChannelHashes, i + 1, player.ChannelHashes, i, player.JoinedChannels - i - 1);
+                player.JoinedChannels--;
+
+                DropIfEmpty(seed, channel);
+
+                if (client.State != ClientState.Disconnected)
+                    client.CallMethod(SysEntity.CommunicatorId, new ChatChannelLeftPacket(ChatChannelId.Team));
+
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>The players in the channel of a team of the match on a map channel, by entity id; none when it has no channel.</summary>
+        public IReadOnlyList<ulong> TeamChannelPlayers(MapChannel map, uint team) =>
+            map != null && TeamSeeds.TryGetValue((map, team), out var seed) && ChannelsBySeed.TryGetValue(seed, out var channel)
+                ? channel.Players.ToList()
+                : new List<ulong>();
+
+        /// <summary>A team's channel with nobody left in it is forgotten. The default channels are kept: a map's are joined again by the next to arrive.</summary>
+        private static void DropIfEmpty(int seed, ChatChannel channel)
+        {
+            if (channel.IsDefaultChannel || channel.Players.Count > 0)
+                return;
+
+            ChannelsBySeed.Remove(seed);
+
+            foreach (var key in TeamSeeds.Where(entry => entry.Value == seed).Select(entry => entry.Key).ToList())
+                TeamSeeds.Remove(key);
+        }
+
+        #endregion
 
         public void RadialChat(Client client, string textMsg)
         {
