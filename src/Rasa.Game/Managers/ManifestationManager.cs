@@ -3154,8 +3154,7 @@ namespace Rasa.Managers
 
         public void RequestCustomization(Client client, RequestCustomizationPacket packet)
         {
-            // ToDo
-            Logger.WriteLog(LogType.Debug, $"ToDo: RequestCustomization");
+            Customization.Request(client, packet);
         }
 
         #region Movement
