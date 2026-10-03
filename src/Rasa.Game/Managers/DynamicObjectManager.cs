@@ -709,6 +709,10 @@ namespace Rasa.Managers
             if (dynamicObject.DynamicObjectType == DynamicObjectType.ControlPoint)
                 Battlegrounds.Instance.ShowTo(client, dynamicObject);
 
+            // A Personal Waypoint: its hit points, and what it is to this client.
+            if (dynamicObject.DynamicObjectType == DynamicObjectType.PersonalWaypoint)
+                PersonalWaypoints.Introduce(client, dynamicObject);
+
             // Someone is partway through using it. Players are introduced before objects, and the
             // user is standing at it, so this client already has the actor the effect runs to.
             if (dynamicObject.UsedBy != null)

@@ -34,6 +34,9 @@ namespace Rasa.Managers
     /// states, so it stands in USE_WH_STATE_0 from the moment it is put down and is in service
     /// at once: the windup was the wait.
     ///
+    /// Where: not on a battleground's map and not in an instance (<see cref="Refusal"/>). The
+    /// items' text has them "indefinite in Operations zones"; here an Operation takes none.
+    ///
     /// One way: whoever may use it gets, within reach of it, the waypoint window with the
     /// waypoints they have gained on this map, and SelectWaypoint takes it for the departure
     /// station (<see cref="IsNearUsable"/>). Using it opens the window too. The window's name
@@ -47,16 +50,28 @@ namespace Rasa.Managers
     /// the object's entity id: those begin at 1000, and the waypoints placed in the world end
     /// below that. Another Personal Waypoint's window lists it too.
     ///
-    /// Whose: its owner's, and at level 3 their squad's, on the map it stands on. It is told
-    /// to each client enabled or not as a Dropship Extraction Beacon's ship is
-    /// (<see cref="DropshipBeacons"/>).
+    /// Whose: its owner's, and at level 3 their squad's, on the map it stands on.
     ///
-    /// How long: DURATION, or with no end for levels 2 and 3 on a map that is entered as a
-    /// squad's instance - the Operations (<see cref="SquadInstancePolicies"/>). In either case
-    /// it goes when its owner puts down another, leaves the map or leaves the game.
+    /// Attacked: it has <see cref="MaxHealth"/> hit points and is gone at none. Its owner's
+    /// enemies across a wargame may shoot and strike it, and so may their creatures; a HOSTILE
+    /// creature picks it for a target as it would its owner, and fights it with what it has
+    /// (BehaviorManager, Threat, MissileManager, ConstantFire). A hit lands as it is: no crit,
+    /// cover or resistance, as on a force field. Abilities do not reach it; they are aimed at
+    /// actors.
     ///
-    /// Not here: the client lets a WORMHOLE usable be shown hostile and destroyed
-    /// (Recv_TargetCategory, IsDestroyable). Nothing can harm one.
+    /// To each client it is one of three things (<see cref="Standing"/>), told when the client
+    /// meets it and again when that changes - a squad joined or left, a wargame begun or over:
+    ///  - theirs to use: enabled (UsableInfo, SetUsable), which the client shows as an OBJECT;
+    ///  - an enemy's: not enabled, HOSTILE and with hit points that can be damaged
+    ///    (DamageInfo) - the client's "wormholes are mouse-targetable if you can harm them";
+    ///  - neither: not enabled and FRIENDLY. The category has to be said: the client starts a
+    ///    wormhole with one of False, which it reads as HOSTILE (0).
+    /// Everyone is told the hit points, which the overhead bar of a destroyable usable shows.
+    ///
+    /// How long: DURATION. It goes sooner when it is destroyed, or when its owner puts down
+    /// another, leaves the map or leaves the game. However it goes, vfx_ability_wormhole_death
+    /// plays where it stood - the client's ABILITY_TEMPORARY_WORMHOLE_DEATH, which nothing in
+    /// its own code plays.
     /// </summary>
     public static class PersonalWaypoints
     {
@@ -79,24 +94,62 @@ namespace Rasa.Managers
 
         public const int DefaultDurationSeconds = 300;
 
-        /// <summary>A Personal Waypoint a player may return to: what EnteredWaypoint lists.</summary>
+        /// <summary>Its hit points. The client has none for the class; a force field's.</summary>
+        public const int MaxHealth = 5000;
+
+        /// <summary>vfx_ability_wormhole_death (FxPackages).</summary>
+        public const uint DeathPackage = 28072;
+
+        /// <summary>How long the death is left playing where it stood.</summary>
+        public const int DeathMs = 3000;
+
+        /// <summary>What a Personal Waypoint is to a player, and so what their client has been told of it.</summary>
+        private enum Standing
+        {
+            /// <summary>Nothing told yet: the client's own start - not enabled, HOSTILE, no hit points.</summary>
+            Unmet,
+
+            /// <summary>Theirs, or their squad's, to use.</summary>
+            Theirs,
+
+            /// <summary>An enemy's: to attack.</summary>
+            Enemy,
+
+            /// <summary>Somebody else's: neither.</summary>
+            Other
+        }
+
+        /// <summary>A Personal Waypoint out on a map.</summary>
         private sealed class Placed
         {
             public Manifestation Owner;
             public string OwnerName;
             public uint Level;
             public DynamicObject Object;
-
-            /// <summary>long.MaxValue: no end.</summary>
             public long ExpiresAt;
+            public int Health = MaxHealth;
 
             public readonly List<Client> WindowOpen = new List<Client>();
 
-            /// <summary>The clients that have been told it is enabled.</summary>
-            public readonly HashSet<Client> ToldUsable = new HashSet<Client>();
+            /// <summary>What each client around it has been told it is to them.</summary>
+            public readonly Dictionary<Client, Standing> Told = new Dictionary<Client, Standing>();
         }
 
-        private static readonly ConditionalWeakTable<MapChannel, List<Placed>> Waypoints = new();
+        /// <summary>The death of one that has gone, playing where it stood.</summary>
+        private sealed class Death
+        {
+            public MapEmitter Emitter;
+            public long RemoveAt;
+        }
+
+        /// <summary>The Personal Waypoints of a map channel. Locked for its lists and for a waypoint's hit points.</summary>
+        private sealed class OnMap
+        {
+            public readonly List<Placed> Waypoints = new List<Placed>();
+            public readonly List<Death> Deaths = new List<Death>();
+        }
+
+        private static readonly ConditionalWeakTable<MapChannel, OnMap> Maps = new();
 
         /// <summary>The waypoints of the map's network a player has gained, for the window. Replaced in tests.</summary>
         internal static Func<Client, Dictionary<uint, MapWaypointInfoList>> Network =
@@ -104,23 +157,46 @@ namespace Rasa.Managers
 
         public static bool Is(ActionInfo action) => action?.Module == Module;
 
+        #region Where
+
         /// <summary>
-        /// Why a Personal Waypoint cannot be put down now, as the client's own check has it
-        /// (temporarywormhole.py CheckAction): on a map with teams, by a player on none.
+        /// Why a Personal Waypoint cannot be put down where the player is: on a battleground's
+        /// map, or in an instance. The client's own check (temporarywormhole.py CheckAction)
+        /// refuses only a player with no team on a map that has teams.
         /// </summary>
         public static PlayerMessage? Refusal(Manifestation player)
         {
-            if (player?.MapChannel != null && Battlegrounds.Instance.IsBattleground(player.MapChannel.MapInfo.MapContextId)
-                && Battlegrounds.Instance.TeamOf(player) == 0)
+            var mapChannel = player?.MapChannel;
+
+            if (mapChannel == null)
+                return null;
+
+            if (Battlegrounds.Instance.IsBattleground(mapChannel.MapInfo.MapContextId) || IsInstance(mapChannel))
                 return PlayerMessage.PmCannotPerformActionNow;
 
             return null;
         }
 
-        /// <summary>Whether a Personal Waypoint of this level put down on this map has no end: a two-way one in an Operation.</summary>
-        public static bool Stays(MapChannel mapChannel, uint level) =>
-            level >= TwoWayLevel && mapChannel != null &&
-            (mapChannel.IsSquadInstance || SquadInstancePolicies.IsSquadMap(mapChannel.MapInfo.MapContextId));
+        /// <summary>
+        /// An instance: a squad's or a player's own copy of a map, and any map that is entered
+        /// as a squad's instance - the Operations, which are instances whether or not the
+        /// server is entering them as squad instances (<see cref="SquadInstancePolicies"/>). A
+        /// further public copy of an open map (MapChannel.IsSharedInstance) is not one.
+        /// </summary>
+        public static bool IsInstance(MapChannel mapChannel)
+        {
+            if (mapChannel == null)
+                return false;
+
+            var map = mapChannel.MapInfo.MapContextId;
+
+            return mapChannel.IsSquadInstance || mapChannel.IsPrivateInstance ||
+                   SquadInstancePolicies.IsSquadMap(map) || SquadInstancePolicies.DefaultMaps.Contains(map);
+        }
+
+        #endregion
+
+        #region Put down
 
         /// <summary>Puts the player's Personal Waypoint down where they stand, in service. One of theirs already out on this map goes first.</summary>
         public static DynamicObject Deploy(MapChannel mapChannel, Manifestation owner, uint level, ActionLevelInfo info, long now = 0)
@@ -131,14 +207,14 @@ namespace Rasa.Managers
             if (now == 0)
                 now = Environment.TickCount64;
 
-            var waypoints = Waypoints.GetValue(mapChannel, _ => new List<Placed>());
+            var onMap = Maps.GetValue(mapChannel, _ => new OnMap());
             List<Placed> theirs;
 
-            lock (waypoints)
-                theirs = waypoints.Where(placed => placed.Owner == owner).ToList();
+            lock (onMap)
+                theirs = onMap.Waypoints.Where(placed => placed.Owner == owner).ToList();
 
             foreach (var placed in theirs)
-                Remove(mapChannel, waypoints, placed);
+                Remove(mapChannel, onMap, placed, now);
 
             var obj = new DynamicObject
             {
@@ -149,8 +225,11 @@ namespace Rasa.Managers
                 MapContextId = owner.MapContextId,
                 StateId = UseObjectState.WhState0,
 
-                // In service on the server, so a use of it is looked at; the clients are told one
-                // by one, whoever it is for yes and nobody else anything (SyncUsable).
+                // A player's, as its owner is.
+                TargetCategory = TargetCategory.Friendly,
+
+                // In service on the server, so a use of it is looked at; each client is told
+                // what it is to them (Introduce, Sync).
                 IsEnabled = true
             };
 
@@ -161,17 +240,21 @@ namespace Rasa.Managers
                 OwnerName = $"{owner.Name} {owner.FamilyName}".Trim(),
                 Level = level,
                 Object = obj,
-                ExpiresAt = Stays(mapChannel, level) ? long.MaxValue : now + seconds * 1000L
+                ExpiresAt = now + seconds * 1000L
             };
 
             // Listed before the clients around are shown it, so that each is shown it as it is for them (ShowTo).
-            lock (waypoints)
-                waypoints.Add(waypoint);
+            lock (onMap)
+                onMap.Waypoints.Add(waypoint);
 
             CellManager.Instance.AddToWorld(mapChannel, obj);
 
             return obj;
         }
+
+        #endregion
+
+        #region Whose
 
         /// <summary>Whether the player may use it: its owner, or at level 3 their squad, alive and in the world on its map.</summary>
         public static bool MayUse(Client client, DynamicObject obj)
@@ -187,6 +270,7 @@ namespace Rasa.Managers
 
             return player != null && client.State == ClientState.Ingame && client.PendingTransfer == null &&
                    player.State != CharacterState.Dead && player.State != CharacterState.Dying &&
+                   placed.Health > 0 &&
                    placed.Object.RuntimeMapChannel != null && player.MapChannel == placed.Object.RuntimeMapChannel &&
                    IsFor(player, placed);
         }
@@ -194,19 +278,104 @@ namespace Rasa.Managers
         private static bool IsFor(Manifestation player, Placed placed) =>
             player == placed.Owner || placed.Level >= SquadLevel && Detection.SameSquad(placed.Owner, player);
 
-        /// <summary>Whether it goes to this client enabled: theirs, or their squad's. For the UsableInfo of a client meeting it, and remembered.</summary>
+        private static Standing StandingOf(Manifestation player, Placed placed)
+        {
+            if (IsFor(player, placed))
+                return Standing.Theirs;
+
+            return Pvp.AreEnemies(player, placed.Owner) ? Standing.Enemy : Standing.Other;
+        }
+
+        /// <summary>
+        /// The category a client is told: FRIENDLY for a bystander. For whoever may use it or
+        /// attack it, HOSTILE - the client's wormhole takes the mouse only while its category is
+        /// that, and shows as an OBJECT anyway while it is enabled.
+        /// </summary>
+        private static TargetCategory CategoryOf(Standing standing) =>
+            standing == Standing.Other ? TargetCategory.Friendly : TargetCategory.Hostile;
+
+        /// <summary>
+        /// Whether it goes to this client enabled: theirs, or their squad's. For the UsableInfo
+        /// of a client meeting it; the rest of what they are told follows (<see cref="Introduce"/>).
+        /// </summary>
         public static bool ShowTo(Client client, DynamicObject obj)
         {
             var placed = Find(obj);
 
-            if (placed == null || client?.Player == null || !IsFor(client.Player, placed))
-                return false;
-
-            lock (placed.ToldUsable)
-                placed.ToldUsable.Add(client);
-
-            return true;
+            return placed != null && client?.Player != null && IsFor(client.Player, placed);
         }
+
+        /// <summary>
+        /// What a client meeting it is told besides its creation: its hit points, whether they
+        /// are the client's to take, and its category when that is not the one the client
+        /// starts it with. Called from DynamicObjectManager.CreateDynamicObjectOnClient.
+        /// </summary>
+        internal static void Introduce(Client client, DynamicObject obj)
+        {
+            var placed = Find(obj);
+
+            if (placed == null || client?.Player == null)
+                return;
+
+            var standing = StandingOf(client.Player, placed);
+
+            lock (placed.Told)
+                placed.Told[client] = standing;
+
+            client.CallMethod(obj.EntityId, new UsableDamageInfoPacket(standing == Standing.Enemy, false, MaxHealth, placed.Health));
+
+            if (CategoryOf(standing) != CategoryOf(Standing.Unmet))
+                client.CallMethod(obj.EntityId, new TargetCategoryPacket(CategoryOf(standing)));
+        }
+
+        /// <summary>
+        /// Tells each client around it what it is to them, when that has changed: someone who
+        /// joins or leaves the owner's squad while it is out, and someone whose wargame with
+        /// the owner begins or ends. Clients no longer around are forgotten; meeting it again
+        /// introduces it to them (ShowTo, Introduce).
+        /// </summary>
+        private static void Sync(MapChannel mapChannel, Placed placed)
+        {
+            if (!CellManager.TryGetCellCoordinates(placed.Object.Position, out var x, out var z))
+                return;
+
+            var around = CellManager.Instance.GetClientsInCells(mapChannel, CellManager.Instance.CreateCellMatrix(mapChannel, x, z)).ToList();
+
+            lock (placed.Told)
+                foreach (var gone in placed.Told.Keys.Where(client => !around.Contains(client)).ToList())
+                    placed.Told.Remove(gone);
+
+            foreach (var client in around)
+            {
+                if (client.Player == null)
+                    continue;
+
+                var standing = StandingOf(client.Player, placed);
+                Standing told;
+
+                lock (placed.Told)
+                {
+                    placed.Told.TryGetValue(client, out told);
+                    placed.Told[client] = standing;
+                }
+
+                if (standing == told)
+                    continue;
+
+                if ((standing == Standing.Theirs) != (told == Standing.Theirs))
+                    client.CallMethod(placed.Object.EntityId, new SetUsablePacket(standing == Standing.Theirs));
+
+                if ((standing == Standing.Enemy) != (told == Standing.Enemy))
+                    client.CallMethod(placed.Object.EntityId, new UsableDamageInfoPacket(standing == Standing.Enemy, false, MaxHealth, placed.Health));
+
+                if (CategoryOf(standing) != CategoryOf(told))
+                    client.CallMethod(placed.Object.EntityId, new TargetCategoryPacket(CategoryOf(standing)));
+            }
+        }
+
+        #endregion
+
+        #region The ways out and back
 
         /// <summary>
         /// A Personal Waypoint the player may use within reach, on this map: a departure station
@@ -215,11 +384,11 @@ namespace Rasa.Managers
         /// </summary>
         public static bool IsNearUsable(Client client, MapChannel mapChannel, ulong except = 0)
         {
-            if (client?.Player == null || mapChannel == null || !Waypoints.TryGetValue(mapChannel, out var waypoints))
+            if (client?.Player == null || mapChannel == null || !Maps.TryGetValue(mapChannel, out var onMap))
                 return false;
 
-            lock (waypoints)
-                return waypoints.Any(placed => placed.Object.EntityId != except && MayUse(client, placed) && InReach(client, placed));
+            lock (onMap)
+                return onMap.Waypoints.Any(placed => placed.Object.EntityId != except && MayUse(client, placed) && InReach(client, placed));
         }
 
         /// <summary>
@@ -229,13 +398,13 @@ namespace Rasa.Managers
         /// </summary>
         public static List<TempWormhole> ReturnPoints(Client client, MapChannel mapChannel, ulong except = 0)
         {
-            if (client?.Player == null || mapChannel == null || !Waypoints.TryGetValue(mapChannel, out var waypoints))
+            if (client?.Player == null || mapChannel == null || !Maps.TryGetValue(mapChannel, out var onMap))
                 return null;
 
             List<TempWormhole> points;
 
-            lock (waypoints)
-                points = waypoints
+            lock (onMap)
+                points = onMap.Waypoints
                     .Where(placed => placed.Object.EntityId != except && placed.Level >= TwoWayLevel && MayUse(client, placed))
                     .Select(placed => new TempWormhole(placed.Object.EntityId, placed.Object.Position, placed.OwnerName))
                     .ToList();
@@ -249,13 +418,13 @@ namespace Rasa.Managers
             position = default;
             rotation = 0;
 
-            if (id == 0 || client?.Player == null || mapChannel == null || !Waypoints.TryGetValue(mapChannel, out var waypoints))
+            if (id == 0 || client?.Player == null || mapChannel == null || !Maps.TryGetValue(mapChannel, out var onMap))
                 return false;
 
             Placed found;
 
-            lock (waypoints)
-                found = waypoints.FirstOrDefault(placed => placed.Object.EntityId == id);
+            lock (onMap)
+                found = onMap.Waypoints.FirstOrDefault(placed => placed.Object.EntityId == id);
 
             if (found == null || found.Level < TwoWayLevel || !MayUse(client, found))
                 return false;
@@ -285,100 +454,6 @@ namespace Rasa.Managers
                     placed.WindowOpen.Add(client);
 
             OpenWindow(client, placed);
-        }
-
-        /// <summary>
-        /// The Personal Waypoints on a map: taken away when their time is up or their owner has
-        /// gone, the clients around told whose they are, and the waypoint window opened for
-        /// those who come within reach and closed for those who leave it.
-        /// <paramref name="now"/> is for tests; 0 is the clock.
-        /// </summary>
-        public static void Worker(MapChannel mapChannel, long now = 0)
-        {
-            if (mapChannel == null || !Waypoints.TryGetValue(mapChannel, out var waypoints))
-                return;
-
-            if (now == 0)
-                now = Environment.TickCount64;
-
-            List<Placed> all;
-
-            lock (waypoints)
-                all = waypoints.ToList();
-
-            foreach (var placed in all)
-            {
-                // Its time is up, or its owner has left the map or the game.
-                if (now >= placed.ExpiresAt || placed.Owner.MapChannel != mapChannel ||
-                    !mapChannel.ClientList.Any(client => client?.Player == placed.Owner))
-                {
-                    Remove(mapChannel, waypoints, placed);
-                    continue;
-                }
-
-                SyncUsable(mapChannel, placed);
-                Proximity(mapChannel, placed);
-            }
-        }
-
-        private static void Remove(MapChannel mapChannel, List<Placed> waypoints, Placed placed)
-        {
-            lock (waypoints)
-                waypoints.Remove(placed);
-
-            List<Client> open;
-
-            lock (placed.WindowOpen)
-            {
-                open = placed.WindowOpen.ToList();
-                placed.WindowOpen.Clear();
-            }
-
-            foreach (var client in open)
-                if (client.State != ClientState.Disconnected)
-                    client.CallMethod(SysEntity.ClientMethodId, new ExitedWaypointPacket());
-
-            placed.Object.IsEnabled = false;
-            CellManager.Instance.RemoveFromWorld(mapChannel, placed.Object);
-        }
-
-        /// <summary>
-        /// Tells each client around it whether it is theirs to use, when that has changed: the
-        /// owner when it is put down, someone who joins the owner's squad while it is out, and
-        /// someone who leaves it. Clients no longer around are forgotten; meeting it again sends
-        /// them its UsableInfo (ShowTo).
-        /// </summary>
-        private static void SyncUsable(MapChannel mapChannel, Placed placed)
-        {
-            if (!CellManager.TryGetCellCoordinates(placed.Object.Position, out var x, out var z))
-                return;
-
-            var around = CellManager.Instance.GetClientsInCells(mapChannel, CellManager.Instance.CreateCellMatrix(mapChannel, x, z)).ToList();
-
-            lock (placed.ToldUsable)
-                placed.ToldUsable.RemoveWhere(client => !around.Contains(client));
-
-            foreach (var client in around)
-            {
-                var usable = client.Player != null && IsFor(client.Player, placed);
-                bool told;
-
-                lock (placed.ToldUsable)
-                    told = placed.ToldUsable.Contains(client);
-
-                if (usable == told)
-                    continue;
-
-                lock (placed.ToldUsable)
-                {
-                    if (usable)
-                        placed.ToldUsable.Add(client);
-                    else
-                        placed.ToldUsable.Remove(client);
-                }
-
-                client.CallMethod(placed.Object.EntityId, new SetUsablePacket(usable));
-            }
         }
 
         private static void Proximity(MapChannel mapChannel, Placed placed)
@@ -428,15 +503,212 @@ namespace Rasa.Managers
         private static bool InReach(Client client, Placed placed) =>
             Vector3.Distance(client.Player.Position, placed.Object.Position) <= Reach;
 
+        #endregion
+
+        #region Attacked
+
+        /// <summary>
+        /// Whether this actor may harm it: a player who is an enemy of its owner's across a
+        /// wargame, a creature of such a player's, and a HOSTILE creature, to which a player's
+        /// waypoint is what the player is.
+        /// </summary>
+        private static bool MayHarm(Actor attacker, Placed placed)
+        {
+            var mapChannel = placed.Object.RuntimeMapChannel;
+
+            if (attacker == null || mapChannel == null || placed.Health <= 0 || !MapInstanceScope.Contains(mapChannel, attacker))
+                return false;
+
+            return attacker switch
+            {
+                Manifestation player => Pvp.AreEnemies(player, placed.Owner),
+                Creature creature when creature.MasterEntityId != 0 => Pvp.AreEnemies(Pvp.Controller(creature), placed.Owner),
+                Creature creature => TargetCategories.Seeks(creature.TargetCategory, placed.Object.TargetCategory),
+                _ => false
+            };
+        }
+
+        /// <summary>Whether the entity is a Personal Waypoint this actor may attack: a shot at it is let go (MissileManager.MissileLaunch).</summary>
+        public static bool MayBeAttackedBy(Actor attacker, ulong entityId)
+        {
+            var placed = Find(entityId);
+
+            return placed != null && MayHarm(attacker, placed);
+        }
+
+        /// <summary>Whether the entity is a Personal Waypoint this creature may pick a fight with and keep at (BehaviorManager.MayFight, Threat.CanFight).</summary>
+        public static bool MayBeFoughtBy(Creature creature, ulong entityId) => MayBeAttackedBy(creature, entityId);
+
+        /// <summary>Where a Personal Waypoint stands: what a creature fighting it walks up to. False for anything else.</summary>
+        public static bool TryGetPosition(ulong entityId, out Vector3 position)
+        {
+            var placed = Find(entityId);
+
+            position = placed?.Object.Position ?? default;
+
+            return placed != null;
+        }
+
+        /// <summary>
+        /// A missile at an object landing (MissileManager.MissileTrigger). False when the object
+        /// is no Personal Waypoint. Its damage goes on the waypoint's hit points as it is, and
+        /// what it took is what the hit shows.
+        /// </summary>
+        internal static bool TakeHit(Missile missile)
+        {
+            var placed = Find(missile.TargetEntityId);
+
+            if (placed == null)
+                return false;
+
+            missile.DamageA = MayHarm(missile.Source, placed) ? Damage(placed, missile.DamageA, missile.Source) : 0;
+
+            return true;
+        }
+
+        /// <summary>
+        /// A hit that is no missile - a constant-fire weapon's pulse (ConstantFire). What the
+        /// waypoint took, or null when the entity is not a Personal Waypoint the attacker may harm.
+        /// </summary>
+        public static int? TakeDamage(Actor attacker, ulong entityId, int amount)
+        {
+            var placed = Find(entityId);
+
+            if (placed == null || !MayHarm(attacker, placed))
+                return null;
+
+            return Damage(placed, amount, attacker);
+        }
+
+        /// <summary>Its hit points now; 0 for anything that is not a Personal Waypoint out on a map.</summary>
+        public static int HealthOf(DynamicObject obj) => Find(obj)?.Health ?? 0;
+
+        private static int Damage(Placed placed, int amount, Actor attacker)
+        {
+            var mapChannel = placed.Object.RuntimeMapChannel;
+
+            if (mapChannel == null || amount <= 0 || !Maps.TryGetValue(mapChannel, out var onMap))
+                return 0;
+
+            int taken;
+            int left;
+
+            lock (onMap)
+            {
+                taken = Math.Min(amount, placed.Health);
+                placed.Health -= taken;
+                left = placed.Health;
+            }
+
+            if (taken <= 0)
+                return 0;
+
+            // An attack on an enemy's is an attack on an enemy: the attacker's PvP Safety comes off (Pvp.Attack).
+            if (Pvp.Controller(attacker) is Manifestation player)
+                Pvp.EndSafety(mapChannel, player);
+
+            CellManager.Instance.CellCallMethod(placed.Object, new UpdateHitPointsPacket(left));
+
+            if (left <= 0)
+                Remove(mapChannel, onMap, placed, Environment.TickCount64);
+
+            return taken;
+        }
+
+        #endregion
+
+        #region How long
+
+        /// <summary>
+        /// The Personal Waypoints on a map: taken away when their time is up or their owner has
+        /// gone, the clients around told what they are to them, and the waypoint window opened
+        /// for those who come within reach and closed for those who leave it.
+        /// <paramref name="now"/> is for tests; 0 is the clock.
+        /// </summary>
+        public static void Worker(MapChannel mapChannel, long now = 0)
+        {
+            if (mapChannel == null || !Maps.TryGetValue(mapChannel, out var onMap))
+                return;
+
+            if (now == 0)
+                now = Environment.TickCount64;
+
+            List<Placed> all;
+            List<Death> played;
+
+            lock (onMap)
+            {
+                all = onMap.Waypoints.ToList();
+                played = onMap.Deaths.Where(death => now >= death.RemoveAt).ToList();
+                onMap.Deaths.RemoveAll(played.Contains);
+            }
+
+            foreach (var death in played)
+                EmitterManager.Instance.RemoveTemporary(mapChannel, death.Emitter);
+
+            foreach (var placed in all)
+            {
+                // Its time is up, or its owner has left the map or the game.
+                if (now >= placed.ExpiresAt || placed.Owner.MapChannel != mapChannel ||
+                    !mapChannel.ClientList.Any(client => client?.Player == placed.Owner))
+                {
+                    Remove(mapChannel, onMap, placed, now);
+                    continue;
+                }
+
+                Sync(mapChannel, placed);
+                Proximity(mapChannel, placed);
+            }
+        }
+
+        private static void Remove(MapChannel mapChannel, OnMap onMap, Placed placed, long now)
+        {
+            lock (onMap)
+                if (!onMap.Waypoints.Remove(placed))
+                    return;
+
+            List<Client> open;
+
+            lock (placed.WindowOpen)
+            {
+                open = placed.WindowOpen.ToList();
+                placed.WindowOpen.Clear();
+            }
+
+            foreach (var client in open)
+                if (client.State != ClientState.Disconnected)
+                    client.CallMethod(SysEntity.ClientMethodId, new ExitedWaypointPacket());
+
+            var obj = placed.Object;
+
+            obj.IsEnabled = false;
+            CellManager.Instance.RemoveFromWorld(mapChannel, obj);
+
+            var death = new Death
+            {
+                Emitter = EmitterManager.Instance.PlayTemporary(mapChannel, obj.MapContextId, obj.Position, obj.Rotation, DeathPackage,
+                    $"personal waypoint of {placed.OwnerName} gone"),
+                RemoveAt = now + DeathMs
+            };
+
+            lock (onMap)
+                onMap.Deaths.Add(death);
+        }
+
+        #endregion
+
         private static Placed Find(DynamicObject obj)
         {
             var mapChannel = obj?.RuntimeMapChannel;
 
-            if (mapChannel == null || !Waypoints.TryGetValue(mapChannel, out var waypoints))
+            if (mapChannel == null || obj.DynamicObjectType != DynamicObjectType.PersonalWaypoint || !Maps.TryGetValue(mapChannel, out var onMap))
                 return null;
 
-            lock (waypoints)
-                return waypoints.FirstOrDefault(placed => placed.Object == obj);
+            lock (onMap)
+                return onMap.Waypoints.FirstOrDefault(placed => placed.Object == obj);
         }
+
+        private static Placed Find(ulong entityId) =>
+            entityId != 0 && EntityManager.Instance.TryGetObject(entityId, out var obj) ? Find(obj) : null;
     }
 }

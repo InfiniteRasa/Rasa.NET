@@ -534,6 +534,11 @@ namespace Rasa.Managers
 
                 if (target != null && Vector3.Distance(player.Position, target.Position) > level.MaxRange + MeleeRangeSlack)
                     return;
+
+                // A Personal Waypoint (PersonalWaypoints) is struck from as near.
+                if (target == null && PersonalWaypoints.TryGetPosition(targetId, out var waypoint)
+                    && Vector3.Distance(player.Position, waypoint) > level.MaxRange + MeleeRangeSlack)
+                    return;
             }
 
             // The alt damage is a single figure - the tooltip shows one number for it - and so is the swing.

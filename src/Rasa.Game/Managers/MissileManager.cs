@@ -703,6 +703,22 @@ namespace Rasa.Managers
                     missile.TargetEntityId = action.TargetId;
                     triggerTime = (int)(fieldDistance * 0.5f);
                 }
+                else if (targetType == EntityType.Object && PersonalWaypoints.TryGetPosition(action.TargetId, out var waypointPosition))
+                {
+                    // A Personal Waypoint (PersonalWaypoints): only for an enemy of its owner's or
+                    // a creature that fights players, and as with a field the missile lands on
+                    // its own hit points.
+                    if (!PersonalWaypoints.MayBeAttackedBy(action.Actor, action.TargetId))
+                        return;
+
+                    var waypointDistance = Vector3.Distance(waypointPosition, action.Actor.Position);
+
+                    if (!float.IsFinite(waypointDistance) || waypointDistance > MaxTargetDistance)
+                        return;
+
+                    missile.TargetEntityId = action.TargetId;
+                    triggerTime = (int)(waypointDistance * 0.5f);
+                }
                 else if (targetType == EntityType.Object)
                 {
                     // A Bootcamp practice target (PracticeTargetManager).
@@ -1149,7 +1165,10 @@ namespace Rasa.Managers
                     EnterCombat(missile.Source);
                     break;
                 case EntityType.Object:
-                    ForceFields.TakeHit(missile);
+                    // A Personal Waypoint, or else a force field.
+                    if (!PersonalWaypoints.TakeHit(missile))
+                        ForceFields.TakeHit(missile);
+
                     break;
                 default:
                     Logger.WriteLog(LogType.Error, $"WeaponAttackRecovery: Unsuported targetType {targetType}.");

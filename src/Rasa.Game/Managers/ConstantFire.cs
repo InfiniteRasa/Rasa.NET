@@ -231,6 +231,12 @@ namespace Rasa.Managers
             }
             else if (ResolveTarget(mapChannel, player) is Actor aimed && (aimed is Creature || Pvp.IsEnemyTarget(player, aimed)))
                 targets.Add(aimed);
+            else if (PersonalWaypoints.TakeDamage(player, player.Target, damage) is int taken)
+            {
+                // An enemy's Personal Waypoint (PersonalWaypoints): the pulse lands on its own hit
+                // points as it is - no crit, falloff or resistance, as a missile at one.
+                pulse.Add(new TickEntry { EntityId = player.Target, Amount = taken, DamageType = damageType });
+            }
 
             foreach (var target in targets)
             {

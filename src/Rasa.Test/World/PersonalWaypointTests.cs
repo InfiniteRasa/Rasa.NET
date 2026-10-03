@@ -47,6 +47,9 @@ namespace Rasa.Test.World
 
         private const long Start = 5_000_000;
 
+        private const uint RedClan = 900011;
+        private const uint BlueClan = 900012;
+
         #region The object
 
         [TestMethod]
@@ -421,27 +424,372 @@ namespace Rasa.Test.World
             Assert.IsNull(PersonalWaypoints.ReturnPoints(mate, f.World.Map));
         }
 
+        #endregion
+
+        #region Where
+
         [TestMethod]
-        public void InAnOperationATwoWayOneStays()
+        public void ItIsNotPutDownInAnInstanceOrOnABattleground()
+        {
+            using var f = new Fixture();
+            var player = f.Player(30, 30).Player;
+            var map = f.World.Map;
+
+            Assert.IsNull(PersonalWaypoints.Refusal(player), "the open world");
+
+            // A further public copy of an open map is the open world still.
+            map.IsSharedInstance = true;
+            Assert.IsNull(PersonalWaypoints.Refusal(player));
+            map.IsSharedInstance = false;
+
+            // A squad's own copy of a map, and a player's own.
+            map.IsSquadInstance = true;
+            Assert.AreEqual(PlayerMessage.PmCannotPerformActionNow, PersonalWaypoints.Refusal(player));
+            map.IsSquadInstance = false;
+
+            map.IsPrivateInstance = true;
+            Assert.AreEqual(PlayerMessage.PmCannotPerformActionNow, PersonalWaypoints.Refusal(player));
+            map.IsPrivateInstance = false;
+
+            // An Operation is an instance whether or not the server enters it as a squad's.
+            var settings = SquadInstancePolicies.Current;
+
+            try
+            {
+                SquadInstancePolicies.Apply(new Rasa.Config.SquadInstanceConfig { Enabled = false });
+
+                player.MapChannel = new MapChannel { MapInfo = new MapInfo(1347, "adv_foreas_concordia_divide_minoscaverns", 1, 0), ClientList = new List<Client>() };
+                Assert.AreEqual(PlayerMessage.PmCannotPerformActionNow, PersonalWaypoints.Refusal(player), "Minos Caverns");
+
+                // And so is a map the settings name as one.
+                player.MapChannel = new MapChannel { MapInfo = new MapInfo(999, "elsewhere", 1, 0), ClientList = new List<Client>() };
+                Assert.IsNull(PersonalWaypoints.Refusal(player));
+
+                SquadInstancePolicies.Apply(new Rasa.Config.SquadInstanceConfig { Enabled = true, Maps = new List<uint> { 999 } });
+                Assert.AreEqual(PlayerMessage.PmCannotPerformActionNow, PersonalWaypoints.Refusal(player));
+            }
+            finally
+            {
+                SquadInstancePolicies.Apply(settings);
+            }
+
+            // Edmund Range: on a team or not.
+            player.MapChannel = new MapChannel { MapInfo = new MapInfo(2374, "adv_wargame_edmundrange", 1, 0), ClientList = new List<Client>() };
+            Assert.AreEqual(PlayerMessage.PmCannotPerformActionNow, PersonalWaypoints.Refusal(player));
+
+            player.MapChannel = map;
+        }
+
+        [TestMethod]
+        public void InAnInstanceTheItemIsRefusedAndKept()
+        {
+            using var harness = BootcampRuntimeTestHarness.Create();
+            var instance = harness.BootcampMap.IsPrivateInstance;
+
+            try
+            {
+                harness.BootcampMap.IsPrivateInstance = true;
+
+                var item = ToyTests.Grant(harness, 118782);
+                var manager = ToyTests.CreateManager(harness, 487, 2, 118782);
+                harness.Drain();
+
+                manager.RequestPerformAbility(harness.Client, ToyTests.Request(487, 2, item.EntityId));
+
+                Assert.IsFalse(harness.BootcampMap.PerformRecovery.Any(action => action.ActionId == ActionId.ConsumablePortableWaypoint), "no windup");
+                Assert.IsEmpty(Placed(harness.BootcampMap));
+
+                var failed = harness.Drain().OfType<UserActionFailedPacket>().Single();
+                Assert.AreEqual(PlayerMessage.PmCannotPerformActionNow, failed.MsgId);
+
+                using var unit = harness.Context.CreateChar();
+                Assert.IsNotNull(unit.Items.GetItem(item.Id), "kept");
+            }
+            finally
+            {
+                harness.BootcampMap.IsPrivateInstance = instance;
+            }
+        }
+
+        #endregion
+
+        #region Attacked
+
+        [TestMethod]
+        public void EachClientIsToldItsHitPointsAndWhatItIsToThem()
+        {
+            using var f = new Fixture();
+            var owner = f.Fighter(RedClan, 30, 30);
+            var enemy = f.Fighter(BlueClan, 31, 30);
+            var stranger = f.Fighter(0, 32, 30);
+
+            f.WithFeud(() =>
+            {
+                var obj = f.Deploy(owner, TwoWay);
+
+                // Theirs: enabled, and the category the client starts it with, under which its
+                // wormhole takes the mouse. Not theirs to damage.
+                var met = f.Met(owner, obj);
+                Assert.IsTrue(met.Usable);
+                Assert.IsNull(met.Category);
+                Assert.IsFalse(met.Damage.CanBeDamaged);
+                Assert.AreEqual(PersonalWaypoints.MaxHealth, met.Damage.TotalHitPoints);
+                Assert.AreEqual(PersonalWaypoints.MaxHealth, met.Damage.CurrentHitPoints);
+
+                // An enemy's: not enabled, HOSTILE as it starts, and theirs to damage.
+                met = f.Met(enemy, obj);
+                Assert.IsFalse(met.Usable);
+                Assert.IsNull(met.Category);
+                Assert.IsTrue(met.Damage.CanBeDamaged);
+
+                // Somebody else's: FRIENDLY has to be said, or the client reads its own start as HOSTILE.
+                met = f.Met(stranger, obj);
+                Assert.IsFalse(met.Usable);
+                Assert.AreEqual(TargetCategory.Friendly, met.Category);
+                Assert.IsFalse(met.Damage.CanBeDamaged);
+
+                // Nothing more while nothing changes.
+                PersonalWaypoints.Worker(f.World.Map, Start + 500);
+                foreach (var client in new[] { enemy, stranger })
+                    Assert.AreEqual(0, Packets(client).Count(p => p is TargetCategoryPacket || p is UsableDamageInfoPacket || p is SetUsablePacket));
+            });
+        }
+
+        [TestMethod]
+        public void AWargameBegunOrOverIsToldAgain()
+        {
+            using var f = new Fixture();
+            var owner = f.Fighter(RedClan, 30, 30);
+            var other = f.Fighter(BlueClan, 31, 30);
+            var obj = f.Deploy(owner, TwoWay);
+
+            Assert.AreEqual(TargetCategory.Friendly, f.Met(other, obj).Category, "no feud yet");
+
+            f.WithFeud(() =>
+            {
+                PersonalWaypoints.Worker(f.World.Map, Start + 500);
+
+                var packets = Packets(other);
+                Assert.AreEqual(TargetCategory.Hostile, packets.OfType<TargetCategoryPacket>().Single().TargetCategory);
+                Assert.IsTrue(packets.OfType<UsableDamageInfoPacket>().Single().CanBeDamaged);
+                Assert.AreEqual(0, packets.OfType<SetUsablePacket>().Count(), "never theirs to use");
+            });
+
+            PersonalWaypoints.Worker(f.World.Map, Start + 1000);
+
+            var after = Packets(other);
+            Assert.AreEqual(TargetCategory.Friendly, after.OfType<TargetCategoryPacket>().Single().TargetCategory);
+            Assert.IsFalse(after.OfType<UsableDamageInfoPacket>().Single().CanBeDamaged);
+        }
+
+        [TestMethod]
+        public void AnEnemysShotLandsOnItsHitPointsAndNobodyElsesDoes()
+        {
+            using var f = new Fixture();
+            var owner = f.Fighter(RedClan, 30, 30);
+            var mate = f.Fighter(RedClan, 30, 31);
+            var enemy = f.Fighter(BlueClan, 40, 30);
+            var stranger = f.Fighter(0, 41, 30);
+
+            f.WithFeud(() =>
+            {
+                var obj = f.Deploy(owner, Squad);
+                Drain(owner);
+
+                Assert.IsTrue(PersonalWaypoints.MayBeAttackedBy(enemy.Player, obj.EntityId));
+                Assert.IsFalse(PersonalWaypoints.MayBeAttackedBy(owner.Player, obj.EntityId));
+                Assert.IsFalse(PersonalWaypoints.MayBeAttackedBy(mate.Player, obj.EntityId));
+                Assert.IsFalse(PersonalWaypoints.MayBeAttackedBy(stranger.Player, obj.EntityId));
+                Assert.IsFalse(PersonalWaypoints.MayBeAttackedBy(enemy.Player, f.Near.EntityId), "a waypoint is no Personal Waypoint");
+
+                // What it took is what the hit shows, and everyone around is told what is left.
+                var hit = f.Shoot(enemy.Player, obj, 300);
+                Assert.AreEqual(300, hit.DamageA);
+                Assert.AreEqual(PersonalWaypoints.MaxHealth - 300, PersonalWaypoints.HealthOf(obj));
+                Assert.AreEqual(PersonalWaypoints.MaxHealth - 300, Packets(owner).OfType<UpdateHitPointsPacket>().Single().CurrentHitPoints);
+
+                foreach (var harmless in new[] { owner, mate, stranger })
+                    Assert.AreEqual(0, f.Shoot(harmless.Player, obj, 300).DamageA);
+
+                Assert.AreEqual(PersonalWaypoints.MaxHealth - 300, PersonalWaypoints.HealthOf(obj));
+
+                // A shot is let go at it only by who may harm it.
+                var before = f.World.Map.QueuedMissiles.Count;
+
+                MissileManager.Instance.MissileLaunch(f.World.Map, new ActionData(stranger.Player, ActionId.WeaponAttack, 1, obj.EntityId, 0), 55);
+                Assert.AreEqual(before, f.World.Map.QueuedMissiles.Count);
+
+                MissileManager.Instance.MissileLaunch(f.World.Map, new ActionData(enemy.Player, ActionId.WeaponAttack, 1, obj.EntityId, 0), 55);
+                Assert.AreEqual(before + 1, f.World.Map.QueuedMissiles.Count);
+                Assert.AreEqual(obj.EntityId, f.World.Map.QueuedMissiles.Last().TargetEntityId);
+                f.World.Map.QueuedMissiles.Clear();
+
+                // A constant-fire weapon's pulse.
+                Assert.AreEqual(120, PersonalWaypoints.TakeDamage(enemy.Player, obj.EntityId, 120));
+                Assert.IsNull(PersonalWaypoints.TakeDamage(stranger.Player, obj.EntityId, 120));
+                Assert.IsNull(PersonalWaypoints.TakeDamage(enemy.Player, f.Near.EntityId, 120));
+                Assert.AreEqual(PersonalWaypoints.MaxHealth - 420, PersonalWaypoints.HealthOf(obj));
+            });
+        }
+
+        [TestMethod]
+        public void AtNoHitPointsItIsGoneAndItsDeathPlaysWhereItStood()
+        {
+            using var f = new Fixture();
+            var owner = f.Fighter(RedClan, 30, 30);
+            var enemy = f.Fighter(BlueClan, 40, 30);
+            f.Gain(owner, 10);
+
+            f.WithFeud(() =>
+            {
+                var obj = f.Deploy(owner, TwoWay);
+                var id = obj.EntityId;
+                var position = obj.Position;
+
+                PersonalWaypoints.Worker(f.World.Map, Start + 500);
+                Drain(owner);
+
+                Assert.AreEqual(PersonalWaypoints.MaxHealth - 1, f.Shoot(enemy.Player, obj, PersonalWaypoints.MaxHealth - 1).DamageA);
+                Assert.AreEqual(1, f.Placed().Length);
+
+                // More than it has left: it takes what it has.
+                Assert.AreEqual(1, f.Shoot(enemy.Player, obj, 500).DamageA);
+
+                Assert.AreEqual(0, f.Placed().Length);
+                Assert.IsNull(obj.RuntimeMapChannel);
+                Assert.AreEqual(0, PersonalWaypoints.HealthOf(obj));
+                Assert.IsNull(PersonalWaypoints.ReturnPoints(owner, f.World.Map), "no way back to it");
+                Assert.IsFalse(PersonalWaypoints.TryGetPosition(id, out _));
+
+                var packets = Packets(owner);
+                Assert.AreEqual(0, packets.OfType<UpdateHitPointsPacket>().Last().CurrentHitPoints);
+                Assert.AreEqual(1, packets.OfType<ExitedWaypointPacket>().Count(), "the open window is closed");
+                Assert.AreEqual(id, packets.OfType<DestroyPhysicalEntityPacket>().Single().EntityId);
+
+                // vfx_ability_wormhole_death, for a while.
+                var death = f.Deaths().Single();
+                Assert.AreEqual(PersonalWaypoints.DeathPackage, ((MapEmitter)death.ObjectData).PackageId);
+                Assert.AreEqual(position, death.Position);
+
+                var now = Environment.TickCount64;
+                PersonalWaypoints.Worker(f.World.Map, now + PersonalWaypoints.DeathMs - 100);
+                Assert.AreEqual(1, f.Deaths().Length);
+
+                PersonalWaypoints.Worker(f.World.Map, now + PersonalWaypoints.DeathMs + 100);
+                Assert.AreEqual(0, f.Deaths().Length);
+            });
+        }
+
+        [TestMethod]
+        public void ItsDeathPlaysWhenItsTimeIsUpToo()
         {
             using var f = new Fixture();
             var owner = f.Player(30, 30);
-            var mate = f.Player(60, 60);
+            f.Deploy(owner, OneWay);
 
-            Assert.IsFalse(PersonalWaypoints.Stays(f.World.Map, TwoWay), "the open world");
+            PersonalWaypoints.Worker(f.World.Map, Start + 300_000);
 
-            f.World.Map.IsSquadInstance = true;
+            Assert.AreEqual(1, f.Deaths().Length);
 
-            Assert.IsTrue(PersonalWaypoints.Stays(f.World.Map, TwoWay));
-            Assert.IsTrue(PersonalWaypoints.Stays(f.World.Map, Squad));
-            Assert.IsFalse(PersonalWaypoints.Stays(f.World.Map, OneWay), "\"Duration is 5 minutes\"");
+            PersonalWaypoints.Worker(f.World.Map, Start + 300_000 + PersonalWaypoints.DeathMs);
+            Assert.AreEqual(0, f.Deaths().Length);
+        }
 
-            f.Deploy(owner, TwoWay);
-            f.Deploy(mate, OneWay);
+        [TestMethod]
+        public void AnAttackOnAnEnemysEndsTheAttackersSafety()
+        {
+            using var f = new Fixture();
+            var owner = f.Fighter(RedClan, 30, 30);
+            var enemy = f.Fighter(BlueClan, 40, 30);
 
-            PersonalWaypoints.Worker(f.World.Map, Start + 24 * 3_600_000L);
+            f.WithFeud(() =>
+            {
+                var obj = f.Deploy(owner, TwoWay);
 
-            Assert.AreEqual(owner.Player.Position, f.Placed().Single().Position);
+                enemy.Player.ActiveEffects[900] = new GameEffect { EffectId = 900, TypeId = Pvp.SafetyTypeId };
+                Assert.IsTrue(Pvp.IsSafe(enemy.Player));
+
+                f.Shoot(enemy.Player, obj, 10);
+
+                Assert.IsFalse(Pvp.IsSafe(enemy.Player));
+            });
+        }
+
+        [TestMethod]
+        public void AHostileCreatureMayFightItAndAFriendlyOneMayNot()
+        {
+            using var f = new Fixture();
+            var owner = f.Fighter(RedClan, 30, 30);
+            var enemy = f.Fighter(BlueClan, 60, 60);
+            var obj = f.Deploy(owner, TwoWay);
+
+            var bane = f.Creature(TargetCategory.Hostile, 33, 30);
+            var soldier = f.Creature(TargetCategory.Friendly, 34, 30);
+            var neutral = f.Creature(TargetCategory.Neutral, 35, 30);
+
+            Assert.IsTrue(BehaviorManager.MayFight(bane, obj.EntityId));
+            Assert.IsTrue(Threat.CanFight(bane, obj.EntityId));
+            Assert.IsFalse(BehaviorManager.MayFight(soldier, obj.EntityId));
+            Assert.IsFalse(BehaviorManager.MayFight(neutral, obj.EntityId));
+            Assert.IsFalse(BehaviorManager.MayFight(bane, f.Near.EntityId), "a waypoint is nothing to fight");
+
+            // A player's creature: for its master's wargames, not for what it is.
+            var turret = f.Creature(TargetCategory.Friendly, 36, 30, master: enemy);
+            Assert.IsFalse(BehaviorManager.MayFight(turret, obj.EntityId));
+
+            f.WithFeud(() =>
+            {
+                Assert.IsTrue(BehaviorManager.MayFight(turret, obj.EntityId));
+                Assert.IsTrue(Threat.CanFight(turret, obj.EntityId));
+            });
+
+            // Its hit lands as a player's does.
+            Assert.AreEqual(250, f.Shoot(bane, obj, 250).DamageA);
+            Assert.AreEqual(0, f.Shoot(soldier, obj, 250).DamageA);
+            Assert.AreEqual(PersonalWaypoints.MaxHealth - 250, PersonalWaypoints.HealthOf(obj));
+
+            // Gone: nothing to fight.
+            PersonalWaypoints.Worker(f.World.Map, Start + 300_000);
+            Assert.IsFalse(BehaviorManager.MayFight(bane, obj.EntityId));
+            Assert.IsFalse(Threat.CanFight(bane, obj.EntityId));
+        }
+
+        [TestMethod]
+        public void AHostileCreatureInRangePicksItWalksUpToItAndBringsItDown()
+        {
+            using var f = new Fixture();
+            var owner = f.Fighter(RedClan, 30, 30);
+            var obj = f.Deploy(owner, TwoWay);
+
+            // The owner is out of its sight; the waypoint is not.
+            f.Move(owner, new Vector3(150, 0, 150));
+
+            var bane = f.Creature(TargetCategory.Hostile, 40, 30);
+            bane.Actions.Add(new CreatureAction { ActionId = ActionId.WeaponMelee, ActionArgId = 1, RangeMin = 0, RangeMax = 5, MinDamage = 400, MaxDamage = 400, Cooldown = 1000 });
+            bane.HomePos.Position = bane.Position;
+            bane.RunSpeed = 4;
+            bane.WalkSpeed = 2;
+            BehaviorManager.StartWandering(bane, false);
+
+            // Past the pause a creature takes before it looks about again.
+            bane.LastAgression = 3000;
+
+            f.Think(1);
+
+            Assert.AreEqual(BehaviorManager.BehaviorActionFighting, bane.Controller.CurrentAction);
+            Assert.AreEqual(obj.EntityId, bane.Controller.ActionFighting.TargetEntityId);
+
+            bane.Controller.ActionFighting.Opened = true;
+
+            // Up to it and at it, until it is gone - and then the creature has nothing to fight.
+            for (var tick = 0; tick < 400 && f.Placed().Length > 0; tick++)
+                f.Think(1);
+
+            Assert.AreEqual(0, f.Placed().Length, $"left with {PersonalWaypoints.HealthOf(obj)} hit points");
+            Assert.IsLessThan(5f, Vector3.Distance(bane.Position, new Vector3(30, 0, 30)), "it walked up to within its reach of it");
+
+            f.Think(2);
+            Assert.AreNotEqual(BehaviorManager.BehaviorActionFighting, bane.Controller.CurrentAction);
         }
 
         #endregion
@@ -455,6 +803,11 @@ namespace Rasa.Test.World
         public void TheItemPutsOneDownAndIsUsedUp(uint template, uint level)
         {
             using var harness = BootcampRuntimeTestHarness.Create();
+            var instance = harness.BootcampMap.IsPrivateInstance;
+
+            // The harness's map as open ground: an instance takes none (InAnInstanceTheItemIsRefusedAndKept).
+            harness.BootcampMap.IsPrivateInstance = false;
+
             var entry = harness.WorldContext.Set<EntityClassEntry>().AsNoTracking().Single(row => row.Id == (uint)PersonalWaypoints.WaypointClass);
             EntityClassManager.Instance.LoadedEntityClasses[PersonalWaypoints.WaypointClass] = new EntityClass(entry.Id, entry.ClassName, entry.MeshId,
                 entry.ClassCollisionRole, entry.AugList.Split(',').Select(value => (AugmentationType)uint.Parse(value)).ToList(), entry.TargetFlag != 0);
@@ -491,8 +844,10 @@ namespace Rasa.Test.World
             }
             finally
             {
+                PersonalWaypoints.Worker(harness.BootcampMap, long.MaxValue - PersonalWaypoints.DeathMs);
                 PersonalWaypoints.Worker(harness.BootcampMap, long.MaxValue);
                 EntityClassManager.Instance.LoadedEntityClasses.Remove(PersonalWaypoints.WaypointClass);
+                harness.BootcampMap.IsPrivateInstance = instance;
             }
         }
 
@@ -716,6 +1071,7 @@ namespace Rasa.Test.World
         private sealed class Fixture : IDisposable
         {
             private readonly Func<Client, Dictionary<uint, MapWaypointInfoList>> _network = PersonalWaypoints.Network;
+            private readonly List<Creature> _creatures = new List<Creature>();
 
             internal WorldTestContext World { get; } = new WorldTestContext();
             internal DynamicObjectManager Manager { get; }
@@ -738,6 +1094,8 @@ namespace Rasa.Test.World
             {
                 var client = World.CreateClient(x, z);
 
+                client.Player.Attributes[Attributes.Health] = new ActorAttributes(Attributes.Health, 1000, 1000, 1000, 0, 0);
+                client.Player.Attributes[Attributes.Armor] = new ActorAttributes(Attributes.Armor, 0, 0, 0, 0, 0);
                 CellManager.Instance.AddToWorld(client);
                 WorldTestContext.Drain(client);
 
@@ -761,13 +1119,141 @@ namespace Rasa.Test.World
 
             internal DynamicObject[] Placed() => PersonalWaypointTests.Placed(World.Map);
 
+            /// <summary>The deaths playing on the map: the emitters of ones that have gone.</summary>
+            internal DynamicObject[] Deaths() =>
+                World.Map.MapCellInfo.Cells.Values
+                    .SelectMany(cell => cell.DynamicObjectList)
+                    .Where(obj => obj.DynamicObjectType == DynamicObjectType.Emitter)
+                    .Distinct()
+                    .ToArray();
+
+            /// <summary>A player of a clan, with health to be fought for.</summary>
+            internal Client Fighter(uint clan, float x, float z)
+            {
+                var client = Player(x, z);
+
+                client.Player.ClanId = clan;
+
+                return client;
+            }
+
+            /// <summary>The Red clan and the Blue at feud for as long as the body runs; the players online for its messages.</summary>
+            internal void WithFeud(Action body)
+            {
+                var online = World.Map.ClientList.ToList();
+
+                lock (Server.Clients)
+                    Server.Clients.AddRange(online);
+
+                ClanFeuds.Feud feud = null;
+
+                try
+                {
+                    feud = ClanFeuds.Instance.Start(
+                        new ClanEntry { Id = RedClan, Name = "Red", IsPvP = true },
+                        new ClanEntry { Id = BlueClan, Name = "Blue", IsPvP = true });
+                    Assert.IsNotNull(feud);
+
+                    foreach (var client in online)
+                        WorldTestContext.Drain(client);
+
+                    body();
+                }
+                finally
+                {
+                    if (feud != null)
+                        ClanFeuds.Instance.End(feud, ClanFeuds.Outcome.Cancelled);
+
+                    lock (Server.Clients)
+                        foreach (var client in online)
+                            Server.Clients.Remove(client);
+
+                    foreach (var client in online)
+                        WorldTestContext.Drain(client);
+                }
+            }
+
+            /// <summary>What a client has been told of the object since it was last read: whether it met it enabled, a category if one was said, and its hit points.</summary>
+            internal (bool Usable, TargetCategory? Category, UsableDamageInfoPacket Damage) Met(Client client, DynamicObject obj)
+            {
+                var messages = WorldTestContext.Drain(client).Select(packet => packet.Message).OfType<CallMethodMessage>().ToList();
+                var created = messages.Select(message => message.Packet).OfType<CreatePhysicalEntityPacket>().Single(packet => packet.EntityId == obj.EntityId);
+                var told = messages.Where(message => message.EntityId == obj.EntityId).Select(message => message.Packet).ToList();
+
+                return (created.EntityData.OfType<UsableInfoPacket>().Single().Enabled,
+                    told.OfType<TargetCategoryPacket>().SingleOrDefault()?.TargetCategory,
+                    told.OfType<UsableDamageInfoPacket>().Single());
+            }
+
+            /// <summary>A creature on the map, of a player's if it has a master.</summary>
+            internal Creature Creature(TargetCategory category, float x, float z, Client master = null)
+            {
+                var creature = new Creature
+                {
+                    Name = "Fixture",
+                    MasterEntityId = master?.Player.EntityId ?? 0,
+                    TargetCategory = category,
+                    MapContextId = World.Map.MapInfo.MapContextId,
+                    Position = new Vector3(x, 0, z),
+                    EntityClass = EntityClasses.HumanBaseMale,
+                    State = CharacterState.Idle,
+                    Level = 1,
+                    AppearanceData = new Dictionary<EquipmentData, AppearanceData>()
+                };
+
+                creature.Attributes[Attributes.Health] = new ActorAttributes(Attributes.Health, 500, 500, 500, 0, 0);
+                creature.Attributes[Attributes.Armor] = new ActorAttributes(Attributes.Armor, 0, 0, 0, 0, 0);
+                CellManager.Instance.AddToWorld(World.Map, creature);
+                _creatures.Add(creature);
+
+                foreach (var client in World.Map.ClientList)
+                    WorldTestContext.Drain(client);
+
+                return creature;
+            }
+
+            /// <summary>A hit on the object that lands now.</summary>
+            internal Missile Shoot(Actor source, DynamicObject obj, int damage)
+            {
+                var missile = new Missile
+                {
+                    Source = source,
+                    TargetEntityId = obj.EntityId,
+                    DamageA = damage,
+                    DamageType = DamageType.Physical,
+                    ActionId = ActionId.WeaponAttack,
+                    ActionArgId = 1,
+                    CritChance = 0
+                };
+
+                MissileManager.Instance.MissileTrigger(World.Map, missile);
+
+                return missile;
+            }
+
+            /// <summary>The creatures think and what they have let go lands, a quarter second a tick.</summary>
+            internal void Think(int ticks)
+            {
+                for (var tick = 0; tick < ticks; tick++)
+                {
+                    BehaviorManager.Instance.MapChannelThink(World.Map, 250);
+                    MissileManager.Instance.DoWork(World.Map, 250);
+                }
+            }
+
             public void Dispose()
             {
-                // Whatever is still out is taken away with the map.
+                foreach (var creature in _creatures)
+                    CellManager.Instance.RemoveCreatureFromWorld(World.Map, creature);
+
+                World.Map.QueuedMissiles.Clear();
+
+                // Whatever is still out is taken away with the map, and its death after it.
                 foreach (var client in World.Map.ClientList.ToList())
                     World.Map.ClientList.Remove(client);
 
-                PersonalWaypoints.Worker(World.Map, Start);
+                PersonalWaypoints.Worker(World.Map, long.MaxValue - PersonalWaypoints.DeathMs);
+                PersonalWaypoints.Worker(World.Map, long.MaxValue);
                 PersonalWaypoints.Network = _network;
                 World.Dispose();
             }

@@ -251,6 +251,22 @@ namespace Rasa.Managers
                     }
                 }
             }
+
+            // A Personal Waypoint a player has put down (PersonalWaypoints): to a creature that
+            // fights players it is what its owner is, and no more hidden than it looks.
+            foreach (var obj in cell.DynamicObjectList)
+            {
+                if (escort || obj.DynamicObjectType != DynamicObjectType.PersonalWaypoint || !PersonalWaypoints.MayBeFoughtBy(creature, obj.EntityId))
+                    continue;
+
+                var dist = Vector3.Distance(creature.Position, obj.Position);
+
+                if (dist <= range && dist < foundDistance)
+                {
+                    foundId = obj.EntityId;
+                    foundDistance = dist;
+                }
+            }
         }
 
         /// <CheckForAttackableEntityInRange>
@@ -787,6 +803,12 @@ namespace Rasa.Managers
                     }
 
                     targetPosition = targetCreature.Position;
+                }
+                else if (target == EntityType.Object && PersonalWaypoints.TryGetPosition(creature.Controller.ActionFighting.TargetEntityId, out var waypointPosition))
+                {
+                    // A Personal Waypoint (PersonalWaypoints): a place to walk up to and hit,
+                    // with no actor to it.
+                    targetPosition = waypointPosition;
                 }
                 else
                     Logger.WriteLog(LogType.Error, $"CreatureThink: unsuported Traget type {target}"); // todo
@@ -2018,7 +2040,9 @@ namespace Rasa.Managers
             if (EntityManager.Instance.Players.TryGetValue(entityId, out var player))
                 return pump != AbilityManager.MindControlSubversion && TargetCategories.MayFightPlayer(creature.TargetCategory, player.CombatCategory);
 
-            return false;
+            // A Personal Waypoint (PersonalWaypoints) is fought by what fights its owner. A
+            // Confused or Subverted creature has turned on creatures, and leaves it.
+            return pump == 0 && PersonalWaypoints.MayBeFoughtBy(creature, entityId);
         }
 
         /// <summary>

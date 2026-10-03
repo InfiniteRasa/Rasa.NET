@@ -226,6 +226,10 @@ namespace Rasa.Managers
                         && other.Attributes[Attributes.Health].Current > 0;
                 }
 
+                // A Personal Waypoint, which MayFight has let through: it is there, or it is not.
+                case EntityType.Object:
+                    return PersonalWaypoints.MayBeFoughtBy(creature, entityId);
+
                 default:
                     return false;
             }
