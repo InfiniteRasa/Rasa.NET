@@ -52,6 +52,17 @@ namespace Rasa.Repositories.Auth.Account
             _dbContext.SaveChanges();
         }
 
+        public AuthAccountEntry FindByUserNameOrEmail(string userName, string email)
+        {
+            // lower() on both sides: Sqlite compares with BINARY collation, and "Bob" beside
+            // "bob" is two accounts there and a broken unique index on MySql.
+            var name = (userName ?? string.Empty).ToLower();
+            var address = (email ?? string.Empty).ToLower();
+
+            return _dbContext.AuthAccountEntries.AsNoTracking().FirstOrDefault(e => e.Username.ToLower() == name)
+                   ?? _dbContext.AuthAccountEntries.AsNoTracking().FirstOrDefault(e => e.Email.ToLower() == address);
+        }
+
         public AuthAccountEntry GetByUserName(string name, string password)
         {
             var entry = _dbContext

@@ -8,6 +8,8 @@
         RedirectResponse   = 3,
         ServerInfoRequest  = 4,
         ServerInfoResponse = 5,
-        AccountLockChanged = 6
+        AccountLockChanged = 6,
+        CreateAccountRequest  = 7,
+        CreateAccountResponse = 8
     }
 }

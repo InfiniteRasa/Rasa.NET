@@ -807,6 +807,53 @@ namespace Rasa.Auth
             Logger.WriteLog(LogType.Command, $"{(locked ? "Banned" : "Unbanned")} account {account.Username} ({account.Id}); notified {notified} game server(s).");
         }
 
+        /// <summary>
+        /// A game server asks for an account (its REST API's /addaccount). Made off the link's
+        /// own thread - hashing a password takes long enough to hold up that game server's
+        /// logins - and answered on the link with the request's id.
+        /// </summary>
+        public void CreateAccount(CommunicatorClient gameServer, CreateAccountRequestPacket request)
+        {
+            System.Threading.Tasks.Task.Run(() =>
+            {
+                var result = CreateAccountResult.Failed;
+                uint accountId = 0;
+
+                try
+                {
+                    using var unitOfWork = _authUnitOfWorkFactory.Create();
+
+                    result = AccountCreation.Create(unitOfWork.AuthAccountRepository, unitOfWork.Complete,
+                        request.Email, request.Username, request.Password, out accountId);
+                }
+                catch (Exception e)
+                {
+                    Logger.WriteLog(LogType.Error, $"Could not create account {request.Username} for game server {gameServer.ServerId}: {e.GetBaseException().Message}");
+                }
+
+                // Not the password: the log is a file anyone with the server's folder can read.
+                Logger.WriteLog(result == CreateAccountResult.Created ? LogType.Command : LogType.Debug,
+                    result == CreateAccountResult.Created
+                        ? $"Created account: {request.Username} ({accountId}), asked for by game server {gameServer.ServerId}."
+                        : $"Game server {gameServer.ServerId} asked for account {request.Username}: {result}.");
+
+                try
+                {
+                    if (gameServer.Connected)
+                        gameServer.Socket.Send(new CreateAccountResponsePacket
+                        {
+                            RequestId = request.RequestId,
+                            Result = result,
+                            AccountId = accountId
+                        });
+                }
+                catch (Exception e)
+                {
+                    Logger.WriteLog(LogType.Error, $"Could not answer game server {gameServer.ServerId} about account {request.Username}: {e.Message}");
+                }
+            });
+        }
+
         private void ProcessCreateCommand(string[] parts)
         {
             if (parts.Length < 4)

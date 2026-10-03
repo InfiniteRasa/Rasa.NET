@@ -5,10 +5,10 @@ using System.Net;
 namespace Rasa.Api
 {
     /// <summary>
-    /// One thing the REST API answers, at GET /&lt;Name&gt;. A new one is a class like those below,
-    /// registered with <see cref="ApiServer.Register"/> (ApiHost does the server's own), and it
-    /// is on, wants a key or not, and has a key of its own by its entry in
-    /// ApiConfig.Rest.Endpoints, with no code for any of that.
+    /// One thing the REST API answers, at GET /&lt;Name&gt; (or POST, by <see cref="Method"/>). A
+    /// new one is a class like those below, registered with <see cref="ApiServer.Register"/>
+    /// (ApiHost does the server's own), and it is on, wants a key or not, and has a key of its
+    /// own by its entry in ApiConfig.Rest.Endpoints, with no code for any of that.
     ///
     /// Handle runs on a thread of the listener's, not on the world loop: it may read what is
     /// kept for other threads (ServerStatus) and nothing of the world.
@@ -18,14 +18,28 @@ namespace Rasa.Api
         /// <summary>The path, without its slash, and the key of its settings: lower case.</summary>
         public abstract string Name { get; }
 
+        /// <summary>"GET", which HEAD goes with, or "POST", whose body is the request's <see cref="ApiRequest.Body"/>.</summary>
+        public virtual string Method => "GET";
+
+        /// <summary>
+        /// An endpoint that changes something. It is off until its own entry in
+        /// ApiConfig.Rest.Endpoints turns it on, and the API being public does not make it
+        /// public: only a Public of its own does. Its own key and the global key open it as
+        /// they open any other.
+        /// </summary>
+        public virtual bool Sensitive => false;
+
         public abstract ApiResponse Handle(ApiRequest request);
     }
 
     /// <summary>A request as the API read it.</summary>
     public sealed class ApiRequest
     {
-        /// <summary>GET or HEAD, in capitals.</summary>
+        /// <summary>GET, HEAD or POST, in capitals.</summary>
         public string Method { get; set; } = "GET";
+
+        /// <summary>The body of a POST, as text; empty for none.</summary>
+        public string Body { get; set; } = "";
 
         /// <summary>The path asked for, without the query: "/serverstatus".</summary>
         public string Path { get; set; } = "/";

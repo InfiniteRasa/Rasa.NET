@@ -20,12 +20,19 @@ namespace Rasa.Api
     ///
     /// Who is answered, in this order:
     ///  - an address not on AllowedIps (when there is such a list) gets 403;
-    ///  - anything but GET and HEAD gets 405;
     ///  - a path that names no endpoint, or one switched off, gets 404;
+    ///  - a method the endpoint is not for gets 405: GET and HEAD for most, POST for one that
+    ///    takes a body (ApiEndpoint.Method);
     ///  - an endpoint that is not public (its own Public, else the API's) wants a key, in the
     ///    X-API-Key header or as "Authorization: Bearer": its own ApiKey or the API's, whichever
     ///    are set. Without one of them, 401;
     ///  - then the endpoint answers.
+    ///
+    /// An endpoint that changes something (ApiEndpoint.Sensitive, /addaccount) is off until its
+    /// own entry under Endpoints turns it on, and is public only by a Public of its own.
+    ///
+    /// A POST's body is read by its Content-Length, up to <see cref="MaxBodyBytes"/>: more is
+    /// 413, and one sent in chunks, with no length, is 411.
     ///
     /// It is HTTP written by hand on a TcpListener, not HttpListener: that one goes through
     /// http.sys on Windows, which wants an administrator or a URL reservation for any address
@@ -42,6 +49,9 @@ namespace Rasa.Api
     {
         /// <summary>The most a request's line and headers may come to, in bytes.</summary>
         public const int MaxRequestBytes = 8192;
+
+        /// <summary>The most a POST's body may come to, in bytes.</summary>
+        public const int MaxBodyBytes = 8192;
 
         private readonly Dictionary<string, ApiEndpoint> _endpoints = new Dictionary<string, ApiEndpoint>(StringComparer.OrdinalIgnoreCase);
 
@@ -141,13 +151,18 @@ namespace Rasa.Api
 
             foreach (var name in Endpoints)
             {
+                ApiEndpoint registered;
+
+                lock (_endpoints)
+                    _endpoints.TryGetValue(name, out registered);
+
                 var endpoint = EndpointConfigOf(config, name);
-                var state = endpoint?.Enabled == false ? "off"
-                    : IsPublic(config, endpoint) ? "public"
+                var state = !IsEnabled(registered, endpoint) ? "off"
+                    : IsPublic(config, registered, endpoint) ? "public"
                     : HasKey(config, endpoint) ? "key"
                     : "key, and none is set: it answers nobody until an ApiKey is set or it is made public";
 
-                lines.Add($"/{name} ({state})");
+                lines.Add($"{(registered?.Method == "POST" ? "POST " : "")}/{name} ({state})");
             }
 
             lines.Add(allowed.AllowsAll ? "any address may ask." : $"{allowed.Count} allowed address(es) or range(s).");
@@ -246,7 +261,16 @@ namespace Rasa.Api
             return null;
         }
 
-        private static bool IsPublic(RestApiConfig config, ApiEndpointConfig endpoint) => endpoint?.Public ?? config.Public;
+        /// <summary>On unless its entry says otherwise; a sensitive one, off unless its entry says otherwise.</summary>
+        private static bool IsEnabled(ApiEndpoint endpoint, ApiEndpointConfig settings) =>
+            endpoint != null && (settings?.Enabled ?? !endpoint.Sensitive);
+
+        /// <summary>Its own Public, else the API's; a sensitive one, only its own.</summary>
+        private static bool IsPublic(RestApiConfig config, ApiEndpoint endpoint, ApiEndpointConfig settings) =>
+            endpoint?.Sensitive == true ? settings?.Public == true : settings?.Public ?? config.Public;
+
+        private static bool Accepts(ApiEndpoint endpoint, string method) =>
+            endpoint.Method == "POST" ? method == "POST" : method == "GET" || method == "HEAD";
 
         private static bool HasKey(RestApiConfig config, ApiEndpointConfig endpoint) =>
             !string.IsNullOrEmpty(endpoint?.ApiKey) || !string.IsNullOrEmpty(config.ApiKey);
@@ -275,9 +299,6 @@ namespace Rasa.Api
                 return ApiResponse.Error(403, "forbidden");
             }
 
-            if (request.Method != "GET" && request.Method != "HEAD")
-                return new ApiResponse(405, ServerStatus.Json(writer => writer.WriteString("error", "method not allowed"))) { Allow = "GET, HEAD" };
-
             var name = request.EndpointName;
             ApiEndpoint endpoint;
 
@@ -286,10 +307,16 @@ namespace Rasa.Api
 
             var settings = endpoint == null ? null : EndpointConfigOf(config, name);
 
-            if (endpoint == null || settings?.Enabled == false)
+            if (!IsEnabled(endpoint, settings))
                 return ApiResponse.Error(404, "not found");
 
-            if (!IsPublic(config, settings))
+            if (!Accepts(endpoint, request.Method))
+                return new ApiResponse(405, ServerStatus.Json(writer => writer.WriteString("error", "method not allowed")))
+                {
+                    Allow = endpoint.Method == "POST" ? "POST" : "GET, HEAD"
+                };
+
+            if (!IsPublic(config, endpoint, settings))
             {
                 var key = request.ApiKey;
 
@@ -352,12 +379,14 @@ namespace Rasa.Api
                 stream = secure;
             }
 
-            var head = await ReadHead(stream, limit).ConfigureAwait(false);
+            var buffer = new byte[MaxRequestBytes];
+            var length = await ReadHead(stream, buffer, limit).ConfigureAwait(false);
 
-            if (head == null)
+            if (length == 0)
                 return;
 
-            var request = Parse(head);
+            var headEnd = EndOfHead(buffer, length);
+            var request = Parse(Encoding.ASCII.GetString(buffer, 0, headEnd < 0 ? length : headEnd));
             ApiResponse response;
 
             if (request == null)
@@ -367,7 +396,7 @@ namespace Rasa.Api
             else
             {
                 request.Remote = remote;
-                response = Respond(request);
+                response = await ReadBody(stream, request, buffer, headEnd, length, limit).ConfigureAwait(false) ?? Respond(request);
             }
 
             var bytes = Render(response, request?.Method == "HEAD");
@@ -384,13 +413,13 @@ namespace Rasa.Api
         }
 
         /// <summary>
-        /// Reads a request up to the blank line that ends its headers. Null when the connection
-        /// closed first; a request longer than <see cref="MaxRequestBytes"/> comes back as it
-        /// stands, which does not parse.
+        /// Reads a request up to the blank line that ends its headers, and whatever of its body
+        /// came with them. The number of bytes read: 0 when the connection closed first, and a
+        /// full buffer with no blank line in it for a request longer than
+        /// <see cref="MaxRequestBytes"/>, which does not parse.
         /// </summary>
-        private static async Task<string> ReadHead(Stream stream, CancellationToken limit)
+        private static async Task<int> ReadHead(Stream stream, byte[] buffer, CancellationToken limit)
         {
-            var buffer = new byte[MaxRequestBytes];
             var length = 0;
 
             while (length < buffer.Length)
@@ -398,7 +427,7 @@ namespace Rasa.Api
                 var read = await stream.ReadAsync(buffer, length, buffer.Length - length, limit).ConfigureAwait(false);
 
                 if (read <= 0)
-                    return length == 0 ? null : Encoding.ASCII.GetString(buffer, 0, length);
+                    break;
 
                 length += read;
 
@@ -406,7 +435,59 @@ namespace Rasa.Api
                     break;
             }
 
-            return Encoding.ASCII.GetString(buffer, 0, length);
+            return length;
+        }
+
+        /// <summary>
+        /// The body of a POST into <see cref="ApiRequest.Body"/>: what arrived with the headers
+        /// and the rest by Content-Length. Null when it is read (or there is none to read);
+        /// otherwise the answer to a body that cannot be taken.
+        /// </summary>
+        private static async Task<ApiResponse> ReadBody(Stream stream, ApiRequest request, byte[] buffer, int headEnd, int length, CancellationToken limit)
+        {
+            if (request.Method != "POST")
+                return null;
+
+            if (request.Headers.ContainsKey("Transfer-Encoding"))
+                return ApiResponse.Error(411, "length required");
+
+            if (!request.Headers.TryGetValue("Content-Length", out var text))
+                return null;
+
+            if (!int.TryParse(text, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var wanted))
+                return ApiResponse.Error(400, "bad request");
+
+            if (wanted > MaxBodyBytes)
+                return ApiResponse.Error(413, "request body too large");
+
+            var body = new byte[wanted];
+            var have = Math.Min(wanted, length - headEnd);
+
+            Buffer.BlockCopy(buffer, headEnd, body, 0, have);
+
+            // A client that waits to be told to go on before it sends the body.
+            if (have < wanted && request.Headers.TryGetValue("Expect", out var expect)
+                && string.Equals(expect, "100-continue", StringComparison.OrdinalIgnoreCase))
+            {
+                var goOn = Encoding.ASCII.GetBytes("HTTP/1.1 100 Continue\r\n\r\n");
+
+                await stream.WriteAsync(goOn, 0, goOn.Length, limit).ConfigureAwait(false);
+                await stream.FlushAsync(limit).ConfigureAwait(false);
+            }
+
+            while (have < wanted)
+            {
+                var read = await stream.ReadAsync(body, have, wanted - have, limit).ConfigureAwait(false);
+
+                if (read <= 0)
+                    return ApiResponse.Error(400, "bad request");
+
+                have += read;
+            }
+
+            request.Body = Encoding.UTF8.GetString(body);
+
+            return null;
         }
 
         private static int EndOfHead(byte[] buffer, int length)
@@ -494,13 +575,19 @@ namespace Rasa.Api
         private static string ReasonOf(int status) => status switch
         {
             200 => "OK",
+            201 => "Created",
             400 => "Bad Request",
             401 => "Unauthorized",
             403 => "Forbidden",
             404 => "Not Found",
             405 => "Method Not Allowed",
+            409 => "Conflict",
+            411 => "Length Required",
+            413 => "Content Too Large",
+            415 => "Unsupported Media Type",
             500 => "Internal Server Error",
             503 => "Service Unavailable",
+            504 => "Gateway Timeout",
             _ => "Status"
         };
     }

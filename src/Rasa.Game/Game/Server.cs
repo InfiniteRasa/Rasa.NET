@@ -421,6 +421,11 @@ namespace Rasa.Game
             var api = Api.ApiHost.Instance;
 
             api.Status.AuthLinked = () => AuthLinkUp;
+
+            // /addaccount asks the Auth server, whose the accounts are, over the link to it.
+            _accountRelay.Connected = () => AuthLinkUp;
+            _accountRelay.Send = request => (AuthCommunicator ?? throw new InvalidOperationException("the link to the Auth server is down")).Send(request);
+            api.Accounts.Create = _accountRelay.Create;
             api.Status.Started();
             _apiApplied = true;
             api.Apply(Config.ApiConfig);
@@ -1080,6 +1085,19 @@ namespace Rasa.Game
 
                 return link != null && ReferenceEquals(link, AuthCommunicator) && link.Connected;
             }
+        }
+
+        /// <summary>
+        /// Requests for an account on their way to the Auth server and back (the REST API's
+        /// /addaccount): asked on a REST thread, answered on the link's.
+        /// </summary>
+        private readonly Api.AccountRelay _accountRelay = new Api.AccountRelay();
+
+        // ReSharper disable once UnusedMember.Local
+        [PacketHandler(CommOpcode.CreateAccountResponse)]
+        private void MsgCreateAccountResponse(CreateAccountResponsePacket packet)
+        {
+            _accountRelay.Answer(packet);
         }
 
         /// <summary>That link has failed or been closed; a newer one that has logged in since is not touched.</summary>

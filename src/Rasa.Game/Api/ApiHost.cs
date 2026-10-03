@@ -22,6 +22,9 @@ namespace Rasa.Api
         public ApiServer Rest { get; }
         public StatusPortServer StatusPort { get; }
 
+        /// <summary>POST /addaccount; Server gives it its way to the Auth server.</summary>
+        public AddAccountEndpoint Accounts { get; } = new AddAccountEndpoint();
+
         public ApiHost() : this(new ServerStatus())
         {
         }
@@ -34,6 +37,7 @@ namespace Rasa.Api
 
             Rest.Register(new HealthCheckEndpoint(status));
             Rest.Register(new ServerStatusEndpoint(status));
+            Rest.Register(Accounts);
         }
 
         /// <summary>The settings in force from now. A listener that cannot open its port stays off; the world is not held up.</summary>
