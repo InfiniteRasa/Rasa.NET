@@ -25,6 +25,7 @@ namespace Rasa.Test.Gameplay
         private const uint WildernessPathfinder = 362;
         private const uint CruciblePathfinder = 414;
         private const uint AbyssPathfinder = 448;
+        private const uint PalisadesWanderer = 499;
         private const uint DividePathfinder = 447;
         private const uint DivideWanderer = 462;
         private const uint MarshesPathfinder = 491;
@@ -34,7 +35,8 @@ namespace Rasa.Test.Gameplay
         // 156, Imperial Valley, is a control point's.
         private static readonly uint[] Wilderness = { 49, 50, 51, 57, 61, 73, 156 };
         private static readonly uint[] Crucible = { 191, 192, 193, 204, 269, 313, 315 };
-        private static readonly uint[] Abyss = { 84, 276, 278, 372, 373, 376 };
+        private static readonly uint[] Abyss = { 84, 276, 278, 372, 373, 375, 376 };
+        private static readonly uint[] Palisades = { 62, 63, 65, 223, 225, 391, 392, 512 };
 
         [TestCleanup]
         public void ForgetTheWaypoints() => WaypointTitles.Load(null);
@@ -52,12 +54,13 @@ namespace Rasa.Test.Gameplay
             CollectionAssert.AreEquivalent(
                 new Dictionary<string, int>
                 {
-                    ["Wilderness"] = 7, ["Divide"] = 11, ["Palisades"] = 8, ["Plateau"] = 11, ["Pools"] = 9, ["Marshes"] = 6,
-                    ["Descent"] = 11, ["Ashen Desert"] = 7, ["Thunderhead"] = 11, ["Abyss"] = 6, ["Crucible"] = 7
+                    ["Wilderness"] = 7, ["Divide"] = 11, ["Palisades"] = 8, ["Plateau"] = 11, ["Pools"] = 9, ["Marshes"] = 7,
+                    ["Descent"] = 11, ["Ashen Desert"] = 7, ["Thunderhead"] = 11, ["Abyss"] = 7, ["Crucible"] = 7
                 }.ToArray(),
                 counts.ToArray());
 
-            // Waypoints only: no dropship pad, no hospital, no instance's, none the client has no name for.
+            // Waypoints only: no dropship pad, no hospital, no instance's, no local teleporter, neither
+            // of the two the client has no name of their own for.
             var world = harness.WorldContext.Set<TeleporterEntry>().AsNoTracking().ToDictionary(row => row.Id);
             var all = WaypointTitles.Zones.SelectMany(zone => WaypointTitles.WaypointsOf(zone.TitleId)).ToArray();
 
@@ -73,16 +76,32 @@ namespace Rasa.Test.Gameplay
             Assert.IsFalse(all.Contains(267u), "Dropship Transport: Twin Pillars");
             Assert.IsFalse(all.Contains(78u), "Purgas Station's, an instance of Divide");
 
-            foreach (var unnamed in new uint[] { 534, 624, 583, 541, 576, 575, 622 })
+            // Staging Point and Viands Village, under borrowed names (ClientWaypointIds).
+            foreach (var borrowed in new uint[] { 107, 415 })
             {
-                Assert.IsTrue(world.ContainsKey(unnamed), $"{unnamed} is a row of the world");
-                Assert.IsFalse(all.Contains(unnamed), $"{unnamed}: the client has no name for it");
+                Assert.AreEqual((byte)WaypointType.Waypoint, world[borrowed].Type, $"{borrowed} is a waypoint of the world");
+                Assert.AreEqual(1244u, world[borrowed].MapContextId);
+                Assert.IsFalse(all.Contains(borrowed), $"{borrowed}: the client has no name of its own for it");
             }
+
+            // The ids those rows and the other unnamed ones had are gone, or are local teleporters.
+            foreach (var old in new uint[] { 534, 624, 583, 575, 622 })
+                Assert.IsFalse(world.ContainsKey(old), $"{old}");
+
+            foreach (var local in new uint[] { 541, 576 })
+            {
+                Assert.AreEqual((byte)WaypointType.LocalTeleporter, world[local].Type, $"{local}");
+                Assert.IsFalse(all.Contains(local), $"{local}: a local teleporter");
+            }
+
+            // Tampeii Settlement (375) and Stalker Woods (137), under the client's ids, are asked for.
+            Assert.IsTrue(WaypointTitles.WaypointsOf(AbyssPathfinder).Contains(375u));
+            Assert.IsTrue(WaypointTitles.WaypointsOf(MarshesPathfinder).Contains(137u));
 
             // One title a battlefield: the Pathfinder for Divide and Marshes.
             Assert.HasCount(11, WaypointTitles.Zones.Select(zone => zone.TitleId).Distinct().ToArray());
             Assert.HasCount(11, WaypointTitles.WaypointsOf(DividePathfinder));
-            Assert.HasCount(6, WaypointTitles.WaypointsOf(MarshesPathfinder));
+            Assert.HasCount(7, WaypointTitles.WaypointsOf(MarshesPathfinder));
             Assert.IsEmpty(WaypointTitles.WaypointsOf(DivideWanderer).ToArray());
             Assert.IsEmpty(WaypointTitles.WaypointsOf(MarshesWanderer).ToArray());
         }
@@ -115,15 +134,15 @@ namespace Rasa.Test.Gameplay
         }
 
         [TestMethod]
-        public void TheRowsTheClientHasNoNameForAreNotAsked()
+        public void TheRowsTheClientHasNoNameOfTheirOwnForAreNotAsked()
         {
             using var harness = Start();
 
-            // Neither Tampeii Settlement row (575, 622), nor the dropship pad (389).
-            foreach (var waypointId in Abyss)
+            // Neither Staging Point (107) nor Viands Village (415), nor the dropship pad (250).
+            foreach (var waypointId in Palisades)
                 Gain(harness, waypointId);
 
-            Assert.AreEqual(AbyssPathfinder, harness.Drain().OfType<TitleAddedPacket>().Single().TitleId);
+            Assert.AreEqual(PalisadesWanderer, harness.Drain().OfType<TitleAddedPacket>().Single().TitleId);
         }
 
         [TestMethod]

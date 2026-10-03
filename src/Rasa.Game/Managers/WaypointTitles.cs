@@ -22,9 +22,11 @@ namespace Rasa.Managers
     /// control point's waypoint counts with the rest: it is gained while the AFS holds the
     /// point.
     ///
-    /// A row the client has no name for (waypointlanguage) is not counted: seven on the titled
-    /// battlefields, placeholders such as "MARSHES_WAYPOINT_EXODUSPOINT". The server does not
-    /// hold the client's names, so they are left out by id (<see cref="Zone.NotCounted"/>).
+    /// Two rows are not counted, Staging Point (107) and Viands Village (415) on Palisades: the
+    /// client has a map marker for each and no waypoint name for either, and they show names
+    /// borrowed from elsewhere in its table (ClientWaypointIds). The server does not hold the
+    /// client's names, so they are left out by id (<see cref="Zone.NotCounted"/>). Every other
+    /// waypoint row is under the id the client names it by.
     ///
     /// Divide and Marshes each have two titles for the same thing in the client, a Pathfinder
     /// (447, 491) and a Wanderer (462, 493); the Pathfinder is the one given. Mires, Plains,
@@ -43,7 +45,7 @@ namespace Rasa.Managers
             public string Name { get; }
             public uint MapContextId { get; }
 
-            /// <summary>Waypoint rows on the map that the title does not ask for: the client has no name for them.</summary>
+            /// <summary>Waypoint rows on the map that the title does not ask for: the client has no name of their own for them.</summary>
             public IReadOnlyList<uint> NotCounted { get; }
 
             internal Zone(uint titleId, string name, uint mapContextId, params uint[] notCounted)
@@ -59,14 +61,14 @@ namespace Rasa.Managers
         {
             new Zone(362, "Wilderness", 1220),              // Wilderness Pathfinder
             new Zone(447, "Divide", 1148),                  // Divide Pathfinder
-            new Zone(499, "Palisades", 1244, 534, 624),     // Palisades Wanderer
+            new Zone(499, "Palisades", 1244, 107, 415),     // Palisades Wanderer
             new Zone(402, "Plateau", 1497),                 // Plateau Pathfinder
             new Zone(469, "Pools", 1304),                   // Pools Wanderer
-            new Zone(491, "Marshes", 1454, 583),            // Marshes Pathfinder
+            new Zone(491, "Marshes", 1454),                 // Marshes Pathfinder
             new Zone(517, "Descent", 2047),                 // Descent Pathfinder
-            new Zone(426, "Ashen Desert", 1734, 541),       // Desert Pathfinder
-            new Zone(769, "Thunderhead", 1911, 576),        // Thunderhead Cartographer
-            new Zone(448, "Abyss", 2028, 575, 622),         // Abyss Pathfinder
+            new Zone(426, "Ashen Desert", 1734),            // Desert Pathfinder
+            new Zone(769, "Thunderhead", 1911),             // Thunderhead Cartographer
+            new Zone(448, "Abyss", 2028),                   // Abyss Pathfinder
             new Zone(414, "Crucible", 1993)                 // Crucible Pathfinder
         };
 

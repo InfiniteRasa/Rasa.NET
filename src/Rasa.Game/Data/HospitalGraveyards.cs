@@ -43,6 +43,7 @@ namespace Rasa.Data
             [145] = 61,         // Hospital: Plains Post Medical Tent: Plains Post Medical Tent
             [146] = 63,         // Hospital: Nyxroq Post Med Tent: Nyxroq Post Med Tent
             [152] = 90,         // Hospital: Eir Crater Field: Eir Crater Field Hospital
+            [153] = 89,         // Hospital: Irendas Colony: Irendas Colony Hospital
             [154] = 91,         // Hospital: Mt. Hellas Outpost Hospital: Mt. Hellas Outpost Hospital
             [157] = 68,         // Hospital: AFS Medical Center in the Snake Pit: Snake Pit Med Center
             [168] = 73,         // Hhospital: Eastern Pools Listening Post First Aid Station: East Listening Post
@@ -148,7 +149,6 @@ namespace Rasa.Data
             [580] = 193,        // Hospital: Live Target Pens Hospital Entrance: Entrance
             [581] = 194,        // Hospital: MARSHES_BSD_HOSPITAL_SURVIVORS: Survivor's Camp
             [586] = 46,         // Hospital: RETREAD_CAVES_HOSPITAL: Retread Camp Hospital
-            [590] = 61,         // Hospital: INCLINE_HOSPITAL_PLAINS_POST: Plains Post Medical Tent
             [591] = 154,        // Hospital: LTP_GUARDSTATION_HOSPITAL: Live Target Pens Guard Station
             [592] = 80,         // Hospital: PALISADES_ELOHTEMPLES_HOSPITAL_01: Temple of the Proud Patriarch
             [593] = 81,         // Hospital: PALISADES_ELOHTEMPLES_HOSPITAL_02: Temple of the Raging Patriarch
@@ -186,15 +186,14 @@ namespace Rasa.Data
         /// <summary>
         /// Hospitals placed under an id of ours whose name the client has under one of its own:
         /// teleporter id to the waypointlanguage id of that name. The client's id is a row of the
-        /// teleporter table with a name and no place ("Refugee Base Medic", 500), or the same
-        /// hospital on another map ("Plains Post Medical Tent", 145). Matched by the name the
-        /// hospital window gives it (<see cref="ByTeleporter"/>, graveyardlanguage), which is the
-        /// same name in each case but the last, where the camp's waypoint is the nearest there is.
+        /// teleporter table with a name and no place ("Refugee Base Medic", 500). Matched by the
+        /// name the hospital window gives it (<see cref="ByTeleporter"/>, graveyardlanguage), which
+        /// is the same name in each case but the last, where the camp's waypoint is the nearest
+        /// there is.
         /// </summary>
         public static readonly Dictionary<uint, uint> WaypointNames = new Dictionary<uint, uint>
         {
             [581] = 385,        // Hospital: MARSHES_BSD_HOSPITAL_SURVIVORS: Survivor's Camp
-            [590] = 145,        // Hospital: INCLINE_HOSPITAL_PLAINS_POST: Plains Post Medical Tent
             [592] = 176,        // Hospital: PALISADES_ELOHTEMPLES_HOSPITAL_01: Temple of the Proud Patriarch
             [593] = 342,        // Hospital: PALISADES_ELOHTEMPLES_HOSPITAL_02: Temple of the Raging Patriarch
             [594] = 175,        // Hospital: PALISADES_ELOHTEMPLES_HOSPITAL_03: Temple of the Bowed Patriarch

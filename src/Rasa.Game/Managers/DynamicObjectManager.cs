@@ -1309,6 +1309,13 @@ namespace Rasa.Managers
                     ObjectData = new WaypointInfo(teleporter.Id, false, (WaypointType)teleporter.Type)
                 };
 
+                // The client names a waypoint from its own table by this id, when it is gained and
+                // in every row of the travel window. One it has no name for reads "ERROR- 23-
+                // Missing translation for waypointlanguage ID ...": say so here, where it is data.
+                if (teleporter.Type is 2 or 3 or 4 && !HospitalGraveyards.ClientNames(teleporter.Id))
+                    MapErrorManager.Instance.Record(teleporter.MapContextId,
+                        $"Teleporter {teleporter.Id} ({teleporter.Description}) can be gained and the client has no name for its id: its waypoint names end at {HospitalGraveyards.LastClientWaypoint}.");
+
                 switch (teleporter.Type)
                 {
                     case 1:
