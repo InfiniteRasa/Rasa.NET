@@ -563,8 +563,9 @@ namespace Rasa.Managers
                     : UseObjectState.TdStateClosed;
                 obj.IsEnabled = loot.IsLootable;
                 owner.CallMethod(obj.EntityId, new ForceStatePacket(obj.StateId, 0));
+                // With the mission that activates the container for its owner (MissionObjects).
                 owner.CallMethod(obj.EntityId,
-                    new UsableInfoPacket(obj.IsEnabled, obj.StateId, 0, obj.WindupTime, obj.ActivateMission));
+                    MissionObjects.InfoFor(owner, obj, obj.IsEnabled, obj.WindupTime, _missionManager));
                 owner.CallMethod(SysEntity.ClientMethodId,
                     new CreatePhysicalEntityPacket(loot.EntityId, loot.EntityClassId));
                 AttachInfo(owner, loot);

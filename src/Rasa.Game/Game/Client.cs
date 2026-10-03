@@ -141,6 +141,12 @@ namespace Rasa.Game
         /// <summary>Environment.TickCount64 at which <see cref="FarAllies"/> is next brought up to date.</summary>
         internal long NextAllySync { get; set; }
 
+        /// <summary>
+        /// The usable objects in this client's cells it has been told are mission activated for
+        /// its player - the ones that sparkle (Managers.MissionObjects). By entity id.
+        /// </summary>
+        internal HashSet<ulong> MissionObjects { get; } = new HashSet<ulong>();
+
         /// <summary>Whether this connection has been sent the message of the day (Managers.MessageOfTheDay).</summary>
         internal bool MotdSent { get; set; }
 

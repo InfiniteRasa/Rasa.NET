@@ -234,6 +234,46 @@ namespace Rasa.Managers
             // A mission that can now be handed in puts its receiver on the map; one handed in or
             // abandoned takes it off.
             TryPublish(() => MissionContacts.Sync(client), "mission contacts after mission progress");
+
+            // And the objects a mission now wants used, or no longer does, start or stop sparkling.
+            TryPublish(() => MissionObjects.Refresh(client, this), "mission objects after mission progress");
+        }
+
+        /// <summary>
+        /// The entity classes whose use would move one of the player's missions on now, each
+        /// with that mission: the subjects of the InteractionUsed triggers on the transitions of
+        /// their active objectives. What an object of the class sparkles for (MissionObjects).
+        /// </summary>
+        internal Dictionary<uint, uint> WantedInteractions(Manifestation player)
+        {
+            var wanted = new Dictionary<uint, uint>();
+
+            if (player?.Missions == null)
+                return wanted;
+
+            foreach (var log in player.Missions.Values)
+            {
+                if (log.State != MissionState.Active || !TryGetOperationalMission(log.MissionId, out var mission))
+                    continue;
+
+                foreach (var objective in mission.Objectives.Values)
+                {
+                    if (!log.Objectives.TryGetValue(objective.ObjectiveId, out var runtime) ||
+                        runtime.State != MissionObjectiveState.Incomplete)
+                        continue;
+
+                    foreach (var transition in objective.GetExecutableTransitionsOrLegacyDefault())
+                    {
+                        if (transition.ProgressRule?.Kind != MissionProgressEventKind.InteractionUsed)
+                            continue;
+
+                        foreach (var subject in transition.ProgressRule.Subjects)
+                            wanted.TryAdd(subject, log.MissionId);
+                    }
+                }
+            }
+
+            return wanted;
         }
 
         /// <summary>

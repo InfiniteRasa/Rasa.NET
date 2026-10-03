@@ -591,15 +591,8 @@ namespace Rasa.Managers
                             (_missionManager ?? MissionApplication.Instance).ObjectConversations.Status(recipient, dynamicObject));
                 return;
             }
-            CellManager.Instance.CellCallMethod(
-                mapChannel,
-                dynamicObject,
-                new UsableInfoPacket(
-                    dynamicObject.IsEnabled,
-                    dynamicObject.StateId,
-                    0,
-                    dynamicObject.WindupTime,
-                    dynamicObject.ActivateMission));
+            // To each client its own: whether the object is mission activated is the player's (MissionObjects).
+            SendUsableInfo(mapChannel, dynamicObject, dynamicObject.WindupTime);
 
             if (enabled && dynamicObject.MissionLootSource != null &&
                 CellManager.TryGetCellCoordinates(dynamicObject.Position, out var cellX, out var cellZ))
@@ -608,6 +601,20 @@ namespace Rasa.Managers
                 foreach (var client in CellManager.Instance.GetClientsInCells(mapChannel, cells))
                     PublishRewardLoot(client, dynamicObject);
             }
+        }
+
+        /// <summary>
+        /// An object's UsableInfo to every client in its cells, each with the mission that
+        /// activates the object for its own player (MissionObjects).
+        /// </summary>
+        private void SendUsableInfo(MapChannel mapChannel, DynamicObject dynamicObject, uint windupTime)
+        {
+            if (mapChannel == null || !CellManager.TryGetCellCoordinates(dynamicObject.Position, out var x, out var z))
+                return;
+
+            foreach (var client in CellManager.Instance.GetClientsInCells(mapChannel, CellManager.Instance.CreateCellMatrix(mapChannel, x, z)))
+                client.CallMethod(dynamicObject.EntityId,
+                    MissionObjects.InfoFor(client, dynamicObject, dynamicObject.IsEnabled, windupTime, _missionManager));
         }
 
         // 1 object to n client's
@@ -657,7 +664,9 @@ namespace Rasa.Managers
                 entityData.Add((_missionManager ?? MissionApplication.Instance).ObjectConversations.Status(client, dynamicObject));
             }
             else
-                entityData.Add(new UsableInfoPacket(
+                // With the mission that activates it for this client's player (MissionObjects).
+                entityData.Add(MissionObjects.InfoFor(
+                    client, dynamicObject,
                     // A beacon's ship is in service for its deployer's squad alone (DropshipBeacons),
                     // and a Personal Waypoint for its owner, or their squad (PersonalWaypoints).
                     dynamicObject.DynamicObjectType == DynamicObjectType.DropshipBeacon
@@ -665,8 +674,7 @@ namespace Rasa.Managers
                         : dynamicObject.DynamicObjectType == DynamicObjectType.PersonalWaypoint
                             ? PersonalWaypoints.ShowTo(client, dynamicObject)
                             : dynamicObject.IsEnabled,
-                    dynamicObject.StateId, 0,
-                    dynamicObject.WindupTime, dynamicObject.ActivateMission));
+                    dynamicObject.WindupTime, _missionManager));
 
             // Only for an object that actually has a lock. An unlocked usable is the default the
             // client already assumes, and sending a lock of zeroes would tell it the same thing
@@ -1200,14 +1208,7 @@ namespace Rasa.Managers
                         return;
                     }
 
-                    CellManager.Instance.CellCallMethod(
-                        obj,
-                        new UsableInfoPacket(
-                            obj.IsEnabled,
-                            obj.StateId,
-                            0,
-                            obj.WindupTime == 0 ? DefaultScenarioUseWindupMs : obj.WindupTime,
-                            0));
+                    SendUsableInfo(mapChannel, obj, obj.WindupTime == 0 ? DefaultScenarioUseWindupMs : obj.WindupTime);
 
                     (_missionManager ?? MissionApplication.Instance).RecordProgress(
                         client,
