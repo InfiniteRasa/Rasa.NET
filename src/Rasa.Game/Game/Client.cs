@@ -567,6 +567,12 @@ namespace Rasa.Game
                     break;
 
                 case ClientMessageOpcode.Move:
+                    // Every accepted Move is a visibility pass and a broadcast to the cell;
+                    // dropped ones are not applied and not corrected, so a client a little over
+                    // the rate loses nothing it would not send again a moment later.
+                    if (!WithinRate(MoveLimit, "Move"))
+                        return;
+
                     var moveMessage = GetMessageAs<MoveMessage>(protocolPacket);
                     HandleMovement(moveMessage.Movement, moveMessage);
                     break;
@@ -596,6 +602,10 @@ namespace Rasa.Game
                     break;
 
                 case ClientMessageOpcode.Ping:
+                    // Answered unqueued, so a flood of them would be a packet out per packet in.
+                    if (!WithinRate(PingLimit, "Ping"))
+                        return;
+
                     var pingMessage = GetMessageAs<PingMessage>(protocolPacket);
 
                     SendMessage(pingMessage, delay: false);
@@ -885,6 +895,15 @@ namespace Rasa.Game
             [GameOpcode.RequestJoinVoiceChannel] = ("voice", 1, 5),
         };
 
+        /// <summary>
+        /// The protocol messages that are not method calls, limited the same way. Nothing limited
+        /// them: a Move is a visibility pass and a cell broadcast, a Ping an unqueued reply, and
+        /// a client could send either as fast as the wire allowed. The client sends ten Moves a
+        /// second walking and a few more turning; the Ping is far rarer.
+        /// </summary>
+        public static readonly (string Bucket, double PerSecond, double Burst) MoveLimit = ("move", 30, 60);
+        public static readonly (string Bucket, double PerSecond, double Burst) PingLimit = ("ping", 5, 10);
+
         private readonly Dictionary<string, (double Tokens, long Tick)> _rateBuckets = new();
         private long _rateDroppedSinceLog;
         private long _nextRateLogTick;
@@ -895,28 +914,28 @@ namespace Rasa.Game
         /// </summary>
         private bool WithinRate(GameOpcode methodId)
         {
-            if (!RateLimited.TryGetValue(methodId, out var limit))
-                return true;
+            return !RateLimited.TryGetValue(methodId, out var limit) || WithinRate(limit, methodId.ToString());
+        }
 
+        private bool WithinRate((string Bucket, double PerSecond, double Burst) limit, string what)
+        {
             var now = Environment.TickCount64;
 
             var (tokens, tick) = _rateBuckets.TryGetValue(limit.Bucket, out var bucket) ? bucket : (limit.Burst, now);
 
-            tokens = Math.Min(limit.Burst, tokens + (now - tick) * limit.PerSecond / 1000d);
+            var (taken, left) = TakeToken(tokens, tick, now, limit.PerSecond, limit.Burst);
 
-            if (tokens >= 1)
-            {
-                _rateBuckets[limit.Bucket] = (tokens - 1, now);
+            _rateBuckets[limit.Bucket] = (left, now);
+
+            if (taken)
                 return true;
-            }
 
-            _rateBuckets[limit.Bucket] = (tokens, now);
             _rateDroppedSinceLog++;
 
             if (now >= _nextRateLogTick)
             {
                 Logger.WriteLog(LogType.Security,
-                    $"{Player?.FamilyName ?? Socket.RemoteAddress.ToString()} is sending {methodId} faster than {limit.PerSecond}/s; "
+                    $"{Player?.FamilyName ?? Socket.RemoteAddress.ToString()} is sending {what} faster than {limit.PerSecond}/s; "
                     + $"{_rateDroppedSinceLog} call(s) dropped since the last of these.");
 
                 _rateDroppedSinceLog = 0;
@@ -924,6 +943,19 @@ namespace Rasa.Game
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// The bucket's arithmetic on its own: the tokens it had at <paramref name="tick"/>,
+        /// refilled to <paramref name="now"/> at <paramref name="perSecond"/> up to
+        /// <paramref name="burst"/>, and one taken if there is one. Returns whether one was
+        /// taken and what is left.
+        /// </summary>
+        public static (bool Taken, double Left) TakeToken(double tokens, long tick, long now, double perSecond, double burst)
+        {
+            tokens = Math.Min(burst, tokens + Math.Max(0, now - tick) * perSecond / 1000d);
+
+            return tokens >= 1 ? (true, tokens - 1) : (false, tokens);
         }
 
         /// <summary>
