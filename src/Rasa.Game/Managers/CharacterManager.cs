@@ -1382,6 +1382,9 @@ namespace Rasa.Managers
                 (_missionManager ?? MissionApplication.Instance).RecordProgress(
                     client,
                     MissionProgressEvent.Logos(logosId));
+
+                // The last Logos of a battlefield is its title (LogosTitles).
+                LogosTitles.Collected(client, logosId);
                 return true;
             }
         }

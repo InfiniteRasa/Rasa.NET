@@ -1928,6 +1928,11 @@ namespace Rasa.Managers
 
             client.CallMethod(player.EntityId, new TitlesPacket(player.Titles));
 
+            // A Logos title the Tabula has earned and the character has not got - learned
+            // before the titles were given, or inherited by a clone - is given now, after the
+            // list it is added to (LogosTitles).
+            LogosTitles.CatchUp(client);
+
             client.CallMethod(player.EntityId, new UpdateAttributesPacket(player.Attributes, 0));
 
             client.CallMethod(player.EntityId, new UpdateHealthPacket(player.Attributes[Attributes.Health], 0));

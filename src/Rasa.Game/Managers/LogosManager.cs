@@ -37,6 +37,9 @@
             using var unitOfWork = _gameUnitOfWorkFactory.CreateWorld();
             var logosList = unitOfWork.Logoses.GetLogos();
 
+            // What each battlefield's Logos title asks for is where the shrines are.
+            LogosTitles.Load(logosList);
+
             foreach (var entry in logosList)
             {
                 // A shrine on a map the server does not have is a data error, not a reason to
