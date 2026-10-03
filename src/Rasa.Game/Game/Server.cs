@@ -91,6 +91,10 @@ namespace Rasa.Game
             _clientFactory = clientFactory;
             GameUnitOfWorkFactory= gameUnitOfWorkFactory;
 
+            // The game master audit log goes to the character database from the start: the
+            // console below is on it too.
+            GmAudit.Instance.Load(new GmAudit.ServerStore(gameUnitOfWorkFactory));
+
             Configuration.OnLoad += ConfigLoaded;
             Configuration.OnReLoad += ConfigReLoaded;
             Configuration.Load();
@@ -103,21 +107,29 @@ namespace Rasa.Game
 
             BufferManager.Initialize(Config.SocketAsyncConfig.BufferSize, Config.SocketAsyncConfig.MaxClients, Config.SocketAsyncConfig.ConcurrentOperationsByClient);
 
-            CommandProcessor.RegisterCommand("exit", ProcessExitCommand);
-            CommandProcessor.RegisterCommand("reload", ProcessReloadCommand);
-            CommandProcessor.RegisterCommand("gm", ProcessGmCommand);
-            CommandProcessor.RegisterCommand("petition", ProcessPetitionCommand);
-            CommandProcessor.RegisterCommand("flag", ProcessFlagCommand);
-            CommandProcessor.RegisterCommand("perf", ProcessPerfCommand);
-            CommandProcessor.RegisterCommand("maperrors", ProcessMapErrorsCommand);
-            CommandProcessor.RegisterCommand("kb", ProcessKbCommand);
-            CommandProcessor.RegisterCommand("voice", ProcessVoiceCommand);
-            CommandProcessor.RegisterCommand("announce", ProcessAnnounceCommand);
-            CommandProcessor.RegisterCommand("kick", ProcessKickCommand);
-            CommandProcessor.RegisterCommand("mute", ProcessMuteCommand);
-            CommandProcessor.RegisterCommand("unmute", ProcessUnmuteCommand);
-            CommandProcessor.RegisterCommand("motd", ProcessMotdCommand);
+            CommandProcessor.RegisterCommand("exit", Audited(ProcessExitCommand));
+            CommandProcessor.RegisterCommand("reload", Audited(ProcessReloadCommand));
+            CommandProcessor.RegisterCommand("gm", Audited(ProcessGmCommand));
+            CommandProcessor.RegisterCommand("petition", Audited(ProcessPetitionCommand));
+            CommandProcessor.RegisterCommand("flag", Audited(ProcessFlagCommand));
+            CommandProcessor.RegisterCommand("perf", Audited(ProcessPerfCommand));
+            CommandProcessor.RegisterCommand("maperrors", Audited(ProcessMapErrorsCommand));
+            CommandProcessor.RegisterCommand("kb", Audited(ProcessKbCommand));
+            CommandProcessor.RegisterCommand("voice", Audited(ProcessVoiceCommand));
+            CommandProcessor.RegisterCommand("announce", Audited(ProcessAnnounceCommand));
+            CommandProcessor.RegisterCommand("kick", Audited(ProcessKickCommand));
+            CommandProcessor.RegisterCommand("mute", Audited(ProcessMuteCommand));
+            CommandProcessor.RegisterCommand("unmute", Audited(ProcessUnmuteCommand));
+            CommandProcessor.RegisterCommand("motd", Audited(ProcessMotdCommand));
         }
+
+        /// <summary>A console command's handler, with what was typed put on the audit log (GmAudit) before it runs.</summary>
+        private static Action<string[]> Audited(Action<string[]> handler) => parts =>
+        {
+            var audit = GmAudit.Instance;
+
+            audit.Run(audit.RecordConsole(parts[0], string.Join(" ", parts)), () => handler(parts));
+        };
 
         ~Server()
         {

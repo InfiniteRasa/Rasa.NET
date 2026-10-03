@@ -14,6 +14,7 @@ namespace Rasa.Managers
     using Rasa.Packets.Communicator.Client;
     using Rasa.Repositories.UnitOfWork;
     using Structures;
+    using Structures.Char;
 
     public class ChatCommandsManager
     {
@@ -37,6 +38,13 @@ namespace Rasa.Managers
             public string[] Arguments { get; }
         }
         private Client _client { get; set; }
+
+        /// <summary>
+        /// The audit log every command entered goes on - run, refused or unknown - before
+        /// anything is done about it (GmAudit). The live server's keeps it in the database.
+        /// </summary>
+        public GmAudit Audit { get; set; } = GmAudit.Instance;
+
         public static ChatCommandsManager Instance
         {
             get
@@ -69,7 +77,7 @@ namespace Rasa.Managers
         /// Every dot command comes through here, and this is the only place access is decided.
         /// RadialChat used to check for GM before it would even call this, which meant one level
         /// for all 33 commands; now it hands over anything starting with a dot and the level is
-        /// per command.
+        /// per command. Whatever is decided goes on the audit log first (<see cref="Audit"/>).
         /// </summary>
         public void ProcessCommand(Client client, string command)
         {
@@ -82,6 +90,7 @@ namespace Rasa.Managers
 
             if (!_commands.TryGetValue(parts[0], out var registered))
             {
+                Audit?.Record(client, GmCommandSource.Chat, parts[0], command, GmLevel.Player, GmCommandResult.Unknown);
                 Logger.WriteLog(LogType.Command, $"Invalid command: {command}");
                 CommunicatorManager.Instance.SystemMessage(client, $"Unknown command: {parts[0]}");
                 return;
@@ -89,6 +98,7 @@ namespace Rasa.Managers
 
             if (!HasLevel(client, registered.Level))
             {
+                Audit?.Record(client, GmCommandSource.Chat, parts[0], command, registered.Level, GmCommandResult.Denied);
                 Logger.WriteLog(LogType.Security,
                     $"AccountId = {client.AccountEntry.Id} (level {client.AccountEntry.Level}) tried to use "
                     + $"{parts[0]}, which needs {(byte)registered.Level}");
@@ -103,7 +113,16 @@ namespace Rasa.Managers
                 return;
             }
 
-            registered.Handler(parts);
+            var audit = Audit;
+
+            if (audit == null)
+            {
+                registered.Handler(parts);
+                return;
+            }
+
+            audit.Run(audit.Record(client, GmCommandSource.Chat, parts[0], command, registered.Level, GmCommandResult.Executed),
+                () => registered.Handler(parts));
         }
 
         internal static bool HasLevel(Client client, GmLevel required)
@@ -4021,7 +4040,8 @@ namespace Rasa.Managers
         /// ProcessSlashCommand sends whatever is not a local command as (command, arg), and the
         /// client's GM pickers send their picks the same way. The ones the server knows are in
         /// <see cref="PrivilegedCommands"/>, each with the level it takes; anything else, or one
-        /// above the account's level, is answered as the dot commands answer it.
+        /// above the account's level, is answered as the dot commands answer it, and goes on
+        /// the audit log as they do.
         /// </summary>
         internal void PrivilegedCommand(Client client, PrivilegedCommandPacket packet)
         {
@@ -4029,9 +4049,11 @@ namespace Rasa.Managers
                 return;
 
             var command = packet.Command.Trim();
+            var entered = $"/{command} {packet.Args}".TrimEnd();
 
             if (!PrivilegedCommands.TryGetValue(command, out var registered))
             {
+                Audit?.Record(client, GmCommandSource.Slash, "/" + command.ToLowerInvariant(), entered, GmLevel.Player, GmCommandResult.Unknown);
                 Logger.WriteLog(LogType.Command, $"Invalid slash command: /{command} {packet.Args}");
                 CommunicatorManager.Instance.SystemMessage(client, $"Unknown command: /{command}");
                 return;
@@ -4039,6 +4061,7 @@ namespace Rasa.Managers
 
             if (!HasLevel(client, registered.Level))
             {
+                Audit?.Record(client, GmCommandSource.Slash, "/" + command.ToLowerInvariant(), entered, registered.Level, GmCommandResult.Denied);
                 Logger.WriteLog(LogType.Security,
                     $"AccountId = {client.AccountEntry?.Id} (level {client.AccountEntry?.Level}) tried to use /{command}, which needs {(byte)registered.Level}");
 
@@ -4049,8 +4072,17 @@ namespace Rasa.Managers
                 return;
             }
 
-            Logger.WriteLog(LogType.Command, $"AccountId = {client.AccountEntry.Id}: /{command} {packet.Args}");
-            registered.Handler(client, packet.Args ?? "");
+            var audit = Audit;
+
+            if (audit == null)
+            {
+                Logger.WriteLog(LogType.Command, $"AccountId = {client.AccountEntry.Id}: /{command} {packet.Args}");
+                registered.Handler(client, packet.Args ?? "");
+                return;
+            }
+
+            audit.Run(audit.Record(client, GmCommandSource.Slash, "/" + command.ToLowerInvariant(), entered, registered.Level, GmCommandResult.Executed),
+                () => registered.Handler(client, packet.Args ?? ""));
         }
     }
 }

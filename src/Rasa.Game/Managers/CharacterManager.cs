@@ -504,7 +504,7 @@ namespace Rasa.Managers
         /// <summary>/changefirstname: renames the character the player is on.</summary>
         internal void ChangeFirstName(Client client, ChangeFirstNamePacket packet)
         {
-            if (!IsNameChanger(client))
+            if (!IsNameChanger(client, "/changefirstname", packet.Name))
                 return;
 
             Rename(client, client, packet.Name, false);
@@ -513,7 +513,7 @@ namespace Rasa.Managers
         /// <summary>/changelastname: renames the account's family, so every character on it.</summary>
         internal void ChangeLastName(Client client, ChangeLastNamePacket packet)
         {
-            if (!IsNameChanger(client))
+            if (!IsNameChanger(client, "/changelastname", packet.Name))
                 return;
 
             Rename(client, client, packet.Name, true);
@@ -712,12 +712,16 @@ namespace Rasa.Managers
         /// Observer - the level that exists to read the world without changing it, and the level
         /// every pre-existing account was left on - rename itself and its whole account family.
         /// </summary>
-        private static bool IsNameChanger(Client client)
+        private static bool IsNameChanger(Client client, string command, string name)
         {
             if (client?.AccountEntry == null || client.Player == null)
                 return false;
 
-            if (client.AccountEntry.Level >= (byte)GmLevel.GameMaster)
+            var allowed = client.AccountEntry.Level >= (byte)GmLevel.GameMaster;
+
+            GmAudit.Instance.Request(client, command, $"{command} {name}".TrimEnd(), GmLevel.GameMaster, allowed);
+
+            if (allowed)
                 return true;
 
             Logger.WriteLog(LogType.Security, $"AccountId = {client.AccountEntry.Id} tried to change a name without being a GM");

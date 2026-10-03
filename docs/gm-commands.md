@@ -51,6 +51,21 @@ The account's level is `game_account.level`, stored as a byte. Levels are cumula
 
 **`.help`** (Observer) lists only the commands your level can run, ordered by level.
 
+## Audit log
+
+Every command on this page that is entered at the game server goes on an audit log: the `gm_command_log` table of the character database, written by `GmAudit` before the command runs. A row has the account, its level, the character, the address they are connected from, the time (UTC), the map and position, what they had selected, the whole line as entered, the level the command needs, and the result.
+
+| What | Recorded |
+|---|---|
+| A GM (any level above 0) runs a command | Yes, result 1 (executed); 4 (failed) if it threw. |
+| A GM is refused for want of level, or mistypes a command | Yes, result 2 (denied) or 3 (unknown). |
+| An ordinary player tries a real command | Yes, result 2, at most 10 rows a minute per account. |
+| An ordinary player's chat line that starts with a dot and is no command | No. |
+| The game server's console | Yes, under account 0. |
+| The auth server's console | No. |
+
+`source` says how it came in: 1 dot command, 2 privileged slash command, 3 one of the client's own GM packets, 4 console. A command that was run is also a `Command` line in the server log, starting `GM command:`. If the table cannot be written the command still runs, and the server log says the row was lost.
+
 ## Information and diagnostics
 
 These change nothing in the world, except where noted.

@@ -57,12 +57,17 @@ namespace Rasa.Managers
             if (gm?.Player == null || packet == null)
                 return;
 
+            var entered = $"ForceCompleteObjective character {packet.UserId} mission {packet.MissionId} objective {packet.ObjectiveId}";
+
             if (!ChatCommandsManager.HasLevel(gm, Level))
             {
+                GmAudit.Instance.Request(gm, "ForceCompleteObjective", entered, Level, false);
                 Logger.WriteLog(LogType.Security,
                     $"AccountId = {gm.AccountEntry?.Id} (level {gm.AccountEntry?.Level}) sent ForceCompleteObjective for character {packet.UserId}, mission {packet.MissionId}, objective {packet.ObjectiveId}, which needs {(byte)Level}");
                 return;
             }
+
+            GmAudit.Instance.Request(gm, "ForceCompleteObjective", entered, Level, true);
 
             var target = packet.UserId <= uint.MaxValue ? ByCharacterId((uint)packet.UserId) : null;
             if (target == null)

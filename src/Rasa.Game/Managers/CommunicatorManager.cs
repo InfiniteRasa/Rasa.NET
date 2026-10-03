@@ -820,14 +820,19 @@ namespace Rasa.Managers
         {
             // The client only offers the command to a GM, but the client does not get to decide
             // that: this is a teleport, and the packet can be sent by anything.
+            var entered = $"/gotomob {packet?.ArgString}".TrimEnd();
+
             if (client?.AccountEntry == null || client.AccountEntry.Level < (byte)GmLevel.GameMaster)
             {
+                GmAudit.Instance.Request(client, "/gotomob", entered, GmLevel.GameMaster, false);
                 Logger.WriteLog(LogType.Security,
                     $"AccountId = {client?.AccountEntry?.Id} (level {client?.AccountEntry?.Level}) sent GotoMob, which needs {(byte)GmLevel.GameMaster}");
 
                 SystemMessage(client, "Unknown command.");
                 return;
             }
+
+            GmAudit.Instance.Request(client, "/gotomob", entered, GmLevel.GameMaster, true);
 
             var mapChannel = client.Player?.MapChannel;
 
