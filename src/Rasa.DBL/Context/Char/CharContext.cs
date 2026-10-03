@@ -62,6 +62,7 @@ namespace Rasa.Context.Char
         public DbSet<ClanFeudStakeEntry> ClanFeudStakeEntries { get; set; }
         public DbSet<PvpMatchEntry> PvpMatchEntries { get; set; }
         public DbSet<PvpMatchPlayerEntry> PvpMatchPlayerEntries { get; set; }
+        public DbSet<PvpMatchWagerEntry> PvpMatchWagerEntries { get; set; }
         public DbSet<ControlPointStateEntry> ControlPointStateEntries { get; set; }
         public DbSet<AuctionEntry> AuctionEntries { get; set; }
 
@@ -565,6 +566,10 @@ namespace Rasa.Context.Char
 
             // One row per recorded match and character.
             modelBuilder.Entity<PvpMatchPlayerEntry>()
+                .HasKey(e => new { e.MatchId, e.CharacterId });
+
+            // One row per recorded match and character with an item wagered.
+            modelBuilder.Entity<PvpMatchWagerEntry>()
                 .HasKey(e => new { e.MatchId, e.CharacterId });
         }
 

@@ -53,7 +53,12 @@ namespace Rasa.Managers
     ///    members' wagered items go to the clan of the oldest of them;
     ///  - leaving the clan, or being kicked from it, while it is at feud saves nothing: whoever has
     ///    an item wagered as they go stays at stake in the clan's feuds (ClanFeuds.MemberRemoved),
-    ///    and what is in their slot when a feud ends in the clan's defeat is forfeit with the rest.
+    ///    and what is in their slot when a feud ends in the clan's defeat is forfeit with the rest;
+    ///  - what was wagered in a PvP match is on the match's record (PvpRecords, the
+    ///    pvp_match_wager table): the item each of its players has in the slot when it ends
+    ///    (<see cref="WageredItemsOf"/>), and for the losers of a feud what became of it
+    ///    (<see cref="WagerForfeits.Items"/>). A duel, a squad wargame and a battleground's
+    ///    match take nobody's item: theirs are all on record as kept.
     /// </summary>
     public partial class InventoryManager
     {
@@ -507,6 +512,69 @@ namespace Rasa.Managers
             return unitOfWork.CharacterInventories.GetByType(new[] { characterId }, (uint)InventoryType.WagerInventory).Count > 0;
         }
 
+        /// <summary>
+        /// The items these characters have wagered now, for a PvP match's record (PvpRecords): a
+        /// row for each who has one, with the item, its template, quality and stack. The slot of
+        /// a player who is loaded is read first; the rest are read from their rows.
+        /// </summary>
+        public List<PvpMatchWagerEntry> WageredItemsOf(IReadOnlyCollection<uint> characterIds)
+        {
+            var result = new List<PvpMatchWagerEntry>();
+            var wanted = (characterIds ?? Array.Empty<uint>()).Where(id => id != 0).Distinct().ToList();
+
+            if (wanted.Count == 0)
+                return result;
+
+            // Whoever of them is loaded with an item in the slot; a character can be loaded more than once, the one that holds it counts.
+            var unread = wanted.ToHashSet();
+
+            foreach (var player in ConnectedPlayers().Select(c => c.Player).Concat(EntityManager.Instance.Players.Values))
+            {
+                if (player == null || !unread.Contains(player.Id))
+                    continue;
+
+                var item = WageredItemOf(player);
+
+                if (item == null)
+                    continue;
+
+                unread.Remove(player.Id);
+                result.Add(new PvpMatchWagerEntry
+                {
+                    CharacterId = player.Id,
+                    ItemId = item.Id,
+                    ItemTemplateId = item.ItemTemplate?.ItemTemplateId ?? item.ItemTemplateId,
+                    QualityId = item.ItemTemplate?.QualityId ?? 0,
+                    StackSize = item.StackSize
+                });
+            }
+
+            if (unread.Count == 0 || _gameUnitOfWorkFactory == null)
+                return result;
+
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+
+            foreach (var row in unitOfWork.CharacterInventories.GetByType(unread, (uint)InventoryType.WagerInventory))
+            {
+                if (!unread.Remove(row.CharacterId))
+                    continue;
+
+                var itemData = unitOfWork.Items.GetItem(row.ItemId);
+                var template = itemData == null ? null : ItemManager.Instance.GetItemTemplateById(itemData.ItemTemplateId);
+
+                result.Add(new PvpMatchWagerEntry
+                {
+                    CharacterId = row.CharacterId,
+                    ItemId = row.ItemId,
+                    ItemTemplateId = itemData?.ItemTemplateId ?? 0,
+                    QualityId = template?.QualityId ?? 0,
+                    StackSize = itemData?.StackSize ?? 0
+                });
+            }
+
+            return result;
+        }
+
         /// <summary>What became of the wagered items of a clan that lost a feud.</summary>
         public sealed class WagerForfeits
         {
@@ -523,6 +591,12 @@ namespace Rasa.Managers
             public uint RecipientCharacterId { get; set; }
 
             public int Taken => ToLockbox + Mailed;
+
+            /// <summary>
+            /// Item by item, for the feud's record (PvpRecords): whose it was, which item, and
+            /// what became of it. The side is the caller's to say.
+            /// </summary>
+            public List<PvpMatchWagerEntry> Items { get; } = new List<PvpMatchWagerEntry>();
         }
 
         /// <summary>
@@ -567,10 +641,25 @@ namespace Rasa.Managers
 
             foreach (var row in rows)
             {
+                // Forfeit to the winners whatever comes of it; where it went is filled in as it goes.
+                var wager = new PvpMatchWagerEntry
+                {
+                    CharacterId = row.CharacterId,
+                    ItemId = row.ItemId,
+                    Result = (byte)PvpWagerResult.NotMoved,
+                    RecipientClanId = winnerClanId
+                };
+
+                result.Items.Add(wager);
+
                 try
                 {
                     var itemData = unitOfWork.Items.GetItem(row.ItemId);
                     var template = itemData == null ? null : ItemManager.Instance.GetItemTemplateById(itemData.ItemTemplateId);
+
+                    wager.ItemTemplateId = itemData?.ItemTemplateId ?? 0;
+                    wager.QualityId = template?.QualityId ?? 0;
+                    wager.StackSize = itemData?.StackSize ?? 0;
 
                     if (template == null)
                     {
@@ -612,6 +701,7 @@ namespace Rasa.Managers
                         });
 
                         used.Add(bankSlot);
+                        wager.Result = (byte)PvpWagerResult.ClanLockbox;
 
                         // A lockbox item is an entity for as long as the server runs (ClanManager.InitCurrentClanInventories).
                         if (item != null)
@@ -660,6 +750,9 @@ namespace Rasa.Managers
                             result.Kept++;
                             continue;
                         }
+
+                        wager.Result = (byte)PvpWagerResult.PickUpBox;
+                        wager.RecipientCharacterId = recipient;
 
                         var recipientClient = clients.FirstOrDefault(c => c.Player.Id == recipient && c.State == ClientState.Ingame);
 

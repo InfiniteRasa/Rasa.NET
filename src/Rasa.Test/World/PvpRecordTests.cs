@@ -28,6 +28,9 @@ namespace Rasa.Test.World
         internal List<PvpMatchEntry> Matches { get; } = new List<PvpMatchEntry>();
         internal Dictionary<uint, Dictionary<uint, PvpMatchPlayerEntry>> Rows { get; } = new Dictionary<uint, Dictionary<uint, PvpMatchPlayerEntry>>();
 
+        /// <summary>The wagered items written, by match and character.</summary>
+        internal Dictionary<uint, Dictionary<uint, PvpMatchWagerEntry>> Wagers { get; } = new Dictionary<uint, Dictionary<uint, PvpMatchWagerEntry>>();
+
         /// <summary>Set, every call throws it.</summary>
         internal Exception Fails { get; set; }
 
@@ -83,15 +86,36 @@ namespace Rasa.Test.World
         public List<PvpMatchPlayerEntry> Players(uint matchId) =>
             Rows.TryGetValue(matchId, out var rows) ? rows.Values.OrderBy(r => r.Side).ThenBy(r => r.CharacterId).Select(Copy).ToList() : new List<PvpMatchPlayerEntry>();
 
+        public void SaveWagers(uint matchId, IReadOnlyCollection<PvpMatchWagerEntry> wagers)
+        {
+            if (Fails != null)
+                throw Fails;
+
+            if (!Wagers.TryGetValue(matchId, out var rows))
+                Wagers[matchId] = rows = new Dictionary<uint, PvpMatchWagerEntry>();
+
+            foreach (var wager in wagers)
+            {
+                var copy = Copy(wager);
+
+                copy.MatchId = matchId;
+                rows[copy.CharacterId] = copy;
+            }
+        }
+
         /// <summary>The row a character has in a match.</summary>
         internal PvpMatchPlayerEntry Row(uint matchId, uint characterId) => Rows[matchId][characterId];
+
+        /// <summary>The wagered item a character has on a match's record, or null.</summary>
+        internal PvpMatchWagerEntry Wager(uint matchId, uint characterId) =>
+            Wagers.TryGetValue(matchId, out var rows) && rows.TryGetValue(characterId, out var row) ? row : null;
     }
 
     /// <summary>
-    /// The records of PvP matches (PvpRecords, the pvp_match and pvp_match_player tables): what
-    /// is written of a match that has ended, and of a clan feud from its start to its end and
-    /// through a restart. The squad wargame's and the battleground's own records are with their
-    /// tests.
+    /// The records of PvP matches (PvpRecords, the pvp_match, pvp_match_player and
+    /// pvp_match_wager tables): what is written of a match that has ended, and of a clan feud
+    /// from its start to its end and through a restart, with the items that were wagered in it.
+    /// The squad wargame's and the battleground's own records are with their tests.
     /// </summary>
     [TestClass]
     [DoNotParallelize]
@@ -183,6 +207,96 @@ namespace Rasa.Test.World
 
             records.Record(null, null);
             Assert.AreEqual(2, store.Matches.Count);
+        }
+
+        [TestMethod]
+        public void WhatItsPlayersHaveWageredIsOnAMatchsRecord()
+        {
+            var store = new MemoryPvpStore();
+            var asked = new List<uint[]>();
+            var records = new PvpRecords
+            {
+                UtcNow = () => _utc,
+                WageredItems = ids =>
+                {
+                    asked.Add(ids.OrderBy(id => id).ToArray());
+
+                    // Eight has an item wagered; the rest said here are not of the match, or nothing.
+                    return new List<PvpMatchWagerEntry>
+                    {
+                        new PvpMatchWagerEntry { CharacterId = 8, ItemId = 501, ItemTemplateId = 9001, QualityId = 4, StackSize = 1, Side = 1, Result = (byte)PvpWagerResult.ClanLockbox, RecipientClanId = 3, RecipientCharacterId = 7 },
+                        new PvpMatchWagerEntry { CharacterId = 8, ItemId = 777 },
+                        new PvpMatchWagerEntry { CharacterId = 99, ItemId = 502 },
+                        null
+                    };
+                }
+            };
+
+            records.Load(store);
+
+            var players = new[]
+            {
+                new PvpMatchPlayerEntry { CharacterId = 7, Side = 1, FamilyName = "Seven", PresentAtEnd = true },
+                new PvpMatchPlayerEntry { CharacterId = 8, Side = 2, FamilyName = "Eight" }
+            };
+            var match = new PvpMatchEntry { Kind = (byte)PvpMatchKind.Duel, WargameId = 5, StartedAt = Noon };
+
+            records.Record(match, players);
+
+            CollectionAssert.AreEqual(new uint[] { 7, 8 }, asked.Single(), "asked of everyone on the roster, there at the end or not");
+            Assert.AreEqual(1, store.Wagers[match.Id].Count, "a row for each who had one wagered");
+            Assert.IsNull(store.Wager(match.Id, 7));
+
+            var wager = store.Wager(match.Id, 8);
+
+            Assert.AreEqual(match.Id, wager.MatchId);
+            Assert.AreEqual((byte)2, wager.Side, "the side their row has");
+            Assert.AreEqual(501u, wager.ItemId);
+            Assert.AreEqual(9001u, wager.ItemTemplateId);
+            Assert.AreEqual(4, wager.QualityId);
+            Assert.AreEqual(1u, wager.StackSize);
+            Assert.AreEqual((byte)PvpWagerResult.Kept, wager.Result, "a match recorded this way takes nobody's item");
+            Assert.AreEqual((0u, 0u), (wager.RecipientClanId, wager.RecipientCharacterId));
+
+            // What a losing side forfeited is told afterwards, and is the same row.
+            records.WagersForfeited(match.Id, 2, new[]
+            {
+                new PvpMatchWagerEntry { CharacterId = 8, ItemId = 501, ItemTemplateId = 9001, QualityId = 4, StackSize = 1, Result = (byte)PvpWagerResult.PickUpBox, RecipientClanId = 3, RecipientCharacterId = 7 },
+                new PvpMatchWagerEntry { CharacterId = 0, ItemId = 9 },
+                null
+            });
+
+            Assert.AreEqual(1, store.Wagers[match.Id].Count);
+            Assert.AreEqual((byte)PvpWagerResult.PickUpBox, store.Wager(match.Id, 8).Result);
+            Assert.AreEqual((3u, 7u), (store.Wager(match.Id, 8).RecipientClanId, store.Wager(match.Id, 8).RecipientCharacterId));
+
+            records.WagersForfeited(0, 1, new[] { new PvpMatchWagerEntry { CharacterId = 7, ItemId = 1 } });
+            records.WagersForfeited(match.Id, 1, null);
+            Assert.AreEqual(1, store.Wagers.Count);
+            Assert.AreEqual(1, store.Wagers[match.Id].Count);
+
+            // A match nobody was in asks nothing.
+            records.Record(new PvpMatchEntry { Kind = (byte)PvpMatchKind.Battleground, WargameId = 6 }, null);
+            Assert.AreEqual(1, asked.Count);
+
+            // The items cannot be read: the match and its players are on record all the same.
+            records.WageredItems = ids => throw new InvalidOperationException("the database is away");
+
+            var unread = new PvpMatchEntry { Kind = (byte)PvpMatchKind.SquadWargame, WargameId = 7 };
+
+            records.Record(unread, players);
+            Assert.AreEqual(3, store.Matches.Count);
+            Assert.AreEqual(2, store.Rows[unread.Id].Count);
+            Assert.IsNull(store.Wager(unread.Id, 8));
+
+            // Nothing that reads them, nothing said of them.
+            records.WageredItems = null;
+
+            var unasked = new PvpMatchEntry { Kind = (byte)PvpMatchKind.SquadWargame, WargameId = 8 };
+
+            records.Record(unasked, players);
+            Assert.AreEqual(4, store.Matches.Count);
+            Assert.IsNull(store.Wager(unasked.Id, 8));
         }
 
         [TestMethod]
@@ -392,6 +506,166 @@ namespace Rasa.Test.World
             Assert.AreEqual("RedMate", redMate.FamilyName);
             Assert.AreEqual((0, 0), (redMate.Kills, redMate.Deaths), "there, and never fought");
             Assert.AreEqual((2, 1), (roster[0].Kills, roster[0].Deaths), "what was done is not lost with the roster");
+        }
+
+        [TestMethod]
+        public void TheWagerTableKeepsARowAMatchAndCharacter()
+        {
+            Records(r =>
+            {
+                r.SaveWagers(3, new[]
+                {
+                    new PvpMatchWagerEntry { CharacterId = 20, Side = 2, ItemId = 700, ItemTemplateId = 9002, QualityId = 5, StackSize = 1 },
+                    new PvpMatchWagerEntry { CharacterId = 10, Side = 1, ItemId = 701, ItemTemplateId = 9003, QualityId = 3, StackSize = 1 }
+                });
+                r.SaveWagers(3, new[]
+                {
+                    new PvpMatchWagerEntry
+                    {
+                        CharacterId = 20, Side = 2, ItemId = 700, ItemTemplateId = 9002, QualityId = 5, StackSize = 1,
+                        Result = (byte)PvpWagerResult.PickUpBox, RecipientClanId = 1, RecipientCharacterId = 10
+                    }
+                });
+                r.SaveWagers(4, new[] { new PvpMatchWagerEntry { CharacterId = 20, Side = 1, ItemId = 702, ItemTemplateId = 9002, QualityId = 5, StackSize = 1 } });
+                r.SaveWagers(4, new PvpMatchWagerEntry[0]);
+                r.SaveWagers(4, null);
+                return 0;
+            });
+
+            var wagers = Records(r => r.GetWagers(3));
+
+            CollectionAssert.AreEqual(new uint[] { 10, 20 }, wagers.Select(w => w.CharacterId).ToArray(), "side 1 first");
+            Assert.AreEqual((701u, 9003u, 3, 1u), (wagers[0].ItemId, wagers[0].ItemTemplateId, wagers[0].QualityId, wagers[0].StackSize));
+            Assert.AreEqual((byte)PvpWagerResult.Kept, wagers[0].Result);
+            Assert.AreEqual((0u, 0u), (wagers[0].RecipientClanId, wagers[0].RecipientCharacterId));
+
+            Assert.AreEqual(700u, wagers[1].ItemId);
+            Assert.AreEqual((byte)2, wagers[1].Side);
+            Assert.AreEqual((byte)PvpWagerResult.PickUpBox, wagers[1].Result, "written again in place");
+            Assert.AreEqual((1u, 10u), (wagers[1].RecipientClanId, wagers[1].RecipientCharacterId));
+
+            Assert.AreEqual(702u, Records(r => r.GetWagers(4)).Single().ItemId, "the same character, another match");
+            Assert.AreEqual(0, Records(r => r.GetWagers(77)).Count);
+        }
+
+        [TestMethod]
+        public void WhatWasWageredInAFeudIsOnItsRecordWithWhatBecameOfIt()
+        {
+            using var world = new WorldTestContext();
+            var clans = new Clans(world);
+            var (feuds, records) = Server(clans);
+
+            var redLead = clans.Leader(RedId).Player.Id;
+            var redMate = clans.Member(RedId).Player.Id;
+            var blueLead = clans.Leader(BlueId).Player.Id;
+            var blueMate = clans.Member(BlueId).Player.Id;
+
+            // Who has which item wagered: Red's leader, and both of Blue.
+            var wagered = new Dictionary<uint, uint> { [redLead] = 501, [blueLead] = 601, [blueMate] = 602 };
+
+            PvpMatchWagerEntry RowOf(uint characterId) =>
+                new PvpMatchWagerEntry { CharacterId = characterId, ItemId = wagered[characterId], ItemTemplateId = 9000 + wagered[characterId], QualityId = 4, StackSize = 1 };
+
+            records.WageredItems = ids => ids.Where(wagered.ContainsKey).Select(RowOf).ToList();
+            feuds.HoldsWager = wagered.ContainsKey;
+
+            List<PvpMatchWagerEntry> Wagers() => Records(r => r.GetWagers(r.GetRecentMatches(1).Single().Id));
+
+            // Red beats Blue. Blue's member left mid-feud with an item wagered: it is at stake as Blue's still.
+            var feud = feuds.Start(clans.All[RedId], clans.All[BlueId]);
+
+            feuds.Kill(clans.Leader(RedId), clans.Leader(BlueId));
+            clans.Leave(BlueId, clans.Member(BlueId));
+            feuds.MemberRemoved(blueMate, BlueId);
+
+            var forfeits = 0;
+
+            feuds.Forfeit = (loser, winner, character, loserName, winnerName, departed) =>
+            {
+                forfeits++;
+                Assert.AreEqual((BlueId, RedId), (loser, winner));
+                CollectionAssert.AreEqual(new[] { blueMate }, departed.ToArray());
+
+                var lockbox = RowOf(blueLead);
+                var mailed = RowOf(blueMate);
+
+                lockbox.Result = (byte)PvpWagerResult.ClanLockbox;
+                lockbox.RecipientClanId = winner;
+                mailed.Result = (byte)PvpWagerResult.PickUpBox;
+                mailed.RecipientClanId = winner;
+                mailed.RecipientCharacterId = redLead;
+
+                wagered.Remove(blueLead);
+                wagered.Remove(blueMate);
+
+                return new[] { lockbox, mailed };
+            };
+
+            _utc = Noon.AddDays(7);
+            feuds.Expire(feud);
+
+            Assert.AreEqual(1, forfeits);
+
+            var wagers = Wagers();
+            var roster = Records(r => r.GetPlayers(r.GetRecentMatches(1).Single().Id));
+
+            CollectionAssert.AreEqual(new[] { redLead, blueLead, blueMate }, wagers.Select(w => w.CharacterId).ToArray(), "everyone with an item at stake, side 1 first");
+            Assert.IsFalse(wagers.Any(w => w.CharacterId == redMate), "nothing wagered, no row");
+            Assert.IsFalse(roster.Any(p => p.CharacterId == blueMate), "left without a fight: not on the roster, and their item is on record all the same");
+
+            Assert.AreEqual((byte)1, wagers[0].Side);
+            Assert.AreEqual((501u, 9501u, 4, 1u), (wagers[0].ItemId, wagers[0].ItemTemplateId, wagers[0].QualityId, wagers[0].StackSize));
+            Assert.AreEqual((byte)PvpWagerResult.Kept, wagers[0].Result, "the winners keep theirs");
+            Assert.AreEqual(0u, wagers[0].RecipientClanId);
+
+            Assert.AreEqual((byte)2, wagers[1].Side);
+            Assert.AreEqual(601u, wagers[1].ItemId);
+            Assert.AreEqual((byte)PvpWagerResult.ClanLockbox, wagers[1].Result);
+            Assert.AreEqual((RedId, 0u), (wagers[1].RecipientClanId, wagers[1].RecipientCharacterId));
+
+            Assert.AreEqual((byte)2, wagers[2].Side, "the side of the clan they left");
+            Assert.AreEqual(602u, wagers[2].ItemId);
+            Assert.AreEqual((byte)PvpWagerResult.PickUpBox, wagers[2].Result);
+            Assert.AreEqual((RedId, redLead), (wagers[2].RecipientClanId, wagers[2].RecipientCharacterId));
+
+            // A tie costs nobody anything: what is wagered is on record as kept.
+            wagered[blueLead] = 603;
+
+            var tied = feuds.Start(clans.All[BlueId], clans.All[RedId]);
+
+            _utc = _utc.AddDays(7);
+            feuds.Expire(tied);
+
+            Assert.AreEqual(1, forfeits);
+
+            wagers = Wagers();
+
+            CollectionAssert.AreEqual(new[] { blueLead, redLead }, wagers.Select(w => w.CharacterId).ToArray(), "Blue challenged this time");
+            Assert.AreEqual(603u, wagers[0].ItemId);
+            Assert.IsTrue(wagers.All(w => w.Result == (byte)PvpWagerResult.Kept && w.RecipientClanId == 0));
+
+            // A forfeit that says nothing of what it did, or fails: the items stay on record as they were wagered.
+            feuds.Forfeit = (loser, winner, character, loserName, winnerName, departed) => null;
+
+            var silent = feuds.Start(clans.All[RedId], clans.All[BlueId]);
+
+            feuds.Kill(clans.Leader(RedId), clans.Leader(BlueId));
+            _utc = _utc.AddDays(7);
+            feuds.Expire(silent);
+
+            Assert.AreEqual(2, Wagers().Count);
+            Assert.IsTrue(Wagers().All(w => w.Result == (byte)PvpWagerResult.Kept));
+
+            feuds.Forfeit = (loser, winner, character, loserName, winnerName, departed) => throw new InvalidOperationException("no lockbox");
+
+            var failed = feuds.Start(clans.All[RedId], clans.All[BlueId]);
+
+            feuds.Kill(clans.Leader(RedId), clans.Leader(BlueId));
+            _utc = _utc.AddDays(7);
+            feuds.Expire(failed);
+
+            Assert.AreEqual(failed.Id, Records(r => r.GetRecentMatches(1)).Single().WargameId);
+            Assert.AreEqual(2, Wagers().Count);
         }
 
         [TestMethod]
@@ -622,6 +896,7 @@ namespace Rasa.Test.World
             public void SavePlayers(uint matchId, IReadOnlyCollection<PvpMatchPlayerEntry> players) => With(r => { r.SavePlayers(matchId, players); return 0; });
             public List<PvpMatchEntry> OpenFeuds() => With(r => r.GetOpenMatches(PvpMatchKind.ClanFeud));
             public List<PvpMatchPlayerEntry> Players(uint matchId) => With(r => r.GetPlayers(matchId));
+            public void SaveWagers(uint matchId, IReadOnlyCollection<PvpMatchWagerEntry> wagers) => With(r => { r.SaveWagers(matchId, wagers); return 0; });
         }
 
         /// <summary>The store the server has for feuds.</summary>

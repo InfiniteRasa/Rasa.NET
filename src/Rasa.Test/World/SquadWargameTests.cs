@@ -173,7 +173,12 @@ namespace Rasa.Test.World
             var noon = new DateTime(2026, 10, 2, 12, 0, 0, DateTimeKind.Utc);
             var utc = noon;
             var store = new MemoryPvpStore();
-            var records = new PvpRecords { UtcNow = () => utc };
+            var wagered = new Dictionary<uint, uint>();
+            var records = new PvpRecords
+            {
+                UtcNow = () => utc,
+                WageredItems = ids => ids.Where(wagered.ContainsKey).Select(id => new PvpMatchWagerEntry { CharacterId = id, ItemId = wagered[id], StackSize = 1 }).ToList()
+            };
             var previous = SquadWargames.Instance.Records;
 
             records.Load(store);
@@ -182,6 +187,10 @@ namespace Rasa.Test.World
             try
             {
                 var (redLead, redMate, blueLead, blueMate) = Squads(world);
+
+                // Two of them have an item wagered: one of the winners, and the one who will leave.
+                wagered[redMate.Player.Id] = 801;
+                wagered[blueMate.Player.Id] = 802;
 
                 Start(redLead, blueLead, maxKills: 3);
 
@@ -236,6 +245,12 @@ namespace Rasa.Test.World
                 Assert.AreEqual((byte)2, left.Side);
                 Assert.AreEqual((0, 1), (left.Kills, left.Deaths));
                 Assert.IsFalse(left.PresentAtEnd, "did not see it out");
+
+                // What was wagered: a row for each who had an item in the slot, winner or loser, and all of it kept.
+                Assert.AreEqual(2, store.Wagers[match.Id].Count);
+                Assert.AreEqual((801u, (byte)1), (store.Wager(match.Id, redMate.Player.Id).ItemId, store.Wager(match.Id, redMate.Player.Id).Side));
+                Assert.AreEqual((802u, (byte)2), (store.Wager(match.Id, blueMate.Player.Id).ItemId, store.Wager(match.Id, blueMate.Player.Id).Side));
+                Assert.IsTrue(store.Wagers[match.Id].Values.All(w => w.Result == (byte)PvpWagerResult.Kept && w.RecipientClanId == 0));
 
                 // A surrender, and a squad that walks out of one: each a record of its own, with why.
                 Start(blueLead, redLead);

@@ -105,6 +105,45 @@ namespace Rasa.Repositories.Char.PvpRecord
                 .ThenBy(e => e.CharacterId)
                 .ToList();
 
+        public void SaveWagers(uint matchId, IReadOnlyCollection<PvpMatchWagerEntry> wagers)
+        {
+            if (wagers == null || wagers.Count == 0)
+                return;
+
+            var ids = wagers.Select(w => w.CharacterId).Distinct().ToList();
+            var rows = _charContext.CreateTrackingQuery(_charContext.PvpMatchWagerEntries)
+                .Where(e => e.MatchId == matchId && ids.Contains(e.CharacterId))
+                .ToDictionary(e => e.CharacterId);
+
+            foreach (var wager in wagers)
+            {
+                if (!rows.TryGetValue(wager.CharacterId, out var row))
+                {
+                    row = new PvpMatchWagerEntry { MatchId = matchId, CharacterId = wager.CharacterId };
+                    rows[wager.CharacterId] = row;
+                    _charContext.PvpMatchWagerEntries.Add(row);
+                }
+
+                row.Side = wager.Side;
+                row.ItemId = wager.ItemId;
+                row.ItemTemplateId = wager.ItemTemplateId;
+                row.QualityId = wager.QualityId;
+                row.StackSize = wager.StackSize;
+                row.Result = wager.Result;
+                row.RecipientClanId = wager.RecipientClanId;
+                row.RecipientCharacterId = wager.RecipientCharacterId;
+            }
+
+            _charContext.SaveChanges();
+        }
+
+        public List<PvpMatchWagerEntry> GetWagers(uint matchId) =>
+            _charContext.CreateNoTrackingQuery(_charContext.PvpMatchWagerEntries)
+                .Where(e => e.MatchId == matchId)
+                .OrderBy(e => e.Side)
+                .ThenBy(e => e.CharacterId)
+                .ToList();
+
         public List<PvpMatchEntry> GetRecentMatches(int count) =>
             _charContext.CreateNoTrackingQuery(_charContext.PvpMatchEntries)
                 .Where(e => e.EndedAt != null)

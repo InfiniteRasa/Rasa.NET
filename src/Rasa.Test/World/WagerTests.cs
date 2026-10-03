@@ -450,6 +450,13 @@ namespace Rasa.Test.World
             Assert.AreEqual(0, result.Mailed);
             Assert.AreEqual(0, result.Kept);
 
+            // Item by item, for the feud's record.
+            CollectionAssert.AreEqual(new uint[] { 1, 3 }, result.Items.Select(i => i.CharacterId).ToArray());
+            CollectionAssert.AreEqual(new[] { online.Id, offline }, result.Items.Select(i => i.ItemId).ToArray());
+            CollectionAssert.AreEqual(new uint[] { 9001, 9002 }, result.Items.Select(i => i.ItemTemplateId).ToArray());
+            Assert.IsTrue(result.Items.All(i => i.Result == (byte)PvpWagerResult.ClanLockbox && i.RecipientClanId == winners.Id && i.RecipientCharacterId == 0));
+            Assert.IsTrue(result.Items.All(i => i.QualityId == (int)LootQuality.Rare && i.StackSize == 1));
+
             using (var unit = context.CreateChar())
             {
                 var lockbox = unit.ClanInventories.GetItems(winners.Id).OrderBy(row => row.SlotId).ToList();
@@ -516,6 +523,8 @@ namespace Rasa.Test.World
             Assert.AreEqual(0, result.ToLockbox);
             Assert.AreEqual(2, result.Mailed);
             Assert.AreEqual(4u, result.RecipientCharacterId);
+            Assert.AreEqual(2, result.Items.Count);
+            Assert.IsTrue(result.Items.All(i => i.Result == (byte)PvpWagerResult.PickUpBox && i.RecipientClanId == winners.Id && i.RecipientCharacterId == 4));
 
             using (var unit = context.CreateChar())
             {
@@ -729,6 +738,8 @@ namespace Rasa.Test.World
 
             Assert.AreEqual(0, result.Taken);
             Assert.AreEqual(1, result.Kept);
+            Assert.AreEqual((item.Id, (byte)PvpWagerResult.NotMoved), (result.Items.Single().ItemId, result.Items.Single().Result), "forfeit, and still where it was");
+            Assert.AreEqual((winners.Id, 0u), (result.Items.Single().RecipientClanId, result.Items.Single().RecipientCharacterId));
             Assert.AreEqual(item.EntityId, loser.Player.Inventory.WagerItem);
             Assert.IsTrue(loser.Player.WagerLocked);
             AssertRow(context, item, InventoryType.WagerInventory, 0);
@@ -736,7 +747,90 @@ namespace Rasa.Test.World
 
             // Nothing wagered, nothing forfeited; and a clan forfeits nothing to itself.
             Assert.AreEqual(0, inventory.ForfeitWagers(winners.Id, losers.Id, 1, "Winners", "Losers").Taken);
+            Assert.AreEqual(0, inventory.ForfeitWagers(winners.Id, losers.Id, 1, "Winners", "Losers").Items.Count);
             Assert.AreEqual(0, inventory.ForfeitWagers(losers.Id, losers.Id, 1, "Losers", "Losers").Kept);
+        }
+
+        [TestMethod]
+        public void WhatWasWageredInAFeudAndWhatBecameOfItIsOnTheFeudsRecord()
+        {
+            using var context = Context(out var loser, out var inventory);
+            var winner = context.CreateAdditionalClient(2);
+            context.SeedCharacter(3, 0, 3);
+
+            var losers = Clan(context, "Losers", (1, ClanRank.Leader), (3, ClanRank.Member));
+            var winners = Clan(context, "Winners", (2, ClanRank.Leader));
+
+            Join(loser, losers);
+            Join(winner, winners);
+
+            var online = Gear(context, loser, 9001, 0);
+            inventory.WagerItem(loser, new WagerItemPacket { Slot = 0 });
+            var offline = WageredOffline(context, 3, 3, 9002);
+            var kept = Gear(context, winner, 9003, 0, LootQuality.Epic);
+            inventory.WagerItem(winner, new WagerItemPacket { Slot = 0 });
+
+            // What each has wagered, as a record reads it: from the slot of one in the world, from the row of one who is not.
+            var wagered = inventory.WageredItemsOf(new uint[] { 3, 2, 1, 1, 0, 404 });
+
+            CollectionAssert.AreEquivalent(new uint[] { 1, 2, 3 }, wagered.Select(w => w.CharacterId).ToArray(), "one row each, and none for who has nothing or is nobody");
+            Assert.AreEqual((online.Id, 9001u, (int)LootQuality.Rare, 1u),
+                (wagered.Single(w => w.CharacterId == 1).ItemId, wagered.Single(w => w.CharacterId == 1).ItemTemplateId, wagered.Single(w => w.CharacterId == 1).QualityId, wagered.Single(w => w.CharacterId == 1).StackSize));
+            Assert.AreEqual((offline, 9002u, (int)LootQuality.Rare, 1u),
+                (wagered.Single(w => w.CharacterId == 3).ItemId, wagered.Single(w => w.CharacterId == 3).ItemTemplateId, wagered.Single(w => w.CharacterId == 3).QualityId, wagered.Single(w => w.CharacterId == 3).StackSize));
+            Assert.AreEqual((kept.Id, (int)LootQuality.Epic), (wagered.Single(w => w.CharacterId == 2).ItemId, wagered.Single(w => w.CharacterId == 2).QualityId));
+            Assert.AreEqual(0, inventory.WageredItemsOf(null).Count);
+
+            var store = new MemoryPvpStore();
+            var records = new PvpRecords { WageredItems = inventory.WageredItemsOf };
+
+            records.Load(store);
+
+            WithLiveClans(context, inventory, new[] { losers, winners }, (clans, feuds) =>
+            {
+                var previous = feuds.Records;
+
+                feuds.Records = records;
+
+                try
+                {
+                    var feud = feuds.Start(losers, winners, 0, 1, 2);
+                    Assert.IsNotNull(feud);
+
+                    feuds.End(feud, ClanFeuds.Outcome.Won, winners.Id, "gm");
+
+                    var match = store.Matches.Single();
+
+                    Assert.AreEqual((byte)2, match.WinnerSide);
+                    Assert.AreEqual(3, store.Wagers[match.Id].Count, "everything that was at stake, lost or not");
+
+                    foreach (var (characterId, itemId) in new[] { (1u, online.Id), (3u, offline) })
+                    {
+                        var lost = store.Wager(match.Id, characterId);
+
+                        Assert.AreEqual((byte)1, lost.Side, "the challengers, who lost");
+                        Assert.AreEqual(itemId, lost.ItemId);
+                        Assert.AreEqual((byte)PvpWagerResult.ClanLockbox, lost.Result);
+                        Assert.AreEqual((winners.Id, 0u), (lost.RecipientClanId, lost.RecipientCharacterId));
+                    }
+
+                    var won = store.Wager(match.Id, 2);
+
+                    Assert.AreEqual((byte)2, won.Side);
+                    Assert.AreEqual((kept.Id, 9003u, (int)LootQuality.Epic), (won.ItemId, won.ItemTemplateId, won.QualityId));
+                    Assert.AreEqual((byte)PvpWagerResult.Kept, won.Result);
+                    Assert.AreEqual(0u, won.RecipientClanId);
+
+                    // And it went where the record says.
+                    using var unit = context.CreateChar();
+                    CollectionAssert.AreEquivalent(new[] { online.Id, offline }, unit.ClanInventories.GetItems(winners.Id).Select(row => row.ItemId).ToArray());
+                    Assert.AreEqual(kept.EntityId, winner.Player.Inventory.WagerItem);
+                }
+                finally
+                {
+                    feuds.Records = previous;
+                }
+            });
         }
 
         #endregion
@@ -775,7 +869,7 @@ namespace Rasa.Test.World
 
                 clanInstance.SetValue(null, clans);
                 feuds.Forfeit = (loser, victor, character, loserName, winnerName, departed) =>
-                    inventory.ForfeitWagers(loser, victor, character, loserName, winnerName, departed);
+                    inventory.ForfeitWagers(loser, victor, character, loserName, winnerName, departed).Items;
                 feuds.HoldsWager = inventory.HoldsWager;
 
                 body(clans, feuds);

@@ -62,7 +62,7 @@ namespace Rasa.Managers
                         _instance ??= new ClanFeuds(new ServerClans())
                         {
                             Forfeit = (loser, winner, character, loserName, winnerName, departed) =>
-                                InventoryManager.Instance.ForfeitWagers(loser, winner, character, loserName, winnerName, departed),
+                                InventoryManager.Instance.ForfeitWagers(loser, winner, character, loserName, winnerName, departed).Items,
                             HoldsWager = characterId => InventoryManager.Instance.HoldsWager(characterId)
                         };
 
@@ -167,9 +167,11 @@ namespace Rasa.Managers
         /// What the losers of a feud that was won forfeit: (losing clan, winning clan, the winning
         /// clan's character of the challenge, the two clans' names, the characters who left the
         /// losing clan while the feud ran). The live server's is InventoryManager.ForfeitWagers -
-        /// their wagered items, to the winners' lockbox; null does nothing.
+        /// their wagered items, to the winners' lockbox; null does nothing. What it returns goes
+        /// on the feud's record (PvpRecords.WagersForfeited): a row for each item that was
+        /// forfeit, saying whose it was and what became of it; null says nothing.
         /// </summary>
-        public Action<uint, uint, uint, string, string, IReadOnlyCollection<uint>> Forfeit { get; set; }
+        public Func<uint, uint, uint, string, string, IReadOnlyCollection<uint>, IReadOnlyCollection<PvpMatchWagerEntry>> Forfeit { get; set; }
 
         /// <summary>
         /// Whether a character has an item wagered, asked as they leave a clan at feud. The live
@@ -178,9 +180,9 @@ namespace Rasa.Managers
         public Func<uint, bool> HoldsWager { get; set; }
 
         /// <summary>
-        /// Where the record of each feud is kept - who won, the score, who fought and who was
-        /// in the two clans at the end. The live server's keeps them in the database; one with
-        /// no store, as in a test, keeps nothing.
+        /// Where the record of each feud is kept - who won, the score, who fought, who was in
+        /// the two clans at the end, and what was wagered. The live server's keeps them in the
+        /// database; one with no store, as in a test, keeps nothing.
         /// </summary>
         public PvpRecords Records { get; set; } = PvpRecords.Instance;
 
@@ -487,7 +489,10 @@ namespace Rasa.Managers
                     return;
 
             Forget(feud);
-            Try($"recording the end of feud {feud.Id}", () => RecordEnd(feud, outcome, winnerClanId, reason));
+
+            uint recordId = 0;
+
+            Try($"recording the end of feud {feud.Id}", () => recordId = RecordEnd(feud, outcome, winnerClanId, reason));
 
             Logger.WriteLog(LogType.Debug, $"Clan feud {feud.Id} ended: {outcome}{(outcome == Outcome.Won ? $", clan {winnerClanId} won" : "")}, {feud.ChallengerKills} : {feud.TargetKills}.");
 
@@ -529,8 +534,14 @@ namespace Rasa.Managers
                 lock (_sync)
                     departed = feud.Departed.Where(d => d.Value == loserClanId).Select(d => d.Key).OrderBy(id => id).ToList();
 
-                Try($"forfeiting the wagers of feud {feud.Id}", () => Forfeit(loserClanId, winnerClanId, feud.CharacterFor(winnerClanId),
+                IReadOnlyCollection<PvpMatchWagerEntry> forfeited = null;
+
+                Try($"forfeiting the wagers of feud {feud.Id}", () => forfeited = Forfeit(loserClanId, winnerClanId, feud.CharacterFor(winnerClanId),
                     _clans.Find(loserClanId)?.Name ?? "", _clans.Find(winnerClanId)?.Name ?? "", departed));
+
+                if (forfeited != null && recordId != 0)
+                    Try($"recording the forfeits of feud {feud.Id}",
+                        () => Records?.WagersForfeited(recordId, loserClanId == feud.ChallengerClanId ? (byte)1 : (byte)2, forfeited));
             }
         }
 
@@ -562,13 +573,17 @@ namespace Rasa.Managers
                 feud.TargetClanId, _clans.Find(feud.TargetClanId)?.Name, targetKills);
         }
 
-        /// <summary>Closes the feud's record: how it ended, and everyone in the two clans as they are now.</summary>
-        private void RecordEnd(Feud feud, Outcome outcome, uint winnerClanId, string reason)
+        /// <summary>
+        /// Closes the feud's record: how it ended, everyone in the two clans as they are now, and
+        /// the items wagered by them and by those who left with a stake. Returns the record's id,
+        /// 0 when it has none.
+        /// </summary>
+        private uint RecordEnd(Feud feud, Outcome outcome, uint winnerClanId, string reason)
         {
             var records = Records;
 
             if (records?.Store == null)
-                return;
+                return 0;
 
             var members = new List<PvpMatchPlayerEntry>();
 
@@ -584,11 +599,19 @@ namespace Rasa.Managers
                         PresentAtEnd = true
                     });
 
-            records.FeudEnded(RecordOf(feud),
+            List<KeyValuePair<uint, byte>> stakes;
+
+            lock (_sync)
+                stakes = feud.Departed
+                    .Select(d => new KeyValuePair<uint, byte>(d.Key, d.Value == feud.ChallengerClanId ? (byte)1 : (byte)2))
+                    .ToList();
+
+            return records.FeudEnded(RecordOf(feud),
                 outcome == Outcome.Won ? PvpMatchOutcome.Won : outcome == Outcome.Tied ? PvpMatchOutcome.Tied : PvpMatchOutcome.Cancelled,
                 winnerClanId,
                 reason ?? (outcome == Outcome.Cancelled ? "cancelled" : ""),
-                members);
+                members,
+                stakes);
         }
 
         /// <summary>Ends the feuds whose time is up. From the map channel worker.</summary>

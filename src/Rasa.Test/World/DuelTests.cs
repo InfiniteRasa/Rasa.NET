@@ -257,6 +257,59 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
+        public void WhatADuelistHasWageredIsOnTheDuelsRecordAndStaysTheirs()
+        {
+            using var world = new WorldTestContext();
+            var (red, blue) = Duelists(world);
+            var store = new MemoryPvpStore();
+            var records = new PvpRecords { WageredItems = ids => InventoryManager.Instance.WageredItemsOf(ids) };
+            var previous = Duels.Instance.Records;
+
+            // Blue has an item in the wager slot, as the world holds it.
+            var item = new Item { Id = 4401, ItemTemplateId = 9001, StackSize = 1 };
+
+            EntityManager.Instance.RegisterEntity(item.EntityId, EntityType.Item);
+            EntityManager.Instance.RegisterItem(item.EntityId, item);
+            blue.Player.Inventory.WagerItem = item.EntityId;
+
+            records.Load(store);
+            Duels.Instance.Records = records;
+
+            try
+            {
+                StartDuel(red, blue);
+                Assert.IsTrue(Duels.Instance.Kill(red, blue));
+                Assert.AreEqual(0, Duels.Instance.Running.Count);
+
+                var match = store.Matches.Single();
+                var wager = store.Wagers[match.Id].Values.Single();
+
+                Assert.AreEqual(blue.Player.Id, wager.CharacterId, "the one who had something wagered");
+                Assert.AreEqual((byte)2, wager.Side);
+                Assert.AreEqual((4401u, 9001u, 1u), (wager.ItemId, wager.ItemTemplateId, wager.StackSize));
+                Assert.AreEqual((byte)PvpWagerResult.Kept, wager.Result, "beaten, and it is theirs still: a duel takes nothing");
+                Assert.AreEqual((0u, 0u), (wager.RecipientClanId, wager.RecipientCharacterId));
+                Assert.AreEqual(item.EntityId, blue.Player.Inventory.WagerItem);
+
+                // Walked out of: the one who left is asked all the same.
+                StartDuel(blue, red);
+                Duels.Instance.PlayerLeft(blue);
+
+                Assert.AreEqual(2, store.Matches.Count);
+                Assert.AreEqual((byte)1, store.Wager(store.Matches[1].Id, blue.Player.Id).Side, "the challenger this time");
+                Assert.IsNull(store.Wager(store.Matches[1].Id, red.Player.Id));
+            }
+            finally
+            {
+                Duels.Instance.Records = previous;
+                blue.Player.Inventory.WagerItem = 0;
+                EntityManager.Instance.UnregisterItem(item.EntityId);
+                EntityManager.Instance.UnregisterEntity(item.EntityId);
+                EntityManager.Instance.FreeEntity(item.EntityId);
+            }
+        }
+
+        [TestMethod]
         public void ADuelThatEndsIsPutOnRecord()
         {
             using var world = new WorldTestContext();

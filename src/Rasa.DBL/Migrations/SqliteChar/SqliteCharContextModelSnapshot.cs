@@ -2028,6 +2028,57 @@ namespace Rasa.Migrations.SqliteChar
                     b.ToTable("pvp_match_player");
                 });
 
+            modelBuilder.Entity("Rasa.Structures.Char.PvpMatchWagerEntry", b =>
+                {
+                    b.Property<uint>("MatchId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("match_id");
+
+                    b.Property<uint>("CharacterId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("character_id");
+
+                    b.Property<uint>("ItemId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("item_id");
+
+                    b.Property<uint>("ItemTemplateId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("item_template_id");
+
+                    b.Property<int>("QualityId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("quality_id");
+
+                    b.Property<uint>("RecipientCharacterId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("recipient_character_id");
+
+                    b.Property<uint>("RecipientClanId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("recipient_clan_id");
+
+                    b.Property<byte>("Result")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("result");
+
+                    b.Property<byte>("Side")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("side");
+
+                    b.Property<uint>("StackSize")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("stack_size");
+
+                    b.HasKey("MatchId", "CharacterId");
+
+                    b.HasIndex(new[] { "CharacterId" }, "pvp_match_wager_index_character_id");
+
+                    b.HasIndex(new[] { "ItemId" }, "pvp_match_wager_index_item_id");
+
+                    b.ToTable("pvp_match_wager");
+                });
+
             modelBuilder.Entity("Rasa.Structures.Char.UserOptionEntry", b =>
                 {
                     b.Property<uint>("AccountId")

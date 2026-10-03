@@ -12,11 +12,12 @@ namespace Rasa.Managers
     /// <summary>
     /// The records kept of PvP matches between two sides: clan feuds (ClanFeuds), squad wargames
     /// (SquadWargames), a battleground's matches (Battlegrounds) and duels (Duels). For each: when and where it
-    /// was fought, how it ended, which side won, the two sides' scores, and every player with
-    /// the side they were on and their own score. Kept in the character database's pvp_match
-    /// and pvp_match_player tables (<see cref="IStore"/>); nothing here is sent to a client,
-    /// and nothing in a match waits on it or fails with it: a store that cannot be written
-    /// costs the record, and says so in the log.
+    /// was fought, how it ended, which side won, the two sides' scores, every player with
+    /// the side they were on and their own score, and the items that were wagered in it. Kept
+    /// in the character database's pvp_match, pvp_match_player and pvp_match_wager tables
+    /// (<see cref="IStore"/>); nothing here is sent to a client, and nothing in a match waits
+    /// on it or fails with it: a store that cannot be written costs the record, and says so in
+    /// the log.
     ///
     /// The two sides are side 1 and side 2 everywhere: the challenging clan, squad or duelist
     /// and Red Team are side 1, the challenged one and Blue Team side 2. A side's score is
@@ -30,6 +31,12 @@ namespace Rasa.Managers
     /// the feud ends (<see cref="FeudEnded"/>), when the rest of both clans are added with
     /// nothing against their names. After a restart the feuds read back find their open
     /// records again (<see cref="FeudsRestored"/>).
+    ///
+    /// The wagered items (InventoryManager.Wager) are read when a match ends
+    /// (<see cref="WageredItems"/>): one row for each of its players with an item in their wager
+    /// slot then, saying which item and what became of it. Only a clan feud takes a wagered
+    /// item: every other match's are kept, and so are a feud's until its forfeits are told
+    /// (<see cref="WagersForfeited"/>).
     /// </summary>
     public class PvpRecords
     {
@@ -42,7 +49,10 @@ namespace Rasa.Managers
             {
                 if (_instance == null)
                     lock (InstanceLock)
-                        _instance ??= new PvpRecords();
+                        _instance ??= new PvpRecords
+                        {
+                            WageredItems = characterIds => InventoryManager.Instance.WageredItemsOf(characterIds)
+                        };
 
                 return _instance;
             }
@@ -61,6 +71,9 @@ namespace Rasa.Managers
             List<PvpMatchEntry> OpenFeuds();
 
             List<PvpMatchPlayerEntry> Players(uint matchId);
+
+            /// <summary>Writes wagered items of a match, each a new row or the one that match and character have.</summary>
+            void SaveWagers(uint matchId, IReadOnlyCollection<PvpMatchWagerEntry> wagers);
         }
 
         /// <summary>A clan feud as its record needs it: its id, and the two clans.</summary>
@@ -99,6 +112,13 @@ namespace Rasa.Managers
         /// <summary>Where the records go; null keeps none. Set by <see cref="Load"/>.</summary>
         public IStore Store { get; private set; }
 
+        /// <summary>
+        /// The items these characters have wagered now, a row each for those who have one: the
+        /// character, the item, its template, quality and stack. The live server's is
+        /// InventoryManager.WageredItemsOf; null records no wagered items.
+        /// </summary>
+        public Func<IReadOnlyCollection<uint>, List<PvpMatchWagerEntry>> WageredItems { get; set; }
+
         /// <summary>The wall clock records are dated by, UTC. Replaceable for tests.</summary>
         public Func<DateTime> UtcNow { get; set; } = () => DateTime.UtcNow;
 
@@ -114,9 +134,10 @@ namespace Rasa.Managers
         #region Any match that is over
 
         /// <summary>
-        /// Writes the record of a match that has ended, with its players. The match's kind,
-        /// sides, scores, outcome and start are the caller's; it is dated as ended now unless
-        /// the caller dated it.
+        /// Writes the record of a match that has ended, with its players and what they have
+        /// wagered now - all of it kept: a match recorded here takes nobody's item. The match's
+        /// kind, sides, scores, outcome and start are the caller's; it is dated as ended now
+        /// unless the caller dated it.
         /// </summary>
         public void Record(PvpMatchEntry match, IEnumerable<PvpMatchPlayerEntry> players)
         {
@@ -130,13 +151,18 @@ namespace Rasa.Managers
             if (match.StartedAt == default || match.StartedAt > match.EndedAt)
                 match.StartedAt = match.EndedAt.Value;
 
+            var rows = Rows(players);
+            var saved = false;
+
             Try($"recording {(PvpMatchKind)match.Kind} {match.WargameId}", () =>
             {
-                var id = store.SaveMatch(match);
-
-                match.Id = id;
-                store.SavePlayers(id, Rows(players));
+                match.Id = store.SaveMatch(match);
+                saved = true;
+                store.SavePlayers(match.Id, rows);
             });
+
+            if (saved)
+                RecordWagers(store, match, rows.ToDictionary(p => p.CharacterId, p => p.Side));
         }
 
         /// <summary>A player's row for a record, with their names and clan as they are now.</summary>
@@ -149,6 +175,65 @@ namespace Rasa.Managers
             ClanId = player?.ClanId ?? 0,
             PresentAtEnd = true
         };
+
+        /// <summary>
+        /// Writes what the characters of a match - each with the side they are on - have
+        /// wagered now, as kept.
+        /// </summary>
+        private void RecordWagers(IStore store, PvpMatchEntry match, IReadOnlyDictionary<uint, byte> sides)
+        {
+            var wagered = WageredItems;
+
+            if (wagered == null || match.Id == 0 || sides.Count == 0)
+                return;
+
+            Try($"recording the wagered items of {(PvpMatchKind)match.Kind} {match.WargameId}", () =>
+            {
+                var wagers = (wagered(sides.Keys.ToList()) ?? new List<PvpMatchWagerEntry>())
+                    .Where(w => w != null && sides.ContainsKey(w.CharacterId))
+                    .GroupBy(w => w.CharacterId)
+                    .Select(g => g.First())
+                    .ToList();
+
+                foreach (var wager in wagers)
+                {
+                    wager.Side = sides[wager.CharacterId];
+                    wager.Result = (byte)PvpWagerResult.Kept;
+                    wager.RecipientClanId = 0;
+                    wager.RecipientCharacterId = 0;
+                }
+
+                if (wagers.Count > 0)
+                    store.SaveWagers(match.Id, wagers);
+            });
+        }
+
+        /// <summary>
+        /// What became of the wagered items a side of a match forfeited: the rows the match has
+        /// for them are rewritten with it. <paramref name="matchId"/> is the record's
+        /// (<see cref="FeudEnded"/> gives a feud's).
+        /// </summary>
+        public void WagersForfeited(uint matchId, byte side, IEnumerable<PvpMatchWagerEntry> wagers)
+        {
+            var store = Store;
+
+            if (store == null || matchId == 0)
+                return;
+
+            var rows = (wagers ?? Enumerable.Empty<PvpMatchWagerEntry>())
+                .Where(w => w != null && w.CharacterId != 0)
+                .GroupBy(w => w.CharacterId)
+                .Select(g => g.Last())
+                .ToList();
+
+            if (rows.Count == 0)
+                return;
+
+            foreach (var row in rows)
+                row.Side = side;
+
+            Try($"recording the forfeited items of match {matchId}", () => store.SaveWagers(matchId, rows));
+        }
 
         /// <summary>One row a character, none for no character: a store keys them so.</summary>
         private static List<PvpMatchPlayerEntry> Rows(IEnumerable<PvpMatchPlayerEntry> players) =>
@@ -302,24 +387,30 @@ namespace Rasa.Managers
         /// A feud has ended: its record is closed with how it went, and the roster is written -
         /// everyone who fought, and everyone in either clan now (<paramref name="members"/>,
         /// with the side their clan is). One who fought and is no longer in their clan is kept,
-        /// as not there at the end.
+        /// as not there at the end. The items at stake in it are written as they are wagered
+        /// now, all kept: those of the members, and of <paramref name="stakes"/> - the characters
+        /// who left a clan mid-feud with an item wagered, and the side they left. What a losing
+        /// side then forfeits is told with <see cref="WagersForfeited"/> and the id returned
+        /// here: the record's, 0 when there is none.
         /// </summary>
-        public void FeudEnded(FeudInfo feud, PvpMatchOutcome outcome, uint winnerClanId, string reason, IEnumerable<PvpMatchPlayerEntry> members)
+        public uint FeudEnded(FeudInfo feud, PvpMatchOutcome outcome, uint winnerClanId, string reason, IEnumerable<PvpMatchPlayerEntry> members,
+            IEnumerable<KeyValuePair<uint, byte>> stakes = null)
         {
             var store = Store;
 
             if (store == null)
-                return;
+                return 0;
 
             PvpMatchEntry match;
             List<PvpMatchPlayerEntry> players;
+            var atStake = new Dictionary<uint, byte>();
 
             lock (_sync)
             {
                 var record = RecordOf(feud);
 
                 if (record == null)
-                    return;
+                    return 0;
 
                 _feuds.Remove(feud.FeudId);
 
@@ -337,6 +428,8 @@ namespace Rasa.Managers
 
                 foreach (var member in Rows(members))
                 {
+                    atStake[member.CharacterId] = member.Side;
+
                     if (record.Players.TryGetValue(member.CharacterId, out var row))
                     {
                         row.PresentAtEnd = true;
@@ -365,6 +458,15 @@ namespace Rasa.Managers
                 store.SaveMatch(match);
                 store.SavePlayers(match.Id, players);
             });
+
+            // One who left a clan with an item wagered has it at stake for that clan, whatever they have joined since.
+            foreach (var stake in stakes ?? Enumerable.Empty<KeyValuePair<uint, byte>>())
+                if (stake.Key != 0)
+                    atStake[stake.Key] = stake.Value;
+
+            RecordWagers(store, match, atStake);
+
+            return match.Id;
         }
 
         /// <summary>The open record of a feud; one from before records were kept, or whose opening failed, is opened now.</summary>
@@ -541,6 +643,12 @@ namespace Rasa.Managers
             {
                 using var unitOfWork = _factory.CreateChar();
                 return unitOfWork.PvpRecords.GetPlayers(matchId);
+            }
+
+            public void SaveWagers(uint matchId, IReadOnlyCollection<PvpMatchWagerEntry> wagers)
+            {
+                using var unitOfWork = _factory.CreateChar();
+                unitOfWork.PvpRecords.SaveWagers(matchId, wagers);
             }
         }
     }

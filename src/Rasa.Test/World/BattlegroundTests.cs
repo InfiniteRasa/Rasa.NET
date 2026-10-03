@@ -1240,7 +1240,12 @@ namespace Rasa.Test.World
             var noon = new DateTime(2026, 10, 2, 12, 0, 0, DateTimeKind.Utc);
             var utc = noon;
             var store = new MemoryPvpStore();
-            var records = new PvpRecords { UtcNow = () => utc };
+            var wagered = new Dictionary<uint, uint>();
+            var records = new PvpRecords
+            {
+                UtcNow = () => utc,
+                WageredItems = ids => ids.Where(wagered.ContainsKey).Select(id => new PvpMatchWagerEntry { CharacterId = id, ItemId = wagered[id], StackSize = 1 }).ToList()
+            };
 
             records.Load(store);
             f.Grounds.Records = records;
@@ -1249,6 +1254,10 @@ namespace Rasa.Test.World
             var mate = f.Join(Battlegrounds.Red);
             var blue = f.Join(Battlegrounds.Blue);
             var deserter = f.Join(Battlegrounds.Blue);
+
+            // One on each team has an item wagered.
+            wagered[mate.Player.Id] = 901;
+            wagered[blue.Player.Id] = 902;
 
             red.Player.ClanId = 31;
             f.Garrison[Whiskey] = ControlPoints.Garrison.Down;
@@ -1310,6 +1319,12 @@ namespace Rasa.Test.World
 
             Assert.AreEqual((byte)2, gone.Side);
             Assert.IsFalse(gone.PresentAtEnd, "a deserter is on the record, as one who left");
+
+            // What was wagered: on record for both teams, and kept - a match takes nobody's item.
+            Assert.AreEqual(2, store.Wagers[match.Id].Count);
+            Assert.AreEqual((901u, (byte)1), (store.Wager(match.Id, mate.Player.Id).ItemId, store.Wager(match.Id, mate.Player.Id).Side));
+            Assert.AreEqual((902u, (byte)2), (store.Wager(match.Id, blue.Player.Id).ItemId, store.Wager(match.Id, blue.Player.Id).Side));
+            Assert.IsTrue(store.Wagers[match.Id].Values.All(w => w.Result == (byte)PvpWagerResult.Kept));
 
             // The next match on the same field is another record; with nobody ahead it is nobody's.
             f.Begin();

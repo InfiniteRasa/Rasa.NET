@@ -103,7 +103,11 @@ namespace Rasa.Test.World
 
             var feuds = Restart(clans, tick: 1000);
             var forfeits = new List<(uint Loser, uint Winner, uint Character, string LoserName, string WinnerName)>();
-            feuds.Forfeit = (loser, winner, character, loserName, winnerName, departed) => forfeits.Add((loser, winner, character, loserName, winnerName));
+            feuds.Forfeit = (loser, winner, character, loserName, winnerName, departed) =>
+            {
+                forfeits.Add((loser, winner, character, loserName, winnerName));
+                return null;
+            };
 
             // The challenged clan wins: the one who accepted stands for it.
             feuds.End(feuds.Feuds.Single(), ClanFeuds.Outcome.Won, BlueId);
@@ -165,7 +169,11 @@ namespace Rasa.Test.World
             // A restart, and Blue wins: who left Red is forfeit with Red; who left Blue is not.
             var second = Restart(clans, tick: 1000);
             var forfeits = new List<(uint Loser, uint Winner, uint[] Departed)>();
-            second.Forfeit = (loser, winner, character, loserName, winnerName, departed) => forfeits.Add((loser, winner, departed.ToArray()));
+            second.Forfeit = (loser, winner, character, loserName, winnerName, departed) =>
+            {
+                forfeits.Add((loser, winner, departed.ToArray()));
+                return null;
+            };
 
             var back = second.Feuds.Single(f => f.Id == redBlue.Id);
             Assert.AreEqual(RedId, back.Departed[leaverId]);
@@ -202,7 +210,11 @@ namespace Rasa.Test.World
             feuds.MemberRemoved(900, RedId);
 
             var forfeits = new List<(uint Loser, uint Winner, uint Character, uint[] Departed)>();
-            feuds.Forfeit = (loser, winner, character, loserName, winnerName, departed) => forfeits.Add((loser, winner, character, departed.ToArray()));
+            feuds.Forfeit = (loser, winner, character, loserName, winnerName, departed) =>
+            {
+                forfeits.Add((loser, winner, character, departed.ToArray()));
+                return null;
+            };
 
             foreach (var id in new[] { RedId, BlueId, GreenId })
             {
