@@ -199,6 +199,27 @@ namespace Rasa.Managers
                     new TrainingConverse(line == TrainerDialog.Offer, trainer.DialogGroup + (int)line));
             }
 
+            // Nothing to talk about. A player gets here through an NPC whose only status is
+            // Unavailable: npc.py offers CONVERSE on any status but None, and an empty dictionary
+            // falls through Recv_Converse to "Unknown conversation type received from server".
+            // EndConversation closes the window it would have opened, and the mission that is
+            // waiting is named in the chat - player message 939, "'%(missionId)s' is not
+            // available to you now.", the id sent as a number for BuildPlayerMessage to turn
+            // into the mission's name. No greeting: which npcgreetinglanguage line an NPC spoke
+            // was the server's to know, and is not in the client.
+            if (convoDataDict.Count == 0)
+            {
+                convoDataDict.Add(ConversationType.EndConversation, true);
+
+                if (conversation.NotYetAvailable.Count > 0)
+                {
+                    var message = new DisplayClientMessagePacket(PlayerMessage.PmMissionNotAvailableNow,
+                        new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages);
+                    message.NumberArgs["missionId"] = conversation.NotYetAvailable[0];
+                    client.CallMethod(SysEntity.CommunicatorId, message);
+                }
+            }
+
             /*
             // Greeting = 0
             var greetingId = 19;
@@ -441,6 +462,18 @@ namespace Rasa.Managers
             if (creature.Npc.NpcIsClanMaster && statusSet == false)
             {
                 client.CallMethod(creature.EntityId, new NPCConversationStatusPacket(ConversationStatus.Clan, new List<uint>())); // status - none
+                statusSet = true;
+            }
+
+            // has the NPC a mission this player cannot take yet?
+            //
+            // Last of all. npc.py keeps its vendor package, clan master and auctioneer flags from
+            // the status and clears them on any status it does not know them by, so this one over
+            // a vendor would take the vendor's window away; and anything a mission has for the
+            // player now is said by the statuses above. The client reads no data with it.
+            if (missionState.NotYetAvailable.Count > 0 && statusSet == false)
+            {
+                client.CallMethod(creature.EntityId, new NPCConversationStatusPacket(ConversationStatus.Unavailable, new List<uint>(missionState.NotYetAvailable)));
                 statusSet = true;
             }
 

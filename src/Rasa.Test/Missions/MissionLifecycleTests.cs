@@ -1062,6 +1062,67 @@ namespace Rasa.Test.Missions
             Assert.IsFalse(context.Client.Player.Missions.ContainsKey(321));
         }
 
+        // What the giver's Unavailable status is sent for (MissionApplication.IsNotYetAvailable):
+        // a mission ahead of the player. A level is ahead. A mission to hold at the time and a
+        // player flag are not, and nor is a mission to complete that the content does not have -
+        // 322 is not in this fixture, so nothing the player does would open 321.
+        [TestMethod]
+        [DynamicData(nameof(GetPrerequisiteKinds))]
+        public void OnlyAMissionAheadOfThePlayerIsNotYetAvailable(
+            MissionPrerequisiteKind kind)
+        {
+            var fixture = CreateSinglePrerequisiteFixture(kind);
+            using var context = MissionTestContext.WithCustomDefinitions(
+                new Dictionary<uint, Mission>());
+            var manager = CreateMissionContentManager(context, fixture);
+            var giver = context.AddNpc(101);
+            var npcs = new NpcManager(context, manager);
+            var ahead = kind == MissionPrerequisiteKind.PlayerLevelAtLeast;
+
+            var blocked = manager.ClassifyNpcConversation(context.Client.Player, giver);
+            CollectionAssert.AreEqual(ahead ? new uint[] { 321 } : Array.Empty<uint>(), blocked.NotYetAvailable.ToArray());
+
+            context.Drain();
+            npcs.UpdateConversationStatus(context.Client, giver, manager);
+            var status = context.Drain().OfType<NPCConversationStatusPacket>().Single();
+            Assert.AreEqual(ahead ? ConversationStatus.Unavailable : ConversationStatus.None, status.ConvoStatusId);
+            CollectionAssert.AreEqual(ahead ? new uint[] { 321 } : Array.Empty<uint>(), status.Data);
+
+            SatisfyPrerequisite(context, kind);
+
+            Assert.AreEqual(0, manager.ClassifyNpcConversation(context.Client.Player, giver).NotYetAvailable.Count);
+            npcs.UpdateConversationStatus(context.Client, giver, manager);
+            Assert.AreEqual(ConversationStatus.Available,
+                context.Drain().OfType<NPCConversationStatusPacket>().Single().ConvoStatusId);
+        }
+
+        // A level is what the mission waited for, so gaining it asks the givers in view again.
+        [TestMethod]
+        public void GainingTheLevelAMissionWaitedForTurnsItsGiverToAvailable()
+        {
+            var fixture = CreateSinglePrerequisiteFixture(MissionPrerequisiteKind.PlayerLevelAtLeast);
+            using var context = MissionTestContext.WithCustomDefinitions(
+                new Dictionary<uint, Mission>());
+            var manager = CreateMissionContentManager(context, fixture);
+            var giver = context.AddNpc(101, position: context.Client.Player.Position);
+            CellManager.Instance.UpdateVisibility(context.Client);
+            Assert.AreEqual(1, context.Client.Player.Level);
+            foreach (var attribute in Enum.GetValues<Attributes>())
+                context.Client.Player.Attributes.TryAdd(attribute, new ActorAttributes(attribute, 0, 0, 0, 0, 0));
+            context.Drain();
+
+            new ManifestationManager(context, manager).GainExperience(context.Client,
+                (uint)ExpPerLevel.ExpRequred[1] - context.Client.Player.Experience);
+
+            Assert.AreEqual(2, context.Client.Player.Level);
+            var status = Rasa.Test.World.WorldTestContext.Drain(context.Client).Select(packet => packet.Message)
+                .OfType<Rasa.Packets.Protocol.CallMethodMessage>()
+                .Where(message => message.EntityId == giver.EntityId).Select(message => message.Packet)
+                .OfType<NPCConversationStatusPacket>().Last();
+            Assert.AreEqual(ConversationStatus.Available, status.ConvoStatusId);
+            CollectionAssert.AreEqual(new uint[] { 321 }, status.Data);
+        }
+
         public static IEnumerable<object[]> GetPrerequisiteKinds()
         {
             yield return new object[] { MissionPrerequisiteKind.MissionCompleted };

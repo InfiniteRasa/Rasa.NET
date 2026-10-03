@@ -2382,6 +2382,7 @@ namespace Rasa.Managers
                 PartyManager.Instance.MemberInfoChanged(client);
                 SocialManager.Instance.FriendStatusUpdate(client);
                 InventoryManager.WagerLevelChanged(client, grant.PreviousLevel);
+                MissionGiversAfterLevel(client);
             }
         }
 
@@ -2521,8 +2522,19 @@ namespace Rasa.Managers
                 PartyManager.Instance.MemberInfoChanged(client);
                 SocialManager.Instance.FriendStatusUpdate(client);
                 InventoryManager.WagerLevelChanged(client, levelBefore);
+                MissionGiversAfterLevel(client);
             }
         }
+
+        /// <summary>
+        /// A level can be what a mission was waiting for (MissionPrerequisiteKind.PlayerLevelAtLeast,
+        /// LevelRequirement), so the givers in view are asked again: the one who showed a mission
+        /// not yet available now offers it - and a level a GM takes away puts it back to waiting.
+        /// </summary>
+        private void MissionGiversAfterLevel(Client client) =>
+            MissionApplication.TryPublish(
+                () => (_missionManager ?? MissionApplication.Instance).RefreshNpcConversationStatuses(client),
+                "NPC conversation statuses after a level");
 
         /// <summary>
         /// Adrenaline (chi) earned for a kill, as a percent of the bar. Not a live-game figure:
@@ -2848,6 +2860,7 @@ namespace Rasa.Managers
             PartyManager.Instance.MemberInfoChanged(client);
             SocialManager.Instance.FriendStatusUpdate(client);
             InventoryManager.WagerLevelChanged(client, from);
+            MissionGiversAfterLevel(client);
 
             Logger.WriteLog(LogType.Command, $"{player.FamilyName} set from level {from} to {level}" + (notes.Count > 0 ? $": {string.Join(", ", notes)}" : ""));
 

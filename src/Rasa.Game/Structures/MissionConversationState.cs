@@ -13,16 +13,25 @@ namespace Rasa.Structures
         private readonly IReadOnlyDictionary<uint, RewardInfo> _completeable;
         private readonly IReadOnlyList<RewardableMissions> _rewardable;
 
+        /// <summary>
+        /// The missions this NPC gives that the character cannot take yet
+        /// (MissionApplication.IsNotYetAvailable). They are no topic of the conversation: they
+        /// are what ConversationStatus.Unavailable is sent for when the NPC has nothing else.
+        /// </summary>
+        internal IReadOnlyList<uint> NotYetAvailable { get; }
+
         internal MissionConversationState(
             IReadOnlyDictionary<uint, MissionInfo> dispensable,
             IReadOnlyList<MissionDialoguePresentation> dialogue,
             IReadOnlyDictionary<uint, RewardInfo> completeable,
-            IReadOnlyList<RewardableMissions> rewardable)
+            IReadOnlyList<RewardableMissions> rewardable,
+            IReadOnlyList<uint> notYetAvailable = null)
         {
             _dispensable = dispensable;
             Dialogue = dialogue;
             _completeable = completeable;
             _rewardable = rewardable;
+            NotYetAvailable = notYetAvailable ?? System.Array.Empty<uint>();
         }
 
         internal Dictionary<ConversationType, object> CreateConversationData()
@@ -57,7 +66,8 @@ namespace Rasa.Structures
                 _completeable.Where(entry => keys.Contains(new(MissionConversationTopicKind.MissionCompletion, entry.Key)))
                     .ToDictionary(entry => entry.Key, entry => entry.Value),
                 _rewardable.Where(entry => keys.Contains(new(MissionConversationTopicKind.LegacyReward, (uint)entry.MissionId)))
-                    .ToArray());
+                    .ToArray(),
+                NotYetAvailable);
 
         internal bool TryGetStatus(
             out ConversationStatus status,

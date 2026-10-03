@@ -2856,6 +2856,7 @@ namespace Rasa.Managers
             var dialogue = new List<MissionDialoguePresentation>();
             var completeable = new Dictionary<uint, RewardInfo>();
             var rewardable = new List<RewardableMissions>();
+            var notYetAvailable = new List<uint>();
 
             foreach (var mission in _runtime.ForNpc(creature.DbId, creature.Npc.NpcPackageId))
             {
@@ -2866,18 +2867,26 @@ namespace Rasa.Managers
                 {
                     if (log?.State == MissionState.Failed && mission.RepeatPolicy.Kind == MissionRepeatKind.Once)
                         continue;
+                    var gives = mission.AcceptanceChannel.HasFlag(MissionChannel.Npc) && mission.MissionGiver == creature.DbId;
                     var everSucceeded = log?.State == MissionState.Completed ||
                         player.MissionSuccessHistory.Contains(mission.MissionId) ||
                         player.MissionHistory.TryGetValue(mission.MissionId, out var outcome) &&
                         outcome is MissionState.Success or MissionState.Completed;
                     if (!mission.RepeatPolicy.Allows(_utcNow(), everSucceeded,
                         player.MissionRewardTimes.TryGetValue(mission.MissionId, out var rewardTime) ? rewardTime : null))
+                    {
+                        // Done once and for all is done; one that comes round again is waited for.
+                        if (gives && mission.RepeatPolicy.Kind is MissionRepeatKind.Cooldown or MissionRepeatKind.Daily &&
+                            (ArePrerequisitesSatisfied(player, mission.MissionId, out _) || IsNotYetAvailable(player, mission)))
+                            notYetAvailable.Add(mission.MissionId);
                         continue;
-                    if (mission.AcceptanceChannel.HasFlag(MissionChannel.Npc) && mission.MissionGiver == creature.DbId &&
-                        ArePrerequisitesSatisfied(player, mission.MissionId, out _))
+                    }
+                    if (gives && ArePrerequisitesSatisfied(player, mission.MissionId, out _))
                         dispensable.Add(
                             mission.MissionId,
                             _protocol.BuildOfferInfo(mission, MissionState.Active));
+                    else if (gives && IsNotYetAvailable(player, mission))
+                        notYetAvailable.Add(mission.MissionId);
                     continue;
                 }
 
@@ -2919,8 +2928,75 @@ namespace Rasa.Managers
                 dispensable,
                 dialogue,
                 completeable,
-                rewardable);
+                rewardable,
+                notYetAvailable);
         }
+
+        /// <summary>
+        /// The mission is ahead of the character: something it asks is unmet, and all that is
+        /// unmet comes with playing on - a level to reach, or another mission, one that is in
+        /// the content, to finish. That is what the client's CONVO_STATUS_UNAVAILABLE is for
+        /// (overheadwindow.py draws OVERHEAD_MISSION_UNAVAILABLE over the giver).
+        ///
+        /// A mission asking for anything else is not ahead, it is beside: Bootcamp's retry
+        /// (2005) wants Calling for Reinforcements failed, and its giver is not to wear the
+        /// icon for everyone who has not failed it. So a required Failed state, a mission that
+        /// has to be held at the time, a player flag, a map or a custom requirement keeps the
+        /// mission out of this list whatever else it asks.
+        /// </summary>
+        internal bool IsNotYetAvailable(Manifestation player, Mission mission)
+        {
+            var ahead = false;
+
+            if (mission.Requirement != null && !_requirements.Evaluate(player, mission.Requirement))
+            {
+                if (!ComesWithProgress(player, mission.Requirement))
+                    return false;
+                ahead = true;
+            }
+
+            if (!_catalog.Prerequisites.TryGetValue(mission.MissionId, out var prerequisites))
+                return ahead;
+
+            foreach (var prerequisite in prerequisites)
+            {
+                if (IsPrerequisiteSatisfied(player, prerequisite))
+                    continue;
+
+                var progress = prerequisite.Kind switch
+                {
+                    MissionPrerequisiteKind.PlayerLevelAtLeast => prerequisite.RequiredLevel.HasValue,
+                    MissionPrerequisiteKind.MissionCompleted => prerequisite.RequiredMissionId.HasValue &&
+                        IsFinishedState(prerequisite.RequiredMissionStateValue.HasValue
+                            ? (MissionState?)prerequisite.RequiredMissionStateValue.Value : null) &&
+                        TryGetOperationalMission(prerequisite.RequiredMissionId.Value, out _),
+                    _ => false
+                };
+
+                if (!progress)
+                    return false;
+                ahead = true;
+            }
+
+            return ahead;
+        }
+
+        /// <summary>An unmet authored requirement that playing on will meet.</summary>
+        private bool ComesWithProgress(Manifestation player, MissionRequirement requirement) =>
+            requirement switch
+            {
+                LevelRequirement => true,
+                MissionStateRequirement mission => !mission.Accepted && IsFinishedState(mission.State) &&
+                    TryGetOperationalMission(mission.MissionId, out _),
+                AllRequirements all => all.Items
+                    .Where(item => !_requirements.Evaluate(player, item))
+                    .All(item => ComesWithProgress(player, item)),
+                AnyRequirement any => any.Items.Any(item => ComesWithProgress(player, item)),
+                _ => false
+            };
+
+        private static bool IsFinishedState(MissionState? state) =>
+            state is null or MissionState.Success or MissionState.Completed;
 
         internal bool TryGetOperationalMission(uint missionId, out Mission mission)
         {
