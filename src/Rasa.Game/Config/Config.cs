@@ -23,6 +23,9 @@ namespace Rasa.Config
         /// <summary>What is done with a Move through a force field, through a wall, or standing on nothing (Managers.MovementChecks).</summary>
         public MovementChecksConfig MovementChecks { get; set; } = new MovementChecksConfig();
 
+        /// <summary>What is done with a weapon shot at a target behind the shooter, out of reach or behind cover (Managers.WeaponChecks).</summary>
+        public WeaponChecksConfig WeaponChecks { get; set; } = new WeaponChecksConfig();
+
         /// <summary>
         /// The maps that run in several shared copies, by map context id. Edmund Range (2374) is
         /// one without an entry in the file; an entry there for it replaces this one.

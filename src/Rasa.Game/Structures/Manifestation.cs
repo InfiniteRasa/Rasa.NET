@@ -110,6 +110,10 @@ namespace Rasa.Structures
         public long MovementCheckLogTick { get; set; }
         public int MovementCheckHits { get; set; }
 
+        /// <summary>The same for the weapon checks (Managers.WeaponChecks).</summary>
+        public long WeaponCheckLogTick { get; set; }
+        public int WeaponCheckHits { get; set; }
+
         /// <summary>
         /// Puts the player somewhere because the server says so - a map change, a dropship, a
         /// waypoint, a summon, /stuck, a GM command - rather than because the client claimed it.

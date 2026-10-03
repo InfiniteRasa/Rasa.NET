@@ -957,6 +957,19 @@ namespace Rasa.Managers
             if (ShotWait(client.Player, now) > 0)
                 return FireResult.TooSoon;
 
+            // Could the shot have been aimed at its target: facing, reach and sight
+            // (WeaponChecks). Not for a cone weapon, whose targets the server picks itself.
+            // Before the ammo, so a refused shot costs nothing.
+            if (client.Player.Target != 0 && !ConeWeapons.IsCone(weapon.ItemTemplate.WeaponInfo, weaponClassInfo)
+                && WeaponChecks.Judge(client.Player, EntityManager.Instance.GetActor(client.Player.Target),
+                    weapon.ItemTemplate.WeaponInfo.Range, client.Player.MapChannel?.Cover) is WeaponChecks.Finding aim)
+            {
+                WeaponChecks.Report(client, aim, now);
+
+                if (aim.Refuse)
+                    return FireResult.NotFired;
+            }
+
             if (usesAmmo)
             {
                 var ammoAfter = weapon.CurrentAmmo - weapon.ItemTemplate.WeaponInfo.AmmoPerShot;

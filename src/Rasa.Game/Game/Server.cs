@@ -151,8 +151,9 @@ namespace Rasa.Game
             // The numbers of the Edmund Range match; a match being played keeps its clock.
             Battlegrounds.Instance.Config = Config.Battleground ?? new BattlegroundConfig();
 
-            // Off, log or refuse for each of the three movement checks.
+            // Off, log or refuse for each of the three movement checks, and the three weapon checks.
             MovementChecks.Config = Config.MovementChecks ?? new MovementChecksConfig();
+            WeaponChecks.Config = Config.WeaponChecks ?? new WeaponChecksConfig();
 
             // A message changed by editing the file goes to everyone in the world, from the loop;
             // the first load is before anyone is here.
