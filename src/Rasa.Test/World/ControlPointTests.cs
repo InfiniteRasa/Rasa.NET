@@ -39,6 +39,7 @@ namespace Rasa.Test.World
 
         private Func<Client, int, bool> _change;
         private Func<uint, bool> _known;
+        private Func<Client, Vector3, List<Client>> _sharers;
         private Func<long> _now;
         private Func<long> _utcNow;
         private Func<uint, bool> _hospitalOpen;
@@ -52,6 +53,7 @@ namespace Rasa.Test.World
         {
             _change = PvpPrestige.Change;
             _known = ControlPoints.Instance.KnownCreature;
+            _sharers = ControlPoints.Instance.SharersOf;
             _now = ControlPoints.Instance.Now;
             _utcNow = ControlPoints.Instance.UtcNow;
             _hospitalOpen = Hospitals.IsOpen;
@@ -74,6 +76,7 @@ namespace Rasa.Test.World
         {
             ControlPoints.Instance.Load(new List<ControlPointEntry>(), new List<ControlPointLinkEntry>(), null);
             ControlPoints.Instance.KnownCreature = _known;
+            ControlPoints.Instance.SharersOf = _sharers;
             ControlPoints.Instance.Now = _now;
             ControlPoints.Instance.UtcNow = _utcNow;
             PvpPrestige.Change = _change;
@@ -415,6 +418,67 @@ namespace Rasa.Test.World
             PvpPrestige.Change = (c, amount) => false;
             Assert.AreEqual(0, ControlPoints.Instance.CreatureKilled(minion, client), "not said if it was not given");
             Assert.AreEqual(0, Drain(client).OfType<ReceivedCreatureKillPrestigePacket>().Count());
+        }
+
+        [TestMethod]
+        public void AGarrisonKillIsWorthItsPrestigeToEveryoneOfTheSquadWhoSharesInIt()
+        {
+            using var world = new WorldTestContext();
+            Placed(world, ControlPointEntry.OwnerBane);
+            var killer = world.CreateClient();
+            var mate = world.CreateClient(50, 0);
+            var stranger = world.CreateClient(5, 0);
+            var minion = new Creature
+            {
+                DbId = MinionCreatureId, SpawnPool = Pool(world, BanePoolA), EntityClass = EntityClasses.HumanBaseMale,
+                Position = new Vector3(3, 0, 0)
+            };
+            Vector3 asked = default;
+
+            ControlPoints.Instance.SharersOf = (client, corpse) =>
+            {
+                asked = corpse;
+                return new List<Client> { client, mate };
+            };
+
+            Assert.AreEqual(30, ControlPoints.Instance.CreatureKilled(minion, killer), "what the one with the kill was given");
+            Assert.AreEqual(minion.Position, asked, "measured from the corpse");
+
+            Assert.AreEqual(30, Prestige(killer));
+            Assert.AreEqual(30, Prestige(mate), "the whole amount each, not a share of it");
+            Assert.AreEqual(0, Prestige(stranger));
+
+            Assert.AreEqual(30, Drain(killer).OfType<ReceivedCreatureKillPrestigePacket>().Single().Amount);
+
+            // Too far off to have been given the creature: the client would say nothing by its name.
+            var told = Drain(mate);
+            Assert.AreEqual(0, told.OfType<ReceivedCreatureKillPrestigePacket>().Count());
+            var message = told.OfType<DisplayClientMessagePacket>().Single();
+            Assert.AreEqual(PlayerMessage.PmPrestigePointsReceived, message.MsgId);
+            Assert.AreEqual("30", message.Args["amount"]);
+
+            // One of them cannot be given it: the other still is.
+            PvpPrestige.Change = (client, amount) =>
+            {
+                if (client == killer)
+                    return false;
+
+                client.Player.Credits[CurencyType.Prestige] = Prestige(client) + amount;
+                return true;
+            };
+
+            Assert.AreEqual(0, ControlPoints.Instance.CreatureKilled(minion, killer));
+            Assert.AreEqual(60, Prestige(mate));
+        }
+
+        [TestMethod]
+        public void APlayerInNoSquadSharesAKillWithNobody()
+        {
+            using var world = new WorldTestContext();
+            var killer = world.CreateClient();
+            world.CreateClient(2, 0);
+
+            CollectionAssert.AreEqual(new[] { killer }, PartyManager.Instance.SharersOf(killer, Vector3.Zero));
         }
 
         [TestMethod]

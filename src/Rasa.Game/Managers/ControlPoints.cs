@@ -59,7 +59,9 @@ namespace Rasa.Managers
     ///    walking up to it, and its waypoint neither lists nor answers (WaypointInfo.Contested).
     ///    Nothing is taken from a player who had them: they are back when the point is.
     ///  - Killing one of a Bane garrison is worth <see cref="MinionPrestige"/> prestige, a boss
-    ///    <see cref="BossPrestige"/>, to whoever has the kill.
+    ///    <see cref="BossPrestige"/>, to whoever has the kill and to every member of their squad
+    ///    near enough to share in its loot (PartyManager.SharersOf) - the whole amount each,
+    ///    whatever the squad's loot method.
     ///  - Who holds each point is kept (<see cref="IStore"/>, control_point_state) and read back
     ///    when the server starts.
     ///
@@ -173,6 +175,9 @@ namespace Rasa.Managers
 
         /// <summary>The clock a garrison's time down is measured on, in milliseconds. Replaceable for tests.</summary>
         public Func<long> Now { get; set; } = () => Environment.TickCount64;
+
+        /// <summary>Who shares in a kill with the player who has it: them and their squad near the corpse. Replaceable for tests.</summary>
+        public Func<Client, Vector3, List<Client>> SharersOf { get; set; } = (killer, corpse) => PartyManager.Instance.SharersOf(killer, corpse);
 
         /// <summary>Whether a creature id is one the server has loaded: a pool of none never spawns. Replaceable for tests.</summary>
         public Func<uint, bool> KnownCreature { get; set; } = id => CreatureManager.Instance.LoadedCreatures.ContainsKey(id);
@@ -534,7 +539,8 @@ namespace Rasa.Managers
 
         /// <summary>
         /// A creature a player has the kill of: one of a Bane garrison is worth prestige, a boss
-        /// more (CreatureManager.HandleCreatureKill). Returns what was given.
+        /// more, to them and to each of their squad who shares in the kill
+        /// (CreatureManager.HandleCreatureKill). Returns what the player with the kill was given.
         /// </summary>
         public int CreatureKilled(Creature creature, Client client)
         {
@@ -544,21 +550,54 @@ namespace Rasa.Managers
                 return 0;
 
             var amount = IsBoss(point, creature) ? BossPrestige : MinionPrestige;
+            var given = 0;
 
+            foreach (var sharer in SharersOf(client, creature.Position) ?? new List<Client> { client })
+            {
+                if (sharer?.Player == null || !Give(point, creature, sharer, amount, sharer == client))
+                    continue;
+
+                if (sharer == client)
+                    given = amount;
+            }
+
+            return given;
+        }
+
+        /// <summary>
+        /// One player's prestige for a garrison kill, and their being told: by the creature's
+        /// name if their client has the creature - the client takes the name from it and says
+        /// nothing without it - and by the amount alone if they are too far off to.
+        /// </summary>
+        private static bool Give(Point point, Creature creature, Client client, int amount, bool hasTheKill)
+        {
             try
             {
                 if (!PvpPrestige.Change(client, amount))
-                    return 0;
+                    return false;
 
-                client.CallMethod(SysEntity.ClientPrestigeSystemId, new ReceivedCreatureKillPrestigePacket(creature.EntityId, amount));
+                if (hasTheKill || Sees(client, creature))
+                    client.CallMethod(SysEntity.ClientPrestigeSystemId, new ReceivedCreatureKillPrestigePacket(creature.EntityId, amount));
+                else
+                    client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(PlayerMessage.PmPrestigePointsReceived,
+                        new Dictionary<string, string> { { "amount", amount.ToString() } }, MsgFilterId.PrestigeGainLose));
+
+                return true;
             }
             catch (Exception e)
             {
                 Logger.WriteLog(LogType.Error, $"Control point {point.Id} ({point.Name}): {amount} prestige for {client.Player.FamilyName} failed: {e.Message}");
-                return 0;
+                return false;
             }
+        }
 
-            return amount;
+        /// <summary>Whether a client has been given a creature: it stands in the cells the creature is shown to.</summary>
+        private static bool Sees(Client client, Creature creature)
+        {
+            var mapChannel = creature.RuntimeMapChannel;
+
+            return mapChannel != null && creature.Cells != null
+                   && CellManager.CellsIn(mapChannel, creature.Cells).Any(cell => cell.ClientList.Contains(client));
         }
 
         /// <summary>Whether a creature of a point's garrison is one of its bosses: named so in its links, or a boss by its class.</summary>

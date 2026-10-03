@@ -1621,24 +1621,21 @@ namespace Rasa.Managers
         public const float LootShareRange = 200f;
 
         /// <summary>
-        /// Who may loot a corpse the killer earned, by the squad's loot method:
-        /// - no squad, or Individual: the killer;
-        /// - Free For All: every member in the world on the killer's map within LootShareRange (200 m) of
-        ///   the corpse, the killer first - anyone of them may take anything;
-        /// - Rotation: the whole corpse goes to the next of those members in join order, the
-        ///   rotation moving on one member a corpse.
-        /// Random and Dice Roll cannot be chosen in the client and are treated as Free For All.
-        /// The flag is whether the corpse is shared (partyId on its items). Party and Eligible -
-        /// every member who shares in the corpse, whoever Rotation hands it to - are for the
-        /// items at or over the squad's threshold, which are rolled for among them (LootRolls).
+        /// Who shares in a kill, whatever the squad's loot method: the killer, and every member of
+        /// their squad in the world on the killer's map within LootShareRange of the corpse. A
+        /// player in no squad shares with nobody. What a kill is worth besides its loot goes by
+        /// this (ControlPoints.CreatureKilled).
         /// </summary>
-        internal (List<Client> Looters, uint PartyId, Party Party, List<Client> Eligible) LootersFor(Client killer, System.Numerics.Vector3 corpse)
+        internal List<Client> SharersOf(Client killer, System.Numerics.Vector3 corpse)
         {
             var party = PartyOf(killer);
 
-            if (party == null || party.LootMethod == PartyLootMethod.Individual)
-                return (new List<Client> { killer }, 0, null, new List<Client> { killer });
+            return party == null ? new List<Client> { killer } : MembersInRange(party, killer, corpse);
+        }
 
+        /// <summary>The killer and the members of their squad who are near enough to a corpse to share in it, in join order.</summary>
+        private List<Client> MembersInRange(Party party, Client killer, System.Numerics.Vector3 corpse)
+        {
             var mapChannel = killer.Player.MapChannel;
             var eligible = new List<Client>();
 
@@ -1661,6 +1658,30 @@ namespace Rasa.Managers
 
             if (!eligible.Contains(killer))
                 eligible.Insert(0, killer);
+
+            return eligible;
+        }
+
+        /// <summary>
+        /// Who may loot a corpse the killer earned, by the squad's loot method:
+        /// - no squad, or Individual: the killer;
+        /// - Free For All: every member in the world on the killer's map within LootShareRange (200 m) of
+        ///   the corpse, the killer first - anyone of them may take anything;
+        /// - Rotation: the whole corpse goes to the next of those members in join order, the
+        ///   rotation moving on one member a corpse.
+        /// Random and Dice Roll cannot be chosen in the client and are treated as Free For All.
+        /// The flag is whether the corpse is shared (partyId on its items). Party and Eligible -
+        /// every member who shares in the corpse, whoever Rotation hands it to - are for the
+        /// items at or over the squad's threshold, which are rolled for among them (LootRolls).
+        /// </summary>
+        internal (List<Client> Looters, uint PartyId, Party Party, List<Client> Eligible) LootersFor(Client killer, System.Numerics.Vector3 corpse)
+        {
+            var party = PartyOf(killer);
+
+            if (party == null || party.LootMethod == PartyLootMethod.Individual)
+                return (new List<Client> { killer }, 0, null, new List<Client> { killer });
+
+            var eligible = MembersInRange(party, killer, corpse);
 
             if (party.LootMethod == PartyLootMethod.Rotation)
             {
