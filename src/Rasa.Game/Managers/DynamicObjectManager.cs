@@ -1287,6 +1287,9 @@ namespace Rasa.Managers
             using var unitOfWork = _gameUnitOfWorkFactory.CreateWorld();
             var teleporters = unitOfWork.Teleporters.GetTeleporters();
 
+            // What each battlefield's waypoint title asks for is the waypoints on its map.
+            WaypointTitles.Load(teleporters);
+
             foreach (var teleporter in teleporters)
             {
                 if (teleporter.MapContextId == 0)
@@ -1398,6 +1401,9 @@ namespace Rasa.Managers
 
                 client.Player.GainedWaypoints.Add(waypoint);
                 PublishWaypointGrant(client, waypoint, recordProgress, missionManager);
+
+                // The last waypoint of a battlefield is its title (WaypointTitles).
+                WaypointTitles.Gained(client, waypoint.WaypointId);
                 return true;
             }
         }

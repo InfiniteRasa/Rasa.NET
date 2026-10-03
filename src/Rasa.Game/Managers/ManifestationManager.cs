@@ -1928,10 +1928,11 @@ namespace Rasa.Managers
 
             client.CallMethod(player.EntityId, new TitlesPacket(player.Titles));
 
-            // A Logos title the Tabula has earned and the character has not got - learned
+            // A Logos or waypoint title the character has earned and has not got - collected
             // before the titles were given, or inherited by a clone - is given now, after the
-            // list it is added to (LogosTitles).
+            // list it is added to (LogosTitles, WaypointTitles).
             LogosTitles.CatchUp(client);
+            WaypointTitles.CatchUp(client);
 
             client.CallMethod(player.EntityId, new UpdateAttributesPacket(player.Attributes, 0));
 
