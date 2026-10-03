@@ -45,5 +45,16 @@ namespace Rasa.Config
 
         /// <summary>Prestige for each player of the team that loses one, or of both when nobody wins.</summary>
         public int LossPrestige { get; set; } = 50;
+
+        /// <summary>
+        /// Send the whole scoreboard as one ScoreBoardFullUpdate where every row goes out at
+        /// once - to a player who arrives, at the start of a match and when the next one's teams
+        /// are listed - in place of a row a message. Off unless every client has been given the
+        /// method: the retail client names it and has nothing that receives it, so it would show
+        /// no rows from one, and by its entity manager's handling of a call it cannot make would
+        /// log an error for each and show a game master with the GM interface on an exception
+        /// dialog.
+        /// </summary>
+        public bool ScoreBoardFullUpdate { get; set; } = false;
     }
 }

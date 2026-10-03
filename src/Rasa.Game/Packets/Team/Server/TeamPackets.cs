@@ -176,7 +176,7 @@ namespace Rasa.Packets.Team.Server
     /// individualUpdate). One player's row, in shared/scorekeeperconstants.py's order: name,
     /// class, team, active, kills, deaths, damage, healing, captures, prestige. A row that is not
     /// active is hidden. The client's tracker writes kills and deaths into the row it was given
-    /// (ScoreBoardTrackerUpdate), so the row is a list.
+    /// (<see cref="ScoreBoardTrackerUpdatePacket"/>), so the row is a list.
     /// </summary>
     public class ScoreBoardIndividualUpdatePacket : ServerPythonPacket
     {
@@ -203,6 +203,12 @@ namespace Rasa.Packets.Team.Server
         {
             pw.WriteTuple(2);
             pw.WriteULong(EntityId);
+            WriteRow(pw);
+        }
+
+        /// <summary>The row alone, as a list of ten: what a client keeps for the player.</summary>
+        internal void WriteRow(PythonWriter pw)
+        {
             pw.WriteList(10);
             pw.WriteUnicodeString(Name ?? "");
             pw.WriteUInt(ClassId);
@@ -214,6 +220,97 @@ namespace Rasa.Packets.Team.Server
             pw.WriteInt(Healing);
             pw.WriteInt(Captures);
             pw.WriteInt(Prestige);
+        }
+    }
+
+    /// <summary>
+    /// ScoreBoardTrackerUpdate (876): Recv_ScoreBoardTrackerUpdate(entityId, trackerUpdate),
+    /// with trackerUpdate unpacked as (kills, deaths). The client writes the two into the row it
+    /// already has for the player (scorekeeperclient.UpdateIndividualTracker) and redraws what a
+    /// whole row redraws: the scoreboard's line and team kills, and the tracker's own Kills and
+    /// Deaths. A client with no row for the player logs an error and drops it, so a row
+    /// (<see cref="ScoreBoardIndividualUpdatePacket"/>) must have gone before; ScoreBoardActive
+    /// False empties the client's rows.
+    /// </summary>
+    public class ScoreBoardTrackerUpdatePacket : ServerPythonPacket
+    {
+        public override GameOpcode Opcode { get; } = GameOpcode.ScoreBoardTrackerUpdate;
+
+        public ulong EntityId { get; }
+        public int Kills { get; }
+        public int Deaths { get; }
+
+        public ScoreBoardTrackerUpdatePacket(ulong entityId, int kills, int deaths)
+        {
+            EntityId = entityId;
+            Kills = kills;
+            Deaths = deaths;
+        }
+
+        public override void Write(PythonWriter pw)
+        {
+            pw.WriteTuple(2);
+            pw.WriteULong(EntityId);
+            pw.WriteTuple(2);
+            pw.WriteInt(Kills);
+            pw.WriteInt(Deaths);
+        }
+    }
+
+    /// <summary>
+    /// ScoreBoardFullUpdate (874): the whole board in one message. The client's method table
+    /// names it (generated/client/methodid.py) and client/team.py has no Recv_ for it, so a
+    /// retail client can do nothing with one. How it takes one is in its native code; a method
+    /// call its entity manager cannot make is an "Error calling" line in the client's log and,
+    /// for a game master with the GM interface on, an exception dialog (entitymanager.py,
+    /// ScheduledMethod.Invoke). So it is sent only where a server is set to
+    /// (BattlegroundConfig.ScoreBoardFullUpdate), for a client that has been given the method.
+    ///
+    /// With nothing in the client to read it, its arguments are ours: one, {entityId: row}, each
+    /// row the list of ten a <see cref="ScoreBoardIndividualUpdatePacket"/> carries, so that
+    ///
+    ///   def Recv_ScoreBoardFullUpdate(fullUpdate):
+    ///       for (entityId, individualUpdate) in fullUpdate.iteritems():
+    ///           g_scoreKeeper.UpdateIndividual(entityId, individualUpdate)
+    ///
+    /// in client/team.py is all a client needs.
+    /// </summary>
+    public class ScoreBoardFullUpdatePacket : ServerPythonPacket
+    {
+        public override GameOpcode Opcode { get; } = GameOpcode.ScoreBoardFullUpdate;
+
+        /// <summary>The rows, one a player; a player given twice has the last.</summary>
+        public IReadOnlyList<ScoreBoardIndividualUpdatePacket> Rows { get; }
+
+        public ScoreBoardFullUpdatePacket(IEnumerable<ScoreBoardIndividualUpdatePacket> rows)
+        {
+            var byEntity = new Dictionary<ulong, ScoreBoardIndividualUpdatePacket>();
+            var order = new List<ulong>();
+
+            foreach (var row in rows ?? new List<ScoreBoardIndividualUpdatePacket>())
+            {
+                if (row == null)
+                    continue;
+
+                if (!byEntity.ContainsKey(row.EntityId))
+                    order.Add(row.EntityId);
+
+                byEntity[row.EntityId] = row;
+            }
+
+            Rows = order.ConvertAll(id => byEntity[id]);
+        }
+
+        public override void Write(PythonWriter pw)
+        {
+            pw.WriteTuple(1);
+            pw.WriteDictionary(Rows.Count);
+
+            foreach (var row in Rows)
+            {
+                pw.WriteULong(row.EntityId);
+                row.WriteRow(pw);
+            }
         }
     }
 

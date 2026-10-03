@@ -1023,14 +1023,52 @@ namespace Rasa.Test.World
             Assert.IsFalse(f.Prestige.ContainsKey(blue), "nothing is stolen");
             Assert.AreEqual(1, f.Match.Kills(Battlegrounds.Red));
 
-            var rows = Packets(blue).OfType<ScoreBoardIndividualUpdatePacket>().ToList();
-            Assert.AreEqual(1, rows.Single(r => r.EntityId == red.Player.EntityId).Kills);
-            Assert.AreEqual(1, rows.Single(r => r.EntityId == blue.Player.EntityId).Deaths);
+            // The killer's row has prestige to tell of and goes whole; the victim's has a death and nothing else.
+            var packets = Packets(blue);
+            var row = packets.OfType<ScoreBoardIndividualUpdatePacket>().Single();
+            var tracker = packets.OfType<ScoreBoardTrackerUpdatePacket>().Single();
 
-            // Once from one victim in the interval.
+            Assert.AreEqual((red.Player.EntityId, 1, PvpPrestige.BaseGenerated), (row.EntityId, row.Kills, row.Prestige));
+            Assert.AreEqual((blue.Player.EntityId, 0, 1), (tracker.EntityId, tracker.Kills, tracker.Deaths));
+
+            // Once from one victim in the interval: no prestige this time, and both go as the two numbers.
             f.Grounds.Kill(red, blue);
             Assert.AreEqual(2, killer.Kills);
             Assert.AreEqual(PvpPrestige.BaseGenerated, f.Prestige[red]);
+
+            packets = Packets(mate);
+            Assert.AreEqual(1, packets.OfType<ScoreBoardIndividualUpdatePacket>().Count(), "the first kill's, and none for the second");
+            CollectionAssert.AreEqual(
+                new[] { (blue.Player.EntityId, 0, 1), (red.Player.EntityId, 2, 0), (blue.Player.EntityId, 0, 2) },
+                packets.OfType<ScoreBoardTrackerUpdatePacket>().Select(t => (t.EntityId, t.Kills, t.Deaths)).ToArray(),
+                "to everyone on the map, in the order they happened");
+            Assert.IsFalse(packets.OfType<ScoreBoardFullUpdatePacket>().Any());
+        }
+
+        [TestMethod]
+        public void AKillSendsARowWholeWhenItHasDamageOrHealingWaiting()
+        {
+            using var f = new Fixture();
+            var red = f.Join(Battlegrounds.Red);
+            var blue = f.Join(Battlegrounds.Blue);
+
+            f.Begin();
+
+            // Blue has hurt red since the rows last went out: the death goes with the damage, not ahead of it.
+            f.Grounds.Damaged(blue.Player, red.Player, 75);
+            f.Grounds.Kill(red, blue);
+
+            var packets = Packets(red);
+
+            Assert.IsFalse(packets.OfType<ScoreBoardTrackerUpdatePacket>().Any(r => r.EntityId == blue.Player.EntityId));
+
+            var row = packets.OfType<ScoreBoardIndividualUpdatePacket>().Single(r => r.EntityId == blue.Player.EntityId);
+
+            Assert.AreEqual((1, 75), (row.Deaths, row.Damage));
+
+            // Sent, so the clock has nothing left to send for it.
+            f.Tick(Battlegrounds.ScoreRefreshMs);
+            Assert.IsFalse(Packets(red).OfType<ScoreBoardIndividualUpdatePacket>().Any(r => r.EntityId == blue.Player.EntityId));
         }
 
         [TestMethod]
@@ -1346,6 +1384,74 @@ namespace Rasa.Test.World
         #region What the clients are told
 
         [TestMethod]
+        public void AServerSetToSendsTheWholeBoardAsOneMessage()
+        {
+            using var f = new Fixture();
+            var red = f.Join(Battlegrounds.Red);
+            var blue = f.Join(Battlegrounds.Blue);
+            var watcher = f.Player();
+
+            red.Player.Level = 50;
+            blue.Player.Level = 50;
+
+            // As it ships: a retail client has nothing that receives one, and is never sent one.
+            Assert.IsFalse(new Rasa.Config.BattlegroundConfig().ScoreBoardFullUpdate);
+
+            f.Grounds.PlayerEntered(watcher);
+            Assert.IsFalse(Packets(watcher).OfType<ScoreBoardFullUpdatePacket>().Any());
+
+            f.Grounds.Config.ScoreBoardFullUpdate = true;
+
+            // To an arrival: the board as it stands, in one.
+            f.Grounds.PlayerEntered(watcher);
+
+            var packets = Packets(watcher);
+            var board = packets.OfType<ScoreBoardFullUpdatePacket>().Single();
+
+            Assert.IsFalse(packets.OfType<ScoreBoardIndividualUpdatePacket>().Any());
+            CollectionAssert.AreEquivalent(new[] { red.Player.EntityId, blue.Player.EntityId }, board.Rows.Select(r => r.EntityId).ToArray());
+            Assert.AreEqual(Battlegrounds.Red, board.Rows.Single(r => r.EntityId == red.Player.EntityId).TeamId);
+            Assert.IsTrue(board.Rows.All(r => r.Active && r.Name == "Fixture"));
+
+            // At the start of a match: to everyone here, after the scoreboard is made active.
+            Drain(red);
+            f.Grounds.Start(f.Match, forced: false);
+
+            foreach (var client in new[] { red, blue, watcher })
+            {
+                packets = Packets(client).Where(p => p is ScoreBoardActivePacket || p is ScoreBoardFullUpdatePacket || p is ScoreBoardIndividualUpdatePacket).ToList();
+
+                Assert.AreEqual(2, packets.Count);
+                Assert.IsTrue(((ScoreBoardActivePacket)packets[0]).Active);
+                Assert.AreEqual(2, ((ScoreBoardFullUpdatePacket)packets[1]).Rows.Count);
+            }
+
+            // What changes one row is still that row, or its two numbers.
+            f.Grounds.Kill(red, blue);
+
+            packets = Packets(watcher);
+            Assert.IsFalse(packets.OfType<ScoreBoardFullUpdatePacket>().Any());
+            Assert.AreEqual(red.Player.EntityId, packets.OfType<ScoreBoardIndividualUpdatePacket>().Single().EntityId);
+            Assert.AreEqual(blue.Player.EntityId, packets.OfType<ScoreBoardTrackerUpdatePacket>().Single().EntityId);
+
+            // And when the next match's teams are listed: every row emptied, in one.
+            f.Grounds.End(f.Match, Battlegrounds.Red);
+            Drain(watcher);
+            f.Grounds.PlayerLeft(blue);
+            Drain(watcher);
+            f.Tick(Battlegrounds.ResultMs);
+
+            packets = Packets(watcher);
+            board = packets.OfType<ScoreBoardFullUpdatePacket>().Single();
+
+            Assert.IsFalse(packets.OfType<ScoreBoardIndividualUpdatePacket>().Any());
+            CollectionAssert.AreEquivalent(
+                new[] { (red.Player.EntityId, true), (blue.Player.EntityId, false) },
+                board.Rows.Select(r => (r.EntityId, r.Active)).ToArray());
+            Assert.IsTrue(board.Rows.All(r => r.Kills + r.Deaths + r.Prestige == 0));
+        }
+
+        [TestMethod]
         public void APlayerArrivingIsShownTheMatchAsItStands()
         {
             using var f = new Fixture();
@@ -1434,8 +1540,57 @@ namespace Rasa.Test.World
                 CollectionAssert.AreEqual(new[] { 3, 2, 900, 40, 1, 80 }, Enumerable.Range(0, 6).Select(_ => r.ReadInt()).ToArray());
             });
 
+            // The tracker's update: the entity, and (kills, deaths) as the client unpacks them.
+            Read(new ScoreBoardTrackerUpdatePacket(77, 4, 2), r =>
+            {
+                Assert.AreEqual(2, r.ReadTuple());
+                Assert.AreEqual(77UL, r.ReadULong());
+                Assert.AreEqual(2, r.ReadTuple());
+                Assert.AreEqual(4, r.ReadInt());
+                Assert.AreEqual(2, r.ReadInt());
+            });
+
+            // The whole board: {entityId: row}, each row the list a single row is; one a player, the last said of them.
+            var board = new ScoreBoardFullUpdatePacket(new[]
+            {
+                new ScoreBoardIndividualUpdatePacket(77) { Name = "Ward", ClassId = 4, TeamId = 1, Active = true, Kills = 1 },
+                new ScoreBoardIndividualUpdatePacket(78) { Name = "Holt", ClassId = 2, TeamId = 2, Active = false, Deaths = 5, Prestige = 60 },
+                null,
+                new ScoreBoardIndividualUpdatePacket(77) { Name = "Ward", ClassId = 4, TeamId = 1, Active = true, Kills = 3, Deaths = 2, Damage = 900, Healing = 40, Captures = 1, Prestige = 80 }
+            });
+
+            Assert.AreEqual(2, board.Rows.Count);
+
+            Read(board, r =>
+            {
+                Assert.AreEqual(1, r.ReadTuple());
+                Assert.AreEqual(2, r.ReadDictionary());
+
+                Assert.AreEqual(77UL, r.ReadULong());
+                Assert.AreEqual(10, r.ReadList());
+                Assert.AreEqual("Ward", r.ReadUnicodeString());
+                Assert.AreEqual(4, r.ReadInt());
+                Assert.AreEqual(1, r.ReadInt());
+                Assert.IsTrue(r.ReadBool());
+                CollectionAssert.AreEqual(new[] { 3, 2, 900, 40, 1, 80 }, Enumerable.Range(0, 6).Select(_ => r.ReadInt()).ToArray());
+
+                Assert.AreEqual(78UL, r.ReadULong());
+                Assert.AreEqual(10, r.ReadList());
+                Assert.AreEqual("Holt", r.ReadUnicodeString());
+                Assert.AreEqual(2, r.ReadInt());
+                Assert.AreEqual(2, r.ReadInt());
+                Assert.IsFalse(r.ReadBool());
+                CollectionAssert.AreEqual(new[] { 0, 5, 0, 0, 0, 60 }, Enumerable.Range(0, 6).Select(_ => r.ReadInt()).ToArray());
+            });
+
+            Read(new ScoreBoardFullUpdatePacket(null), r => { Assert.AreEqual(1, r.ReadTuple()); Assert.AreEqual(0, r.ReadDictionary()); });
+
             Assert.AreEqual(GameOpcode.JoinedTeam, new JoinedTeamPacket(1, null).Opcode);
             Assert.AreEqual(GameOpcode.ScoreBoardGameScore, new ScoreBoardGameScorePacket(0, null).Opcode);
+            Assert.AreEqual(GameOpcode.ScoreBoardTrackerUpdate, new ScoreBoardTrackerUpdatePacket(1, 0, 0).Opcode);
+            Assert.AreEqual(GameOpcode.ScoreBoardFullUpdate, new ScoreBoardFullUpdatePacket(null).Opcode);
+            Assert.AreEqual(876, (int)GameOpcode.ScoreBoardTrackerUpdate);
+            Assert.AreEqual(874, (int)GameOpcode.ScoreBoardFullUpdate);
             Assert.AreEqual(GameOpcode.SetOwnerId, new SetOwnerIdPacket(1).Opcode);
         }
 

@@ -33,8 +33,10 @@ namespace Rasa.Managers
     ///  - teams (client/team.py): JoinedTeam, LeftTeam, AddTeamMember, RemoveTeamMember and
     ///    SetNumberOfTeams, none of which the client asks for, and RED_TEAM 1, BLUE_TEAM 2;
     ///  - the scorekeeper (scorekeeperclient.py): ScoreBoardActive, ScoreBoardGameScore - the
-    ///    clock and who holds each control point, by its own ids for them - and
-    ///    ScoreBoardIndividualUpdate, a row a player; WonBattleground and LostBattleground;
+    ///    clock and who holds each control point, by its own ids for them -
+    ///    ScoreBoardIndividualUpdate, a row a player, and ScoreBoardTrackerUpdate, the kills and
+    ///    deaths of a row it already has; WonBattleground and LostBattleground. Its method table
+    ///    names a ScoreBoardFullUpdate that nothing in it receives;
     ///  - a team wargame generates prestige and has no death penalty (WARGAME_FLAGS_TEAM:
     ///    GENERATE_PRESTIGE, BLOCK_INTERACTIONS, IS_AGGRESSIVE - no REZ_SICKNESS, no WEAPON_DECAY);
     ///  - its messages: "You deserted Blue Team in the middle of a match. You cannot join Red Team
@@ -89,7 +91,13 @@ namespace Rasa.Managers
     ///  - The scoreboard has a row a character at all times. Before a match it lists the teams
     ///    as they form, with nothing scored. In a match a kill, a capture and a player's coming
     ///    and going send their row at once; damage and healing, counted hit by hit, go out
-    ///    every <see cref="ScoreRefreshMs"/>. After it the result stays for
+    ///    every <see cref="ScoreRefreshMs"/>. A kill that changes nothing of a row but its kills
+    ///    or deaths sends those two alone (ScoreBoardTrackerUpdate, <see cref="SendKills"/>).
+    ///    Where every row goes out together - to an arrival, at the start of a match, when the
+    ///    next one's teams are listed - a server set to
+    ///    (<see cref="BattlegroundConfig.ScoreBoardFullUpdate"/>) sends them as one
+    ///    ScoreBoardFullUpdate, for clients that have been given the method
+    ///    (<see cref="SendBoard"/>). After it the result stays for
     ///    <see cref="ResultMs"/>, and then the teams of the next are listed. Whoever arrives is
     ///    sent the board as it stands. The client keeps a row by the player's entity id and has
     ///    nothing that removes one, so a player back from a logout - another entity - has their
@@ -962,8 +970,7 @@ namespace Rasa.Managers
             if (match.Phase == Phase.Running)
                 client.CallMethod(SysEntity.ClientTeamManagerId, new ScoreBoardActivePacket(true));
 
-            foreach (var score in match.Scores.Values)
-                client.CallMethod(SysEntity.ClientTeamManagerId, Row(score));
+            SendBoard(new[] { client }, match.Scores.Values.ToList());
 
             client.CallMethod(SysEntity.ClientTeamManagerId, GameScore(match));
         }
@@ -1039,12 +1046,14 @@ namespace Rasa.Managers
             if (by.Team == of.Team || by.Score == null || of.Score == null)
                 return;
 
+            var prestige = PvpPrestige.TeamKill(killer, victim);
+
             by.Score.Kills++;
             of.Score.Deaths++;
-            by.Score.Prestige += PvpPrestige.TeamKill(killer, victim);
+            by.Score.Prestige += prestige;
 
-            SendScore(match, by.Score);
-            SendScore(match, of.Score);
+            SendKills(match, by.Score, prestige != 0);
+            SendKills(match, of.Score, false);
         }
 
         /// <summary>Damage a player of a match has done to one of the other team, for their row.</summary>
@@ -1368,12 +1377,16 @@ namespace Rasa.Managers
             foreach (var client in Present(match))
                 client.CallMethod(SysEntity.ClientTeamManagerId, new ScoreBoardActivePacket(true));
 
+            var board = new List<Score>();
+
             foreach (var member in match.Members)
             {
                 member.Score = ScoreFor(match, member);
-                SendScore(match, member.Score);
+                member.Score.Dirty = false;
+                board.Add(member.Score);
             }
 
+            SendBoard(Present(match), board);
             SendGameScore(match);
 
             Tell(match, PlayerMessage.PmEdmundrangeBattlegroundStart);
@@ -1719,6 +1732,60 @@ namespace Rasa.Managers
         }
 
         /// <summary>
+        /// A row after a kill. When its kills and deaths are all it has to say that the clients
+        /// have not heard, the two numbers go alone (ScoreBoardTrackerUpdate): the client writes
+        /// them into the row it has, and everyone here has been sent every row. A row with
+        /// <paramref name="more"/> - prestige for the kill - or with damage or healing waiting
+        /// for the clock goes whole, as before.
+        /// </summary>
+        private void SendKills(Match match, Score score, bool more)
+        {
+            if (score == null)
+                return;
+
+            if (more || score.Dirty)
+            {
+                SendScore(match, score);
+                return;
+            }
+
+            var update = new ScoreBoardTrackerUpdatePacket(score.EntityId, score.Kills, score.Deaths);
+
+            foreach (var client in Present(match))
+                client.CallMethod(SysEntity.ClientTeamManagerId, update);
+        }
+
+        /// <summary>
+        /// Rows that go out together, to these clients: a row a message, in the order given, or
+        /// - on a server set to (<see cref="BattlegroundConfig.ScoreBoardFullUpdate"/>) - all of
+        /// them in one ScoreBoardFullUpdate, which only a client that has been given the method
+        /// can read.
+        /// </summary>
+        private void SendBoard(IReadOnlyCollection<Client> to, IReadOnlyCollection<Score> scores)
+        {
+            if (to.Count == 0 || scores.Count == 0)
+                return;
+
+            if (Config.ScoreBoardFullUpdate)
+            {
+                var board = new ScoreBoardFullUpdatePacket(scores.Select(Row));
+
+                foreach (var client in to)
+                    client.CallMethod(SysEntity.ClientTeamManagerId, board);
+
+                return;
+            }
+
+            foreach (var score in scores)
+            {
+                var row = Row(score);
+
+                foreach (var client in to)
+                    client.CallMethod(SysEntity.ClientTeamManagerId, row);
+            }
+        }
+
+        /// <summary>
         /// The rows that have changed with nothing to send them - damage and healing, which no
         /// kill or capture need follow - every <see cref="ScoreRefreshMs"/> of a match.
         /// </summary>
@@ -1765,21 +1832,25 @@ namespace Rasa.Managers
             match.ShowsResult = false;
 
             var members = match.Members.Where(m => m.Client?.Player != null).Select(m => m.Client.Player.Id).ToHashSet();
+            var board = new List<Score>();
 
             foreach (var score in match.Scores.Values.ToList())
             {
                 score.Kills = score.Deaths = score.Damage = score.Healing = score.Captures = score.Prestige = 0;
                 score.Rewarded.Clear();
+                score.Dirty = false;
 
                 if (members.Contains(score.CharacterId))
                     continue;
 
                 score.Active = false;
-                SendScore(match, score);
+                board.Add(score);
             }
 
             foreach (var member in match.Members.Where(m => m.Client?.Player != null))
-                SendScore(match, ScoreFor(match, member));
+                board.Add(ScoreFor(match, member));
+
+            SendBoard(Present(match), board);
         }
 
         /// <summary>The seconds left on a match's clock: of the preparation, of the match, or none while it waits.</summary>
