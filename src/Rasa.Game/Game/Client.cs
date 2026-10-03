@@ -649,9 +649,26 @@ namespace Rasa.Game
                     return true;
                 }
 
+                var moveTick = Environment.TickCount64;
+
+                // Through a force field, through a wall, or standing on nothing
+                // (MovementChecks): after the passages, whose far ends are inside the rock, and
+                // before the floor. A refusal is the speed refusal's: the step is dropped and the
+                // client put back where the server has the player.
+                if (MovementChecks.Judge(Player, previousPosition, Player.Position, moveTick) is MovementChecks.Finding finding)
+                {
+                    MovementChecks.Report(this, finding, previousPosition, Player.Position, moveTick);
+
+                    if (finding.Refuse)
+                    {
+                        Player.Position = previousPosition;
+                        ManifestationManager.Instance.PutBack(this, movement, moveTick);
+                        return false;
+                    }
+                }
+
                 // Out of the world (SafetyFloor): below the map's floor, and put back where they
                 // last stood. After the secret passages, whose panes are far above any floor.
-                var moveTick = Environment.TickCount64;
 
                 if (SafetyFloor.OnMove(this, Player.Position, moveTick))
                 {

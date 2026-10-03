@@ -20,6 +20,9 @@ namespace Rasa.Config
         /// <summary>The numbers of the Edmund Range match (Managers.Battlegrounds).</summary>
         public BattlegroundConfig Battleground { get; set; } = new BattlegroundConfig();
 
+        /// <summary>What is done with a Move through a force field, through a wall, or standing on nothing (Managers.MovementChecks).</summary>
+        public MovementChecksConfig MovementChecks { get; set; } = new MovementChecksConfig();
+
         /// <summary>
         /// The maps that run in several shared copies, by map context id. Edmund Range (2374) is
         /// one without an entry in the file; an entry there for it replaces this one.

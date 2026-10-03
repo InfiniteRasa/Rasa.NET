@@ -103,6 +103,13 @@ namespace Rasa.Structures
         /// <summary>How many Moves have been refused since the last one was reported.</summary>
         public int RefusedMoves { get; set; }
 
+        /// <summary>Environment.TickCount64 since when nothing has been under the player (Managers.MovementChecks); 0 while something is.</summary>
+        public long UnsupportedSinceTick { get; set; }
+
+        /// <summary>Environment.TickCount64 of the last movement-check line about this player, and how many findings since.</summary>
+        public long MovementCheckLogTick { get; set; }
+        public int MovementCheckHits { get; set; }
+
         /// <summary>
         /// Puts the player somewhere because the server says so - a map change, a dropship, a
         /// waypoint, a summon, /stuck, a GM command - rather than because the client claimed it.
@@ -132,6 +139,7 @@ namespace Rasa.Structures
             Position = position;
             MoveBudget = 0;
             MoveBudgetTick = Environment.TickCount64;
+            UnsupportedSinceTick = 0;
 
             // Put somewhere, not fallen there: whatever descent was under way is over.
             Fall.Reset();

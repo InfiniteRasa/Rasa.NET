@@ -3394,6 +3394,23 @@ namespace Rasa.Managers
             client.MoveObject(player.EntityId, new Movement(player.Position, movement.ViewDirection));
         }
 
+        /// <summary>
+        /// Puts the client back where the server has the player, keeping the way they were
+        /// looking: the correction for a Move refused for where it went (MovementChecks), which
+        /// writes its own line. Rate-limited with the speed refusal's corrections, for the same
+        /// reason: a client refused once is about to be refused on every Move after it.
+        /// </summary>
+        internal void PutBack(Client client, Movement movement, long now)
+        {
+            var player = client.Player;
+
+            if (now < player.LastMoveCorrectionTick + MoveCorrectionQuietMs)
+                return;
+
+            player.LastMoveCorrectionTick = now;
+            client.MoveObject(player.EntityId, new Movement(player.Position, movement.ViewDirection));
+        }
+
         #endregion
 
         /// <summary>
