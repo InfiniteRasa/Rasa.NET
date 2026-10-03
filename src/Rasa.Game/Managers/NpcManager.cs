@@ -900,11 +900,13 @@ namespace Rasa.Managers
 
             item.CurrentHitPoints = maxHitPoints;
             item.WearCarry = 0;
-            ItemManager.Instance.SendItemDataToClient(client, item, true);
 
-            // The condition change itself. SendItemDataToClient carries the new hit points in
-            // ItemInfo, but only ItemStatus makes the client act on them: it is what refreshes
-            // the vendor's repair list and clears a weapon's broken icon in the drawer.
+            // ItemStatus alone, as wear sends it. Recv_ItemStatus posts UI_UPDATE_ITEM_REPAIRED,
+            // which rebuilds the vendor's repair list, and clears a weapon's broken icon in the
+            // drawer - but only when the hit points it carries are above the ones the client
+            // holds. An ItemInfo sent ahead of it had already stored the new hit points, so the
+            // comparison never passed: the list kept the repaired item until the page was left
+            // and reopened, and a repaired weapon kept its broken icon.
             ItemManager.Instance.SendItemStatus(client, item, maxHitPoints);
 
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
