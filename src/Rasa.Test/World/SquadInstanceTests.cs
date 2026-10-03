@@ -36,12 +36,12 @@ namespace Rasa.Test.World
     [DoNotParallelize]
     public class SquadInstanceTests
     {
-        private const uint Caves = 1506;        // Caves of Donn
+        internal const uint Caves = 1506;       // Caves of Donn
         private const uint Hospital = 7001;
         private const long SquadHold = MapChannelManager.SquadHoldMs;
-        private static readonly Vector3 Entrance = new Vector3(400, 5, 0);
-        private static readonly Vector3 Deep = new Vector3(900, 5, 300);
-        private static readonly Vector3 Outside = new Vector3(30, 2, 40);
+        internal static readonly Vector3 Entrance = new Vector3(400, 5, 0);
+        internal static readonly Vector3 Deep = new Vector3(900, 5, 300);
+        internal static readonly Vector3 Outside = new Vector3(30, 2, 40);
 
         private Func<IEnumerable<MapLink>> _links;
         private Func<IEnumerable<(uint, uint, Vector3, string)>> _source;
@@ -329,6 +329,8 @@ namespace Rasa.Test.World
                 Assert.IsFalse(SquadInstancePolicies.IsSquadMap(1985), "Bootcamp");
                 Assert.IsFalse(SquadInstancePolicies.IsSquadMap(2374), "Edmund Range");
                 Assert.AreEqual(-1, SquadInstancePolicies.Current.EmptyCloseSeconds, "kept until the weekly reset");
+                Assert.AreEqual(45, SquadInstancePolicies.Current.RespawnMinutes, "a cleared spawn pool is back after 45 minutes");
+                Assert.AreEqual(300, SquadInstancePolicies.Current.UnloadEmptySeconds, "out of memory after five minutes empty");
                 Assert.IsTrue(SquadInstancePolicies.TryWeeklyReset(SquadInstancePolicies.Current, out var day, out var time));
                 Assert.AreEqual(DayOfWeek.Tuesday, day);
                 Assert.AreEqual(new TimeSpan(3, 0, 0), time);
@@ -931,18 +933,18 @@ namespace Rasa.Test.World
 
                 Assert.AreEqual(3, here.Count);
                 StringAssert.Contains(here[0], $"Map {Caves} is entered as a squad's instance: 2 open");
-                StringAssert.Contains(here[1], $"instance {mine.InstanceId}: owner character {master.Player.Id}, 1 player(s) (you are here)");
-                StringAssert.Contains(here[2], $"instance {theirs.InstanceId}: owner character {other.Player.Id}, 0 player(s)");
+                StringAssert.Contains(here[1], $"instance {mine.InstanceId}: owner character {master.Player.Id}, 1 player(s) (you are here); 0 of 0 spawn pool(s) dead");
+                StringAssert.Contains(here[2], $"instance {theirs.InstanceId}: owner character {other.Player.Id}, 0 player(s); 0 of 0 spawn pool(s) dead");
 
                 var all = Say(".instance squads");
 
                 Assert.AreEqual(3, all.Count);
-                StringAssert.Contains(all[0], "2 squad instance(s). The weekly reset is Tuesday 2026-10-06 03:00");
+                StringAssert.Contains(all[0], "0 squad instance(s) saved, 2 in memory. The weekly reset is Tuesday 2026-10-06 03:00");
                 StringAssert.Contains(all[1], $"map {Caves} instance {mine.InstanceId}");
 
-                StringAssert.Contains(Say(".instance reset").Single(), "Closed 1 of 2 squad instance(s); 1 left with players in them");
+                StringAssert.Contains(Say(".instance reset").Single(), "Closed 1 squad instance(s); 1 left with players in them");
                 CollectionAssert.AreEqual(new[] { mine }, fixture.Maps.SquadInstancesOf().ToArray());
-                StringAssert.Contains(Say(".instance reset").Single(), "Closed 0 of 1");
+                StringAssert.Contains(Say(".instance reset").Single(), "Closed 0 squad instance(s); 1 left");
                 StringAssert.Contains(Say(".instance nonsense").Single(), ".instance squads | .instance reset");
             }
         }
@@ -957,9 +959,9 @@ namespace Rasa.Test.World
         /// <summary>
         /// A world of two maps: the fixture's, where the players stand, and the Caves of Donn,
         /// entered as a squad's instance by a door at <see cref="Entrance"/>. Its own clocks and
-        /// its own squads.
+        /// its own squads. Nothing is saved unless it is given a store (SquadInstanceStateTests).
         /// </summary>
-        private sealed class Fixture
+        internal sealed class Fixture
         {
             internal const uint DoorId = 14;
             internal const uint ExitId = 114;
@@ -969,6 +971,7 @@ namespace Rasa.Test.World
 
             internal long Now = 1000;
             internal DateTime Clock = new DateTime(2026, 10, 3, 4, 0, 0);
+            internal DateTime Utc = new DateTime(2026, 10, 3, 9, 0, 0, DateTimeKind.Utc);
             internal SquadInstanceConfig Config = new SquadInstanceConfig();
             internal MapChannelManager Maps { get; }
             internal MapChannel Own { get; }
@@ -989,7 +992,8 @@ namespace Rasa.Test.World
                     SquadMapPolicy = id => id == Caves,
                     SquadConfig = () => Config,
                     SquadFor = client => _squads.TryGetValue(client.Player.Id, out var squad) ? squad : new MapChannelManager.SquadMembership(client.Player.Id, null),
-                    WallClock = () => Clock
+                    WallClock = () => Clock,
+                    UtcNow = () => Utc
                 };
                 Maps.MapChannelArray.Add(world.Map.MapInfo.MapContextId, world.Map);
                 Maps.MapChannelArray.Add(Caves, Own);

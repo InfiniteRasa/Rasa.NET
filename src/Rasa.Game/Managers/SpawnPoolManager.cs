@@ -71,9 +71,33 @@ namespace Rasa.Managers
             _gameUnitOfWorkFactory = gameUnitOfWorkFactory;
         }
 
+        /// <summary>
+        /// A pool has nothing alive, queued or on its way: its respawn time starts. In a squad's
+        /// instance it is dead from this moment, and comes back by the instance's clock instead
+        /// (SquadInstanceState).
+        /// </summary>
+        private static void Emptied(SpawnPool spawnPool)
+        {
+            spawnPool.UpdateTimer = 0;
+
+            if (spawnPool.Mode == ModeAutomatic && spawnPool.SpawnPolicy != Structures.World.MissionSpawnGroupPolicy.ScenarioControlled)
+                spawnPool.RuntimeMapChannel?.SquadState?.PoolCleared(spawnPool);
+        }
+
+        /// <summary>
+        /// A pool has something alive, queued or on its way again - its respawn, or a creature
+        /// of it put back on its feet: in a squad's instance it is no longer dead.
+        /// </summary>
+        private static void Filled(SpawnPool spawnPool)
+        {
+            if (spawnPool.ClearedAtUtcMs != 0)
+                spawnPool.RuntimeMapChannel?.SquadState?.PoolRespawned(spawnPool);
+        }
+
         public void IncreaseQueueCount(SpawnPool spawnPool)
         {
             spawnPool.DropshipQueue++;
+            Filled(spawnPool);
         }
 
         public void DecreaseQueueCount(SpawnPool spawnPool)
@@ -81,12 +105,15 @@ namespace Rasa.Managers
             spawnPool.DropshipQueue--;
 
             if ((spawnPool.DropshipQueue + spawnPool.QueuedCreatures + spawnPool.AliveCreatures) == 0)
-                spawnPool.UpdateTimer = 0;
+                Emptied(spawnPool);
         }
 
         public void IncreaseQueuedCreatureCount(SpawnPool spawnPool, int count)
         {
             spawnPool.QueuedCreatures += count;
+
+            if (count > 0)
+                Filled(spawnPool);
         }
 
         internal void DecreaseQueuedCreatureCount(SpawnPool spawnPool, int count)
@@ -97,19 +124,20 @@ namespace Rasa.Managers
                 spawnPool.QueuedCreatureList = null;
 
             if ((spawnPool.DropshipQueue + spawnPool.QueuedCreatures + spawnPool.AliveCreatures) == 0)
-                spawnPool.UpdateTimer = 0;
+                Emptied(spawnPool);
         }
 
         public void IncreaseAliveCreatureCount(SpawnPool spawnPool)
         {
             spawnPool.AliveCreatures++;
+            Filled(spawnPool);
         }
 
         internal void DecreaseAliveCreatureCount(MapChannel mapChannel, SpawnPool spawnPool)
         {
             spawnPool.AliveCreatures--;
             if ((spawnPool.DropshipQueue + spawnPool.QueuedCreatures + spawnPool.AliveCreatures) == 0)
-                spawnPool.UpdateTimer = 0;
+                Emptied(spawnPool);
         }
 
         public void IncreaseDeadCreatureCount(SpawnPool spawnPool)
@@ -237,6 +265,20 @@ namespace Rasa.Managers
                 // until the whole garrison has been down long enough (ControlPoints.HoldsBack).
                 if (spawnPool.IsGarrison && ControlPoints.Instance.HoldsBack(spawnPool))
                     continue;
+
+                // In a squad's instance a pool that has been cleared comes back a set time after
+                // the last of it died, by the clock on the wall, and its own respawn time is not
+                // waited for (SquadInstanceState). It is cleared no longer once something of it
+                // is queued or alive (Filled).
+                var squadState = spawnPool.Mode == ModeAutomatic ? mapChannel.SquadState : null;
+
+                if (squadState != null)
+                {
+                    if (!squadState.RespawnDue(spawnPool))
+                        continue;
+
+                    spawnPool.UpdateTimer = spawnPool.RespawnTime;
+                }
 
                 if (spawnPool.UpdateTimer < spawnPool.RespawnTime)
                     spawnPool.UpdateTimer += Math.Min(Math.Max(0, timePassed), spawnPool.RespawnTime - spawnPool.UpdateTimer);

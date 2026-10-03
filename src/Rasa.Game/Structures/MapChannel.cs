@@ -33,6 +33,9 @@ namespace Rasa.Structures
         /// <summary>A squad instance is not closed before this (the manager's clock): somebody is being sent into it.</summary>
         internal long HeldUntil { get; set; }
 
+        /// <summary>What a squad instance keeps of itself and saves (Managers.SquadInstanceState); null for every other channel.</summary>
+        public Managers.SquadInstanceState SquadState { get; set; }
+
         /// <summary>Whether this is a copy of a map - somebody's, a squad's, or shared - rather than the map's own channel.</summary>
         public bool IsCopy => IsPrivateInstance || IsSharedInstance || IsSquadInstance;
 

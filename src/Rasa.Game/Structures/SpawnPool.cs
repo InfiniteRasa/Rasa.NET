@@ -67,6 +67,12 @@ namespace Rasa.Structures
         public uint FollowOwnerCharacterId { get; set; }
         public ulong FollowTargetEntityId { get; set; }
 
+        /// <summary>
+        /// In a squad's instance: when the last of its creatures died, Unix milliseconds, UTC; 0
+        /// while it has them, or has never been cleared (Managers.SquadInstanceState).
+        /// </summary>
+        public long ClearedAtUtcMs { get; set; }
+
         // Runtime milliseconds; the persisted RespawnTime is in seconds.
         public long UpdateTimer { get; set; }
         public long RespawnTime { get; set; }

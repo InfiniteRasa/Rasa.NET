@@ -27,6 +27,20 @@ namespace Rasa.Config
         /// </summary>
         public int EmptyCloseSeconds { get; set; } = -1;
 
+        /// <summary>
+        /// How long after the last creature of a spawn pool has died the pool comes back, in
+        /// minutes by the clock on the wall, in place of the pool's own respawn time. 0 or
+        /// less: not until the instance is closed.
+        /// </summary>
+        public int RespawnMinutes { get; set; } = 45;
+
+        /// <summary>
+        /// How long an instance stands with nobody in it or on the way before it is taken out of
+        /// memory, its rows in the database kept: it is loaded again when somebody goes to it.
+        /// Negative: it stays in memory.
+        /// </summary>
+        public int UnloadEmptySeconds { get; set; } = 300;
+
         /// <summary>Whether the weekly reset runs at all.</summary>
         public bool WeeklyReset { get; set; } = true;
 

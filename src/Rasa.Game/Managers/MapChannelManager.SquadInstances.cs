@@ -9,7 +9,10 @@ namespace Rasa.Managers
     using Config;
     using Data;
     using Game;
+    using Repositories.Char.SquadInstance;
+    using Repositories.UnitOfWork;
     using Structures;
+    using Structures.Char;
 
     /// <summary>
     /// Which maps are entered as a squad's own instance, from appsettings.json's SquadInstances
@@ -135,6 +138,112 @@ namespace Rasa.Managers
     }
 
     /// <summary>
+    /// Where the squad instances are saved (the character database's squad_instance tables):
+    /// something done with their repository, saved as it is done.
+    /// </summary>
+    public interface ISquadInstanceStore
+    {
+        T With<T>(Func<ISquadInstanceRepository, T> action);
+    }
+
+    /// <summary>The server's store: a character unit of work for each thing done.</summary>
+    internal sealed class DatabaseSquadInstanceStore : ISquadInstanceStore
+    {
+        private readonly IGameUnitOfWorkFactory _factory;
+
+        internal DatabaseSquadInstanceStore(IGameUnitOfWorkFactory factory) => _factory = factory;
+
+        public T With<T>(Func<ISquadInstanceRepository, T> action)
+        {
+            using var unitOfWork = _factory.CreateChar();
+
+            return action(unitOfWork.SquadInstances);
+        }
+    }
+
+    /// <summary>
+    /// What a squad instance keeps of itself: the row it is saved under, since when it counts,
+    /// and which of its spawn pools are dead and when the last of each died. A pool comes back
+    /// by the clock on the wall, a set time after that - whether or not anybody was in the
+    /// instance meanwhile, and whatever the pool's own respawn time is (SpawnPoolManager).
+    /// </summary>
+    public sealed class SquadInstanceState
+    {
+        private readonly Func<long> _utcNowMs;
+        private readonly Func<long> _respawnMs;
+        private readonly Action<uint, uint, long> _saveCleared;
+        private readonly Action<uint, uint> _saveRespawned;
+        private readonly Action<uint> _saveReset;
+
+        /// <summary>The squad_instance row; 0 for an instance that is not saved.</summary>
+        public uint DbId { get; }
+
+        /// <summary>When it was made, or when a weekly reset last passed it over: Unix milliseconds, UTC.</summary>
+        public long CreatedAtUtcMs { get; internal set; }
+
+        internal SquadInstanceState(uint dbId, long createdAtUtcMs, Func<long> utcNowMs, Func<long> respawnMs,
+            Action<uint, uint, long> saveCleared, Action<uint, uint> saveRespawned, Action<uint> saveReset)
+        {
+            DbId = dbId;
+            CreatedAtUtcMs = createdAtUtcMs;
+            _utcNowMs = utcNowMs;
+            _respawnMs = respawnMs;
+            _saveCleared = saveCleared;
+            _saveRespawned = saveRespawned;
+            _saveReset = saveReset;
+        }
+
+        /// <summary>The last creature of a pool has died: it is dead from now.</summary>
+        public void PoolCleared(SpawnPool pool)
+        {
+            if (pool == null)
+                return;
+
+            pool.ClearedAtUtcMs = Math.Max(1, _utcNowMs());
+
+            if (DbId != 0 && pool.DbId != 0)
+                _saveCleared(DbId, pool.DbId, pool.ClearedAtUtcMs);
+        }
+
+        /// <summary>
+        /// Whether a pool with nothing alive may spawn: it has never been cleared, or it was
+        /// cleared the respawn time ago. With no respawn time (0 or less) a cleared pool stays
+        /// dead until the instance is closed.
+        /// </summary>
+        public bool RespawnDue(SpawnPool pool)
+        {
+            if (pool == null || pool.ClearedAtUtcMs == 0)
+                return true;
+
+            var respawnMs = _respawnMs();
+
+            return respawnMs > 0 && _utcNowMs() - pool.ClearedAtUtcMs >= respawnMs;
+        }
+
+        /// <summary>A pool has creatures again, alive or on their way.</summary>
+        public void PoolRespawned(SpawnPool pool)
+        {
+            if (pool == null || pool.ClearedAtUtcMs == 0)
+                return;
+
+            pool.ClearedAtUtcMs = 0;
+
+            if (DbId != 0 && pool.DbId != 0)
+                _saveRespawned(DbId, pool.DbId);
+        }
+
+        /// <summary>Every pool is to spawn afresh (/killmap): none is dead any more.</summary>
+        public void PoolsReset(IEnumerable<SpawnPool> pools)
+        {
+            foreach (var pool in pools ?? Enumerable.Empty<SpawnPool>())
+                pool.ClearedAtUtcMs = 0;
+
+            if (DbId != 0)
+                _saveReset(DbId);
+        }
+    }
+
+    /// <summary>
     /// Squad instances: an Operation is entered as a copy of its map that is the squad's own.
     /// The client's help has it so: "Operations are instanced areas created for you and your
     /// squad when you enter them."
@@ -157,20 +266,30 @@ namespace Rasa.Managers
     ///    squad credit are as on any map. The map's own channel stays, with nobody in it.
     ///  - Dying: a player who dies in one is put back at its entrance (InstanceEntrances), not
     ///    at a hospital of the map (PlayerDeath).
-    ///  - Staying: an instance is kept when everybody has left it. Its owner, and their squad,
-    ///    come back to the same one, as they left it: nothing in it moves while it is empty,
-    ///    for an empty channel's creatures and spawn pools are not run.
+    ///  - Its creatures: a spawn pool whose creatures are all dead comes back RespawnMinutes
+    ///    (45) after the last of them died, by the clock on the wall - not after the pool's
+    ///    own respawn time, and whether or not anybody was in the instance meanwhile
+    ///    (SquadInstanceState). 0 or less: not until the instance is closed.
+    ///  - Saved: the instance (its map, its owner and since when), each dead pool with when it
+    ///    died, and the instance each character last went into are written to the character
+    ///    database as they change (squad_instance, squad_instance_pool, squad_instance_visitor),
+    ///    so an instance lasts through a restart. Not saved: a pool some of whose creatures
+    ///    are dead, which comes back whole; corpses and loot on the ground; where its creatures
+    ///    stood and what state its objects were in.
+    ///  - In memory: an instance is loaded from its rows when somebody goes to it, and taken
+    ///    out of memory once it has stood empty for UnloadEmptySeconds (300), its rows kept.
+    ///    A restart is the same thing for every instance at once.
     ///  - The weekly reset: on WeeklyResetDay at WeeklyResetTime, the server's clock (Tuesday
     ///    at 03:00 unless the file says otherwise), every instance with nobody in it or on the
-    ///    way is closed - taken off the lists, its creatures and objects with it - and the
-    ///    next to go to the map has a new one. One with players in it is left alone, and
-    ///    stands until the reset after. An instance does not outlive the process: a server
-    ///    restart closes them all.
+    ///    way is closed - its rows deleted, and what is in memory with them - and the next to
+    ///    go to the map has a new one. One with players in it is left alone, counts from that
+    ///    reset, and stands until the one after. A server that was down at the time closes,
+    ///    on its first pass, the instances that the reset it missed would have.
     ///  - EmptyCloseSeconds, for a server that would rather not keep them: 0 or more closes an
     ///    instance once it has stood empty that long. Negative, the default, never does.
-    ///  - Entering the world on such a map: back into the instance they left, if it still
-    ///    stands; else outside its door, with a word; on a map with no door, into an instance
-    ///    of their own where they stood.
+    ///  - Entering the world on such a map: back into the instance they last went into, if it
+    ///    still stands; else their own of that map, if they have one; else outside its door,
+    ///    with a word; on a map with no door, into an instance of their own where they stood.
     /// </summary>
     public partial class MapChannelManager
     {
@@ -205,11 +324,67 @@ namespace Rasa.Managers
         /// <summary>The clock the weekly reset is told by; replaceable for tests.</summary>
         public Func<DateTime> WallClock { get; set; } = () => DateTime.Now;
 
+        /// <summary>The clock what is saved is dated by, and the respawn of a pool told by; replaceable for tests.</summary>
+        public Func<DateTime> UtcNow { get; set; } = () => DateTime.UtcNow;
+
         /// <summary>When the weekly reset next runs; null before the first pass, and while there is none.</summary>
         public DateTime? NextWeeklyReset { get; private set; }
 
         private readonly object _squadLock = new object();
         private string _weeklyResetSetting;
+        private bool _missedResetLookedFor;
+        private ISquadInstanceStore _squadStore;
+        private bool _squadStoreGiven;
+
+        /// <summary>
+        /// Where the instances are saved: the character database, for a manager that has one.
+        /// Null - a manager with no database, in a test - and nothing is saved. Replaceable.
+        /// </summary>
+        public ISquadInstanceStore SquadStore
+        {
+            get => _squadStoreGiven || _gameUnitOfWorkFactory == null
+                ? _squadStore
+                : _squadStore ??= new DatabaseSquadInstanceStore(_gameUnitOfWorkFactory);
+            set
+            {
+                _squadStore = value;
+                _squadStoreGiven = true;
+            }
+        }
+
+        private static readonly DateTime UnixEpoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        private long UtcNowMs() => (long)(UtcNow() - UnixEpoch).TotalMilliseconds;
+
+        private long RespawnMs() => (SquadConfig?.Invoke()?.RespawnMinutes ?? 0) * 60000L;
+
+        /// <summary>
+        /// Does something with the saved instances. With nowhere to save, or the database failing
+        /// it, the answer is the one given: the instances go on in memory.
+        /// </summary>
+        private T Stored<T>(Func<ISquadInstanceRepository, T> action, T otherwise = default)
+        {
+            var store = SquadStore;
+
+            if (store == null)
+                return otherwise;
+
+            try
+            {
+                return store.With(action);
+            }
+            catch (Exception e)
+            {
+                Logger.WriteLog(LogType.Error, $"Squad instances: the character database could not be read or written: {e.GetBaseException().Message}");
+                return otherwise;
+            }
+        }
+
+        private void Stored(Action<ISquadInstanceRepository> action) => Stored(repository =>
+        {
+            action(repository);
+            return 0;
+        });
 
         private static SquadMembership PartySquadOf(Client client)
         {
@@ -229,8 +404,11 @@ namespace Rasa.Managers
         public bool IsSquadInstanceMap(uint mapContextId) =>
             SquadMapPolicy?.Invoke(mapContextId) == true && MapChannelArray.ContainsKey(mapContextId) && SharedPolicyOf(mapContextId) == null;
 
-        /// <summary>The squad instances of a map, oldest first; of every map with none given.</summary>
+        /// <summary>The squad instances in memory: of a map, oldest first; of every map with none given.</summary>
         public IReadOnlyList<MapChannel> SquadInstancesOf(uint? mapContextId = null) => _privateInstances.SquadOf(mapContextId);
+
+        /// <summary>The squad instances that are saved, in memory or not.</summary>
+        public IReadOnlyList<SquadInstanceEntry> SavedSquadInstances() => Stored(repository => repository.GetAll(), new List<SquadInstanceEntry>());
 
         /// <summary>
         /// The players in a channel or on their way to it. One who was sent to it stays on its
@@ -245,12 +423,80 @@ namespace Rasa.Managers
                 .ToArray();
 
         /// <summary>
+        /// Puts an owner's instance of a map in memory: from its row, with the pools that are
+        /// dead marked so; or, with no row given, a new one, which is saved. The owner's one in
+        /// memory already, if there is one. Called with the squad lock held.
+        /// </summary>
+        private MapChannel OpenSquadInstance(uint mapContextId, uint owner, SquadInstanceEntry saved)
+        {
+            if (!MapChannelArray.TryGetValue(mapContextId, out var template))
+                return null;
+
+            var listed = _privateInstances.FindSquad(mapContextId, owner);
+
+            if (listed != null)
+                return listed;
+
+            var map = _privateInstances.CreateSquad(template, owner, copy => InitializePrivateMapChannel(template, copy));
+
+            if (map == null)
+                return null;
+
+            var now = UtcNowMs();
+            var row = saved ?? Stored(repository => repository.Create(mapContextId, owner, now));
+
+            map.SquadState = new SquadInstanceState(row?.Id ?? 0, row?.CreatedAt ?? now, UtcNowMs, RespawnMs,
+                (id, pool, at) => Stored(repository => repository.SetPoolCleared(id, pool, at)),
+                (id, pool) => Stored(repository => repository.RemovePool(id, pool)),
+                id => Stored(repository => repository.RemovePools(id)));
+
+            // The pools that are dead, of a row that was there: the one loaded, or - the database
+            // having failed the look for it - the one that making it found.
+            if (row != null)
+            {
+                var cleared = Stored(repository => repository.GetPools(row.Id), new Dictionary<uint, long>());
+
+                foreach (var pool in map.SpawnPools)
+                    if (pool.DbId != 0 && cleared.TryGetValue(pool.DbId, out var at))
+                    {
+                        pool.ClearedAtUtcMs = Math.Max(1, at);
+                        pool.UpdateTimer = 0;
+
+                        // It has spawned before: what comes back arrives as a respawn does.
+                        pool.HasSpawned = true;
+                    }
+            }
+
+            Logger.WriteLog(LogType.Debug, saved != null
+                ? $"Map {mapContextId}: squad instance {map.InstanceId} of character {owner} loaded from row {saved.Id}."
+                : $"Map {mapContextId}: squad instance {map.InstanceId} opened for character {owner}{(row != null ? $", row {row.Id}" : ", not saved")}.");
+
+            return map;
+        }
+
+        /// <summary>Makes an instance another character's, in memory and in its row.</summary>
+        private bool ReassignSquadInstance(MapChannel map, uint owner)
+        {
+            if (!_privateInstances.ReassignSquad(map, owner))
+                return false;
+
+            var id = map.SquadState?.DbId ?? 0;
+
+            if (id != 0)
+                Stored(repository => repository.SetOwner(id, owner));
+
+            Logger.WriteLog(LogType.Debug, $"Map {map.MapInfo.MapContextId}: squad instance {map.InstanceId} is character {owner}'s now, the squad's leader.");
+
+            return true;
+        }
+
+        /// <summary>
         /// The squad instance of a map that a player goes into: the one they are in, if they are
         /// in one of that map; else the one their squad's leader stands in; else the leader's
-        /// own, or their own in no squad; else the one members of their squad stand in, which
-        /// becomes the leader's; else, when one may be made, a new one. Null for a map that is
-        /// not entered so. The instance is held from closing for a moment
-        /// (<see cref="SquadHoldMs"/>), for them to be sent into it.
+        /// own, or their own in no squad, loaded if it is saved and not in memory; else the one
+        /// members of their squad stand in, which becomes the leader's; else, when one may be
+        /// made, a new one. Null for a map that is not entered so. The instance is held from
+        /// closing for a moment (<see cref="SquadHoldMs"/>), for them to be sent into it.
         /// </summary>
         public MapChannel SquadInstanceFor(Client client, uint mapContextId, bool create)
         {
@@ -271,6 +517,10 @@ namespace Rasa.Managers
                     && ReferenceEquals(_privateInstances.FindByContextAndInstance(mapContextId, here.InstanceId), here))
                     map = here;
 
+                var saved = map == null && _privateInstances.FindSquad(mapContextId, owner) == null
+                    ? Stored(repository => repository.Find(mapContextId, owner))
+                    : null;
+
                 // Their leader is standing in one that is not the leader's own - the lead passed
                 // to them in it: where the leader is, and the leader's too if they have none.
                 if (map == null && squad.Members != null && owner != player.Id)
@@ -278,11 +528,15 @@ namespace Rasa.Managers
                     map = _privateInstances.SquadOf(mapContextId)
                         .FirstOrDefault(candidate => candidate.SquadOwnerCharacterId != owner && PlayersOf(candidate).Any(member => member.Player.Id == owner));
 
-                    if (map != null && _privateInstances.ReassignSquad(map, owner))
-                        Logger.WriteLog(LogType.Debug, $"Map {mapContextId}: squad instance {map.InstanceId} is character {owner}'s now, the squad's leader.");
+                    if (map != null && saved == null)
+                        ReassignSquadInstance(map, owner);
                 }
 
                 map ??= _privateInstances.FindSquad(mapContextId, owner);
+
+                // The leader's own, saved and not in memory.
+                if (map == null && saved != null)
+                    map = OpenSquadInstance(mapContextId, owner, saved);
 
                 // The squad is in one, and its leader has none: that one, and the leader's from now on.
                 if (map == null && squad.Members != null)
@@ -295,20 +549,12 @@ namespace Rasa.Managers
                         .Select(candidate => candidate.Map)
                         .FirstOrDefault();
 
-                    if (theirs != null && _privateInstances.ReassignSquad(theirs, owner))
-                    {
+                    if (theirs != null && ReassignSquadInstance(theirs, owner))
                         map = theirs;
-                        Logger.WriteLog(LogType.Debug, $"Map {mapContextId}: squad instance {map.InstanceId} is character {owner}'s now, the squad's leader.");
-                    }
                 }
 
-                if (map == null && create && MapChannelArray.TryGetValue(mapContextId, out var template))
-                {
-                    map = _privateInstances.CreateSquad(template, owner, copy => InitializePrivateMapChannel(template, copy));
-
-                    if (map != null)
-                        Logger.WriteLog(LogType.Debug, $"Map {mapContextId}: squad instance {map.InstanceId} opened for character {owner}.");
-                }
+                if (map == null && create)
+                    map = OpenSquadInstance(mapContextId, owner, null);
 
                 if (map != null)
                 {
@@ -323,6 +569,8 @@ namespace Rasa.Managers
         /// <summary>
         /// Sends a player to a map that is entered as a squad's instance, into theirs. By a door
         /// (MapLinkManager), where the door sets them down is the instance's entrance to them.
+        /// The instance is noted as the one they last went into, for when they next enter the
+        /// world on that map.
         /// </summary>
         internal bool EnterSquadInstance(Client client, uint mapContextId, Vector3 position, float rotation, bool byDoor)
         {
@@ -346,44 +594,120 @@ namespace Rasa.Managers
             return true;
         }
 
+        /// <summary>Saves the squad instance a character has gone into, for when they next enter the world on its map.</summary>
+        private void NoteVisitor(uint characterId, MapChannel map)
+        {
+            var id = map?.SquadState?.DbId ?? 0;
+
+            if (id != 0 && characterId != 0)
+                Stored(repository => repository.SetVisitorInstance(characterId, id));
+        }
+
         /// <summary>
-        /// Closes a squad instance that has nobody in it or on the way. False when it has, when
-        /// somebody has just been sent to it, or when it is not a listed squad instance.
+        /// Closes a squad instance that has nobody in it or on the way: out of memory, and its
+        /// rows deleted. False when it has, when somebody has just been sent to it, or when it
+        /// is not a listed squad instance.
         /// </summary>
-        public bool CloseSquadInstance(MapChannel map)
+        public bool CloseSquadInstance(MapChannel map) => ReleaseSquadInstance(map, delete: true);
+
+        /// <summary>
+        /// Takes a squad instance that has nobody in it or on the way out of memory, its rows
+        /// kept: it is loaded from them when somebody next goes to it. False as for closing, and
+        /// for an instance that is not saved, which would be lost.
+        /// </summary>
+        public bool UnloadSquadInstance(MapChannel map) => map?.SquadState != null && map.SquadState.DbId != 0 && ReleaseSquadInstance(map, delete: false);
+
+        private bool ReleaseSquadInstance(MapChannel map, bool delete)
         {
             if (map == null || !map.IsSquadInstance)
                 return false;
+
+            SquadInstanceState state;
 
             lock (_squadLock)
             {
                 if (PopulationOf(map) > 0 || _clock() < map.HeldUntil || !_privateInstances.ReleaseSquad(map))
                     return false;
+
+                // Taken apart with nothing listening: its creatures going is not their dying.
+                state = map.SquadState;
+                map.SquadState = null;
+
+                CleanupPrivateMapChannel(map);
+
+                if (delete && state != null && state.DbId != 0)
+                    Stored(repository => repository.Delete(state.DbId));
             }
 
-            CleanupPrivateMapChannel(map);
-
-            Logger.WriteLog(LogType.Debug, $"Map {map.MapInfo.MapContextId}: squad instance {map.InstanceId} of character {map.SquadOwnerCharacterId} closed.");
+            Logger.WriteLog(LogType.Debug,
+                $"Map {map.MapInfo.MapContextId}: squad instance {map.InstanceId} of character {map.SquadOwnerCharacterId} {(delete ? "closed" : "taken out of memory")}.");
 
             return true;
         }
 
         /// <summary>
         /// The weekly reset, and a game master's .instance reset: every squad instance with
-        /// nobody in it or on the way is closed. Those with players in them are left as they
-        /// are. Returns how many were closed.
+        /// nobody in it or on the way is closed, in memory or only saved. Those with players in
+        /// them are left as they are, and count from now. With a time given, only the instances
+        /// from before it are closed - the reset a server missed while it was down - and those
+        /// left are left as they were. Returns how many were closed.
         /// </summary>
-        public int ResetSquadInstances() => _privateInstances.SquadOf().Count(CloseSquadInstance);
+        public int ResetSquadInstances(long? madeBeforeUtcMs = null)
+        {
+            lock (_squadLock)
+            {
+                var now = UtcNowMs();
+                var keep = new List<uint>();
+                var closed = 0;
+
+                foreach (var map in _privateInstances.SquadOf())
+                {
+                    var state = map.SquadState;
+                    var id = state?.DbId ?? 0;
+
+                    if (madeBeforeUtcMs != null && (state == null || state.CreatedAtUtcMs >= madeBeforeUtcMs))
+                    {
+                        if (id != 0)
+                            keep.Add(id);
+
+                        continue;
+                    }
+
+                    if (CloseSquadInstance(map))
+                    {
+                        closed++;
+                        continue;
+                    }
+
+                    if (id == 0)
+                        continue;
+
+                    keep.Add(id);
+
+                    // Passed over with players in it: it counts from this reset.
+                    if (madeBeforeUtcMs == null)
+                    {
+                        state.CreatedAtUtcMs = now;
+                        Stored(repository => repository.SetCreatedAt(id, now));
+                    }
+                }
+
+                return closed + Stored(repository => repository.DeleteAllExcept(keep, madeBeforeUtcMs), 0);
+            }
+        }
 
         /// <summary>
         /// Once a second, from the map channel worker: the weekly reset is run when its time has
-        /// come; and, on a server set to close empty instances (EmptyCloseSeconds), those that
-        /// have stood empty long enough are closed.
+        /// come; an instance that has stood empty long enough is taken out of memory, its rows
+        /// kept (UnloadEmptySeconds); and, on a server set to close empty instances
+        /// (EmptyCloseSeconds), closed.
         /// </summary>
         internal void SquadInstanceWorker()
         {
             var now = _clock();
-            var emptyCloseSeconds = SquadConfig?.Invoke()?.EmptyCloseSeconds ?? -1;
+            var config = SquadConfig?.Invoke();
+            var emptyCloseSeconds = config?.EmptyCloseSeconds ?? -1;
+            var unloadSeconds = config?.UnloadEmptySeconds ?? -1;
 
             foreach (var map in _privateInstances.SquadOf())
             {
@@ -396,9 +720,13 @@ namespace Rasa.Managers
                 if (map.EmptySince == 0)
                     map.EmptySince = Math.Max(1, now);
 
+                var emptyMs = now - map.EmptySince;
+
                 // Negative: an empty instance is kept, until the weekly reset.
-                if (emptyCloseSeconds >= 0 && now - map.EmptySince >= emptyCloseSeconds * 1000L)
+                if (emptyCloseSeconds >= 0 && emptyMs >= emptyCloseSeconds * 1000L)
                     CloseSquadInstance(map);
+                else if (unloadSeconds >= 0 && emptyMs >= unloadSeconds * 1000L)
+                    UnloadSquadInstance(map);
             }
 
             WeeklyResetWorker();
@@ -423,19 +751,31 @@ namespace Rasa.Managers
             {
                 NextWeeklyReset = SquadInstancePolicies.NextReset(now, day, time);
                 _weeklyResetSetting = setting;
+
+                // The first pass of all: the reset that came round while the server was down.
+                if (!_missedResetLookedFor)
+                {
+                    _missedResetLookedFor = true;
+
+                    var last = NextWeeklyReset.Value.AddDays(-7);
+                    var missed = ResetSquadInstances(UtcNowMs() - (long)(now - last).TotalMilliseconds);
+
+                    if (missed > 0)
+                        Logger.WriteLog(LogType.Initialize, $"Weekly squad instance reset of {last:yyyy-MM-dd HH:mm}, missed: {missed} closed.");
+                }
+
                 return;
             }
 
             if (now < NextWeeklyReset.Value)
                 return;
 
-            var standing = _privateInstances.SquadOf().Count;
             var closed = ResetSquadInstances();
 
             NextWeeklyReset = SquadInstancePolicies.NextReset(now, day, time);
 
             Logger.WriteLog(LogType.Initialize,
-                $"Weekly squad instance reset: {closed} of {standing} closed, {standing - closed} left with players in them. The next is {NextWeeklyReset.Value:yyyy-MM-dd HH:mm}.");
+                $"Weekly squad instance reset: {closed} closed, {_privateInstances.SquadOf().Count} left with players in them. The next is {NextWeeklyReset.Value:yyyy-MM-dd HH:mm}.");
         }
 
         /// <summary>
@@ -449,8 +789,20 @@ namespace Rasa.Managers
 
             lock (_squadLock)
             {
+                // The one they left, still in memory.
                 if (_copyLeft.TryGetValue(player.Id, out var was) && was.MapContextId == mapContextId)
                     left = _privateInstances.SquadOf(mapContextId).FirstOrDefault(map => map.InstanceId == was.InstanceId);
+
+                // The one they last went into, as it is saved: in memory, or loaded.
+                if (left == null)
+                {
+                    var id = Stored(repository => repository.GetVisitorInstance(player.Id), 0u);
+                    var row = id != 0 ? Stored(repository => repository.Get(id)) : null;
+
+                    if (row != null && row.MapContextId == mapContextId)
+                        left = _privateInstances.SquadOf(mapContextId).FirstOrDefault(map => map.SquadState?.DbId == row.Id)
+                               ?? OpenSquadInstance(mapContextId, row.OwnerCharacterId, row);
+                }
 
                 if (left != null)
                 {
@@ -459,9 +811,13 @@ namespace Rasa.Managers
                 }
             }
 
+            // Their own of that map, if they have one.
+            left ??= SquadInstanceFor(client, mapContextId, create: false);
+
             if (left != null)
             {
                 player.MapChannel = left;
+                NoteVisitor(player.Id, left);
                 return;
             }
 
@@ -475,7 +831,10 @@ namespace Rasa.Managers
             var fresh = SquadInstanceFor(client, mapContextId, create: true);
 
             if (fresh != null)
+            {
                 player.MapChannel = fresh;
+                NoteVisitor(player.Id, fresh);
+            }
         }
     }
 }

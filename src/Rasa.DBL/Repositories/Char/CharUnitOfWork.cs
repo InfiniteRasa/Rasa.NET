@@ -85,6 +85,7 @@ namespace Rasa.Repositories.Char
             PvpRecords = new PvpRecord.PvpRecordRepository(dbContext);
             GmCommandLogs = new GmCommandLog.GmCommandLogRepository(dbContext);
             CharacterBossKills = new CharacterBossKill.CharacterBossKillRepository(dbContext);
+            SquadInstances = new SquadInstance.SquadInstanceRepository(dbContext);
             CharacterMissionItems = new CharacterMissionItem.CharacterMissionItemRepository(dbContext);
             CharacterMissionDeadlines = characterMissionDeadlines;
             CharacterMissionProgress = characterMissionProgress;
@@ -122,6 +123,7 @@ namespace Rasa.Repositories.Char
         public PvpRecord.IPvpRecordRepository PvpRecords { get; }
         public GmCommandLog.IGmCommandLogRepository GmCommandLogs { get; }
         public CharacterBossKill.ICharacterBossKillRepository CharacterBossKills { get; }
+        public SquadInstance.ISquadInstanceRepository SquadInstances { get; }
         public CharacterMissionItem.ICharacterMissionItemRepository CharacterMissionItems { get; }
         public ICharacterMissionDeadlineRepository CharacterMissionDeadlines { get; }
         public ICharacterMissionProgressRepository CharacterMissionProgress { get; }

@@ -64,6 +64,8 @@
             throw new System.NotSupportedException("This character unit of work has no game master audit log.");
         CharacterBossKill.ICharacterBossKillRepository CharacterBossKills =>
             throw new System.NotSupportedException("This character unit of work has no boss kill store.");
+        SquadInstance.ISquadInstanceRepository SquadInstances =>
+            throw new System.NotSupportedException("This character unit of work has no squad instance store.");
         ICharacterMissionDeadlineRepository CharacterMissionDeadlines { get; }
         ICharacterMissionProgressRepository CharacterMissionProgress { get; }
         ICharacterMissionScenarioRepository CharacterMissionScenario { get; }

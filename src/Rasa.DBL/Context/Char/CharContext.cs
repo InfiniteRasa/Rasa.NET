@@ -64,6 +64,9 @@ namespace Rasa.Context.Char
         public DbSet<PvpMatchPlayerEntry> PvpMatchPlayerEntries { get; set; }
         public DbSet<PvpMatchWagerEntry> PvpMatchWagerEntries { get; set; }
         public DbSet<GmCommandLogEntry> GmCommandLogEntries { get; set; }
+        public DbSet<SquadInstanceEntry> SquadInstanceEntries { get; set; }
+        public DbSet<SquadInstancePoolEntry> SquadInstancePoolEntries { get; set; }
+        public DbSet<SquadInstanceVisitorEntry> SquadInstanceVisitorEntries { get; set; }
         public DbSet<ControlPointStateEntry> ControlPointStateEntries { get; set; }
         public DbSet<AuctionEntry> AuctionEntries { get; set; }
 
@@ -142,6 +145,7 @@ namespace Rasa.Context.Char
             SetupClanTable(modelBuilder);
             SetupClanFeudTables(modelBuilder);
             SetupControlPointStateTable(modelBuilder);
+            SetupSquadInstanceTables(modelBuilder);
             SetupFriendTable(modelBuilder);
             SetupIgnoredTable(modelBuilder);
             SetupPetitionTable(modelBuilder);
@@ -579,6 +583,18 @@ namespace Rasa.Context.Char
         {
             modelBuilder.Entity<ControlPointStateEntry>()
                 .Property(e => e.ControlPointId)
+                .ValueGeneratedNever();
+        }
+
+        private void SetupSquadInstanceTables(ModelBuilder modelBuilder)
+        {
+            // One row per instance and dead spawn pool.
+            modelBuilder.Entity<SquadInstancePoolEntry>()
+                .HasKey(e => new { e.InstanceId, e.SpawnpoolId });
+
+            // Keyed by the character: never generated here.
+            modelBuilder.Entity<SquadInstanceVisitorEntry>()
+                .Property(e => e.CharacterId)
                 .ValueGeneratedNever();
         }
 

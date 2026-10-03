@@ -483,6 +483,9 @@ namespace Rasa.Managers
             map.Arriving.Add(client);
             map.EmptySince = 0;
 
+            if (map.IsSquadInstance)
+                NoteVisitor(client.Player.Id, map);
+
             return true;
         }
     }

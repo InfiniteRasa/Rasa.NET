@@ -2209,6 +2209,66 @@ namespace Rasa.Migrations.MySqlChar
                     b.ToTable("pvp_match_wager");
                 });
 
+            modelBuilder.Entity("Rasa.Structures.Char.SquadInstanceEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<uint>("Id"));
+
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("bigint")
+                        .HasColumnName("created_at");
+
+                    b.Property<uint>("MapContextId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("map_context_id");
+
+                    b.Property<uint>("OwnerCharacterId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("owner_character_id");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("squad_instance");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.Char.SquadInstancePoolEntry", b =>
+                {
+                    b.Property<uint>("InstanceId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("instance_id");
+
+                    b.Property<uint>("SpawnpoolId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("spawnpool_id");
+
+                    b.Property<long>("ClearedAt")
+                        .HasColumnType("bigint")
+                        .HasColumnName("cleared_at");
+
+                    b.HasKey("InstanceId", "SpawnpoolId");
+
+                    b.ToTable("squad_instance_pool");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.Char.SquadInstanceVisitorEntry", b =>
+                {
+                    b.Property<uint>("CharacterId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("character_id");
+
+                    b.Property<uint>("InstanceId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("instance_id");
+
+                    b.HasKey("CharacterId");
+
+                    b.ToTable("squad_instance_visitor");
+                });
+
             modelBuilder.Entity("Rasa.Structures.Char.UserOptionEntry", b =>
                 {
                     b.Property<uint>("AccountId")

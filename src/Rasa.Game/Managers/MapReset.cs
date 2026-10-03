@@ -157,6 +157,9 @@ namespace Rasa.Managers
                 pools++;
             }
 
+            // In a squad's instance none of its pools is dead any more, in memory or as saved.
+            mapChannel.SquadState?.PoolsReset(mapPools.Where(pool => pool.MapContextId == mapContextId && pool.Mode == SpawnPoolManager.ModeAutomatic));
+
             return (going.Count, pools);
         }
     }
