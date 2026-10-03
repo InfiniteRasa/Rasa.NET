@@ -190,9 +190,10 @@ namespace Rasa.Managers
 
             }
 
+            // A squad or team mate who holds the other from across the map has them already (FarAllies).
             ManifestationManager.Instance.CellIntroduceClientToSefl(client);
-            ManifestationManager.Instance.CellIntroduceClientToPlayers(client, ListOfClients);
-            ManifestationManager.Instance.CellIntroducePlayersToClient(client, ListOfClients);
+            ManifestationManager.Instance.CellIntroduceClientToPlayers(client, FarAllies.NotHolding(client, ListOfClients));
+            ManifestationManager.Instance.CellIntroducePlayersToClient(client, FarAllies.NotHeldBy(client, ListOfClients));
 
             CreatureManager.Instance.CellIntroduceCreaturesToClient(client, ListOfCreatures);
             DynamicObjectManager.Instance.CellIntroduceDynamicObjectsToClient(client, ListOfObjects);
@@ -245,6 +246,9 @@ namespace Rasa.Managers
 
             // The NPCs finished missions are handed in to, for clients out of their range.
             MissionContacts.Worker(mapChannel, System.Environment.TickCount64);
+
+            // And each player's squad and team mates elsewhere on the map.
+            FarAllies.Worker(mapChannel, System.Environment.TickCount64);
             // mob work
 
             // events etc...
@@ -338,6 +342,7 @@ namespace Rasa.Managers
             if (client.MissionConversation?.Map == map)
                 client.MissionConversation = null;
             MissionContacts.Forget(client);
+            FarAllies.Forget(client);
             var memberships = map.MapCellInfo.Cells.Values.Where(cell => cell.ClientList.Contains(client)).ToArray();
             if (memberships.Length == 0)
                 return;
@@ -408,8 +413,10 @@ namespace Rasa.Managers
             map.MapCellInfo.Cells[newCenter].ClientList.Add(client);
             player.Cells = next;
 
-            ManifestationManager.Instance.CellDiscardClientToPlayers(client, leaving);
-            ManifestationManager.Instance.CellDiscardPlayersToClient(client, leaving);
+            // A squad or team mate stays on the client, and the client on theirs, as they walk
+            // apart: it is what their markers are drawn from (FarAllies).
+            ManifestationManager.Instance.CellDiscardClientToPlayers(client, FarAllies.KeepingFor(client, leaving));
+            ManifestationManager.Instance.CellDiscardPlayersToClient(client, FarAllies.KeptBy(client, leaving));
             // The NPC a finished mission is handed in to stays on the client as the player
             // walks away from it: it is what the map marker is drawn from (MissionContacts).
             CreatureManager.Instance.CellDiscardCreaturesToClient(client,
@@ -419,8 +426,8 @@ namespace Rasa.Managers
 
             var entering = GetClientsInCells(map, added, client);
             var addedCells = GetCells(map, added).ToList();
-            ManifestationManager.Instance.CellIntroduceClientToPlayers(client, entering);
-            ManifestationManager.Instance.CellIntroducePlayersToClient(client, entering);
+            ManifestationManager.Instance.CellIntroduceClientToPlayers(client, FarAllies.NotHolding(client, entering));
+            ManifestationManager.Instance.CellIntroducePlayersToClient(client, FarAllies.NotHeldBy(client, entering));
             CreatureManager.Instance.CellIntroduceCreaturesToClient(client,
                 addedCells.SelectMany(cell => cell.CreatureList).Distinct().ToList());
             DynamicObjectManager.Instance.CellIntroduceDynamicObjectsToClient(client,
@@ -625,6 +632,9 @@ namespace Rasa.Managers
         {
             foreach (var client in GetClientsInCells(mapChannel, origin.Cells))
                 client.CallMethod(origin.EntityId, packet);
+
+            // A player's squad and team mates who hold them from across the map (FarAllies).
+            FarAllies.Relay(origin, packet);
         }
 
         /// <summary>

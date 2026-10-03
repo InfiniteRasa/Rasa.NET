@@ -131,6 +131,16 @@ namespace Rasa.Game
         /// <summary>Environment.TickCount64 at which <see cref="FarContacts"/> is next checked without a mission event asking.</summary>
         internal long NextContactSync { get; set; }
 
+        /// <summary>
+        /// The players this client has been given from beyond its player's cells: the members of
+        /// their squad, and of their team in a battleground's match, elsewhere on the map, so
+        /// that the map and the radar can show them (Managers.FarAllies).
+        /// </summary>
+        internal HashSet<Client> FarAllies { get; } = new HashSet<Client>();
+
+        /// <summary>Environment.TickCount64 at which <see cref="FarAllies"/> is next brought up to date.</summary>
+        internal long NextAllySync { get; set; }
+
         /// <summary>Whether this connection has been sent the message of the day (Managers.MessageOfTheDay).</summary>
         internal bool MotdSent { get; set; }
 
@@ -393,6 +403,10 @@ namespace Rasa.Game
 
             foreach (var tempClient in clientList)
                 tempClient.CallMethod(entityId, packet);
+
+            // And whoever holds the player from afar (FarAllies), when it is the player's own.
+            if (entityId == client.Player.EntityId)
+                Managers.FarAllies.Relay(client.Player, packet);
         }
 
         // Cell Domain ignore self
@@ -411,6 +425,8 @@ namespace Rasa.Game
 
                 tempClient.CallMethod(client.Player.EntityId, packet);
             }
+
+            Managers.FarAllies.Relay(client.Player, packet);
         }
 
         // Cell send movement
@@ -419,6 +435,9 @@ namespace Rasa.Game
             foreach (var tempClient in CellManager.Instance.GetClientsInCells(client.Player.MapChannel,
                          client.Player.Cells, ignoreSelf ? client : null))
                 tempClient.SendMessage(moveObjectMessage, false, 1);
+
+            // The squad and team mates who hold the player from across the map: their marker moves.
+            Managers.FarAllies.Relay(client, moveObjectMessage);
         }
 
         public void SendMessage(IClientMessage message, bool compress = false, byte channel = 0, bool delay = true)

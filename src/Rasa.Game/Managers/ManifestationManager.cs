@@ -323,6 +323,8 @@ namespace Rasa.Managers
 
             foreach (var other in CellManager.Instance.GetClientsInCells(mapChannel, player.Cells, client))
                 other.CallMethod(player.EntityId, packet);
+
+            FarAllies.Relay(player, packet);
         }
 
         /// <summary>

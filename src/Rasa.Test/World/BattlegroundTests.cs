@@ -25,6 +25,7 @@ namespace Rasa.Test.World
     using Rasa.Packets;
     using Rasa.Packets.ClientMethod.Server;
     using Rasa.Packets.Communicator.Server;
+    using Rasa.Packets.Game.Server;
     using Rasa.Packets.MapChannel.Client;
     using Rasa.Packets.MapChannel.Server;
     using Rasa.Packets.Protocol;
@@ -1680,6 +1681,49 @@ namespace Rasa.Test.World
                 Assert.AreEqual(6, reader.ReadInt(), "FACTION_OWNED, as before");
                 Assert.IsTrue(reader.ReadBool());
             }
+        }
+
+        [TestMethod]
+        public void TeamMatesAcrossTheFieldStayOnEachOthersClients()
+        {
+            // The map and the radar draw a team member from their entity (FarAllies).
+            using var f = new Fixture();
+            var red = f.Join(Battlegrounds.Red);
+            var mate = f.Join(Battlegrounds.Red);
+            var blue = f.Join(Battlegrounds.Blue);
+
+            // In their bases as the cells have it too.
+            foreach (var client in new[] { red, mate, blue })
+            {
+                CellManager.Instance.UpdateVisibility(client);
+                Drain(client);
+            }
+
+            // Out of the base and far down the field: the cells part them, and they keep each other.
+            mate.Player.Position = RedBase + new Vector3(0, 0, 600);
+            CellManager.Instance.UpdateVisibility(mate);
+
+            Assert.IsFalse(Packets(red).OfType<DestroyPhysicalEntityPacket>().Any());
+            Assert.IsFalse(Packets(mate).OfType<DestroyPhysicalEntityPacket>().Any());
+            Assert.IsTrue(FarAllies.Holds(red, mate));
+            Assert.IsTrue(FarAllies.Holds(mate, red));
+
+            // The other team is nobody's to be given.
+            FarAllies.Sync(blue);
+            FarAllies.Sync(red);
+            Assert.IsFalse(FarAllies.Holds(blue, red));
+            Assert.IsFalse(FarAllies.Holds(red, blue));
+            Assert.IsFalse(Packets(blue).OfType<CreatePhysicalEntityPacket>().Any());
+
+            // Off the team, and put back in the staging area: a team mate no longer.
+            Drain(red);
+            Assert.IsTrue(f.Grounds.LeaveTeam(mate));
+            FarAllies.Sync(red);
+            FarAllies.Sync(mate);
+
+            Assert.AreEqual(mate.Player.EntityId, Packets(red).OfType<DestroyPhysicalEntityPacket>().Single().EntityId);
+            Assert.IsFalse(FarAllies.Holds(red, mate));
+            Assert.IsFalse(FarAllies.Holds(mate, red));
         }
 
         [TestMethod]

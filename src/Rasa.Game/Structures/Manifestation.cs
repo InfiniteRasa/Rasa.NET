@@ -115,6 +115,13 @@ namespace Rasa.Structures
         public int WeaponCheckHits { get; set; }
 
         /// <summary>
+        /// The clients that hold this player's entity from beyond their cells: squad and team
+        /// mates elsewhere on the map (Managers.FarAllies). What the player's cells are told of
+        /// them, these are told as well.
+        /// </summary>
+        internal List<Game.Client> FarWatchers { get; } = new List<Game.Client>();
+
+        /// <summary>
         /// Puts the player somewhere because the server says so - a map change, a dropship, a
         /// waypoint, a summon, /stuck, a GM command - rather than because the client claimed it.
         ///
