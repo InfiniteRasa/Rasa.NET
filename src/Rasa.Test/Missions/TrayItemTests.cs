@@ -6,6 +6,8 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Rasa.Test.Missions
 {
+    using Rasa.Data;
+    using Rasa.Game;
     using Rasa.Managers;
     using Rasa.Memory;
     using Rasa.Packets.MapChannel.Client;
@@ -17,6 +19,7 @@ namespace Rasa.Test.Missions
     public class TrayItemTests
     {
         private const uint PineOckTemplate = 111117;       // Companion Pine-Ock: 460 level 1
+        private const uint SnowballTemplate = 131481;      // Snowball: 528 level 1
 
         private static readonly FieldInfo AbilityManagerInstance =
             typeof(AbilityManager).GetField("_instance", BindingFlags.Static | BindingFlags.NonPublic);
@@ -114,6 +117,110 @@ namespace Rasa.Test.Missions
 
             var skill = new AbilityDrawerData(4, 460, 1);
             Assert.IsNull(AbilityDrawerItems.EntityOf(harness.Client.Player, skill));
+        }
+
+        // The client's tray slot keeps the item id the drawer was last sent with, and the drawer
+        // is only sent at login and when the tray is edited. A pet deleted and bought again is a
+        // new item, so the slot went on naming one that was gone and was refused until a relog.
+        [TestMethod]
+        public void ASlotNamingAnItemThatIsGoneIsPerformedWithTheOneInThePack()
+        {
+            using var harness = BootcampRuntimeTestHarness.Create();
+            var first = ToyTests.Grant(harness, PineOckTemplate);
+            ToyTests.LoadClass(harness, 7747);
+            var manager = ToyTests.CreateManager(harness, 460, 1, PineOckTemplate);
+            using var abilities = UseAbilityManager(manager);
+            var player = harness.Client.Player;
+
+            ManifestationManager.Instance.RequestSetAbilitySlot(harness.Client,
+                new RequestSetAbilitySlotPacket { SlotId = 2, AbilityId = 460, AbilityLevel = 1, ItemId = first.EntityId });
+            var named = harness.Drain().OfType<AbilityDrawerPacket>().Single().ItemEntities[2];
+            Assert.AreEqual(first.EntityId, named);
+
+            // Deleted, and bought again at a vendor: nothing tells the client's tray.
+            InventoryManager.Instance.ReduceStackCount(harness.Client, InventoryType.Personal, first, 1);
+            var bought = Buy(harness, PineOckTemplate);
+            Assert.AreNotEqual(named, bought.EntityId);
+            Assert.IsFalse(harness.Drain().OfType<AbilityDrawerPacket>().Any());
+
+            manager.RequestPerformAbility(harness.Client, ToyTests.Request(460, 1, named));
+            var pending = harness.BootcampMap.PerformRecovery.Single(action => action.ActionId == ActionId.AccountrewardPet);
+            Assert.AreEqual(bought.EntityId, pending.ItemId);
+            ToyTests.Land(harness, manager, pending);
+            Assert.IsNotNull(AbilityManager.PetCreatureOf(player));
+            Assert.IsFalse(harness.Drain().OfType<UserActionFailedPacket>().Any());
+
+            // Home again, then the slot as a login with no pet in the pack sends it: no item.
+            manager.RequestPerformAbility(harness.Client, ToyTests.Request(460, 1, named));
+            Assert.IsNull(AbilityManager.PetCreatureOf(player));
+            player.ActionReuseUntil.Remove(ActionId.AccountrewardPet);
+            harness.Drain();
+
+            manager.RequestPerformAbility(harness.Client, ToyTests.Request(460, 1, 0));
+            pending = harness.BootcampMap.PerformRecovery.Single(action => action.ActionId == ActionId.AccountrewardPet);
+            Assert.AreEqual(bought.EntityId, pending.ItemId);
+            ToyTests.Land(harness, manager, pending);
+            Assert.IsNotNull(AbilityManager.PetCreatureOf(player));
+            Assert.IsFalse(harness.Drain().OfType<UserActionFailedPacket>().Any());
+        }
+
+        [TestMethod]
+        public void WithNoItemInThePackThatPerformsItTheSlotIsStillRefused()
+        {
+            using var harness = BootcampRuntimeTestHarness.Create();
+            var pet = ToyTests.Grant(harness, PineOckTemplate);
+            var manager = ToyTests.CreateManager(harness, 460, 1, PineOckTemplate);
+            var named = pet.EntityId;
+            InventoryManager.Instance.ReduceStackCount(harness.Client, InventoryType.Personal, pet, 1);
+            harness.Drain();
+
+            manager.RequestPerformAbility(harness.Client, ToyTests.Request(460, 1, named));
+            Assert.AreEqual(PlayerMessage.PmMissingReqItem, harness.Drain().OfType<UserActionFailedPacket>().Single().MsgId);
+
+            manager.RequestPerformAbility(harness.Client, ToyTests.Request(460, 1, 0));
+            Assert.AreEqual(PlayerMessage.PmCannotPerformActionNow, harness.Drain().OfType<UserActionFailedPacket>().Single().MsgId);
+
+            Assert.IsFalse(harness.BootcampMap.PerformRecovery.Any(action => action.ActionId == ActionId.AccountrewardPet));
+        }
+
+        // What is used up is the item it was performed with, not the one named.
+        [TestMethod]
+        public void AConsumableStoodInForIsTheOneUsedUp()
+        {
+            using var harness = BootcampRuntimeTestHarness.Create();
+            var snowballs = ToyTests.Grant(harness, SnowballTemplate, 3);
+            var manager = ToyTests.CreateManager(harness, 528, 1, SnowballTemplate);
+
+            manager.RequestPerformAbility(harness.Client, ToyTests.Request(528, 1, snowballs.EntityId + 100000));
+            var pending = harness.BootcampMap.PerformRecovery.Single(action => action.ActionId == (ActionId)528);
+            Assert.AreEqual(snowballs.EntityId, pending.ItemId);
+            ToyTests.Land(harness, manager, pending);
+
+            Assert.AreEqual(2U, snowballs.StackSize);
+            using var unit = harness.Context.CreateChar();
+            Assert.AreEqual(2U, unit.Items.GetItem(snowballs.Id).StackSize);
+        }
+
+        /// <summary>One of the template, bought from a vendor's counter (NpcManager.RequestVendorPurchase).</summary>
+        private static Item Buy(BootcampRuntimeTestHarness.Harness harness, uint template)
+        {
+            var npc = harness.AddNpc(BootcampRuntimeTestHarness.CorporalHartmannCreatureId,
+                position: harness.Client.Player.Position + new System.Numerics.Vector3(0, 0, 2));
+            npc.Npc ??= new Npc();
+            npc.Npc.Vendor = new Vendor(0) { ItemPrice = 1, VendorItems = { template } };
+            Assert.IsTrue(ManifestationManager.Instance.GainCredits(harness.Client, 1000));
+            var npcs = new NpcManager(harness.Context, harness.Manager);
+
+            npcs.RequestNPCVending(harness.Client, new RequestNPCVendingPacket { EntityId = npc.EntityId });
+            npcs.RequestVendorPurchase(harness.Client, new RequestVendorPurchasePacket
+            {
+                VendorEntityId = npc.EntityId,
+                ItemEntityId = EntityManager.Instance.VendorItems[npc.EntityId].Single(),
+                Quantity = 1
+            });
+
+            return harness.Client.Player.Inventory.PersonalInventory.Where(id => id != 0)
+                .Select(EntityManager.Instance.GetItem).Single(item => item.ItemTemplateId == template);
         }
 
         private static RequestSetAbilitySlotPacket Read(System.Action<PythonWriter> write)

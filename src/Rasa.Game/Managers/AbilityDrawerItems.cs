@@ -13,6 +13,12 @@ namespace Rasa.Managers
     /// finds its entity when the drawer is sent. An item no longer in the pack - used up, sold,
     /// traded - is stood in for by another in the pack that performs the same action at the same
     /// level (the next medpack stack); with none, the slot goes out with no item.
+    ///
+    /// The drawer is sent at login and when the tray is edited, not when the pack changes, so the
+    /// id the client holds can be one that has since gone, or none where there is an item now.
+    /// The client does not judge the slot by it - where the action needs an item it counts the
+    /// pack by item class (BaseActorAbility.CheckConsumables) - and fires it regardless;
+    /// AbilityManager.RequestPerformAbility makes the same substitution then.
     /// </summary>
     public static class AbilityDrawerItems
     {

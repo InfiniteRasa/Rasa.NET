@@ -390,7 +390,7 @@ namespace Rasa.Test.Missions
         }
 
         /// <summary>A creature class, as the server loads every class at start-up.</summary>
-        private static void LoadClass(BootcampRuntimeTestHarness.Harness harness, uint classId)
+        internal static void LoadClass(BootcampRuntimeTestHarness.Harness harness, uint classId)
         {
             var entry = harness.WorldContext.Set<EntityClassEntry>().AsNoTracking().Single(row => row.Id == classId);
             EntityClassManager.Instance.LoadedEntityClasses[(EntityClasses)classId] = new EntityClass(entry.Id, entry.ClassName, entry.MeshId,

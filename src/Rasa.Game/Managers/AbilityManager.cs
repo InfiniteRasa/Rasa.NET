@@ -305,17 +305,32 @@ namespace Rasa.Managers
             // item in their pack whose template performs exactly this action.
             var item = packet.ItemId != 0 ? EntityManager.Instance.GetItem((ulong)packet.ItemId) : null;
 
-            if (packet.ItemId != 0 && item == null)
-            {
-                Fail(client, actionId, level, PlayerMessage.PmMissingReqItem);
-                return;
-            }
-
             if (!Grants(player, actionId, level, item))
             {
-                Logger.WriteLog(LogType.Security, $"{player.FamilyName} asked for {action.Name} level {level} without a skill or item that grants it");
-                Fail(client, actionId, level, PlayerMessage.PmCannotPerformActionNow);
-                return;
+                // The item the client names is the one its tray slot was last sent with
+                // (AbilityDrawerItems), which is not always the one in the pack now: the pet was
+                // deleted and bought again, the medpack stack ran out with another behind it, or
+                // the slot went out with no item because there was none at login. The client
+                // judges an item slot by the item class in the pack where it checks at all
+                // (BaseActorAbility.CheckConsumables), not by that id, so it shows the slot ready
+                // and fires it; the request was refused until a relog sent the drawer again. It
+                // is performed with the item in the pack that does perform it.
+                var standIn = PackItemPerforming(player, actionId, level);
+
+                if (standIn == null)
+                {
+                    if (packet.ItemId != 0 && item == null)
+                    {
+                        Fail(client, actionId, level, PlayerMessage.PmMissingReqItem);
+                        return;
+                    }
+
+                    Logger.WriteLog(LogType.Security, $"{player.FamilyName} asked for {action.Name} level {level} without a skill or item that grants it");
+                    Fail(client, actionId, level, PlayerMessage.PmCannotPerformActionNow);
+                    return;
+                }
+
+                item = standIn;
             }
 
             // A skill's ability also wants its Logos in the Tabula (AbilityLogos). An item that
@@ -575,7 +590,7 @@ namespace Rasa.Managers
             {
                 TargetObject = practiceTarget,
                 TargetLocation = location,
-                ItemId = packet.ItemId
+                ItemId = item?.EntityId ?? 0
             });
         }
 
@@ -586,6 +601,28 @@ namespace Rasa.Managers
         /// </summary>
         public bool ItemPerforms(Manifestation player, Item item, ActionId actionId, uint level) =>
             player != null && item != null && Grants(player, actionId, level, item);
+
+        /// <summary>
+        /// An item in the player's pack that performs the action at this level, or null: what a
+        /// request is carried out with when the item it names is not one (RequestPerformAbility).
+        /// A mission's item is passed over, as it is when the ability's cost is taken.
+        /// </summary>
+        private Item PackItemPerforming(Manifestation player, ActionId actionId, uint level)
+        {
+            foreach (var entityId in player.Inventory.PersonalInventory)
+            {
+                if (entityId == 0)
+                    continue;
+
+                var candidate = EntityManager.Instance.GetItem(entityId);
+
+                if (candidate != null && Grants(player, actionId, level, candidate) &&
+                    !Game.Missions.Persistence.MissionItemProtection.IsProtected(candidate, _gameUnitOfWorkFactory))
+                    return candidate;
+            }
+
+            return null;
+        }
 
         /// <summary>
         /// Whether the player may use the action at this level: a skill of theirs grants the
