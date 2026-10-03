@@ -353,6 +353,38 @@ namespace Rasa.Managers
             return true;
         }
 
+        /// <summary>
+        /// Records that the character has killed a boss, by its creature name id (BossTitles).
+        /// False when it was recorded already or could not be saved.
+        /// </summary>
+        public bool RecordBossKill(Client client, uint creatureNameId)
+        {
+            var player = client?.Player;
+
+            if (player == null || player.Id == 0 || creatureNameId == 0)
+                return false;
+
+            lock (player.BossKills)
+            {
+                if (player.BossKills.Contains(creatureNameId))
+                    return false;
+
+                try
+                {
+                    using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+
+                    unitOfWork.CharacterBossKills.Add(player.Id, creatureNameId);
+                }
+                catch (Exception error) when (GameplayRejectionException.IsExpected(error))
+                {
+                    Logger.WriteLog(LogType.Error, $"Unable to record the kill of boss {creatureNameId} for character {player.Id}: {error.Message}");
+                    return false;
+                }
+
+                return player.BossKills.Add(creatureNameId);
+            }
+        }
+
         /// <summary>A title that is saved: onto the player's list and to their client.</summary>
         public static void TitleGained(Client client, uint titleId)
         {
@@ -1930,9 +1962,11 @@ namespace Rasa.Managers
 
             // A Logos or waypoint title the character has earned and has not got - collected
             // before the titles were given, or inherited by a clone - is given now, after the
-            // list it is added to (LogosTitles, WaypointTitles).
+            // list it is added to (LogosTitles, WaypointTitles). So is a boss title whose kills
+            // are all recorded (BossTitles).
             LogosTitles.CatchUp(client);
             WaypointTitles.CatchUp(client);
+            BossTitles.CatchUp(client);
 
             client.CallMethod(player.EntityId, new UpdateAttributesPacket(player.Attributes, 0));
 

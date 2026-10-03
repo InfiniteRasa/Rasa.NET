@@ -330,6 +330,10 @@ namespace Rasa.Managers
             }
             else if (progressClient != null && CanCreditScenarioProgress(mapChannel, creature, progressClient))
                 missions.Credit.RecordKill(progressClient, KillEvents(creature), creature.Position);
+
+            // A boss of a battlefield's title is recorded for whoever has the kill (BossTitles).
+            if (progressClient != null && CanCreditScenarioProgress(mapChannel, creature, progressClient))
+                BossTitles.Killed(progressClient, mapChannel, creature);
         }
 
         /// <summary>

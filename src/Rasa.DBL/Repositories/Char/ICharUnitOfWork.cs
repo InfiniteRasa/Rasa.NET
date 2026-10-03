@@ -60,6 +60,8 @@
             throw new System.NotSupportedException("This character unit of work has no control point state store.");
         PvpRecord.IPvpRecordRepository PvpRecords =>
             throw new System.NotSupportedException("This character unit of work has no PvP record store.");
+        CharacterBossKill.ICharacterBossKillRepository CharacterBossKills =>
+            throw new System.NotSupportedException("This character unit of work has no boss kill store.");
         ICharacterMissionDeadlineRepository CharacterMissionDeadlines { get; }
         ICharacterMissionProgressRepository CharacterMissionProgress { get; }
         ICharacterMissionScenarioRepository CharacterMissionScenario { get; }

@@ -70,6 +70,7 @@ namespace Rasa.Repositories.UnitOfWork
         public Char.ClanFeud.IClanFeudRepository ClanFeuds => _parent.ClanFeuds;
         public Char.ControlPointState.IControlPointStateRepository ControlPointStates => _parent.ControlPointStates;
         public Char.PvpRecord.IPvpRecordRepository PvpRecords => _parent.PvpRecords;
+        public Char.CharacterBossKill.ICharacterBossKillRepository CharacterBossKills => _parent.CharacterBossKills;
 
         public ICharacterMissionDeadlineRepository CharacterMissionDeadlines =>
             _parent.CharacterMissionDeadlines;

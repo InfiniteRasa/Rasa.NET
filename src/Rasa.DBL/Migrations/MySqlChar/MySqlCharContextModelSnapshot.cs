@@ -151,6 +151,21 @@ namespace Rasa.Migrations.MySqlChar
                     b.ToTable("character_appearance");
                 });
 
+            modelBuilder.Entity("Rasa.Structures.Char.CharacterBossKillEntry", b =>
+                {
+                    b.Property<uint>("CharacterId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("character_id");
+
+                    b.Property<uint>("CreatureNameId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("creature_name_id");
+
+                    b.HasKey("CharacterId", "CreatureNameId");
+
+                    b.ToTable("character_boss_kill");
+                });
+
             modelBuilder.Entity("Rasa.Structures.Char.CharacterEntry", b =>
                 {
                     b.Property<uint>("Id")

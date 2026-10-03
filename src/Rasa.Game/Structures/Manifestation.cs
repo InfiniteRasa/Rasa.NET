@@ -46,6 +46,9 @@ namespace Rasa.Structures
         public Dictionary<SkillId, SkillsData> Skills = new();
         public Dictionary<int, AbilityDrawerData> Abilities = new();
         public List<uint> Titles { get; set; } = new List<uint>();
+
+        /// <summary>The bosses the character has killed, by creature name id (Managers.BossTitles). Locked on when read or written.</summary>
+        public HashSet<uint> BossKills { get; set; } = new HashSet<uint>();
         public uint CurrentTitle { get; set; }
         public int CurrentAbilityDrawer { get; set; }
         public Dictionary<uint, MissionLog> Missions { get; set; } = new();

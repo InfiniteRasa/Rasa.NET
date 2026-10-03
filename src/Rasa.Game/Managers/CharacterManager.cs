@@ -1153,6 +1153,7 @@ namespace Rasa.Managers
                 LockboxTabs = Math.Max(lockboxInfo?.PurashedTabs ?? 0, LockboxTab.FreeTab),
                 Skills = MapChannelManager.Instance.GetPlayerSkills(character.Id),
                 Titles = unitOfWork.CharacterTitles.Get(character.Id),
+                BossKills = unitOfWork.CharacterBossKills.Get(character.Id).ToHashSet(),
                 Abilities = MapChannelManager.Instance.GetPlayerAbilities(character.Id),
                 LoginTime = DateTime.Now,
                 Logos = logos
