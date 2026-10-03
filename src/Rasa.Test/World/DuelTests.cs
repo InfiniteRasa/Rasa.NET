@@ -17,6 +17,7 @@ namespace Rasa.Test.World
     using Rasa.Packets.Wargame.Client;
     using Rasa.Packets.Wargame.Server;
     using Rasa.Structures;
+    using Rasa.Structures.Char;
     using Rasa.Test.Missions;
 
     // Duel Wargames (Duels): a challenge, its answer, the duel - the two enemies (Pvp) until one
@@ -251,6 +252,117 @@ namespace Rasa.Test.World
             }
             finally
             {
+                Duels.Instance.Now = () => Environment.TickCount64;
+            }
+        }
+
+        [TestMethod]
+        public void ADuelThatEndsIsPutOnRecord()
+        {
+            using var world = new WorldTestContext();
+            var (red, blue) = Duelists(world);
+            var noon = new DateTime(2026, 10, 2, 12, 0, 0, DateTimeKind.Utc);
+            var utc = noon;
+            var now = 5_000_000L;
+            var store = new MemoryPvpStore();
+            var records = new PvpRecords { UtcNow = () => utc };
+            var previous = Duels.Instance.Records;
+
+            records.Load(store);
+            Duels.Instance.Records = records;
+            Duels.Instance.Now = () => now;
+            red.Player.ClanId = 31;
+
+            try
+            {
+                // Two kills to win it: nothing is written until it is over.
+                StartDuel(red, blue, maxKills: 2);
+
+                var wargameId = Duels.Instance.Running.Single().WargameId;
+
+                Assert.IsTrue(Duels.Instance.Kill(red, blue));
+                Assert.AreEqual(0, store.Matches.Count);
+
+                Assert.IsTrue(Duels.Instance.Kill(blue, red));
+                utc = noon.AddMinutes(3);
+                Assert.IsTrue(Duels.Instance.Kill(red, blue));
+                Assert.AreEqual(0, Duels.Instance.Running.Count);
+
+                var match = store.Matches.Single();
+
+                Assert.AreEqual((byte)PvpMatchKind.Duel, match.Kind);
+                Assert.AreEqual(4, match.Kind);
+                Assert.AreEqual(wargameId, match.WargameId);
+                Assert.AreEqual(world.Map.MapInfo.MapContextId, match.MapContextId);
+                Assert.AreEqual(noon, match.StartedAt);
+                Assert.AreEqual(noon.AddMinutes(3), match.EndedAt);
+                Assert.AreEqual((byte)PvpMatchOutcome.Won, match.Outcome);
+                Assert.AreEqual((byte)1, match.WinnerSide, "the challenger is side 1");
+                Assert.AreEqual("kills", match.Reason);
+                Assert.AreEqual("Red", match.Side1Name);
+                Assert.AreEqual("Blue", match.Side2Name);
+                Assert.AreEqual((2, 1), (match.Side1Score, match.Side2Score));
+                Assert.AreEqual((2, 1), (match.Side1Kills, match.Side2Kills));
+                Assert.AreEqual((0u, 0u), (match.Side1ClanId, match.Side2ClanId), "a duel is nobody's clan's");
+
+                Assert.AreEqual(2, store.Rows[match.Id].Count);
+
+                var winner = store.Row(match.Id, red.Player.Id);
+
+                Assert.AreEqual((byte)1, winner.Side);
+                Assert.AreEqual("Red", winner.FamilyName);
+                Assert.AreEqual(red.Player.Name, winner.Name);
+                Assert.AreEqual(31u, winner.ClanId);
+                Assert.AreEqual((2, 1), (winner.Kills, winner.Deaths));
+                Assert.IsTrue(winner.PresentAtEnd);
+
+                var loser = store.Row(match.Id, blue.Player.Id);
+
+                Assert.AreEqual((byte)2, loser.Side);
+                Assert.AreEqual((1, 2), (loser.Kills, loser.Deaths), "each one's deaths are the other's kills");
+                Assert.IsTrue(loser.PresentAtEnd);
+
+                // Surrendered: the other's, with nothing scored.
+                StartDuel(blue, red);
+                Duels.Instance.SurrenderWargame(blue);
+
+                Assert.AreEqual(2, store.Matches.Count);
+                Assert.AreEqual("surrender", store.Matches[1].Reason);
+                Assert.AreEqual("Blue", store.Matches[1].Side1Name, "the challenger this time");
+                Assert.AreEqual((byte)2, store.Matches[1].WinnerSide);
+                Assert.AreEqual((0, 0), (store.Matches[1].Side1Score, store.Matches[1].Side2Score));
+
+                // Walked out of: forfeit, and the one who left is on it as not there at the end.
+                StartDuel(red, blue);
+                Duels.Instance.PlayerLeft(blue);
+
+                Assert.AreEqual(3, store.Matches.Count);
+                Assert.AreEqual("forfeit", store.Matches[2].Reason);
+                Assert.AreEqual((byte)PvpMatchOutcome.Won, store.Matches[2].Outcome);
+                Assert.AreEqual((byte)1, store.Matches[2].WinnerSide);
+                Assert.IsFalse(store.Row(store.Matches[2].Id, blue.Player.Id).PresentAtEnd);
+                Assert.IsTrue(store.Row(store.Matches[2].Id, red.Player.Id).PresentAtEnd);
+
+                // Time up and level: nobody's.
+                StartDuel(red, blue, minutes: 2, maxKills: 5);
+                Duels.Instance.Kill(red, blue);
+                Duels.Instance.Kill(blue, red);
+                now += 2 * 60_000L;
+                Duels.Instance.Worker();
+
+                Assert.AreEqual(4, store.Matches.Count);
+                Assert.AreEqual("time", store.Matches[3].Reason);
+                Assert.AreEqual((byte)PvpMatchOutcome.Tied, store.Matches[3].Outcome);
+                Assert.AreEqual((byte)0, store.Matches[3].WinnerSide);
+                Assert.AreEqual((1, 1), (store.Matches[3].Side1Score, store.Matches[3].Side2Score));
+
+                // And a record of its own each time.
+                Assert.AreEqual(4, store.Matches.Select(m => m.Id).Distinct().Count());
+                Assert.IsTrue(store.Matches.All(m => m.Kind == (byte)PvpMatchKind.Duel));
+            }
+            finally
+            {
+                Duels.Instance.Records = previous;
                 Duels.Instance.Now = () => Environment.TickCount64;
             }
         }

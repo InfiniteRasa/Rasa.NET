@@ -9,7 +9,8 @@ namespace Rasa.Structures.Char
     {
         ClanFeud = 1,
         SquadWargame = 2,
-        Battleground = 3
+        Battleground = 3,
+        Duel = 4
     }
 
     /// <summary>pvp_match.outcome.</summary>
@@ -24,11 +25,11 @@ namespace Rasa.Structures.Char
 
     /// <summary>
     /// The record of one PvP match between two sides (the game server's PvpRecords): a clan
-    /// feud, a squad wargame, or a battleground's match. Who fought it, when, how it ended, who
+    /// feud, a squad wargame, a battleground's match, or a duel. Who fought it, when, how it ended, who
     /// won and what the two sides' scores were. The players on each side, with their own
     /// scores, are its pvp_match_player rows.
     ///
-    /// A squad wargame and a battleground's match are written when they end. A clan feud runs
+    /// A squad wargame, a battleground's match and a duel are written when they end. A clan feud runs
     /// for days, through restarts, so its row is written when it starts, with no ended_at, kept
     /// up on every kill, and closed when the feud ends.
     /// </summary>
@@ -41,7 +42,7 @@ namespace Rasa.Structures.Char
         [Column("id")]
         public uint Id { get; set; }
 
-        /// <summary>1 a clan feud, 2 a squad wargame, 3 a battleground's match (PvpMatchKind).</summary>
+        /// <summary>1 a clan feud, 2 a squad wargame, 3 a battleground's match, 4 a duel (PvpMatchKind).</summary>
         [Column("kind")]
         [Required]
         public byte Kind { get; set; }
@@ -84,7 +85,7 @@ namespace Rasa.Structures.Char
         [Required]
         public string Reason { get; set; } = "";
 
-        /// <summary>Side 1: the challenging clan, the challenging squad's leader, or Red Team.</summary>
+        /// <summary>Side 1: the challenging clan, the challenging squad's leader, Red Team, or the duel's challenger.</summary>
         [Column("side1_name", TypeName = "varchar(64)")]
         [Required]
         public string Side1Name { get; set; } = "";
@@ -103,7 +104,7 @@ namespace Rasa.Structures.Char
         [Required]
         public int Side1Kills { get; set; }
 
-        /// <summary>Side 2: the challenged clan, the challenged squad's leader, or Blue Team.</summary>
+        /// <summary>Side 2: the challenged clan, the challenged squad's leader, Blue Team, or the one challenged to the duel.</summary>
         [Column("side2_name", TypeName = "varchar(64)")]
         [Required]
         public string Side2Name { get; set; } = "";

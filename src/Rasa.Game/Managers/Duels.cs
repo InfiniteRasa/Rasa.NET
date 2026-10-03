@@ -8,6 +8,7 @@ namespace Rasa.Managers
     using Game;
     using Packets.Wargame.Server;
     using Structures;
+    using Structures.Char;
 
     /// <summary>
     /// Duel Wargames: one player challenges another, the other accepts, and the two are enemies
@@ -45,8 +46,10 @@ namespace Rasa.Managers
     /// <see cref="MaxMinutes"/>); when its time is up the one with more kills wins and equal is a
     /// tie; leaving the map or the world forfeits it to the other, who is told PM_WARGAME_PLAYER_LEFT,
     /// while the one who left is told RemoveFromWargame (PM_WARGAME_YOU_LEFT). Wargame ids start at
-    /// <see cref="FirstWargameId"/>, clear of the feuds' own. Nothing is saved: a restart ends every
-    /// duel and challenge.
+    /// <see cref="FirstWargameId"/>, clear of the feuds' own. A duel under way is not saved: a
+    /// restart ends every duel and challenge. One that has ended is put on record (PvpRecords):
+    /// the two duelists, their kills, who won and how - kills, time, surrender, or forfeit for
+    /// one who left.
     /// </summary>
     public class Duels
     {
@@ -94,6 +97,13 @@ namespace Rasa.Managers
             public int ChallengerKills { get; set; }
             public int TargetKills { get; set; }
 
+            /// <summary>For its record: when it began (UTC), where, and the two duelists as they were then.</summary>
+            public DateTime StartedAt { get; set; }
+            public uint MapContextId { get; set; }
+            public uint InstanceId { get; set; }
+            public PvpMatchPlayerEntry ChallengerRow { get; set; }
+            public PvpMatchPlayerEntry TargetRow { get; set; }
+
             public bool Involves(Client client) => client != null && (Challenger == client || Target == client);
             public bool Involves(Manifestation player) => player != null && (Challenger?.Player == player || Target?.Player == player);
             public Client Other(Client client) => Challenger == client ? Target : Challenger;
@@ -104,6 +114,9 @@ namespace Rasa.Managers
         private readonly List<Challenge> _challenges = new List<Challenge>();
         private readonly List<Duel> _duels = new List<Duel>();
         private uint _nextId = FirstWargameId;
+
+        /// <summary>Where the record of each duel that ends is kept; one with no store keeps nothing.</summary>
+        public PvpRecords Records { get; set; } = PvpRecords.Instance;
 
         /// <summary>The clock duels run on; replaceable for tests.</summary>
         public Func<long> Now { get; set; } = () => Environment.TickCount64;
@@ -284,7 +297,7 @@ namespace Rasa.Managers
             }
 
             Logger.WriteLog(LogType.Debug, $"Duel {duel.WargameId}: {client.Player?.FamilyName} surrendered.");
-            End(duel, duel.Other(client));
+            End(duel, duel.Other(client), "surrender");
         }
 
         #endregion
@@ -301,6 +314,15 @@ namespace Rasa.Managers
                 EndTick = Now() + challenge.Minutes * 60_000L,
                 MaxKills = challenge.MaxKills
             };
+
+            // For the record: when and where, and the two as they are now.
+            var map = duel.Target?.Player?.MapChannel;
+
+            duel.StartedAt = (Records ?? PvpRecords.Instance).UtcNow();
+            duel.MapContextId = map?.MapInfo?.MapContextId ?? 0;
+            duel.InstanceId = map?.InstanceId ?? 0;
+            duel.ChallengerRow = PvpRecords.PlayerOf(duel.Challenger?.Player, 1);
+            duel.TargetRow = PvpRecords.PlayerOf(duel.Target?.Player, 2);
 
             lock (_sync)
                 _duels.Add(duel);
@@ -355,16 +377,17 @@ namespace Rasa.Managers
             victim.CallMethod(SysEntity.ClientWargameManagerId, new WargameScoreboardPacket(duel.WargameId, victimKills, killerKills, victimId, killerId));
 
             if (killerKills >= duel.MaxKills)
-                End(duel, killer);
+                End(duel, killer, "kills");
 
             return true;
         }
 
         /// <summary>
         /// Ends a duel: the winner is told Victory and the other Defeat, or both a tie for no
-        /// winner, and both are out of it for everyone around.
+        /// winner, and both are out of it for everyone around. <paramref name="reason"/> is for
+        /// its record: kills, time, surrender.
         /// </summary>
-        public void End(Duel duel, Client winner)
+        public void End(Duel duel, Client winner, string reason = null)
         {
             if (duel == null)
                 return;
@@ -374,6 +397,8 @@ namespace Rasa.Managers
                     return;
 
             Logger.WriteLog(LogType.Debug, $"Duel {duel.WargameId} ended: {(winner == null ? "a tie" : $"{winner.Player?.FamilyName} won")}, {duel.ChallengerKills} : {duel.TargetKills}.");
+
+            Keep(duel, winner, reason, left: null);
 
             foreach (var side in new[] { duel.Challenger, duel.Target })
             {
@@ -388,6 +413,47 @@ namespace Rasa.Managers
                 if (InWorld(side))
                     Wargames.Show(side);
             }
+        }
+
+        /// <summary>
+        /// Puts a duel that is over on record (PvpRecords): the challenger is side 1, each
+        /// side's score is its duelist's kills, and each duelist's deaths are the other's kills.
+        /// <paramref name="left"/> is the one who walked out of it, if one did.
+        /// </summary>
+        private void Keep(Duel duel, Client winner, string reason, Client left)
+        {
+            var records = Records;
+
+            if (records?.Store == null)
+                return;
+
+            var challenger = duel.ChallengerRow ?? PvpRecords.PlayerOf(duel.Challenger?.Player, 1);
+            var target = duel.TargetRow ?? PvpRecords.PlayerOf(duel.Target?.Player, 2);
+
+            challenger.Kills = target.Deaths = duel.ChallengerKills;
+            target.Kills = challenger.Deaths = duel.TargetKills;
+            challenger.PresentAtEnd = left == null || left != duel.Challenger;
+            target.PresentAtEnd = left == null || left != duel.Target;
+
+            records.Record(new PvpMatchEntry
+            {
+                Kind = (byte)PvpMatchKind.Duel,
+                WargameId = duel.WargameId,
+                MapContextId = duel.MapContextId,
+                InstanceId = duel.InstanceId,
+                StartedAt = duel.StartedAt,
+                Outcome = (byte)(winner == null ? PvpMatchOutcome.Tied : PvpMatchOutcome.Won),
+                WinnerSide = winner == null ? (byte)0 : winner == duel.Challenger ? (byte)1 : (byte)2,
+                Reason = reason ?? "",
+                Side1Name = challenger.FamilyName ?? "",
+                Side1ClanId = 0,
+                Side1Score = duel.ChallengerKills,
+                Side1Kills = duel.ChallengerKills,
+                Side2Name = target.FamilyName ?? "",
+                Side2ClanId = 0,
+                Side2Score = duel.TargetKills,
+                Side2Kills = duel.TargetKills
+            }, new[] { challenger, target });
         }
 
         /// <summary>Lapsed challenges and duels whose time is up. From the map channel worker.</summary>
@@ -413,7 +479,7 @@ namespace Rasa.Managers
 
             foreach (var duel in due)
                 End(duel, duel.ChallengerKills == duel.TargetKills ? null
-                    : duel.ChallengerKills > duel.TargetKills ? duel.Challenger : duel.Target);
+                    : duel.ChallengerKills > duel.TargetKills ? duel.Challenger : duel.Target, "time");
         }
 
         /// <summary>
@@ -453,6 +519,8 @@ namespace Rasa.Managers
             var other = duel.Other(client);
 
             Logger.WriteLog(LogType.Debug, $"Duel {duel.WargameId}: {client.Player?.FamilyName} left; {other?.Player?.FamilyName} wins.");
+
+            Keep(duel, other, "forfeit", left: client);
 
             client.CallMethod(SysEntity.ClientWargameManagerId, new RemoveFromWargamePacket(duel.WargameId));
 

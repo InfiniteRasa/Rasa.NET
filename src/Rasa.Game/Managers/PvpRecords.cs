@@ -11,20 +11,20 @@ namespace Rasa.Managers
 
     /// <summary>
     /// The records kept of PvP matches between two sides: clan feuds (ClanFeuds), squad wargames
-    /// (SquadWargames) and a battleground's matches (Battlegrounds). For each: when and where it
+    /// (SquadWargames), a battleground's matches (Battlegrounds) and duels (Duels). For each: when and where it
     /// was fought, how it ended, which side won, the two sides' scores, and every player with
     /// the side they were on and their own score. Kept in the character database's pvp_match
     /// and pvp_match_player tables (<see cref="IStore"/>); nothing here is sent to a client,
     /// and nothing in a match waits on it or fails with it: a store that cannot be written
     /// costs the record, and says so in the log.
     ///
-    /// The two sides are side 1 and side 2 everywhere: the challenging clan or squad and Red
-    /// Team are side 1, the challenged clan or squad and Blue Team side 2. A side's score is
+    /// The two sides are side 1 and side 2 everywhere: the challenging clan, squad or duelist
+    /// and Red Team are side 1, the challenged one and Blue Team side 2. A side's score is
     /// what it is judged by - its kills, or in a battleground the control points it holds at
     /// the end, with its kills beside it.
     ///
-    /// A squad wargame and a battleground's match are short and are written once, when they
-    /// end (<see cref="Record"/>). A clan feud runs for days and through restarts, so its
+    /// A squad wargame, a battleground's match and a duel are short and are written once, when
+    /// they end (<see cref="Record"/>). A clan feud runs for days and through restarts, so its
     /// record is opened when it starts (<see cref="FeudStarted"/>), brought up to date on every
     /// kill (<see cref="FeudKill"/>) - the two who fought get their rows then - and closed when
     /// the feud ends (<see cref="FeudEnded"/>), when the rest of both clans are added with
