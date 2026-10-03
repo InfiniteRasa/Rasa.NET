@@ -306,7 +306,12 @@ namespace Rasa.Managers
 
             // Shared copies of a map that have stood empty long enough are closed.
             if (Timer.IsTriggered("SharedInstances"))
+            {
                 Guard("MapChannelManager.SharedInstanceWorker", null, SharedInstanceWorker);
+
+                // The squad instances: the weekly reset, when its time has come.
+                Guard("MapChannelManager.SquadInstanceWorker", null, SquadInstanceWorker);
+            }
 
             // Server-wide lists, ticked once. These used to run inside the per-map loop below,
             // guarded by that map having players, so with N populated maps every auto-fire
@@ -1010,6 +1015,11 @@ namespace Rasa.Managers
         {
             if (!MapChannelArray.TryGetValue(mapContextId, out var mapChannel))
                 return false;
+
+            // A map entered as a squad's instance: theirs, not the map's own channel.
+            if (IsSquadInstanceMap(mapContextId))
+                return EnterSquadInstance(client, mapContextId, position, orientation, byDoor: false);
+
             return ChangeMap(client, mapChannel, position, orientation);
         }
 

@@ -34,5 +34,8 @@ namespace Rasa.Config
         {
             ["2374"] = new MapInstanceConfig()
         };
+
+        /// <summary>The maps entered as a squad's own instance, and when those are closed (Managers.MapChannelManager's squad instances).</summary>
+        public SquadInstanceConfig SquadInstances { get; set; } = new SquadInstanceConfig();
     }
 }

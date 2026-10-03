@@ -198,15 +198,37 @@ namespace Rasa.Managers
 
             DropOffers(victim);
 
-            var hospitals = mapChannel != null
-                ? Hospitals.AvailableTo(victim, mapChannel.MapInfo.MapContextId)
-                : new List<Hospitals.Hospital>();
-
-            client?.CallMethod(victim.EntityId, new PlayerDeadPacket(source?.EntityId ?? 0,
-                hospitals.Select(h => new PlayerDeadPacket.Graveyard { Id = h.GraveyardId, Position = h.Position, IsSafe = h.IsSafe }).ToList(),
-                canRevive: false));
+            client?.CallMethod(victim.EntityId, new PlayerDeadPacket(source?.EntityId ?? 0, GraveyardsFor(mapChannel, victim), canRevive: false));
 
             Logger.WriteLog(LogType.Debug, $"{victim.FamilyName} ({victim.Id}) died{(source != null ? $", killed by {source.EntityId}" : "")}.");
+        }
+
+        /// <summary>
+        /// What the hospital window is given: the hospitals the player may go back to
+        /// (Hospitals.AvailableTo) - or, in a squad's instance, the one way back there is, its
+        /// entrance, under the name of the map's hospital nearest to it. An instance whose map
+        /// has no hospital gives none, as any such map does, and the entrance is where they go.
+        /// </summary>
+        internal static List<PlayerDeadPacket.Graveyard> GraveyardsFor(MapChannel mapChannel, Manifestation victim)
+        {
+            if (mapChannel == null)
+                return new List<PlayerDeadPacket.Graveyard>();
+
+            var mapContextId = mapChannel.MapInfo.MapContextId;
+            var entrance = InstanceEntrances.Of(mapChannel, victim);
+
+            if (entrance != null)
+            {
+                var named = Hospitals.Nearest(Hospitals.OnMap(mapContextId), entrance.Value.Position);
+
+                return named == null
+                    ? new List<PlayerDeadPacket.Graveyard>()
+                    : new List<PlayerDeadPacket.Graveyard> { new PlayerDeadPacket.Graveyard { Id = named.GraveyardId, Position = entrance.Value.Position, IsSafe = named.IsSafe } };
+            }
+
+            return Hospitals.AvailableTo(victim, mapContextId)
+                .Select(h => new PlayerDeadPacket.Graveyard { Id = h.GraveyardId, Position = h.Position, IsSafe = h.IsSafe })
+                .ToList();
         }
 
         #endregion
@@ -250,7 +272,10 @@ namespace Rasa.Managers
             return player.State != CharacterState.Dead;
         }
 
-        /// <summary>ReviveMe(graveyardId): to that hospital, or the nearest of theirs.</summary>
+        /// <summary>
+        /// ReviveMe(graveyardId): to that hospital, or the nearest of theirs - or, in a squad's
+        /// instance, to its entrance whatever was asked for (InstanceEntrances).
+        /// </summary>
         public static void ReviveMe(Client client, int? graveyardId)
         {
             var player = client?.Player;
@@ -259,17 +284,30 @@ namespace Rasa.Managers
             if (player == null || mapChannel == null || player.State != CharacterState.Dead)
                 return;
 
-            var available = Hospitals.AvailableTo(player, mapChannel.MapInfo.MapContextId);
-            var hospital = graveyardId.HasValue ? available.FirstOrDefault(h => h.GraveyardId == (uint)graveyardId.Value) : null;
+            var entrance = InstanceEntrances.Of(mapChannel, player);
+            Hospitals.Hospital hospital = null;
 
-            hospital ??= Hospitals.Nearest(available, player.Position);
+            if (entrance == null)
+            {
+                var available = Hospitals.AvailableTo(player, mapChannel.MapInfo.MapContextId);
+
+                hospital = graveyardId.HasValue ? available.FirstOrDefault(h => h.GraveyardId == (uint)graveyardId.Value) : null;
+                hospital ??= Hospitals.Nearest(available, player.Position);
+            }
 
             // A morph kept for its Self Revive does not come along to the hospital.
             foreach (var morph in player.ActiveEffects.Values.Where(e => e.TypeId == AbilityManager.PolymorphTypeId).ToList())
                 GameEffectManager.Instance.DettachEffect(mapChannel, player, morph);
 
-            var at = hospital != null ? hospital.Position + new Vector3(0f, GmMapCommands.PadHeight, 0f) : player.Position;
+            var at = entrance?.Position
+                     ?? (hospital != null ? hospital.Position + new Vector3(0f, GmMapCommands.PadHeight, 0f) : player.Position);
             var health = player.Attributes.TryGetValue(Attributes.Health, out var attribute) ? attribute.CurrentMax : 1;
+
+            // The entrance is inside the way out: they stand in it as one who has just arrived
+            // does, so it does not take them out of the instance as they get up. Done while they
+            // are still dead, which the doors pass over.
+            if (entrance != null)
+                InstanceEntrances.StandIn(mapChannel, player, at);
 
             Revive(mapChannel, client, at, health, player, atHospital: true);
         }

@@ -99,11 +99,13 @@ These also happen automatically, without a command:
 | `/gotomob <name>` | GameMaster | Puts you 2 m from the nearest creature of that name on this map. An exact name match wins over partial ones. |
 | `.link <id> goto` / `.link <id> gotoarrival` | GameMaster | Goes to a map link's trigger point or its arrival point. |
 | `.emitter <id> goto` | GameMaster | Goes to an FX emitter. |
-| `.instance` | GameMaster | Lists the shared copies of the map you are on (`MapInstances` in `appsettings.json`): each one's number, instance id, players and population word. |
+| `.instance` | GameMaster | Lists the shared copies of the map you are on (`MapInstances` in `appsettings.json`): each one's number, instance id, players and population word. On a map entered as a squad's instance (`SquadInstances`), lists the squad instances of that map instead: instance id, owner character and players. |
 | `.instance open` | GameMaster | Opens another copy of this map, up to its `MaxCopies`. It closes by itself after `IdleCloseSeconds` empty. |
 | `.instance go <number>` | GameMaster | Moves you to that copy, at the point you are standing on. Ignores the copy's capacity. |
 | `.instance pick` | GameMaster | Shows the client's instance picker for this map, as a door does once the map has more than one copy. |
 | `.instance close <number>` | GameMaster | Closes an empty copy. `#1`, the map's own channel, is never closed. |
+| `.instance squads` | GameMaster | Lists the squad instances of every map - map, instance id, owner character and players - and when the weekly reset next runs. |
+| `.instance reset` | GameMaster | Runs the weekly squad instance reset now: every squad instance with nobody in it or on the way is closed, and the next to enter gets a new one. Those with players in them are left alone. |
 | `.bg` | GameMaster | The match of the battleground channel you are on (Edmund Range): its phase and clock, each team's players, points and kills, and each control point's owner and whether its Simulated Bane stand. Then your own desertion and leaver's lockout, if you have one. |
 | `.bg team red \| blue \| none` | GameMaster | Puts you on a team and in its base, or off it and back in the staging area. Ignores team balance, desertion and the leaver's lockout. |
 | `.bg start` | GameMaster | Begins the match now, without the wait or the preparation. A match started this way runs with a team of nobody, until its clock or `.bg end`. |

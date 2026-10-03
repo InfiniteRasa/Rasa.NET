@@ -2912,11 +2912,14 @@ namespace Rasa.Managers
         /// <summary>
         /// .instance: the shared copies of the map the game master stands on (MapChannelManager's
         /// instances) - listing them, opening and closing one, going to one, and showing the
-        /// client's instance picker, which otherwise takes a full copy to see.
+        /// client's instance picker, which otherwise takes a full copy to see. On a map entered
+        /// as a squad's instance it lists the squad instances of that map; .instance squads lists
+        /// those of every map and when the weekly reset is, and .instance reset runs that reset
+        /// now: every squad instance with nobody in it is closed.
         /// </summary>
         private void InstanceCommand(string[] parts)
         {
-            const string usage = "usage: .instance | .instance open | .instance pick | .instance go <number> | .instance close <number>";
+            const string usage = "usage: .instance | .instance open | .instance pick | .instance go <number> | .instance close <number> | .instance squads | .instance reset";
             var client = _client;
             var player = client.Player;
             var maps = MapChannelManager.Instance;
@@ -2925,6 +2928,45 @@ namespace Rasa.Managers
             var policy = maps.SharedPolicyOf(mapContextId);
 
             void Say(string text) => CommunicatorManager.Instance.SystemMessage(client, text);
+
+            // The squad instances: those of every map, and the weekly reset run now.
+            if (parts.Length == 2 && parts[1] == "squads")
+            {
+                var squads = maps.SquadInstancesOf();
+                var next = maps.NextWeeklyReset;
+
+                Say($"{squads.Count} squad instance(s). {(next == null ? "There is no weekly reset." : $"The weekly reset is {next.Value:dddd yyyy-MM-dd HH:mm}.")}");
+
+                foreach (var squad in squads)
+                    Say($"map {squad.MapInfo.MapContextId} instance {squad.InstanceId}: owner character {squad.SquadOwnerCharacterId}, {maps.PopulationOf(squad)} player(s){(ReferenceEquals(squad, player.MapChannel) ? " (you are here)" : string.Empty)}");
+
+                return;
+            }
+
+            if (parts.Length == 2 && parts[1] == "reset")
+            {
+                var standing = maps.SquadInstancesOf().Count;
+                var closed = maps.ResetSquadInstances();
+
+                Say($"Closed {closed} of {standing} squad instance(s); {standing - closed} left with players in them.");
+                Logger.WriteLog(LogType.Command, $"{player.FamilyName} reset the squad instances: {closed} of {standing} closed.");
+                return;
+            }
+
+            if (parts.Length == 1 && maps.IsSquadInstanceMap(mapContextId))
+            {
+                var squads = maps.SquadInstancesOf(mapContextId);
+
+                Say($"Map {mapContextId} is entered as a squad's instance: {squads.Count} open.");
+
+                foreach (var squad in squads)
+                    Say($"instance {squad.InstanceId}: owner character {squad.SquadOwnerCharacterId}, {maps.PopulationOf(squad)} player(s){(ReferenceEquals(squad, player.MapChannel) ? " (you are here)" : string.Empty)}");
+
+                if (player.MapChannel != null && !player.MapChannel.IsSquadInstance)
+                    Say("You are on the map's own channel.");
+
+                return;
+            }
 
             if (parts.Length == 1)
             {

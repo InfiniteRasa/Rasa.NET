@@ -104,7 +104,11 @@ namespace Rasa.Managers
             var player = client?.Player;
             var map = player?.MapChannel;
 
-            if (map?.MapInfo == null || player.Id == 0 || map.IsPrivateInstance || SharedPolicyOf(map.MapInfo.MapContextId) == null)
+            if (map?.MapInfo == null || player.Id == 0 || map.IsPrivateInstance)
+                return;
+
+            // A squad's instance is remembered as a shared copy is (PlaceSquadLogin).
+            if (!map.IsSquadInstance && SharedPolicyOf(map.MapInfo.MapContextId) == null)
                 return;
 
             _copyLeft[player.Id] = (map.MapInfo.MapContextId, map.InstanceId);
@@ -136,6 +140,14 @@ namespace Rasa.Managers
                 return;
 
             var mapContextId = own.MapInfo.MapContextId;
+
+            // A map entered as a squad's instance: the one they left, or outside its door.
+            if (IsSquadInstanceMap(mapContextId))
+            {
+                PlaceSquadLogin(client, mapContextId);
+                return;
+            }
+
             var policy = SharedPolicyOf(mapContextId);
 
             if (policy == null)
@@ -151,6 +163,27 @@ namespace Rasa.Managers
                 return;
             }
 
+            if (!PlaceOutside(client, mapContextId, left == null ? "The instance you were in has closed."
+                    : lockout != null ? Battlegrounds.Instance.LockoutText(lockout)
+                    : "The instance you were in is full."))
+            {
+                Logger.WriteLog(LogType.Error,
+                    $"Map {mapContextId} runs in copies and has no map link out of it or into it: {player.FamilyName} entered the world on its first copy.");
+                return;
+            }
+
+            Logger.WriteLog(LogType.Debug,
+                $"{player.FamilyName} entered the world outside map {mapContextId}: the copy they left {(left == null ? "is gone" : "is full or shut to them")}.");
+        }
+
+        /// <summary>
+        /// Puts a character entering the world outside a map instead of on it: where the map's
+        /// way out leads or, a map with none, at the door into it - with why, for when they have
+        /// arrived. False, and nothing done, for a map with neither.
+        /// </summary>
+        private bool PlaceOutside(Client client, uint mapContextId, string why)
+        {
+            var player = client.Player;
             var links = (MapLinks?.Invoke() ?? Enumerable.Empty<MapLink>()).OrderBy(link => link.Id).ToList();
             var exit = links.FirstOrDefault(link => link.MapContextId == mapContextId && link.DestMapContextId != mapContextId
                                                     && MapChannelArray.ContainsKey(link.DestMapContextId));
@@ -160,11 +193,7 @@ namespace Rasa.Managers
                 : null;
 
             if (exit == null && door == null)
-            {
-                Logger.WriteLog(LogType.Error,
-                    $"Map {mapContextId} runs in copies and has no map link out of it or into it: {player.FamilyName} entered the world on its first copy.");
-                return;
-            }
+                return false;
 
             var outside = exit?.DestMapContextId ?? door.MapContextId;
 
@@ -172,12 +201,9 @@ namespace Rasa.Managers
             player.MapContextId = outside;
             player.PlaceAt(exit?.DestPosition ?? door.Position);
             player.Rotation = exit?.DestRotation ?? 0;
-            client.ArrivalNotice = (left == null ? "The instance you were in has closed."
-                                       : lockout != null ? Battlegrounds.Instance.LockoutText(lockout)
-                                       : "The instance you were in is full.") + " You are outside its door.";
+            client.ArrivalNotice = why + " You are outside its door.";
 
-            Logger.WriteLog(LogType.Debug,
-                $"{player.FamilyName} entered the world outside map {mapContextId}: the copy they left {(left == null ? "is gone" : "is full or shut to them")}.");
+            return true;
         }
 
         /// <summary>What <see cref="PlaceLogin"/> left to be said, now that there is a client in the world to say it to.</summary>
@@ -298,6 +324,10 @@ namespace Rasa.Managers
         /// </summary>
         public bool EnterMap(Client client, uint mapContextId, Vector3 position, float rotation)
         {
+            // An Operation: into the instance of their squad, by its door.
+            if (IsSquadInstanceMap(mapContextId))
+                return EnterSquadInstance(client, mapContextId, position, rotation, byDoor: true);
+
             var policy = SharedPolicyOf(mapContextId);
 
             if (policy == null)

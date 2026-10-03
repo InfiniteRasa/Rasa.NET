@@ -1502,6 +1502,18 @@ namespace Rasa.Managers
                     return;
                 }
 
+                // In a squad's instance or a shared copy of the map, the waypoint is the copy's
+                // own: the one in the world's list stands on the map's own channel, which is
+                // another place, and every pick was refused as "not in the selected instance".
+                var here = client.Player.MapChannel;
+
+                if ((here.IsSquadInstance || here.IsSharedInstance) && teleporter.MapContextId == here.MapInfo.MapContextId
+                    && here.Teleporters.TryGetValue(packet.WaypointId, out var copied) && copied.ObjectData is WaypointInfo copiedInfo)
+                {
+                    teleporter = copied;
+                    info = copiedInfo;
+                }
+
                 // The travel window names the map by the id its row was listed under, and every
                 // row is listed under its map's context id (MapInstanceInfo: ordinal, mapId,
                 // status - the client keys its rows by mapId, and a dropship list has one row per

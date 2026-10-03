@@ -325,6 +325,12 @@ namespace Rasa.Structures
         internal HashSet<uint> InsideMapLinks = new();
 
         /// <summary>
+        /// The door the player last came into a squad instance by: the map, and where the door
+        /// set them down. Where they are put back on their feet if they die there (PlayerDeath).
+        /// </summary>
+        internal (uint MapContextId, System.Numerics.Vector3 Position, float Rotation)? InstanceEntrance { get; set; }
+
+        /// <summary>
         /// The region ids the client was last told the player is in (UpdateRegions), sorted, so
         /// RegionManager only sends again when the set changes. Null until the first send on a map.
         /// </summary>

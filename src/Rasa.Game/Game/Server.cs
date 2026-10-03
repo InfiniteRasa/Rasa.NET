@@ -148,6 +148,9 @@ namespace Rasa.Game
             // The maps that run in several shared copies. A copy already open stays as it is.
             MapInstancePolicies.Apply(Config.MapInstances);
 
+            // The maps entered as a squad's own instance. An instance already open stays as it is.
+            SquadInstancePolicies.Apply(Config.SquadInstances);
+
             // The numbers of the Edmund Range match; a match being played keeps its clock.
             Battlegrounds.Instance.Config = Config.Battleground ?? new BattlegroundConfig();
 

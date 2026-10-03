@@ -389,8 +389,8 @@ namespace Rasa.Managers
             }
 
             // Into the shared copy of the map they are standing in, if it is one: the map's own
-            // channel is somewhere else.
-            if (destination.Player.MapChannel?.IsSharedInstance == true)
+            // channel is somewhere else. Into the squad instance they are standing in, likewise.
+            if (destination.Player.MapChannel?.IsSharedInstance == true || destination.Player.MapChannel?.IsSquadInstance == true)
             {
                 MapChannelManager.Instance.Send(
                     traveller,
