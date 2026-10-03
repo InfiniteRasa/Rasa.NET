@@ -1308,6 +1308,23 @@ namespace Rasa.Test.World
             Assert.IsFalse(f.Grounds.OwnsTeleporter(999, RedHospital));
         }
 
+        // temporarywormhole.py CheckAction: with teams on the map and the player on none, the
+        // client refuses the ability itself. The server holds to it.
+        [TestMethod]
+        public void APersonalWaypointIsNotPutDownByAPlayerWithNoTeam()
+        {
+            using var f = new Fixture();
+            var red = f.Join(Battlegrounds.Red);
+            var watcher = f.Player();
+
+            Assert.AreEqual(PlayerMessage.PmCannotPerformActionNow, PersonalWaypoints.Refusal(watcher.Player));
+            Assert.IsNull(PersonalWaypoints.Refusal(red.Player));
+
+            // No teams, no rule.
+            watcher.Player.MapChannel = new MapChannel { MapInfo = new MapInfo(999, "elsewhere", 1, 0), ClientList = new List<Client>() };
+            Assert.IsNull(PersonalWaypoints.Refusal(watcher.Player));
+        }
+
         [TestMethod]
         public void NoSquadHoldsBothTeams()
         {

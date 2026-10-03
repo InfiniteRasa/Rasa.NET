@@ -359,6 +359,13 @@ namespace Rasa.Managers
                 return;
             }
 
+            // A Personal Waypoint, on a map with teams, by a player on none (PersonalWaypoints).
+            if (PersonalWaypoints.Is(action) && PersonalWaypoints.Refusal(player) is { } waypointRefusal)
+            {
+                Fail(client, actionId, level, waypointRefusal);
+                return;
+            }
+
             // The pet that is out, used again: it goes home, and nothing is performed.
             if (TryDismissPet(player, action, level))
             {
@@ -724,7 +731,7 @@ namespace Rasa.Managers
                 || action.Module == SpotterModule || action.Module == BotConstructionModule || action.Module == CreateCloneModule
                 || MorphSupportModules.Contains(action.Module)
                 || IsDirectDamage(action, info) || TimedEffectModules.Contains(action.Module)
-                || IsToy(action, info);
+                || IsToy(action, info) || PersonalWaypoints.Is(action);
         }
 
         /// <summary>
@@ -900,6 +907,13 @@ namespace Rasa.Managers
             if (IsToy(actionInfo, info))
             {
                 ResolveToy(mapChannel, client, player, actionInfo, info, action, toyCommit);
+                return;
+            }
+
+            if (PersonalWaypoints.Is(actionInfo))
+            {
+                PersonalWaypoints.Deploy(mapChannel, player, info.Level, info);
+                CellManager.Instance.CellCallMethod(mapChannel, player, new AbilityRecoveryPacket(action.ActionId, action.ActionArgId, AbilityRecoveryPacket.HitDataKind.None));
                 return;
             }
 

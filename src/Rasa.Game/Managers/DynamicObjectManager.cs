@@ -408,6 +408,9 @@ namespace Rasa.Managers
                 case DynamicObjectType.DropshipBeacon:
                     DropshipBeacons.Use(client, obj, packet);
                     break;
+                case DynamicObjectType.PersonalWaypoint:
+                    PersonalWaypoints.Use(client, obj, packet);
+                    break;
                 default:
                     Logger.WriteLog(LogType.Debug, $"ToDo: RequestUseObjectPacket: unsuported object type {obj.DynamicObjectType}");
                     break;
@@ -655,10 +658,13 @@ namespace Rasa.Managers
             }
             else
                 entityData.Add(new UsableInfoPacket(
-                    // A beacon's ship is in service for its deployer's squad alone (DropshipBeacons).
+                    // A beacon's ship is in service for its deployer's squad alone (DropshipBeacons),
+                    // and a Personal Waypoint for its owner, or their squad (PersonalWaypoints).
                     dynamicObject.DynamicObjectType == DynamicObjectType.DropshipBeacon
                         ? DropshipBeacons.ShowTo(client, dynamicObject)
-                        : dynamicObject.IsEnabled,
+                        : dynamicObject.DynamicObjectType == DynamicObjectType.PersonalWaypoint
+                            ? PersonalWaypoints.ShowTo(client, dynamicObject)
+                            : dynamicObject.IsEnabled,
                     dynamicObject.StateId, 0,
                     dynamicObject.WindupTime, dynamicObject.ActivateMission));
 
@@ -1599,7 +1605,9 @@ namespace Rasa.Managers
                     MapInstanceScope.Contains(origin, source) &&
                     (isDropship ? client.Player.IsNear5m(source) : client.Player.IsNear2m(source))) ||
                     // A Dropship Extraction Beacon's ship: one way out onto the network.
-                    isDropship && !isStartingExperienceExit && DropshipBeacons.IsNearUsable(client, origin);
+                    isDropship && !isStartingExperienceExit && DropshipBeacons.IsNearUsable(client, origin) ||
+                    // A Personal Waypoint: onto the map's waypoints.
+                    info.WaypointType == WaypointType.Waypoint && PersonalWaypoints.IsNearUsable(client, origin);
                 var destination = isDropship ? teleporter.Position : teleporter.Position + new Vector3(0, 1, 0);
                 if (!nearbySource || !CellManager.TryGetCellCoordinates(destination, out _, out _) ||
                     !double.IsFinite(teleporter.Rotation) || !float.IsFinite((float)teleporter.Rotation))
@@ -1621,45 +1629,105 @@ namespace Rasa.Managers
                     return;
                 }
 
-                var timeout = client.Server?.Config.GameConfig.TransferTimeoutSeconds ??
-                    Config.GameConfig.DefaultTransferTimeoutSeconds;
-                if (timeout <= 0)
+                BeginLocalTravel(client, origin, destination, teleporter.Rotation);
+            }
+        }
+
+        /// <summary>
+        /// The player is taken to a place on the map they are on, as a waypoint takes them: held
+        /// until the client has acknowledged the teleport (<see cref="TeleportAcknowledge"/>).
+        /// Called with the client's lock held, by SelectWaypoint and ReturnToWormhole.
+        /// </summary>
+        private void BeginLocalTravel(Client client, MapChannel map, Vector3 destination, double rotation)
+        {
+            var timeout = client.Server?.Config.GameConfig.TransferTimeoutSeconds ??
+                Config.GameConfig.DefaultTransferTimeoutSeconds;
+            if (timeout <= 0)
+            {
+                Logger.WriteLog(LogType.Error, "TransferTimeoutSeconds must be positive.");
+                RejectTravel(client, "Travel timeout configuration is invalid.");
+                return;
+            }
+
+            var transfer = new PlayerTransfer
+            {
+                OriginMap = map,
+                OriginPosition = client.Player.Position,
+                OriginRotation = client.Player.Rotation,
+                DestinationMap = map,
+                DestinationPosition = destination,
+                DestinationRotation = rotation,
+                Deadline = checked(_clock() + timeout * 1000L),
+                IsDropship = false
+            };
+            client.PendingTransfer = transfer;
+            client.CallMethod(SysEntity.ClientMethodId, new RequestMovementBlockPacket());
+
+            client.CellCallMethod(client, client.Player.EntityId, new PreTeleportPacket(TeleportType.Default));
+            client.State = ClientState.Teleporting;
+            client.SetWorldPosition(destination, rotation);
+            CellManager.Instance.UpdateVisibility(client);
+
+            // BeginTeleport before the Teleport, as the dropships send it. The client answers a
+            // Teleport with TeleportAcknowledge only if a BeginTeleport has queued the answer
+            // (actor.py BeginTeleport -> _TeleportAckQueue; Recv_Teleport -> _TeleportAck, which
+            // sends nothing with none queued). Sent the other way round the ack was queued
+            // after the one chance to send it had gone: the player played the teleport, stayed
+            // held by RequestMovementBlock with the transfer never completed, and was dropped
+            // when it timed out.
+            client.CallMethod(SysEntity.ClientMethodId, new BeginTeleportPacket());
+            client.CallMethod(client.Player.EntityId,
+                new TeleportPacket(destination, rotation, TeleportType.Default, 5));
+            client.CellMoveObject(client, new MoveObjectMessage(client.Player.EntityId, client.Movement), false);
+        }
+
+        /// <summary>
+        /// ReturnToWormhole: the player has picked a "Temp Wormhole" row of a waypoint window, and
+        /// goes to that Personal Waypoint (<see cref="PersonalWaypoints"/>). It has to be one they
+        /// may return to, on the map they are on, and they have to be where such a window opens:
+        /// at a waypoint of the map, or at another Personal Waypoint of theirs.
+        /// </summary>
+        internal void ReturnToWormhole(Client client, ulong wormholeId)
+        {
+            lock (client.SyncRoot)
+            {
+                if (client.PendingTransfer != null)
                 {
-                    Logger.WriteLog(LogType.Error, "TransferTimeoutSeconds must be positive.");
-                    RejectTravel(client, "Travel timeout configuration is invalid.");
+                    Logger.WriteLog(LogType.Network, "Ignored a wormhole selection during transfer.");
+                    return;
+                }
+                if (client.State != ClientState.Ingame || client.Player?.MapChannel == null || client.Player.Id == 0 ||
+                    client.Player.Disconected || client.Player.RemoveFromMap || client.Player.LogoutActive ||
+                    client.Player.State == CharacterState.Dead ||
+                    !CellManager.Instance.IsInWorld(client))
+                {
+                    RejectTravel(client, "Invalid wormhole or player state.");
                     return;
                 }
 
-                var transfer = new PlayerTransfer
+                var origin = client.Player.MapChannel;
+
+                if (!PersonalWaypoints.TryGetReturnPoint(client, origin, wormholeId, out var position, out var rotation))
                 {
-                    OriginMap = origin,
-                    OriginPosition = client.Player.Position,
-                    OriginRotation = client.Player.Rotation,
-                    DestinationMap = destinationMap,
-                    DestinationPosition = destination,
-                    DestinationRotation = teleporter.Rotation,
-                    Deadline = checked(_clock() + timeout * 1000L),
-                    IsDropship = false
-                };
-                client.PendingTransfer = transfer;
-                client.CallMethod(SysEntity.ClientMethodId, new RequestMovementBlockPacket());
+                    RejectTravel(client, "Wormhole is gone, or is not this player's to return to.");
+                    return;
+                }
 
-                client.CellCallMethod(client, client.Player.EntityId, new PreTeleportPacket(TeleportType.Default));
-                client.State = ClientState.Teleporting;
-                client.SetWorldPosition(destination, teleporter.Rotation);
-                CellManager.Instance.UpdateVisibility(client);
+                var nearbySource = origin.Teleporters.Values.Any(source =>
+                    source.ObjectData is WaypointInfo { WaypointType: WaypointType.Waypoint, Contested: false } &&
+                    MapInstanceScope.Contains(origin, source) && client.Player.IsNear2m(source)) ||
+                    PersonalWaypoints.IsNearUsable(client, origin, wormholeId);
 
-                // BeginTeleport before the Teleport, as the dropships send it. The client answers a
-                // Teleport with TeleportAcknowledge only if a BeginTeleport has queued the answer
-                // (actor.py BeginTeleport -> _TeleportAckQueue; Recv_Teleport -> _TeleportAck, which
-                // sends nothing with none queued). Sent the other way round the ack was queued
-                // after the one chance to send it had gone: the player played the teleport, stayed
-                // held by RequestMovementBlock with the transfer never completed, and was dropped
-                // when it timed out.
-                client.CallMethod(SysEntity.ClientMethodId, new BeginTeleportPacket());
-                client.CallMethod(client.Player.EntityId,
-                    new TeleportPacket(destination, teleporter.Rotation, TeleportType.Default, 5));
-                client.CellMoveObject(client, new MoveObjectMessage(client.Player.EntityId, client.Movement), false);
+                // A metre over where it stands, as over a waypoint's pad.
+                var destination = position + new Vector3(0, 1, 0);
+
+                if (!nearbySource || !CellManager.TryGetCellCoordinates(destination, out _, out _) || !double.IsFinite(rotation))
+                {
+                    RejectTravel(client, "No nearby departure station or invalid destination position.");
+                    return;
+                }
+
+                BeginLocalTravel(client, origin, destination, rotation);
             }
         }
 
@@ -2036,9 +2104,14 @@ namespace Rasa.Managers
 
                 var waypointInfoList = CreateListOfWaypoints(client, objectData.WaypointType);
 
+                // A waypoint's window lists the Personal Waypoints the player may return to.
+                var returnPoints = objectData.WaypointType == WaypointType.Waypoint
+                    ? PersonalWaypoints.ReturnPoints(client, mapChannel)
+                    : null;
+
                 client.CallMethod(SysEntity.ClientMethodId,
                     new EnteredWaypointPacket(mapChannel.MapInfo.MapContextId, obj.MapContextId,
-                        waypointInfoList, objectData.WaypointType, objectData.WaypointId));
+                        waypointInfoList, objectData.WaypointType, objectData.WaypointId, returnPoints));
 
                 // check if we already added him to the waypoint
             }

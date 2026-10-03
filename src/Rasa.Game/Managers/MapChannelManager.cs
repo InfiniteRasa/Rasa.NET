@@ -445,6 +445,9 @@ namespace Rasa.Managers
                         // Dropship beacons: settled, sent away, and the travel window for the squad in reach.
                         Guard("DropshipBeacons.Worker", mapChannel, () => DropshipBeacons.Worker(mapChannel));
 
+                        // Personal Waypoints: taken away in their time, and the waypoint window for whoever they are for.
+                        Guard("PersonalWaypoints.Worker", mapChannel, () => PersonalWaypoints.Worker(mapChannel));
+
                         // Scatterbombs: the spent bombs are taken away once their blasts have played.
                         Guard("AbilityManager.ScatterbombWorker", mapChannel, () => AbilityManager.Instance.ScatterbombWorker(mapChannel));
 

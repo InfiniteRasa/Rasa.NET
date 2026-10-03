@@ -723,6 +723,12 @@
             DynamicObjectManager.Instance.SelectWaypoint(Client, packet);
         }
 
+        [PacketHandler(GameOpcode.ReturnToWormhole)]
+        private void ReturnToWormhole(ReturnToWormholePacket packet)
+        {
+            DynamicObjectManager.Instance.ReturnToWormhole(Client, packet.WormholeId);
+        }
+
         [PacketHandler(GameOpcode.SetAutoLootThreshold)]
         private void SetAutoLootThreshold(SetAutoLootThresholdPacket packet)
         {
