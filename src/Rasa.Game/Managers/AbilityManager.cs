@@ -514,6 +514,15 @@ namespace Rasa.Managers
                 return;
             }
 
+            // Nor at a player in a duel, a squad wargame or a team's match from outside their
+            // side of it (Pvp.MayHelp). The client does not know the rule, so the server says no;
+            // what gets here some other way is stopped where it lands.
+            if (!wantsHostile && target is Manifestation closedTo && closedTo != player && !Pvp.MayHelp(player, closedTo))
+            {
+                Fail(client, actionId, level, PlayerMessage.PmTargetInvalid);
+                return;
+            }
+
             // Can they pay? Checked now so the refusal is immediate; taken when the ability
             // lands, so an interrupted windup costs nothing. A sustained ability has no price to
             // pay up front - its cost row is the same figure as its drain, and the drain is how it
@@ -1479,6 +1488,10 @@ namespace Rasa.Managers
                         continue;
 
                     if (other.PartyId != player.PartyId || other.State == CharacterState.Dead)
+                        continue;
+
+                    // In a duel of their own: their squad is outside it (Pvp.MayHelp).
+                    if (!Pvp.MayHelp(player, other))
                         continue;
 
                     if (!other.Attributes.TryGetValue(Attributes.Health, out var health) || health.Current <= 0)

@@ -59,6 +59,11 @@ namespace Rasa.Managers
     ///    (<see cref="Attack"/>). A damage-over-time tick is not an attack: it was started before.
     ///  - The healing modifier applies to a heal from a player on a player who has dealt or taken
     ///    PvP damage within the combat timeout (CombatRegen.CombatTimeoutMs).
+    ///  - WARGAME_BLOCK_INTERACTTIONS, which the client only names - it is in the flags of a duel,
+    ///    a squad wargame and a team's match, and not in a clan feud's - closes a wargame to
+    ///    outsiders: a player in one is healed, repaired, revived, buffed and traded with only
+    ///    by players on their own side of it (<see cref="MayHelp"/>). In a squad wargame that is
+    ///    their squad, in a match their team, and in a duel nobody but themselves.
     /// </summary>
     public static class Pvp
     {
@@ -261,6 +266,54 @@ namespace Rasa.Managers
 
         /// <summary>Whether the player is held from helping anyone else (Mind Control P4-P5, GameEffect.NoAssist).</summary>
         public static bool MayNotAssist(Actor actor) => actor != null && actor.ActiveEffects.Values.Any(e => e.NoAssist && !e.IsExpired);
+
+        /// <summary>
+        /// The wargames a player is in that are closed to outsiders, with their side of each: a
+        /// duel, a squad wargame, a team's match while it runs. Not a clan feud.
+        /// </summary>
+        public static Dictionary<uint, bool> ClosedWargamesOf(Manifestation player)
+        {
+            var data = Duels.Instance.WargameDataOf(player);
+
+            foreach (var war in SquadWargames.Instance.WargameDataOf(player))
+                data[war.Key] = war.Value;
+
+            foreach (var match in Battlegrounds.Instance.WargameDataOf(player))
+                data[match.Key] = match.Value;
+
+            return data;
+        }
+
+        /// <summary>
+        /// Whether one actor may help another - heal them, put their armour back, revive them,
+        /// buff them: always, unless the one helped is a player in a wargame closed to outsiders
+        /// (<see cref="ClosedWargamesOf"/>) and the helper is another player who is not on their
+        /// side of it. A creature that belongs to a player counts as its master, either way round;
+        /// one that belongs to nobody - an NPC, the world - may always help.
+        /// </summary>
+        public static bool MayHelp(Actor helper, Actor helped)
+        {
+            var target = Controller(helped);
+            var source = Controller(helper);
+
+            if (target == null || source == null || ReferenceEquals(source, target))
+                return true;
+
+            var closed = ClosedWargamesOf(target);
+
+            if (closed.Count == 0)
+                return true;
+
+            var theirs = ClosedWargamesOf(source);
+
+            return closed.All(w => theirs.TryGetValue(w.Key, out var side) && side == w.Value);
+        }
+
+        /// <summary>Whether two players may trade: neither is in a wargame closed to the other.</summary>
+        public static bool MayTrade(Manifestation one, Manifestation other)
+        {
+            return MayHelp(one, other) && MayHelp(other, one);
+        }
 
         /// <summary>Whether a player brought to zero by this source is defeated: an enemy player's doing, or their creature's.</summary>
         public static bool Defeats(Actor source, Manifestation victim)

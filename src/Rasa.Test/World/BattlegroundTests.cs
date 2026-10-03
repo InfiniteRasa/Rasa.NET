@@ -822,6 +822,38 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
+        public void AMatchIsClosedToEveryoneButAPlayersOwnTeam()
+        {
+            using var f = new Fixture();
+            var red = f.Join(Battlegrounds.Red);
+            var mate = f.Join(Battlegrounds.Red);
+            var blue = f.Join(Battlegrounds.Blue);
+            var onlooker = f.Player();
+
+            Assert.IsTrue(Pvp.MayHelp(onlooker.Player, red.Player), "until the match runs anyone may");
+            Assert.IsTrue(Pvp.MayHelp(blue.Player, red.Player));
+
+            f.Begin();
+
+            Assert.IsTrue(Pvp.MayHelp(mate.Player, red.Player), "their team");
+            Assert.IsFalse(Pvp.MayHelp(blue.Player, red.Player), "the other team");
+            Assert.IsFalse(Pvp.MayHelp(onlooker.Player, red.Player), "on no team");
+            Assert.IsTrue(Pvp.MayTrade(red.Player, mate.Player));
+            Assert.IsFalse(Pvp.MayTrade(red.Player, onlooker.Player));
+
+            red.Player.Attributes[Attributes.Health] = new ActorAttributes(Attributes.Health, 1000, 1000, 400, 0, 0);
+
+            Assert.AreEqual(0, ActorManager.Instance.Heal(red.Player, 200, onlooker.Player.EntityId));
+            Assert.AreEqual(200, ActorManager.Instance.Heal(red.Player, 200, mate.Player.EntityId));
+
+            // Dead in the match: revived by their team, and by nobody else.
+            red.Player.State = CharacterState.Dead;
+            Assert.IsFalse(PlayerDeath.OfferRevive(f.World.Map, onlooker.Player, red.Player, 100));
+            Assert.IsTrue(PlayerDeath.OfferRevive(f.World.Map, mate.Player, red.Player, 100));
+            red.Player.State = CharacterState.Idle;
+        }
+
+        [TestMethod]
         public void AUseOfAPointsObjectThatRunsItsTimeTakesThePoint()
         {
             using var f = new Fixture();

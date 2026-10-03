@@ -426,11 +426,13 @@ namespace Rasa.Managers
         /// <summary>
         /// Offers a dead player a revive from reviver, bringing them back with health: the
         /// client's revive window, for REVIVE_REQUEST_DURATION. False when there is nobody to
-        /// offer it to - alive, gone, or an enemy of the reviver.
+        /// offer it to - alive, gone, an enemy of the reviver, or in a wargame closed to the
+        /// reviver (Pvp.MayHelp).
         /// </summary>
         public static bool OfferRevive(MapChannel mapChannel, Manifestation reviver, Manifestation dead, int health)
         {
-            if (reviver == null || dead == null || dead.State != CharacterState.Dead || Pvp.AreEnemies(reviver, dead))
+            if (reviver == null || dead == null || dead.State != CharacterState.Dead || Pvp.AreEnemies(reviver, dead)
+                || !Pvp.MayHelp(reviver, dead))
                 return false;
 
             var client = ClientOf(mapChannel, dead);

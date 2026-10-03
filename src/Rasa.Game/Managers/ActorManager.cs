@@ -231,6 +231,12 @@ namespace Rasa.Managers
                 && EntityManager.Instance.Actors.TryGetValue(sourceEntityId, out var healer) && Pvp.MayNotAssist(healer))
                 return 0;
 
+            // A player in a duel, a squad wargame or a team's match is healed by their own side of
+            // it and nobody else (Pvp.MayHelp).
+            if (sourceEntityId != 0 && sourceEntityId != target.EntityId
+                && EntityManager.Instance.Actors.TryGetValue(sourceEntityId, out var outsider) && !Pvp.MayHelp(outsider, target))
+                return 0;
+
             // A player's heal on a player in a fight with another player: PVP_HEALING_MODIFIER of it (Pvp).
             if (sourceEntityId != 0 && target is Manifestation)
                 amount = Pvp.ScaleHealing(target, EntityManager.Instance.GetActor(sourceEntityId), amount);
@@ -521,6 +527,11 @@ namespace Rasa.Managers
                 return 0;
 
             if (target.State == CharacterState.Dead)
+                return 0;
+
+            // As with healing: nobody outside their side of a closed wargame (Pvp.MayHelp).
+            if (sourceEntityId != 0 && sourceEntityId != target.EntityId
+                && EntityManager.Instance.Actors.TryGetValue(sourceEntityId, out var outsider) && !Pvp.MayHelp(outsider, target))
                 return 0;
 
             var applied = Math.Min(amount, armor.CurrentMax - armor.Current);

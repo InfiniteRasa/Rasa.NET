@@ -127,6 +127,11 @@ namespace Rasa.Managers
             if (effect.IsBuff && effect.Source is Manifestation helper && !ReferenceEquals(helper, actor) && Pvp.MayNotAssist(helper))
                 return;
 
+            // Nor does a buff from anyone outside their side go on a player in a duel, a squad
+            // wargame or a team's match (Pvp.MayHelp).
+            if (effect.IsBuff && effect.Source != null && !Pvp.MayHelp(effect.Source, actor))
+                return;
+
             // Nor does a debuff from a player on one who holds PvP Safety, or from a player an
             // enemy's Traitor holds back from that side (Pvp.Shielded). Putting one on an enemy
             // player ends the attacker's own Safety (Pvp.Attack).

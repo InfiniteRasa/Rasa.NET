@@ -843,6 +843,11 @@ namespace Rasa.Managers
             if (!InToolReach(client, targetActor, packet.ActionId))
                 return PlayerMessage.PmTargetOutOfRange;
 
+            // A player in a duel, a squad wargame or a team's match takes a heal, a repair or a
+            // recharge from their own side of it and nobody else (Pvp.MayHelp).
+            if (IsRestoringTool(packet.ActionId) && !Pvp.MayHelp(client.Player, targetActor))
+                return PlayerMessage.PmTargetInvalid;
+
             // repairtool.py refuses a dead player outright; healdisc.py allows a corpse only at
             // Healing 3 or better. ToDo: repairtool also refuses dead BIOLOGICAL creatures, which
             // needs creature flags.
