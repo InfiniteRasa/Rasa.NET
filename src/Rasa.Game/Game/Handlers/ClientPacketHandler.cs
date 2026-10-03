@@ -384,6 +384,12 @@
             AuctionHouseManager.Instance.RequestCreateAuction(Client, packet);
         }
 
+        [PacketHandler(GameOpcode.RequestControlPointStatus)]
+        private void RequestControlPointStatus(RequestControlPointStatusPacket packet)
+        {
+            Battlegrounds.Instance.RequestControlPointStatus(Client);
+        }
+
         [PacketHandler(GameOpcode.RequestCustomization)]
         private void RequestCustomization(RequestCustomizationPacket packet)
         {

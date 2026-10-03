@@ -25,6 +25,7 @@ namespace Rasa.Test.World
     using Rasa.Packets;
     using Rasa.Packets.ClientMethod.Server;
     using Rasa.Packets.Communicator.Server;
+    using Rasa.Packets.MapChannel.Client;
     using Rasa.Packets.MapChannel.Server;
     using Rasa.Packets.Protocol;
     using Rasa.Packets.Team.Server;
@@ -1454,6 +1455,99 @@ namespace Rasa.Test.World
                 Assert.AreEqual(6, reader.ReadInt(), "FACTION_OWNED, as before");
                 Assert.IsTrue(reader.ReadBool());
             }
+        }
+
+        [TestMethod]
+        public void TheControlPointStatusAskedForIsTheMatchsPointsWithTheirHoldersAndItsPhase()
+        {
+            using var f = new Fixture();
+            var red = f.Join(Battlegrounds.Red);
+            var blue = f.Join(Battlegrounds.Blue);
+
+            // The request is one the server has a packet and a handler for: unhandled, it closed the connection.
+            Assert.AreEqual(typeof(RequestControlPointStatusPacket), Client.GetPacketType(GameOpcode.RequestControlPointStatus));
+
+            List<ControlPointStatus> Ask(Client client)
+            {
+                Drain(client);
+                f.Grounds.RequestControlPointStatus(client);
+
+                var message = WorldTestContext.Drain(client).Select(packet => packet.Message).OfType<CallMethodMessage>().Single();
+
+                Assert.AreEqual((ulong)SysEntity.ClientControlPointManagerId, message.EntityId, "on the client's control point manager");
+
+                return ((ControlPointStatusPacket)message.Packet).StatusList;
+            }
+
+            // Waiting, nobody holding anything: the three points by the client's ids.
+            var waiting = Ask(red);
+
+            CollectionAssert.AreEqual(new uint[] { 10, 11, 12 }, waiting.Select(s => s.ControlPointId).ToArray());
+            Assert.IsTrue(waiting.All(s => s.OwnerId == null && s.StateId == ControlPointStatus.StateNew && s.EndTime == 0));
+
+            f.Tick(1000);
+            Assert.AreEqual(Battlegrounds.Phase.Preparing, f.Match.Phase);
+            Assert.IsTrue(Ask(red).All(s => s.StateId == ControlPointStatus.StatePreWar));
+
+            f.Begin();
+            f.Grounds.SetOwner(f.Match, f.Point(Whiskey), Battlegrounds.Blue);
+            f.Grounds.SetOwner(f.Match, f.Point(Echo), Battlegrounds.Red);
+
+            var running = Ask(blue).ToDictionary(s => s.ControlPointId);
+
+            Assert.IsTrue(running.Values.All(s => s.StateId == ControlPointStatus.StateWar));
+            Assert.AreEqual((ulong)Battlegrounds.Blue, running[12].OwnerId, "Whiskey");
+            Assert.IsNull(running[10].OwnerId, "Charlie");
+            Assert.AreEqual((ulong)Battlegrounds.Red, running[11].OwnerId, "Echo");
+
+            // A player with no team on the map is told the same; one on no battleground, nothing.
+            Assert.AreEqual(3, Ask(f.Player()).Count);
+
+            using var elsewhere = new WorldTestContext();
+            Assert.AreEqual(0, Ask(elsewhere.CreateClient()).Count);
+        }
+
+        [TestMethod]
+        public void TheControlPointStatusListIsWrittenAsTheClientUnpacksIt()
+        {
+            // Recv_ControlPointStatus(statusList); each entry (controlPointId, ownerId, stateId,
+            // endTime), which the client checks by type: int, long or None, int, int.
+            var packet = new ControlPointStatusPacket(new List<ControlPointStatus>
+            {
+                new ControlPointStatus(12, Battlegrounds.Blue, ControlPointStatus.StateWar, 0),
+                new ControlPointStatus(10, null, ControlPointStatus.StateWar, 0)
+            });
+
+            Assert.AreEqual(814, (int)packet.Opcode);
+
+            Read(packet, reader =>
+            {
+                Assert.AreEqual(1, reader.ReadTuple());
+                Assert.AreEqual(2, reader.ReadList());
+
+                Assert.AreEqual(4, reader.ReadTuple());
+                Assert.AreEqual(12, reader.ReadInt());
+                Assert.AreEqual(PythonType.Long, reader.PeekType(), "a long, not an int");
+                Assert.AreEqual(2UL, reader.ReadULong());
+                Assert.AreEqual(2, reader.ReadInt());
+                Assert.AreEqual(PythonType.Int, reader.PeekType());
+                Assert.AreEqual(0, reader.ReadInt());
+
+                var second = new ControlPointStatus();
+                second.Read(reader);
+
+                Assert.AreEqual(10u, second.ControlPointId);
+                Assert.IsNull(second.OwnerId, "None for nobody");
+                Assert.AreEqual(ControlPointStatus.StateWar, second.StateId);
+                Assert.AreEqual(0u, second.EndTime);
+            });
+
+            // Nothing to tell: an empty list, which the client walks and posts its event for.
+            Read(new ControlPointStatusPacket(null), reader =>
+            {
+                Assert.AreEqual(1, reader.ReadTuple());
+                Assert.AreEqual(0, reader.ReadList());
+            });
         }
 
         #endregion

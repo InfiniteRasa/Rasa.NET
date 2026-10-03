@@ -1791,6 +1791,48 @@ namespace Rasa.Managers
             return (int)Math.Max(0, (match.PhaseEnds - Now() + 999) / 1000);
         }
 
+        /// <summary>
+        /// RequestControlPointStatus: the control points of the match on the player's channel that
+        /// the client has an id for, as Recv_ControlPointStatus takes them. Anywhere else the list
+        /// is empty: the client's control point table (controlpointdata) has the battlegrounds'
+        /// points and no others.
+        /// </summary>
+        public void RequestControlPointStatus(Client client)
+        {
+            if (client == null)
+                return;
+
+            client.CallMethod(SysEntity.ClientControlPointManagerId, new ControlPointStatusPacket(PointStatus(client.Player?.MapChannel)));
+        }
+
+        /// <summary>
+        /// The status of each of a channel's match points: the team that holds it (none for
+        /// nobody), and the match's phase as the client's control point states - waiting is
+        /// kCPState_New, the preparation kCPState_PreWar, the match kCPState_War. The end time is
+        /// 0: the client would hold it against its own clock (gameclient.Time()), which the server
+        /// does not have; every timer it does show is sent as time remaining
+        /// (ScoreBoardGameScore).
+        /// </summary>
+        public List<ControlPointStatus> PointStatus(MapChannel map)
+        {
+            var list = new List<ControlPointStatus>();
+
+            if (map == null || !_matches.TryGetValue(map, out var match))
+                return list;
+
+            var state = match.Phase switch
+            {
+                Phase.Preparing => ControlPointStatus.StatePreWar,
+                Phase.Running => ControlPointStatus.StateWar,
+                _ => ControlPointStatus.StateNew
+            };
+
+            foreach (var point in match.Points.Where(p => p.ClientId != 0).OrderBy(p => p.ClientId))
+                list.Add(new ControlPointStatus(point.ClientId, point.Owner == 0 ? (ulong?)null : point.Owner, state, 0));
+
+            return list;
+        }
+
         private ScoreBoardGameScorePacket GameScore(Match match)
         {
             return new ScoreBoardGameScorePacket(SecondsLeft(match),
