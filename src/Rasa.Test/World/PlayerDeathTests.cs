@@ -105,6 +105,53 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
+        public void AHospitalIsGainedUnderAWaypointIdTheClientHasANameFor()
+        {
+            Assert.AreEqual(103u, HospitalGraveyards.GainedAs(103), "the client's own id");
+            Assert.AreEqual(500u, HospitalGraveyards.GainedAs(598), "the Bootcamp hospital: Refugee Base Medic");
+            Assert.AreEqual(176u, HospitalGraveyards.GainedAs(592), "Temple of the Proud Patriarch");
+            Assert.AreEqual(HospitalGraveyards.GenericWaypoint, HospitalGraveyards.GainedAs(602), "no name anywhere");
+            Assert.AreEqual(HospitalGraveyards.GenericWaypoint, HospitalGraveyards.GainedAs(9001));
+            Assert.AreEqual(10000005u, HospitalGraveyards.GainedAs(10000005), "the client's test ids");
+            Assert.IsTrue(HospitalGraveyards.ClientNames(HospitalGraveyards.GenericWaypoint));
+
+            using var world = new WorldTestContext();
+            var client = Player(world, 0, 395);
+            var saved = new List<CharacterTeleporterEntry>();
+            Hospitals.Persist = (c, entry) => saved.Add(entry);
+
+            Hospitals.Worker(world.Map);
+
+            Assert.IsTrue(Hospitals.Knows(client.Player, 9001));
+            Assert.AreEqual(9001u, saved.Single().WaypointId, "kept under its own id");
+            Assert.AreEqual(HospitalGraveyards.GenericWaypoint, MissionTestContext.Drain(client).OfType<GraveyardGainedPacket>().Single().WaypointId);
+        }
+
+        [TestMethod]
+        public void TheNamesHospitalsAreGainedUnderAreTheClientsAndTheHospitalsAreOurs()
+        {
+            var rows = new TeleporterRows().All().ToDictionary(r => Convert.ToUInt32(r[0]));
+
+            foreach (var name in HospitalGraveyards.WaypointNames)
+            {
+                Assert.IsTrue(rows.ContainsKey(name.Key), $"{name.Key} is a teleporter");
+                Assert.AreEqual((int)WaypointType.Hospital, Convert.ToInt32(rows[name.Key][2]), $"{name.Key} is a hospital");
+                Assert.IsFalse(HospitalGraveyards.ClientNames(name.Key), $"{name.Key} has no name of its own");
+                Assert.IsTrue(rows.ContainsKey(name.Value), $"{name.Value} is a waypoint id");
+                Assert.IsTrue(HospitalGraveyards.ClientNames(name.Value), $"{name.Value} has a name");
+            }
+
+            // Every hospital there is goes out under an id the client names.
+            foreach (var row in rows.Values.Where(r => Convert.ToInt32(r[2]) == (int)WaypointType.Hospital))
+                Assert.IsTrue(HospitalGraveyards.ClientNames(HospitalGraveyards.GainedAs(Convert.ToUInt32(row[0]))), $"hospital {row[0]}");
+        }
+
+        private sealed class TeleporterRows : Rasa.Services.Preloader.TeleporterPreloader
+        {
+            public IEnumerable<object[]> All() => GetRows();
+        }
+
+        [TestMethod]
         public void TheHospitalsOfferedAreTheGainedAndTheFreeOrElseTheNearest()
         {
             using var world = new WorldTestContext();

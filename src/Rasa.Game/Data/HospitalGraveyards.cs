@@ -169,5 +169,61 @@ namespace Rasa.Data
         /// "Medical Station" and "Field Medic".
         /// </summary>
         public static readonly uint[] GenericIds = { 36, 42, 52, 95, 111, 132, 142, 195, 215, 236, 53, 97, 237, 112, 178, 100 };
+
+        /// <summary>
+        /// The last waypoint id the client has a name for (waypointlanguage), short of its test
+        /// ids from <see cref="FirstClientTestWaypoint"/>. The teleporter rows after it are ours:
+        /// the client prints "ERROR- 23- Missing translation for waypointlanguage ID 598" in
+        /// place of the name of one of those.
+        /// </summary>
+        public const uint LastClientWaypoint = 533;
+
+        public const uint FirstClientTestWaypoint = 10000000;
+
+        /// <summary>"AFS Field Medic" in waypointlanguage: what a hospital the client has no name for is gained as.</summary>
+        public const uint GenericWaypoint = 120;
+
+        /// <summary>
+        /// Hospitals placed under an id of ours whose name the client has under one of its own:
+        /// teleporter id to the waypointlanguage id of that name. The client's id is a row of the
+        /// teleporter table with a name and no place ("Refugee Base Medic", 500), or the same
+        /// hospital on another map ("Plains Post Medical Tent", 145). Matched by the name the
+        /// hospital window gives it (<see cref="ByTeleporter"/>, graveyardlanguage), which is the
+        /// same name in each case but the last, where the camp's waypoint is the nearest there is.
+        /// </summary>
+        public static readonly Dictionary<uint, uint> WaypointNames = new Dictionary<uint, uint>
+        {
+            [581] = 385,        // Hospital: MARSHES_BSD_HOSPITAL_SURVIVORS: Survivor's Camp
+            [590] = 145,        // Hospital: INCLINE_HOSPITAL_PLAINS_POST: Plains Post Medical Tent
+            [592] = 176,        // Hospital: PALISADES_ELOHTEMPLES_HOSPITAL_01: Temple of the Proud Patriarch
+            [593] = 342,        // Hospital: PALISADES_ELOHTEMPLES_HOSPITAL_02: Temple of the Raging Patriarch
+            [594] = 175,        // Hospital: PALISADES_ELOHTEMPLES_HOSPITAL_03: Temple of the Bowed Patriarch
+            [596] = 486,        // Hospital: MAGMA_PENUMBRA_HOSPITAL: Field Medic: Penumbra Landing Zone
+            [598] = 500,        // Hospital: BOOTCAMP_REFUGEE_HOSPITAL: Refugee Base Medic
+            [601] = 171,        // Hospital: ELOH_VALE_HOSPITAL_PYRAMID: Hospital: Forean Pyramid
+            [609] = 274,        // Hospital: CUTHAH_HOSPITAL_RATNEST: Cuthah Base Entrance Field Medic
+            [610] = 272,        // Hospital: CUTHAH_HOSPITAL_TOP: AFS Field Medic
+            [611] = 407,        // Hospital: HOWLINGMAWOP_CUTHAH_SUBLEVELMEDIC: Sublevel Medic Station
+            [599] = 192,        // Hospital: CRUCIBLE_HOSPITAL_AWOLCAMP: Awol Camp (the hospital window: Awol Camp Hospital)
+        };
+
+        /// <summary>Whether the client has a name for this waypoint id.</summary>
+        public static bool ClientNames(uint waypointId)
+        {
+            return waypointId <= LastClientWaypoint || waypointId >= FirstClientTestWaypoint;
+        }
+
+        /// <summary>
+        /// The waypoint id GraveyardGained names a hospital by: its own where the client has a
+        /// name for it, the id its name is under (<see cref="WaypointNames"/>), or else
+        /// <see cref="GenericWaypoint"/>.
+        /// </summary>
+        public static uint GainedAs(uint teleporterId)
+        {
+            if (WaypointNames.TryGetValue(teleporterId, out var named))
+                return named;
+
+            return ClientNames(teleporterId) ? teleporterId : GenericWaypoint;
+        }
     }
 }

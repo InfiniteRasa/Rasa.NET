@@ -18,7 +18,10 @@ namespace Rasa.Managers
     /// A hospital is gained by walking up to it (within <see cref="DiscoveryRadius"/>), as a
     /// waypoint is: kept with the character's waypoints (character_teleporter, type 5), and
     /// announced with GraveyardGained, "You just gained ... Hospital." The client has no trigger
-    /// of its own for it; the server watches the players on each map.
+    /// of its own for it; the server watches the players on each map. The announcement names the
+    /// hospital by a waypoint id, and the client has no name for the ids of the rows added to the
+    /// teleporter table since: those are announced by the id the client keeps the name under, or
+    /// as "AFS Field Medic" (HospitalGraveyards.GainedAs).
     ///
     /// A player who dies is offered the hospitals they have gained on that map, and the free ones:
     /// a hospital the map screen marks as a safe zone (Map_SafeZone, isSafe), and a base's
@@ -246,7 +249,8 @@ namespace Rasa.Managers
                 Logger.WriteLog(LogType.Error, $"Hospital {hospital.TeleporterId} for {player.FamilyName} was not saved: {e.Message}");
             }
 
-            client.CallMethod(player.EntityId, new GraveyardGainedPacket(hospital.TeleporterId));
+            // Named by a waypoint id the client has a name for: its own is not always one.
+            client.CallMethod(player.EntityId, new GraveyardGainedPacket(HospitalGraveyards.GainedAs(hospital.TeleporterId)));
             MapMarkerManager.Instance.WaypointDiscovered(client, hospital.TeleporterId);
 
             return true;
