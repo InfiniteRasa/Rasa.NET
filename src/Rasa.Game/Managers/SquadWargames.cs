@@ -8,6 +8,7 @@ namespace Rasa.Managers
     using Game;
     using Packets.Wargame.Server;
     using Structures;
+    using Structures.Char;
 
     /// <summary>
     /// Squad Wargames: one squad leader challenges another, the other accepts, and the two squads
@@ -47,7 +48,9 @@ namespace Rasa.Managers
     ///    surrendered by its new leader;
     ///  - a squad wargame is for <see cref="DefaultMaxKills"/> kills by a side unless another number
     ///    was asked for, and the duel's limits, lapse and times apply (Duels); when the time is up
-    ///    the side with more kills wins and equal is a tie. Nothing is saved.
+    ///    the side with more kills wins and equal is a tie. A wargame under way is not saved;
+    ///    one that has ended is put on record (PvpRecords): who won, how, the two squads'
+    ///    kills, and everyone who started it with their kills and deaths, those who left it too.
     /// </summary>
     public class SquadWargames
     {
@@ -103,6 +106,12 @@ namespace Rasa.Managers
             public long EndTick { get; set; }
             public int MaxKills { get; set; }
 
+            /// <summary>For its record: when it began (UTC), where, and everyone who began it with what they have done since.</summary>
+            public DateTime StartedAt { get; set; }
+            public uint MapContextId { get; set; }
+            public uint InstanceId { get; set; }
+            public Dictionary<uint, PvpMatchPlayerEntry> Scores { get; } = new Dictionary<uint, PvpMatchPlayerEntry>();
+
             public bool Involves(Client client) => Challenger.Has(client) || Target.Has(client);
             public bool Involves(uint partyId) => partyId != 0 && (Challenger.PartyId == partyId || Target.PartyId == partyId);
             public Side SideOf(Client client) => Challenger.Has(client) ? Challenger : Target.Has(client) ? Target : null;
@@ -113,6 +122,9 @@ namespace Rasa.Managers
         private readonly object _sync = new object();
         private readonly List<Challenge> _challenges = new List<Challenge>();
         private readonly List<War> _wars = new List<War>();
+
+        /// <summary>Where the record of each wargame that ends is kept; one with no store keeps nothing.</summary>
+        public PvpRecords Records { get; set; } = PvpRecords.Instance;
 
         /// <summary>The clock squad wargames run on: the duels' own.</summary>
         private static long Now() => Duels.Instance.Now();
@@ -364,7 +376,7 @@ namespace Rasa.Managers
             }
 
             Logger.WriteLog(LogType.Debug, $"Squad wargame {war.WargameId}: {client.Player?.FamilyName} surrendered for their squad.");
-            End(war, war.Other(side));
+            End(war, war.Other(side), "surrender");
             return true;
         }
 
@@ -382,6 +394,18 @@ namespace Rasa.Managers
                 EndTick = Now() + challenge.Minutes * 60_000L,
                 MaxKills = challenge.MaxKills
             };
+
+            // For the record: when and where, and who began it on which side.
+            var map = acceptedBy?.Player?.MapChannel;
+
+            war.StartedAt = (Records ?? PvpRecords.Instance).UtcNow();
+            war.MapContextId = map?.MapInfo?.MapContextId ?? 0;
+            war.InstanceId = map?.InstanceId ?? 0;
+
+            foreach (var (side, number) in new[] { (war.Challenger, (byte)1), (war.Target, (byte)2) })
+                foreach (var member in side.Members)
+                    if (member?.Player != null)
+                        war.Scores[member.Player.Id] = PvpRecords.PlayerOf(member.Player, number);
 
             lock (_sync)
                 _wars.Add(war);
@@ -430,6 +454,12 @@ namespace Rasa.Managers
                 killers = war.SideOf(killer);
                 kills = ++killers.Kills;
                 against = war.Other(killers).Kills;
+
+                if (killer.Player != null && war.Scores.TryGetValue(killer.Player.Id, out var killerScore))
+                    killerScore.Kills++;
+
+                if (victim.Player != null && war.Scores.TryGetValue(victim.Player.Id, out var victimScore))
+                    victimScore.Deaths++;
             }
 
             var killerId = UserId(killer);
@@ -442,7 +472,7 @@ namespace Rasa.Managers
                 member.CallMethod(SysEntity.ClientWargameManagerId, new WargameScoreboardPacket(war.WargameId, against, kills, victimId, killerId));
 
             if (kills >= war.MaxKills)
-                End(war, killers);
+                End(war, killers, "kills");
 
             return true;
         }
@@ -450,8 +480,9 @@ namespace Rasa.Managers
         /// <summary>
         /// Ends a squad wargame: the winning side is told Victory and the other Defeat, or both a
         /// tie for no winner, and everyone is out of it for everyone around.
+        /// <paramref name="reason"/> is for its record: kills, time, surrender, forfeit.
         /// </summary>
-        public void End(War war, Side winner)
+        public void End(War war, Side winner, string reason = null)
         {
             if (war == null)
                 return;
@@ -461,6 +492,24 @@ namespace Rasa.Managers
                     return;
 
             Logger.WriteLog(LogType.Debug, $"Squad wargame {war.WargameId} ended: {(winner == null ? "a tie" : $"{winner.LeaderName}'s squad won")}, {war.Challenger.Kills} : {war.Target.Kills}.");
+
+            Records?.Record(new PvpMatchEntry
+            {
+                Kind = (byte)PvpMatchKind.SquadWargame,
+                WargameId = war.WargameId,
+                MapContextId = war.MapContextId,
+                InstanceId = war.InstanceId,
+                StartedAt = war.StartedAt,
+                Outcome = (byte)(winner == null ? PvpMatchOutcome.Tied : PvpMatchOutcome.Won),
+                WinnerSide = winner == null ? (byte)0 : winner == war.Challenger ? (byte)1 : (byte)2,
+                Reason = reason ?? "",
+                Side1Name = war.Challenger.LeaderName ?? "",
+                Side1Score = war.Challenger.Kills,
+                Side1Kills = war.Challenger.Kills,
+                Side2Name = war.Target.LeaderName ?? "",
+                Side2Score = war.Target.Kills,
+                Side2Kills = war.Target.Kills
+            }, war.Scores.Values);
 
             foreach (var side in new[] { war.Challenger, war.Target })
                 foreach (var member in side.Members)
@@ -498,7 +547,7 @@ namespace Rasa.Managers
 
             foreach (var war in due)
                 End(war, war.Challenger.Kills == war.Target.Kills ? null
-                    : war.Challenger.Kills > war.Target.Kills ? war.Challenger : war.Target);
+                    : war.Challenger.Kills > war.Target.Kills ? war.Challenger : war.Target, "time");
         }
 
         /// <summary>A player leaving the map or the world (ManifestationManager.RemovePlayerCharacter).</summary>
@@ -541,6 +590,10 @@ namespace Rasa.Managers
                 {
                     war.SideOf(client).Members.Remove(client);
                     wars.Add(war);
+
+                    // Still on its record, as one who did not see it out.
+                    if (client.Player != null && war.Scores.TryGetValue(client.Player.Id, out var score))
+                        score.PresentAtEnd = false;
                 }
             }
 
@@ -571,9 +624,9 @@ namespace Rasa.Managers
                     Say(member, PlayerMessage.PmWargamePlayerLeft, ("player", client.Player?.FamilyName ?? ""));
 
                 if (war.Challenger.Members.Count == 0)
-                    End(war, war.Target);
+                    End(war, war.Target, "forfeit");
                 else if (war.Target.Members.Count == 0)
-                    End(war, war.Challenger);
+                    End(war, war.Challenger, "forfeit");
             }
         }
 

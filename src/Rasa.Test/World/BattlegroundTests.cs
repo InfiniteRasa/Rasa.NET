@@ -1231,6 +1231,112 @@ namespace Rasa.Test.World
 
         #endregion
 
+        #region The record
+
+        [TestMethod]
+        public void AMatchThatEndsIsPutOnRecord()
+        {
+            using var f = new Fixture();
+            var noon = new DateTime(2026, 10, 2, 12, 0, 0, DateTimeKind.Utc);
+            var utc = noon;
+            var store = new MemoryPvpStore();
+            var records = new PvpRecords { UtcNow = () => utc };
+
+            records.Load(store);
+            f.Grounds.Records = records;
+
+            var red = f.Join(Battlegrounds.Red);
+            var mate = f.Join(Battlegrounds.Red);
+            var blue = f.Join(Battlegrounds.Blue);
+            var deserter = f.Join(Battlegrounds.Blue);
+
+            red.Player.ClanId = 31;
+            f.Garrison[Whiskey] = ControlPoints.Garrison.Down;
+            f.Begin();
+            f.Tick(1000);
+
+            var wargameId = f.Match.WargameId;
+
+            f.Grounds.Kill(red, blue);
+            f.Grounds.Kill(red, blue);
+            f.Grounds.Kill(blue, mate);
+            Assert.IsTrue(f.Grounds.Captured(red, f.Point(Whiskey)));
+            f.Grounds.SetOwner(f.Match, f.Point(Echo), Battlegrounds.Blue);
+            f.Grounds.PlayerLeft(deserter);
+
+            Assert.AreEqual(0, store.Matches.Count, "nothing is written until it is over");
+
+            utc = noon.AddMinutes(12);
+            f.Grounds.End(f.Match, Battlegrounds.Red, "points");
+
+            var match = store.Matches.Single();
+
+            Assert.AreEqual((byte)PvpMatchKind.Battleground, match.Kind);
+            Assert.AreEqual(wargameId, match.WargameId);
+            Assert.AreEqual(MapId, match.MapContextId);
+            Assert.AreEqual(f.World.Map.InstanceId, match.InstanceId);
+            Assert.AreEqual(noon, match.StartedAt);
+            Assert.AreEqual(noon.AddMinutes(12), match.EndedAt);
+            Assert.AreEqual((byte)PvpMatchOutcome.Won, match.Outcome);
+            Assert.AreEqual((byte)1, match.WinnerSide, "Red Team is side 1");
+            Assert.AreEqual("points", match.Reason);
+            Assert.AreEqual("Red Team", match.Side1Name);
+            Assert.AreEqual("Blue Team", match.Side2Name);
+            Assert.AreEqual((1, 1), (match.Side1Score, match.Side2Score), "the points each held when it ended, not after the field was reset");
+            Assert.AreEqual((2, 1), (match.Side1Kills, match.Side2Kills));
+
+            Assert.AreEqual(4, store.Rows[match.Id].Count);
+
+            var scorer = store.Row(match.Id, red.Player.Id);
+
+            Assert.AreEqual((byte)1, scorer.Side);
+            Assert.AreEqual(red.Player.Name, scorer.Name);
+            Assert.AreEqual("Fixture", scorer.FamilyName);
+            Assert.AreEqual(31u, scorer.ClanId);
+            Assert.AreEqual((2, 0), (scorer.Kills, scorer.Deaths));
+            Assert.AreEqual(1, scorer.Captures);
+            Assert.IsTrue(scorer.Prestige >= 50, "the capture's at least");
+            Assert.AreEqual(f.Prestige[red], scorer.Prestige, "what the match gave them: its kills and its capture, and nothing for a win before the minimum time");
+            Assert.IsTrue(scorer.PresentAtEnd);
+
+            Assert.AreEqual((0, 1), (store.Row(match.Id, mate.Player.Id).Kills, store.Row(match.Id, mate.Player.Id).Deaths));
+
+            var loser = store.Row(match.Id, blue.Player.Id);
+
+            Assert.AreEqual((byte)2, loser.Side);
+            Assert.AreEqual((1, 2), (loser.Kills, loser.Deaths));
+
+            var gone = store.Row(match.Id, deserter.Player.Id);
+
+            Assert.AreEqual((byte)2, gone.Side);
+            Assert.IsFalse(gone.PresentAtEnd, "a deserter is on the record, as one who left");
+
+            // The next match on the same field is another record; with nobody ahead it is nobody's.
+            f.Begin();
+            utc = noon.AddMinutes(40);
+            f.Grounds.End(f.Match, 0, "time");
+
+            Assert.AreEqual(2, store.Matches.Count);
+            Assert.AreNotEqual(match.Id, store.Matches[1].Id);
+            Assert.AreEqual((byte)PvpMatchOutcome.Tied, store.Matches[1].Outcome);
+            Assert.AreEqual((byte)0, store.Matches[1].WinnerSide);
+            Assert.AreEqual("time", store.Matches[1].Reason);
+            Assert.AreEqual(noon.AddMinutes(12), store.Matches[1].StartedAt);
+            Assert.AreEqual((0, 0), (store.Matches[1].Side1Score, store.Matches[1].Side2Score));
+            Assert.AreEqual(3, store.Rows[store.Matches[1].Id].Count, "those on a team in it");
+
+            // A match with nobody in it - a game master's, on an empty field - leaves no record.
+            using var empty = new Fixture();
+
+            empty.Grounds.Records = records;
+            empty.Grounds.Start(empty.Match, forced: true);
+            empty.Grounds.End(empty.Match, 0, "gm");
+
+            Assert.AreEqual(2, store.Matches.Count);
+        }
+
+        #endregion
+
         #region Copies, commands and data
 
         [TestMethod]

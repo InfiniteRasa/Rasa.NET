@@ -14,6 +14,7 @@ namespace Rasa.Managers
     using Packets.Protocol;
     using Packets.Team.Server;
     using Structures;
+    using Structures.Char;
 
     /// <summary>
     /// The Edmund Range match: Red Team against Blue Team for three control points.
@@ -177,6 +178,10 @@ namespace Rasa.Managers
             public uint CharacterId { get; set; }
             public ulong EntityId { get; set; }
             public string Name { get; set; }
+
+            /// <summary>The character's first name and clan, for the match's record (PvpRecords).</summary>
+            public string FirstName { get; set; }
+            public uint ClanId { get; set; }
             public uint ClassId { get; set; }
             public uint Team { get; set; }
 
@@ -234,6 +239,9 @@ namespace Rasa.Managers
 
             /// <summary>The wargame the two teams are enemies in while the match runs.</summary>
             public uint WargameId { get; set; }
+
+            /// <summary>When the match began, UTC: for its record.</summary>
+            public DateTime StartedAt { get; set; }
 
             /// <summary>Started by a game master: it runs whatever the teams have in them.</summary>
             public bool Forced { get; set; }
@@ -297,6 +305,13 @@ namespace Rasa.Managers
 
         /// <summary>A match has ended, with its winner (0 for nobody): after everything else of its ending. For tests.</summary>
         public Action<Match, uint> MatchEnded { get; set; }
+
+        /// <summary>
+        /// Where the record of each match that ends is kept - who won and how, the two teams'
+        /// points and kills, and every player's row of the scoreboard, deserters too. One with
+        /// no store, as in a test, keeps nothing.
+        /// </summary>
+        public PvpRecords Records { get; set; } = PvpRecords.Instance;
 
         /// <summary>Whether a player goes where they like on a battleground map: a game master. Replaceable for tests.</summary>
         public Func<Client, bool> IsExempt { get; set; } = client => ChatCommandsManager.HasLevel(client, GmLevel.GameMaster);
@@ -1290,6 +1305,7 @@ namespace Rasa.Managers
             match.FiveAnnounced = false;
             match.OneAnnounced = false;
             match.Scores.Clear();
+            match.StartedAt = (Records ?? PvpRecords.Instance).UtcNow();
 
             Logger.WriteLog(LogType.Debug, $"Battleground {match.Map.MapInfo.MapContextId}/{match.Map.InstanceId}: match {match.WargameId} begins, {match.Count(Red)} red against {match.Count(Blue)} blue.");
 
@@ -1333,14 +1349,14 @@ namespace Rasa.Managers
             {
                 if (match.Count(Red) == 0 || match.Count(Blue) == 0)
                 {
-                    End(match, match.Count(Red) > 0 ? Red : match.Count(Blue) > 0 ? Blue : 0);
+                    End(match, match.Count(Red) > 0 ? Red : match.Count(Blue) > 0 ? Blue : 0, "forfeit");
                     return;
                 }
             }
 
             if (now >= match.PhaseEnds)
             {
-                End(match, Leader(match));
+                End(match, Leader(match), "time");
                 return;
             }
 
@@ -1355,7 +1371,7 @@ namespace Rasa.Managers
                 foreach (var team in new[] { Red, Blue })
                     if (match.Points.Count > 0 && match.Held(team) == match.Points.Count)
                     {
-                        End(match, team);
+                        End(match, team, "points");
                         return;
                     }
             }
@@ -1380,7 +1396,7 @@ namespace Rasa.Managers
         /// deserters who saw it through forgiven, the field reset and everyone back in their base
         /// for the next.
         /// </summary>
-        public void End(Match match, uint winner)
+        public void End(Match match, uint winner, string reason = null)
         {
             if (match == null || match.Phase != Phase.Running)
                 return;
@@ -1428,6 +1444,9 @@ namespace Rasa.Managers
 
             foreach (var client in Present(match))
                 client.CallMethod(SysEntity.ClientTeamManagerId, new ScoreBoardActivePacket(false));
+
+            // On record before the field is reset: the points as they were held at the end.
+            Keep(match, winner, reason);
 
             foreach (var member in match.Members)
                 member.Score = null;
@@ -1543,6 +1562,52 @@ namespace Rasa.Managers
 
         #region Showing it
 
+        /// <summary>
+        /// Puts a match that has ended on record (PvpRecords): Red Team is side 1 and Blue Team
+        /// side 2, a team's score is the control points it held and its kills are beside it,
+        /// and every row of the scoreboard goes with it - a deserter's too, as one who was not
+        /// there at the end. A match nobody scored in (a game master's, with no teams) leaves none.
+        /// </summary>
+        private void Keep(Match match, uint winner, string reason)
+        {
+            var records = Records;
+
+            if (records?.Store == null || match.Scores.Count == 0)
+                return;
+
+            records.Record(new PvpMatchEntry
+            {
+                Kind = (byte)PvpMatchKind.Battleground,
+                WargameId = match.WargameId,
+                MapContextId = match.Map?.MapInfo?.MapContextId ?? 0,
+                InstanceId = match.Map?.InstanceId ?? 0,
+                StartedAt = match.StartedAt,
+                Outcome = (byte)(winner == Red || winner == Blue ? PvpMatchOutcome.Won : PvpMatchOutcome.Tied),
+                WinnerSide = winner == Red ? (byte)1 : winner == Blue ? (byte)2 : (byte)0,
+                Reason = reason ?? "",
+                Side1Name = TeamName(Red),
+                Side1Score = match.Held(Red),
+                Side1Kills = match.Kills(Red),
+                Side2Name = TeamName(Blue),
+                Side2Score = match.Held(Blue),
+                Side2Kills = match.Kills(Blue)
+            }, match.Scores.Values.Where(score => score.Team == Red || score.Team == Blue).Select(score => new PvpMatchPlayerEntry
+            {
+                CharacterId = score.CharacterId,
+                Side = score.Team == Red ? (byte)1 : (byte)2,
+                Name = score.FirstName ?? "",
+                FamilyName = score.Name ?? "",
+                ClanId = score.ClanId,
+                Kills = score.Kills,
+                Deaths = score.Deaths,
+                Damage = score.Damage,
+                Healing = score.Healing,
+                Captures = score.Captures,
+                Prestige = score.Prestige,
+                PresentAtEnd = score.Active
+            }).ToList());
+        }
+
         private Score ScoreFor(Match match, Member member)
         {
             var player = member.Client.Player;
@@ -1555,6 +1620,8 @@ namespace Rasa.Managers
 
             score.EntityId = player.EntityId;
             score.Name = player.FamilyName ?? "";
+            score.FirstName = player.Name ?? "";
+            score.ClanId = player.ClanId;
             score.ClassId = player.Class;
             score.Team = member.Team;
             score.Active = true;

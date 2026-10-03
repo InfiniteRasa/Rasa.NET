@@ -487,6 +487,11 @@ namespace Rasa.Game
             NavMeshManager.Instance.NavMeshInit(Config.GameDataConfig?.NavMeshPath);
             ClanManager.Instance.ClansInit();
 
+            // The records of clan feuds, squad wargames and battleground matches go to the
+            // character database from here on. Before the feuds are read back: each one that
+            // is still running finds its open record again.
+            PvpRecords.Instance.Load(new PvpRecords.ServerStore(GameUnitOfWorkFactory));
+
             // The clan feuds and challenges kept through the last restart; from here on every
             // change to them is kept.
             ClanFeuds.Instance.Load(new ClanFeuds.ServerStore(GameUnitOfWorkFactory));

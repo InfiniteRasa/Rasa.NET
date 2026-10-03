@@ -59,6 +59,8 @@ namespace Rasa.Context.Char
         public DbSet<ClanFeudEntry> ClanFeudEntries { get; set; }
         public DbSet<ClanFeudChallengeEntry> ClanFeudChallengeEntries { get; set; }
         public DbSet<ClanFeudStakeEntry> ClanFeudStakeEntries { get; set; }
+        public DbSet<PvpMatchEntry> PvpMatchEntries { get; set; }
+        public DbSet<PvpMatchPlayerEntry> PvpMatchPlayerEntries { get; set; }
         public DbSet<ControlPointStateEntry> ControlPointStateEntries { get; set; }
         public DbSet<AuctionEntry> AuctionEntries { get; set; }
 
@@ -552,6 +554,10 @@ namespace Rasa.Context.Char
             // One row per feud and character who left a side of it.
             modelBuilder.Entity<ClanFeudStakeEntry>()
                 .HasKey(e => new { e.FeudId, e.CharacterId });
+
+            // One row per recorded match and character.
+            modelBuilder.Entity<PvpMatchPlayerEntry>()
+                .HasKey(e => new { e.MatchId, e.CharacterId });
         }
 
         // Keyed by the world database's control point id: never generated here.

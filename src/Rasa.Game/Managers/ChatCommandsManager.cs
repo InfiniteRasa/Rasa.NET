@@ -646,14 +646,15 @@ namespace Rasa.Managers
 
                     var how = parts.Length >= 4 ? parts[3] : null;
 
+                    // "gm" is how the feud's record says it ended (PvpRecords).
                     if (how == null)
-                        feuds.Expire(feud);
+                        feuds.Expire(feud, "gm");
                     else if (how.Equals("tie", StringComparison.OrdinalIgnoreCase))
-                        feuds.End(feud, ClanFeuds.Outcome.Tied);
+                        feuds.End(feud, ClanFeuds.Outcome.Tied, reason: "gm");
                     else if (how.Equals("cancel", StringComparison.OrdinalIgnoreCase))
-                        feuds.End(feud, ClanFeuds.Outcome.Cancelled);
+                        feuds.End(feud, ClanFeuds.Outcome.Cancelled, reason: "gm");
                     else if (Clan(how) is Structures.Char.ClanEntry winner && feud.Involves(winner.Id))
-                        feuds.End(feud, ClanFeuds.Outcome.Won, winner.Id);
+                        feuds.End(feud, ClanFeuds.Outcome.Won, winner.Id, "gm");
                     else
                     {
                         CommunicatorManager.Instance.SystemMessage(_client, "usage: .feud end <id> [tie|cancel|<winning clan>]");
@@ -3135,7 +3136,7 @@ namespace Rasa.Managers
 
                     var winner = parts.Length == 3 ? Team(parts[2]).Value : Battlegrounds.Leader(match);
 
-                    grounds.End(match, winner);
+                    grounds.End(match, winner, "gm");
                     Logger.WriteLog(LogType.Command, $"{player.FamilyName} ended the battleground match on map {player.MapContextId}, instance {match.Map.InstanceId}: {Battlegrounds.TeamName(winner)}.");
                     Say($"The match is over: {Battlegrounds.TeamName(winner)} won.");
                     return;

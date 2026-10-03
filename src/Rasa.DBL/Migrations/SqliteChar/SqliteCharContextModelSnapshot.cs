@@ -1867,6 +1867,152 @@ namespace Rasa.Migrations.SqliteChar
                     b.ToTable("petition");
                 });
 
+            modelBuilder.Entity("Rasa.Structures.Char.PvpMatchEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime?>("EndedAt")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("ended_at");
+
+                    b.Property<uint>("InstanceId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("instance_id");
+
+                    b.Property<byte>("Kind")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("kind");
+
+                    b.Property<uint>("MapContextId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("map_context_id");
+
+                    b.Property<byte>("Outcome")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("outcome");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasColumnType("varchar(32)")
+                        .HasColumnName("reason");
+
+                    b.Property<uint>("Side1ClanId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("side1_clan_id");
+
+                    b.Property<int>("Side1Kills")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("side1_kills");
+
+                    b.Property<string>("Side1Name")
+                        .IsRequired()
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("side1_name");
+
+                    b.Property<int>("Side1Score")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("side1_score");
+
+                    b.Property<uint>("Side2ClanId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("side2_clan_id");
+
+                    b.Property<int>("Side2Kills")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("side2_kills");
+
+                    b.Property<string>("Side2Name")
+                        .IsRequired()
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("side2_name");
+
+                    b.Property<int>("Side2Score")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("side2_score");
+
+                    b.Property<DateTime>("StartedAt")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("started_at");
+
+                    b.Property<uint>("WargameId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("wargame_id");
+
+                    b.Property<byte>("WinnerSide")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("winner_side");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("pvp_match");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.Char.PvpMatchPlayerEntry", b =>
+                {
+                    b.Property<uint>("MatchId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("match_id");
+
+                    b.Property<uint>("CharacterId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("character_id");
+
+                    b.Property<int>("Captures")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("captures");
+
+                    b.Property<uint>("ClanId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("clan_id");
+
+                    b.Property<int>("Damage")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("damage");
+
+                    b.Property<int>("Deaths")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("deaths");
+
+                    b.Property<string>("FamilyName")
+                        .IsRequired()
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("family_name");
+
+                    b.Property<int>("Healing")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("healing");
+
+                    b.Property<int>("Kills")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("kills");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("name");
+
+                    b.Property<bool>("PresentAtEnd")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("present_at_end");
+
+                    b.Property<int>("Prestige")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("prestige");
+
+                    b.Property<byte>("Side")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("side");
+
+                    b.HasKey("MatchId", "CharacterId");
+
+                    b.HasIndex(new[] { "CharacterId" }, "pvp_match_player_index_character_id");
+
+                    b.ToTable("pvp_match_player");
+                });
+
             modelBuilder.Entity("Rasa.Structures.Char.UserOptionEntry", b =>
                 {
                     b.Property<uint>("AccountId")

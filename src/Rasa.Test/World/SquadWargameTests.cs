@@ -167,6 +167,107 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
+        public void AWargameThatEndsIsPutOnRecord()
+        {
+            using var world = new WorldTestContext();
+            var noon = new DateTime(2026, 10, 2, 12, 0, 0, DateTimeKind.Utc);
+            var utc = noon;
+            var store = new MemoryPvpStore();
+            var records = new PvpRecords { UtcNow = () => utc };
+            var previous = SquadWargames.Instance.Records;
+
+            records.Load(store);
+            SquadWargames.Instance.Records = records;
+
+            try
+            {
+                var (redLead, redMate, blueLead, blueMate) = Squads(world);
+
+                Start(redLead, blueLead, maxKills: 3);
+
+                var wargameId = SquadWargames.Instance.Running.Single().WargameId;
+
+                Assert.IsTrue(SquadWargames.Instance.Kill(redLead, blueMate));
+                Assert.AreEqual(0, store.Matches.Count, "nothing is written until it is over");
+
+                // One leaves: out of the wargame, and still on its record.
+                SquadWargames.Instance.PlayerLeft(blueMate);
+
+                Assert.IsTrue(SquadWargames.Instance.Kill(blueLead, redMate));
+                Assert.IsTrue(SquadWargames.Instance.Kill(redMate, blueLead));
+
+                utc = noon.AddMinutes(4);
+                Assert.IsTrue(SquadWargames.Instance.Kill(redLead, blueLead));
+                Assert.AreEqual(0, SquadWargames.Instance.Running.Count, "red has made its kills");
+
+                var match = store.Matches.Single();
+
+                Assert.AreEqual((byte)PvpMatchKind.SquadWargame, match.Kind);
+                Assert.AreEqual(wargameId, match.WargameId);
+                Assert.AreEqual(world.Map.MapInfo.MapContextId, match.MapContextId);
+                Assert.AreEqual(noon, match.StartedAt);
+                Assert.AreEqual(noon.AddMinutes(4), match.EndedAt);
+                Assert.AreEqual((byte)PvpMatchOutcome.Won, match.Outcome);
+                Assert.AreEqual((byte)1, match.WinnerSide, "the challengers");
+                Assert.AreEqual("kills", match.Reason);
+                Assert.AreEqual("RedLead", match.Side1Name);
+                Assert.AreEqual("BlueLead", match.Side2Name);
+                Assert.AreEqual((3, 1), (match.Side1Score, match.Side2Score));
+                Assert.AreEqual((3, 1), (match.Side1Kills, match.Side2Kills));
+
+                Assert.AreEqual(4, store.Rows[match.Id].Count);
+
+                var lead = store.Row(match.Id, redLead.Player.Id);
+
+                Assert.AreEqual((byte)1, lead.Side);
+                Assert.AreEqual("RedLead", lead.FamilyName);
+                Assert.AreEqual(redLead.Player.Name, lead.Name);
+                Assert.AreEqual((2, 0), (lead.Kills, lead.Deaths));
+                Assert.IsTrue(lead.PresentAtEnd);
+                Assert.AreEqual((1, 1), (store.Row(match.Id, redMate.Player.Id).Kills, store.Row(match.Id, redMate.Player.Id).Deaths));
+
+                var beaten = store.Row(match.Id, blueLead.Player.Id);
+
+                Assert.AreEqual((byte)2, beaten.Side);
+                Assert.AreEqual((1, 2), (beaten.Kills, beaten.Deaths));
+
+                var left = store.Row(match.Id, blueMate.Player.Id);
+
+                Assert.AreEqual((byte)2, left.Side);
+                Assert.AreEqual((0, 1), (left.Kills, left.Deaths));
+                Assert.IsFalse(left.PresentAtEnd, "did not see it out");
+
+                // A surrender, and a squad that walks out of one: each a record of its own, with why.
+                Start(blueLead, redLead);
+                Assert.IsTrue(SquadWargames.Instance.SurrenderWargame(blueLead));
+
+                Assert.AreEqual(2, store.Matches.Count);
+                Assert.AreEqual("surrender", store.Matches[1].Reason);
+                Assert.AreEqual("BlueLead", store.Matches[1].Side1Name, "the challengers this time");
+                Assert.AreEqual((byte)2, store.Matches[1].WinnerSide);
+                Assert.AreEqual(4, store.Rows[store.Matches[1].Id].Count);
+                Assert.IsTrue(store.Rows[store.Matches[1].Id].Values.All(row => row.PresentAtEnd && row.Kills == 0 && row.Deaths == 0), "a record of its own, with nothing of the first on it");
+
+                Start(redLead, blueLead);
+                SquadWargames.Instance.PlayerLeft(blueMate);
+                Assert.AreEqual(2, store.Matches.Count, "one of them is still in it");
+                SquadWargames.Instance.PlayerLeft(blueLead);
+
+                Assert.AreEqual(3, store.Matches.Count);
+                Assert.AreEqual("forfeit", store.Matches[2].Reason);
+                Assert.AreEqual((byte)1, store.Matches[2].WinnerSide);
+                Assert.AreEqual((0, 0), (store.Matches[2].Side1Score, store.Matches[2].Side2Score));
+                Assert.IsFalse(store.Row(store.Matches[2].Id, blueLead.Player.Id).PresentAtEnd);
+                Assert.IsFalse(store.Row(store.Matches[2].Id, blueMate.Player.Id).PresentAtEnd);
+                Assert.IsTrue(store.Row(store.Matches[2].Id, redMate.Player.Id).PresentAtEnd);
+            }
+            finally
+            {
+                SquadWargames.Instance.Records = previous;
+            }
+        }
+
+        [TestMethod]
         public void ADeclinedOrRevokedChallengeIsOffForBothSquads()
         {
             using var world = new WorldTestContext();

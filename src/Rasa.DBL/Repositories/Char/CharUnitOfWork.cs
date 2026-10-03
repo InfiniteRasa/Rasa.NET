@@ -82,6 +82,7 @@ namespace Rasa.Repositories.Char
             MissionOffers = new MissionOffer.MissionOfferRepository(dbContext);
             ClanFeuds = new ClanFeud.ClanFeudRepository(dbContext);
             ControlPointStates = new ControlPointState.ControlPointStateRepository(dbContext);
+            PvpRecords = new PvpRecord.PvpRecordRepository(dbContext);
             CharacterMissionItems = new CharacterMissionItem.CharacterMissionItemRepository(dbContext);
             CharacterMissionDeadlines = characterMissionDeadlines;
             CharacterMissionProgress = characterMissionProgress;
@@ -116,6 +117,7 @@ namespace Rasa.Repositories.Char
         public MissionOffer.MissionOfferRepository MissionOffers { get; }
         public ClanFeud.IClanFeudRepository ClanFeuds { get; }
         public ControlPointState.IControlPointStateRepository ControlPointStates { get; }
+        public PvpRecord.IPvpRecordRepository PvpRecords { get; }
         public CharacterMissionItem.ICharacterMissionItemRepository CharacterMissionItems { get; }
         public ICharacterMissionDeadlineRepository CharacterMissionDeadlines { get; }
         public ICharacterMissionProgressRepository CharacterMissionProgress { get; }
