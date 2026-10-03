@@ -86,6 +86,14 @@ namespace Rasa.Managers
     ///  - A player with no team is kept to the staging area; game masters go where they like.
     ///  - No squad holds players of both teams: joining a team takes a player out of a squad
     ///    that has somebody on the other, and such a squad cannot be formed.
+    ///  - The scoreboard has a row a character at all times. Before a match it lists the teams
+    ///    as they form, with nothing scored. In a match a kill, a capture and a player's coming
+    ///    and going send their row at once; damage and healing, counted hit by hit, go out
+    ///    every <see cref="ScoreRefreshMs"/>. After it the result stays for
+    ///    <see cref="ResultMs"/>, and then the teams of the next are listed. Whoever arrives is
+    ///    sent the board as it stands. The client keeps a row by the player's entity id and has
+    ///    nothing that removes one, so a player back from a logout - another entity - has their
+    ///    old row emptied on every client before the new one is sent (<see cref="Retire"/>).
     ///  - The control points' waypoints are closed, and the two depots stand for nothing yet.
     /// </summary>
     public class Battlegrounds
@@ -113,6 +121,12 @@ namespace Rasa.Managers
 
         /// <summary>How long a player stands in the way back out of a base before it takes them.</summary>
         public const long LeaveDwellMs = 5000;
+
+        /// <summary>How often the rows whose damage or healing has changed are sent while a match runs.</summary>
+        public const long ScoreRefreshMs = 3000;
+
+        /// <summary>How long a match's result stays on the scoreboard before the teams of the next are listed there.</summary>
+        public const long ResultMs = 30000;
 
         /// <summary>The entity class of a team's teleporter in the staging area: the waypoint pad, and its red twin.</summary>
         public const uint BlueTeleporterClassId = 25651;
@@ -197,6 +211,12 @@ namespace Rasa.Managers
 
             /// <summary>The points this player has been given prestige for capturing in this match: once each.</summary>
             public HashSet<uint> Rewarded { get; } = new HashSet<uint>();
+
+            /// <summary>
+            /// Changed since the row was last sent. Damage and healing are counted hit by hit and
+            /// sent on the clock (<see cref="ScoreRefreshMs"/>), not a row a hit.
+            /// </summary>
+            public bool Dirty { get; set; }
         }
 
         public sealed class Member
@@ -250,7 +270,24 @@ namespace Rasa.Managers
             public bool FiveAnnounced { get; set; }
             public bool OneAnnounced { get; set; }
 
+            /// <summary>
+            /// The scoreboard is showing the last match as it ended: for <see cref="ResultMs"/> from
+            /// its end, or until the next begins. The teams as they form are not listed over it.
+            /// </summary>
+            public bool ShowsResult { get; set; }
+
+            /// <summary>When the last match's result gives way to the teams of the next.</summary>
+            public long ResultEndsAt { get; set; }
+
+            /// <summary>When the rows that have changed are next sent.</summary>
+            public long ScoresDueAt { get; set; }
+
             public List<Member> Members { get; } = new List<Member>();
+
+            /// <summary>
+            /// The scoreboard, a row a character: of the match being played; after it, as it ended;
+            /// and before one, the teams as they stand, with nothing scored.
+            /// </summary>
             public Dictionary<uint, Score> Scores { get; } = new Dictionary<uint, Score>();
             public List<Point> Points { get; } = new List<Point>();
 
@@ -797,6 +834,11 @@ namespace Rasa.Managers
                 // Now an enemy of the other team, to everyone who sees them.
                 Wargames.Show(client);
             }
+            else if (!match.ShowsResult)
+            {
+                // Before a match the scoreboard lists the teams as they form.
+                SendScore(match, ScoreFor(match, member));
+            }
 
             ShowHospitals(match, client);
 
@@ -827,6 +869,12 @@ namespace Rasa.Managers
             {
                 member.Score.Active = false;
                 SendScore(match, member.Score);
+            }
+            else if (match.Phase != Phase.Running && !match.ShowsResult && player != null && match.Scores.TryGetValue(player.Id, out var listed))
+            {
+                // Off the list of the teams as they form.
+                listed.Active = false;
+                SendScore(match, listed);
             }
 
             if (player != null)
@@ -892,8 +940,9 @@ namespace Rasa.Managers
 
         /// <summary>
         /// A player has arrived on a map (MapChannelManager): on a battleground they are told it
-        /// has two teams, and shown the match as it stands - the clock, the control points and,
-        /// while it runs, the scoreboard.
+        /// has two teams, and shown the match as it stands - the clock, the control points and
+        /// the scoreboard: the match being played, the last one as it ended, or the teams as they
+        /// form.
         /// </summary>
         public void PlayerEntered(Client client)
         {
@@ -911,12 +960,10 @@ namespace Rasa.Managers
                 Say(client, LockoutText(lockout) + " Leave by the door and come back in to return to it.");
 
             if (match.Phase == Phase.Running)
-            {
                 client.CallMethod(SysEntity.ClientTeamManagerId, new ScoreBoardActivePacket(true));
 
-                foreach (var score in match.Scores.Values)
-                    client.CallMethod(SysEntity.ClientTeamManagerId, Row(score));
-            }
+            foreach (var score in match.Scores.Values)
+                client.CallMethod(SysEntity.ClientTeamManagerId, Row(score));
 
             client.CallMethod(SysEntity.ClientTeamManagerId, GameScore(match));
         }
@@ -1013,6 +1060,7 @@ namespace Rasa.Managers
                 return;
 
             score.Damage += amount;
+            score.Dirty = true;
         }
 
         /// <summary>Healing a player of a match has done to one of their own team, themselves included, for their row.</summary>
@@ -1029,6 +1077,7 @@ namespace Rasa.Managers
                 return;
 
             score.Healing += amount;
+            score.Dirty = true;
         }
 
         /// <summary>Whether a player who dies here comes back without the penalties of a death: on a team of a match.</summary>
@@ -1245,6 +1294,10 @@ namespace Rasa.Managers
             Police(match, now);
             Garrisons(match);
 
+            // The last match has been on the scoreboard long enough: the teams of the next.
+            if (match.ShowsResult && match.Phase != Phase.Running && now >= match.ResultEndsAt)
+                ListTeams(match);
+
             switch (match.Phase)
             {
                 case Phase.Waiting:
@@ -1273,6 +1326,7 @@ namespace Rasa.Managers
                     break;
 
                 case Phase.Running:
+                    SendChangedScores(match, now);
                     Referee(match, now);
                     break;
             }
@@ -1304,6 +1358,8 @@ namespace Rasa.Managers
             match.MinAnnounced = false;
             match.FiveAnnounced = false;
             match.OneAnnounced = false;
+            match.ShowsResult = false;
+            match.ScoresDueAt = now + ScoreRefreshMs;
             match.Scores.Clear();
             match.StartedAt = (Records ?? PvpRecords.Instance).UtcNow();
 
@@ -1405,10 +1461,13 @@ namespace Rasa.Managers
 
             // A match cut short - a team walked out of it, a game master ended it - is worth
             // nothing: its prestige is for one played to its minimum time.
-            var played = Now() >= match.MinEndsAt;
+            var now = Now();
+            var played = now >= match.MinEndsAt;
 
             match.Phase = Phase.Waiting;
             match.Forced = false;
+            match.ShowsResult = true;
+            match.ResultEndsAt = now + ResultMs;
 
             foreach (var member in match.Members)
             {
@@ -1617,6 +1676,11 @@ namespace Rasa.Managers
                 score = new Score { CharacterId = player.Id };
                 match.Scores[player.Id] = score;
             }
+            else if (score.EntityId != 0 && score.EntityId != player.EntityId)
+            {
+                // Back as another entity - they logged out and in again.
+                Retire(match, score);
+            }
 
             score.EntityId = player.EntityId;
             score.Name = player.FamilyName ?? "";
@@ -1648,8 +1712,74 @@ namespace Rasa.Managers
             if (score == null)
                 return;
 
+            score.Dirty = false;
+
             foreach (var client in Present(match))
                 client.CallMethod(SysEntity.ClientTeamManagerId, Row(score));
+        }
+
+        /// <summary>
+        /// The rows that have changed with nothing to send them - damage and healing, which no
+        /// kill or capture need follow - every <see cref="ScoreRefreshMs"/> of a match.
+        /// </summary>
+        private void SendChangedScores(Match match, long now)
+        {
+            if (now < match.ScoresDueAt)
+                return;
+
+            match.ScoresDueAt = now + ScoreRefreshMs;
+
+            foreach (var score in match.Scores.Values.Where(s => s.Dirty).ToList())
+                SendScore(match, score);
+        }
+
+        /// <summary>
+        /// Takes off the clients' scoreboards the row they have for a character who has come back
+        /// as another entity. The client keeps a row by the entity id it came under and shows it
+        /// by the player's name (scoreboardwindow.py), and has nothing that removes one: left as
+        /// it is, the old row and the new are one line on the board, which the old one - not
+        /// active - can hide, and two in the team's kills. So the old one is sent once more with
+        /// no name, not active and with nothing scored: a line of its own that is never shown
+        /// and adds nothing.
+        /// </summary>
+        private void Retire(Match match, Score score)
+        {
+            var gone = new ScoreBoardIndividualUpdatePacket(score.EntityId)
+            {
+                Name = "",
+                ClassId = score.ClassId,
+                TeamId = score.Team,
+                Active = false
+            };
+
+            foreach (var client in Present(match))
+                client.CallMethod(SysEntity.ClientTeamManagerId, gone);
+        }
+
+        /// <summary>
+        /// Puts the teams of the next match on the scoreboard in place of the last one's result:
+        /// every row with nothing scored, those of players who have left since not active.
+        /// </summary>
+        private void ListTeams(Match match)
+        {
+            match.ShowsResult = false;
+
+            var members = match.Members.Where(m => m.Client?.Player != null).Select(m => m.Client.Player.Id).ToHashSet();
+
+            foreach (var score in match.Scores.Values.ToList())
+            {
+                score.Kills = score.Deaths = score.Damage = score.Healing = score.Captures = score.Prestige = 0;
+                score.Rewarded.Clear();
+
+                if (members.Contains(score.CharacterId))
+                    continue;
+
+                score.Active = false;
+                SendScore(match, score);
+            }
+
+            foreach (var member in match.Members.Where(m => m.Client?.Player != null))
+                SendScore(match, ScoreFor(match, member));
         }
 
         /// <summary>The seconds left on a match's clock: of the preparation, of the match, or none while it waits.</summary>

@@ -1003,7 +1003,7 @@ namespace Rasa.Test.World
             blue.Player.Level = 50;
 
             f.Grounds.Kill(red, blue);
-            Assert.AreEqual(0, f.Match.Scores.Count, "nothing is being played");
+            Assert.IsTrue(f.Match.Scores.Values.All(s => s.Kills == 0 && s.Deaths == 0), "nothing is being played");
 
             f.Begin();
             Drain(blue);
@@ -1052,6 +1052,232 @@ namespace Rasa.Test.World
 
             Assert.AreEqual(120, f.Match.Scores[red.Player.Id].Damage);
             Assert.AreEqual(100, f.Match.Scores[red.Player.Id].Healing);
+        }
+
+        [TestMethod]
+        public void DamageAndHealingAreSentOnTheClockWithNoKillToCarryThem()
+        {
+            using var f = new Fixture();
+            var red = f.Join(Battlegrounds.Red);
+            var blue = f.Join(Battlegrounds.Blue);
+            var watcher = f.Player();
+
+            f.Begin();
+
+            f.Grounds.Damaged(red.Player, blue.Player, 120);
+            f.Grounds.Healed(blue.Player.EntityId, blue.Player, 40);
+
+            f.Tick(Battlegrounds.ScoreRefreshMs - 1);
+            Assert.AreEqual(0, Rows(watcher).Count, "not a row a hit");
+
+            f.Tick(1);
+
+            var rows = Rows(watcher);
+            Assert.AreEqual(2, rows.Count);
+            Assert.AreEqual(120, rows.Single(r => r.EntityId == red.Player.EntityId).Damage);
+            Assert.AreEqual(40, rows.Single(r => r.EntityId == blue.Player.EntityId).Healing);
+
+            // Nothing has changed since: nothing is sent.
+            f.Tick(Battlegrounds.ScoreRefreshMs);
+            Assert.AreEqual(0, Rows(watcher).Count);
+
+            // Only the rows that have changed, and not one a kill has sent already.
+            f.Grounds.Damaged(red.Player, blue.Player, 30);
+            f.Tick(Battlegrounds.ScoreRefreshMs);
+            Assert.AreEqual(150, Rows(watcher).Single().Damage);
+
+            red.Player.Level = 50;
+            blue.Player.Level = 50;
+            f.Grounds.Damaged(red.Player, blue.Player, 50);
+            f.Grounds.Kill(red, blue);
+            Assert.AreEqual(200, Rows(watcher).Single(r => r.EntityId == red.Player.EntityId).Damage);
+
+            f.Tick(Battlegrounds.ScoreRefreshMs);
+            Assert.AreEqual(0, Rows(watcher).Count);
+        }
+
+        [TestMethod]
+        public void TheTeamsAreListedOnTheScoreboardBeforeAMatch()
+        {
+            using var f = new Fixture();
+            var watcher = f.Player();
+            var red = f.Join(Battlegrounds.Red);
+
+            var packets = Packets(watcher);
+            var row = packets.OfType<ScoreBoardIndividualUpdatePacket>().Single();
+            Assert.AreEqual(red.Player.EntityId, row.EntityId);
+            Assert.AreEqual(Battlegrounds.Red, row.TeamId);
+            Assert.IsTrue(row.Active);
+            Assert.AreEqual(0, row.Kills + row.Deaths + row.Damage + row.Healing + row.Captures + row.Prestige);
+            Assert.IsFalse(packets.OfType<ScoreBoardActivePacket>().Any(), "nothing is being played");
+
+            var blue = f.Join(Battlegrounds.Blue);
+            Assert.AreEqual(blue.Player.EntityId, Rows(watcher).Single().EntityId);
+            Assert.AreEqual(blue.Player.EntityId, Rows(red).Single().EntityId);
+
+            // Off their team, off the list.
+            f.Grounds.PlayerLeft(red);
+            row = Rows(watcher).Single();
+            Assert.AreEqual(red.Player.EntityId, row.EntityId);
+            Assert.IsFalse(row.Active);
+
+            // Whoever arrives is sent the list as it stands.
+            var arrival = f.Player();
+            f.Grounds.PlayerEntered(arrival);
+            packets = Packets(arrival);
+            Assert.IsFalse(packets.OfType<ScoreBoardActivePacket>().Any());
+            CollectionAssert.AreEquivalent(
+                new[] { (red.Player.EntityId, false), (blue.Player.EntityId, true) },
+                packets.OfType<ScoreBoardIndividualUpdatePacket>().Select(r => (r.EntityId, r.Active)).ToArray());
+
+            Assert.IsTrue(f.Grounds.Join(red, Battlegrounds.Red, force: true));
+            Assert.IsTrue(Rows(watcher).Single().Active);
+
+            // The match begins on a board that is cleared: its own rows follow.
+            f.Grounds.Start(f.Match, forced: false);
+
+            packets = Packets(watcher).Where(p => p is ScoreBoardActivePacket || p is ScoreBoardIndividualUpdatePacket).ToList();
+            Assert.AreEqual(3, packets.Count);
+            Assert.IsTrue(((ScoreBoardActivePacket)packets[0]).Active);
+            Assert.AreEqual(2, f.Match.Scores.Count);
+        }
+
+        [TestMethod]
+        public void AMatchsResultStaysOnTheScoreboardAndThenTheNextTeamsAreListed()
+        {
+            using var f = new Fixture();
+            var red = f.Join(Battlegrounds.Red);
+            var blue = f.Join(Battlegrounds.Blue);
+            var watcher = f.Player();
+
+            red.Player.Level = 50;
+            blue.Player.Level = 50;
+
+            f.Begin();
+            f.Grounds.Kill(red, blue);
+            f.Grounds.End(f.Match, Battlegrounds.Red);
+            Drain(watcher);
+
+            // The teams change under the result, and it stays as it was.
+            var late = f.Join(Battlegrounds.Blue);
+            f.Grounds.PlayerLeft(blue);
+            f.Tick(1000);
+
+            Assert.AreEqual(Battlegrounds.Phase.Preparing, f.Match.Phase);
+            Assert.AreEqual(0, Rows(watcher).Count);
+
+            // Whoever arrives now is sent it.
+            var arrival = f.Player();
+            f.Grounds.PlayerEntered(arrival);
+
+            var packets = Packets(arrival);
+            var rows = packets.OfType<ScoreBoardIndividualUpdatePacket>().ToList();
+            Assert.IsFalse(packets.OfType<ScoreBoardActivePacket>().Any());
+            Assert.AreEqual(2, rows.Count);
+            Assert.AreEqual(1, rows.Single(r => r.EntityId == red.Player.EntityId).Kills);
+            Assert.AreEqual(1, rows.Single(r => r.EntityId == blue.Player.EntityId).Deaths);
+
+            f.Tick(Battlegrounds.ResultMs - 1001);
+            Assert.AreEqual(0, Rows(watcher).Count);
+
+            // Its time is up: every row emptied, whoever has left hidden, the teams as they are now.
+            f.Tick(1);
+
+            rows = Rows(watcher);
+            Assert.AreEqual(3, rows.Count);
+            Assert.IsTrue(rows.All(r => r.Kills + r.Deaths + r.Damage + r.Healing + r.Captures + r.Prestige == 0));
+            CollectionAssert.AreEquivalent(
+                new[] { (red.Player.EntityId, true), (blue.Player.EntityId, false), (late.Player.EntityId, true) },
+                rows.Select(r => (r.EntityId, r.Active)).ToArray());
+            Assert.AreEqual(Battlegrounds.Blue, rows.Single(r => r.EntityId == late.Player.EntityId).TeamId);
+
+            // And a player who joins is listed again.
+            var another = f.Join(Battlegrounds.Red);
+            Assert.AreEqual(another.Player.EntityId, Rows(watcher).Single().EntityId);
+
+            f.Tick(60000);
+            Assert.AreEqual(Battlegrounds.Phase.Running, f.Match.Phase);
+            Assert.AreEqual(3, f.Match.Scores.Count, "the match's own rows: nobody who is not in it");
+        }
+
+        [TestMethod]
+        public void AMatchThatBeginsBeforeTheResultsTimeIsUpTakesItsPlace()
+        {
+            using var f = new Fixture();
+            var red = f.Join(Battlegrounds.Red);
+            var blue = f.Join(Battlegrounds.Blue);
+
+            f.Begin();
+            f.Grounds.End(f.Match, Battlegrounds.Red);
+            f.Grounds.Start(f.Match, forced: true);
+            Drain(red);
+
+            // Nothing of the last match's is left to give way to anything.
+            f.Tick(Battlegrounds.ResultMs);
+            Assert.AreEqual(0, Rows(red).Count);
+            Assert.IsTrue(f.Match.Scores.Values.All(s => s.Active));
+            Assert.IsNotNull(blue);
+        }
+
+        [TestMethod]
+        public void APlayerBackFromALogoutHasOneRowOnTheScoreboard()
+        {
+            using var f = new Fixture();
+            var red = f.Join(Battlegrounds.Red);
+            var blue = f.Join(Battlegrounds.Blue);
+            var mate = f.Join(Battlegrounds.Red);
+
+            red.Player.Level = 50;
+            blue.Player.Level = 50;
+
+            f.Begin();
+            f.Grounds.Kill(red, blue);
+
+            var before = red.Player.EntityId;
+
+            f.Grounds.PlayerLeft(red);
+            f.World.Map.ClientList.Remove(red);
+
+            // The same character, another entity.
+            var back = f.Player();
+            back.Player.Id = red.Player.Id;
+            Assert.AreNotEqual(before, back.Player.EntityId);
+
+            Drain(blue);
+            Assert.IsTrue(f.Grounds.Join(back, Battlegrounds.Red, force: true));
+
+            // The row the clients have under the old id first: no name, not shown, nothing on
+            // it. Then theirs, with what they had scored.
+            var rows = Rows(blue);
+            Assert.AreEqual(2, rows.Count);
+
+            Assert.AreEqual(before, rows[0].EntityId);
+            Assert.AreEqual("", rows[0].Name);
+            Assert.IsFalse(rows[0].Active);
+            Assert.AreEqual(Battlegrounds.Red, rows[0].TeamId, "a team the client has a kills counter for");
+            Assert.AreEqual(0, rows[0].Kills + rows[0].Deaths + rows[0].Damage + rows[0].Healing + rows[0].Captures + rows[0].Prestige);
+
+            Assert.AreEqual(back.Player.EntityId, rows[1].EntityId);
+            Assert.AreEqual("Fixture", rows[1].Name);
+            Assert.IsTrue(rows[1].Active);
+            Assert.AreEqual(1, rows[1].Kills);
+
+            Assert.AreEqual(3, f.Match.Scores.Count);
+            Assert.AreEqual(1, f.Match.Kills(Battlegrounds.Red));
+
+            // Whoever arrives later is sent one row for them.
+            var arrival = f.Player();
+            f.Grounds.PlayerEntered(arrival);
+
+            rows = Rows(arrival);
+            Assert.AreEqual(3, rows.Count);
+            Assert.IsFalse(rows.Any(r => r.EntityId == before));
+
+            // The same entity coming back - the way out of the base and in again - has nothing to take off.
+            f.Grounds.PlayerLeft(mate);
+            Drain(blue);
+            Assert.IsTrue(f.Grounds.Join(mate, Battlegrounds.Red, force: true));
+            Assert.AreEqual(mate.Player.EntityId, Rows(blue).Single().EntityId);
         }
 
         [TestMethod]
@@ -1116,6 +1342,7 @@ namespace Rasa.Test.World
             Assert.AreEqual(0, packets.OfType<ScoreBoardGameScorePacket>().Single().RemainingSeconds, "waiting");
             Assert.AreEqual(3, packets.OfType<ScoreBoardGameScorePacket>().Single().ControlPoints.Count);
             Assert.IsFalse(packets.OfType<ScoreBoardActivePacket>().Any());
+            Assert.AreEqual(2, packets.OfType<ScoreBoardIndividualUpdatePacket>().Count(), "the teams as they stand");
 
             f.Begin();
             f.Grounds.SetOwner(f.Match, f.Point(Charlie), Battlegrounds.Blue);
@@ -1646,6 +1873,10 @@ namespace Rasa.Test.World
             WorldTestContext.Drain(client).Select(packet => packet.Message).OfType<CallMethodMessage>().Select(message => message.Packet).ToList();
 
         private static void Drain(Client client) => WorldTestContext.Drain(client);
+
+        /// <summary>The scoreboard rows a client has been sent since it was last read.</summary>
+        private static List<ScoreBoardIndividualUpdatePacket> Rows(Client client) =>
+            Packets(client).OfType<ScoreBoardIndividualUpdatePacket>().ToList();
 
         private static List<PlayerMessage> Messages(IEnumerable<PythonPacket> packets) =>
             packets.OfType<DisplayClientMessagePacket>().Select(p => p.MsgId).ToList();
