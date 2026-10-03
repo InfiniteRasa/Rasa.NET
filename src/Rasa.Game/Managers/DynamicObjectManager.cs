@@ -668,6 +668,11 @@ namespace Rasa.Managers
             if (dynamicObject.Lock != null)
                 entityData.Add(new LockInfoPacket(dynamicObject.Lock));
 
+            // A clan control point: whether it is a PvP one. The client keeps the answer and
+            // asks for it nowhere (PvPEnabledPacket).
+            if (IsClanControlPoint(classInfo))
+                entityData.Add(new PvPEnabledPacket(IsPvPClanControlPoint(dynamicObject.EntityClassId)));
+
             if (dynamicObject.DynamicObjectType == DynamicObjectType.PracticeDummy)
             {
                 entityData.Add(new TargetCategoryPacket(TargetCategory.Object));
@@ -697,6 +702,24 @@ namespace Rasa.Managers
                 client.CallMethod(dynamicObject.EntityId, new LockToActorPacket(dynamicObject.UsedBy.EntityId));
                 client.CallMethod(dynamicObject.EntityId, new UseInterruptiblePacket(dynamicObject.UsedBy.EntityId));
             }
+        }
+
+        /// <summary>TEST_ClanControlPoint_PvE: the one class of the client's with the CLANCONTROLPOINT augmentation.</summary>
+        public const EntityClasses PveClanControlPointClass = (EntityClasses)29329;
+
+        /// <summary>Whether objects of the class are clan control points: the client gives them Recv_PvPEnabled and Recv_ClanAssociation.</summary>
+        public static bool IsClanControlPoint(EntityClass classInfo)
+        {
+            return classInfo?.Augmentations != null && classInfo.Augmentations.Contains(AugmentationType.ClanControlPoint);
+        }
+
+        /// <summary>
+        /// What PvPEnabled says of a clan control point of this class: false for the PvE test
+        /// point, as its name has it, and for any other what the client holds until told.
+        /// </summary>
+        public static bool IsPvPClanControlPoint(EntityClasses classId)
+        {
+            return classId != PveClanControlPointClass;
         }
 
         private static void PublishRewardLoot(Client client, DynamicObject dynamicObject)
