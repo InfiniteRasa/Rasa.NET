@@ -6,37 +6,40 @@ namespace Rasa.Managers
 {
     using Data;
     using Game;
+    using Models;
     using Packets.MapChannel.Server;
     using Structures;
 
     /// <summary>
-    /// The NPC a finished mission is handed in to, on the map and the radar from anywhere on its
-    /// map.
+    /// The NPC a mission has the player go and speak to - the one a finished mission is handed in
+    /// to, and the one an objective is talked through with - on the map and the radar from
+    /// anywhere on its map.
     ///
     /// The client draws it itself, from the NPC's own entity. An NPC whose conversation status is
-    /// MissionComplete or Reward (Recv_NPCConversationStatus, the missions as its data) gets a
-    /// mission marker on the map where it stands, named for it and its missions
-    /// (mapwindow.py HandleUpdateOverheadIndicator, kept on it by Update), and on the radar a
-    /// pip, or an arrow at the rim pointing to it when it is out of the radar's range
-    /// (radarwindow.py _UpdateWidgets) - each shown while one of those missions is tracked.
+    /// MissionComplete, Reward, ObjectivComplete or ObjectivChoice (Recv_NPCConversationStatus,
+    /// the missions as its data) gets a mission marker on the map where it stands, named for it
+    /// and its missions (mapwindow.py HandleUpdateOverheadIndicator, kept on it by Update), and
+    /// on the radar a pip, or an arrow at the rim pointing to it when it is out of the radar's
+    /// range (radarwindow.py _UpdateWidgets) - each shown while one of those missions is tracked.
     /// Nothing else in the client can put it there: an objective's indicators stop being drawn
     /// when the objective is completed, and a finished mission has no objective left to carry
-    /// one.
+    /// one; and a talk-to objective has an indicator only where the content gives it one.
     ///
     /// But only an entity the client holds is drawn, and a client is given the creatures of the
     /// five by five cells around its player: 64 m at the most. Further off than that there was
     /// nothing to draw, so the marker appeared once the player had already found their way
     /// back.
     ///
-    /// So the receiver of a mission a player can hand in is given to that player's client
-    /// wherever it stands on their map, and kept there:
+    /// So the receiver of a mission a player can hand in, and the NPC an objective of theirs is
+    /// to be talked through with now, are given to that player's client wherever they stand on
+    /// their map, and kept there:
     ///  - <see cref="Sync"/> gives the client each one it does not hold and takes away the ones
-    ///    it was given that are no longer one - the mission handed in or abandoned, the NPC dead
-    ///    or no longer to be spoken to. Run when a mission's progress has changed the NPCs'
+    ///    it was given that are no longer one - the mission handed in or abandoned, the objective
+    ///    done, the NPC dead or no longer to be spoken to. Run when a mission's progress has changed the NPCs'
     ///    statuses (MissionApplication.RefreshNpcConversationStatuses), and every few seconds
     ///    (<see cref="Worker"/>) for what no mission event says: the player arriving on a map,
     ///    the NPC respawning or dying.
-    ///  - a receiver the player walks away from stays on their client rather than going with
+    ///  - one the player walks away from stays on their client rather than going with
     ///    its cells (<see cref="Keep(Client, List{Creature})"/>), so the marker does not blink
     ///    out at 64 m and come back.
     ///  - one taken out of the world is taken off every client that was given it
@@ -44,9 +47,9 @@ namespace Rasa.Managers
     /// Walking back into its cells gives it again as any creature is; the client takes a
     /// creature it already holds as an update.
     ///
-    /// What a client is given from afar is not kept up to date as a creature in its cells is:
-    /// it is not told of the NPC moving or changing until it is back in range or the next
-    /// <see cref="Sync"/> takes it away. A mission's receiver stands where its pool put it.
+    /// Of what a creature's cells are told, a client holding it from afar is told its moves
+    /// (<see cref="Relay"/>), so the marker is where the NPC is; nothing else, until it is back
+    /// in range or the next <see cref="Sync"/> takes it away.
     /// </summary>
     public static class MissionContacts
     {
@@ -54,13 +57,37 @@ namespace Rasa.Managers
         public const long SyncIntervalMs = 3000;
 
         /// <summary>
-        /// Whether this creature is where one of the player's missions is handed in now: an NPC
-        /// that can be spoken to, alive, and the receiver of a mission MissionApplication says
-        /// can be handed in (<paramref name="receivers"/>, TurnInReceivers).
+        /// Who a player's missions send them to speak to now: the creature rows their finished
+        /// missions are handed in to (MissionApplication.TurnInReceivers) and the NPC packages
+        /// their objectives are talked through with (MissionApplication.ObjectiveContacts).
         /// </summary>
-        private static bool IsContact(Creature creature, HashSet<uint> receivers) =>
+        private readonly struct Wanted
+        {
+            private readonly HashSet<uint> _receivers;
+            private readonly HashSet<uint> _packages;
+
+            public Wanted(Manifestation player)
+            {
+                var missions = MissionApplication.Instance;
+
+                _receivers = missions?.TurnInReceivers(player);
+                _packages = missions?.ObjectiveContacts(player);
+            }
+
+            public bool Any => _receivers?.Count > 0 || _packages?.Count > 0;
+
+            public bool Has(Creature creature) =>
+                _receivers != null && _receivers.Contains(creature.DbId) ||
+                _packages != null && _packages.Contains(creature.Npc.NpcPackageId);
+        }
+
+        /// <summary>
+        /// Whether this creature is where one of the player's missions sends them now: an NPC
+        /// that can be spoken to, alive, and one of <paramref name="wanted"/>.
+        /// </summary>
+        private static bool IsContact(Creature creature, Wanted wanted) =>
             creature?.Npc != null && creature.IsInteractable && creature.State != CharacterState.Dead
-            && receivers.Contains(creature.DbId);
+            && wanted.Has(creature);
 
         private static bool InWorld(Client client) =>
             client?.Player?.MapChannel != null && client.State == ClientState.Ingame && CellManager.Instance.IsInWorld(client);
@@ -92,7 +119,7 @@ namespace Rasa.Managers
 
             var player = client.Player;
             var map = player.MapChannel;
-            var receivers = MissionApplication.Instance?.TurnInReceivers(player) ?? new HashSet<uint>();
+            var wanted = new Wanted(player);
 
             foreach (var entityId in client.FarContacts.ToList())
             {
@@ -103,23 +130,24 @@ namespace Rasa.Managers
                     continue;
                 }
 
-                if (IsContact(held, receivers))
+                if (IsContact(held, wanted))
                     continue;
 
                 client.FarContacts.Remove(entityId);
                 client.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(entityId));
             }
 
-            if (receivers.Count == 0)
+            if (!wanted.Any)
                 return;
 
             foreach (var creature in map.MapCellInfo.Cells.Values.SelectMany(cell => cell.CreatureList).Distinct().ToList())
             {
-                if (!IsContact(creature, receivers) || InView(player, creature) || client.FarContacts.Contains(creature.EntityId))
+                if (!IsContact(creature, wanted) || InView(player, creature) || client.FarContacts.Contains(creature.EntityId))
                     continue;
 
                 // The creature as any client is given it, its conversation status with it
-                // (CreateCreatureOnClient): MissionComplete and the missions, which is the marker.
+                // (CreateCreatureOnClient): MissionComplete or ObjectivComplete and the missions,
+                // which is the marker.
                 client.FarContacts.Add(creature.EntityId);
                 CreatureManager.Instance.CreateCreatureOnClient(client, creature);
             }
@@ -140,23 +168,23 @@ namespace Rasa.Managers
 
         /// <summary>
         /// The creatures of the cells a player has just left, less the ones their client keeps:
-        /// a mission's receiver stays, held from afar from here on.
+        /// an NPC a mission sends them to stays, held from afar from here on.
         /// </summary>
         public static List<Creature> Keep(Client client, List<Creature> leaving)
         {
             if (!InWorld(client) || !leaving.Any(creature => creature?.Npc != null))
                 return leaving;
 
-            var receivers = MissionApplication.Instance?.TurnInReceivers(client.Player);
+            var wanted = new Wanted(client.Player);
 
-            if (receivers == null || receivers.Count == 0)
+            if (!wanted.Any)
                 return leaving;
 
             var going = new List<Creature>(leaving.Count);
 
             foreach (var creature in leaving)
             {
-                if (IsContact(creature, receivers))
+                if (IsContact(creature, wanted))
                     client.FarContacts.Add(creature.EntityId);
                 else
                     going.Add(creature);
@@ -171,9 +199,7 @@ namespace Rasa.Managers
             if (creature?.Npc == null || !InWorld(client))
                 return false;
 
-            var receivers = MissionApplication.Instance?.TurnInReceivers(client.Player);
-
-            if (receivers == null || !IsContact(creature, receivers))
+            if (!IsContact(creature, new Wanted(client.Player)))
                 return false;
 
             client.FarContacts.Add(creature.EntityId);
@@ -192,6 +218,20 @@ namespace Rasa.Managers
             foreach (var client in mapChannel.ClientList.ToArray())
                 if (client != null && client.FarContacts.Remove(creature.EntityId))
                     client.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(creature.EntityId));
+        }
+
+        /// <summary>
+        /// A creature's move that went to its cells (CellManager.CellMoveObject), to the clients
+        /// that hold it from afar: the marker is drawn where the client has the NPC standing.
+        /// </summary>
+        public static void Relay(MapChannel mapChannel, Creature creature, Movement movement)
+        {
+            if (mapChannel == null || creature?.Npc == null)
+                return;
+
+            foreach (var client in mapChannel.ClientList)
+                if (client?.Player != null && client.FarContacts.Contains(creature.EntityId) && !InView(client.Player, creature))
+                    client.MoveObject(creature.EntityId, movement);
         }
 
         /// <summary>The client is off the map: it has dropped every entity of it, and is checked afresh on the next.</summary>

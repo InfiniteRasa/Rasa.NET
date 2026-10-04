@@ -244,7 +244,7 @@ namespace Rasa.Managers
             // 1 time per sec, do we need check more often?
             UpdateVisibility(mapChannel);
 
-            // The NPCs finished missions are handed in to, for clients out of their range.
+            // The NPCs missions send a player to speak to, for clients out of their range.
             MissionContacts.Worker(mapChannel, System.Environment.TickCount64);
 
             // And each player's squad and team mates elsewhere on the map.
@@ -417,7 +417,7 @@ namespace Rasa.Managers
             // apart: it is what their markers are drawn from (FarAllies).
             ManifestationManager.Instance.CellDiscardClientToPlayers(client, FarAllies.KeepingFor(client, leaving));
             ManifestationManager.Instance.CellDiscardPlayersToClient(client, FarAllies.KeptBy(client, leaving));
-            // The NPC a finished mission is handed in to stays on the client as the player
+            // The NPC a mission sends the player to speak to stays on the client as the player
             // walks away from it: it is what the map marker is drawn from (MissionContacts).
             CreatureManager.Instance.CellDiscardCreaturesToClient(client,
                 MissionContacts.Keep(client, removedCells.SelectMany(cell => cell.CreatureList).Distinct().ToList()));
@@ -579,6 +579,10 @@ namespace Rasa.Managers
             foreach (var cell in CellsIn(mapChannel, creature.Cells))
                 foreach (var client in cell.ClientList)
                     client.MoveObject(creature.EntityId, movementData);
+
+            // And the clients a mission has given this NPC to from across the map.
+            if (creature.Npc != null)
+                MissionContacts.Relay(mapChannel, creature, movementData);
         }
 
         internal void CellCallMethod(DynamicObject obj, PythonPacket packet)

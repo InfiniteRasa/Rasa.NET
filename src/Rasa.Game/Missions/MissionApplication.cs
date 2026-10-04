@@ -215,7 +215,7 @@ namespace Rasa.Managers
                 return;
 
             // The NPCs around the player, and the ones their client was given from afar because
-            // a mission is handed in to them (MissionContacts): those have a status to keep too.
+            // a mission sends the player to them (MissionContacts): those have a status to keep too.
             var npcs = CellManager.CellsIn(map, player.Cells)
                 .SelectMany(cell => cell.CreatureList)
                 .Concat(client.FarContacts
@@ -231,8 +231,8 @@ namespace Rasa.Managers
                         () => NpcManager.Instance.UpdateConversationStatus(client, npc, this),
                         $"NPC {npc.EntityId} conversation status after mission progress");
 
-            // A mission that can now be handed in puts its receiver on the map; one handed in or
-            // abandoned takes it off.
+            // A mission that can now be handed in puts its receiver on the map, and an objective
+            // to talk through its NPC; handed in, talked through or abandoned takes them off.
             TryPublish(() => MissionContacts.Sync(client), "mission contacts after mission progress");
 
             // And the objects a mission now wants used, or no longer does, start or stop sparkling.
@@ -307,6 +307,56 @@ namespace Rasa.Managers
             }
 
             return receivers;
+        }
+
+        /// <summary>
+        /// The NPC packages a player has an objective to talk through now: the NPCs
+        /// ClassifyNpcConversation gives ObjectivComplete or ObjectivChoice for, by the same
+        /// test (<see cref="OpenTopics"/>) - a completion or choice topic of an active mission
+        /// whose objective is still to do, its requirement met. They are what MissionContacts
+        /// puts on the map from anywhere on it, with the receivers of <see cref="TurnInReceivers"/>.
+        /// </summary>
+        internal HashSet<uint> ObjectiveContacts(Manifestation player)
+        {
+            var packages = new HashSet<uint>();
+
+            if (player?.Missions == null)
+                return packages;
+
+            foreach (var log in player.Missions.Values)
+            {
+                if (log.State != MissionState.Active || !TryGetOperationalMission(log.MissionId, out var mission))
+                    continue;
+
+                var named = mission.Dialogue.Select(topic => topic.NpcPackageId)
+                    .Concat(mission.Objectives.Values.SelectMany(objective => objective.Conversations)
+                        .Select(conversation => conversation.NpcPackageId))
+                    .Distinct();
+
+                foreach (var package in named)
+                    if (!packages.Contains(package) && OpenTopics(player, mission, log, package).Any(topic =>
+                            topic.Key.Kind is MissionConversationTopicKind.ObjectiveCompletion or MissionConversationTopicKind.ObjectiveChoice))
+                        packages.Add(package);
+            }
+
+            return packages;
+        }
+
+        /// <summary>
+        /// What an NPC of this package has to say for an active mission: its topics whose
+        /// objective is still to do and whose requirement the player meets.
+        /// </summary>
+        private IEnumerable<MissionDialoguePresentation> OpenTopics(Manifestation player, Mission mission, MissionLog log, uint packageId)
+        {
+            foreach (var topic in MissionConversationProjection.ForNpc(mission, packageId))
+            {
+                if (!log.Objectives.TryGetValue(topic.ProgressionObjectiveId, out var objectiveLog) ||
+                    objectiveLog.State != MissionObjectiveState.Incomplete ||
+                    !_requirements.Evaluate(player, mission.ObjectiveRequirements.GetValueOrDefault(topic.ProgressionObjectiveId)))
+                    continue;
+
+                yield return topic;
+            }
         }
 
         internal void PublishRadioOffer(Client client, Mission definition, bool forceDialog)
@@ -2905,14 +2955,7 @@ namespace Rasa.Managers
                         continue;
                     }
 
-                    foreach (var topic in MissionConversationProjection.ForNpc(mission, creature.Npc.NpcPackageId))
-                    {
-                        if (!log.Objectives.TryGetValue(topic.ProgressionObjectiveId, out var objectiveLog) ||
-                            objectiveLog.State != MissionObjectiveState.Incomplete ||
-                            !_requirements.Evaluate(player, mission.ObjectiveRequirements.GetValueOrDefault(topic.ProgressionObjectiveId)))
-                            continue;
-                        dialogue.Add(topic);
-                    }
+                    dialogue.AddRange(OpenTopics(player, mission, log, creature.Npc.NpcPackageId));
                 }
                 else if (log.State == MissionState.Success &&
                     mission.CompletionChannel.HasFlag(MissionChannel.Npc) &&

@@ -123,8 +123,8 @@ namespace Rasa.Game
 
         /// <summary>
         /// The creatures this client has been given from beyond its player's cells: the NPCs
-        /// their finished missions are handed in to, so that the map and the radar can show
-        /// them (Managers.MissionContacts). By entity id; emptied when the player leaves the map.
+        /// their finished missions are handed in to and their objectives are talked through
+        /// with, so that the map and the radar can show them (Managers.MissionContacts). By entity id; emptied when the player leaves the map.
         /// </summary>
         internal HashSet<ulong> FarContacts { get; } = new HashSet<ulong>();
 
