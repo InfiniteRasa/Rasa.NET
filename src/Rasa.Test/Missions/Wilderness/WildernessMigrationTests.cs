@@ -433,6 +433,39 @@ namespace Rasa.Test.Missions.Wilderness
         }
 
         [TestMethod]
+        public void HoldCaptivePierreOnlyMakesHerEncounterManualCombatAndRollsBackToTheSeededScene()
+        {
+            const string before = "20261116000000_Wilderness_targets_kill_rules";
+            using var harness = WildernessRuntimeTestHarness.Create(targetWorldMigration: before);
+            string Scene(uint mission) => harness.World.Set<Rasa.Structures.World.MissionSceneBindingEntry>().AsNoTracking()
+                .Single(row => row.MissionId == mission && row.ContentRevision == WildernessMissionDataV1.Revision).Bindings;
+            string[] Others() => harness.World.Set<Rasa.Structures.World.MissionSceneBindingEntry>().AsNoTracking()
+                .Where(row => row.MissionId != 666).OrderBy(row => row.MissionId).ThenBy(row => row.ContentRevision)
+                .AsEnumerable().Select(row => $"{row.MissionId}/{row.ContentRevision}/{row.ScriptKey}/{row.StateVersion}/{row.Bindings}").ToArray();
+            var seeded = Scene(666);
+            var others = Others();
+            var seededEncounter = JsonSerializer.Deserialize<MissionSceneDefinition>(seeded, MissionContentCodec.Options).PublicEncounter;
+            Assert.IsFalse(seededEncounter.ManualCombat);
+            Assert.IsFalse(seeded.Contains("manualCombat"));
+            CollectionAssert.AreEqual(new[] { "20261117000000_Hold_captive_pierre" },
+                harness.World.Database.GetPendingMigrations().ToArray());
+
+            harness.World.Initialize();
+
+            var held = Scene(666);
+            Assert.AreEqual(seededEncounter with { ManualCombat = true },
+                JsonSerializer.Deserialize<MissionSceneDefinition>(held, MissionContentCodec.Options).PublicEncounter);
+            Assert.AreEqual(seeded, held.Replace(",\"manualCombat\":true", ""),
+                "Nothing of the scene but the encounter's combat gate may change.");
+            CollectionAssert.AreEqual(others, Others());
+
+            harness.World.GetService<IMigrator>().Migrate(before);
+
+            Assert.AreEqual(seeded, Scene(666));
+            CollectionAssert.AreEqual(others, Others());
+        }
+
+        [TestMethod]
         public void ForwardCapacityMigrationPreservesAnAlreadyAppliedLateSchema()
         {
             using var harness = WildernessRuntimeTestHarness.Create(

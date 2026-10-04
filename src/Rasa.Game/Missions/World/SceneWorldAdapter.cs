@@ -195,8 +195,20 @@ namespace Rasa.Game.Missions.World
                 return WorldEffectResult.Applied();
             }
             if (intent is RunRouteIntent route)
-                return actor.Creature == null ? WorldEffectResult.Failed("Only a creature can follow a route.") :
-                    _routes.Start(world.Map, actor.Handle, actor.Creature, route, world.Bindings.Routes[route.Route]);
+            {
+                if (actor.Creature == null)
+                    return WorldEffectResult.Failed("Only a creature can follow a route.");
+                // A route that resumes after combat leads through fights. An actor held out of
+                // combat until its scene says so (ManualCombat: a captive behind her forcefield)
+                // is in it from the moment she is set on such a route, until her lease resets.
+                if (route.ResumeAfterCombat &&
+                    !_leases.AuthorizeCombat(world.Map, actor.Handle, actor.Creature, route.OperationKey))
+                    return WorldEffectResult.Failed("A route through combat requires this actor's current public lease.");
+                var started = _routes.Start(world.Map, actor.Handle, actor.Creature, route, world.Bindings.Routes[route.Route]);
+                if (route.ResumeAfterCombat && started.State == WorldEffectState.Failed)
+                    _leases.RevokeCombat(world.Map, actor.Handle, route.OperationKey);
+                return started;
+            }
             if (intent is AttackActorIntent attack)
             {
                 Actor target;
