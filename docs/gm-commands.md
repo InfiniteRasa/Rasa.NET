@@ -258,7 +258,15 @@ Map links, region volumes, FX emitters and crafting stations are **saved to the 
 | `.cp <id> afs \| bane` | GameMaster | Gives a control point to a side, and to no clan: the garrisons change over, and its hospital and waypoint open or shut. `afs` on a clan's point takes it from the clan. Kept through a restart. |
 | `.cp <id> clan <clan name or id>` | GameMaster | Gives a control point to a clan, as if one of its members had captured it: the AFS's garrison, hospital and waypoint, the clan's object and lockbox. The name may contain spaces; its case does not matter. Kept through a restart. |
 | `.cp <id> goto \| here` | GameMaster | Goes to a control point, or stands its object where you are (kept in the world database). |
+| `.greeting` | GameMaster | For the NPC you have targeted: which greeting line it says, and the line itself, shown in your conversation window. |
+| `.greeting <greetingId>` / `.greeting clear` | GameMaster | Gives the targeted NPC that line as its own, or takes its own line away so it says the default ("Greetings.") again. Kept in the world database for the NPC's creature row. The id is one of the client's `npcgreetinglanguage` lines; an id the client has not got is refused. |
+| `.greeting show <greetingId>` | GameMaster | Shows any greeting line in your conversation window, with nothing targeted: for finding the line you want. |
 | `.cp <id> lockbox` / `.cp <id> lockbox remove` | GameMaster | Sets the point's clan lockbox down where you stand, facing as you face, or moves it there if it has one; `remove` takes it away. Kept in the world database. The lockbox is on the map only while a clan holds the point. |
+
+NPC greetings:
+
+- The greeting heads the topic list of an NPC with more than one thing to talk about. An NPC with a line of its own and nothing else to talk about can also be spoken to, and says the line.
+- The client has the lines but not who says which. 82 NPCs start with the line their text gives away; every other NPC says "Greetings." until it is given one with `.greeting`.
 
 Clan-owned control points (`ControlPoints` in `appsettings.json`):
 

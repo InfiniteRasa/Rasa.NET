@@ -210,6 +210,7 @@ namespace Rasa.Managers
             RegisterCommand(".linkhere", GmLevel.GameMaster, LinkHereCommand, "destMapId", "destX", "destY", "destZ", "radius", "kind");
             RegisterCommand(".kraftwerks", GmLevel.GameMaster, KraftwerksCommand, "stationIdOrHere", "action", "value");
             RegisterCommand(".cp", GmLevel.GameMaster, ControlPointCommand, "id", "action");
+            RegisterCommand(".greeting", GmLevel.GameMaster, GreetingCommand, "greetingId|clear|show", "greetingId");
             RegisterCommand(".instance", GmLevel.GameMaster, InstanceCommand, "action", "number");
             RegisterCommand(".bg", GmLevel.GameMaster, BattlegroundCommand, "action", "arg1", "arg2");
             RegisterCommand(".region", GmLevel.GameMaster, RegionCommand, "modeOrId", "regionOrAction", "arg1", "arg2", "comment");
@@ -3246,6 +3247,118 @@ namespace Rasa.Managers
                     Say(usage);
                     return;
             }
+        }
+
+        /// <summary>
+        /// .greeting: the line the targeted NPC greets a player with (NpcGreetings) - shown, set
+        /// to one of the client's npcgreetinglanguage lines, or taken away so it says the
+        /// default again. Kept in the world database for the NPC's creature row. The server has
+        /// only the ids, so the line is shown by having the game master's own client display
+        /// it; ".greeting show" does that for any line, with nothing targeted.
+        /// </summary>
+        private void GreetingCommand(string[] parts)
+        {
+            const string usage = "usage: .greeting | .greeting <greetingId> | .greeting clear (each with an NPC targeted) | .greeting show <greetingId>";
+            var client = _client;
+
+            if (parts.Length == 3 && parts[1] == "show")
+            {
+                if (!uint.TryParse(parts[2], out var shown) || !NpcGreetings.IsLine(shown))
+                {
+                    CommunicatorManager.Instance.SystemMessage(client, $"The client has no greeting {parts[2]}.");
+                    return;
+                }
+
+                client.CallMethod(client.Player.EntityId, new ForceConversePacket((int)shown));
+                return;
+            }
+
+            if (parts.Length > 2)
+            {
+                CommunicatorManager.Instance.SystemMessage(client, usage);
+                return;
+            }
+
+            var entityId = client.Player.Target;
+            var creature = entityId != 0 && EntityManager.Instance.GetEntityType(entityId) == EntityType.Creature
+                ? EntityManager.Instance.GetCreature(entityId)
+                : null;
+
+            if (creature?.Npc == null)
+            {
+                CommunicatorManager.Instance.SystemMessage(client, $"Target an NPC. {usage}");
+                return;
+            }
+
+            var who = $"Creature #{creature.DbId}";
+
+            if (parts.Length == 1)
+            {
+                CommunicatorManager.Instance.SystemMessage(client, NpcGreetings.HasOwn(creature)
+                    ? $"{who} says greeting {creature.Npc.GreetingId}."
+                    : $"{who} has no greeting of its own: it says the default, {NpcGreetings.Default}.");
+                client.CallMethod(client.Player.EntityId, new ForceConversePacket(NpcGreetings.For(creature), creature.NameId != 0 ? creature.NameId : (uint?)null));
+                return;
+            }
+
+            if (parts[1] == "clear")
+            {
+                if (!NpcGreetings.HasOwn(creature))
+                {
+                    CommunicatorManager.Instance.SystemMessage(client, $"{who} has no greeting of its own.");
+                    return;
+                }
+
+                var had = creature.Npc.GreetingId;
+
+                if (!NpcGreetings.Clear(creature, Server.GameUnitOfWorkFactory))
+                {
+                    CommunicatorManager.Instance.SystemMessage(client, $"The greeting of {who} could not be taken away; see the server log.");
+                    return;
+                }
+
+                CommunicatorManager.Instance.SystemMessage(client, $"{who} says the default again (it said greeting {had}).");
+                Logger.WriteLog(LogType.Command, $"{client.Player.FamilyName} took greeting {had} from creature {creature.DbId}.");
+                RefreshGreetingStatus(creature);
+                return;
+            }
+
+            if (!uint.TryParse(parts[1], out var greetingId) || !NpcGreetings.IsLine(greetingId))
+            {
+                CommunicatorManager.Instance.SystemMessage(client, $"The client has no greeting {parts[1]}. {usage}");
+                return;
+            }
+
+            if (!NpcGreetings.Set(creature, greetingId, Server.GameUnitOfWorkFactory))
+            {
+                CommunicatorManager.Instance.SystemMessage(client, $"The greeting of {who} could not be saved; see the server log.");
+                return;
+            }
+
+            CommunicatorManager.Instance.SystemMessage(client, $"{who} says greeting {greetingId}.");
+            Logger.WriteLog(LogType.Command, $"{client.Player.FamilyName} gave creature {creature.DbId} greeting {greetingId}.");
+            RefreshGreetingStatus(creature);
+            client.CallMethod(client.Player.EntityId, new ForceConversePacket((int)greetingId, creature.NameId != 0 ? creature.NameId : (uint?)null));
+        }
+
+        /// <summary>
+        /// Whether an NPC can be spoken to depends on its having a line of its own: every client
+        /// that has an NPC of this creature row on the game master's map is told its status anew.
+        /// </summary>
+        private void RefreshGreetingStatus(Creature creature)
+        {
+            var mapChannel = creature.RuntimeMapChannel ?? _client.Player.MapChannel;
+
+            if (mapChannel?.MapCellInfo?.Cells == null)
+                return;
+
+            var same = mapChannel.MapCellInfo.Cells.Values.SelectMany(cell => cell.CreatureList)
+                .Where(other => other != null && ReferenceEquals(other.Npc, creature.Npc)).Distinct().ToList();
+
+            foreach (var npc in same)
+                if (npc.Cells != null)
+                    foreach (var viewer in CellManager.Instance.GetClientsInCells(mapChannel, npc.Cells))
+                        NpcManager.Instance.UpdateConversationStatus(viewer, npc);
         }
 
         private void ControlPointCommand(string[] parts)

@@ -761,6 +761,9 @@ namespace Rasa.Managers
             var actorNames = new Dictionary<uint, string>();
             foreach (var entry in unitOfWork.Creatures.GetActorNames())
                 actorNames[entry.Id] = entry.ActorName;
+            var greetings = new Dictionary<uint, uint>();
+            foreach (var entry in unitOfWork.Creatures.GetNpcGreetings())
+                greetings[entry.Id] = entry.GreetingId;
 
             foreach (var data in creatureList)
             {
@@ -832,6 +835,10 @@ namespace Rasa.Managers
 
                 if (isNpc != null)
                     creature.Npc = isNpc;
+
+                // The line it greets a player with, if it has one of its own (NpcGreetings).
+                if (isNpc != null && greetings.TryGetValue(data.Id, out var greetingId) && NpcGreetings.IsLine(greetingId))
+                    isNpc.GreetingId = greetingId;
 
                 if (isAuctioneer)
                     creature.Npc.NpcIsAuctioneer = true;

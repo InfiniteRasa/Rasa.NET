@@ -23,5 +23,11 @@ namespace Rasa.Structures
         /// recognised by its name id.
         /// </summary>
         public bool NpcIsTrainer = false;
+
+        /// <summary>
+        /// The line this NPC greets a player with, an id of the client's npcgreetinglanguage
+        /// (npc_greeting), or 0 if it has none of its own and says the default (NpcGreetings).
+        /// </summary>
+        public uint GreetingId { get; set; }
     }
 }
