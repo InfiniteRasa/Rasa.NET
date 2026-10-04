@@ -2926,7 +2926,8 @@ namespace Rasa.Managers
         /// </summary>
         /// <summary>
         /// The control points (ControlPoints): those of this map, who holds each and how its
-        /// garrison stands; a point given to a side, gone to, or stood where the game master is.
+        /// garrison stands; a point given to a side or to a clan, gone to, or stood where the
+        /// game master is; and its clan lockbox set down there, or taken away.
         /// </summary>
         /// <summary>
         /// .instance: the shared copies of the map the game master stands on (MapChannelManager's
@@ -3249,7 +3250,7 @@ namespace Rasa.Managers
 
         private void ControlPointCommand(string[] parts)
         {
-            const string usage = "usage: .cp | .cp all | .cp <id> afs | bane | goto | here";
+            const string usage = "usage: .cp | .cp all | .cp <id> afs | bane | clan <clan name or id> | goto | here | lockbox | lockbox remove";
             var client = _client;
             var player = client.Player;
             var points = ControlPoints.Instance;
@@ -3283,15 +3284,29 @@ namespace Rasa.Managers
                         ? $"map {point.MapContextId}"
                         : $"{Vector3.Distance(point.Object?.Position ?? point.Position, player.Position):0.#} m";
 
+                    var holder = point.HeldByClan
+                        ? $"AFS, clan {points.HolderName(point)} (#{point.ClanId}){(point.LockboxId == 0 ? ", no lockbox" : "")}"
+                        : ControlPoints.FactionName(point.Owner);
+
                     CommunicatorManager.Instance.SystemMessage(client, point.IsBattleground
                         ? $"#{point.Id} {point.Name}: a battleground's (.bg), {where}"
-                        : $"#{point.Id} {point.Name}: {ControlPoints.FactionName(point.Owner)}, {garrison}, {where}");
+                        : $"#{point.Id} {point.Name}: {holder}, {garrison}, {where}");
                 }
+
+                if (points.NextClanReset != null && list.Any(p => p.HeldByClan))
+                    CommunicatorManager.Instance.SystemMessage(client, $"The clans' points go back to the AFS on {points.NextClanReset.Value:yyyy-MM-dd HH:mm}.");
 
                 return;
             }
 
-            if (parts.Length != 3 || !uint.TryParse(parts[1], out var id) || points.ById(id) is not { } target)
+            if (parts.Length < 3 || !uint.TryParse(parts[1], out var id) || points.ById(id) is not { } target)
+            {
+                CommunicatorManager.Instance.SystemMessage(client, usage);
+                return;
+            }
+
+            // A clan's name may have spaces in it: everything after "clan" is the name.
+            if (parts.Length != 3 && !(parts[2] == "clan" && parts.Length > 3) && !(parts[2] == "lockbox" && parts.Length == 4 && parts[3] == "remove"))
             {
                 CommunicatorManager.Instance.SystemMessage(client, usage);
                 return;
@@ -3299,6 +3314,44 @@ namespace Rasa.Managers
 
             switch (parts[2])
             {
+                case "clan" when target.IsBattleground:
+                case "lockbox" when target.IsBattleground:
+                    CommunicatorManager.Instance.SystemMessage(client, $"Control point #{id} {target.Name} is a battleground's: no clan holds it.");
+                    return;
+
+                case "clan" when parts.Length > 3:
+                    var clan = ClanManager.Instance.FindClan(string.Join(' ', parts.Skip(3)));
+
+                    if (clan == null)
+                    {
+                        CommunicatorManager.Instance.SystemMessage(client, $"There is no clan \"{string.Join(' ', parts.Skip(3))}\".");
+                        return;
+                    }
+
+                    CommunicatorManager.Instance.SystemMessage(client, points.SetHolder(target, ControlPoints.Afs, clan.Id, null)
+                        ? $"Control point #{id} {target.Name} is clan {clan.Name}'s."
+                        : $"Control point #{id} {target.Name} is clan {clan.Name}'s already.");
+                    Logger.WriteLog(LogType.Command, $"{player.FamilyName} gave control point {id} ({target.Name}) to clan {clan.Id} ({clan.Name}).");
+                    return;
+
+                case "lockbox" when parts.Length == 4:
+                    CommunicatorManager.Instance.SystemMessage(client, points.RemoveLockbox(target, Server.GameUnitOfWorkFactory)
+                        ? $"Control point #{id} {target.Name} has no clan lockbox any more."
+                        : $"Control point #{id} {target.Name} has no clan lockbox, or it could not be taken away; see the server log.");
+                    return;
+
+                case "lockbox":
+                    if (target.MapContextId != player.MapContextId || player.MapChannel == null || player.MapChannel.IsCopy)
+                    {
+                        CommunicatorManager.Instance.SystemMessage(client, $"Control point #{id} {target.Name} is on map {target.MapContextId}; stand where its clan lockbox should be, on that map's own channel.");
+                        return;
+                    }
+
+                    CommunicatorManager.Instance.SystemMessage(client, points.SetLockbox(target, player.Position, player.Rotation, Server.GameUnitOfWorkFactory)
+                        ? $"The clan lockbox of control point #{id} {target.Name} stands at ({player.Position.X:0.#}, {player.Position.Y:0.#}, {player.Position.Z:0.#}){(target.HeldByClan ? "" : ": it is on the map while a clan holds the point")}."
+                        : $"The clan lockbox of control point #{id} {target.Name} could not be set down; see the server log.");
+                    return;
+
                 case "afs" when target.IsBattleground:
                 case "bane" when target.IsBattleground:
                     CommunicatorManager.Instance.SystemMessage(client, $"Control point #{id} {target.Name} is a battleground's: .bg capture gives it to a team.");
@@ -3308,6 +3361,7 @@ namespace Rasa.Managers
                 case "bane":
                     var owner = parts[2] == "afs" ? ControlPoints.Afs : ControlPoints.Bane;
 
+                    // To a side, and to no clan: a clan that held it has lost it.
                     CommunicatorManager.Instance.SystemMessage(client, points.SetOwner(target, owner, null)
                         ? $"Control point #{id} {target.Name} is the {ControlPoints.FactionName(owner)}'s."
                         : $"Control point #{id} {target.Name} is the {ControlPoints.FactionName(owner)}'s already.");

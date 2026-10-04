@@ -19,8 +19,8 @@ namespace Rasa.Packets.MapChannel.Server
     ///
     /// What the server says is by the class: the PvE test point is told false, and any other
     /// class of the kind would be told what the client assumes anyway
-    /// (DynamicObjectManager.IsPvPClanControlPoint). Nothing here places one; a game master can,
-    /// with .createobj 29329.
+    /// (DynamicObjectManager.IsPvPClanControlPoint). The class is what a control point of the
+    /// open world is while a clan holds it (ControlPoints).
     /// </summary>
     public class PvPEnabledPacket : ServerPythonPacket
     {

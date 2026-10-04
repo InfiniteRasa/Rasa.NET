@@ -311,6 +311,9 @@ namespace Rasa.Managers
 
                 // The squad instances: the weekly reset, when its time has come.
                 Guard("MapChannelManager.SquadInstanceWorker", null, SquadInstanceWorker);
+
+                // The clans' control points: their pay, and their weekly reset.
+                Guard("ControlPoints.ClanWorker", null, () => ControlPoints.Instance.ClanWorker());
             }
 
             // Server-wide lists, ticked once. These used to run inside the per-map loop below,

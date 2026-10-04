@@ -79,7 +79,7 @@ namespace Rasa.Managers
                     client.MissionObjects.Remove(obj.EntityId);
             }
 
-            return new UsableInfoPacket(enabled, obj.StateId, 0, windupTime, activation);
+            return new UsableInfoPacket(enabled, obj.StateId, obj.NameOverrideId, windupTime, activation);
         }
 
         /// <summary>
@@ -113,14 +113,14 @@ namespace Rasa.Managers
                 if (activation != 0 && !told)
                 {
                     client.MissionObjects.Add(obj.EntityId);
-                    client.CallMethod(obj.EntityId, new UsableInfoPacket(obj.IsEnabled, obj.StateId, 0, obj.WindupTime, activation));
+                    client.CallMethod(obj.EntityId, new UsableInfoPacket(obj.IsEnabled, obj.StateId, obj.NameOverrideId, obj.WindupTime, activation));
                 }
                 else if (activation == 0 && told)
                 {
                     client.MissionObjects.Remove(obj.EntityId);
 
                     // Out of service takes the effect off; in service again without it.
-                    client.CallMethod(obj.EntityId, new UsableInfoPacket(false, obj.StateId, 0, obj.WindupTime, 0));
+                    client.CallMethod(obj.EntityId, new UsableInfoPacket(false, obj.StateId, obj.NameOverrideId, obj.WindupTime, 0));
 
                     if (obj.IsEnabled)
                         client.CallMethod(obj.EntityId, new SetUsablePacket(true));

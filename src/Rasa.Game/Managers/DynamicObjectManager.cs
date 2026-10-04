@@ -300,14 +300,15 @@ namespace Rasa.Managers
                     {
                         // One of the world's (ControlPoints) is the Bane's, with none of its
                         // garrison standing: the worker has it out of service otherwise, a second
-                        // behind at most. A scene's own object of this kind is only used.
+                        // behind at most. Or it is a clan's, and the player's clan is at feud
+                        // with that one. A scene's own object of this kind is only used.
                         var point = ControlPoints.Instance.PointOf(obj);
 
                         // One of a match's (Battlegrounds) is for a team that does not hold it,
                         // while the match runs and with its Simulated Bane dead.
                         var teamPoint = Battlegrounds.Instance.PointOf(obj);
 
-                        if (point != null && !ControlPoints.Instance.MayCapture(client.Player.MapChannel, point)
+                        if (point != null && !ControlPoints.Instance.MayCapture(client.Player.MapChannel, point, client)
                             || teamPoint != null && !Battlegrounds.Instance.MayCapture(client, teamPoint))
                         {
                             ActorManager.RefuseRequest(client, packet.ActionId, packet.ActionArgId, PlayerMessage.PmUseObjectNotUsable);
@@ -317,7 +318,8 @@ namespace Rasa.Managers
                         if (!TryLockForUse(client, obj, packet))
                             break;
 
-                        var captureMs = teamPoint != null ? Battlegrounds.Instance.CaptureMsOf(teamPoint) : ControlPoints.CaptureMs;
+                        var captureMs = teamPoint != null ? Battlegrounds.Instance.CaptureMsOf(teamPoint)
+                            : point != null ? ControlPoints.Instance.CaptureMsOf(point) : ControlPoints.CaptureMs;
 
                         // The object's id rides on the action so its recovery can find the lock.
                         var controlAction = new ActionData(client.Player, packet.ActionId, packet.ActionArgId, captureMs);
@@ -356,7 +358,7 @@ namespace Rasa.Managers
                             Battlegrounds.Instance.Claiming(client, teamPoint);
 
                         if (point != null)
-                            ControlPoints.Instance.Claiming(client.Player.MapChannel, point);
+                            ControlPoints.Instance.Claiming(client.Player.MapChannel, point, client);
                         client.Player.MapChannel.PerformRecovery.Add(controlAction);
 
                         if (!obj.TriggeredByPlayers.Contains(client))
@@ -365,6 +367,15 @@ namespace Rasa.Managers
                     }
                 case DynamicObjectType.Lockbox:
                     {
+                        // A control point's clan lockbox is the clan's that holds the point
+                        // (ControlPoints): out of service to anyone else's client, so only one
+                        // that did not know yet asks.
+                        if (!ControlPoints.Instance.MayOpenLockbox(client, obj))
+                        {
+                            ActorManager.RefuseRequest(client, packet.ActionId, packet.ActionArgId, PlayerMessage.PmUseObjectNotUsable);
+                            break;
+                        }
+
                         client.CallMethod(client.Player.EntityId, new PerformWindupPacket(PerformType.TwoArgs, packet.ActionId, packet.ActionArgId));
                         client.CallMethod(packet.EntityId, new UsePacket(client.Player.EntityId, obj.StateId, 100));
                         client.Player.MapChannel.PerformRecovery.Add(new ActionData(client.Player, packet.ActionId, packet.ActionArgId, 100));
@@ -658,6 +669,17 @@ namespace Rasa.Managers
                     dynamicObject.SceneRunId != null && dynamicObject.IsEnabled),
                 new WorldLocationDescriptorPacket(dynamicObject.Position, dynamicObject.Rotation)
             };
+
+            // A control point a clan holds: whose it is, ahead of UsableInfo. The owner picks the
+            // state's effect - your clan's, another's - and the client only keeps it when told:
+            // the state that comes next is what takes it (ClanAssociationPacket).
+            if (ControlPoints.Instance.ClanShownBy(dynamicObject) is { } owningClan)
+                entityData.Add(new ClanAssociationPacket(owningClan));
+
+            // In service to this client or not, for an object that is so to some and not others:
+            // a clan's control point, and its lockbox (ControlPoints).
+            var enabled = ControlPoints.Instance.ShownUsable(client, dynamicObject) ?? dynamicObject.IsEnabled;
+
             if (dynamicObject.MissionConversation is { } conversation)
             {
                 entityData.Add(new NPCInfoPacket(conversation.NpcPackageId));
@@ -673,7 +695,7 @@ namespace Rasa.Managers
                         ? DropshipBeacons.ShowTo(client, dynamicObject)
                         : dynamicObject.DynamicObjectType == DynamicObjectType.PersonalWaypoint
                             ? PersonalWaypoints.ShowTo(client, dynamicObject)
-                            : dynamicObject.IsEnabled,
+                            : enabled,
                     dynamicObject.WindupTime, _missionManager));
 
             // Only for an object that actually has a lock. An unlocked usable is the default the
@@ -718,8 +740,24 @@ namespace Rasa.Managers
             if (dynamicObject.UsedBy != null)
             {
                 client.CallMethod(dynamicObject.EntityId, new LockToActorPacket(dynamicObject.UsedBy.EntityId));
-                client.CallMethod(dynamicObject.EntityId, new UseInterruptiblePacket(dynamicObject.UsedBy.EntityId));
+                client.CallMethod(dynamicObject.EntityId, UseInterruptibleOf(dynamicObject, dynamicObject.UsedBy));
             }
+        }
+
+        /// <summary>
+        /// UseInterruptible for an actor's timed use of an object. A clan control point is told
+        /// the clan of whoever is using it as well - its in-use effect is by the clan that holds
+        /// it and the clan that is at it - and its client method takes that argument or fails;
+        /// a user in no clan is the AFS's. Any other object is told the actor alone.
+        /// </summary>
+        internal static UseInterruptiblePacket UseInterruptibleOf(DynamicObject obj, Actor user)
+        {
+            if (!IsClanControlPoint(EntityClassManager.Instance.GetClassInfo(obj.EntityClassId)))
+                return new UseInterruptiblePacket(user.EntityId);
+
+            var clanId = (user as Manifestation)?.ClanId ?? 0;
+
+            return new UseInterruptiblePacket(user.EntityId, clanId != 0 ? (int)clanId : ControlPoints.VirtualClanAfs);
         }
 
         /// <summary>TEST_ClanControlPoint_PvE: the one class of the client's with the CLANCONTROLPOINT augmentation.</summary>
@@ -826,7 +864,7 @@ namespace Rasa.Managers
             obj.UsedBy = user;
 
             CellManager.Instance.CellCallMethod(obj, new LockToActorPacket(user.EntityId));
-            CellManager.Instance.CellCallMethod(obj, new UseInterruptiblePacket(user.EntityId));
+            CellManager.Instance.CellCallMethod(obj, UseInterruptibleOf(obj, user));
 
             return true;
         }
@@ -944,13 +982,16 @@ namespace Rasa.Managers
 
         /// <summary>
         /// A control point's use has run its time (ActorActionManager): the point is the AFS's,
-        /// if the player is still standing at it and its garrison is still down (ControlPoints).
-        /// An object of this kind that is not one of the world's points - a scene's - changes
-        /// state as it always did. Either way the use counts for a mission that asks for it.
+        /// or the player's clan's, if the player is still standing at it and its garrison is
+        /// still down (ControlPoints). An object of this kind that is not one of the world's
+        /// points - a scene's - changes state as it always did. Either way the use counts for a
+        /// mission that asks for it.
         /// </summary>
         internal void CaptureControlPointRecovery(MapChannel mapChannel, ActionData action)
         {
-            foreach (var entry in mapChannel.ControlPoints)
+            // Over a copy: a point a clan takes or loses has its object changed for another
+            // (ControlPoints.Rebuild), which puts the new one in the map's list as this runs.
+            foreach (var entry in mapChannel.ControlPoints.ToArray())
             {
                 var controlpoint = entry.Value;
 
@@ -2287,6 +2328,7 @@ namespace Rasa.Managers
             clone.IsEnabled = source.IsEnabled;
             clone.StateId = source.StateId;
             clone.WindupTime = source.WindupTime;
+            clone.NameOverrideId = source.NameOverrideId;
             clone.ActivateMission = source.ActivateMission;
             clone.ObjectData = CloneObjectData(source.ObjectData);
 

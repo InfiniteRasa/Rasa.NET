@@ -169,6 +169,9 @@ namespace Rasa.Game
             // The numbers of the Edmund Range match; a match being played keeps its clock.
             Battlegrounds.Instance.Config = Config.Battleground ?? new BattlegroundConfig();
 
+            // Clan-owned control points: a point a clan already holds is as the new values have it from the next pass.
+            ControlPoints.Instance.Config = Config.ControlPoints ?? new ControlPointConfig();
+
             // Off, log or refuse for each of the three movement checks, and the three weapon checks.
             MovementChecks.Config = Config.MovementChecks ?? new MovementChecksConfig();
             WeaponChecks.Config = Config.WeaponChecks ?? new WeaponChecksConfig();

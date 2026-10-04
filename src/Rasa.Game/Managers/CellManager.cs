@@ -585,6 +585,15 @@ namespace Rasa.Managers
                 MissionContacts.Relay(mapChannel, creature, movementData);
         }
 
+        /// <summary>The clients that have been given an object: those in the cells around where it stands.</summary>
+        internal List<Client> ClientsSeeing(MapChannel mapChannel, DynamicObject obj)
+        {
+            if (mapChannel == null || obj == null || !TryGetCellCoordinates(obj.Position, out var cellPosX, out var cellPosZ))
+                return new List<Client>();
+
+            return GetClientsInCells(mapChannel, CreateCellMatrix(mapChannel, cellPosX, cellPosZ));
+        }
+
         internal void CellCallMethod(DynamicObject obj, PythonPacket packet)
         {
             var mapChannel = obj?.RuntimeMapChannel;

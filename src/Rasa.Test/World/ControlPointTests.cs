@@ -521,7 +521,7 @@ namespace Rasa.Test.World
             public List<(uint, byte, long)> Saved { get; } = new List<(uint, byte, long)>();
 
             public List<ControlPointStateEntry> Load() => Rows;
-            public void Save(uint controlPointId, byte owner, long changedAt) => Saved.Add((controlPointId, owner, changedAt));
+            public void Save(ControlPointStateEntry state) => Saved.Add((state.ControlPointId, state.Owner, state.ChangedAt));
         }
 
         private static ControlPointEntry Entry(byte defaultOwner, uint id = PointId) => new ControlPointEntry

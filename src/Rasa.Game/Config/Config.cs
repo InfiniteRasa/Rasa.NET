@@ -37,5 +37,8 @@ namespace Rasa.Config
 
         /// <summary>The maps entered as a squad's own instance, and when those are closed (Managers.MapChannelManager's squad instances).</summary>
         public SquadInstanceConfig SquadInstances { get; set; } = new SquadInstanceConfig();
+
+        /// <summary>Clan-owned control points: whether there are any, what one pays and when it is given back (Managers.ControlPoints).</summary>
+        public ControlPointConfig ControlPoints { get; set; } = new ControlPointConfig();
     }
 }

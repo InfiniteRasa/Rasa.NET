@@ -11,8 +11,8 @@ namespace Rasa.Repositories.Char.ControlPointState
     {
         List<ControlPointStateEntry> GetStates();
 
-        /// <summary>Adds the point's row, or updates it.</summary>
-        void SaveState(uint controlPointId, byte owner, long changedAt);
+        /// <summary>Adds the point's row, or updates it: every column of it.</summary>
+        void SaveState(ControlPointStateEntry state);
     }
 
     public class ControlPointStateRepository : IControlPointStateRepository
@@ -27,16 +27,25 @@ namespace Rasa.Repositories.Char.ControlPointState
         public List<ControlPointStateEntry> GetStates() =>
             _charContext.CreateNoTrackingQuery(_charContext.ControlPointStateEntries).OrderBy(e => e.ControlPointId).ToList();
 
-        public void SaveState(uint controlPointId, byte owner, long changedAt)
+        public void SaveState(ControlPointStateEntry state)
         {
-            var row = _charContext.CreateTrackingQuery(_charContext.ControlPointStateEntries).FirstOrDefault(e => e.ControlPointId == controlPointId);
+            var row = _charContext.CreateTrackingQuery(_charContext.ControlPointStateEntries).FirstOrDefault(e => e.ControlPointId == state.ControlPointId);
 
             if (row == null)
-                _charContext.ControlPointStateEntries.Add(new ControlPointStateEntry { ControlPointId = controlPointId, Owner = owner, ChangedAt = changedAt });
+                _charContext.ControlPointStateEntries.Add(new ControlPointStateEntry
+                {
+                    ControlPointId = state.ControlPointId,
+                    Owner = state.Owner,
+                    ChangedAt = state.ChangedAt,
+                    ClanId = state.ClanId,
+                    ClanPaidAt = state.ClanPaidAt
+                });
             else
             {
-                row.Owner = owner;
-                row.ChangedAt = changedAt;
+                row.Owner = state.Owner;
+                row.ChangedAt = state.ChangedAt;
+                row.ClanId = state.ClanId;
+                row.ClanPaidAt = state.ClanPaidAt;
             }
 
             _charContext.SaveChanges();

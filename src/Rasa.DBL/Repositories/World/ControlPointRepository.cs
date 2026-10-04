@@ -13,6 +13,12 @@ namespace Rasa.Repositories.World
 
         /// <summary>Moves a control point (".cp move"). False if there is no such row.</summary>
         bool UpdatePosition(uint id, double x, double y, double z, double rotation);
+
+        /// <summary>Adds a link of a control point, if it has not got it.</summary>
+        void AddLink(uint controlPointId, byte kind, uint objectId);
+
+        /// <summary>Takes a link of a control point away. False if there is no such row.</summary>
+        bool RemoveLink(uint controlPointId, byte kind, uint objectId);
     }
 
     public class ControlPointRepository : IControlPointRepository
@@ -41,6 +47,30 @@ namespace Rasa.Repositories.World
             row.PosY = y;
             row.PosZ = z;
             row.Rotation = rotation;
+            _worldContext.SaveChanges();
+
+            return true;
+        }
+
+        public void AddLink(uint controlPointId, byte kind, uint objectId)
+        {
+            if (_worldContext.CreateNoTrackingQuery(_worldContext.ControlPointLinkEntries)
+                .Any(e => e.ControlPointId == controlPointId && e.Kind == kind && e.ObjectId == objectId))
+                return;
+
+            _worldContext.ControlPointLinkEntries.Add(new ControlPointLinkEntry { ControlPointId = controlPointId, Kind = kind, ObjectId = objectId });
+            _worldContext.SaveChanges();
+        }
+
+        public bool RemoveLink(uint controlPointId, byte kind, uint objectId)
+        {
+            var row = _worldContext.CreateTrackingQuery(_worldContext.ControlPointLinkEntries)
+                .FirstOrDefault(e => e.ControlPointId == controlPointId && e.Kind == kind && e.ObjectId == objectId);
+
+            if (row == null)
+                return false;
+
+            _worldContext.ControlPointLinkEntries.Remove(row);
             _worldContext.SaveChanges();
 
             return true;

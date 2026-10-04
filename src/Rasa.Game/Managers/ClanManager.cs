@@ -935,6 +935,9 @@ namespace Rasa.Managers
             // they have wagered is forfeit to the clan it was fighting (ClanFeuds.ClanDisbanded).
             ClanFeuds.Instance.ClanDisbanded(clan.Id);
 
+            // The control points it held are the AFS's.
+            ControlPoints.Instance.ClanDisbanded(clan.Id);
+
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
 
             if (clan.IsPvP)
@@ -1592,6 +1595,26 @@ namespace Rasa.Managers
         {
             CallMethodForOnlineMembers(clan.Id, (client) => CleanupClan(client));
             Clans.Remove(clan.Id, out _);
+        }
+
+        /// <summary>A clan's name, or null if there is no such clan.</summary>
+        public string ClanNameOf(uint clanId) => clanId == 0 ? null : GetClan(clanId)?.Name;
+
+        /// <summary>The clan of this name, whatever its case, or of this id; null if there is none. For a game master's command.</summary>
+        public ClanEntry FindClan(string nameOrId)
+        {
+            if (string.IsNullOrWhiteSpace(nameOrId))
+                return null;
+
+            nameOrId = nameOrId.Trim();
+
+            var named = Clans.Values.Select(clan => clan.Value)
+                .FirstOrDefault(clan => clan != null && string.Equals(clan.Name, nameOrId, StringComparison.OrdinalIgnoreCase));
+
+            if (named != null)
+                return named;
+
+            return uint.TryParse(nameOrId, out var id) && id != 0 ? GetClan(id) : null;
         }
 
         /// <summary>

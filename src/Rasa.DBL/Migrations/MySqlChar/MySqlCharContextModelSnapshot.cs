@@ -1358,6 +1358,14 @@ namespace Rasa.Migrations.MySqlChar
                         .HasColumnType("bigint")
                         .HasColumnName("changed_at");
 
+                    b.Property<uint>("ClanId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("clan_id");
+
+                    b.Property<long>("ClanPaidAt")
+                        .HasColumnType("bigint")
+                        .HasColumnName("clan_paid_at");
+
                     b.Property<byte>("Owner")
                         .HasColumnType("tinyint unsigned")
                         .HasColumnName("owner");

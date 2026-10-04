@@ -254,9 +254,18 @@ Map links, region volumes, FX emitters and crafting stations are **saved to the 
 | `.emitter <id> on \| off \| package <package> \| here \| comment <text> \| delete` | GameMaster | Edits an emitter; `on` and `off` also set its default state. |
 | `.kraftwerks` | GameMaster | Crafting stations on this map, nearest first. |
 | `.kraftwerks here [comment]` / `.kraftwerks <id> here \| rotate <yaw> \| comment <text> \| delete` | GameMaster | Creates or edits a station. `rotate` takes the yaw in radians. |
-| `.cp` / `.cp all` | GameMaster | Control points on this map, or everywhere: who holds each and whether its garrison stands. |
-| `.cp <id> afs \| bane` | GameMaster | Gives a control point to a side: the garrisons change over, and its hospital and waypoint open or shut. Kept through a restart. |
+| `.cp` / `.cp all` | GameMaster | Control points on this map, or everywhere: who holds each - the AFS, the Bane, or a clan for the AFS - and whether its garrison stands. With a clan holding any of them, also when the clans' points next go back to the AFS. |
+| `.cp <id> afs \| bane` | GameMaster | Gives a control point to a side, and to no clan: the garrisons change over, and its hospital and waypoint open or shut. `afs` on a clan's point takes it from the clan. Kept through a restart. |
+| `.cp <id> clan <clan name or id>` | GameMaster | Gives a control point to a clan, as if one of its members had captured it: the AFS's garrison, hospital and waypoint, the clan's object and lockbox. The name may contain spaces; its case does not matter. Kept through a restart. |
 | `.cp <id> goto \| here` | GameMaster | Goes to a control point, or stands its object where you are (kept in the world database). |
+| `.cp <id> lockbox` / `.cp <id> lockbox remove` | GameMaster | Sets the point's clan lockbox down where you stand, facing as you face, or moves it there if it has one; `remove` takes it away. Kept in the world database. The lockbox is on the map only while a clan holds the point. |
+
+Clan-owned control points (`ControlPoints` in `appsettings.json`):
+
+- A point captured from the Bane by a player in a clan is that clan's; by a player in no clan it is the AFS's. Either way it is an AFS point: their garrison, hospital and waypoint. `ClanOwnership: false` turns this off, and gives any point a clan holds back to the AFS.
+- A clan loses a point when the Bane take it back, when the clan disbands, when a member of a clan **at feud** with it uses the point (`ClanCaptureSeconds`, 30 by default, of an interruptible use - only those players are offered the use), and at the weekly reset (`ClanWeeklyReset`), which runs on the day and time of `SquadInstances`' `WeeklyResetDay` and `WeeklyResetTime`.
+- Each point pays `ClanPrestige` prestige (100) into the clan's lockbox every `ClanPrestigeMinutes` (60). The payment shows in the lockbox history as a deposit by "Control Point <point name>".
+- The point's clan lockbox opens for members of the clan that holds the point and for nobody else.
 
 ## Moderation
 

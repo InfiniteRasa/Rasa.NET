@@ -5,6 +5,7 @@ using System.Numerics;
 
 namespace Rasa.Managers
 {
+    using Config;
     using Data;
     using Game;
     using Packets.Communicator.Server;
@@ -65,6 +66,32 @@ namespace Rasa.Managers
     ///  - Who holds each point is kept (<see cref="IStore"/>, control_point_state) and read back
     ///    when the server starts.
     ///
+    /// Clan-owned control points. The client has the parts of them and not the whole: a usable
+    /// class with the CLANCONTROLPOINT augmentation (TEST_ClanControlPoint_PvE, 29329, the Eloh
+    /// point's own mesh) whose effect is by its owner - "your clan owns", "other clan owns", the
+    /// AFS's, the Bane's - and whose in-use effect is by the two of them; the clan lockbox, which
+    /// the help text has "in cities and in clan-owned control points", where "only the clan that
+    /// owns a Control Point may access the lockbox contained within it"; and clan prestige
+    /// spent "towards rewards such as ownership of a Control Point". The challenge board that
+    /// would have had clans bid for one cannot open, and a clan-owned point's map marker text is
+    /// a placeholder. How a clan comes by a point, loses it, and what it has of it are ours:
+    ///  - A point taken from the Bane by a player in a clan is that clan's (<see cref="Point.ClanId"/>),
+    ///    and by a player in none the AFS's, as it always was. It is the AFS's point either way:
+    ///    their garrison, hospital and waypoint, and their colour on the map.
+    ///  - While a clan holds it the point's object is the clan class, in its clan controlled
+    ///    state, named "Central Dispatch Unit - Control Point" (the class's own name is a
+    ///    placeholder); with the AFS or the Bane it is the class of its row, as before. The one
+    ///    is taken off the map and the other set down as the point changes hands.
+    ///  - A clan loses a point when the Bane take it back; when a member of a clan at feud with
+    ///    it uses it - <see cref="ControlPointConfig.ClanCaptureSeconds"/> of an interruptible
+    ///    use, in service to those players alone, and the point is their clan's; when the clan
+    ///    disbands; and at the weekly reset, when every clan's point goes back to the AFS.
+    ///  - Each point a clan holds pays <see cref="ControlPointConfig.ClanPrestige"/> prestige
+    ///    into its lockbox every <see cref="ControlPointConfig.ClanPrestigeMinutes"/>, by the
+    ///    clock on the wall, and has a line of the lockbox's history for it.
+    ///  - A point may have a clan lockbox (control_point_link, a footlocker row; ".cp &lt;id&gt;
+    ///    lockbox"): on the map only while a clan holds the point, and that clan's alone to open.
+    ///
     /// Control points are the open world's alone: they stand on a map's own channel, and a
     /// copy of the map - private or shared - has the objects out of service. The points of a map
     /// that has a match (Battlegrounds) are in the same tables and are its teams' to fight over:
@@ -99,6 +126,24 @@ namespace Rasa.Managers
         /// <summary>Prestige for killing a boss of a control point's Bane garrison.</summary>
         public const int BossPrestige = 100;
 
+        /// <summary>shared/gameconstants.py VIRTUAL_CLAN_AFS: the AFS, where the client's clan control point takes a clan.</summary>
+        public const int VirtualClanAfs = -1;
+
+        /// <summary>shared/gameconstants.py VIRTUAL_CLAN_BANE: the Bane, likewise.</summary>
+        public const int VirtualClanBane = -2;
+
+        /// <summary>The class a point's object is while a clan holds it: the client's one clan control point.</summary>
+        public const EntityClasses ClanPointClass = DynamicObjectManager.PveClanControlPointClass;
+
+        /// <summary>
+        /// usablenameoverridelanguage 338, "Central Dispatch Unit - Control Point": what a clan's
+        /// point is called. Its class's own name is "TEST_ClanControlPoint has no display text.".
+        /// </summary>
+        public const uint ClanPointNameOverride = 338;
+
+        /// <summary>The first name of the line a point's pay has in a clan lockbox's history; the point's name is the second.</summary>
+        public const string PayerName = "Control Point";
+
         /// <summary>The creature flags that make a boss of any creature, control point or not.</summary>
         private static readonly int[] BossFlags =
         {
@@ -116,6 +161,33 @@ namespace Rasa.Managers
             public ulong MarkerEntityId { get; set; }
             public byte DefaultOwner { get; set; }
             public byte Owner { get; set; }
+
+            /// <summary>The clan that holds the point for the AFS, or 0: only ever with the AFS as owner.</summary>
+            public uint ClanId { get; set; }
+
+            /// <summary>When the point last changed hands, from one side or one clan to another (<see cref="UtcNow"/>); 0 if it never has.</summary>
+            public long ChangedAt { get; set; }
+
+            /// <summary>Up to when the clan has been paid for holding the point (<see cref="UtcNow"/>); 0 with no clan.</summary>
+            public long PaidAt { get; set; }
+
+            /// <summary>The footlocker row of the point's clan lockbox, or 0 while it has none.</summary>
+            public uint LockboxId { get; set; }
+
+            public Vector3 LockboxPosition { get; set; }
+            public double LockboxRotation { get; set; }
+
+            /// <summary>The clan lockbox on the map: there while a clan holds the point, and null otherwise.</summary>
+            public DynamicObject Lockbox { get; set; }
+
+            /// <summary>The map's own channel, once the point has been set down on it.</summary>
+            public MapChannel Map { get; set; }
+
+            /// <summary>Whose clients have the point's object in service: the players who may take it from the clan that holds it.</summary>
+            internal HashSet<Client> ToldUsable { get; } = new HashSet<Client>();
+
+            /// <summary>Whose clients have the lockbox in service: the members of the clan that holds the point.</summary>
+            internal HashSet<Client> ToldOpen { get; } = new HashSet<Client>();
 
             public HashSet<uint> BanePools { get; } = new HashSet<uint>();
             public HashSet<uint> AfsPools { get; } = new HashSet<uint>();
@@ -139,6 +211,10 @@ namespace Rasa.Managers
             public bool IsBattleground { get; set; }
 
             public bool HeldByAfs => Owner == Afs;
+
+            /// <summary>A clan holds it, for the AFS.</summary>
+            public bool HeldByClan => Owner == Afs && ClanId != 0;
+
             public HashSet<uint> PoolsOf(byte owner) => owner == Afs ? AfsPools : BanePools;
         }
 
@@ -159,13 +235,41 @@ namespace Rasa.Managers
         public interface IStore
         {
             List<ControlPointStateEntry> Load();
-            void Save(uint controlPointId, byte owner, long changedAt);
+
+            /// <summary>The point's row as it now is: its owner, its clan and how far that clan has been paid.</summary>
+            void Save(ControlPointStateEntry state);
         }
 
         private readonly Dictionary<uint, Point> _points = new Dictionary<uint, Point>();
         private readonly Dictionary<uint, Point> _byTeleporter = new Dictionary<uint, Point>();
         private readonly Dictionary<uint, Point> _byPool = new Dictionary<uint, Point>();
         private readonly Dictionary<ulong, Point> _byObject = new Dictionary<ulong, Point>();
+        private readonly Dictionary<ulong, Point> _byLockbox = new Dictionary<ulong, Point>();
+
+        private string _resetSetting;
+        private bool _missedResetLookedFor;
+
+        /// <summary>appsettings.json's ControlPoints. Replaced whole when the file changes.</summary>
+        public ControlPointConfig Config { get; set; } = new ControlPointConfig();
+
+        /// <summary>A clan's name, or null if there is no such clan. Replaceable for tests.</summary>
+        public Func<uint, string> ClanName { get; set; } = id => ClanManager.Instance.ClanNameOf(id);
+
+        /// <summary>Whether two clans are at feud. Replaceable for tests.</summary>
+        public Func<uint, uint, bool> AtFeud { get; set; } = (a, b) => ClanFeuds.Instance.AreFeuding(a, b);
+
+        /// <summary>Pays prestige into a clan's lockbox for a point it holds: the clan, the amount, the point's name. Replaceable for tests.</summary>
+        public Func<uint, int, string, bool> PayClan { get; set; } =
+            (clanId, amount, pointName) => InventoryManager.Instance.PayClanPrestige(clanId, (uint)amount, PayerName, pointName);
+
+        /// <summary>The server's own clock, which the weekly reset is set by. Replaceable for tests.</summary>
+        public Func<DateTime> WallClock { get; set; } = () => DateTime.Now;
+
+        /// <summary>Where the day and time of the weekly reset are read from: the squad instances' settings. Replaceable for tests.</summary>
+        public Func<SquadInstanceConfig> ResetSchedule { get; set; } = () => SquadInstancePolicies.Current;
+
+        /// <summary>When the clans' points next go back to the AFS, by <see cref="WallClock"/>; null with the reset off.</summary>
+        public DateTime? NextClanReset { get; private set; }
 
         /// <summary>Where the owners are kept; null keeps nothing. Set by <see cref="Load"/>.</summary>
         public IStore Store { get; private set; }
@@ -195,29 +299,42 @@ namespace Rasa.Managers
         {
             List<ControlPointEntry> points;
             List<ControlPointLinkEntry> links;
+            List<FootlockerEntry> lockboxes;
 
             using (var unitOfWork = factory.CreateWorld())
             {
                 points = unitOfWork.ControlPoints.GetControlPoints();
                 links = unitOfWork.ControlPoints.GetLinks();
+                lockboxes = unitOfWork.Footlockers.GetFootlockers();
             }
 
-            Load(points, links, new ServerStore(factory));
+            Load(points, links, new ServerStore(factory), lockboxes);
 
             foreach (var mapChannel in MapChannelManager.Instance.MapChannelArray.Values)
                 Place(mapChannel);
 
-            Logger.WriteLog(LogType.Initialize, $"Loaded {_points.Count} control points, {_points.Values.Count(p => p.HeldByAfs)} held by the AFS.");
+            Logger.WriteLog(LogType.Initialize,
+                $"Loaded {_points.Count} control points, {_points.Values.Count(p => p.HeldByAfs)} held by the AFS, {_points.Values.Count(p => p.HeldByClan)} of those by a clan.");
         }
 
-        /// <summary>The points and their links, with the owners <paramref name="store"/> has kept; a point it has none for is with its default owner.</summary>
-        public void Load(IEnumerable<ControlPointEntry> points, IEnumerable<ControlPointLinkEntry> links, IStore store)
+        /// <summary>
+        /// The points and their links, with the owners <paramref name="store"/> has kept; a point
+        /// it has none for is with its default owner. <paramref name="lockboxes"/> are the
+        /// footlocker rows, of which a point's clan lockbox is one.
+        /// </summary>
+        public void Load(IEnumerable<ControlPointEntry> points, IEnumerable<ControlPointLinkEntry> links, IStore store, IEnumerable<FootlockerEntry> lockboxes = null)
         {
             _points.Clear();
             _byTeleporter.Clear();
             _byPool.Clear();
             _byObject.Clear();
+            _byLockbox.Clear();
+            _resetSetting = null;
+            _missedResetLookedFor = false;
+            NextClanReset = null;
             Store = store;
+
+            var rows = (lockboxes ?? Enumerable.Empty<FootlockerEntry>()).GroupBy(row => row.Id).ToDictionary(g => g.Key, g => g.First());
 
             foreach (var entry in points)
                 _points[entry.Id] = new Point
@@ -284,6 +401,18 @@ namespace Rasa.Managers
                         point.Bosses.Add(link.ObjectId);
                         break;
 
+                    case ControlPointLinkEntry.KindClanLockbox:
+                        if (!rows.TryGetValue(link.ObjectId, out var row) || row.MapContextId != point.MapContextId)
+                        {
+                            Logger.WriteLog(LogType.Error, $"control_point_link gives control point {link.ControlPointId} the clan lockbox of footlocker {link.ObjectId}, which there is none of on its map.");
+                            break;
+                        }
+
+                        point.LockboxId = row.Id;
+                        point.LockboxPosition = row.Position;
+                        point.LockboxRotation = row.Rotation;
+                        break;
+
                     default:
                         Logger.WriteLog(LogType.Error, $"control_point_link of control point {link.ControlPointId} has kind {link.Kind}, which nothing reads.");
                         break;
@@ -297,7 +426,12 @@ namespace Rasa.Managers
             {
                 foreach (var state in store.Load())
                     if (_points.TryGetValue(state.ControlPointId, out var point) && !point.IsBattleground)
+                    {
                         point.Owner = state.Owner == Afs ? Afs : Bane;
+                        point.ChangedAt = state.ChangedAt;
+                        point.ClanId = point.HeldByAfs ? state.ClanId : 0;
+                        point.PaidAt = point.ClanId != 0 ? state.ClanPaidAt : 0;
+                    }
             }
             catch (Exception e)
             {
@@ -317,21 +451,21 @@ namespace Rasa.Managers
 
             foreach (var point in _points.Values.Where(p => p.MapContextId == mapChannel.MapInfo.MapContextId && !p.IsBattleground))
             {
+                point.Map = mapChannel;
+
+                // Its clan lockbox is the point's to set down, while a clan holds it: the row is
+                // a footlocker's, and the map has it as one of those (InitFootlockers).
+                if (point.LockboxId != 0 && mapChannel.FootLockers.Remove(point.LockboxId, out var asFootlocker))
+                {
+                    if (asFootlocker.IsInWorld)
+                        CellManager.Instance.RemoveFromWorld(mapChannel, asFootlocker);
+                    else
+                        EntityManager.Instance.FreeEntity(asFootlocker.EntityId);
+                }
+
                 if (point.Object == null)
                 {
-                    // Out of service until the worker has looked at its garrison.
-                    point.Object = new DynamicObject
-                    {
-                        Position = NavMeshManager.SnapToGround(mapChannel, point.Position),
-                        Rotation = point.Rotation,
-                        MapContextId = point.MapContextId,
-                        RuntimeMapChannel = mapChannel,
-                        EntityClassId = point.ClassId,
-                        DynamicObjectType = DynamicObjectType.ControlPoint,
-                        Comment = $"Control Point: {point.Name}",
-                        WindupTime = CaptureMs,
-                        IsEnabled = false
-                    };
+                    point.Object = NewObject(mapChannel, point, null);
 
                     _byObject[point.Object.EntityId] = point;
                     mapChannel.ControlPoints[point.Id] = point.Object;
@@ -340,7 +474,33 @@ namespace Rasa.Managers
                 ShowOwner(point);
                 ApplyPools(mapChannel, point, takeOff: false);
                 ApplyTeleporters(point);
+                ShowLockbox(point);
             }
+        }
+
+        /// <summary>
+        /// The point's object as whoever holds it has it: the clan class while a clan does, in
+        /// service to whoever may take it from them (each client is told for itself,
+        /// <see cref="ShownUsable"/>); the class of its row otherwise, out of service until the
+        /// worker has looked at its garrison. It stands where <paramref name="before"/> stood.
+        /// </summary>
+        private DynamicObject NewObject(MapChannel mapChannel, Point point, DynamicObject before)
+        {
+            var clan = point.HeldByClan;
+
+            return new DynamicObject
+            {
+                Position = before?.Position ?? NavMeshManager.SnapToGround(mapChannel, point.Position),
+                Rotation = before?.Rotation ?? point.Rotation,
+                MapContextId = point.MapContextId,
+                RuntimeMapChannel = mapChannel,
+                EntityClassId = clan ? ClanPointClass : point.ClassId,
+                DynamicObjectType = DynamicObjectType.ControlPoint,
+                Comment = $"Control Point: {point.Name}",
+                WindupTime = clan ? ClanCaptureMs : CaptureMs,
+                NameOverrideId = clan ? ClanPointNameOverride : 0,
+                IsEnabled = clan
+            };
         }
 
         #endregion
@@ -350,6 +510,9 @@ namespace Rasa.Managers
         public Point ById(uint id) => _points.TryGetValue(id, out var point) ? point : null;
 
         public Point PointOf(DynamicObject obj) => obj != null && _byObject.TryGetValue(obj.EntityId, out var point) ? point : null;
+
+        /// <summary>The point an object is the clan lockbox of, or null.</summary>
+        public Point LockboxOf(DynamicObject obj) => obj != null && _byLockbox.TryGetValue(obj.EntityId, out var point) ? point : null;
 
         public IEnumerable<Point> OnMap(uint mapContextId) => _points.Values.Where(p => p.MapContextId == mapContextId);
 
@@ -395,6 +558,102 @@ namespace Rasa.Managers
             return point != null && !point.HeldByAfs && GarrisonOf(mapChannel, point, Bane) != Garrison.Standing;
         }
 
+        /// <summary>
+        /// Whether this player may start to capture the point now: from the Bane as anyone may
+        /// (<see cref="MayCapture(MapChannel, Point)"/>), and from a clan if theirs is at feud
+        /// with it.
+        /// </summary>
+        public bool MayCapture(MapChannel mapChannel, Point point, Client client)
+        {
+            if (point == null)
+                return false;
+
+            return point.HeldByClan ? MayTakeFromClan(client, point) : MayCapture(mapChannel, point);
+        }
+
+        /// <summary>Whether a player may take a point from the clan that holds it: they are in a clan at feud with it.</summary>
+        public bool MayTakeFromClan(Client client, Point point)
+        {
+            var clanId = client?.Player?.ClanId ?? 0;
+
+            return point != null && point.HeldByClan && Config.ClanOwnership && clanId != 0 && clanId != point.ClanId && AtFeud(point.ClanId, clanId);
+        }
+
+        /// <summary>Whether a player may open a point's clan lockbox: a clan holds the point, and it is theirs.</summary>
+        public bool MayOpenLockbox(Client client, Point point)
+        {
+            return point != null && point.HeldByClan && client?.Player != null && client.Player.ClanId == point.ClanId;
+        }
+
+        /// <summary>
+        /// Whether a player may open a lockbox: one that is no control point's as they always
+        /// could, a point's while their clan holds the point.
+        /// </summary>
+        public bool MayOpenLockbox(Client client, DynamicObject lockbox)
+        {
+            var point = LockboxOf(lockbox);
+
+            return point == null || MayOpenLockbox(client, point);
+        }
+
+        /// <summary>How long the use takes that captures a point, as its object has told the clients.</summary>
+        public uint CaptureMsOf(Point point) => point?.Object != null && point.Object.WindupTime != 0 ? point.Object.WindupTime : CaptureMs;
+
+        /// <summary>How long the use takes that takes a point from a clan (<see cref="ControlPointConfig.ClanCaptureSeconds"/>).</summary>
+        public uint ClanCaptureMs => (uint)Math.Clamp(Config.ClanCaptureSeconds, 1, 600) * 1000;
+
+        /// <summary>The clan a player's capture is for: their own, or none - they have none, or clans hold no points.</summary>
+        public uint ClanFor(Client client) => Config.ClanOwnership ? client?.Player?.ClanId ?? 0 : 0;
+
+        /// <summary>Who holds a point, as the messages name them: the clan's name, "AFS" or "Bane".</summary>
+        public string HolderName(Point point) => point.HeldByClan ? ClanName(point.ClanId) ?? $"clan {point.ClanId}" : FactionName(point.Owner);
+
+        /// <summary>
+        /// What the client's clan control point takes for its owner: the clan, or the AFS or the
+        /// Bane as a clan of their own. Null for an object that is not a point's in the clan
+        /// class: it is told nothing, and shows its state's own effect.
+        /// </summary>
+        public int? ClanShownBy(DynamicObject obj)
+        {
+            var point = PointOf(obj);
+
+            if (point == null || obj.EntityClassId != ClanPointClass)
+                return null;
+
+            return point.HeldByClan ? (int)point.ClanId : point.HeldByAfs ? VirtualClanAfs : VirtualClanBane;
+        }
+
+        /// <summary>
+        /// Whether an object of a point's is in service to this client, noted as what it has been
+        /// told (<see cref="TellUsable"/>): a clan's point to those who may take it from the
+        /// clan, its lockbox to the clan's members. Null for any other object, which is in
+        /// service to everyone or to nobody. From DynamicObjectManager, as the object is made on
+        /// the client.
+        /// </summary>
+        public bool? ShownUsable(Client client, DynamicObject obj)
+        {
+            if (obj == null || client == null)
+                return null;
+
+            if (_byObject.TryGetValue(obj.EntityId, out var point) && point.HeldByClan)
+                return Note(point.ToldUsable, client, MayTakeFromClan(client, point));
+
+            if (_byLockbox.TryGetValue(obj.EntityId, out point))
+                return Note(point.ToldOpen, client, MayOpenLockbox(client, point));
+
+            return null;
+        }
+
+        private static bool Note(HashSet<Client> told, Client client, bool usable)
+        {
+            if (usable)
+                told.Add(client);
+            else
+                told.Remove(client);
+
+            return usable;
+        }
+
         #endregion
 
         #region The fight
@@ -422,6 +681,8 @@ namespace Rasa.Managers
                 {
                     if (GarrisonOf(mapChannel, point, Afs) == Garrison.Down)
                         SetOwner(point, Bane, null);
+                    else if (point.HeldByClan)
+                        TellUsable(mapChannel, point);
 
                     continue;
                 }
@@ -459,83 +720,499 @@ namespace Rasa.Managers
             }
         }
 
-        /// <summary>A player has begun the use that captures a point: everyone on the map is told.</summary>
-        public void Claiming(MapChannel mapChannel, Point point)
+        /// <summary>
+        /// A player has begun the use that captures a point: everyone on the map is told, by the
+        /// clan it would be for if it is for one.
+        /// </summary>
+        public void Claiming(MapChannel mapChannel, Point point, Client by = null)
         {
-            Announce(mapChannel, PlayerMessage.PmControlpointClaiming, point, Afs);
+            var clanId = ClanFor(by);
+
+            Announce(mapChannel, PlayerMessage.PmControlpointClaiming, point, clanId != 0 ? ClanName(clanId) ?? FactionName(Afs) : FactionName(Afs));
         }
 
         /// <summary>
         /// A player's use of a control point has run its time (DynamicObjectManager): the point
-        /// is the AFS's, unless it is not the Bane's any more or its garrison is back on its
-        /// feet. Returns whether it changed hands.
+        /// is their clan's, or the AFS's if they are in none, unless it is not the Bane's any
+        /// more or its garrison is back on its feet - or, taken from a clan, their own is not at
+        /// feud with it any more. Returns whether it changed hands.
         /// </summary>
         public bool Captured(MapChannel mapChannel, Client client, Point point)
         {
-            if (!MayCapture(mapChannel, point))
+            if (!MayCapture(mapChannel, point, client))
             {
-                Logger.WriteLog(LogType.Debug, $"Control point {point?.Id} ({point?.Name}): {client?.Player?.FamilyName}'s capture came to nothing; the garrison stands or the point is not the Bane's.");
+                Logger.WriteLog(LogType.Debug, $"Control point {point?.Id} ({point?.Name}): {client?.Player?.FamilyName}'s capture came to nothing; the garrison stands, or the point is not theirs to take any more.");
                 return false;
             }
 
-            SetOwner(point, Afs, client);
+            SetHolder(point, Afs, ClanFor(client), client);
             return true;
         }
 
         /// <summary>
-        /// Gives a point to a side: kept, the garrisons changed over, the hospital and waypoint
-        /// opened or shut, and everyone on the map shown and told. Nothing if that side has it.
+        /// Gives a point to a side, and to no clan: kept, the garrisons changed over, the
+        /// hospital and waypoint opened or shut, and everyone on the map shown and told. Nothing
+        /// if that side has it and no clan does.
         /// </summary>
-        public bool SetOwner(Point point, byte owner, Client by)
+        public bool SetOwner(Point point, byte owner, Client by) => SetHolder(point, owner, 0, by);
+
+        /// <summary>
+        /// Gives a point to a side and, with the AFS, to a clan or to none: kept; if the side
+        /// changed, the garrisons changed over and the hospital and waypoint opened or shut; if
+        /// a clan took it or lost it, its object changed for the one of the other class and its
+        /// clan lockbox set down or taken off; and everyone on the map shown and told. Nothing
+        /// if they have it already.
+        /// </summary>
+        public bool SetHolder(Point point, byte owner, uint clanId, Client by)
         {
             owner = owner == Afs ? Afs : Bane;
 
-            if (point == null || point.IsBattleground || point.Owner == owner)
+            if (owner != Afs)
+                clanId = 0;
+
+            if (point == null || point.IsBattleground || point.Owner == owner && point.ClanId == clanId)
                 return false;
 
+            var sideChanged = point.Owner != owner;
+            var wasClans = point.HeldByClan;
+            var now = UtcNow();
+
             point.Owner = owner;
-            point.DownSince = null;
-            point.Returning = false;
+            point.ClanId = clanId;
+            point.ChangedAt = now;
+            point.PaidAt = clanId != 0 ? now : 0;
 
-            Logger.WriteLog(LogType.Debug, $"Control point {point.Id} ({point.Name}) is the {FactionName(owner)}'s{(by?.Player != null ? $", taken by {by.Player.FamilyName}" : "")}.");
+            if (sideChanged)
+            {
+                point.DownSince = null;
+                point.Returning = false;
+            }
 
-            var store = Store;
+            Logger.WriteLog(LogType.Debug, $"Control point {point.Id} ({point.Name}) is {(point.HeldByClan ? $"clan {clanId}'s ({HolderName(point)})" : $"the {FactionName(owner)}'s")}{(by?.Player != null ? $", taken by {by.Player.FamilyName}" : "")}.");
 
-            if (store != null)
-                try
-                {
-                    store.Save(point.Id, owner, UtcNow());
-                }
-                catch (Exception e)
-                {
-                    Logger.WriteLog(LogType.Error, $"Control point {point.Id} ({point.Name}): its owner was not saved: {e.Message}");
-                }
+            Save(point);
 
-            ApplyTeleporters(point);
+            if (sideChanged)
+                ApplyTeleporters(point);
 
-            var mapChannel = point.Object?.RuntimeMapChannel;
+            var mapChannel = point.Map ?? point.Object?.RuntimeMapChannel;
 
-            if (mapChannel == null)
+            if (mapChannel == null || point.Object == null)
                 return true;
 
-            ApplyPools(mapChannel, point, takeOff: true);
-            ShowOwner(point);
+            if (sideChanged)
+                ApplyPools(mapChannel, point, takeOff: true);
 
-            // Out of service until the new garrison has been dealt with - or for good, if it is the AFS's.
-            DynamicObjectManager.Instance.SetEnabled(point.Object, false);
+            if (wasClans != point.HeldByClan)
+            {
+                // A clan's point is an object of another class: the one is taken off the map and
+                // the other set down where it stood, as its holder has it.
+                Rebuild(mapChannel, point);
+            }
+            else if (point.HeldByClan)
+            {
+                // From one clan to another. The state is the one it is in, and Use to it is the
+                // clan class's way of being told its owner: it keeps the clan and makes the state
+                // over, with that clan's effect. Who may take it from them is told anew.
+                if (point.Object.IsInWorld)
+                    CellManager.Instance.CellCallMethod(mapChannel, point.Object,
+                        new UsePacket(by?.Player?.EntityId ?? 0, point.Object.StateId, (int)point.Object.WindupTime, (int)point.ClanId));
 
-            // One change of state, with the time a capture takes (ForceState sets both): the
-            // owner's effect is put on once. UsableInfo after it would start the state over and
-            // put the effect on a second time; it says nothing SetUsable and this have not.
-            if (point.Object.IsInWorld)
-                CellManager.Instance.CellCallMethod(mapChannel, point.Object,
-                    new ForceStatePacket(point.Object.StateId, (int)point.Object.WindupTime));
+                TellUsable(mapChannel, point);
+            }
+            else
+            {
+                ShowOwner(point);
 
-            MapMarkerManager.Instance.ControlPointChanged(mapChannel, point);
-            Announce(mapChannel, PlayerMessage.PmControlpointOwned, point, owner);
+                // Out of service until the new garrison has been dealt with - or for good, if it is the AFS's.
+                DynamicObjectManager.Instance.SetEnabled(point.Object, false);
+
+                // One change of state, with the time a capture takes (ForceState sets both): the
+                // owner's effect is put on once. UsableInfo after it would start the state over and
+                // put the effect on a second time; it says nothing SetUsable and this have not.
+                if (point.Object.IsInWorld)
+                    CellManager.Instance.CellCallMethod(mapChannel, point.Object,
+                        new ForceStatePacket(point.Object.StateId, (int)point.Object.WindupTime));
+            }
+
+            // The lockbox is the clan's that holds the point: made anew for a new one.
+            ShowLockbox(point);
+
+            if (sideChanged)
+                MapMarkerManager.Instance.ControlPointChanged(mapChannel, point);
+
+            Announce(mapChannel, PlayerMessage.PmControlpointOwned, point, HolderName(point));
 
             return true;
         }
+
+        /// <summary>The point's row, as the point now is.</summary>
+        private void Save(Point point)
+        {
+            var store = Store;
+
+            if (store == null)
+                return;
+
+            try
+            {
+                store.Save(new ControlPointStateEntry
+                {
+                    ControlPointId = point.Id,
+                    Owner = point.Owner,
+                    ChangedAt = point.ChangedAt,
+                    ClanId = point.ClanId,
+                    ClanPaidAt = point.PaidAt
+                });
+            }
+            catch (Exception e)
+            {
+                Logger.WriteLog(LogType.Error, $"Control point {point.Id} ({point.Name}): its owner was not saved: {e.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Takes the point's object off the map and sets down one of the class its holder has it
+        /// in, in its place. A client is given the class with the entity and cannot be told it
+        /// has changed, so the new object is a new entity - made before the old one's id goes
+        /// back to the pool, as it does on leaving the world, so that it is not given that id:
+        /// a client is not told to make the entity it is being told to destroy.
+        /// </summary>
+        private void Rebuild(MapChannel mapChannel, Point point)
+        {
+            var old = point.Object;
+            var inWorld = old.IsInWorld;
+            var made = NewObject(mapChannel, point, old);
+
+            _byObject.Remove(old.EntityId);
+            point.ToldUsable.Clear();
+
+            if (inWorld)
+            {
+                CellManager.Instance.RemoveFromWorld(mapChannel, old);
+                old.IsInWorld = false;
+            }
+            else
+                EntityManager.Instance.FreeEntity(old.EntityId);
+
+            point.Object = made;
+            _byObject[point.Object.EntityId] = point;
+            mapChannel.ControlPoints[point.Id] = point.Object;
+
+            ShowOwner(point);
+
+            // One that was not on the map yet is set down by the object worker, as the first was to be.
+            if (inWorld)
+            {
+                CellManager.Instance.AddToWorld(mapChannel, point.Object);
+                point.Object.IsInWorld = true;
+            }
+        }
+
+        /// <summary>
+        /// The point's clan lockbox as the point now is: on the map while a clan holds it, a new
+        /// object each time - the members of one clan are not left with the lockbox of another
+        /// open - and off it otherwise.
+        /// </summary>
+        private void ShowLockbox(Point point)
+        {
+            var mapChannel = point.Map;
+
+            if (mapChannel == null)
+                return;
+
+            // In service to the clan's members: each client is told for itself (ShownUsable).
+            // Made before the one there is goes, so that it is not given that one's id (Rebuild).
+            var made = point.LockboxId == 0 || !point.HeldByClan
+                ? null
+                : new DynamicObject
+                {
+                    Position = point.LockboxPosition,
+                    Rotation = point.LockboxRotation,
+                    MapContextId = point.MapContextId,
+                    RuntimeMapChannel = mapChannel,
+                    EntityClassId = EntityClasses.UsableClanLockboxV01,
+                    DynamicObjectType = DynamicObjectType.Lockbox,
+                    Comment = $"Clan Lockbox: {point.Name}",
+                    StateId = UseObjectState.ClanlockboxState0,
+                    IsEnabled = true
+                };
+
+            if (point.Lockbox != null)
+            {
+                _byLockbox.Remove(point.Lockbox.EntityId);
+                CellManager.Instance.RemoveFromWorld(mapChannel, point.Lockbox);
+                point.Lockbox.IsInWorld = false;
+            }
+
+            point.Lockbox = made;
+            point.ToldOpen.Clear();
+
+            if (made == null)
+                return;
+
+            _byLockbox[made.EntityId] = point;
+            CellManager.Instance.AddToWorld(mapChannel, made);
+            made.IsInWorld = true;
+        }
+
+        /// <summary>
+        /// Each client that has an object of a clan's point is told whether it is in service to
+        /// it, when that is not what it was last told: the point's object to those who may take
+        /// it from the clan, the lockbox to the clan's members. A feud begun or ended, a player
+        /// joining or leaving a clan: nothing else tells the client, and the object is made on it
+        /// as things stood when it came into view (<see cref="ShownUsable"/>).
+        /// </summary>
+        private void TellUsable(MapChannel mapChannel, Point point)
+        {
+            Tell(mapChannel, point.Object, point.ToldUsable, client => MayTakeFromClan(client, point));
+            Tell(mapChannel, point.Lockbox, point.ToldOpen, client => MayOpenLockbox(client, point));
+        }
+
+        private static void Tell(MapChannel mapChannel, DynamicObject obj, HashSet<Client> told, Func<Client, bool> may)
+        {
+            if (obj == null || !obj.IsInWorld)
+            {
+                told.Clear();
+                return;
+            }
+
+            var seeing = CellManager.Instance.ClientsSeeing(mapChannel, obj);
+
+            // Whoever has gone out of view has it made again when they are back.
+            told.RemoveWhere(client => !seeing.Contains(client));
+
+            foreach (var client in seeing)
+            {
+                var usable = may(client);
+
+                if (usable == told.Contains(client))
+                    continue;
+
+                client.CallMethod(obj.EntityId, new SetUsablePacket(usable));
+                Note(told, client, usable);
+            }
+        }
+
+        #endregion
+
+        #region The clans
+
+        /// <summary>
+        /// Once a second, from the map channel worker: the weekly reset, when its time has come;
+        /// a point whose clan is no more, or held with clans holding none any longer, goes back
+        /// to the AFS; and each point a clan holds pays it.
+        /// </summary>
+        public void ClanWorker()
+        {
+            if (_points.Count == 0)
+                return;
+
+            WeeklyResetWorker();
+
+            foreach (var point in _points.Values.Where(p => p.HeldByClan).ToList())
+            {
+                if (!Config.ClanOwnership || ClanName(point.ClanId) == null)
+                {
+                    SetHolder(point, Afs, 0, null);
+                    continue;
+                }
+
+                Pay(point);
+            }
+        }
+
+        /// <summary>
+        /// A point's pay, when it is due: <see cref="ControlPointConfig.ClanPrestige"/> for every
+        /// <see cref="ControlPointConfig.ClanPrestigeMinutes"/> the clan has held it, one payment
+        /// a pass. Time more than that behind - the server was down, the interval was made
+        /// shorter - is paid once and not made up.
+        /// </summary>
+        private void Pay(Point point)
+        {
+            var amount = Config.ClanPrestige;
+            var interval = Config.ClanPrestigeMinutes * 60000L;
+
+            if (amount <= 0 || interval <= 0)
+                return;
+
+            var now = UtcNow();
+
+            if (point.PaidAt <= 0 || point.PaidAt > now)
+            {
+                point.PaidAt = now;
+                Save(point);
+                return;
+            }
+
+            if (now - point.PaidAt < interval)
+                return;
+
+            // Kept before it is paid: a payment that fails is lost, and none is made twice.
+            point.PaidAt = now - point.PaidAt >= 2 * interval ? now : point.PaidAt + interval;
+            Save(point);
+
+            try
+            {
+                if (!PayClan(point.ClanId, amount, point.Name))
+                    Logger.WriteLog(LogType.Error, $"Control point {point.Id} ({point.Name}): clan {point.ClanId} was not paid its {amount} prestige.");
+            }
+            catch (Exception e)
+            {
+                Logger.WriteLog(LogType.Error, $"Control point {point.Id} ({point.Name}): clan {point.ClanId} was not paid its {amount} prestige: {e.Message}");
+            }
+        }
+
+        /// <summary>
+        /// The weekly reset of the clans' points, on the day and at the time the squad instances
+        /// have theirs: when it comes round every point a clan holds goes back to the AFS. On
+        /// the first pass after the server starts, the reset that came round while it was down:
+        /// the points held from before it.
+        /// </summary>
+        private void WeeklyResetWorker()
+        {
+            if (!Config.ClanWeeklyReset || !SquadInstancePolicies.TryWeeklyReset(ResetSchedule?.Invoke(), out var day, out var time))
+            {
+                NextClanReset = null;
+                _resetSetting = null;
+                return;
+            }
+
+            var now = WallClock();
+            var setting = $"{day} {time}";
+
+            // The first pass, or the day or time changed in the file: from now on.
+            if (NextClanReset == null || _resetSetting != setting)
+            {
+                NextClanReset = SquadInstancePolicies.NextReset(now, day, time);
+                _resetSetting = setting;
+
+                if (!_missedResetLookedFor)
+                {
+                    _missedResetLookedFor = true;
+
+                    var last = NextClanReset.Value.AddDays(-7);
+                    var missed = ReturnClanPoints(UtcNow() - (long)(now - last).TotalMilliseconds);
+
+                    if (missed > 0)
+                        Logger.WriteLog(LogType.Initialize, $"Weekly control point reset of {last:yyyy-MM-dd HH:mm}, missed: {missed} taken back from clans.");
+                }
+
+                return;
+            }
+
+            if (now < NextClanReset.Value)
+                return;
+
+            var returned = ReturnClanPoints();
+
+            NextClanReset = SquadInstancePolicies.NextReset(now, day, time);
+
+            Logger.WriteLog(LogType.Initialize, $"Weekly control point reset: {returned} taken back from clans. The next is {NextClanReset.Value:yyyy-MM-dd HH:mm}.");
+        }
+
+        /// <summary>
+        /// Every point a clan holds goes back to the AFS - with a time given, only those held
+        /// from before it. Returns how many did.
+        /// </summary>
+        public int ReturnClanPoints(long? heldBeforeUtcMs = null)
+        {
+            return _points.Values.Where(p => p.HeldByClan && (heldBeforeUtcMs == null || p.ChangedAt < heldBeforeUtcMs)).ToList()
+                .Count(point => SetHolder(point, Afs, 0, null));
+        }
+
+        /// <summary>A clan has disbanded (ClanManager): the points it held are the AFS's. Returns how many there were.</summary>
+        public int ClanDisbanded(uint clanId)
+        {
+            if (clanId == 0)
+                return 0;
+
+            return _points.Values.Where(p => p.HeldByClan && p.ClanId == clanId).ToList()
+                .Count(point => SetHolder(point, Afs, 0, null));
+        }
+
+        /// <summary>
+        /// Sets a point's clan lockbox down, or stands it somewhere else: a footlocker row of
+        /// the clan lockbox's class and the link that makes it the point's, kept in the world
+        /// database. On the map at once if a clan holds the point. For a game master (.cp).
+        /// </summary>
+        public bool SetLockbox(Point point, Vector3 position, double rotation, IGameUnitOfWorkFactory factory)
+        {
+            if (point == null || point.IsBattleground)
+                return false;
+
+            try
+            {
+                using var unitOfWork = factory.CreateWorld();
+
+                if (point.LockboxId != 0)
+                {
+                    if (!unitOfWork.Footlockers.UpdatePosition(point.LockboxId, position.X, position.Y, position.Z, rotation))
+                        return false;
+                }
+                else
+                {
+                    var comment = $"Clan Lockbox {point.Name}";
+
+                    var id = unitOfWork.Footlockers.AddFootlocker(new FootlockerEntry
+                    {
+                        ClassId = (uint)EntityClasses.UsableClanLockboxV01,
+                        MapContextId = point.MapContextId,
+                        PosX = position.X,
+                        PosY = position.Y,
+                        PosZ = position.Z,
+                        Rotation = rotation,
+                        Comment = comment.Length > 64 ? comment.Substring(0, 64) : comment
+                    });
+
+                    if (id == 0)
+                        return false;
+
+                    unitOfWork.ControlPoints.AddLink(point.Id, ControlPointLinkEntry.KindClanLockbox, id);
+                    point.LockboxId = id;
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.WriteLog(LogType.Error, $"Control point {point.Id} ({point.Name}): its clan lockbox was not set down: {e.Message}");
+                return false;
+            }
+
+            point.LockboxPosition = position;
+            point.LockboxRotation = rotation;
+            ShowLockbox(point);
+
+            return true;
+        }
+
+        /// <summary>Takes a point's clan lockbox away, off the map and out of the world database. For a game master (.cp).</summary>
+        public bool RemoveLockbox(Point point, IGameUnitOfWorkFactory factory)
+        {
+            if (point == null || point.LockboxId == 0)
+                return false;
+
+            try
+            {
+                using var unitOfWork = factory.CreateWorld();
+
+                unitOfWork.ControlPoints.RemoveLink(point.Id, ControlPointLinkEntry.KindClanLockbox, point.LockboxId);
+                unitOfWork.Footlockers.DeleteFootlocker(point.LockboxId);
+            }
+            catch (Exception e)
+            {
+                Logger.WriteLog(LogType.Error, $"Control point {point.Id} ({point.Name}): its clan lockbox was not taken away: {e.Message}");
+                return false;
+            }
+
+            point.LockboxId = 0;
+            ShowLockbox(point);
+
+            return true;
+        }
+
+        #endregion
+
+        #region Garrison kills, and a game master's move
 
         /// <summary>
         /// A creature a player has the kill of: one of a Bane garrison is worth prestige, a boss
@@ -663,13 +1340,18 @@ namespace Rasa.Managers
 
         #region A point's own
 
-        /// <summary>The object's state and side, as its owner has it.</summary>
+        /// <summary>The object's state and side, as its owner has it: a clan's is of the clan class, which has states of its own.</summary>
         private static void ShowOwner(Point point)
         {
             if (point.Object == null)
                 return;
 
-            point.Object.StateId = point.HeldByAfs ? UseObjectState.CpointStateFactionAOwned : UseObjectState.CpointStateFactionBOwned;
+            if (point.Object.EntityClassId == ClanPointClass)
+                point.Object.StateId = point.HeldByClan ? UseObjectState.CcpStateClanControlled
+                    : point.HeldByAfs ? UseObjectState.CcpStateAfsControlled : UseObjectState.CcpStateBaneControlled;
+            else
+                point.Object.StateId = point.HeldByAfs ? UseObjectState.CpointStateFactionAOwned : UseObjectState.CpointStateFactionBOwned;
+
             point.Object.TargetCategory = point.HeldByAfs ? TargetCategory.Friendly : TargetCategory.Hostile;
         }
 
@@ -781,12 +1463,13 @@ namespace Rasa.Managers
         private static bool Stands(SpawnPool pool) =>
             !pool.HasSpawned || pool.AliveCreatures + pool.QueuedCreatures + pool.DropshipQueue > 0;
 
-        private static void Announce(MapChannel mapChannel, PlayerMessage message, Point point, byte faction)
+        /// <summary>"%(faction)s claiming / took Control Point %(cpName)s", to everyone on the map: the faction is "AFS", "Bane" or a clan's name.</summary>
+        private static void Announce(MapChannel mapChannel, PlayerMessage message, Point point, string faction)
         {
             if (mapChannel?.ClientList == null)
                 return;
 
-            var args = new Dictionary<string, string> { { "faction", FactionName(faction) }, { "cpName", point.Name } };
+            var args = new Dictionary<string, string> { { "faction", faction }, { "cpName", point.Name } };
 
             foreach (var client in mapChannel.ClientList.ToArray())
                 if (client?.Player != null && client.State == ClientState.Ingame)
@@ -813,10 +1496,10 @@ namespace Rasa.Managers
                 return unitOfWork.ControlPointStates.GetStates();
             }
 
-            public void Save(uint controlPointId, byte owner, long changedAt)
+            public void Save(ControlPointStateEntry state)
             {
                 using var unitOfWork = _factory.CreateChar();
-                unitOfWork.ControlPointStates.SaveState(controlPointId, owner, changedAt);
+                unitOfWork.ControlPointStates.SaveState(state);
             }
         }
     }

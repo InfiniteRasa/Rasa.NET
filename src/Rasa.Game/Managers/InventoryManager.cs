@@ -1335,6 +1335,56 @@ namespace Rasa.Managers
         /// <summary>CLAN_LOCKBOX_LOGS_DISPLAY_LIMIT.</summary>
         private const int ClanLockboxLogDisplayLimit = 100;
 
+        /// <summary>
+        /// Prestige paid into a clan's lockbox from outside the clan: what a control point it
+        /// holds earns it (ControlPoints). The members who are online have the new balance, and
+        /// the lockbox's history a deposit under the two names given - the client prints them
+        /// as a character's first name and family name. False if there is no such clan or the
+        /// balance could not be written.
+        /// </summary>
+        public bool PayClanPrestige(uint clanId, uint amount, string payerName, string payerFamilyName)
+        {
+            if (clanId == 0 || amount == 0)
+                return false;
+
+            uint credits;
+            uint prestige;
+
+            try
+            {
+                using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+                var clan = unitOfWork.Clans.GetClanById(clanId);
+
+                if (clan == null)
+                    return false;
+
+                credits = clan.Credits;
+                prestige = (uint)Math.Min((long)clan.Prestige + amount, uint.MaxValue);
+
+                unitOfWork.Clans.UpdatePrestige(clanId, prestige);
+            }
+            catch (Exception e)
+            {
+                Logger.WriteLog(LogType.Error, $"Clan {clanId} was not paid {amount} prestige: {e.Message}");
+                return false;
+            }
+
+            foreach (var lockbox in EntityManager.Instance.DynamicObjects.Values.Where(o => o.EntityClassId == EntityClasses.UsableClanLockboxV01).ToList())
+                ClanManager.Instance.CallMethodForOnlineMembers(clanId, lockbox.EntityId, new UpdateClanLockboxCreditsPacket(credits, prestige));
+
+            try
+            {
+                RecordClanLockboxLog(null, ClanLockboxLogEntry.ForCredits(clanId, InventoryTransactionType.Deposit,
+                    0, payerName ?? "", payerFamilyName ?? "", (byte)CurencyType.Prestige, amount));
+            }
+            catch (Exception e)
+            {
+                Logger.WriteLog(LogType.Error, $"Clan {clanId}: the lockbox history has no line for {amount} prestige paid in: {e.Message}");
+            }
+
+            return true;
+        }
+
         public void ClanCreditTransfer(Client client, long amount, uint creditType)
         {
             // amount > 0 deposits into the lockbox, amount < 0 withdraws from it.
