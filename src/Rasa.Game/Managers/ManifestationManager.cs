@@ -144,6 +144,22 @@ namespace Rasa.Managers
 
         /// <summary>The levels that award a clone credit, per the live game's own rules.</summary>
         public static readonly byte[] CloneCreditLevels = { 5, 15, 30 };
+
+        /// <summary>
+        /// Whether reaching this level pays a clone credit. Every caller asks through here, with the
+        /// level as an int: Array.IndexOf(CloneCreditLevels, anInt) cannot infer a type argument, so
+        /// it binds to IndexOf(Array, object), and a boxed int never equals a boxed byte - it compiles
+        /// and answers -1 for every level.
+        /// </summary>
+        internal static bool IsCloneCreditLevel(int level)
+        {
+            foreach (var creditLevel in CloneCreditLevels)
+                if (creditLevel == level)
+                    return true;
+
+            return false;
+        }
+
         public static ManifestationManager Instance
         {
             get
@@ -2339,7 +2355,7 @@ namespace Rasa.Managers
                  level++)
             {
                 player.Level = (byte)level;
-                if (Array.IndexOf(CloneCreditLevels, player.Level) >= 0)
+                if (IsCloneCreditLevel(player.Level))
                 {
                     cloneCredits++;
                     player.CloneCredits = cloneCredits;
@@ -2436,7 +2452,7 @@ namespace Rasa.Managers
             try
             {
                 for (var level = levelBefore + 1; level <= levelAfter; level++)
-                    if (Array.IndexOf(CloneCreditLevels, level) >= 0)
+                    if (IsCloneCreditLevel(level))
                         cloneCreditsAfter = checked(cloneCreditsAfter + 1);
             }
             catch (OverflowException)
@@ -2485,7 +2501,7 @@ namespace Rasa.Managers
             for (var level = levelBefore + 1; level <= levelAfter; level++)
             {
                 player.Level = (byte)level;
-                if (Array.IndexOf(CloneCreditLevels, player.Level) >= 0)
+                if (IsCloneCreditLevel(player.Level))
                 {
                     player.CloneCredits++;
                     client.CallMethod(player.EntityId,
