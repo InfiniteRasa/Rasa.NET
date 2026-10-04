@@ -31,6 +31,14 @@ namespace Rasa.Test.Missions.Wilderness
         private readonly HashSet<ulong> _originalCreatures = EntityManager.Instance.Creatures.Keys.ToHashSet();
         private bool _disposed;
 
+        /// <summary>
+        /// The Wilderness navmesh, read once for the test run: read for every harness, each
+        /// one's stayed reachable after Dispose, about 50 MB a test. A harness has its own
+        /// NavMeshQuery over this one's mesh - a query is not thread safe, the mesh is only read.
+        /// </summary>
+        private static readonly Lazy<NavMeshQuery> WildernessNavMesh = new(() => new NavMeshQuery(NavMeshFile.Read(
+            NavMeshFile.PathFor(Path.Combine(RepositoryRoot(), "navmesh"), "adv_foreas_concordia_wilderness"))));
+
         private WildernessRuntimeTestHarness()
         {
             _directory = Path.Combine(AppContext.BaseDirectory, "TestDatabases", Guid.NewGuid().ToString("N"));
@@ -71,8 +79,7 @@ namespace Rasa.Test.Missions.Wilderness
                 World.ChangeTracker.Clear();
             }
             Map = Context.Map;
-            Map.NavMesh = new NavMeshQuery(NavMeshFile.Read(
-                NavMeshFile.PathFor(Path.Combine(RepositoryRoot(), "navmesh"), "adv_foreas_concordia_wilderness")));
+            Map.NavMesh = new NavMeshQuery(WildernessNavMesh.Value.NavMesh);
 
             var manifestations = new ManifestationManager(this);
             Maps = new MapChannelManager(this, refreshStats: (_, _) => { }, assignPlayer: _ => { },
