@@ -294,6 +294,34 @@ namespace Rasa.Test.Missions.Wilderness
         }
 
         [TestMethod]
+        public void MortarIndicatorsAreSentWithoutAnotherMissionsIndicatorName()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            harness.SpawnWorld(181);
+            var wagner = harness.Npc(181);
+            harness.MoveTo(wagner.Position);
+            var npcs = new NpcManager(harness, harness.Manager);
+            npcs.RequestNpcConverse(harness.Client, new RequestNPCConversePacket { EntityId = wagner.EntityId });
+            harness.Drain();
+
+            npcs.AssignNPCMission(harness.Client,
+                new AssignNPCMissionPacket { NpcEntityId = wagner.EntityId, MissionId = 430 });
+
+            var gained = harness.Drain().OfType<MissionGainedPacket>().Single(packet => packet.MissionId == 430);
+            var objectives = gained.MissionInfo.ObjectivesList.ToDictionary(objective => objective.ObjectiveId);
+            CollectionAssert.AreEquivalent(new uint[] { 3, 4, 5, 6 }, objectives.Keys.ToArray());
+            foreach (var objective in objectives.Values)
+            {
+                // The rows were keyed 3..6 by objective, and sent as ids those are "Possible Food
+                // Crate Location", "Warnet Valley", "Calla Ferns" and "AFS Hydro-electric Plant".
+                // Without an id the client names each by its objective, "Destroy Mortar #1".."#4".
+                var indicator = objective.IndicatorList.Single();
+                Assert.AreEqual(MissionIndicator.UnnamedFrom + objective.ObjectiveId, indicator.IndicatorId);
+                Assert.IsNull(indicator.ClientNameId, $"objective {objective.ObjectiveId}");
+            }
+        }
+
+        [TestMethod]
         public void OjyUnlocksTheAuthoredBloodGlandAndDroneChainOnlyAfterEachRealTurnIn()
         {
             using var harness = WildernessRuntimeTestHarness.Create();

@@ -87,7 +87,10 @@ namespace Rasa.Structures
                         pw.WriteDouble(indicator.Position.Y);
                         pw.WriteDouble(indicator.Position.Z);
                     pw.WriteDouble(indicator.Radius);               // radius
-                    pw.WriteUInt(indicator.IndicatorId);            // indicatorId
+                    if (indicator.ClientNameId.HasValue)            // indicatorId: its name's id, or None
+                        pw.WriteUInt(indicator.ClientNameId.Value);
+                    else
+                        pw.WriteNoneStruct();
                     MissionWire.WriteBool(pw, indicator.Show3DEffect); // bShow3DEffect
                 }
             }

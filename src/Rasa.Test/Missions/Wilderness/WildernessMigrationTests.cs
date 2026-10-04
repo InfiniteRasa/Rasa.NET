@@ -471,6 +471,7 @@ namespace Rasa.Test.Missions.Wilderness
             var pending = harness.World.Database.GetPendingMigrations().ToArray();
             Assert.AreEqual(WildernessWorldBoundary, pending[0]);
             Assert.IsTrue(pending.Skip(1).All(id => string.CompareOrdinal(id, WildernessWorldBoundary) > 0));
+            Assert.IsTrue(pending.Any(id => id.EndsWith("_Wilderness_indicators_without_client_names", StringComparison.Ordinal)));
 
             harness.World.Initialize();
 
@@ -540,6 +541,64 @@ namespace Rasa.Test.Missions.Wilderness
                 {
                     entry.MissionId, entry.ContentRevision, entry.EvidenceId, entry.OwnerKind, entry.OwnerId,
                     entry.SourceKind, entry.SourceUri, entry.LocalClientPath, entry.Confidence, entry.ReconstructionNote
+                })).ToArray();
+
+        [TestMethod]
+        public void OnlyIndicatorsKeyedByTheClientsIdsAreSentWithAName()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var rows = harness.World.MissionIndicatorEntries.AsNoTracking().ToArray();
+            var bootcamp = rows.Where(row => row.ContentRevision == "deployment_11").ToArray();
+            var wilderness = rows.Where(row => row.ContentRevision == WildernessMissionDataV1.Revision).ToArray();
+
+            Assert.AreEqual(12, bootcamp.Length);
+            Assert.AreEqual(97, wilderness.Length);
+            Assert.AreEqual(rows.Length, bootcamp.Length + wilderness.Length);
+            // Bootcamp's keys are missionobjectiveindicatorlanguage ids: 430 "Eloh Approach" to 439
+            // "Cave-in Location".
+            foreach (var row in bootcamp)
+                Assert.IsTrue(row.IndicatorId >= 430 && row.IndicatorId <= 439,
+                    $"mission {row.MissionId} objective {row.ObjectiveId} indicator {row.IndicatorId}");
+            // The Wilderness rows were keyed 1, 2, 3.. within a mission; as client ids those are other
+            // missions' names (1 "Bane Base", 3 "Possible Food Crate Location"). A Wilderness
+            // indicator that is to carry a client name is keyed by that name's id, below UnnamedFrom.
+            foreach (var row in wilderness)
+                Assert.IsTrue(row.IndicatorId > Rasa.Structures.MissionIndicator.UnnamedFrom,
+                    $"mission {row.MissionId} objective {row.ObjectiveId} indicator {row.IndicatorId}");
+
+            Assert.IsFalse(harness.Manager.LoadMissions().BlocksReadiness);
+        }
+
+        [TestMethod]
+        public void UnnamedIndicatorKeysRollBackToTheirWildernessKeysAndForwardAgain()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var migrator = harness.World.GetService<IMigrator>();
+            var latest = IndicatorRows(harness);
+
+            migrator.Migrate(WildernessWorldBoundary);
+
+            var rolledBack = harness.World.MissionIndicatorEntries.AsNoTracking()
+                .Where(row => row.ContentRevision == WildernessMissionDataV1.Revision).ToArray();
+            Assert.AreEqual(97, rolledBack.Length);
+            Assert.IsTrue(rolledBack.All(row => row.IndicatorId >= 1 && row.IndicatorId <= 12));
+            Assert.AreEqual(4, rolledBack.Count(row => row.MissionId == 430 && row.IndicatorId == row.ObjectiveId));
+
+            migrator.Migrate();
+            migrator.Migrate();
+
+            CollectionAssert.AreEqual(latest, IndicatorRows(harness));
+            Assert.IsFalse(harness.World.Database.GetPendingMigrations().Any());
+        }
+
+        private static string[] IndicatorRows(WildernessRuntimeTestHarness harness) =>
+            harness.World.MissionIndicatorEntries.AsNoTracking().AsEnumerable()
+                .OrderBy(row => row.MissionId).ThenBy(row => row.ContentRevision, StringComparer.Ordinal)
+                .ThenBy(row => row.ObjectiveId).ThenBy(row => row.IndicatorId)
+                .Select(row => JsonSerializer.Serialize(new
+                {
+                    row.MissionId, row.ContentRevision, row.ObjectiveId, row.IndicatorId,
+                    row.Requirement, row.PosX, row.PosY, row.PosZ, row.Radius, row.Show3DEffect, row.Comment
                 })).ToArray();
 
         private static string EvidenceColumnType(WildernessRuntimeTestHarness harness) =>
