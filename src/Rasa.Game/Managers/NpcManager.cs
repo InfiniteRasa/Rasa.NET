@@ -199,14 +199,18 @@ namespace Rasa.Managers
                     new TrainingConverse(line == TrainerDialog.Offer, trainer.DialogGroup + (int)line));
             }
 
+            // More than one topic: the client opens its topic list, which is headed by the NPC's
+            // greeting, and by "ERROR: 7: No greeting" if it was sent none (NpcGreetings).
+            NpcGreetings.AddTo(convoDataDict, creature);
+
             // Nothing to talk about. A player gets here through an NPC whose only status is
             // Unavailable: npc.py offers CONVERSE on any status but None, and an empty dictionary
             // falls through Recv_Converse to "Unknown conversation type received from server".
             // EndConversation closes the window it would have opened, and the mission that is
             // waiting is named in the chat - player message 939, "'%(missionId)s' is not
             // available to you now.", the id sent as a number for BuildPlayerMessage to turn
-            // into the mission's name. No greeting: which npcgreetinglanguage line an NPC spoke
-            // was the server's to know, and is not in the client.
+            // into the mission's name. No greeting window: which npcgreetinglanguage line an NPC
+            // spoke was the server's to know, and is not in the client.
             if (convoDataDict.Count == 0)
             {
                 convoDataDict.Add(ConversationType.EndConversation, true);
