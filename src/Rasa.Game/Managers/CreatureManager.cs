@@ -143,6 +143,33 @@ namespace Rasa.Managers
             }
         }
 
+        /// <summary>
+        /// A dead creature's health and armour: at zero, with nothing coming back. The clients are
+        /// told its health when it was not at zero already - a caller that brought it there has
+        /// sent that itself.
+        /// </summary>
+        private static void ZeroVitals(MapChannel mapChannel, Creature creature)
+        {
+            if (creature.Attributes.TryGetValue(Attributes.Health, out var health))
+            {
+                var hadHealth = health.Current != 0;
+
+                health.Current = 0;
+                health.RefreshAmount = 0;
+                health.RefreshPeriod = 0;
+
+                if (hadHealth)
+                    CellManager.Instance.CellCallMethod(mapChannel, creature, new UpdateHealthPacket(health, creature.EntityId));
+            }
+
+            if (creature.Attributes.TryGetValue(Attributes.Armor, out var armor))
+            {
+                armor.Current = 0;
+                armor.RefreshAmount = 0;
+                armor.RefreshPeriod = 0;
+            }
+        }
+
         /// <param name="critKill">A Critical Death finish: the experience and adrenaline are paid twice over, the client is told how the second award was earned, and the body cannot be revived.</param>
         internal void HandleCreatureKill(MapChannel mapChannel, Creature creature, Actor killedBy, CritKill critKill = CritKill.None)
         {
@@ -200,6 +227,14 @@ namespace Rasa.Managers
 
             creature.State = CharacterState.Dead;
             creature.KnockbackTo = null;
+
+            // Dead is at zero health, for every caller. All but Critical Death arrive with that
+            // done. A creature killed out of its window - left to die, or finished - arrives
+            // with the 1 to 8 percent the window opened on, and was left with it: a body that
+            // BehaviorManager.CreatureThink, which knew a corpse by its health, never put on the
+            // corpse clock and went on thinking for.
+            ZeroVitals(mapChannel, creature);
+
             Game.Missions.World.CreatureGameplayRules.ClearRole(creature);
             CellManager.Instance.CellCallMethod(mapChannel, creature, new StateChangePacket(stateIds));
             if (creature.SpawnPool?.FollowOwnerCharacterId > 0)

@@ -347,7 +347,9 @@ namespace Rasa.Managers
                 return;
             }
 
-            if (creature.Attributes[Attributes.Health].Current <= 0)
+            // A corpse by its state as much as by its health: a creature marked dead with health
+            // left on it is not one to go on to the fighting below.
+            if (creature.State == CharacterState.Dead || creature.Attributes[Attributes.Health].Current <= 0)
             {
                 // A walker that has fallen becomes its wreck (AlternateMesh).
                 AlternateMesh.DeadTick(mapChannel, creature, Environment.TickCount64);
