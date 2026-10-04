@@ -232,7 +232,16 @@ namespace Rasa.Managers
                 return;
             }
 
-            var source = client.AccountEntry.GetCharacterBySlot(packet.CloneSlotNum);
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+
+            // The source is read from its row, as the pods are (StartCharacterSelection), and not
+            // from client.AccountEntry. That entry is a copy from when the account was last
+            // loaded - for a player who came here from the world, when they selected the
+            // character - and coming here from the world is how a clone is made: the trainer's
+            // Clone button is a logout to this screen (exitgame.OnRequestLogoutForCloning). The
+            // copy has none of what the character did in between: its levels, its class, where
+            // it stands, or the clone credit it has come to spend.
+            var source = unitOfWork.Characters.GetByAccountId(client.AccountEntry.Id, packet.CloneSlotNum);
 
             if (source == null)
             {
@@ -249,7 +258,6 @@ namespace Rasa.Managers
             }
 
             uint characterId;
-            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
 
             lock (_createLock)
             {
@@ -267,10 +275,9 @@ namespace Rasa.Managers
 
             // Spent last, so a clone that failed anywhere above costs nothing.
             //
-            // Held in a local rather than re-read off `source` afterwards. UpdateCharacterCloneCredits
-            // writes through the tracked entity, and whether that is the same object as `source`
-            // depends on which context loaded the account - so reading it back would subtract
-            // twice on one path and once on the other.
+            // Held in a local for the packets below. `source` is an untracked copy of the row:
+            // UpdateCharacterCloneCredits writes through an entity of its own and leaves the
+            // copy's count as it was read.
             var remainingCredits = source.CloneCredits - 1;
 
             unitOfWork.Characters.UpdateCharacterCloneCredits(source.Id, remainingCredits);
