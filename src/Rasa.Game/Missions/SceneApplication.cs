@@ -636,10 +636,25 @@ namespace Rasa.Game.Missions
                 _missions.IsObjectiveEligibleAtEvent(resident.Owner, missionId, objectiveId, unit);
         }
 
-        private static void PublishObjectDamage(MapChannel map, DynamicObject obj) =>
-            CellManager.Instance.CellCallMethod(map, obj, new Packets.MapChannel.Server.DamageInfoPacket(
-                obj.IsEnabled && obj.CurrentHitPoints > 0, false,
-                obj.MissionDestruction.HitPoints, obj.CurrentHitPoints));
+        /// <summary>
+        /// The object's hit points as they are now, to the clients around it.
+        ///
+        /// UpdateHitPoints is what moves the bar over it: usable.py's Recv_UpdateHitPoints posts
+        /// USABLE_HITPOINT_CHANGE, which is all overheadwindow.py redraws a usable's bar on.
+        /// Recv_DamageInfo stores the figure and posts nothing, so damage told with it alone left
+        /// the bar full until the object went. DamageInfo follows only when the object can no
+        /// longer be damaged, and after the update: sent first it would store the new figure, and
+        /// an UpdateHitPoints of a figure the client already holds posts no event.
+        /// </summary>
+        private static void PublishObjectDamage(MapChannel map, DynamicObject obj)
+        {
+            CellManager.Instance.CellCallMethod(map, obj,
+                new Packets.MapChannel.Server.UpdateHitPointsPacket(checked((int)obj.CurrentHitPoints)));
+
+            if (!obj.IsEnabled || obj.CurrentHitPoints == 0)
+                CellManager.Instance.CellCallMethod(map, obj, new Packets.MapChannel.Server.DamageInfoPacket(
+                    false, false, obj.MissionDestruction.HitPoints, obj.CurrentHitPoints));
+        }
 
         private DynamicObject ValidateObjectObservation(Resident resident, SceneObservation observation,
             Repositories.Char.ICharUnitOfWork unit)

@@ -41,7 +41,7 @@ namespace Rasa.Managers
         /// about the 5x5 cells around it, so nothing past ~64 units is even on its screen; this
         /// is twice that, which no weapon reaches and no honest client asks for.
         /// </summary>
-        private const float MaxTargetDistance = 128f;
+        internal const float MaxTargetDistance = 128f;
 
         private MissileManager()
         {

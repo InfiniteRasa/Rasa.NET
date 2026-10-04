@@ -271,7 +271,38 @@ namespace Rasa.Managers
                         AddCharge(session.ChargeTargetId, session.Charge, session.ChargePulses, target.EntityId, rolled);
             }
 
+            PulseAtObject(mapChannel, player, session, damage, damageType, pulse);
+
             CellManager.Instance.CellCallMethod(mapChannel, player, tick);
+        }
+
+        /// <summary>
+        /// The pulse on an object the shooter is aiming at: a practice target, or one a mission
+        /// has the player destroy (PracticeTargetManager). It is no actor, so ResolveTarget and
+        /// the cone have nothing for it, and a chaingun, a laser chaingun or any other
+        /// constant-fire weapon did nothing to an object a pistol's missile could destroy. The
+        /// pulse lands as the missile does (MissileManager.MissileTrigger): the object is listed
+        /// in the tick and the damage goes to RecordHit as it is. No critical hit, range falloff,
+        /// resistance, leech or polarity charge: those are an actor's, there as here.
+        /// </summary>
+        private static void PulseAtObject(MapChannel mapChannel, Manifestation player, Session session,
+            int damage, DamageType damageType, List<TickEntry> pulse)
+        {
+            if (damage <= 0 || player.Target == 0 ||
+                !PracticeTargetManager.TryGetTarget(mapChannel, player.Target, out var target) ||
+                !PracticeTargetManager.CanHit(mapChannel, player, target))
+                return;
+
+            var distance = System.Numerics.Vector3.Distance(target.Position, player.Position);
+            var reach = session.ActionId == ActionId.WeaponFlamethrower
+                ? ConeWeapons.RangeOf(session.ActionId, session.ActionArgId) + ConeWeapons.RangeSlack
+                : MissileManager.MaxTargetDistance;
+
+            if (!float.IsFinite(distance) || distance > reach)
+                return;
+
+            pulse.Add(new TickEntry { EntityId = target.EntityId, Amount = damage, DamageType = damageType });
+            PracticeTargetManager.RecordHit(mapChannel, player, target, session.ActionId, damage: damage);
         }
 
         /// <summary>
