@@ -20,6 +20,7 @@ namespace Rasa.Test.World
     using Rasa.Structures;
     using Rasa.Test.Database;
     using Rasa.Test.Missions;
+    using Rasa.Test.Missions.Wilderness;
 
     // The greeting an NPC's conversation is sent with (NpcGreetings): the client heads its topic
     // list with it, and prints "ERROR: 7: No greeting" there if it was sent none.
@@ -292,6 +293,37 @@ namespace Rasa.Test.World
                 Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
                 Directory.Delete(directory, true);
             }
+        }
+
+        [TestMethod]
+        public void AWorldStoppedBeforeTheGreetingTableStartsWithNoGreetingsAndAMigratedOneWithTheSeed()
+        {
+            // Outpost Commander Rogers, Alia Das: 1620 in the seed.
+            const uint Rogers = 100;
+
+            // The Wilderness tests stop a World at an earlier migration, where there is no
+            // npc_greeting table yet (WildernessRuntimeTestHarness.CreaturesOfThisWorld): Game
+            // starts on it, and nobody has a line of their own.
+            using (var stopped = WildernessRuntimeTestHarness.Create(targetWorldMigration: "20261104000200_WildernessAliaOpening"))
+            {
+                using (var world = stopped.CreateWorld())
+                    Assert.AreEqual(0, world.Creatures.GetNpcGreetings().Count);
+
+                Assert.IsFalse(NpcGreetings.HasOwn(stopped.Creatures.LoadedCreatures[Rogers]));
+                Assert.AreEqual(NpcGreetings.Default, NpcGreetings.For(stopped.Creatures.LoadedCreatures[Rogers]));
+
+                // Migrated to the end, the same World has the table and the seed in it.
+                stopped.World.Initialize();
+
+                using (var world = stopped.CreateWorld())
+                    CollectionAssert.AreEquivalent(
+                        NpcGreetingSeed.Rows.Select(row => (row.CreatureId, row.GreetingId)).ToList(),
+                        world.Creatures.GetNpcGreetings().Select(row => (row.Id, row.GreetingId)).ToList());
+            }
+
+            using var migrated = WildernessRuntimeTestHarness.Create();
+
+            Assert.AreEqual(1620, NpcGreetings.For(migrated.Creatures.LoadedCreatures[Rogers]));
         }
 
         [TestMethod]
