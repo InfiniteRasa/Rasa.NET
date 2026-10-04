@@ -1841,8 +1841,16 @@ namespace Rasa.Managers
             client.Player.SpentMind = mindAfter;
             client.Player.SpentSpirit = spiritAfter;
             UpdateStatsValues(client, false);
-            client.CallMethod(client.Player.EntityId, new AttributeInfoPacket(client.Player.Attributes));
+
+            // Send the new available-point count first.
+            //
+            // The retail attributes window copies avatar.attributePoints into its own
+            // private available-points value when BODY/MIND/SPIRIT is refreshed.
+            // Sending this first ensures attributePoints already contains the new value
+            // when AttributeInfo causes the window to reload its B/M/S state.
             SendAvailableAllocationPoints(client);
+
+            client.CallMethod(client.Player.EntityId, new AttributeInfoPacket(client.Player.Attributes));
         }
 
         public void AssignPlayer(Client client)
