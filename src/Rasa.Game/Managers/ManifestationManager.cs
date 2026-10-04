@@ -2014,6 +2014,14 @@ namespace Rasa.Managers
 
             client.CallMethod(player.EntityId, new LockboxFundsPacket(player.LockboxCredits));
 
+            // The clone credits. The client's manifestation is new on every map and holds None,
+            // not 0, until it is told: the attributes window prints that as "None", and the
+            // trainer's Clone button, enabled on cloneCredits > 0, stays grey. It was told only
+            // when a credit was gained. The first count a manifestation is sent is taken as it
+            // is - Recv_CloneCredits gives its "clone credit added" message only over a count it
+            // already had.
+            client.CallMethod(player.EntityId, new CloneCreditsPacket(player.CloneCredits));
+
             // After the skills: the weapon skill bonuses the client predicts from its own effects.
             SyncSkillPassives(client);
         }
