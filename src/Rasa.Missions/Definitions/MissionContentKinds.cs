@@ -25,6 +25,7 @@ namespace Rasa.Structures.World
         ShowAmbientConversation = 9,
         IssueMissionItem = 10,
         ConsumeMissionItem = 11,
-        RemoveMissionItems = 12
+        RemoveMissionItems = 12,
+        FailRelatedMission = 13
     }
 }

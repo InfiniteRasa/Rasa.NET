@@ -24,6 +24,9 @@ namespace Rasa.Game.Missions.Content
                     .Where(transition => transition.ProgressRule?.Kind == Data.MissionProgressEventKind.ObjectiveStateReached)
                     .SelectMany(transition => transition.ProgressRule.Subjects
                         .Select(id => (ObjectiveId: objective.ObjectiveId, DependencyId: id)))))
+                .Concat(mission.Objectives.Values.Where(objective => objective.Aggregation != null)
+                    .SelectMany(objective => objective.Aggregation.ChildObjectiveIds
+                        .Select(id => (ObjectiveId: objective.ObjectiveId, DependencyId: id))))
                 .ToLookup(edge => edge.ObjectiveId, edge => edge.DependencyId);
             var requiredProgress = mission.Objectives.Values.Where(objective => objective.IsRequired == true)
                 .Select(objective => objective.ObjectiveId).ToHashSet();
@@ -71,9 +74,30 @@ namespace Rasa.Game.Missions.Content
             }
         }
 
+        internal static void ValidateProgressMetadata(uint missionId, MissionSceneDefinition scene, IEnumerable<uint> objectives)
+        {
+            var ids = objectives.ToHashSet();
+            if (scene.HiddenObjectiveIds != null &&
+                (scene.HiddenObjectiveIds.Distinct().Count() != scene.HiddenObjectiveIds.Count ||
+                 scene.HiddenObjectiveIds.Any(id => !ids.Contains(id))) ||
+                scene.ExistingFactObjectiveIds != null &&
+                (scene.ExistingFactObjectiveIds.Distinct().Count() != scene.ExistingFactObjectiveIds.Count ||
+                 scene.ExistingFactObjectiveIds.Any(id => !ids.Contains(id))) ||
+                scene.ObjectiveAggregations != null &&
+                scene.ObjectiveAggregations.Any(entry => entry.Value == null || !ids.Contains(entry.Key) ||
+                    entry.Value.ChildObjectiveIds.Any(id => id == entry.Key || !ids.Contains(id))) ||
+                scene.ObjectiveHistoryAggregations != null &&
+                scene.ObjectiveHistoryAggregations.Any(entry => entry.Value == null || !ids.Contains(entry.Key) ||
+                    entry.Value.Groups.Any(group => group.Contains(missionId))))
+                throw new MissionRuleException($"Mission {missionId}: progress metadata must name distinct local objectives.");
+        }
+
         internal static void Validate(uint missionId, string revision, MissionSceneDefinition scene, IEnumerable<uint> objectives)
         {
             var objectiveIds = objectives.ToHashSet();
+            ValidateProgressMetadata(missionId, scene, objectiveIds);
+            if (scene.Sequences.Values.SelectMany(sequence => sequence.Character).Any(intent => intent is FailRelatedMissionIntent))
+                throw new MissionRuleException("Related mission failure belongs to the originating native transition transaction.");
             if (missionId == 0 && (scene.Items != null || scene.AcceptanceItems != null ||
                 scene.Sequences.Values.SelectMany(sequence => sequence.Character).Any(MissionItemValidation.IsItemIntent)))
                 throw new MissionRuleException("Assignment item operations require a mission-owned scene, not an experience.");
@@ -117,6 +141,17 @@ namespace Rasa.Game.Missions.Content
                     if (policy.ValidationError() is string error)
                         throw new MissionRuleException($"Mission {missionId}, actor {actor.Key}: {error}.");
                 }
+                if (actor.Value.UseAction is { } use &&
+                    (missionId == 0 || actor.Value.Kind != SceneActorKind.Object || actor.Value.Conversation != null ||
+                     use.MissionId != missionId || !objectiveIds.Contains(use.ObjectiveId) ||
+                     use.ActionArgId is not (1 or 3) || !scene.Sequences.ContainsKey(use.SequenceId)))
+                    throw new MissionRuleException($"Mission {missionId}, actor {actor.Key}: invalid native use action.");
+                if (actor.Value.Destruction is { } destruction &&
+                    (missionId == 0 || actor.Value.Kind != SceneActorKind.Object || actor.Value.Conversation != null ||
+                     destruction.MissionId != missionId || !objectiveIds.Contains(destruction.ObjectiveId) ||
+                     destruction.HitPoints == 0 || !Enum.IsDefined(typeof(Data.UseObjectState), (int)destruction.DestroyedState) ||
+                     !scene.Sequences.ContainsKey(destruction.SequenceId)))
+                    throw new MissionRuleException($"Mission {missionId}, actor {actor.Key}: invalid object destruction action.");
             }
             if (scene.Actors.Values.Where(actor => actor.SharedKey != null)
                 .GroupBy(actor => actor.SharedKey, StringComparer.Ordinal).Any(group => group.Count() > 1))
@@ -135,7 +170,7 @@ namespace Rasa.Game.Missions.Content
                 (encounter.MissionId != missionId || encounter.ScriptKey != scene.Script ||
                  !scene.Actors.TryGetValue(encounter.Role, out var publicActor) ||
                  publicActor.Kind != SceneActorKind.PublicSpawn || publicActor.TemplateId != encounter.SpawnId ||
-                 encounter.OwnerLossPolicy is not ("Reset" or "Wait" or "Continue")))
+                 encounter.OwnerLossPolicy is not ("Reset" or "Wait" or "Continue" or "Fail")))
                 throw new MissionRuleException($"Mission {missionId}: public encounter does not match its actor/script.");
             foreach (var route in scene.Routes)
                 if (route.Key != route.Value.Key || route.Value.Points.Count == 0 ||

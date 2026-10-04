@@ -59,25 +59,29 @@ namespace Rasa.Managers
         /// <summary>
         /// Who a player's missions send them to speak to now: the creature rows their finished
         /// missions are handed in to (MissionApplication.TurnInReceivers) and the NPC packages
-        /// their objectives are talked through with (MissionApplication.ObjectiveContacts).
+        /// their objectives are talked through with (MissionApplication.ObjectiveContacts) - or,
+        /// for a topic one creature alone speaks, that creature row.
         /// </summary>
         private readonly struct Wanted
         {
             private readonly HashSet<uint> _receivers;
             private readonly HashSet<uint> _packages;
+            private readonly HashSet<uint> _speakers;
 
             public Wanted(Manifestation player)
             {
                 var missions = MissionApplication.Instance;
 
+                _speakers = new HashSet<uint>();
                 _receivers = missions?.TurnInReceivers(player);
-                _packages = missions?.ObjectiveContacts(player);
+                _packages = missions?.ObjectiveContacts(player, _speakers);
             }
 
-            public bool Any => _receivers?.Count > 0 || _packages?.Count > 0;
+            public bool Any => _receivers?.Count > 0 || _packages?.Count > 0 || _speakers?.Count > 0;
 
             public bool Has(Creature creature) =>
                 _receivers != null && _receivers.Contains(creature.DbId) ||
+                _speakers != null && _speakers.Contains(creature.DbId) ||
                 _packages != null && _packages.Contains(creature.Npc.NpcPackageId);
         }
 

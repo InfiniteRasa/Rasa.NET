@@ -5,6 +5,7 @@ using System.Linq;
 namespace Rasa.Managers
 {
     using Data;
+    using Game.Missions.World;
     using Packets.MapChannel.Server;
     using Structures;
 
@@ -98,6 +99,21 @@ namespace Rasa.Managers
             public long At;
             public Action Resolve;
             public CreatureAction Action;
+            public ScriptedCombatAuthorization CombatAuthorization;
+        }
+
+        internal static bool HasCombatAuthorization(MapChannel mapChannel, Creature creature,
+            ScriptedCombatAuthorization authorization)
+        {
+            if (creature?.ScriptedCombatGate == null && authorization == null)
+                return true;
+
+            // Rearming the same operation can produce an equal-valued record, but it is a new grant.
+            return mapChannel != null && creature?.ScriptedCombatGate != null && authorization != null &&
+                ReferenceEquals(authorization, creature.ScriptedCombatAuthorization) &&
+                authorization.Handle.MapEpoch == mapChannel.MissionEpoch &&
+                CreatureManager.IsLivingOnMap(mapChannel, creature) &&
+                CreatureGameplayRules.CanParticipateInCombat(creature);
         }
 
         /// <summary>
@@ -122,7 +138,8 @@ namespace Rasa.Managers
         /// <summary>
         /// A creature action that is not a missile, wound up: the creature stops and stands for
         /// windupMs, and resolve runs when it is done - unless the creature is dead, dying or
-        /// stunned by then, when nothing comes of it and the action is interrupted on the clients.
+        /// stunned by then, or its manual combat authorization has changed. Nothing comes of it
+        /// in those cases, and the action is interrupted on the clients.
         /// No windup, and it runs now.
         /// </summary>
         /// <param name="action">The action wound up, to interrupt if it comes to nothing.</param>
@@ -130,6 +147,14 @@ namespace Rasa.Managers
         {
             if (resolve == null)
                 return;
+
+            var authorization = creature?.ScriptedCombatAuthorization;
+            if (!HasCombatAuthorization(mapChannel, creature, authorization))
+            {
+                if (action != null)
+                    Interrupt(mapChannel, creature, action.ActionId, action.ActionArgId);
+                return;
+            }
 
             if (windupMs <= 0 || mapChannel == null || creature == null)
             {
@@ -145,7 +170,11 @@ namespace Rasa.Managers
             BehaviorManager.Instance?.StopMoving(creature);
 
             lock (PendingLock)
-                Pending.Add(new Deferred { MapChannel = mapChannel, Creature = creature, At = at, Resolve = resolve, Action = action });
+                Pending.Add(new Deferred
+                {
+                    MapChannel = mapChannel, Creature = creature, At = at, Resolve = resolve,
+                    Action = action, CombatAuthorization = authorization
+                });
         }
 
         /// <summary>Whether this creature has a wound-up action waiting on its windup.</summary>
@@ -178,10 +207,15 @@ namespace Rasa.Managers
                     || !creature.Attributes.TryGetValue(Attributes.Health, out var health) || health.Current <= 0)
                     continue;
 
-                // Stunned or knocked down out of it: nothing comes of it, and the clients are told.
-                if (Stuns.IsStunned(creature))
+                // Rearming the same actor must not authorize a callback from its previous command.
+                var authorized = HasCombatAuthorization(mapChannel, creature, deferred.CombatAuthorization);
+                if (!authorized || Stuns.IsStunned(creature))
                 {
-                    if (deferred.Action != null)
+                    // The packet names only the action/argument, so it would also cancel a newer grant's identical windup.
+                    var noNewerGrant = creature.ScriptedCombatAuthorization == null ||
+                        ReferenceEquals(deferred.CombatAuthorization, creature.ScriptedCombatAuthorization);
+                    if (deferred.Action != null && noNewerGrant &&
+                        (authorized || CreatureManager.IsLivingOnMap(mapChannel, creature)))
                         Interrupt(mapChannel, creature, deferred.Action.ActionId, deferred.Action.ActionArgId);
 
                     continue;

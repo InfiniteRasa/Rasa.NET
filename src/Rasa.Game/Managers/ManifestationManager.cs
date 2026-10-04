@@ -548,7 +548,13 @@ namespace Rasa.Managers
                     _ => null
                 };
 
-                if (target != null && Vector3.Distance(player.Position, target.Position) > level.MaxRange + MeleeRangeSlack)
+                Vector3? targetPosition = target?.Position;
+                if (!targetPosition.HasValue &&
+                    PracticeTargetManager.TryGetTarget(mapChannel, targetId, out var targetObject) &&
+                    PracticeTargetManager.CanHit(mapChannel, player, targetObject))
+                    targetPosition = targetObject.Position;
+                if (targetPosition.HasValue &&
+                    Vector3.Distance(player.Position, targetPosition.Value) > level.MaxRange + MeleeRangeSlack)
                     return;
 
                 // A Personal Waypoint (PersonalWaypoints) is struck from as near.
@@ -1919,8 +1925,16 @@ namespace Rasa.Managers
             client.Player.SpentMind = mindAfter;
             client.Player.SpentSpirit = spiritAfter;
             UpdateStatsValues(client, false);
-            client.CallMethod(client.Player.EntityId, new AttributeInfoPacket(client.Player.Attributes));
+
+            // Send the new available-point count first.
+            //
+            // The retail attributes window copies avatar.attributePoints into its own
+            // private available-points value when BODY/MIND/SPIRIT is refreshed.
+            // Sending this first ensures attributePoints already contains the new value
+            // when AttributeInfo causes the window to reload its B/M/S state.
             SendAvailableAllocationPoints(client);
+
+            client.CallMethod(client.Player.EntityId, new AttributeInfoPacket(client.Player.Attributes));
         }
 
         public void AssignPlayer(Client client)
@@ -2665,7 +2679,20 @@ namespace Rasa.Managers
             }
 
             player.Class = (uint)chosen;
-            CharacterManager.Instance.UpdateCharacter(client, CharacterUpdate.Class, player.Class);
+            try
+            {
+                if (!_characterManager.UpdateCharacter(client, CharacterUpdate.Class, player.Class))
+                {
+                    player.Class = (uint)current;
+                    Logger.WriteLog(LogType.Error, $"Unable to persist class advancement for {player.Id}.");
+                    return;
+                }
+            }
+            catch
+            {
+                player.Class = (uint)current;
+                throw;
+            }
 
             Logger.WriteLog(LogType.Debug, $"{player.FamilyName} advanced from {current} to {chosen}.");
 
@@ -2683,6 +2710,7 @@ namespace Rasa.Managers
 
             // Class is the third field of the party tuple, as DebugChgPlayerClass notes.
             PartyManager.Instance.MemberInfoChanged(client);
+            (_missionManager ?? MissionApplication.Instance).OfferClassQualificationMissions(client);
         }
 
         public void DebugChgPlayerClass(Client client, uint newClassId)

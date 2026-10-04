@@ -9,6 +9,9 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Rasa.Data;
 using Rasa.Game.Missions.Persistence;
+using Rasa.Game.Missions.Integration;
+using Rasa.Missions.Runtime;
+using Rasa.Repositories.UnitOfWork;
 using Rasa.Managers;
 using Rasa.Missions.Definitions;
 using Rasa.Missions.Scenes;
@@ -98,6 +101,90 @@ namespace Rasa.Test.Missions
             Assert.AreEqual(3U, items.Single(item => item.MissionOwnership == null).StackSize);
             using var verify = context.CreateChar();
             Assert.AreEqual(902U, verify.CharacterMissionItems.GetOwned(1).Single().MissionId);
+        }
+
+        [TestMethod]
+        public void AssignmentItemEligibilityRejectsUnboundOtherAssignmentAndQuarantinedStock()
+        {
+            using var context = Create(MissionId, 902);
+            var requirement = new AssignmentItemRequirement(MissionId, ItemKey, 2);
+            var requirements = new MissionRequirementService(factory: context,
+                resolve: id => context.Manager.LoadedMissions.GetValueOrDefault(id));
+            GrantUnbound(context, 4);
+            Apply(context, new IssueMissionItemIntent("other-stock", 902, ItemKey, TemplateId, 3));
+            Assert.IsFalse(requirements.Evaluate(context.Client.Player, requirement));
+            Apply(context, new IssueMissionItemIntent("owned-stock", MissionId, ItemKey, TemplateId, 2));
+            Assert.IsTrue(requirements.Evaluate(context.Client.Player, requirement));
+            using (var database = context.Open())
+            {
+                database.Set<Rasa.Structures.Char.CharacterMissionItemQuarantineEntry>().Add(new()
+                {
+                    CharacterId = 1, MissionId = MissionId,
+                    AssignmentId = context.Client.Player.Missions[MissionId].AssignmentId,
+                    Reason = "Test ownership quarantine"
+                });
+                database.SaveChanges();
+            }
+            Assert.IsFalse(requirements.Evaluate(context.Client.Player, requirement));
+        }
+
+        [TestMethod]
+        public void AssignmentItemRequirementProjectsTheSameTransactionsConsumption()
+        {
+            using var context = Create();
+            Apply(context, new IssueMissionItemIntent("owned-stock", MissionId, ItemKey, TemplateId, 2));
+            var requirement = new AssignmentItemRequirement(MissionId, ItemKey, 2);
+            var requirements = new MissionRequirementService(factory: context,
+                resolve: id => context.Manager.LoadedMissions.GetValueOrDefault(id));
+            MissionItemPlanner items = null;
+            using (var unit = context.CreateChar())
+                unit.ExecuteTransaction(() =>
+                {
+                    var guard = requirements.Capture(context.Client.Player, requirement, unit);
+                    var assignment = unit.CharacterMissions.GetByCharacterAndMission(1, MissionId);
+                    items = new MissionItemPlanner(context.Client, unit, context.Manager);
+                    items.Apply(new ConsumeMissionItemIntent("owned-cost", MissionId, ItemKey, 1,
+                        MissionItemScope.AssignmentIssued), assignment.AssignmentId, assignment.Generation);
+                    TransactionValidation.AtCommitBoundary(unit, guard.Validate);
+                });
+            items.Publish(context.Client);
+            Assert.AreEqual(1U, Owned(context).Single().StackSize);
+            Assert.IsFalse(requirements.Evaluate(context.Client.Player, requirement));
+        }
+
+        [TestMethod]
+        public void RequiredFailureAndOwnedStockCleanupShareTheCapturedEligibilityTransaction()
+        {
+            var mission = new Mission(MissionId, "Required survey", 901, 77, 88, 1, 1, 1, false, false,
+                new[]
+                {
+                    new MissionObjectiveDefinition(1, 901, 901, Array.Empty<uint?>(), 1,
+                        MissionObjectiveState.Incomplete, true, null, null,
+                        Array.Empty<MissionObjectiveConversation>(),
+                        revealedObjectiveIds: Array.Empty<uint>(), activatedObjectiveIds: Array.Empty<uint>(),
+                        indicators: Array.Empty<MissionIndicator>(),
+                        progressRule: MissionProgressRule.CompleteOnExactSubject(MissionProgressEventKind.CreatureKilled, 999))
+                }, true, items: new[] { Binding() },
+                acceptanceItems: new[] { new IssueMissionItemIntent("accept-key", MissionId, ItemKey, TemplateId, 1) });
+            Assert.IsTrue(mission.IsOperational, mission.OperationalDiagnostic);
+            using var context = MissionTestContext.WithCustomDefinitions(new Dictionary<uint, Mission> { [MissionId] = mission });
+            context.AddRewardTemplate(TemplateId, 3147);
+            Assert.IsTrue(context.Manager.AcceptOfferedMission(context.Client, context.AddNpc(77).EntityId, MissionId));
+            var requirement = new AssignmentItemRequirement(MissionId, ItemKey);
+            var requirements = new MissionRequirementService(factory: context,
+                resolve: id => context.Manager.LoadedMissions.GetValueOrDefault(id));
+            using var publication = new MissionScenarioPlan();
+            using (var unit = context.CreateChar())
+                unit.ExecuteTransaction(() =>
+                {
+                    var guard = requirements.Capture(context.Client.Player, requirement, unit);
+                    Assert.IsTrue(context.Manager.TryPlanRequiredMissionFailure(context.Client, MissionId, unit, publication));
+                    TransactionValidation.AtCommitBoundary(unit, guard.Validate);
+                });
+            context.Manager.ApplyScenarioPlan(context.Client, publication);
+            Assert.AreEqual(MissionState.Failed, context.Client.Player.Missions[MissionId].State);
+            Assert.IsFalse(requirements.Evaluate(context.Client.Player, requirement));
+            Assert.AreEqual(0, Owned(context).Length);
         }
 
         [TestMethod]

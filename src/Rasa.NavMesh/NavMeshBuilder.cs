@@ -27,10 +27,15 @@ namespace Rasa.NavMesh
         public static DtNavMesh Build(MapGeometry geometry, BuildSettings s, Action<string> log)
         {
             var geom = new RcSampleInputGeomProvider(geometry.Vertices.ToArray(), geometry.Triangles.ToArray());
+            var minimumBorder = RcConfig.CalcBorder(s.AgentRadius, s.CellSize);
+            var border = s.BorderSize ?? minimumBorder;
+            if (border < minimumBorder)
+                throw new ArgumentOutOfRangeException(nameof(s.BorderSize),
+                    $"Navigation border must cover at least {minimumBorder} cells of agent clearance.");
 
             var cfg = new RcConfig(
                 true, s.TileSize, s.TileSize,
-                RcConfig.CalcBorder(s.AgentRadius, s.CellSize),
+                border,
                 RcPartition.WATERSHED,
                 s.CellSize, s.CellHeight,
                 s.AgentMaxSlope, s.AgentHeight, s.AgentRadius, s.AgentMaxClimb,

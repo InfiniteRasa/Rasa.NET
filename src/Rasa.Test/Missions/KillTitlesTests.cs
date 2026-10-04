@@ -23,17 +23,19 @@ namespace Rasa.Test.Missions
     using Rasa.Test.Missions.Encounters;
 
     /// <summary>
-    /// The kill titles: "Wilderness Bug Zapper" is what objective 3 of the Wilderness Targets of
-    /// Opportunity gives, "Kill 40 Xanx!", and the fourteen other battlefields have theirs.
+    /// The kill titles: "Divide Exterminator" is what objective 3 of the Divide Targets of
+    /// Opportunity gives, "Kill 40 Xanx!", and the other battlefields have theirs. The
+    /// Wilderness's are on the Wilderness missions' own Targets of Opportunity
+    /// (WildernessTargetsKillRulesTests).
     /// </summary>
     [TestClass]
     [DoNotParallelize]
     public class KillTitlesTests
     {
-        private const uint Wilderness = 1449;
+        private const uint Divide = 1582;
         private const uint KillXanx = 3;                // "Kill 40 Xanx!"
-        private const uint BugZapper = 365;             // "Wilderness Bug Zapper"
-        private const uint WildernessMap = BootcampRuntimeTestHarness.WildernessMapContextId;
+        private const uint Exterminator = 464;          // "Divide Exterminator"
+        private const uint DivideMap = 1148;
 
         private const uint Xanx = TargetsOfOpportunitySeed.Flag.Xanx;
         private const uint Thrax = TargetsOfOpportunitySeed.Flag.Thrax;
@@ -228,19 +230,19 @@ namespace Rasa.Test.Missions
             var scene = new MissionSceneDefinition
             {
                 ObjectiveRequirements = { [3] = new MapRequirement(new uint[] { 1220, 1416 }) },
-                Titles = new Dictionary<uint, uint> { [3] = BugZapper },
+                Titles = new Dictionary<uint, uint> { [3] = Exterminator },
                 Category = 10000044
             };
 
             var json = JsonSerializer.Serialize(scene, MissionContentCodec.Options);
 
             StringAssert.Contains(json, "\"objectiveRequirements\":{\"3\":{\"$kind\":\"map\",\"maps\":[1220,1416]}}");
-            StringAssert.Contains(json, "\"titles\":{\"3\":365}");
+            StringAssert.Contains(json, "\"titles\":{\"3\":464}");
             StringAssert.Contains(json, "\"category\":10000044");
 
             var read = JsonSerializer.Deserialize<MissionSceneDefinition>(json, MissionContentCodec.Options);
             CollectionAssert.AreEqual(new uint[] { 1220, 1416 }, ((MapRequirement)read.ObjectiveRequirements[3]).Maps.ToArray());
-            Assert.AreEqual(BugZapper, read.Titles[3]);
+            Assert.AreEqual(Exterminator, read.Titles[3]);
             Assert.AreEqual(10000044u, read.Category);
 
             // A binding that says nothing of them writes nothing of them.
@@ -255,21 +257,21 @@ namespace Rasa.Test.Missions
         [TestMethod]
         public void CompletingATitledObjectiveGivesItsTitleOnce()
         {
-            using var context = Counting(MissionProgressEventKind.CreatureFlagKilled, new[] { Xanx }, 2, titleId: BugZapper);
+            using var context = Counting(MissionProgressEventKind.CreatureFlagKilled, new[] { Xanx }, 2, titleId: Exterminator);
 
             Assert.IsTrue(context.Manager.Credit.RecordKill(context.Client, Kill(55, 4001, Xanx), Vector3.Zero));
             Assert.IsEmpty(context.Drain().OfType<TitleAddedPacket>().ToArray(), "not before the count is full");
-            Assert.IsFalse(context.Client.Player.Titles.Contains(BugZapper));
+            Assert.IsFalse(context.Client.Player.Titles.Contains(Exterminator));
 
             Assert.IsTrue(context.Manager.Credit.RecordKill(context.Client, Kill(56, 4001, Xanx), Vector3.Zero));
 
             var packets = context.Drain();
-            Assert.AreEqual(BugZapper, packets.OfType<TitleAddedPacket>().Single().TitleId);
+            Assert.AreEqual(Exterminator, packets.OfType<TitleAddedPacket>().Single().TitleId);
             Assert.IsTrue(IndexOf<ObjectiveCompletedPacket>(packets) < IndexOf<TitleAddedPacket>(packets), "the objective, then what it gave");
-            Assert.IsTrue(context.Client.Player.Titles.Contains(BugZapper));
+            Assert.IsTrue(context.Client.Player.Titles.Contains(Exterminator));
 
             using (var unit = context.CreateChar())
-                CollectionAssert.Contains(unit.CharacterTitles.Get(context.Client.Player.Id), BugZapper);
+                CollectionAssert.Contains(unit.CharacterTitles.Get(context.Client.Player.Id), Exterminator);
 
             // Done: further Xanx are nothing to it.
             Assert.IsFalse(context.Manager.Credit.RecordKill(context.Client, Kill(57, 4001, Xanx), Vector3.Zero));
@@ -279,10 +281,10 @@ namespace Rasa.Test.Missions
         [TestMethod]
         public void ATitleTheCharacterHasIsNotGivenAgain()
         {
-            using var context = Counting(MissionProgressEventKind.CreatureFlagKilled, new[] { Xanx }, 1, titleId: BugZapper);
+            using var context = Counting(MissionProgressEventKind.CreatureFlagKilled, new[] { Xanx }, 1, titleId: Exterminator);
 
             using (var unit = context.CreateChar())
-                Assert.IsTrue(unit.CharacterTitles.Add(context.Client.Player.Id, BugZapper));
+                Assert.IsTrue(unit.CharacterTitles.Add(context.Client.Player.Id, Exterminator));
 
             Assert.IsTrue(context.Manager.Credit.RecordKill(context.Client, Kill(55, 4001, Xanx), Vector3.Zero));
 
@@ -308,12 +310,17 @@ namespace Rasa.Test.Missions
         #region The seed
 
         [TestMethod]
-        public void TheSeedIsFifteenMissionsAndSixtyThreeKills()
+        public void TheSeedIsFourteenMissionsAndTheWildernessKillsSixtyThreeKillsInAll()
         {
-            var zones = TargetsOfOpportunitySeed.Zones;
+            // The fourteen missions of the seed; the Wilderness's kills are rules for a mission
+            // that is not its own (WildernessTargetsKillRules).
+            Assert.HasCount(14, TargetsOfOpportunitySeed.Zones);
+            Assert.HasCount(59, TargetsOfOpportunitySeed.Zones.SelectMany(zone => zone.Kills).ToArray());
+            Assert.IsFalse(TargetsOfOpportunitySeed.Zones.Contains(TargetsOfOpportunitySeed.Wilderness));
+
+            var zones = TargetsOfOpportunitySeed.Zones.Append(TargetsOfOpportunitySeed.Wilderness).ToArray();
             var kills = zones.SelectMany(zone => zone.Kills).ToArray();
 
-            Assert.HasCount(15, zones);
             Assert.HasCount(63, kills);
             Assert.HasCount(15, zones.Select(zone => zone.MissionId).Distinct().ToArray());
             Assert.HasCount(15, zones.Select(zone => zone.MapContextId).Distinct().ToArray());
@@ -349,18 +356,18 @@ namespace Rasa.Test.Missions
         [TestMethod]
         public void TheBindingOfAMissionIsItsTitlesItsMapsAndSquadCredit()
         {
-            var zone = TargetsOfOpportunitySeed.Zones.Single(candidate => candidate.MissionId == Wilderness);
+            var zone = TargetsOfOpportunitySeed.Zones.Single(candidate => candidate.MissionId == Divide);
             var scene = TargetsOfOpportunitySeed.Scene(zone);
 
             Assert.IsNull(scene.Script, "no scene: counters and nothing else");
-            Assert.AreEqual(10000044u, scene.Category, "Battlefield (Wilderness)");
-            Assert.AreEqual(BugZapper, scene.Titles[KillXanx]);
+            Assert.AreEqual(10000033u, scene.Category, "Battlefield (Divide)");
+            Assert.AreEqual(Exterminator, scene.Titles[KillXanx]);
             CollectionAssert.AreEquivalent(zone.Kills.Select(kill => kill.ObjectiveId).ToArray(), scene.Titles.Keys.ToArray());
             CollectionAssert.AreEquivalent(scene.Titles.Keys.ToArray(), scene.Credit.Keys.ToArray());
             CollectionAssert.AreEquivalent(scene.Titles.Keys.ToArray(), scene.ObjectiveRequirements.Keys.ToArray());
             Assert.AreEqual(MissionCreditMode.NearbyParty, scene.Credit[KillXanx].Mode);
             Assert.AreEqual(PartyManager.LootShareRange, scene.Credit[KillXanx].Radius, "the squad shares a kill as far as it shares its loot");
-            CollectionAssert.AreEqual(new uint[] { 1220, 1416, 1430, 1506, 1721, 2368 }, ((MapRequirement)scene.ObjectiveRequirements[KillXanx]).Maps.ToArray());
+            CollectionAssert.AreEqual(new uint[] { 1148, 1347, 1348, 1349, 1806 }, ((MapRequirement)scene.ObjectiveRequirements[KillXanx]).Maps.ToArray());
 
             // Crucible's category is one a byte holds: the definition's own.
             var crucible = TargetsOfOpportunitySeed.Zones.Single(candidate => candidate.Name == "Crucible");
@@ -370,7 +377,7 @@ namespace Rasa.Test.Missions
             var source = JsonSerializer.Deserialize<MissionOfferSourceDefinition[]>(TargetsOfOpportunitySeed.RadioSources(zone)).Single();
             Assert.AreEqual(MissionOfferSourceKind.ServerEvent, source.Kind);
             Assert.AreEqual(MissionOfferSourceDefinition.MapArrivalKey, source.Key);
-            Assert.AreEqual(WildernessMap, source.MapContextId);
+            Assert.AreEqual(DivideMap, source.MapContextId);
             Assert.IsNull(source.ValidationError);
         }
 
@@ -383,7 +390,7 @@ namespace Rasa.Test.Missions
             var classes = world.Set<EntityClassEntry>().AsNoTracking().Select(row => row.Id).ToHashSet();
             var maps = world.Set<MapInfoEntry>().AsNoTracking().Select(row => row.Id).ToHashSet();
 
-            foreach (var zone in TargetsOfOpportunitySeed.Zones)
+            foreach (var zone in TargetsOfOpportunitySeed.Zones.Append(TargetsOfOpportunitySeed.Wilderness))
             {
                 foreach (var map in zone.Maps)
                     Assert.IsTrue(maps.Contains(map), $"{zone.Name}: map {map}");
@@ -394,11 +401,11 @@ namespace Rasa.Test.Missions
                             $"{kill.Title}: {kill.EventKind} {subject}");
             }
 
-            Assert.AreEqual(15, world.Set<MissionContentDefinitionEntry>().AsNoTracking().Count(row => row.ContentRevision == TargetsOfOpportunitySeed.Revision));
-            Assert.AreEqual(63 + 15, world.Set<MissionObjectiveDefinitionEntry>().AsNoTracking().Count(row => row.ContentRevision == TargetsOfOpportunitySeed.Revision));
+            Assert.AreEqual(14, world.Set<MissionContentDefinitionEntry>().AsNoTracking().Count(row => row.ContentRevision == TargetsOfOpportunitySeed.Revision));
+            Assert.AreEqual(59 + 14, world.Set<MissionObjectiveDefinitionEntry>().AsNoTracking().Count(row => row.ContentRevision == TargetsOfOpportunitySeed.Revision));
             Assert.AreEqual(TargetsOfOpportunitySeed.Zones.Sum(zone => zone.Kills.Sum(kill => kill.Subjects.Count)),
                 world.Set<MissionTriggerEntry>().AsNoTracking().Count(row => row.ContentRevision == TargetsOfOpportunitySeed.Revision));
-            Assert.AreEqual(45, world.Set<MissionEvidenceEntry>().AsNoTracking().Count(row => row.ContentRevision == TargetsOfOpportunitySeed.Revision));
+            Assert.AreEqual(42, world.Set<MissionEvidenceEntry>().AsNoTracking().Count(row => row.ContentRevision == TargetsOfOpportunitySeed.Revision));
         }
 
         #endregion
@@ -406,7 +413,7 @@ namespace Rasa.Test.Missions
         #region The missions in the world
 
         [TestMethod]
-        public void TheFifteenMissionsStandUp()
+        public void TheFourteenMissionsStandUp()
         {
             using var harness = BootcampRuntimeTestHarness.Create();
 
@@ -438,11 +445,11 @@ namespace Rasa.Test.Missions
                 }
             }
 
-            // The log files it under its battlefield: a category past the definition's byte.
-            var wilderness = harness.Manager.LoadedMissions[Wilderness];
-            Assert.AreEqual(10000044u, wilderness.ClientCategoryId);
-            Assert.AreEqual(10000044u, wilderness.CreateInfo(MissionState.Active, false,
-                wilderness.CreateInitialObjectiveLogs()).MissionConstantData.CategoryId);
+            // The log files it under its battlefield: the category of its scene binding.
+            var divide = harness.Manager.LoadedMissions[Divide];
+            Assert.AreEqual(10000033u, divide.ClientCategoryId);
+            Assert.AreEqual(10000033u, divide.CreateInfo(MissionState.Active, false,
+                divide.CreateInitialObjectiveLogs()).MissionConstantData.CategoryId);
         }
 
         [TestMethod]
@@ -452,22 +459,22 @@ namespace Rasa.Test.Missions
 
             // Bootcamp is nobody's battlefield.
             harness.Manager.OfferArrivalMissions(harness.Client);
-            Assert.IsFalse(harness.Drain().OfType<DispenseRadioMissionPacket>().Any(offer => offer.MissionId == Wilderness));
+            Assert.IsFalse(harness.Drain().OfType<DispenseRadioMissionPacket>().Any(offer => offer.MissionId == Divide));
 
-            // Onto Wilderness, as a map change puts a player there (MapChannelManager: AssignPlayer).
-            Arrive(harness, WildernessMap);
+            // Onto the Divide, as a map change puts a player there (MapChannelManager: AssignPlayer).
+            Arrive(harness, DivideMap);
             harness.Drain();
             ManifestationManager.Instance.AssignPlayer(harness.Client);
 
             var offered = harness.Drain().OfType<DispenseRadioMissionPacket>().Single();
-            Assert.AreEqual(Wilderness, offered.MissionId);
+            Assert.AreEqual(Divide, offered.MissionId);
             Assert.IsTrue(offered.ForceDialog);
 
-            Assert.IsTrue(harness.Manager.TryAcceptRadioMission(harness.Client, Wilderness));
+            Assert.IsTrue(harness.Manager.TryAcceptRadioMission(harness.Client, Divide));
 
             var gained = harness.Drain().OfType<MissionGainedPacket>().Single();
-            Assert.AreEqual(Wilderness, gained.MissionId);
-            var log = harness.Client.Player.Missions[Wilderness];
+            Assert.AreEqual(Divide, gained.MissionId);
+            var log = harness.Client.Player.Missions[Divide];
             Assert.AreEqual(MissionState.Active, log.State);
             Assert.IsFalse(log.Completeable, "its one required objective is not done");
             Assert.AreEqual(0U, log.Objectives[KillXanx].Counters[0]);
@@ -478,12 +485,12 @@ namespace Rasa.Test.Missions
         }
 
         [TestMethod]
-        public void FortyXanxOnWildernessMakeABugZapper()
+        public void FortyXanxOnTheDivideMakeAnExterminator()
         {
             using var harness = BootcampRuntimeTestHarness.Create();
-            Arrive(harness, WildernessMap);
+            Arrive(harness, DivideMap);
             harness.Manager.OfferArrivalMissions(harness.Client);
-            Assert.IsTrue(harness.Manager.TryAcceptRadioMission(harness.Client, Wilderness));
+            Assert.IsTrue(harness.Manager.TryAcceptRadioMission(harness.Client, Divide));
             harness.Drain();
 
             // A Thrax is another objective's.
@@ -497,26 +504,26 @@ namespace Rasa.Test.Missions
 
             var packets = harness.Drain();
             var last = packets.OfType<UpdateObjectiveCounterPacket>().Last();
-            Assert.AreEqual((Wilderness, KillXanx, 0u, 39u, 0u, 40u),
+            Assert.AreEqual((Divide, KillXanx, 0u, 39u, 0u, 40u),
                 (last.MissionId, last.ObjectiveId, last.CounterId, last.CounterValue, last.InitialValue, last.TargetValue));
             Assert.IsEmpty(packets.OfType<TitleAddedPacket>().ToArray());
 
-            // Xanx of another place are not Wilderness's.
+            // Xanx of another place are not the Divide's.
             Arrive(harness, BootcampRuntimeTestHarness.BootcampMapContextId);
             Assert.IsFalse(harness.Manager.Credit.RecordKill(harness.Client, Kill(900, 4001, Xanx), Vector3.Zero));
-            Assert.AreEqual(39U, harness.Client.Player.Missions[Wilderness].Objectives[KillXanx].Counters[0]);
+            Assert.AreEqual(39U, harness.Client.Player.Missions[Divide].Objectives[KillXanx].Counters[0]);
 
-            Arrive(harness, WildernessMap);
+            Arrive(harness, DivideMap);
             harness.Drain();
             Assert.IsTrue(harness.Manager.Credit.RecordKill(harness.Client, Kill(900, 4001, Xanx), Vector3.Zero));
 
             packets = harness.Drain();
             Assert.AreEqual(KillXanx, packets.OfType<ObjectiveCompletedPacket>().Single().ObjectiveId);
-            Assert.AreEqual(BugZapper, packets.OfType<TitleAddedPacket>().Single().TitleId);
-            Assert.IsTrue(harness.Client.Player.Titles.Contains(BugZapper));
+            Assert.AreEqual(Exterminator, packets.OfType<TitleAddedPacket>().Single().TitleId);
+            Assert.IsTrue(harness.Client.Player.Titles.Contains(Exterminator));
             Assert.IsEmpty(packets.OfType<MissionCompleteablePacket>().ToArray(), "a title is not the mission");
 
-            var log = harness.Client.Player.Missions[Wilderness];
+            var log = harness.Client.Player.Missions[Divide];
             Assert.AreEqual(MissionObjectiveState.Completed, log.Objectives[KillXanx].State);
             Assert.AreEqual(MissionState.Active, log.State);
             Assert.IsFalse(log.Completeable);
@@ -526,9 +533,9 @@ namespace Rasa.Test.Missions
         public void TheCountIsKeptOverALogout()
         {
             using var harness = BootcampRuntimeTestHarness.Create();
-            Arrive(harness, WildernessMap);
+            Arrive(harness, DivideMap);
             harness.Manager.OfferArrivalMissions(harness.Client);
-            Assert.IsTrue(harness.Manager.TryAcceptRadioMission(harness.Client, Wilderness));
+            Assert.IsTrue(harness.Manager.TryAcceptRadioMission(harness.Client, Divide));
 
             for (var kills = 0; kills < 3; kills++)
                 Assert.IsTrue(harness.Manager.Credit.RecordKill(harness.Client, Kill(900, 4001, Xanx), Vector3.Zero));
@@ -536,24 +543,24 @@ namespace Rasa.Test.Missions
             // The server restarted and the character back: the journal as the database has it.
             harness.ReconnectFresh();
 
-            var log = harness.Client.Player.Missions[Wilderness];
+            var log = harness.Client.Player.Missions[Divide];
             Assert.AreEqual(MissionState.Active, log.State);
             Assert.AreEqual(3U, log.Objectives[KillXanx].Counters[0]);
             Assert.AreEqual(0U, log.Objectives[5].Counters[0], "the Thrax count beside it");
 
-            Arrive(harness, WildernessMap);
+            Arrive(harness, DivideMap);
             harness.Drain();
             Assert.IsTrue(harness.Manager.Credit.RecordKill(harness.Client, Kill(900, 4001, Xanx), Vector3.Zero));
             Assert.AreEqual(4U, harness.Drain().OfType<UpdateObjectiveCounterPacket>().Single().CounterValue);
         }
 
         [TestMethod]
-        public void AXanxKilledOnWildernessIsCountedByItsDeath()
+        public void AXanxKilledOnTheDivideIsCountedByItsDeath()
         {
             using var harness = BootcampRuntimeTestHarness.Create();
-            Arrive(harness, WildernessMap);
+            Arrive(harness, DivideMap);
             harness.Manager.OfferArrivalMissions(harness.Client);
-            Assert.IsTrue(harness.Manager.TryAcceptRadioMission(harness.Client, Wilderness));
+            Assert.IsTrue(harness.Manager.TryAcceptRadioMission(harness.Client, Divide));
 
             // A Xanx of the world: a creature row whose class carries the flag.
             var world = harness.WorldContext;
@@ -589,7 +596,7 @@ namespace Rasa.Test.Missions
             CreatureManager.Instance.HandleCreatureKill(map, xanx, harness.Client.Player);
 
             var counter = harness.Drain().OfType<UpdateObjectiveCounterPacket>().Single();
-            Assert.AreEqual((Wilderness, KillXanx, 1u), (counter.MissionId, counter.ObjectiveId, counter.CounterValue));
+            Assert.AreEqual((Divide, KillXanx, 1u), (counter.MissionId, counter.ObjectiveId, counter.CounterValue));
         }
 
         [TestMethod]
@@ -597,16 +604,16 @@ namespace Rasa.Test.Missions
         {
             using var harness = BootcampRuntimeTestHarness.Create();
             harness.WorldContext.Database.ExecuteSqlRaw(
-                $"update mission_trigger set subject_id = 250 where mission_id = {Wilderness} and objective_id = {KillXanx}");
+                $"update mission_trigger set subject_id = 250 where mission_id = {Divide} and objective_id = {KillXanx}");
 
             var report = harness.Manager.LoadMissions();
 
             Assert.IsFalse(report.BlocksReadiness, "optional content");
-            var diagnostic = report.Diagnostics.Single(entry => entry.MissionId == Wilderness);
+            var diagnostic = report.Diagnostics.Single(entry => entry.MissionId == Divide);
             Assert.AreEqual("missing-creature-flag", diagnostic.Code);
             Assert.AreEqual(KillXanx, diagnostic.ObjectiveId);
-            Assert.IsFalse(harness.Manager.LoadedMissions[Wilderness].IsOperational);
-            Assert.IsTrue(harness.Manager.LoadedMissions[1582].IsOperational, "Divide's");
+            Assert.IsFalse(harness.Manager.LoadedMissions[Divide].IsOperational);
+            Assert.IsTrue(harness.Manager.LoadedMissions[1809].IsOperational, "Palisades'");
         }
 
         #endregion
@@ -658,6 +665,16 @@ namespace Rasa.Test.Missions
         private static void Arrive(BootcampRuntimeTestHarness.Harness harness, uint mapContextId)
         {
             var client = harness.Client;
+            // The harness has Bootcamp and the Wilderness; any other battlefield is added to it,
+            // and added again after a reconnect has made its maps anew.
+            if (mapContextId != BootcampRuntimeTestHarness.BootcampMapContextId && harness.Maps.FindByContextId(mapContextId) == null)
+                harness.Maps.MapChannelArray.Add(mapContextId, new MapChannel
+                {
+                    MapInfo = new MapInfo(mapContextId, "battlefield_fixture", 1556, 0),
+                    ClientList = new List<Client>(),
+                    PlayerLimit = 128
+                });
+
             var destination = mapContextId == BootcampRuntimeTestHarness.BootcampMapContextId
                 ? harness.BootcampMap
                 : harness.Maps.FindByContextId(mapContextId);

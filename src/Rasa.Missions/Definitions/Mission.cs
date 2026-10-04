@@ -25,12 +25,12 @@ namespace Rasa.Structures
         public uint? MissionReciver { get; }
         public uint? Level { get; }
         public byte? GroupType { get; }
-        public byte? CategoryId { get; }
+        public uint? CategoryId { get; }
 
         /// <summary>
         /// The mission's category as the client knows it (missioncategorylanguage), from the
-        /// scene binding, when it is not one a byte holds - the battlefields are 10000016 and
-        /// up. Null: <see cref="CategoryId"/> is the category.
+        /// scene binding, for content whose definition row does not carry it - the battlefields
+        /// are 10000016 and up. Null: <see cref="CategoryId"/> is the category.
         /// </summary>
         public uint? ClientCategoryId { get; }
         public bool? Shareable { get; }
@@ -50,7 +50,7 @@ namespace Rasa.Structures
             uint? missionReciver,
             uint? level,
             byte? groupType,
-            byte? categoryId,
+            uint? categoryId,
             bool? shareable,
             bool? radioCompletable,
             IEnumerable<MissionObjectiveDefinition> objectives,
@@ -119,6 +119,10 @@ namespace Rasa.Structures
                 .Any(objectiveId => !objectiveDictionary.ContainsKey(objectiveId)))
                 diagnostics.Add("an objective successor is missing");
             diagnostics.AddRange(MissionDialogueValidation.Errors(this));
+            diagnostics.AddRange(MissionObjectiveAggregation.Errors(Objectives));
+            if (Objectives.Values.Any(objective => objective.HistoryAggregation?.Groups
+                .Any(group => group.Contains(MissionId)) == true))
+                diagnostics.Add("a history aggregate cannot require its own mission");
             if (!string.IsNullOrWhiteSpace(operationalDiagnostic))
                 diagnostics.Add(operationalDiagnostic);
 

@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Text.Json;
 using Rasa.Data;
 using Rasa.Managers;
@@ -29,7 +30,10 @@ namespace Rasa.Game.Missions.Persistence
             _inventory = InventoryManager.InventoryPlan.For(client, unit);
         }
 
-        internal void Apply(CharacterIntent intent, string assignmentId, uint generation)
+        internal void Apply(CharacterIntent intent, string assignmentId, uint generation) =>
+            Apply(intent, assignmentId, generation, turnIn: false);
+
+        private void Apply(CharacterIntent intent, string assignmentId, uint generation, bool turnIn)
         {
             var (missionId, itemKey) = intent switch
             {
@@ -44,6 +48,9 @@ namespace Rasa.Game.Missions.Persistence
                 throw new GameplayRejectionException("Mission item operation has no authored binding or valid operation key.");
             if (MissionItemValidation.IntentError(missionId, mission.Items, intent) is { } intentError)
                 throw new GameplayRejectionException(intentError);
+            if (!turnIn && mission.Items.Values.Any(item => item.TurnInQuantity > 0 &&
+                intent.OperationKey == MissionItemValidation.TurnInOperationKey(item.ItemKey)))
+                throw new GameplayRejectionException("Mission turn-in item operation keys are reserved for reward planning.");
             var assignment = _unit.CharacterMissions.GetByCharacterAndMission(_client.Player.Id, missionId);
             if (assignment == null || assignment.AssignmentId != assignmentId || assignment.Generation != generation ||
                 string.IsNullOrWhiteSpace(assignmentId) || assignmentId.Length != 32 || generation == 0 ||
@@ -68,7 +75,8 @@ namespace Rasa.Game.Missions.Persistence
                     throw new GameplayRejectionException("Mission item operation key was reused with different ownership or content.");
                 return;
             }
-            if (intent is not RemoveMissionItemsIntent && assignment.MissionState != (uint)MissionState.Active)
+            if (intent is not RemoveMissionItemsIntent && assignment.MissionState != (uint)MissionState.Active &&
+                (!turnIn || assignment.MissionState != (uint)MissionState.Success))
                 throw new GameplayRejectionException("New item issuance and costs require an active assignment.");
             var owner = new MissionItemOwnership(_client.Player.Id, missionId, assignmentId, generation, itemKey);
             switch (intent)
@@ -98,9 +106,24 @@ namespace Rasa.Game.Missions.Persistence
                 CharacterId = _client.Player.Id, MissionId = missionId, AssignmentId = assignmentId, Generation = generation,
                 OperationKey = intent.OperationKey, Payload = payload
             });
+            if (binding.Scope == MissionItemScope.AssignmentIssued)
+                Integration.MissionRequirementService.ExpectAssignmentItem(_unit, _client.Player.Id,
+                    missionId, itemKey, _inventory.OwnedQuantity(owner));
         }
 
         internal void Publish(Client client) => _inventory.Publish(client);
+
+        internal void ConsumeTurnIn(CharacterMissionEntry assignment)
+        {
+            if (assignment?.CharacterId != _client.Player.Id ||
+                !_missions.TryGetOperationalMission(assignment.MissionId, out var mission))
+                throw new GameplayRejectionException("Mission turn-in items have no authoritative assignment.");
+            foreach (var binding in mission.Items.Values.Where(item => item.TurnInQuantity > 0)
+                .OrderBy(item => item.ItemKey, StringComparer.Ordinal))
+                Apply(new ConsumeMissionItemIntent(MissionItemValidation.TurnInOperationKey(binding.ItemKey),
+                    assignment.MissionId, binding.ItemKey, binding.TurnInQuantity, binding.Scope),
+                    assignment.AssignmentId, assignment.Generation, turnIn: true);
+        }
 
         internal void Cleanup(CharacterMissionEntry assignment, MissionItemTermination reason, bool removingAssignment = false,
             CharacterMissionEntry replacement = null)

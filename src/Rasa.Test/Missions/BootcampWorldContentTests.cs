@@ -35,9 +35,6 @@ namespace Rasa.Test.Missions
         private const string MySqlMigrationId = "20260926190349_SeedWorldContent";
         private static readonly uint[] RequiredMissionIds = { 1990, 1992, 1994, 1995, 2005 };
         private static readonly uint[] AllMissionIds = { 1990, 1992, 1994, 1995, 2005 };
-
-        /// <summary>The other enabled content: the battlefields' Targets of Opportunity (TargetsOfOpportunitySeed).</summary>
-        private static readonly uint[] TargetsOfOpportunityIds = TargetsOfOpportunitySeed.Zones.Select(zone => zone.MissionId).ToArray();
         private static readonly uint[] BootcampNpcIds =
         {
             510203, 510204, 510205, 510206, 510207, 510208, 510209, 510210, 510211, 510212
@@ -90,14 +87,18 @@ namespace Rasa.Test.Missions
                         System.Text.Json.JsonSerializer.Serialize(upgraded, Rasa.Missions.Content.MissionContentCodec.Options),
                         $"Mission {id}'s existing scene and dialogue must survive repeated initialization.");
                 }
-                Assert.AreEqual(3, context.MissionActionEntries.Count(row => (byte)row.Kind >= 10));
-                Assert.IsEmpty(context.Set<MissionRepeatPolicyEntry>().ToArray());
-                var channel = context.Set<MissionChannelPolicyEntry>().Single(row => row.ContentRevision == BootcampRevision);
+                Assert.AreEqual(3, context.MissionActionEntries.Count(row =>
+                    row.ContentRevision == BootcampRevision && (byte)row.Kind >= 10));
+                Assert.IsEmpty(context.Set<MissionRepeatPolicyEntry>()
+                    .Where(row => AllMissionIds.Contains(row.MissionId)).ToArray());
+                var channel = context.Set<MissionChannelPolicyEntry>()
+                    .Single(row => AllMissionIds.Contains(row.MissionId));
                 Assert.AreEqual(1990U, channel.MissionId);
                 Assert.AreEqual(Rasa.Missions.Definitions.MissionChannel.Mixed, channel.AcceptanceChannel);
                 Assert.AreEqual(Rasa.Missions.Definitions.MissionChannel.Npc, channel.CompletionChannel);
-                CollectionAssert.AreEquivalent(AllMissionIds.Concat(TargetsOfOpportunityIds).ToArray(),
-                    context.MissionContentDefinitionEntries.Where(row => row.Enabled).Select(row => row.MissionId).ToArray());
+                CollectionAssert.AreEquivalent(AllMissionIds,
+                    context.MissionContentDefinitionEntries.Where(row => row.Enabled &&
+                        row.ContentRevision == BootcampRevision).Select(row => row.MissionId).ToArray());
                 Assert.IsFalse(Validate(LoadSnapshot(context), context).BlocksReadiness);
                 Assert.IsFalse(context.Database.GetPendingMigrations().Any());
             });
@@ -116,7 +117,8 @@ namespace Rasa.Test.Missions
                 Assert.AreEqual(before, System.Text.Json.JsonSerializer.Serialize(
                     context.MissionContentDefinitionEntries.AsNoTracking().OrderBy(entry => entry.MissionId)
                         .ThenBy(entry => entry.ContentRevision).ToArray()));
-                var policies = context.Set<MissionChannelPolicyEntry>().Where(row => row.ContentRevision == BootcampRevision).ToArray();
+                var policies = context.Set<MissionChannelPolicyEntry>()
+                    .Where(row => AllMissionIds.Contains(row.MissionId)).ToArray();
                 Assert.HasCount(1, policies);
                 Assert.AreEqual(1990U, policies[0].MissionId);
                 Assert.AreEqual(Rasa.Missions.Definitions.MissionChannel.Mixed, policies[0].AcceptanceChannel);
@@ -126,9 +128,9 @@ namespace Rasa.Test.Missions
                 Assert.IsTrue(snapshot.Definitions.Values.Where(entry => AllMissionIds.Contains(entry.MissionId))
                     .All(entry => entry.Mission.RepeatPolicy.Kind == Rasa.Missions.Runtime.MissionRepeatKind.Once &&
                         entry.Mission.Shareable == false && entry.Mission.RadioCompletable == false));
-                Assert.IsFalse(context.MissionContentDefinitionEntries.Any(entry => entry.Enabled &&
-                    !AllMissionIds.Contains(entry.MissionId) && !TargetsOfOpportunityIds.Contains(entry.MissionId)),
-                    "No Wilderness definition but its Targets of Opportunity may be enabled.");
+                CollectionAssert.AreEquivalent(AllMissionIds, context.MissionContentDefinitionEntries
+                    .Where(entry => entry.Enabled && entry.ContentRevision == BootcampRevision)
+                    .Select(entry => entry.MissionId).ToArray());
 
                 var initiation = context.MissionContentDefinitionEntries.Single(entry =>
                     entry.MissionId == 1990 && entry.ContentRevision == BootcampRevision);
@@ -152,7 +154,8 @@ namespace Rasa.Test.Missions
             WithDisposableSqliteWorld((context, _) =>
             {
                 context.Database.Migrate();
-                var policy = context.Set<MissionChannelPolicyEntry>().Single(row => row.MissionId == 1990);
+                var policy = context.Set<MissionChannelPolicyEntry>().Single(entry =>
+                    entry.MissionId == 1990 && entry.ContentRevision == "deployment_11");
                 policy.RadioSources = System.Text.Json.JsonSerializer.Serialize(new[]
                 {
                     new Rasa.Missions.Definitions.MissionOfferSourceDefinition(

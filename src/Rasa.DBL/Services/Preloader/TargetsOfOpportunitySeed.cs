@@ -13,8 +13,10 @@ namespace Rasa.Services.Preloader
     using Structures.World;
 
     /// <summary>
-    /// The Targets of Opportunity missions of the fifteen battlefields, as far as their kill
-    /// counts go: the rows of Add_targets_of_opportunity, inserted as SQL.
+    /// The Targets of Opportunity missions of fourteen battlefields, as far as their kill counts
+    /// go: the rows of Add_targets_of_opportunity, inserted as SQL. The fifteenth, Concordia
+    /// Wilderness, has its mission from the Wilderness missions, and gets its kill rules from
+    /// here (<see cref="Wilderness"/>, WildernessTargetsKillRules).
     ///
     /// The client has one such mission per battlefield (missionconversation, "Wilderness Targets
     /// of Opportunity" and the rest), and its objectives are where the kill titles come from:
@@ -173,14 +175,22 @@ namespace Rasa.Services.Preloader
         // objective, name, body and counter texts, count, title id and name, what is counted.
         // The bots' classes: Creature_Prison_Bot_Reconstructor and _Warden (6960, 6961) and
         // their bosses (10314, 10315).
-        public static readonly Zone[] Zones =
-        {
+        /// <summary>
+        /// Concordia Wilderness. Its mission, 1449, is not one of <see cref="Zones"/>: the
+        /// Wilderness missions' own 1449 (WildernessAliaOpeningV1) is the one that runs, and what
+        /// is here - the kills, their titles, the maps and the squad's share - is put on that
+        /// mission's kill objectives by <see cref="WildernessTargetsKillRules"/>.
+        /// </summary>
+        public static readonly Zone Wilderness =
             new Zone(1449, "Wilderness", 12764, 2, 10000044, 1220, new uint[] { 1220, 1416, 1430, 1506, 1721, 2368 },
                 58, 17853, 17854,
                 Flags(3, 12773, 12774, 12805, 40, 365, "Wilderness Bug Zapper", Flag.Xanx),
                 Flags(4, 12775, 12776, 12808, 30, 366, "Wilderness Bot Stomper", Flag.ShieldDrone),
                 Flags(5, 12771, 12772, 12802, 200, 363, "Wilderness Thrax Hunter", Flag.Thrax),
-                Flags(7, 12779, 12780, 12824, 40, 369, "Wilderness Exterminator", Flag.Miasma)),
+                Flags(7, 12779, 12780, 12824, 40, 369, "Wilderness Exterminator", Flag.Miasma));
+
+        public static readonly Zone[] Zones =
+        {
             new Zone(1582, "Divide", 14564, 15, 10000033, 1148, new uint[] { 1148, 1347, 1348, 1349, 1806 },
                 69, 18060, 18061,
                 Flags(3, 14577, 14578, 14579, 40, 464, "Divide Exterminator", Flag.Xanx),
@@ -344,13 +354,17 @@ namespace Rasa.Services.Preloader
         };
 
         /// <summary>The definition rows: optional content, abandonable, solo, given and completed by radio.</summary>
-        public static object[][] Definitions => Zones.Select(zone => new object[]
+        public static object[][] Definitions => DefinitionsOf(Zones);
+
+        private static object[][] DefinitionsOf(IEnumerable<Zone> zones) => zones.Select(zone => new object[]
         {
             zone.MissionId, Revision, 1, Optional, (byte)MissionAbandonmentPolicy.Allowed, zone.NameTextId, null, null,
             zone.Level, (byte)1, (byte)(zone.Category > byte.MaxValue ? 0 : zone.Category), 0, 1, $"{zone.Name} Targets of Opportunity"
         }).ToArray();
 
-        public static object[][] Objectives => Zones.SelectMany(zone => new[]
+        public static object[][] Objectives => ObjectivesOf(Zones);
+
+        private static object[][] ObjectivesOf(IEnumerable<Zone> zones) => zones.SelectMany(zone => new[]
             {
                 new object[]
                 {
@@ -364,31 +378,41 @@ namespace Rasa.Services.Preloader
                 kill.CounterTextId, null, null, (uint)index + 2, Incomplete, 0, kill.Title
             }))).ToArray();
 
-        public static object[][] Transitions => Zones.SelectMany(zone => zone.Kills.Select(kill => new object[]
+        public static object[][] Transitions => TransitionsOf(Zones);
+
+        private static object[][] TransitionsOf(IEnumerable<Zone> zones) => zones.SelectMany(zone => zone.Kills.Select(kill => new object[]
         {
             zone.MissionId, Revision, kill.ObjectiveId, 1u, Required, 1u, Incomplete, Completed, $"{kill.Count} killed"
         })).ToArray();
 
         /// <summary>One progress trigger a subject, all of an objective on its one counter.</summary>
-        public static object[][] Triggers => Zones.SelectMany(zone => zone.Kills.SelectMany(kill => kill.Subjects.Select((subject, index) => new object[]
+        public static object[][] Triggers => TriggersOf(Zones);
+
+        private static object[][] TriggersOf(IEnumerable<Zone> zones) => zones.SelectMany(zone => zone.Kills.SelectMany(kill => kill.Subjects.Select((subject, index) => new object[]
         {
             zone.MissionId, Revision, kill.ObjectiveId, 1u, (uint)index + 1, Required, (byte)MissionTriggerKind.ProgressEvent, (uint)index + 1,
             (byte)kill.EventKind, subject, 0u, 0u, kill.Count,
             kill.EventKind == MissionProgressEventKind.CreatureFlagKilled ? $"Kill of creature flag {subject}" : $"Kill of creature class {subject}"
         }))).ToArray();
 
-        public static object[][] Actions => Zones.SelectMany(zone => zone.Kills.Select(kill => new object[]
+        public static object[][] Actions => ActionsOf(Zones);
+
+        private static object[][] ActionsOf(IEnumerable<Zone> zones) => zones.SelectMany(zone => zone.Kills.Select(kill => new object[]
         {
             zone.MissionId, Revision, kill.ObjectiveId, 1u, 1u, Required, (byte)MissionActionKind.CompleteObjective, 1u,
             kill.ObjectiveId, Completed, $"Complete {kill.Title}"
         })).ToArray();
 
-        public static object[][] Channels => Zones.Select(zone => new object[]
+        public static object[][] Channels => ChannelsOf(Zones);
+
+        private static object[][] ChannelsOf(IEnumerable<Zone> zones) => zones.Select(zone => new object[]
         {
             zone.MissionId, Revision, Radio, Radio, RadioSources(zone)
         }).ToArray();
 
-        public static object[][] Scenes => Zones.Select(zone =>
+        public static object[][] Scenes => ScenesOf(Zones);
+
+        private static object[][] ScenesOf(IEnumerable<Zone> zones) => zones.Select(zone =>
         {
             var scene = Scene(zone);
 
@@ -399,7 +423,9 @@ namespace Rasa.Services.Preloader
         }).ToArray();
 
         /// <summary>Where each mission's rows come from: the client's tables, and what was the server's to decide.</summary>
-        public static object[][] Evidence => Zones.SelectMany(zone => new[]
+        public static object[][] Evidence => EvidenceOf(Zones);
+
+        private static object[][] EvidenceOf(IEnumerable<Zone> zones) => zones.SelectMany(zone => new[]
         {
             new object[]
             {
@@ -422,19 +448,23 @@ namespace Rasa.Services.Preloader
         }).ToArray();
 
         /// <summary>Every insert, in order; each is plain SQL either provider takes.</summary>
-        public static IEnumerable<string> InsertStatements
+        public static IEnumerable<string> InsertStatements => InsertStatementsOf(Zones);
+
+        /// <summary>
+        /// The same inserts for other battlefields. With <see cref="Wilderness"/>: the rows of
+        /// 1449 that a database which ran Add_targets_of_opportunity while the Wilderness was
+        /// one of <see cref="Zones"/> still holds, until WildernessTargetsKillRules removes them.
+        /// </summary>
+        public static IEnumerable<string> InsertStatementsOf(IReadOnlyList<Zone> zones)
         {
-            get
-            {
-                yield return Insert(MissionContentDefinitionEntry.TableName, DefinitionColumns, Definitions);
-                yield return Insert(MissionObjectiveDefinitionEntry.TableName, ObjectiveColumns, Objectives);
-                yield return Insert(MissionObjectiveTransitionEntry.TableName, TransitionColumns, Transitions);
-                yield return Insert(MissionTriggerEntry.TableName, TriggerColumns, Triggers);
-                yield return Insert(MissionActionEntry.TableName, ActionColumns, Actions);
-                yield return Insert(ChannelPolicyTable, ChannelColumns, Channels);
-                yield return Insert(SceneBindingTable, SceneColumns, Scenes);
-                yield return Insert(MissionEvidenceEntry.TableName, EvidenceColumns, Evidence);
-            }
+            yield return Insert(MissionContentDefinitionEntry.TableName, DefinitionColumns, DefinitionsOf(zones));
+            yield return Insert(MissionObjectiveDefinitionEntry.TableName, ObjectiveColumns, ObjectivesOf(zones));
+            yield return Insert(MissionObjectiveTransitionEntry.TableName, TransitionColumns, TransitionsOf(zones));
+            yield return Insert(MissionTriggerEntry.TableName, TriggerColumns, TriggersOf(zones));
+            yield return Insert(MissionActionEntry.TableName, ActionColumns, ActionsOf(zones));
+            yield return Insert(ChannelPolicyTable, ChannelColumns, ChannelsOf(zones));
+            yield return Insert(SceneBindingTable, SceneColumns, ScenesOf(zones));
+            yield return Insert(MissionEvidenceEntry.TableName, EvidenceColumns, EvidenceOf(zones));
         }
 
         /// <summary>Every delete that takes the rows out again, children first.</summary>

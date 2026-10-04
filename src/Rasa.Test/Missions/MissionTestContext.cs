@@ -749,6 +749,8 @@ namespace Rasa.Test.Missions
                 State = CharacterState.Idle,
                 AppearanceData = new Dictionary<EquipmentData, AppearanceData>()
             };
+            npc.Attributes[Attributes.Health] = new ActorAttributes(Attributes.Health, 100, 100, 100, 0, 0);
+            npc.Attributes[Attributes.Armor] = new ActorAttributes(Attributes.Armor, 0, 0, 0, 0, 0);
             _npcs.Add(npc);
             EntityManager.Instance.RegisterEntity(npc.EntityId, EntityType.Creature);
             EntityManager.Instance.RegisterCreature(npc);

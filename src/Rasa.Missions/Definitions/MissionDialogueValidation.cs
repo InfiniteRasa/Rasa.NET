@@ -31,6 +31,7 @@ namespace Rasa.Missions.Definitions
                 var prefix = $"dialogue objective {topic.ObjectiveId}, package {topic.NpcPackageId}";
                 if (!Enum.IsDefined(typeof(MissionDialogueKind), topic.Kind) ||
                     !ValidId(mission.MissionId) || !ValidId(dialogId) || !ValidId(topic.NpcPackageId) ||
+                    topic.SourceCreatureId == 0 ||
                     topic.PlayerFlagId > int.MaxValue ||
                     !mission.Objectives.TryGetValue(topic.ObjectiveId, out var objective))
                 {
@@ -39,6 +40,20 @@ namespace Rasa.Missions.Definitions
                 }
                 if (!keys.Add((topic.Kind, dialogId, topic.NpcPackageId, topic.PlayerFlagId)))
                     yield return $"{prefix}: duplicate native topic binding";
+                if (topic.Requirement != null)
+                {
+                    string requirementError = null;
+                    try
+                    {
+                        new Runtime.MissionRequirementEvaluator().RequiredFacts(topic.Requirement);
+                    }
+                    catch (Runtime.MissionRuleException error)
+                    {
+                        requirementError = error.Message;
+                    }
+                    if (requirementError != null)
+                        yield return $"{prefix}: invalid topic requirement: {requirementError}";
+                }
 
                 if (topic.Kind is MissionDialogueKind.Reminder or MissionDialogueKind.Ambient)
                 {
@@ -48,10 +63,11 @@ namespace Rasa.Missions.Definitions
                 }
                 if (topic.Kind == MissionDialogueKind.Choice)
                 {
-                    if (topic.TransitionId.HasValue || topic.Choices == null || topic.Choices.Count != 3 ||
-                        !Enumerable.Range(1, 3).All(topic.Choices.ContainsKey))
+                    if (topic.TransitionId.HasValue || topic.Choices == null ||
+                        topic.Choices.Count < 2 || topic.Choices.Count > 3 ||
+                        !Enumerable.Range(1, topic.Choices.Count).All(topic.Choices.ContainsKey))
                     {
-                        yield return $"{prefix}: choice dialogue must map native indices 1, 2 and 3";
+                        yield return $"{prefix}: choice dialogue must map native indices 1 and 2, optionally 3";
                         continue;
                     }
                 }

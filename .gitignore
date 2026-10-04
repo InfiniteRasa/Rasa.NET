@@ -256,6 +256,7 @@ docs/*
 !docs/world-testing.md
 !docs/missions.md
 !docs/mission-reference.md
+!docs/wilderness-missions.md
 !docs/gm-commands.md
 
 # Local runtime files

@@ -46,6 +46,7 @@ namespace Rasa.Managers
         /// 163 of the 166 logos classes 6, and the control point 7.
         /// </summary>
         public const uint FootlockerUseArgId = 1;
+        public const uint SurveyUseArgId = 3;
 
         /// <inheritdoc cref="FootlockerUseArgId"/>
         public const uint LogosUseArgId = 6;
@@ -269,6 +270,17 @@ namespace Rasa.Managers
                     $"{client.Player.FamilyName} sent {packet.ActionId}/{packet.ActionArgId} to use object {packet.EntityId}; an object is used with {ActionId.UseObject}. Ignored.");
                 return;
             }
+            if (obj.MissionUseAction != null &&
+                !(_missionManager ?? MissionApplication.Instance).Scenes.CanUseObject(client, obj, packet.ActionArgId))
+            {
+                Logger.WriteLog(LogType.Debug, $"Rejected stale or unauthorized scene object use {obj.EntityId}.");
+                return;
+            }
+            if (obj.MissionDestruction != null && obj.MissionUseAction == null)
+            {
+                Logger.WriteLog(LogType.Debug, $"Object {obj.EntityId} must be destroyed, not used.");
+                return;
+            }
             if (obj.MissionConversation != null)
             {
                 (_missionManager ?? MissionApplication.Instance).ObjectConversations.Open(client, obj.EntityId);
@@ -384,6 +396,7 @@ namespace Rasa.Managers
                             obj.TriggeredByPlayers.Add(client);
                         break;
                     }
+                case DynamicObjectType.PracticeDummy when obj.MissionUseAction != null:
                 case DynamicObjectType.Logos:
                     {
                         if (!TryLockForUse(client, obj, packet))
@@ -713,7 +726,9 @@ namespace Rasa.Managers
             {
                 entityData.Add(new TargetCategoryPacket(TargetCategory.Object));
                 entityData.Add(new DamageInfoPacket(
-                    true, false, PracticeTargetManager.HitPoints, PracticeTargetManager.HitPoints));
+                    dynamicObject.IsEnabled, false,
+                    dynamicObject.MissionDestruction?.HitPoints ?? PracticeTargetManager.HitPoints,
+                    dynamicObject.MissionDestruction == null ? PracticeTargetManager.HitPoints : dynamicObject.CurrentHitPoints));
             }
 
             client.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(dynamicObject.EntityId, dynamicObject.EntityClassId, entityData));
@@ -1237,6 +1252,11 @@ namespace Rasa.Managers
                     {
                         Logger.WriteLog(LogType.Security,
                             $"{client.Player.FamilyName} was no longer at object {obj.EntityId} when the use finished; nothing given.");
+                        return;
+                    }
+                    if (obj.MissionUseAction != null)
+                    {
+                        (_missionManager ?? MissionApplication.Instance).Scenes.UseObject(client, obj, action.ActionArgId);
                         return;
                     }
 

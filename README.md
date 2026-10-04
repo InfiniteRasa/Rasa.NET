@@ -18,6 +18,10 @@ startup creates and migrates mission content automatically; MySQL uses the
 normal manual migration process. There is no separate mission publish step.
 This branch's migration-owned mission design requires fresh databases.
 
+The [Wilderness content reference](docs/wilderness-missions.md) records the
+native mission inventory, reconstruction decisions and deferred instance
+dependencies for the outdoor rollout.
+
 ## Feedback
 - Ask questions and discuss development on [Discord](https://discord.gg/Ph68FmA)
 - Submit bugs to GitHub Issues

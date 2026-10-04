@@ -37,13 +37,57 @@ namespace Rasa.Game.Missions.World
 
         public void Bind(PublicEncounterBinding binding, ActorGameplayPolicy policy = null)
         {
+            ValidateBinding(binding);
+            var snapshot = policy?.Snapshot();
+            lock (_gate)
+            {
+                RequireCompatibleBinding(binding, snapshot);
+                if (_bindings.ContainsKey(binding.MissionId))
+                    return;
+                _bindings.Add(binding.MissionId, binding);
+                _policies.Add(binding.MissionId, snapshot);
+            }
+        }
+
+        internal void ReloadBindings(IEnumerable<(PublicEncounterBinding Binding, ActorGameplayPolicy Policy)> declarations)
+        {
+            if (declarations == null)
+                throw new ArgumentNullException(nameof(declarations));
+            var next = declarations.Select(entry =>
+            {
+                ValidateBinding(entry.Binding);
+                return (entry.Binding, Policy: entry.Policy?.Snapshot());
+            }).ToDictionary(entry => entry.Binding.MissionId);
+            lock (_gate)
+            {
+                if (_bindings.Keys.Any(id => !next.ContainsKey(id)))
+                    throw new InvalidOperationException("Public encounter declarations cannot be removed during a live reload.");
+                foreach (var entry in next.Values)
+                    RequireCompatibleBinding(entry.Binding, entry.Policy);
+                foreach (var entry in next.Values.Where(entry => !_bindings.ContainsKey(entry.Binding.MissionId)))
+                {
+                    _bindings.Add(entry.Binding.MissionId, entry.Binding);
+                    _policies.Add(entry.Binding.MissionId, entry.Policy);
+                }
+            }
+        }
+
+        private static void ValidateBinding(PublicEncounterBinding binding)
+        {
             if (binding == null || binding.MissionId == 0 || binding.SpawnId == 0 ||
                 string.IsNullOrWhiteSpace(binding.Role) || string.IsNullOrWhiteSpace(binding.ScriptKey) ||
-                binding.OwnerLossPolicy is not ("Reset" or "Wait" or "Continue"))
+                binding.OwnerLossPolicy is not ("Reset" or "Wait" or "Continue" or "Fail"))
                 throw new ArgumentException("Public encounter binding is incomplete.", nameof(binding));
-            var snapshot = policy?.Snapshot();
-            _bindings.Add(binding.MissionId, binding);
-            _policies.Add(binding.MissionId, snapshot);
+        }
+
+        private void RequireCompatibleBinding(PublicEncounterBinding binding, ActorGameplayPolicy policy)
+        {
+            if (!_bindings.TryGetValue(binding.MissionId, out var existing))
+                return;
+            var currentPolicy = _policies[binding.MissionId];
+            if (existing != binding || (currentPolicy == null ? policy != null : !currentPolicy.EquivalentTo(policy)))
+                throw new InvalidOperationException(
+                    $"Public encounter {binding.MissionId} changed during reload; retain its declaration or drain and restart the service.");
         }
 
         internal bool HasBinding(uint missionId) => _bindings.ContainsKey(missionId);
@@ -169,6 +213,56 @@ namespace Rasa.Game.Missions.World
             }
         }
 
+        internal void BindCombatGate(Creature actor, SpawnPool pool)
+        {
+            var map = pool?.RuntimeMapChannel;
+            if (map == null || map.IsPrivateInstance)
+                return;
+            lock (_gate)
+            {
+                if (!_bindings.Values.Any(binding => binding.ManualCombat && binding.SpawnId == pool.DbId))
+                    return;
+                actor.ScriptedCombatGate = () =>
+                {
+                    lock (_gate)
+                        return ReferenceEquals(actor.SpawnPool, pool) && ReferenceEquals(actor.RuntimeMapChannel, map) &&
+                            _reservations.TryGetValue((map, pool.DbId), out var current) &&
+                            ReferenceEquals(current.Actor, actor) && current.Committed && current.CombatEnabled &&
+                            !current.Resetting && current.ResetRequested == null && current.IsCurrent();
+                };
+            }
+        }
+
+        internal bool AuthorizeCombat(MapChannel map, ActorHandle handle, Creature actor, string operationKey = null)
+        {
+            if (actor.ScriptedCombatGate == null)
+                return true;
+            lock (_gate)
+            {
+                if (string.IsNullOrWhiteSpace(operationKey) || actor.SpawnPool == null ||
+                    !_reservations.TryGetValue((map, actor.SpawnPool.DbId), out var current) ||
+                    current.Handle != handle || !ReferenceEquals(current.Actor, actor) || !current.Committed ||
+                    current.Resetting || current.ResetRequested != null || !current.IsCurrent())
+                    return false;
+                if (!current.CombatEnabled || actor.ScriptedCombatAuthorization?.Handle != handle ||
+                    actor.ScriptedCombatAuthorization.OperationKey != operationKey)
+                    actor.ScriptedCombatAuthorization = new ScriptedCombatAuthorization(handle, operationKey);
+                current.CombatEnabled = true;
+                return true;
+            }
+        }
+
+        internal void RevokeCombat(MapChannel map, ActorHandle handle, string operationKey = null)
+        {
+            lock (_gate)
+                foreach (var current in _reservations.Values.Where(current => current.Map == map && current.Handle == handle &&
+                    (operationKey == null || current.Actor.ScriptedCombatAuthorization?.OperationKey == operationKey)))
+                {
+                    current.CombatEnabled = false;
+                    current.Actor.ScriptedCombatAuthorization = null;
+                }
+        }
+
         internal bool BeginReset(string runId, string reason)
         {
             MapChannel map;
@@ -220,6 +314,8 @@ namespace Rasa.Game.Missions.World
                 { message.Status = "Cancelled"; message.Version++; }
             });
             CreatureGameplayRules.ClearRole(reservation.Actor, reservation.Handle);
+            reservation.CombatEnabled = false;
+            reservation.Actor.ScriptedCombatAuthorization = null;
             reservation.Handle = reservation.Handle with { Generation = generation };
             reservation.Resetting = true;
             reservation.ResetRequested = null;
@@ -252,6 +348,10 @@ namespace Rasa.Game.Missions.World
                             client.Player.MapChannel == map && client.State == ClientState.Ingame &&
                             client.PendingTransfer == null))
                         BeginReset(map, run.Handle.RunId, "OwnerLost");
+                    if (!run.Resetting && run.Binding.OwnerLossPolicy == "Fail" &&
+                        !map.ClientList.Any(client => client?.Player?.Id == run.OwnerCharacterId &&
+                            client.Player.MapChannel == map && Integration.MissionInteractionPolicy.IsActivePlayer(client)))
+                        _missions().Scenes.OwnerLost(map, run.Handle.RunId);
                     if (!run.Resetting)
                         continue;
                     _runReset?.Invoke(run.Handle.RunId);
@@ -319,7 +419,13 @@ namespace Rasa.Game.Missions.World
                 return _reservations.ContainsKey((map, spawnId)) || _recovery.ContainsKey((map, spawnId));
         }
 
-        internal void ActorAvailable(MapChannel map) => RecoverPending(map);
+        internal void ActorAvailable(MapChannel map)
+        {
+            foreach (var binding in _bindings.Values.Where(binding => binding.ManualCombat))
+                foreach (var actor in Actors(map, binding.SpawnId))
+                    BindCombatGate(actor, actor.SpawnPool);
+            RecoverPending(map);
+        }
 
         private void RecoverPending(MapChannel map)
         {
@@ -425,7 +531,7 @@ namespace Rasa.Game.Missions.World
         private static IEnumerable<Creature> Actors(MapChannel map, uint spawnId) =>
             map.MapCellInfo.Cells.Values.SelectMany(cell => cell.CreatureList).Distinct()
                 .Where(actor => actor.SpawnPool?.DbId == spawnId && actor.SpawnPool.ScenarioKey == null &&
-                    MapInstanceScope.Contains(map, actor));
+                    CreatureManager.IsLivingOnMap(map, actor));
 
         private sealed record Recovery(string Run, uint Owner, string Release, uint Generation, PublicEncounterBinding Binding);
 
@@ -445,6 +551,7 @@ namespace Rasa.Game.Missions.World
             internal bool Resetting { get; set; }
             internal string ResetRequested { get; set; }
             internal bool AwaitingRespawn { get; set; }
+            internal bool CombatEnabled { get; set; }
 
             internal Reservation(PublicActorLeaseService service, MapChannel map, Creature actor,
                 PublicEncounterBinding binding, uint owner, string revision)
