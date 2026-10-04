@@ -595,16 +595,60 @@ namespace Rasa.Managers
         }
 
         /// <summary>
+        /// Whether a mission stages what stands at this pool: the pool is the spawn of a
+        /// mission's public encounter (PublicEncounterBinding.SpawnId) - an escort waiting to
+        /// be led off, a captive held in a Bane camp, an overseer come to parley beside the
+        /// officer he threatens. Replaceable for tests.
+        /// </summary>
+        internal Func<uint, bool> IsStaged { get; set; } = poolId => MissionApplication.Instance.PublicActors.StagesSpawn(poolId);
+
+        /// <summary>
         /// Every automatic pool of hostile creatures whose area comes within SafeClearance of a
         /// friendly NPC's pool, a hospital or a waypoint pad: a player reviving or arriving there
         /// would stand in a fight. A pool of friendly soldiers (see IsSafeGround) is not safe
-        /// ground: a skirmish set up on purpose, like boot camp's bridge, is not reported. And every one whose area comes within TurretScan of a turret
-        /// (an emplacement's pool, which is not safe ground): the two would fight for good.
-        /// Logged and recorded for the map; nothing is changed. Run once
-        /// the creatures, the pools and the teleporters are all loaded.
+        /// ground: a skirmish set up on purpose, like boot camp's bridge, is not reported. And
+        /// every one whose area comes within TurretScan of an AFS turret (a friendly
+        /// emplacement's pool, which is not safe ground): the two would fight for good.
+        ///
+        /// A Bane emplacement is no turret here. It is on the camp's side, so a camp may stand
+        /// around it; and its pool is a hostile one like any other, checked against the AFS
+        /// turrets and the safe ground - never against itself.
+        ///
+        /// A pool a mission stages (IsStaged) is on neither side of the check. Its actor stands
+        /// where the mission happens, which is not where players revive or arrive: a captive in
+        /// a Bane camp makes the camp no safer. And a hostile one is one creature its scene
+        /// directs, not a camp.
+        ///
+        /// Logged and recorded for the map; nothing is changed. Run once the missions, the
+        /// creatures, the pools and the teleporters are all loaded.
         /// </summary>
         public void ValidatePools()
         {
+            var places = new List<(uint Map, Vector3 Position, string What)>();
+
+            foreach (var teleporter in DynamicObjectManager.Instance.Teleporters.Values)
+                if (teleporter.ObjectData is WaypointInfo info && (info.WaypointType == WaypointType.Hospital || info.WaypointType == WaypointType.Waypoint))
+                    places.Add((teleporter.MapContextId, teleporter.Position, $"{info.WaypointType} {info.WaypointId}"));
+
+            var found = PoolsTooClose(places);
+
+            foreach (var (map, message) in found)
+            {
+                Logger.WriteLog(LogType.Error, message);
+                MapErrorManager.Instance.Record(map, message);
+            }
+
+            Logger.WriteLog(LogType.Initialize, $"SpawnPools checked against safe ground and turrets: {found.Count} too close.");
+        }
+
+        /// <summary>
+        /// What ValidatePools reports, a line a pool with the map it is on: the loaded pools
+        /// against the friendly NPCs' pools among them, these places besides (the hospitals and
+        /// waypoint pads), and the AFS turrets.
+        /// </summary>
+        internal List<(uint Map, string Message)> PoolsTooClose(IEnumerable<(uint Map, Vector3 Position, string What)> places)
+        {
+            var found = new List<(uint Map, string Message)>();
             var safe = new Dictionary<uint, List<(Vector3 Position, string What)>>();
 
             void Add(uint map, Vector3 position, string what)
@@ -615,28 +659,33 @@ namespace Rasa.Managers
                 list.Add((position, what));
             }
 
-            // A turret is friendly, but no hospital: its ground is where the fighting is.
+            // An AFS turret is friendly, but no hospital: its ground is where the fighting is.
             var turrets = new List<SpawnPool>();
 
             foreach (var pool in LoadedSpawnPools.Values)
             {
                 if (pool.SpawnSlot.Count > 0 && pool.SpawnSlot.TrueForAll(s => IsEmplacement(s.CreatureId)))
-                    turrets.Add(pool);
-                else if (pool.SpawnSlot.Exists(s => IsSafeGround(s.CreatureId)))
+                {
+                    // A Bane one is the camp's own gun, and takes its turn as a hostile pool below.
+                    if (pool.SpawnSlot.TrueForAll(s => Side(s.CreatureId) == TargetCategory.Friendly))
+                        turrets.Add(pool);
+                }
+                else if (pool.SpawnSlot.Exists(s => IsSafeGround(s.CreatureId)) && !IsStaged(pool.DbId))
                     Add(pool.MapContextId, pool.Position, $"the NPCs of pool {pool.DbId}");
             }
 
-            foreach (var teleporter in DynamicObjectManager.Instance.Teleporters.Values)
-                if (teleporter.ObjectData is WaypointInfo info && (info.WaypointType == WaypointType.Hospital || info.WaypointType == WaypointType.Waypoint))
-                    Add(teleporter.MapContextId, teleporter.Position, $"{info.WaypointType} {info.WaypointId}");
-
-            var bad = 0;
+            foreach (var (map, position, what) in places)
+                Add(map, position, what);
 
             foreach (var pool in LoadedSpawnPools.Values)
             {
                 // Not on a timer, never brings anything (min and max 0), or not all hostile.
                 if (pool.Mode != ModeAutomatic || !pool.SpawnSlot.Exists(s => s.CountMax > 0)
                     || !pool.SpawnSlot.TrueForAll(s => Side(s.CreatureId) == TargetCategory.Hostile))
+                    continue;
+
+                // A mission's actor, where its scene has it stand.
+                if (IsStaged(pool.DbId))
                     continue;
 
                 // A turret that can see the camp from its mount: the two fight for as long as the
@@ -653,10 +702,7 @@ namespace Rasa.Managers
                     if (reach >= TurretScan)
                         continue;
 
-                    var fight = $"spawnpool {pool.DbId}: its creatures can stand {Math.Max(0, reach):0} m from the turret of pool {turret.DbId}, inside its scan; they will fight for good.";
-                    Logger.WriteLog(LogType.Error, fight);
-                    MapErrorManager.Instance.Record(pool.MapContextId, fight);
-                    bad++;
+                    found.Add((pool.MapContextId, $"spawnpool {pool.DbId}: its creatures can stand {Math.Max(0, reach):0} m from the turret of pool {turret.DbId}, inside its scan; they will fight for good."));
                     fought = true;
                     break;
                 }
@@ -671,15 +717,12 @@ namespace Rasa.Managers
                     if (gap >= SafeClearance)
                         continue;
 
-                    bad++;
-                    var message = $"spawnpool {pool.DbId}: its creatures can stand {Math.Max(0, gap):0} m from {what}, which should be safe ground.";
-                    Logger.WriteLog(LogType.Error, message);
-                    MapErrorManager.Instance.Record(pool.MapContextId, message);
+                    found.Add((pool.MapContextId, $"spawnpool {pool.DbId}: its creatures can stand {Math.Max(0, gap):0} m from {what}, which should be safe ground."));
                     break;
                 }
             }
 
-            Logger.WriteLog(LogType.Initialize, $"SpawnPools checked against safe ground and turrets: {bad} too close.");
+            return found;
         }
 
         private static bool IsEmplacement(uint creatureId) =>

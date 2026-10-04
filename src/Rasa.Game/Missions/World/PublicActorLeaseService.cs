@@ -52,6 +52,13 @@ namespace Rasa.Game.Missions.World
             _bindings.TryGetValue(missionId, out var binding) && binding.AllowPartyJoin &&
             _missions().Scenes.UsesScript(missionId, binding.ScriptKey);
 
+        /// <summary>Whether a mission's public encounter is staged on this spawn pool: its binding names it.</summary>
+        internal bool StagesSpawn(uint spawnId)
+        {
+            lock (_gate)
+                return _bindings.Values.Any(binding => binding.SpawnId == spawnId);
+        }
+
         internal bool TryGetJoinRun(MapChannel map, CharacterMissionEntry assignment, ICharUnitOfWork unit,
             out ActorHandle handle)
         {
