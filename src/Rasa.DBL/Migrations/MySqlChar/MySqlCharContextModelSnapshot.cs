@@ -997,6 +997,106 @@ namespace Rasa.Migrations.MySqlChar
                     b.ToTable("character_title");
                 });
 
+            modelBuilder.Entity("Rasa.Structures.Char.ChatLogEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<uint>("Id"));
+
+                    b.Property<uint>("AccountId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("account_id");
+
+                    b.Property<byte>("AccountLevel")
+                        .HasColumnType("tinyint unsigned")
+                        .HasColumnName("account_level");
+
+                    b.Property<uint>("CharacterId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("character_id");
+
+                    b.Property<double>("CoordX")
+                        .HasColumnType("double")
+                        .HasColumnName("coord_x");
+
+                    b.Property<double>("CoordY")
+                        .HasColumnType("double")
+                        .HasColumnName("coord_y");
+
+                    b.Property<double>("CoordZ")
+                        .HasColumnType("double")
+                        .HasColumnName("coord_z");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("FamilyName")
+                        .IsRequired()
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("family_name");
+
+                    b.Property<uint>("GroupId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("group_id");
+
+                    b.Property<uint>("HeardBy")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("heard_by");
+
+                    b.Property<uint>("InstanceId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("instance_id");
+
+                    b.Property<byte>("Kind")
+                        .HasColumnType("tinyint unsigned")
+                        .HasColumnName("kind");
+
+                    b.Property<uint>("MapContextId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("map_context_id");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("name");
+
+                    b.Property<byte>("Result")
+                        .HasColumnType("tinyint unsigned")
+                        .HasColumnName("result");
+
+                    b.Property<string>("Target")
+                        .IsRequired()
+                        .HasColumnType("varchar(96)")
+                        .HasColumnName("target");
+
+                    b.Property<uint>("TargetAccountId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("target_account_id");
+
+                    b.Property<uint>("TargetCharacterId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("target_character_id");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasColumnType("varchar(512)")
+                        .HasColumnName("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex(new[] { "AccountId" }, "chat_log_index_account_id");
+
+                    b.HasIndex(new[] { "CreatedAt" }, "chat_log_index_created_at");
+
+                    b.HasIndex(new[] { "TargetAccountId" }, "chat_log_index_target_account_id");
+
+                    b.ToTable("chat_log");
+                });
+
             modelBuilder.Entity("Rasa.Structures.Char.ClanEntry", b =>
                 {
                     b.Property<uint>("Id")

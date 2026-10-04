@@ -66,6 +66,25 @@ Every command on this page that is entered at the game server goes on an audit l
 
 `source` says how it came in: 1 dot command, 2 privileged slash command, 3 one of the client's own GM packets, 4 console. A command that was run is also a `Command` line in the server log, starting `GM command:`. If the table cannot be written the command still runs, and the server log says the row was lost.
 
+## Chat log
+
+Every line of chat a player sends goes on a chat log: the `chat_log` table of the character database, written by `ChatAudit` as the line is passed on. A row has the account, its level, the character, the time (UTC), the map and position, the kind of chat, whom it was to, how many other players were sent it (`heard_by`), the line, and the result.
+
+| `kind` | Chat | To whom |
+|---|---|---|
+| 1 | Say | |
+| 2 | Shout | |
+| 3 | Emote (`/em`) | |
+| 4 | Whisper or reply | `target_account_id`, `target_character_id` and `target`, the recipient's family name (as typed when nobody has it). |
+| 5 | Squad | `group_id` is the squad's id. |
+| 6 | Clan | `group_id` is the clan's id, `target` its name. |
+| 7 | Clan leaders | The same. |
+| 8 | Channel | `group_id` is the channel (1 General, 3 LFG, 4 Map General, 6 Trade, 7 Defense, 10000008 Team), `target` its name; a team's has its number. |
+
+`result` says what came of it: 1 delivered, 2 the sender is silenced, 3 a whisper to nobody in the game, 4 a whisper to someone who ignores the sender, 5 the sender is not in that squad, clan, rank or channel, 6 longer than 512 characters (the row keeps the first 512). Only a line with result 1 was sent to anyone.
+
+Not on it: a line that begins with a dot, which is a command and on the audit log above; an empty line; `.announce`; and voice chat. If the table cannot be written the line is still said, and the server log says the row was lost.
+
 ## Information and diagnostics
 
 These change nothing in the world, except where noted.

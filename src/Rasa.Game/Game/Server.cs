@@ -95,6 +95,9 @@ namespace Rasa.Game
             // console below is on it too.
             GmAudit.Instance.Load(new GmAudit.ServerStore(gameUnitOfWorkFactory));
 
+            // And the chat log: every line of chat a player sends.
+            ChatAudit.Instance.Load(new ChatAudit.ServerStore(gameUnitOfWorkFactory));
+
             Configuration.OnLoad += ConfigLoaded;
             Configuration.OnReLoad += ConfigReLoaded;
             Configuration.Load();

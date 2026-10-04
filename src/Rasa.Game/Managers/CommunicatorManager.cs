@@ -16,6 +16,7 @@ namespace Rasa.Managers
     using Packets.MapChannel.Server;
     using Rasa.Models;
     using Structures;
+    using Structures.Char;
 
     public class CommunicatorManager
     {
@@ -132,10 +133,71 @@ namespace Rasa.Managers
             listener != speaker && speaker.AccountEntry != null
             && listener.Player?.IgnoredPlayers.Contains(speaker.AccountEntry.Id) == true;
 
+        #region The chat log
+
+        // Every line a player sends is put on the chat log (ChatAudit) by the handler that takes
+        // it: when it has been passed on, with how many others were sent it; and where it is
+        // refused, with why. The handlers check what they checked, in the order they did.
+
+        private static void Log(Client client, ChatLogKind kind, string text, ChatLogResult result,
+            uint heardBy = 0, uint groupId = 0, string target = null, Client whisperedTo = null)
+        {
+            ChatAudit.Instance.Record(client, kind, text, result, heardBy, groupId, target, whisperedTo);
+        }
+
+        /// <summary>
+        /// Whether a line is not one to pass on: empty, which is nothing said, or longer than
+        /// <see cref="MaxChatLength"/>, which goes on the chat log as that with its beginning.
+        /// </summary>
+        private static bool Unsayable(Client client, ChatLogKind kind, string message, uint groupId = 0, string target = null)
+        {
+            if (IsSayable(message))
+                return false;
+
+            if (!string.IsNullOrEmpty(message))
+                Log(client, kind, message, ChatLogResult.TooLong, 0, groupId, target);
+
+            return true;
+        }
+
+        /// <summary>What the chat log calls a channel: the client's name for it, a map's General told from the world's, a team's with its number.</summary>
+        public static string ChannelName(uint channelId, uint team = 0)
+        {
+            switch (channelId)
+            {
+                case ChatChannelId.General: return "General";
+                case ChatChannelId.NewPlayer: return "New Player";
+                case ChatChannelId.LookingForGroup: return "LFG";
+                case ChatChannelId.MapGeneral: return "Map General";
+                case ChatChannelId.MapTrade: return "Trade";
+                case ChatChannelId.MapDefense: return "Defense";
+                case ChatChannelId.Team: return team != 0 ? $"Team {team}" : "Team";
+                default: return $"Channel {channelId}";
+            }
+        }
+
+        /// <summary>A clan's name for the chat log; null when the clan is not known.</summary>
+        private static string ClanName(uint clanId)
+        {
+            try
+            {
+                return clanId != 0 && ClanManager.Instance.Clans.TryGetValue(clanId, out var clan) ? clan.Value?.Name : null;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        #endregion
+
         internal void ClanChat(Client client, ClanChatPacket packet)
         {
             if (Moderation.RefuseIfMuted(client))
+            {
+                Log(client, ChatLogKind.Clan, packet.Message, ChatLogResult.Muted, 0, client.Player?.ClanId ?? 0, ClanName(client.Player?.ClanId ?? 0));
                 return;
+            }
 
             // The clan id in the packet is the client's word; the sender's clan is the server's.
             // The broadcast used to go to whatever id the packet named, so a modified client could
@@ -147,17 +209,28 @@ namespace Rasa.Managers
             {
                 Logger.WriteLog(LogType.Security,
                     $"AccountId = {client.AccountEntry.Id} sent clan chat for clan {packet.ClanId} while in clan {clanId}.");
+                Log(client, ChatLogKind.Clan, packet.Message, ChatLogResult.NotMember, 0, packet.ClanId, ClanName(packet.ClanId));
                 return;
             }
 
-            if (!IsSayable(packet.Message))
+            var clanName = ClanName(clanId);
+
+            if (Unsayable(client, ChatLogKind.Clan, packet.Message, clanId, clanName))
                 return;
 
             var clanMembers = Server.Clients.FindAll(c => c.State == ClientState.Ingame && c.Player.ClanId == clanId);
+            var heard = 0u;
 
             foreach(var member in clanMembers)
                 if (!Ignores(member, client))
+                {
                     member.CallMethod(SysEntity.CommunicatorId, new ClanChatPacket(client.Player.FamilyName, packet.Message));
+
+                    if (member != client)
+                        heard++;
+                }
+
+            Log(client, ChatLogKind.Clan, packet.Message, ChatLogResult.Delivered, heard, clanId, clanName);
         }
 
         /// <summary>
@@ -173,7 +246,10 @@ namespace Rasa.Managers
         internal void ClanLeadersChat(Client client, ClanLeadersChatPacket packet)
         {
             if (Moderation.RefuseIfMuted(client))
+            {
+                Log(client, ChatLogKind.ClanLeaders, packet.Message, ChatLogResult.Muted, 0, client.Player?.ClanId ?? 0, ClanName(client.Player?.ClanId ?? 0));
                 return;
+            }
 
             // The clan id in the packet is the client's word; the sender's clan is the server's.
             var clanId = client.Player.ClanId;
@@ -182,10 +258,13 @@ namespace Rasa.Managers
             {
                 Logger.WriteLog(LogType.Security,
                     $"AccountId = {client.AccountEntry.Id} sent clan leaders chat for clan {packet.ClanId} while in clan {clanId}.");
+                Log(client, ChatLogKind.ClanLeaders, packet.Message, ChatLogResult.NotMember, 0, packet.ClanId, ClanName(packet.ClanId));
                 return;
             }
 
-            if (!IsSayable(packet.Message))
+            var clanName = ClanName(clanId);
+
+            if (Unsayable(client, ChatLogKind.ClanLeaders, packet.Message, clanId, clanName))
                 return;
 
             var sender = ClanManager.Instance.GetClanMember(clanId, client.Player.Id);
@@ -194,8 +273,11 @@ namespace Rasa.Managers
             {
                 client.CallMethod(SysEntity.ClientClanManagerId,
                     new DisplayClanMessagePacket((int)PlayerMessage.PmClanInsufficientLeaderChannelPermission, new Dictionary<string, string>()));
+                Log(client, ChatLogKind.ClanLeaders, packet.Message, ChatLogResult.NotMember, 0, clanId, clanName);
                 return;
             }
+
+            var heard = 0u;
 
             foreach (var member in Server.Clients.FindAll(c => c.State == ClientState.Ingame && c.Player.ClanId == clanId))
             {
@@ -205,7 +287,12 @@ namespace Rasa.Managers
                     continue;
 
                 member.CallMethod(SysEntity.CommunicatorId, new ClanLeadersChatPacket(client.Player.FamilyName, packet.Message));
+
+                if (member != client)
+                    heard++;
             }
+
+            Log(client, ChatLogKind.ClanLeaders, packet.Message, ChatLogResult.Delivered, heard, clanId, clanName);
         }
 
         /// <summary>
@@ -219,19 +306,31 @@ namespace Rasa.Managers
         /// </summary>
         internal void ChannelChat(Client client, ChannelChatPacket packet)
         {
-            if (client.Player == null || !IsSayable(packet.Message) || Moderation.RefuseIfMuted(client))
+            if (client.Player == null)
                 return;
 
             var chatChannel = ChannelOf(client, packet.ChannelId);
+            var channelName = ChannelName(packet.ChannelId, chatChannel?.Team ?? 0);
+
+            if (Unsayable(client, ChatLogKind.Channel, packet.Message, packet.ChannelId, channelName))
+                return;
+
+            if (Moderation.RefuseIfMuted(client))
+            {
+                Log(client, ChatLogKind.Channel, packet.Message, ChatLogResult.Muted, 0, packet.ChannelId, channelName);
+                return;
+            }
 
             if (chatChannel == null)
             {
                 Logger.WriteLog(LogType.Debug, $"Character {client.Player.Id} sent chat on channel {packet.ChannelId}, which they are not in.");
+                Log(client, ChatLogKind.Channel, packet.Message, ChatLogResult.NotMember, 0, packet.ChannelId, channelName);
                 return;
             }
 
             var outgoing = new ChannelChatPacket(client.Player.FamilyName, chatChannel.ChannelId,
                 client.Player.EntityId, chatChannel.MapContextId, packet.Message);
+            var heard = 0u;
 
             foreach (var entityId in chatChannel.Players)
             {
@@ -247,7 +346,12 @@ namespace Rasa.Managers
                     continue;
 
                 listener.CallMethod(SysEntity.CommunicatorId, outgoing);
+
+                if (listener != client)
+                    heard++;
             }
+
+            Log(client, ChatLogKind.Channel, packet.Message, ChatLogResult.Delivered, heard, chatChannel.ChannelId, channelName);
         }
 
         /// <summary>
@@ -267,14 +371,21 @@ namespace Rasa.Managers
 
         internal void Emote(Client client, EmotePacket packet)
         {
-            if (client.Player == null || !IsSayable(packet.Emote) || Moderation.RefuseIfMuted(client))
+            if (client.Player == null || Unsayable(client, ChatLogKind.Emote, packet.Emote))
                 return;
+
+            if (Moderation.RefuseIfMuted(client))
+            {
+                Log(client, ChatLogKind.Emote, packet.Emote, ChatLogResult.Muted);
+                return;
+            }
 
             // The client files this under RADIAL_EMOTE, so it is local chat like RadialChat
             // rather than something wider. Recv_Emote renders link(sender) + " " + msg, and
             // sender is the same string the rest of the chat system uses - FamilyName, which
             // is what Whisper and Reply resolve a target by.
             var mapChannel = client.Player.MapChannel;
+            var heard = 0u;
 
             for (var i = 0; i < mapChannel.ClientList.Count; i++)
             {
@@ -284,8 +395,15 @@ namespace Rasa.Managers
                     continue;
 
                 if (Vector3.Distance(client.Player.Position, tempClient.Player.Position) <= RadialRange)
+                {
                     tempClient.CallMethod(SysEntity.CommunicatorId, new EmotePacket(client.Player.FamilyName, packet.Emote));
+
+                    if (tempClient != client)
+                        heard++;
+                }
             }
+
+            Log(client, ChatLogKind.Emote, packet.Emote, ChatLogResult.Delivered, heard);
         }
 
         internal void Reply(Client client, ReplyPacket packet)
@@ -297,17 +415,26 @@ namespace Rasa.Managers
 
         internal void PartyChat(Client client, PartyChatPacket packet)
         {
-            if (!IsSayable(packet.Message) || Moderation.RefuseIfMuted(client))
+            var party = PartyManager.Instance.PartyOf(client);
+
+            if (Unsayable(client, ChatLogKind.Squad, packet.Message, party?.Id ?? 0))
                 return;
 
-            var party = PartyManager.Instance.PartyOf(client);
+            if (Moderation.RefuseIfMuted(client))
+            {
+                Log(client, ChatLogKind.Squad, packet.Message, ChatLogResult.Muted, 0, party?.Id ?? 0);
+                return;
+            }
 
             if (party == null)
             {
                 client.CallMethod(SysEntity.CommunicatorId,
                     new DisplayClientMessagePacket(PlayerMessage.PmActionFailedNoParty, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
+                Log(client, ChatLogKind.Squad, packet.Message, ChatLogResult.NotMember);
                 return;
             }
+
+            var heard = 0u;
 
             // Recv_PartyChat(sender, msg, senderUserId, senderEntityId): senderUserId is compared
             // with the party leader's userId and GetCurrentUserId() to pick the leader colour, and
@@ -330,7 +457,12 @@ namespace Rasa.Managers
                     SenderUserId = client.AccountEntry.Id,
                     SenderEntityId = client.Player.EntityId
                 });
+
+                if (tempClient != client)
+                    heard++;
             }
+
+            Log(client, ChatLogKind.Squad, packet.Message, ChatLogResult.Delivered, heard, party.Id);
         }
 
         internal void Whisper(Client client, WhisperPacket packet)
@@ -347,14 +479,15 @@ namespace Rasa.Managers
         /// </summary>
         private void DeliverWhisper(Client sender, string targetName, string message)
         {
-            if (!IsSayable(message))
-                return;
-
             var name = targetName?.Trim() ?? string.Empty;
+
+            if (Unsayable(sender, ChatLogKind.Whisper, message, 0, name))
+                return;
 
             if (name.Length > 0 && string.Equals(name, sender.Player.FamilyName, StringComparison.OrdinalIgnoreCase))
             {
                 sender.CallMethod(SysEntity.CommunicatorId, new WhisperSelfPacket(message));
+                Log(sender, ChatLogKind.Whisper, message, ChatLogResult.Delivered, 0, 0, null, sender);
                 return;
             }
 
@@ -374,18 +507,23 @@ namespace Rasa.Managers
             {
                 sender.CallMethod(SysEntity.CommunicatorId,
                     new WhisperFailAckPacket(name, PlayerMessage.PmWhisperTargetNotInGame));
+                Log(sender, ChatLogKind.Whisper, message, ChatLogResult.NoTarget, 0, 0, name);
                 return;
             }
 
             // A silenced player may still whisper a game master - the way to ask about it.
             if ((target.AccountEntry?.Level ?? 0) < (byte)GmLevel.GameMaster && Moderation.RefuseIfMuted(sender))
+            {
+                Log(sender, ChatLogKind.Whisper, message, ChatLogResult.Muted, 0, 0, null, target);
                 return;
+            }
 
             // Ignore lists hold account ids, loaded by SocialManager.SetSocialContactList.
             if (target.Player.IgnoredPlayers.Contains(sender.AccountEntry.Id))
             {
                 sender.CallMethod(SysEntity.CommunicatorId,
                     new WhisperFailAckPacket(target.Player.FamilyName, PlayerMessage.PmWhisperTargetIgnoringYou));
+                Log(sender, ChatLogKind.Whisper, message, ChatLogResult.Ignored, 0, 0, null, target);
                 return;
             }
 
@@ -400,6 +538,8 @@ namespace Rasa.Managers
             // name the way the target's family is actually spelled.
             sender.CallMethod(SysEntity.CommunicatorId,
                 new WhisperAckPacket(target.Player.FamilyName, message, target.Player.IsAFK));
+
+            Log(sender, ChatLogKind.Whisper, message, ChatLogResult.Delivered, 1, 0, null, target);
         }
 
         /// <summary>
@@ -690,7 +830,7 @@ namespace Rasa.Managers
                 while (ChannelsBySeed.ContainsKey(seed));
 
                 TeamSeeds[key] = seed;
-                ChannelsBySeed.Add(seed, new ChatChannel { ChannelId = ChatChannelId.Team });
+                ChannelsBySeed.Add(seed, new ChatChannel { ChannelId = ChatChannelId.Team, Team = team });
             }
 
             player.ChannelHashes[player.JoinedChannels] = seed;
@@ -760,7 +900,7 @@ namespace Rasa.Managers
         public void RadialChat(Client client, string textMsg)
         {
             // An empty or None message indexed textMsg[0] below and disconnected the sender.
-            if (!IsSayable(textMsg))
+            if (Unsayable(client, ChatLogKind.Say, textMsg))
                 return;
 
             // A leading dot is a command, whoever typed it. ProcessCommand decides whether this
@@ -772,10 +912,19 @@ namespace Rasa.Managers
                 ChatCommandsManager.Instance.ProcessCommand(client, textMsg);
                 return;
             } 
-            if (client.Player == null || Moderation.RefuseIfMuted(client))
+            if (client.Player == null)
                 return;
+
+            if (Moderation.RefuseIfMuted(client))
+            {
+                Log(client, ChatLogKind.Say, textMsg, ChatLogResult.Muted);
+                return;
+            }
+
             // go through all players and send chat message ( can ignore sync because playerList will not change )
             var mapChannel = client.Player.MapChannel;
+            var heard = 0u;
+
             for (var i = 0; i < mapChannel.ClientList.Count; i++)
             {
                 var tempClient = mapChannel.ClientList[i];
@@ -783,15 +932,21 @@ namespace Rasa.Managers
                 {
                     var distance = Vector3.Distance(client.Player.Position, tempClient.Player.Position);
                     if (distance <= RadialRange)
+                    {
                         tempClient.CallMethod(SysEntity.CommunicatorId, new RadialChatPacket
                         {
                             FamilyName = client.Player.FamilyName,
                             TextMsg = textMsg,
                             EntityId = client.Player.EntityId
-                        }
-                    );
+                        });
+
+                        if (tempClient != client)
+                            heard++;
+                    }
                 }
             }
+
+            Log(client, ChatLogKind.Say, textMsg, ChatLogResult.Delivered, heard);
         }
 
         /// <summary>
@@ -812,12 +967,19 @@ namespace Rasa.Managers
 
         public void Shout(Client client, string textMsg)
         {
-            if (client.Player == null || !IsSayable(textMsg) || Moderation.RefuseIfMuted(client))
+            if (client.Player == null || Unsayable(client, ChatLogKind.Shout, textMsg))
                 return;
+
+            if (Moderation.RefuseIfMuted(client))
+            {
+                Log(client, ChatLogKind.Shout, textMsg, ChatLogResult.Muted);
+                return;
+            }
 
             // Same iteration style as RadialChat: the map channel's client list does not
             // change while we are on the main loop, so no extra synchronisation is needed.
             var mapChannel = client.Player.MapChannel;
+            var heard = 0u;
 
             for (var i = 0; i < mapChannel.ClientList.Count; i++)
             {
@@ -827,12 +989,19 @@ namespace Rasa.Managers
                     continue;
 
                 if (Vector3.Distance(client.Player.Position, tempClient.Player.Position) <= ShoutRange)
+                {
                     tempClient.CallMethod(SysEntity.CommunicatorId, new ShoutPacket
                     {
                         FamilyName = client.Player.FamilyName,
                         TextMsg = textMsg
                     });
+
+                    if (tempClient != client)
+                        heard++;
+                }
             }
+
+            Log(client, ChatLogKind.Shout, textMsg, ChatLogResult.Delivered, heard);
         }
 
         public void SystemMessage(Client client, string textMsg)

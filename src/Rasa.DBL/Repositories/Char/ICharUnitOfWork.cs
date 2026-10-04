@@ -62,6 +62,8 @@
             throw new System.NotSupportedException("This character unit of work has no PvP record store.");
         GmCommandLog.IGmCommandLogRepository GmCommandLogs =>
             throw new System.NotSupportedException("This character unit of work has no game master audit log.");
+        ChatLog.IChatLogRepository ChatLogs =>
+            throw new System.NotSupportedException("This character unit of work has no chat log.");
         CharacterBossKill.ICharacterBossKillRepository CharacterBossKills =>
             throw new System.NotSupportedException("This character unit of work has no boss kill store.");
         SquadInstance.ISquadInstanceRepository SquadInstances =>

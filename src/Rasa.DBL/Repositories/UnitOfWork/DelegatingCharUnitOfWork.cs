@@ -71,6 +71,7 @@ namespace Rasa.Repositories.UnitOfWork
         public Char.ControlPointState.IControlPointStateRepository ControlPointStates => _parent.ControlPointStates;
         public Char.PvpRecord.IPvpRecordRepository PvpRecords => _parent.PvpRecords;
         public Char.GmCommandLog.IGmCommandLogRepository GmCommandLogs => _parent.GmCommandLogs;
+        public Char.ChatLog.IChatLogRepository ChatLogs => _parent.ChatLogs;
         public Char.CharacterBossKill.ICharacterBossKillRepository CharacterBossKills => _parent.CharacterBossKills;
         public Char.SquadInstance.ISquadInstanceRepository SquadInstances => _parent.SquadInstances;
 
