@@ -35,7 +35,8 @@ namespace Rasa.Missions.Runtime
         MissionObjectiveDefinition ObjectiveDefinition,
         MissionObjectiveLog RuntimeObjective,
         MissionObjectiveExecutableTransition ExecutableTransition,
-        MissionProgressEvent Progress);
+        MissionProgressEvent Progress,
+        IReadOnlySet<uint> DistinctSubjects = null);
 
     public sealed record ObjectiveDecision(
         MissionObjectiveState? State,
@@ -47,6 +48,7 @@ namespace Rasa.Missions.Runtime
     {
         public const int JournalCapacity = 30;
         private readonly Dictionary<(MissionProgressEventKind Kind, uint Subject), List<Binding>> _events = new();
+        private readonly Dictionary<uint, List<(Mission Mission, uint ObjectiveId)>> _history = new();
         private readonly Dictionary<uint, Mission[]> _npcs;
         private readonly Dictionary<uint, Mission[]> _conversations;
 
@@ -85,7 +87,27 @@ namespace Rasa.Missions.Runtime
                             bindings.Add(new Binding(mission, objective, transition));
                         }
                     }
+            foreach (var mission in missions)
+                foreach (var objective in mission.Objectives.Values.Where(value => value.HistoryAggregation != null))
+                    foreach (var source in objective.HistoryAggregation.Groups.SelectMany(group => group).Distinct())
+                    {
+                        if (!_history.TryGetValue(source, out var bindings))
+                            _history[source] = bindings = new();
+                        bindings.Add((mission, objective.ObjectiveId));
+                    }
         }
+
+        public IReadOnlyList<Mission> SelectHistoryAggregates(
+            IReadOnlyDictionary<uint, MissionLog> journal, IReadOnlyList<MissionProgressEvent> events) =>
+            (events ?? Array.Empty<MissionProgressEvent>())
+                .Where(progress => progress.Kind == MissionProgressEventKind.MissionCompleted &&
+                    progress.SubjectId != 0 && progress.Quantity != 0)
+                .SelectMany(progress => _history.GetValueOrDefault(progress.SubjectId, new()))
+                .Where(binding => journal.TryGetValue(binding.Mission.MissionId, out var mission) &&
+                    mission.State == MissionState.Active &&
+                    mission.Objectives.TryGetValue(binding.ObjectiveId, out var objective) &&
+                    objective.State == MissionObjectiveState.Incomplete)
+                .Select(binding => binding.Mission).Distinct().OrderBy(mission => mission.MissionId).ToArray();
 
         public IReadOnlyList<Mission> ForNpc(uint creatureId, uint packageId) =>
             _npcs.GetValueOrDefault(creatureId, Array.Empty<Mission>())
@@ -119,16 +141,47 @@ namespace Rasa.Missions.Runtime
                     TotalRuleEvaluations++;
                     var rule = binding.Transition.ProgressRule;
                     if (!rule.Matches(progress) || rule.RuleType == MissionProgressRuleType.CompleteDistinctSet &&
+                        !rule.CounterId.HasValue &&
                         !rule.AreAllSubjectsObserved(Subjects(rule.Kind, waypoints, logos)))
                         continue;
                     var key = (binding.Mission.MissionId, binding.Objective.ObjectiveId);
-                    if (candidates.TryGetValue(key, out var previous) &&
-                        (previous.ExecutableTransition.Sequence < binding.Transition.Sequence ||
-                         previous.ExecutableTransition.Sequence == binding.Transition.Sequence &&
-                         previous.ExecutableTransition.TransitionId <= binding.Transition.TransitionId))
-                        continue;
+                    if (candidates.TryGetValue(key, out var previous))
+                    {
+                        if (previous.ExecutableTransition == binding.Transition &&
+                            rule.RuleType == MissionProgressRuleType.CompleteDistinctSet &&
+                            rule.Kind == MissionProgressEventKind.ScenarioEvent)
+                        {
+                            candidates[key] = previous with
+                            {
+                                DistinctSubjects = previous.DistinctSubjects.Append(progress.SubjectId).ToHashSet()
+                            };
+                            continue;
+                        }
+                        if (previous.ExecutableTransition == binding.Transition &&
+                            rule.RuleType == MissionProgressRuleType.IncrementExactCounter &&
+                            rule.Subjects.Count > 1)
+                        {
+                            var quantity = (ulong)previous.Progress.Quantity + progress.Quantity;
+                            if (quantity > uint.MaxValue)
+                                throw new MissionRuleException("Mission progress quantity exceeds the supported range.");
+                            candidates[key] = previous with
+                            {
+                                Progress = MissionProgressEvent.Restore(
+                                    previous.Progress.Kind, previous.Progress.SubjectId, (uint)quantity,
+                                    previous.Progress.ScopeId, previous.Progress.DetailId)
+                            };
+                            continue;
+                        }
+                        if (previous.ExecutableTransition.Sequence < binding.Transition.Sequence ||
+                            previous.ExecutableTransition.Sequence == binding.Transition.Sequence &&
+                            previous.ExecutableTransition.TransitionId <= binding.Transition.TransitionId)
+                            continue;
+                    }
                     candidates[key] = new MissionProgressCandidate(binding.Mission, mission,
-                        binding.Objective, objective, binding.Transition, progress);
+                        binding.Objective, objective, binding.Transition, progress,
+                        rule.RuleType == MissionProgressRuleType.CompleteDistinctSet &&
+                            rule.Kind == MissionProgressEventKind.ScenarioEvent
+                            ? new HashSet<uint> { progress.SubjectId } : null);
                 }
             }
             return candidates.Values.OrderBy(candidate => candidate.Definition.MissionId)
@@ -157,7 +210,8 @@ namespace Rasa.Missions.Runtime
         public static ObjectiveDecision Evaluate(
             MissionProgressCandidate candidate,
             MissionObjectiveLog durable,
-            IReadOnlySet<uint> durableSubjects = null)
+            IReadOnlySet<uint> durableSubjects = null,
+            uint? ownedItemQuantity = null)
         {
             if (durable == null || durable.State != MissionObjectiveState.Incomplete ||
                 candidate.RuntimeObjective.State != MissionObjectiveState.Incomplete)
@@ -168,13 +222,15 @@ namespace Rasa.Missions.Runtime
                 return new ObjectiveDecision(state);
             if (state != MissionObjectiveState.Completed)
                 throw new MissionRuleException("Counter and distinct-set transitions must complete objectives.");
-            if (rule.RuleType == MissionProgressRuleType.CompleteDistinctSet)
+            if (rule.RuleType == MissionProgressRuleType.CompleteDistinctSet && !rule.CounterId.HasValue)
             {
                 if (!rule.AreAllSubjectsObserved(durableSubjects ?? new HashSet<uint>()))
                     throw new MissionRuleException("Distinct progress subjects are incomplete.");
                 return new ObjectiveDecision(state);
             }
             var item = rule.RuleType == MissionProgressRuleType.IncrementExactItemCounter;
+            if (ownedItemQuantity.HasValue && !item)
+                throw new MissionRuleException("Exact inventory facts require an item-counter rule.");
             var runtimeCounters = item ? candidate.RuntimeObjective.ItemCounters : candidate.RuntimeObjective.Counters;
             var durableCounters = item ? durable.ItemCounters : durable.Counters;
             var id = rule.CounterId.Value;
@@ -182,8 +238,50 @@ namespace Rasa.Missions.Runtime
                 !durableCounters.TryGetValue(id, out var stored) || value != stored ||
                 value < rule.InitialValue.Value || value >= rule.TargetValue.Value)
                 throw new MissionRuleException("Mission counter is stale or cannot advance monotonically.");
-            var next = value + Math.Min(candidate.Progress.Quantity, rule.TargetValue.Value - value);
+            var next = rule.RuleType == MissionProgressRuleType.CompleteDistinctSet
+                ? (uint)rule.Subjects.Count(subject => durableSubjects?.Contains(subject) == true)
+                : ownedItemQuantity.HasValue ? Math.Min(ownedItemQuantity.Value, rule.TargetValue.Value)
+                : value + Math.Min(candidate.Progress.Quantity, rule.TargetValue.Value - value);
+            if ((rule.RuleType == MissionProgressRuleType.CompleteDistinctSet || ownedItemQuantity.HasValue) && next <= value)
+                return new ObjectiveDecision(null);
             return new ObjectiveDecision(next == rule.TargetValue ? state : null, id, next, item);
+        }
+
+        public static ObjectiveDecision EvaluateAggregation(
+            MissionObjectiveDefinition definition,
+            MissionObjectiveLog durable,
+            IReadOnlyDictionary<uint, MissionObjectiveState> states)
+        {
+            var aggregate = definition.Aggregation ??
+                throw new ArgumentException("Objective has no aggregate definition.", nameof(definition));
+            if (durable.State != MissionObjectiveState.Incomplete)
+                return new ObjectiveDecision(null);
+            if (aggregate.ChildObjectiveIds.Any(id => !states.ContainsKey(id)))
+                throw new MissionRuleException("Aggregate child state is missing.");
+            var count = (uint)aggregate.ChildObjectiveIds.Count(id => states[id] == MissionObjectiveState.Completed);
+            var state = count >= aggregate.TargetCount ? MissionObjectiveState.Completed : (MissionObjectiveState?)null;
+            if (aggregate.CounterId is not uint counterId)
+                return new ObjectiveDecision(state);
+            if (!durable.Counters.TryGetValue(counterId, out var current) || current > aggregate.TargetCount)
+                throw new MissionRuleException("Aggregate counter state is missing or outside its authored range.");
+            var next = Math.Min(count, aggregate.TargetCount);
+            return next == current ? new ObjectiveDecision(state) : new ObjectiveDecision(state, counterId, next);
+        }
+
+        public static ObjectiveDecision EvaluateHistoryAggregation(
+            MissionObjectiveDefinition definition, MissionObjectiveLog durable, IReadOnlySet<uint> completedMissions)
+        {
+            var aggregate = definition.HistoryAggregation ??
+                throw new ArgumentException("Objective has no history aggregate definition.", nameof(definition));
+            if (durable.State != MissionObjectiveState.Incomplete)
+                return new ObjectiveDecision(null);
+            var count = aggregate.CountCompleted(completedMissions);
+            var state = count == aggregate.TargetCount ? MissionObjectiveState.Completed : (MissionObjectiveState?)null;
+            if (aggregate.CounterId is not uint counterId)
+                return new ObjectiveDecision(state);
+            if (!durable.Counters.TryGetValue(counterId, out var current) || current > aggregate.TargetCount || count < current)
+                throw new MissionRuleException("Completed mission history does not support the saved aggregate counter.");
+            return count == current ? new ObjectiveDecision(state) : new ObjectiveDecision(state, counterId, count);
         }
 
         private static IReadOnlySet<uint> Subjects(

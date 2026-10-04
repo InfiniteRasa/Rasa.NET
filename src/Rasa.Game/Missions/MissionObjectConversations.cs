@@ -30,7 +30,8 @@ namespace Rasa.Game.Missions
             mission.State == MissionState.Active &&
             mission.Objectives.TryGetValue(binding.ObjectiveId, out var objective) &&
             objective.State == MissionObjectiveState.Incomplete &&
-            Presentation(obj) != null;
+            Presentation(obj) is { } presentation &&
+            _missions.IsDialogueEligible(client.Player, binding.MissionId, presentation.Definition);
 
         internal NPCConversationStatusPacket Status(Client client, DynamicObject obj)
         {
@@ -102,7 +103,8 @@ namespace Rasa.Game.Missions
                 unit.CharacterMissionProgress.GetTracked(client.Player.Id, binding.MissionId)
                     .TryGetValue(binding.ObjectiveId, out var objective) &&
                 objective.ObjectiveState == (byte)MissionObjectiveState.Incomplete &&
-                _missions.IsObjectiveEligibleAtEvent(client, binding.MissionId, binding.ObjectiveId, unit);
+                _missions.IsObjectiveEligibleAtEvent(client, binding.MissionId, binding.ObjectiveId, unit) &&
+                _missions.IsDialogueEligible(client.Player, binding.MissionId, Presentation(obj).Definition, unit);
         }
 
         private static bool Reject(string reason)

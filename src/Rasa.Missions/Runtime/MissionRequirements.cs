@@ -15,6 +15,7 @@ namespace Rasa.Missions.Runtime
     [JsonDerivedType(typeof(MissionStateRequirement), "mission")]
     [JsonDerivedType(typeof(FlagRequirement), "flag")]
     [JsonDerivedType(typeof(CustomRequirement), "custom")]
+    [JsonDerivedType(typeof(AssignmentItemRequirement), "assignment-item")]
     public abstract record MissionRequirement;
     public sealed record AllRequirements(IReadOnlyList<MissionRequirement> Items) : MissionRequirement;
     public sealed record AnyRequirement(IReadOnlyList<MissionRequirement> Items) : MissionRequirement;
@@ -23,10 +24,13 @@ namespace Rasa.Missions.Runtime
     public sealed record MissionStateRequirement(uint MissionId, MissionState? State = null, bool Accepted = false) : MissionRequirement;
     public sealed record FlagRequirement(uint FlagId, uint Value) : MissionRequirement;
     public sealed record CustomRequirement(string Key) : MissionRequirement;
+    public sealed record AssignmentItemRequirement(uint MissionId, string ItemKey, uint MinimumQuantity = 1,
+        uint? SourceOfferMissionId = null) : MissionRequirement;
     public sealed record MissionRequirementFacts(uint Level,
         IReadOnlyDictionary<uint, MissionState> Journal, IReadOnlyDictionary<uint, MissionState> History,
         IReadOnlyDictionary<uint, uint> Flags, IReadOnlyDictionary<string, bool> Custom = null,
-        IReadOnlySet<uint> EverSucceeded = null, IReadOnlySet<uint> EverRewarded = null);
+        IReadOnlySet<uint> EverSucceeded = null, IReadOnlySet<uint> EverRewarded = null,
+        IReadOnlyDictionary<AssignmentItemRequirement, uint> AssignmentItems = null);
 
     public interface IMissionRequirementHandler
     {
@@ -69,6 +73,9 @@ namespace Rasa.Missions.Runtime
                 CustomRequirement custom => !string.IsNullOrWhiteSpace(custom.Key) &&
                     _handlers.TryGetValue(custom.Key, out var handler) ? handler.RequiredFacts :
                     throw new MissionRuleException($"Missing pure requirement handler {custom.Key}."),
+                AssignmentItemRequirement item when item.MissionId > 0 && item.MinimumQuantity > 0 &&
+                    !string.IsNullOrWhiteSpace(item.ItemKey) && item.ItemKey.Length <= 64 &&
+                    item.SourceOfferMissionId != 0 => Array.Empty<string>(),
                 LevelRequirement or MissionStateRequirement or FlagRequirement => Array.Empty<string>(),
                 _ => throw new MissionRuleException("Malformed or unsupported mission requirement.")
             };
@@ -90,7 +97,26 @@ namespace Rasa.Missions.Runtime
                 FlagRequirement flag => facts.Flags.TryGetValue(flag.FlagId, out var value) && value == flag.Value,
                 MissionStateRequirement mission => HasState(mission, facts),
                 CustomRequirement custom => EvaluateCustom(custom, facts),
+                AssignmentItemRequirement item => facts.AssignmentItems != null &&
+                    facts.AssignmentItems.TryGetValue(item, out var quantity)
+                        ? quantity >= item.MinimumQuantity
+                        : throw new MissionRuleException("Assignment-owned inventory facts were not supplied."),
                 _ => throw new MissionRuleException("Unsupported mission requirement.")
+            };
+        }
+
+        public static IReadOnlyList<AssignmentItemRequirement> AssignmentItemRequirements(
+            MissionRequirement requirement, int depth = 0)
+        {
+            if (depth > 32)
+                throw new MissionRuleException("Mission requirement nesting exceeds 32 levels.");
+            return requirement switch
+            {
+                AssignmentItemRequirement item => new[] { item },
+                AllRequirements all => all.Items.SelectMany(item => AssignmentItemRequirements(item, depth + 1)).Distinct().ToArray(),
+                AnyRequirement any => any.Items.SelectMany(item => AssignmentItemRequirements(item, depth + 1)).Distinct().ToArray(),
+                NotRequirement not => AssignmentItemRequirements(not.Item, depth + 1),
+                _ => Array.Empty<AssignmentItemRequirement>()
             };
         }
         private static bool HasState(MissionStateRequirement requirement, MissionRequirementFacts facts)
@@ -145,6 +171,20 @@ namespace Rasa.Missions.Runtime
         {
             public IReadOnlyCollection<string> RequiredFacts { get; } = new[] { "character.starting-experience-active" };
             public bool Evaluate(IReadOnlyDictionary<string, bool> facts) => facts["character.starting-experience-active"];
+        }
+
+        [MissionRequirementHandler("character.soldier-family")]
+        public sealed class SoldierFamilyRequirement : IMissionRequirementHandler
+        {
+            public IReadOnlyCollection<string> RequiredFacts { get; } = new[] { "character.soldier-family" };
+            public bool Evaluate(IReadOnlyDictionary<string, bool> facts) => facts["character.soldier-family"];
+        }
+
+        [MissionRequirementHandler("character.specialist-family")]
+        public sealed class SpecialistFamilyRequirement : IMissionRequirementHandler
+        {
+            public IReadOnlyCollection<string> RequiredFacts { get; } = new[] { "character.specialist-family" };
+            public bool Evaluate(IReadOnlyDictionary<string, bool> facts) => facts["character.specialist-family"];
         }
     }
 }

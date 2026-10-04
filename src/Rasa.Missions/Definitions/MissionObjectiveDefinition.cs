@@ -114,6 +114,13 @@ namespace Rasa.Structures
         public MissionProgressRule ProgressRule { get; }
         public IReadOnlyList<MissionObjectiveExecutableTransition> ExecutableTransitions { get; }
         public global::Rasa.Missions.Runtime.MissionCreditPolicy CreditPolicy { get; }
+        public global::Rasa.Missions.Definitions.MissionObjectiveAggregation Aggregation { get; }
+        public global::Rasa.Missions.Definitions.MissionHistoryAggregation HistoryAggregation { get; }
+        internal bool IsAggregate => Aggregation != null || HistoryAggregation != null;
+        internal uint? AggregateCounterId => Aggregation?.CounterId ?? HistoryAggregation?.CounterId;
+        internal uint? AggregateTargetCount => Aggregation?.TargetCount ?? HistoryAggregation?.TargetCount;
+        public bool IsVisible { get; }
+        public bool RecognizeExistingFacts { get; }
         public bool HasCompleteServerContract { get; }
 
         public MissionObjectiveDefinition(
@@ -133,7 +140,11 @@ namespace Rasa.Structures
             MissionProgressRule progressRule = null,
             IEnumerable<MissionObjectiveExecutableTransition> executableTransitions = null,
             MissionContentRequirement requirement = MissionContentRequirement.Required,
-            global::Rasa.Missions.Runtime.MissionCreditPolicy creditPolicy = null)
+            global::Rasa.Missions.Runtime.MissionCreditPolicy creditPolicy = null,
+            global::Rasa.Missions.Definitions.MissionObjectiveAggregation aggregation = null,
+            bool isVisible = true,
+            bool recognizeExistingFacts = false,
+            global::Rasa.Missions.Definitions.MissionHistoryAggregation historyAggregation = null)
         {
             ObjectiveId = objectiveId;
             ClientNameTextId = clientNameTextId;
@@ -143,11 +154,23 @@ namespace Rasa.Structures
             Ordinal = ordinal;
             Requirement = requirement;
             CreditPolicy = creditPolicy ?? global::Rasa.Missions.Runtime.MissionCreditPolicy.Personal;
+            Aggregation = aggregation;
+            HistoryAggregation = historyAggregation;
+            IsVisible = isVisible;
+            RecognizeExistingFacts = recognizeExistingFacts;
             InitialState = initialState;
             IsRequired = isRequired;
+            var counterDefinitions = new Dictionary<uint, MissionObjectiveCounterDefinition>(
+                counters ?? new Dictionary<uint, MissionObjectiveCounterDefinition>());
+            if (AggregateCounterId is uint aggregateCounter)
+            {
+                if (counterDefinitions.TryGetValue(aggregateCounter, out var existing) &&
+                    (existing.InitialValue != 0 || existing.TargetValue != AggregateTargetCount.Value))
+                    throw new ArgumentException("Aggregate counter range conflicts with the objective counter.", nameof(counters));
+                counterDefinitions[aggregateCounter] = new(aggregateCounter, 0, AggregateTargetCount.Value);
+            }
             Counters = new ReadOnlyDictionary<uint, MissionObjectiveCounterDefinition>(
-                new Dictionary<uint, MissionObjectiveCounterDefinition>(
-                    counters ?? new Dictionary<uint, MissionObjectiveCounterDefinition>()));
+                counterDefinitions);
             ItemCounters = new ReadOnlyDictionary<uint, MissionObjectiveItemCounterDefinition>(
                 new Dictionary<uint, MissionObjectiveItemCounterDefinition>(
                     itemCounters ?? new Dictionary<uint, MissionObjectiveItemCounterDefinition>()));
@@ -169,8 +192,7 @@ namespace Rasa.Structures
                 .ThenBy(transition => transition.TransitionId)
                 .ToArray());
             HasCompleteServerContract =
-                ClientNameTextId.HasValue &&
-                ClientBodyTextId.HasValue &&
+                (!IsVisible || ClientNameTextId.HasValue && ClientBodyTextId.HasValue) &&
                 Ordinal.HasValue &&
                 InitialState.HasValue &&
                 IsRequired.HasValue &&
@@ -179,10 +201,17 @@ namespace Rasa.Structures
                 Indicators != null &&
                 Counters.All(counter =>
                     counter.Value.CounterId == counter.Key &&
-                    counter.Key < (uint)ClientCounterTextIds.Count &&
-                    ClientCounterTextIds[(int)counter.Key].HasValue) &&
+                    (!IsVisible || counter.Key < (uint)ClientCounterTextIds.Count &&
+                        ClientCounterTextIds[(int)counter.Key].HasValue)) &&
                 ItemCounters.All(counter => counter.Value.ItemClassId == counter.Key) &&
-                (ProgressRule == null || ProgressRule.IsCompatible(this));
+                (ProgressRule == null || ProgressRule.IsCompatible(this)) &&
+                (Aggregation == null || HistoryAggregation == null) &&
+                (HistoryAggregation == null || CreditPolicy.Mode == global::Rasa.Missions.Runtime.MissionCreditMode.Personal) &&
+                (!IsAggregate || ProgressRule == null && ExecutableTransitions.Count == 0 &&
+                    Conversations.Count == 0 && ItemCounters.Count == 0 &&
+                    RevealedObjectiveIds.Count == 0 && ActivatedObjectiveIds.Count == 0 &&
+                    Counters.Count == (AggregateCounterId.HasValue ? 1 : 0)) &&
+                (!RecognizeExistingFacts || HasExistingFactContract());
         }
 
         internal MissionObjective CreateRuntime(
@@ -238,7 +267,22 @@ namespace Rasa.Structures
         internal MissionObjectiveDefinition WithCreditPolicy(global::Rasa.Missions.Runtime.MissionCreditPolicy policy) =>
             new(ObjectiveId, ClientNameTextId, ClientBodyTextId, ClientCounterTextIds, Ordinal,
                 InitialState, IsRequired, Counters, ItemCounters, Conversations, RevealedObjectiveIds,
-                ActivatedObjectiveIds, Indicators, ProgressRule, ExecutableTransitions, Requirement, policy);
+                ActivatedObjectiveIds, Indicators, ProgressRule, ExecutableTransitions, Requirement, policy,
+                Aggregation, IsVisible, RecognizeExistingFacts, HistoryAggregation);
+
+        private bool HasExistingFactContract()
+        {
+            var transitions = GetExecutableTransitionsOrLegacyDefault();
+            if (transitions.Count != 1 || transitions[0].Conversations.Count != 0 ||
+                transitions[0].ToState is not (null or MissionObjectiveState.Completed))
+                return false;
+            var rule = transitions[0].ProgressRule;
+            return rule != null && rule.ScopeId == null && rule.DetailId == null &&
+                (rule.Kind is MissionProgressEventKind.WaypointAcquired or MissionProgressEventKind.LogosAcquired &&
+                    rule.RuleType is MissionProgressRuleType.CompleteDistinctSet or MissionProgressRuleType.CompleteExact ||
+                 rule.Kind == MissionProgressEventKind.MissionCompleted && rule.RuleType == MissionProgressRuleType.CompleteExact ||
+                 rule.Kind == MissionProgressEventKind.ItemAcquired && rule.RuleType == MissionProgressRuleType.IncrementExactItemCounter);
+        }
 
         internal IReadOnlyList<MissionObjectiveExecutableTransition> GetExecutableTransitionsOrLegacyDefault()
         {

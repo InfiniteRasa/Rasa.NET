@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Rasa.Data;
 using Rasa.Missions.Scenes;
 using Rasa.Structures;
 using Rasa.Structures.Missions;
@@ -10,6 +11,8 @@ namespace Rasa.Missions.Definitions
 {
     public static class MissionItemValidation
     {
+        public static string TurnInOperationKey(string itemKey) => "mission-turn-in:" + itemKey;
+
         public static bool IsItemIntent(CharacterIntent intent) =>
             intent is IssueMissionItemIntent or ConsumeMissionItemIntent or RemoveMissionItemsIntent;
 
@@ -17,6 +20,8 @@ namespace Rasa.Missions.Definitions
         {
             if (binding == null || string.IsNullOrWhiteSpace(binding.ItemKey) || binding.ItemKey.Length > 64 ||
                 binding.ItemTemplateId == 0 || binding.MaximumQuantity == 0 ||
+                binding.TurnInQuantity > binding.MaximumQuantity ||
+                binding.Drop != null && binding.Drop.Quantity > binding.MaximumQuantity ||
                 !Enum.IsDefined(typeof(MissionItemScope), binding.Scope) ||
                 !Enum.IsDefined(typeof(MissionItemCleanupDisposition), binding.Completion) ||
                 !Enum.IsDefined(typeof(MissionItemCleanupDisposition), binding.Failure) ||
@@ -27,6 +32,8 @@ namespace Rasa.Missions.Definitions
                  binding.Failure != MissionItemCleanupDisposition.Retain ||
                  binding.Abandonment != MissionItemCleanupDisposition.Retain))
                 return "Character-owned costs cannot have automatic cleanup.";
+            if (binding.Drop != null && binding.Scope != MissionItemScope.CharacterOwned)
+                return "Corpse drops require CharacterOwned scope; assignment-issued items use mission item intents.";
             return null;
         }
 
@@ -62,25 +69,44 @@ namespace Rasa.Missions.Definitions
             MissionActionKind.IssueMissionItem => action.ItemIntent is IssueMissionItemIntent,
             MissionActionKind.ConsumeMissionItem => action.ItemIntent is ConsumeMissionItemIntent,
             MissionActionKind.RemoveMissionItems => action.ItemIntent is RemoveMissionItemsIntent,
+            MissionActionKind.FailRelatedMission => action.ItemIntent is FailRelatedMissionIntent,
             _ => action.ItemIntent == null
         };
 
         public static IEnumerable<string> Errors(Mission mission, IEnumerable<CharacterIntent> sceneIntents = null)
         {
             foreach (var binding in mission.Items.Values)
+            {
                 if (BindingError(binding) is { } error)
                     yield return error;
+                if (binding?.Drop != null &&
+                    (!mission.Objectives.TryGetValue(binding.Drop.ObjectiveId, out var objective) ||
+                     !objective.GetExecutableTransitionsOrLegacyDefault().Any(transition =>
+                         transition.ProgressRule?.Kind == MissionProgressEventKind.ItemAcquired &&
+                         transition.ItemCounters.Count > 0)))
+                    yield return $"Mission item {binding.ItemKey} drop must name an item-acquisition objective.";
+            }
             var actions = mission.Objectives.Values.SelectMany(objective => objective.GetExecutableTransitionsOrLegacyDefault())
                 .SelectMany(transition => transition.Actions).ToArray();
             foreach (var action in actions)
+            {
                 if (!ActionMatches(action) || action.ItemIntent != null && action.MissionId != mission.MissionId)
                     yield return $"Mission item action {action.ActionId} has an invalid intent discriminator.";
+                if (action.ItemIntent is FailRelatedMissionIntent failure &&
+                    (failure.MissionId == 0 || failure.MissionId == mission.MissionId ||
+                     string.IsNullOrWhiteSpace(failure.OperationKey) || failure.OperationKey.Length > 160))
+                    yield return $"Related failure action {action.ActionId} must name another mission and a stable operation key.";
+            }
             var keys = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var intent in mission.AcceptanceItems.Concat(actions.Where(action => action.ItemIntent != null)
+            var turnInKeys = mission.Items.Values.Where(binding => binding.TurnInQuantity > 0)
+                .Select(binding => TurnInOperationKey(binding.ItemKey)).ToHashSet(StringComparer.Ordinal);
+            foreach (var intent in mission.AcceptanceItems.Concat(actions.Where(action => IsItemIntent(action.ItemIntent))
                     .Select(action => action.ItemIntent)).Concat((sceneIntents ?? Array.Empty<CharacterIntent>()).Where(IsItemIntent)))
             {
                 if (IntentError(mission.MissionId, mission.Items, intent) is { } error)
                     yield return error;
+                else if (turnInKeys.Contains(intent.OperationKey))
+                    yield return $"Mission item operation key is reserved for turn-in: {intent.OperationKey}.";
                 else if (!keys.Add(intent.OperationKey))
                     yield return $"Mission item operation key is duplicated: {intent.OperationKey}.";
             }

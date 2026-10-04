@@ -190,6 +190,10 @@ namespace Rasa.Managers
             internal uint OwnedQuantity(MissionItemOwnership owner) =>
                 checked((uint)_stacks.Where(stack => stack.Ownership == owner).Sum(stack => (long)stack.Count));
 
+            internal uint UnownedQuantity(uint templateId) =>
+                checked((uint)_stacks.Where(stack => stack.Ownership == null && stack.Template.ItemTemplateId == templateId)
+                    .Sum(stack => (long)stack.Count));
+
             internal void RequireAssignment(uint missionId, string assignmentId, uint generation,
                 IReadOnlyDictionary<string, Rasa.Missions.Definitions.MissionItemBinding> bindings)
             {
@@ -290,7 +294,7 @@ namespace Rasa.Managers
             {
                 var item = loot?.Item;
                 if (item?.ItemTemplate == null || item.Id == 0 || item.StackSize == 0 || loot.Taken ||
-                    loot.EntityId != item.EntityId || loot.ActorId != _client.Player.EntityId || loot.PartyId != 0 ||
+                    loot.EntityId != item.EntityId || !loot.MayTake(_client.Player.EntityId) ||
                     EntityManager.Instance.GetEntityType(item.EntityId) != EntityType.Item ||
                     !ReferenceEquals(EntityManager.Instance.GetItem(item.EntityId), item) ||
                     loot.ItemTemplateId != item.ItemTemplate.ItemTemplateId || loot.ItemClassId != (uint)item.ItemTemplate.Class ||

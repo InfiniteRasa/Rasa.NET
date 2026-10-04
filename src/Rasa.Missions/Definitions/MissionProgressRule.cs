@@ -52,8 +52,9 @@ namespace Rasa.Structures
             Kind = kind;
             Subjects = new ReadOnlyCollection<uint>(_subjectSet.OrderBy(value => value).ToArray());
             CounterId = counterId;
-            InitialValue = initialValue;
-            TargetValue = targetValue;
+            var distinctCounter = ruleType == MissionProgressRuleType.CompleteDistinctSet && counterId.HasValue;
+            InitialValue = distinctCounter ? 0U : initialValue;
+            TargetValue = distinctCounter ? (uint)_subjectSet.Count : targetValue;
             SourceSpawnResolved = sourceSpawnResolved;
             ScopeId = scopeId;
             DetailId = detailId;
@@ -140,6 +141,16 @@ namespace Rasa.Structures
                 scopeId: missionId,
                 detailId: scenarioId);
 
+        internal static MissionProgressRule CompleteOnDistinctScenarioEvents(
+            uint missionId, uint scenarioId, IReadOnlySet<uint> subjects) =>
+            new(
+                MissionProgressRuleType.CompleteDistinctSet,
+                MissionProgressEventKind.ScenarioEvent,
+                subjects,
+                counterId: 0,
+                scopeId: missionId,
+                detailId: scenarioId);
+
         internal static MissionProgressRule CompleteOnDeadlineElapsed(
             uint missionId,
             uint objectiveId,
@@ -162,7 +173,8 @@ namespace Rasa.Structures
 
         public static MissionProgressRule CompleteWhenAllDistinctSubjectsObserved(
             MissionProgressEventKind kind,
-            IReadOnlySet<uint> subjects)
+            IReadOnlySet<uint> subjects,
+            uint? counterId = null)
         {
             if (kind != MissionProgressEventKind.WaypointAcquired &&
                 kind != MissionProgressEventKind.LogosAcquired)
@@ -170,7 +182,7 @@ namespace Rasa.Structures
                     nameof(kind),
                     "Distinct completion supports waypoint or Logos events.");
             return new MissionProgressRule(
-                MissionProgressRuleType.CompleteDistinctSet, kind, subjects);
+                MissionProgressRuleType.CompleteDistinctSet, kind, subjects, counterId);
         }
 
         public static MissionProgressRule IncrementCounterOnExactSubject(
@@ -186,6 +198,26 @@ namespace Rasa.Structures
                 counterId,
                 initialValue,
                 targetValue);
+
+        public static MissionProgressRule IncrementCounterOnAnySubject(
+            MissionProgressEventKind kind,
+            IReadOnlySet<uint> subjects,
+            uint counterId,
+            uint initialValue,
+            uint targetValue)
+        {
+            if (kind != MissionProgressEventKind.CreatureKilled)
+                throw new ArgumentOutOfRangeException(
+                    nameof(kind),
+                    "Bounded subject counters support creature kill events.");
+            return new MissionProgressRule(
+                MissionProgressRuleType.IncrementExactCounter,
+                kind,
+                subjects,
+                counterId,
+                initialValue,
+                targetValue);
+        }
 
         public static MissionProgressRule IncrementItemCounterOnExactSubject(
             MissionProgressEventKind kind,
@@ -235,7 +267,8 @@ namespace Rasa.Structures
                     itemCounter.ItemClassId == CounterId.Value &&
                     itemCounter.InitialValue == InitialValue.Value &&
                     itemCounter.TargetValue == TargetValue.Value;
-            if (RuleType != MissionProgressRuleType.IncrementExactCounter)
+            if (RuleType != MissionProgressRuleType.IncrementExactCounter &&
+                (RuleType != MissionProgressRuleType.CompleteDistinctSet || !CounterId.HasValue))
                 return true;
             return CounterId.HasValue &&
                 InitialValue.HasValue &&

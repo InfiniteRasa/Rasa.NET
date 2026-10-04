@@ -36,7 +36,8 @@ namespace Rasa.Managers
                 MissionActionKind.ShowAmbientConversation,
                 MissionActionKind.IssueMissionItem,
                 MissionActionKind.ConsumeMissionItem,
-                MissionActionKind.RemoveMissionItems
+                MissionActionKind.RemoveMissionItems,
+                MissionActionKind.FailRelatedMission
             };
 
         private static readonly HashSet<MissionSpawnGroupPolicy> SupportedSpawnPolicies =
@@ -53,7 +54,10 @@ namespace Rasa.Managers
 
         internal MissionValidationReport Validate(
             MissionContentSnapshot snapshot,
-            IWorldUnitOfWork unitOfWork) => Validate(snapshot, CreateReferences(unitOfWork));
+            IWorldUnitOfWork unitOfWork,
+            IReadOnlyDictionary<uint, IReadOnlySet<uint>> objectPackages = null) =>
+            Validate(snapshot, CreateReferences(unitOfWork, objectPackages ?? GetNativeObjectPackages(snapshot, unitOfWork),
+                GetTypedScenarioIds(snapshot, unitOfWork)));
 
         private MissionValidationReport Validate(MissionContentSnapshot snapshot, MissionContentReferenceSet references)
         {
@@ -95,7 +99,67 @@ namespace Rasa.Managers
             return new MissionValidationReport(report.Diagnostics.Concat(inactiveRequired), requiredMissionIds);
         }
 
-        private static MissionContentReferenceSet CreateReferences(IWorldUnitOfWork unitOfWork)
+        internal static IReadOnlyDictionary<uint, IReadOnlySet<uint>> GetNativeObjectPackages(
+            MissionContentSnapshot snapshot, IWorldUnitOfWork unit)
+        {
+            var result = new Dictionary<uint, IReadOnlySet<uint>>();
+            if (unit?.MissionContent is not Rasa.Repositories.World.IMigratedMissionContentRepository migrated)
+                return result;
+            var classes = (unit.EntityClasses?.Get() ?? new List<EntityClassEntry>()).ToDictionary(entry => entry.Id);
+            foreach (var binding in migrated.GetSceneBindings().Where(binding =>
+                snapshot.Definitions.TryGetValue(binding.MissionId, out var definition) &&
+                definition.ContentRevision == binding.ContentRevision))
+            {
+                var scene = System.Text.Json.JsonSerializer.Deserialize<Rasa.Missions.Content.MissionSceneDefinition>(
+                    binding.Bindings, Rasa.Missions.Content.MissionContentCodec.Options)
+                    ?? throw new Rasa.Missions.Runtime.MissionRuleException("Native object package binding is missing.");
+                var packages = new HashSet<uint>();
+                foreach (var actor in scene.Actors.Values.Where(actor => actor?.Conversation != null))
+                {
+                    var conversation = actor.Conversation;
+                    if (actor.Kind != Rasa.Missions.Scenes.SceneActorKind.Object ||
+                        conversation.MissionId != binding.MissionId ||
+                        !classes.TryGetValue(actor.TemplateId, out var nativeClass) ||
+                        nativeClass.AugList == null ||
+                        !System.Text.RegularExpressions.Regex.IsMatch(nativeClass.AugList, @"(?:^|\D)52(?:\D|$)"))
+                        throw new Rasa.Missions.Runtime.MissionRuleException(
+                            $"Mission {binding.MissionId}, object {actor.Role}: conversation requires its native NPC-capable class.");
+                    packages.Add(conversation.NpcPackageId);
+                }
+                result[binding.MissionId] = packages;
+            }
+            return result;
+        }
+
+        private static IReadOnlyDictionary<uint, IReadOnlySet<uint>> GetTypedScenarioIds(
+            MissionContentSnapshot snapshot, IWorldUnitOfWork unit)
+        {
+            var result = new Dictionary<uint, IReadOnlySet<uint>>();
+            if (unit?.MissionContent is not Rasa.Repositories.World.IMigratedMissionContentRepository migrated)
+                return result;
+            var registry = new Rasa.Missions.Scenes.SceneScriptRegistry();
+            foreach (var binding in migrated.GetSceneBindings().Where(binding =>
+                snapshot.Definitions.TryGetValue(binding.MissionId, out var definition) &&
+                definition.ContentRevision == binding.ContentRevision))
+            {
+                var scene = System.Text.Json.JsonSerializer.Deserialize<Rasa.Missions.Content.MissionSceneDefinition>(
+                    binding.Bindings, Rasa.Missions.Content.MissionContentCodec.Options);
+                if (scene == null || string.IsNullOrWhiteSpace(scene.Script) || scene.Script != binding.ScriptKey ||
+                    scene.StateVersion != binding.StateVersion ||
+                    !registry.TryResolve(scene.Script, scene.StateVersion, out _))
+                    continue;
+                result[binding.MissionId] = scene.Sequences.Where(sequence =>
+                        scene.Script != "data.sequence" ||
+                        sequence.Value.World.Count > 0 || sequence.Value.Character.Count > 0 ||
+                        sequence.Value.Signals.Count > 0 || sequence.Value.Timers.Count > 0)
+                    .Select(sequence => sequence.Key).ToHashSet();
+            }
+            return result;
+        }
+
+        private static MissionContentReferenceSet CreateReferences(IWorldUnitOfWork unitOfWork,
+            IReadOnlyDictionary<uint, IReadOnlySet<uint>> objectPackages,
+            IReadOnlyDictionary<uint, IReadOnlySet<uint>> typedScenarios)
         {
             var itemTemplateClasses = (unitOfWork?.Equipment?.GetItemTemplateClasses() ??
                 new List<ItemTemplateItemClassEntry>())
@@ -107,7 +171,8 @@ namespace Rasa.Managers
                 itemTemplateClasses,
                 (unitOfWork?.EntityClasses?.Get() ?? new List<EntityClassEntry>()).Select(entry => entry.Id),
                 creatureClasses,
-                (unitOfWork?.MapInfos?.Get() ?? new List<MapInfoEntry>()).Select(entry => entry.Id));
+                (unitOfWork?.MapInfos?.Get() ?? new List<MapInfoEntry>()).Select(entry => entry.Id),
+                objectPackages, typedScenarios);
         }
 
         private static void ValidateMission(
@@ -157,7 +222,12 @@ namespace Rasa.Managers
 
             foreach (var objective in definition.Objectives.Values.OrderBy(objective => objective.ObjectiveId))
             {
-                if (!objective.ClientNameTextId.HasValue || !objective.ClientBodyTextId.HasValue)
+                if ((objective.IsAggregate || objective.RecognizeExistingFacts) && !objective.HasCompleteServerContract)
+                    diagnostics.Add(new MissionValidationDiagnostic(
+                        "invalid-objective-progress-metadata",
+                        "progress metadata requires a standalone aggregate or an eligible waypoint, Logos or mission-history rule.",
+                        definition.MissionId, definition.ContentRevision, objective.ObjectiveId));
+                if (objective.IsVisible && (!objective.ClientNameTextId.HasValue || !objective.ClientBodyTextId.HasValue))
                 {
                     diagnostics.Add(new MissionValidationDiagnostic(
                         "missing-client-text",
@@ -227,7 +297,8 @@ namespace Rasa.Managers
 
                     if (trigger.Kind == MissionTriggerKind.Conversation &&
                         (!trigger.NpcPackageId.HasValue ||
-                            !references.NpcPackageIds.Contains(trigger.NpcPackageId.Value)))
+                            !references.NpcPackageIds.Contains(trigger.NpcPackageId.Value) &&
+                            references.ObjectNpcPackages.GetValueOrDefault(definition.MissionId)?.Contains(trigger.NpcPackageId.Value) != true))
                     {
                         diagnostics.Add(new MissionValidationDiagnostic(
                             "missing-npc-package",
@@ -517,7 +588,8 @@ namespace Rasa.Managers
             MissionContentDefinition definition,
             ICollection<MissionValidationDiagnostic> diagnostics)
         {
-            foreach (var objective in definition.Objectives.Values.OrderBy(objective => objective.ObjectiveId))
+            foreach (var objective in definition.Objectives.Values.Where(objective => objective.IsVisible)
+                .OrderBy(objective => objective.ObjectiveId))
             {
                 foreach (var counter in objective.Counters.Values.OrderBy(counter => counter.CounterId))
                 {
@@ -697,11 +769,19 @@ namespace Rasa.Managers
         }
 
         internal static IReadOnlyDictionary<uint, uint[]> BuildObjectiveGraph(
-            IEnumerable<Structures.MissionObjectiveDefinition> objectives) =>
-            objectives.ToDictionary(objective => objective.ObjectiveId,
+            IEnumerable<Structures.MissionObjectiveDefinition> objectives)
+        {
+            var definitions = objectives.ToArray();
+            var summaries = definitions.Where(objective => objective.Aggregation != null)
+                .SelectMany(objective => objective.Aggregation.ChildObjectiveIds.Select(child =>
+                    (Child: child, Summary: objective.ObjectiveId)))
+                .ToLookup(entry => entry.Child, entry => entry.Summary);
+            return definitions.ToDictionary(objective => objective.ObjectiveId,
                 objective => objective.GetExecutableTransitionsOrLegacyDefault()
                     .SelectMany(transition => transition.RevealedObjectiveIds.Concat(transition.ActivatedObjectiveIds))
+                    .Concat(summaries[objective.ObjectiveId])
                     .Distinct().ToArray());
+        }
 
         private static bool DetectCycle(
             uint node,
@@ -1011,6 +1091,8 @@ namespace Rasa.Managers
             {
                 if (scenario.Steps.Count == 0)
                 {
+                    if (references.TypedScenarioIds.GetValueOrDefault(definition.MissionId)?.Contains(scenario.ScenarioId) == true)
+                        continue;
                     diagnostics.Add(new MissionValidationDiagnostic(
                         "missing-scenario",
                         $"scenario {scenario.ScenarioId} has no steps; author at least one step.",
@@ -1579,6 +1661,8 @@ namespace Rasa.Managers
         private sealed class MissionContentReferenceSet
         {
             public HashSet<uint> NpcPackageIds { get; }
+            public IReadOnlyDictionary<uint, IReadOnlySet<uint>> ObjectNpcPackages { get; }
+            public IReadOnlyDictionary<uint, IReadOnlySet<uint>> TypedScenarioIds { get; }
             public IReadOnlyDictionary<uint, uint> ItemTemplateClasses { get; }
             public HashSet<uint> EntityClassIds { get; }
             public IReadOnlyDictionary<uint, uint> CreatureClasses { get; }
@@ -1589,9 +1673,13 @@ namespace Rasa.Managers
                 IReadOnlyDictionary<uint, uint> itemTemplateClasses,
                 IEnumerable<uint> entityClassIds,
                 IReadOnlyDictionary<uint, uint> creatureClasses,
-                IEnumerable<uint> mapContextIds)
+                IEnumerable<uint> mapContextIds,
+                IReadOnlyDictionary<uint, IReadOnlySet<uint>> objectPackages,
+                IReadOnlyDictionary<uint, IReadOnlySet<uint>> typedScenarios)
             {
                 NpcPackageIds = new HashSet<uint>(npcPackageIds ?? Array.Empty<uint>());
+                ObjectNpcPackages = objectPackages;
+                TypedScenarioIds = typedScenarios;
                 ItemTemplateClasses = itemTemplateClasses ??
                     new Dictionary<uint, uint>();
                 EntityClassIds = new HashSet<uint>(entityClassIds ?? Array.Empty<uint>());

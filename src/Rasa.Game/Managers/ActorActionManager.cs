@@ -138,6 +138,7 @@ namespace Rasa.Managers
                             AbilityManager.Instance.UseHortimonculusRecovery(mapChannel, action);
                             break;
                         case DynamicObjectManager.FootlockerUseArgId:
+                        case DynamicObjectManager.SurveyUseArgId:
                             DynamicObjectManager.Instance.FootlockerRecovery(mapChannel, action);
                             break;
                         case KraftwerksManager.UseObjectArgId:

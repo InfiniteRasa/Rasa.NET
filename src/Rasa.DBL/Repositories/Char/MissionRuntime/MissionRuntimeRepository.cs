@@ -158,6 +158,8 @@ namespace Rasa.Repositories.Char.MissionRuntime
                  actor.Generation == scene.Generation && actor.SharedKey != null && actor.Outcome == "Defeated"
              select actor.SharedKey).Distinct().ToArray();
         public bool HasReceipt(string ownerId, uint generation, string key) =>
+            _context.Set<MissionReceiptEntry>().Local.Any(entry => entry.OwnerId == ownerId &&
+                entry.Generation == generation && entry.OperationKey == key) ||
             _context.Set<MissionReceiptEntry>().Any(entry => entry.OwnerId == ownerId &&
                 entry.Generation == generation && entry.OperationKey == key);
         public bool HasOutcome(string eventId) => _context.Set<MissionOutcomeEntry>().Any(entry => entry.EventId == eventId);

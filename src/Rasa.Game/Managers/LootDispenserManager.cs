@@ -9,6 +9,7 @@ namespace Rasa.Managers
 {
     using Data;
     using Game;
+    using Game.Missions.Persistence;
     using Packets.Communicator.Server;
     using Packets.LootDispenser.Server;
     using Packets.MapChannel.Client;
@@ -276,13 +277,15 @@ namespace Rasa.Managers
 
         internal LootDispenser Create(Client killer, Creature creature, ActorGameplayPolicy policy = null)
         {
-            return Create(killer, creature, new List<Client> { killer }, 0, policy);
+            var loot = Create(killer, creature, new List<Client> { killer }, 0, policy);
+            AppendMissionLoot(killer, loot);
+            return loot;
         }
 
         /// <summary>
-        /// The dispenser for a corpse, owned by the first of the looters - the killer, or the squad
+        /// The ordinary loot dispenser, owned by the first of the looters - the killer, or the squad
         /// member whose turn it is - and open to all of them. partyId marks its items as the
-        /// squad's (Free For All).
+        /// squad's (Free For All). Qualified drops are appended after squad allocation.
         /// </summary>
         internal LootDispenser Create(Client killer, Creature creature, List<Client> looters, uint partyId, ActorGameplayPolicy policy = null)
         {
@@ -315,6 +318,71 @@ namespace Rasa.Managers
             }
 
             return loot;
+        }
+
+        private void AppendMissionLoot(Client owner, LootDispenser loot)
+        {
+            if (owner.Player.Missions.Count == 0)
+                return;
+            lock (loot.Map.LootSyncRoot)
+                AppendMissionLootLocked(owner, loot);
+        }
+
+        private void AppendMissionLootLocked(Client owner, LootDispenser loot)
+        {
+            var missions = _missionManager ?? MissionApplication.Instance;
+            if (!MissionLootPlanner.HasCandidates(owner, missions))
+                return;
+            var staged = new List<(Item Item, MissionLootPlanner.QualifiedDrop Drop)>();
+            var committed = false;
+            try
+            {
+                using var unit = _gameUnitOfWorkFactory.CreateChar();
+                unit.ExecuteTransaction(() =>
+                {
+                    foreach (var drop in MissionLootPlanner.Plan(owner, loot, missions, unit, _lootRoll))
+                    {
+                        var template = ItemManager.Instance.GetItemTemplateById(drop.Binding.ItemTemplateId);
+                        var itemClass = template == null ? null :
+                            EntityClassManager.Instance.GetClassInfo(template.Class)?.ItemClassInfo;
+                        if (itemClass == null || drop.Quantity > itemClass.StackSize)
+                            throw new GameplayRejectionException("Mission corpse loot has an invalid template or native stack size.");
+                        var item = ItemManager.StageItem(template, drop.Quantity, string.Empty);
+                        staged.Add((item, drop));
+                        item.Id = unit.Items.CreateItem(item);
+                        if (item.Id == 0)
+                            throw new GameplayRejectionException("Mission corpse loot item was not persisted.");
+                    }
+                });
+                committed = true;
+            }
+            catch (Exception error) when (GameplayRejectionException.IsExpected(error))
+            {
+                Logger.WriteLog(LogType.Error, $"Mission corpse loot creation failed for character {owner.Player.Id}: {error.Message}");
+                return;
+            }
+            finally
+            {
+                if (!committed)
+                    foreach (var entry in staged)
+                        EntityManager.Instance.FreeEntity(entry.Item.EntityId);
+            }
+            foreach (var entry in staged)
+            {
+                EntityManager.Instance.RegisterEntity(entry.Item.EntityId, EntityType.Item);
+                EntityManager.Instance.RegisterItem(entry.Item.EntityId, entry.Item);
+                var item = new LootItem(entry.Item, owner.Player.EntityId, 0)
+                {
+                    ReservedFor = owner.Player.EntityId
+                };
+                MissionLootPlanner.Attach(item, entry.Drop);
+                loot.LootItems.Add(item);
+                var quality = (LootQuality)entry.Item.ItemTemplate.QualityId;
+                if (quality.Rank() > loot.LootQuality.Rank())
+                    loot.LootQuality = quality;
+            }
+            if (staged.Count > 0)
+                loot.Looters.Add(owner.Player.EntityId);
         }
 
         /// <summary>
@@ -440,6 +508,12 @@ namespace Rasa.Managers
                     shownTo.Add(winner);
                     loot.Looters.Add(winner.Player.EntityId);
                 }
+
+            // Plan personal drops after ordinary allocations: another member's items cannot
+            // fill the killer's collection deficit, and qualified drops never enter squad rolls.
+            AppendMissionLoot(client, loot);
+            if (loot.Looters.Contains(client.Player.EntityId) && !shownTo.Contains(client))
+                shownTo.Add(client);
 
             foreach (var looter in shownTo)
             {
@@ -911,6 +985,8 @@ namespace Rasa.Managers
                                 throw new GameplayRejectionException("Reward loot item was already claimed.");
                     }
 
+                    MissionLootPlanner.ValidateClaim(client, loot, items, missionManager, unitOfWork,
+                        () => TryGetLoot(client, loot.EntityId, out var admittedLoot) && ReferenceEquals(admittedLoot, loot));
                     grant.PlanAndSave(client, items, unitOfWork, destSlot);
                     var events = items.GroupBy(item => item.ItemClassId)
                         .Select(group => MissionProgressEvent.ItemAcquired(

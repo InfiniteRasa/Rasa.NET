@@ -307,11 +307,15 @@ namespace Rasa.Managers
                 (_missionManager ?? MissionApplication.Instance).Scenes.RecordDefeat(mapChannel, creature,
                     progressClient != null && CanCreditScenarioProgress(mapChannel, creature, progressClient)
                         ? progressClient : null);
-            else if (progressClient != null && CanCreditScenarioProgress(mapChannel, creature, progressClient))
-                (_missionManager ?? MissionApplication.Instance).Credit.Record(
-                    progressClient,
-                    MissionProgressEvent.Creature(creature.DbId),
-                    creature.Position);
+            else
+            {
+                (_missionManager ?? MissionApplication.Instance).Scenes.PublicActorDied(mapChannel, creature);
+                if (progressClient != null && CanCreditScenarioProgress(mapChannel, creature, progressClient))
+                    (_missionManager ?? MissionApplication.Instance).Credit.Record(
+                        progressClient,
+                        MissionProgressEvent.Creature(creature.DbId),
+                        creature.Position);
+            }
         }
 
         internal static Client FindEscortOwner(MapChannel mapChannel, Creature escort)
@@ -333,7 +337,7 @@ namespace Rasa.Managers
         }
 
         internal static bool IsLivingOnMap(MapChannel map, Actor actor) =>
-            actor != null && actor.State != CharacterState.Dead &&
+            actor != null && actor.State is not (CharacterState.Dead or CharacterState.Dying) &&
             actor.Attributes.TryGetValue(Attributes.Health, out var health) && health.Current > 0 &&
             MapInstanceScope.Contains(map, actor) &&
             (actor is Creature creature
@@ -348,7 +352,10 @@ namespace Rasa.Managers
 
         internal static bool IsHostileTarget(MapChannel map, Actor source, Creature target) =>
             IsLivingOnMap(map, source) && IsLivingOnMap(map, target) &&
-            target.TargetCategory != (source is Creature creature ? creature.TargetCategory : TargetCategory.Friendly);
+            Game.Missions.World.CreatureGameplayRules.CanParticipateInCombat(target) &&
+            (source is Creature attacker
+                ? BehaviorManager.MayFight(attacker, target.EntityId)
+                : TargetCategories.PlayerMayAttack(target.TargetCategory));
 
         internal static void RecordOwnerAttack(MapChannel map, Actor source, Creature target)
         {
@@ -441,6 +448,7 @@ namespace Rasa.Managers
             if (spawnPool?.RuntimeMapChannel != null)
             {
                 var leases = (_missionManager ?? MissionApplication.Instance).PublicActors;
+                leases.BindCombatGate(creature, spawnPool);
                 leases.Recover(spawnPool.RuntimeMapChannel);
                 if (leases.IsReserved(spawnPool.RuntimeMapChannel, spawnPool.DbId))
                     creature.IsInteractable = false;

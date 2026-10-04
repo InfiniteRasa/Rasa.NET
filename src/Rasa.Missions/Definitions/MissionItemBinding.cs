@@ -12,5 +12,7 @@ namespace Rasa.Missions.Definitions
         [property: JsonRequired] uint MaximumQuantity,
         [property: JsonRequired] MissionItemCleanupDisposition Completion,
         [property: JsonRequired] MissionItemCleanupDisposition Failure,
-        [property: JsonRequired] MissionItemCleanupDisposition Abandonment);
+        [property: JsonRequired] MissionItemCleanupDisposition Abandonment,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] uint TurnInQuantity = 0,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] MissionItemDropDefinition Drop = null);
 }

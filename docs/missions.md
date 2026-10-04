@@ -4,28 +4,30 @@ Mission content is deployed by **EF Core database migrations**, just like the
 other World data. There is no mission pack, publication command, release
 activation step, or separate database path to provide to another tool.
 
-This branch targets **fresh databases**. All branch-added migrations have been
-consolidated; databases containing the removed intermediate migration IDs are
-not supported upgrade sources. Previously published experimental mission
-databases and character saves are not converted. Database files are never
-deleted automatically. Use a fresh development database path, or remove your
-own disposable databases when you intend to start over.
+The consolidated mission baseline targets **fresh databases**. Databases
+containing its removed intermediate migration IDs are not supported upgrade
+sources, and experimental mission saves are not converted. The subsequent
+Wilderness rollout supports fresh merged databases and existing PR105 databases.
+Its 17 provider pairs run after PR105's `20261103000000` World boundary, using
+the common `20261104000000..20261104001600` sequence. The earlier September
+Wilderness IDs were unshipped and their disposable databases are not an upgrade
+source. Database files are never deleted automatically.
 
-After the preserved `development` history, each provider has one Char schema
-migration and two World migrations: `ConsolidatedCharacterSchema`,
+After the preserved `development` history, each provider's baseline has one
+Char schema migration and two World migrations: `ConsolidatedCharacterSchema`,
 `ConsolidatedWorldSchema`, and `SeedWorldContent`. The schemas create assignment
 items, per-attempt history, forwarding provenance, radio authority and nullable
 party-source identity directly. There are no intermediate save backfills.
 See [the migration layout](setup.md#mission-data-migrations) and
 [quest-item persistence](mission-reference.md#assignment-owned-quest-items).
 
-The World seed installs explicit radio channels and bounded offer authority.
-Only Initiation gains a radio source: its existing arrival offer now uses the
-generic authority. Its NPC path is retained, completion stays NPC-only, and
-all Bootcamp missions remain Once, private and unshareable. Wilderness content
-remains disabled. The data migration follows the final schema migration for
-both providers. Native UI and live MySQL behavior still need separate
-acceptance checks.
+`SeedWorldContent` enables exactly the five protected Bootcamp missions.
+Initiation's arrival offer uses bounded radio authority while retaining its NPC
+path and NPC-only completion. All Bootcamp missions remain Once, private and
+unshareable. Later paired World migrations add the reconciled **64 outdoor
+Wilderness missions**, including mutually exclusive branches and the partial
+Targets of Opportunity assignment, for **69 enabled definitions** in total.
+Native UI and live MySQL behavior need separate acceptance checks.
 
 ## Start the servers
 
@@ -72,6 +74,29 @@ rows; `SeedWorldContent` calls `WorldContentDataV1` to install those definitions
 the current scene bindings and their supporting World data.
 `MissionDataMigration` provides typed helpers for inserting/updating scene and
 experience bindings and enabling a completed mission definition.
+
+Wilderness helpers live under the corresponding `Missions\Wilderness`
+directory. Their providers apply the opening, Alia branches, Eloh/Pinhole,
+Landing Zone, Twin Pillars, Ranja Gorge and Daghda's Urn in dependency order.
+Shared World corrections precede their consumers. `WildernessSupportedRewards`
+is a forward, exact-key correction to eight existing reward rows; it does not
+rewrite already-applied helpers or character inventory. Twin Pillars and Ranja
+Gorge author the same supported medpack policy before their activation.
+Daghda's Urn installs Skeev's World data and its manual-combat scene binding
+together. See the [coverage and reconstruction ledger](wilderness-missions.md).
+
+Mission-authored World creature, spawn-pool and attack identities use
+`630001..630199`, separate from PR105's Divide rows. Native mission, class and
+item IDs are unchanged, as are Char outcome flags `530002` and `530003`.
+PR105's class-sourced armor rows are authoritative; the retained
+`WildernessRewardEquipment` marker has no Up or Down data operations.
+
+Evidence notes use `TEXT`, not the baseline's `varchar(256)`. The unshipped W2
+provider wrappers widen this column before calling the helper that inserts the
+first long notes. The later `WildernessEvidenceCapacity` pair retains the
+additive capacity boundary.
+This additive compatibility change retains capacity on rollback rather than
+truncating surviving notes.
 
 The [data and script reference](mission-reference.md) explains the fields and
 ID namespaces. Ordinary and escort examples are C# fixtures in
@@ -226,6 +251,14 @@ current assignment and active participant. Replaying a sequence inbox entry
 still does nothing; a new trusted scene signal may reissue an eligible offer
 after reconnect. Other character-operation receipts remain unchanged.
 
+For an optional follow-up, use
+`new OfferRadioMissionIntent(operationKey, missionId, IfEligible: true)`.
+Already assigned/completed targets and ordinary eligibility or capacity limits
+then produce a logged no-op instead of failing the source scene's recovery.
+Invalid source identity still fails. A consumed offer remains stored while its
+exact target assignment is active or awaiting reward, preserving the original
+source-assignment proof for concurrent delivery/choice missions.
+
 Offers last five minutes, with one pending slot per character/mission and at
 most 30 per character. Identical retries do not notify again or renew expiry.
 Session/map/character changes invalidate old offers. A still-eligible source
@@ -326,6 +359,29 @@ Recovery is defined by the script checkpoint, route resume settings and
 public encounter policy. There is no generic `Recovery` string that dispatches
 an automatic recovery strategy.
 
+### Bind native object actions
+
+For a usable object, set
+`UseAction: new SceneObjectAction(missionId, objectiveId, sequenceId, actionArgId)`.
+Use the native argument, such as `3` for Surveyor Unit class `7827`, rather than
+the usual `1`. For a damageable object, set
+`Destruction: new SceneObjectDestruction(missionId, objectiveId, sequenceId, hitPoints, destroyedState)`.
+Real weapon/ability damage must reach zero HP before its sequence runs. Preserve
+the native destroyed state: ordinary inert objects use `2`; the Bane forcefield
+uses `196 -> 199` and has no native use callback.
+
+Both inputs require the exact live actor role, owner, assignment, generation
+and eligible objective. Their sequence can combine inventory costs, grants and
+progress in one transaction. A full inventory leaves the action retryable.
+Do not replace real destruction with class-wide hit counts, or make a usable
+prop into a creature just to receive a kill event.
+
+For a finite set of objects sharing one native counter, author one scoped
+`ScenarioEvent` trigger per distinct event ID, a common scenario ID in
+`CounterId`, `InitialValue = 0`, and `TargetValue` equal to the set size.
+Each source sequence emits its own `SceneMissionSignal`. Assignment-generation
+receipts preserve distinctness and publish counter `0` through reconnect.
+
 ### Give an actor role a gameplay policy
 
 Set optional `SceneActorDefinition.GameplayPolicy` on a `Creature` or
@@ -375,8 +431,27 @@ experience, not creating personal copies of public main-world NPCs.
 
 Main-world actors remain public. An escort reserves the exact static spawn
 before the assignment is accepted. Competing starts wait for the authored
-return/reset/respawn. Departure policy may be `Reset`, `Wait` or `Continue`;
+return/reset/respawn. Departure policy may be `Reset`, `Wait`, `Continue` or `Fail`;
 deliberately abandoning the initiating assignment cancels that run.
+`Fail` commits a required-objective failure and item cleanup before releasing
+the actor. A persistence failure pauses world work and retries that failure;
+it does not release a still-active assignment's actor to another player.
+Public actor death is observed even before its first route starts.
+
+Use `PublicEncounterBinding.ManualCombat = true` for a public negotiation that
+must not begin as ordinary faction combat. The unleased and reserved actor
+remains protected from automatic targeting, direct damage and retaliation.
+Only an `AttackActorIntent` from the current lease authorizes combat; cancellation,
+reset or release revokes it. Ordinary faction IDs and public actor identity stay
+unchanged. Do not simulate this with a fake minion owner or an empty attack list.
+An emitted attack retains its exact lease/operation authorization. Opening a
+new fight on the same actor cannot make an old, revoked missile valid again.
+
+For new World creatures, supply the `creature_stat` row used by normal spawning.
+Setting only `creature.max_hp` does not populate `Attributes.Health`; the legacy
+normal-spawn fallback is 100. The fixed Wilderness statistics migration makes
+the allocated actors' runtime health match their explicitly reconstructed
+World health values without changing unrelated fallback behavior.
 
 Group credit requires each recipient's matching active objective and the
 authored eligibility policy. It does not accept missions automatically or copy
@@ -432,6 +507,27 @@ not only the original flag/content transition. The operator chooses when to
 remove disposable files. There is no automatic reset, database deletion or
 mission-pack publishing. MySQL remains manually migrated.
 
+The forward Wilderness migrations preserve an existing PR105 database's Char
+assignments, inventory, flags and history. Fresh initialization runs the retained
+baseline, all PR105 migrations, then Wilderness in the same order. Validate this
+upgrade on a disposable copy; September Wilderness and pre-consolidation
+experimental histories are not supported sources. Never use a World `Down`
+migration as a live character-save rollback.
+
+Use `AssignmentItemRequirement(missionId, itemKey)` when eligibility requires
+actual held stock from an active assignment. `SourceOfferMissionId` additionally
+binds it to the consumed radio offer's original assignment/generation. Template
+counts, flags and an active mission alone are not ownership proof.
+`MissionDialogueTopicDefinition.Requirement` gates an individual native topic;
+`SourceCreatureId` disambiguates unrelated NPCs that reuse a native package.
+
+A betrayal transition uses `MissionActionKind.FailRelatedMission` with a typed
+`FailRelatedMissionIntent` payload. It fails the other assignment's required
+objective and performs that assignment's own cleanup in the originating
+transaction. Do not implement this as a later scene callback or relax
+cross-assignment item guards. The serialized action payload remains in the
+existing `item_intent` column.
+
 ## Focused verification
 
 ```powershell
@@ -442,7 +538,14 @@ The migration checks exercise fresh SQLite initialization, repeat startup,
 enabled content, script validation and provider-equivalent seed operations.
 `MigrationConsolidationTests` checks schema-only operations, preserved defaults,
 and full-row round trips through the retained `development` migration boundary.
-`BranchMigrationsAreConsolidatedByDatabase` checks the six-step layout. The
+`ConsolidatedBaselineRetainsExpectedDatabaseMigrations` pins the preserved
+baseline independently of later forward migrations. `WildernessCoverageTests`
+checks the exact latest 64-outdoor-plus-five-Bootcamp set, and
+`WildernessProgressionAcceptanceTests` upgrades an active W1 assignment through
+the retimed providers without changing its identity or earned counters.
+`WildernessMigrationTests` additionally covers fresh and PR105-existing World
+databases, preserving Divide, rebuilt Wilderness pools, moved bosses and armor
+while checking all 69 definitions and the mission-specific `630xxx` bindings. The
 content suites retain final objective, reward, scene, item and radio assertions;
 they no longer require removed intermediate migration IDs.
 Use the affected gameplay suites for the mission being changed, then the

@@ -466,7 +466,9 @@ namespace Rasa.Test.Missions
                 });
                 context.SaveChanges();
 
-                Assert.AreEqual(1, context.MissionTriggerEntries.Count(entry => entry.TriggerId == 3));
+                Assert.AreEqual(1, context.MissionTriggerEntries.Count(entry =>
+                    entry.MissionId == 321 && entry.ContentRevision == "deployment_11" &&
+                    entry.ObjectiveId == 10 && entry.TransitionId == 20 && entry.TriggerId == 3));
 
                 AssertSqliteConstraintViolation(database, failing =>
                 {
@@ -551,33 +553,39 @@ namespace Rasa.Test.Missions
                 });
                 AssertSqliteConstraintViolation(database, failing =>
                 {
-                    var area = failing.MissionAreaEntries.Single(entry => entry.AreaId == 30);
+                    var area = failing.MissionAreaEntries.Single(entry =>
+                        entry.MissionId == 321 && entry.ContentRevision == "deployment_11" && entry.AreaId == 30);
                     failing.MissionAreaEntries.Remove(area);
                 });
                 AssertSqliteConstraintViolation(database, failing =>
                 {
                     var objective = failing.MissionObjectiveDefinitionEntries
-                        .Single(entry => entry.ObjectiveId == 11);
+                        .Single(entry => entry.MissionId == 321 && entry.ContentRevision == "deployment_11" &&
+                            entry.ObjectiveId == 11);
                     failing.MissionObjectiveDefinitionEntries.Remove(objective);
                 });
                 AssertSqliteConstraintViolation(database, failing =>
                 {
-                    var reward = failing.MissionRewardDefinitionEntries.Single(entry => entry.RewardId == 40);
+                    var reward = failing.MissionRewardDefinitionEntries.Single(entry =>
+                        entry.MissionId == 321 && entry.ContentRevision == "deployment_11" && entry.RewardId == 40);
                     failing.MissionRewardDefinitionEntries.Remove(reward);
                 });
                 AssertSqliteConstraintViolation(database, failing =>
                 {
-                    var spawnGroup = failing.MissionSpawnGroupEntries.Single(entry => entry.SpawnGroupId == 50);
+                    var spawnGroup = failing.MissionSpawnGroupEntries.Single(entry =>
+                        entry.MissionId == 321 && entry.ContentRevision == "deployment_11" && entry.SpawnGroupId == 50);
                     failing.MissionSpawnGroupEntries.Remove(spawnGroup);
                 });
                 AssertSqliteConstraintViolation(database, failing =>
                 {
-                    var scenario = failing.MissionScenarioEntries.Single(entry => entry.ScenarioId == 60);
+                    var scenario = failing.MissionScenarioEntries.Single(entry =>
+                        entry.MissionId == 321 && entry.ContentRevision == "deployment_11" && entry.ScenarioId == 60);
                     failing.MissionScenarioEntries.Remove(scenario);
                 });
                 AssertSqliteConstraintViolation(database, failing =>
                 {
-                    var indicator = failing.MissionIndicatorEntries.Single(entry => entry.IndicatorId == 70);
+                    var indicator = failing.MissionIndicatorEntries.Single(entry =>
+                        entry.MissionId == 321 && entry.ContentRevision == "deployment_11" && entry.IndicatorId == 70);
                     failing.MissionIndicatorEntries.Remove(indicator);
                 });
             });

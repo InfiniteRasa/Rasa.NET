@@ -139,6 +139,14 @@ namespace Rasa.Managers
             if (creature.State == CharacterState.Dead || creature.State == CharacterState.Dying)
                 return;
 
+            // A manually gated target is also excluded by MayFight below. Keep the immune hit
+            // record before that refusal, as for every other form of damage immunity.
+            if (DamageImmunity.IsImmune(creature, missile.DamageType))
+            {
+                Immune(missile, creature);
+                return;
+            }
+
             // Its target category has to allow the hit: a player may strike HOSTILE and NEUTRAL,
             // a creature anything its own category may fight (TargetCategories), as Mind Control
             // bends it (BehaviorManager.MayFight). The client does not offer the rest as targets;
@@ -148,16 +156,6 @@ namespace Rasa.Managers
                                            : true))
             {
                 missile.DamageA = 0;
-                return;
-            }
-
-            // Immune (DamageImmunity): a mission scene's invulnerable creature, one running home
-            // after a leash - untouchable until it is there, or dragging a creature to the end of
-            // its leash would make it a free kill - or one immune to what the shot deals. The hit
-            // says so, and "Immune" floats over it as the shot lands.
-            if (DamageImmunity.IsImmune(creature, missile.DamageType))
-            {
-                Immune(missile, creature);
                 return;
             }
 
@@ -580,6 +578,14 @@ namespace Rasa.Managers
         /// <param name="optimalRange">A player's weapon shot: the weapon's optimal range, past which its damage drops (RangeFalloff); 0 for no drop.</param>
         public void MissileLaunch(MapChannel mapChannel, ActionData action, int damage, int armorBypassPercent = 0, DamageType damageType = 0, double critBonus = 0, bool melee = false, int stunChance = 0, int stunMs = 0, int rootMs = 0, int knockbackChance = 0, float splashRadius = 0, float coneHalfAngle = 0, int knockbackStunMs = 0, CreatureAction creatureAction = null, int? landsInMs = null, float optimalRange = 0)
         {
+            var manualSource = action.Actor as Creature;
+            var sourceCombatAuthorization = manualSource?.ScriptedCombatAuthorization;
+            if (manualSource != null &&
+                !CreatureWindups.HasCombatAuthorization(mapChannel, manualSource, sourceCombatAuthorization))
+            {
+                Logger.WriteLog(LogType.Debug, $"Manual combat source {manualSource.EntityId} has no current attack authority.");
+                return;
+            }
             var missile = new Missile
             {
                 CreatureAction = creatureAction,
@@ -587,6 +593,7 @@ namespace Rasa.Managers
                 DamageType = damageType,
                 ArmorBypassPercent = Math.Max(0, Math.Min(100, armorBypassPercent)),
                 Source = action.Actor,
+                SourceCombatAuthorization = sourceCombatAuthorization,
                 IsMelee = melee,
                 CritChance = CriticalHits.AttackerChance(action.Actor, melee, critBonus),
                 StunChance = stunChance,
@@ -692,7 +699,8 @@ namespace Rasa.Managers
                             return;
                     };
 
-                    if (targetActor == null || targetActor.State == CharacterState.Dead || targetActor.State == CharacterState.Dying)
+                    if (targetActor == null || targetActor.State == CharacterState.Dead || targetActor.State == CharacterState.Dying ||
+                        !targetActor.Attributes.TryGetValue(Attributes.Health, out var targetHealth) || targetHealth.Current <= 0)
                         return; // actor is dead (or dying in its Critical Death window), cannot be shot at
 
                     if (!IsOnMap(mapChannel, targetActor))
@@ -758,7 +766,18 @@ namespace Rasa.Managers
         /// </summary>
         public void CreatureStrike(MapChannel mapChannel, Creature attacker, CreatureAction action, Actor aimedAt, int damage, CreatureArea area, Vector3 centre)
         {
+            CreatureStrike(mapChannel, attacker, action, aimedAt, damage, area, centre,
+                attacker?.ScriptedCombatAuthorization);
+        }
+
+        internal void CreatureStrike(MapChannel mapChannel, Creature attacker, CreatureAction action,
+            Actor aimedAt, int damage, CreatureArea area, Vector3 centre,
+            Game.Missions.World.ScriptedCombatAuthorization sourceCombatAuthorization)
+        {
             if (mapChannel == null || attacker == null)
+                return;
+
+            if (!CreatureWindups.HasCombatAuthorization(mapChannel, attacker, sourceCombatAuthorization))
                 return;
 
             var missile = new Missile
@@ -766,6 +785,7 @@ namespace Rasa.Managers
                 DamageA = damage,
                 DamageType = CreatureAttacks.DamageTypeOf(action),
                 Source = attacker,
+                SourceCombatAuthorization = sourceCombatAuthorization,
                 IsMelee = true,
                 CritChance = CriticalHits.AttackerChance(attacker, true, 0),
                 ActionId = action.ActionId,
@@ -777,7 +797,9 @@ namespace Rasa.Managers
                 TriggerTime = 0
             };
 
-            if (aimedAt != null && aimedAt.State != CharacterState.Dead && aimedAt.State != CharacterState.Dying && IsOnMap(mapChannel, aimedAt))
+            if (aimedAt != null && aimedAt.State != CharacterState.Dead && aimedAt.State != CharacterState.Dying &&
+                aimedAt.Attributes.TryGetValue(Attributes.Health, out var targetHealth) && targetHealth.Current > 0 &&
+                IsOnMap(mapChannel, aimedAt))
             {
                 missile.TargetActor = aimedAt;
                 missile.TargetEntityId = aimedAt.EntityId;
@@ -828,7 +850,8 @@ namespace Rasa.Managers
         /// </summary>
         private void ExtraHit(MapChannel mapChannel, Missile missile, Manifestation shooter, Creature creature, int damage, bool canCrit)
         {
-            if (creature.State == CharacterState.Dead || creature.State == CharacterState.Dying || damage <= 0)
+            if (creature.State == CharacterState.Dead || creature.State == CharacterState.Dying || damage <= 0 ||
+                !creature.Attributes.TryGetValue(Attributes.Health, out var health) || health.Current <= 0)
                 return;
 
             var extra = new Missile
@@ -967,7 +990,10 @@ namespace Rasa.Managers
                 if (!PracticeTargetManager.CanHit(mapChannel, missile.Source, missile.TargetObject))
                     targetType = 0;
             }
-            else if (missile.TargetEntityId != 0 && targetType != EntityType.Object && !IsOnMap(mapChannel, missile.TargetActor))
+            else if (missile.TargetEntityId != 0 && targetType != EntityType.Object &&
+                (!IsOnMap(mapChannel, missile.TargetActor) ||
+                 missile.TargetActor.State is CharacterState.Dead or CharacterState.Dying ||
+                 !missile.TargetActor.Attributes.TryGetValue(Attributes.Health, out var targetHealth) || targetHealth.Current <= 0))
                 targetType = 0;
 
             // A follower or a defender of a mission scene does not turn on a creature on its side.
@@ -976,6 +1002,21 @@ namespace Rasa.Managers
                 missile.TargetActor is Creature enemy &&
                 !CreatureManager.IsHostileTarget(mapChannel, companion, enemy))
                 targetType = 0;
+            if (missile.Source is Creature manual &&
+                !CreatureWindups.HasCombatAuthorization(mapChannel, manual, missile.SourceCombatAuthorization))
+            {
+                targetType = 0;
+                missile.Args.HitEntities.Clear();
+                missile.Args.HitData.Clear();
+                if (missile.TargetEntityId != 0)
+                {
+                    missile.Args.MisstEntities.Add(missile.TargetEntityId);
+                    missile.Args.Missdata.Add(0);
+                }
+                Logger.WriteLog(LogType.Debug, $"Retired manual-combat missile from {manual.EntityId} was rejected.");
+                CellManager.Instance.CellCallMethod(mapChannel, missile.Source, CreatureAttacks.RecoveryFor(missile));
+                return;
+            }
 
             // A staff drawn may deflect it (Staff, from pump 3): no damage at all, and the clients
             // are told it as a miss of misstype 4 - the staff parry animation and "Deflect". A
@@ -1063,10 +1104,15 @@ namespace Rasa.Managers
             };
 
             // A shot at nothing lists no hit: it used to list entity 0.
-            if (missile.TargetEntityId != 0)
+            if (missile.TargetEntityId != 0 && targetType != 0)
             {
                 missile.Args.HitEntities.Add(missile.TargetEntityId);
                 missile.Args.HitData.Add(hitData);
+            }
+            else if (missile.TargetEntityId != 0)
+            {
+                missile.Args.MisstEntities.Add(missile.TargetEntityId);
+                missile.Args.Missdata.Add(0);
             }
 
             switch (targetType)
@@ -1142,7 +1188,8 @@ namespace Rasa.Managers
             }
 
             if (targetType == EntityType.Object && missile.TargetObject != null && missile.DamageA > 0)
-                PracticeTargetManager.RecordHit(mapChannel, missile.Source, missile.TargetObject, missile.ActionId);
+                PracticeTargetManager.RecordHit(mapChannel, missile.Source, missile.TargetObject, missile.ActionId,
+                    damage: missile.DamageA);
         }
     }
 }

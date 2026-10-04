@@ -19,10 +19,14 @@ namespace Rasa.Game.Missions
         private readonly IGameUnitOfWorkFactory _factory;
         private readonly MissionApplication _missions;
         private readonly Func<DateTime> _utcNow;
-        private readonly MissionRequirementService _requirements = new();
+        private readonly MissionRequirementService _requirements;
 
         internal MissionOfferAuthority(IGameUnitOfWorkFactory factory, MissionApplication missions, Func<DateTime> utcNow)
-        { _factory = factory; _missions = missions; _utcNow = utcNow; }
+        {
+            _factory = factory; _missions = missions; _utcNow = utcNow;
+            _requirements = new MissionRequirementService(factory: factory,
+                resolve: id => missions.TryGetOperationalMission(id, out var definition) ? definition : null);
+        }
 
         public bool TryOffer(Client client, uint missionId, MissionOfferSourceIdentity source, bool forceDialog = true)
         {
@@ -47,21 +51,30 @@ namespace Rasa.Game.Missions
         }
 
         internal Action PlanOffer(Client client, uint missionId, MissionOfferSourceIdentity source,
-            ICharUnitOfWork unit, bool forceDialog = true)
+            ICharUnitOfWork unit, bool forceDialog = true, bool ifEligible = false)
         {
             var session = MissionSessionIdentity.Capture(client);
             if (session == null || !_missions.TryGetOperationalMission(missionId, out var definition) ||
                 !unit.MissionOffers.IsOwnedBy(session.CharacterId, session.AccountId) ||
-                !SourceIsCurrent(client, definition, source, unit, persisted: false))
+                !SourceIdentityIsCurrent(client, definition, source, unit, persisted: false))
                 throw new GameplayRejectionException("Radio offer has no authorized recipient, revision or source.");
-            if (!_missions.CanAdmit(client.Player, definition, unit, out var failure) ||
+            string failure = null;
+            if (!_requirements.Evaluate(client.Player, SourceRequirement(definition, source), unit) ||
+                !_missions.CanAdmit(client.Player, definition, unit, out failure) ||
                 !_missions.ArePrerequisitesSatisfied(client.Player, missionId, unit, out failure) ||
                 !_missions.HasJournalCapacity(client.Player.Id, missionId, unit))
+            {
+                if (ifEligible)
+                {
+                    Logger.WriteLog(LogType.Debug, $"Optional radio offer {missionId} is not currently eligible: {failure ?? "source requirement or journal capacity"}.");
+                    return null;
+                }
                 throw new GameplayRejectionException($"Mission offer is ineligible or the journal is full: {failure}");
+            }
             var now = UtcNow();
             var entries = unit.MissionOffers.ForCharacter(session.CharacterId);
             var existing = entries.SingleOrDefault(entry => entry.MissionId == missionId);
-            foreach (var entry in entries.Where(entry => entry != existing &&
+            foreach (var entry in entries.Where(entry => entry != existing && !RetainsSourceProof(entry, unit) &&
                 (entry.State != MissionOfferState.Pending || entry.ExpiresAtUtc <= now ||
                     Snapshot(entry).Session != session)))
                 unit.MissionOffers.Remove(entry);
@@ -77,7 +90,14 @@ namespace Rasa.Game.Missions
             }
             if (unit.MissionOffers.ForCharacter(session.CharacterId)
                 .Count(entry => entry != existing && entry.State == MissionOfferState.Pending) >= PendingCapacity)
+            {
+                if (ifEligible)
+                {
+                    Logger.WriteLog(LogType.Debug, $"Optional radio offer {missionId} deferred: pending offer capacity is full.");
+                    return null;
+                }
                 throw new GameplayRejectionException("The recipient already has 30 pending mission offers.");
+            }
             var prior = unit.CharacterMissions.GetByCharacterAndMission(session.CharacterId, missionId);
             var row = existing ?? new CharacterMissionOfferEntry { CharacterId = session.CharacterId, MissionId = missionId };
             row.OfferId = Guid.NewGuid().ToString("N");
@@ -121,6 +141,16 @@ namespace Rasa.Game.Missions
                 else
                     Logger.WriteLog(LogType.Network, $"Radio offer {authorization.OfferId} committed but its session left before publication.");
             };
+        }
+
+        private static bool RetainsSourceProof(CharacterMissionOfferEntry offer, ICharUnitOfWork unit)
+        {
+            if (offer.State != MissionOfferState.Consumed)
+                return false;
+            var assignment = unit.CharacterMissions.GetByCharacterAndMission(offer.CharacterId, offer.MissionId);
+            return assignment?.AssignmentId == offer.ConsumedAssignmentId &&
+                assignment.Generation == offer.ConsumedAssignmentGeneration &&
+                assignment.MissionState is (uint)Data.MissionState.Active or (uint)Data.MissionState.Success;
         }
 
         internal bool TryResolve(Client client, Mission definition, ICharUnitOfWork unit,
