@@ -16,12 +16,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="BouncyCastle.Cryptography" Version="2.7.0" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.20">
+    <PackageReference Include="BouncyCastle.Cryptography" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.12" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
   </ItemGroup>
 
   <ItemGroup>

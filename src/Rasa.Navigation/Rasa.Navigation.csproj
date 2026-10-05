@@ -14,7 +14,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="DotRecast.Detour" Version="2026.3.1" />
+    <PackageReference Include="DotRecast.Detour" />
   </ItemGroup>
 
 </Project>
