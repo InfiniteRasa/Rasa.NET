@@ -614,6 +614,11 @@ namespace Rasa.Managers
             if (creature == null)
                 return;
 
+            // One this client was given from afar is taken off it first: a second
+            // CreatePhysicalEntity would be an update, and leave it without its overhead icon
+            // (MissionContacts.Entering).
+            MissionContacts.Entering(client, creature);
+
             // random colors for now
             var hue = Color.RandomColor();
             var hue2 = Color.RandomColor();
