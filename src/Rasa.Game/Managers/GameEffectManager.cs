@@ -122,6 +122,39 @@ namespace Rasa.Managers
                 return;
             }
 
+            // A buff from a player under an enemy's Mind Control P4-P5 goes on nobody but them
+            // (Pvp.MayNotAssist).
+            if (effect.IsBuff && effect.Source is Manifestation helper && !ReferenceEquals(helper, actor) && Pvp.MayNotAssist(helper))
+                return;
+
+            // Nor does a buff from anyone outside their side go on a player in a duel, a squad
+            // wargame or a team's match (Pvp.MayHelp).
+            if (effect.IsBuff && effect.Source != null && !Pvp.MayHelp(effect.Source, actor))
+                return;
+
+            // Nor does a debuff from a player on one who holds PvP Safety, or from a player an
+            // enemy's Traitor holds back from that side (Pvp.Shielded). Putting one on an enemy
+            // player ends the attacker's own Safety (Pvp.Attack).
+            if (!effect.IsBuff && effect.Source != null && Pvp.Attack(mapChannel, effect.Source, actor))
+            {
+                CellManager.Instance.CellCallMethod(mapChannel, actor,
+                    new GameEffectAttachFailedPacket(effect.TypeId, GameEffectAttachFailedPacket.FailReason.Immune, effect.SourceId));
+                return;
+            }
+
+            // A debuff from an enemy player (or their creature) lasts PVP_EFFECT_DURATION_MODIFIER
+            // less (Pvp). Stuns and knockbacks are scaled where they are made, their flight and
+            // getup being worked out from the time; a bomb's clock is its fuse, not a duration.
+            if (!effect.IsBuff && !effect.IsStun && effect.OnTick == null && effect.ExpiresTick != long.MaxValue
+                && Pvp.IsPvp(effect.Source, actor) && Pvp.AreEnemies(Pvp.Controller(effect.Source), (Manifestation)actor))
+            {
+                var now = Environment.TickCount64;
+                var left = effect.ExpiresTick - now;
+
+                if (left > 0)
+                    effect.ExpiresTick = now + Pvp.ScaleDuration(effect.Source, actor, (int)Math.Min(int.MaxValue, left));
+            }
+
             // A skill's standing effects are one per skill and share a type (two heat bonuses
             // are two SKILL_LIMITED_COOL_RATE_MODIFIER_EFFECTs); the rest replace their own kind.
             if (!effect.IsSkillPassive)
@@ -156,7 +189,7 @@ namespace Rasa.Managers
             {
                 // nobody is told
             }
-            else if (effect.IsSkillPassive)
+            else if (effect.IsSkillPassive || effect.OwnerOnly)
                 ClientOf(mapChannel, actor)?.CallMethod(actor.EntityId, attached);
             else
                 CellManager.Instance.CellCallMethod(mapChannel, actor, attached);
@@ -218,7 +251,7 @@ namespace Rasa.Managers
                 if (effect.IsExpired)
                     continue;
 
-                if (effect.ServerOnly || effect.IsSkillPassive && viewer != actor)
+                if (effect.ServerOnly || (effect.IsSkillPassive || effect.OwnerOnly) && viewer != actor)
                     continue;
 
                 packets.Add(AttachedPacket(effect, effect.AnnounceToNewcomers));
@@ -325,7 +358,7 @@ namespace Rasa.Managers
             {
                 // nobody was told of it
             }
-            else if (gameEffect.IsSkillPassive)
+            else if (gameEffect.IsSkillPassive || gameEffect.OwnerOnly)
                 ClientOf(mapChannel, actor)?.CallMethod(actor.EntityId, new GameEffectDetachedPacket { EffectId = gameEffect.EffectId });
             else
                 CellManager.Instance.CellCallMethod(mapChannel, actor, new GameEffectDetachedPacket { EffectId = gameEffect.EffectId });
@@ -682,7 +715,7 @@ namespace Rasa.Managers
             if (effect.TickRadius > 0)
             {
                 if (actor is Manifestation holder)
-                    targets.AddRange(AbilityManager.HostilesWithin(mapChannel, holder, actor.Position, effect.TickRadius));
+                    targets.AddRange(AbilityManager.VictimsWithin(mapChannel, holder, actor.Position, effect.TickRadius));
                 else if (actor is Creature creatureHolder)
                     targets.AddRange(CreatureBombs.Caught(mapChannel, creatureHolder, actor.Position, effect.TickRadius));   // a Thrax's Scourge
             }
@@ -855,7 +888,7 @@ namespace Rasa.Managers
         /// <summary>Whether an effect changes what UpdateStatsValues works out for a player.</summary>
         private static bool ChangesStats(GameEffect effect)
         {
-            return effect.MaxHealthPercent != 0 || (effect.AttributeId.HasValue && effect.AttributePercent != 0);
+            return effect.MaxHealthPercent != 0 || (effect.AttributeId.HasValue && effect.AttributePercent != 0) || effect.PrimaryAttributesPercent != 0;
         }
 
         /// <summary>
@@ -874,6 +907,10 @@ namespace Rasa.Managers
 
                 if (attribute == Attributes.Health)
                     total += effect.MaxHealthPercent;
+
+                // Rez Trauma: Body, Mind and Spirit alike.
+                if (attribute == Attributes.Body || attribute == Attributes.Mind || attribute == Attributes.Spirit)
+                    total += effect.PrimaryAttributesPercent;
             }
 
             return total;

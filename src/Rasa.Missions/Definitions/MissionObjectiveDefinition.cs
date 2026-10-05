@@ -121,6 +121,9 @@ namespace Rasa.Structures
         internal uint? AggregateTargetCount => Aggregation?.TargetCount ?? HistoryAggregation?.TargetCount;
         public bool IsVisible { get; }
         public bool RecognizeExistingFacts { get; }
+
+        /// <summary>The title the character earns when this objective completes; null for none.</summary>
+        public uint? TitleId { get; }
         public bool HasCompleteServerContract { get; }
 
         public MissionObjectiveDefinition(
@@ -144,9 +147,11 @@ namespace Rasa.Structures
             global::Rasa.Missions.Definitions.MissionObjectiveAggregation aggregation = null,
             bool isVisible = true,
             bool recognizeExistingFacts = false,
-            global::Rasa.Missions.Definitions.MissionHistoryAggregation historyAggregation = null)
+            global::Rasa.Missions.Definitions.MissionHistoryAggregation historyAggregation = null,
+            uint? titleId = null)
         {
             ObjectiveId = objectiveId;
+            TitleId = titleId;
             ClientNameTextId = clientNameTextId;
             ClientBodyTextId = clientBodyTextId;
             ClientCounterTextIds = Array.AsReadOnly(
@@ -268,7 +273,13 @@ namespace Rasa.Structures
             new(ObjectiveId, ClientNameTextId, ClientBodyTextId, ClientCounterTextIds, Ordinal,
                 InitialState, IsRequired, Counters, ItemCounters, Conversations, RevealedObjectiveIds,
                 ActivatedObjectiveIds, Indicators, ProgressRule, ExecutableTransitions, Requirement, policy,
-                Aggregation, IsVisible, RecognizeExistingFacts, HistoryAggregation);
+                Aggregation, IsVisible, RecognizeExistingFacts, HistoryAggregation, TitleId);
+
+        internal MissionObjectiveDefinition WithTitle(uint? titleId) =>
+            new(ObjectiveId, ClientNameTextId, ClientBodyTextId, ClientCounterTextIds, Ordinal,
+                InitialState, IsRequired, Counters, ItemCounters, Conversations, RevealedObjectiveIds,
+                ActivatedObjectiveIds, Indicators, ProgressRule, ExecutableTransitions, Requirement, CreditPolicy,
+                Aggregation, IsVisible, RecognizeExistingFacts, HistoryAggregation, titleId);
 
         private bool HasExistingFactContract()
         {

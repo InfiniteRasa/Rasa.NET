@@ -34,6 +34,7 @@ namespace Rasa.Context.Char
         public DbSet<CharacterEntry> CharacterEntries { get; set; }
         public DbSet<CharacterAbilityDrawerEntry> CharacterAbilityDrawerEntries { get; set; }
         public DbSet<CharacterAppearanceEntry> CharacterAppearanceEntries { get; set; }
+        public DbSet<CharacterBossKillEntry> CharacterBossKillEntries { get; set; }
         public DbSet<CharacterInventoryEntry> CharacterInventoryEntries { get; set; }
         public DbSet<CharacterLockboxEntry> CharacterLockboxEntries { get; set; }
         public DbSet<CharacterLogosEntry> CharacterLogosEntries { get; set; }
@@ -56,6 +57,18 @@ namespace Rasa.Context.Char
         public DbSet<CharacterTeleporterEntry> CharacterTeleporterEntries { get; set; }
         public DbSet<CharacterTitleEntry> CharacterTitleEntries { get; set; }
         public DbSet<ClanEntry> ClanEntries { get; set; }
+        public DbSet<ClanFeudEntry> ClanFeudEntries { get; set; }
+        public DbSet<ClanFeudChallengeEntry> ClanFeudChallengeEntries { get; set; }
+        public DbSet<ClanFeudStakeEntry> ClanFeudStakeEntries { get; set; }
+        public DbSet<PvpMatchEntry> PvpMatchEntries { get; set; }
+        public DbSet<PvpMatchPlayerEntry> PvpMatchPlayerEntries { get; set; }
+        public DbSet<PvpMatchWagerEntry> PvpMatchWagerEntries { get; set; }
+        public DbSet<GmCommandLogEntry> GmCommandLogEntries { get; set; }
+        public DbSet<ChatLogEntry> ChatLogEntries { get; set; }
+        public DbSet<SquadInstanceEntry> SquadInstanceEntries { get; set; }
+        public DbSet<SquadInstancePoolEntry> SquadInstancePoolEntries { get; set; }
+        public DbSet<SquadInstanceVisitorEntry> SquadInstanceVisitorEntries { get; set; }
+        public DbSet<ControlPointStateEntry> ControlPointStateEntries { get; set; }
         public DbSet<AuctionEntry> AuctionEntries { get; set; }
 
         public DbSet<ClanInventoryEntry> ClanInventoryEntries { get; set; }
@@ -127,9 +140,13 @@ namespace Rasa.Context.Char
             SetupCharacterFlagTable(modelBuilder);
             SetupCharacterTeleporterTable(modelBuilder);
             SetupCharacterTitleTable(modelBuilder);
+            SetupCharacterBossKillTable(modelBuilder);
             SetupCharacterOptionsTable(modelBuilder);
             SetupClanMemberTable(modelBuilder);
             SetupClanTable(modelBuilder);
+            SetupClanFeudTables(modelBuilder);
+            SetupControlPointStateTable(modelBuilder);
+            SetupSquadInstanceTables(modelBuilder);
             SetupFriendTable(modelBuilder);
             SetupIgnoredTable(modelBuilder);
             SetupPetitionTable(modelBuilder);
@@ -444,6 +461,12 @@ namespace Rasa.Context.Char
                 .HasKey(e => new { e.CharacterId, e.TitleId });
         }
 
+        private void SetupCharacterBossKillTable(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<CharacterBossKillEntry>()
+                .HasKey(e => new { e.CharacterId, e.CreatureNameId });
+        }
+
         private void SetupCharacterStartingExperienceTables(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<CharacterStartingExperienceEntry>()
@@ -530,6 +553,50 @@ namespace Rasa.Context.Char
             modelBuilder.Entity<ClanEntry>()
                 .Property(e => e.CreatedAt)
                 .AsCurrentDateTime(_dbContextPropertyModifier);
+        }
+
+        // Keyed by the feud's wargame id, which the server hands out: never generated here.
+        private void SetupClanFeudTables(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<ClanFeudEntry>()
+                .Property(e => e.Id)
+                .ValueGeneratedNever();
+
+            modelBuilder.Entity<ClanFeudChallengeEntry>()
+                .Property(e => e.WargameId)
+                .ValueGeneratedNever();
+
+            // One row per feud and character who left a side of it.
+            modelBuilder.Entity<ClanFeudStakeEntry>()
+                .HasKey(e => new { e.FeudId, e.CharacterId });
+
+            // One row per recorded match and character.
+            modelBuilder.Entity<PvpMatchPlayerEntry>()
+                .HasKey(e => new { e.MatchId, e.CharacterId });
+
+            // One row per recorded match and character with an item wagered.
+            modelBuilder.Entity<PvpMatchWagerEntry>()
+                .HasKey(e => new { e.MatchId, e.CharacterId });
+        }
+
+        // Keyed by the world database's control point id: never generated here.
+        private void SetupControlPointStateTable(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<ControlPointStateEntry>()
+                .Property(e => e.ControlPointId)
+                .ValueGeneratedNever();
+        }
+
+        private void SetupSquadInstanceTables(ModelBuilder modelBuilder)
+        {
+            // One row per instance and dead spawn pool.
+            modelBuilder.Entity<SquadInstancePoolEntry>()
+                .HasKey(e => new { e.InstanceId, e.SpawnpoolId });
+
+            // Keyed by the character: never generated here.
+            modelBuilder.Entity<SquadInstanceVisitorEntry>()
+                .Property(e => e.CharacterId)
+                .ValueGeneratedNever();
         }
 
         // One row per (owner, contact). These were keyed on account_id alone, which capped

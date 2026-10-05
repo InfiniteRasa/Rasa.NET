@@ -34,6 +34,12 @@ namespace Rasa.Missions.Definitions
     public sealed record MissionOfferSourceDefinition(MissionOfferSourceKind Kind, string Key,
         uint? MapContextId = null, bool OwnedPrivateMap = false, MissionRequirement Requirement = null)
     {
+        /// <summary>
+        /// The key of a ServerEvent source that offers its mission to a character arriving on the
+        /// source's map: the game server raises it for every character who comes onto a map.
+        /// </summary>
+        public const string MapArrivalKey = "map.arrival";
+
         [System.Text.Json.Serialization.JsonIgnore]
         public string ValidationError =>
             Kind is not (MissionOfferSourceKind.ServerEvent or MissionOfferSourceKind.Scene) ? "unknown radio source kind" :

@@ -198,6 +198,9 @@ namespace Rasa.Managers
         {
             var player = client.Player;
             var session = Begin(mapChannel, client, weapon, action, damageType);
+
+            // Weakened as any of the player's ranged attacks are (a Laser crit, Called Shot: Eye).
+            damage = GameEffectManager.ApplyRangedDamage(player, damage);
             var leech = session.ActionId == ActionId.WeaponDensitygun;
 
             session.CritBonus = critBonus;
@@ -205,6 +208,7 @@ namespace Rasa.Managers
             // Firing is firing: it is a fight, and it gives a cloaked shooter away.
             ManifestationManager.Instance.EnterCombat(client);
             Stealth.Break(mapChannel, player);
+            AbilityManager.OnPlayerActed(mapChannel, player, true);
 
             // The leech gun's tick is (healData, damageData); every other constant fire's is the pulses alone.
             var tick = new ConstantFireTickPacket(session.Effect.EffectId, leech);
@@ -212,12 +216,27 @@ namespace Rasa.Managers
 
             tick.Pulses.Add(pulse);
 
-            // A propellant gun sprays the cone in front of the shooter; the others hit what they aim at.
-            var targets = session.ActionId == ActionId.WeaponFlamethrower
-                ? AbilityManager.HostilesInCone(mapChannel, player, AbilityManager.FacingOf(player),
-                    ConeWeapons.RangeOf(session.ActionId, session.ActionArgId) + ConeWeapons.RangeSlack,
-                    ConeWeapons.HalfAngleOf(weapon.ItemTemplate.WeaponInfo))
-                : ResolveTarget(mapChannel, player) is Creature aimed ? new List<Creature> { aimed } : new List<Creature>();
+            // A propellant gun sprays the cone in front of the shooter; the others hit what they aim
+            // at. An enemy player across a wargame is a target like a creature (Pvp).
+            var targets = new List<Actor>();
+
+            if (session.ActionId == ActionId.WeaponFlamethrower)
+            {
+                var range = ConeWeapons.RangeOf(session.ActionId, session.ActionArgId) + ConeWeapons.RangeSlack;
+                var halfAngle = ConeWeapons.HalfAngleOf(weapon.ItemTemplate.WeaponInfo);
+                var facing = AbilityManager.FacingOf(player);
+
+                targets.AddRange(AbilityManager.HostilesInCone(mapChannel, player, facing, range, halfAngle));
+                targets.AddRange(Pvp.EnemiesInCone(mapChannel, player, facing, range, halfAngle));
+            }
+            else if (ResolveTarget(mapChannel, player) is Actor aimed && (aimed is Creature || Pvp.IsEnemyTarget(player, aimed)))
+                targets.Add(aimed);
+            else if (PersonalWaypoints.TakeDamage(player, player.Target, damage) is int taken)
+            {
+                // An enemy's Personal Waypoint (PersonalWaypoints): the pulse lands on its own hit
+                // points as it is - no crit, falloff or resistance, as a missile at one.
+                pulse.Add(new TickEntry { EntityId = player.Target, Amount = taken, DamageType = damageType });
+            }
 
             foreach (var target in targets)
             {
@@ -252,7 +271,38 @@ namespace Rasa.Managers
                         AddCharge(session.ChargeTargetId, session.Charge, session.ChargePulses, target.EntityId, rolled);
             }
 
+            PulseAtObject(mapChannel, player, session, damage, damageType, pulse);
+
             CellManager.Instance.CellCallMethod(mapChannel, player, tick);
+        }
+
+        /// <summary>
+        /// The pulse on an object the shooter is aiming at: a practice target, or one a mission
+        /// has the player destroy (PracticeTargetManager). It is no actor, so ResolveTarget and
+        /// the cone have nothing for it, and a chaingun, a laser chaingun or any other
+        /// constant-fire weapon did nothing to an object a pistol's missile could destroy. The
+        /// pulse lands as the missile does (MissileManager.MissileTrigger): the object is listed
+        /// in the tick and the damage goes to RecordHit as it is. No critical hit, range falloff,
+        /// resistance, leech or polarity charge: those are an actor's, there as here.
+        /// </summary>
+        private static void PulseAtObject(MapChannel mapChannel, Manifestation player, Session session,
+            int damage, DamageType damageType, List<TickEntry> pulse)
+        {
+            if (damage <= 0 || player.Target == 0 ||
+                !PracticeTargetManager.TryGetTarget(mapChannel, player.Target, out var target) ||
+                !PracticeTargetManager.CanHit(mapChannel, player, target))
+                return;
+
+            var distance = System.Numerics.Vector3.Distance(target.Position, player.Position);
+            var reach = session.ActionId == ActionId.WeaponFlamethrower
+                ? ConeWeapons.RangeOf(session.ActionId, session.ActionArgId) + ConeWeapons.RangeSlack
+                : MissileManager.MaxTargetDistance;
+
+            if (!float.IsFinite(distance) || distance > reach)
+                return;
+
+            pulse.Add(new TickEntry { EntityId = target.EntityId, Amount = damage, DamageType = damageType });
+            PracticeTargetManager.RecordHit(mapChannel, player, target, session.ActionId, damage: damage);
         }
 
         /// <summary>
@@ -299,8 +349,10 @@ namespace Rasa.Managers
             if (amount <= 0 || session.ChargeTargetId == 0)
                 return;
 
-            if (!(EntityManager.Instance.GetActor(session.ChargeTargetId) is Creature target) || target.MapContextId != mapChannel.MapInfo.MapContextId
-                || target.State == CharacterState.Dead || target.State == CharacterState.Dying)
+            // A creature, or an enemy player who is still one (Pvp).
+            if (!(EntityManager.Instance.GetActor(session.ChargeTargetId) is Actor target) || target.MapContextId != mapChannel.MapInfo.MapContextId
+                || target.State == CharacterState.Dead || target.State == CharacterState.Dying
+                || !(target is Creature || Pvp.IsEnemyTarget(player, target)))
                 return;
 
             var crit = CriticalHits.Resolve(player, target, false, CriticalHits.AttackerChance(player, false, session.CritBonus), ref amount);

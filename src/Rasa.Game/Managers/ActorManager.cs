@@ -51,7 +51,7 @@ namespace Rasa.Managers
          *  - SetDesiredCrouchState(self, desiredStateId)
          *  - RequestVisualCombatMode(self, goToCombatMode)
          *  - LevelUp(self, newLevel)
-         *  - PlayerDead(self, sourceId, graveyardList, canRevive = 0)
+         *  - PlayerDead(self, sourceId, graveyardList, canRevive = 0)   => implemented (PlayerDeath)
          *  - AnnounceMapDamage(self, rawInfo)
          *  - MadeDead(self)
          *  - ActorKilled(self)
@@ -65,8 +65,8 @@ namespace Rasa.Managers
          *  - WargameData(self, wargameData)
          *  
          *      Actor Hanlders:
-         *  - BuryMe                    => ToDo
-         *  - ReviveMe                  => ToDo
+         *  - BuryMe                    => implemented, PlayerDeath (to the hospital)
+         *  - ReviveMe                  => implemented, PlayerDeath (to the hospital chosen)
          *  - RequestActionInterrupt    => ToDo
          *  - RequestDetachGameEffect   => gesture effects only, GestureManager
          *  - RequestVisualCombatMode   => implemented, RequestVisualCombatMode (relayed to the others)
@@ -226,12 +226,30 @@ namespace Rasa.Managers
             if (GameEffectManager.HealingBlocked(target))
                 return 0;
 
+            // Under an enemy's Mind Control P4-P5 a player heals nobody but themselves (Pvp.MayNotAssist).
+            if (sourceEntityId != 0 && sourceEntityId != target.EntityId
+                && EntityManager.Instance.Actors.TryGetValue(sourceEntityId, out var healer) && Pvp.MayNotAssist(healer))
+                return 0;
+
+            // A player in a duel, a squad wargame or a team's match is healed by their own side of
+            // it and nobody else (Pvp.MayHelp).
+            if (sourceEntityId != 0 && sourceEntityId != target.EntityId
+                && EntityManager.Instance.Actors.TryGetValue(sourceEntityId, out var outsider) && !Pvp.MayHelp(outsider, target))
+                return 0;
+
+            // A player's heal on a player in a fight with another player: PVP_HEALING_MODIFIER of it (Pvp).
+            if (sourceEntityId != 0 && target is Manifestation)
+                amount = Pvp.ScaleHealing(target, EntityManager.Instance.GetActor(sourceEntityId), amount);
+
             var applied = Math.Min(amount, health.CurrentMax - health.Current);
 
             if (applied <= 0)
                 return 0;
 
             health.Current += applied;
+
+            // For the healer's row of a battleground's scoreboard.
+            Battlegrounds.Instance.Healed(sourceEntityId, target, applied);
 
             var mapChannel = target switch
             {
@@ -269,10 +287,9 @@ namespace Rasa.Managers
         /// Takes health from an actor, armour first: damage eats the armour bar until it is
         /// empty and the rest comes off health. Returns what was actually taken off health and
         /// armour together. A creature brought to zero is killed and its killer credited; one
-        /// that survives and was minding its own business turns on the attacker. Players are
-        /// left at zero for now, the same way weapon fire leaves them (MissileManager): dying
-        /// is not wired yet, and a character stuck dead with no way back is worse than one
-        /// standing at zero.
+        /// that survives and was minding its own business turns on the attacker. A player brought
+        /// to zero dies, unless a duel defeats them or they are a GM who may not die (PlayerDeath).
+        /// A player's hit on a player is PvP (Pvp): halved, and stopped by PvP Safety.
         /// </summary>
         /// <param name="source">Who did it; credited with a kill, and what a surviving creature turns on.</param>
         /// <param name="damageType">What it was, for the death animation of a creature it brings to its Critical Death window.</param>
@@ -315,11 +332,24 @@ namespace Rasa.Managers
                 return 0;
 
             // Immune: nothing taken, nothing started - a creature running home after a leash
-            // (BehaviorManager.Leash) does not turn round for it.
-            if (DamageImmunity.IsImmune(target, damageType))
+            // (BehaviorManager.Leash) does not turn round for it. Nor a player's hit on a player
+            // who holds PvP Safety. A fresh hit on an enemy player ends the attacker's own Safety
+            // (Pvp.Attack); a tick of something started earlier does not.
+            if (DamageImmunity.IsImmune(target, damageType)
+                || (isPeriodic ? Pvp.Shielded(source, target) : Pvp.Attack(mapChannel, source, target)))
             {
                 outcome = new DamageOutcome { Immune = true };
                 return 0;
+            }
+
+            // A player's hit on a player does PVP_DAMAGE_MODIFIER of itself (Pvp).
+            if (Pvp.IsPvp(source, target))
+            {
+                amount = Pvp.ScaleDamage(source, target, amount);
+                outcome = new DamageOutcome { Delivered = amount };
+                Pvp.RecordEngagement(source, target);
+                Pvp.OnHit(mapChannel, source, target);
+                Battlegrounds.Instance.Damaged(source, target, amount);
             }
 
             if (!isPeriodic && target is Creature attackedCreature)
@@ -399,12 +429,9 @@ namespace Rasa.Managers
                 AbilityManager.OnPlayerDamaged(mapChannel, victim, armorTaken + healthTaken);
             }
 
-            if (!(target is Creature) && health.Current <= 0)
-            {
-                // A player at zero stands back up at full: see the remarks.
-                health.Current = health.CurrentMax;
-                CellManager.Instance.CellCallMethod(mapChannel, target, new UpdateHealthPacket(health, 0));
-            }
+            // A player at zero dies - or is defeated, or stands back up (PlayerDeath).
+            if (target is Manifestation fallen && health.Current <= 0)
+                PlayerDeath.AtZero(mapChannel, fallen, source);
 
             return armorTaken + healthTaken;
         }
@@ -500,6 +527,11 @@ namespace Rasa.Managers
                 return 0;
 
             if (target.State == CharacterState.Dead)
+                return 0;
+
+            // As with healing: nobody outside their side of a closed wargame (Pvp.MayHelp).
+            if (sourceEntityId != 0 && sourceEntityId != target.EntityId
+                && EntityManager.Instance.Actors.TryGetValue(sourceEntityId, out var outsider) && !Pvp.MayHelp(outsider, target))
                 return 0;
 
             var applied = Math.Min(amount, armor.CurrentMax - armor.Current);

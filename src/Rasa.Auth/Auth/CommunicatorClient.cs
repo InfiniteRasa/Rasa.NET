@@ -171,6 +171,20 @@ namespace Rasa.Auth
         }
 
         // ReSharper disable once UnusedMember.Local
+        [PacketHandler(CommOpcode.CreateAccountRequest)]
+        private void MsgCreateAccountRequest(CreateAccountRequestPacket packet)
+        {
+            // Only from a connection that has logged in as a game server.
+            if (ServerId == 0)
+            {
+                Logger.WriteLog(LogType.Security, "A connection that is no game server asked for an account to be created; ignored.");
+                return;
+            }
+
+            Server.CreateAccount(this, packet);
+        }
+
+        // ReSharper disable once UnusedMember.Local
         [PacketHandler(CommOpcode.RedirectResponse)]
         private void MsgRedirectResponse(RedirectResponsePacket packet)
         {

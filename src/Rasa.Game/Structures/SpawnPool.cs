@@ -21,8 +21,17 @@ namespace Rasa.Structures
         /// <summary>Where its creatures arrive (spawnpool_arrival): a pad or bay the Bane dropship lands on, a teleporter. Empty: they appear on its ground.</summary>
         public List<World.SpawnPoolArrivalEntry> Arrivals { get; } = new List<World.SpawnPoolArrivalEntry>();
 
-        /// <summary>Whether it has spawned since the server started: the first spawn stocks the world and uses no arrival point.</summary>
+        /// <summary>
+        /// Whether it has spawned since the server started - or, for a control point's garrison,
+        /// since its side took the point: the first spawn stocks the world and uses no arrival point.
+        /// </summary>
         public bool HasSpawned { get; set; }
+
+        /// <summary>Part of a control point's garrison, either side's (ControlPoints): a Bane garrison pool (mode 1) runs only as one.</summary>
+        public bool IsGarrison { get; set; }
+
+        /// <summary>The other side holds its control point (ControlPoints): it spawns nothing until its own side does.</summary>
+        public bool Suspended { get; set; }
         // different spawn points
         //public int LocationCount { get; set; }
         //public Position[] LocationList { get; set; }
@@ -38,6 +47,12 @@ namespace Rasa.Structures
         public int AliveCreatures { get; set; } // number of spawned creatures that are alive
         public int DeadCreatures { get; set; }  // number of spawned creatures that are dead (either killed or spawned dead)
         internal List<Creature> QueuedCreatureList { get; set; }
+
+        /// <summary>
+        /// Its emplacements that are wrecks on their mounts (AlternateMesh): dead, kept in the
+        /// world, and put back in service when the respawn comes round in place of new ones.
+        /// </summary>
+        internal List<Creature> Wrecks { get; } = new List<Creature>();
         public string ScenarioKey { get; set; }
         public string SceneRunId { get; set; }
         public string SceneActorRole { get; set; }
@@ -51,6 +66,12 @@ namespace Rasa.Structures
         public MissionSpawnGroupPolicy SpawnPolicy { get; set; }
         public uint FollowOwnerCharacterId { get; set; }
         public ulong FollowTargetEntityId { get; set; }
+
+        /// <summary>
+        /// In a squad's instance: when the last of its creatures died, Unix milliseconds, UTC; 0
+        /// while it has them, or has never been cleared (Managers.SquadInstanceState).
+        /// </summary>
+        public long ClearedAtUtcMs { get; set; }
 
         // Runtime milliseconds; the persisted RespawnTime is in seconds.
         public long UpdateTimer { get; set; }

@@ -1,10 +1,11 @@
 # GM commands
 
 Every GM command the game and auth servers understand: the level each one needs, what it takes and what it does.
-Checked against `development` at `38b92814`. The sources are:
+Checked against `development` at `f4439234`. The sources are:
 
 - `Rasa.Game/Managers/ChatCommandsManager.cs`: dot commands and the privileged slash-command table.
 - `GmMapCommands.cs` and `GmMissionCommands.cs`: map and mission commands.
+- `Moderation.cs` and `MessageOfTheDay.cs`: announcements, kicks, silences, and the message of the day.
 - `Game/Server.cs` and `Auth/Server.cs`: console commands.
 
 When a command is added or its level changes, update this page with it.
@@ -50,6 +51,40 @@ The account's level is `game_account.level`, stored as a byte. Levels are cumula
 
 **`.help`** (Observer) lists only the commands your level can run, ordered by level.
 
+## Audit log
+
+Every command on this page that is entered at the game server goes on an audit log: the `gm_command_log` table of the character database, written by `GmAudit` before the command runs. A row has the account, its level, the character, the address they are connected from, the time (UTC), the map and position, what they had selected, the whole line as entered, the level the command needs, and the result.
+
+| What | Recorded |
+|---|---|
+| A GM (any level above 0) runs a command | Yes, result 1 (executed); 4 (failed) if it threw. |
+| A GM is refused for want of level, or mistypes a command | Yes, result 2 (denied) or 3 (unknown). |
+| An ordinary player tries a real command | Yes, result 2, at most 10 rows a minute per account. |
+| An ordinary player's chat line that starts with a dot and is no command | No. |
+| The game server's console | Yes, under account 0. |
+| The auth server's console | No. |
+
+`source` says how it came in: 1 dot command, 2 privileged slash command, 3 one of the client's own GM packets, 4 console. A command that was run is also a `Command` line in the server log, starting `GM command:`. If the table cannot be written the command still runs, and the server log says the row was lost.
+
+## Chat log
+
+Every line of chat a player sends goes on a chat log: the `chat_log` table of the character database, written by `ChatAudit` as the line is passed on. A row has the account, its level, the character, the time (UTC), the map and position, the kind of chat, whom it was to, how many other players were sent it (`heard_by`), the line, and the result.
+
+| `kind` | Chat | To whom |
+|---|---|---|
+| 1 | Say | |
+| 2 | Shout | |
+| 3 | Emote (`/em`) | |
+| 4 | Whisper or reply | `target_account_id`, `target_character_id` and `target`, the recipient's family name (as typed when nobody has it). |
+| 5 | Squad | `group_id` is the squad's id. |
+| 6 | Clan | `group_id` is the clan's id, `target` its name. |
+| 7 | Clan leaders | The same. |
+| 8 | Channel | `group_id` is the channel (1 General, 3 LFG, 4 Map General, 6 Trade, 7 Defense, 10000008 Team), `target` its name; a team's has its number. |
+
+`result` says what came of it: 1 delivered, 2 the sender is silenced, 3 a whisper to nobody in the game, 4 a whisper to someone who ignores the sender, 5 the sender is not in that squad, clan, rank or channel, 6 longer than 512 characters (the row keeps the first 512). Only a line with result 1 was sent to anyone.
+
+Not on it: a line that begins with a dot, which is a command and on the audit log above; an empty line; `.announce`; and voice chat. If the table cannot be written the line is still said, and the server log says the row was lost.
+
 ## Information and diagnostics
 
 These change nothing in the world, except where noted.
@@ -76,6 +111,7 @@ These change nothing in the world, except where noted.
 | `.clientevent [list]` | Observer | The client's scriptable events, marking which ones you are tracking. |
 | `.clientevent track <id\|name\|all> ...` / `stop <id\|name> ...` / `stop all` | Observer | Starts or stops tracking scriptable client events on your own client; tracked events are echoed to you. |
 | `.rqs` | Observer | Opens the client's developer RQS window (`DevRQSWindow`). |
+| `.motd` | Observer | Shows you the message of the day as players get it, even if your client has seen it before. Says so if there is none. |
 | `.moveflags` | GameMaster | Toggle. Shows the flags byte of your `Move` packets each time it changes, with your height and whether you are in water. |
 
 These also happen automatically, without a command:
@@ -97,6 +133,19 @@ These also happen automatically, without a command:
 | `/gotomob <name>` | GameMaster | Puts you 2 m from the nearest creature of that name on this map. An exact name match wins over partial ones. |
 | `.link <id> goto` / `.link <id> gotoarrival` | GameMaster | Goes to a map link's trigger point or its arrival point. |
 | `.emitter <id> goto` | GameMaster | Goes to an FX emitter. |
+| `.instance` | GameMaster | Lists the shared copies of the map you are on (`MapInstances` in `appsettings.json`): each one's number, instance id, players and population word. On a map entered as a squad's instance (`SquadInstances`), lists the squad instances of that map that are in memory instead: instance id, owner character, players, and how many of its spawn pools are dead (they come back `RespawnMinutes` after the last creature of each died). |
+| `.instance open` | GameMaster | Opens another copy of this map, up to its `MaxCopies`. It closes by itself after `IdleCloseSeconds` empty. |
+| `.instance go <number>` | GameMaster | Moves you to that copy, at the point you are standing on. Ignores the copy's capacity. |
+| `.instance pick` | GameMaster | Shows the client's instance picker for this map, as a door does once the map has more than one copy. |
+| `.instance close <number>` | GameMaster | Closes an empty copy. `#1`, the map's own channel, is never closed. |
+| `.instance squads` | GameMaster | Says how many squad instances are saved (the character database's `squad_instance` table) and how many of them are in memory, and when the weekly reset next runs. Lists those in memory - map, instance id, owner character, players and dead spawn pools - and then those that are only saved, which are loaded when somebody goes to them. |
+| `.instance reset` | GameMaster | Runs the weekly squad instance reset now: every squad instance with nobody in it or on the way is closed - taken out of memory and its rows deleted - and the next to enter gets a new one. Those with players in them are left alone. |
+| `.bg` | GameMaster | The match of the battleground channel you are on (Edmund Range): its phase and clock, each team's players, points and kills, and each control point's owner and whether its Simulated Bane stand. Then your own desertion and leaver's lockout, if you have one. |
+| `.bg team red \| blue \| none` | GameMaster | Puts you on a team and in its base, or off it and back in the staging area. Ignores team balance, desertion and the leaver's lockout. |
+| `.bg start` | GameMaster | Begins the match now, without the wait or the preparation. A match started this way runs with a team of nobody, until its clock or `.bg end`. |
+| `.bg end [red \| blue \| none]` | GameMaster | Ends the running match for that team, or for whoever leads it. A match ended before its minimum time gives no prestige. |
+| `.bg capture <point> red \| blue \| none` | GameMaster | Gives a control point (by name or id) to a team, or to nobody. |
+| `.bg forgive [name]` | GameMaster | Forgets a desertion and the lockout that came with it: yours, or that of a player in the world by family name. Every team and every instance is open to them again. Works on any map. |
 
 A map's start groups are generated in this order:
 
@@ -159,7 +208,7 @@ These are testing tools. Their changes are held in memory only.
 | `.targetcategory [category]` | GameMaster | With no argument, shows the targeted creature's category. With one, sets it and tells nearby clients; the creature's hate list is cleared. |
 | `.feud [list]` | GameMaster | Clan feuds running (with score and time left) and challenges waiting. |
 | `.feud start <clan> <clan>` | GameMaster | Starts a feud and skips every rule (PvP, leaders online). A clan is an id or a name with no spaces. |
-| `.feud end <id> [tie\|cancel\|<winning clan>]` | GameMaster | Ends a feud. With no outcome, it is decided as its clock would decide it (most kills wins). |
+| `.feud end <id> [tie\|cancel\|<winning clan>]` | GameMaster | Ends a feud. With no outcome, it is decided as its clock would decide it (most kills wins). A feud that ends with a winner, here or on its own, takes the wagered items of the losing clan's members, and of anyone who left or was kicked from it while the feud ran: they go to the winning clan's lockbox, or by mail to the winning clan's leader of the challenge when the lockbox is full. `tie` and `cancel` take nothing. |
 | `.feud length [minutes]` | GameMaster | Shows or sets how long new feuds last. Maximum one week. |
 
 Values these commands accept:
@@ -206,6 +255,44 @@ Map links, region volumes, FX emitters and crafting stations are **saved to the 
 | `.emitter <id> on \| off \| package <package> \| here \| comment <text> \| delete` | GameMaster | Edits an emitter; `on` and `off` also set its default state. |
 | `.kraftwerks` | GameMaster | Crafting stations on this map, nearest first. |
 | `.kraftwerks here [comment]` / `.kraftwerks <id> here \| rotate <yaw> \| comment <text> \| delete` | GameMaster | Creates or edits a station. `rotate` takes the yaw in radians. |
+| `.cp` / `.cp all` | GameMaster | Control points on this map, or everywhere: who holds each - the AFS, the Bane, or a clan for the AFS - and whether its garrison stands. With a clan holding any of them, also when the clans' points next go back to the AFS. |
+| `.cp <id> afs \| bane` | GameMaster | Gives a control point to a side, and to no clan: the garrisons change over, and its hospital and waypoint open or shut. `afs` on a clan's point takes it from the clan. Kept through a restart. |
+| `.cp <id> clan <clan name or id>` | GameMaster | Gives a control point to a clan, as if one of its members had captured it: the AFS's garrison, hospital and waypoint, the clan's object and lockbox. The name may contain spaces; its case does not matter. Kept through a restart. |
+| `.cp <id> goto \| here` | GameMaster | Goes to a control point, or stands its object where you are (kept in the world database). |
+| `.greeting` | GameMaster | For the NPC you have targeted: which greeting line it says, and the line itself, shown in your conversation window. |
+| `.greeting <greetingId>` / `.greeting clear` | GameMaster | Gives the targeted NPC that line as its own, or takes its own line away so it says the default ("Greetings.") again. Kept in the world database for the NPC's creature row. The id is one of the client's `npcgreetinglanguage` lines; an id the client has not got is refused. |
+| `.greeting show <greetingId>` | GameMaster | Shows any greeting line in your conversation window, with nothing targeted: for finding the line you want. |
+| `.cp <id> lockbox` / `.cp <id> lockbox remove` | GameMaster | Sets the point's clan lockbox down where you stand, facing as you face, or moves it there if it has one; `remove` takes it away. Kept in the world database. The lockbox is on the map only while a clan holds the point. |
+
+NPC greetings:
+
+- The greeting heads the topic list of an NPC with more than one thing to talk about. An NPC with a line of its own and nothing else to talk about can also be spoken to, and says the line.
+- The client has the lines but not who says which. 82 NPCs start with the line their text gives away; every other NPC says "Greetings." until it is given one with `.greeting`.
+
+Clan-owned control points (`ControlPoints` in `appsettings.json`):
+
+- A point captured from the Bane by a player in a clan is that clan's; by a player in no clan it is the AFS's. Either way it is an AFS point: their garrison, hospital and waypoint. `ClanOwnership: false` turns this off, and gives any point a clan holds back to the AFS.
+- A clan loses a point when the Bane take it back, when the clan disbands, when a member of a clan **at feud** with it uses the point (`ClanCaptureSeconds`, 30 by default, of an interruptible use - only those players are offered the use), and at the weekly reset (`ClanWeeklyReset`), which runs on the day and time of `SquadInstances`' `WeeklyResetDay` and `WeeklyResetTime`.
+- Each point pays `ClanPrestige` prestige (100) into the clan's lockbox every `ClanPrestigeMinutes` (60). The payment shows in the lockbox history as a deposit by "Control Point <point name>".
+- The point's clan lockbox opens for members of the clan that holds the point and for nobody else.
+
+## Moderation
+
+Commands that act on other players. A GM can only use them on accounts **below their own level**; the console can use them on anyone. Each one is also on the game server console without the dot (see Console: game server). Kicks, silences and lifted silences are logged as `Security`, with who did it and the reason.
+
+| Command | Level | What it does |
+|---|---|---|
+| `.announce <message>` | GameMaster | Sends `[Announcement] <message>` as a system message to everyone in the world or loading into it. The message may contain spaces. |
+| `.kick <familyName> [reason]` | GameMaster | Tells the player "You have been disconnected by a game master" (with the reason, if given), then closes every connection of that account a second later. The character leaves as if the connection had dropped, but never stays behind in a fight. Works at character selection too. |
+| `.mute <familyName> <minutes> [reason]` | GameMaster | Silences the account's chat for 1 to 525,600 minutes (one year). Works on accounts that are not online. The player gets the client's own "You are now blocked from sending chat messages for the duration of N minutes", plus the reason if given; you get "User ... is silenced". |
+| `.unmute <familyName>` | GameMaster | Lifts a silence. Answers "User ... is not currently silenced" if there is none. |
+
+How a silence works:
+
+- It is saved on the account (`account.muted_until`), so logging out, switching character or restarting the server does not lift it.
+- A silenced player cannot say, shout, emote, or use squad, clan, clan leader, channel or whisper/reply chat. Each attempt is answered with "You have been silenced by a game master."
+- They can still **whisper a GM** (GameMaster level and above), send petitions, and use dot commands.
+- They are reminded when they enter the world, and told "You are no longer silenced" when the time runs out.
 
 ## Client messages and presentation
 
@@ -254,7 +341,17 @@ Typed in the game server's window. There is no account check; the console is the
 | `kb` / `kb show <id>` / `kb reload` | The knowledge base: list, one article, or re-read the file. |
 | `voice` | Whether voice chat is on, and who is in each squad's group. |
 | `reload config` | Re-reads the configuration. |
-| `exit [minutes]` | Shuts the server down now, or after that many minutes. |
+| `motd` | The message of the day in force, how it is shown (once per change or every login), and its translations. |
+| `announce <message>` | The same as `.announce`. |
+| `kick <familyName> [reason]` | The same as `.kick`, for any account. |
+| `mute <familyName> <minutes> [reason]` / `unmute <familyName>` | The same as `.mute` / `.unmute`, for any account. |
+| `exit` | Saves every player the way a logout does, then shuts the server down. |
+| `exit <minutes> [reason]` | The same, after a countdown. Minutes may be fractional (`exit 0.5`). Players are warned in chat at the start, at 60, 30, 15 and 10 minutes, each minute from 5, and at 30 and 10 seconds. New connections to the world are refused in the last minute. |
+| `exit cancel` | Calls off a countdown and tells the players. |
+
+Stopping the game server any other way (Ctrl+C, stopping the service, `docker stop`) also saves every player first, waiting up to 8 seconds for it.
+
+The message of the day itself is set in `appsettings.json` under `MessageOfTheDay` (`Text`, `ShowEveryLogin`, `Translations`), not by a command. Editing the file sends a changed message to everyone online.
 
 ## Console: auth server
 

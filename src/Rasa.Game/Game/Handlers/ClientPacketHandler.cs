@@ -19,6 +19,7 @@
     using Packets.Summon.Client;
     using Packets.Social.Client;
     using Packets.Trade.Client;
+    using Packets.Wargame.Client;
 
     public partial class ClientPacketHandler
     {
@@ -383,6 +384,12 @@
             AuctionHouseManager.Instance.RequestCreateAuction(Client, packet);
         }
 
+        [PacketHandler(GameOpcode.RequestControlPointStatus)]
+        private void RequestControlPointStatus(RequestControlPointStatusPacket packet)
+        {
+            Battlegrounds.Instance.RequestControlPointStatus(Client);
+        }
+
         [PacketHandler(GameOpcode.RequestCustomization)]
         private void RequestCustomization(RequestCustomizationPacket packet)
         {
@@ -698,16 +705,58 @@
             ManifestationManager.Instance.SaveUserOptions(Client, packet);
         }
 
+        [PacketHandler(GameOpcode.SelectInstance)]
+        private void SelectInstance(SelectInstancePacket packet)
+        {
+            MapChannelManager.Instance.SelectInstance(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.SelectInstanceCancel)]
+        private void SelectInstanceCancel(SelectInstanceCancelPacket packet)
+        {
+            MapChannelManager.Instance.SelectInstanceCancel(Client);
+        }
+
         [PacketHandler(GameOpcode.SelectWaypoint)]
         private void SelectWaypoint(SelectWaypointPacket packet)
         {
             DynamicObjectManager.Instance.SelectWaypoint(Client, packet);
         }
 
+        [PacketHandler(GameOpcode.ReturnToWormhole)]
+        private void ReturnToWormhole(ReturnToWormholePacket packet)
+        {
+            DynamicObjectManager.Instance.ReturnToWormhole(Client, packet.WormholeId);
+        }
+
         [PacketHandler(GameOpcode.SetAutoLootThreshold)]
         private void SetAutoLootThreshold(SetAutoLootThresholdPacket packet)
         {
             LootDispenserManager.Instance.SetAutoLootThreshold(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.ReviveMe)]
+        private void ReviveMe(ReviveMePacket packet)
+        {
+            PlayerDeath.ReviveMe(Client, packet.GraveyardId);
+        }
+
+        [PacketHandler(GameOpcode.BuryMe)]
+        private void BuryMe(BuryMePacket packet)
+        {
+            PlayerDeath.ReviveMe(Client, null);
+        }
+
+        [PacketHandler(GameOpcode.RequestRevive)]
+        private void RequestRevive(RequestRevivePacket packet)
+        {
+            PlayerDeath.RequestRevive(Client, packet.ReviverId);
+        }
+
+        [PacketHandler(GameOpcode.RefuseRevive)]
+        private void RefuseRevive(RefuseRevivePacket packet)
+        {
+            PlayerDeath.RefuseRevive(Client, packet.ReviverId);
         }
 
         [PacketHandler(GameOpcode.SetDesiredCrouchState)]
@@ -946,7 +995,28 @@
         [PacketHandler(GameOpcode.SurrenderWargame)]
         private void SurrenderWargame(SurrenderWargamePacket packet)
         {
-            Logger.WriteLog(LogType.Debug, "ToDo: SurrenderWargamePacket");
+            if (!SquadWargames.Instance.SurrenderWargame(Client))
+                Duels.Instance.SurrenderWargame(Client);
+        }
+
+        [PacketHandler(GameOpcode.ChallengeUserToWargameByName)]
+        private void ChallengeUserToWargameByName(ChallengeUserToWargameByNamePacket packet)
+        {
+            Duels.Instance.ChallengeUserToWargameByName(Client, packet.TargetName, packet.TimeMins, packet.MaxKills);
+        }
+
+        [PacketHandler(GameOpcode.WargameChallengeResponse)]
+        private void WargameChallengeResponse(WargameChallengeResponsePacket packet)
+        {
+            if (!SquadWargames.Instance.WargameChallengeResponse(Client, packet.Accepted))
+                Duels.Instance.WargameChallengeResponse(Client, packet.Accepted);
+        }
+
+        [PacketHandler(GameOpcode.WargameChallengeRevoked)]
+        private void WargameChallengeRevoked(WargameChallengeRevokedPacket packet)
+        {
+            if (!SquadWargames.Instance.WargameChallengeRevoked(Client))
+                Duels.Instance.WargameChallengeRevoked(Client);
         }
 
         [PacketHandler(GameOpcode.ToggleAfk)]
@@ -1172,6 +1242,18 @@
         private void RequestTakeItemFromInboxInventory(RequestTakeItemFromInboxInventoryPacket packet)
         {
             InventoryManager.Instance.RequestTakeItemFromInboxInventory(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.WagerItem)]
+        private void WagerItem(WagerItemPacket packet)
+        {
+            InventoryManager.Instance.WagerItem(Client, packet);
+        }
+
+        [PacketHandler(GameOpcode.RemoveWageredItem)]
+        private void RemoveWageredItem(RemoveWageredItemPacket packet)
+        {
+            InventoryManager.Instance.RemoveWageredItem(Client);
         }
 
         [PacketHandler(GameOpcode.TransferCreditToLockbox)]

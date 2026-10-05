@@ -5,6 +5,7 @@ using System.Numerics;
 using System.Text.Json;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Rasa.Data;
+using Rasa.Game.Missions.World;
 using Rasa.Managers;
 using Rasa.Missions.Content;
 using Rasa.Missions.Content.Wilderness;
@@ -314,27 +315,95 @@ namespace Rasa.Test.Missions.Wilderness
         }
 
         [TestMethod]
-        public void PierreDeathWhileStillCaptiveFailsTheAttemptAndReleasesHerReplacement()
+        [DataRow(false)]
+        [DataRow(true)]
+        public void TheCachesGarrisonLeavesPierreAloneOnceSheIsHeld(bool held)
+        {
+            // As first seeded she was an ordinary friendly creature 7 m from the Atropos Linker of
+            // pool 580012; Hold_captive_pierre makes her encounter a ManualCombat one.
+            using var harness = WildernessRuntimeTestHarness.Create(
+                targetWorldMigration: held ? null : "20261116000000_Wilderness_targets_kill_rules");
+            harness.SpawnWorld(630070, 580012);
+            var pierre = harness.Npc(630070);
+            var linker = harness.Map.MapCellInfo.Cells.Values.SelectMany(cell => cell.CreatureList).Distinct()
+                .Single(creature => creature.SpawnPool?.DbId == 580012);
+            Assert.IsNotNull(pierre);
+            Assert.AreEqual(TargetCategory.Hostile, linker.TargetCategory);
+            Assert.IsTrue(Vector3.Distance(linker.Position, pierre.Position) < linker.AggroRange,
+                "The cache's overseer must stand within its scan of her.");
+            Assert.IsNull(harness.Manager.PublicActors.Handle(harness.Map, 630070), "Nobody has the mission.");
+            // And no player is near enough to be picked instead.
+            harness.MoveTo(pierre.Position + new Vector3(300, 0, 300));
+            var health = pierre.Attributes[Attributes.Health].Current;
+
+            var fought = false;
+            for (var tick = 0; tick < 60 && !fought; tick++)
+            {
+                harness.Tick();
+                fought = linker.Controller.CurrentAction == BehaviorManager.BehaviorActionFighting &&
+                    linker.Controller.ActionFighting.TargetEntityId == pierre.EntityId;
+            }
+
+            Assert.AreEqual(!held, fought);
+            Assert.AreEqual(!held, CreatureGameplayRules.CanParticipateInCombat(pierre));
+            Assert.AreEqual(!held, CreatureManager.IsHostileTarget(harness.Map, linker, pierre));
+            Assert.AreEqual(held, DamageImmunity.IsImmune(pierre, DamageType.Physical));
+            if (held)
+                Assert.AreEqual(health, pierre.Attributes[Attributes.Health].Current);
+        }
+
+        [TestMethod]
+        public void PierreCannotBeKilledWhileStillCaptive()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var pierre = Accept(harness);
+            var spawnId = pierre.SpawnPool.DbId;
+            var lease = harness.Manager.PublicActors.Handle(harness.Map, spawnId);
+            Assert.IsNull(pierre.Controller.ScriptedMove);
+            Assert.IsFalse(CreatureGameplayRules.CanParticipateInCombat(pierre),
+                "Accepting the rescue must not put her in the fight: she is still behind the forcefield.");
+            Assert.IsTrue(DamageImmunity.IsImmune(pierre, DamageType.Physical));
+
+            harness.Creatures.HandleCreatureKill(harness.Map, pierre, null);
+            harness.Tick(1);
+
+            Assert.AreNotEqual(CharacterState.Dead, pierre.State);
+            Assert.AreEqual(pierre.EntityId, harness.Npc(spawnId)?.EntityId);
+            Assert.AreEqual(MissionState.Active, harness.Client.Player.Missions[666].State);
+            Assert.AreEqual(MissionObjectiveState.Incomplete, harness.Client.Player.Missions[666].Objectives[1].State);
+            Assert.AreEqual(lease, harness.Manager.PublicActors.Handle(harness.Map, spawnId));
+        }
+
+        [TestMethod]
+        public void PierreIsInTheFightFromTheFallOfHerForcefieldAndHeldAgainOnceSheIsBack()
         {
             using var harness = WildernessRuntimeTestHarness.Create();
             var pierre = Accept(harness);
             var spawnId = pierre.SpawnPool.DbId;
             var oldLease = harness.Manager.PublicActors.Handle(harness.Map, spawnId);
-            Assert.IsNull(pierre.Controller.ScriptedMove);
+            Assert.IsFalse(CreatureGameplayRules.CanParticipateInCombat(pierre));
+
+            ReleaseForcefield(harness);
+            var start = pierre.Position;
+            DriveUntil(harness, pierre, () => Vector3.Distance(start, pierre.Position) > 2);
+
+            Assert.IsTrue(CreatureGameplayRules.CanParticipateInCombat(pierre),
+                "The escort route resumes after combat: she can be fought on it.");
+            Assert.IsFalse(DamageImmunity.IsImmune(pierre, DamageType.Physical));
 
             pierre.Attributes[Attributes.Health].Current = 0;
             harness.Creatures.HandleCreatureKill(harness.Map, pierre, null);
             harness.Tick(1);
 
-            Assert.AreEqual(MissionState.Failed, harness.Client.Player.Missions[666].State,
-                "Public leased death must reach the rescue scene even before any route is running.");
-            Assert.IsFalse(harness.Client.Player.Missions[666].Completeable);
+            Assert.AreEqual(MissionState.Failed, harness.Client.Player.Missions[666].State);
             AwaitRelease(harness, spawnId);
             var replacement = harness.Npc(spawnId);
             Assert.IsNotNull(replacement);
             Assert.AreEqual(3097U, replacement.NameId);
             Assert.AreNotEqual(pierre.EntityId, replacement.EntityId);
             Assert.IsTrue(replacement.IsInteractable);
+            Assert.IsFalse(CreatureGameplayRules.CanParticipateInCombat(replacement),
+                "The Pierre who comes back is a captive again.");
             Assert.IsFalse(harness.Manager.PublicActors.TryResolve(harness.Map, oldLease, out _));
             Assert.IsFalse(harness.Manager.Scenes.Submit(oldLease.RunId,
                 new SceneObservation(SceneEventKind.RouteCompleted, oldLease.Generation,

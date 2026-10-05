@@ -248,7 +248,19 @@ namespace Rasa.Services.Preloader.Missions.Wilderness
                 "420-second durable deadline. Discover Pierre at the cache without requiring completed665. Captive or escort death and owner loss fail; the exclusive public actor returns before reuse. No zone invasion simulation.");
             mission.Evidence(3, MissionEvidenceSourceKind.Reconstruction, "repository:docs/wilderness-missions.md",
                 "Grounded559m approach and84.4m raised-pad leg are source/geometry-qualified. Boarding is spatial within0.6m horizontal/0.35m footY at(192.2,171.1,-100.5), beside native ship7331/pad10374; no passenger socket or attachment is claimed. Base Motor Assist legs13744/gloves28692 replace unsupported Olympia/Pulsar modifiers.");
-            mission.Enable(new MissionSceneDefinition
+            mission.Enable(EscapeVelocityScene(held: false));
+        }
+
+        /// <summary>
+        /// Escape Velocity's scene. Held, Pierre's public encounter is a ManualCombat one: she
+        /// takes no part in fights - is not sought, and takes no damage - from the moment she
+        /// spawns in the Bane cache until her scene sets her on her way to the Landing Zone
+        /// (WildernessHeldCaptiveV1). As first seeded she was not, and the garrison of the cache
+        /// she is held in killed her where she stood.
+        /// </summary>
+        internal static MissionSceneDefinition EscapeVelocityScene(bool held)
+        {
+            return new MissionSceneDefinition
             {
                 Script = "wilderness.escape-velocity",
                 Actors = new()
@@ -312,8 +324,8 @@ namespace Rasa.Services.Preloader.Missions.Wilderness
                 },
                 Names = new() { ["forcefield-open-state"] = 199 },
                 PublicEncounter = new PublicEncounterBinding(666, 630070, "pierre", "wilderness.escape-velocity",
-                    OwnerLossPolicy: "Fail")
-            });
+                    OwnerLossPolicy: "Fail", ManualCombat: held)
+            };
         }
 
         private static void EmitScenarioEvent(MigrationBuilder migration, uint missionId, uint scenarioId,

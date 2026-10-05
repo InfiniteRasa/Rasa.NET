@@ -40,7 +40,7 @@ namespace Rasa.Managers
         /// <summary>Nanite charges for the pump used and the pumps owned: base + per pump past the first.</summary>
         public static int NaniteCharges(int baseCharges, int perPump, int pumpsOwned) => Math.Max(1, baseCharges + perPump * Math.Max(0, pumpsOwned - 1));
 
-        private void AttachControlledFission(MapChannel mapChannel, Manifestation player, Creature target, ActionLevelInfo info)
+        private void AttachControlledFission(MapChannel mapChannel, Manifestation player, Actor target, ActionLevelInfo info)
         {
             var delayMs = Math.Max(500, info.Get(AbilityProperty.DelayTimeMs, 10000));
             var bomb = NewEffect(mapChannel, player, info, ControlledFissionTypeId, null);
@@ -64,15 +64,16 @@ namespace Rasa.Managers
         /// <summary>Controlled Fission's blast: every hostile within the radius of the holder, the holder too.</summary>
         private void Detonate(MapChannel mapChannel, Actor holder, GameEffect bomb)
         {
-            if (!(bomb.Source is Manifestation player) || player.MapContextId != mapChannel.MapInfo.MapContextId || !(holder is Creature target))
+            if (!(bomb.Source is Manifestation player) || player.MapContextId != mapChannel.MapInfo.MapContextId || holder == null)
             {
                 GameEffectManager.Instance.DettachEffect(mapChannel, holder, bomb);
                 return;
             }
 
-            var victims = HostilesWithin(mapChannel, player, target.Position, bomb.TickRadius);
+            var target = holder;
+            var victims = VictimsWithin(mapChannel, player, target.Position, bomb.TickRadius);
 
-            if (!victims.Contains(target) && IsHostile(player, target))
+            if (!victims.Contains(target) && IsAttackable(player, target))
                 victims.Insert(0, target);
 
             var blast = new GameEffectAnnounceDamagePacket(bomb.EffectId, "DoExplosion");
@@ -107,7 +108,7 @@ namespace Rasa.Managers
             GameEffectManager.Instance.DettachEffect(mapChannel, target, bomb);
         }
 
-        private void AttachExplosiveNanites(MapChannel mapChannel, Manifestation player, Creature target, ActionLevelInfo info)
+        private void AttachExplosiveNanites(MapChannel mapChannel, Manifestation player, Actor target, ActionLevelInfo info)
         {
             var nanites = NewEffect(mapChannel, player, info, ExplodingNanitesTypeId, info.Get(AbilityProperty.Duration, 30));
             var pumps = Math.Max((int)info.Level, ManifestationManager.SkillPump(player, ExplosiveNanitesSkillId));
@@ -124,11 +125,12 @@ namespace Rasa.Managers
         }
 
         /// <summary>
-        /// A player carrying a creature's Explosive Nanites (CreatureEffectAttacks) has taken
-        /// damage: if the nanites are ready they explode on them - the rolled amount as the
-        /// creature's row gives it, of the argument's type, through the player's resistances -
-        /// shown through the effect's AnnounceDamage as a player's nanites on a creature are. The
-        /// ready time moves on first, so the explosion's own damage cannot set off another.
+        /// A player carrying Explosive Nanites - a creature's (CreatureEffectAttacks), or an enemy
+        /// player's (Pvp) - has taken damage: if the nanites are ready they explode on them - the
+        /// rolled amount as the creature's row gives it, or scaled to the player who put them on as
+        /// on a creature, of the argument's type, through the player's resistances - shown through
+        /// the effect's AnnounceDamage as nanites on a creature are. The ready time moves on first,
+        /// so the explosion's own damage cannot set off another.
         /// </summary>
         internal static void OnPlayerNanites(MapChannel mapChannel, Manifestation player)
         {
@@ -142,7 +144,7 @@ namespace Rasa.Managers
                 if (now < nanites.OnDamagedReadyAt || nanites.IsExpired)
                     continue;
 
-                if (!(nanites.Source is Creature thrax) || thrax.MapContextId != mapChannel.MapInfo.MapContextId)
+                if (!(nanites.Source is Actor thrax) || thrax.MapContextId != mapChannel.MapInfo.MapContextId || thrax == player)
                     continue;
 
                 nanites.OnDamagedReadyAt = now + nanites.OnDamagedIntervalMs;
@@ -152,6 +154,9 @@ namespace Rasa.Managers
 
                 lock (BombRandom)
                     rolled = BombRandom.Next(nanites.OnDamagedMin, nanites.OnDamagedMax + 1);
+
+                if (thrax is Manifestation bomber)
+                    rolled = GameEffectManager.ApplyDamageDealt(bomber, Scale(nanites.SourceLevel, rolled, nanites.TickScaleType));
 
                 var amount = GameEffectManager.ApplyResist(player, rolled, out var resisted, nanites.OnDamagedType);
                 var taken = ActorManager.Instance.Damage(mapChannel, player, amount, thrax, out var outcome, nanites.OnDamagedType);
@@ -187,6 +192,9 @@ namespace Rasa.Managers
                 return;
 
             var now = Environment.TickCount64;
+
+            // An enemy's Hack lets go of a machine that is hurt.
+            ReleaseOnDamage(mapChannel, creature);
 
             // An armed Called Shot goes off first: taken off, then run, so the wound it opens
             // cannot set it off a second time.

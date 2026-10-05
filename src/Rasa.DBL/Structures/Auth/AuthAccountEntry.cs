@@ -27,9 +27,12 @@ namespace Rasa.Structures.Auth
         [Required]
         public string Username { get; set; }
 
-        [Column("password", TypeName = "varchar(64)")]
+        /// <summary>
+        /// The password's hash, in PasswordHasher's format - pbkdf2-sha256$iterations$pepper$hash,
+        /// up to about 90 characters - or the 64 hex digits of the SHA-256 format before it.
+        /// </summary>
+        [Column("password", TypeName = "varchar(255)")]
         [Required]
-
         public string Password { get; set; }
 
         [Column("salt", TypeName = "varchar(40)")]

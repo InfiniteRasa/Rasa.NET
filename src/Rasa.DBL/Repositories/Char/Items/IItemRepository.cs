@@ -12,6 +12,7 @@ namespace Rasa.Repositories.Char.Items
         IReadOnlyList<ItemEntry> GetItems(IReadOnlyCollection<uint> itemIds);
         void UpdateAmmo(IItemChange item);
         void UpdateBoundCharacter(IItemChange item);
+        void UpdateColor(IItemChange item);
         void UpdateCurrentHitPoints(IItemChange item);
         void UpdateItemStackSize(IItemChange item);
     }

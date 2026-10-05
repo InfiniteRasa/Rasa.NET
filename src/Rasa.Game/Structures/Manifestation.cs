@@ -46,6 +46,9 @@ namespace Rasa.Structures
         public Dictionary<SkillId, SkillsData> Skills = new();
         public Dictionary<int, AbilityDrawerData> Abilities = new();
         public List<uint> Titles { get; set; } = new List<uint>();
+
+        /// <summary>The bosses the character has killed, by creature name id (Managers.BossTitles). Locked on when read or written.</summary>
+        public HashSet<uint> BossKills { get; set; } = new HashSet<uint>();
         public uint CurrentTitle { get; set; }
         public int CurrentAbilityDrawer { get; set; }
         public Dictionary<uint, MissionLog> Missions { get; set; } = new();
@@ -100,6 +103,24 @@ namespace Rasa.Structures
         /// <summary>How many Moves have been refused since the last one was reported.</summary>
         public int RefusedMoves { get; set; }
 
+        /// <summary>Environment.TickCount64 since when nothing has been under the player (Managers.MovementChecks); 0 while something is.</summary>
+        public long UnsupportedSinceTick { get; set; }
+
+        /// <summary>Environment.TickCount64 of the last movement-check line about this player, and how many findings since.</summary>
+        public long MovementCheckLogTick { get; set; }
+        public int MovementCheckHits { get; set; }
+
+        /// <summary>The same for the weapon checks (Managers.WeaponChecks).</summary>
+        public long WeaponCheckLogTick { get; set; }
+        public int WeaponCheckHits { get; set; }
+
+        /// <summary>
+        /// The clients that hold this player's entity from beyond their cells: squad and team
+        /// mates elsewhere on the map (Managers.FarAllies). What the player's cells are told of
+        /// them, these are told as well.
+        /// </summary>
+        internal List<Game.Client> FarWatchers { get; } = new List<Game.Client>();
+
         /// <summary>
         /// Puts the player somewhere because the server says so - a map change, a dropship, a
         /// waypoint, a summon, /stuck, a GM command - rather than because the client claimed it.
@@ -129,6 +150,7 @@ namespace Rasa.Structures
             Position = position;
             MoveBudget = 0;
             MoveBudgetTick = Environment.TickCount64;
+            UnsupportedSinceTick = 0;
 
             // Put somewhere, not fallen there: whatever descent was under way is over.
             Fall.Reset();
@@ -203,6 +225,12 @@ namespace Rasa.Structures
         /// </summary>
         public bool InCombat { get; set; }
 
+        /// <summary>
+        /// Whether the wagered item (Inventory.WagerItem) is locked in its slot: it has been taken
+        /// into combat since it was wagered. Kept on the character (InventoryManager.Wager).
+        /// </summary>
+        public bool WagerLocked { get; set; }
+
         /// <summary>The combat stance the player's own client asked to hold (RequestVisualCombatMode); see ActorManager.CombatModeOf.</summary>
         public bool RequestedCombatMode { get; set; }
 
@@ -217,6 +245,32 @@ namespace Rasa.Structures
 
         /// <summary>Environment.TickCount64 at which combat lapses, refreshed by every hit.</summary>
         public long CombatExpiresAt { get; set; }
+
+        /// <summary>
+        /// What the character left the world with last time - health, armour, power, Rez Trauma -
+        /// read from its row at load and put back as it arrives (Managers.RelogVitals); null once
+        /// that is done, or for a character with nothing saved.
+        /// </summary>
+        public SavedVitals LeftWith { get; set; }
+
+        /// <summary>
+        /// Environment.TickCount64 until which a player whose connection dropped in a fight stays
+        /// in the world - still there to be fought - before the map worker takes them out; 0 for
+        /// none (Managers.CombatLogout).
+        /// </summary>
+        public long LingerUntil { get; set; }
+
+        /// <summary>Environment.TickCount64 at which this player is next saved (Managers.AutoSave); 0 until first seen.</summary>
+        public long NextAutoSaveTick { get; set; }
+
+        /// <summary>Whether this player's connection has gone but their character is still in the fight it dropped out of.</summary>
+        public bool IsLingering => LingerUntil != 0 && Environment.TickCount64 < LingerUntil;
+
+        /// <summary>
+        /// Whether this player is gone for anything that would fight them: the connection has
+        /// dropped and they are not lingering (<see cref="IsLingering"/>).
+        /// </summary>
+        public bool IsGone => Disconected && !IsLingering;
 
         /// <summary>
         /// Armour regeneration per second from the armour worn (armorclass.regen_rate summed),
@@ -260,6 +314,12 @@ namespace Rasa.Structures
         /// </summary>
         public int DetectionRangePercent { get; set; } = 100;
 
+        /// <summary>
+        /// How far this player's radar picks up a stealthed enemy, as the client's
+        /// ToPerceiveModifier: 1.0 normally, more with a Spotter out (AbilityManager.SyncRadar).
+        /// </summary>
+        public double ToPerceiveModifier { get; set; } = 1.0;
+
         /// <summary>Environment.TickCount64 when the pending logout was requested.</summary>
         public long LogoutRequestedTick { get; set; }
         public bool RemoveFromMap { get; set; }
@@ -270,6 +330,12 @@ namespace Rasa.Structures
         /// bounced straight back: MapLinkManager seeds it on arrival and clears it on leaving.
         /// </summary>
         internal HashSet<uint> InsideMapLinks = new();
+
+        /// <summary>
+        /// The door the player last came into a squad instance by: the map, and where the door
+        /// set them down. Where they are put back on their feet if they die there (PlayerDeath).
+        /// </summary>
+        internal (uint MapContextId, System.Numerics.Vector3 Position, float Rotation)? InstanceEntrance { get; set; }
 
         /// <summary>
         /// The region ids the client was last told the player is in (UpdateRegions), sorted, so
@@ -284,6 +350,19 @@ namespace Rasa.Structures
         public int[] ChannelHashes = new int[14];
         // gm flags
         public bool GmFlagAlwaysFriendly { get; set; }
+
+        /// <summary>
+        /// A GM who has said they may die (.allowdeath). A GameMaster account is otherwise put
+        /// back on its feet at zero health instead of dying (PlayerDeath.IsDeathless). Not kept
+        /// past the session.
+        /// </summary>
+        public bool AllowDeath { get; set; }
+
+        /// <summary>Killed by an enemy player across a wargame: back from a hospital with PvP Safety.</summary>
+        public bool DiedInPvp { get; set; }
+
+        /// <summary>The state the player was in when they died, to go back to when revived.</summary>
+        public CharacterState StateBeforeDeath { get; set; }
 
         /// <summary>The camera script the player's client is running, 0 for none (CameraScripts).</summary>
         public uint CameraScriptId { get; set; }
@@ -318,6 +397,7 @@ namespace Rasa.Structures
             Credits.Add(CurencyType.Credits, character.Credit);
             Credits.Add(CurencyType.Prestige, character.Prestige);
             ActiveWeapon = character.ActiveWeapon;
+            WagerLocked = character.WagerLocked;
             // A saved slot the drawer does not have (none can be saved, but the column is only a
             // byte) is the first one.
             CurrentAbilityDrawer = character.CurrentAbilitySlot < Managers.ManifestationManager.AbilityDrawerSlots ? character.CurrentAbilitySlot : 0;

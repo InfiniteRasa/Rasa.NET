@@ -190,12 +190,16 @@ namespace Rasa.Managers
 
             }
 
+            // A squad or team mate who holds the other from across the map has them already (FarAllies).
             ManifestationManager.Instance.CellIntroduceClientToSefl(client);
-            ManifestationManager.Instance.CellIntroduceClientToPlayers(client, ListOfClients);
-            ManifestationManager.Instance.CellIntroducePlayersToClient(client, ListOfClients);
+            ManifestationManager.Instance.CellIntroduceClientToPlayers(client, FarAllies.NotHolding(client, ListOfClients));
+            ManifestationManager.Instance.CellIntroducePlayersToClient(client, FarAllies.NotHeldBy(client, ListOfClients));
 
             CreatureManager.Instance.CellIntroduceCreaturesToClient(client, ListOfCreatures);
             DynamicObjectManager.Instance.CellIntroduceDynamicObjectsToClient(client, ListOfObjects);
+
+            // Last, with the players and the objects there: anyone among them claiming a control point.
+            DynamicObjectManager.Instance.ShowClaimsTo(client, ListOfClients);
         }
 
         internal bool RemoveCreatureFromWorld(MapChannel mapChannel, Creature creature)
@@ -220,6 +224,10 @@ namespace Rasa.Managers
             // for the next creature.
             CreatureHabits.Forget(creature);
             CreatureBuffs.Forget(creature);
+            AlternateMesh.Forget(creature);
+
+            // A mission's receiver given to clients beyond its cells goes for them too.
+            MissionContacts.Removed(mapChannel, creature);
 
             // Unregister once, whoever was or was not watching.
             EntityManager.Instance.ReleaseEntity(creature.EntityId, EntityType.Creature);
@@ -235,6 +243,12 @@ namespace Rasa.Managers
         {
             // 1 time per sec, do we need check more often?
             UpdateVisibility(mapChannel);
+
+            // The NPCs missions send a player to speak to, for clients out of their range.
+            MissionContacts.Worker(mapChannel, System.Environment.TickCount64);
+
+            // And each player's squad and team mates elsewhere on the map.
+            FarAllies.Worker(mapChannel, System.Environment.TickCount64);
             // mob work
 
             // events etc...
@@ -327,6 +341,8 @@ namespace Rasa.Managers
                 client.InvalidateMissionSession();
             if (client.MissionConversation?.Map == map)
                 client.MissionConversation = null;
+            MissionContacts.Forget(client);
+            FarAllies.Forget(client);
             var memberships = map.MapCellInfo.Cells.Values.Where(cell => cell.ClientList.Contains(client)).ToArray();
             if (memberships.Length == 0)
                 return;
@@ -397,21 +413,28 @@ namespace Rasa.Managers
             map.MapCellInfo.Cells[newCenter].ClientList.Add(client);
             player.Cells = next;
 
-            ManifestationManager.Instance.CellDiscardClientToPlayers(client, leaving);
-            ManifestationManager.Instance.CellDiscardPlayersToClient(client, leaving);
+            // A squad or team mate stays on the client, and the client on theirs, as they walk
+            // apart: it is what their markers are drawn from (FarAllies).
+            ManifestationManager.Instance.CellDiscardClientToPlayers(client, FarAllies.KeepingFor(client, leaving));
+            ManifestationManager.Instance.CellDiscardPlayersToClient(client, FarAllies.KeptBy(client, leaving));
+            // The NPC a mission sends the player to speak to stays on the client as the player
+            // walks away from it: it is what the map marker is drawn from (MissionContacts).
             CreatureManager.Instance.CellDiscardCreaturesToClient(client,
-                removedCells.SelectMany(cell => cell.CreatureList).Distinct().ToList());
+                MissionContacts.Keep(client, removedCells.SelectMany(cell => cell.CreatureList).Distinct().ToList()));
             DynamicObjectManager.Instance.CellDiscardDynamicObjectsToClient(client,
                 removedCells.SelectMany(cell => cell.DynamicObjectList).Distinct().ToList());
 
             var entering = GetClientsInCells(map, added, client);
             var addedCells = GetCells(map, added).ToList();
-            ManifestationManager.Instance.CellIntroduceClientToPlayers(client, entering);
-            ManifestationManager.Instance.CellIntroducePlayersToClient(client, entering);
+            ManifestationManager.Instance.CellIntroduceClientToPlayers(client, FarAllies.NotHolding(client, entering));
+            ManifestationManager.Instance.CellIntroducePlayersToClient(client, FarAllies.NotHeldBy(client, entering));
             CreatureManager.Instance.CellIntroduceCreaturesToClient(client,
                 addedCells.SelectMany(cell => cell.CreatureList).Distinct().ToList());
             DynamicObjectManager.Instance.CellIntroduceDynamicObjectsToClient(client,
                 addedCells.SelectMany(cell => cell.DynamicObjectList).Distinct().ToList());
+
+            // Last, with the players and the objects there: anyone among them claiming a control point.
+            DynamicObjectManager.Instance.ShowClaimsTo(client, entering);
         }
 
         internal static bool TryGetCellCoordinates(Vector3 position, out uint x, out uint z)
@@ -556,6 +579,19 @@ namespace Rasa.Managers
             foreach (var cell in CellsIn(mapChannel, creature.Cells))
                 foreach (var client in cell.ClientList)
                     client.MoveObject(creature.EntityId, movementData);
+
+            // And the clients a mission has given this NPC to from across the map.
+            if (creature.Npc != null)
+                MissionContacts.Relay(mapChannel, creature, movementData);
+        }
+
+        /// <summary>The clients that have been given an object: those in the cells around where it stands.</summary>
+        internal List<Client> ClientsSeeing(MapChannel mapChannel, DynamicObject obj)
+        {
+            if (mapChannel == null || obj == null || !TryGetCellCoordinates(obj.Position, out var cellPosX, out var cellPosZ))
+                return new List<Client>();
+
+            return GetClientsInCells(mapChannel, CreateCellMatrix(mapChannel, cellPosX, cellPosZ));
         }
 
         internal void CellCallMethod(DynamicObject obj, PythonPacket packet)
@@ -609,6 +645,9 @@ namespace Rasa.Managers
         {
             foreach (var client in GetClientsInCells(mapChannel, origin.Cells))
                 client.CallMethod(origin.EntityId, packet);
+
+            // A player's squad and team mates who hold them from across the map (FarAllies).
+            FarAllies.Relay(origin, packet);
         }
 
         /// <summary>

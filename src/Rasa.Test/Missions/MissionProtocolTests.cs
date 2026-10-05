@@ -341,7 +341,9 @@ namespace Rasa.Test.Missions
                 Assert.IsTrue(statuses.All(status => status.ConvoStatusId == ConversationStatus.None));
 
                 router.RoutePacket(handler, new RequestNPCConversePacket { EntityId = receiver.EntityId });
-                Assert.AreEqual(0, context.Drain().OfType<ConversePacket>().Single().ConvoDataDict.Count);
+                var nothingLeft = context.Drain().OfType<ConversePacket>().Single().ConvoDataDict;
+                Assert.AreEqual(1, nothingLeft.Count, "Nothing left to say closes the conversation; an empty dictionary is an error on the client.");
+                Assert.AreEqual(true, nothingLeft[ConversationType.EndConversation]);
                 context.ReloadPlayerMissions();
                 router.RoutePacket(handler, request);
                 router.RoutePacket(handler, new AssignNPCMissionPacket

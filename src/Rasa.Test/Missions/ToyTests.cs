@@ -336,6 +336,65 @@ namespace Rasa.Test.Missions
             Assert.AreEqual(501U, unit.Items.GetItem(carried.Id).StackSize);
         }
 
+        // "You received N X." comes from GotLoot, which carries the class id for the client to
+        // name; as a DisplayClientMessage argument the class went out as text, "You received 1 12951".
+        [TestMethod]
+        public void APurchaseIsAnnouncedByClassIdForTheClientToName()
+        {
+            using var harness = BootcampRuntimeTestHarness.Create();
+            var carried = Grant(harness, SnowballTemplate);
+            LoadTemplate(harness, PineOckTemplate);
+            var npc = harness.AddNpc(BootcampRuntimeTestHarness.CorporalHartmannCreatureId,
+                position: harness.Client.Player.Position + new System.Numerics.Vector3(0, 0, 2));
+            npc.Npc ??= new Npc();
+            npc.Npc.Vendor = new Vendor(0) { ItemPrice = 1, VendorItems = { SnowballTemplate, PineOckTemplate } };
+            Assert.IsTrue(ManifestationManager.Instance.GainCredits(harness.Client, 1000));
+            var npcs = new NpcManager(harness.Context, harness.Manager);
+            npcs.RequestNPCVending(harness.Client, new RequestNPCVendingPacket { EntityId = npc.EntityId });
+            ulong Stock(uint template) => EntityManager.Instance.VendorItems[npc.EntityId]
+                .Single(id => EntityManager.Instance.GetItem(id).ItemTemplate.ItemTemplateId == template);
+            harness.Drain();
+
+            // Merged into the stack already carried: the quantity bought, and that stack.
+            npcs.RequestVendorPurchase(harness.Client, new RequestVendorPurchasePacket
+                { VendorEntityId = npc.EntityId, ItemEntityId = Stock(SnowballTemplate), Quantity = 5 });
+
+            var packets = harness.Drain();
+            var got = packets.OfType<Rasa.Packets.ClientMethod.Server.GotLootPacket>().Single();
+            Assert.AreEqual(npc.EntityId, got.CreatureEntityId);
+            Assert.AreEqual(0, got.Credits);
+            Assert.AreEqual((30547U, 5U, carried.EntityId), got.Entries.Single());
+            Assert.IsFalse(packets.OfType<Rasa.Packets.Communicator.Server.DisplayClientMessagePacket>()
+                .Any(message => message.MsgId == PlayerMessage.PmGotLootFromUnknown));
+
+            // A new item: its own entity.
+            npcs.RequestVendorPurchase(harness.Client, new RequestVendorPurchasePacket
+                { VendorEntityId = npc.EntityId, ItemEntityId = Stock(PineOckTemplate), Quantity = 1 });
+
+            var pet = harness.Client.Player.Inventory.PersonalInventory.Where(id => id != 0)
+                .Select(EntityManager.Instance.GetItem).Single(item => item.ItemTemplateId == PineOckTemplate);
+            got = harness.Drain().OfType<Rasa.Packets.ClientMethod.Server.GotLootPacket>().Single();
+            Assert.AreEqual((26361U, 1U, pet.EntityId), got.Entries.Single());
+
+            // Recv_GotLoot(creatureEntityId, [(classId, quantity, itemId)], moneyAmount).
+            using var stream = new MemoryStream();
+            using (var writer = new PythonWriter(new BinaryWriter(stream, Encoding.UTF8, true)))
+                got.Write(writer);
+            using var expected = new MemoryStream();
+            using (var writer = new PythonWriter(new BinaryWriter(expected, Encoding.UTF8, true)))
+            {
+                writer.WriteTuple(3);
+                writer.WriteULong(npc.EntityId);
+                writer.WriteList(1);
+                writer.WriteTuple(3);
+                writer.WriteUInt(26361);
+                writer.WriteUInt(1);
+                writer.WriteULong(pet.EntityId);
+                writer.WriteInt(0);
+            }
+            CollectionAssert.AreEqual(expected.ToArray(), stream.ToArray());
+        }
+
         [TestMethod]
         public void APetFollowsItsOwnerTakesNoPartAndGoesHomeOnTheSameItem()
         {
@@ -390,7 +449,7 @@ namespace Rasa.Test.Missions
         }
 
         /// <summary>A creature class, as the server loads every class at start-up.</summary>
-        private static void LoadClass(BootcampRuntimeTestHarness.Harness harness, uint classId)
+        internal static void LoadClass(BootcampRuntimeTestHarness.Harness harness, uint classId)
         {
             var entry = harness.WorldContext.Set<EntityClassEntry>().AsNoTracking().Single(row => row.Id == classId);
             EntityClassManager.Instance.LoadedEntityClasses[(EntityClasses)classId] = new EntityClass(entry.Id, entry.ClassName, entry.MeshId,

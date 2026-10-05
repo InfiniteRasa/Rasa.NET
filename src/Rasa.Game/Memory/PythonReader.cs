@@ -144,6 +144,18 @@ namespace Rasa.Memory
             };
         }
 
+        /// <summary>
+        /// An id, in whichever form the client holds it. One it kept as the server sent it
+        /// (WriteULong) comes back a long; one it read back out of a widget's name -
+        /// int(widget.GetID()), the rows of the auction house's lists - is a Python int whenever
+        /// it fits one, and a long past that. A reader that takes only the one throws on the
+        /// other, and a throw out of Read closes the connection.
+        /// </summary>
+        public ulong ReadId()
+        {
+            return PeekType() == PythonType.Long ? ReadULong() : ReadUInt();
+        }
+
         public long ReadLong()
         {
             var type = Reader.ReadByte();

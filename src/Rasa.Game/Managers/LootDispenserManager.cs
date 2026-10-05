@@ -557,6 +557,7 @@ namespace Rasa.Managers
                 };
                 var stagedItems = new List<Item>();
                 var hasClaimedItems = false;
+                var objectiveOpen = false;
                 try
                 {
                     if (!MapInstanceScope.Contains(mapChannel, obj) ||
@@ -589,11 +590,13 @@ namespace Rasa.Managers
                         }
                         if (objective.ObjectiveState != (byte)MissionObjectiveState.Incomplete)
                             throw new GameplayRejectionException("Reward loot objective is not active.");
+                        objectiveOpen = true;
 
                         foreach (var row in reward.FixedItems)
                         {
-                            if (unit.CharacterMissionScenario.HasStep(
-                                owner.Player.Id, source.MissionId, source.ClaimKey(row.ItemTemplateId)))
+                            // Taken in this attempt at the mission, or in one the character then
+                            // abandoned or failed: a row is handed out once.
+                            if (WasClaimed(unit, owner.Player.Id, source, row.ItemTemplateId))
                             {
                                 hasClaimedItems = true;
                                 continue;
@@ -635,16 +638,67 @@ namespace Rasa.Managers
                 obj.StateId = hasClaimedItems || loot.FullyLooted
                     ? UseObjectState.TdStateOpened
                     : UseObjectState.TdStateClosed;
-                obj.IsEnabled = loot.IsLootable;
+                // Nothing left for the owner and the objective still open: every row went in an
+                // earlier attempt. The container stays usable, and its use finishes the objective
+                // (FinishEmptyRewardLoot).
+                obj.IsEnabled = loot.IsLootable || objectiveOpen;
                 owner.CallMethod(obj.EntityId, new ForceStatePacket(obj.StateId, 0));
+                // With the mission that activates the container for its owner (MissionObjects).
                 owner.CallMethod(obj.EntityId,
-                    new UsableInfoPacket(obj.IsEnabled, obj.StateId, 0, obj.WindupTime, obj.ActivateMission));
+                    MissionObjects.InfoFor(owner, obj, obj.IsEnabled, obj.WindupTime, _missionManager));
                 owner.CallMethod(SysEntity.ClientMethodId,
                     new CreatePhysicalEntityPacket(loot.EntityId, loot.EntityClassId));
                 AttachInfo(owner, loot);
                 LootInfo(owner, loot);
                 OverallQuality(owner, loot);
                 CanLootItems(owner, loot);
+            }
+        }
+
+        /// <summary>
+        /// Whether the character has had the row of a mission's reward loot: in the current
+        /// attempt (its scenario step), or in one they then abandoned or failed (the step as that
+        /// assignment's archived receipt). Abandoning removes the assignment and its steps, and a
+        /// container refilled for the next attempt handed the same items out again.
+        /// </summary>
+        private static bool WasClaimed(Repositories.Char.ICharUnitOfWork unit, uint characterId, MissionLootSource source, uint itemTemplateId)
+        {
+            var key = source.ClaimKey(itemTemplateId);
+
+            return unit.CharacterMissionScenario.HasStep(characterId, source.MissionId, key) ||
+                   unit.CharacterMissions.Runtime.HadStepInUnfinishedAttempt(characterId, source.MissionId, key);
+        }
+
+        /// <summary>
+        /// A reward container that has nothing left for its owner while the objective it serves
+        /// is still open: they took every row in an attempt at the mission that they then gave
+        /// up. Using it is all there is left to do, and does what taking the last row does - the
+        /// interaction that completes the objective. False when there is loot to show instead.
+        /// </summary>
+        internal bool FinishEmptyRewardLoot(Client client, MapChannel mapChannel, DynamicObject obj)
+        {
+            var source = obj?.MissionLootSource;
+            if (source == null || client?.Player == null || mapChannel == null)
+                return false;
+
+            lock (client.SyncRoot)
+            {
+                lock (mapChannel.LootSyncRoot)
+                    if (!mapChannel.LootDispensers.TryGetValue(obj.LootDispenserEntityId, out var loot) ||
+                        !ReferenceEquals(loot.AttachedObject, obj) ||
+                        !ReferenceEquals(loot.OwnerClient, client) ||
+                        loot.Remaining().Count != 0)
+                        return false;
+
+                if (!client.Player.Missions.TryGetValue(source.MissionId, out var mission) ||
+                    mission.State != MissionState.Active ||
+                    !mission.Objectives.TryGetValue(source.ObjectiveId, out var objective) ||
+                    objective.State != MissionObjectiveState.Incomplete)
+                    return false;
+
+                (_missionManager ?? MissionApplication.Instance).RecordProgress(
+                    client, MissionProgressEvent.Interaction((uint)obj.EntityClassId));
+                return true;
             }
         }
 
@@ -980,8 +1034,7 @@ namespace Rasa.Managers
                             throw new GameplayRejectionException("Reward loot objective is stale.");
 
                         foreach (var item in items)
-                            if (unitOfWork.CharacterMissionScenario.HasStep(
-                                client.Player.Id, source.MissionId, source.ClaimKey(item.ItemTemplateId)))
+                            if (WasClaimed(unitOfWork, client.Player.Id, source, item.ItemTemplateId))
                                 throw new GameplayRejectionException("Reward loot item was already claimed.");
                     }
 

@@ -30,6 +30,15 @@
         public bool IsSafe { get; set; }
         public bool IsActive { get; set; }
 
+        /// <summary>A control point's owner under FACTION_OWNED: true for the AFS, false for the Bane.</summary>
+        public bool OwnerIsAfs { get; set; }
+
+        /// <summary>A control point under TEAM_OWNED rather than FACTION_OWNED: a battleground's.</summary>
+        public bool TeamOwned { get; set; }
+
+        /// <summary>The team that holds a TEAM_OWNED control point; 0 for nobody.</summary>
+        public uint OwnerTeamId { get; set; }
+
         public MapMarkerState(uint markerType)
         {
             MarkerType = markerType;
@@ -47,10 +56,45 @@
             return new MapMarkerState(MapMarkerType.CraftingStation) { IsActive = isActive };
         }
 
+        /// <summary>A control point and the faction that holds it (ControlPoints).</summary>
+        public static MapMarkerState ControlPoint(bool ownerIsAfs)
+        {
+            return new MapMarkerState(MapMarkerType.ControlPoint) { OwnerIsAfs = ownerIsAfs };
+        }
+
+        /// <summary>
+        /// A battleground's control point and the team that holds it (Battlegrounds): TEAM_OWNED
+        /// with the team's id, drawn in the team's colour, or with None for nobody's, drawn
+        /// neutral (gameuiutil.GetControlPointOwnerColorDef).
+        /// </summary>
+        public static MapMarkerState TeamControlPoint(uint teamId)
+        {
+            return new MapMarkerState(MapMarkerType.ControlPoint) { TeamOwned = true, OwnerTeamId = teamId };
+        }
+
         public void Write(PythonWriter pw)
         {
             switch (MarkerType)
             {
+                case MapMarkerType.ControlPoint when TeamOwned:
+                    pw.WriteTuple(2);
+                    pw.WriteUInt(ControlPointOwnershipType.TeamOwned);
+
+                    if (OwnerTeamId == 0)
+                        pw.WriteNoneStruct();
+                    else
+                        pw.WriteUInt(OwnerTeamId);
+
+                    break;
+
+                case MapMarkerType.ControlPoint:
+                    // (ownerTypeId, ownerId). Under FACTION_OWNED the client tests the owner with
+                    // "is True" and "is False": see ControlPointOwnershipType.
+                    pw.WriteTuple(2);
+                    pw.WriteUInt(ControlPointOwnershipType.FactionOwned);
+                    pw.WriteBool(OwnerIsAfs);
+                    break;
+
                 case MapMarkerType.WaypointTeleporter:
                     pw.WriteTuple(2);
                     pw.WriteBool(IsFriendly);

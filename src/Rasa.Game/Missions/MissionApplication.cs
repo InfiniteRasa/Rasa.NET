@@ -182,6 +182,9 @@ namespace Rasa.Managers
             _protocol.BuildStatusSnapshot(player);
         internal void PublishMissionStatus(Client client, uint missionId, string description) =>
             _protocol.PublishMissionStatus(client, missionId, description);
+
+        internal void PublishMissionStatus(Client client, IEnumerable<uint> missionIds, string description) =>
+            _protocol.PublishMissionStatus(client, missionIds, description);
         internal MissionInfo BuildPublishedMissionInfo(Manifestation player, Mission definition, MissionLog mission) =>
             _protocol.BuildPublishedMissionInfo(player, definition, mission);
         internal void PublishAnnouncementAudio(Client client, uint missionId, uint greetingId) =>
@@ -284,8 +287,13 @@ namespace Rasa.Managers
                 !CellManager.Instance.IsInWorld(client))
                 return;
 
+            // The NPCs around the player, and the ones their client was given from afar because
+            // a mission sends the player to them (MissionContacts): those have a status to keep too.
             var npcs = CellManager.CellsIn(map, player.Cells)
                 .SelectMany(cell => cell.CreatureList)
+                .Concat(client.FarContacts
+                    .Select(entityId => MapInstanceScope.TryGetCreature(map, entityId, out var held) ? held : null)
+                    .Where(held => held != null))
                 .Where(creature => creature.Npc != null)
                 .Distinct()
                 .ToArray();
@@ -295,6 +303,148 @@ namespace Rasa.Managers
                     TryPublish(
                         () => NpcManager.Instance.UpdateConversationStatus(client, npc, this),
                         $"NPC {npc.EntityId} conversation status after mission progress");
+
+            // A mission that can now be handed in puts its receiver on the map, and an objective
+            // to talk through its NPC; handed in, talked through or abandoned takes them off.
+            TryPublish(() => MissionContacts.Sync(client), "mission contacts after mission progress");
+
+            // And the objects a mission now wants used, or no longer does, start or stop sparkling.
+            TryPublish(() => MissionObjects.Refresh(client, this), "mission objects after mission progress");
+        }
+
+        /// <summary>
+        /// The entity classes whose use would move one of the player's missions on now, each
+        /// with that mission: the subjects of the InteractionUsed triggers on the transitions of
+        /// their active objectives. What an object of the class sparkles for (MissionObjects).
+        /// </summary>
+        internal Dictionary<uint, uint> WantedInteractions(Manifestation player)
+        {
+            var wanted = new Dictionary<uint, uint>();
+
+            if (player?.Missions == null)
+                return wanted;
+
+            foreach (var log in player.Missions.Values)
+            {
+                if (log.State != MissionState.Active || !TryGetOperationalMission(log.MissionId, out var mission))
+                    continue;
+
+                foreach (var objective in mission.Objectives.Values)
+                {
+                    if (!log.Objectives.TryGetValue(objective.ObjectiveId, out var runtime) ||
+                        runtime.State != MissionObjectiveState.Incomplete)
+                        continue;
+
+                    foreach (var transition in objective.GetExecutableTransitionsOrLegacyDefault())
+                    {
+                        if (transition.ProgressRule?.Kind != MissionProgressEventKind.InteractionUsed)
+                            continue;
+
+                        foreach (var subject in transition.ProgressRule.Subjects)
+                            wanted.TryAdd(subject, log.MissionId);
+                    }
+                }
+            }
+
+            return wanted;
+        }
+
+        /// <summary>
+        /// The creature rows a player can hand a mission in to now: the receivers of their
+        /// missions whose objectives are done, by the test ClassifyNpcConversation makes for the
+        /// MissionComplete status - an NPC completion, the turn-in requirement met, and for a
+        /// mission already a success, a reward to give.
+        /// </summary>
+        internal HashSet<uint> TurnInReceivers(Manifestation player)
+        {
+            var receivers = new HashSet<uint>();
+
+            if (player?.Missions == null)
+                return receivers;
+
+            foreach (var log in player.Missions.Values)
+            {
+                var ready = log.State == MissionState.Active && log.Completeable || log.State == MissionState.Success;
+
+                if (!ready || !TryGetOperationalMission(log.MissionId, out var mission))
+                    continue;
+
+                if (!mission.MissionReciver.HasValue || !mission.CompletionChannel.HasFlag(MissionChannel.Npc))
+                    continue;
+
+                if (log.State == MissionState.Success && !TryGetRewardInfo(log.MissionId, out _))
+                    continue;
+
+                if (_requirements.Evaluate(player, mission.TurnInRequirement))
+                    receivers.Add(mission.MissionReciver.Value);
+            }
+
+            return receivers;
+        }
+
+        /// <summary>
+        /// The NPC packages a player has an objective to talk through now: the NPCs
+        /// ClassifyNpcConversation gives ObjectivComplete or ObjectivChoice for, by the same
+        /// test (<see cref="OpenTopics"/>) - a completion or choice topic of an active mission
+        /// whose objective is still to do, its requirement met. They are what MissionContacts
+        /// puts on the map from anywhere on it, with the receivers of <see cref="TurnInReceivers"/>.
+        /// A topic that names the one creature who speaks it (SourceCreatureId) adds that
+        /// creature row to <paramref name="speakers"/> in place of its package.
+        /// </summary>
+        internal HashSet<uint> ObjectiveContacts(Manifestation player, HashSet<uint> speakers = null)
+        {
+            var packages = new HashSet<uint>();
+
+            if (player?.Missions == null)
+                return packages;
+
+            foreach (var log in player.Missions.Values)
+            {
+                if (log.State != MissionState.Active || !TryGetOperationalMission(log.MissionId, out var mission))
+                    continue;
+
+                var named = mission.Dialogue.Select(topic => topic.NpcPackageId)
+                    .Concat(mission.Objectives.Values.SelectMany(objective => objective.Conversations)
+                        .Select(conversation => conversation.NpcPackageId))
+                    .Distinct();
+
+                foreach (var package in named)
+                    foreach (var topic in OpenTopics(player, mission, log, package))
+                    {
+                        if (topic.Key.Kind is not (MissionConversationTopicKind.ObjectiveCompletion or MissionConversationTopicKind.ObjectiveChoice))
+                            continue;
+
+                        // A topic one creature alone speaks is that creature's, not its package's.
+                        if (topic.Definition.SourceCreatureId is uint sourceCreature && speakers != null)
+                            speakers.Add(sourceCreature);
+                        else
+                            packages.Add(package);
+                    }
+            }
+
+            return packages;
+        }
+
+        /// <summary>
+        /// What an NPC of this package has to say for an active mission: its topics whose
+        /// objective is still to do and whose requirement - the objective's and the topic's own
+        /// (DialogueRequirement) - the player meets. A topic one creature alone speaks
+        /// (SourceCreatureId) is left out for any other creature of the package; with no
+        /// creature named, every topic of the package is given.
+        /// </summary>
+        private IEnumerable<MissionDialoguePresentation> OpenTopics(Manifestation player, Mission mission, MissionLog log, uint packageId,
+            uint? creatureId = null)
+        {
+            foreach (var topic in MissionConversationProjection.ForNpc(mission, packageId))
+            {
+                if (creatureId.HasValue && topic.Definition.SourceCreatureId is uint sourceCreature && sourceCreature != creatureId.Value ||
+                    !log.Objectives.TryGetValue(topic.ProgressionObjectiveId, out var objectiveLog) ||
+                    objectiveLog.State != MissionObjectiveState.Incomplete ||
+                    !_requirements.Evaluate(player, DialogueRequirement(mission, topic.ProgressionObjectiveId, topic.Definition)))
+                    continue;
+
+                yield return topic;
+            }
         }
 
         internal void PublishRadioOffer(Client client, Mission definition, bool forceDialog)
@@ -302,6 +452,40 @@ namespace Rasa.Managers
             var offer = _protocol.BuildOfferInfo(definition);
             PublishMissionPacket(client, new DispenseRadioMissionPacket(definition.MissionId, offer, forceDialog),
                 $"radio mission {definition.MissionId} offer");
+        }
+
+        /// <summary>
+        /// The character has arrived on a map: every mission with a map-arrival radio source for
+        /// it (MissionOfferSourceDefinition.MapArrivalKey, in the mission's channel policy) is
+        /// offered by radio, as a commander calls a new arrival in. Not one the character
+        /// holds, has succeeded at or has no room or standing for - nothing is offered that the
+        /// offer would refuse - and one turned down is offered again on the next arrival.
+        /// </summary>
+        internal void OfferArrivalMissions(Client client)
+        {
+            var player = client?.Player;
+            var mapContextId = player?.MapChannel?.MapInfo?.MapContextId;
+
+            if (mapContextId == null)
+                return;
+
+            foreach (var definition in _catalog.View.Values
+                .Where(definition => definition.IsOperational &&
+                    definition.AcceptanceChannel.HasFlag(MissionChannel.Radio) &&
+                    definition.RadioSources.Any(source => source.Kind == MissionOfferSourceKind.ServerEvent &&
+                        source.Key == MissionOfferSourceDefinition.MapArrivalKey && source.MapContextId == mapContextId))
+                .OrderBy(definition => definition.MissionId)
+                .ToArray())
+            {
+                if (player.Missions.ContainsKey(definition.MissionId) ||
+                    player.MissionSuccessHistory.Contains(definition.MissionId) ||
+                    player.Missions.Values.Count(mission => mission.State != MissionState.Completed) >= MissionRuntime.JournalCapacity ||
+                    !ArePrerequisitesSatisfied(player, definition.MissionId, out _))
+                    continue;
+
+                Offers.TryOffer(client, definition.MissionId,
+                    MissionOfferSourceIdentity.ServerEvent(MissionOfferSourceDefinition.MapArrivalKey));
+            }
         }
 
         internal void PublishSharedOffer(Client client, Mission definition, ulong sourceEntityId) =>
@@ -1787,6 +1971,7 @@ namespace Rasa.Managers
                     var appliedRevealed = new List<uint>();
                     var appliedActivated = new List<uint>();
                     durableObjective.ObjectiveState = (byte)MissionObjectiveState.Completed;
+                    var completionTitle = GrantObjectiveTitle(objectiveDefinition, unitOfWork, client);
                     foreach (var successorId in revealed)
                     {
                         if (!durableObjectives.TryGetValue(successorId, out var successor))
@@ -1843,6 +2028,9 @@ namespace Rasa.Managers
                             client,
                             new ObjectiveCompletedPacket(missionId, objectiveId),
                             $"mission {missionId} objective {objectiveId} completed");
+                        if (completionTitle != 0)
+                            TryPublish(() => ManifestationManager.TitleGained(client, completionTitle),
+                                $"mission {missionId} objective {objectiveId} title");
                         foreach (var successorId in revealed.Where(appliedRevealed.Contains))
                             PublishMissionPacket(
                                 client,
@@ -1991,6 +2179,7 @@ namespace Rasa.Managers
                 client.CallMethod(
                     client.Player.EntityId,
                     new MissionClearedPacket(missionId));
+                RefreshNpcConversationStatuses(client);
                 return true;
             }
         }
@@ -2059,6 +2248,7 @@ namespace Rasa.Managers
                             this,
                             TryExecuteScenario,
                             TryExecuteFailureTransitionScenario);
+                        RefreshNpcConversationStatuses(client);
                         return true;
                     }
                     if (!removed)
@@ -2077,6 +2267,11 @@ namespace Rasa.Managers
                 inventoryPublication?.Invoke(client);
                 Scenes.CompleteAssignmentCancellation(cancelledScenes);
                 PublishMissionPacket(client, new MissionDiscardedPacket(missionId), $"mission {missionId} abandoned");
+
+                // The giver has the mission to offer again, and whoever the abandoned objectives
+                // were talked through with has not. Nothing told the client: the giver showed no
+                // offer until the player went out of its sight and back, or logged in again.
+                RefreshNpcConversationStatuses(client);
                 return true;
             }
         }
@@ -2175,9 +2370,17 @@ namespace Rasa.Managers
             scenarios.Values.Any(scenario =>
                 scenario.StartPolicy == MissionScenarioStartPolicy.PlayerTriggered);
 
-        internal bool RecordProgress(Client client, MissionProgressEvent progress)
+        internal bool RecordProgress(Client client, MissionProgressEvent progress) =>
+            RecordProgress(client, new[] { progress });
+
+        /// <summary>
+        /// One happening under every name it has - a kill is its creature, its creature's class
+        /// and each creature flag of that class - in one plan: an objective that answers to more
+        /// than one of the names advances once.
+        /// </summary>
+        internal bool RecordProgress(Client client, IReadOnlyList<MissionProgressEvent> progress)
         {
-            if (client == null)
+            if (client == null || progress == null)
                 return false;
 
             lock (client.SyncRoot)
@@ -2195,13 +2398,13 @@ namespace Rasa.Managers
                     unitOfWork.ExecuteTransaction(() =>
                         plan = PlanProgress(
                             client,
-                            new[] { progress },
+                            progress,
                             unitOfWork));
                 }
                 catch (Exception error) when (GameplayRejectionException.IsExpected(error))
                 {
                     Logger.WriteLog(LogType.Error,
-                        $"Unable to record mission progress {progress.Kind}:{progress.SubjectId} " +
+                        $"Unable to record mission progress {string.Join(", ", progress.Select(entry => $"{entry.Kind}:{entry.SubjectId}"))} " +
                         $"for character {client.Player.Id}: {error}");
                     return false;
                 }
@@ -2223,18 +2426,14 @@ namespace Rasa.Managers
 
         private bool HasProgressCandidate(
             Client client,
-            MissionProgressEvent progress)
+            IReadOnlyList<MissionProgressEvent> progress)
         {
-            if (!Enum.IsDefined(
-                    typeof(MissionProgressEventKind), progress.Kind) ||
-                progress.SubjectId == 0 ||
-                progress.Quantity == 0)
-                return false;
-
-            return _runtime.SelectCandidates(client.Player.Missions, new[] { progress },
+            // SelectCandidates and SelectHistoryAggregates pass over an event of no kind, subject
+            // or quantity.
+            return _runtime.SelectCandidates(client.Player.Missions, progress,
                 client.Player.GainedWaypoints.Select(entry => entry.WaypointId).ToHashSet(),
                 client.Player.Logos.ToHashSet()).Count > 0 ||
-                _runtime.SelectHistoryAggregates(client.Player.Missions, new[] { progress }).Count > 0;
+                _runtime.SelectHistoryAggregates(client.Player.Missions, progress).Count > 0;
         }
 
         internal MissionProgressPublicationPlan PlanProgress(
@@ -2423,11 +2622,14 @@ namespace Rasa.Managers
                             ? ApplyTransitionActions(candidate.ObjectiveDefinition.ObjectiveId,
                                 candidate.ExecutableTransition, durableObjectives, unitOfWork, client)
                             : TransitionActionApplication.Empty;
+                        var counterTitle = completed
+                            ? GrantObjectiveTitle(candidate.ObjectiveDefinition, unitOfWork, client)
+                            : 0;
                         publications.Add(decision.IsItemCounter
                             ? ProgressPublication.ItemCounter(candidate, decision.CounterId.Value,
-                                decision.CounterValue.Value, completed, actions)
+                                decision.CounterValue.Value, completed, actions, counterTitle)
                             : ProgressPublication.Counter(candidate, decision.CounterId.Value,
-                                decision.CounterValue.Value, completed, actions));
+                                decision.CounterValue.Value, completed, actions, counterTitle));
                         continue;
                     }
                     var toState = decision.State.Value;
@@ -2511,7 +2713,8 @@ namespace Rasa.Managers
                         ApplyTransitionActions(
                             candidate.ObjectiveDefinition.ObjectiveId,
                             candidate.ExecutableTransition,
-                            durableObjectives, unitOfWork, client)));
+                            durableObjectives, unitOfWork, client),
+                        GrantObjectiveTitle(candidate.ObjectiveDefinition, unitOfWork, client)));
                 }
 
                 var completeable = first.Definition.Objectives.Values
@@ -2859,6 +3062,15 @@ namespace Rasa.Managers
                 if (unit.CharacterMissions.Runtime.ReadAssignment(characterId, missionId) != null)
                     throw new GameplayRejectionException("A different assignment appeared before journal removal committed.");
             });
+
+        /// <summary>
+        /// The title an objective gives when it completes (the scene binding's titles), saved in
+        /// the transaction that completes it. 0 when it gives none, or the character has it
+        /// already - a second character's worth of the same kills earns nothing twice.
+        /// </summary>
+        private static uint GrantObjectiveTitle(MissionObjectiveDefinition objective, ICharUnitOfWork unitOfWork, Client client) =>
+            objective.TitleId is uint titleId && titleId != 0 &&
+            unitOfWork.CharacterTitles.Add(client.Player.Id, titleId) ? titleId : 0;
 
         private TransitionActionApplication ApplyTransitionActions(
             uint currentObjectiveId,
@@ -3216,6 +3428,7 @@ namespace Rasa.Managers
             var dialogue = new List<MissionDialoguePresentation>();
             var completeable = new Dictionary<uint, RewardInfo>();
             var rewardable = new List<RewardableMissions>();
+            var notYetAvailable = new List<uint>();
 
             foreach (var mission in _runtime.ForNpc(creature.DbId, creature.Npc.NpcPackageId))
             {
@@ -3226,18 +3439,26 @@ namespace Rasa.Managers
                 {
                     if (log?.State == MissionState.Failed && mission.RepeatPolicy.Kind == MissionRepeatKind.Once)
                         continue;
+                    var gives = mission.AcceptanceChannel.HasFlag(MissionChannel.Npc) && mission.MissionGiver == creature.DbId;
                     var everSucceeded = log?.State == MissionState.Completed ||
                         player.MissionSuccessHistory.Contains(mission.MissionId) ||
                         player.MissionHistory.TryGetValue(mission.MissionId, out var outcome) &&
                         outcome is MissionState.Success or MissionState.Completed;
                     if (!mission.RepeatPolicy.Allows(_utcNow(), everSucceeded,
                         player.MissionRewardTimes.TryGetValue(mission.MissionId, out var rewardTime) ? rewardTime : null))
+                    {
+                        // Done once and for all is done; one that comes round again is waited for.
+                        if (gives && mission.RepeatPolicy.Kind is MissionRepeatKind.Cooldown or MissionRepeatKind.Daily &&
+                            (ArePrerequisitesSatisfied(player, mission.MissionId, out _) || IsNotYetAvailable(player, mission)))
+                            notYetAvailable.Add(mission.MissionId);
                         continue;
-                    if (mission.AcceptanceChannel.HasFlag(MissionChannel.Npc) && mission.MissionGiver == creature.DbId &&
-                        ArePrerequisitesSatisfied(player, mission.MissionId, out _))
+                    }
+                    if (gives && ArePrerequisitesSatisfied(player, mission.MissionId, out _))
                         dispensable.Add(
                             mission.MissionId,
                             _protocol.BuildOfferInfo(mission, MissionState.Active));
+                    else if (gives && IsNotYetAvailable(player, mission))
+                        notYetAvailable.Add(mission.MissionId);
                     continue;
                 }
 
@@ -3256,16 +3477,7 @@ namespace Rasa.Managers
                         continue;
                     }
 
-                    foreach (var topic in MissionConversationProjection.ForNpc(mission, creature.Npc.NpcPackageId))
-                    {
-                        if (topic.Definition.SourceCreatureId is uint sourceCreature && sourceCreature != creature.DbId ||
-                            !log.Objectives.TryGetValue(topic.ProgressionObjectiveId, out var objectiveLog) ||
-                            objectiveLog.State != MissionObjectiveState.Incomplete ||
-                            !_requirements.Evaluate(player, DialogueRequirement(mission,
-                                topic.ProgressionObjectiveId, topic.Definition)))
-                            continue;
-                        dialogue.Add(topic);
-                    }
+                    dialogue.AddRange(OpenTopics(player, mission, log, creature.Npc.NpcPackageId, creature.DbId));
                 }
                 else if (log.State == MissionState.Success &&
                     mission.CompletionChannel.HasFlag(MissionChannel.Npc) &&
@@ -3281,8 +3493,75 @@ namespace Rasa.Managers
                 dispensable,
                 dialogue,
                 completeable,
-                rewardable);
+                rewardable,
+                notYetAvailable);
         }
+
+        /// <summary>
+        /// The mission is ahead of the character: something it asks is unmet, and all that is
+        /// unmet comes with playing on - a level to reach, or another mission, one that is in
+        /// the content, to finish. That is what the client's CONVO_STATUS_UNAVAILABLE is for
+        /// (overheadwindow.py draws OVERHEAD_MISSION_UNAVAILABLE over the giver).
+        ///
+        /// A mission asking for anything else is not ahead, it is beside: Bootcamp's retry
+        /// (2005) wants Calling for Reinforcements failed, and its giver is not to wear the
+        /// icon for everyone who has not failed it. So a required Failed state, a mission that
+        /// has to be held at the time, a player flag, a map or a custom requirement keeps the
+        /// mission out of this list whatever else it asks.
+        /// </summary>
+        internal bool IsNotYetAvailable(Manifestation player, Mission mission)
+        {
+            var ahead = false;
+
+            if (mission.Requirement != null && !_requirements.Evaluate(player, mission.Requirement))
+            {
+                if (!ComesWithProgress(player, mission.Requirement))
+                    return false;
+                ahead = true;
+            }
+
+            if (!_catalog.Prerequisites.TryGetValue(mission.MissionId, out var prerequisites))
+                return ahead;
+
+            foreach (var prerequisite in prerequisites)
+            {
+                if (IsPrerequisiteSatisfied(player, prerequisite))
+                    continue;
+
+                var progress = prerequisite.Kind switch
+                {
+                    MissionPrerequisiteKind.PlayerLevelAtLeast => prerequisite.RequiredLevel.HasValue,
+                    MissionPrerequisiteKind.MissionCompleted => prerequisite.RequiredMissionId.HasValue &&
+                        IsFinishedState(prerequisite.RequiredMissionStateValue.HasValue
+                            ? (MissionState?)prerequisite.RequiredMissionStateValue.Value : null) &&
+                        TryGetOperationalMission(prerequisite.RequiredMissionId.Value, out _),
+                    _ => false
+                };
+
+                if (!progress)
+                    return false;
+                ahead = true;
+            }
+
+            return ahead;
+        }
+
+        /// <summary>An unmet authored requirement that playing on will meet.</summary>
+        private bool ComesWithProgress(Manifestation player, MissionRequirement requirement) =>
+            requirement switch
+            {
+                LevelRequirement => true,
+                MissionStateRequirement mission => !mission.Accepted && IsFinishedState(mission.State) &&
+                    TryGetOperationalMission(mission.MissionId, out _),
+                AllRequirements all => all.Items
+                    .Where(item => !_requirements.Evaluate(player, item))
+                    .All(item => ComesWithProgress(player, item)),
+                AnyRequirement any => any.Items.Any(item => ComesWithProgress(player, item)),
+                _ => false
+            };
+
+        private static bool IsFinishedState(MissionState? state) =>
+            state is null or MissionState.Success or MissionState.Completed;
 
         internal bool TryGetOperationalMission(uint missionId, out Mission mission)
         {

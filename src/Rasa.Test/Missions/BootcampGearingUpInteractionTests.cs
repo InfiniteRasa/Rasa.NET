@@ -56,6 +56,8 @@ namespace Rasa.Test.Missions
             var indicators = revealed.MissionInfo.ObjectivesList.SelectMany(objective => objective.IndicatorList).ToArray();
             Assert.IsTrue(indicators.Length > 0, "Navigation indicators must not be removed.");
             Assert.IsTrue(indicators.Any(indicator => indicator.Position == CratePosition));
+            Assert.AreEqual(433U, indicators.Single(indicator => indicator.Position == CratePosition).ClientNameId,
+                "The crate's indicator keeps its client name, missionobjectiveindicatorlanguage 433 Equipment Crate.");
             Assert.IsFalse(indicators.Any(indicator => indicator.Show3DEffect),
                 "The client's bShow3DEffect flag must be false to suppress the floating world stars.");
         }

@@ -120,9 +120,11 @@ namespace Rasa.Test.Missions.Wilderness
                 harness.Client.Player.Logos.Add(logos);
                 harness.Manager.RecordProgress(harness.Client, MissionProgressEvent.Logos(logos));
             }
-            foreach (var (creature, quantity) in new[] { (87U, 40), (85U, 30), (3U, 200), (88U, 40) })
+            // The four kill objectives count by species - Xanx, Shield Drone, Thrax, Miasma - as
+            // the other battlefields' do (WildernessTargetsKillRules), not by one creature row.
+            foreach (var (flag, quantity) in new[] { (74U, 40), (77U, 30), (62U, 200), (68U, 40) })
                 for (var count = 0; count < quantity; count++)
-                    Assert.IsTrue(harness.Manager.RecordProgress(harness.Client, MissionProgressEvent.Creature(creature)));
+                    Assert.IsTrue(harness.Manager.RecordProgress(harness.Client, MissionProgressEvent.CreatureFlag(flag)));
             foreach (var creature in new uint[] { 82, 83, 84, 79, 80, 75 })
             {
                 Assert.IsTrue(harness.Manager.RecordProgress(harness.Client, MissionProgressEvent.Creature(creature)));

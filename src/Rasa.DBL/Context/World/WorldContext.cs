@@ -59,6 +59,8 @@ namespace Rasa.Context.World
         public DbSet<MapRegionEntry> MapRegionEntries { get; set; }
         public DbSet<MapMarkerEntry> MapMarkerEntries { get; set; }
         public DbSet<MapEmitterEntry> MapEmitterEntries { get; set; }
+        public DbSet<ControlPointEntry> ControlPointEntries { get; set; }
+        public DbSet<ControlPointLinkEntry> ControlPointLinkEntries { get; set; }
         public DbSet<SpawnPoolArrivalEntry> SpawnPoolArrivalEntries { get; set; }
         public DbSet<RecipeEntry> RecipeEntries { get; set; }
         public DbSet<RecipeInputEntry> RecipeInputEntries { get; set; }
@@ -87,6 +89,7 @@ namespace Rasa.Context.World
         public DbSet<VendorItemEntry> VendorItemEntries { get; set; }
         public DbSet<VendorPriceEntry> VendorPriceEntries { get; set; }
         public DbSet<CreatureActorNameEntry> CreatureActorNameEntries { get; set; }
+        public DbSet<NpcGreetingEntry> NpcGreetingEntries { get; set; }
         public DbSet<WeaponClassEntry> WeaponClassEntries { get; set; }
 
         protected override DatabaseConnectionConfiguration GetDatabaseConnectionConfiguration()
@@ -100,6 +103,7 @@ namespace Rasa.Context.World
             SetupRandomName(modelBuilder);
             SetupItemTemplateItemClass(modelBuilder);
             SetupMapMarker(modelBuilder);
+            SetupControlPoints(modelBuilder);
             SetupCreatureClassFlag(modelBuilder);
             SetupSkillCharacter(modelBuilder);
             SetupMissionContent(modelBuilder);
@@ -133,6 +137,20 @@ namespace Rasa.Context.World
         {
             modelBuilder.Entity<MapMarkerEntry>()
                 .HasKey(e => new { e.MarkerEntityId, e.MapContextId });
+        }
+
+        /// <summary>
+        /// A control point's id is its row's own, given in the seed; a link is identified by
+        /// everything it says - the point, what kind of thing, and which.
+        /// </summary>
+        private static void SetupControlPoints(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<ControlPointEntry>()
+                .Property(e => e.Id)
+                .ValueGeneratedNever();
+
+            modelBuilder.Entity<ControlPointLinkEntry>()
+                .HasKey(e => new { e.ControlPointId, e.Kind, e.ObjectId });
         }
 
         /// <summary>

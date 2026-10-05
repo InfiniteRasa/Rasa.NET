@@ -148,6 +148,54 @@ namespace Rasa.Structures.Char
         [Required]
         public DateTime LastPvPClan { get; set; }
 
+        /// <summary>
+        /// Health the character left the world with; <see cref="VitalNotSaved"/> for none, which
+        /// loads it on full. Written on leaving the world, so that logging out and back in is no
+        /// longer a free heal.
+        /// </summary>
+        [Column("current_health")]
+        [Required]
+        public int CurrentHealth { get; set; } = VitalNotSaved;
+
+        /// <summary>Armour the character left the world with; <see cref="VitalNotSaved"/> for none.</summary>
+        [Column("current_armor")]
+        [Required]
+        public int CurrentArmor { get; set; } = VitalNotSaved;
+
+        /// <summary>Power the character left the world with; <see cref="VitalNotSaved"/> for none.</summary>
+        [Column("current_power")]
+        [Required]
+        public int CurrentPower { get; set; } = VitalNotSaved;
+
+        /// <summary>
+        /// Rez Trauma the character left the world with: how many deaths' worth (0 for none), and
+        /// when it wears off (Unix milliseconds, UTC). On wall-clock time, as the cooldowns are:
+        /// time away counts, logging out does not end it.
+        /// </summary>
+        [Column("rez_trauma_stacks")]
+        [Required]
+        public uint RezTraumaStacks { get; set; }
+
+        [Column("rez_trauma_ends_at")]
+        [Required]
+        public long RezTraumaEndsAt { get; set; }
+
+        /// <summary>When the no-healing that follows a revive wears off (Unix milliseconds, UTC); 0 for none.</summary>
+        [Column("no_heal_ends_at")]
+        [Required]
+        public long NoHealEndsAt { get; set; }
+
+        /// <summary>
+        /// Whether the item in the character's wager slot is locked there: it has been taken into
+        /// combat since it was wagered (the game server's InventoryManager.Wager).
+        /// </summary>
+        [Column("wager_locked")]
+        [Required]
+        public bool WagerLocked { get; set; }
+
+        /// <summary>The value of the current_* columns for a character that has not saved one.</summary>
+        public const int VitalNotSaved = -1;
+
         [CanBeNull]
         public ClanMemberEntry MemberOfClan { get; set; }
 

@@ -92,10 +92,13 @@ namespace Rasa.Test.Missions.Content
         public void FreshSqliteInitializationInstallsRunnableBootcampWithoutPublishing()
         {
             using var harness = BootcampRuntimeTestHarness.Create(useWorldContent: true);
+            // Bootcamp's five, the Wilderness outdoor release, and the battlefields' Targets of
+            // Opportunity.
+            var targets = Rasa.Services.Preloader.TargetsOfOpportunitySeed.Zones.Select(zone => zone.MissionId).ToArray();
             var expected = WildernessMissionCases.ProtectedBootcampMissionIds.Concat(
                 WildernessMissionCases.All.Where(entry => entry.Disposition == WildernessDisposition.OutdoorRelease)
                     .Select(entry => entry.MissionId)).ToArray();
-            CollectionAssert.AreEquivalent(expected,
+            CollectionAssert.AreEquivalent(expected.Concat(targets).Distinct().ToArray(),
                 harness.WorldContext.MissionContentDefinitionEntries.Where(entry => entry.Enabled)
                     .Select(entry => entry.MissionId).ToArray());
             Assert.IsTrue(expected.All(id => harness.Manager.LoadedMissions[id].IsOperational));
@@ -105,6 +108,8 @@ namespace Rasa.Test.Missions.Content
                     .Select(entry => entry.MissionId).ToArray());
             Assert.AreEqual(5, harness.WorldContext.Set<MissionSceneBindingEntry>()
                 .Count(entry => entry.ContentRevision == "deployment_11"));
+            Assert.AreEqual(targets.Length, harness.WorldContext.Set<MissionSceneBindingEntry>()
+                .Count(entry => entry.ContentRevision == Rasa.Services.Preloader.TargetsOfOpportunitySeed.Revision));
             Assert.AreEqual(1, harness.WorldContext.Set<MissionExperienceBindingEntry>().Count(entry => entry.Enabled));
             harness.WorldContext.Database.OpenConnection();
             using (var command = harness.WorldContext.Database.GetDbConnection().CreateCommand())

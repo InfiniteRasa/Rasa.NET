@@ -786,6 +786,11 @@ namespace Rasa.Test.Missions
             CollectionAssert.AreEquivalent(ids, harness.WorldContext.MissionContentDefinitionEntries
                 .Where(entry => entry.Enabled && entry.ContentRevision == "deployment_11")
                 .Select(entry => entry.MissionId).ToArray());
+
+            // The battlefields' Targets of Opportunity are unshareable as well: each character is
+            // offered their own on arriving.
+            foreach (var id in Rasa.Services.Preloader.TargetsOfOpportunitySeed.Zones.Select(zone => zone.MissionId))
+                Assert.IsFalse(harness.Manager.LoadedMissions[id].Shareable);
         }
 
         [TestMethod]

@@ -60,21 +60,32 @@ namespace Rasa.Managers
         public static int FireTick(int critDamage) => Math.Max(1, critDamage * FireDotPercent / 100);
 
         /// <summary>
-        /// A critical hit's side effect on a creature. <paramref name="damage"/> is what the crit
-        /// did, for the Fire burn.
+        /// A critical hit's side effect on a creature, or on an enemy player across a wargame (Pvp):
+        /// the same effects, an Ice crit's freeze and a Sonic crit's knockback made with the
+        /// player's own stun and knockback (PlayerCrowdControl), for PVP_EFFECT_DURATION_MODIFIER
+        /// of the time. <paramref name="damage"/> is what the crit did, for the Fire burn.
         /// </summary>
-        public static void OnCritical(MapChannel mapChannel, Creature target, Actor source, DamageType damageType, int damage)
+        public static void OnCritical(MapChannel mapChannel, Actor target, Actor source, DamageType damageType, int damage)
         {
             if (target == null || source == null || target.State == CharacterState.Dead || target.State == CharacterState.Dying)
                 return;
 
+            if (target is Manifestation player && (Pvp.IsSafe(player) || !target.Attributes.TryGetValue(Attributes.Health, out var health) || health.Current <= 0))
+                return;
+
             switch (damageType)
             {
-                case DamageType.Ice:
-                    Stuns.Apply(mapChannel, target, source, Stuns.CritIceTypeId, Stuns.CritStunMs, damageType);
+                case DamageType.Ice when target is Creature frozen:
+                    Stuns.Apply(mapChannel, frozen, source, Stuns.CritIceTypeId, Stuns.CritStunMs, damageType);
                     break;
-                case DamageType.Sonic:
-                    CrowdControl.Knockback(mapChannel, target, source, CrowdControl.DefaultKnockbackDistance, CrowdControl.CritSonicTypeId, damageType);
+                case DamageType.Ice when target is Manifestation frozenPlayer:
+                    PlayerCrowdControl.Stun(mapChannel, frozenPlayer, source, Pvp.ScaleDuration(source, frozenPlayer, Stuns.CritStunMs));
+                    break;
+                case DamageType.Sonic when target is Creature knocked:
+                    CrowdControl.Knockback(mapChannel, knocked, source, CrowdControl.DefaultKnockbackDistance, CrowdControl.CritSonicTypeId, damageType);
+                    break;
+                case DamageType.Sonic when target is Manifestation knockedPlayer:
+                    PlayerCrowdControl.Knockback(mapChannel, knockedPlayer, source, CrowdControl.DefaultKnockbackDistance);
                     break;
                 case DamageType.Virulent:
                     CrowdControl.Slow(mapChannel, target, source, CrowdControl.CritVirulentTypeId, CrowdControl.VirulentCrippleSlowPercent, CrowdControl.VirulentCrippleMs, "snareMod");
@@ -114,7 +125,7 @@ namespace Rasa.Managers
         /// Not scaled again - it is a share of damage already scaled - and not a crit itself. A
         /// second Fire crit replaces the burn with a fresh one.
         /// </summary>
-        public static void Burn(MapChannel mapChannel, Creature target, Actor source, int damage)
+        public static void Burn(MapChannel mapChannel, Actor target, Actor source, int damage)
         {
             var tick = FireTick(damage);
             var burn = NewDebuff(mapChannel, source, CritFireTypeId, FireDotMs);
@@ -132,7 +143,7 @@ namespace Rasa.Managers
         }
 
         /// <summary>EMP: for EmpSuppressMs every hit on the creature ignores its armour.</summary>
-        public static void SuppressArmor(MapChannel mapChannel, Creature target, Actor source)
+        public static void SuppressArmor(MapChannel mapChannel, Actor target, Actor source)
         {
             var suppression = NewDebuff(mapChannel, source, CritEmpTypeId, EmpSuppressMs);
 
@@ -147,12 +158,12 @@ namespace Rasa.Managers
         /// not a crit, a kill for the player). The effect goes on first so its FX exists, then
         /// one tick draws the arcs and an AnnounceDamage floats the numbers.
         /// </summary>
-        public static void Arc(MapChannel mapChannel, Creature target, Actor source, int damage)
+        public static void Arc(MapChannel mapChannel, Actor target, Actor source, int damage)
         {
             if (!(source is Manifestation player))
                 return;
 
-            var arcTo = AbilityManager.HostilesWithin(mapChannel, player, target.Position, ElectricArcRadius)
+            var arcTo = AbilityManager.VictimsWithin(mapChannel, player, target.Position, ElectricArcRadius)
                 .Where(c => c != target)
                 .OrderBy(c => System.Numerics.Vector3.DistanceSquared(c.Position, target.Position))
                 .Take(ElectricArcTargets)
@@ -195,7 +206,7 @@ namespace Rasa.Managers
         }
 
         /// <summary>Laser: the creature's ranged attacks do LaserRangedDamagePercent less for LaserMs.</summary>
-        public static void WeakenRanged(MapChannel mapChannel, Creature target, Actor source)
+        public static void WeakenRanged(MapChannel mapChannel, Actor target, Actor source)
         {
             var weakened = NewDebuff(mapChannel, source, CritLightTypeId, LaserMs);
 

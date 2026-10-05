@@ -31,6 +31,14 @@ namespace Rasa.Test.Missions.Wilderness
         private readonly HashSet<ulong> _originalCreatures = EntityManager.Instance.Creatures.Keys.ToHashSet();
         private bool _disposed;
 
+        /// <summary>
+        /// The Wilderness navmesh, read once for the test run: read for every harness, each
+        /// one's stayed reachable after Dispose, about 50 MB a test. A harness has its own
+        /// NavMeshQuery over this one's mesh - a query is not thread safe, the mesh is only read.
+        /// </summary>
+        private static readonly Lazy<NavMeshQuery> WildernessNavMesh = new(() => new NavMeshQuery(NavMeshFile.Read(
+            NavMeshFile.PathFor(Path.Combine(RepositoryRoot(), "navmesh"), "adv_foreas_concordia_wilderness"))));
+
         private WildernessRuntimeTestHarness()
         {
             _directory = Path.Combine(AppContext.BaseDirectory, "TestDatabases", Guid.NewGuid().ToString("N"));
@@ -197,7 +205,7 @@ namespace Rasa.Test.Missions.Wilderness
         {
             var context = OpenWorld();
             return new WorldUnitOfWork(context,
-                new ActionRepository(context), new EquipmentRepository(context), new CreatureRepository(context),
+                new ActionRepository(context), new EquipmentRepository(context), new CreaturesOfThisWorld(context),
                 new EntityClassRepository(context), new FootlockerRepository(context), new LogosRepository(context),
                 new MapInfoRepository(context), new MapLinkRepository(context), new KraftwerksRepository(context),
                 new MapRegionRepository(context), new MapMarkerRepository(context),
@@ -205,6 +213,31 @@ namespace Rasa.Test.Missions.Wilderness
                 new NpcMissionRepository(context), new NpcMissionRewardRepository(context),
                 new MissionContentRepository(context), new NpcPackageRepository(context),
                 new PlayerRandomNameRepository(context), new SpawnpoolRepository(context), new TeleporterRepository(context));
+        }
+
+        /// <summary>
+        /// The creature rows of this harness's World, which a test can stop at an earlier
+        /// migration (targetWorldMigration). CreatureInit reads every NPC's greeting, and the
+        /// table of them is Add_npc_greetings': a World stopped before that migration has no
+        /// such table, where a server's World, migrated to the end, always has. A World without
+        /// the table has no greetings, as one with the table and no rows has none.
+        ///
+        /// A table a later migration adds, read as the harness starts, needs the same.
+        /// </summary>
+        private sealed class CreaturesOfThisWorld : CreatureRepository, ICreatureRepository
+        {
+            private readonly SqliteWorldContext _context;
+
+            internal CreaturesOfThisWorld(SqliteWorldContext context) : base(context) => _context = context;
+
+            List<Rasa.Structures.World.NpcGreetingEntry> ICreatureRepository.GetNpcGreetings() =>
+                HasTable(Rasa.Structures.World.NpcGreetingEntry.TableName)
+                    ? GetNpcGreetings()
+                    : new List<Rasa.Structures.World.NpcGreetingEntry>();
+
+            private bool HasTable(string name) => _context.Database
+                .SqlQueryRaw<int>("SELECT COUNT(*) AS Value FROM sqlite_master WHERE type = 'table' AND name = {0}", name)
+                .AsEnumerable().Single() > 0;
         }
 
         private SqliteWorldContext OpenWorld() =>

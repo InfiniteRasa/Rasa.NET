@@ -116,6 +116,15 @@ namespace Rasa.Managers
                 return;
             }
 
+            // One of them is in a duel, a squad wargame or a team's match and the other is not
+            // on their side of it (Pvp.MayTrade): "You may not trade with that player at this
+            // time."
+            if (!Pvp.MayTrade(client.Player, target.Player))
+            {
+                Refuse(client, PlayerMessage.PmTradeYouAreTooBusy);
+                return;
+            }
+
             if (_sessions.TryGetValue(target, out var targetSession) && !targetSession.Accepted && Expired(targetSession))
                 End(targetSession, notifyPartnerOf: null, message: PlayerMessage.PmTradeCancelled);
 
@@ -711,7 +720,9 @@ namespace Rasa.Managers
             var a = session.Initiator;
             var b = session.Target;
 
-            return a.State == ClientState.Ingame && b.State == ClientState.Ingame && InRange(a, b);
+            // A wargame that began with the trade open closes it (Pvp.MayTrade).
+            return a.State == ClientState.Ingame && b.State == ClientState.Ingame && InRange(a, b)
+                   && Pvp.MayTrade(a.Player, b.Player);
         }
 
         private static bool InRange(Client a, Client b)

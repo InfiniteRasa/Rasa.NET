@@ -348,6 +348,35 @@ namespace Rasa.Repositories.Char.Character
             _charContext.SaveChanges();
         }
 
+        public void UpdateCharacterVitals(uint id, int health, int armor, int power, uint rezTraumaStacks, long rezTraumaEndsAt, long noHealEndsAt)
+        {
+            var entry = GetWritable(id);
+
+            if (entry == null)
+                return;
+
+            entry.CurrentHealth = health;
+            entry.CurrentArmor = armor;
+            entry.CurrentPower = power;
+            entry.RezTraumaStacks = rezTraumaStacks;
+            entry.RezTraumaEndsAt = rezTraumaEndsAt;
+            entry.NoHealEndsAt = noHealEndsAt;
+
+            _charContext.SaveChanges();
+        }
+
+        public void UpdateWagerLocked(uint id, bool locked)
+        {
+            var entry = GetWritable(id);
+
+            if (entry == null || entry.WagerLocked == locked)
+                return;
+
+            entry.WagerLocked = locked;
+
+            _charContext.SaveChanges();
+        }
+
         public void UpdateCharacterAbilitySlot(uint id, byte slot)
         {
             var entry = _charContext.GetWritableEnsuring(_charContext.CharacterEntries, id);

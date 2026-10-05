@@ -220,8 +220,8 @@ namespace Rasa.Managers
             return (destination, speed);
         }
 
-        /// <summary>Slows a creature to (100 - slowPercent)% of its speed for durationMs, shown as the given effect type.</summary>
-        public static bool Slow(MapChannel mapChannel, Creature target, Actor source, int typeId, int slowPercent, int durationMs, string tooltipKey = null)
+        /// <summary>Slows a creature - or an enemy player (a Virulent crit) - to (100 - slowPercent)% of its speed for durationMs, shown as the given effect type.</summary>
+        public static bool Slow(MapChannel mapChannel, Actor target, Actor source, int typeId, int slowPercent, int durationMs, string tooltipKey = null)
         {
             if (target == null || slowPercent <= 0 || durationMs <= 0 || target.State == CharacterState.Dead || target.State == CharacterState.Dying)
                 return false;

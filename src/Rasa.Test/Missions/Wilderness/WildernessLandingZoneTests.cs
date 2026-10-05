@@ -154,6 +154,94 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.AreEqual(0U, HeldQuantity(harness, 28692));
         }
 
+        // The bar over a fuel container is redrawn on USABLE_HITPOINT_CHANGE, which the client posts
+        // from Recv_UpdateHitPoints alone: Recv_DamageInfo stores the figure and posts nothing.
+        [TestMethod]
+        public void DamagedFuelContainerTellsItsHitPointsWithUpdateHitPoints()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            Accept(harness, 172, 665);
+            var fuel = harness.Map.DynamicObjects.Single(obj => obj.SceneMissionId == 665 && obj.SceneActorRole == "fuel-1");
+            harness.MoveTo(fuel.Position + new Vector3(0, 0, 1));
+            harness.Drain();
+
+            DamageObject(harness, fuel, 40);
+
+            var hit = harness.Drain();
+            Assert.AreEqual(60, hit.OfType<UpdateHitPointsPacket>().Single().CurrentHitPoints);
+            Assert.AreEqual(0, hit.OfType<DamageInfoPacket>().Count(), "DamageInfo would store the figure and leave the bar as it was.");
+
+            DamageObject(harness, fuel, 60);
+
+            var destroyed = harness.Drain().Where(packet =>
+                packet is UpdateHitPointsPacket || packet is DamageInfoPacket || packet is ForceStatePacket).ToArray();
+            Assert.AreEqual(3, destroyed.Length);
+            Assert.AreEqual(0, ((UpdateHitPointsPacket)destroyed[0]).CurrentHitPoints, "The update comes before DamageInfo stores the same figure.");
+            var info = (DamageInfoPacket)destroyed[1];
+            Assert.IsFalse(info.CanBeDamaged);
+            Assert.AreEqual(100U, info.TotalHitPoints);
+            Assert.AreEqual(0U, info.CurrentHitPoints);
+            Assert.IsInstanceOfType(destroyed[2], typeof(ForceStatePacket));
+        }
+
+        // A chaingun is not fired as a missile (ConstantFire): its pulses have to reach an object too.
+        [TestMethod]
+        public void ConstantFireWeaponDamagesAndDestroysAFuelContainer()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            Accept(harness, 172, 665);
+            var fuel = harness.Map.DynamicObjects.Single(obj => obj.SceneMissionId == 665 && obj.SceneActorRole == "fuel-1");
+            var other = harness.Map.DynamicObjects.Single(obj => obj.SceneMissionId == 665 && obj.SceneActorRole == "fuel-2");
+            harness.MoveTo(fuel.Position + new Vector3(0, 0, 1));
+            var weapon = new Item
+            {
+                ItemTemplate = new ItemTemplate(new Rasa.Structures.World.ItemTemplateItemClassEntry { ItemTemplateId = 145, ItemClass = 6048 })
+                {
+                    WeaponInfo = new WeaponInfo(new Rasa.Structures.World.ItemTemplateWeaponEntry
+                    {
+                        Id = 145, AmmoPerShot = 1, Refire = 200, ReloadTime = 1500,
+                        Windup = 0, Recovery = 1, Range = 80, ToolType = 15, AttackType = 2
+                    })
+                },
+                ItemTemplateId = 145, StackSize = 1, Crafter = ""
+            };
+            var action = new ActionData(harness.Client.Player, ActionId.WeaponMachinegun, 4, 0) { TargetId = fuel.EntityId };
+            harness.Client.Player.Target = fuel.EntityId;
+            harness.Drain();
+
+            try
+            {
+                ConstantFire.Pulse(harness.Map, harness.Client, weapon, action, 40, DamageType.Laser, 0);
+
+                Assert.AreEqual(60U, fuel.CurrentHitPoints);
+                Assert.AreEqual(100U, other.CurrentHitPoints, "Only the object aimed at.");
+                var sent = harness.Drain();
+                var entry = sent.OfType<ConstantFireTickPacket>().Single().Pulses.Single().Single();
+                Assert.AreEqual(fuel.EntityId, entry.EntityId);
+                Assert.AreEqual(40, entry.Amount);
+                Assert.AreEqual(DamageType.Laser, entry.DamageType);
+                Assert.AreEqual(60, sent.OfType<UpdateHitPointsPacket>().Single().CurrentHitPoints);
+
+                ConstantFire.Pulse(harness.Map, harness.Client, weapon, action, 40, DamageType.Laser, 0);
+                ConstantFire.Pulse(harness.Map, harness.Client, weapon, action, 40, DamageType.Laser, 0);
+
+                Assert.AreEqual(0U, fuel.CurrentHitPoints);
+                Assert.AreEqual(UseObjectState.StateDestroyed, fuel.StateId);
+                Assert.AreEqual(1U, harness.Client.Player.Missions[665].Objectives[1].Counters[0]);
+
+                // Destroyed, it takes no more: the pulse lists nothing.
+                harness.Drain();
+                ConstantFire.Pulse(harness.Map, harness.Client, weapon, action, 40, DamageType.Laser, 0);
+                Assert.AreEqual(0, harness.Drain().OfType<ConstantFireTickPacket>().Single().Pulses.Single().Count);
+                Assert.AreEqual(1U, harness.Client.Player.Missions[665].Objectives[1].Counters[0]);
+            }
+            finally
+            {
+                ConstantFire.Stop(harness.Client);
+                harness.Client.Player.Target = 0;
+            }
+        }
+
         [TestMethod]
         public void FuelDestructionAndDistinctProgressSurviveRehydrationWithoutRespawningDestroyedTargets()
         {
@@ -203,6 +291,34 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.AreEqual(MissionState.Completed, harness.Client.Player.Missions[430].State);
             Assert.AreEqual(1U, HeldQuantity(harness, 26940));
             Assert.AreEqual(0U, HeldQuantity(harness, 13739));
+        }
+
+        [TestMethod]
+        public void MortarIndicatorsAreSentWithoutAnotherMissionsIndicatorName()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            harness.SpawnWorld(181);
+            var wagner = harness.Npc(181);
+            harness.MoveTo(wagner.Position);
+            var npcs = new NpcManager(harness, harness.Manager);
+            npcs.RequestNpcConverse(harness.Client, new RequestNPCConversePacket { EntityId = wagner.EntityId });
+            harness.Drain();
+
+            npcs.AssignNPCMission(harness.Client,
+                new AssignNPCMissionPacket { NpcEntityId = wagner.EntityId, MissionId = 430 });
+
+            var gained = harness.Drain().OfType<MissionGainedPacket>().Single(packet => packet.MissionId == 430);
+            var objectives = gained.MissionInfo.ObjectivesList.ToDictionary(objective => objective.ObjectiveId);
+            CollectionAssert.AreEquivalent(new uint[] { 3, 4, 5, 6 }, objectives.Keys.ToArray());
+            foreach (var objective in objectives.Values)
+            {
+                // The rows were keyed 3..6 by objective, and sent as ids those are "Possible Food
+                // Crate Location", "Warnet Valley", "Calla Ferns" and "AFS Hydro-electric Plant".
+                // Without an id the client names each by its objective, "Destroy Mortar #1".."#4".
+                var indicator = objective.IndicatorList.Single();
+                Assert.AreEqual(MissionIndicator.UnnamedFrom + objective.ObjectiveId, indicator.IndicatorId);
+                Assert.IsNull(indicator.ClientNameId, $"objective {objective.ObjectiveId}");
+            }
         }
 
         [TestMethod]

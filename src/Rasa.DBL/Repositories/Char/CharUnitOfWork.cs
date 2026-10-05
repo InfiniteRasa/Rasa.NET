@@ -80,6 +80,13 @@ namespace Rasa.Repositories.Char
             CharacterActionReuses = characterActionReuses;
             CharacterMissions = characterMissions;
             MissionOffers = new MissionOffer.MissionOfferRepository(dbContext);
+            ClanFeuds = new ClanFeud.ClanFeudRepository(dbContext);
+            ControlPointStates = new ControlPointState.ControlPointStateRepository(dbContext);
+            PvpRecords = new PvpRecord.PvpRecordRepository(dbContext);
+            GmCommandLogs = new GmCommandLog.GmCommandLogRepository(dbContext);
+            ChatLogs = new ChatLog.ChatLogRepository(dbContext);
+            CharacterBossKills = new CharacterBossKill.CharacterBossKillRepository(dbContext);
+            SquadInstances = new SquadInstance.SquadInstanceRepository(dbContext);
             CharacterMissionItems = new CharacterMissionItem.CharacterMissionItemRepository(dbContext);
             CharacterMissionDeadlines = characterMissionDeadlines;
             CharacterMissionProgress = characterMissionProgress;
@@ -112,6 +119,13 @@ namespace Rasa.Repositories.Char
         public ICharacterActionReuseRepository CharacterActionReuses { get; }
         public ICharacterMissionRepository CharacterMissions { get; }
         public MissionOffer.MissionOfferRepository MissionOffers { get; }
+        public ClanFeud.IClanFeudRepository ClanFeuds { get; }
+        public ControlPointState.IControlPointStateRepository ControlPointStates { get; }
+        public PvpRecord.IPvpRecordRepository PvpRecords { get; }
+        public GmCommandLog.IGmCommandLogRepository GmCommandLogs { get; }
+        public ChatLog.IChatLogRepository ChatLogs { get; }
+        public CharacterBossKill.ICharacterBossKillRepository CharacterBossKills { get; }
+        public SquadInstance.ISquadInstanceRepository SquadInstances { get; }
         public CharacterMissionItem.ICharacterMissionItemRepository CharacterMissionItems { get; }
         public ICharacterMissionDeadlineRepository CharacterMissionDeadlines { get; }
         public ICharacterMissionProgressRepository CharacterMissionProgress { get; }

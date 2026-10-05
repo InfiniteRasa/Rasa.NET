@@ -23,11 +23,12 @@ namespace Rasa.Managers
         public const short ModeAutomatic = 0;
 
         /// <summary>
-        /// spawnpool.mode: the pool is a control point's garrison. At a control point the Bane
-        /// camp is the control point itself, and the hospital, token banker and vendors the
+        /// spawnpool.mode: the pool is a control point's Bane garrison. At a control point the
+        /// Bane camp is the control point itself, and the hospital, token banker and vendors the
         /// client labels "(Control Point)" are what stands there once AFS has taken it; the two
-        /// never stand together. The server has no control point ownership yet and the AFS side
-        /// is what it seeds, so these pools are dormant: the garrison of a point AFS holds.
+        /// never stand together. The pool runs while the Bane hold the point it is linked to
+        /// (ControlPoints, control_point_link) and is dormant otherwise - as is one linked to no
+        /// point at all.
         /// </summary>
         public const short ModeControlPoint = 1;
 
@@ -70,9 +71,33 @@ namespace Rasa.Managers
             _gameUnitOfWorkFactory = gameUnitOfWorkFactory;
         }
 
+        /// <summary>
+        /// A pool has nothing alive, queued or on its way: its respawn time starts. In a squad's
+        /// instance it is dead from this moment, and comes back by the instance's clock instead
+        /// (SquadInstanceState).
+        /// </summary>
+        private static void Emptied(SpawnPool spawnPool)
+        {
+            spawnPool.UpdateTimer = 0;
+
+            if (spawnPool.Mode == ModeAutomatic && spawnPool.SpawnPolicy != Structures.World.MissionSpawnGroupPolicy.ScenarioControlled)
+                spawnPool.RuntimeMapChannel?.SquadState?.PoolCleared(spawnPool);
+        }
+
+        /// <summary>
+        /// A pool has something alive, queued or on its way again - its respawn, or a creature
+        /// of it put back on its feet: in a squad's instance it is no longer dead.
+        /// </summary>
+        private static void Filled(SpawnPool spawnPool)
+        {
+            if (spawnPool.ClearedAtUtcMs != 0)
+                spawnPool.RuntimeMapChannel?.SquadState?.PoolRespawned(spawnPool);
+        }
+
         public void IncreaseQueueCount(SpawnPool spawnPool)
         {
             spawnPool.DropshipQueue++;
+            Filled(spawnPool);
         }
 
         public void DecreaseQueueCount(SpawnPool spawnPool)
@@ -80,12 +105,15 @@ namespace Rasa.Managers
             spawnPool.DropshipQueue--;
 
             if ((spawnPool.DropshipQueue + spawnPool.QueuedCreatures + spawnPool.AliveCreatures) == 0)
-                spawnPool.UpdateTimer = 0;
+                Emptied(spawnPool);
         }
 
         public void IncreaseQueuedCreatureCount(SpawnPool spawnPool, int count)
         {
             spawnPool.QueuedCreatures += count;
+
+            if (count > 0)
+                Filled(spawnPool);
         }
 
         internal void DecreaseQueuedCreatureCount(SpawnPool spawnPool, int count)
@@ -96,19 +124,20 @@ namespace Rasa.Managers
                 spawnPool.QueuedCreatureList = null;
 
             if ((spawnPool.DropshipQueue + spawnPool.QueuedCreatures + spawnPool.AliveCreatures) == 0)
-                spawnPool.UpdateTimer = 0;
+                Emptied(spawnPool);
         }
 
         public void IncreaseAliveCreatureCount(SpawnPool spawnPool)
         {
             spawnPool.AliveCreatures++;
+            Filled(spawnPool);
         }
 
         internal void DecreaseAliveCreatureCount(MapChannel mapChannel, SpawnPool spawnPool)
         {
             spawnPool.AliveCreatures--;
             if ((spawnPool.DropshipQueue + spawnPool.QueuedCreatures + spawnPool.AliveCreatures) == 0)
-                spawnPool.UpdateTimer = 0;
+                Emptied(spawnPool);
         }
 
         public void IncreaseDeadCreatureCount(SpawnPool spawnPool)
@@ -221,18 +250,46 @@ namespace Rasa.Managers
                 if (spawnPool.SpawnPolicy == Structures.World.MissionSpawnGroupPolicy.ScenarioControlled)
                     continue;
 
-                // A control point's garrison or a scripted pool: not on a timer.
-                if (spawnPool.Mode != ModeAutomatic || spawnPool.AnimType < 0 || spawnPool.AnimType > 2)
+                // A scripted pool is not on a timer; nor is a pool set aside for a control point
+                // that no control point has (ControlPoints). A garrison is, while its side holds
+                // the point - and not while the other does, whatever its mode.
+                if (spawnPool.Suspended
+                    || spawnPool.Mode != ModeAutomatic && !(spawnPool.Mode == ModeControlPoint && spawnPool.IsGarrison)
+                    || spawnPool.AnimType < 0 || spawnPool.AnimType > 2)
                     continue;
 
                 if (spawnPool.AliveCreatures > 0 || spawnPool.QueuedCreatures > 0 || spawnPool.DropshipQueue > 0)
                     continue;
+
+                // A Bane garrison comes back together: a pool of it that has been killed waits
+                // until the whole garrison has been down long enough (ControlPoints.HoldsBack).
+                if (spawnPool.IsGarrison && ControlPoints.Instance.HoldsBack(spawnPool))
+                    continue;
+
+                // In a squad's instance a pool that has been cleared comes back a set time after
+                // the last of it died, by the clock on the wall, and its own respawn time is not
+                // waited for (SquadInstanceState). It is cleared no longer once something of it
+                // is queued or alive (Filled).
+                var squadState = spawnPool.Mode == ModeAutomatic ? mapChannel.SquadState : null;
+
+                if (squadState != null)
+                {
+                    if (!squadState.RespawnDue(spawnPool))
+                        continue;
+
+                    spawnPool.UpdateTimer = spawnPool.RespawnTime;
+                }
 
                 if (spawnPool.UpdateTimer < spawnPool.RespawnTime)
                     spawnPool.UpdateTimer += Math.Min(Math.Max(0, timePassed), spawnPool.RespawnTime - spawnPool.UpdateTimer);
 
                 if (spawnPool.UpdateTimer < spawnPool.RespawnTime)
                     continue; // spawnpool is still on cooldown
+
+                // A turret's wreck is still on its mount: it is put back in service where it
+                // stands rather than a second one set down in the wreckage (AlternateMesh).
+                if (AlternateMesh.ReviveWrecks(mapChannel, spawnPool))
+                    continue;
 
                 // create list of creatures to spawn
                 var creatureList = CreateListOfCreatures(spawnPool);
@@ -538,16 +595,60 @@ namespace Rasa.Managers
         }
 
         /// <summary>
+        /// Whether a mission stages what stands at this pool: the pool is the spawn of a
+        /// mission's public encounter (PublicEncounterBinding.SpawnId) - an escort waiting to
+        /// be led off, a captive held in a Bane camp, an overseer come to parley beside the
+        /// officer he threatens. Replaceable for tests.
+        /// </summary>
+        internal Func<uint, bool> IsStaged { get; set; } = poolId => MissionApplication.Instance.PublicActors.StagesSpawn(poolId);
+
+        /// <summary>
         /// Every automatic pool of hostile creatures whose area comes within SafeClearance of a
         /// friendly NPC's pool, a hospital or a waypoint pad: a player reviving or arriving there
         /// would stand in a fight. A pool of friendly soldiers (see IsSafeGround) is not safe
-        /// ground: a skirmish set up on purpose, like boot camp's bridge, is not reported. And every one whose area comes within TurretScan of a turret
-        /// (an emplacement's pool, which is not safe ground): the two would fight for good.
-        /// Logged and recorded for the map; nothing is changed. Run once
-        /// the creatures, the pools and the teleporters are all loaded.
+        /// ground: a skirmish set up on purpose, like boot camp's bridge, is not reported. And
+        /// every one whose area comes within TurretScan of an AFS turret (a friendly
+        /// emplacement's pool, which is not safe ground): the two would fight for good.
+        ///
+        /// A Bane emplacement is no turret here. It is on the camp's side, so a camp may stand
+        /// around it; and its pool is a hostile one like any other, checked against the AFS
+        /// turrets and the safe ground - never against itself.
+        ///
+        /// A pool a mission stages (IsStaged) is on neither side of the check. Its actor stands
+        /// where the mission happens, which is not where players revive or arrive: a captive in
+        /// a Bane camp makes the camp no safer. And a hostile one is one creature its scene
+        /// directs, not a camp.
+        ///
+        /// Logged and recorded for the map; nothing is changed. Run once the missions, the
+        /// creatures, the pools and the teleporters are all loaded.
         /// </summary>
         public void ValidatePools()
         {
+            var places = new List<(uint Map, Vector3 Position, string What)>();
+
+            foreach (var teleporter in DynamicObjectManager.Instance.Teleporters.Values)
+                if (teleporter.ObjectData is WaypointInfo info && (info.WaypointType == WaypointType.Hospital || info.WaypointType == WaypointType.Waypoint))
+                    places.Add((teleporter.MapContextId, teleporter.Position, $"{info.WaypointType} {info.WaypointId}"));
+
+            var found = PoolsTooClose(places);
+
+            foreach (var (map, message) in found)
+            {
+                Logger.WriteLog(LogType.Error, message);
+                MapErrorManager.Instance.Record(map, message);
+            }
+
+            Logger.WriteLog(LogType.Initialize, $"SpawnPools checked against safe ground and turrets: {found.Count} too close.");
+        }
+
+        /// <summary>
+        /// What ValidatePools reports, a line a pool with the map it is on: the loaded pools
+        /// against the friendly NPCs' pools among them, these places besides (the hospitals and
+        /// waypoint pads), and the AFS turrets.
+        /// </summary>
+        internal List<(uint Map, string Message)> PoolsTooClose(IEnumerable<(uint Map, Vector3 Position, string What)> places)
+        {
+            var found = new List<(uint Map, string Message)>();
             var safe = new Dictionary<uint, List<(Vector3 Position, string What)>>();
 
             void Add(uint map, Vector3 position, string what)
@@ -558,28 +659,33 @@ namespace Rasa.Managers
                 list.Add((position, what));
             }
 
-            // A turret is friendly, but no hospital: its ground is where the fighting is.
+            // An AFS turret is friendly, but no hospital: its ground is where the fighting is.
             var turrets = new List<SpawnPool>();
 
             foreach (var pool in LoadedSpawnPools.Values)
             {
                 if (pool.SpawnSlot.Count > 0 && pool.SpawnSlot.TrueForAll(s => IsEmplacement(s.CreatureId)))
-                    turrets.Add(pool);
-                else if (pool.SpawnSlot.Exists(s => IsSafeGround(s.CreatureId)))
+                {
+                    // A Bane one is the camp's own gun, and takes its turn as a hostile pool below.
+                    if (pool.SpawnSlot.TrueForAll(s => Side(s.CreatureId) == TargetCategory.Friendly))
+                        turrets.Add(pool);
+                }
+                else if (pool.SpawnSlot.Exists(s => IsSafeGround(s.CreatureId)) && !IsStaged(pool.DbId))
                     Add(pool.MapContextId, pool.Position, $"the NPCs of pool {pool.DbId}");
             }
 
-            foreach (var teleporter in DynamicObjectManager.Instance.Teleporters.Values)
-                if (teleporter.ObjectData is WaypointInfo info && (info.WaypointType == WaypointType.Hospital || info.WaypointType == WaypointType.Waypoint))
-                    Add(teleporter.MapContextId, teleporter.Position, $"{info.WaypointType} {info.WaypointId}");
-
-            var bad = 0;
+            foreach (var (map, position, what) in places)
+                Add(map, position, what);
 
             foreach (var pool in LoadedSpawnPools.Values)
             {
                 // Not on a timer, never brings anything (min and max 0), or not all hostile.
                 if (pool.Mode != ModeAutomatic || !pool.SpawnSlot.Exists(s => s.CountMax > 0)
                     || !pool.SpawnSlot.TrueForAll(s => Side(s.CreatureId) == TargetCategory.Hostile))
+                    continue;
+
+                // A mission's actor, where its scene has it stand.
+                if (IsStaged(pool.DbId))
                     continue;
 
                 // A turret that can see the camp from its mount: the two fight for as long as the
@@ -596,10 +702,7 @@ namespace Rasa.Managers
                     if (reach >= TurretScan)
                         continue;
 
-                    var fight = $"spawnpool {pool.DbId}: its creatures can stand {Math.Max(0, reach):0} m from the turret of pool {turret.DbId}, inside its scan; they will fight for good.";
-                    Logger.WriteLog(LogType.Error, fight);
-                    MapErrorManager.Instance.Record(pool.MapContextId, fight);
-                    bad++;
+                    found.Add((pool.MapContextId, $"spawnpool {pool.DbId}: its creatures can stand {Math.Max(0, reach):0} m from the turret of pool {turret.DbId}, inside its scan; they will fight for good."));
                     fought = true;
                     break;
                 }
@@ -614,15 +717,12 @@ namespace Rasa.Managers
                     if (gap >= SafeClearance)
                         continue;
 
-                    bad++;
-                    var message = $"spawnpool {pool.DbId}: its creatures can stand {Math.Max(0, gap):0} m from {what}, which should be safe ground.";
-                    Logger.WriteLog(LogType.Error, message);
-                    MapErrorManager.Instance.Record(pool.MapContextId, message);
+                    found.Add((pool.MapContextId, $"spawnpool {pool.DbId}: its creatures can stand {Math.Max(0, gap):0} m from {what}, which should be safe ground."));
                     break;
                 }
             }
 
-            Logger.WriteLog(LogType.Initialize, $"SpawnPools checked against safe ground and turrets: {bad} too close.");
+            return found;
         }
 
         private static bool IsEmplacement(uint creatureId) =>

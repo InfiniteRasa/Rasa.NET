@@ -381,6 +381,25 @@ namespace Rasa.Managers
         /// </summary>
         private static void MoveTo(Client traveller, Client destination)
         {
+            // Not into a copy of a battleground other than the one whose match they left.
+            if (Battlegrounds.Instance.BarredFrom(traveller, destination.Player.MapChannel, out var lockout))
+            {
+                CommunicatorManager.Instance.SystemMessage(traveller, Battlegrounds.Instance.LockoutText(lockout));
+                return;
+            }
+
+            // Into the shared copy of the map they are standing in, if it is one: the map's own
+            // channel is somewhere else. Into the squad instance they are standing in, likewise.
+            if (destination.Player.MapChannel?.IsSharedInstance == true || destination.Player.MapChannel?.IsSquadInstance == true)
+            {
+                MapChannelManager.Instance.Send(
+                    traveller,
+                    destination.Player.MapChannel,
+                    destination.Player.Position,
+                    destination.Movement.ViewDirection.X);
+                return;
+            }
+
             MapChannelManager.Instance.ChangeMap(
                 traveller,
                 destination.Player.MapContextId,

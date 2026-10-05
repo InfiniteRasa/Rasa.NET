@@ -39,7 +39,7 @@ namespace Rasa.Structures
                 {
                     Level = mission.Level.Value,
                     GroupType = mission.GroupType.Value,
-                    CategoryId = mission.CategoryId.Value,
+                    CategoryId = mission.ClientCategoryId ?? mission.CategoryId.Value,
                     Shareable = mission.Shareable.Value,
                     RadioCompletable = mission.RadioCompletable.Value
                 },

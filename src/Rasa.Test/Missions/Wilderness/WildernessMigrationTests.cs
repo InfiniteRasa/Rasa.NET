@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Rasa.Context.World;
 using Rasa.Missions.Content;
+using Rasa.Services.Preloader;
 using Rasa.Services.Preloader.Missions;
 using Rasa.Services.Preloader.Missions.Wilderness;
 using Rasa.Test.Database;
@@ -21,6 +22,17 @@ namespace Rasa.Test.Missions.Wilderness
     {
         private const string Pr105WorldBoundary = "20261103000000_Snowball_stacks_not_unique";
         private const string WildernessWorldBoundary = "20261104001600_WildernessEvidenceCapacity";
+
+        /// <summary>Dated with the Wilderness migrations and not one of them: it runs before the first.</summary>
+        private const string WreckCreatures = "20261104000000_Add_wreck_creatures";
+
+        /// <summary>
+        /// The battlefields' Targets of Opportunity (TargetsOfOpportunitySeed, revision targets_1),
+        /// enabled by Add_targets_of_opportunity after the Wilderness migrations: fourteen, the
+        /// fifteenth being the Wilderness missions' own 1449.
+        /// </summary>
+        private static readonly uint[] BattlefieldMissions =
+            TargetsOfOpportunitySeed.Zones.Select(zone => zone.MissionId).ToArray();
 
         [TestMethod]
         [DataRow(typeof(SqliteWorldContext))]
@@ -84,18 +96,28 @@ namespace Rasa.Test.Missions.Wilderness
         {
             using var context = PersistenceIntegrationTests.CreateContext(contextType, "unused");
             var assembly = context.GetService<IMigrationsAssembly>();
-            var latest = assembly.ModelSnapshot.Model;
+            // The snapshot is the model after every migration: what is dated after the Wilderness
+            // migrations (the control point tables, and whatever follows them) is in it and not in
+            // theirs. Each of them is held to the last one's target model, and the snapshot must
+            // still have all of that.
+            var snapshot = assembly.ModelSnapshot.Model;
+            var latest = assembly.CreateMigration(assembly.Migrations[WildernessWorldBoundary],
+                context.Database.ProviderName).TargetModel;
             var expectedEntities = latest.GetEntityTypes().Select(entity => entity.Name).ToArray();
             var expectedProperties = latest.GetEntityTypes().SelectMany(entity =>
                 entity.GetProperties().Select(property => entity.Name + "." + property.Name)).ToArray();
-            var finalConstraint = latest.FindEntityType("Rasa.Structures.World.MissionActionEntry")
+            var finalConstraint = snapshot.FindEntityType("Rasa.Structures.World.MissionActionEntry")
                 .FindCheckConstraint("CK_mission_action_kind_parameter_set").Sql;
             var migrations = assembly.Migrations.Where(entry =>
-                entry.Key.StartsWith("20261104", StringComparison.Ordinal)).OrderBy(entry => entry.Key).ToArray();
+                entry.Key.StartsWith("20261104", StringComparison.Ordinal) && entry.Key != WreckCreatures)
+                .OrderBy(entry => entry.Key).ToArray();
 
             Assert.AreEqual(17, migrations.Length);
             Assert.AreEqual(66, expectedEntities.Length);
             Assert.AreEqual(550, expectedProperties.Length);
+            CollectionAssert.IsSubsetOf(expectedEntities, snapshot.GetEntityTypes().Select(entity => entity.Name).ToArray());
+            CollectionAssert.IsSubsetOf(expectedProperties, snapshot.GetEntityTypes().SelectMany(entity =>
+                entity.GetProperties().Select(property => entity.Name + "." + property.Name)).ToArray());
             for (var index = 0; index < migrations.Length; index++)
             {
                 var migration = assembly.CreateMigration(migrations[index].Value, context.Database.ProviderName);
@@ -165,7 +187,9 @@ namespace Rasa.Test.Missions.Wilderness
 
         private static void AssertMergedWorld(SqliteWorldContext context)
         {
-            Assert.AreEqual(WildernessWorldBoundary, context.Database.GetAppliedMigrations().Last());
+            // The Wilderness migrations are applied, and so is everything dated after them.
+            CollectionAssert.Contains(context.Database.GetAppliedMigrations().ToArray(), WildernessWorldBoundary);
+            Assert.AreEqual(context.Database.GetMigrations().Last(), context.Database.GetAppliedMigrations().Last());
             Assert.IsFalse(context.Database.GetPendingMigrations().Any());
 
             var divide = context.CreatureEntries.AsNoTracking().Single(row => row.Id == 530001);
@@ -232,9 +256,10 @@ namespace Rasa.Test.Missions.Wilderness
 
             var expectedMissions = WildernessMissionCases.All
                 .Where(row => row.Disposition == WildernessDisposition.OutdoorRelease)
-                .Select(row => row.MissionId).Concat(WildernessMissionCases.ProtectedBootcampMissionIds).ToArray();
+                .Select(row => row.MissionId).Concat(WildernessMissionCases.ProtectedBootcampMissionIds)
+                .Concat(BattlefieldMissions).ToArray();
             var enabled = context.MissionContentDefinitionEntries.AsNoTracking().Where(row => row.Enabled).ToArray();
-            Assert.AreEqual(69, enabled.Length);
+            Assert.AreEqual(69 + BattlefieldMissions.Length, enabled.Length);
             CollectionAssert.AreEquivalent(expectedMissions, enabled.Select(row => row.MissionId).ToArray());
             Assert.IsTrue(enabled.Where(row => row.ContentRevision == WildernessMissionCases.ContentRevision)
                 .All(row => row.CategoryId == 10000044));
@@ -374,6 +399,8 @@ namespace Rasa.Test.Missions.Wilderness
             }
             Assert.AreEqual(69, expected.Count);
             harness.World.Initialize();
+            // Everything dated after the Wilderness migrations: the battlefields' missions come with it.
+            expected.UnionWith(BattlefieldMissions);
             CollectionAssert.AreEquivalent(expected.ToArray(),
                 harness.World.MissionContentDefinitionEntries.AsNoTracking()
                     .Where(entry => entry.Enabled).Select(entry => entry.MissionId).ToArray());
@@ -403,6 +430,39 @@ namespace Rasa.Test.Missions.Wilderness
             CollectionAssert.AreEqual(opening, EvidenceRows(harness));
             harness.World.Initialize();
             CollectionAssert.AreEqual(latest, EvidenceRows(harness));
+        }
+
+        [TestMethod]
+        public void HoldCaptivePierreOnlyMakesHerEncounterManualCombatAndRollsBackToTheSeededScene()
+        {
+            const string before = "20261116000000_Wilderness_targets_kill_rules";
+            using var harness = WildernessRuntimeTestHarness.Create(targetWorldMigration: before);
+            string Scene(uint mission) => harness.World.Set<Rasa.Structures.World.MissionSceneBindingEntry>().AsNoTracking()
+                .Single(row => row.MissionId == mission && row.ContentRevision == WildernessMissionDataV1.Revision).Bindings;
+            string[] Others() => harness.World.Set<Rasa.Structures.World.MissionSceneBindingEntry>().AsNoTracking()
+                .Where(row => row.MissionId != 666).OrderBy(row => row.MissionId).ThenBy(row => row.ContentRevision)
+                .AsEnumerable().Select(row => $"{row.MissionId}/{row.ContentRevision}/{row.ScriptKey}/{row.StateVersion}/{row.Bindings}").ToArray();
+            var seeded = Scene(666);
+            var others = Others();
+            var seededEncounter = JsonSerializer.Deserialize<MissionSceneDefinition>(seeded, MissionContentCodec.Options).PublicEncounter;
+            Assert.IsFalse(seededEncounter.ManualCombat);
+            Assert.IsFalse(seeded.Contains("manualCombat"));
+            CollectionAssert.AreEqual(new[] { "20261117000000_Hold_captive_pierre" },
+                harness.World.Database.GetPendingMigrations().ToArray());
+
+            harness.World.Initialize();
+
+            var held = Scene(666);
+            Assert.AreEqual(seededEncounter with { ManualCombat = true },
+                JsonSerializer.Deserialize<MissionSceneDefinition>(held, MissionContentCodec.Options).PublicEncounter);
+            Assert.AreEqual(seeded, held.Replace(",\"manualCombat\":true", ""),
+                "Nothing of the scene but the encounter's combat gate may change.");
+            CollectionAssert.AreEqual(others, Others());
+
+            harness.World.GetService<IMigrator>().Migrate(before);
+
+            Assert.AreEqual(seeded, Scene(666));
+            CollectionAssert.AreEqual(others, Others());
         }
 
         [TestMethod]
@@ -440,9 +500,11 @@ namespace Rasa.Test.Missions.Wilderness
             }
             Assert.AreEqual("VARCHAR(256)", EvidenceColumnType(harness).ToUpperInvariant());
             CollectionAssert.AreEqual(original, EvidenceRows(harness));
+            // The one Wilderness migration left, and then what is dated after them.
             var pending = harness.World.Database.GetPendingMigrations().ToArray();
-            Assert.AreEqual(1, pending.Length);
-            StringAssert.EndsWith(pending[0], "_WildernessEvidenceCapacity");
+            Assert.AreEqual(WildernessWorldBoundary, pending[0]);
+            Assert.IsTrue(pending.Skip(1).All(id => string.CompareOrdinal(id, WildernessWorldBoundary) > 0));
+            Assert.IsTrue(pending.Any(id => id.EndsWith("_Wilderness_indicators_without_client_names", StringComparison.Ordinal)));
 
             harness.World.Initialize();
 
@@ -468,7 +530,8 @@ namespace Rasa.Test.Missions.Wilderness
 
             var latest = EvidenceRows(harness);
             CollectionAssert.IsSubsetOf(opening, latest);
-            Assert.AreEqual(69, harness.World.MissionContentDefinitionEntries.Count(entry => entry.Enabled));
+            Assert.AreEqual(69 + BattlefieldMissions.Length,
+                harness.World.MissionContentDefinitionEntries.Count(entry => entry.Enabled));
             Assert.AreEqual("TEXT", EvidenceColumnType(harness).ToUpperInvariant());
             Assert.IsFalse(harness.Manager.LoadMissions().BlocksReadiness);
             Assert.IsFalse(harness.World.Database.GetPendingMigrations().Any());
@@ -498,13 +561,77 @@ namespace Rasa.Test.Missions.Wilderness
             }
         }
 
+        /// <summary>
+        /// The evidence of Bootcamp and the Wilderness missions. The battlefields' missions have
+        /// theirs from a migration dated after these, which comes and goes with a rollback to
+        /// one of them.
+        /// </summary>
         private static string[] EvidenceRows(WildernessRuntimeTestHarness harness) =>
             harness.World.MissionEvidenceEntries.AsNoTracking().AsEnumerable()
+                .Where(entry => entry.ContentRevision != TargetsOfOpportunitySeed.Revision)
                 .OrderBy(entry => entry.MissionId).ThenBy(entry => entry.ContentRevision).ThenBy(entry => entry.EvidenceId)
                 .Select(entry => JsonSerializer.Serialize(new
                 {
                     entry.MissionId, entry.ContentRevision, entry.EvidenceId, entry.OwnerKind, entry.OwnerId,
                     entry.SourceKind, entry.SourceUri, entry.LocalClientPath, entry.Confidence, entry.ReconstructionNote
+                })).ToArray();
+
+        [TestMethod]
+        public void OnlyIndicatorsKeyedByTheClientsIdsAreSentWithAName()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var rows = harness.World.MissionIndicatorEntries.AsNoTracking().ToArray();
+            var bootcamp = rows.Where(row => row.ContentRevision == "deployment_11").ToArray();
+            var wilderness = rows.Where(row => row.ContentRevision == WildernessMissionDataV1.Revision).ToArray();
+
+            Assert.AreEqual(12, bootcamp.Length);
+            Assert.AreEqual(97, wilderness.Length);
+            Assert.AreEqual(rows.Length, bootcamp.Length + wilderness.Length);
+            // Bootcamp's keys are missionobjectiveindicatorlanguage ids: 430 "Eloh Approach" to 439
+            // "Cave-in Location".
+            foreach (var row in bootcamp)
+                Assert.IsTrue(row.IndicatorId >= 430 && row.IndicatorId <= 439,
+                    $"mission {row.MissionId} objective {row.ObjectiveId} indicator {row.IndicatorId}");
+            // The Wilderness rows were keyed 1, 2, 3.. within a mission; as client ids those are other
+            // missions' names (1 "Bane Base", 3 "Possible Food Crate Location"). A Wilderness
+            // indicator that is to carry a client name is keyed by that name's id, below UnnamedFrom.
+            foreach (var row in wilderness)
+                Assert.IsTrue(row.IndicatorId > Rasa.Structures.MissionIndicator.UnnamedFrom,
+                    $"mission {row.MissionId} objective {row.ObjectiveId} indicator {row.IndicatorId}");
+
+            Assert.IsFalse(harness.Manager.LoadMissions().BlocksReadiness);
+        }
+
+        [TestMethod]
+        public void UnnamedIndicatorKeysRollBackToTheirWildernessKeysAndForwardAgain()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var migrator = harness.World.GetService<IMigrator>();
+            var latest = IndicatorRows(harness);
+
+            migrator.Migrate(WildernessWorldBoundary);
+
+            var rolledBack = harness.World.MissionIndicatorEntries.AsNoTracking()
+                .Where(row => row.ContentRevision == WildernessMissionDataV1.Revision).ToArray();
+            Assert.AreEqual(97, rolledBack.Length);
+            Assert.IsTrue(rolledBack.All(row => row.IndicatorId >= 1 && row.IndicatorId <= 12));
+            Assert.AreEqual(4, rolledBack.Count(row => row.MissionId == 430 && row.IndicatorId == row.ObjectiveId));
+
+            migrator.Migrate();
+            migrator.Migrate();
+
+            CollectionAssert.AreEqual(latest, IndicatorRows(harness));
+            Assert.IsFalse(harness.World.Database.GetPendingMigrations().Any());
+        }
+
+        private static string[] IndicatorRows(WildernessRuntimeTestHarness harness) =>
+            harness.World.MissionIndicatorEntries.AsNoTracking().AsEnumerable()
+                .OrderBy(row => row.MissionId).ThenBy(row => row.ContentRevision, StringComparer.Ordinal)
+                .ThenBy(row => row.ObjectiveId).ThenBy(row => row.IndicatorId)
+                .Select(row => JsonSerializer.Serialize(new
+                {
+                    row.MissionId, row.ContentRevision, row.ObjectiveId, row.IndicatorId,
+                    row.Requirement, row.PosX, row.PosY, row.PosZ, row.Radius, row.Show3DEffect, row.Comment
                 })).ToArray();
 
         private static string EvidenceColumnType(WildernessRuntimeTestHarness harness) =>

@@ -636,6 +636,10 @@ namespace Rasa.Test.Missions
                         MissionProgressEvent.ObjectiveState(subject, subject, (byte)MissionObjectiveState.Completed),
                     MissionProgressEventKind.ObjectHit =>
                         MissionProgressEvent.ObjectHit(subject, subject),
+                    MissionProgressEventKind.CreatureFlagKilled =>
+                        MissionProgressEvent.CreatureFlag(subject),
+                    MissionProgressEventKind.CreatureClassKilled =>
+                        MissionProgressEvent.CreatureClass(subject),
                     _ => throw new AssertFailedException()
                 };
                 Assert.IsFalse(context.Manager.RecordProgress(context.Client, progress),

@@ -636,10 +636,25 @@ namespace Rasa.Game.Missions
                 _missions.IsObjectiveEligibleAtEvent(resident.Owner, missionId, objectiveId, unit);
         }
 
-        private static void PublishObjectDamage(MapChannel map, DynamicObject obj) =>
-            CellManager.Instance.CellCallMethod(map, obj, new Packets.MapChannel.Server.DamageInfoPacket(
-                obj.IsEnabled && obj.CurrentHitPoints > 0, false,
-                obj.MissionDestruction.HitPoints, obj.CurrentHitPoints));
+        /// <summary>
+        /// The object's hit points as they are now, to the clients around it.
+        ///
+        /// UpdateHitPoints is what moves the bar over it: usable.py's Recv_UpdateHitPoints posts
+        /// USABLE_HITPOINT_CHANGE, which is all overheadwindow.py redraws a usable's bar on.
+        /// Recv_DamageInfo stores the figure and posts nothing, so damage told with it alone left
+        /// the bar full until the object went. DamageInfo follows only when the object can no
+        /// longer be damaged, and after the update: sent first it would store the new figure, and
+        /// an UpdateHitPoints of a figure the client already holds posts no event.
+        /// </summary>
+        private static void PublishObjectDamage(MapChannel map, DynamicObject obj)
+        {
+            CellManager.Instance.CellCallMethod(map, obj,
+                new Packets.MapChannel.Server.UpdateHitPointsPacket(checked((int)obj.CurrentHitPoints)));
+
+            if (!obj.IsEnabled || obj.CurrentHitPoints == 0)
+                CellManager.Instance.CellCallMethod(map, obj, new Packets.MapChannel.Server.DamageInfoPacket(
+                    false, false, obj.MissionDestruction.HitPoints, obj.CurrentHitPoints));
+        }
 
         private DynamicObject ValidateObjectObservation(Resident resident, SceneObservation observation,
             Repositories.Char.ICharUnitOfWork unit)
@@ -1062,7 +1077,14 @@ namespace Rasa.Game.Missions
                         if (recorded && !Rasa.Missions.Definitions.MissionItemValidation.IsItemIntent(intent) &&
                             intent is not OfferRadioMissionIntent)
                             continue;
-                        _characters.Apply(resident.Owner, next, intent, unit, publication);
+                        // A reward's receipt is its run's, and every assignment's scene is a new run:
+                        // one the character was paid in an attempt they then abandoned or failed is
+                        // not paid to the attempt after it. This run still takes its receipt.
+                        var paidBefore = !recorded && intent is GrantRewardIntent && scene.MissionId != 0 &&
+                            store.GrantedInUnfinishedAttempt(scene.OwnerCharacterId, scene.MissionId,
+                                scene.ScriptKey, intent.OperationKey);
+                        if (!paidBefore)
+                            _characters.Apply(resident.Owner, next, intent, unit, publication);
                         if (!recorded)
                             store.Add(new MissionReceiptEntry
                             {

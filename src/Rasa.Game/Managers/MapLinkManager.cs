@@ -211,6 +211,14 @@ namespace Rasa.Managers
 
         private void Fire(Client client, MapLink link)
         {
+            // A team's teleporter, or the way back out of its base: a battleground's own.
+            if (Battlegrounds.Instance.TakeLink(client, link))
+                return;
+
+            // "You must be level 45 or higher to enter this map."
+            if (!Battlegrounds.Instance.MayEnter(client, link.DestMapContextId))
+                return;
+
             if (!MapChannelManager.Instance.MapChannelArray.ContainsKey(link.DestMapContextId))
             {
                 MapErrorManager.Instance.Record(link.MapContextId, $"map_link {link.Id} ({link.Comment}) leads to map {link.DestMapContextId}, which is not loaded");
@@ -219,7 +227,9 @@ namespace Rasa.Managers
 
             Logger.WriteLog(LogType.Debug, $"{client.Player.FamilyName} took map link {link.Id} ({link.Comment}): {link.MapContextId} -> {link.DestMapContextId}");
 
-            if (!MapChannelManager.Instance.ChangeMap(client, link.DestMapContextId, link.DestPosition, link.DestRotation))
+            // A map that runs in several copies is entered by its copy with room, or by the
+            // instance picker once there is more than one (MapChannelManager.EnterMap).
+            if (!MapChannelManager.Instance.EnterMap(client, link.DestMapContextId, link.DestPosition, link.DestRotation))
                 Logger.WriteLog(LogType.Error, $"map_link {link.Id} ({link.Comment}) could not move {client.Player.FamilyName} to map {link.DestMapContextId}");
         }
 

@@ -98,6 +98,14 @@ namespace Rasa.Structures
         public bool IsSkillPassive { get; set; }
 
         /// <summary>
+        /// Told to the holder's own client and nobody else's, like a skill's standing effect but
+        /// one of a kind: an effect whose client class changes the viewer's own windows whoever it
+        /// is attached to (LockWageredItemEffect puts the padlock on the prestige window of every
+        /// client that hears of it).
+        /// </summary>
+        public bool OwnerOnly { get; set; }
+
+        /// <summary>
         /// Kept on the server and told to no client: an effect the server needs whose type the
         /// client has no class for (a grub's cocoon, CreatureSummons). Its attach, detach and
         /// its introduction to newcomers are not sent.
@@ -179,6 +187,39 @@ namespace Rasa.Structures
         /// other effect. BehaviorManager.MayFight reads it: see AbilityManager.MindControl.
         /// </summary>
         public int MindControlPump { get; set; }
+
+        /// <summary>
+        /// The player holding it may not attack - no weapon fire, no hostile ability - while it is
+        /// on: Mind Control P2-P5 on an enemy player (Pvp).
+        /// </summary>
+        public bool NoAttack { get; set; }
+
+        /// <summary>
+        /// The player holding it may not help anyone else - no ability aimed at another player, no
+        /// squad wave - while it is on: Mind Control P4-P5 on an enemy player (Pvp).
+        /// </summary>
+        public bool NoAssist { get; set; }
+
+        /// <summary>
+        /// The player holding it may not hurt its Source or the Source's side while it is on, and
+        /// it comes off when the Source hurts them: Traitor on an enemy player (Pvp.Restrained).
+        /// </summary>
+        public bool Restrains { get; set; }
+
+        /// <summary>
+        /// Comes off the creature holding it as soon as it takes damage: Hack's hold on an enemy
+        /// player's machine (AbilityManager.HackPet).
+        /// </summary>
+        public bool BreaksOnDamage { get; set; }
+
+        /// <summary>
+        /// Percent change to Body, Mind and Spirit together while on - Rez Trauma (REZ_SICKNESS)'s
+        /// penalty after a death (PlayerDeath). Players only, as AttributePercent is.
+        /// </summary>
+        public int PrimaryAttributesPercent { get; set; }
+
+        /// <summary>How many deaths a Rez Trauma stands for (REZ_SICKNESS_MAX_STACK at most).</summary>
+        public int Stacks { get; set; }
 
         /// <summary>Percent chance that a stun or knockback on the holder does not land (Graviton Armor). See Managers.PlayerCrowdControl.</summary>
         public int KnockbackStunResistPercent { get; set; }

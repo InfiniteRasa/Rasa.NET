@@ -429,10 +429,14 @@ namespace Rasa.Test.Missions.Wilderness
                 };
                 harness.Drain();
 
+                // A level no medpack in the pack performs. The betrayal reward is both 44917
+                // (level 1) and 44918 (level 2), and a request the named item does not perform
+                // is carried out with a pack item that does (AbilityManager.PackItemPerforming):
+                // asking for the other one's level is not a refusal.
                 abilities.RequestPerformAbility(harness.Client, new RequestPerformAbilityPacket
                 {
                     ActionId = request.ActionId,
-                    ActionArgId = argument == 1 ? 2 : 1,
+                    ActionArgId = argument == 3 ? 1 : 3,
                     ItemId = source.EntityId,
                     Target = default
                 });

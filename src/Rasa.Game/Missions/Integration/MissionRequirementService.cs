@@ -189,6 +189,7 @@ namespace Rasa.Game.Missions.Integration
                 NotRequirement not => InputsMatch(not.Item, expected, current),
                 LevelRequirement => expected.Level == current.Level,
                 FlagRequirement flag => SameValue(expected.Flags, current.Flags, flag.FlagId),
+                MapRequirement => expected.MapContextId == current.MapContextId,
                 MissionStateRequirement mission =>
                     SameValue(expected.Journal, current.Journal, mission.MissionId) &&
                     SameValue(expected.History, current.History, mission.MissionId) &&

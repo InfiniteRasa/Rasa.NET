@@ -9,6 +9,7 @@ namespace Rasa.Test.Gameplay
 {
     using Rasa.Data;
     using Rasa.Managers;
+    using Rasa.Packets.Manifestation.Server;
     using Rasa.Packets.MapChannel.Client;
     using Rasa.Packets.Protocol;
     using Rasa.Structures;
@@ -84,6 +85,80 @@ namespace Rasa.Test.Gameplay
             using (var verify = context.Open())
                 Assert.AreEqual(100u, verify.CharacterEntries.AsNoTracking().Single().Experience);
             Assert.AreEqual(0, WorldTestContext.Drain(context.Client).Count);
+        }
+
+        /// <summary>
+        /// Experience from a kill that reaches 5, 15 or 30 has to save the clone credit it hands
+        /// out. When only the copy in memory got it, the row no longer matched the player, and
+        /// every later award was refused as "durable progression changed" until a relog - which
+        /// loaded the row and dropped the credit.
+        /// </summary>
+        [TestMethod]
+        [DataRow(4, 42000u, 2000u, 5, 1u, DisplayName = "level 5")]
+        [DataRow(14, 886000u, 1000u, 15, 1u, DisplayName = "level 15")]
+        [DataRow(29, 9836000u, 2000u, 30, 1u, DisplayName = "level 30")]
+        [DataRow(1, 0u, 900000u, 15, 2u, DisplayName = "1 to 15 in one award: both 5 and 15")]
+        [DataRow(5, 69000u, 1000u, 6, 0u, DisplayName = "level 6 pays nothing")]
+        public void KillExperienceSavesTheCloneCreditsItHandsOut(
+            int level, uint experience, uint award, int levelAfter, uint credits)
+        {
+            using var context = new WeaponAmmoContext();
+            var manager = new ManifestationManager(context);
+            var player = context.Client.Player;
+            player.Level = (byte)level;
+            player.Experience = experience;
+            player.CloneCredits = 0;
+            player.Attributes = Enum.GetValues<Attributes>().ToDictionary(
+                attribute => attribute,
+                attribute => new ActorAttributes(attribute, 100, 100, 100, 0, 0));
+            using (var database = context.Open())
+            {
+                var row = database.CharacterEntries.Single();
+                row.Level = (byte)level;
+                row.Experience = experience;
+                row.CloneCredits = 0;
+                database.SaveChanges();
+            }
+
+            manager.GainExperience(context.Client, award);
+
+            Assert.AreEqual((byte)levelAfter, player.Level);
+            Assert.AreEqual(experience + award, player.Experience);
+            Assert.AreEqual(credits, player.CloneCredits);
+            using (var verify = context.Open())
+            {
+                var row = verify.CharacterEntries.AsNoTracking().Single();
+                Assert.AreEqual((byte)levelAfter, row.Level);
+                Assert.AreEqual(experience + award, row.Experience);
+                Assert.AreEqual(credits, row.CloneCredits, "The saved clone credits.");
+            }
+            CollectionAssert.AreEqual(
+                Enumerable.Range(1, (int)credits).Select(count => (uint)count).ToList(),
+                WorldTestContext.Drain(context.Client)
+                    .Select(packet => packet.Message).OfType<CallMethodMessage>()
+                    .Select(message => message.Packet).OfType<CloneCreditsPacket>()
+                    .Select(packet => packet.CloneCredits).ToList());
+
+            // The next kill: the row and the player still agree, so it is not refused.
+            manager.GainExperience(context.Client, 100);
+
+            Assert.AreEqual(experience + award + 100, player.Experience);
+            using (var verify = context.Open())
+            {
+                var row = verify.CharacterEntries.AsNoTracking().Single();
+                Assert.AreEqual(experience + award + 100, row.Experience);
+                Assert.AreEqual(credits, row.CloneCredits);
+            }
+        }
+
+        [TestMethod]
+        public void TheCloneCreditLevelsAreTheOnesTheTableLists()
+        {
+            for (var level = 0; level <= ManifestationManager.MaxPlayerLevel; level++)
+                Assert.AreEqual(
+                    ManifestationManager.CloneCreditLevels.Contains((byte)level),
+                    ManifestationManager.IsCloneCreditLevel(level),
+                    $"level {level}");
         }
 
         [TestMethod]

@@ -149,8 +149,10 @@ namespace Rasa.Test.Missions
             var item = harness.Client.Player.Inventory.PersonalInventory.Where(id => id != 0)
                 .Select(EntityManager.Instance.GetItem).Single(candidate => candidate.ItemTemplateId == 44917);
             var source = highId ? (1UL << 32) | item.EntityId : item.EntityId;
-            if (!highId)
-                item.OwnerId++;
+
+            // Somebody else's in both cases: with a medpack of their own in the pack, a request
+            // naming an item that is not there is performed with that one (TrayItemTests).
+            item.OwnerId++;
             var manager = CreateMedpackManager(harness);
             harness.Drain();
 

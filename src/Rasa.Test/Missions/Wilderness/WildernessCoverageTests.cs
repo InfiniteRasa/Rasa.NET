@@ -22,9 +22,13 @@ namespace Rasa.Test.Missions.Wilderness
             CollectionAssert.AreEquivalent(expected,
                 enabled.Where(entry => entry.ContentRevision == WildernessMissionCases.ContentRevision)
                     .Select(entry => entry.MissionId).ToArray());
-            CollectionAssert.AreEquivalent(expected.Concat(WildernessMissionCases.ProtectedBootcampMissionIds).ToArray(),
+            // And the battlefields' Targets of Opportunity (TargetsOfOpportunitySeed): fourteen, the
+            // fifteenth being the Wilderness missions' own 1449.
+            var battlefields = Rasa.Services.Preloader.TargetsOfOpportunitySeed.Zones.Select(zone => zone.MissionId).ToArray();
+            CollectionAssert.AreEquivalent(expected.Concat(WildernessMissionCases.ProtectedBootcampMissionIds)
+                    .Concat(battlefields).ToArray(),
                 enabled.Select(entry => entry.MissionId).ToArray());
-            Assert.AreEqual(69, enabled.Length);
+            Assert.AreEqual(69 + battlefields.Length, enabled.Length);
             Assert.IsTrue(expected.All(id => harness.Manager.LoadedMissions[id].IsOperational),
                 "An enabled but nonoperational definition is not outdoor coverage.");
         }

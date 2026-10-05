@@ -172,7 +172,8 @@ namespace Rasa.Managers
                 (unitOfWork?.EntityClasses?.Get() ?? new List<EntityClassEntry>()).Select(entry => entry.Id),
                 creatureClasses,
                 (unitOfWork?.MapInfos?.Get() ?? new List<MapInfoEntry>()).Select(entry => entry.Id),
-                objectPackages, typedScenarios);
+                objectPackages, typedScenarios,
+                (unitOfWork?.Creatures?.GetClassFlags() ?? new List<CreatureClassFlagEntry>()).Select(entry => entry.FlagId));
         }
 
         private static void ValidateMission(
@@ -879,6 +880,32 @@ namespace Rasa.Managers
                                 diagnostics.Add(new MissionValidationDiagnostic(
                                     "missing-creature",
                                     $"creature kill progress rule references missing creature {subjectId}.",
+                                    definition.MissionId,
+                                    definition.ContentRevision,
+                                    objective.ObjectiveId));
+                            }
+
+                            break;
+
+                        case MissionProgressEventKind.CreatureFlagKilled:
+                            if (!references.CreatureFlagIds.Contains(subjectId))
+                            {
+                                diagnostics.Add(new MissionValidationDiagnostic(
+                                    "missing-creature-flag",
+                                    $"creature flag kill progress rule names creature flag {subjectId}, which no creature class carries (creature_class_flag).",
+                                    definition.MissionId,
+                                    definition.ContentRevision,
+                                    objective.ObjectiveId));
+                            }
+
+                            break;
+
+                        case MissionProgressEventKind.CreatureClassKilled:
+                            if (!references.EntityClassIds.Contains(subjectId))
+                            {
+                                diagnostics.Add(new MissionValidationDiagnostic(
+                                    "missing-entity-class",
+                                    $"creature class kill progress rule references missing entity class {subjectId}.",
                                     definition.MissionId,
                                     definition.ContentRevision,
                                     objective.ObjectiveId));
@@ -1668,6 +1695,9 @@ namespace Rasa.Managers
             public IReadOnlyDictionary<uint, uint> CreatureClasses { get; }
             public HashSet<uint> MapContextIds { get; }
 
+            /// <summary>Every creature flag some creature class carries.</summary>
+            public HashSet<uint> CreatureFlagIds { get; }
+
             public MissionContentReferenceSet(
                 IEnumerable<uint> npcPackageIds,
                 IReadOnlyDictionary<uint, uint> itemTemplateClasses,
@@ -1675,8 +1705,10 @@ namespace Rasa.Managers
                 IReadOnlyDictionary<uint, uint> creatureClasses,
                 IEnumerable<uint> mapContextIds,
                 IReadOnlyDictionary<uint, IReadOnlySet<uint>> objectPackages,
-                IReadOnlyDictionary<uint, IReadOnlySet<uint>> typedScenarios)
+                IReadOnlyDictionary<uint, IReadOnlySet<uint>> typedScenarios,
+                IEnumerable<uint> creatureFlagIds = null)
             {
+                CreatureFlagIds = new HashSet<uint>(creatureFlagIds ?? Array.Empty<uint>());
                 NpcPackageIds = new HashSet<uint>(npcPackageIds ?? Array.Empty<uint>());
                 ObjectNpcPackages = objectPackages;
                 TypedScenarioIds = typedScenarios;

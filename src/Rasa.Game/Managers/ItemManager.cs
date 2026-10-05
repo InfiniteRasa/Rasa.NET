@@ -496,6 +496,13 @@ namespace Rasa.Managers
             unitOfWork.Items.UpdateCurrentHitPoints(item);
         }
 
+        /// <summary>Writes an item's colour to the database.</summary>
+        internal void SaveColor(IItemChange item)
+        {
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+            unitOfWork.Items.UpdateColor(item);
+        }
+
         internal void UpdateItemCurrentAmmo(IItemChange item)
         {
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();

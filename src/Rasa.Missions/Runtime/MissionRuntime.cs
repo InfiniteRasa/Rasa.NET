@@ -157,8 +157,13 @@ namespace Rasa.Missions.Runtime
                             };
                             continue;
                         }
+                        // Several creature rows of one counter in one batch are several kills.
+                        // The class and the flags of a kill are names of the one kill
+                        // (CreatureManager.KillEvents): an objective that answers to more than
+                        // one of them advances once, by the rule below.
                         if (previous.ExecutableTransition == binding.Transition &&
                             rule.RuleType == MissionProgressRuleType.IncrementExactCounter &&
+                            rule.Kind == MissionProgressEventKind.CreatureKilled &&
                             rule.Subjects.Count > 1)
                         {
                             var quantity = (ulong)previous.Progress.Quantity + progress.Quantity;

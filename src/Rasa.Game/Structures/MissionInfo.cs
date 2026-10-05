@@ -87,7 +87,10 @@ namespace Rasa.Structures
                         pw.WriteDouble(indicator.Position.Y);
                         pw.WriteDouble(indicator.Position.Z);
                     pw.WriteDouble(indicator.Radius);               // radius
-                    pw.WriteUInt(indicator.IndicatorId);            // indicatorId
+                    if (indicator.ClientNameId.HasValue)            // indicatorId: its name's id, or None
+                        pw.WriteUInt(indicator.ClientNameId.Value);
+                    else
+                        pw.WriteNoneStruct();
                     MissionWire.WriteBool(pw, indicator.Show3DEffect); // bShow3DEffect
                 }
             }
@@ -98,6 +101,7 @@ namespace Rasa.Structures
     {
         public uint Level { get; set; }  // it's mission level, not required XP level
         public byte GroupType { get; set; }
+        /// <summary>missioncategorylanguage: 1-26, or one of the ids from 10000001 up.</summary>
         public uint CategoryId { get; set; }
         public bool Shareable { get; set; }
         public bool RadioCompletable { get; set; }

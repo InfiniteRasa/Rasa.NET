@@ -253,7 +253,7 @@ namespace Rasa.Managers
                     continue;
                 }
 
-                var prey = EnemiesWithin(mapChannel, mine.Owner, creature.Position, CrabMineSeekRange)
+                var prey = FoesWithin(mapChannel, mine.Owner, creature.Position, CrabMineSeekRange)
                     .Where(c => c.State != CharacterState.Dead && c.State != CharacterState.Dying)
                     .OrderBy(c => Vector3.DistanceSquared(c.Position, creature.Position))
                     .FirstOrDefault();
@@ -324,7 +324,7 @@ namespace Rasa.Managers
             var critChance = CriticalHits.AttackerChance(owner, false);
             var hitAny = false;
 
-            foreach (var victim in HostilesWithin(mapChannel, owner, creature.Position, mine.Radius))
+            foreach (var victim in VictimsWithin(mapChannel, owner, creature.Position, mine.Radius))
             {
                 if (victim == creature || victim.State == CharacterState.Dead || victim.State == CharacterState.Dying || victim.Attributes[Attributes.Health].Current <= 0)
                     continue;

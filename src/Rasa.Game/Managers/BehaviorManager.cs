@@ -187,11 +187,15 @@ namespace Rasa.Managers
                 // Cell lists can hold a client whose character is already gone. A player is
                 // FRIENDLY - sought by HOSTILE creatures only - whatever Polymorph has made
                 // them look like.
-                if (client.Player == null || !TargetCategories.Seeks(creature.TargetCategory, client.Player.CombatCategory))
+                // An Aggressive summon also goes for its master's enemies across a wargame, unless
+                // PvP Safety is on them (Pvp.SummonMayFight).
+                if (client.Player == null || (!TargetCategories.Seeks(creature.TargetCategory, client.Player.CombatCategory)
+                    && !(Pvp.SummonMayFight(creature, client.Player.EntityId) && !Pvp.IsSafe(client.Player))))
                     continue;
 
-                // Gone, and waiting to be taken out of the world: nothing to pick a fight with.
-                if (client.Player.Disconected)
+                // Gone, and waiting to be taken out of the world: nothing to pick a fight with -
+                // unless the connection dropped mid-fight and the body is still in it (CombatLogout).
+                if (client.Player.IsGone)
                     continue;
 
                 if (client.Player.GmFlagAlwaysFriendly)
@@ -234,7 +238,7 @@ namespace Rasa.Managers
                 if (tCreature == creature)
                     continue;
 
-                if (!TargetCategories.Seeks(creature.TargetCategory, tCreature.TargetCategory))
+                if (!TargetCategories.Seeks(creature.TargetCategory, tCreature.TargetCategory) && !Pvp.SummonMayFight(creature, tCreature.EntityId))
                     continue;
 
                 // check distance
@@ -248,6 +252,22 @@ namespace Rasa.Managers
                         foundId = tCreature.EntityId;
                         foundDistance = dist;
                     }
+                }
+            }
+
+            // A Personal Waypoint a player has put down (PersonalWaypoints): to a creature that
+            // fights players it is what its owner is, and no more hidden than it looks.
+            foreach (var obj in cell.DynamicObjectList)
+            {
+                if (escort || obj.DynamicObjectType != DynamicObjectType.PersonalWaypoint || !PersonalWaypoints.MayBeFoughtBy(creature, obj.EntityId))
+                    continue;
+
+                var dist = Vector3.Distance(creature.Position, obj.Position);
+
+                if (dist <= range && dist < foundDistance)
+                {
+                    foundId = obj.EntityId;
+                    foundDistance = dist;
                 }
             }
         }
@@ -330,13 +350,21 @@ namespace Rasa.Managers
                 return;
             }
 
-            if (creature.Attributes[Attributes.Health].Current <= 0)
+            // A corpse by its state as much as by its health: a creature marked dead with health
+            // left on it is not one to go on to the fighting below.
+            if (creature.State == CharacterState.Dead || creature.Attributes[Attributes.Health].Current <= 0)
             {
+                // A walker that has fallen becomes its wreck (AlternateMesh).
+                AlternateMesh.DeadTick(mapChannel, creature, Environment.TickCount64);
+
                 // A corpse with loot still on it, or with someone's window open on it, stays
                 // longer than one that has been cleared: twenty seconds from the kill is about
                 // one more fight, and bodies were going before anyone could loot them. The clock
                 // runs under the map's loot lock (LootDispenserManager.AdvanceCorpseLifetime).
-                if (LootDispenserManager.Instance.AdvanceCorpseLifetime(mapChannel, creature, delta))
+                // A turret's wreck stays on its mount whatever the clock says, until its pool
+                // puts it back in service (AlternateMesh.KeepsWreck).
+                if (LootDispenserManager.Instance.AdvanceCorpseLifetime(mapChannel, creature, delta)
+                    && !AlternateMesh.KeepsWreck(creature))
                     needDeletion = true;
 
                 return; // creature dead
@@ -795,6 +823,12 @@ namespace Rasa.Managers
                     }
 
                     targetPosition = targetCreature.Position;
+                }
+                else if (target == EntityType.Object && PersonalWaypoints.TryGetPosition(creature.Controller.ActionFighting.TargetEntityId, out var waypointPosition))
+                {
+                    // A Personal Waypoint (PersonalWaypoints): a place to walk up to and hit,
+                    // with no actor to it.
+                    targetPosition = waypointPosition;
                 }
                 else
                     Logger.WriteLog(LogType.Error, $"CreatureThink: unsuported Traget type {target}"); // todo
@@ -2034,6 +2068,10 @@ namespace Rasa.Managers
             if (pump == AbilityManager.MindControlFrighten)
                 return false;
 
+            // A player's creature fights its master's enemies across a wargame, and theirs (Pvp).
+            if (Pvp.SummonMayFight(creature, entityId))
+                return true;
+
             if (EntityManager.Instance.Creatures.TryGetValue(entityId, out var other))
             {
                 if (other == creature || !Game.Missions.World.CreatureGameplayRules.CanParticipateInCombat(other))
@@ -2054,7 +2092,9 @@ namespace Rasa.Managers
             if (EntityManager.Instance.Players.TryGetValue(entityId, out var player))
                 return pump != AbilityManager.MindControlSubversion && TargetCategories.MayFightPlayer(creature.TargetCategory, player.CombatCategory);
 
-            return false;
+            // A Personal Waypoint (PersonalWaypoints) is fought by what fights its owner. A
+            // Confused or Subverted creature has turned on creatures, and leaves it.
+            return pump == 0 && PersonalWaypoints.MayBeFoughtBy(creature, entityId);
         }
 
         /// <summary>

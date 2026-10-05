@@ -41,7 +41,7 @@ namespace Rasa.Managers
         /// about the 5x5 cells around it, so nothing past ~64 units is even on its screen; this
         /// is twice that, which no weapon reaches and no honest client asks for.
         /// </summary>
-        private const float MaxTargetDistance = 128f;
+        internal const float MaxTargetDistance = 128f;
 
         private MissileManager()
         {
@@ -151,11 +151,19 @@ namespace Rasa.Managers
             // a creature anything its own category may fight (TargetCategories), as Mind Control
             // bends it (BehaviorManager.MayFight). The client does not offer the rest as targets;
             // this is the server holding to it.
-            if (missile.Source != null && (missile.Source is Manifestation ? !TargetCategories.PlayerMayAttack(creature.TargetCategory)
+            if (missile.Source != null && (missile.Source is Manifestation shooter
+                                               ? !TargetCategories.PlayerMayAttack(creature.TargetCategory) && !Pvp.IsEnemySummon(shooter, creature)
                                            : missile.Source is Creature attacker ? !BehaviorManager.MayFight(attacker, creature.EntityId)
                                            : true))
             {
                 missile.DamageA = 0;
+                return;
+            }
+
+            // A player under an enemy's Traitor may not hurt the creatures of the caster's side (Pvp.Restrained).
+            if (Pvp.Restrained(missile.Source, creature))
+            {
+                Immune(missile, creature);
                 return;
             }
 
@@ -298,7 +306,7 @@ namespace Rasa.Managers
         /// the kill is the shooter's, and shown through the effect's own AnnounceDamage, which
         /// floats it on the target from the shooter.
         /// </summary>
-        private void WeaponBonus(MapChannel mapChannel, Creature target, Missile missile)
+        private void WeaponBonus(MapChannel mapChannel, Actor target, Missile missile)
         {
             var shooter = missile.Source;
 
@@ -336,12 +344,11 @@ namespace Rasa.Managers
         }
 
         /// <summary>
-        /// Whether one player's weapon may hurt another. Never, for now: abilities already hold to
-        /// that (AbilityManager.IsHostile, "Other players are not targets"), and there is no feud,
-        /// wargame or PvP flag wired up yet to allow anything else. This is the one place to change
-        /// when there is.
+        /// Whether one player's weapon may hurt another: when they are enemies across a wargame
+        /// (Pvp.AreEnemies). PvP Safety on either of them is checked where the hit lands, which
+        /// shows it as Immune.
         /// </summary>
-        private static bool PlayersMayFight(Manifestation attacker, Manifestation defender) => false;
+        private static bool PlayersMayFight(Manifestation attacker, Manifestation defender) => Pvp.AreEnemies(attacker, defender);
 
         private void DoDamageToPlayer(MapChannel mapChannel, Missile missile)
         {
@@ -363,10 +370,30 @@ namespace Rasa.Managers
             // A creature's hit has to be one its target category allows on a player
             // (TargetCategories.MayFightPlayer): a FRIENDLY creature's stray shot does nothing.
             if (missile.Source is Creature attacker && actor is Manifestation hitPlayer
-                && !TargetCategories.MayFightPlayer(attacker.TargetCategory, hitPlayer.CombatCategory))
+                && !TargetCategories.MayFightPlayer(attacker.TargetCategory, hitPlayer.CombatCategory)
+                && !Pvp.SummonMayFight(attacker, hitPlayer.EntityId))
             {
                 missile.DamageA = 0;
                 return;
+            }
+
+            // An enemy player's: none of it while the one hit holds PvP Safety - the hit shows
+            // Immune - and PVP_DAMAGE_MODIFIER of it otherwise (Pvp). Firing on an enemy player
+            // ends the shooter's own Safety (Pvp.Attack).
+            var pvp = Pvp.IsPvp(missile.Source, actor);
+
+            if (pvp)
+            {
+                if (Pvp.Attack(mapChannel, missile.Source, actor))
+                {
+                    Immune(missile, actor);
+                    return;
+                }
+
+                missile.DamageA = Pvp.ScaleDamage(missile.Source, actor, missile.DamageA);
+                Pvp.RecordEngagement(missile.Source, actor);
+                Pvp.OnHit(mapChannel, missile.Source, actor);
+                Battlegrounds.Instance.Damaged(missile.Source, actor, missile.DamageA);
             }
 
             // Both ends: whoever was hit, and whoever hit them if that was a player too.
@@ -401,8 +428,9 @@ namespace Rasa.Managers
                         hit.FinalAmt = missile.DamageA;
                     }
 
-            // decrease armor first - all of it but what bypasses armour
-            var armorDecrease = Math.Min(ArmorShare(missile), actor.Attributes[Attributes.Armor].Current);
+            // decrease armor first - all of it but what bypasses armour, and none while an EMP crit
+            // suppresses it
+            var armorDecrease = GameEffectManager.ArmorSuppressed(actor) ? 0 : Math.Min(ArmorShare(missile), actor.Attributes[Attributes.Armor].Current);
 
             actor.Attributes[Attributes.Armor].Current -= armorDecrease;
             CellManager.Instance.CellCallMethod(mapChannel, actor, new UpdateArmorPacket(actor.Attributes[Attributes.Armor], 0));
@@ -413,16 +441,15 @@ namespace Rasa.Managers
             actor.Attributes[Attributes.Health].Current -= healthDecrease;
             CellManager.Instance.CellCallMethod(mapChannel, actor, new UpdateHealthPacket(actor.Attributes[Attributes.Health], 0));
 
-            if(actor.Attributes[Attributes.Health].Current == 0)
-            {
-                // we won't die yet :D
-                actor.Attributes[Attributes.Health].Current = actor.Attributes[Attributes.Health].CurrentMax;
-                //actor.State = CharacterState.Dying;
-            }
+            // Brought to zero: dead, or defeated in a duel - the kill counted, back on full and safe
+            // for a while - or a GM who may not die back on their feet (PlayerDeath). Either way the
+            // hit carries nothing more.
+            var defeated = false;
 
-            if (actor.State == CharacterState.Dying)
+            if (actor.Attributes[Attributes.Health].Current == 0 && actor is Manifestation fallen)
             {
-
+                PlayerDeath.AtZero(mapChannel, fallen, missile.Source);
+                defeated = true;
             }
 
             // Reflective Armor and the Guardian's Reflection send some of it back (Reflection).
@@ -441,10 +468,35 @@ namespace Rasa.Managers
             // A creature attack that knocks back or stuns does so to a player as well, and one
             // that carries a game effect puts it on them (CreatureEffectAttacks) - before the
             // recovery goes out, which is what announces it.
-            if (missile.Source is Creature striker && actor is Manifestation struck)
+            if (missile.Source is Creature striker && actor is Manifestation struck && struck.State != CharacterState.Dead)
             {
                 PlayerCrowdControl.CreatureActionHit(mapChannel, striker, struck, missile.ActionId, missile.ActionArgId);
                 CreatureEffectAttacks.OnHit(mapChannel, striker, struck, missile);
+            }
+
+            // An enemy player's weapon does to a player what it does to a creature, for
+            // PVP_EFFECT_DURATION_MODIFIER of the time (Pvp.ScaleDuration): a crit's side effect,
+            // Shredder Ammo's extra damage, a grenade's stun, a net gun's hold, a shotgun's or Hand to
+            // Hand's knockback. Not on a player just defeated, who is back on their feet under PvP
+            // Safety; and a creature of theirs carries none of it.
+            if (pvp && !defeated && missile.DamageA > 0 && actor is Manifestation enemy && missile.Source is Manifestation)
+            {
+                var damageType = missile.DamageType == 0 ? DamageType.Physical : missile.DamageType;
+
+                if (missile.IsCritical)
+                    CritEffects.OnCritical(mapChannel, enemy, missile.Source, damageType, missile.DamageA);
+
+                WeaponBonus(mapChannel, enemy, missile);
+
+                if (missile.StunMs > 0 && Stuns.Roll(missile.StunChance))
+                    PlayerCrowdControl.Stun(mapChannel, enemy, missile.Source, Pvp.ScaleDuration(missile.Source, enemy, missile.StunMs));
+
+                if (missile.RootMs > 0)
+                    PlayerCrowdControl.Root(mapChannel, enemy, missile.Source, CrowdControl.NetGunRootTypeId, missile.RootMs);
+
+                if (missile.KnockbackChance > 0 && Stuns.Roll(missile.KnockbackChance))
+                    PlayerCrowdControl.Knockback(mapChannel, enemy, missile.Source, CrowdControl.DefaultKnockbackDistance,
+                        Pvp.ScaleDuration(missile.Source, enemy, missile.KnockbackStunMs));
             }
         }
 
@@ -586,6 +638,12 @@ namespace Rasa.Managers
                 Logger.WriteLog(LogType.Debug, $"Manual combat source {manualSource.EntityId} has no current attack authority.");
                 return;
             }
+
+            // A player's ranged shot is weakened by what weakens their ranged attacks (a Laser
+            // crit, Called Shot: Eye); a swing is not.
+            if (!melee && action.Actor is Manifestation rangedShooter)
+                damage = GameEffectManager.ApplyRangedDamage(rangedShooter, damage);
+
             var missile = new Missile
             {
                 CreatureAction = creatureAction,
@@ -616,10 +674,10 @@ namespace Rasa.Managers
             // The client fires at whatever SetTargetId named, and the missile used to land on it
             // as a hit: DoDamageToCreature took the damage back, but every client was still shown
             // the creature being shot. It goes out as a shot at nothing instead.
-            if (action.TargetId != 0 && action.Actor is Manifestation &&
+            if (action.TargetId != 0 && action.Actor is Manifestation aiming &&
                 EntityManager.Instance.GetEntityType(action.TargetId) == EntityType.Creature &&
                 EntityManager.Instance.GetCreature(action.TargetId) is { } notAnEnemy &&
-                !TargetCategories.PlayerMayAttack(notAnEnemy.TargetCategory))
+                !TargetCategories.PlayerMayAttack(notAnEnemy.TargetCategory) && !Pvp.IsEnemySummon(aiming, notAnEnemy))
                 action.TargetId = 0;
 
             // get distance between actors
@@ -652,6 +710,22 @@ namespace Rasa.Managers
 
                     missile.TargetEntityId = action.TargetId;
                     triggerTime = (int)(fieldDistance * 0.5f);
+                }
+                else if (targetType == EntityType.Object && PersonalWaypoints.TryGetPosition(action.TargetId, out var waypointPosition))
+                {
+                    // A Personal Waypoint (PersonalWaypoints): only for an enemy of its owner's or
+                    // a creature that fights players, and as with a field the missile lands on
+                    // its own hit points.
+                    if (!PersonalWaypoints.MayBeAttackedBy(action.Actor, action.TargetId))
+                        return;
+
+                    var waypointDistance = Vector3.Distance(waypointPosition, action.Actor.Position);
+
+                    if (!float.IsFinite(waypointDistance) || waypointDistance > MaxTargetDistance)
+                        return;
+
+                    missile.TargetEntityId = action.TargetId;
+                    triggerTime = (int)(waypointDistance * 0.5f);
                 }
                 else if (targetType == EntityType.Object)
                 {
@@ -687,8 +761,8 @@ namespace Rasa.Managers
                                 targetActor = EntityManager.Instance.GetPlayer(action.TargetId);
                                 missile.TargetEntityId = action.TargetId;
 
-                                // A player's weapon at another player. The client does not offer it,
-                                // but the target is whatever SetTargetId named, and nothing refused it.
+                                // A player's weapon at another player: only at an enemy across a
+                                // wargame (Pvp), which the client offers once it is shown HOSTILE.
                                 if (action.Actor is Manifestation shootingPlayer && targetActor is Manifestation shotPlayer
                                     && !PlayersMayFight(shootingPlayer, shotPlayer))
                                     return;
@@ -751,9 +825,13 @@ namespace Rasa.Managers
 
             CellManager.Instance.CellCallMethod(mapChannel, action.Actor, new PerformWindupPacket(PerformType.ThreeArgs, missile.ActionId, missile.ActionArgId, missile.TargetEntityId));
 
-            // Firing gives a cloaked shooter away, whoever they were shooting at.
+            // Firing gives a cloaked shooter away, whoever they were shooting at, and is a combat
+            // action to a Feedback on them.
             if (action.Actor is Manifestation shooter)
+            {
                 Stealth.Break(mapChannel, shooter);
+                AbilityManager.OnPlayerActed(mapChannel, shooter, true);
+            }
 
             mapChannel.QueuedMissiles.Add(missile);
         }
@@ -822,9 +900,9 @@ namespace Rasa.Managers
             // The round flew as far as its target, and the splash is as weak as the round (RangeFalloff).
             var damage = RangeFalloff.Scale(missile.SplashDamage, missile.OptimalRange, shooter.Position, missile.TargetActor.Position);
 
-            foreach (var creature in AbilityManager.HostilesWithin(mapChannel, shooter, missile.TargetActor.Position, missile.SplashRadius))
-                if (creature != missile.TargetActor)
-                    ExtraHit(mapChannel, missile, shooter, creature, damage, false);
+            foreach (var victim in AbilityManager.VictimsWithin(mapChannel, shooter, missile.TargetActor.Position, missile.SplashRadius))
+                if (victim != missile.TargetActor)
+                    ExtraHit(mapChannel, missile, shooter, victim, damage, false);
         }
 
         /// <summary>
@@ -838,17 +916,18 @@ namespace Rasa.Managers
                 return;
 
             // Each at its own distance (RangeFalloff).
-            foreach (var creature in missile.ConeTargets)
-                if (creature != missile.TargetActor && IsOnMap(mapChannel, creature))
-                    ExtraHit(mapChannel, missile, shooter, creature,
-                        RangeFalloff.Scale(missile.ConeDamage, missile.OptimalRange, shooter.Position, creature.Position), true);
+            foreach (var victim in missile.ConeTargets)
+                if (victim != missile.TargetActor && IsOnMap(mapChannel, victim))
+                    ExtraHit(mapChannel, missile, shooter, victim,
+                        RangeFalloff.Scale(missile.ConeDamage, missile.OptimalRange, shooter.Position, victim.Position), true);
         }
 
         /// <summary>
-        /// One more creature hit by a missile - a splash or a cone - resolved as a missile of its
-        /// own (resistance, armour, threat, what the hit carries) and added to the missile's hits.
+        /// One more creature - or enemy player (Pvp) - hit by a missile, a splash or a cone,
+        /// resolved as a missile of its own (resistance, armour, threat, what the hit carries) and
+        /// added to the missile's hits.
         /// </summary>
-        private void ExtraHit(MapChannel mapChannel, Missile missile, Manifestation shooter, Creature creature, int damage, bool canCrit)
+        private void ExtraHit(MapChannel mapChannel, Missile missile, Manifestation shooter, Actor creature, int damage, bool canCrit)
         {
             if (creature.State == CharacterState.Dead || creature.State == CharacterState.Dying || damage <= 0 ||
                 !creature.Attributes.TryGetValue(Attributes.Health, out var health) || health.Current <= 0)
@@ -883,7 +962,10 @@ namespace Rasa.Managers
             extra.Args.HitEntities.Add(creature.EntityId);
             extra.Args.HitData.Add(hit);
 
-            DoDamageToCreature(mapChannel, extra);
+            if (creature is Manifestation)
+                DoDamageToPlayer(mapChannel, extra);
+            else
+                DoDamageToCreature(mapChannel, extra);
 
             hit.FinalAmt = extra.DamageA;
             hit.DeathBlow = creature.Attributes[Attributes.Health].Current <= 0 ? 1 : 0;
@@ -967,7 +1049,7 @@ namespace Rasa.Managers
         private static void AimCone(MapChannel mapChannel, Manifestation shooter, ActionData action, Missile missile, float halfAngle, int damage)
         {
             var range = ConeWeapons.RangeOf(action.ActionId, action.ActionArgId) + ConeWeapons.RangeSlack;
-            var inCone = AbilityManager.HostilesInCone(mapChannel, shooter, AbilityManager.FacingOf(shooter), range, halfAngle)
+            var inCone = AbilityManager.VictimsInCone(mapChannel, shooter, AbilityManager.FacingOf(shooter), range, halfAngle)
                 .Where(c => c.State != CharacterState.Dead && c.State != CharacterState.Dying)
                 .OrderBy(c => Vector3.DistanceSquared(c.Position, shooter.Position))
                 .ToList();
@@ -1130,7 +1212,10 @@ namespace Rasa.Managers
                     EnterCombat(missile.Source);
                     break;
                 case EntityType.Object:
-                    ForceFields.TakeHit(missile);
+                    // A Personal Waypoint, or else a force field.
+                    if (!PersonalWaypoints.TakeHit(missile))
+                        ForceFields.TakeHit(missile);
+
                     break;
                 default:
                     Logger.WriteLog(LogType.Error, $"WeaponAttackRecovery: Unsuported targetType {targetType}.");
@@ -1141,7 +1226,9 @@ namespace Rasa.Managers
             // hit in the recovery carries its own amount now that a launcher lists several.
             hitData.FinalAmt = missile.DamageA;
 
-            if (targetType == EntityType.Creature && missile.TargetActor.Attributes[Attributes.Health].Current <= 0)
+            // A creature killed, or a player (PlayerDeath): the client plays the death from it.
+            if ((targetType == EntityType.Creature || targetType == EntityType.Character)
+                && missile.TargetActor?.Attributes.TryGetValue(Attributes.Health, out var struckHealth) == true && struckHealth.Current <= 0)
                 hitData.DeathBlow = 1;
 
             // A creature's lightning: its extra damage and its arc, carried in this hit.
@@ -1161,6 +1248,9 @@ namespace Rasa.Managers
                 // packet is the same shape. It fell through to the default here, which did the
                 // right thing but logged every swing as an unsupported action.
                 case ActionId.WeaponMelee:
+                // A Bane Mortar's shell (411): weapons.groundtarget is a RocketLauncherAttack, a
+                // BaseWeaponAttack with the same recovery.
+                case ActionId.WeaponGroundtarget:
                     CellManager.Instance.CellCallMethod(mapChannel, missile.Source, CreatureAttacks.RecoveryFor(missile));
                     break;
 

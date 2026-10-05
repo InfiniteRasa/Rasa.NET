@@ -54,6 +54,20 @@
             throw new System.NotSupportedException("This character unit of work has no mission offer authority store.");
         CharacterMissionItem.ICharacterMissionItemRepository CharacterMissionItems =>
             throw new System.NotSupportedException("This character unit of work has no mission item ledger.");
+        ClanFeud.IClanFeudRepository ClanFeuds =>
+            throw new System.NotSupportedException("This character unit of work has no clan feud store.");
+        ControlPointState.IControlPointStateRepository ControlPointStates =>
+            throw new System.NotSupportedException("This character unit of work has no control point state store.");
+        PvpRecord.IPvpRecordRepository PvpRecords =>
+            throw new System.NotSupportedException("This character unit of work has no PvP record store.");
+        GmCommandLog.IGmCommandLogRepository GmCommandLogs =>
+            throw new System.NotSupportedException("This character unit of work has no game master audit log.");
+        ChatLog.IChatLogRepository ChatLogs =>
+            throw new System.NotSupportedException("This character unit of work has no chat log.");
+        CharacterBossKill.ICharacterBossKillRepository CharacterBossKills =>
+            throw new System.NotSupportedException("This character unit of work has no boss kill store.");
+        SquadInstance.ISquadInstanceRepository SquadInstances =>
+            throw new System.NotSupportedException("This character unit of work has no squad instance store.");
         ICharacterMissionDeadlineRepository CharacterMissionDeadlines { get; }
         ICharacterMissionProgressRepository CharacterMissionProgress { get; }
         ICharacterMissionScenarioRepository CharacterMissionScenario { get; }

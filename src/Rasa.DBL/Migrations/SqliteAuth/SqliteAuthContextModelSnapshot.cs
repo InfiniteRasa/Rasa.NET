@@ -65,7 +65,7 @@ namespace Rasa.Migrations.SqliteAuth
 
                     b.Property<string>("Password")
                         .IsRequired()
-                        .HasColumnType("varchar(64)")
+                        .HasColumnType("varchar(255)")
                         .HasColumnName("password");
 
                     b.Property<string>("Salt")

@@ -275,9 +275,9 @@ namespace Rasa.Test.Database
                 .Where(id => string.CompareOrdinal(id, consolidationBoundary) > 0).ToArray();
 
             Assert.AreEqual(expectedCount, baseline.Length, contextType.Name);
-            if (expectedCount == 0)
-                Assert.HasCount(0, later, contextType.Name);
-            else
+            // A database with nothing consolidated (auth) has nothing for the later ones to come
+            // after; MigrationIdsAreUniqueAndOrdered keeps them in order.
+            if (expectedCount > 0)
             {
                 Assert.AreEqual(consolidationBoundary, baseline[^1], contextType.Name);
                 Assert.IsTrue(later.All(id => string.CompareOrdinal(id, baseline[^1]) > 0), contextType.Name);

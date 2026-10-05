@@ -49,10 +49,13 @@ namespace Rasa.Managers
 
             if (!ChatCommandsManager.HasLevel(client, GmLevel.Observer))
             {
+                GmAudit.Instance.Request(client, "RequestLOSReport", $"RequestLOSReport {targetId}", GmLevel.Observer, false);
                 Logger.WriteLog(LogType.Security,
                     $"AccountId = {client.AccountEntry?.Id} (level {client.AccountEntry?.Level}) sent RequestLOSReport, which needs {(byte)GmLevel.Observer}");
                 return;
             }
+
+            GmAudit.Instance.Request(client, "RequestLOSReport", $"RequestLOSReport {targetId}", GmLevel.Observer, true);
 
             Send(client, targetId);
         }

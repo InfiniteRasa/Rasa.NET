@@ -450,6 +450,16 @@ horizontally and `0.35 m` vertically. The placed ship has no recovered passenger
 socket. This is a spatial boarding reconstruction, not a claim of native
 attachment or rendered-client acceptance.
 
+Pierre is held out of combat while she is a captive (R). She stands in the Bane
+cache of 665, `7 m` from the Atropos Linker of pool `580012` and inside the post
+of pool `580005`; as an ordinary friendly creature she was sought by that
+garrison and killed before anyone had spoken to her. Her public encounter is a
+`ManualCombat` one (`Hold_captive_pierre`): from her spawn until the
+forcefield falls she is neither sought nor damaged. Both escort routes resume
+after combat, and a held actor set on such a route is in combat from there, so
+from her release she can be fought and her death fails the escort. A lease that
+resets holds her again.
+
 Harvester `7906` extends `2.974437236785889 m` below its origin. Its approved
 roots are `(347,233.380158210,178)`, `(338,230.731414425,251)` and
 `(313.5,233.363021230,339)`, all heading zero. These are explicit small shifts

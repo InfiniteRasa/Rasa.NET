@@ -118,13 +118,18 @@ namespace Rasa.Managers
                                 throw new MissionRuleException($"Mission {binding.MissionId}: migrated public spawn {actor.TemplateId} does not exist.");
                         foreach (var credit in document.Credit.Where(entry => entry.Value.Mode != MissionCreditMode.Personal))
                             if (Missions[binding.MissionId].Objectives[credit.Key].GetExecutableTransitionsOrLegacyDefault()
-                                .Any(transition => transition.ProgressRule?.Kind is not
-                                    (Data.MissionProgressEventKind.CreatureKilled or Data.MissionProgressEventKind.ScenarioEvent)))
+                                .Any(transition => transition.ProgressRule == null ||
+                                    !MissionProgressRule.IsKill(transition.ProgressRule.Kind) &&
+                                    transition.ProgressRule.Kind != Data.MissionProgressEventKind.ScenarioEvent))
                                 throw new MissionRuleException($"Mission {binding.MissionId}: objective {credit.Key} cannot share personal actions.");
                         SceneBindings.Add(binding.MissionId, document);
                         Missions[binding.MissionId] = Missions[binding.MissionId].WithPolicies(document.Credit, document.Requirement,
                             document.TurnInRequirement, document.ObjectiveRequirements);
                         Missions[binding.MissionId] = Missions[binding.MissionId].WithItems(document.Items, document.AcceptanceItems);
+                        if (document.Titles != null)
+                            Missions[binding.MissionId] = Missions[binding.MissionId].WithTitles(document.Titles);
+                        if (document.Category != null)
+                            Missions[binding.MissionId] = Missions[binding.MissionId].WithClientCategory(document.Category);
                         var itemErrors = Rasa.Missions.Definitions.MissionItemValidation.Errors(Missions[binding.MissionId],
                             document.Sequences.Values.SelectMany(sequence => sequence.Character)).ToArray();
                         if (itemErrors.Length > 0)

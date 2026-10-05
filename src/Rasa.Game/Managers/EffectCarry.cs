@@ -25,6 +25,10 @@ namespace Rasa.Managers
     ///
     /// A logout carries nothing, and neither does a death: the dead have lost their effects
     /// already (GameEffectManager.DoWork).
+    ///
+    /// The penalties a revive leaves - Rez Trauma and the no-healing (PlayerDeath) - go too,
+    /// although they are no buffs: left behind at the map line, a map link or a dropship was a
+    /// way out of a death's price. A logout keeps them another way (RelogVitals).
     /// </summary>
     public static class EffectCarry
     {
@@ -41,7 +45,7 @@ namespace Rasa.Managers
             if (holder == null || effect == null)
                 return false;
 
-            return effect.IsBuff && effect.HasDuration
+            return (effect.IsBuff || PlayerDeath.IsDeathPenalty(effect.TypeId)) && effect.HasDuration
                 && !effect.ServerOnly && !effect.IsSkillPassive && effect.Parent == null
                 && effect.AdrenalineDrainPercentPerSecond <= 0
                 && effect.OnTick == null && effect.OnExpired == null && effect.OnDetached == null && effect.OnDamaged == null

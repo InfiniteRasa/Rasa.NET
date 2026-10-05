@@ -40,7 +40,7 @@
         /// <summary>A player's weapon shot: the weapon's optimal range, past which its damage drops (RangeFalloff); 0 for no drop.</summary>
         public float OptimalRange { get; set; }
         /// <summary>A cone weapon's other victims, found when it was fired (ConeWeapons); each takes ConeDamage as a hit of its own.</summary>
-        public System.Collections.Generic.List<Creature> ConeTargets { get; set; }
+        public System.Collections.Generic.List<Actor> ConeTargets { get; set; }
         /// <summary>What each creature in the cone takes before its own crit roll: the shot's damage as fired.</summary>
         public int ConeDamage { get; set; }
         /// <summary>

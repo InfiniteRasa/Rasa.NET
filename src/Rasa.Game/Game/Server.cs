@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Globalization;
+using System.Threading;
 using Microsoft.Extensions.Hosting;
 
 namespace Rasa.Game
@@ -89,6 +91,13 @@ namespace Rasa.Game
             _clientFactory = clientFactory;
             GameUnitOfWorkFactory= gameUnitOfWorkFactory;
 
+            // The game master audit log goes to the character database from the start: the
+            // console below is on it too.
+            GmAudit.Instance.Load(new GmAudit.ServerStore(gameUnitOfWorkFactory));
+
+            // And the chat log: every line of chat a player sends.
+            ChatAudit.Instance.Load(new ChatAudit.ServerStore(gameUnitOfWorkFactory));
+
             Configuration.OnLoad += ConfigLoaded;
             Configuration.OnReLoad += ConfigReLoaded;
             Configuration.Load();
@@ -101,16 +110,29 @@ namespace Rasa.Game
 
             BufferManager.Initialize(Config.SocketAsyncConfig.BufferSize, Config.SocketAsyncConfig.MaxClients, Config.SocketAsyncConfig.ConcurrentOperationsByClient);
 
-            CommandProcessor.RegisterCommand("exit", ProcessExitCommand);
-            CommandProcessor.RegisterCommand("reload", ProcessReloadCommand);
-            CommandProcessor.RegisterCommand("gm", ProcessGmCommand);
-            CommandProcessor.RegisterCommand("petition", ProcessPetitionCommand);
-            CommandProcessor.RegisterCommand("flag", ProcessFlagCommand);
-            CommandProcessor.RegisterCommand("perf", ProcessPerfCommand);
-            CommandProcessor.RegisterCommand("maperrors", ProcessMapErrorsCommand);
-            CommandProcessor.RegisterCommand("kb", ProcessKbCommand);
-            CommandProcessor.RegisterCommand("voice", ProcessVoiceCommand);
+            CommandProcessor.RegisterCommand("exit", Audited(ProcessExitCommand));
+            CommandProcessor.RegisterCommand("reload", Audited(ProcessReloadCommand));
+            CommandProcessor.RegisterCommand("gm", Audited(ProcessGmCommand));
+            CommandProcessor.RegisterCommand("petition", Audited(ProcessPetitionCommand));
+            CommandProcessor.RegisterCommand("flag", Audited(ProcessFlagCommand));
+            CommandProcessor.RegisterCommand("perf", Audited(ProcessPerfCommand));
+            CommandProcessor.RegisterCommand("maperrors", Audited(ProcessMapErrorsCommand));
+            CommandProcessor.RegisterCommand("kb", Audited(ProcessKbCommand));
+            CommandProcessor.RegisterCommand("voice", Audited(ProcessVoiceCommand));
+            CommandProcessor.RegisterCommand("announce", Audited(ProcessAnnounceCommand));
+            CommandProcessor.RegisterCommand("kick", Audited(ProcessKickCommand));
+            CommandProcessor.RegisterCommand("mute", Audited(ProcessMuteCommand));
+            CommandProcessor.RegisterCommand("unmute", Audited(ProcessUnmuteCommand));
+            CommandProcessor.RegisterCommand("motd", Audited(ProcessMotdCommand));
         }
+
+        /// <summary>A console command's handler, with what was typed put on the audit log (GmAudit) before it runs.</summary>
+        private static Action<string[]> Audited(Action<string[]> handler) => parts =>
+        {
+            var audit = GmAudit.Instance;
+
+            audit.Run(audit.RecordConsole(parts[0], string.Join(" ", parts)), () => handler(parts));
+        };
 
         ~Server()
         {
@@ -136,6 +158,40 @@ namespace Rasa.Game
 
             Logger.UpdateConfig(Config.LoggerConfig);
 
+            AutoSave.IntervalMinutes = Config.GameConfig?.AutoSaveMinutes ?? AutoSave.DefaultMinutes;
+
+            // The maps that run in several shared copies. A copy already open stays as it is.
+            MapInstancePolicies.Apply(Config.MapInstances);
+
+            // The maps entered as a squad's own instance. An instance already open stays as it is.
+            SquadInstancePolicies.Apply(Config.SquadInstances);
+
+            // The numbers of the Edmund Range match; a match being played keeps its clock.
+            Battlegrounds.Instance.Config = Config.Battleground ?? new BattlegroundConfig();
+
+            // Clan-owned control points: a point a clan already holds is as the new values have it from the next pass.
+            ControlPoints.Instance.Config = Config.ControlPoints ?? new ControlPointConfig();
+
+            // Off, log or refuse for each of the three movement checks, and the three weapon checks.
+            MovementChecks.Config = Config.MovementChecks ?? new MovementChecksConfig();
+            WeaponChecks.Config = Config.WeaponChecks ?? new WeaponChecksConfig();
+
+            // A message changed by editing the file goes to everyone in the world, from the loop;
+            // the first load is before anyone is here.
+            if (MessageOfTheDay.Apply(Config.MessageOfTheDay) && _motdApplied)
+                RunOnLoop("motd", () =>
+                {
+                    List<Client> clients;
+
+                    lock (Clients)
+                        clients = Clients.ToList();
+
+                    var sent = MessageOfTheDay.SendToAll(clients);
+                    Logger.WriteLog(LogType.Initialize, $"Message of the day changed; sent to {sent} player(s).");
+                });
+
+            _motdApplied = true;
+
             ServerFlagManager.Instance.LoadConfiguredFlags(Config.GameDataConfig?.ServerFlags);
             CharacterManager.LoadEnabledRaces(Config.GameDataConfig?.EnabledRaces);
 
@@ -146,10 +202,30 @@ namespace Rasa.Game
             // before the world is up; Start opens the voice port with the others.
             if (_voiceApplied)
                 Voice.VoiceServer.Instance.Apply(Config.VoiceConfig, Config.GameConfig?.PublicAddress);
+
+            // The REST API and the status port the same: keys and allow lists from the next
+            // request, a changed port by reopening the listener.
+            if (_apiApplied)
+                Api.ApiHost.Instance.Apply(Config.ApiConfig);
         }
+
+        /// <summary>Set once Start has opened the status listeners, so reloads apply ApiConfig too.</summary>
+        private bool _apiApplied;
 
         /// <summary>Set once Start has applied VoiceConfig, so reloads apply it too.</summary>
         private bool _voiceApplied;
+
+        /// <summary>Set after the first config load, so only a change made later is pushed to players.</summary>
+        private bool _motdApplied;
+
+        private long _loopWorkSequence;
+
+        /// <summary>
+        /// Runs work on the main loop's next pass. The console and the config watcher have threads
+        /// of their own; anything that sends to clients or walks the world goes through here.
+        /// </summary>
+        private void RunOnLoop(string name, Action work) =>
+            Timer.Add($"{name}:{Interlocked.Increment(ref _loopWorkSequence)}", 1, false, work);
         #endregion
 
         public void Disconnect(Client client)
@@ -158,8 +234,37 @@ namespace Rasa.Game
                 _clientsToRemove.Add(client);
         }
 
+        /// <summary>CurrentPlayers, as the status listeners' sample asks for it.</summary>
+        private Func<int> _playersHoldingASlot;
+
         public void MainLoop(long delta)
         {
+            // For the status listeners (Api.ServerStatus), whose threads read only what is left
+            // for them here: the loop is alive, and once a second how many players hold a slot.
+            Api.ApiHost.Instance.Status.Beat(_playersHoldingASlot ??= () => CurrentPlayers, Config?.ServerInfoConfig?.MaxPlayers ?? 0, ListenerSocket != null);
+
+            // The host is stopping (Ctrl+C, a service stop, docker stop): everyone saved and out,
+            // on this thread, which owns the world (EvacuateForHost waits for it).
+            var evacuation = Interlocked.Exchange(ref _evacuationRequest, null);
+
+            if (evacuation != null)
+            {
+                try
+                {
+                    EvacuateAll();
+                }
+                catch (Exception e)
+                {
+                    Logger.WriteLog(LogType.Error, $"Saving the players before the server stopped failed: {e}");
+                }
+                finally
+                {
+                    evacuation.Set();
+                }
+
+                return;
+            }
+
             // One thread runs the timers, the world and every client in turn. Anything that
             // escapes here costs the rest of the tick - the clients after the one that threw
             // are not serviced at all - so each part is held to its own failure.
@@ -335,6 +440,20 @@ namespace Rasa.Game
 
             if (Config.VoiceConfig?.Enabled != true)
                 Logger.WriteLog(LogType.Initialize, "Squad voice chat is off (VoiceConfig.Enabled).");
+
+            // The REST API and the status port. Either one failing to open its port leaves that
+            // one off, not the world. Until PublishReady they report the game server unhealthy.
+            var api = Api.ApiHost.Instance;
+
+            api.Status.AuthLinked = () => AuthLinkUp;
+
+            // /addaccount asks the Auth server, whose the accounts are, over the link to it.
+            _accountRelay.Connected = () => AuthLinkUp;
+            _accountRelay.Send = request => (AuthCommunicator ?? throw new InvalidOperationException("the link to the Auth server is down")).Send(request);
+            api.Accounts.Create = _accountRelay.Create;
+            api.Status.Started();
+            _apiApplied = true;
+            api.Apply(Config.ApiConfig);
         }
 
         private void RegisterStartupTimers()
@@ -392,9 +511,21 @@ namespace Rasa.Game
             MapChannelManager.Instance.MapChannelInit();
             NavMeshManager.Instance.NavMeshInit(Config.GameDataConfig?.NavMeshPath);
             ClanManager.Instance.ClansInit();
+
+            // The records of clan feuds, squad wargames and battleground matches go to the
+            // character database from here on. Before the feuds are read back: each one that
+            // is still running finds its open record again.
+            PvpRecords.Instance.Load(new PvpRecords.ServerStore(GameUnitOfWorkFactory));
+
+            // The clan feuds and challenges kept through the last restart; from here on every
+            // change to them is kept.
+            ClanFeuds.Instance.Load(new ClanFeuds.ServerStore(GameUnitOfWorkFactory));
             DynamicObjectManager.Instance.InitDynamicObjects();
             MapTriggerManager.Instance.MapTriggerInit();
             MapLinkManager.Instance.MapLinkInit();
+
+            // After the control points and the map links: a battleground's are both.
+            Battlegrounds.Instance.Init();
             RegionManager.Instance.RegionInit();
             EmitterManager.Instance.EmitterInit();
             MapMarkerManager.Instance.MapMarkerInit();
@@ -417,6 +548,9 @@ namespace Rasa.Game
             // to tell a server still loading from one that was up.
             Logger.WriteLog(LogType.Initialize, "");
             Logger.WriteLog(LogType.Initialize, "Server ready!");
+
+            // And only now does the health check say so.
+            Api.ApiHost.Instance.Status.Ready();
         }
 
         internal static bool LogMissionValidationAndCheckReadiness(
@@ -466,10 +600,18 @@ namespace Rasa.Game
 
         private void OnAccept(LengthedSocket newSocket)
         {
-            ListenerSocket.AcceptAsync();
+            // Null once Shutdown has closed it; a last accept can still complete after that.
+            ListenerSocket?.AcceptAsync();
 
             if (newSocket == null)
                 return;
+
+            // Going down: nobody new into a world about to close (ShutdownSchedule).
+            if (RefusesArrivals)
+            {
+                newSocket.Close();
+                return;
+            }
 
             var address = newSocket.RemoteAddress;
             int pending;
@@ -626,6 +768,12 @@ namespace Rasa.Game
 
         public void Shutdown()
         {
+            // Reached from the exit countdown, the host stopping, a failed start and the
+            // finalizer; the second and later are nothing. MainLoop.Stop throws on a loop that is
+            // not running.
+            if (Interlocked.Exchange(ref _shutDown, 1) == 1)
+                return;
+
             AuthCommunicator?.Close();
             AuthCommunicator = null;
 
@@ -634,7 +782,284 @@ namespace Rasa.Game
 
             Voice.VoiceServer.Instance.Stop();
 
-            Loop.Stop();
+            Api.ApiHost.Instance.Status.Stopped();
+            Api.ApiHost.Instance.Stop();
+
+            if (Loop.Running)
+                Loop.Stop();
+        }
+
+        private int _shutDown;
+        #endregion
+
+        #region Shutting down with the players saved
+
+        /// <summary>The exit countdown under way, or null; set from the console thread, read on the loop.</summary>
+        private ShutdownSchedule _shutdownSchedule;
+
+        /// <summary>1 once every player has been saved and taken out (EvacuateAll).</summary>
+        private int _evacuated;
+
+        /// <summary>Set by EvacuateForHost for the loop to act on; set again by the loop when done.</summary>
+        private ManualResetEventSlim _evacuationRequest;
+
+        /// <summary>Whether the world is being emptied for a shutdown: no connection that drops lingers in a fight (CombatLogout).</summary>
+        public bool IsShuttingDown => Volatile.Read(ref _evacuated) == 1;
+
+        /// <summary>Whether new connections to the world are turned away: the last minute of a countdown, or after.</summary>
+        public bool RefusesArrivals =>
+            IsShuttingDown || (Volatile.Read(ref _shutdownSchedule)?.RefusesArrivals(Environment.TickCount64) ?? false);
+
+        private const string CountdownTimer = "ShutdownCountdown";
+
+        /// <summary>
+        /// exit                      - save everyone and stop now
+        /// exit &lt;minutes&gt; [reason] - warn the players, then save everyone and stop
+        /// exit cancel               - call off a countdown
+        ///
+        /// The players are warned in chat as the time runs down (ShutdownSchedule). At the end
+        /// every connection is closed and every character taken out of the world the way a
+        /// logout does it - position, time played, health, death penalties and cooldowns saved,
+        /// a dead player sent to their hospital - before the server stops. It used to stop with
+        /// no warning and nobody saved: every player came back where they had last logged in.
+        /// </summary>
+        private void ProcessExitCommand(string[] parts)
+        {
+            if (parts.Length > 1 && string.Equals(parts[1], "cancel", StringComparison.OrdinalIgnoreCase))
+            {
+                if (Interlocked.Exchange(ref _shutdownSchedule, null) == null)
+                {
+                    Logger.WriteLog(LogType.Command, "There is no shutdown to cancel.");
+                    return;
+                }
+
+                Timer.Remove(CountdownTimer);
+                Timer.Add("ShutdownCancelled", 1, false, () => Announce(ShutdownSchedule.CancelledMessage));
+                Logger.WriteLog(LogType.Command, "Shutdown cancelled.");
+                return;
+            }
+
+            var minutes = 0d;
+
+            if (parts.Length > 1 && (!double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out minutes)
+                                     || minutes < 0 || minutes > ShutdownSchedule.MaxMinutes || double.IsNaN(minutes)))
+            {
+                Logger.WriteLog(LogType.Command, "Usage: exit [minutes] [reason] | exit cancel");
+                return;
+            }
+
+            var reason = string.Join(" ", parts.Skip(2)).Trim();
+            var schedule = new ShutdownSchedule(Environment.TickCount64, (long)Math.Round(minutes * 60000), reason);
+
+            // A new exit replaces a countdown already running.
+            Volatile.Write(ref _shutdownSchedule, schedule);
+            Timer.Add(CountdownTimer, 1000, true, ShutdownTick);
+
+            // The first warning goes out on the loop's next pass rather than from this thread.
+            Timer.Add("ShutdownFirstWarning", 1, false, ShutdownTick);
+
+            Logger.WriteLog(LogType.Command, minutes > 0
+                ? $"Shutting down in {ShutdownSchedule.Describe(schedule.SecondsLeft(Environment.TickCount64))}" + (schedule.Reason == null ? "." : $" ({schedule.Reason}).") + " 'exit cancel' calls it off."
+                : "Saving everyone and shutting down now.");
+        }
+
+        /// <summary>announce &lt;message&gt;: a line in chat for everyone in the world (Moderation).</summary>
+        private void ProcessAnnounceCommand(string[] parts)
+        {
+            var text = string.Join(" ", parts.Skip(1)).Trim();
+
+            if (text.Length == 0)
+            {
+                Logger.WriteLog(LogType.Command, "Usage: announce <message>");
+                return;
+            }
+
+            RunOnLoop("announce", () => Moderation.Announce(text));
+        }
+
+        /// <summary>kick &lt;familyName&gt; [reason]</summary>
+        private void ProcessKickCommand(string[] parts)
+        {
+            if (parts.Length < 2)
+            {
+                Logger.WriteLog(LogType.Command, "Usage: kick <familyName> [reason]");
+                return;
+            }
+
+            var reason = string.Join(" ", parts.Skip(2));
+            RunOnLoop("kick", () => Logger.WriteLog(LogType.Command, Moderation.Kick(parts[1], reason, null).Text));
+        }
+
+        /// <summary>mute &lt;familyName&gt; &lt;minutes&gt; [reason]</summary>
+        private void ProcessMuteCommand(string[] parts)
+        {
+            if (parts.Length < 3 || !int.TryParse(parts[2], out var minutes))
+            {
+                Logger.WriteLog(LogType.Command, "Usage: mute <familyName> <minutes> [reason]");
+                return;
+            }
+
+            var reason = string.Join(" ", parts.Skip(3));
+            RunOnLoop("mute", () => Logger.WriteLog(LogType.Command, Moderation.Mute(parts[1], minutes, reason, null).Text));
+        }
+
+        /// <summary>unmute &lt;familyName&gt;</summary>
+        private void ProcessUnmuteCommand(string[] parts)
+        {
+            if (parts.Length < 2)
+            {
+                Logger.WriteLog(LogType.Command, "Usage: unmute <familyName>");
+                return;
+            }
+
+            RunOnLoop("unmute", () => Logger.WriteLog(LogType.Command, Moderation.Unmute(parts[1], null).Text));
+        }
+
+        /// <summary>motd: the message of the day in force.</summary>
+        private static void ProcessMotdCommand(string[] parts)
+        {
+            var config = MessageOfTheDay.Current;
+
+            if (!MessageOfTheDay.HasMessage(config))
+            {
+                Logger.WriteLog(LogType.Command, "There is no message of the day (MessageOfTheDay.Text is empty).");
+                return;
+            }
+
+            Logger.WriteLog(LogType.Command, $"Message of the day ({(config.ShowEveryLogin ? "every login" : "once per change")}): {config.Text}");
+
+            foreach (var (languageId, text) in MessageOfTheDay.Messages(config).Where(m => m.Key != 1))
+                Logger.WriteLog(LogType.Command, $"  language {languageId}: {text}");
+        }
+
+        /// <summary>The countdown, every second on the loop: the warnings due, and at the end the shutdown.</summary>
+        private void ShutdownTick()
+        {
+            var schedule = Volatile.Read(ref _shutdownSchedule);
+
+            if (schedule == null)
+                return;
+
+            var now = Environment.TickCount64;
+
+            if (schedule.IsDue(now))
+            {
+                Timer.Remove(CountdownTimer);
+                Interlocked.CompareExchange(ref _shutdownSchedule, null, schedule);
+
+                EvacuateAll();
+                Shutdown();
+                _hostApplicationLifetime.StopApplication();
+                return;
+            }
+
+            var warning = schedule.WarningDue(now);
+
+            if (warning != null)
+                Announce(warning);
+        }
+
+        /// <summary>A system message to every player in the world, and the console.</summary>
+        private void Announce(string message)
+        {
+            List<Client> listeners;
+
+            lock (Clients)
+                listeners = Clients.Where(c => c.State == ClientState.Ingame || c.State == ClientState.Teleporting || c.State == ClientState.Loading).ToList();
+
+            foreach (var client in listeners)
+            {
+                try
+                {
+                    CommunicatorManager.Instance.SystemMessage(client, message);
+                }
+                catch (Exception e)
+                {
+                    Logger.WriteLog(LogType.Error, $"Could not send the shutdown notice to a client: {e.Message}");
+                }
+            }
+
+            Logger.WriteLog(LogType.Command, $"Announced to {listeners.Count} player(s): {message}");
+        }
+
+        /// <summary>
+        /// Every connection closed and every character saved and taken out of the world, now, on
+        /// the loop thread: what each one's logout would have done, all at once (RemoveAllFlaggedPlayers
+        /// has no time budget). Once only.
+        /// </summary>
+        private void EvacuateAll()
+        {
+            if (Interlocked.Exchange(ref _evacuated, 1) == 1)
+                return;
+
+            List<Client> clients;
+            var removed = 0;
+
+            lock (Clients)
+            {
+                clients = Clients.ToList();
+
+                // Close flags each character in the world for removal (no lingering: IsShuttingDown)
+                // and saves its position.
+                foreach (var client in clients)
+                {
+                    try
+                    {
+                        client.Close(false);
+                    }
+                    catch (Exception e)
+                    {
+                        Logger.WriteLog(LogType.Error, $"Closing a connection for the shutdown threw: {e}");
+                    }
+                }
+
+                try
+                {
+                    removed = MapChannelManager.Instance.RemoveAllFlaggedPlayers();
+                }
+                catch (Exception e)
+                {
+                    Logger.WriteLog(LogType.Error, $"Taking the players out of the world for the shutdown threw: {e}");
+                }
+            }
+
+            // Those on no map's list - on a loading screen, mid-transfer - and whatever else the
+            // main loop clears up after a dropped connection.
+            foreach (var client in clients)
+            {
+                try
+                {
+                    MapChannelManager.Instance.CleanupDisconnected(client);
+                }
+                catch (Exception e)
+                {
+                    Logger.WriteLog(LogType.Error, $"Clearing up a connection for the shutdown threw: {e}");
+                }
+            }
+
+            Logger.WriteLog(LogType.Initialize, $"Shutdown: {clients.Count} connection(s) closed, {removed} character(s) saved and taken out of the world.");
+        }
+
+        /// <summary>
+        /// The host is stopping: has the loop save everyone and take them out (EvacuateAll), waits
+        /// up to <paramref name="timeout"/> for it, then shuts down. Nothing if that is done already.
+        /// </summary>
+        public void EvacuateForHost(TimeSpan timeout)
+        {
+            if (!IsShuttingDown && Running)
+            {
+                using var done = new ManualResetEventSlim(false);
+
+                Volatile.Write(ref _evacuationRequest, done);
+
+                if (!done.Wait(timeout))
+                {
+                    Interlocked.CompareExchange(ref _evacuationRequest, null, done);
+                    Logger.WriteLog(LogType.Error, $"The world loop did not save the players within {timeout.TotalSeconds:0} s of the stop; stopping anyway.");
+                }
+            }
+
+            Shutdown();
         }
         #endregion
 
@@ -662,6 +1087,7 @@ namespace Rasa.Game
                 AuthCommunicator = socket;
                 socket.OnConnect += OnCommunicatorConnect;
                 socket.OnError += OnCommunicatorError;
+                socket.OnError += _ => AuthLinkLost(socket);
                 socket.OnDrop += reason => OnCommunicatorDrop(socket, reason);
                 socket.ConnectAsync(new IPEndPoint(IPAddress.Parse(Config.CommunicatorConfig.Address), Config.CommunicatorConfig.Port));
             }
@@ -672,6 +1098,43 @@ namespace Rasa.Game
             }
 
             Logger.WriteLog(LogType.Network, $"*** Connecting to auth server! Address: {Config.CommunicatorConfig.Address}:{Config.CommunicatorConfig.Port}");
+        }
+
+        /// <summary>
+        /// The auth link that has logged in, while it stands: what app_server_status goes by
+        /// (Api.ServerStatus). Written on socket threads and read on the status listeners'.
+        /// </summary>
+        private volatile LengthedSocket _authLinked;
+
+        /// <summary>Whether this world is connected and logged in to the Auth server, so that a login can be handed on to it.</summary>
+        internal bool AuthLinkUp
+        {
+            get
+            {
+                var link = _authLinked;
+
+                return link != null && ReferenceEquals(link, AuthCommunicator) && link.Connected;
+            }
+        }
+
+        /// <summary>
+        /// Requests for an account on their way to the Auth server and back (the REST API's
+        /// /addaccount): asked on a REST thread, answered on the link's.
+        /// </summary>
+        private readonly Api.AccountRelay _accountRelay = new Api.AccountRelay();
+
+        // ReSharper disable once UnusedMember.Local
+        [PacketHandler(CommOpcode.CreateAccountResponse)]
+        private void MsgCreateAccountResponse(CreateAccountResponsePacket packet)
+        {
+            _accountRelay.Answer(packet);
+        }
+
+        /// <summary>That link has failed or been closed; a newer one that has logged in since is not touched.</summary>
+        private void AuthLinkLost(LengthedSocket socket)
+        {
+            if (ReferenceEquals(_authLinked, socket))
+                _authLinked = null;
         }
 
         private void OnCommunicatorError(SocketAsyncEventArgs args)
@@ -710,6 +1173,8 @@ namespace Rasa.Game
             // Only the link in use: one already replaced by a reconnect has nothing left to say.
             if (socket != AuthCommunicator)
                 return;
+
+            AuthLinkLost(socket);
 
             Logger.WriteLog(LogType.Error, $"The link to the Auth server was dropped ({reason}); world logins cannot complete until it is back. Reconnecting in a few seconds...");
 
@@ -782,6 +1247,7 @@ namespace Rasa.Game
         {
             if (packet.Response == CommLoginReason.Success)
             {
+                _authLinked = AuthCommunicator;
                 Logger.WriteLog(LogType.Network, "Successfully authenticated with the Auth server!");
                 return;
             }
@@ -1293,22 +1759,6 @@ namespace Rasa.Game
 
             Logger.WriteLog(LogType.Command,
                 $"Petition #{id} resolved" + (string.IsNullOrWhiteSpace(note) ? "." : $": {note}"));
-        }
-
-        private void ProcessExitCommand(string[] parts)
-        {
-            var minutes = 0;
-
-            if (parts.Length > 1)
-                minutes = int.Parse(parts[1]);
-
-            Timer.Add("exit", minutes * 60000, false, () =>
-            {
-                Shutdown();
-                _hostApplicationLifetime.StopApplication();
-            });
-
-            Logger.WriteLog(LogType.Command, $"Exiting the server in {minutes} minute(s).");
         }
 
         private static void ProcessReloadCommand(string[] parts)

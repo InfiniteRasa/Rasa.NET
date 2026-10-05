@@ -119,5 +119,35 @@ namespace Rasa.Repositories.World
         {
             return _worldContext.CreateNoTrackingQuery(_worldContext.CreatureActorNameEntries).ToList();
         }
+
+        public List<NpcGreetingEntry> GetNpcGreetings()
+        {
+            return _worldContext.CreateNoTrackingQuery(_worldContext.NpcGreetingEntries).ToList();
+        }
+
+        public void SaveNpcGreeting(uint creatureId, uint greetingId)
+        {
+            var row = _worldContext.CreateTrackingQuery(_worldContext.NpcGreetingEntries).FirstOrDefault(e => e.Id == creatureId);
+
+            if (row == null)
+                _worldContext.NpcGreetingEntries.Add(new NpcGreetingEntry { Id = creatureId, GreetingId = greetingId });
+            else
+                row.GreetingId = greetingId;
+
+            _worldContext.SaveChanges();
+        }
+
+        public bool DeleteNpcGreeting(uint creatureId)
+        {
+            var row = _worldContext.CreateTrackingQuery(_worldContext.NpcGreetingEntries).FirstOrDefault(e => e.Id == creatureId);
+
+            if (row == null)
+                return false;
+
+            _worldContext.NpcGreetingEntries.Remove(row);
+            _worldContext.SaveChanges();
+
+            return true;
+        }
     }
 }

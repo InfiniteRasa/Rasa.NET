@@ -14,6 +14,7 @@ namespace Rasa.Missions.Runtime
     [JsonDerivedType(typeof(LevelRequirement), "level")]
     [JsonDerivedType(typeof(MissionStateRequirement), "mission")]
     [JsonDerivedType(typeof(FlagRequirement), "flag")]
+    [JsonDerivedType(typeof(MapRequirement), "map")]
     [JsonDerivedType(typeof(CustomRequirement), "custom")]
     [JsonDerivedType(typeof(AssignmentItemRequirement), "assignment-item")]
     public abstract record MissionRequirement;
@@ -23,6 +24,11 @@ namespace Rasa.Missions.Runtime
     public sealed record LevelRequirement(uint Minimum) : MissionRequirement;
     public sealed record MissionStateRequirement(uint MissionId, MissionState? State = null, bool Accepted = false) : MissionRequirement;
     public sealed record FlagRequirement(uint FlagId, uint Value) : MissionRequirement;
+    /// <summary>
+    /// The character is on one of these maps (map context ids). On an objective it makes its
+    /// progress a thing of the place: "Kill 40 Xanx on Wilderness" counts no Xanx of Divide.
+    /// </summary>
+    public sealed record MapRequirement(IReadOnlyList<uint> Maps) : MissionRequirement;
     public sealed record CustomRequirement(string Key) : MissionRequirement;
     public sealed record AssignmentItemRequirement(uint MissionId, string ItemKey, uint MinimumQuantity = 1,
         uint? SourceOfferMissionId = null) : MissionRequirement;
@@ -30,7 +36,7 @@ namespace Rasa.Missions.Runtime
         IReadOnlyDictionary<uint, MissionState> Journal, IReadOnlyDictionary<uint, MissionState> History,
         IReadOnlyDictionary<uint, uint> Flags, IReadOnlyDictionary<string, bool> Custom = null,
         IReadOnlySet<uint> EverSucceeded = null, IReadOnlySet<uint> EverRewarded = null,
-        IReadOnlyDictionary<AssignmentItemRequirement, uint> AssignmentItems = null);
+        IReadOnlyDictionary<AssignmentItemRequirement, uint> AssignmentItems = null, uint MapContextId = 0);
 
     public interface IMissionRequirementHandler
     {
@@ -77,6 +83,8 @@ namespace Rasa.Missions.Runtime
                     !string.IsNullOrWhiteSpace(item.ItemKey) && item.ItemKey.Length <= 64 &&
                     item.SourceOfferMissionId != 0 => Array.Empty<string>(),
                 LevelRequirement or MissionStateRequirement or FlagRequirement => Array.Empty<string>(),
+                MapRequirement map when map.Maps != null && map.Maps.Count > 0 && map.Maps.All(id => id != 0) =>
+                    Array.Empty<string>(),
                 _ => throw new MissionRuleException("Malformed or unsupported mission requirement.")
             };
         }
@@ -96,6 +104,7 @@ namespace Rasa.Missions.Runtime
                 LevelRequirement level => facts.Level >= level.Minimum,
                 FlagRequirement flag => facts.Flags.TryGetValue(flag.FlagId, out var value) && value == flag.Value,
                 MissionStateRequirement mission => HasState(mission, facts),
+                MapRequirement map => map.Maps != null && map.Maps.Contains(facts.MapContextId),
                 CustomRequirement custom => EvaluateCustom(custom, facts),
                 AssignmentItemRequirement item => facts.AssignmentItems != null &&
                     facts.AssignmentItems.TryGetValue(item, out var quantity)

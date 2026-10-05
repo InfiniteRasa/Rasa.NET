@@ -14,6 +14,7 @@ namespace Rasa.Managers
     using Rasa.Packets.Communicator.Client;
     using Rasa.Repositories.UnitOfWork;
     using Structures;
+    using Structures.Char;
 
     public class ChatCommandsManager
     {
@@ -37,6 +38,13 @@ namespace Rasa.Managers
             public string[] Arguments { get; }
         }
         private Client _client { get; set; }
+
+        /// <summary>
+        /// The audit log every command entered goes on - run, refused or unknown - before
+        /// anything is done about it (GmAudit). The live server's keeps it in the database.
+        /// </summary>
+        public GmAudit Audit { get; set; } = GmAudit.Instance;
+
         public static ChatCommandsManager Instance
         {
             get
@@ -69,7 +77,7 @@ namespace Rasa.Managers
         /// Every dot command comes through here, and this is the only place access is decided.
         /// RadialChat used to check for GM before it would even call this, which meant one level
         /// for all 33 commands; now it hands over anything starting with a dot and the level is
-        /// per command.
+        /// per command. Whatever is decided goes on the audit log first (<see cref="Audit"/>).
         /// </summary>
         public void ProcessCommand(Client client, string command)
         {
@@ -82,6 +90,7 @@ namespace Rasa.Managers
 
             if (!_commands.TryGetValue(parts[0], out var registered))
             {
+                Audit?.Record(client, GmCommandSource.Chat, parts[0], command, GmLevel.Player, GmCommandResult.Unknown);
                 Logger.WriteLog(LogType.Command, $"Invalid command: {command}");
                 CommunicatorManager.Instance.SystemMessage(client, $"Unknown command: {parts[0]}");
                 return;
@@ -89,6 +98,7 @@ namespace Rasa.Managers
 
             if (!HasLevel(client, registered.Level))
             {
+                Audit?.Record(client, GmCommandSource.Chat, parts[0], command, registered.Level, GmCommandResult.Denied);
                 Logger.WriteLog(LogType.Security,
                     $"AccountId = {client.AccountEntry.Id} (level {client.AccountEntry.Level}) tried to use "
                     + $"{parts[0]}, which needs {(byte)registered.Level}");
@@ -103,7 +113,16 @@ namespace Rasa.Managers
                 return;
             }
 
-            registered.Handler(parts);
+            var audit = Audit;
+
+            if (audit == null)
+            {
+                registered.Handler(parts);
+                return;
+            }
+
+            audit.Run(audit.Record(client, GmCommandSource.Chat, parts[0], command, registered.Level, GmCommandResult.Executed),
+                () => registered.Handler(parts));
         }
 
         internal static bool HasLevel(Client client, GmLevel required)
@@ -152,6 +171,7 @@ namespace Rasa.Managers
             RegisterCommand(".npcinfo", GmLevel.Observer, NpcInfoCommand);
             RegisterCommand(".rqs", GmLevel.Observer, RqsWindowCommand);
             RegisterCommand(".where", GmLevel.Observer, WhereCommand);
+            RegisterCommand(".motd", GmLevel.Observer, MotdCommand);
             RegisterCommand(".cover", GmLevel.Observer, CoverCommand);
             RegisterCommand(".los", GmLevel.Observer, LosCommand, "entityId");
             RegisterCommand(".camerascript", GmLevel.Observer, CameraScriptCommand, "id");
@@ -172,6 +192,7 @@ namespace Rasa.Managers
             RegisterCommand(".moveflags", GmLevel.GameMaster, MoveFlagsCommand);
             RegisterCommand(".falldamage", GmLevel.GameMaster, FallDamageCommand, "metres");
             RegisterCommand(".immune", GmLevel.GameMaster, ImmuneCommand, "damageType");
+            RegisterCommand(".allowdeath", GmLevel.GameMaster, AllowDeathCommand, "on|off");
             RegisterCommand(".feud", GmLevel.GameMaster, FeudCommand, "action", "arg1", "arg2");
             RegisterCommand(".bark", GmLevel.GameMaster, BarkCommand, "creatureEntityId", "barkId");
             RegisterCommand(".comehere", GmLevel.GameMaster, ComeHereCommand, "creatureEntityId");
@@ -188,6 +209,10 @@ namespace Rasa.Managers
             RegisterCommand(".minion", GmLevel.GameMaster, MinionCommand, "creatureDbIdOrAction");
             RegisterCommand(".linkhere", GmLevel.GameMaster, LinkHereCommand, "destMapId", "destX", "destY", "destZ", "radius", "kind");
             RegisterCommand(".kraftwerks", GmLevel.GameMaster, KraftwerksCommand, "stationIdOrHere", "action", "value");
+            RegisterCommand(".cp", GmLevel.GameMaster, ControlPointCommand, "id", "action");
+            RegisterCommand(".greeting", GmLevel.GameMaster, GreetingCommand, "greetingId|clear|show", "greetingId");
+            RegisterCommand(".instance", GmLevel.GameMaster, InstanceCommand, "action", "number");
+            RegisterCommand(".bg", GmLevel.GameMaster, BattlegroundCommand, "action", "arg1", "arg2");
             RegisterCommand(".region", GmLevel.GameMaster, RegionCommand, "modeOrId", "regionOrAction", "arg1", "arg2", "comment");
             RegisterCommand(".emitter", GmLevel.GameMaster, EmitterCommand, "emitterId", "action", "value");
             RegisterCommand(".notify", GmLevel.GameMaster, NotifyCommand, "action", "arg1", "arg2", "extra");
@@ -206,6 +231,10 @@ namespace Rasa.Managers
             RegisterCommand(".targetcategory", GmLevel.GameMaster, TargetCategoryCommand, "category");
             RegisterCommand(".blockaction", GmLevel.GameMaster, BlockActionCommand, "actionId", "off");
             RegisterCommand(".usable", GmLevel.GameMaster, UsableCommand, "state", "entityId");
+            RegisterCommand(".announce", GmLevel.GameMaster, AnnounceCommand, "message");
+            RegisterCommand(".kick", GmLevel.GameMaster, KickCommand, "familyName", "reason");
+            RegisterCommand(".mute", GmLevel.GameMaster, MuteCommand, "familyName", "minutes", "reason");
+            RegisterCommand(".unmute", GmLevel.GameMaster, UnmuteCommand, "familyName");
 
             // Admin: hands out progression, changes who a player is, reloads server data.
             // A restart does not undo these.
@@ -638,14 +667,15 @@ namespace Rasa.Managers
 
                     var how = parts.Length >= 4 ? parts[3] : null;
 
+                    // "gm" is how the feud's record says it ended (PvpRecords).
                     if (how == null)
-                        feuds.Expire(feud);
+                        feuds.Expire(feud, "gm");
                     else if (how.Equals("tie", StringComparison.OrdinalIgnoreCase))
-                        feuds.End(feud, ClanFeuds.Outcome.Tied);
+                        feuds.End(feud, ClanFeuds.Outcome.Tied, reason: "gm");
                     else if (how.Equals("cancel", StringComparison.OrdinalIgnoreCase))
-                        feuds.End(feud, ClanFeuds.Outcome.Cancelled);
+                        feuds.End(feud, ClanFeuds.Outcome.Cancelled, reason: "gm");
                     else if (Clan(how) is Structures.Char.ClanEntry winner && feud.Involves(winner.Id))
-                        feuds.End(feud, ClanFeuds.Outcome.Won, winner.Id);
+                        feuds.End(feud, ClanFeuds.Outcome.Won, winner.Id, "gm");
                     else
                     {
                         CommunicatorManager.Instance.SystemMessage(_client, "usage: .feud end <id> [tie|cancel|<winning clan>]");
@@ -958,6 +988,73 @@ namespace Rasa.Managers
 
             communicator.SystemMessage(_client,
                 flags.Clear(flag) ? $"{flag} is now clear for everyone." : $"{flag} was already clear.");
+        }
+
+        /// <summary>.motd: the message of the day as players get it, shown to you whatever your client has seen.</summary>
+        private void MotdCommand(string[] parts)
+        {
+            if (!MessageOfTheDay.Preview(_client))
+                CommunicatorManager.Instance.SystemMessage(_client, "There is no message of the day (MessageOfTheDay.Text in appsettings.json is empty).");
+        }
+
+        /// <summary>.announce message: a line in chat for everyone in the world (Moderation).</summary>
+        private void AnnounceCommand(string[] parts)
+        {
+            var text = string.Join(" ", parts.Skip(1)).Trim();
+
+            if (text.Length == 0)
+            {
+                SendCommandUsage(".announce");
+                return;
+            }
+
+            Logger.WriteLog(LogType.Command, $"{_client.AccountEntry?.FamilyName} announced: {text}");
+            Moderation.Announce(text);
+        }
+
+        /// <summary>.kick familyName [reason]: disconnects that player after telling them why.</summary>
+        private void KickCommand(string[] parts)
+        {
+            if (parts.Length < 2)
+            {
+                SendCommandUsage(".kick");
+                return;
+            }
+
+            var result = Moderation.Kick(parts[1], string.Join(" ", parts.Skip(2)), _client);
+            CommunicatorManager.Instance.SystemMessage(_client, result.Text);
+        }
+
+        /// <summary>.mute familyName minutes [reason]: silences that account's chat, online or not.</summary>
+        private void MuteCommand(string[] parts)
+        {
+            if (parts.Length < 3 || !int.TryParse(parts[2], out var minutes))
+            {
+                SendCommandUsage(".mute");
+                return;
+            }
+
+            var result = Moderation.Mute(parts[1], minutes, string.Join(" ", parts.Skip(3)), _client);
+
+            // A silence that went on is confirmed in the client's own words (PM_GM_USER_SILENCED).
+            if (!result.Told)
+                CommunicatorManager.Instance.SystemMessage(_client, result.Text);
+        }
+
+        /// <summary>.unmute familyName: lifts a silence.</summary>
+        private void UnmuteCommand(string[] parts)
+        {
+            if (parts.Length < 2)
+            {
+                SendCommandUsage(".unmute");
+                return;
+            }
+
+            var result = Moderation.Unmute(parts[1], _client);
+
+            // "Lifted" and "was not silenced" are told in the client's own words.
+            if (!result.Told)
+                CommunicatorManager.Instance.SystemMessage(_client, result.Text);
         }
 
         private void MessageCommand(string[] parts)
@@ -2128,6 +2225,40 @@ namespace Rasa.Managers
         /// off again. With nothing after it, says what the target is immune to. Held in memory
         /// only: a restart, or the creature respawning, ends it.
         /// </summary>
+        /// <summary>
+        /// .allowdeath [on|off]: whether this GM dies at zero health like anyone else, or stands
+        /// back up (PlayerDeath.IsDeathless). With no argument it toggles. For this session only.
+        /// </summary>
+        private void AllowDeathCommand(string[] parts)
+        {
+            var player = _client.Player;
+            var word = parts.Length > 1 ? parts[1].ToLowerInvariant() : null;
+
+            switch (word)
+            {
+                case null:
+                    player.AllowDeath = !player.AllowDeath;
+                    break;
+                case "on":
+                case "1":
+                case "true":
+                    player.AllowDeath = true;
+                    break;
+                case "off":
+                case "0":
+                case "false":
+                    player.AllowDeath = false;
+                    break;
+                default:
+                    SendCommandUsage(".allowdeath");
+                    return;
+            }
+
+            CommunicatorManager.Instance.SystemMessage(_client, player.AllowDeath
+                ? "Death is on: you die at zero health like anyone else. .allowdeath off to stop."
+                : "Death is off: at zero health you stand back up. .allowdeath on to die.");
+        }
+
         private void ImmuneCommand(string[] parts)
         {
             var communicator = CommunicatorManager.Instance;
@@ -2803,6 +2934,585 @@ namespace Rasa.Managers
         /// The stations were seeded from the client's map markers, which have no facing; this is
         /// how they get one.
         /// </summary>
+        /// <summary>
+        /// The control points (ControlPoints): those of this map, who holds each and how its
+        /// garrison stands; a point given to a side or to a clan, gone to, or stood where the
+        /// game master is; and its clan lockbox set down there, or taken away.
+        /// </summary>
+        /// <summary>
+        /// .instance: the shared copies of the map the game master stands on (MapChannelManager's
+        /// instances) - listing them, opening and closing one, going to one, and showing the
+        /// client's instance picker, which otherwise takes a full copy to see. On a map entered
+        /// as a squad's instance it lists the squad instances of that map; .instance squads lists
+        /// those of every map and when the weekly reset is, and .instance reset runs that reset
+        /// now: every squad instance with nobody in it is closed.
+        /// </summary>
+        private void InstanceCommand(string[] parts)
+        {
+            const string usage = "usage: .instance | .instance open | .instance pick | .instance go <number> | .instance close <number> | .instance squads | .instance reset";
+            var client = _client;
+            var player = client.Player;
+            var maps = MapChannelManager.Instance;
+            var mapContextId = player.MapContextId;
+            var copies = maps.CopiesOf(mapContextId);
+            var policy = maps.SharedPolicyOf(mapContextId);
+
+            void Say(string text) => CommunicatorManager.Instance.SystemMessage(client, text);
+
+            // How much of a squad instance is dead and waiting for its respawn time (SquadInstanceState).
+            static string DeadPools(MapChannel squad) =>
+                $"{squad.SpawnPools.Count(pool => pool.ClearedAtUtcMs != 0)} of {squad.SpawnPools.Count} spawn pool(s) dead";
+
+            // The squad instances: those of every map, and the weekly reset run now.
+            if (parts.Length == 2 && parts[1] == "squads")
+            {
+                var squads = maps.SquadInstancesOf();
+                var saved = maps.SavedSquadInstances();
+                var loaded = squads.Select(squad => squad.SquadState?.DbId ?? 0).Where(id => id != 0).ToHashSet();
+                var next = maps.NextWeeklyReset;
+
+                Say($"{saved.Count} squad instance(s) saved, {squads.Count} in memory. {(next == null ? "There is no weekly reset." : $"The weekly reset is {next.Value:dddd yyyy-MM-dd HH:mm}.")}");
+
+                foreach (var squad in squads)
+                    Say($"map {squad.MapInfo.MapContextId} instance {squad.InstanceId}: owner character {squad.SquadOwnerCharacterId}, {maps.PopulationOf(squad)} player(s){(ReferenceEquals(squad, player.MapChannel) ? " (you are here)" : string.Empty)}; {DeadPools(squad)}");
+
+                foreach (var row in saved.Where(row => !loaded.Contains(row.Id)))
+                    Say($"map {row.MapContextId}: owner character {row.OwnerCharacterId}, saved and not in memory");
+
+                return;
+            }
+
+            if (parts.Length == 2 && parts[1] == "reset")
+            {
+                var closed = maps.ResetSquadInstances();
+                var left = maps.SquadInstancesOf().Count;
+
+                Say($"Closed {closed} squad instance(s); {left} left with players in them.");
+                Logger.WriteLog(LogType.Command, $"{player.FamilyName} reset the squad instances: {closed} closed, {left} left.");
+                return;
+            }
+
+            if (parts.Length == 1 && maps.IsSquadInstanceMap(mapContextId))
+            {
+                var squads = maps.SquadInstancesOf(mapContextId);
+
+                Say($"Map {mapContextId} is entered as a squad's instance: {squads.Count} open.");
+
+                foreach (var squad in squads)
+                    Say($"instance {squad.InstanceId}: owner character {squad.SquadOwnerCharacterId}, {maps.PopulationOf(squad)} player(s){(ReferenceEquals(squad, player.MapChannel) ? " (you are here)" : string.Empty)}; {DeadPools(squad)}");
+
+                if (player.MapChannel != null && !player.MapChannel.IsSquadInstance)
+                    Say("You are on the map's own channel.");
+
+                return;
+            }
+
+            if (parts.Length == 1)
+            {
+                Say(policy == null
+                    ? $"Map {mapContextId} runs in one copy (no MapInstances entry with MaxCopies above 1)."
+                    : $"Map {mapContextId}: {copies.Count} of {policy.MaxCopies} copies, {policy.Capacity} players each, closed after {policy.IdleCloseSeconds} s empty.");
+
+                for (var i = 0; i < copies.Count; i++)
+                {
+                    var copy = copies[i];
+                    var population = maps.PopulationOf(copy);
+                    var status = policy == null ? string.Empty : $", {MapChannelManager.StatusOf(population, policy.Capacity)}";
+                    var here = ReferenceEquals(copy, player.MapChannel) ? " (you are here)" : string.Empty;
+
+                    Say($"#{i + 1} instance {copy.InstanceId}: {population} player(s){status}{here}");
+                }
+
+                if (player.MapChannel != null && !copies.Contains(player.MapChannel))
+                    Say($"You are in instance {player.MapChannel.InstanceId}, which is a private one.");
+
+                return;
+            }
+
+            switch (parts[1])
+            {
+                case "open" when parts.Length == 2:
+                {
+                    if (policy == null)
+                    {
+                        Say($"Map {mapContextId} runs in one copy: give it a MapInstances entry in appsettings.json first.");
+                        return;
+                    }
+
+                    var opened = maps.OpenSharedCopy(mapContextId);
+
+                    Say(opened == null
+                        ? $"Map {mapContextId} already has its {policy.MaxCopies} copies."
+                        : $"Opened #{maps.CopiesOf(mapContextId).IndexOf(opened) + 1}, instance {opened.InstanceId}. It closes after {policy.IdleCloseSeconds} s empty.");
+                    return;
+                }
+
+                case "pick" when parts.Length == 2:
+                {
+                    if (policy == null || copies.Count < 2)
+                    {
+                        Say("The picker is shown for a map with more than one copy: .instance open first.");
+                        return;
+                    }
+
+                    if (!maps.EnterMap(client, mapContextId, player.Position, (float)player.Rotation))
+                        Say("The picker could not be shown.");
+
+                    return;
+                }
+
+                case "go" when parts.Length == 3:
+                case "close" when parts.Length == 3:
+                {
+                    if (!int.TryParse(parts[2], out var number) || number < 1 || number > copies.Count)
+                    {
+                        Say($"There is no copy #{parts[2]} of map {mapContextId}: .instance lists them.");
+                        return;
+                    }
+
+                    var copy = copies[number - 1];
+
+                    if (parts[1] == "go")
+                    {
+                        if (ReferenceEquals(copy, player.MapChannel))
+                            Say("You are in that copy.");
+                        else if (!maps.Send(client, copy, player.Position, (float)player.Rotation))
+                            Say("You could not be moved there.");
+
+                        return;
+                    }
+
+                    if (!copy.IsSharedInstance)
+                        Say("#1 is the map's own channel and is never closed.");
+                    else if (!maps.CloseSharedCopy(copy))
+                        Say($"#{number} has {maps.PopulationOf(copy)} player(s) in it or on the way: it is closed empty.");
+                    else
+                        Say($"Closed #{number}, instance {copy.InstanceId}.");
+
+                    return;
+                }
+
+                default:
+                    Say(usage);
+                    return;
+            }
+        }
+
+        /// <summary>
+        /// .bg: the match of the battleground channel the game master is on (Battlegrounds) - how
+        /// it stands, starting and ending it, a team for themselves whatever the rules say, and
+        /// a control point for a team.
+        /// </summary>
+        private void BattlegroundCommand(string[] parts)
+        {
+            const string usage = "usage: .bg | .bg start | .bg end [red|blue|none] | .bg team red|blue|none | .bg capture <point> red|blue|none | .bg forgive [name]";
+            var client = _client;
+            var player = client.Player;
+            var grounds = Battlegrounds.Instance;
+            var match = grounds.MatchOf(player.MapChannel);
+
+            void Say(string text) => CommunicatorManager.Instance.SystemMessage(client, text);
+
+            static uint? Team(string word) => word switch
+            {
+                "red" => Battlegrounds.Red,
+                "blue" => Battlegrounds.Blue,
+                "none" => 0u,
+                _ => null
+            };
+
+            // Wherever the game master stands: a desertion and its lockout forgotten, their own or
+            // a player's in the world.
+            if (parts.Length >= 2 && parts[1] == "forgive" && parts.Length <= 3)
+            {
+                var whose = player;
+
+                if (parts.Length == 3)
+                {
+                    lock (Server.Clients)
+                        whose = Server.Clients.Find(c => c?.Player != null && c.State == ClientState.Ingame
+                                                         && string.Equals(c.Player.FamilyName, parts[2], StringComparison.OrdinalIgnoreCase))?.Player;
+
+                    if (whose == null)
+                    {
+                        Say($"{parts[2]} is not in the world.");
+                        return;
+                    }
+                }
+
+                if (!grounds.Forgive(whose.Id))
+                {
+                    Say($"{whose.FamilyName} has deserted nothing.");
+                    return;
+                }
+
+                Say($"{whose.FamilyName}'s desertion is forgotten: every team and every instance is open to them.");
+                Logger.WriteLog(LogType.Command, $"{player.FamilyName} forgave {whose.FamilyName}'s battleground desertion.");
+                return;
+            }
+
+            if (match == null)
+            {
+                Say($"Map {player.MapContextId} has no battleground.");
+                return;
+            }
+
+            if (parts.Length == 1)
+            {
+                var clock = match.Phase == Battlegrounds.Phase.Waiting ? "" : $", {grounds.SecondsLeft(match)} s left";
+
+                Say($"Instance {match.Map.InstanceId}: {match.Phase}{clock}{(match.Forced ? ", started by a game master" : "")}. "
+                    + $"Red {match.Count(Battlegrounds.Red)}, Blue {match.Count(Battlegrounds.Blue)}; each needs {Math.Max(1, grounds.Config.MinPlayersPerTeam)}.");
+
+                foreach (var team in new[] { Battlegrounds.Red, Battlegrounds.Blue })
+                    Say($"{Battlegrounds.TeamName(team)}: {match.Held(team)} point(s), {match.Kills(team)} kill(s) - "
+                        + (match.Count(team) == 0 ? "nobody" : string.Join(", ", match.Team(team).Select(m => m.Client.Player.FamilyName))));
+
+                foreach (var point in match.Points)
+                {
+                    var garrison = grounds.GarrisonOf(match.Map, point.Source) switch
+                    {
+                        ControlPoints.Garrison.None => "no Bane",
+                        ControlPoints.Garrison.Down => "Bane down",
+                        _ => "Bane standing"
+                    };
+
+                    Say($"#{point.Id} {point.Name}: {Battlegrounds.TeamName(point.Owner)}, {garrison}, {(point.Object.IsEnabled ? "open" : "shut")}");
+                }
+
+                var deserted = grounds.DesertedTeamOf(player.Id);
+
+                if (deserted != 0)
+                    Say($"You are a deserter of {Battlegrounds.TeamName(deserted)}.");
+
+                var lockout = grounds.LockoutOf(player.Id);
+
+                if (lockout != null)
+                    Say($"You left a match in progress on instance {lockout.InstanceId} of map {lockout.MapContextId}: every other is shut to you for {grounds.TimeLeftOf(lockout)}"
+                        + (grounds.IsExempt(client) ? " (a game master is not held to it)." : "."));
+
+                return;
+            }
+
+            switch (parts[1])
+            {
+                case "start" when parts.Length == 2:
+                    if (match.Phase == Battlegrounds.Phase.Running)
+                    {
+                        Say("The match is running.");
+                        return;
+                    }
+
+                    grounds.Start(match, forced: true);
+                    Logger.WriteLog(LogType.Command, $"{player.FamilyName} started the battleground match on map {player.MapContextId}, instance {match.Map.InstanceId}.");
+                    Say("The match has begun. It runs until its clock or .bg end, whatever the teams have in them.");
+                    return;
+
+                case "end" when parts.Length == 2 || parts.Length == 3 && Team(parts[2]).HasValue:
+                    if (match.Phase != Battlegrounds.Phase.Running)
+                    {
+                        Say("No match is running.");
+                        return;
+                    }
+
+                    var winner = parts.Length == 3 ? Team(parts[2]).Value : Battlegrounds.Leader(match);
+
+                    grounds.End(match, winner, "gm");
+                    Logger.WriteLog(LogType.Command, $"{player.FamilyName} ended the battleground match on map {player.MapContextId}, instance {match.Map.InstanceId}: {Battlegrounds.TeamName(winner)}.");
+                    Say($"The match is over: {Battlegrounds.TeamName(winner)} won.");
+                    return;
+
+                case "team" when parts.Length == 3 && Team(parts[2]).HasValue:
+                {
+                    var team = Team(parts[2]).Value;
+
+                    if (team == 0)
+                        Say(grounds.LeaveTeam(client) ? "You are on no team." : "You were on no team.");
+                    else
+                        Say(grounds.Join(client, team, force: true) ? $"You are on {Battlegrounds.TeamName(team)}." : $"You could not be put on {Battlegrounds.TeamName(team)}.");
+
+                    return;
+                }
+
+                case "capture" when parts.Length == 4 && Team(parts[3]).HasValue:
+                {
+                    var point = match.Points.Find(p => p.Id.ToString() == parts[2] || string.Equals(p.Name, parts[2], StringComparison.OrdinalIgnoreCase));
+
+                    if (point == null)
+                    {
+                        Say($"There is no control point {parts[2]} here: .bg lists them.");
+                        return;
+                    }
+
+                    var team = Team(parts[3]).Value;
+
+                    Say(grounds.SetOwner(match, point, team)
+                        ? $"{point.Name} is {Battlegrounds.TeamName(team)}'s."
+                        : $"{point.Name} is {Battlegrounds.TeamName(team)}'s already.");
+                    return;
+                }
+
+                default:
+                    Say(usage);
+                    return;
+            }
+        }
+
+        /// <summary>
+        /// .greeting: the line the targeted NPC greets a player with (NpcGreetings) - shown, set
+        /// to one of the client's npcgreetinglanguage lines, or taken away so it says the
+        /// default again. Kept in the world database for the NPC's creature row. The server has
+        /// only the ids, so the line is shown by having the game master's own client display
+        /// it; ".greeting show" does that for any line, with nothing targeted.
+        /// </summary>
+        private void GreetingCommand(string[] parts)
+        {
+            const string usage = "usage: .greeting | .greeting <greetingId> | .greeting clear (each with an NPC targeted) | .greeting show <greetingId>";
+            var client = _client;
+
+            if (parts.Length == 3 && parts[1] == "show")
+            {
+                if (!uint.TryParse(parts[2], out var shown) || !NpcGreetings.IsLine(shown))
+                {
+                    CommunicatorManager.Instance.SystemMessage(client, $"The client has no greeting {parts[2]}.");
+                    return;
+                }
+
+                client.CallMethod(client.Player.EntityId, new ForceConversePacket((int)shown));
+                return;
+            }
+
+            if (parts.Length > 2)
+            {
+                CommunicatorManager.Instance.SystemMessage(client, usage);
+                return;
+            }
+
+            var entityId = client.Player.Target;
+            var creature = entityId != 0 && EntityManager.Instance.GetEntityType(entityId) == EntityType.Creature
+                ? EntityManager.Instance.GetCreature(entityId)
+                : null;
+
+            if (creature?.Npc == null)
+            {
+                CommunicatorManager.Instance.SystemMessage(client, $"Target an NPC. {usage}");
+                return;
+            }
+
+            var who = $"Creature #{creature.DbId}";
+
+            if (parts.Length == 1)
+            {
+                CommunicatorManager.Instance.SystemMessage(client, NpcGreetings.HasOwn(creature)
+                    ? $"{who} says greeting {creature.Npc.GreetingId}."
+                    : $"{who} has no greeting of its own: it says the default, {NpcGreetings.Default}.");
+                client.CallMethod(client.Player.EntityId, new ForceConversePacket(NpcGreetings.For(creature), creature.NameId != 0 ? creature.NameId : (uint?)null));
+                return;
+            }
+
+            if (parts[1] == "clear")
+            {
+                if (!NpcGreetings.HasOwn(creature))
+                {
+                    CommunicatorManager.Instance.SystemMessage(client, $"{who} has no greeting of its own.");
+                    return;
+                }
+
+                var had = creature.Npc.GreetingId;
+
+                if (!NpcGreetings.Clear(creature, Server.GameUnitOfWorkFactory))
+                {
+                    CommunicatorManager.Instance.SystemMessage(client, $"The greeting of {who} could not be taken away; see the server log.");
+                    return;
+                }
+
+                CommunicatorManager.Instance.SystemMessage(client, $"{who} says the default again (it said greeting {had}).");
+                Logger.WriteLog(LogType.Command, $"{client.Player.FamilyName} took greeting {had} from creature {creature.DbId}.");
+                RefreshGreetingStatus(creature);
+                return;
+            }
+
+            if (!uint.TryParse(parts[1], out var greetingId) || !NpcGreetings.IsLine(greetingId))
+            {
+                CommunicatorManager.Instance.SystemMessage(client, $"The client has no greeting {parts[1]}. {usage}");
+                return;
+            }
+
+            if (!NpcGreetings.Set(creature, greetingId, Server.GameUnitOfWorkFactory))
+            {
+                CommunicatorManager.Instance.SystemMessage(client, $"The greeting of {who} could not be saved; see the server log.");
+                return;
+            }
+
+            CommunicatorManager.Instance.SystemMessage(client, $"{who} says greeting {greetingId}.");
+            Logger.WriteLog(LogType.Command, $"{client.Player.FamilyName} gave creature {creature.DbId} greeting {greetingId}.");
+            RefreshGreetingStatus(creature);
+            client.CallMethod(client.Player.EntityId, new ForceConversePacket((int)greetingId, creature.NameId != 0 ? creature.NameId : (uint?)null));
+        }
+
+        /// <summary>
+        /// Whether an NPC can be spoken to depends on its having a line of its own: every client
+        /// that has an NPC of this creature row on the game master's map is told its status anew.
+        /// </summary>
+        private void RefreshGreetingStatus(Creature creature)
+        {
+            var mapChannel = creature.RuntimeMapChannel ?? _client.Player.MapChannel;
+
+            if (mapChannel?.MapCellInfo?.Cells == null)
+                return;
+
+            var same = mapChannel.MapCellInfo.Cells.Values.SelectMany(cell => cell.CreatureList)
+                .Where(other => other != null && ReferenceEquals(other.Npc, creature.Npc)).Distinct().ToList();
+
+            foreach (var npc in same)
+                if (npc.Cells != null)
+                    foreach (var viewer in CellManager.Instance.GetClientsInCells(mapChannel, npc.Cells))
+                        NpcManager.Instance.UpdateConversationStatus(viewer, npc);
+        }
+
+        private void ControlPointCommand(string[] parts)
+        {
+            const string usage = "usage: .cp | .cp all | .cp <id> afs | bane | clan <clan name or id> | goto | here | lockbox | lockbox remove";
+            var client = _client;
+            var player = client.Player;
+            var points = ControlPoints.Instance;
+
+            if (parts.Length == 1 || parts.Length == 2 && parts[1] == "all")
+            {
+                var all = parts.Length == 2;
+                var list = (all ? points.Points : points.OnMap(player.MapContextId))
+                    .OrderBy(p => p.MapContextId).ThenBy(p => p.Id).ToList();
+
+                if (list.Count == 0)
+                {
+                    CommunicatorManager.Instance.SystemMessage(client, all ? "There are no control points." : $"No control points on map {player.MapContextId}.");
+                    return;
+                }
+
+                CommunicatorManager.Instance.SystemMessage(client, all
+                    ? $"{list.Count} control point(s), {list.Count(p => p.HeldByAfs)} held by the AFS:"
+                    : $"{list.Count} control point(s) on map {player.MapContextId}:");
+
+                foreach (var point in list)
+                {
+                    var mapChannel = point.Object?.RuntimeMapChannel;
+                    var garrison = mapChannel == null ? "not placed" : points.GarrisonOf(mapChannel, point, point.Owner) switch
+                    {
+                        ControlPoints.Garrison.None => "no garrison",
+                        ControlPoints.Garrison.Down => "garrison down",
+                        _ => "garrison standing"
+                    };
+                    var where = all
+                        ? $"map {point.MapContextId}"
+                        : $"{Vector3.Distance(point.Object?.Position ?? point.Position, player.Position):0.#} m";
+
+                    var holder = point.HeldByClan
+                        ? $"AFS, clan {points.HolderName(point)} (#{point.ClanId}){(point.LockboxId == 0 ? ", no lockbox" : "")}"
+                        : ControlPoints.FactionName(point.Owner);
+
+                    CommunicatorManager.Instance.SystemMessage(client, point.IsBattleground
+                        ? $"#{point.Id} {point.Name}: a battleground's (.bg), {where}"
+                        : $"#{point.Id} {point.Name}: {holder}, {garrison}, {where}");
+                }
+
+                if (points.NextClanReset != null && list.Any(p => p.HeldByClan))
+                    CommunicatorManager.Instance.SystemMessage(client, $"The clans' points go back to the AFS on {points.NextClanReset.Value:yyyy-MM-dd HH:mm}.");
+
+                return;
+            }
+
+            if (parts.Length < 3 || !uint.TryParse(parts[1], out var id) || points.ById(id) is not { } target)
+            {
+                CommunicatorManager.Instance.SystemMessage(client, usage);
+                return;
+            }
+
+            // A clan's name may have spaces in it: everything after "clan" is the name.
+            if (parts.Length != 3 && !(parts[2] == "clan" && parts.Length > 3) && !(parts[2] == "lockbox" && parts.Length == 4 && parts[3] == "remove"))
+            {
+                CommunicatorManager.Instance.SystemMessage(client, usage);
+                return;
+            }
+
+            switch (parts[2])
+            {
+                case "clan" when target.IsBattleground:
+                case "lockbox" when target.IsBattleground:
+                    CommunicatorManager.Instance.SystemMessage(client, $"Control point #{id} {target.Name} is a battleground's: no clan holds it.");
+                    return;
+
+                case "clan" when parts.Length > 3:
+                    var clan = ClanManager.Instance.FindClan(string.Join(' ', parts.Skip(3)));
+
+                    if (clan == null)
+                    {
+                        CommunicatorManager.Instance.SystemMessage(client, $"There is no clan \"{string.Join(' ', parts.Skip(3))}\".");
+                        return;
+                    }
+
+                    CommunicatorManager.Instance.SystemMessage(client, points.SetHolder(target, ControlPoints.Afs, clan.Id, null)
+                        ? $"Control point #{id} {target.Name} is clan {clan.Name}'s."
+                        : $"Control point #{id} {target.Name} is clan {clan.Name}'s already.");
+                    Logger.WriteLog(LogType.Command, $"{player.FamilyName} gave control point {id} ({target.Name}) to clan {clan.Id} ({clan.Name}).");
+                    return;
+
+                case "lockbox" when parts.Length == 4:
+                    CommunicatorManager.Instance.SystemMessage(client, points.RemoveLockbox(target, Server.GameUnitOfWorkFactory)
+                        ? $"Control point #{id} {target.Name} has no clan lockbox any more."
+                        : $"Control point #{id} {target.Name} has no clan lockbox, or it could not be taken away; see the server log.");
+                    return;
+
+                case "lockbox":
+                    if (target.MapContextId != player.MapContextId || player.MapChannel == null || player.MapChannel.IsCopy)
+                    {
+                        CommunicatorManager.Instance.SystemMessage(client, $"Control point #{id} {target.Name} is on map {target.MapContextId}; stand where its clan lockbox should be, on that map's own channel.");
+                        return;
+                    }
+
+                    CommunicatorManager.Instance.SystemMessage(client, points.SetLockbox(target, player.Position, player.Rotation, Server.GameUnitOfWorkFactory)
+                        ? $"The clan lockbox of control point #{id} {target.Name} stands at ({player.Position.X:0.#}, {player.Position.Y:0.#}, {player.Position.Z:0.#}){(target.HeldByClan ? "" : ": it is on the map while a clan holds the point")}."
+                        : $"The clan lockbox of control point #{id} {target.Name} could not be set down; see the server log.");
+                    return;
+
+                case "afs" when target.IsBattleground:
+                case "bane" when target.IsBattleground:
+                    CommunicatorManager.Instance.SystemMessage(client, $"Control point #{id} {target.Name} is a battleground's: .bg capture gives it to a team.");
+                    return;
+
+                case "afs":
+                case "bane":
+                    var owner = parts[2] == "afs" ? ControlPoints.Afs : ControlPoints.Bane;
+
+                    // To a side, and to no clan: a clan that held it has lost it.
+                    CommunicatorManager.Instance.SystemMessage(client, points.SetOwner(target, owner, null)
+                        ? $"Control point #{id} {target.Name} is the {ControlPoints.FactionName(owner)}'s."
+                        : $"Control point #{id} {target.Name} is the {ControlPoints.FactionName(owner)}'s already.");
+                    Logger.WriteLog(LogType.Command, $"{player.FamilyName} gave control point {id} ({target.Name}) to the {ControlPoints.FactionName(owner)}.");
+                    return;
+
+                case "goto":
+                    if (!MapChannelManager.Instance.ChangeMap(client, target.MapContextId, target.Object?.Position ?? target.Position, (float)player.Rotation))
+                        CommunicatorManager.Instance.SystemMessage(client, $"Map {target.MapContextId} is not loaded, or you cannot teleport right now.");
+                    return;
+
+                case "here":
+                    if (target.MapContextId != player.MapContextId || player.MapChannel == null || player.MapChannel.IsCopy)
+                    {
+                        CommunicatorManager.Instance.SystemMessage(client, $"Control point #{id} {target.Name} is on map {target.MapContextId}; stand where it should be, on that map's own channel.");
+                        return;
+                    }
+
+                    CommunicatorManager.Instance.SystemMessage(client, points.Move(target, player.Position, player.Rotation, Server.GameUnitOfWorkFactory)
+                        ? $"Control point #{id} {target.Name} now stands at ({player.Position.X:0.#}, {player.Position.Y:0.#}, {player.Position.Z:0.#})."
+                        : $"Control point #{id} {target.Name} could not be moved; see the server log.");
+                    return;
+
+                default:
+                    CommunicatorManager.Instance.SystemMessage(client, usage);
+                    return;
+            }
+        }
+
         private void KraftwerksCommand(string[] parts)
         {
             var client = _client;
@@ -3515,7 +4225,8 @@ namespace Rasa.Managers
         /// ProcessSlashCommand sends whatever is not a local command as (command, arg), and the
         /// client's GM pickers send their picks the same way. The ones the server knows are in
         /// <see cref="PrivilegedCommands"/>, each with the level it takes; anything else, or one
-        /// above the account's level, is answered as the dot commands answer it.
+        /// above the account's level, is answered as the dot commands answer it, and goes on
+        /// the audit log as they do.
         /// </summary>
         internal void PrivilegedCommand(Client client, PrivilegedCommandPacket packet)
         {
@@ -3523,9 +4234,11 @@ namespace Rasa.Managers
                 return;
 
             var command = packet.Command.Trim();
+            var entered = $"/{command} {packet.Args}".TrimEnd();
 
             if (!PrivilegedCommands.TryGetValue(command, out var registered))
             {
+                Audit?.Record(client, GmCommandSource.Slash, "/" + command.ToLowerInvariant(), entered, GmLevel.Player, GmCommandResult.Unknown);
                 Logger.WriteLog(LogType.Command, $"Invalid slash command: /{command} {packet.Args}");
                 CommunicatorManager.Instance.SystemMessage(client, $"Unknown command: /{command}");
                 return;
@@ -3533,6 +4246,7 @@ namespace Rasa.Managers
 
             if (!HasLevel(client, registered.Level))
             {
+                Audit?.Record(client, GmCommandSource.Slash, "/" + command.ToLowerInvariant(), entered, registered.Level, GmCommandResult.Denied);
                 Logger.WriteLog(LogType.Security,
                     $"AccountId = {client.AccountEntry?.Id} (level {client.AccountEntry?.Level}) tried to use /{command}, which needs {(byte)registered.Level}");
 
@@ -3543,8 +4257,17 @@ namespace Rasa.Managers
                 return;
             }
 
-            Logger.WriteLog(LogType.Command, $"AccountId = {client.AccountEntry.Id}: /{command} {packet.Args}");
-            registered.Handler(client, packet.Args ?? "");
+            var audit = Audit;
+
+            if (audit == null)
+            {
+                Logger.WriteLog(LogType.Command, $"AccountId = {client.AccountEntry.Id}: /{command} {packet.Args}");
+                registered.Handler(client, packet.Args ?? "");
+                return;
+            }
+
+            audit.Run(audit.Record(client, GmCommandSource.Slash, "/" + command.ToLowerInvariant(), entered, registered.Level, GmCommandResult.Executed),
+                () => registered.Handler(client, packet.Args ?? ""));
         }
     }
 }

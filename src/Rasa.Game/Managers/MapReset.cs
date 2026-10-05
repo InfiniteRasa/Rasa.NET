@@ -95,6 +95,26 @@ namespace Rasa.Managers
             return going;
         }
 
+        /// <summary>Takes one creature off the map, alive or dead, with whatever its corpse was holding (ControlPoints uses it too).</summary>
+        internal static void Remove(MapChannel mapChannel, Creature creature)
+        {
+            // Dead to everything still holding it: a windup, a bomb or a summons waiting on it
+            // lets a dead creature be.
+            creature.State = CharacterState.Dead;
+            creature.Hate.Clear();
+            GameEffectManager.Instance.ClearEffects(mapChannel, creature);
+
+            if (creature.LootDispenserObjectEntityId != 0)
+            {
+                if (EntityManager.Instance.TryGetObject(creature.LootDispenserObjectEntityId, out var lootObject))
+                    DynamicObjectManager.Instance.DynamicObjectDestroy(mapChannel, lootObject);
+
+                creature.LootDispenserObjectEntityId = 0;
+            }
+
+            CellManager.Instance.RemoveCreatureFromWorld(mapChannel, creature);
+        }
+
         /// <summary>The creatures taken off and the pools set to spawn again.</summary>
         private static (int Removed, int Pools) Reset(MapChannel mapChannel)
         {
@@ -103,23 +123,7 @@ namespace Rasa.Managers
             var going = CreaturesToRemove(mapContextId, creatures);
 
             foreach (var creature in going)
-            {
-                // Dead to everything still holding it: a windup, a bomb or a summons waiting on it
-                // lets a dead creature be.
-                creature.State = CharacterState.Dead;
-                creature.Hate.Clear();
-                GameEffectManager.Instance.ClearEffects(mapChannel, creature);
-
-                if (creature.LootDispenserObjectEntityId != 0)
-                {
-                    if (EntityManager.Instance.TryGetObject(creature.LootDispenserObjectEntityId, out var lootObject))
-                        DynamicObjectManager.Instance.DynamicObjectDestroy(mapChannel, lootObject);
-
-                    creature.LootDispenserObjectEntityId = 0;
-                }
-
-                CellManager.Instance.RemoveCreatureFromWorld(mapChannel, creature);
-            }
+                Remove(mapChannel, creature);
 
             var pools = 0;
 
@@ -140,6 +144,11 @@ namespace Rasa.Managers
                 pool.AliveCreatures = 0;
                 pool.DeadCreatures = 0;
 
+                // A control point's garrison taken off by a reset has not been killed: it is on
+                // its way back, not down (ControlPoints.GarrisonOf).
+                if (pool.IsGarrison)
+                    pool.HasSpawned = false;
+
                 if (pool.QueuedCreatures > 0 || pool.DropshipQueue > 0)
                     continue;
 
@@ -147,6 +156,9 @@ namespace Rasa.Managers
                 pool.UpdateTimer = pool.RespawnTime;
                 pools++;
             }
+
+            // In a squad's instance none of its pools is dead any more, in memory or as saved.
+            mapChannel.SquadState?.PoolsReset(mapPools.Where(pool => pool.MapContextId == mapContextId && pool.Mode == SpawnPoolManager.ModeAutomatic));
 
             return (going.Count, pools);
         }

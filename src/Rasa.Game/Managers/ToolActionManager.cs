@@ -384,6 +384,14 @@ namespace Rasa.Managers
             {
                 case ActionId.ToolHealingDisc:
                 {
+                    // A dead player, at Healing 3 (healdisc.py canTargetDead): offered a revive
+                    // with what the disc would have healed (PlayerDeath).
+                    if (target is Manifestation fallen && fallen.State == CharacterState.Dead && action.Actor is Manifestation medic)
+                    {
+                        PlayerDeath.OfferRevive(mapChannel, medic, fallen, amount);
+                        break;
+                    }
+
                     var healed = ActorManager.Instance.Heal(target, amount, action.Actor.EntityId);
 
                     if (healed > 0)
@@ -834,6 +842,11 @@ namespace Rasa.Managers
             // worked on a squad mate anywhere - on another map included.
             if (!InToolReach(client, targetActor, packet.ActionId))
                 return PlayerMessage.PmTargetOutOfRange;
+
+            // A player in a duel, a squad wargame or a team's match takes a heal, a repair or a
+            // recharge from their own side of it and nobody else (Pvp.MayHelp).
+            if (IsRestoringTool(packet.ActionId) && !Pvp.MayHelp(client.Player, targetActor))
+                return PlayerMessage.PmTargetInvalid;
 
             // repairtool.py refuses a dead player outright; healdisc.py allows a corpse only at
             // Healing 3 or better. ToDo: repairtool also refuses dead BIOLOGICAL creatures, which

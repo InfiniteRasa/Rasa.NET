@@ -102,6 +102,12 @@ namespace Rasa.Game
 
         private readonly object _clientLock = new();
         internal object SyncRoot => _clientLock;
+        /// <summary>The instance picker this client has open, if any (MapChannelManager.Instances).</summary>
+        internal InstanceChoice PendingInstanceChoice { get; set; }
+
+        /// <summary>Said to the player once they have arrived in the world: set where a login is placed (MapChannelManager.PlaceLogin).</summary>
+        internal string ArrivalNotice { get; set; }
+
         private PlayerTransfer _pendingTransfer;
         internal PlayerTransfer PendingTransfer
         {
@@ -114,6 +120,45 @@ namespace Rasa.Game
             }
         }
         internal MissionConversationSession MissionConversation { get; set; }
+
+        /// <summary>
+        /// The creatures this client has been given from beyond its player's cells: the NPCs
+        /// their finished missions are handed in to and their objectives are talked through
+        /// with, so that the map and the radar can show them (Managers.MissionContacts). By entity id; emptied when the player leaves the map.
+        /// </summary>
+        internal HashSet<ulong> FarContacts { get; } = new HashSet<ulong>();
+
+        /// <summary>Environment.TickCount64 at which <see cref="FarContacts"/> is next checked without a mission event asking.</summary>
+        internal long NextContactSync { get; set; }
+
+        /// <summary>
+        /// The players this client has been given from beyond its player's cells: the members of
+        /// their squad, and of their team in a battleground's match, elsewhere on the map, so
+        /// that the map and the radar can show them (Managers.FarAllies).
+        /// </summary>
+        internal HashSet<Client> FarAllies { get; } = new HashSet<Client>();
+
+        /// <summary>Environment.TickCount64 at which <see cref="FarAllies"/> is next brought up to date.</summary>
+        internal long NextAllySync { get; set; }
+
+        /// <summary>
+        /// The usable objects in this client's cells it has been told are mission activated for
+        /// its player - the ones that sparkle (Managers.MissionObjects). By entity id.
+        /// </summary>
+        internal HashSet<ulong> MissionObjects { get; } = new HashSet<ulong>();
+
+        /// <summary>Whether this connection has been sent the message of the day (Managers.MessageOfTheDay).</summary>
+        internal bool MotdSent { get; set; }
+
+        /// <summary>
+        /// Whether the account's friends have been told this character is in the world
+        /// (FriendLoggedIn), from entering it until leaving it. While it is set, arriving on a
+        /// map sends them FriendStatusUpdate instead (CommunicatorManager.PlayerEnterMap).
+        /// </summary>
+        internal bool FriendsToldOnline { get; set; }
+
+        /// <summary>Set by a game master's kick: the character leaves at once, fight or not (CombatLogout).</summary>
+        internal bool SkipCombatLinger { get; set; }
         internal Guid MissionSessionId { get; private set; } = Guid.NewGuid();
         internal void InvalidateMissionSession()
         {
@@ -286,6 +331,8 @@ namespace Rasa.Game
 
                 Logger.WriteLog(LogType.Network, "*** Client disconnected! Ip: {0}", Socket.RemoteAddress);
 
+                var stateBefore = State;
+
                 State = ClientState.Disconnected;
 
                 Socket.Close();
@@ -304,8 +351,20 @@ namespace Rasa.Game
                 RestoreTransferOrigin();
                 if (Player != null && Player.MapChannel != null)
                 {
+                    // Dropped mid-fight: the character stays in it a while (CombatLogout). Worked
+                    // out before RemoveFromMap is set, which is also the Logout button's mark.
+                    // Not while the server is shutting down: everyone goes, saved.
+                    var lingerUntil = Server?.IsShuttingDown == true || SkipCombatLinger
+                        ? 0
+                        : CombatLogout.LingerUntil(Player, stateBefore, Environment.TickCount64);
+
+                    Player.LingerUntil = lingerUntil;
                     Player.Disconected = true;
                     Player.RemoveFromMap = true;
+
+                    if (lingerUntil != 0)
+                        Logger.WriteLog(LogType.Network,
+                            $"{Player.FamilyName} dropped in combat; the character stays in the world for {lingerUntil - Environment.TickCount64} ms.");
                 }
 
                 DiscardPendingChunks();
@@ -350,6 +409,10 @@ namespace Rasa.Game
 
             foreach (var tempClient in clientList)
                 tempClient.CallMethod(entityId, packet);
+
+            // And whoever holds the player from afar (FarAllies), when it is the player's own.
+            if (entityId == client.Player.EntityId)
+                Managers.FarAllies.Relay(client.Player, packet);
         }
 
         // Cell Domain ignore self
@@ -368,6 +431,8 @@ namespace Rasa.Game
 
                 tempClient.CallMethod(client.Player.EntityId, packet);
             }
+
+            Managers.FarAllies.Relay(client.Player, packet);
         }
 
         // Cell send movement
@@ -376,6 +441,9 @@ namespace Rasa.Game
             foreach (var tempClient in CellManager.Instance.GetClientsInCells(client.Player.MapChannel,
                          client.Player.Cells, ignoreSelf ? client : null))
                 tempClient.SendMessage(moveObjectMessage, false, 1);
+
+            // The squad and team mates who hold the player from across the map: their marker moves.
+            Managers.FarAllies.Relay(client, moveObjectMessage);
         }
 
         public void SendMessage(IClientMessage message, bool compress = false, byte channel = 0, bool delay = true)
@@ -531,6 +599,12 @@ namespace Rasa.Game
                     break;
 
                 case ClientMessageOpcode.Move:
+                    // Every accepted Move is a visibility pass and a broadcast to the cell;
+                    // dropped ones are not applied and not corrected, so a client a little over
+                    // the rate loses nothing it would not send again a moment later.
+                    if (!WithinRate(MoveLimit, "Move"))
+                        return;
+
                     var moveMessage = GetMessageAs<MoveMessage>(protocolPacket);
                     HandleMovement(moveMessage.Movement, moveMessage);
                     break;
@@ -560,6 +634,10 @@ namespace Rasa.Game
                     break;
 
                 case ClientMessageOpcode.Ping:
+                    // Answered unqueued, so a flood of them would be a packet out per packet in.
+                    if (!WithinRate(PingLimit, "Ping"))
+                        return;
+
                     var pingMessage = GetMessageAs<PingMessage>(protocolPacket);
 
                     SendMessage(pingMessage, delay: false);
@@ -603,9 +681,26 @@ namespace Rasa.Game
                     return true;
                 }
 
+                var moveTick = Environment.TickCount64;
+
+                // Through a force field, through a wall, or standing on nothing
+                // (MovementChecks): after the passages, whose far ends are inside the rock, and
+                // before the floor. A refusal is the speed refusal's: the step is dropped and the
+                // client put back where the server has the player.
+                if (MovementChecks.Judge(Player, previousPosition, Player.Position, moveTick) is MovementChecks.Finding finding)
+                {
+                    MovementChecks.Report(this, finding, previousPosition, Player.Position, moveTick);
+
+                    if (finding.Refuse)
+                    {
+                        Player.Position = previousPosition;
+                        ManifestationManager.Instance.PutBack(this, movement, moveTick);
+                        return false;
+                    }
+                }
+
                 // Out of the world (SafetyFloor): below the map's floor, and put back where they
                 // last stood. After the secret passages, whose panes are far above any floor.
-                var moveTick = Environment.TickCount64;
 
                 if (SafetyFloor.OnMove(this, Player.Position, moveTick))
                 {
@@ -849,6 +944,15 @@ namespace Rasa.Game
             [GameOpcode.RequestJoinVoiceChannel] = ("voice", 1, 5),
         };
 
+        /// <summary>
+        /// The protocol messages that are not method calls, limited the same way. Nothing limited
+        /// them: a Move is a visibility pass and a cell broadcast, a Ping an unqueued reply, and
+        /// a client could send either as fast as the wire allowed. The client sends ten Moves a
+        /// second walking and a few more turning; the Ping is far rarer.
+        /// </summary>
+        public static readonly (string Bucket, double PerSecond, double Burst) MoveLimit = ("move", 30, 60);
+        public static readonly (string Bucket, double PerSecond, double Burst) PingLimit = ("ping", 5, 10);
+
         private readonly Dictionary<string, (double Tokens, long Tick)> _rateBuckets = new();
         private long _rateDroppedSinceLog;
         private long _nextRateLogTick;
@@ -859,28 +963,28 @@ namespace Rasa.Game
         /// </summary>
         private bool WithinRate(GameOpcode methodId)
         {
-            if (!RateLimited.TryGetValue(methodId, out var limit))
-                return true;
+            return !RateLimited.TryGetValue(methodId, out var limit) || WithinRate(limit, methodId.ToString());
+        }
 
+        private bool WithinRate((string Bucket, double PerSecond, double Burst) limit, string what)
+        {
             var now = Environment.TickCount64;
 
             var (tokens, tick) = _rateBuckets.TryGetValue(limit.Bucket, out var bucket) ? bucket : (limit.Burst, now);
 
-            tokens = Math.Min(limit.Burst, tokens + (now - tick) * limit.PerSecond / 1000d);
+            var (taken, left) = TakeToken(tokens, tick, now, limit.PerSecond, limit.Burst);
 
-            if (tokens >= 1)
-            {
-                _rateBuckets[limit.Bucket] = (tokens - 1, now);
+            _rateBuckets[limit.Bucket] = (left, now);
+
+            if (taken)
                 return true;
-            }
 
-            _rateBuckets[limit.Bucket] = (tokens, now);
             _rateDroppedSinceLog++;
 
             if (now >= _nextRateLogTick)
             {
                 Logger.WriteLog(LogType.Security,
-                    $"{Player?.FamilyName ?? Socket.RemoteAddress.ToString()} is sending {methodId} faster than {limit.PerSecond}/s; "
+                    $"{Player?.FamilyName ?? Socket.RemoteAddress.ToString()} is sending {what} faster than {limit.PerSecond}/s; "
                     + $"{_rateDroppedSinceLog} call(s) dropped since the last of these.");
 
                 _rateDroppedSinceLog = 0;
@@ -888,6 +992,19 @@ namespace Rasa.Game
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// The bucket's arithmetic on its own: the tokens it had at <paramref name="tick"/>,
+        /// refilled to <paramref name="now"/> at <paramref name="perSecond"/> up to
+        /// <paramref name="burst"/>, and one taken if there is one. Returns whether one was
+        /// taken and what is left.
+        /// </summary>
+        public static (bool Taken, double Left) TakeToken(double tokens, long tick, long now, double perSecond, double burst)
+        {
+            tokens = Math.Min(burst, tokens + Math.Max(0, now - tick) * perSecond / 1000d);
+
+            return tokens >= 1 ? (true, tokens - 1) : (false, tokens);
         }
 
         /// <summary>

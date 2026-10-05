@@ -32,16 +32,15 @@ namespace Rasa.Managers
          *  - RemoveBuybackItem
          *  - ResetBuybackInventory
          *  - AddInboxItem / RemoveInboxItem / ResetInboxInventory (ShowInbox on every arrival)
+         *  - AddWagerItem / RemoveWagerItem / ResetWagerInventory (InventoryManager.Wager; ShowWager
+         *    on every arrival)
          *  - AddAuctionItem / RemoveAuctionItem / ResetAuctionInventory (ShowAuctions on every
          *    arrival, AuctionHouseManager for listing, sale, expiry, cancel and status)
          *  
          *      ToDo:
          *  - AddOverflowItem
-         *  - AddWagerItem
          *  - RemoveOverflowItem
-         *  - RemoveWagerItem
          *  - ResetOverflowInventory
-         *  - ResetWagerInventory
          *
          *      Intentionally not sent:
          *  - InventoryDisabled (291)               => the 1.16.5 client ignores it. clientmethod.py
@@ -81,6 +80,7 @@ namespace Rasa.Managers
          *  - RequestMoveItemToHomeInventory        => implemented
          *  - RequestTakeItemFromHomeInventory      => implemented
          *  - RequestTakeItemFromInboxInventory     => done
+         *  - WagerItem / RemoveWageredItem         => InventoryManager.Wager
          *  - TransferCreditToLockbox               => implemented
          *  - WeaponDrawerInventory_MoveItem        => implemented
          */
@@ -948,15 +948,19 @@ namespace Rasa.Managers
         }
 
         /// <summary>
-        /// The Pick Up Items tab's Receive button: takes one item out of the inbox and into the
-        /// pack. The inbox is a flat list, not a slotted inventory, so the item is found by its
-        /// entity id rather than by a source slot.
+        /// The Pick Up Items tab: takes one item out of the inbox and into the pack. The inbox
+        /// is a flat list, not a slotted inventory, so the item is found by its entity id rather
+        /// than by a source slot.
+        ///
+        /// Where it goes is the slot it was dropped on, when that slot can take it: one of the
+        /// item's own tab, and free - the inbox has no slot to swap an item back into, so a swap
+        /// would drop whatever was in the pack. Otherwise it is the first free slot of the
+        /// item's tab, which is every Receive, Receive All and right-click: those name no slot
+        /// (RequestTakeItemFromInboxInventoryPacket). With the tab full the item stays in the
+        /// inbox and the player is told.
         /// </summary>
         public void RequestTakeItemFromInboxInventory(Client client, RequestTakeItemFromInboxInventoryPacket packet)
         {
-            if (packet.DestSlot >= 250)
-                return;
-
             if (!client.Player.Inventory.InboxItems.Contains(packet.ItemEntityId))
             {
                 Logger.WriteLog(LogType.Error, $"Character {client.Player.Id} asked for inbox item {packet.ItemEntityId}, which is not in their inbox.");
@@ -968,11 +972,11 @@ namespace Rasa.Managers
             if (item == null || IsProtected(item))
                 return;
 
-            // The destination has to be free: the inbox has no slot to swap an item back into,
-            // so a swap here would drop whatever was in the pack.
-            if (client.Player.Inventory.PersonalInventory[(int)packet.DestSlot] != 0)
+            var destSlot = InboxDestination(client.Player.Inventory.PersonalInventory, item, packet.DestSlot);
+
+            if (destSlot < 0)
             {
-                Logger.WriteLog(LogType.Debug, $"Character {client.Player.Id} asked to take inbox item {packet.ItemEntityId} into occupied slot {packet.DestSlot}.");
+                client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(PlayerMessage.PmInventoryFull, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
                 return;
             }
 
@@ -980,11 +984,33 @@ namespace Rasa.Managers
             client.CallMethod(SysEntity.ClientInventoryManagerId, new RemoveInboxItemPacket(packet.ItemEntityId));
 
             item.OwnerId = client.Player.Id;
-            item.OwnerSlotId = packet.DestSlot;
+            item.OwnerSlotId = (uint)destSlot;
 
             // The row exists already - it was written when the item entered the inbox - so this
             // moves it rather than inserting a second one.
-            AddItemBySlot(client, InventoryType.Personal, packet.ItemEntityId, packet.DestSlot, true);
+            AddItemBySlot(client, InventoryType.Personal, packet.ItemEntityId, (uint)destSlot, true);
+        }
+
+        /// <summary>
+        /// The pack slot an inbox item goes to: the one asked for if it is a free slot of the
+        /// item's own tab, or else the first free slot of that tab. -1 when the tab is full, or
+        /// the item has no tab. A tab is fifty slots, as AddItemToInventory has them.
+        /// </summary>
+        private static int InboxDestination(List<ulong> pack, Item item, uint? asked)
+        {
+            var first = ((int)item.ItemTemplate.InventoryCategory - 1) * 50;
+
+            if (first < 0 || first + 50 > pack.Count)
+                return -1;
+
+            if (asked.HasValue && asked.Value >= first && asked.Value < first + 50 && pack[(int)asked.Value] == 0)
+                return (int)asked.Value;
+
+            for (var slot = first; slot < first + 50; slot++)
+                if (pack[slot] == 0)
+                    return slot;
+
+            return -1;
         }
 
         /// <summary>
@@ -1017,6 +1043,9 @@ namespace Rasa.Managers
                 foreach (var entityId in list)
                     if (Is(entityId, false))
                         return true;
+
+            if (Is(inventory.WagerItem, false))
+                return true;
 
             foreach (var entityId in inventory.HomeInventory)
                 if (Is(entityId, true))
@@ -1331,6 +1360,56 @@ namespace Rasa.Managers
 
         /// <summary>CLAN_LOCKBOX_LOGS_DISPLAY_LIMIT.</summary>
         private const int ClanLockboxLogDisplayLimit = 100;
+
+        /// <summary>
+        /// Prestige paid into a clan's lockbox from outside the clan: what a control point it
+        /// holds earns it (ControlPoints). The members who are online have the new balance, and
+        /// the lockbox's history a deposit under the two names given - the client prints them
+        /// as a character's first name and family name. False if there is no such clan or the
+        /// balance could not be written.
+        /// </summary>
+        public bool PayClanPrestige(uint clanId, uint amount, string payerName, string payerFamilyName)
+        {
+            if (clanId == 0 || amount == 0)
+                return false;
+
+            uint credits;
+            uint prestige;
+
+            try
+            {
+                using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+                var clan = unitOfWork.Clans.GetClanById(clanId);
+
+                if (clan == null)
+                    return false;
+
+                credits = clan.Credits;
+                prestige = (uint)Math.Min((long)clan.Prestige + amount, uint.MaxValue);
+
+                unitOfWork.Clans.UpdatePrestige(clanId, prestige);
+            }
+            catch (Exception e)
+            {
+                Logger.WriteLog(LogType.Error, $"Clan {clanId} was not paid {amount} prestige: {e.Message}");
+                return false;
+            }
+
+            foreach (var lockbox in EntityManager.Instance.DynamicObjects.Values.Where(o => o.EntityClassId == EntityClasses.UsableClanLockboxV01).ToList())
+                ClanManager.Instance.CallMethodForOnlineMembers(clanId, lockbox.EntityId, new UpdateClanLockboxCreditsPacket(credits, prestige));
+
+            try
+            {
+                RecordClanLockboxLog(null, ClanLockboxLogEntry.ForCredits(clanId, InventoryTransactionType.Deposit,
+                    0, payerName ?? "", payerFamilyName ?? "", (byte)CurencyType.Prestige, amount));
+            }
+            catch (Exception e)
+            {
+                Logger.WriteLog(LogType.Error, $"Clan {clanId}: the lockbox history has no line for {amount} prestige paid in: {e.Message}");
+            }
+
+            return true;
+        }
 
         public void ClanCreditTransfer(Client client, long amount, uint creditType)
         {
@@ -2042,6 +2121,9 @@ namespace Rasa.Managers
             // The inbox's items survive the map change too, and were never shown again.
             ShowInbox(client, true);
 
+            // And the wagered one.
+            ShowWager(client, true);
+
             // So do the listed ones.
             ShowAuctions(client, true);
         }
@@ -2194,6 +2276,7 @@ namespace Rasa.Managers
             client.Player.Inventory.WeaponDrawer.Clear();
             client.Player.Inventory.AuctionItems.Clear();
             client.Player.Inventory.InboxItems.Clear();
+            client.Player.Inventory.WagerItem = 0;
 
             for (uint i = 0; i < 22; i++)
                 client.Player.Inventory.EquippedInventory.Add(0);
@@ -2284,6 +2367,16 @@ namespace Rasa.Managers
                         client.Player.Inventory.InboxItems.Add(newItem.EntityId);
                     }
 
+                    else if ((InventoryType)item.InventoryType == InventoryType.WagerInventory)
+                    {
+                        // The wager slot of the prestige window: shown once the load is done
+                        // (ShowWager, below). The slot holds one item.
+                        if (client.Player.Inventory.WagerItem == 0)
+                            client.Player.Inventory.WagerItem = newItem.EntityId;
+                        else
+                            Logger.WriteLog(LogType.Error, $"Character {client.Player.Id} has a second wagered item, {item.ItemId}; ignored.");
+                    }
+
                     else if ((InventoryType)item.InventoryType == InventoryType.AuctionInventory)
                     {
                         // Listed at an auction house. SendItemDataToClient above already created
@@ -2321,6 +2414,7 @@ namespace Rasa.Managers
             // Item data went out in the loop above.
             ShowInbox(client, false);
             ShowAuctions(client, false);
+            ShowWager(client, false);
         }
 
         /// <summary>
