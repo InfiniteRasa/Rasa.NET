@@ -82,6 +82,22 @@ namespace Rasa.Api
             }
         }
 
+        /// <summary>Whether a registered endpoint is currently enabled by the REST configuration.</summary>
+        public bool IsEndpointEnabled(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name) || _config?.Enabled != true)
+                return false;
+
+            name = name.Trim('/').ToLowerInvariant();
+            var endpoint = ResolveEndpoint(name);
+            if (endpoint == null)
+                return false;
+
+            var settings = EndpointConfigOf(_config, name)
+                ?? EndpointConfigOf(_config, endpoint.Name.Trim('/'));
+            return IsEnabled(endpoint, settings);
+        }
+
         /// <summary>Adds an endpoint, in place of any of the same name.</summary>
         public void Register(ApiEndpoint endpoint)
         {
@@ -255,9 +271,6 @@ namespace Rasa.Api
             if (config.Endpoints == null)
                 return null;
 
-            ApiEndpointConfig wildcard = null;
-            var wildcardLength = -1;
-
             foreach (var entry in config.Endpoints)
             {
                 var key = entry.Key?.Trim('/');
@@ -266,20 +279,9 @@ namespace Rasa.Api
 
                 if (string.Equals(key, name, StringComparison.OrdinalIgnoreCase))
                     return entry.Value;
-
-                if (!key.EndsWith("*", StringComparison.Ordinal))
-                    continue;
-
-                var prefix = key.Substring(0, key.Length - 1);
-                if (prefix.Length > wildcardLength
-                    && name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-                {
-                    wildcard = entry.Value;
-                    wildcardLength = prefix.Length;
-                }
             }
 
-            return wildcard;
+            return null;
         }
 
         private ApiEndpoint ResolveEndpoint(string name)

@@ -67,7 +67,8 @@ namespace Rasa.Config
         public List<string> AllowedIps { get; set; } = new List<string>();
 
         /// <summary>
-        /// The endpoints' own settings, by name ("healthcheck", "serverstatus", "addaccount") or by a trailing-prefix wildcard ("ingame*").
+        /// The endpoints' own settings, by name ("healthcheck", "serverstatus", "addaccount",
+        /// "ingame/session/exchange", and so on).
         /// An endpoint with no entry is on, and goes by <see cref="Public"/> and
         /// <see cref="ApiKey"/>. One that changes something ("addaccount", which makes logins)
         /// is the other way about: off with no entry, on only by an Enabled of true in its own,

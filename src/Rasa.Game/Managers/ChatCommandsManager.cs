@@ -88,14 +88,41 @@ namespace Rasa.Managers
 
             var parts = command.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
-            // Internal handshake used by the injected native UI to prove that an HTTP in-game
-            // API challenge belongs to this already-authenticated game connection. It is not
+            // Internal handshake used by the injected native UI to mint a short-lived, one-time
+            // REST API exchange code from an already-authenticated game connection. It is not
             // registered in _commands, so it does not appear in .help.
             if (string.Equals(parts[0], ".ingameapiauth", StringComparison.OrdinalIgnoreCase))
             {
-                var approved = parts.Length == 2 && Api.ApiHost.Instance.IngameSessions.AuthorizeChallenge(client, parts[1]);
+                if (parts.Length != 1 || !HasLevel(client, GmLevel.Admin))
+                {
+                    CommunicatorManager.Instance.SystemMessage(client,
+                        client.AccountEntry?.Level > 0
+                            ? $".ingameapiauth needs account level {(byte)GmLevel.Admin}; yours is {client.AccountEntry.Level}."
+                            : "Unknown command: .ingameapiauth");
+                    return;
+                }
+
+                if (!Api.ApiHost.Instance.Rest.IsEndpointEnabled("ingame/session/exchange"))
+                {
+                    // Machine-readable private failure for the injected UI. Like the exchange
+                    // code payload, the client consumes this before it reaches normal chat.
+                    CommunicatorManager.Instance.SystemMessage(client,
+                        "__RASA_INGAME_API_ERROR__:SESSION_EXCHANGE_DISABLED");
+                    return;
+                }
+
+                if (!Api.ApiHost.Instance.IngameSessions.TryCreateExchangeCode(client, out var exchangeCode))
+                {
+                    CommunicatorManager.Instance.SystemMessage(client,
+                        "__RASA_INGAME_API_ERROR__:SESSION_AUTH_UNAVAILABLE");
+                    return;
+                }
+
+                // The injected client consumes this prefixed payload before the stock chat window
+                // sees it. Never put the exchange code in the normal success message.
                 CommunicatorManager.Instance.SystemMessage(client,
-                    approved ? "In-game API session authorized." : "In-game API session authorization failed.");
+                    Api.Ingame.IngameSessionService.ExchangeMessagePrefix + exchangeCode);
+                CommunicatorManager.Instance.SystemMessage(client, "In-game API authentication request accepted.");
                 return;
             }
 

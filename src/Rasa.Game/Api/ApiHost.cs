@@ -42,7 +42,6 @@ namespace Rasa.Api
             Rest.Register(new HealthCheckEndpoint(status));
             Rest.Register(new ServerStatusEndpoint(status));
             Rest.Register(Accounts);
-            Rest.Register(new IngameSessionChallengeEndpoint(IngameSessions));
             Rest.Register(new IngameSessionExchangeEndpoint(IngameSessions));
             Rest.Register(new IngameItemCategoriesEndpoint(IngameSessions));
             Rest.Register(new IngameItemsEndpoint(IngameSessions));

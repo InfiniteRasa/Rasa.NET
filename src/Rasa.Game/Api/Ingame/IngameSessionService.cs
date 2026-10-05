@@ -11,16 +11,26 @@ namespace Rasa.Api.Ingame
     using Config;
     using Data;
     using Game;
+    using Managers;
 
     /// <summary>
-    /// Bridges an HTTP caller to an already-authenticated game connection. Challenges are
-    /// approved from inside the game, then exchanged for a JWT tied to that live connection and
-    /// remote address. Endpoint authorization is deliberately not done here.
+    /// Bridges the REST API to an already-authenticated game connection. The game client asks
+    /// for a short-lived, one-time exchange code through .ingameapiauth; the injected UI sends
+    /// that code to /ingame/session/exchange and receives a stateless JWT tied to the live game
+    /// connection. Endpoint-specific authorization is deliberately handled by the endpoint.
     /// </summary>
     public sealed class IngameSessionService
     {
+        /// <summary>
+        /// Prefix used only on the private system-message payload carrying an exchange code to
+        /// the injected client UI. The UI consumes this message before the stock chat window.
+        /// </summary>
+        public const string ExchangeMessagePrefix = "__RASA_INGAME_API_EXCHANGE__:";
+
+        private static readonly TimeSpan ExchangeCodeLifetime = TimeSpan.FromSeconds(60);
+
         private readonly object _sync = new object();
-        private readonly Dictionary<string, PendingChallenge> _pending = new Dictionary<string, PendingChallenge>(StringComparer.Ordinal);
+        private readonly Dictionary<string, PendingExchange> _pending = new Dictionary<string, PendingExchange>(StringComparer.Ordinal);
         private readonly ApiJwtService _jwt = new ApiJwtService("rasa-ingame-api");
         private bool _available;
         private int _tokenLifetimeSeconds = 86400;
@@ -39,7 +49,7 @@ namespace Rasa.Api.Ingame
 
                 if (config.JwtTokenLifetimeSeconds <= 0)
                 {
-                    Logger.WriteLog(LogType.Error, $"REST API: JwtTokenLifetimeSeconds must be greater than zero; in-game authentication is off.");
+                    Logger.WriteLog(LogType.Error, "REST API: JwtTokenLifetimeSeconds must be greater than zero; in-game authentication is off.");
                     return;
                 }
 
@@ -54,48 +64,44 @@ namespace Rasa.Api.Ingame
             }
         }
 
-        public string CreateChallenge(IPAddress remoteAddress)
+        /// <summary>
+        /// Creates a one-time exchange code for a live Admin-or-higher game connection.
+        /// The code is intentionally not an API session itself and expires quickly.
+        /// </summary>
+        public bool TryCreateExchangeCode(Client client, out string exchangeCode)
         {
-            if (remoteAddress == null)
-                return null;
+            exchangeCode = null;
 
-            lock (_sync)
-            {
-                if (!_available)
-                    return null;
-
-                var challenge = Convert.ToHexString(RandomNumberGenerator.GetBytes(24));
-                _pending[challenge] = new PendingChallenge(remoteAddress);
-                return challenge;
-            }
-        }
-
-        public bool AuthorizeChallenge(Client client, string challenge)
-        {
-            if (client?.Socket?.RemoteAddress == null
-                || client.State != ClientState.Ingame
-                || client.AccountEntry == null
-                || string.IsNullOrWhiteSpace(challenge))
+            if (!IsEligibleSessionClient(client))
                 return false;
 
             lock (_sync)
             {
-                if (!_available
-                    || !_pending.TryGetValue(challenge, out var pending)
-                    || !pending.RemoteAddress.Equals(client.Socket.RemoteAddress))
+                if (!_available)
                     return false;
 
-                pending.Client = client;
+                RemoveExpiredLocked();
+
+                exchangeCode = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
+                _pending[exchangeCode] = new PendingExchange(
+                    client,
+                    client.Socket.RemoteAddress,
+                    DateTime.UtcNow.Add(ExchangeCodeLifetime));
                 return true;
             }
         }
 
-        public bool TryExchange(IPAddress remoteAddress, string challenge, out string token, out string error)
+        /// <summary>
+        /// Consumes a code created by .ingameapiauth and issues a JWT for the same live game
+        /// connection. The HTTP request must come from the same remote address as the game
+        /// connection, and the account must still be Admin-or-higher when the exchange occurs.
+        /// </summary>
+        public bool TryExchange(IPAddress remoteAddress, string exchangeCode, out string token, out string error)
         {
             token = null;
-            error = "The in-game session has not approved this challenge yet.";
+            error = "The in-game API exchange code is invalid or has expired.";
 
-            if (remoteAddress == null || string.IsNullOrWhiteSpace(challenge))
+            if (remoteAddress == null || string.IsNullOrWhiteSpace(exchangeCode))
                 return false;
 
             Client client;
@@ -109,20 +115,24 @@ namespace Rasa.Api.Ingame
                     return false;
                 }
 
-                if (!_pending.TryGetValue(challenge, out var pending)
-                    || !pending.RemoteAddress.Equals(remoteAddress)
-                    || pending.Client == null)
+                RemoveExpiredLocked();
+
+                if (!_pending.TryGetValue(exchangeCode, out var pending))
+                    return false;
+
+                // A code is one-shot even when somebody tries to exchange it incorrectly.
+                _pending.Remove(exchangeCode);
+
+                if (!pending.RemoteAddress.Equals(remoteAddress))
                     return false;
 
                 client = pending.Client;
-                if (client.State != ClientState.Ingame || client.AccountEntry == null)
+                if (!IsEligibleSessionClient(client))
                 {
-                    _pending.Remove(challenge);
-                    error = "The approving game session is no longer available.";
+                    error = "The approving game session is no longer available or no longer has Admin access.";
                     return false;
                 }
 
-                _pending.Remove(challenge);
                 lifetime = _tokenLifetimeSeconds;
             }
 
@@ -135,6 +145,11 @@ namespace Rasa.Api.Ingame
             return true;
         }
 
+        /// <summary>
+        /// Validates a JWT and resolves it back to the same currently-connected game client.
+        /// Every in-game API session has an Admin-or-higher baseline; individual endpoints may
+        /// impose an additional command permission such as .giveitem.
+        /// </summary>
         public bool TryAuthenticate(ApiRequest request, out Client client)
         {
             client = null;
@@ -156,13 +171,28 @@ namespace Rasa.Api.Ingame
             {
                 client = Server.Clients.FirstOrDefault(candidate =>
                     candidate.ConnectionId == connectionId
-                    && candidate.State == ClientState.Ingame
                     && candidate.AccountEntry?.Id == accountId
                     && candidate.Socket?.RemoteAddress != null
-                    && candidate.Socket.RemoteAddress.Equals(request.Remote));
+                    && candidate.Socket.RemoteAddress.Equals(request.Remote)
+                    && IsEligibleSessionClient(candidate));
             }
 
             return client != null;
+        }
+
+        private static bool IsEligibleSessionClient(Client client) =>
+            client?.Socket?.RemoteAddress != null
+            && client.State == ClientState.Ingame
+            && ChatCommandsManager.HasLevel(client, GmLevel.Admin);
+
+        private void RemoveExpiredLocked()
+        {
+            var now = DateTime.UtcNow;
+            foreach (var code in _pending
+                .Where(pair => pair.Value.ExpiresAtUtc <= now || !IsEligibleSessionClient(pair.Value.Client))
+                .Select(pair => pair.Key)
+                .ToArray())
+                _pending.Remove(code);
         }
 
         private static bool TrySessionClaims(JsonElement payload, IPAddress remoteAddress, out uint accountId, out Guid connectionId)
@@ -178,11 +208,18 @@ namespace Rasa.Api.Ingame
                 && string.Equals(ip.GetString(), remoteAddress.ToString(), StringComparison.Ordinal);
         }
 
-        private sealed class PendingChallenge
+        private sealed class PendingExchange
         {
-            public PendingChallenge(IPAddress remoteAddress) => RemoteAddress = remoteAddress;
+            public PendingExchange(Client client, IPAddress remoteAddress, DateTime expiresAtUtc)
+            {
+                Client = client;
+                RemoteAddress = remoteAddress;
+                ExpiresAtUtc = expiresAtUtc;
+            }
+
+            public Client Client { get; }
             public IPAddress RemoteAddress { get; }
-            public Client Client { get; set; }
+            public DateTime ExpiresAtUtc { get; }
         }
     }
 }
