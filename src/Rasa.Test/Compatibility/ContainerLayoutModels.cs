@@ -201,34 +201,81 @@ namespace Rasa.Test.Compatibility
         private readonly Dictionary<string, string> _copiedHostFiles =
             new Dictionary<string, string>(StringComparer.Ordinal);
 
-        private DockerImageLayout()
+        internal string BaseImage { get; }
+        internal string User { get; private set; } = "root";
+        internal string WorkingDirectory { get; private set; } = "/";
+
+        private DockerImageLayout(string baseImage)
         {
+            BaseImage = baseImage;
         }
 
+        // The layout of the Dockerfile's final stage. Earlier stages are modelled too, so a
+        // COPY --from=<stage> takes exactly the files that stage would hold.
         internal static DockerImageLayout Create(string repositoryRoot)
         {
-            var layout = new DockerImageLayout();
+            return CreateStages(repositoryRoot).Last();
+        }
+
+        internal static IReadOnlyList<DockerImageLayout> CreateStages(string repositoryRoot)
+        {
             var dockerfile = DockerfileModel.Parse(
                 File.ReadAllText(Path.Combine(repositoryRoot, "Dockerfile")));
             var dockerIgnore = DockerIgnoreMatcher.Load(repositoryRoot);
-            var workingDirectory = "/";
+            var stages = new List<DockerImageLayout>();
+            var stageNames = new Dictionary<string, DockerImageLayout>(
+                StringComparer.OrdinalIgnoreCase);
+            DockerImageLayout layout = null;
 
             foreach (var instruction in dockerfile.Instructions)
             {
+                if (instruction.Name == "FROM")
+                {
+                    // --platform and other flags choose how the base image is pulled, not what
+                    // the stage holds.
+                    var from = SplitArguments(instruction.Arguments)
+                        .Where(field => !field.StartsWith("--", StringComparison.Ordinal))
+                        .ToArray();
+                    if (from.Length != 1 &&
+                        !(from.Length == 3 && from[1].Equals("AS", StringComparison.OrdinalIgnoreCase)))
+                        throw new InvalidDataException($"Unsupported Docker FROM instruction: {instruction.Arguments}");
+
+                    layout = new DockerImageLayout(from[0]);
+                    if (stageNames.TryGetValue(from[0], out var parent))
+                        layout.CopyStage(parent);
+                    // COPY --from takes a stage's name or its index.
+                    stageNames[stages.Count.ToString(System.Globalization.CultureInfo.InvariantCulture)] = layout;
+                    stages.Add(layout);
+                    if (from.Length == 3)
+                        stageNames[from[2]] = layout;
+                    continue;
+                }
+
+                if (layout == null)
+                {
+                    if (instruction.Name == "ARG")
+                        continue;
+                    throw new InvalidDataException($"Docker {instruction.Name} comes before any FROM.");
+                }
+
                 switch (instruction.Name)
                 {
                     case "WORKDIR":
-                        workingDirectory = PosixPath.Resolve(
-                            workingDirectory,
+                        layout.WorkingDirectory = PosixPath.Resolve(
+                            layout.WorkingDirectory,
                             instruction.Arguments);
-                        layout.AddDirectory(workingDirectory);
+                        layout.AddDirectory(layout.WorkingDirectory);
                         break;
                     case "COPY":
                         layout.ApplyCopy(
                             repositoryRoot,
-                            workingDirectory,
+                            layout.WorkingDirectory,
                             instruction.Arguments,
-                            dockerIgnore);
+                            dockerIgnore,
+                            stageNames);
+                        break;
+                    case "USER":
+                        layout.User = instruction.Arguments;
                         break;
                     case "RUN":
                         var build = DotNetBuildCommand.Parse(instruction.Arguments);
@@ -236,12 +283,15 @@ namespace Rasa.Test.Compatibility
                             build.Configuration.Equals(
                                 "Release",
                                 StringComparison.OrdinalIgnoreCase))
-                            layout.ApplyBuild(workingDirectory, build);
+                            layout.ApplyBuild(layout.WorkingDirectory, build);
                         break;
                 }
             }
 
-            return layout;
+            if (layout == null)
+                throw new InvalidDataException("Dockerfile has no FROM instruction.");
+
+            return stages;
         }
 
         internal bool ContainsFile(string path) =>
@@ -262,11 +312,34 @@ namespace Rasa.Test.Compatibility
             string repositoryRoot,
             string workingDirectory,
             string arguments,
-            DockerIgnoreMatcher dockerIgnore)
+            DockerIgnoreMatcher dockerIgnore,
+            IReadOnlyDictionary<string, DockerImageLayout> stages)
         {
-            var fields = SplitArguments(arguments);
+            // --chown and --chmod set ownership and modes, which the layout doesn't model.
+            // --from copies from an earlier stage instead of the build context.
+            var fields = SplitArguments(arguments).ToList();
+            string fromStage = null;
+            while (fields.Count != 0 && fields[0].StartsWith("--", StringComparison.Ordinal))
+            {
+                const string fromPrefix = "--from=";
+                if (fields[0].StartsWith(fromPrefix, StringComparison.Ordinal))
+                    fromStage = fields[0].Substring(fromPrefix.Length);
+                else if (!fields[0].StartsWith("--chown=", StringComparison.Ordinal) &&
+                         !fields[0].StartsWith("--chmod=", StringComparison.Ordinal))
+                    throw new InvalidDataException($"Unsupported Docker COPY instruction: {arguments}");
+                fields.RemoveAt(0);
+            }
+
             if (fields.Count != 2)
                 throw new InvalidDataException($"Unsupported Docker COPY instruction: {arguments}");
+
+            if (fromStage != null)
+            {
+                if (!stages.TryGetValue(fromStage, out var stage) || stage == this)
+                    throw new InvalidDataException($"Docker COPY --from names no earlier stage: {arguments}");
+                ApplyStageCopy(stage, workingDirectory, fields[0], fields[1]);
+                return;
+            }
 
             var source = Path.GetFullPath(Path.Combine(
                 repositoryRoot,
@@ -304,6 +377,63 @@ namespace Rasa.Test.Compatibility
                 var relative = Path.GetRelativePath(source, file).Replace('\\', '/');
                 AddCopiedFile(file, PosixPath.Resolve(destination, relative));
             }
+        }
+
+        private void ApplyStageCopy(
+            DockerImageLayout stage,
+            string workingDirectory,
+            string sourcePath,
+            string destinationPath)
+        {
+            var source = PosixPath.Resolve("/", sourcePath);
+            var destination = PosixPath.Resolve(workingDirectory, destinationPath);
+            if (stage._files.Contains(source))
+            {
+                if (destinationPath.EndsWith("/", StringComparison.Ordinal) ||
+                    _directories.Contains(destination))
+                    destination = PosixPath.Resolve(
+                        destination,
+                        source.Substring(source.LastIndexOf('/') + 1));
+                CopyStageFile(stage, source, destination);
+                return;
+            }
+
+            if (!stage._directories.Contains(source))
+                throw new InvalidDataException(
+                    $"Docker COPY --from source '{sourcePath}' does not exist in that stage.");
+
+            AddDirectory(destination);
+            var prefix = source.TrimEnd('/') + "/";
+            foreach (var file in stage._files
+                .Where(path => path.StartsWith(prefix, StringComparison.Ordinal))
+                .ToArray())
+                CopyStageFile(
+                    stage,
+                    file,
+                    PosixPath.Resolve(destination, file.Substring(prefix.Length)));
+        }
+
+        private void CopyStageFile(
+            DockerImageLayout stage,
+            string source,
+            string destination)
+        {
+            if (stage._copiedHostFiles.TryGetValue(source, out var hostPath))
+                AddCopiedFile(hostPath, destination);
+            else
+                AddFile(destination);
+        }
+
+        private void CopyStage(DockerImageLayout parent)
+        {
+            _files.UnionWith(parent._files);
+            _directories.UnionWith(parent._directories);
+            foreach (var pair in parent._copiedFiles)
+                _copiedFiles[pair.Key] = pair.Value;
+            foreach (var pair in parent._copiedHostFiles)
+                _copiedHostFiles[pair.Key] = pair.Value;
+            User = parent.User;
+            WorkingDirectory = parent.WorkingDirectory;
         }
 
         private void ApplyBuild(

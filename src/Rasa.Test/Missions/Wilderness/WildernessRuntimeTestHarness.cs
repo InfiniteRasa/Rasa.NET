@@ -29,15 +29,8 @@ namespace Rasa.Test.Missions.Wilderness
         private readonly string _directory;
         private readonly List<Action> _restoreServices = new();
         private readonly HashSet<ulong> _originalCreatures = EntityManager.Instance.Creatures.Keys.ToHashSet();
+        private readonly HashSet<ulong> _originalObjects = EntityManager.Instance.DynamicObjects.Keys.ToHashSet();
         private bool _disposed;
-
-        /// <summary>
-        /// The Wilderness navmesh, read once for the test run: read for every harness, each
-        /// one's stayed reachable after Dispose, about 50 MB a test. A harness has its own
-        /// NavMeshQuery over this one's mesh - a query is not thread safe, the mesh is only read.
-        /// </summary>
-        private static readonly Lazy<NavMeshQuery> WildernessNavMesh = new(() => new NavMeshQuery(NavMeshFile.Read(
-            NavMeshFile.PathFor(Path.Combine(RepositoryRoot(), "navmesh"), "adv_foreas_concordia_wilderness"))));
 
         private WildernessRuntimeTestHarness()
         {
@@ -291,6 +284,12 @@ namespace Rasa.Test.Missions.Wilderness
                          .Where(creature => !_originalCreatures.Contains(creature.EntityId) &&
                              Map != null && ReferenceEquals(creature.RuntimeMapChannel, Map)).ToArray())
                 CellManager.Instance.RemoveCreatureFromWorld(Map, creature);
+            // The map's objects too: EntityManager outlives the harness, and its registered
+            // logos, teleporters and other objects each hold this map and so its whole world.
+            foreach (var dynamicObject in EntityManager.Instance.DynamicObjects.Values
+                         .Where(dynamicObject => !_originalObjects.Contains(dynamicObject.EntityId) &&
+                             Map != null && ReferenceEquals(dynamicObject.RuntimeMapChannel, Map)).ToArray())
+                CellManager.Instance.RemoveFromWorld(Map, dynamicObject);
             foreach (var restore in _restoreServices.AsEnumerable().Reverse())
                 restore();
             World?.Dispose();

@@ -1,0 +1,58 @@
+name: Release on comment
+
+# A maintainer comments "/release" on a merged PR to publish development's HEAD as a container
+# image. issue_comment workflows always run from development's copy of this file, so a PR can't
+# change what this does; but anyone can comment, so the commenter's permission is checked.
+on:
+  issue_comment:
+    types: [ created ]
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    if: github.event.issue.pull_request && startsWith(github.event.comment.body, '/release')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      actions: write
+      issues: write
+      pull-requests: read
+    steps:
+    # Every comment field arrives through env, never ${{ }} inside the script.
+    - env:
+        GH_TOKEN: ${{ github.token }}
+        REPO: ${{ github.repository }}
+        BODY: ${{ github.event.comment.body }}
+        COMMENTER: ${{ github.event.comment.user.login }}
+        COMMENT_ID: ${{ github.event.comment.id }}
+        PR: ${{ github.event.issue.number }}
+      run: |
+        react() {
+          gh api --method POST "repos/$REPO/issues/comments/$COMMENT_ID/reactions" -f content="$1" > /dev/null
+        }
+
+        # "/release" alone or followed by whitespace; "/releasenotes" isn't a command.
+        if ! [[ "$BODY" =~ ^/release([[:space:]]|$) ]]; then
+          echo "Not a /release command."
+          exit 0
+        fi
+
+        permission=$(gh api "repos/$REPO/collaborators/$COMMENTER/permission" --jq .permission 2>/dev/null || echo none)
+        if [ "$permission" != admin ] && [ "$permission" != write ]; then
+          echo "::warning::$COMMENTER has '$permission' permission; /release needs write, maintain or admin."
+          react -1
+          exit 0
+        fi
+
+        if [ "$(gh api "repos/$REPO/pulls/$PR" --jq '.merged and .base.ref == "development"')" != true ]; then
+          echo "::warning::PR #$PR isn't merged into development."
+          react -1
+          exit 0
+        fi
+
+        # 👀 now; the release run adds 🚀 or 👎 when it finishes.
+        react eyes
+        gh workflow run release-container.yml -R "$REPO" --ref development \
+          -f requested_by="$COMMENTER" -f pull_request="$PR" -f comment_id="$COMMENT_ID"

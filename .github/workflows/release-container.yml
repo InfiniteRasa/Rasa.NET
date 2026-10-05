@@ -1,0 +1,123 @@
+name: Release container
+
+# Builds development's HEAD and pushes it to GHCR. Started by a maintainer's /release comment
+# (release-on-comment.yml) or by hand from the Actions tab.
+on:
+  workflow_dispatch:
+    inputs:
+      requested_by:
+        description: Who asked for the release
+        required: false
+      pull_request:
+        description: The PR the /release comment was on
+        required: false
+      comment_id:
+        description: The /release comment, which gets a reaction for the outcome
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-container
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      actions: read
+      issues: write
+      packages: write
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        ref: development
+    # Only a commit whose CI passed on development is released. A /release usually comes right
+    # after a merge, while that commit's CI is still running, so this waits for it to finish. The
+    # container smoke test only runs when the image's inputs changed; if it ran, it must pass too.
+    - name: Wait for CI on this commit
+      env:
+        GH_TOKEN: ${{ github.token }}
+        REPO: ${{ github.repository }}
+      run: |
+        sha=$(git rev-parse HEAD)
+        latest() {
+          gh run list -R "$REPO" --workflow "$1" --commit "$sha" --event push --branch development \
+            --limit 1 --json status,conclusion --jq '.[0] | "\(.status) \(.conclusion)"'
+        }
+        for _ in $(seq 80); do
+          ci=$(latest dotnet.yml)
+          container=$(latest container.yml)
+          if [ "${ci%% *}" = completed ] && { [ -z "$container" ] || [ "${container%% *}" = completed ]; }; then
+            break
+          fi
+          sleep 30
+        done
+        echo "dotnet.yml: ${ci:-no run}; container.yml: ${container:-no run}"
+        if [ "$ci" != "completed success" ]; then
+          echo "::error::CI on development's HEAD ($sha) didn't pass (${ci:-no run}); nothing was released."
+          exit 1
+        fi
+        if [ -n "$container" ] && [ "$container" != "completed success" ]; then
+          echo "::error::The container smoke test on $sha didn't pass ($container); nothing was released."
+          exit 1
+        fi
+    # GHCR names must be lowercase. The dated tag is what gets kept and pruned; latest and
+    # development always point at the newest release.
+    - name: Name the image
+      id: name
+      env:
+        REPO: ${{ github.repository }}
+      run: |
+        {
+          echo "image=ghcr.io/${REPO,,}"
+          echo "dated=$(date -u +%Y%m%d-%H%M)-$(git rev-parse --short=7 HEAD)"
+          echo "revision=$(git rev-parse HEAD)"
+        } >> "$GITHUB_OUTPUT"
+    - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+    - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ github.token }}
+    # No provenance or SBOM: they're pushed as untagged manifests, which the prune workflow
+    # would count and could delete out from under their image.
+    - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+      with:
+        context: .
+        push: true
+        provenance: false
+        sbom: false
+        tags: |
+          ${{ steps.name.outputs.image }}:${{ steps.name.outputs.dated }}
+          ${{ steps.name.outputs.image }}:development
+          ${{ steps.name.outputs.image }}:latest
+        labels: |
+          org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          org.opencontainers.image.revision=${{ steps.name.outputs.revision }}
+        cache-from: type=gha
+    - name: Summary
+      env:
+        IMAGE: ${{ steps.name.outputs.image }}
+        DATED: ${{ steps.name.outputs.dated }}
+        REQUESTED_BY: ${{ inputs.requested_by }}
+        PR: ${{ inputs.pull_request }}
+      run: |
+        echo "Pushed \`$IMAGE:$DATED\` (also \`development\` and \`latest\`)." >> "$GITHUB_STEP_SUMMARY"
+        if [ -n "$REQUESTED_BY" ]; then
+          echo "Requested by @$REQUESTED_BY${PR:+ on #$PR}." >> "$GITHUB_STEP_SUMMARY"
+        fi
+    - name: React to the /release comment
+      if: always() && inputs.comment_id != ''
+      env:
+        GH_TOKEN: ${{ github.token }}
+        REPO: ${{ github.repository }}
+        COMMENT_ID: ${{ inputs.comment_id }}
+        OUTCOME: ${{ job.status }}
+      run: |
+        content=-1
+        [ "$OUTCOME" = success ] && content=rocket
+        gh api --method POST "repos/$REPO/issues/comments/$COMMENT_ID/reactions" -f content="$content" > /dev/null

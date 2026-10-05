@@ -163,7 +163,7 @@ namespace Rasa.Test.Missions
             Assert.IsNull(diagnostic);
         }
 
-        [DataTestMethod]
+        [TestMethod]
         [DataRow(false, 7000U)]
         [DataRow(true, 2800U)]
         public void ItemEquippedRuleAcceptsClassOrTemplateSelection(

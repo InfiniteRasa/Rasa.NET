@@ -1,0 +1,64 @@
+# Version updates. Versions that live in more than one file are guarded by
+# PlatformCompatibilityTests, so each group below is shaped to move every copy in one PR.
+version: 2
+
+# A new SDK changes global.json (dotnet-sdk) and the Dockerfile's sdk stage (docker) together,
+# in one PR; separately, each would fail the guard that they agree.
+multi-ecosystem-groups:
+  dotnet-sdk:
+    schedule:
+      interval: monthly
+
+updates:
+  - package-ecosystem: dotnet-sdk
+    directory: /
+    multi-ecosystem-group: dotnet-sdk
+    patterns: [ "*" ]
+    ignore:
+      # Dependabot ignores global.json's rollForward, so a new major is held back here.
+      - dependency-name: "*"
+        update-types: [ "version-update:semver-major" ]
+
+  - package-ecosystem: docker
+    directory: /
+    multi-ecosystem-group: dotnet-sdk
+    # The Dockerfile's only images are the SDK and runtime.
+    patterns: [ "*" ]
+    ignore:
+      - dependency-name: "dotnet/*"
+        versions: [ ">= 11" ]
+
+  # Every NuGet version is in Directory.Packages.props, and dotnet-ef in .config/dotnet-tools.json.
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      ef-core:
+        patterns: [ "Microsoft.EntityFrameworkCore*", "Pomelo.EntityFrameworkCore.MySql", "dotnet-ef" ]
+      mstest:
+        patterns: [ "MSTest.*", "Microsoft.NET.Test.Sdk", "coverlet.*" ]
+      dotrecast:
+        patterns: [ "DotRecast.*" ]
+      other:
+        patterns: [ "*" ]
+    ignore:
+      # Pomelo 9.0.0 supports EF Core 9 only. Moving to EF Core 10 needs a MySQL provider
+      # decision of its own; Dependabot shouldn't make it.
+      - dependency-name: "Microsoft.EntityFrameworkCore*"
+        versions: [ ">= 10" ]
+      - dependency-name: "dotnet-ef"
+        versions: [ ">= 10" ]
+      - dependency-name: "Pomelo.EntityFrameworkCore.MySql"
+        versions: [ ">= 10" ]
+
+  # Workflows that hold secrets or push images pin actions by commit; this keeps those pins and
+  # the major tags in the other workflows current.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: [ "*" ]

@@ -12,15 +12,20 @@ namespace Rasa.Test.Compatibility
     public class PlatformCompatibilityTests
     {
         [TestMethod]
-        public void RepositoryPinsVerifiedDotNetSdk()
+        public void RepositoryPinsOneExactDotNetSdk()
         {
             var repositoryRoot = FindRepositoryRoot();
-            using var document = JsonDocument.Parse(File.ReadAllText(Path.Combine(repositoryRoot, "global.json")));
+            var globalJson = RepositoryPins.Read(repositoryRoot, "global.json");
+            using var document = JsonDocument.Parse(globalJson);
             var sdk = document.RootElement.GetProperty("sdk");
 
-            Assert.AreEqual("10.0.401", sdk.GetProperty("version").GetString());
             Assert.AreEqual("disable", sdk.GetProperty("rollForward").GetString());
             Assert.IsFalse(sdk.GetProperty("allowPrerelease").GetBoolean());
+            Assert.AreEqual(
+                string.Empty,
+                string.Join(Environment.NewLine, RepositoryPins.CheckSdk(
+                    globalJson,
+                    RepositoryPins.Read(repositoryRoot, "Dockerfile"))));
         }
 
         [TestMethod]
@@ -61,8 +66,39 @@ namespace Rasa.Test.Compatibility
             var navMesh = XDocument.Load(Path.Combine(repositoryRoot, "src", "Rasa.NavMesh", "Rasa.NavMesh.csproj"));
 
             CollectionAssert.Contains(ReadProjectReferences(game).ToArray(), @"..\Rasa.Navigation\Rasa.Navigation.csproj");
-            Assert.AreEqual("2026.3.1", ReadPackageVersion(navigation, "DotRecast.Detour"));
-            Assert.AreEqual("2026.3.1", ReadPackageVersion(navMesh, "DotRecast.Recast"));
+            CollectionAssert.Contains(ReadPackageReferences(navigation).ToArray(), "DotRecast.Detour");
+            CollectionAssert.Contains(ReadPackageReferences(navMesh).ToArray(), "DotRecast.Recast");
+        }
+
+        [TestMethod]
+        public void PackagesThatMoveTogetherShareOneVersion()
+        {
+            var repositoryRoot = FindRepositoryRoot();
+
+            Assert.AreEqual(
+                string.Empty,
+                string.Join(Environment.NewLine, RepositoryPins.CheckPackages(
+                    RepositoryPins.Read(repositoryRoot, "Directory.Packages.props"),
+                    RepositoryPins.Read(repositoryRoot, ".config", "dotnet-tools.json"))));
+        }
+
+        [TestMethod]
+        public void DockerImageRunsAsTheRuntimeImagesNonRootUser()
+        {
+            var image = DockerImageLayout.Create(FindRepositoryRoot());
+
+            Assert.AreEqual("app", image.User);
+            StringAssert.StartsWith(image.BaseImage, "mcr.microsoft.com/dotnet/runtime:");
+        }
+
+        [TestMethod]
+        public void DockerBuildStageHasTheFilesThatPinTheBuild()
+        {
+            var build = DockerImageLayout.CreateStages(FindRepositoryRoot())[0];
+
+            // Without these, the image would restore and build with other versions than CI.
+            foreach (var file in new[] { "global.json", "Directory.Packages.props", ".config/dotnet-tools.json" })
+                Assert.IsTrue(build.ContainsFile("/app/" + file), $"The build stage has no /app/{file}.");
         }
 
         [TestMethod]
@@ -110,11 +146,11 @@ namespace Rasa.Test.Compatibility
                 .Where(reference => reference != null);
         }
 
-        private static string ReadPackageVersion(XDocument project, string package)
+        private static IEnumerable<string> ReadPackageReferences(XDocument project)
         {
             return project.Descendants("PackageReference")
-                .Single(reference => reference.Attribute("Include")?.Value == package)
-                .Attribute("Version")?.Value;
+                .Select(reference => reference.Attribute("Include")?.Value)
+                .Where(reference => reference != null);
         }
 
         private static void AssertServiceLayout(

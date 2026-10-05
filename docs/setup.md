@@ -10,7 +10,7 @@ This guide will help you install and setup the required tools to run Rasa.NET. T
 ## Download, install, and setup the required tooling
 The following tools are required to setup, build, and run Rasa.NET:
 
-- .NET SDK 10.0.401 (pinned in the repository's `global.json`)
+- The .NET 10 SDK version pinned in the repository's `global.json`
 - Optional: a Visual Studio release that supports this .NET 10 SDK
 - Database System, either:
   - MySQL Server and Workbench or
@@ -30,8 +30,20 @@ All solution projects target .NET 10, including `Rasa.Missions`.
 Install the exact SDK selected by `global.json`; SDK
 roll-forward is disabled so local builds, CI and Docker use the same version.
 
-- [Download the .NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) and install version **10.0.401**. The SDK includes the runtime.
-- From the repository root, run `dotnet --version` and verify `10.0.401`.
+- [Download the .NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) and install the exact version in `global.json`'s `sdk.version`. The SDK includes the runtime.
+- From the repository root, run `dotnet --version` and verify it prints that version.
+
+#### Updating the SDK or packages
+
+The SDK version lives in two places: `global.json` and the `sdk` build stage in
+the `Dockerfile`. NuGet versions all live in `Directory.Packages.props`, and the
+`dotnet-ef` tool in `.config/dotnet-tools.json` follows the EF Core packages.
+Change every copy in the same commit; `PlatformCompatibilityTests` fails when
+they disagree. Dependabot opens grouped update PRs (`.github/dependabot.yml`),
+and moves `global.json` and the `Dockerfile` together in one SDK PR. If an SDK
+PR changes only one of them (for example because the image isn't published
+yet), push the other change to that PR's branch before merging it. EF Core 10 and Pomelo
+updates are ignored until the project chooses a MySQL provider for EF Core 10.
 
 The supported portable deployment identifiers are `win-x64`, `osx-x64` and `linux-x64`. These preserve the Windows, macOS and Linux x64 deployment families, not support for the obsolete operating-system versions named by the old .NET 5 identifiers. Use an operating system supported by .NET 10.
 
@@ -178,7 +190,7 @@ To access a MySql server with EF Core, set `Provider` to `MySql`. You need to pr
 If you want to add additional migrations as part of a feature, see "Creating migrations".
 
 ## Working with the databases and EF Core
-The databases are kept up to date with EF Core. The compatible package set is EF Core/SQLite/Design **9.0.20** with Pomelo MySQL **9.0.0**, running on .NET 10. Pomelo 9 supports EF Core 9, not EF Core 10; upgrade these providers together. EF Core 9 support ends November 10, 2026, so this dependency choice needs review before that date. MySQL 8.0 and 8.4 are supported by the provider.
+The databases are kept up to date with EF Core. The compatible package set is EF Core/SQLite/Design 9 with Pomelo MySQL 9, running on .NET 10; the exact versions are in `Directory.Packages.props`. Pomelo 9 supports EF Core 9, not EF Core 10; upgrade these providers together. EF Core 9 support ends November 10, 2026, so this dependency choice needs review before that date. MySQL 8.0 and 8.4 are supported by the provider.
 
 MySQL schema names up to the server's 64-character limit are supported. Rasa preserves Pomelo's migration-lock names for schemas up to 45 characters and uses a deterministic, case-normalized SHA256 lock name for longer schemas. This keeps migration synchronization and history intact without renaming databases. The naming override uses Pomelo 9's protected lock-name hook; revalidate it when upgrading the provider.
 
@@ -190,17 +202,20 @@ First restore the solution and the repository-local EF tool from the repository 
 - Open powershell
 - `dotnet restore`
 - `dotnet tool restore`
-- `dotnet ef --version` (expected: `9.0.20`)
+- `dotnet ef --version` (expected: the `dotnet-ef` version in `.config/dotnet-tools.json`)
 
 Before upgrading an existing database, back it up and test these commands on a disposable copy. Keep `__EFMigrationsHistory`; do not use `EnsureCreated`, delete the database, or suppress pending-model errors to bypass an upgrade failure. SQLite applies migrations automatically on server startup; MySQL requires the commands below before starting the servers.
 
-Before declaring content or gameplay work ready, also check for provider/model
-drift from the repository root:
+Before declaring content or gameplay work ready, also check all six contexts for
+provider/model drift from the repository root. CI's `migration drift` job runs the
+same commands and fails on any pending change. None of them needs a database server.
 
-- `dotnet ef migrations has-pending-model-changes --project src\Rasa.DBL --startup-project src\Rasa.Game --context SqliteWorldContext`
-- `dotnet ef migrations has-pending-model-changes --project src\Rasa.DBL --startup-project src\Rasa.Game --context MySqlWorldContext`
-- `dotnet ef migrations has-pending-model-changes --project src\Rasa.DBL --startup-project src\Rasa.Game --context SqliteCharContext`
-- `dotnet ef migrations has-pending-model-changes --project src\Rasa.DBL --startup-project src\Rasa.Game --context MySqlCharContext`
+- `dotnet ef migrations has-pending-model-changes --project src/Rasa.DBL --startup-project src/Rasa.Game --context SqliteAuthContext`
+- `dotnet ef migrations has-pending-model-changes --project src/Rasa.DBL --startup-project src/Rasa.Game --context MySqlAuthContext`
+- `dotnet ef migrations has-pending-model-changes --project src/Rasa.DBL --startup-project src/Rasa.Game --context SqliteCharContext`
+- `dotnet ef migrations has-pending-model-changes --project src/Rasa.DBL --startup-project src/Rasa.Game --context MySqlCharContext`
+- `dotnet ef migrations has-pending-model-changes --project src/Rasa.DBL --startup-project src/Rasa.Game --context SqliteWorldContext`
+- `dotnet ef migrations has-pending-model-changes --project src/Rasa.DBL --startup-project src/Rasa.Game --context MySqlWorldContext`
 
 If required mission content is broken, `Rasa.Game` now logs each actionable
 mission diagnostic and refuses to print `Server ready!` until the content is
@@ -222,6 +237,16 @@ To apply any pending migrations, execute the following commands:
 - `dotnet ef database update --context=MySqlWorldContext`
 
 Explicitly providing the context is required as we have to work with different contexts according to database and provider.
+
+If a MySQL World database was first built before the fix for `reconstruction_note`
+(October 2026), its build may have stopped at `SeedWorldContent` with "Data too long
+for column 'reconstruction_note'". `ConsolidatedWorldSchema` is then already recorded
+as applied with the column too narrow, so re-running the update fails the same way.
+Widen the column once, then run the World update again:
+
+```sql
+ALTER TABLE mission_evidence MODIFY reconstruction_note text CHARACTER SET utf8mb4 NOT NULL;
+```
 
 You can also migrate to any specific migration (forward or backward) by passing the migration name or the index/number of the migration as an argument. Obviously, this works with other DbContexts, too:
 
@@ -405,11 +430,34 @@ Use `--map adv_foreas_concordia_wilderness` to rebuild one map. Generated files 
 
 ### Database compatibility tests
 
-The compatibility tests verify the pinned SDK, all solution project targets, the retained navigation project/package references, cryptographic fixtures, connection-string-specific MySQL server-version caching, and deterministic migration-lock names for schemas through MySQL's 64-character limit. The MySQL configuration tests use a fixed server version and do not connect to a database.
+The compatibility tests verify that the SDK, Docker images and package versions agree across the files that pin them, all solution project targets, the retained navigation project/package references, the Docker image layout, cryptographic fixtures, connection-string-specific MySQL server-version caching, and deterministic migration-lock names for schemas through MySQL's 64-character limit. The MySQL configuration tests use a fixed server version and do not connect to a database.
 
 ```powershell
 dotnet test src\Rasa.Test\Rasa.Test.csproj --filter "FullyQualifiedName~Compatibility"
 ```
+
+### Live MySQL tests
+
+The tests in the `MySql` category run against a real MySQL server: every MySQL migration applied from empty, the same row counts as Sqlite in every table afterwards, and accounts, characters and missions written and read back through the repositories. CI runs them against MySQL 8.0 and 8.4 in the `mysql` job and leaves them out of the other test lanes. Without a server, `dotnet test` reports them as skipped.
+
+To run them locally, start a throwaway server (`--tmpfs` keeps its data in memory, which makes the seed migrations much faster):
+
+```powershell
+docker run -d --name rasa-mysql -p 3306:3306 --tmpfs /var/lib/mysql -e MYSQL_ROOT_PASSWORD=rasa-ci mysql:8.4
+```
+
+Point the design-time factories at it with a `src\Rasa.DBL\databasesettings.env.json` (see [Database configuration](#database-configuration)) that sets `Host` `127.0.0.1`, `User` `root`, `Password` `rasa-ci` and a `TimeoutInMilliseconds` of a few minutes for each of `Auth`, `Char` and `World`; the timeout is also the command timeout, and the World seed is large. Then build, apply the migrations, and run the category with the server in `RASA_TEST_MYSQL`:
+
+```powershell
+dotnet build src\Rasa.Test
+dotnet ef database update --no-build --project src\Rasa.DBL --startup-project src\Rasa.Game --context MySqlAuthContext
+dotnet ef database update --no-build --project src\Rasa.DBL --startup-project src\Rasa.Game --context MySqlCharContext
+dotnet ef database update --no-build --project src\Rasa.DBL --startup-project src\Rasa.Game --context MySqlWorldContext
+$env:RASA_TEST_MYSQL = "Server=127.0.0.1;Port=3306;User ID=root;Password=rasa-ci"
+dotnet test src\Rasa.Test --no-build --filter TestCategory=MySql
+```
+
+The tests use the database names from `databasesettings.json` (and `databasesettings.env.json`, if it sets them), check row counts against an empty build, and remove the rows they add, so point them only at a throwaway server, never at one with real data. Delete `databasesettings.env.json` afterwards, or the servers you run from that build will read it too.
 
 ### Create a game user
 The authentication server can be used to create a user by running a command in the terminal. The usage is: `create <email> <username> <password>`. Running this command will create a new user in the database that you can use to login with the game client.

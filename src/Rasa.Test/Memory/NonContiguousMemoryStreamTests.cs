@@ -78,9 +78,9 @@ namespace Rasa.Test.Memory
             var read3 = new byte[70];
             var readCount3 = stream.Read(read3, 0, read3.Length);
 
-            Assert.AreEqual(readCount1, 30);
-            Assert.AreEqual(readCount2, 20);
-            Assert.AreEqual(readCount3, 70);
+            Assert.AreEqual(30, readCount1);
+            Assert.AreEqual(20, readCount2);
+            Assert.AreEqual(70, readCount3);
             Assert.AreEqual(stream.Position, stream.Length);
 
             // Validate read1
@@ -130,20 +130,20 @@ namespace Rasa.Test.Memory
             stream.CopyFromArray(buffer2);
 
             var throwAwayData = new byte[2];
-            stream.Read(throwAwayData, 0, 2);
+            Assert.AreEqual(2, stream.Read(throwAwayData, 0, 2));
 
             stream.RemoveBytes(3);
 
             var data = new byte[7];
-            stream.Read(data, 0, data.Length);
+            Assert.AreEqual(data.Length, stream.Read(data, 0, data.Length));
 
-            Assert.AreEqual(data[0], 3);
-            Assert.AreEqual(data[1], 4);
-            Assert.AreEqual(data[2], 0);
-            Assert.AreEqual(data[3], 2);
-            Assert.AreEqual(data[4], 4);
-            Assert.AreEqual(data[5], 6);
-            Assert.AreEqual(data[6], 8);
+            Assert.AreEqual(3, data[0]);
+            Assert.AreEqual(4, data[1]);
+            Assert.AreEqual(0, data[2]);
+            Assert.AreEqual(2, data[3]);
+            Assert.AreEqual(4, data[4]);
+            Assert.AreEqual(6, data[5]);
+            Assert.AreEqual(8, data[6]);
             Assert.AreEqual(stream.Length, buffer1.Length + buffer2.Length - 3);
             Assert.AreEqual(stream.Position, stream.Length);
         }
@@ -166,12 +166,12 @@ namespace Rasa.Test.Memory
             stream.CopyFromArray(buffer2);
 
             var throwAwayData = new byte[6];
-            stream.Read(throwAwayData, 0, 6);
+            Assert.AreEqual(6, stream.Read(throwAwayData, 0, 6));
 
             stream.RemoveBytes(9);
 
-            Assert.AreEqual(stream.Length, 1);
-            Assert.AreEqual(stream.Position, 0);
+            Assert.AreEqual(1, stream.Length);
+            Assert.AreEqual(0, stream.Position);
         }
 
         [TestMethod]
@@ -192,12 +192,12 @@ namespace Rasa.Test.Memory
             stream.CopyFromArray(buffer2);
 
             var throwAwayData = new byte[6];
-            stream.Read(throwAwayData, 0, 6);
+            Assert.AreEqual(6, stream.Read(throwAwayData, 0, 6));
 
             stream.RemoveBytes(10);
 
-            Assert.AreEqual(stream.Length, 0);
-            Assert.AreEqual(stream.Position, 0);
+            Assert.AreEqual(0, stream.Length);
+            Assert.AreEqual(0, stream.Position);
         }
 
         [TestMethod]

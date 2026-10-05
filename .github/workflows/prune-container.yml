@@ -1,0 +1,44 @@
+name: Prune container
+
+# Weekly, off the release's critical path: keeps the 14 newest image versions in GHCR and
+# deletes older ones. A version is an image digest; releases are pushed without attestations,
+# so each release is exactly one version and latest/development are always among the kept.
+on:
+  schedule:
+    - cron: '17 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  prune:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      packages: write
+    steps:
+    # Nothing to prune until the first release (or on a fork that never released).
+    - name: Check the package exists
+      id: package
+      env:
+        GH_TOKEN: ${{ github.token }}
+        OWNER: ${{ github.repository_owner }}
+        REPO: ${{ github.repository }}
+      run: |
+        kind=users
+        [ "$(gh api "repos/$REPO" --jq .owner.type)" = Organization ] && kind=orgs
+        if out=$(gh api "$kind/$OWNER/packages/container/rasa.net" 2>&1); then
+          echo "exists=true" >> "$GITHUB_OUTPUT"
+        elif grep -q 'HTTP 404' <<< "$out"; then
+          echo "::notice::No rasa.net container package yet; nothing to prune."
+        else
+          echo "$out"
+          exit 1
+        fi
+    - if: steps.package.outputs.exists == 'true'
+      uses: actions/delete-package-versions@e5bc658cc4c965c472efe991f8beea3981499c55 # v5.0.0
+      with:
+        package-name: rasa.net
+        package-type: container
+        min-versions-to-keep: 14

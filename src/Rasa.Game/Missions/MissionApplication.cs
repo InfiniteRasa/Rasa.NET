@@ -3504,7 +3504,7 @@ namespace Rasa.Managers
         /// (overheadwindow.py draws OVERHEAD_MISSION_UNAVAILABLE over the giver).
         ///
         /// A mission asking for anything else is not ahead, it is beside: Bootcamp's retry
-        /// (2005) wants Calling for Reinforcements failed, and its giver is not to wear the
+        /// mission wants Calling for Reinforcements failed, and its giver is not to wear the
         /// icon for everyone who has not failed it. So a required Failed state, a mission that
         /// has to be held at the time, a player flag, a map or a custom requirement keeps the
         /// mission out of this list whatever else it asks.

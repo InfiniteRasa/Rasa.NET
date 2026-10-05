@@ -2,8 +2,10 @@
 
 This provides an alternative to building and using the project directly on your system. Use Docker with Linux containers and Docker Compose v2.
 
-The Dockerfile builds all .NET 10 projects with SDK **10.0.401**, matching
-`global.json` and CI. Each Compose service uses its Release output directory as
+The Dockerfile builds all .NET 10 projects in the SDK image `global.json` pins
+(the same SDK as CI), then copies the Auth and Game Release output into the much
+smaller .NET 10 runtime image, which runs as its built-in non-root `app` user
+(UID 1654). Each Compose service uses its Release output directory as
 its working directory. This matches the runtime loaders, which resolve
 `appsettings.json`, `appsettings.env.json`, `databasesettings.json`, and
 `databasesettings.env.json` from the process working directory. The three
@@ -47,6 +49,14 @@ foreach ($file in 'rasaauth.db', 'rasachar.db', 'rasaworld.db') {
 docker compose build
 ```
 
+On a Linux host, the container's `app` user (UID 1654) must be able to write the
+mounted databases. Docker Desktop on Windows and macOS doesn't need this.
+
+```sh
+touch rasaauth.db rasachar.db rasaworld.db
+sudo chown 1654:1654 rasaauth.db rasachar.db rasaworld.db
+```
+
 This branch's consolidated migration history requires fresh databases,
 including when replacing databases from earlier versions of this branch.
 Do not run this as an existing-save conversion procedure or edit migration
@@ -84,6 +94,25 @@ against its owning service. It also models Dockerfile `COPY`, `WORKDIR`, and
 Release-build output placement from the project files. This verifies
 configuration, SQLite, knowledge-base, and navmesh paths without relying on a
 host `bin` directory as proof of image contents.
+
+CI's `Container` workflow (`.github/workflows/container.yml`) builds the image
+on PRs that touch it, starts it with this Compose file, and checks from inside
+each container that every port Compose maps is listening.
+
+## Use a released image
+
+Maintainers publish `development` to the GitHub Container Registry by commenting
+`/release` on a merged PR. To run a release instead of building locally, pull it
+and tag it with the name Compose uses:
+
+```sh
+docker pull ghcr.io/infiniterasa/rasa.net:latest
+docker tag ghcr.io/infiniterasa/rasa.net:latest rasa_net
+docker compose up --no-build
+```
+
+Released images are built for `linux/amd64` only. Each release also has a dated tag (`<yyyyMMdd-HHmm>-<commit>`); the 14 newest
+are kept.
 
 ## Start Server
 

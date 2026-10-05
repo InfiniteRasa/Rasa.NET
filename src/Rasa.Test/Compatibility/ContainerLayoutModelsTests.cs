@@ -131,6 +131,138 @@ namespace Rasa.Test.Compatibility
                 () => DockerImageLayout.Create(repository.Root));
         }
 
+        [TestMethod]
+        public void FinalStageHoldsOnlyWhatItCopiesFromEarlierStages()
+        {
+            using var repository = new DockerRepositoryFixture();
+            repository.Write(".dockerignore", "**/bin\n**/obj\n");
+            repository.Write("Dockerfile", """
+                FROM mcr.microsoft.com/dotnet/sdk:10.0.401 AS build
+                WORKDIR /app
+                COPY src /app/src
+                RUN dotnet build src/App/App.csproj -c Release
+                FROM mcr.microsoft.com/dotnet/runtime:10.0 AS runtime
+                WORKDIR /app
+                COPY --from=build --chown=app:app /app/src/App/bin/Release/net10.0 /app/src/App/bin/Release/net10.0
+                COPY --chown=app:app assets /app/src/App/bin/Release/net10.0/assets
+                USER app
+                """);
+            repository.Write("src/App/App.csproj", Project(
+                "App",
+                @"..\Shared\Shared.csproj",
+                "appsettings.json"));
+            repository.Write("src/App/appsettings.json", "{}");
+            repository.Write("src/Shared/Shared.csproj", Project("Shared"));
+            repository.Write("assets/map.nav", "mesh");
+
+            var stages = DockerImageLayout.CreateStages(repository.Root);
+            var image = DockerImageLayout.Create(repository.Root);
+
+            Assert.AreEqual(2, stages.Count);
+            Assert.AreEqual("mcr.microsoft.com/dotnet/runtime:10.0", image.BaseImage);
+            Assert.AreEqual("app", image.User);
+            Assert.AreEqual("root", stages[0].User);
+            Assert.AreEqual("mcr.microsoft.com/dotnet/sdk:10.0.401", stages[0].BaseImage);
+            Assert.IsTrue(image.ContainsFile("/app/src/App/bin/Release/net10.0/App.dll"));
+            Assert.IsTrue(image.ContainsFile("/app/src/App/bin/Release/net10.0/Shared.dll"));
+            Assert.IsTrue(image.ContainsFile("/app/src/App/bin/Release/net10.0/appsettings.json"));
+            Assert.IsTrue(image.ContainsFile("/app/src/App/bin/Release/net10.0/assets/map.nav"));
+            Assert.IsFalse(image.ContainsFile("/app/src/App/App.csproj"));
+            Assert.IsFalse(image.ContainsFile("/app/src/Shared/bin/Release/net10.0/Shared.dll"));
+            Assert.IsTrue(stages[0].ContainsFile("/app/src/App/App.csproj"));
+        }
+
+        [TestMethod]
+        public void StagesAreAddressableByIndexAndInheritTheirParentsWorkingDirectory()
+        {
+            using var repository = new DockerRepositoryFixture();
+            repository.Write(".dockerignore", "**/bin\n**/obj\n");
+            repository.Write("Dockerfile", """
+                FROM --platform=linux/amd64 mcr.microsoft.com/dotnet/sdk:10.0.401 AS source
+                WORKDIR /app
+                COPY src /app/src
+                FROM source AS build
+                RUN dotnet build src/App/App.csproj -c Release
+                FROM mcr.microsoft.com/dotnet/runtime:10.0
+                COPY --from=1 /app/src/App/bin/Release/net10.0 /app
+                """);
+            repository.Write("src/App/App.csproj", Project("App"));
+
+            var stages = DockerImageLayout.CreateStages(repository.Root);
+
+            Assert.AreEqual("/app", stages[1].WorkingDirectory);
+            Assert.IsTrue(stages[1].ContainsFile("/app/src/App/bin/Release/net10.0/App.dll"));
+            Assert.IsTrue(stages[2].ContainsFile("/app/App.dll"));
+            Assert.AreEqual("/", stages[2].WorkingDirectory);
+        }
+
+        [TestMethod]
+        public void CopyFromTheCurrentStageIsRejected()
+        {
+            using var repository = new DockerRepositoryFixture();
+            repository.Write(".dockerignore", string.Empty);
+            repository.Write("Dockerfile", """
+                FROM scratch AS build
+                WORKDIR /app
+                COPY --from=build /app /copy
+                """);
+
+            Assert.ThrowsExactly<InvalidDataException>(
+                () => DockerImageLayout.Create(repository.Root));
+        }
+
+        [TestMethod]
+        public void CopyFromAnUnknownStageIsRejected()
+        {
+            using var repository = new DockerRepositoryFixture();
+            repository.Write(".dockerignore", string.Empty);
+            repository.Write("Dockerfile", """
+                FROM mcr.microsoft.com/dotnet/runtime:10.0
+                COPY --from=build /app /app
+                """);
+
+            Assert.ThrowsExactly<InvalidDataException>(
+                () => DockerImageLayout.Create(repository.Root));
+        }
+
+        [TestMethod]
+        public void CopyOfAPathMissingFromTheStageIsRejected()
+        {
+            using var repository = new DockerRepositoryFixture();
+            repository.Write(".dockerignore", string.Empty);
+            repository.Write("Dockerfile", """
+                FROM scratch AS build
+                WORKDIR /app
+                FROM mcr.microsoft.com/dotnet/runtime:10.0
+                COPY --from=build /app/missing /app
+                """);
+
+            Assert.ThrowsExactly<InvalidDataException>(
+                () => DockerImageLayout.Create(repository.Root));
+        }
+
+        [TestMethod]
+        [DataRow("COPY --link src /app/src")]
+        [DataRow("COPY --parents src /app/src")]
+        [DataRow("COPY src other /app/")]
+        [DataRow("COPY --chown=app:app src other /app/")]
+        public void UnsupportedCopyFormsAreStillRejected(string copy)
+        {
+            using var repository = new DockerRepositoryFixture();
+            repository.Write(".dockerignore", string.Empty);
+            repository.Write("Dockerfile", $"""
+                FROM scratch
+                WORKDIR /app
+                {copy}
+                """);
+            repository.Write("src/App/App.csproj", Project("App"));
+            repository.Write("other/file.txt", "x");
+
+            var exception = Assert.ThrowsExactly<InvalidDataException>(
+                () => DockerImageLayout.Create(repository.Root));
+            StringAssert.StartsWith(exception.Message, "Unsupported Docker COPY instruction");
+        }
+
         private static string Project(
             string assemblyName,
             string projectReference = null,

@@ -9,9 +9,11 @@ permissions:
   contents: read
 
 # A new push to a PR cancels that PR's older run. Runs on development are never cancelled: a
-# cancelled run saves no NuGet cache and leaves no timings for the next run's test plan.
+# cancelled run saves no NuGet cache, leaves no timings for the next run's test plan, and leaves
+# its commit unreleasable. Each push gets a group of its own, since a group holds only one
+# pending run and replaces it with the next.
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.ref }}${{ github.event_name == 'push' && format('-{0}', github.sha) || '' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
@@ -78,7 +80,7 @@ jobs:
       uses: actions/cache/restore@v6
       with:
         path: ~/.nuget/packages
-        key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'global.json', '.config/dotnet-tools.json') }}
+        key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Packages.props', 'global.json', '.config/dotnet-tools.json') }}
         restore-keys: nuget-${{ runner.os }}-
     - name: Restore dependencies
       run: dotnet restore
@@ -100,7 +102,8 @@ jobs:
         HEAD: ${{ github.head_ref }}
       run: |
         last_green() {
-          gh run list -R "$REPO" --workflow dotnet.yml --status success --limit 3             --json databaseId --jq '.[].databaseId' "$@" 2>/dev/null || true
+          gh run list -R "$REPO" --workflow dotnet.yml --status success --limit 3 \
+            --json databaseId --jq '.[].databaseId' "$@" 2>/dev/null || true
         }
         runs=$(last_green --branch development --event push)
         if [ -z "$runs" ] && [ -n "$HEAD" ]; then
@@ -108,12 +111,14 @@ jobs:
         fi
         for run in $runs; do
           echo "Timings from run $run."
-          gh run download "$run" -R "$REPO" --pattern 'test-results-*' --dir "timings/$run"             || echo "::notice::No timings from run $run."
+          gh run download "$run" -R "$REPO" --pattern 'test-results-*' --dir "timings/$run" \
+            || echo "::notice::No timings from run $run."
         done
     - name: Plan test lanes
       id: plan
       run: |
-        dotnet run .github/scripts/TestShards.cs --           src/Rasa.Test/bin/Debug/net10.0/Rasa.Test.dll $((RUNNERS * LANES)) src/Rasa.Test/bin/Debug/net10.0/lanes timings
+        dotnet run .github/scripts/TestShards.cs -- \
+          src/Rasa.Test/bin/Debug/net10.0/Rasa.Test.dll $((RUNNERS * LANES)) src/Rasa.Test/bin/Debug/net10.0/lanes timings
         echo "runners=$(jq -cn --argjson n "$RUNNERS" '[range($n)]')" >> "$GITHUB_OUTPUT"
     # One archive so file modes survive (upload-artifact doesn't keep them).
     - name: Package test build
@@ -158,7 +163,11 @@ jobs:
         dotnet test "$bin/Rasa.Test.dll" --list-tests > /dev/null
         pids=()
         for lane in $(seq $((RUNNER * LANES)) $((RUNNER * LANES + LANES - 1))); do
-          dotnet test "$bin/Rasa.Test.dll"             --filter "$(cat "$bin/lanes/lane-$lane.filter")"             --blame-hang-timeout 10m             --logger "trx;LogFileName=lane-$lane.trx"             --results-directory "TestResults/lane-$lane" > "lane-$lane.log" 2>&1 &
+          dotnet test "$bin/Rasa.Test.dll" \
+            --filter "$(cat "$bin/lanes/lane-$lane.filter")" \
+            --blame-hang-timeout 10m \
+            --logger "trx;LogFileName=lane-$lane.trx" \
+            --results-directory "TestResults/lane-$lane" > "lane-$lane.log" 2>&1 &
           pids+=("$lane:$!")
         done
         status=0
@@ -178,10 +187,122 @@ jobs:
         path: TestResults/
         retention-days: 14
 
+  # Fails when any of the six EF contexts has model changes no migration covers. The design-time
+  # factories use a fixed MySQL server version, so no database server is needed.
+  drift:
+    name: migration drift
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+    - uses: actions/checkout@v7
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v6
+      with:
+        global-json-file: global.json
+    - name: Restore NuGet cache
+      uses: actions/cache/restore@v6
+      with:
+        path: ~/.nuget/packages
+        key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Packages.props', 'global.json', '.config/dotnet-tools.json') }}
+        restore-keys: nuget-${{ runner.os }}-
+    - run: dotnet tool restore
+    - run: dotnet build src/Rasa.Game
+    - name: Check every context for pending model changes
+      run: |
+        status=0
+        for context in SqliteAuthContext MySqlAuthContext SqliteCharContext MySqlCharContext SqliteWorldContext MySqlWorldContext; do
+          echo "::group::$context"
+          if ! dotnet ef migrations has-pending-model-changes --no-build --project src/Rasa.DBL --startup-project src/Rasa.Game --context "$context"; then
+            echo "::error::$context has model changes without a migration (or could not be checked)."
+            status=1
+          fi
+          echo "::endgroup::"
+        done
+        exit $status
+
+  # The MySql test category against a real server, after every MySQL migration is applied to it
+  # from empty, the way a MySQL deployment gets its schema. The other lanes leave this category
+  # out (TestShards.cs) and only build the MySQL model offline.
+  mysql:
+    name: mysql (${{ matrix.mysql }})
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        mysql: [ '8.0', '8.4' ]
+    services:
+      mysql:
+        image: mysql:${{ matrix.mysql }}
+        env:
+          MYSQL_ROOT_PASSWORD: rasa-ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -uroot -prasa-ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 30
+    env:
+      RASA_TEST_MYSQL: Server=127.0.0.1;Port=3306;User ID=root;Password=rasa-ci
+    steps:
+    - uses: actions/checkout@v7
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v6
+      with:
+        global-json-file: global.json
+    - name: Restore NuGet cache
+      uses: actions/cache/restore@v6
+      with:
+        path: ~/.nuget/packages
+        key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Packages.props', 'global.json', '.config/dotnet-tools.json') }}
+        restore-keys: nuget-${{ runner.os }}-
+    # The design-time factories read databasesettings.json and then databasesettings.env.json from
+    # the build output, the same files the servers read; the override points them at the service.
+    # The timeout is also the command timeout, and the seed migrations insert thousands of rows.
+    - name: Point the database settings at the service
+      run: |
+        jq '.Databases |= ((.Auth, .Char, .World) |= (.Host = "127.0.0.1" | .Port = 3306 | .User = "root" | .Password = "rasa-ci"
+            | .TimeoutInMilliseconds = 600000))' \
+          src/Rasa.DBL/databasesettings.json > src/Rasa.DBL/databasesettings.env.json
+    - run: dotnet tool restore
+    - name: Build
+      run: dotnet build src/Rasa.Test
+    - name: Apply the MySQL migrations
+      run: |
+        for context in MySqlAuthContext MySqlCharContext MySqlWorldContext; do
+          dotnet ef database update --no-build --project src/Rasa.DBL --startup-project src/Rasa.Game --context "$context"
+        done
+    - name: Test
+      run: |
+        dotnet test src/Rasa.Test --no-build \
+          --filter TestCategory=MySql \
+          --blame-hang-timeout 10m \
+          --logger "trx;LogFileName=mysql.trx" \
+          --results-directory TestResults
+        ran=$(grep -o '<UnitTestResult ' TestResults/mysql.trx | wc -l)
+        passed=$(grep -o '<UnitTestResult [^>]*outcome="Passed"' TestResults/mysql.trx | wc -l)
+        echo "MySQL ${{ matrix.mysql }}: $ran results, $passed passed." | tee -a "$GITHUB_STEP_SUMMARY"
+        if [ "$passed" -eq 0 ] || [ "$passed" -ne "$ran" ]; then
+          echo "::error::Every MySql test must run and pass against the server ($passed of $ran passed)."
+          exit 1
+        fi
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: mysql-results-${{ matrix.mysql }}
+        path: TestResults/
+        retention-days: 14
+
   # The one check to require: it passes when every lane passed, or when the PR changed only docs.
   tests-complete:
     name: tests complete
-    needs: [ changes, build, test ]
+    needs: [ changes, build, test, drift, mysql ]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -196,6 +317,8 @@ jobs:
         CHANGES: ${{ needs.changes.result }}
         BUILD: ${{ needs.build.result }}
         TEST: ${{ needs.test.result }}
+        DRIFT: ${{ needs.drift.result }}
+        MYSQL: ${{ needs.mysql.result }}
       run: |
         if [ "$CHANGES" = success ] && [ "$CODE" = false ]; then
           echo "Docs-only change; tests skipped."
@@ -208,7 +331,7 @@ jobs:
           failed=$((failed + $(grep -o '<UnitTestResult [^>]*outcome="Failed"' "$trx" | wc -l)))
         done
         echo "Across all lanes: $total results, $passed passed, $failed failed." | tee -a "$GITHUB_STEP_SUMMARY"
-        if [ "$BUILD" != success ] || [ "$TEST" != success ]; then
-          echo "::error::build: $BUILD, test runners: $TEST"
+        if [ "$BUILD" != success ] || [ "$TEST" != success ] || [ "$DRIFT" != success ] || [ "$MYSQL" != success ]; then
+          echo "::error::build: $BUILD, test runners: $TEST, migration drift: $DRIFT, mysql: $MYSQL"
           exit 1
         fi
