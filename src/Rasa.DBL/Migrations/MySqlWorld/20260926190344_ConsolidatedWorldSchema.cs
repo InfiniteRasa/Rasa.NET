@@ -393,7 +393,12 @@ namespace Rasa.Migrations.MySqlWorld
                     local_client_path = table.Column<string>(type: "varchar(256)", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     confidence = table.Column<double>(type: "double unsigned", nullable: false),
-                    reconstruction_note = table.Column<string>(type: "varchar(256)", nullable: false)
+                    // text, not the varchar(256) this first shipped with: SeedWorldContent, next,
+                    // writes today's Bootcamp evidence, some of whose notes are longer, and MySQL
+                    // refused them ("Data too long"), so no MySQL world database could be built from
+                    // empty. Databases already past this point were widened by
+                    // WildernessAliaBranches and WildernessEvidenceCapacity.
+                    reconstruction_note = table.Column<string>(type: "text", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4")
                 },
                 constraints: table =>
