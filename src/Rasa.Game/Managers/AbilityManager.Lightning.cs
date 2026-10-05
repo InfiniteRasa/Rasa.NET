@@ -45,7 +45,7 @@ namespace Rasa.Managers
         /// <paramref name="boltDamage"/> (before resistance), added to the hit's Arcs; and the
         /// storm, attached to the target.
         /// </summary>
-        private void ResolveLightningExtras(MapChannel mapChannel, Manifestation player, ActionLevelInfo info, Creature target, int boltDamage, AbilityHit hit)
+        private void ResolveLightningExtras(MapChannel mapChannel, Manifestation player, ActionLevelInfo info, Actor target, int boltDamage, AbilityHit hit)
         {
             var scaleType = info.Get(AbilityProperty.DamageScaleType);
             var targetAlive = target.State != CharacterState.Dead && target.State != CharacterState.Dying && target.Attributes[Attributes.Health].Current > 0;
@@ -73,10 +73,10 @@ namespace Rasa.Managers
                 AttachLightningStorm(mapChannel, player, info, target);
         }
 
-        /// <summary>Up to <paramref name="count"/> hostile creatures other than <paramref name="from"/> within radius of it, nearest first.</summary>
-        internal static List<Creature> NearestHostiles(MapChannel mapChannel, Manifestation player, Creature from, float radius, int count)
+        /// <summary>Up to <paramref name="count"/> hostile creatures or enemy players (Pvp) other than <paramref name="from"/> within radius of it, nearest first.</summary>
+        internal static List<Actor> NearestHostiles(MapChannel mapChannel, Manifestation player, Actor from, float radius, int count)
         {
-            return HostilesWithin(mapChannel, player, from.Position, radius)
+            return VictimsWithin(mapChannel, player, from.Position, radius)
                 .Where(c => c != from)
                 .OrderBy(c => Vector3.DistanceSquared(c.Position, from.Position))
                 .ThenBy(c => c.EntityId)
@@ -84,8 +84,8 @@ namespace Rasa.Managers
                 .ToList();
         }
 
-        /// <summary>Damage of a type to a creature from the player, resisted as that type, as the entry the client floats.</summary>
-        private static TickEntry DealDamage(MapChannel mapChannel, Manifestation player, Creature target, int damage, DamageType damageType)
+        /// <summary>Damage of a type to a creature or enemy player from the player, resisted as that type, as the entry the client floats.</summary>
+        private static TickEntry DealDamage(MapChannel mapChannel, Manifestation player, Actor target, int damage, DamageType damageType)
         {
             var amount = GameEffectManager.ApplyResist(target, damage, out var resisted, damageType);
             var taken = ActorManager.Instance.Damage(mapChannel, target, amount, player, out var outcome, damageType);
@@ -102,7 +102,7 @@ namespace Rasa.Managers
             };
         }
 
-        private void AttachLightningStorm(MapChannel mapChannel, Manifestation player, ActionLevelInfo info, Creature target)
+        private void AttachLightningStorm(MapChannel mapChannel, Manifestation player, ActionLevelInfo info, Actor target)
         {
             var intervalMs = Math.Max(500, info.Get(AbilityProperty.EffectIntervalMs, 2000));
             var storm = NewEffect(mapChannel, player, info, LightningStormTypeId, null);
@@ -126,7 +126,7 @@ namespace Rasa.Managers
         /// <summary>One tick of the storm: its target, then every other hostile around it, each its own roll.</summary>
         private void StormTick(MapChannel mapChannel, Actor holder, GameEffect storm, int min, int max)
         {
-            if (!(storm.Source is Manifestation player) || player.MapContextId != mapChannel.MapInfo.MapContextId || !(holder is Creature target))
+            if (!(storm.Source is Manifestation player) || player.MapContextId != mapChannel.MapInfo.MapContextId || holder == null)
             {
                 GameEffectManager.Instance.DettachEffect(mapChannel, holder, storm);
                 return;
@@ -135,7 +135,8 @@ namespace Rasa.Managers
             int Roll() => GameEffectManager.ApplyDamageDealt(player, Scale(storm.SourceLevel, _random.Next(min, max + 1), storm.TickScaleType));
 
             // Around the target first, while it is still there to be the centre.
-            var others = HostilesWithin(mapChannel, player, target.Position, LightningStormRadius).Where(c => c != target).ToList();
+            var target = holder;
+            var others = VictimsWithin(mapChannel, player, target.Position, LightningStormRadius).Where(c => c != target).ToList();
 
             var tick = new GameEffectTickPacket(storm.EffectId, GameEffectTickPacket.TickKind.Storm);
 

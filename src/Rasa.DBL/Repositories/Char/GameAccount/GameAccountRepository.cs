@@ -122,6 +122,14 @@ namespace Rasa.Repositories.Char.GameAccount
             _charContext.SaveChanges();
         }
 
+        public void UpdateMutedUntil(uint id, long mutedUntil)
+        {
+            var entry = _charContext.GetWritableEnsuring(_charContext.GameAccountEntries, id);
+            entry.MutedUntil = mutedUntil;
+
+            _charContext.SaveChanges();
+        }
+
         public void UpdateCanSkipBootcamp(uint id, bool canSkipBootcamp)
         {
             var entry = _charContext.GetWritableEnsuring(_charContext.GameAccountEntries, id);

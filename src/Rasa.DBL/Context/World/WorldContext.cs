@@ -59,6 +59,8 @@ namespace Rasa.Context.World
         public DbSet<MapRegionEntry> MapRegionEntries { get; set; }
         public DbSet<MapMarkerEntry> MapMarkerEntries { get; set; }
         public DbSet<MapEmitterEntry> MapEmitterEntries { get; set; }
+        public DbSet<ControlPointEntry> ControlPointEntries { get; set; }
+        public DbSet<ControlPointLinkEntry> ControlPointLinkEntries { get; set; }
         public DbSet<SpawnPoolArrivalEntry> SpawnPoolArrivalEntries { get; set; }
         public DbSet<RecipeEntry> RecipeEntries { get; set; }
         public DbSet<RecipeInputEntry> RecipeInputEntries { get; set; }
@@ -87,6 +89,7 @@ namespace Rasa.Context.World
         public DbSet<VendorItemEntry> VendorItemEntries { get; set; }
         public DbSet<VendorPriceEntry> VendorPriceEntries { get; set; }
         public DbSet<CreatureActorNameEntry> CreatureActorNameEntries { get; set; }
+        public DbSet<NpcGreetingEntry> NpcGreetingEntries { get; set; }
         public DbSet<WeaponClassEntry> WeaponClassEntries { get; set; }
 
         protected override DatabaseConnectionConfiguration GetDatabaseConnectionConfiguration()
@@ -100,6 +103,7 @@ namespace Rasa.Context.World
             SetupRandomName(modelBuilder);
             SetupItemTemplateItemClass(modelBuilder);
             SetupMapMarker(modelBuilder);
+            SetupControlPoints(modelBuilder);
             SetupCreatureClassFlag(modelBuilder);
             SetupSkillCharacter(modelBuilder);
             SetupMissionContent(modelBuilder);
@@ -133,6 +137,20 @@ namespace Rasa.Context.World
         {
             modelBuilder.Entity<MapMarkerEntry>()
                 .HasKey(e => new { e.MarkerEntityId, e.MapContextId });
+        }
+
+        /// <summary>
+        /// A control point's id is its row's own, given in the seed; a link is identified by
+        /// everything it says - the point, what kind of thing, and which.
+        /// </summary>
+        private static void SetupControlPoints(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<ControlPointEntry>()
+                .Property(e => e.Id)
+                .ValueGeneratedNever();
+
+            modelBuilder.Entity<ControlPointLinkEntry>()
+                .HasKey(e => new { e.ControlPointId, e.Kind, e.ObjectId });
         }
 
         /// <summary>
@@ -228,7 +246,7 @@ namespace Rasa.Context.World
                 "AND area_id IS NULL AND npc_package_id IS NULL " +
                 "AND player_flag_id IS NULL AND source_spawn_resolved IS NULL))";
             const string actionParameterSetConstraint =
-                "(kind IN (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)) " +
+                "(kind IN (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13)) " +
                 "AND (kind >= 10 OR item_intent IS NULL) " +
                 "AND (kind < 10 OR (item_intent IS NOT NULL AND target_objective_id IS NULL " +
                 "AND objective_state IS NULL AND reward_id IS NULL AND spawn_group_id IS NULL " +
@@ -405,7 +423,7 @@ namespace Rasa.Context.World
                 .AsUnsignedTinyInt(_dbContextPropertyModifier, 3);
             modelBuilder.Entity<MissionContentDefinitionEntry>()
                 .Property(entry => entry.CategoryId)
-                .AsUnsignedTinyInt(_dbContextPropertyModifier, 3);
+                .AsUnsignedInt(_dbContextPropertyModifier, 11);
 
             modelBuilder.Entity<MissionPrerequisiteEntry>()
                 .HasKey(entry => new { entry.MissionId, entry.ContentRevision, entry.PrerequisiteId });

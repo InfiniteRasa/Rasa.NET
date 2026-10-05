@@ -84,7 +84,7 @@ namespace Rasa.Managers
             // StunEffect.OnAnnounceAttach: uncontrolled, movement blocked.
             GameEffectManager.Instance.Attach(mapChannel, player, stun);
 
-            return true;
+            return player.ActiveEffects.ContainsKey(stun.EffectId);
         }
 
         /// <summary>
@@ -123,20 +123,126 @@ namespace Rasa.Managers
             };
 
             // Held until it ends, however it ends - run out, cleared on leaving the map.
-            if (client != null)
-            {
-                client.CallMethod(SysEntity.ClientMethodId, new RequestMovementBlockPacket());
-                knock.OnDetached = (map, actor, e) => client.CallMethod(SysEntity.ClientMethodId, new UnrequestMovementBlockPacket());
-            }
-
             // KnockbackEffect.OnAttach(target, duration).
-            GameEffectManager.Instance.Attach(mapChannel, player, knock, downMs / 1000.0);
+            HoldInPlace(mapChannel, player, knock, downMs / 1000.0);
+
+            // Refused (Cure's immunity, PvP Safety): not moved either.
+            if (!player.ActiveEffects.ContainsKey(knock.EffectId))
+                return false;
 
             if (travelled > 0.1f && client != null)
             {
                 player.PlaceAt(destination);
 
                 // To them and to everyone around: the player is where the knockback left them.
+                var movement = new Movement(destination, client.Movement?.ViewDirection ?? new Vector2(0f, 0f));
+                client.CellMoveObject(client, new MoveObjectMessage(player.EntityId, movement), false);
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Holds a player where they stand for durationMs - an enemy player's net gun: movement
+        /// blocked (RequestMovementBlock) until the effect ends, but not a stun, so they may still
+        /// shoot. Shown as the given effect type. Returns whether it landed.
+        /// </summary>
+        public static bool Root(MapChannel mapChannel, Manifestation player, Actor source, int typeId, int durationMs)
+        {
+            if (!CanBeHeld(player) || durationMs <= 0 || mapChannel == null)
+                return false;
+
+            var root = new GameEffect
+            {
+                TypeId = typeId,
+                EffectId = GameEffectManager.Instance.NextEffectId(mapChannel),
+                EffectLevel = 1,
+                SourceId = source?.EntityId ?? 0,
+                Source = source,
+                SourceLevel = (source as Manifestation)?.Level ?? (int)((source as Creature)?.Level ?? 1),
+                IsBuff = false,
+                IsRoot = true,
+                ExpiresTick = Environment.TickCount64 + durationMs
+            };
+
+            HoldInPlace(mapChannel, player, root);
+
+            return true;
+        }
+
+        /// <summary>
+        /// Attaches a rooting effect to a player with their movement blocked (RequestMovementBlock)
+        /// until it comes off - the client does not block a player's own movement for a root.
+        /// </summary>
+        public static void HoldInPlace(MapChannel mapChannel, Manifestation player, GameEffect root, params object[] args)
+        {
+            GameEffectManager.Instance.Attach(mapChannel, player, root, args);
+
+            // Refused (Cure's immunity): nothing to hold them with.
+            var client = ClientOf(mapChannel, player);
+
+            if (client == null || !player.ActiveEffects.ContainsKey(root.EffectId))
+                return;
+
+            client.CallMethod(SysEntity.ClientMethodId, new RequestMovementBlockPacket());
+
+            var detached = root.OnDetached;
+
+            root.OnDetached = (map, actor, e) =>
+            {
+                client.CallMethod(SysEntity.ClientMethodId, new UnrequestMovementBlockPacket());
+                detached?.Invoke(map, actor, e);
+            };
+        }
+
+        /// <summary>
+        /// Drags a player towards puller over flailMs - an enemy player's Vortex - to the point
+        /// CrowdControl.PullPath gives a creature, unless their Graviton Armor resists it: moved
+        /// there for them and everyone around, and held there for the flail. Returns whether it
+        /// landed.
+        /// </summary>
+        public static bool Pull(MapChannel mapChannel, Manifestation player, Actor puller, int flailMs)
+        {
+            if (!CanBeHeld(player) || puller == null || mapChannel == null)
+                return false;
+
+            var (destination, _) = CrowdControl.PullPath(mapChannel, player.Position, puller.Position, flailMs);
+
+            if (Vector3.Distance(player.Position, destination) <= 0.1f)
+                return false;
+
+            if (Stuns.Roll(ResistPercent(player)))
+            {
+                Resisted(mapChannel, player, CrowdControl.KnockbackTypeId, puller);
+                return false;
+            }
+
+            var client = ClientOf(mapChannel, player);
+
+            // Nothing to show of its own - the client plays the flail from the Vortex's recovery -
+            // so the hold is the server's alone.
+            var hold = new GameEffect
+            {
+                TypeId = CrowdControl.KnockbackTypeId,
+                EffectId = GameEffectManager.Instance.NextEffectId(mapChannel),
+                EffectLevel = 1,
+                SourceId = puller.EntityId,
+                Source = puller,
+                IsBuff = false,
+                IsStun = true,
+                ServerOnly = true,
+                ExpiresTick = Environment.TickCount64 + Math.Max(250, flailMs)
+            };
+
+            HoldInPlace(mapChannel, player, hold);
+
+            if (!player.ActiveEffects.ContainsKey(hold.EffectId))
+                return false;
+
+            if (client != null)
+            {
+                player.PlaceAt(destination);
+
                 var movement = new Movement(destination, client.Movement?.ViewDirection ?? new Vector2(0f, 0f));
                 client.CellMoveObject(client, new MoveObjectMessage(player.EntityId, movement), false);
             }

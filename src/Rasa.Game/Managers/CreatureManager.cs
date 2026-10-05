@@ -76,10 +76,17 @@ namespace Rasa.Managers
             if (creature == null)
                 return new List<int>();
 
-            return EntityClassManager.Instance.LoadedEntityClasses
+            var flags = EntityClassManager.Instance.LoadedEntityClasses
                 .TryGetValue(creature.EntityClass, out var entityClass) && entityClass != null
                 ? entityClass.CreatureFlags.ConvertAll(f => (int)f)
                 : new List<int>();
+
+            if (creature.ExtraFlags != null)
+                foreach (var extra in creature.ExtraFlags)
+                    if (!flags.Contains((int)extra))
+                        flags.Add((int)extra);
+
+            return flags;
         }
 
         // 1 creature to n client's
@@ -133,6 +140,33 @@ namespace Rasa.Managers
 
                 creature.AppearanceData.Add(EquipmentData.Weapon, weapon);
                 UpdateCreatureAppearance(creature);
+            }
+        }
+
+        /// <summary>
+        /// A dead creature's health and armour: at zero, with nothing coming back. The clients are
+        /// told its health when it was not at zero already - a caller that brought it there has
+        /// sent that itself.
+        /// </summary>
+        private static void ZeroVitals(MapChannel mapChannel, Creature creature)
+        {
+            if (creature.Attributes.TryGetValue(Attributes.Health, out var health))
+            {
+                var hadHealth = health.Current != 0;
+
+                health.Current = 0;
+                health.RefreshAmount = 0;
+                health.RefreshPeriod = 0;
+
+                if (hadHealth)
+                    CellManager.Instance.CellCallMethod(mapChannel, creature, new UpdateHealthPacket(health, creature.EntityId));
+            }
+
+            if (creature.Attributes.TryGetValue(Attributes.Armor, out var armor))
+            {
+                armor.Current = 0;
+                armor.RefreshAmount = 0;
+                armor.RefreshPeriod = 0;
             }
         }
 
@@ -193,10 +227,22 @@ namespace Rasa.Managers
 
             creature.State = CharacterState.Dead;
             creature.KnockbackTo = null;
+
+            // Dead is at zero health, for every caller. All but Critical Death arrive with that
+            // done. A creature killed out of its window - left to die, or finished - arrives
+            // with the 1 to 8 percent the window opened on, and was left with it: a body that
+            // BehaviorManager.CreatureThink, which knew a corpse by its health, never put on the
+            // corpse clock and went on thinking for.
+            ZeroVitals(mapChannel, creature);
+
             Game.Missions.World.CreatureGameplayRules.ClearRole(creature);
             CellManager.Instance.CellCallMethod(mapChannel, creature, new StateChangePacket(stateIds));
             if (creature.SpawnPool?.FollowOwnerCharacterId > 0)
                 PublishEscortStatus(mapChannel, creature, false);
+
+            // A turret blows up into its wreck; a Predator or Ravager is its wreck once it has
+            // fallen (AlternateMesh).
+            AlternateMesh.OnDeath(mapChannel, creature);
 
             // A debuff does not outlive what it was on: a Ruin still ticking on a corpse would
             // try to damage it every second until it expired.
@@ -268,6 +314,9 @@ namespace Rasa.Managers
                 var adrenaline = _manifestationManager.AdrenalineForKill(client);
 
                 _manifestationManager.GainAdrenaline(client, critKill != CritKill.None ? adrenaline * 2 : adrenaline);
+
+                // One of a control point's Bane garrison is worth prestige as well (ControlPoints).
+                ControlPoints.Instance.CreatureKilled(creature, client);
             }
 
             // The corpse is harvestable by whoever earned it, a fixed number of times. Set here
@@ -303,15 +352,49 @@ namespace Rasa.Managers
             }
 
             var progressClient = client;
+            var missions = _missionManager ?? MissionApplication.Instance;
             if (creature.SpawnPool?.SceneRunId != null)
-                (_missionManager ?? MissionApplication.Instance).Scenes.RecordDefeat(mapChannel, creature,
-                    progressClient != null && CanCreditScenarioProgress(mapChannel, creature, progressClient)
-                        ? progressClient : null);
-            else if (progressClient != null && CanCreditScenarioProgress(mapChannel, creature, progressClient))
-                (_missionManager ?? MissionApplication.Instance).Credit.Record(
-                    progressClient,
-                    MissionProgressEvent.Creature(creature.DbId),
-                    creature.Position);
+            {
+                var credited = progressClient != null && CanCreditScenarioProgress(mapChannel, creature, progressClient);
+                missions.Scenes.RecordDefeat(mapChannel, creature, credited ? progressClient : null);
+
+                // The scene has the kill of its own actor; what kind of creature it was is
+                // anyone's count.
+                if (credited)
+                    missions.Credit.RecordKill(progressClient, KillEvents(creature, false), creature.Position);
+            }
+            else
+            {
+                missions.Scenes.PublicActorDied(mapChannel, creature);
+                if (progressClient != null && CanCreditScenarioProgress(mapChannel, creature, progressClient))
+                    missions.Credit.RecordKill(progressClient, KillEvents(creature), creature.Position);
+            }
+
+            // A boss of a battlefield's title is recorded for whoever has the kill (BossTitles).
+            if (progressClient != null && CanCreditScenarioProgress(mapChannel, creature, progressClient))
+                BossTitles.Killed(progressClient, mapChannel, creature);
+        }
+
+        /// <summary>
+        /// The names a kill goes by in mission progress: the creature row ("Defeat Tizzik"), its
+        /// entity class, and each creature flag of its class - its species among them, which is
+        /// what "Kill 40 Xanx" counts.
+        /// </summary>
+        internal static IReadOnlyList<MissionProgressEvent> KillEvents(Creature creature, bool byCreature = true)
+        {
+            var events = new List<MissionProgressEvent>();
+
+            if (byCreature && creature.DbId != 0)
+                events.Add(MissionProgressEvent.Creature(creature.DbId));
+
+            if (creature.EntityClass != 0)
+                events.Add(MissionProgressEvent.CreatureClass((uint)creature.EntityClass));
+
+            foreach (var flag in CreatureFlagsOf(creature))
+                if (flag > 0)
+                    events.Add(MissionProgressEvent.CreatureFlag((uint)flag));
+
+            return events;
         }
 
         internal static Client FindEscortOwner(MapChannel mapChannel, Creature escort)
@@ -333,7 +416,7 @@ namespace Rasa.Managers
         }
 
         internal static bool IsLivingOnMap(MapChannel map, Actor actor) =>
-            actor != null && actor.State != CharacterState.Dead &&
+            actor != null && actor.State is not (CharacterState.Dead or CharacterState.Dying) &&
             actor.Attributes.TryGetValue(Attributes.Health, out var health) && health.Current > 0 &&
             MapInstanceScope.Contains(map, actor) &&
             (actor is Creature creature
@@ -348,7 +431,10 @@ namespace Rasa.Managers
 
         internal static bool IsHostileTarget(MapChannel map, Actor source, Creature target) =>
             IsLivingOnMap(map, source) && IsLivingOnMap(map, target) &&
-            target.TargetCategory != (source is Creature creature ? creature.TargetCategory : TargetCategory.Friendly);
+            Game.Missions.World.CreatureGameplayRules.CanParticipateInCombat(target) &&
+            (source is Creature attacker
+                ? BehaviorManager.MayFight(attacker, target.EntityId)
+                : TargetCategories.PlayerMayAttack(target.TargetCategory));
 
         internal static void RecordOwnerAttack(MapChannel map, Actor source, Creature target)
         {
@@ -441,6 +527,7 @@ namespace Rasa.Managers
             if (spawnPool?.RuntimeMapChannel != null)
             {
                 var leases = (_missionManager ?? MissionApplication.Instance).PublicActors;
+                leases.BindCombatGate(creature, spawnPool);
                 leases.Recover(spawnPool.RuntimeMapChannel);
                 if (leases.IsReserved(spawnPool.RuntimeMapChannel, spawnPool.DbId))
                     creature.IsInteractable = false;
@@ -503,10 +590,12 @@ namespace Rasa.Managers
 
             mapChannel.MapCellInfo.Cells[oldCellMatrix[2, 2]].CreatureList.Remove(creature);
 
-            // remove creature for player that are not in visibility range anymore
+            // remove creature for player that are not in visibility range anymore - unless it is
+            // who one of their missions sends them to speak to, which their client keeps (MissionContacts)
             foreach (var cellSeed in needDelete)
                 foreach (var client in mapChannel.MapCellInfo.Cells[cellSeed].ClientList)
-                    client.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(creature.EntityId));
+                    if (!MissionContacts.Keep(client, creature))
+                        client.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(creature.EntityId));
 
             // add creature to new cell
             mapChannel.MapCellInfo.Cells[newCellMatrix[2, 2]].CreatureList.Add(creature);
@@ -542,7 +631,8 @@ namespace Rasa.Managers
                 new AppearanceDataPacket(creature.AppearanceData),
                 new LevelPacket(creature.Level),
                 new AttributeInfoPacket(creature.Attributes),
-                new TargetCategoryPacket(creature.TargetCategory),
+                // HOSTILE to an enemy of the player it belongs to (Pvp), its own category otherwise.
+                new TargetCategoryPacket(client?.Player != null ? Pvp.CategoryFor(creature, client.Player) : creature.TargetCategory),
                 new UpdateAttributesPacket(creature.Attributes, 0),
                 new IsRunningPacket(creature.IsRunning)
             };
@@ -582,6 +672,10 @@ namespace Rasa.Managers
             // What is on it - a DoT, a mark, a minion's or a risen corpse's effect, a turret's
             // look - went out before this client was here.
             GameEffectManager.ShowEffectsTo(client, creature);
+
+            // A turret or vehicle with a wreck: the effect that swaps its model, as the wreck
+            // already when that is what it is now.
+            AlternateMesh.ShowTo(client, creature);
         }
 
         internal Creature CreateScenarioCreature(
@@ -667,6 +761,9 @@ namespace Rasa.Managers
             var actorNames = new Dictionary<uint, string>();
             foreach (var entry in unitOfWork.Creatures.GetActorNames())
                 actorNames[entry.Id] = entry.ActorName;
+            var greetings = new Dictionary<uint, uint>();
+            foreach (var entry in unitOfWork.Creatures.GetNpcGreetings())
+                greetings[entry.Id] = entry.GreetingId;
 
             foreach (var data in creatureList)
             {
@@ -738,6 +835,10 @@ namespace Rasa.Managers
 
                 if (isNpc != null)
                     creature.Npc = isNpc;
+
+                // The line it greets a player with, if it has one of its own (NpcGreetings).
+                if (isNpc != null && greetings.TryGetValue(data.Id, out var greetingId) && NpcGreetings.IsLine(greetingId))
+                    isNpc.GreetingId = greetingId;
 
                 if (isAuctioneer)
                     creature.Npc.NpcIsAuctioneer = true;

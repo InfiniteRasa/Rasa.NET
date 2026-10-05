@@ -68,7 +68,7 @@ namespace Rasa.Managers
         /// <summary>REPAIR_GLOBAL_MODIFIER.</summary>
         public const double RepairGlobalModifier = 1.0;
 
-        /// <summary>EQUIPMENT_DAMAGE_PER_DEATH, as a positive percentage of maximum: for the death system.</summary>
+        /// <summary>EQUIPMENT_DAMAGE_PER_DEATH, as a positive percentage of maximum: what a death costs every equipped piece (WearForDeath).</summary>
         public const double DeathWearPercent = 10.0;
 
         /// <summary>Ours: hours of heavy fighting that take a piece from 100% to <see cref="FullStrengthAt"/>.</summary>
@@ -213,6 +213,32 @@ namespace Rasa.Managers
 
                 if (item?.ItemTemplate != null && EntityClassManager.Instance.GetClassInfo(item.ItemTemplate.Class)?.ArmorClassInfo != null)
                     Wear(client, item, ArmorWearPercentPerHit, isArmor: true);
+            }
+        }
+
+        /// <summary>
+        /// A death (PlayerDeath): every piece the player has on, and every weapon in their drawer,
+        /// loses EQUIPMENT_DAMAGE_PER_DEATH of its maximum - "All of your equipment is damaged by 10%".
+        /// </summary>
+        public static void WearForDeath(Client client)
+        {
+            var inventory = client?.Player?.Inventory;
+
+            if (inventory == null)
+                return;
+
+            var items = inventory.EquippedInventory.Concat(inventory.WeaponDrawer).Where(id => id != 0).Distinct().ToList();
+
+            foreach (var id in items)
+            {
+                var item = EntityManager.Instance.GetItem(id);
+
+                if (item?.ItemTemplate == null)
+                    continue;
+
+                var isArmor = EntityClassManager.Instance.GetClassInfo(item.ItemTemplate.Class)?.ArmorClassInfo != null;
+
+                Wear(client, item, DeathWearPercent, isArmor);
             }
         }
 

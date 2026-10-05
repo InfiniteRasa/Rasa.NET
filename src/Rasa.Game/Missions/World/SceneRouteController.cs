@@ -31,6 +31,8 @@ namespace Rasa.Game.Missions.World
                 return WorldEffectResult.Failed("Route has no valid points or speed.");
             if (map.NavMesh == null)
                 return WorldEffectResult.Failed("Scripted routes require a loaded navmesh.");
+            if (!IsLivingRouteActor(map, creature))
+                return WorldEffectResult.Failed("Scripted routes require a living actor on this map.");
             var previous = creature.Position;
             foreach (var point in route.Points.Skip(intent.StartWaypoint))
             {
@@ -65,7 +67,8 @@ namespace Rasa.Game.Missions.World
                 if (!IsCurrent(run))
                     continue;
                 var actor = _resolve(map, run.Handle);
-                if (actor != null && actor.State != Data.CharacterState.Dead &&
+                var living = IsLivingRouteActor(map, actor);
+                if (living &&
                     run.Intent.ResumeAfterCombat && actor.Controller.CurrentAction != BehaviorManager.BehaviorActionScriptedMove)
                 {
                     if (actor.Controller.CurrentAction == BehaviorManager.BehaviorActionFighting)
@@ -80,7 +83,7 @@ namespace Rasa.Game.Missions.World
                     }
                     continue;
                 }
-                if (actor == null || actor.State == Data.CharacterState.Dead ||
+                if (!living ||
                     !ReferenceEquals(actor.Controller.ScriptedMove, run.Move))
                 {
                     RestoreSpeed(run);
@@ -122,6 +125,15 @@ namespace Rasa.Game.Missions.World
 
         private void Complete(RouteRun run, Creature actor)
         {
+            if (!IsLivingRouteActor(run.Map, actor))
+            {
+                RestoreSpeed(run);
+                _observe(run.Handle.RunId, new SceneObservation(SceneEventKind.ActorDied, run.Handle.Generation,
+                    "route-lost-actor", run.Handle.Role, run.Intent.OperationKey));
+                if (IsCurrent(run))
+                    _routes.Remove((run.Handle.RunId, run.Handle.Role));
+                return;
+            }
             _observe(run.Handle.RunId, new SceneObservation(SceneEventKind.RouteCompleted,
                 run.Handle.Generation, Role: run.Handle.Role, OperationKey: run.Intent.OperationKey,
                 Position: new ScenePosition(actor.Position.X, actor.Position.Y, actor.Position.Z)));
@@ -130,6 +142,9 @@ namespace Rasa.Game.Missions.World
             _routes.Remove((run.Handle.RunId, run.Handle.Role));
             actor.RunSpeed = run.PreviousSpeed;
         }
+
+        private static bool IsLivingRouteActor(MapChannel map, Creature actor) =>
+            CreatureManager.IsLivingOnMap(map, actor) && actor.State != Data.CharacterState.Dying;
 
         private bool IsCurrent(RouteRun run) =>
             _routes.TryGetValue((run.Handle.RunId, run.Handle.Role), out var current) && ReferenceEquals(current, run);

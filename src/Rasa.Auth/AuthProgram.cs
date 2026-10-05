@@ -16,6 +16,7 @@ namespace Rasa
     using Repositories.Auth;
     using Repositories.Auth.Account;
     using Repositories.UnitOfWork;
+    using Services.Passwords;
     using Services.Random;
 
     public class AuthProgram
@@ -61,6 +62,7 @@ namespace Rasa
             services.AddScoped<IAuthUnitOfWork, AuthUnitOfWork>();
             services.AddScoped<IAuthAccountRepository, AuthAccountRepository>();
             services.AddSingleton<IRandomNumberService, RandomNumberService>();
+            services.AddSingleton<IPasswordHashSettings, Config.AuthPasswordHashSettings>();
         }
 
         private static void AddDatabase(HostBuilderContext context, IServiceCollection services)

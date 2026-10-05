@@ -16,5 +16,14 @@ namespace Rasa.Repositories.World
         List<VendorEntry> GetVendors();
         List<VendorPriceEntry> GetVendorPrices();
         List<CreatureActorNameEntry> GetActorNames();
+
+        /// <summary>The greeting each NPC has been given (npc_greeting). An NPC with no row has the default.</summary>
+        List<NpcGreetingEntry> GetNpcGreetings() => new List<NpcGreetingEntry>();
+
+        /// <summary>Gives a creature row a greeting, or changes the one it has.</summary>
+        void SaveNpcGreeting(uint creatureId, uint greetingId) => throw new System.NotSupportedException();
+
+        /// <summary>Takes a creature row's greeting away. False if it had none.</summary>
+        bool DeleteNpcGreeting(uint creatureId) => throw new System.NotSupportedException();
     }
 }

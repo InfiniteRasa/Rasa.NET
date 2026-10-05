@@ -44,6 +44,7 @@ namespace Rasa.Packets.Auth.Client
             Password = Encoding.UTF8.GetString(buff, 14, FirstZeroIndex(buff, 14, 16));
             GameId = reader.ReadUInt32();
             CDKey = reader.ReadUInt16();
+            reader.EnsureFullyConsumed("Auth login payload");
         }
 
         public void Write(BinaryWriter writer)
@@ -75,7 +76,8 @@ namespace Rasa.Packets.Auth.Client
 
         public override string ToString()
         {
-            return $"LoginPacket(\"{UserName}\", \"{Password}\", {GameId}, {CDKey})";
+            // Never the password: this is what a log line or a debugger shows of the packet.
+            return $"LoginPacket(\"{UserName}\", \"***\", {GameId}, {CDKey})";
         }
     }
 }

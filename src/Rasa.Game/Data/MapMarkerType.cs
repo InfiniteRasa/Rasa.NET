@@ -18,12 +18,16 @@
     }
 
     /// <summary>
-    /// <c>generated.client.controlpointownershiptype</c>, for when 7.4 fills control points in.
+    /// <c>generated.client.controlpointownershiptype</c>: who a control point's marker says
+    /// holds it (ControlPoints, MapMarkerState).
     ///
-    /// Worth reading before that happens: under FACTION_OWNED the client tests the second field
-    /// with <c>ownerId is True</c> and <c>ownerId is False</c> - identity, not truth - so it has
-    /// to arrive as a real bool. A Zero struct unmarshals to something that is falsy but is not
-    /// False, and the tooltip would silently come out blank.
+    /// Under FACTION_OWNED the client tests the second field with <c>ownerId is True</c> and
+    /// <c>ownerId is False</c> - identity, not truth - so it has to arrive as a real bool. True is
+    /// the marshal's True struct. For False there is one candidate, the struct this server calls
+    /// Zero (PythonWriter.WriteBool): the marshal has three singletons - None, True and it - and
+    /// the integer nought has a code of its own (0x10), so it is not that. It has not been seen
+    /// on a running client: if a Bane-held point's marker is grey and its tooltip has no
+    /// *Controlled By* line, the struct is not False and the client has no other way to be told.
     /// </summary>
     public static class ControlPointOwnershipType
     {

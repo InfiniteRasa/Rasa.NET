@@ -53,7 +53,7 @@ namespace Rasa.Structures.World
 
         [Column("category_id")]
         [Required]
-        public byte CategoryId { get; set; }
+        public uint CategoryId { get; set; }
 
         [Column("shareable")]
         [Required]

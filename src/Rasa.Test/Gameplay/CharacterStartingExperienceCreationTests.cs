@@ -25,6 +25,7 @@ namespace Rasa.Test.Gameplay
     using Rasa.Packets.Game.Client;
     using Rasa.Packets.Game.Server;
     using Rasa.Packets.Inventory.Server;
+    using Rasa.Packets.Manifestation.Server;
     using Rasa.Packets.Protocol;
     using Rasa.Repositories.Char;
     using Rasa.Repositories.Char.Auction;
@@ -656,6 +657,96 @@ namespace Rasa.Test.Gameplay
             Assert.IsNotNull(startingExperience);
             Assert.AreEqual("legacy", startingExperience.ContentRevision);
             Assert.AreEqual(CharacterStartingExperienceState.Legacy, startingExperience.State);
+        }
+
+        /// <summary>
+        /// A clone is made by logging out to the pods - the trainer's Clone button does exactly
+        /// that - so the account entry on the client is from before the character went into the
+        /// world. The clone is of the character as its row has it now, and the credit spent is
+        /// one of the row's.
+        /// </summary>
+        [TestMethod]
+        [DataRow(0U, DisplayName = "the clone credit was earned in the world")]
+        [DataRow(1U, DisplayName = "one clone credit before, more earned in the world")]
+        public void CloningReadsTheSourceFromItsRowNotFromTheAccountLoadedEarlier(uint creditsWhenLoaded)
+        {
+            using var context = new CharacterCreationContext();
+            context.SeedAccount(23);
+            var sourceId = context.SeedCharacter(23, 1, "Source", cloneCredits: creditsWhenLoaded);
+            var client = context.CreateClient(23);
+
+            // What the time in the world left in the row. The client's account entry has none of it.
+            using (var world = context.Open())
+            {
+                var row = world.CharacterEntries.Single(entry => entry.Id == sourceId);
+                row.Level = 15;
+                row.Experience = 900000;
+                row.Class = (uint)CharacterClass.Soldier;
+                row.Body = 3;
+                row.Mind = 2;
+                row.Spirit = 1;
+                row.CloneCredits = 2;
+                row.MapContextId = 1148;
+                row.CoordX = 101;
+                row.CoordY = 102;
+                row.CoordZ = 103;
+                row.Rotation = 1.5;
+                world.SaveChanges();
+            }
+            Assert.AreEqual(creditsWhenLoaded, client.AccountEntry.GetCharacterBySlot(1).CloneCredits);
+            Assert.AreEqual((byte)9, client.AccountEntry.GetCharacterBySlot(1).Level);
+
+            new CharacterManager(context).RequestCloneCharacterToSlot(
+                client,
+                CreateClonePacket(sourceSlot: 1, slot: 2, characterName: "Cloney"));
+
+            var packets = WorldTestContext.Drain(client).Select(packet => packet.Message).OfType<CallMethodMessage>()
+                .Select(message => message.Packet).ToList();
+            Assert.IsEmpty(packets.OfType<UserCreationFailedPacket>().ToArray());
+            Assert.HasCount(1, packets.OfType<CharacterCreateSuccessPacket>().ToArray());
+            Assert.AreEqual(1U, packets.OfType<CloneCreditsChangedPacket>().Single().CloneCredits);
+
+            using var verify = context.Open();
+            var clone = verify.CharacterEntries.AsNoTracking().Single(entry => entry.AccountId == 23 && entry.Slot == 2);
+            Assert.AreEqual((byte)15, clone.Level);
+            Assert.AreEqual(900000U, clone.Experience);
+            Assert.AreEqual((uint)CharacterClass.Soldier, clone.Class);
+            Assert.AreEqual(3, clone.Body);
+            Assert.AreEqual(2, clone.Mind);
+            Assert.AreEqual(1, clone.Spirit);
+            Assert.AreEqual(1148U, clone.MapContextId);
+            Assert.AreEqual(101D, clone.CoordX);
+            Assert.AreEqual(102D, clone.CoordY);
+            Assert.AreEqual(103D, clone.CoordZ);
+            Assert.AreEqual(1.5, clone.Rotation);
+            Assert.AreEqual(0U, clone.CloneCredits);
+            Assert.AreEqual(1U, verify.CharacterEntries.AsNoTracking().Single(entry => entry.Id == sourceId).CloneCredits,
+                "One of the row's two credits is spent.");
+        }
+
+        [TestMethod]
+        public void CloningWithNoCloneCreditInTheRowIsRefusedWhateverTheAccountLoadedEarlierSays()
+        {
+            using var context = new CharacterCreationContext();
+            context.SeedAccount(24);
+            var sourceId = context.SeedCharacter(24, 1, "Source", cloneCredits: 1);
+            var client = context.CreateClient(24);
+            using (var spent = context.Open())
+            {
+                spent.CharacterEntries.Single(entry => entry.Id == sourceId).CloneCredits = 0;
+                spent.SaveChanges();
+            }
+
+            new CharacterManager(context).RequestCloneCharacterToSlot(
+                client,
+                CreateClonePacket(sourceSlot: 1, slot: 2, characterName: "Cloney"));
+
+            Assert.AreEqual(CreateCharacterResult.NotEnoughCloneCredits,
+                WorldTestContext.Drain(client).Select(packet => packet.Message).OfType<CallMethodMessage>()
+                    .Select(message => message.Packet).OfType<UserCreationFailedPacket>().Single().Result);
+            using var verify = context.Open();
+            Assert.AreEqual(1, verify.CharacterEntries.Count(entry => entry.AccountId == 24));
+            Assert.AreEqual(0U, verify.CharacterEntries.AsNoTracking().Single(entry => entry.Id == sourceId).CloneCredits);
         }
 
         [TestMethod]

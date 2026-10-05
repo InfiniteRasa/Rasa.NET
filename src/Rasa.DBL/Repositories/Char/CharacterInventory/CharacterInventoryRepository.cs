@@ -98,6 +98,20 @@ namespace Rasa.Repositories.Char.CharacterInventory
             return characterInventoryEntries;
         }
 
+        public List<CharacterInventoryEntry> GetByType(ICollection<uint> characterIds, uint inventoryType)
+        {
+            if (characterIds == null || characterIds.Count == 0)
+                return new List<CharacterInventoryEntry>();
+
+            var ids = characterIds.ToList();
+
+            return _charContext.CreateNoTrackingQuery(_charContext.CharacterInventoryEntries)
+                .Where(e => e.InventoryType == inventoryType && ids.Contains(e.CharacterId))
+                .OrderBy(e => e.CharacterId)
+                .ThenBy(e => e.SlotId)
+                .ToList();
+        }
+
         /// <summary>
         /// Whether the item's inventory row belongs to this account and either to this character
         /// or to the account's home lockbox (character id 0). MoveInvItem finds its row by item id

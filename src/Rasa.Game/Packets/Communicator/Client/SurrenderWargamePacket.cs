@@ -3,13 +3,14 @@
     using Data;
     using Memory;
 
+    /// <summary>SurrenderWargame (674), communicator.SurrenderWargame: <c>()</c> - /surrender, giving up a duel.</summary>
     public class SurrenderWargamePacket : ClientPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.SurrenderWargame;
 
         public override void Read(PythonReader pr)
         {
-            Logger.WriteLog(LogType.Debug, pr.ToString());
+            pr.ReadTuple();
         }
     }
 }

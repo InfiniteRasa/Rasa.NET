@@ -69,7 +69,7 @@ namespace Rasa.Managers
          *  - PlayerFlags
          *  - CloneCredits
          *  - WaypointGained
-         *  - GraveyardGained
+         *  - GraveyardGained                  => implemented (Hospitals)
          *  - CharacterName
          *  - RaceId                           => implemented
          *  - PlayerAfk                        => implemented
@@ -144,6 +144,22 @@ namespace Rasa.Managers
 
         /// <summary>The levels that award a clone credit, per the live game's own rules.</summary>
         public static readonly byte[] CloneCreditLevels = { 5, 15, 30 };
+
+        /// <summary>
+        /// Whether reaching this level pays a clone credit. Every caller asks through here, with the
+        /// level as an int: Array.IndexOf(CloneCreditLevels, anInt) cannot infer a type argument, so
+        /// it binds to IndexOf(Array, object), and a boxed int never equals a boxed byte - it compiles
+        /// and answers -1 for every level.
+        /// </summary>
+        internal static bool IsCloneCreditLevel(int level)
+        {
+            foreach (var creditLevel in CloneCreditLevels)
+                if (creditLevel == level)
+                    return true;
+
+            return false;
+        }
+
         public static ManifestationManager Instance
         {
             get
@@ -323,6 +339,8 @@ namespace Rasa.Managers
 
             foreach (var other in CellManager.Instance.GetClientsInCells(mapChannel, player.Cells, client))
                 other.CallMethod(player.EntityId, packet);
+
+            FarAllies.Relay(player, packet);
         }
 
         /// <summary>
@@ -351,6 +369,38 @@ namespace Rasa.Managers
 
             TitleGained(client, titleId);
             return true;
+        }
+
+        /// <summary>
+        /// Records that the character has killed a boss, by its creature name id (BossTitles).
+        /// False when it was recorded already or could not be saved.
+        /// </summary>
+        public bool RecordBossKill(Client client, uint creatureNameId)
+        {
+            var player = client?.Player;
+
+            if (player == null || player.Id == 0 || creatureNameId == 0)
+                return false;
+
+            lock (player.BossKills)
+            {
+                if (player.BossKills.Contains(creatureNameId))
+                    return false;
+
+                try
+                {
+                    using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+
+                    unitOfWork.CharacterBossKills.Add(player.Id, creatureNameId);
+                }
+                catch (Exception error) when (GameplayRejectionException.IsExpected(error))
+                {
+                    Logger.WriteLog(LogType.Error, $"Unable to record the kill of boss {creatureNameId} for character {player.Id}: {error.Message}");
+                    return false;
+                }
+
+                return player.BossKills.Add(creatureNameId);
+            }
         }
 
         /// <summary>A title that is saved: onto the player's list and to their client.</summary>
@@ -445,8 +495,9 @@ namespace Rasa.Managers
             if (mapChannel == null || client.State != ClientState.Ingame || player.State == CharacterState.Dead)
                 return;
 
-            // Stunned or knocked down: no swing until it ends.
-            if (Stuns.IsStunned(player))
+            // Stunned or knocked down: no swing until it ends. Nor under an enemy's Mind Control
+            // P2-P5 (Pvp.MayNotAttack).
+            if (Stuns.IsStunned(player) || Pvp.MayNotAttack(player))
                 return;
 
             var weapon = InventoryManager.Instance.CurrentWeapon(client);
@@ -497,7 +548,18 @@ namespace Rasa.Managers
                     _ => null
                 };
 
-                if (target != null && Vector3.Distance(player.Position, target.Position) > level.MaxRange + MeleeRangeSlack)
+                Vector3? targetPosition = target?.Position;
+                if (!targetPosition.HasValue &&
+                    PracticeTargetManager.TryGetTarget(mapChannel, targetId, out var targetObject) &&
+                    PracticeTargetManager.CanHit(mapChannel, player, targetObject))
+                    targetPosition = targetObject.Position;
+                if (targetPosition.HasValue &&
+                    Vector3.Distance(player.Position, targetPosition.Value) > level.MaxRange + MeleeRangeSlack)
+                    return;
+
+                // A Personal Waypoint (PersonalWaypoints) is struck from as near.
+                if (target == null && PersonalWaypoints.TryGetPosition(targetId, out var waypoint)
+                    && Vector3.Distance(player.Position, waypoint) > level.MaxRange + MeleeRangeSlack)
                     return;
             }
 
@@ -691,7 +753,18 @@ namespace Rasa.Managers
             (pump, pieces) = ArmorOf(player, ArmorSkills.Stealth);
             var stealth = ArmorSkills.DetectionCutPercent(pump, pieces);
 
-            player.DetectionRangePercent = Math.Max(0, 100 - stealth);
+            var detection = Math.Max(0, 100 - stealth);
+
+            // And enemy players' radars pick them up that much closer: the client takes twice the
+            // cut off its radar range (radarwindow.py kRadarPerceptionFactor), which is the
+            // "Radar Signature" figure, double the "Detection Range" one.
+            if (detection != player.DetectionRangePercent)
+            {
+                player.DetectionRangePercent = detection;
+
+                if (mapChannel != null)
+                    CellManager.Instance.CellCallMethod(mapChannel, player, new ToBePerceivedModifierPacket(detection / 100.0));
+            }
 
             if (stealth > 0)
             {
@@ -823,7 +896,8 @@ namespace Rasa.Managers
 
             // Stunned or knocked down: the client holds the trigger back itself, and the server
             // does not fire for an auto-fire it left running.
-            if (Stuns.IsStunned(client.Player))
+            // Under an enemy's Mind Control P2-P5 nothing is fired either (Pvp.MayNotAttack).
+            if (Stuns.IsStunned(client.Player) || Pvp.MayNotAttack(client.Player) || client.Player.State == CharacterState.Dead)
                 return FireResult.NotFired;
 
             // Polymorphed: the creature's weapon, whatever is in the player's own hands.
@@ -911,6 +985,19 @@ namespace Rasa.Managers
 
             if (ShotWait(client.Player, now) > 0)
                 return FireResult.TooSoon;
+
+            // Could the shot have been aimed at its target: facing, reach and sight
+            // (WeaponChecks). Not for a cone weapon, whose targets the server picks itself.
+            // Before the ammo, so a refused shot costs nothing.
+            if (client.Player.Target != 0 && !ConeWeapons.IsCone(weapon.ItemTemplate.WeaponInfo, weaponClassInfo)
+                && WeaponChecks.Judge(client.Player, EntityManager.Instance.GetActor(client.Player.Target),
+                    weapon.ItemTemplate.WeaponInfo.Range, client.Player.MapChannel?.Cover) is WeaponChecks.Finding aim)
+            {
+                WeaponChecks.Report(client, aim, now);
+
+                if (aim.Refuse)
+                    return FireResult.NotFired;
+            }
 
             if (usesAmmo)
             {
@@ -1201,6 +1288,9 @@ namespace Rasa.Managers
             ApplyRegenPeriod(client.Player);
 
             client.CallMethod(client.Player.EntityId, new PlayerEnteredCombatPacket());
+
+            // "Once wagered, the item will be locked upon entering combat."
+            InventoryManager.WagerEnteredCombat(client);
 
             // The rate change is not in that packet - it carries nothing - so the attributes go
             // too. AttributeInfo rather than UpdateAttributes because only AttributeInfo carries
@@ -1835,8 +1925,16 @@ namespace Rasa.Managers
             client.Player.SpentMind = mindAfter;
             client.Player.SpentSpirit = spiritAfter;
             UpdateStatsValues(client, false);
-            client.CallMethod(client.Player.EntityId, new AttributeInfoPacket(client.Player.Attributes));
+
+            // Send the new available-point count first.
+            //
+            // The retail attributes window copies avatar.attributePoints into its own
+            // private available-points value when BODY/MIND/SPIRIT is refreshed.
+            // Sending this first ensures attributePoints already contains the new value
+            // when AttributeInfo causes the window to reload its B/M/S state.
             SendAvailableAllocationPoints(client);
+
+            client.CallMethod(client.Player.EntityId, new AttributeInfoPacket(client.Player.Attributes));
         }
 
         public void AssignPlayer(Client client)
@@ -1852,9 +1950,10 @@ namespace Rasa.Managers
             foreach (var characterOption in optionsList)
                 player.CharacterOptions.Add(new CharacterOptions((CharacterOption)characterOption.OptionId, characterOption.Value));
 
+            // Character-specific options must be available before the controlled actor becomes
+            // available. USER_CONTROLLER_AVAILABLE causes the retail client to load mission
+            // tracking from these MissionTrack options.
             client.CallMethod(SysEntity.ClientMethodId, new CharacterOptionsPacket(player.CharacterOptions));
-
-            client.CallMethod(SysEntity.ClientMethodId, new SetControlledActorIdPacket(player.EntityId));
 
             // Inventory deltas precede LoginOk. Refresh the tray after its controlled actor
             // exists so the initial image does not depend on opening the equipment selector.
@@ -1879,7 +1978,15 @@ namespace Rasa.Managers
 
             client.CallMethod(player.EntityId, new ActorInfoPacket(player));
             MissionApplication.Instance.PublishInitialState(client);
+
+            // SetControlledActorId can immediately cause USER_CONTROLLER_AVAILABLE on the
+            // retail client when the actor already exists. That event loads and filters the
+            // saved MissionTrack options against the current mission list, so both the
+            // character options and initial mission state must be sent first.
+            client.CallMethod(SysEntity.ClientMethodId, new SetControlledActorIdPacket(player.EntityId));
+
             _characterManager.OfferStartingExperienceMission(client);
+            MissionApplication.Instance.OfferArrivalMissions(client);
 
             // Its cooldowns: the client's actor is new on every map and starts with none.
             ActionReuse.SendTo(client);
@@ -1911,6 +2018,14 @@ namespace Rasa.Managers
 
             client.CallMethod(player.EntityId, new TitlesPacket(player.Titles));
 
+            // A Logos or waypoint title the character has earned and has not got - collected
+            // before the titles were given, or inherited by a clone - is given now, after the
+            // list it is added to (LogosTitles, WaypointTitles). So is a boss title whose kills
+            // are all recorded (BossTitles).
+            LogosTitles.CatchUp(client);
+            WaypointTitles.CatchUp(client);
+            BossTitles.CatchUp(client);
+
             client.CallMethod(player.EntityId, new UpdateAttributesPacket(player.Attributes, 0));
 
             client.CallMethod(player.EntityId, new UpdateHealthPacket(player.Attributes[Attributes.Health], 0));
@@ -1920,6 +2035,14 @@ namespace Rasa.Managers
             client.CallMethod(player.EntityId, new AllCreditsPacket(player.Credits));
 
             client.CallMethod(player.EntityId, new LockboxFundsPacket(player.LockboxCredits));
+
+            // The clone credits. The client's manifestation is new on every map and holds None,
+            // not 0, until it is told: the attributes window prints that as "None", and the
+            // trainer's Clone button, enabled on cloneCredits > 0, stays grey. It was told only
+            // when a credit was gained. The first count a manifestation is sent is taken as it
+            // is - Recv_CloneCredits gives its "clone credit added" message only over a count it
+            // already had.
+            client.CallMethod(player.EntityId, new CloneCreditsPacket(player.CloneCredits));
 
             // After the skills: the weapon skill bonuses the client predicts from its own effects.
             SyncSkillPassives(client);
@@ -2121,7 +2244,8 @@ namespace Rasa.Managers
                 new CharacterNamePacket(player.Name),
                 new ActorNamePacket(player.FamilyName),
                 new IsRunningPacket(player.IsRunning),
-                new TargetCategoryPacket(TargetCategory.Friendly),
+                // HOSTILE to an enemy across a wargame, FRIENDLY to everyone else (Pvp).
+                new TargetCategoryPacket(forSelf ? TargetCategory.Friendly : Pvp.CategoryFor(player, recipient?.Player)),
                 new PlayerFlagsPacket(ReferenceEquals(client, recipient)
                     ? CharacterFlagProjection.ToNativeIds(player.PlayerFlags)
                     : Array.Empty<uint>()),
@@ -2142,14 +2266,26 @@ namespace Rasa.Managers
             if (!forSelf && Targets.Current(player) is var target && target != 0)
                 entityData.Add(new TargetIdPacket(target));
 
+            // Dead, to anyone who meets them so: lying there, no death blow played (Recv_DeadOnArrival).
+            if (!forSelf && player.State == CharacterState.Dead)
+                entityData.Add(new DeadOnArrivalPacket());
+
+            // Stealth Armor's radar signature, to everyone who meets them; and to their own client
+            // how far their radar reaches for a stealthed enemy (a Spotter). Both start at 1.0.
+            if (!forSelf && player.DetectionRangePercent != 100)
+                entityData.Add(new ToBePerceivedModifierPacket(player.DetectionRangePercent / 100.0));
+
+            if (forSelf && player.ToPerceiveModifier != 1.0)
+                entityData.Add(new ToPerceiveModifierPacket(player.ToPerceiveModifier));
+
             // The title they wear, to their own client and everyone who meets them. Every
             // manifestation starts with none.
             if (player.CurrentTitle != 0)
                 entityData.Add(new TitleChangedPacket(player.CurrentTitle));
 
-            // The clan feuds they are in, to their own client and everyone who meets them: the
-            // client tells ally from enemy by it. Every actor starts in none.
-            var wargames = ClanFeuds.Instance.WargameDataOf(player);
+            // The clan feuds and duel they are in, to their own client and everyone who meets them:
+            // the client tells ally from enemy by it. Every actor starts in none.
+            var wargames = Wargames.DataOf(player);
 
             if (wargames.Count > 0)
                 entityData.Add(new WargameDataPacket(wargames));
@@ -2249,7 +2385,7 @@ namespace Rasa.Managers
                  level++)
             {
                 player.Level = (byte)level;
-                if (Array.IndexOf(CloneCreditLevels, player.Level) >= 0)
+                if (IsCloneCreditLevel(player.Level))
                 {
                     cloneCredits++;
                     player.CloneCredits = cloneCredits;
@@ -2293,7 +2429,12 @@ namespace Rasa.Managers
             player.Level = grant.FinalLevel;
             player.CloneCredits = grant.FinalCloneCredits;
             if (grant.FinalLevel != grant.PreviousLevel)
+            {
                 PartyManager.Instance.MemberInfoChanged(client);
+                SocialManager.Instance.FriendStatusUpdate(client);
+                InventoryManager.WagerLevelChanged(client, grant.PreviousLevel);
+                MissionGiversAfterLevel(client);
+            }
         }
 
         internal bool ValidateProgressionForClient(Client client)
@@ -2341,7 +2482,7 @@ namespace Rasa.Managers
             try
             {
                 for (var level = levelBefore + 1; level <= levelAfter; level++)
-                    if (Array.IndexOf(CloneCreditLevels, level) >= 0)
+                    if (IsCloneCreditLevel(level))
                         cloneCreditsAfter = checked(cloneCreditsAfter + 1);
             }
             catch (OverflowException)
@@ -2390,7 +2531,7 @@ namespace Rasa.Managers
             for (var level = levelBefore + 1; level <= levelAfter; level++)
             {
                 player.Level = (byte)level;
-                if (Array.IndexOf(CloneCreditLevels, player.Level) >= 0)
+                if (IsCloneCreditLevel(player.Level))
                 {
                     player.CloneCredits++;
                     client.CallMethod(player.EntityId,
@@ -2428,8 +2569,23 @@ namespace Rasa.Managers
             }
 
             if (levelAfter != levelBefore)
+            {
                 PartyManager.Instance.MemberInfoChanged(client);
+                SocialManager.Instance.FriendStatusUpdate(client);
+                InventoryManager.WagerLevelChanged(client, levelBefore);
+                MissionGiversAfterLevel(client);
+            }
         }
+
+        /// <summary>
+        /// A level can be what a mission was waiting for (MissionPrerequisiteKind.PlayerLevelAtLeast,
+        /// LevelRequirement), so the givers in view are asked again: the one who showed a mission
+        /// not yet available now offers it - and a level a GM takes away puts it back to waiting.
+        /// </summary>
+        private void MissionGiversAfterLevel(Client client) =>
+            MissionApplication.TryPublish(
+                () => (_missionManager ?? MissionApplication.Instance).RefreshNpcConversationStatuses(client),
+                "NPC conversation statuses after a level");
 
         /// <summary>
         /// Adrenaline (chi) earned for a kill, as a percent of the bar. Not a live-game figure:
@@ -2531,7 +2687,20 @@ namespace Rasa.Managers
             }
 
             player.Class = (uint)chosen;
-            CharacterManager.Instance.UpdateCharacter(client, CharacterUpdate.Class, player.Class);
+            try
+            {
+                if (!_characterManager.UpdateCharacter(client, CharacterUpdate.Class, player.Class))
+                {
+                    player.Class = (uint)current;
+                    Logger.WriteLog(LogType.Error, $"Unable to persist class advancement for {player.Id}.");
+                    return;
+                }
+            }
+            catch
+            {
+                player.Class = (uint)current;
+                throw;
+            }
 
             Logger.WriteLog(LogType.Debug, $"{player.FamilyName} advanced from {current} to {chosen}.");
 
@@ -2549,6 +2718,7 @@ namespace Rasa.Managers
 
             // Class is the third field of the party tuple, as DebugChgPlayerClass notes.
             PartyManager.Instance.MemberInfoChanged(client);
+            (_missionManager ?? MissionApplication.Instance).OfferClassQualificationMissions(client);
         }
 
         public void DebugChgPlayerClass(Client client, uint newClassId)
@@ -2753,6 +2923,9 @@ namespace Rasa.Managers
                 client.CellIgnoreSelfCallMethod(client, new LevelPacket(level));
 
             PartyManager.Instance.MemberInfoChanged(client);
+            SocialManager.Instance.FriendStatusUpdate(client);
+            InventoryManager.WagerLevelChanged(client, from);
+            MissionGiversAfterLevel(client);
 
             Logger.WriteLog(LogType.Command, $"{player.FamilyName} set from level {from} to {level}" + (notes.Count > 0 ? $": {string.Join(", ", notes)}" : ""));
 
@@ -3057,7 +3230,7 @@ namespace Rasa.Managers
             return true;
         }
 
-        private static void RemoveAutoFire(Client client)
+        internal static void RemoveAutoFire(Client client)
         {
             for (var i = AutoFire.Count - 1; i >= 0; i--)
                 if (AutoFire[i].Client == client)
@@ -3069,11 +3242,25 @@ namespace Rasa.Managers
             if (client?.Player?.MapChannel != null)
                 LootDispenserManager.Instance.RemoveForOwner(client.Player.MapChannel, client);
 
+            // Leaving dead: to their hospital first, so they come back alive there (PlayerDeath).
+            PlayerDeath.PlayerLeaving(client);
+
             // Called from MapChannelManager.RemovePlayer. A client that dropped while holding
             // fire stayed in the auto-fire list; once its items were destroyed CurrentWeapon
             // was null, and the next tick dereferenced it on the main loop.
             RemoveAutoFire(client);
             ConstantFire.Stop(client, release: false);
+
+            // Leaving the map or the world: an open duel challenge is off, a duel is forfeit, and
+            // a squad wargame goes on without them.
+            Duels.Instance.PlayerLeft(client);
+            SquadWargames.Instance.PlayerLeft(client);
+
+            // Off their team of a battleground's match: a deserter, if it is being played.
+            Battlegrounds.Instance.PlayerLeft(client);
+
+            // Which copy of the map they are leaving, for when they next enter the world on it.
+            MapChannelManager.Instance.RememberCopy(client);
         }
 
         public void RemoveAppearanceItem(Client client, EquipmentData equipmentSlotId)
@@ -3097,8 +3284,7 @@ namespace Rasa.Managers
 
         public void RequestCustomization(Client client, RequestCustomizationPacket packet)
         {
-            // ToDo
-            Logger.WriteLog(LogType.Debug, $"ToDo: RequestCustomization");
+            Customization.Request(client, packet);
         }
 
         #region Movement
@@ -3194,6 +3380,13 @@ namespace Rasa.Managers
             if (Stuns.IsStunned(player))
             {
                 RefuseMove(client, movement, "while stunned");
+                return false;
+            }
+
+            // Dead (PlayerDeath): nowhere until they are back.
+            if (player.State == CharacterState.Dead)
+            {
+                RefuseMove(client, movement, "while dead");
                 return false;
             }
 
@@ -3294,6 +3487,23 @@ namespace Rasa.Managers
             player.LastMoveCorrectionTick = now;
             player.RefusedMoves = 0;
 
+            client.MoveObject(player.EntityId, new Movement(player.Position, movement.ViewDirection));
+        }
+
+        /// <summary>
+        /// Puts the client back where the server has the player, keeping the way they were
+        /// looking: the correction for a Move refused for where it went (MovementChecks), which
+        /// writes its own line. Rate-limited with the speed refusal's corrections, for the same
+        /// reason: a client refused once is about to be refused on every Move after it.
+        /// </summary>
+        internal void PutBack(Client client, Movement movement, long now)
+        {
+            var player = client.Player;
+
+            if (now < player.LastMoveCorrectionTick + MoveCorrectionQuietMs)
+                return;
+
+            player.LastMoveCorrectionTick = now;
             client.MoveObject(player.EntityId, new Movement(player.Position, movement.ViewDirection));
         }
 

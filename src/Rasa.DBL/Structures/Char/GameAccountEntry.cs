@@ -30,6 +30,15 @@ namespace Rasa.Structures.Char
         [Required]
         public byte Level { get; set; }
 
+        /// <summary>
+        /// Until when a game master has silenced this account's chat (Unix milliseconds, UTC); 0,
+        /// or any time already past, for not silenced. Kept with the account so a relog or a
+        /// restart does not lift it.
+        /// </summary>
+        [Column("muted_until")]
+        [Required]
+        public long MutedUntil { get; set; }
+
         [Column("family_name", TypeName = "varchar(64)")]
         [Required]
         public string FamilyName { get; set; }

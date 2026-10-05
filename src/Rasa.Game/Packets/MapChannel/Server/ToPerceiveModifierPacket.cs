@@ -7,9 +7,10 @@
     {
         public override GameOpcode Opcode { get; } = GameOpcode.ToPerceiveModifier;
 
-        public int Mod { get; set; }
+        /// <summary>A multiplier, 1.0 for none: the client's radar works the range out from it (radarwindow.py).</summary>
+        public double Mod { get; set; }
 
-        public ToPerceiveModifierPacket(int mod)
+        public ToPerceiveModifierPacket(double mod)
         {
             Mod = mod;
         }
@@ -17,7 +18,7 @@
         public override void Write(PythonWriter pw)
         {
             pw.WriteTuple(1);
-            pw.WriteInt(Mod);
+            pw.WriteDouble(Mod);
         }
     }
 }

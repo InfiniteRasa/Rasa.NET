@@ -39,7 +39,10 @@ namespace Rasa.Managers
     ///
     /// The server's part:
     /// - the corpse must be a dead, BIOLOGICAL, HOSTILE or NEUTRAL creature that nothing else has claimed;
-    ///   it is given up for despawn as the plant grows from it, as Cadaver Immolation's is;
+    ///   it is given up for despawn as the plant grows from it, as Cadaver Immolation's is. Or a
+    ///   dead enemy player across a wargame (Pvp): the plant grows where they lie, at their
+    ///   health, resisting their weapon's damage type, and they are sent to their nearest
+    ///   hospital (PlayerDeath.ForceToHospital);
     /// - every INTERVAL the plant heals the owner and their squad within EFFECT_RADIUS by
     ///   DECAY_PERCENTAGE of its maximum health each, and loses that much health itself;
     /// - while in reach they carry HORTIMONCULUS_BUFF: +RESIST_PERCENTAGE resistance to the
@@ -71,7 +74,7 @@ namespace Rasa.Managers
             public MapChannel MapChannel;
             public DynamicObject Object;
             public Manifestation Owner;
-            public Creature Corpse;
+            public Actor Corpse;
             public GameEffect Source;
             public int MaxHealth;
             public int Health;
@@ -118,9 +121,17 @@ namespace Rasa.Managers
             return pool <= 0 ? 0 : ticksLeft <= 1 ? pool : (int)Math.Ceiling(pool / (double)ticksLeft);
         }
 
-        /// <summary>Whether a corpse ability may be aimed at this body: dead, biological, an enemy's, and not already used.</summary>
-        internal static bool IsUsableCorpse(Actor target)
+        /// <summary>
+        /// Whether a corpse ability may be aimed at this body: dead, biological, an enemy's, and not
+        /// already used. A player's body is one when they are dead and an enemy of the one using it
+        /// across a wargame (Pvp) - the client's checks allow any dead player.
+        /// </summary>
+        internal static bool IsUsableCorpse(Actor target, Manifestation by = null)
         {
+            if (target is Manifestation fallen)
+                return by != null && fallen.State == CharacterState.Dead && fallen.MapChannel != null
+                       && Pvp.AreEnemies(by, fallen) && !IsCorpseInUse(fallen);
+
             if (!(target is Creature corpse) || !IsBiologicalCorpse(corpse) || !TargetCategories.PlayerMayAttack(corpse.TargetCategory) || corpse.IsScripted)
                 return false;
 
@@ -128,7 +139,7 @@ namespace Rasa.Managers
         }
 
         /// <summary>Whether a player's corpse ability has this body: Cadaver Immolation burning it, a Hortimonculus growing from it.</summary>
-        internal static bool IsCorpseInUse(Creature corpse)
+        internal static bool IsCorpseInUse(Actor corpse)
         {
             lock (BurningCorpsesLock)
                 if (BurningCorpses.Any(c => c.Corpse == corpse))
@@ -151,24 +162,35 @@ namespace Rasa.Managers
         private void GrowHortimonculus(MapChannel mapChannel, Manifestation player, ActionLevelInfo info, ActionData action)
         {
             var recovery = new AbilityRecoveryPacket(action.ActionId, action.ActionArgId, AbilityRecoveryPacket.HitDataKind.None);
-            var corpse = action.TargetId != 0 ? ResolveTarget(mapChannel, action.TargetId) as Creature : null;
+            var corpse = action.TargetId != 0 ? ResolveTarget(mapChannel, action.TargetId) : null;
 
-            if (IsUsableCorpse(corpse))
+            Plant grown = null;
+
+            if (IsUsableCorpse(corpse, player))
             {
-                Grow(mapChannel, player, corpse, info);
+                grown = Grow(mapChannel, player, corpse, info);
                 Hit(recovery, corpse);
             }
 
             CellManager.Instance.CellCallMethod(mapChannel, player, recovery);
+
+            // An enemy player's body taken: they are sent to their nearest hospital (PlayerDeath),
+            // and the plant holds no body of theirs after.
+            if (grown != null && corpse is Manifestation fallen)
+            {
+                grown.Corpse = null;
+                PlayerDeath.ForceToHospital(mapChannel, fallen);
+            }
         }
 
-        private void Grow(MapChannel mapChannel, Manifestation player, Creature corpse, ActionLevelInfo info)
+        private Plant Grow(MapChannel mapChannel, Manifestation player, Actor corpse, ActionLevelInfo info)
         {
             var now = Environment.TickCount64;
             var level = Math.Max(1u, info.Level);
-            var corpseMax = corpse.Attributes.TryGetValue(Attributes.Health, out var corpseHealth) ? corpseHealth.CurrentMax : (int)corpse.MaxHitPoints;
+            var corpseMax = corpse.Attributes.TryGetValue(Attributes.Health, out var corpseHealth) ? corpseHealth.CurrentMax
+                : corpse is Creature creatureCorpse ? (int)creatureCorpse.MaxHitPoints : 1;
             var maxHealth = PlantHealth(corpseMax, info.Get(AbilityProperty.HealthPercentage, 100));
-            var resistType = corpse.Actions.Count > 0 ? CreatureAttacks.DamageTypeOf(corpse.Actions[0]) : DamageType.Physical;
+            var resistType = DamageTypeOfBody(mapChannel, corpse);
 
             var source = new GameEffect
             {
@@ -229,9 +251,33 @@ namespace Rasa.Managers
             plant.Object.StateId = UseObjectState.StatePowerUp;
             CellManager.Instance.CellCallMethod(plant.Object, new UsePacket(player.EntityId, UseObjectState.StatePowerUp, 0));
 
-            // What grew from the body takes its place; the body goes the usual way, loot and all.
-            if (corpse.Controller != null)
-                corpse.Controller.DeadTime = long.MaxValue / 2;
+            // What grew from the body takes its place; a creature's goes the usual way, loot and all.
+            if (corpse is Creature grownFrom && grownFrom.Controller != null)
+                grownFrom.Controller.DeadTime = long.MaxValue / 2;
+
+            return plant;
+        }
+
+        /// <summary>
+        /// The damage type a body was built around: a creature's first attack's, a player's
+        /// weapon's in hand. Physical when there is none.
+        /// </summary>
+        private static DamageType DamageTypeOfBody(MapChannel mapChannel, Actor corpse)
+        {
+            var type = DamageType.Physical;
+
+            if (corpse is Creature creature && creature.Actions.Count > 0)
+                type = CreatureAttacks.DamageTypeOf(creature.Actions[0]);
+            else if (corpse is Manifestation fallen)
+            {
+                var client = mapChannel?.ClientList.Find(c => c?.Player == fallen);
+                var weapon = client != null ? EntityClassManager.Instance.GetWeaponClassInfo(InventoryManager.Instance.CurrentWeapon(client)) : null;
+
+                if (weapon != null)
+                    type = (DamageType)weapon.DamageType;
+            }
+
+            return type == 0 ? DamageType.Physical : type;
         }
 
         /// <summary>

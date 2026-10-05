@@ -32,6 +32,9 @@ namespace Rasa.Managers
     /// EFFECT_RADIUS ("Hate Area") 10-50 m, range 20-50 m. A creature of SPECIES_STALKER,
     /// SPECIES_STRIDER or SPECIES_JUGGERNAUT takes nothing and the clients are told it is immune
     /// (GameEffectAttachFailed, EFFECT_ATTACH_FAIL_IMMUNE).
+    ///
+    /// On an enemy player across a wargame, and an enemy player's machine, both work differently
+    /// (AbilityManager.PvpControl).
     /// </summary>
     public partial class AbilityManager
     {

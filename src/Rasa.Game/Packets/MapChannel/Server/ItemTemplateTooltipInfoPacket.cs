@@ -64,7 +64,14 @@
                         pw.WriteTuple(16);
                         pw.WriteInt(EntityClass.WeaponClassInfo.MinDamage);
                         pw.WriteInt(EntityClass.WeaponClassInfo.MaxDamage);
-                        pw.WriteUInt((uint)EntityClass.WeaponClassInfo.AmmoClassId);
+
+                        // A weapon that takes no ammunition has no ammo class, and the tooltip leaves
+                        // its ammo line out for None alone (_AddWeaponAmmo): 0 is looked up as a class.
+                        if (EntityClass.WeaponClassInfo.AmmoClassId == 0)
+                            pw.WriteNoneStruct();
+                        else
+                            pw.WriteUInt((uint)EntityClass.WeaponClassInfo.AmmoClassId);
+
                         pw.WriteUInt(EntityClass.WeaponClassInfo.ClipSize);
 
                         if (ItemTemplate.WeaponInfo != null)
@@ -96,7 +103,7 @@
                                 pw.WriteUInt(ItemTemplate.WeaponInfo.WeaponAltInfo.AltAeType);
                             }
                             else
-                                pw.WriteNoneStruct();
+                                pw.WriteTuple(0);                                   // no alt fire: see below
 
                             pw.WriteInt((int)ItemTemplate.WeaponInfo.AttackType);
                             pw.WriteInt((int)ItemTemplate.WeaponInfo.ToolType);
@@ -106,20 +113,26 @@
                             // The entity class is augmented as a weapon, but this item template has no
                             // matching row from ItemManager's weapon-items load (data gap). Send zeroed
                             // weapon stats instead of crashing the write so the tooltip still opens.
+                            //
+                            // In the shapes the client's tooltip reads them (tooltipwindow.py,
+                            // gameuiutil.py). The range is None, which leaves the range line out: it is
+                            // not known, and 0 reads "Self Only". The alt fire is an empty tuple:
+                            // GetWeaponAltFireInfo takes its len(), and len(None) is a TypeError that
+                            // left the Snowball Launcher (131482) with no tooltip at all.
                             if (ReportedWithoutWeaponInfo.TryAdd(ItemTemplate.ItemTemplateId, true))
                                 Logger.WriteLog(LogType.Debug, $"ItemTemplateTooltipInfoPacket: item template {ItemTemplate.ItemTemplateId} is augmented as a weapon but has no WeaponInfo; sending zeroed weapon stats");
                             pw.WriteUInt(0);
                             pw.WriteInt(EntityClass.WeaponClassInfo.DamageType);
-                            pw.WriteUInt(0);
-                            pw.WriteUInt(0);
-                            pw.WriteUInt(0);
-                            pw.WriteUInt(0);
-                            pw.WriteUInt(0);
-                            pw.WriteUInt(0);
-                            pw.WriteNoneStruct();
-                            pw.WriteNoneStruct();
-                            pw.WriteInt(0);
-                            pw.WriteInt(0);
+                            pw.WriteUInt(0);                                        // windup
+                            pw.WriteUInt(0);                                        // recovery
+                            pw.WriteUInt(0);                                        // refire
+                            pw.WriteUInt(0);                                        // reload
+                            pw.WriteNoneStruct();                                   // range
+                            pw.WriteUInt(0);                                        // AE radius
+                            pw.WriteNoneStruct();                                   // AE type
+                            pw.WriteTuple(0);                                       // alt fire
+                            pw.WriteInt(0);                                         // attack type
+                            pw.WriteInt(0);                                         // tool type
                         }
 
                         break;
@@ -127,14 +140,25 @@
                     case AugmentationType.Equipable:
                         pw.WriteInt((int)AugmentationType.Equipable);
                         pw.WriteTuple(2);
-                        if (ItemTemplate.EquipableInfo != null)                             // skillRequirement data
+
+                        // The client unpacks the skill requirement as a pair and walks the resistances
+                        // as a list wherever it shows an equipable - the inventory icon
+                        // (_LoadElementalIconForItemTemplate, _GetClassPowerLevel) and the tooltip
+                        // (_AddSkillSlot, _AddResists, _AddEquipableRequirement) - and tests only the
+                        // skill id for None. A template with no skill requirement row (3,115 of the
+                        // 22,678 equipable ones, the Space Helmet and the Snowball Launcher among them)
+                        // was sent None for both: a TypeError on every icon redraw, and no tooltip.
+                        pw.WriteTuple(2);                                                   // skillRequirement data
+                        if (ItemTemplate.EquipableInfo != null)
                         {
-                            pw.WriteTuple(2);
                             pw.WriteInt(ItemTemplate.EquipableInfo.SkillId);
                             pw.WriteInt(ItemTemplate.EquipableInfo.SkillLevel);
                         }
                         else
+                        {
                             pw.WriteNoneStruct();
+                            pw.WriteNoneStruct();
+                        }
 
                         if (ItemTemplate.EquipableInfo != null)                             // resistance data
                         {
@@ -147,7 +171,7 @@
                             }
                         }
                         else
-                            pw.WriteNoneStruct();
+                            pw.WriteList(0);
 
                         break;
 
@@ -164,7 +188,10 @@
                             pw.WriteInt((int)requirement.Key);
                             pw.WriteInt(requirement.Value);
                         }
-                        pw.WriteNoneStruct();                                       // kItemIdx_ModuleIds		= 4      ToDo
+                        // kItemIdx_ModuleIds = 4. None yet (ToDo), as the empty list the client reads
+                        // it as: HandleReceiveItemInfo hands it to a loop, "for moduleId in moduleIds",
+                        // when the tooltip of an item it has no entity for was waiting on this reply.
+                        pw.WriteList(0);
                         if (ItemTemplate.ItemInfo.RaceReq != 0)
                         {
                             pw.WriteList(1);

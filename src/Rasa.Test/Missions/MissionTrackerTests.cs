@@ -143,5 +143,87 @@ namespace Rasa.Test.Missions
             Assert.IsTrue(reader.ReadBool());
             Assert.AreEqual(stream.Length, stream.Position);
         }
+
+        [TestMethod]
+        public void MissionInfoWritesNoneForAnIndicatorWithoutAClientName()
+        {
+            var info = new MissionInfo
+            {
+                MissionState = MissionState.Active,
+                Completeable = false
+            };
+            var objective = new MissionObjective
+            {
+                ObjectiveId = 3,
+                State = MissionObjectiveState.Incomplete,
+                Ordinal = 0,
+                TimeRemaining = null,
+                IsRequired = true
+            };
+            objective.IndicatorList.Add(new MissionIndicator
+            {
+                Position = new Vector3(360.866f, 218.5f, 95.263f),
+                Radius = 8,
+                IndicatorId = MissionIndicator.UnnamedFrom + 3,
+                Show3DEffect = false
+            });
+            info.ObjectivesList.Add(objective);
+
+            var bytes = MissionTestContext.Encode(new ObjectiveRevealedPacket(430, 3, info));
+            using var stream = new MemoryStream(bytes);
+            using var reader = new PythonReader(new BinaryReader(stream));
+
+            Assert.AreEqual(3, reader.ReadTuple());
+            Assert.AreEqual(430U, reader.ReadUInt());
+            Assert.AreEqual(3U, reader.ReadUInt());
+            Assert.AreEqual(5, reader.ReadTuple());
+            Assert.AreEqual((int)MissionState.Active, reader.ReadInt());
+            Assert.IsFalse(reader.ReadBool());
+            Assert.AreEqual(6, reader.ReadTuple());
+            Assert.AreEqual(0U, reader.ReadUInt());
+            Assert.AreEqual(0U, reader.ReadUInt());
+            Assert.AreEqual(0U, reader.ReadUInt());
+            Assert.IsFalse(reader.ReadBool());
+            Assert.IsFalse(reader.ReadBool());
+            Assert.AreEqual(2, reader.ReadTuple());
+            Assert.AreEqual(2, reader.ReadTuple());
+            Assert.AreEqual(0, reader.ReadList());
+            Assert.AreEqual(0, reader.ReadList());
+            Assert.AreEqual(0, reader.ReadList());
+            Assert.AreEqual(0, reader.ReadInt());
+            Assert.AreEqual(1, reader.ReadList());
+
+            Assert.AreEqual(8, reader.ReadTuple());
+            Assert.AreEqual(3U, reader.ReadUInt());
+            Assert.AreEqual((uint)MissionObjectiveState.Incomplete, reader.ReadUInt());
+            Assert.AreEqual(0U, reader.ReadUInt());
+            reader.ReadNoneStruct();
+            Assert.AreEqual(0, reader.ReadDictionary());
+            Assert.AreEqual(0, reader.ReadDictionary());
+            Assert.IsTrue(reader.ReadBool());
+
+            Assert.AreEqual(1, reader.ReadList());
+            Assert.AreEqual(4, reader.ReadTuple());
+            Assert.AreEqual(3, reader.ReadTuple());
+            Assert.AreEqual(360.866, reader.ReadDouble(), 0.001);
+            Assert.AreEqual(218.5, reader.ReadDouble(), 0.001);
+            Assert.AreEqual(95.263, reader.ReadDouble(), 0.001);
+            Assert.AreEqual(8.0, reader.ReadDouble(), 0.001);
+            // The client reads None as "no indicator name" and shows the objective's name.
+            reader.ReadNoneStruct();
+            Assert.IsFalse(reader.ReadBool());
+            Assert.AreEqual(stream.Length, stream.Position);
+        }
+
+        [TestMethod]
+        public void IndicatorIdsBelowTheUnnamedRangeAreClientNames()
+        {
+            Assert.AreEqual(433U, new MissionIndicator { IndicatorId = 433 }.ClientNameId);
+            Assert.AreEqual(10000005U, new MissionIndicator { IndicatorId = 10000005 }.ClientNameId);
+            Assert.AreEqual(MissionIndicator.UnnamedFrom - 1,
+                new MissionIndicator { IndicatorId = MissionIndicator.UnnamedFrom - 1 }.ClientNameId);
+            Assert.IsNull(new MissionIndicator { IndicatorId = MissionIndicator.UnnamedFrom }.ClientNameId);
+            Assert.IsNull(new MissionIndicator { IndicatorId = uint.MaxValue }.ClientNameId);
+        }
     }
 }

@@ -22,15 +22,35 @@ namespace Rasa.Game.Missions
         internal GroupCreditService(IGameUnitOfWorkFactory factory, MissionApplication missions)
         { _factory = factory; _missions = missions; }
 
-        internal bool Record(Client source, MissionProgressEvent progress, Vector3 position, string eventId = null)
+        /// <summary>
+        /// A kill, under every name it goes by (CreatureManager.KillEvents: the creature, its
+        /// class, each creature flag of its class). Shared with the squad as one kill is, name by
+        /// name - and an objective that answers to more than one of the names is credited once
+        /// per character.
+        /// </summary>
+        internal bool RecordKill(Client source, IReadOnlyList<MissionProgressEvent> kill, Vector3 position)
         {
-            if (progress.Kind is not (MissionProgressEventKind.CreatureKilled or MissionProgressEventKind.ScenarioEvent))
+            if (source?.Player?.MapChannel == null || source.State != ClientState.Ingame || kill == null || kill.Count == 0)
+                return false;
+            if (source.Player.MapChannel.IsPrivateInstance || PartyManager.Instance.PartyOf(source) == null)
+                return _missions.RecordProgress(source, kill);
+            var credited = new HashSet<(uint CharacterId, uint MissionId, uint ObjectiveId)>();
+            var changed = false;
+            foreach (var progress in kill)
+                changed |= Record(source, progress, position, null, credited);
+            return changed;
+        }
+
+        internal bool Record(Client source, MissionProgressEvent progress, Vector3 position, string eventId = null,
+            ISet<(uint CharacterId, uint MissionId, uint ObjectiveId)> credited = null)
+        {
+            if (!MissionProgressRule.IsKill(progress.Kind) && progress.Kind != MissionProgressEventKind.ScenarioEvent)
                 return _missions.RecordProgress(source, progress);
             if (source?.Player?.MapChannel == null || source.State != ClientState.Ingame)
                 return false;
             if (source.Player.MapChannel.IsPrivateInstance || PartyManager.Instance.PartyOf(source) == null)
                 return _missions.RecordProgress(source, progress);
-            var candidates = Select(source, progress, position, null);
+            var candidates = Select(source, progress, position, null, credited);
             if (candidates.Count == 0)
                 return false;
             eventId ??= Guid.NewGuid().ToString("N");
@@ -103,7 +123,8 @@ namespace Rasa.Game.Missions
         }
 
         private IReadOnlyList<Recipient> Select(Client source, MissionProgressEvent progress, Vector3 position,
-            IReadOnlyDictionary<uint, MissionSceneParticipantEntry> participants)
+            IReadOnlyDictionary<uint, MissionSceneParticipantEntry> participants,
+            ISet<(uint CharacterId, uint MissionId, uint ObjectiveId)> credited = null)
         {
             var result = new List<Recipient>();
             var map = source.Player.MapChannel;
@@ -126,7 +147,10 @@ namespace Rasa.Game.Missions
                     var objectives = group.Where(candidate =>
                         candidate.ObjectiveDefinition.CreditPolicy.Eligible(ReferenceEquals(source, client), true,
                             sameParty, participant != null, Vector3.Distance(client.Player.Position, position)))
-                        .Select(candidate => candidate.ObjectiveDefinition.ObjectiveId).ToArray();
+                        .Select(candidate => candidate.ObjectiveDefinition.ObjectiveId)
+                        // Another name of the same kill has this character's objective already.
+                        .Where(objectiveId => credited == null || credited.Add((client.Player.Id, group.Key, objectiveId)))
+                        .ToArray();
                     if (objectives.Length > 0)
                         result.Add(new Recipient(client, group.Key, objectives, participant, assignment));
                 }

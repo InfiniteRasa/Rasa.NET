@@ -59,7 +59,7 @@ namespace Rasa.Structures.World
         [Required]
         public double Confidence { get; set; }
 
-        [Column("reconstruction_note", TypeName = "varchar(256)")]
+        [Column("reconstruction_note", TypeName = "text")]
         [Required]
         public string ReconstructionNote { get; set; } = string.Empty;
 

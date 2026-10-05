@@ -6,6 +6,7 @@ namespace Rasa.Managers
     using Data;
     using Game;
     using Packets;
+    using Packets.ClientMethod.Server;
     using Packets.Communicator.Server;
     using Packets.Inventory.Server;
     using Packets.MapChannel.Client;
@@ -196,6 +197,36 @@ namespace Rasa.Managers
 
                 convoDataDict.Add(ConversationType.Training,
                     new TrainingConverse(line == TrainerDialog.Offer, trainer.DialogGroup + (int)line));
+            }
+
+            // More than one topic: the client opens its topic list, which is headed by the NPC's
+            // greeting, and by "ERROR: 7: No greeting" if it was sent none (NpcGreetings).
+            NpcGreetings.AddTo(convoDataDict, creature);
+
+            // Nothing to talk about. A player gets here through an NPC whose only status is
+            // Unavailable: npc.py offers CONVERSE on any status but None, and an empty dictionary
+            // falls through Recv_Converse to "Unknown conversation type received from server".
+            // EndConversation closes the window it would have opened, and the mission that is
+            // waiting is named in the chat - player message 939, "'%(missionId)s' is not
+            // available to you now.", the id sent as a number for BuildPlayerMessage to turn
+            // into the mission's name.
+            //
+            // An NPC with a line of its own says it instead (NpcGreetings): the greeting alone,
+            // which the client shows in its conversation window.
+            if (convoDataDict.Count == 0)
+            {
+                if (NpcGreetings.HasOwn(creature))
+                    convoDataDict.Add(ConversationType.Greeting, NpcGreetings.For(creature));
+                else
+                    convoDataDict.Add(ConversationType.EndConversation, true);
+
+                if (conversation.NotYetAvailable.Count > 0)
+                {
+                    var message = new DisplayClientMessagePacket(PlayerMessage.PmMissionNotAvailableNow,
+                        new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages);
+                    message.NumberArgs["missionId"] = conversation.NotYetAvailable[0];
+                    client.CallMethod(SysEntity.CommunicatorId, message);
+                }
             }
 
             /*
@@ -440,6 +471,29 @@ namespace Rasa.Managers
             if (creature.Npc.NpcIsClanMaster && statusSet == false)
             {
                 client.CallMethod(creature.EntityId, new NPCConversationStatusPacket(ConversationStatus.Clan, new List<uint>())); // status - none
+                statusSet = true;
+            }
+
+            // has the NPC a mission this player cannot take yet?
+            //
+            // Last of all. npc.py keeps its vendor package, clan master and auctioneer flags from
+            // the status and clears them on any status it does not know them by, so this one over
+            // a vendor would take the vendor's window away; and anything a mission has for the
+            // player now is said by the statuses above. The client reads no data with it.
+            if (missionState.NotYetAvailable.Count > 0 && statusSet == false)
+            {
+                client.CallMethod(creature.EntityId, new NPCConversationStatusPacket(ConversationStatus.Unavailable, new List<uint>(missionState.NotYetAvailable)));
+                statusSet = true;
+            }
+
+            // has the NPC a line of its own, and nothing else?
+            //
+            // The client's greeting status: no pip over the NPC, and the converse action, which
+            // npc.py offers on any status but None. The conversation is the line alone
+            // (OpenConversation). An NPC with no line of its own stays at None, as it was.
+            if (statusSet == false && NpcGreetings.HasOwn(creature))
+            {
+                client.CallMethod(creature.EntityId, new NPCConversationStatusPacket(ConversationStatus.Greeting, new List<uint>()));
                 statusSet = true;
             }
 
@@ -781,8 +835,13 @@ namespace Rasa.Managers
                         $"Could not refund partial vendor purchase for character {client.Player.Id}.");
             }
 
-            // send player message
-            client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(PlayerMessage.PmGotLootFromUnknown, new Dictionary<string, string> { { "quantity", quantity.ToString() }, { "loot", vendorItem.ItemTemplate.Class.ToString() } }, MsgFilterId.LootObtained));
+            // "You received N X." in the loot filter, as GotLoot: the client names the item
+            // itself from its class id, in its own language. This was DisplayClientMessage with
+            // the class as the "loot" argument, and that message's arguments go in as the text
+            // they are (BuildPlayerMessage), so the chat read "You received 1 12951" - the enum's
+            // name where the class has one, the number where it has not.
+            client.CallMethod(SysEntity.ClientMethodId, new GotLootPacket(packet.VendorEntityId,
+                (uint)vendorItem.ItemTemplate.Class, quantity, placedItem?.EntityId ?? 0));
         }
 
         /// <summary>
@@ -900,11 +959,13 @@ namespace Rasa.Managers
 
             item.CurrentHitPoints = maxHitPoints;
             item.WearCarry = 0;
-            ItemManager.Instance.SendItemDataToClient(client, item, true);
 
-            // The condition change itself. SendItemDataToClient carries the new hit points in
-            // ItemInfo, but only ItemStatus makes the client act on them: it is what refreshes
-            // the vendor's repair list and clears a weapon's broken icon in the drawer.
+            // ItemStatus alone, as wear sends it. Recv_ItemStatus posts UI_UPDATE_ITEM_REPAIRED,
+            // which rebuilds the vendor's repair list, and clears a weapon's broken icon in the
+            // drawer - but only when the hit points it carries are above the ones the client
+            // holds. An ItemInfo sent ahead of it had already stored the new hit points, so the
+            // comparison never passed: the list kept the repaired item until the page was left
+            // and reopened, and a repaired weapon kept its broken icon.
             ItemManager.Instance.SendItemStatus(client, item, maxHitPoints);
 
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();

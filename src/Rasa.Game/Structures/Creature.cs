@@ -19,6 +19,12 @@ namespace Rasa.Structures
         public uint Level { get; set; }
         public uint MaxHitPoints { get; set; }
         public uint NameId { get; set; }
+
+        /// <summary>
+        /// Creature flags this one has beyond its class's (CreatureManager.CreatureFlagsOf): a
+        /// player's construction bot is MECHANICAL, though its class carries no flags.
+        /// </summary>
+        public List<CreatureFlag> ExtraFlags { get; set; } = new List<CreatureFlag>();
         public long UpdatePositionCounter;                                       // decreases, when it hits 0 and the cell position changed, call creature_updateCellLocation()
         public Dictionary<EquipmentData, AppearanceData> AppearanceData { get; set; }
         //sint32 lastattack;
@@ -93,6 +99,8 @@ namespace Rasa.Structures
         public long LastAgression { get; internal set; }
         public long LastRestTime { get; internal set; }
         public bool IsInteractable { get; set; } = true;
+        internal Func<bool> ScriptedCombatGate { get; set; }
+        internal Game.Missions.World.ScriptedCombatAuthorization ScriptedCombatAuthorization { get; set; }
 
         /// <summary>
         /// The player this creature belongs to, or 0 for an ordinary world creature.
@@ -151,6 +159,18 @@ namespace Rasa.Structures
         /// carry a previous life's finish into its next death.
         /// </summary>
         public bool CritKilled { get; set; }
+
+        /// <summary>
+        /// Its ALTERNATE_MESH effect's id on the map (AlternateMesh): taken the first time a
+        /// client is told of it, 0 until then and for a creature with no wreck.
+        /// </summary>
+        public int AlternateMeshEffectId { get; set; }
+
+        /// <summary>Whether it is its wreck now: destroyed, and not put back since.</summary>
+        public bool AlternateMeshSwapped { get; set; }
+
+        /// <summary>Environment.TickCount64 at which a fallen walker becomes its wreck; 0 when none is waiting.</summary>
+        public long AlternateMeshSwapAt { get; set; }
 
         public Creature(CreatureEntry data)
         {

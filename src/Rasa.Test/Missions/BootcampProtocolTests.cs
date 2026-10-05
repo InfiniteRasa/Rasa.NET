@@ -61,6 +61,20 @@ namespace Rasa.Test.Missions
                     .ToArray());
         }
 
+        /// <summary>
+        /// A status refresh carries every mission the client is shown, not only the one that
+        /// changed: the client replaces its whole mission log with what MissionStatusInfo holds.
+        /// </summary>
+        private static void AssertWholeJournal(Client client, MissionStatusInfoPacket status)
+        {
+            var shown = client.Player.Missions
+                .Where(mission => MissionApplication.IsPublishedState(mission.Value.State))
+                .Select(mission => mission.Key).ToArray();
+
+            CollectionAssert.Contains(shown, MissionCallingForReinforcements);
+            CollectionAssert.AreEquivalent(shown, status.MissionStatusDict.Keys.ToArray());
+        }
+
         [TestMethod]
         public void DeadlineMissionInfoPublishesTheCountdownThenClearsItWhenTheChargeIsPlanted()
         {
@@ -78,10 +92,7 @@ namespace Rasa.Test.Missions
             var startStatus = startPackets
                 .Single(packet => packet.GetType() == typeof(MissionStatusInfoPacket)) as MissionStatusInfoPacket;
             Assert.IsNotNull(startStatus);
-            Assert.AreEqual(1, startStatus.MissionStatusDict.Count);
-            CollectionAssert.AreEqual(
-                new[] { MissionCallingForReinforcements },
-                startStatus.MissionStatusDict.Keys.ToArray());
+            AssertWholeJournal(harness.Client, startStatus);
             var dueAt = ReadDeadline(harness, MissionCallingForReinforcements).DueAtUtc;
             AssertObjectiveTimer(
                 startStatus.MissionStatusDict[MissionCallingForReinforcements],
@@ -102,7 +113,7 @@ namespace Rasa.Test.Missions
             var satisfactionStatus = satisfactionPackets
                 .Single(packet => packet.GetType() == typeof(MissionStatusInfoPacket)) as MissionStatusInfoPacket;
             Assert.IsNotNull(satisfactionStatus);
-            Assert.AreEqual(1, satisfactionStatus.MissionStatusDict.Count);
+            AssertWholeJournal(harness.Client, satisfactionStatus);
             AssertObjectiveTimerCleared(
                 satisfactionStatus.MissionStatusDict[MissionCallingForReinforcements],
                 objectiveId: 1,
@@ -131,7 +142,7 @@ namespace Rasa.Test.Missions
             var failureStatus = failurePackets
                 .Single(packet => packet.GetType() == typeof(MissionStatusInfoPacket)) as MissionStatusInfoPacket;
             Assert.IsNotNull(failureStatus);
-            Assert.AreEqual(1, failureStatus.MissionStatusDict.Count);
+            AssertWholeJournal(harness.Client, failureStatus);
             AssertObjectiveTimerCleared(
                 failureStatus.MissionStatusDict[MissionCallingForReinforcements],
                 objectiveId: 1,

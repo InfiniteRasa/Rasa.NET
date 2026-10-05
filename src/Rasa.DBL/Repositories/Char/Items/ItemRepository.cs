@@ -145,6 +145,11 @@ namespace Rasa.Repositories.Char.Items
             UpdateColumn(item, nameof(ItemEntry.BoundCharacterId), entry => entry.BoundCharacterId = item.BoundCharacterId);
         }
 
+        public void UpdateColor(IItemChange item)
+        {
+            UpdateColumn(item, nameof(ItemEntry.Color), entry => entry.Color = item.Color);
+        }
+
         public void UpdateCurrentHitPoints(IItemChange item)
         {
             UpdateColumn(item, nameof(ItemEntry.CurrentHitPoints), entry => entry.CurrentHitPoints = item.CurrentHitPoints);

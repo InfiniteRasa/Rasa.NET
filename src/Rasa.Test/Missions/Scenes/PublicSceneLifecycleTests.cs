@@ -118,6 +118,59 @@ namespace Rasa.Test.Missions.Scenes
         }
 
         [TestMethod]
+        [DataRow(false)]
+        [DataRow(true)]
+        public void FailOwnerLossPolicyCommitsFailureBeforeReleasingThePublicActor(bool failFirstSave)
+        {
+            var now = DateTime.UnixEpoch;
+            using var context = MissionTestContext.WithProgressMission(
+                MissionProgressRule.CompleteOnScenarioEvent(321, 1, 1), utcNow: () => now);
+            var giver = context.AddNpc(77);
+            giver.SpawnPool = new SpawnPool
+            {
+                DbId = 77, RuntimeMapChannel = context.Map, MapContextId = context.Map.MapInfo.MapContextId,
+                Position = giver.Position
+            };
+            context.Map.SpawnPools.Add(giver.SpawnPool);
+            var timer = TimedSignal();
+            var bindings = new SceneBindings(timer.Release,
+                new Dictionary<string, SceneActorDefinition> { ["guide"] = new("guide", SceneActorKind.PublicSpawn, 77) },
+                new Dictionary<string, SceneRoute>(), timer.Sequences.ToDictionary(entry => entry.Key, entry => entry.Value));
+            context.Manager.Scenes.Bind(321, "data.sequence", bindings);
+            context.Manager.PublicActors.Bind(new PublicEncounterBinding(321, 77, "guide", "data.sequence", "Fail"));
+            Assert.IsTrue(context.Manager.AcceptOfferedMission(context.Client, giver.EntityId, 321));
+            var lease = context.Manager.PublicActors.Handle(context.Map, 77);
+            if (failFirstSave)
+                context.BeforeSave = database =>
+                {
+                    if (database.ChangeTracker.Entries<CharacterMissionEntry>().Any(entry =>
+                        entry.Entity.MissionState == (uint)MissionState.Failed))
+                        throw new DbUpdateException("Injected owner-loss failure persistence error.");
+                };
+            context.Client.State = ClientState.Disconnected;
+
+            Maps(context).CleanupDisconnected(context.Client);
+
+            if (failFirstSave)
+            {
+                Assert.AreEqual(MissionState.Active, context.Client.Player.Missions[321].State);
+                Assert.AreEqual(lease, context.Manager.PublicActors.Handle(context.Map, 77));
+                context.BeforeSave = null;
+                now = now.AddSeconds(1);
+            }
+            context.Manager.Scenes.Tick(context.Map);
+            using (var unit = context.CreateChar())
+                Assert.AreEqual((uint)MissionState.Failed,
+                    unit.CharacterMissions.GetByCharacterAndMission(1, 321).MissionState);
+            Assert.AreEqual(MissionState.Failed, context.Client.Player.Missions[321].State);
+            Assert.IsNull(context.Manager.PublicActors.Handle(context.Map, 77));
+            Assert.IsTrue(giver.IsInteractable);
+            var next = context.CreateAdditionalClient(2);
+            Assert.IsTrue(context.Manager.AcceptOfferedMission(next, giver.EntityId, 321));
+            Assert.AreNotEqual(lease.RunId, context.Manager.PublicActors.Handle(context.Map, 77).RunId);
+        }
+
+        [TestMethod]
         public void DisconnectPausePersistenceFailureStopsWorkAndRecoversTheRemainingActiveWait()
         {
             var now = DateTime.UnixEpoch;

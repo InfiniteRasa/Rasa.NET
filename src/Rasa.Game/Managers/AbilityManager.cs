@@ -278,7 +278,9 @@ namespace Rasa.Managers
                 return;
             }
 
-            if (player.State == CharacterState.Dead)
+            // The dead do nothing, bar the one thing that is for them: a Machina's Self Revive
+            // (SelfResAction.canDoWhileDead).
+            if (player.State == CharacterState.Dead && action.Module != SelfResModule)
             {
                 Fail(client, actionId, level, PlayerMessage.PmActionFailedActorDead);
                 return;
@@ -303,17 +305,32 @@ namespace Rasa.Managers
             // item in their pack whose template performs exactly this action.
             var item = packet.ItemId != 0 ? EntityManager.Instance.GetItem((ulong)packet.ItemId) : null;
 
-            if (packet.ItemId != 0 && item == null)
-            {
-                Fail(client, actionId, level, PlayerMessage.PmMissingReqItem);
-                return;
-            }
-
             if (!Grants(player, actionId, level, item))
             {
-                Logger.WriteLog(LogType.Security, $"{player.FamilyName} asked for {action.Name} level {level} without a skill or item that grants it");
-                Fail(client, actionId, level, PlayerMessage.PmCannotPerformActionNow);
-                return;
+                // The item the client names is the one its tray slot was last sent with
+                // (AbilityDrawerItems), which is not always the one in the pack now: the pet was
+                // deleted and bought again, the medpack stack ran out with another behind it, or
+                // the slot went out with no item because there was none at login. The client
+                // judges an item slot by the item class in the pack where it checks at all
+                // (BaseActorAbility.CheckConsumables), not by that id, so it shows the slot ready
+                // and fires it; the request was refused until a relog sent the drawer again. It
+                // is performed with the item in the pack that does perform it.
+                var standIn = PackItemPerforming(player, actionId, level);
+
+                if (standIn == null)
+                {
+                    if (packet.ItemId != 0 && item == null)
+                    {
+                        Fail(client, actionId, level, PlayerMessage.PmMissingReqItem);
+                        return;
+                    }
+
+                    Logger.WriteLog(LogType.Security, $"{player.FamilyName} asked for {action.Name} level {level} without a skill or item that grants it");
+                    Fail(client, actionId, level, PlayerMessage.PmCannotPerformActionNow);
+                    return;
+                }
+
+                item = standIn;
             }
 
             // A skill's ability also wants its Logos in the Tabula (AbilityLogos). An item that
@@ -339,6 +356,13 @@ namespace Rasa.Managers
             if (toyRefusal.HasValue)
             {
                 Fail(client, actionId, level, toyRefusal.Value);
+                return;
+            }
+
+            // A Personal Waypoint, on a map with teams, by a player on none (PersonalWaypoints).
+            if (PersonalWaypoints.Is(action) && PersonalWaypoints.Refusal(player) is { } waypointRefusal)
+            {
+                Fail(client, actionId, level, waypointRefusal);
                 return;
             }
 
@@ -426,7 +450,20 @@ namespace Rasa.Managers
                 }
                 else if (CorpseModules.Contains(action.Module))
                 {
-                    if (!IsUsableCorpse(target))
+                    if (!IsUsableCorpse(target, player))
+                    {
+                        Fail(client, actionId, level, PlayerMessage.PmTargetInvalid);
+                        return;
+                    }
+                }
+                else if (action.Module == "abilities.cure" && Resuscitates(level) && target is Manifestation)
+                {
+                    // Resuscitate wants a dead player (CureAction.CheckAction); offered a revive.
+                }
+                else if (MorphReviveModules.Contains(action.Module))
+                {
+                    // A Polymorph's Resuscitate or Jumpstart wants a dead friend it can bring back.
+                    if (!IsMorphRevivable(player, action.Module, target))
                     {
                         Fail(client, actionId, level, PlayerMessage.PmTargetInvalid);
                         return;
@@ -443,6 +480,13 @@ namespace Rasa.Managers
                     Fail(client, actionId, level, PlayerMessage.PmTargetOutOfRange);
                     return;
                 }
+            }
+
+            // And with nobody targeted, or themselves, there is nobody to bring back.
+            if (MorphReviveModules.Contains(action.Module) && target == null)
+            {
+                Fail(client, actionId, level, PlayerMessage.PmActionFailedNoTarget);
+                return;
             }
 
             // A point on the ground, when the ability is aimed at one: where a turret, trap, rift or
@@ -482,9 +526,38 @@ namespace Rasa.Managers
                 return;
             }
 
-            if (wantsHostile && target != null && !IsHostile(player, target))
+            // A damage or debuff ability may be aimed at an enemy player across a wargame too (Pvp).
+            // Hack takes a machine alone, which the client holds to (HackAction.CheckAction).
+            if (wantsHostile && target != null && !IsAttackable(player, target))
             {
                 Fail(client, actionId, level, PlayerMessage.PmActionFailedActorFriendly);
+                return;
+            }
+
+            // An enemy's Mind Control: P2-P5 let them attack nobody, P4-P5 help nobody else
+            // either (Pvp.MayNotAttack, MayNotAssist). The client knows nothing of it, so the
+            // server says no.
+            if (Pvp.MayNotAttack(player) && IsAttackAction(action, info)
+                || Pvp.MayNotAssist(player) && !wantsHostile && !CorpseModules.Contains(action.Module) && target is Manifestation helped && helped != player)
+            {
+                Fail(client, actionId, level, PlayerMessage.PmCannotPerformActionNow);
+                return;
+            }
+
+            // And a friendly one not at an enemy player: the client refuses it too
+            // (targetedaction.py SetTarget, Actor.GetWargameParticipantStatus).
+            if (!wantsHostile && FriendlyEffectModules.Contains(action.Module) && target is Manifestation foe && Pvp.AreEnemies(player, foe))
+            {
+                Fail(client, actionId, level, PlayerMessage.PmTargetInvalid);
+                return;
+            }
+
+            // Nor at a player in a duel, a squad wargame or a team's match from outside their
+            // side of it (Pvp.MayHelp). The client does not know the rule, so the server says no;
+            // what gets here some other way is stopped where it lands.
+            if (!wantsHostile && target is Manifestation closedTo && closedTo != player && !Pvp.MayHelp(player, closedTo))
+            {
+                Fail(client, actionId, level, PlayerMessage.PmTargetInvalid);
                 return;
             }
 
@@ -540,7 +613,7 @@ namespace Rasa.Managers
             {
                 TargetObject = practiceTarget,
                 TargetLocation = location,
-                ItemId = packet.ItemId
+                ItemId = item?.EntityId ?? 0
             });
         }
 
@@ -551,6 +624,28 @@ namespace Rasa.Managers
         /// </summary>
         public bool ItemPerforms(Manifestation player, Item item, ActionId actionId, uint level) =>
             player != null && item != null && Grants(player, actionId, level, item);
+
+        /// <summary>
+        /// An item in the player's pack that performs the action at this level, or null: what a
+        /// request is carried out with when the item it names is not one (RequestPerformAbility).
+        /// A mission's item is passed over, as it is when the ability's cost is taken.
+        /// </summary>
+        private Item PackItemPerforming(Manifestation player, ActionId actionId, uint level)
+        {
+            foreach (var entityId in player.Inventory.PersonalInventory)
+            {
+                if (entityId == 0)
+                    continue;
+
+                var candidate = EntityManager.Instance.GetItem(entityId);
+
+                if (candidate != null && Grants(player, actionId, level, candidate) &&
+                    !Game.Missions.Persistence.MissionItemProtection.IsProtected(candidate, _gameUnitOfWorkFactory))
+                    return candidate;
+            }
+
+            return null;
+        }
 
         /// <summary>
         /// Whether the player may use the action at this level: a skill of theirs grants the
@@ -647,12 +742,12 @@ namespace Rasa.Managers
         /// <summary>Whether this server knows how to apply the ability; see the class remarks.</summary>
         private static bool CanResolve(ActionInfo action, ActionLevelInfo info)
         {
-            return action.Module == "abilities.sprint" || action.Module == PolymorphModule || action.Module == CrabMinesModule || action.Module == RealityRipperModule || action.Module == TrapModule || action.Module == TurretModule
+            return action.Module == "abilities.sprint" || action.Module == PolymorphModule || action.Module == SelfResModule || action.Module == CrabMinesModule || action.Module == RealityRipperModule || action.Module == TrapModule || action.Module == TurretModule
                 || action.Module == HortimonculusModule || action.Module == ReanimationModule || action.Module == ReanimationWaveModule
                 || action.Module == SpotterModule || action.Module == BotConstructionModule || action.Module == CreateCloneModule
                 || MorphSupportModules.Contains(action.Module)
                 || IsDirectDamage(action, info) || TimedEffectModules.Contains(action.Module)
-                || IsToy(action, info);
+                || IsToy(action, info) || PersonalWaypoints.Is(action);
         }
 
         /// <summary>
@@ -691,13 +786,14 @@ namespace Rasa.Managers
             return IsOnMap(mapChannel, target) ? target : null;
         }
 
-        /// <summary>The Bootcamp practice target the recruit's lightning (level 1) is aimed at, when it can be hit from here.</summary>
+        /// <summary>The Bootcamp practice target or mission prop that the recruit's lightning can hit from here.</summary>
         private static DynamicObject ResolvePracticeTarget(
             MapChannel map, Manifestation player, ActionLevelInfo info, ulong entityId)
         {
-            if (info.ActionId != ActionId.AaRecruitLightning || info.Level != 1 ||
+            if (info.ActionId != ActionId.AaRecruitLightning ||
                 !PracticeTargetManager.TryGetTarget(map, entityId, out var target) ||
-                !PracticeTargetManager.CanHit(map, player, target))
+                !PracticeTargetManager.CanHit(map, player, target) ||
+                target.MissionDestruction == null && info.Level != 1)
                 return null;
             return target;
         }
@@ -706,13 +802,23 @@ namespace Rasa.Managers
             => MapInstanceScope.Contains(mapChannel, actor);
 
         /// <summary>
-        /// Who a player's damage may land on: HOSTILE and NEUTRAL creatures (TargetCategories.
-        /// PlayerMayAttack). Other players are not targets - there is no PvP to speak of yet - and
-        /// FRIENDLY creatures are the friendly NPCs.
+        /// A target for a player's damage ability: a creature they may attack (IsHostile), or an
+        /// enemy player across a wargame (Pvp.IsEnemyTarget).
+        /// </summary>
+        internal static bool IsAttackable(Manifestation player, Actor target)
+        {
+            return IsHostile(player, target) || Pvp.IsEnemyTarget(player, target);
+        }
+
+        /// <summary>
+        /// Which creatures a player's damage may land on: HOSTILE and NEUTRAL ones (TargetCategories.
+        /// PlayerMayAttack), and those that belong to an enemy of theirs across a wargame (Pvp).
+        /// FRIENDLY creatures are the friendly NPCs. Players are not here: an enemy player is
+        /// IsAttackable, and the areas reach them through VictimsWithin.
         /// </summary>
         internal static bool IsHostile(Manifestation player, Actor target)
         {
-            return target is Creature creature && TargetCategories.PlayerMayAttack(creature.TargetCategory)
+            return target is Creature creature && (TargetCategories.PlayerMayAttack(creature.TargetCategory) || Pvp.IsEnemySummon(player, creature))
                    && creature.State != CharacterState.Dead && creature.State != CharacterState.Dying
                    && creature.Attributes.TryGetValue(Attributes.Health, out var health) && health.Current > 0;
         }
@@ -753,7 +859,15 @@ namespace Rasa.Managers
             if (!_actions.TryGetValue(action.ActionId, out var actionInfo) || !actionInfo.Levels.TryGetValue(action.ActionArgId, out var info))
                 return;
 
-            if (action.IsInrerrupted || player.State == CharacterState.Dead)
+            if (action.Completed)
+            {
+                Logger.WriteLog(LogType.Debug,
+                    $"Ability recovery {action.ActionId}/{action.ActionArgId} for character {player.Id} was already resolved.");
+                return;
+            }
+            action.Completed = true;
+
+            if (action.IsInrerrupted || player.State == CharacterState.Dead && actionInfo.Module != SelfResModule)
             {
                 // The others are still showing the windup. The performer's client cancelled its
                 // own when it sent the interrupt; a performer who died mid-windup is told, so the
@@ -802,6 +916,9 @@ namespace Rasa.Managers
 
             StartCooldown(client, player, info);
 
+            // A Feedback on them watches what they do (Feedback).
+            OnPlayerActed(mapChannel, player, IsCombatAction(actionInfo, info, action.ItemId));
+
             // The charge has arrived: the blow lands from where it ends.
             if (actionInfo.Module == RushingBlowModule)
                 FinishCharge(player);
@@ -815,6 +932,13 @@ namespace Rasa.Managers
             if (IsToy(actionInfo, info))
             {
                 ResolveToy(mapChannel, client, player, actionInfo, info, action, toyCommit);
+                return;
+            }
+
+            if (PersonalWaypoints.Is(actionInfo))
+            {
+                PersonalWaypoints.Deploy(mapChannel, player, info.Level, info);
+                CellManager.Instance.CellCallMethod(mapChannel, player, new AbilityRecoveryPacket(action.ActionId, action.ActionArgId, AbilityRecoveryPacket.HitDataKind.None));
                 return;
             }
 
@@ -847,6 +971,17 @@ namespace Rasa.Managers
             if (actionInfo.Module == CreateCloneModule)
             {
                 CreateClone(mapChannel, client, player, info, action);
+                return;
+            }
+
+            if (actionInfo.Module == SelfResModule)
+            {
+                // SelfResAction.DoAbility announces the revive on the performer's own client.
+                if (PlayerDeath.SelfRevive(client))
+                    CellManager.Instance.CellCallMethod(mapChannel, player, new AbilityRecoveryPacket(action.ActionId, action.ActionArgId, AbilityRecoveryPacket.HitDataKind.None));
+                else
+                    Fail(client, action.ActionId, action.ActionArgId, PlayerMessage.PmCannotPerformActionNow);
+
                 return;
             }
 
@@ -1142,43 +1277,51 @@ namespace Rasa.Managers
                 CellManager.Instance.CellCallMethod(mapChannel, player, practice);
                 if (practiceAmount > 0)
                     PracticeTargetManager.RecordHit(
-                        mapChannel, player, practiceTarget, action.ActionId, _missionManager);
+                        mapChannel, player, practiceTarget, action.ActionId, _missionManager, practiceAmount);
                 return;
             }
 
-            var targets = new List<Creature>();
-            var primary = action.TargetId != 0 ? ResolveTarget(mapChannel, action.TargetId) as Creature : null;
+            // Creatures a player may attack, and enemy players across a wargame (Pvp).
+            var targets = new List<Actor>();
+            var primary = action.TargetId != 0 ? ResolveTarget(mapChannel, action.TargetId) : null;
+
+            if (primary != null && !IsAttackable(player, primary))
+                primary = null;
 
             // Lightning's bolt strikes its target alone; what else it reaches is its arc and its
             // storm (ResolveLightningExtras), not an area around the target.
             if (actionInfo.Module == "abilities.lightning")
             {
-                if (primary != null && IsHostile(player, primary))
+                if (primary != null)
                     targets.Add(primary);
             }
             else if (info.Has(AbilityProperty.ConeRadius))
             {
                 // A cone: the action's range long, CONE_RADIUS degrees either side of the aim -
                 // at the target when there is one, otherwise the way the player faces.
-                var aim = primary != null && IsHostile(player, primary)
+                var aim = primary != null
                     ? primary.Position - player.Position
                     : FacingOf(player);
+                var range = Math.Max(1, info.MaxRange) + RangeSlack;
 
-                targets.AddRange(HostilesInCone(mapChannel, player, aim, Math.Max(1, info.MaxRange) + RangeSlack, info.Get(AbilityProperty.ConeRadius)));
+                targets.AddRange(HostilesInCone(mapChannel, player, aim, range, info.Get(AbilityProperty.ConeRadius)));
+                targets.AddRange(Pvp.EnemiesInCone(mapChannel, player, aim, range, info.Get(AbilityProperty.ConeRadius)));
             }
             else if (info.Has(AbilityProperty.RadiusAroundSource))
             {
                 targets.AddRange(HostilesWithin(mapChannel, player, player.Position, info.Get(AbilityProperty.RadiusAroundSource)));
+                targets.AddRange(Pvp.EnemiesWithin(mapChannel, player, player.Position, info.Get(AbilityProperty.RadiusAroundSource)));
             }
             else if (info.Has(AbilityProperty.RadiusAroundTarget))
             {
                 var centre = primary?.Position ?? action.TargetLocation ?? player.Position;
                 targets.AddRange(HostilesWithin(mapChannel, player, centre, info.Get(AbilityProperty.RadiusAroundTarget)));
+                targets.AddRange(Pvp.EnemiesWithin(mapChannel, player, centre, info.Get(AbilityProperty.RadiusAroundTarget)));
 
-                if (primary != null && !targets.Contains(primary) && IsHostile(player, primary))
+                if (primary != null && !targets.Contains(primary))
                     targets.Add(primary);
             }
-            else if (primary != null && IsHostile(player, primary))
+            else if (primary != null)
             {
                 targets.Add(primary);
             }
@@ -1223,34 +1366,63 @@ namespace Rasa.Managers
                 recovery.Hits.Add(hit);
 
                 // A hit on a creature a mission counts.
-                if (taken > 0 && target.DbId != 0)
+                if (taken > 0 && target is Creature counted && counted.DbId != 0)
                     (_missionManager ?? MissionApplication.Instance).RecordProgress(
                         client,
-                        MissionProgressEvent.AbilityHit((uint)action.ActionId, target.DbId));
+                        MissionProgressEvent.AbilityHit((uint)action.ActionId, counted.DbId));
+
+                // An enemy player still standing: what the hit does to a creature, with the player's
+                // own stun, knockback and pull (PlayerCrowdControl), for PVP_EFFECT_DURATION_MODIFIER
+                // of the time (Pvp).
+                if (target is Manifestation enemy)
+                {
+                    if (taken > 0 && enemy.Attributes[Attributes.Health].Current > 0 && !Pvp.IsSafe(enemy))
+                    {
+                        if (crit && !outcome.Immune)
+                            CritEffects.OnCritical(mapChannel, enemy, player, damageType, amount);
+
+                        if (stun.Ms > 0 && Stuns.Roll(stun.Chance))
+                            PlayerCrowdControl.Stun(mapChannel, enemy, player, Pvp.ScaleDuration(player, enemy, stun.Ms));
+
+                        if (knockback > 0)
+                            PlayerCrowdControl.Knockback(mapChannel, enemy, player, knockback);
+
+                        if (actionInfo.Module == VortexModule)
+                            PlayerCrowdControl.Pull(mapChannel, enemy, player, (int)info.RecoveryMs);
+                    }
+
+                    // Lightning's arc, extra sonic damage and storm.
+                    if (recovery.ArcData)
+                        ResolveLightningExtras(mapChannel, player, info, enemy, rolled, hit);
+
+                    continue;
+                }
 
                 // Still standing: the stuns the hit carries - the ability's own, and an Ice or
                 // Sonic crit's - each of which opens the Critical Death window if it is low enough.
-                if (target.State != CharacterState.Dead && target.State != CharacterState.Dying && target.Attributes[Attributes.Health].Current > 0)
+                var creature = (Creature)target;
+
+                if (creature.State != CharacterState.Dead && creature.State != CharacterState.Dying && creature.Attributes[Attributes.Health].Current > 0)
                 {
                     if (crit && !outcome.Immune)
-                        CritEffects.OnCritical(mapChannel, target, player, damageType, amount);
+                        CritEffects.OnCritical(mapChannel, creature, player, damageType, amount);
 
-                    if (target.State != CharacterState.Dying && stun.Ms > 0 && Stuns.Roll(stun.Chance))
-                        Stuns.Apply(mapChannel, target, player, Stuns.StunTypeId, stun.Ms, damageType);
+                    if (creature.State != CharacterState.Dying && stun.Ms > 0 && Stuns.Roll(stun.Chance))
+                        Stuns.Apply(mapChannel, creature, player, Stuns.StunTypeId, stun.Ms, damageType);
 
                     // KNOCKBACK_DISTANCE: Tectonic Strike, Concussive Wave, Rushing Blow, Force Blast P6/P7.
-                    if (target.State != CharacterState.Dying && knockback > 0)
-                        CrowdControl.Knockback(mapChannel, target, player, knockback, CrowdControl.KnockbackTypeId, damageType);
+                    if (creature.State != CharacterState.Dying && knockback > 0)
+                        CrowdControl.Knockback(mapChannel, creature, player, knockback, CrowdControl.KnockbackTypeId, damageType);
 
                     // Vortex drags them in, over the flail the client plays on them for the
                     // action's recovery time.
-                    if (target.State != CharacterState.Dying && actionInfo.Module == VortexModule)
-                        CrowdControl.Pull(mapChannel, target, player, (int)info.RecoveryMs);
+                    if (creature.State != CharacterState.Dying && actionInfo.Module == VortexModule)
+                        CrowdControl.Pull(mapChannel, creature, player, (int)info.RecoveryMs);
                 }
 
                 // Lightning's arc, extra sonic damage and storm (AbilityManager.Lightning.cs).
                 if (recovery.ArcData)
-                    ResolveLightningExtras(mapChannel, player, info, target, rolled, hit);
+                    ResolveLightningExtras(mapChannel, player, info, creature, rolled, hit);
             }
 
             CellManager.Instance.CellCallMethod(mapChannel, player, recovery);
@@ -1304,7 +1476,54 @@ namespace Rasa.Managers
         /// </summary>
         internal static List<Creature> EnemiesWithin(MapChannel mapChannel, Manifestation player, Vector3 centre, float radius)
         {
-            return HostilesWithin(mapChannel, player, centre, radius).Where(c => TargetCategories.AlliesSeek(c.TargetCategory)).ToList();
+            return HostilesWithin(mapChannel, player, centre, radius)
+                .Where(c => TargetCategories.AlliesSeek(c.TargetCategory) || Pvp.IsEnemySummon(player, c)).ToList();
+        }
+
+        /// <summary>
+        /// What a player's summon goes looking for within radius metres of a point: the creatures
+        /// EnemiesWithin finds, and the player's enemies across a wargame (Pvp).
+        /// </summary>
+        internal static List<Actor> FoesWithin(MapChannel mapChannel, Manifestation player, Vector3 centre, float radius)
+        {
+            var found = EnemiesWithin(mapChannel, player, centre, radius).Cast<Actor>().ToList();
+
+            // A summon leaves an enemy under PvP Safety alone: its shots could not land.
+            found.AddRange(Pvp.EnemiesWithin(mapChannel, player, centre, radius).Where(p => !Pvp.IsSafe(p)));
+            return found;
+        }
+
+        /// <summary>
+        /// Everything a player's blast or area catches within radius metres of a point: the
+        /// creatures they may attack (HostilesWithin) and their enemies across a wargame (Pvp).
+        /// </summary>
+        internal static List<Actor> VictimsWithin(MapChannel mapChannel, Manifestation player, Vector3 centre, float radius)
+        {
+            var found = HostilesWithin(mapChannel, player, centre, radius).Cast<Actor>().ToList();
+            found.AddRange(Pvp.EnemiesWithin(mapChannel, player, centre, radius));
+            return found;
+        }
+
+        /// <summary>
+        /// Stuns what a player's blast caught: a creature through Stuns, an enemy player through
+        /// PlayerCrowdControl for half the time (Pvp.ScaleDuration).
+        /// </summary>
+        internal static bool StunVictim(MapChannel mapChannel, Actor victim, Manifestation player, int durationMs, DamageType damageType)
+        {
+            return victim switch
+            {
+                Creature creature => Stuns.Apply(mapChannel, creature, player, Stuns.StunTypeId, durationMs, damageType),
+                Manifestation enemy => PlayerCrowdControl.Stun(mapChannel, enemy, player, Pvp.ScaleDuration(player, enemy, durationMs)),
+                _ => false
+            };
+        }
+
+        /// <summary>VictimsWithin, in a cone from the performer.</summary>
+        internal static List<Actor> VictimsInCone(MapChannel mapChannel, Manifestation player, Vector3 aim, float range, float halfAngleDegrees)
+        {
+            var found = HostilesInCone(mapChannel, player, aim, range, halfAngleDegrees).Cast<Actor>().ToList();
+            found.AddRange(Pvp.EnemiesInCone(mapChannel, player, aim, range, halfAngleDegrees));
+            return found;
         }
 
         /// <summary>Living creatures a player may attack within radius metres of a point, from the cells around the performer.</summary>
@@ -1332,7 +1551,8 @@ namespace Rasa.Managers
         {
             var found = new List<Manifestation> { player };
 
-            if (radius <= 0 || player.PartyId == 0)
+            // Under an enemy's Mind Control P4-P5 they help nobody but themselves (Pvp.MayNotAssist).
+            if (radius <= 0 || player.PartyId == 0 || Pvp.MayNotAssist(player))
                 return found;
 
             foreach (var cell in CellManager.CellsIn(mapChannel, player.Cells))
@@ -1344,6 +1564,10 @@ namespace Rasa.Managers
                         continue;
 
                     if (other.PartyId != player.PartyId || other.State == CharacterState.Dead)
+                        continue;
+
+                    // In a duel of their own: their squad is outside it (Pvp.MayHelp).
+                    if (!Pvp.MayHelp(player, other))
                         continue;
 
                     if (!other.Attributes.TryGetValue(Attributes.Health, out var health) || health.Current <= 0)

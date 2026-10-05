@@ -8,15 +8,15 @@ namespace Rasa.Managers
     using Game;
     using Packets;
     using Packets.Wargame.Server;
+    using Repositories.UnitOfWork;
     using Structures;
     using Structures.Char;
 
     /// <summary>
     /// Clan Feuds: one PvP clan's leader challenges another's, the other accepts, and for a while
     /// the two clans are at war. This is the social half - challenges, answers, the running feud,
-    /// its clock and its end - with no kills in it: players cannot yet damage one another, so the
-    /// score stays 0 : 0 and a feud that runs out is a tie. <see cref="Kill"/> is where a
-    /// feud kill would be counted once they can.
+    /// its clock and its end. The fighting is Pvp's: the two clans' members are enemies there, and
+    /// a player an enemy brings to zero is a <see cref="Kill"/> for the feud (Pvp.Defeat).
     ///
     /// From the client (client/wargame.py, communicator.py, ui/clandeclarationofwar.py):
     ///
@@ -37,10 +37,14 @@ namespace Rasa.Managers
     /// challenge, in either direction, or one feud between two clans. A squad cannot hold members
     /// of two clans at feud (PartyManager.SeparateFeuding, CanSquadTogether).
     ///
-    /// Ours, since nothing in the client says: a feud lasts <see cref="Duration"/> (an hour
+    /// Ours, since nothing in the client says: a feud lasts <see cref="Duration"/> (a week
     /// unless a GM changes it with .feud length); a challenge waits until it is answered or
     /// revoked, or a clan disbands; the side a member is on is true for the challenging clan.
-    /// Nothing here is saved: a restart ends every feud and challenge. A clan that disbands
+    /// Feuds and challenges are kept (<see cref="IStore"/>, the clan_feud and clan_feud_challenge
+    /// tables) and read back when the server starts (<see cref="Load"/>), so both last through a
+    /// restart: a feud keeps its id, score and end time, and its clock runs on while the server is
+    /// down. A challenge read back is put to the challenged clan's leader again the first time they
+    /// enter the world, since their client lost it. Duels and squad wargames are not kept. A clan that disbands
     /// cancels its feuds (WargameCancelled). Members who join or leave a clan mid-feud join or
     /// leave its feuds.
     /// </summary>
@@ -55,13 +59,18 @@ namespace Rasa.Managers
             {
                 if (_instance == null)
                     lock (InstanceLock)
-                        _instance ??= new ClanFeuds(new ServerClans());
+                        _instance ??= new ClanFeuds(new ServerClans())
+                        {
+                            Forfeit = (loser, winner, character, loserName, winnerName, departed) =>
+                                InventoryManager.Instance.ForfeitWagers(loser, winner, character, loserName, winnerName, departed).Items,
+                            HoldsWager = characterId => InventoryManager.Instance.HoldsWager(characterId)
+                        };
 
                 return _instance;
             }
         }
 
-        public static readonly TimeSpan DefaultDuration = TimeSpan.FromHours(1);
+        public static readonly TimeSpan DefaultDuration = TimeSpan.FromDays(7);
 
         /// <summary>How long a feud started from now lasts.</summary>
         public TimeSpan Duration { get; set; } = DefaultDuration;
@@ -77,6 +86,13 @@ namespace Rasa.Managers
 
             /// <summary>The clan's members in the world.</summary>
             List<Client> Online(uint clanId);
+
+            /// <summary>
+            /// Everyone in the clan, in the world or not, for the record of a feud that has
+            /// ended (PvpRecords): character id, first name, family name.
+            /// </summary>
+            List<(uint CharacterId, string Name, string FamilyName)> Members(uint clanId) =>
+                Online(clanId).Select(c => (c.Player.Id, c.Player.Name ?? "", c.Player.FamilyName ?? "")).ToList();
         }
 
         public sealed class Challenge
@@ -84,6 +100,26 @@ namespace Rasa.Managers
             public uint WargameId { get; set; }
             public uint ChallengerClanId { get; set; }
             public uint TargetClanId { get; set; }
+
+            /// <summary>The character who made the challenge.</summary>
+            public uint ChallengerCharacterId { get; set; }
+
+            /// <summary>Read back at startup: the challenged leader's client has not been told of it since.</summary>
+            public bool Restored { get; set; }
+        }
+
+        /// <summary>Where feuds and challenges are kept through a restart.</summary>
+        public interface IStore
+        {
+            (List<ClanFeudEntry> Feuds, List<ClanFeudChallengeEntry> Challenges) Load();
+            void SaveFeud(ClanFeudEntry feud);
+            void DeleteFeud(uint id);
+            void SaveChallenge(ClanFeudChallengeEntry challenge);
+            void DeleteChallenge(uint wargameId);
+
+            /// <summary>The stakes of those who left a clan at feud. They go with their feud (DeleteFeud).</summary>
+            List<ClanFeudStakeEntry> LoadStakes() => new List<ClanFeudStakeEntry>();
+            void SaveStake(ClanFeudStakeEntry stake) { }
         }
 
         public sealed class Feud
@@ -95,6 +131,21 @@ namespace Rasa.Managers
             public int ChallengerKills { get; set; }
             public int TargetKills { get; set; }
 
+            /// <summary>The character who made the challenge; 0 for a feud nobody challenged for (a game master's).</summary>
+            public uint ChallengerCharacterId { get; set; }
+
+            /// <summary>The character who accepted the challenge; 0 likewise.</summary>
+            public uint TargetCharacterId { get; set; }
+
+            /// <summary>
+            /// The characters who left one of the two clans while the feud ran, with an item
+            /// wagered, and the clan each left: their wager stays at stake as that clan's.
+            /// </summary>
+            public Dictionary<uint, uint> Departed { get; } = new Dictionary<uint, uint>();
+
+            /// <summary>The character who stood for a clan when the feud was made: its challenger, or the one who accepted.</summary>
+            public uint CharacterFor(uint clanId) => clanId == ChallengerClanId ? ChallengerCharacterId : clanId == TargetClanId ? TargetCharacterId : 0;
+
             public bool Involves(uint clanId) => clanId != 0 && (ChallengerClanId == clanId || TargetClanId == clanId);
             public bool Between(uint a, uint b) => ChallengerClanId == a && TargetClanId == b || ChallengerClanId == b && TargetClanId == a;
             public uint OtherThan(uint clanId) => ChallengerClanId == clanId ? TargetClanId : ChallengerClanId;
@@ -105,6 +156,38 @@ namespace Rasa.Managers
         private readonly List<Challenge> _challenges = new List<Challenge>();
         private readonly Dictionary<uint, Feud> _feuds = new Dictionary<uint, Feud>();
         private uint _nextId = 1;
+
+        /// <summary>The restored challenges each leader has been reminded of: (wargame id, character id).</summary>
+        private readonly HashSet<(uint, uint)> _reminded = new HashSet<(uint, uint)>();
+
+        /// <summary>Where feuds and challenges are kept; null keeps nothing. Set by <see cref="Load"/>.</summary>
+        public IStore Store { get; private set; }
+
+        /// <summary>
+        /// What the losers of a feud that was won forfeit: (losing clan, winning clan, the winning
+        /// clan's character of the challenge, the two clans' names, the characters who left the
+        /// losing clan while the feud ran). The live server's is InventoryManager.ForfeitWagers -
+        /// their wagered items, to the winners' lockbox; null does nothing. What it returns goes
+        /// on the feud's record (PvpRecords.WagersForfeited): a row for each item that was
+        /// forfeit, saying whose it was and what became of it; null says nothing.
+        /// </summary>
+        public Func<uint, uint, uint, string, string, IReadOnlyCollection<uint>, IReadOnlyCollection<PvpMatchWagerEntry>> Forfeit { get; set; }
+
+        /// <summary>
+        /// Whether a character has an item wagered, asked as they leave a clan at feud. The live
+        /// server's is InventoryManager.HoldsWager; null takes every leaver to have one.
+        /// </summary>
+        public Func<uint, bool> HoldsWager { get; set; }
+
+        /// <summary>
+        /// Where the record of each feud is kept - who won, the score, who fought, who was in
+        /// the two clans at the end, and what was wagered. The live server's keeps them in the
+        /// database; one with no store, as in a test, keeps nothing.
+        /// </summary>
+        public PvpRecords Records { get; set; } = PvpRecords.Instance;
+
+        /// <summary>The wall clock a kept feud's end is written in: Unix milliseconds, UTC. Replaceable for tests.</summary>
+        public Func<long> UtcNow { get; set; } = () => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
         public ClanFeuds(IClans clans)
         {
@@ -196,9 +279,11 @@ namespace Rasa.Managers
                     return;
                 }
 
-                challenge = new Challenge { WargameId = _nextId++, ChallengerClanId = own.Id, TargetClanId = target.Id };
+                challenge = new Challenge { WargameId = _nextId++, ChallengerClanId = own.Id, TargetClanId = target.Id, ChallengerCharacterId = client.Player.Id };
                 _challenges.Add(challenge);
             }
+
+            Keep(challenge);
 
             Logger.WriteLog(LogType.Debug, $"Clan feud: {own.Name} ({own.Id}) challenged {target.Name} ({target.Id}), wargame {challenge.WargameId}.");
 
@@ -240,6 +325,8 @@ namespace Rasa.Managers
                 _challenges.Remove(challenge);
             }
 
+            Forget(challenge);
+
             if (!accept)
             {
                 Say(client, PlayerMessage.PmWargameFeudYouDeclined, ("inviterClan", challenger.Name));
@@ -251,7 +338,7 @@ namespace Rasa.Managers
                 return;
             }
 
-            Start(challenger, own, challenge.WargameId);
+            Start(challenger, own, challenge.WargameId, challenge.ChallengerCharacterId, client.Player.Id);
         }
 
         /// <summary>RevokeClanFeud: the challenger's leader withdraws a challenge not yet answered.</summary>
@@ -280,6 +367,8 @@ namespace Rasa.Managers
                 Say(client, PlayerMessage.PmWargameFeudRevokeFailedNoChallenge, ("clan", target?.Name ?? name));
                 return;
             }
+
+            Forget(challenge);
 
             Say(client, PlayerMessage.PmWargameFeudYouRevoked, ("clan", target.Name));
 
@@ -310,7 +399,7 @@ namespace Rasa.Managers
             }
 
             Say(client, PlayerMessage.PmWargameFeudYouSurrenderedYourClan, ("clan", other.Name));
-            End(feud, Outcome.Won, other.Id);
+            End(feud, Outcome.Won, other.Id, "surrender");
         }
 
         #endregion
@@ -328,14 +417,16 @@ namespace Rasa.Managers
         /// <summary>
         /// Starts a feud between two clans: everyone in either who is online is told, put in it and
         /// shown to everyone around as being in it, and squads holding both clans are split.
-        /// Returns null if the two are already at feud.
+        /// Returns null if the two are already at feud. The two characters are who made the
+        /// challenge and who accepted it, when anyone did.
         /// </summary>
-        public Feud Start(ClanEntry challenger, ClanEntry target, uint wargameId = 0)
+        public Feud Start(ClanEntry challenger, ClanEntry target, uint wargameId = 0, uint challengerCharacterId = 0, uint targetCharacterId = 0)
         {
             if (challenger == null || target == null || challenger.Id == target.Id)
                 return null;
 
             Feud feud;
+            List<Challenge> moot;
 
             lock (_sync)
             {
@@ -343,19 +434,28 @@ namespace Rasa.Managers
                     return null;
 
                 // A challenge the other way that was still open is moot now.
-                _challenges.RemoveAll(c => c.ChallengerClanId == challenger.Id && c.TargetClanId == target.Id
-                    || c.ChallengerClanId == target.Id && c.TargetClanId == challenger.Id);
+                moot = _challenges.Where(c => c.ChallengerClanId == challenger.Id && c.TargetClanId == target.Id
+                    || c.ChallengerClanId == target.Id && c.TargetClanId == challenger.Id).ToList();
+                _challenges.RemoveAll(moot.Contains);
 
                 feud = new Feud
                 {
                     Id = wargameId != 0 ? wargameId : _nextId++,
                     ChallengerClanId = challenger.Id,
                     TargetClanId = target.Id,
-                    EndTick = Now() + (long)Duration.TotalMilliseconds
+                    EndTick = Now() + (long)Duration.TotalMilliseconds,
+                    ChallengerCharacterId = challengerCharacterId,
+                    TargetCharacterId = targetCharacterId
                 };
 
                 _feuds[feud.Id] = feud;
             }
+
+            foreach (var challenge in moot)
+                Forget(challenge);
+
+            Keep(feud);
+            Records?.FeudStarted(RecordOf(feud));
 
             Logger.WriteLog(LogType.Debug, $"Clan feud {feud.Id}: {challenger.Name} ({challenger.Id}) against {target.Name} ({target.Id}), for {Duration.TotalMinutes:0} minutes.");
 
@@ -374,9 +474,12 @@ namespace Rasa.Managers
 
         /// <summary>
         /// Ends a feud: each member online hears how it went and has it taken off their tracker,
-        /// and everyone around sees them out of it.
+        /// and everyone around sees them out of it. A feud that was won costs the losing clan's
+        /// members what they wagered (<see cref="Forfeit"/>), and those who left it while the feud
+        /// ran (<see cref="MemberRemoved"/>). <paramref name="reason"/> is for the feud's record:
+        /// time, surrender, disbanded, gm.
         /// </summary>
-        public void End(Feud feud, Outcome outcome, uint winnerClanId = 0)
+        public void End(Feud feud, Outcome outcome, uint winnerClanId = 0, string reason = null)
         {
             if (feud == null)
                 return;
@@ -384,6 +487,12 @@ namespace Rasa.Managers
             lock (_sync)
                 if (!_feuds.Remove(feud.Id))
                     return;
+
+            Forget(feud);
+
+            uint recordId = 0;
+
+            Try($"recording the end of feud {feud.Id}", () => recordId = RecordEnd(feud, outcome, winnerClanId, reason));
 
             Logger.WriteLog(LogType.Debug, $"Clan feud {feud.Id} ended: {outcome}{(outcome == Outcome.Won ? $", clan {winnerClanId} won" : "")}, {feud.ChallengerKills} : {feud.TargetKills}.");
 
@@ -395,6 +504,7 @@ namespace Rasa.Managers
                         case Outcome.Won when clanId == winnerClanId:
                             member.CallMethod(SysEntity.ClientWargameManagerId, WargameResultPacket.Victory(feud.Id));
                             Say(member, PlayerMessage.PmWargameFeudYourClanWon);
+                            PvpPrestige.FeudWon(member);
                             break;
 
                         case Outcome.Won:
@@ -415,18 +525,93 @@ namespace Rasa.Managers
                     member.CallMethod(SysEntity.ClientWargameManagerId, new RemoveFromClanWargamePacket(feud.Id));
                     ShowWargameData(member);
                 }
+
+            if (outcome == Outcome.Won && feud.Involves(winnerClanId) && Forfeit != null)
+            {
+                var loserClanId = feud.OtherThan(winnerClanId);
+                List<uint> departed;
+
+                lock (_sync)
+                    departed = feud.Departed.Where(d => d.Value == loserClanId).Select(d => d.Key).OrderBy(id => id).ToList();
+
+                IReadOnlyCollection<PvpMatchWagerEntry> forfeited = null;
+
+                Try($"forfeiting the wagers of feud {feud.Id}", () => forfeited = Forfeit(loserClanId, winnerClanId, feud.CharacterFor(winnerClanId),
+                    _clans.Find(loserClanId)?.Name ?? "", _clans.Find(winnerClanId)?.Name ?? "", departed));
+
+                if (forfeited != null && recordId != 0)
+                    Try($"recording the forfeits of feud {feud.Id}",
+                        () => Records?.WagersForfeited(recordId, loserClanId == feud.ChallengerClanId ? (byte)1 : (byte)2, forfeited));
+            }
         }
 
         /// <summary>The feud's clock has run out: the clan with more kills wins, equal is a tie.</summary>
-        public void Expire(Feud feud)
+        public void Expire(Feud feud, string reason = "time")
         {
             if (feud == null)
                 return;
 
             if (feud.ChallengerKills == feud.TargetKills)
-                End(feud, Outcome.Tied);
+                End(feud, Outcome.Tied, reason: reason);
             else
-                End(feud, Outcome.Won, feud.ChallengerKills > feud.TargetKills ? feud.ChallengerClanId : feud.TargetClanId);
+                End(feud, Outcome.Won, feud.ChallengerKills > feud.TargetKills ? feud.ChallengerClanId : feud.TargetClanId, reason);
+        }
+
+        /// <summary>The feud as its record has it: its id, the two clans by id and by name, and their kills.</summary>
+        private PvpRecords.FeudInfo RecordOf(Feud feud)
+        {
+            int challengerKills, targetKills;
+
+            lock (_sync)
+            {
+                challengerKills = feud.ChallengerKills;
+                targetKills = feud.TargetKills;
+            }
+
+            return new PvpRecords.FeudInfo(feud.Id,
+                feud.ChallengerClanId, _clans.Find(feud.ChallengerClanId)?.Name, challengerKills,
+                feud.TargetClanId, _clans.Find(feud.TargetClanId)?.Name, targetKills);
+        }
+
+        /// <summary>
+        /// Closes the feud's record: how it ended, everyone in the two clans as they are now, and
+        /// the items wagered by them and by those who left with a stake. Returns the record's id,
+        /// 0 when it has none.
+        /// </summary>
+        private uint RecordEnd(Feud feud, Outcome outcome, uint winnerClanId, string reason)
+        {
+            var records = Records;
+
+            if (records?.Store == null)
+                return 0;
+
+            var members = new List<PvpMatchPlayerEntry>();
+
+            foreach (var (clanId, side) in new[] { (feud.ChallengerClanId, (byte)1), (feud.TargetClanId, (byte)2) })
+                foreach (var (characterId, name, familyName) in _clans.Members(clanId) ?? new List<(uint, string, string)>())
+                    members.Add(new PvpMatchPlayerEntry
+                    {
+                        CharacterId = characterId,
+                        Side = side,
+                        Name = name ?? "",
+                        FamilyName = familyName ?? "",
+                        ClanId = clanId,
+                        PresentAtEnd = true
+                    });
+
+            List<KeyValuePair<uint, byte>> stakes;
+
+            lock (_sync)
+                stakes = feud.Departed
+                    .Select(d => new KeyValuePair<uint, byte>(d.Key, d.Value == feud.ChallengerClanId ? (byte)1 : (byte)2))
+                    .ToList();
+
+            return records.FeudEnded(RecordOf(feud),
+                outcome == Outcome.Won ? PvpMatchOutcome.Won : outcome == Outcome.Tied ? PvpMatchOutcome.Tied : PvpMatchOutcome.Cancelled,
+                winnerClanId,
+                reason ?? (outcome == Outcome.Cancelled ? "cancelled" : ""),
+                members,
+                stakes);
         }
 
         /// <summary>Ends the feuds whose time is up. From the map channel worker.</summary>
@@ -443,8 +628,11 @@ namespace Rasa.Managers
         }
 
         /// <summary>
-        /// A kill between the two clans of a feud. Nothing calls this yet: players cannot damage
-        /// each other. It counts the kill for the killer's clan and sends the score.
+        /// A kill between the two clans of a feud (Pvp.Defeat): counted for the killer's clan, the
+        /// score sent, and the killer's prestige given (PvpPrestige.FeudKill). A kill across too
+        /// many levels has no credit (PvpPrestige.HasKillCredit): it is not counted and gives no
+        /// prestige, and both are told (PM_WARGAME_FEUD_NO_KILL_CREDIT_LEVELS). Returns whether
+        /// the kill was counted.
         /// </summary>
         public bool Kill(Client killer, Client victim)
         {
@@ -458,6 +646,24 @@ namespace Rasa.Managers
 
                 if (feud == null)
                     return false;
+            }
+
+            if (!PvpPrestige.HasKillCredit(killer.Player.Level, victim.Player.Level))
+            {
+                var clanName = _clans.Find(killerClan)?.Name ?? "";
+
+                foreach (var told in new[] { killer, victim })
+                    Say(told, PlayerMessage.PmWargameFeudNoKillCreditLevels,
+                        ("killerClanName", clanName), ("victimName", victim.Player.FamilyName), ("killerName", killer.Player.FamilyName));
+
+                return false;
+            }
+
+            lock (_sync)
+            {
+                // Ended between the two looks: nothing to count.
+                if (!_feuds.ContainsKey(feud.Id))
+                    return false;
 
                 if (killerClan == feud.ChallengerClanId)
                     feud.ChallengerKills++;
@@ -465,11 +671,17 @@ namespace Rasa.Managers
                     feud.TargetKills++;
             }
 
+            Keep(feud);
+            Records?.FeudKill(RecordOf(feud), killer.Player, victim.Player);
+
             var killerClanName = _clans.Find(killerClan)?.Name ?? "";
             var victimClanName = _clans.Find(victimClan)?.Name ?? "";
 
             Say(victim, PlayerMessage.PmWargameFeudYouWereKilled, ("killerName", killer.Player.FamilyName), ("killerClanName", killerClanName));
             Say(killer, PlayerMessage.PmWargameFeudYouMadeAKill, ("victimName", victim.Player.FamilyName), ("victimClanName", victimClanName));
+
+            // A feud kill generates prestige for the killer and steals some of the victim's.
+            PvpPrestige.FeudKill(killer, victim);
 
             foreach (var clanId in new[] { feud.ChallengerClanId, feud.TargetClanId })
             {
@@ -495,8 +707,31 @@ namespace Rasa.Managers
         /// </summary>
         public void PlayerEnteredWorld(Client client)
         {
-            foreach (var feud in FeudsOf(client?.Player?.ClanId ?? 0))
+            var clanId = client?.Player?.ClanId ?? 0;
+
+            foreach (var feud in FeudsOf(clanId))
                 SendFeud(client, feud);
+
+            RemindOfRestoredChallenges(client, clanId);
+        }
+
+        /// <summary>
+        /// A challenge read back at startup, to the challenged clan's leader once: their client
+        /// lost its indicator with the restart. A challenge made since was put to them as it was made.
+        /// </summary>
+        private void RemindOfRestoredChallenges(Client client, uint clanId)
+        {
+            if (clanId == 0 || !IsLeader(client, clanId))
+                return;
+
+            List<Challenge> due;
+
+            lock (_sync)
+                due = _challenges.Where(c => c.Restored && c.TargetClanId == clanId && _reminded.Add((c.WargameId, client.Player.Id))).ToList();
+
+            foreach (var challenge in due)
+                client.CallMethod(SysEntity.ClientWargameManagerId,
+                    new ClanWargameInviteReceivedPacket(challenge.WargameId, _clans.Find(challenge.ChallengerClanId)?.Name ?? ""));
         }
 
         /// <summary>A player has just joined a clan: into its feuds, and out of any squad that now mixes feuding clans.</summary>
@@ -531,8 +766,59 @@ namespace Rasa.Managers
         }
 
         /// <summary>
-        /// A clan is disbanding (before its members are cleared): its feuds are cancelled and its
-        /// challenges dropped. A challenge it had made is taken back from the other leader.
+        /// A character has left a clan for good - walked out or was kicked, in the world or not
+        /// (ClanManager; a logout is not this). What they have wagered stays at stake in each feud
+        /// the clan is in, as that clan's: leaving is no way to keep an item the clan then loses.
+        /// Nothing is kept for one with nothing wagered. <paramref name="client"/> is theirs when
+        /// they are in the world, to be told. Returns the feuds they stay at stake in.
+        /// </summary>
+        public List<Feud> MemberRemoved(uint characterId, uint clanId, Client client = null)
+        {
+            var feuds = FeudsOf(clanId);
+
+            if (characterId == 0 || feuds.Count == 0)
+                return new List<Feud>();
+
+            var holds = true;
+            var asked = HoldsWager;
+
+            if (asked != null)
+                Try($"reading the wager of character {characterId}", () => holds = asked(characterId));
+
+            if (!holds)
+                return new List<Feud>();
+
+            lock (_sync)
+                foreach (var feud in feuds)
+                    feud.Departed[characterId] = clanId;
+
+            var store = Store;
+
+            if (store != null)
+                foreach (var feud in feuds)
+                    Try($"saving the stake of character {characterId} in feud {feud.Id}",
+                        () => store.SaveStake(new ClanFeudStakeEntry { FeudId = feud.Id, CharacterId = characterId, ClanId = clanId }));
+
+            Logger.WriteLog(LogType.Debug, $"Clan feud: character {characterId} left clan {clanId} with an item wagered; at stake in {feuds.Count} feud(s).");
+
+            if (client?.Player != null)
+            {
+                var name = _clans.Find(clanId)?.Name ?? "your clan";
+
+                Try("telling a leaver of their stake", () => CommunicatorManager.Instance.SystemMessage(client,
+                    $"{name} is at feud: the item you have wagered stays at stake until the feud ends, and is forfeit if {name} loses."));
+            }
+
+            return feuds;
+        }
+
+        /// <summary>
+        /// A clan is disbanding (before its members are cleared): its challenges are dropped - one
+        /// it had made is taken back from the other leader - and each of its feuds is lost to the
+        /// other clan, whatever the score. Disbanding is no way out of a feud: a cancelled feud
+        /// forfeits nothing, so a clan about to lose kept everything it had wagered by disbanding
+        /// first. The feuds end oldest first, and what the members have wagered goes with the
+        /// first: the winner of the oldest feud takes it, and the later ones find nothing left.
         /// </summary>
         public void ClanDisbanded(uint clanId)
         {
@@ -543,6 +829,9 @@ namespace Rasa.Managers
                 dropped = _challenges.Where(c => c.ChallengerClanId == clanId || c.TargetClanId == clanId).ToList();
                 _challenges.RemoveAll(c => c.ChallengerClanId == clanId || c.TargetClanId == clanId);
             }
+
+            foreach (var challenge in dropped)
+                Forget(challenge);
 
             var clanName = _clans.Find(clanId)?.Name ?? "";
 
@@ -555,7 +844,184 @@ namespace Rasa.Managers
             }
 
             foreach (var feud in FeudsOf(clanId))
-                End(feud, Outcome.Cancelled);
+                End(feud, Outcome.Won, feud.OtherThan(clanId), "disbanded");
+        }
+
+        #endregion
+
+        #region Keeping
+
+        /// <summary>
+        /// At startup, after the clans are loaded: the feuds and challenges kept through the
+        /// restart, back as they were - each feud's clock set from its end time, so one that ended
+        /// while the server was down ends on the first tick - and from now on every change kept in
+        /// <paramref name="store"/>. A row naming a clan that is gone, or a challenge between clans
+        /// already at feud, is dropped. New ids follow on from the highest kept.
+        /// </summary>
+        public void Load(IStore store)
+        {
+            Store = store;
+
+            if (store == null)
+                return;
+
+            List<ClanFeudEntry> feudRows;
+            List<ClanFeudChallengeEntry> challengeRows;
+
+            List<ClanFeudStakeEntry> stakeRows;
+
+            try
+            {
+                (feudRows, challengeRows) = store.Load();
+                stakeRows = store.LoadStakes() ?? new List<ClanFeudStakeEntry>();
+            }
+            catch (Exception e)
+            {
+                Logger.WriteLog(LogType.Error, $"Clan feuds could not be read back: {e.Message}");
+                return;
+            }
+
+            var dropFeuds = new List<uint>();
+            var dropChallenges = new List<uint>();
+            var now = Now();
+            var utcNow = UtcNow();
+
+            lock (_sync)
+            {
+                foreach (var row in feudRows)
+                {
+                    if (_clans.Find(row.ChallengerClanId) == null || _clans.Find(row.TargetClanId) == null || row.ChallengerClanId == row.TargetClanId
+                        || _feuds.ContainsKey(row.Id) || _feuds.Values.Any(f => f.Between(row.ChallengerClanId, row.TargetClanId)))
+                    {
+                        dropFeuds.Add(row.Id);
+                        continue;
+                    }
+
+                    _feuds[row.Id] = new Feud
+                    {
+                        Id = row.Id,
+                        ChallengerClanId = row.ChallengerClanId,
+                        TargetClanId = row.TargetClanId,
+                        EndTick = now + (row.EndsAt - utcNow),
+                        ChallengerKills = row.ChallengerKills,
+                        TargetKills = row.TargetKills,
+                        ChallengerCharacterId = row.ChallengerCharacterId,
+                        TargetCharacterId = row.TargetCharacterId
+                    };
+                }
+
+                foreach (var row in challengeRows)
+                {
+                    if (_clans.Find(row.ChallengerClanId) == null || _clans.Find(row.TargetClanId) == null || row.ChallengerClanId == row.TargetClanId
+                        || _feuds.ContainsKey(row.WargameId) || _feuds.Values.Any(f => f.Between(row.ChallengerClanId, row.TargetClanId))
+                        || _challenges.Any(c => c.WargameId == row.WargameId
+                            || c.ChallengerClanId == row.ChallengerClanId && c.TargetClanId == row.TargetClanId
+                            || c.ChallengerClanId == row.TargetClanId && c.TargetClanId == row.ChallengerClanId))
+                    {
+                        dropChallenges.Add(row.WargameId);
+                        continue;
+                    }
+
+                    _challenges.Add(new Challenge
+                    {
+                        WargameId = row.WargameId,
+                        ChallengerClanId = row.ChallengerClanId,
+                        TargetClanId = row.TargetClanId,
+                        ChallengerCharacterId = row.ChallengerCharacterId,
+                        Restored = true
+                    });
+                }
+
+                // Who left a side of a kept feud with an item wagered.
+                foreach (var stake in stakeRows)
+                    if (_feuds.TryGetValue(stake.FeudId, out var staked) && staked.Involves(stake.ClanId))
+                        staked.Departed[stake.CharacterId] = stake.ClanId;
+
+                var highest = feudRows.Select(r => r.Id).Concat(challengeRows.Select(r => r.WargameId)).DefaultIfEmpty(0u).Max();
+
+                if (highest >= _nextId)
+                    _nextId = highest + 1;
+            }
+
+            foreach (var id in dropFeuds)
+                Try($"dropping feud {id}", () => store.DeleteFeud(id));
+
+            foreach (var id in dropChallenges)
+                Try($"dropping challenge {id}", () => store.DeleteChallenge(id));
+
+            Logger.WriteLog(LogType.Initialize, $"Clan feuds: {feudRows.Count - dropFeuds.Count} feuds and {challengeRows.Count - dropChallenges.Count} challenges read back"
+                + (dropFeuds.Count + dropChallenges.Count > 0 ? $", {dropFeuds.Count + dropChallenges.Count} dropped." : "."));
+
+            // Each feud that is back finds its record again, or has one opened.
+            Try("finding the feuds' records again", () => Records?.FeudsRestored(Feuds.Select(RecordOf).ToList()));
+        }
+
+        private void Keep(Feud feud)
+        {
+            var store = Store;
+
+            if (store == null)
+                return;
+
+            ClanFeudEntry row;
+
+            lock (_sync)
+                row = new ClanFeudEntry
+                {
+                    Id = feud.Id,
+                    ChallengerClanId = feud.ChallengerClanId,
+                    TargetClanId = feud.TargetClanId,
+                    EndsAt = UtcNow() + (feud.EndTick - Now()),
+                    ChallengerKills = feud.ChallengerKills,
+                    TargetKills = feud.TargetKills,
+                    ChallengerCharacterId = feud.ChallengerCharacterId,
+                    TargetCharacterId = feud.TargetCharacterId
+                };
+
+            Try($"saving feud {feud.Id}", () => store.SaveFeud(row));
+        }
+
+        private void Forget(Feud feud)
+        {
+            var store = Store;
+
+            if (store != null)
+                Try($"removing feud {feud.Id}", () => store.DeleteFeud(feud.Id));
+        }
+
+        private void Keep(Challenge challenge)
+        {
+            var store = Store;
+
+            if (store != null)
+                Try($"saving challenge {challenge.WargameId}", () => store.SaveChallenge(new ClanFeudChallengeEntry
+                {
+                    WargameId = challenge.WargameId,
+                    ChallengerClanId = challenge.ChallengerClanId,
+                    TargetClanId = challenge.TargetClanId,
+                    ChallengerCharacterId = challenge.ChallengerCharacterId
+                }));
+        }
+
+        private void Forget(Challenge challenge)
+        {
+            var store = Store;
+
+            if (store != null)
+                Try($"removing challenge {challenge.WargameId}", () => store.DeleteChallenge(challenge.WargameId));
+        }
+
+        /// <summary>A store that cannot be reached costs the feud its restart, not the server its feud.</summary>
+        private static void Try(string what, Action action)
+        {
+            try
+            {
+                action();
+            }
+            catch (Exception e)
+            {
+                Logger.WriteLog(LogType.Error, $"Clan feuds: {what} failed: {e.Message}");
+            }
         }
 
         #endregion
@@ -593,7 +1059,7 @@ namespace Rasa.Managers
             return false;
         }
 
-        /// <summary>The player's WargameData: {feudId: side}, true for the challenging clan.</summary>
+        /// <summary>The player's feuds in WargameData: {feudId: side}, true for the challenging clan. Wargames.DataOf adds their duel.</summary>
         public Dictionary<uint, bool> WargameDataOf(Manifestation player)
         {
             var clanId = player?.ClanId ?? 0;
@@ -624,21 +1090,11 @@ namespace Rasa.Managers
                 mine ? feud.TargetKills : feud.ChallengerKills));
         }
 
-        /// <summary>The player's WargameData to everyone who can see them, themselves included.</summary>
-        private void ShowWargameData(Client client)
-        {
-            var player = client?.Player;
-
-            if (player == null)
-                return;
-
-            var packet = new WargameDataPacket(WargameDataOf(player));
-
-            if (player.MapChannel == null)
-                client.CallMethod(player.EntityId, packet);
-            else
-                CellManager.Instance.CellCallMethod(player.MapChannel, player, packet);
-        }
+        /// <summary>
+        /// The player's WargameData - their feuds and any duel - to everyone who can see them,
+        /// themselves included, and who is now an enemy (Wargames.Show).
+        /// </summary>
+        private static void ShowWargameData(Client client) => Wargames.Show(client);
 
         private void SeparateSquads(Feud feud)
         {
@@ -686,6 +1142,59 @@ namespace Rasa.Managers
 
         #endregion
 
+        /// <summary>The live server's store: the character database's clan_feud and clan_feud_challenge tables.</summary>
+        public sealed class ServerStore : IStore
+        {
+            private readonly IGameUnitOfWorkFactory _factory;
+
+            public ServerStore(IGameUnitOfWorkFactory factory)
+            {
+                _factory = factory;
+            }
+
+            public (List<ClanFeudEntry> Feuds, List<ClanFeudChallengeEntry> Challenges) Load()
+            {
+                using var unitOfWork = _factory.CreateChar();
+                return (unitOfWork.ClanFeuds.GetFeuds(), unitOfWork.ClanFeuds.GetChallenges());
+            }
+
+            public void SaveFeud(ClanFeudEntry feud)
+            {
+                using var unitOfWork = _factory.CreateChar();
+                unitOfWork.ClanFeuds.SaveFeud(feud);
+            }
+
+            public void DeleteFeud(uint id)
+            {
+                using var unitOfWork = _factory.CreateChar();
+                unitOfWork.ClanFeuds.DeleteFeud(id);
+            }
+
+            public void SaveChallenge(ClanFeudChallengeEntry challenge)
+            {
+                using var unitOfWork = _factory.CreateChar();
+                unitOfWork.ClanFeuds.SaveChallenge(challenge);
+            }
+
+            public List<ClanFeudStakeEntry> LoadStakes()
+            {
+                using var unitOfWork = _factory.CreateChar();
+                return unitOfWork.ClanFeuds.GetStakes();
+            }
+
+            public void SaveStake(ClanFeudStakeEntry stake)
+            {
+                using var unitOfWork = _factory.CreateChar();
+                unitOfWork.ClanFeuds.SaveStake(stake);
+            }
+
+            public void DeleteChallenge(uint wargameId)
+            {
+                using var unitOfWork = _factory.CreateChar();
+                unitOfWork.ClanFeuds.DeleteChallenge(wargameId);
+            }
+        }
+
         /// <summary>The live server's clans: ClanManager's cache and the connections in the world.</summary>
         private sealed class ServerClans : IClans
         {
@@ -708,6 +1217,53 @@ namespace Rasa.Managers
                 lock (Server.Clients)
                     return Server.Clients.Where(c => c?.Player != null && c.Player.Id != 0 && c.Player.ClanId == clanId
                         && (c.State == ClientState.Ingame || c.State == ClientState.Teleporting || c.State == ClientState.Loading)).ToList();
+            }
+
+            /// <summary>
+            /// The clan's roster as the database has it - the cache holds only what has been
+            /// asked for - with the names of those not in the world read from their characters.
+            /// </summary>
+            public List<(uint CharacterId, string Name, string FamilyName)> Members(uint clanId)
+            {
+                var members = new List<(uint, string, string)>();
+                var online = Online(clanId).GroupBy(c => c.Player.Id).ToDictionary(g => g.Key, g => g.First().Player);
+
+                using var unitOfWork = Server.GameUnitOfWorkFactory?.CreateChar();
+
+                var roster = new List<uint>();
+
+                try
+                {
+                    roster = unitOfWork?.ClanMembers.GetAllClanMembersByClanId(clanId).Select(m => m.CharacterId).ToList() ?? roster;
+                }
+                catch (Exception e)
+                {
+                    Logger.WriteLog(LogType.Error, $"The members of clan {clanId} could not be read for its feud's record: {e.Message}");
+                }
+
+                foreach (var characterId in roster.Concat(online.Keys).Distinct())
+                {
+                    if (online.TryGetValue(characterId, out var player))
+                    {
+                        members.Add((characterId, player.Name ?? "", player.FamilyName ?? ""));
+                        continue;
+                    }
+
+                    Structures.Char.CharacterEntry character = null;
+
+                    try
+                    {
+                        character = unitOfWork?.Characters.Get(characterId);
+                    }
+                    catch (Exception)
+                    {
+                        // Their row still goes on the record, without a name.
+                    }
+
+                    members.Add((characterId, character?.Name ?? "", character?.GameAccount?.FamilyName ?? ""));
+                }
+
+                return members;
             }
         }
     }

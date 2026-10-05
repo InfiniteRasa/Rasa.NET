@@ -205,6 +205,73 @@ namespace Rasa.Migrations.SqliteWorld
                     b.ToTable("armorclass");
                 });
 
+            modelBuilder.Entity("Rasa.Structures.World.ControlPointEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("id");
+
+                    b.Property<uint>("ClassId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("class_id");
+
+                    b.Property<byte>("DefaultOwner")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("default_owner");
+
+                    b.Property<uint>("MapContextId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("map_context_id");
+
+                    b.Property<ulong>("MarkerEntityId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("marker_entity_id");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("name");
+
+                    b.Property<double>("PosX")
+                        .HasColumnType("REAL")
+                        .HasColumnName("pos_x");
+
+                    b.Property<double>("PosY")
+                        .HasColumnType("REAL")
+                        .HasColumnName("pos_y");
+
+                    b.Property<double>("PosZ")
+                        .HasColumnType("REAL")
+                        .HasColumnName("pos_z");
+
+                    b.Property<double>("Rotation")
+                        .HasColumnType("REAL")
+                        .HasColumnName("rotation");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("control_point");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.ControlPointLinkEntry", b =>
+                {
+                    b.Property<uint>("ControlPointId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("control_point_id");
+
+                    b.Property<byte>("Kind")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("kind");
+
+                    b.Property<uint>("ObjectId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("object_id");
+
+                    b.HasKey("ControlPointId", "Kind", "ObjectId");
+
+                    b.ToTable("control_point_link");
+                });
+
             modelBuilder.Entity("Rasa.Structures.World.CreatureActionEntry", b =>
                 {
                     b.Property<uint>("Id")
@@ -1269,7 +1336,7 @@ namespace Rasa.Migrations.SqliteWorld
 
                     b.ToTable("mission_action", t =>
                         {
-                            t.HasCheckConstraint("CK_mission_action_kind_parameter_set", "(kind IN (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)) AND (kind >= 10 OR item_intent IS NULL) AND (kind < 10 OR (item_intent IS NOT NULL AND target_objective_id IS NULL AND objective_state IS NULL AND reward_id IS NULL AND spawn_group_id IS NULL AND scenario_id IS NULL AND indicator_id IS NULL AND player_flag_id IS NULL AND player_flag_value IS NULL AND npc_package_id IS NULL)) AND (kind <> 1 OR (target_objective_id IS NOT NULL AND objective_state IS NULL AND reward_id IS NULL AND spawn_group_id IS NULL AND scenario_id IS NULL AND indicator_id IS NULL AND player_flag_id IS NULL AND player_flag_value IS NULL AND npc_package_id IS NULL)) AND (kind <> 2 OR (target_objective_id IS NOT NULL AND objective_state IS NOT NULL AND reward_id IS NULL AND spawn_group_id IS NULL AND scenario_id IS NULL AND indicator_id IS NULL AND player_flag_id IS NULL AND player_flag_value IS NULL AND npc_package_id IS NULL)) AND (kind <> 3 OR (target_objective_id IS NOT NULL AND objective_state IS NOT NULL AND reward_id IS NULL AND spawn_group_id IS NULL AND scenario_id IS NULL AND indicator_id IS NULL AND player_flag_id IS NULL AND player_flag_value IS NULL AND npc_package_id IS NULL)) AND (kind <> 4 OR (reward_id IS NOT NULL AND target_objective_id IS NULL AND objective_state IS NULL AND spawn_group_id IS NULL AND scenario_id IS NULL AND indicator_id IS NULL AND player_flag_id IS NULL AND player_flag_value IS NULL AND npc_package_id IS NULL)) AND (kind <> 5 OR (scenario_id IS NOT NULL AND target_objective_id IS NULL AND objective_state IS NULL AND reward_id IS NULL AND spawn_group_id IS NULL AND indicator_id IS NULL AND player_flag_id IS NULL AND player_flag_value IS NULL AND npc_package_id IS NULL)) AND (kind <> 6 OR (spawn_group_id IS NOT NULL AND target_objective_id IS NULL AND objective_state IS NULL AND reward_id IS NULL AND scenario_id IS NULL AND indicator_id IS NULL AND player_flag_id IS NULL AND player_flag_value IS NULL AND npc_package_id IS NULL)) AND (kind <> 7 OR (indicator_id IS NOT NULL AND target_objective_id IS NULL AND objective_state IS NULL AND reward_id IS NULL AND spawn_group_id IS NULL AND scenario_id IS NULL AND player_flag_id IS NULL AND player_flag_value IS NULL AND npc_package_id IS NULL)) AND (kind <> 8 OR (player_flag_id IS NOT NULL AND player_flag_value IS NOT NULL AND target_objective_id IS NULL AND objective_state IS NULL AND reward_id IS NULL AND spawn_group_id IS NULL AND scenario_id IS NULL AND indicator_id IS NULL AND npc_package_id IS NULL)) AND (kind <> 9 OR (npc_package_id IS NOT NULL AND player_flag_id IS NOT NULL AND target_objective_id IS NULL AND objective_state IS NULL AND reward_id IS NULL AND spawn_group_id IS NULL AND scenario_id IS NULL AND indicator_id IS NULL AND player_flag_value IS NULL))");
+                            t.HasCheckConstraint("CK_mission_action_kind_parameter_set", "(kind IN (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13)) AND (kind >= 10 OR item_intent IS NULL) AND (kind < 10 OR (item_intent IS NOT NULL AND target_objective_id IS NULL AND objective_state IS NULL AND reward_id IS NULL AND spawn_group_id IS NULL AND scenario_id IS NULL AND indicator_id IS NULL AND player_flag_id IS NULL AND player_flag_value IS NULL AND npc_package_id IS NULL)) AND (kind <> 1 OR (target_objective_id IS NOT NULL AND objective_state IS NULL AND reward_id IS NULL AND spawn_group_id IS NULL AND scenario_id IS NULL AND indicator_id IS NULL AND player_flag_id IS NULL AND player_flag_value IS NULL AND npc_package_id IS NULL)) AND (kind <> 2 OR (target_objective_id IS NOT NULL AND objective_state IS NOT NULL AND reward_id IS NULL AND spawn_group_id IS NULL AND scenario_id IS NULL AND indicator_id IS NULL AND player_flag_id IS NULL AND player_flag_value IS NULL AND npc_package_id IS NULL)) AND (kind <> 3 OR (target_objective_id IS NOT NULL AND objective_state IS NOT NULL AND reward_id IS NULL AND spawn_group_id IS NULL AND scenario_id IS NULL AND indicator_id IS NULL AND player_flag_id IS NULL AND player_flag_value IS NULL AND npc_package_id IS NULL)) AND (kind <> 4 OR (reward_id IS NOT NULL AND target_objective_id IS NULL AND objective_state IS NULL AND spawn_group_id IS NULL AND scenario_id IS NULL AND indicator_id IS NULL AND player_flag_id IS NULL AND player_flag_value IS NULL AND npc_package_id IS NULL)) AND (kind <> 5 OR (scenario_id IS NOT NULL AND target_objective_id IS NULL AND objective_state IS NULL AND reward_id IS NULL AND spawn_group_id IS NULL AND indicator_id IS NULL AND player_flag_id IS NULL AND player_flag_value IS NULL AND npc_package_id IS NULL)) AND (kind <> 6 OR (spawn_group_id IS NOT NULL AND target_objective_id IS NULL AND objective_state IS NULL AND reward_id IS NULL AND scenario_id IS NULL AND indicator_id IS NULL AND player_flag_id IS NULL AND player_flag_value IS NULL AND npc_package_id IS NULL)) AND (kind <> 7 OR (indicator_id IS NOT NULL AND target_objective_id IS NULL AND objective_state IS NULL AND reward_id IS NULL AND spawn_group_id IS NULL AND scenario_id IS NULL AND player_flag_id IS NULL AND player_flag_value IS NULL AND npc_package_id IS NULL)) AND (kind <> 8 OR (player_flag_id IS NOT NULL AND player_flag_value IS NOT NULL AND target_objective_id IS NULL AND objective_state IS NULL AND reward_id IS NULL AND spawn_group_id IS NULL AND scenario_id IS NULL AND indicator_id IS NULL AND npc_package_id IS NULL)) AND (kind <> 9 OR (npc_package_id IS NOT NULL AND player_flag_id IS NOT NULL AND target_objective_id IS NULL AND objective_state IS NULL AND reward_id IS NULL AND spawn_group_id IS NULL AND scenario_id IS NULL AND indicator_id IS NULL AND player_flag_value IS NULL))");
                         });
                 });
 
@@ -1383,8 +1450,8 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnType("tinyint(3)")
                         .HasColumnName("abandonment_policy");
 
-                    b.Property<byte>("CategoryId")
-                        .HasColumnType("tinyint(3)")
+                    b.Property<uint>("CategoryId")
+                        .HasColumnType("int(11)")
                         .HasColumnName("category_id");
 
                     b.Property<uint>("ClientNameTextId")
@@ -1469,7 +1536,7 @@ namespace Rasa.Migrations.SqliteWorld
 
                     b.Property<string>("ReconstructionNote")
                         .IsRequired()
-                        .HasColumnType("varchar(256)")
+                        .HasColumnType("text")
                         .HasColumnName("reconstruction_note");
 
                     b.Property<byte>("SourceKind")
@@ -2252,6 +2319,21 @@ namespace Rasa.Migrations.SqliteWorld
                         {
                             t.HasCheckConstraint("CK_mission_trigger_kind_parameter_set", "(kind IN (1, 2, 3, 4, 5)) AND (kind <> 1 OR (npc_package_id IS NOT NULL AND player_flag_id IS NOT NULL AND related_objective_id IS NULL AND related_state IS NULL AND event_kind IS NULL AND subject_id IS NULL AND counter_id IS NULL AND initial_value IS NULL AND target_value IS NULL AND area_id IS NULL AND duration_seconds IS NULL AND source_spawn_resolved IS NULL)) AND (kind <> 2 OR (event_kind IS NOT NULL AND subject_id IS NOT NULL AND related_objective_id IS NULL AND related_state IS NULL AND area_id IS NULL AND duration_seconds IS NULL AND npc_package_id IS NULL AND player_flag_id IS NULL)) AND (kind <> 3 OR (related_objective_id IS NOT NULL AND related_state IS NOT NULL AND event_kind IS NULL AND subject_id IS NULL AND counter_id IS NULL AND initial_value IS NULL AND target_value IS NULL AND area_id IS NULL AND duration_seconds IS NULL AND npc_package_id IS NULL AND player_flag_id IS NULL AND source_spawn_resolved IS NULL)) AND (kind <> 4 OR (area_id IS NOT NULL AND related_objective_id IS NULL AND related_state IS NULL AND event_kind IS NULL AND subject_id IS NULL AND counter_id IS NULL AND initial_value IS NULL AND target_value IS NULL AND duration_seconds IS NULL AND npc_package_id IS NULL AND player_flag_id IS NULL AND source_spawn_resolved IS NULL)) AND (kind <> 5 OR (duration_seconds IS NOT NULL AND related_objective_id IS NULL AND related_state IS NULL AND event_kind IS NULL AND subject_id IS NULL AND counter_id IS NULL AND initial_value IS NULL AND target_value IS NULL AND area_id IS NULL AND npc_package_id IS NULL AND player_flag_id IS NULL AND source_spawn_resolved IS NULL))");
                         });
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.NpcGreetingEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("id");
+
+                    b.Property<uint>("GreetingId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("greeting_id");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("npc_greeting");
                 });
 
             modelBuilder.Entity("Rasa.Structures.World.NpcMissionEntry", b =>

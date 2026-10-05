@@ -25,7 +25,14 @@ namespace Rasa.Structures
         public uint? MissionReciver { get; }
         public uint? Level { get; }
         public byte? GroupType { get; }
-        public byte? CategoryId { get; }
+        public uint? CategoryId { get; }
+
+        /// <summary>
+        /// The mission's category as the client knows it (missioncategorylanguage), from the
+        /// scene binding, for content whose definition row does not carry it - the battlefields
+        /// are 10000016 and up. Null: <see cref="CategoryId"/> is the category.
+        /// </summary>
+        public uint? ClientCategoryId { get; }
         public bool? Shareable { get; }
         public bool? RadioCompletable => IsOperational && CompletionChannel.HasFlag(MissionChannel.Radio);
         public IReadOnlyDictionary<uint, MissionObjectiveDefinition> Objectives { get; }
@@ -43,7 +50,7 @@ namespace Rasa.Structures
             uint? missionReciver,
             uint? level,
             byte? groupType,
-            byte? categoryId,
+            uint? categoryId,
             bool? shareable,
             bool? radioCompletable,
             IEnumerable<MissionObjectiveDefinition> objectives,
@@ -59,9 +66,11 @@ namespace Rasa.Structures
             global::Rasa.Missions.Runtime.MissionRepeatPolicy repeatPolicy = null,
             MissionChannel acceptanceChannel = MissionChannel.Npc,
             MissionChannel completionChannel = MissionChannel.Npc,
-            IEnumerable<MissionOfferSourceDefinition> radioSources = null)
+            IEnumerable<MissionOfferSourceDefinition> radioSources = null,
+            uint? clientCategoryId = null)
         {
             MissionId = missionId;
+            ClientCategoryId = clientCategoryId;
             ContentRevision = contentRevision;
             RepeatPolicy = repeatPolicy ?? global::Rasa.Missions.Runtime.MissionRepeatPolicy.Once;
             AcceptanceChannel = acceptanceChannel;
@@ -110,6 +119,10 @@ namespace Rasa.Structures
                 .Any(objectiveId => !objectiveDictionary.ContainsKey(objectiveId)))
                 diagnostics.Add("an objective successor is missing");
             diagnostics.AddRange(MissionDialogueValidation.Errors(this));
+            diagnostics.AddRange(MissionObjectiveAggregation.Errors(Objectives));
+            if (Objectives.Values.Any(objective => objective.HistoryAggregation?.Groups
+                .Any(group => group.Contains(MissionId)) == true))
+                diagnostics.Add("a history aggregate cannot require its own mission");
             if (!string.IsNullOrWhiteSpace(operationalDiagnostic))
                 diagnostics.Add(operationalDiagnostic);
 
@@ -150,7 +163,8 @@ namespace Rasa.Structures
                 requirement: Requirement, turnInRequirement: TurnInRequirement,
                 objectiveRequirements: ObjectiveRequirements, dialogue: Dialogue,
                 items: Items.Values, acceptanceItems: AcceptanceItems, repeatPolicy: RepeatPolicy,
-                acceptanceChannel: AcceptanceChannel, completionChannel: CompletionChannel, radioSources: RadioSources);
+                acceptanceChannel: AcceptanceChannel, completionChannel: CompletionChannel, radioSources: RadioSources,
+                clientCategoryId: ClientCategoryId);
 
         internal Mission DisableOperational(string diagnostic) =>
             new(
@@ -171,7 +185,8 @@ namespace Rasa.Structures
                 requirement: Requirement, turnInRequirement: TurnInRequirement,
                 objectiveRequirements: ObjectiveRequirements, dialogue: Dialogue,
                 items: Items.Values, acceptanceItems: AcceptanceItems, repeatPolicy: RepeatPolicy,
-                acceptanceChannel: AcceptanceChannel, completionChannel: CompletionChannel, radioSources: RadioSources);
+                acceptanceChannel: AcceptanceChannel, completionChannel: CompletionChannel, radioSources: RadioSources,
+                clientCategoryId: ClientCategoryId);
 
         internal Mission WithPolicies(
             IReadOnlyDictionary<uint, global::Rasa.Missions.Runtime.MissionCreditPolicy> credit,
@@ -183,19 +198,35 @@ namespace Rasa.Structures
                 Objectives.Values.Select(objective => credit.TryGetValue(objective.ObjectiveId, out var policy)
                     ? objective.WithCreditPolicy(policy) : objective), IsOperational, OperationalDiagnostic, ContentRevision,
                 requirement, turnIn, objectives, Dialogue, Items.Values, AcceptanceItems, RepeatPolicy,
-                AcceptanceChannel, CompletionChannel, RadioSources);
+                AcceptanceChannel, CompletionChannel, RadioSources, ClientCategoryId);
+
+        /// <summary>The titles its objectives give (objective id to title id), from the scene binding.</summary>
+        internal Mission WithTitles(IReadOnlyDictionary<uint, uint> titles) =>
+            new(MissionId, Name, ClientNameTextId, MissionGiver, MissionReciver, Level, GroupType,
+                CategoryId, Shareable, RadioCompletable,
+                Objectives.Values.Select(objective => titles.TryGetValue(objective.ObjectiveId, out var titleId)
+                    ? objective.WithTitle(titleId) : objective), IsOperational, OperationalDiagnostic, ContentRevision,
+                Requirement, TurnInRequirement, ObjectiveRequirements, Dialogue, Items.Values, AcceptanceItems, RepeatPolicy,
+                AcceptanceChannel, CompletionChannel, RadioSources, ClientCategoryId);
+
+        /// <summary>The category the client files it under, from the scene binding.</summary>
+        internal Mission WithClientCategory(uint? clientCategoryId) =>
+            new(MissionId, Name, ClientNameTextId, MissionGiver, MissionReciver, Level, GroupType,
+                CategoryId, Shareable, RadioCompletable, Objectives.Values, IsOperational,
+                OperationalDiagnostic, ContentRevision, Requirement, TurnInRequirement, ObjectiveRequirements, Dialogue,
+                Items.Values, AcceptanceItems, RepeatPolicy, AcceptanceChannel, CompletionChannel, RadioSources, clientCategoryId);
 
         internal Mission WithDialogue(IEnumerable<MissionDialogueTopicDefinition> dialogue) =>
             new(MissionId, Name, ClientNameTextId, MissionGiver, MissionReciver, Level, GroupType,
                 CategoryId, Shareable, RadioCompletable, Objectives.Values, IsOperational,
                 OperationalDiagnostic, ContentRevision, Requirement, TurnInRequirement, ObjectiveRequirements, dialogue,
-                Items.Values, AcceptanceItems, RepeatPolicy, AcceptanceChannel, CompletionChannel, RadioSources);
+                Items.Values, AcceptanceItems, RepeatPolicy, AcceptanceChannel, CompletionChannel, RadioSources, ClientCategoryId);
 
         internal Mission WithItems(IEnumerable<MissionItemBinding> items,
             IEnumerable<global::Rasa.Missions.Scenes.CharacterIntent> acceptanceItems) =>
             new(MissionId, Name, ClientNameTextId, MissionGiver, MissionReciver, Level, GroupType,
                 CategoryId, Shareable, RadioCompletable, Objectives.Values, IsOperational,
                 OperationalDiagnostic, ContentRevision, Requirement, TurnInRequirement, ObjectiveRequirements, Dialogue,
-                items, acceptanceItems, RepeatPolicy, AcceptanceChannel, CompletionChannel, RadioSources);
+                items, acceptanceItems, RepeatPolicy, AcceptanceChannel, CompletionChannel, RadioSources, ClientCategoryId);
     }
 }

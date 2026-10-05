@@ -12,6 +12,7 @@ namespace Rasa.Managers
         private readonly object _syncRoot = new object();
         private readonly Dictionary<PrivateMapInstanceKey, MapChannel> _instancesByKey = new();
         private readonly Dictionary<(uint ContextId, uint OwnerCharacterId), PrivateMapInstanceKey> _keysByOwner = new();
+        private readonly Dictionary<(uint ContextId, uint OwnerCharacterId), MapChannel> _squadByOwner = new();
         private uint _nextInstanceId = 2;
 
         internal static PrivateMapInstanceService Instance
@@ -87,6 +88,167 @@ namespace Rasa.Managers
         {
             lock (_syncRoot)
                 return _instancesByKey.Values.ToArray();
+        }
+
+        /// <summary>
+        /// A shared copy of a map: nobody's, found by its instance id like a private one, and
+        /// ticked and cleaned up with them. The ids come from the same counter, so a map's
+        /// private and shared copies never share one.
+        /// </summary>
+        internal MapChannel CreateShared(MapChannel template, System.Action<MapChannel> initialize = null)
+        {
+            if (template == null)
+                return null;
+
+            lock (_syncRoot)
+            {
+                var instanceId = _nextInstanceId++;
+                var map = new MapChannel
+                {
+                    MapInfo = template.MapInfo,
+                    InstanceId = instanceId,
+                    PlayerLimit = template.PlayerLimit,
+                    ClientList = new List<Game.Client>(),
+                    NavMesh = template.NavMesh,
+                    Cover = template.Cover,
+                    SafetyFloorY = template.SafetyFloorY,
+                    TopWalkableY = template.TopWalkableY,
+                    IsSharedInstance = true
+                };
+                initialize?.Invoke(map);
+
+                _instancesByKey.Add(new PrivateMapInstanceKey(template.MapInfo.MapContextId, instanceId), map);
+                return map;
+            }
+        }
+
+        /// <summary>
+        /// A squad's instance of a map: its owner's and their squad's, found by its instance id
+        /// as the others are, and ticked and cleaned up with them. One per owner per map.
+        /// </summary>
+        internal MapChannel CreateSquad(MapChannel template, uint ownerCharacterId, System.Action<MapChannel> initialize = null)
+        {
+            if (template == null || ownerCharacterId == 0)
+                return null;
+
+            lock (_syncRoot)
+            {
+                var ownerKey = (template.MapInfo.MapContextId, ownerCharacterId);
+
+                if (_squadByOwner.TryGetValue(ownerKey, out var existing))
+                    return existing;
+
+                var instanceId = _nextInstanceId++;
+                var map = new MapChannel
+                {
+                    MapInfo = template.MapInfo,
+                    InstanceId = instanceId,
+                    PlayerLimit = template.PlayerLimit,
+                    ClientList = new List<Game.Client>(),
+                    NavMesh = template.NavMesh,
+                    Cover = template.Cover,
+                    SafetyFloorY = template.SafetyFloorY,
+                    TopWalkableY = template.TopWalkableY,
+                    IsSquadInstance = true,
+                    SquadOwnerCharacterId = ownerCharacterId
+                };
+                initialize?.Invoke(map);
+
+                _instancesByKey.Add(new PrivateMapInstanceKey(template.MapInfo.MapContextId, instanceId), map);
+                _squadByOwner.Add(ownerKey, map);
+                return map;
+            }
+        }
+
+        /// <summary>The squad instance of a map that is this character's, or null.</summary>
+        internal MapChannel FindSquad(uint mapContextId, uint ownerCharacterId)
+        {
+            lock (_syncRoot)
+                return _squadByOwner.TryGetValue((mapContextId, ownerCharacterId), out var map) ? map : null;
+        }
+
+        /// <summary>The squad instances of a map, oldest first; of every map with no map given.</summary>
+        internal IReadOnlyList<MapChannel> SquadOf(uint? mapContextId = null)
+        {
+            lock (_syncRoot)
+                return _squadByOwner.Values
+                    .Where(map => mapContextId == null || map.MapInfo.MapContextId == mapContextId)
+                    .OrderBy(map => map.InstanceId)
+                    .ToArray();
+        }
+
+        /// <summary>
+        /// Makes a squad instance another character's: the lead of its squad has changed hands.
+        /// False when it is not a listed squad instance, or the new owner has one of that map.
+        /// </summary>
+        internal bool ReassignSquad(MapChannel map, uint ownerCharacterId)
+        {
+            if (map == null || !map.IsSquadInstance || ownerCharacterId == 0)
+                return false;
+
+            lock (_syncRoot)
+            {
+                var mapContextId = map.MapInfo.MapContextId;
+                var oldKey = (mapContextId, map.SquadOwnerCharacterId);
+                var newKey = (mapContextId, ownerCharacterId);
+
+                if (!_squadByOwner.TryGetValue(oldKey, out var listed) || !ReferenceEquals(listed, map))
+                    return false;
+
+                if (map.SquadOwnerCharacterId == ownerCharacterId)
+                    return true;
+
+                if (_squadByOwner.ContainsKey(newKey))
+                    return false;
+
+                _squadByOwner.Remove(oldKey);
+                _squadByOwner.Add(newKey, map);
+                map.SquadOwnerCharacterId = ownerCharacterId;
+                return true;
+            }
+        }
+
+        /// <summary>Takes a squad instance off the lists. False when it is not one, or not on them.</summary>
+        internal bool ReleaseSquad(MapChannel map)
+        {
+            if (map == null || !map.IsSquadInstance)
+                return false;
+
+            lock (_syncRoot)
+            {
+                var ownerKey = (map.MapInfo.MapContextId, map.SquadOwnerCharacterId);
+
+                if (!_squadByOwner.TryGetValue(ownerKey, out var listed) || !ReferenceEquals(listed, map))
+                    return false;
+
+                _squadByOwner.Remove(ownerKey);
+                _instancesByKey.Remove(new PrivateMapInstanceKey(map.MapInfo.MapContextId, map.InstanceId));
+                return true;
+            }
+        }
+
+        /// <summary>The shared copies of a map, oldest first.</summary>
+        internal IReadOnlyList<MapChannel> SharedOf(uint mapContextId)
+        {
+            lock (_syncRoot)
+                return _instancesByKey.Values
+                    .Where(map => map.IsSharedInstance && map.MapInfo.MapContextId == mapContextId)
+                    .OrderBy(map => map.InstanceId)
+                    .ToArray();
+        }
+
+        /// <summary>Takes a shared copy off the list. False when it is not one, or not on it.</summary>
+        internal bool ReleaseShared(MapChannel map)
+        {
+            if (map == null || !map.IsSharedInstance)
+                return false;
+
+            lock (_syncRoot)
+            {
+                var key = new PrivateMapInstanceKey(map.MapInfo.MapContextId, map.InstanceId);
+
+                return _instancesByKey.TryGetValue(key, out var listed) && ReferenceEquals(listed, map) && _instancesByKey.Remove(key);
+            }
         }
 
         internal IReadOnlyList<MapChannel> ReleaseOwned(uint ownerCharacterId)

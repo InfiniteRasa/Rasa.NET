@@ -264,7 +264,11 @@ namespace Rasa.Test.Missions
         {
             using var harness = BootcampRuntimeTestHarness.Create(useWorldContent: true);
             Assert.IsFalse(harness.Manager.LoadMissions().BlocksReadiness);
-            Assert.IsTrue(harness.Manager.LoadedMissions.Values.Where(mission => mission.IsOperational)
+            var bootcamp = harness.Manager.LoadedMissions.Values.Where(mission =>
+                mission.IsOperational && mission.ContentRevision == "deployment_11").ToArray();
+            CollectionAssert.AreEquivalent(new uint[] { 1990, 1992, 1994, 1995, 2005 },
+                bootcamp.Select(mission => mission.MissionId).ToArray());
+            Assert.IsTrue(bootcamp
                 .All(mission => mission.RepeatPolicy.Kind == MissionRepeatKind.Once && mission.Shareable == false));
             var mission = harness.Manager.LoadedMissions[1990];
             harness.WorldContext.Add(new MissionRepeatPolicyEntry
@@ -856,10 +860,38 @@ namespace Rasa.Test.Missions
             context.Manager.PublicActors.Bind(new PublicEncounterBinding(321, 77, "escort", "example.escort"));
             Assert.IsTrue(context.Manager.AcceptOfferedMission(context.Client, giver.EntityId, 321));
             var old = context.Manager.PublicActors.Handle(context.Map, 77);
+            var firstAssignment = context.ReadMission(321);
             Assert.IsTrue(context.Manager.CompleteOfferedMission(context.Client, context.AddNpc(88).EntityId, 321, null, null));
+            var returning = context.Manager.PublicActors.Handle(context.Map, 77);
+            Assert.AreEqual(old.RunId, returning.RunId, "Reward retirement keeps the actor reserved for the same returning run.");
+            Assert.AreEqual(old.Role, returning.Role);
+            Assert.AreEqual(old.MapEpoch, returning.MapEpoch);
+            Assert.AreEqual(old.Generation + 1, returning.Generation,
+                "Committed retirement invalidates old callbacks before the actor returns.");
+            Assert.IsFalse(context.Manager.PublicActors.TryResolve(context.Map, old, out _));
+            using (var unit = context.CreateChar())
+            {
+                var scene = unit.CharacterMissions.Runtime.Scene(old.RunId);
+                var lease = unit.CharacterMissions.Runtime.Leases(old.RunId).Single();
+                Assert.IsTrue(unit.CharacterMissions.Runtime.WasRewarded(firstAssignment.AssignmentId));
+                Assert.AreEqual(firstAssignment.AssignmentId, scene.AssignmentId);
+                Assert.AreEqual("AssignmentRewarded", scene.Fault);
+                Assert.AreEqual("Resetting", scene.Status);
+                Assert.AreEqual("Resetting", lease.State);
+                Assert.AreEqual(returning.Generation, scene.Generation);
+                Assert.AreEqual(returning.Generation, lease.Generation);
+            }
             Assert.IsFalse(context.Manager.AcceptOfferedMission(context.Client, giver.EntityId, 321));
-            Assert.AreEqual(old, context.Manager.PublicActors.Handle(context.Map, 77));
+            Assert.AreEqual(returning, context.Manager.PublicActors.Handle(context.Map, 77),
+                "Denied repeat acceptance must not replace or advance the returning lease.");
             context.Manager.PublicActors.Tick(context.Map);
+            Assert.IsNull(context.Manager.PublicActors.Handle(context.Map, 77));
+            Assert.IsTrue(actor.IsInteractable);
+            using (var unit = context.CreateChar())
+            {
+                Assert.AreEqual("Ended", unit.CharacterMissions.Runtime.Scene(old.RunId).Status);
+                Assert.IsFalse(unit.CharacterMissions.Runtime.Leases(old.RunId).Any());
+            }
             Assert.IsTrue(context.Manager.AcceptOfferedMission(context.Client, giver.EntityId, 321));
             Assert.AreNotEqual(old.RunId, context.Manager.PublicActors.Handle(context.Map, 77).RunId);
             Assert.IsFalse(context.Manager.PublicActors.TryResolve(context.Map, old, out _));

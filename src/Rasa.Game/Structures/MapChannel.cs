@@ -12,6 +12,38 @@ namespace Rasa.Structures
         public uint InstanceId { get; set; } = 1;
         public bool IsPrivateInstance { get; set; }
         public uint OwnerCharacterId { get; set; }
+
+        /// <summary>
+        /// A further copy of a map that anyone may enter (MapChannelManager.Instances): opened
+        /// when the copies before it are full, and nobody's. Unlike a private instance it is a
+        /// public place in every way but one: it is not the map's own channel.
+        /// </summary>
+        public bool IsSharedInstance { get; set; }
+
+        /// <summary>
+        /// A squad's own copy of a map (MapChannelManager's squad instances): made when its owner
+        /// or one of their squad walks in, and kept until the weekly reset. A public place to
+        /// those in it, as a shared copy is - not the one-owner place a private instance is.
+        /// </summary>
+        public bool IsSquadInstance { get; set; }
+
+        /// <summary>Whose a squad instance is: the character of the squad's leader, or of a player in no squad. 0 for every other channel.</summary>
+        public uint SquadOwnerCharacterId { get; set; }
+
+        /// <summary>A squad instance is not closed before this (the manager's clock): somebody is being sent into it.</summary>
+        internal long HeldUntil { get; set; }
+
+        /// <summary>What a squad instance keeps of itself and saves (Managers.SquadInstanceState); null for every other channel.</summary>
+        public Managers.SquadInstanceState SquadState { get; set; }
+
+        /// <summary>Whether this is a copy of a map - somebody's, a squad's, or shared - rather than the map's own channel.</summary>
+        public bool IsCopy => IsPrivateInstance || IsSharedInstance || IsSquadInstance;
+
+        /// <summary>When a shared copy was last seen with nobody in it or on the way (Environment.TickCount64 as the manager reads it); 0 while it has somebody.</summary>
+        public long EmptySince { get; set; }
+
+        /// <summary>The players sent to this channel whose clients have not arrived yet: they count towards how full it is.</summary>
+        internal HashSet<Client> Arriving { get; } = new HashSet<Client>();
         // timers
         //public int TimerClientEffectUpdate { get; set; }
         //public int TimerMissileUpdate { get; set; }

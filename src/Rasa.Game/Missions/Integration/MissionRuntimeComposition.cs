@@ -14,6 +14,8 @@ namespace Rasa.Game.Missions.Integration
         internal static void Bind(MissionContentCatalog catalog, SceneApplication scenes,
             PublicActorLeaseService actors, ActorPolicyCatalog policies)
         {
+            actors.ReloadBindings(catalog.SceneBindings.Values.Where(document => document.PublicEncounter != null)
+                .Select(document => (document.PublicEncounter, document.Actors[document.PublicEncounter.Role].GameplayPolicy)));
             scenes.ClearBindings();
             policies.Clear();
             foreach (var binding in catalog.SceneBindings)
@@ -21,8 +23,6 @@ namespace Rasa.Game.Missions.Integration
                 var document = binding.Value;
                 if (document.Script != null)
                     scenes.Bind(binding.Key, document.Script, document.Bindings(catalog.Missions[binding.Key].ContentRevision));
-                if (document.PublicEncounter != null)
-                    actors.Bind(document.PublicEncounter, document.Actors[document.PublicEncounter.Role].GameplayPolicy);
             }
             foreach (var experience in catalog.Experiences)
             {

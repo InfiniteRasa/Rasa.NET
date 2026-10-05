@@ -22,7 +22,8 @@ namespace Rasa.Structures
             var objectives = new List<MissionObjective>();
             foreach (var definition in mission.Objectives.Values.OrderBy(objective => objective.Ordinal.Value))
             {
-                if (!objectiveLogs.TryGetValue(definition.ObjectiveId, out var log) ||
+                if (!definition.IsVisible ||
+                    !objectiveLogs.TryGetValue(definition.ObjectiveId, out var log) ||
                     log.State == MissionObjectiveState.Inactive)
                     continue;
                 var objective = definition.CreateRuntime(log.State, log.Counters, log.ItemCounters);
@@ -38,7 +39,7 @@ namespace Rasa.Structures
                 {
                     Level = mission.Level.Value,
                     GroupType = mission.GroupType.Value,
-                    CategoryId = mission.CategoryId.Value,
+                    CategoryId = mission.ClientCategoryId ?? mission.CategoryId.Value,
                     Shareable = mission.Shareable.Value,
                     RadioCompletable = mission.RadioCompletable.Value
                 },

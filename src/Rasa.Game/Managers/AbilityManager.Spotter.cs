@@ -48,11 +48,30 @@ namespace Rasa.Managers
     /// - after CREATURE_LIFETIME_MS, or when the player casts another, SPOTTER_DESPAWN plays and it
     ///   is taken away SpotterDespawnMs later. Killed, it is an ordinary corpse.
     ///
-    /// Not done: the stealth detection range on the radar ("+15m enemy detection per pump", PvP).
+    /// The radar (PvP): "Also extends how far stealthed enemies appear on your radar ... Each pump
+    /// level gains an increase in stealth detection range on the radar for each pump level a user
+    /// has, regardless of what pump level is used", "+15m enemy detection per pump". While the
+    /// player has a spotter out their ToPerceiveModifier is 1 + 15 m x pumps owned / 72 m, the
+    /// radar's reach (radarwindow.py kMaxRadarRange): the client adds it to the enemy's
+    /// ToBePerceivedModifier (Stealth Armor's radar signature) to work out how near a stealthed
+    /// enemy must be to show (<see cref="SyncRadar"/>).
     /// </summary>
     public partial class AbilityManager
     {
         public const string SpotterModule = "abilities.spotter";
+        public const int SpotterSkillId = 162;                   // T3_RANGER_SPOTTER
+
+        /// <summary>"Proficiency: +15m enemy detection per pump".</summary>
+        public const float SpotterDetectionPerPump = 15f;
+
+        /// <summary>radarwindow.py kMaxRadarRange: the radar's reach, which the perception modifiers are fractions of.</summary>
+        public const float RadarRangeMetres = 72f;
+
+        private static readonly HashSet<Manifestation> RadarExtended = new HashSet<Manifestation>();
+
+        /// <summary>A Spotter owner's ToPerceiveModifier for the pumps of Spotter they have.</summary>
+        public static double SpotterPerception(int pumps) =>
+            pumps <= 0 ? 1.0 : 1.0 + (double)SpotterDetectionPerPump * pumps / RadarRangeMetres;
         public const int SpotterMinionTypeId = 442;              // SPOTTER_MINION
         public const int SpotterDespawnTypeId = 448;             // SPOTTER_DESPAWN
 
@@ -337,6 +356,8 @@ namespace Rasa.Managers
             lock (SpottersLock)
                 here = Spotters.Where(s => s.MapChannel == mapChannel).ToList();
 
+            SyncRadar(mapChannel, here);
+
             if (here.Count == 0)
                 return;
 
@@ -380,6 +401,45 @@ namespace Rasa.Managers
                     spotter.NextRepairAt = now + BotRepairIntervalMs;
                     RepairAround(mapChannel, spotter);
                 }
+            }
+        }
+
+        /// <summary>
+        /// Each player on this map with a live spotter has the radar reach it gives them, and one
+        /// whose spotter is gone has theirs back to 1.0: sent to their own client when it changes.
+        /// </summary>
+        private static void SyncRadar(MapChannel mapChannel, List<Spotter> here)
+        {
+            var owners = here
+                .Where(s => s.Module == SpotterModule && s.RemoveAt == 0 && s.Creature.State != CharacterState.Dead && s.Owner?.MapChannel == mapChannel)
+                .Select(s => s.Owner)
+                .ToHashSet();
+
+            List<Manifestation> players;
+
+            lock (RadarExtended)
+            {
+                RadarExtended.RemoveWhere(p => p.MapChannel == null);
+                players = RadarExtended.Where(p => p.MapChannel == mapChannel).Union(owners).ToList();
+            }
+
+            foreach (var player in players)
+            {
+                var perception = owners.Contains(player) ? SpotterPerception(ManifestationManager.SkillPump(player, SpotterSkillId)) : 1.0;
+
+                lock (RadarExtended)
+                {
+                    if (perception != 1.0)
+                        RadarExtended.Add(player);
+                    else
+                        RadarExtended.Remove(player);
+                }
+
+                if (player.ToPerceiveModifier == perception)
+                    continue;
+
+                player.ToPerceiveModifier = perception;
+                mapChannel.ClientList.Find(c => c?.Player == player)?.CallMethod(player.EntityId, new ToPerceiveModifierPacket(perception));
             }
         }
 

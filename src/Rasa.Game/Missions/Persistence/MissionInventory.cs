@@ -54,6 +54,8 @@ namespace Rasa.Game.Missions.Persistence
             if (!manager.TryGetOperationalMission(assignment.MissionId, out var mission) || mission.Items.Count == 0)
                 return null;
             var plan = new MissionItemPlanner(client, unit, manager);
+            if (reason == MissionItemTermination.Completion && !removingAssignment)
+                plan.ConsumeTurnIn(assignment);
             plan.Cleanup(assignment, reason, removingAssignment, replacement);
             return plan.Publish;
         }

@@ -420,6 +420,14 @@ namespace Rasa.Managers
                 return;
             }
 
+            // Neither squad joins another while in a wargame or with a challenge open (SquadWargames).
+            if (WargameRefusal(client, requester) is PlayerMessage leaderBusy)
+            {
+                Message(client, leaderBusy, "invitee", requester.Player.FamilyName);
+                Message(requester, PlayerMessage.PmPartyRequestIsNoLongerValid);
+                return;
+            }
+
             if (JoiningSize(requesterParty) + (leaderParty?.Members.Count ?? 1) > MaxPartySize)
             {
                 Message(client, PlayerMessage.PmPartyIsFull);
@@ -431,6 +439,13 @@ namespace Rasa.Managers
             {
                 Message(client, PlayerMessage.PmPartyJoinFailedFeudingMembers);
                 Message(requester, PlayerMessage.PmPartyJoinFailedFeudingMembers);
+                return;
+            }
+
+            if (OnDifferentTeams(requesterParty, requester, leaderParty, client))
+            {
+                Message(client, PlayerMessage.PmPartyJoinFailedOnDifferentTeams);
+                Message(requester, PlayerMessage.PmPartyJoinFailedOnDifferentTeams);
                 return;
             }
 
@@ -451,6 +466,24 @@ namespace Rasa.Managers
                 AddMember(leaderParty, requester);
             else
                 MergeInto(leaderParty, requesterParty);
+        }
+
+        /// <summary>Why a squad leader may not take this player in for a wargame, on either side; null if they may.</summary>
+        private static PlayerMessage? WargameRefusal(Client leader, Client joining)
+        {
+            if (Wargames.IsWargaming(leader))
+                return PlayerMessage.PmPartyInviteFailedYouAreInWargame;
+
+            if (Wargames.IsWargaming(joining))
+                return PlayerMessage.PmPartyInviteFailedTheyAreInWargame;
+
+            if (Wargames.HasChallenge(leader))
+                return PlayerMessage.PmPartyInviteFailedYouAreInWgChallenge;
+
+            if (Wargames.HasChallenge(joining))
+                return PlayerMessage.PmPartyInviteFailedTheyAreInWgChallenge;
+
+            return null;
         }
 
         internal void PartyInvitationResponse(Client client, PartyInvitationResponsePacket packet)
@@ -511,6 +544,14 @@ namespace Rasa.Managers
             {
                 Message(client, PlayerMessage.PmPartyJoinFailedFeudingMembers);
                 Message(inviter, PlayerMessage.PmPartyJoinFailedFeudingMembers);
+                inviter.CallMethod(SysEntity.ClientPartyManagerId, new SquadRequestSuccessPacket(invite.DisplayName));
+                return;
+            }
+
+            if (OnDifferentTeams(inviterParty, inviter, inviteeParty, client))
+            {
+                Message(client, PlayerMessage.PmPartyJoinFailedOnDifferentTeams);
+                Message(inviter, PlayerMessage.PmPartyJoinFailedOnDifferentTeams);
                 inviter.CallMethod(SysEntity.ClientPartyManagerId, new SquadRequestSuccessPacket(invite.DisplayName));
                 return;
             }
@@ -964,6 +1005,14 @@ namespace Rasa.Managers
         /// plain invitation, where the recipient is the player who was named, and a squad
         /// invitation, where it is the leader of that player's squad.
         /// </summary>
+        /// <summary>Whether the player has a squad invitation of their own still open.</summary>
+        internal bool IsInviting(Client client) =>
+            client?.AccountEntry != null && _invites.Values.Any(i => i.InviterId == client.AccountEntry.Id);
+
+        /// <summary>Whether the player has a squad invitation still to answer.</summary>
+        internal bool IsInvited(Client client) =>
+            client?.AccountEntry != null && _invites.ContainsKey(client.AccountEntry.Id);
+
         private void Invite(Client inviter, Client recipient, string displayName)
         {
             var inviterParty = PartyOf(inviter);
@@ -979,6 +1028,32 @@ namespace Rasa.Managers
             if (recipient.Player.IgnoredPlayers.Contains(inviter.AccountEntry.Id))
             {
                 Message(inviter, PlayerMessage.PmUserIgnoringYou, "name", displayName);
+                return;
+            }
+
+            // A duel or a squad wargame, or a challenge to one still open, keeps either side out of
+            // squads (Duels, SquadWargames): nobody joins a squad in a wargame.
+            if (Wargames.IsWargaming(inviter))
+            {
+                Message(inviter, PlayerMessage.PmPartyInviteFailedYouAreInWargame, "invitee", displayName);
+                return;
+            }
+
+            if (Wargames.IsWargaming(recipient))
+            {
+                Message(inviter, PlayerMessage.PmPartyInviteFailedTheyAreInWargame, "invitee", displayName);
+                return;
+            }
+
+            if (Wargames.HasChallenge(inviter))
+            {
+                Message(inviter, PlayerMessage.PmPartyInviteFailedYouAreInWgChallenge, "invitee", displayName);
+                return;
+            }
+
+            if (Wargames.HasChallenge(recipient))
+            {
+                Message(inviter, PlayerMessage.PmPartyInviteFailedTheyAreInWgChallenge, "invitee", displayName);
                 return;
             }
 
@@ -1191,6 +1266,9 @@ namespace Rasa.Managers
                 {
                     leaver.Player.PartyId = 0;
                     ResetClient(leaver, kicked);
+
+                    // Out of the squad is out of its wargame and its challenge.
+                    SquadWargames.Instance.LeftSquad(leaver);
                 }
             }
 
@@ -1221,7 +1299,9 @@ namespace Rasa.Managers
 
         private void Disband(Party party)
         {
-            foreach (var member in OnlineClients(party))
+            var online = OnlineClients(party);
+
+            foreach (var member in online)
             {
                 member.Player.PartyId = 0;
                 member.CallMethod(SysEntity.ClientPartyManagerId, new PartyDisbandedPacket());
@@ -1238,6 +1318,10 @@ namespace Rasa.Managers
             Voice.VoiceServer.Instance.GroupDisbanded(party.Id);
 
             AdsChanged(null, former);
+
+            // A squad disbanded is out of its wargame and its challenge.
+            foreach (var member in online)
+                SquadWargames.Instance.LeftSquad(member);
         }
 
         /// <summary>
@@ -1423,6 +1507,42 @@ namespace Rasa.Managers
             return !ClanFeuds.Instance.AnyFeuding(clans);
         }
 
+        /// <summary>
+        /// Whether two sides - each a squad, or a lone player when their squad is null - would
+        /// make a squad with players on both teams of a battleground's match
+        /// (PM_PARTY_JOIN_FAILED_ON_DIFFERENT_TEAMS).
+        /// </summary>
+        internal static bool OnDifferentTeams(Party first, Client firstAlone, Party second, Client secondAlone)
+        {
+            return Battlegrounds.Instance.OnDifferentTeams(
+                first != null ? OnlineClients(first) : new List<Client> { firstAlone },
+                second != null ? OnlineClients(second) : new List<Client> { secondAlone });
+        }
+
+        /// <summary>
+        /// A player has joined a team of a battleground's match: no squad holds both teams, so
+        /// if theirs has somebody on the other they are out of it, and told why
+        /// (PM_TEAM_CHANGE_FORCED_SQUAD_CHANGE).
+        /// </summary>
+        internal void SeparateTeams(Client client)
+        {
+            if (client?.AccountEntry == null)
+                return;
+
+            var party = PartyOf(client);
+
+            if (party == null || !Parties.ContainsKey(party.Id))
+                return;
+
+            var others = OnlineClients(party).Where(c => c != client).ToList();
+
+            if (!Battlegrounds.Instance.OnDifferentTeams(new List<Client> { client }, others))
+                return;
+
+            RemoveMember(party, party.Find(client.AccountEntry.Id), false);
+            Message(client, PlayerMessage.PmTeamChangeForcedSquadChange);
+        }
+
         private static IEnumerable<uint> ClansOf(Party party, Client alone) =>
             party != null
                 ? OnlineClients(party).Select(c => c.Player?.ClanId ?? 0)
@@ -1466,6 +1586,9 @@ namespace Rasa.Managers
             }
         }
 
+        /// <summary>The squad's members the squad counts online (SquadWargames).</summary>
+        internal static List<Client> OnlineMembers(Party party) => OnlineClients(party);
+
         private static List<Client> OnlineClients(Party party)
         {
             var clients = new List<Client>();
@@ -1498,24 +1621,21 @@ namespace Rasa.Managers
         public const float LootShareRange = 200f;
 
         /// <summary>
-        /// Who may loot a corpse the killer earned, by the squad's loot method:
-        /// - no squad, or Individual: the killer;
-        /// - Free For All: every member in the world on the killer's map within LootShareRange (200 m) of
-        ///   the corpse, the killer first - anyone of them may take anything;
-        /// - Rotation: the whole corpse goes to the next of those members in join order, the
-        ///   rotation moving on one member a corpse.
-        /// Random and Dice Roll cannot be chosen in the client and are treated as Free For All.
-        /// The flag is whether the corpse is shared (partyId on its items). Party and Eligible -
-        /// every member who shares in the corpse, whoever Rotation hands it to - are for the
-        /// items at or over the squad's threshold, which are rolled for among them (LootRolls).
+        /// Who shares in a kill, whatever the squad's loot method: the killer, and every member of
+        /// their squad in the world on the killer's map within LootShareRange of the corpse. A
+        /// player in no squad shares with nobody. What a kill is worth besides its loot goes by
+        /// this (ControlPoints.CreatureKilled).
         /// </summary>
-        internal (List<Client> Looters, uint PartyId, Party Party, List<Client> Eligible) LootersFor(Client killer, System.Numerics.Vector3 corpse)
+        internal List<Client> SharersOf(Client killer, System.Numerics.Vector3 corpse)
         {
             var party = PartyOf(killer);
 
-            if (party == null || party.LootMethod == PartyLootMethod.Individual)
-                return (new List<Client> { killer }, 0, null, new List<Client> { killer });
+            return party == null ? new List<Client> { killer } : MembersInRange(party, killer, corpse);
+        }
 
+        /// <summary>The killer and the members of their squad who are near enough to a corpse to share in it, in join order.</summary>
+        private List<Client> MembersInRange(Party party, Client killer, System.Numerics.Vector3 corpse)
+        {
             var mapChannel = killer.Player.MapChannel;
             var eligible = new List<Client>();
 
@@ -1538,6 +1658,30 @@ namespace Rasa.Managers
 
             if (!eligible.Contains(killer))
                 eligible.Insert(0, killer);
+
+            return eligible;
+        }
+
+        /// <summary>
+        /// Who may loot a corpse the killer earned, by the squad's loot method:
+        /// - no squad, or Individual: the killer;
+        /// - Free For All: every member in the world on the killer's map within LootShareRange (200 m) of
+        ///   the corpse, the killer first - anyone of them may take anything;
+        /// - Rotation: the whole corpse goes to the next of those members in join order, the
+        ///   rotation moving on one member a corpse.
+        /// Random and Dice Roll cannot be chosen in the client and are treated as Free For All.
+        /// The flag is whether the corpse is shared (partyId on its items). Party and Eligible -
+        /// every member who shares in the corpse, whoever Rotation hands it to - are for the
+        /// items at or over the squad's threshold, which are rolled for among them (LootRolls).
+        /// </summary>
+        internal (List<Client> Looters, uint PartyId, Party Party, List<Client> Eligible) LootersFor(Client killer, System.Numerics.Vector3 corpse)
+        {
+            var party = PartyOf(killer);
+
+            if (party == null || party.LootMethod == PartyLootMethod.Individual)
+                return (new List<Client> { killer }, 0, null, new List<Client> { killer });
+
+            var eligible = MembersInRange(party, killer, corpse);
 
             if (party.LootMethod == PartyLootMethod.Rotation)
             {

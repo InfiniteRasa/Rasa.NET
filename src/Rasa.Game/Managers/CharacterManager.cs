@@ -232,7 +232,16 @@ namespace Rasa.Managers
                 return;
             }
 
-            var source = client.AccountEntry.GetCharacterBySlot(packet.CloneSlotNum);
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+
+            // The source is read from its row, as the pods are (StartCharacterSelection), and not
+            // from client.AccountEntry. That entry is a copy from when the account was last
+            // loaded - for a player who came here from the world, when they selected the
+            // character - and coming here from the world is how a clone is made: the trainer's
+            // Clone button is a logout to this screen (exitgame.OnRequestLogoutForCloning). The
+            // copy has none of what the character did in between: its levels, its class, where
+            // it stands, or the clone credit it has come to spend.
+            var source = unitOfWork.Characters.GetByAccountId(client.AccountEntry.Id, packet.CloneSlotNum);
 
             if (source == null)
             {
@@ -249,7 +258,6 @@ namespace Rasa.Managers
             }
 
             uint characterId;
-            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
 
             lock (_createLock)
             {
@@ -267,10 +275,9 @@ namespace Rasa.Managers
 
             // Spent last, so a clone that failed anywhere above costs nothing.
             //
-            // Held in a local rather than re-read off `source` afterwards. UpdateCharacterCloneCredits
-            // writes through the tracked entity, and whether that is the same object as `source`
-            // depends on which context loaded the account - so reading it back would subtract
-            // twice on one path and once on the other.
+            // Held in a local for the packets below. `source` is an untracked copy of the row:
+            // UpdateCharacterCloneCredits writes through an entity of its own and leaves the
+            // copy's count as it was read.
             var remainingCredits = source.CloneCredits - 1;
 
             unitOfWork.Characters.UpdateCharacterCloneCredits(source.Id, remainingCredits);
@@ -504,7 +511,7 @@ namespace Rasa.Managers
         /// <summary>/changefirstname: renames the character the player is on.</summary>
         internal void ChangeFirstName(Client client, ChangeFirstNamePacket packet)
         {
-            if (!IsNameChanger(client))
+            if (!IsNameChanger(client, "/changefirstname", packet.Name))
                 return;
 
             Rename(client, client, packet.Name, false);
@@ -513,7 +520,7 @@ namespace Rasa.Managers
         /// <summary>/changelastname: renames the account's family, so every character on it.</summary>
         internal void ChangeLastName(Client client, ChangeLastNamePacket packet)
         {
-            if (!IsNameChanger(client))
+            if (!IsNameChanger(client, "/changelastname", packet.Name))
                 return;
 
             Rename(client, client, packet.Name, true);
@@ -590,6 +597,9 @@ namespace Rasa.Managers
             if (mapChannel != null)
                 CellManager.Instance.CellCallMethod(mapChannel, target.Player,
                     familyName ? new ActorNamePacket(target.Player.FamilyName) : (PythonPacket)new CharacterNamePacket(target.Player.Name));
+
+            // And in the friends lists it is on, which show both names.
+            SocialManager.Instance.FriendStatusUpdate(target);
 
             var args = new Dictionary<string, string> { ["oldname"] = oldName ?? string.Empty, ["newname"] = name };
             var changed = familyName ? PlayerMessage.PmLastNameChanged : PlayerMessage.PmFirstNameChanged;
@@ -712,12 +722,16 @@ namespace Rasa.Managers
         /// Observer - the level that exists to read the world without changing it, and the level
         /// every pre-existing account was left on - rename itself and its whole account family.
         /// </summary>
-        private static bool IsNameChanger(Client client)
+        private static bool IsNameChanger(Client client, string command, string name)
         {
             if (client?.AccountEntry == null || client.Player == null)
                 return false;
 
-            if (client.AccountEntry.Level >= (byte)GmLevel.GameMaster)
+            var allowed = client.AccountEntry.Level >= (byte)GmLevel.GameMaster;
+
+            GmAudit.Instance.Request(client, command, $"{command} {name}".TrimEnd(), GmLevel.GameMaster, allowed);
+
+            if (allowed)
                 return true;
 
             Logger.WriteLog(LogType.Security, $"AccountId = {client.AccountEntry.Id} tried to change a name without being a GM");
@@ -1076,6 +1090,10 @@ namespace Rasa.Managers
             client.ReloadGameAccountEntry();
             client.Player = CreateCharacterManifestation(client, character);
             client.Player.MapChannel = StartingExperience.ResolveMap(character, startingState);
+
+            // A map that runs in copies: back into the copy they left, or outside its door.
+            MapChannelManager.Instance.PlaceLogin(client);
+
             client.LoadingMap = client.Player.MapContextId;
             MapChannelManager.Instance.PassClientToMapInstance(client);
         }
@@ -1149,6 +1167,7 @@ namespace Rasa.Managers
                 LockboxTabs = Math.Max(lockboxInfo?.PurashedTabs ?? 0, LockboxTab.FreeTab),
                 Skills = MapChannelManager.Instance.GetPlayerSkills(character.Id),
                 Titles = unitOfWork.CharacterTitles.Get(character.Id),
+                BossKills = unitOfWork.CharacterBossKills.Get(character.Id).ToHashSet(),
                 Abilities = MapChannelManager.Instance.GetPlayerAbilities(character.Id),
                 LoginTime = DateTime.Now,
                 Logos = logos
@@ -1164,6 +1183,10 @@ namespace Rasa.Managers
             // them to the client when it arrives in the world.
             ActionReuse.Restore(newCharacter, unitOfWork.CharacterActionReuses.Take(character.Id),
                 Environment.TickCount64, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+
+            // The health, armour, power and death penalties it left with, put back as it arrives
+            // (RelogVitals).
+            newCharacter.LeftWith = SavedVitals.From(character);
 
             return newCharacter;
         }
@@ -1374,6 +1397,9 @@ namespace Rasa.Managers
                 (_missionManager ?? MissionApplication.Instance).RecordProgress(
                     client,
                     MissionProgressEvent.Logos(logosId));
+
+                // The last Logos of a battlefield is its title (LogosTitles).
+                LogosTitles.Collected(client, logosId);
                 return true;
             }
         }

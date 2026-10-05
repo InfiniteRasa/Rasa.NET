@@ -20,8 +20,9 @@ namespace Rasa.Managers
     /// the client's BaseWeaponAttack.DoHits floats one hit at a time. RocketLauncherAttack keeps
     /// its FX on the target (updateFXTargets = 0), so the splash needs no FX of its own.
     ///
-    /// Only hostile creatures are splashed (AbilityManager.HostilesWithin): no player is caught
-    /// by another player's rocket.
+    /// Only what the shooter may attack is splashed (AbilityManager.VictimsWithin): hostile
+    /// creatures, and their enemies across a wargame (Pvp) - no other player is caught by
+    /// another player's rocket.
     /// </summary>
     public static class Splash
     {

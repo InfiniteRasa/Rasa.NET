@@ -158,8 +158,51 @@ namespace Rasa.Repositories.Char.MissionRuntime
                  actor.Generation == scene.Generation && actor.SharedKey != null && actor.Outcome == "Defeated"
              select actor.SharedKey).Distinct().ToArray();
         public bool HasReceipt(string ownerId, uint generation, string key) =>
+            _context.Set<MissionReceiptEntry>().Local.Any(entry => entry.OwnerId == ownerId &&
+                entry.Generation == generation && entry.OperationKey == key) ||
             _context.Set<MissionReceiptEntry>().Any(entry => entry.OwnerId == ownerId &&
                 entry.Generation == generation && entry.OperationKey == key);
+
+        /// <summary>
+        /// The attempts at the mission the character gave up or failed since they last succeeded
+        /// at it (all of them when they never have): the attempts a new assignment follows on
+        /// from. What one of those handed out before it ended is not handed out again.
+        /// </summary>
+        public IReadOnlyList<CharacterMissionHistoryEntry> UnfinishedAttempts(uint characterId, uint missionId)
+        {
+            var history = _context.Set<CharacterMissionHistoryEntry>().AsNoTracking()
+                .Where(entry => entry.CharacterId == characterId && entry.MissionId == missionId).ToArray();
+            var lastSuccess = history
+                .Where(entry => entry.Rewarded || entry.Outcome == 1 || entry.Outcome == 4)
+                .Select(entry => entry.AssignmentGeneration).DefaultIfEmpty(0U).Max();
+            return history
+                .Where(entry => entry.AssignmentGeneration > lastSuccess && (entry.Outcome == 2 || entry.Outcome == 3))
+                .ToArray();
+        }
+
+        /// <summary>
+        /// Whether an attempt in <see cref="UnfinishedAttempts"/> recorded the scenario step.
+        /// <see cref="Archive"/> keeps an ended assignment's steps as its "legacy:" receipts; the
+        /// steps themselves go with the assignment's row.
+        /// </summary>
+        public bool HadStepInUnfinishedAttempt(uint characterId, uint missionId, string stepKey) =>
+            UnfinishedAttempts(characterId, missionId)
+                .Any(attempt => HasReceipt(attempt.AssignmentId, 0, "legacy:" + stepKey));
+
+        /// <summary>
+        /// Whether the scene of an attempt in <see cref="UnfinishedAttempts"/> holds the
+        /// generation-zero receipt of a grant: the scene of each assignment is a run of its own,
+        /// and a grant's receipt is its run's.
+        /// </summary>
+        public bool GrantedInUnfinishedAttempt(uint characterId, uint missionId, string scriptKey, string operationKey)
+        {
+            var attempts = UnfinishedAttempts(characterId, missionId)
+                .Select(attempt => attempt.AssignmentId).ToHashSet();
+            return attempts.Count > 0 && Scenes(characterId, missionId).Any(scene =>
+                scene.ScriptKey == scriptKey && attempts.Contains(scene.AssignmentId) &&
+                HasReceipt(scene.RunId, 0, operationKey));
+        }
+
         public bool HasOutcome(string eventId) => _context.Set<MissionOutcomeEntry>().Any(entry => entry.EventId == eventId);
         public IReadOnlyList<MissionCreditDeliveryEntry> Deliveries(uint characterId) =>
             _context.Set<MissionCreditDeliveryEntry>()

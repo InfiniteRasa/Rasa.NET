@@ -25,6 +25,7 @@ services:
       - "8001:8001"
       - "8103:8103/udp"
       - "8104:8104"
+      - "8105:8105"
     volumes:
       - ./rasachar.db:/app/src/Rasa.Game/bin/Release/net10.0/rasachar.db
       - ./rasaworld.db:/app/src/Rasa.Game/bin/Release/net10.0/rasaworld.db

@@ -87,14 +87,18 @@ namespace Rasa.Test.Missions
                         System.Text.Json.JsonSerializer.Serialize(upgraded, Rasa.Missions.Content.MissionContentCodec.Options),
                         $"Mission {id}'s existing scene and dialogue must survive repeated initialization.");
                 }
-                Assert.AreEqual(3, context.MissionActionEntries.Count(row => (byte)row.Kind >= 10));
-                Assert.IsEmpty(context.Set<MissionRepeatPolicyEntry>().ToArray());
-                var channel = context.Set<MissionChannelPolicyEntry>().Single();
+                Assert.AreEqual(3, context.MissionActionEntries.Count(row =>
+                    row.ContentRevision == BootcampRevision && (byte)row.Kind >= 10));
+                Assert.IsEmpty(context.Set<MissionRepeatPolicyEntry>()
+                    .Where(row => AllMissionIds.Contains(row.MissionId)).ToArray());
+                var channel = context.Set<MissionChannelPolicyEntry>()
+                    .Single(row => AllMissionIds.Contains(row.MissionId));
                 Assert.AreEqual(1990U, channel.MissionId);
                 Assert.AreEqual(Rasa.Missions.Definitions.MissionChannel.Mixed, channel.AcceptanceChannel);
                 Assert.AreEqual(Rasa.Missions.Definitions.MissionChannel.Npc, channel.CompletionChannel);
                 CollectionAssert.AreEquivalent(AllMissionIds,
-                    context.MissionContentDefinitionEntries.Where(row => row.Enabled).Select(row => row.MissionId).ToArray());
+                    context.MissionContentDefinitionEntries.Where(row => row.Enabled &&
+                        row.ContentRevision == BootcampRevision).Select(row => row.MissionId).ToArray());
                 Assert.IsFalse(Validate(LoadSnapshot(context), context).BlocksReadiness);
                 Assert.IsFalse(context.Database.GetPendingMigrations().Any());
             });
@@ -113,7 +117,8 @@ namespace Rasa.Test.Missions
                 Assert.AreEqual(before, System.Text.Json.JsonSerializer.Serialize(
                     context.MissionContentDefinitionEntries.AsNoTracking().OrderBy(entry => entry.MissionId)
                         .ThenBy(entry => entry.ContentRevision).ToArray()));
-                var policies = context.Set<MissionChannelPolicyEntry>().ToArray();
+                var policies = context.Set<MissionChannelPolicyEntry>()
+                    .Where(row => AllMissionIds.Contains(row.MissionId)).ToArray();
                 Assert.HasCount(1, policies);
                 Assert.AreEqual(1990U, policies[0].MissionId);
                 Assert.AreEqual(Rasa.Missions.Definitions.MissionChannel.Mixed, policies[0].AcceptanceChannel);
@@ -123,8 +128,9 @@ namespace Rasa.Test.Missions
                 Assert.IsTrue(snapshot.Definitions.Values.Where(entry => AllMissionIds.Contains(entry.MissionId))
                     .All(entry => entry.Mission.RepeatPolicy.Kind == Rasa.Missions.Runtime.MissionRepeatKind.Once &&
                         entry.Mission.Shareable == false && entry.Mission.RadioCompletable == false));
-                Assert.IsFalse(context.MissionContentDefinitionEntries.Any(entry => entry.Enabled &&
-                    !AllMissionIds.Contains(entry.MissionId)), "No Wilderness definition may be enabled.");
+                CollectionAssert.AreEquivalent(AllMissionIds, context.MissionContentDefinitionEntries
+                    .Where(entry => entry.Enabled && entry.ContentRevision == BootcampRevision)
+                    .Select(entry => entry.MissionId).ToArray());
 
                 var initiation = context.MissionContentDefinitionEntries.Single(entry =>
                     entry.MissionId == 1990 && entry.ContentRevision == BootcampRevision);
@@ -148,7 +154,8 @@ namespace Rasa.Test.Missions
             WithDisposableSqliteWorld((context, _) =>
             {
                 context.Database.Migrate();
-                var policy = context.Set<MissionChannelPolicyEntry>().Single();
+                var policy = context.Set<MissionChannelPolicyEntry>().Single(entry =>
+                    entry.MissionId == 1990 && entry.ContentRevision == "deployment_11");
                 policy.RadioSources = System.Text.Json.JsonSerializer.Serialize(new[]
                 {
                     new Rasa.Missions.Definitions.MissionOfferSourceDefinition(
@@ -317,10 +324,10 @@ namespace Rasa.Test.Missions
 
                 CollectionAssert.IsSubsetOf(BootcampNpcIds, creatureIds.OrderBy(id => id).ToArray());
 
-                var bootcampNav = new NavMeshQuery(NavMeshFile.Read(
-                    NavMeshFile.PathFor(Path.Combine(FindRepositoryRoot(), "navmesh"), "adv_bootcamp")));
-                var wildernessNav = new NavMeshQuery(NavMeshFile.Read(
-                    NavMeshFile.PathFor(Path.Combine(FindRepositoryRoot(), "navmesh"), "adv_foreas_concordia_wilderness")));
+                var bootcampNav = TestNavMeshes.Query(
+                    NavMeshFile.PathFor(Path.Combine(FindRepositoryRoot(), "navmesh"), "adv_bootcamp"));
+                var wildernessNav = TestNavMeshes.Query(
+                    NavMeshFile.PathFor(Path.Combine(FindRepositoryRoot(), "navmesh"), "adv_foreas_concordia_wilderness"));
 
                 foreach (var spawn in context.SpawnPoolEntries
                              .Where(entry => entry.Id >= 510203 && entry.Id <= 510206))

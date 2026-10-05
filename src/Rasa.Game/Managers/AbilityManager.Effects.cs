@@ -103,9 +103,9 @@ namespace Rasa.Managers
 
                 case "abilities.disease":
                 {
-                    var target = action.TargetId != 0 ? ResolveTarget(mapChannel, action.TargetId) as Creature : null;
+                    var target = action.TargetId != 0 ? ResolveTarget(mapChannel, action.TargetId) : null;
 
-                    if (target != null && IsHostile(player, target))
+                    if (target != null && IsAttackable(player, target))
                     {
                         AttachDisease(mapChannel, player, target, info);
                         ManifestationManager.Instance.EnterCombat(client);
@@ -118,16 +118,28 @@ namespace Rasa.Managers
                 case TraitorModule:
                 case HackModule:
                 {
-                    var target = action.TargetId != 0 ? ResolveTarget(mapChannel, action.TargetId) as Creature : null;
-                    var turned = target != null && (actionInfo.Module == HackModule
-                        ? AttachHack(mapChannel, player, target, info)
-                        : AttachTraitor(mapChannel, player, target, info));
+                    var aimed = action.TargetId != 0 ? ResolveTarget(mapChannel, action.TargetId) : null;
+                    var target = aimed as Creature;
+                    bool turned;
+
+                    // Across a wargame (Pvp): Traitor holds an enemy player back from the caster's
+                    // side, Hack holds an enemy player's machine still; neither turns their creature.
+                    if (aimed is Manifestation enemy)
+                        turned = actionInfo.Module == TraitorModule && AttachPlayerTraitor(mapChannel, player, enemy, info);
+                    else if (actionInfo.Module == HackModule && target != null && Pvp.IsEnemySummon(player, target))
+                        turned = HackPet(mapChannel, player, target, info);
+                    else if (RefuseEnemyPet(mapChannel, player, target, TraitorTypeId))
+                        turned = false;
+                    else
+                        turned = target != null && (actionInfo.Module == HackModule
+                            ? AttachHack(mapChannel, player, target, info)
+                            : AttachTraitor(mapChannel, player, target, info));
 
                     // Hit: the client's targetGameEffect announces TRAITOR_EFFECT / HACKED_EFFECT on it.
                     if (turned)
                     {
                         ManifestationManager.Instance.EnterCombat(client);
-                        Hit(recovery, target);
+                        Hit(recovery, aimed);
                     }
 
                     break;
@@ -135,10 +147,21 @@ namespace Rasa.Managers
 
                 case MindControlModule:
                 {
-                    var target = action.TargetId != 0 ? ResolveTarget(mapChannel, action.TargetId) as Creature : null;
+                    var aimed = action.TargetId != 0 ? ResolveTarget(mapChannel, action.TargetId) : null;
+                    var target = aimed as Creature;
 
                     // MindControlAction's DoAbility announces each (entityId, effectTypeId) hit as an attach.
-                    if (target != null && AttachMindControl(mapChannel, player, target, info))
+                    if (aimed is Manifestation enemy)
+                    {
+                        // An enemy player across a wargame (Pvp): a stun, or no attacking.
+                        if (AttachPlayerMindControl(mapChannel, player, enemy, info, out var shown))
+                        {
+                            ManifestationManager.Instance.EnterCombat(client);
+                            recovery = new AbilityRecoveryPacket(action.ActionId, action.ActionArgId, AbilityRecoveryPacket.HitDataKind.EffectAttach);
+                            Hit(recovery, enemy, shown);
+                        }
+                    }
+                    else if (target != null && !RefuseEnemyPet(mapChannel, player, target, MindControlTypeId) && AttachMindControl(mapChannel, player, target, info))
                     {
                         ManifestationManager.Instance.EnterCombat(client);
                         recovery = new AbilityRecoveryPacket(action.ActionId, action.ActionArgId, AbilityRecoveryPacket.HitDataKind.EffectAttach);
@@ -163,10 +186,10 @@ namespace Rasa.Managers
                 case "abilities.corpseexplode":
                 {
                     // The one ability that wants a dead target: a biological body, which the
-                    // client has already checked before asking.
-                    var corpse = action.TargetId != 0 ? ResolveTarget(mapChannel, action.TargetId) as Creature : null;
+                    // client has already checked before asking - or a dead enemy player's (Pvp).
+                    var corpse = action.TargetId != 0 ? ResolveTarget(mapChannel, action.TargetId) : null;
 
-                    if (IsBiologicalCorpse(corpse))
+                    if (corpse is Creature body ? IsBiologicalCorpse(body) : IsUsableCorpse(corpse, player))
                     {
                         ImmolateCorpse(mapChannel, player, corpse, info);
                         ManifestationManager.Instance.EnterCombat(client);
@@ -189,9 +212,9 @@ namespace Rasa.Managers
                 case "abilities.calledshot":
                 case "abilities.feedback":
                 {
-                    var target = action.TargetId != 0 ? ResolveTarget(mapChannel, action.TargetId) as Creature : null;
+                    var target = action.TargetId != 0 ? ResolveTarget(mapChannel, action.TargetId) : null;
 
-                    if (target != null && IsHostile(player, target))
+                    if (target != null && IsAttackable(player, target))
                     {
                         if (actionInfo.Module == "abilities.calledshot")
                             ArmCalledShot(mapChannel, client, player, target, info);
@@ -221,9 +244,9 @@ namespace Rasa.Managers
                 case "abilities.controlledfission":
                 case "abilities.explodingnanites":
                 {
-                    var target = action.TargetId != 0 ? ResolveTarget(mapChannel, action.TargetId) as Creature : null;
+                    var target = action.TargetId != 0 ? ResolveTarget(mapChannel, action.TargetId) : null;
 
-                    if (target != null && IsHostile(player, target))
+                    if (target != null && IsAttackable(player, target))
                     {
                         if (actionInfo.Module == "abilities.controlledfission")
                             AttachControlledFission(mapChannel, player, target, info);
@@ -240,9 +263,9 @@ namespace Rasa.Managers
                 case "abilities.painttarget":
                 case "abilities.polarityfield":
                 {
-                    var target = action.TargetId != 0 ? ResolveTarget(mapChannel, action.TargetId) as Creature : null;
+                    var target = action.TargetId != 0 ? ResolveTarget(mapChannel, action.TargetId) : null;
 
-                    if (target != null && IsHostile(player, target))
+                    if (target != null && IsAttackable(player, target))
                     {
                         if (actionInfo.Module == "abilities.painttarget")
                             AttachTargetPainting(mapChannel, player, target, info);
@@ -258,11 +281,11 @@ namespace Rasa.Managers
 
                 case "abilities.decay":
                 {
-                    var target = action.TargetId != 0 ? ResolveTarget(mapChannel, action.TargetId) as Creature : null;
+                    var target = action.TargetId != 0 ? ResolveTarget(mapChannel, action.TargetId) : null;
 
                     // Died or despawned during the windup: performed, paid for, hit nothing - as
                     // direct damage does.
-                    if (target != null && IsHostile(player, target))
+                    if (target != null && IsAttackable(player, target))
                     {
                         AttachRuin(mapChannel, player, target, info);
                         ManifestationManager.Instance.EnterCombat(client);
@@ -605,7 +628,7 @@ namespace Rasa.Managers
         /// ActorManager.Heal (GameEffectManager.HealingBlocked) refuses every heal. Whatever
         /// reads a creature's attributes, regenerates it or heals it picks them up.
         /// </summary>
-        private static void AttachDisease(MapChannel mapChannel, Manifestation player, Creature target, ActionLevelInfo info)
+        private static void AttachDisease(MapChannel mapChannel, Manifestation player, Actor target, ActionLevelInfo info)
         {
             var effect = NewEffect(mapChannel, player, info, DiseaseTypeId, info.Get(AbilityProperty.Duration, 20));
 
@@ -643,7 +666,7 @@ namespace Rasa.Managers
         /// (100 / 100 / 0 / 0 / 0), the percent of its normal armour regeneration the target keeps
         /// (CreatureArmor): from pump 3 its armour does not come back while painted.
         /// </summary>
-        private static void AttachTargetPainting(MapChannel mapChannel, Manifestation player, Creature target, ActionLevelInfo info)
+        private static void AttachTargetPainting(MapChannel mapChannel, Manifestation player, Actor target, ActionLevelInfo info)
         {
             var effect = NewEffect(mapChannel, player, info, PaintTargetTypeId, info.Get(AbilityProperty.Duration, 15));
 
@@ -666,7 +689,7 @@ namespace Rasa.Managers
         /// vulnerability: -30 takes (100 + 30)% damage of that type (ResistMultiplier). Only hits
         /// of that type are affected.
         /// </summary>
-        private static void AttachPolarityField(MapChannel mapChannel, Manifestation player, Creature target, ActionLevelInfo info)
+        private static void AttachPolarityField(MapChannel mapChannel, Manifestation player, Actor target, ActionLevelInfo info)
         {
             var durationMs = info.Get(AbilityProperty.DurationMs, 30000);
             var effect = NewEffect(mapChannel, player, info, PolarityFieldTypeId, null);
@@ -687,7 +710,7 @@ namespace Rasa.Managers
         /// EFFECT_MOVEMENT_MODIFIER is a slow - its tooltip reads "Movement: -20%" - so the creature
         /// moves at 80% of its speed while Ruin is on it.
         /// </summary>
-        private static void AttachRuin(MapChannel mapChannel, Manifestation player, Creature target, ActionLevelInfo info)
+        private static void AttachRuin(MapChannel mapChannel, Manifestation player, Actor target, ActionLevelInfo info)
         {
             var interval = Math.Max(1, info.Get(AbilityProperty.Interval, 1));
             var effect = NewEffect(mapChannel, player, info, DecayTypeId, info.Get(AbilityProperty.Duration, 10));
@@ -754,7 +777,7 @@ namespace Rasa.Managers
         {
             var radius = info.Get(AbilityProperty.RadiusAroundSource, 15);
             var allies = SquadWithin(mapChannel, player, radius);
-            var enemies = HostilesWithin(mapChannel, player, player.Position, radius);
+            var enemies = VictimsWithin(mapChannel, player, player.Position, radius);
             var interval = info.Get(AbilityProperty.Interval);
             var scaleType = info.Get(AbilityProperty.DamageScaleType);
             var damageType = (DamageType)info.Get(AbilityProperty.DamageType, (int)DamageType.Virulent);

@@ -11,6 +11,9 @@ namespace Rasa.Repositories.Char.CharacterInventory
         void DeleteForCharacter(uint accountId, uint characterId);
         CharacterInventoryEntry FindByItemId(uint itemId);
         List<CharacterInventoryEntry> GetItems(uint accountId);
+
+        /// <summary>The rows of one inventory type held by any of these characters, whatever their accounts.</summary>
+        List<CharacterInventoryEntry> GetByType(ICollection<uint> characterIds, uint inventoryType);
         void MoveInvItem(uint accountId, uint characteId, uint inventoryType, uint slotId, uint itemId);
         bool IsHeldBy(uint itemId, uint accountId, uint characterId);
     }

@@ -19,5 +19,12 @@
         /// it. 'perf' on the console reads the same numbers either way.
         /// </summary>
         public int PerformanceMetricsInterval { get; set; }
+
+        /// <summary>
+        /// How often every player in the world is saved, in minutes (Managers.AutoSave): position,
+        /// time played, health and death penalties, cooldowns. 0 turns it off; characters are then
+        /// saved only as they leave the world.
+        /// </summary>
+        public int AutoSaveMinutes { get; set; } = Managers.AutoSave.DefaultMinutes;
     }
 }

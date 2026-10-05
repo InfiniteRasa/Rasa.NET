@@ -91,6 +91,9 @@ namespace Rasa.Managers
                 viewer.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(player.EntityId));
                 AbilityManager.HideMorphFrom(viewer, player);
             }
+
+            // And a team mate, not of their squad, who held them from across the map.
+            FarAllies.Hidden(player);
         }
 
         /// <summary>A player is in sight again: the clients that lost them are given them back.</summary>
@@ -106,6 +109,9 @@ namespace Rasa.Managers
                 viewer.CallMethod(SysEntity.ClientMethodId,
                     new CreatePhysicalEntityPacket(player.EntityId, player.EntityClass, ManifestationManager.Instance.CreatePlayerEntityData(client, viewer)));
                 GameEffectManager.ShowEffectsTo(viewer, player);
+
+                // Partway through claiming a control point: shown at it.
+                DynamicObjectManager.Instance.ShowClaimsTo(viewer, new[] { client });
             }
         }
 

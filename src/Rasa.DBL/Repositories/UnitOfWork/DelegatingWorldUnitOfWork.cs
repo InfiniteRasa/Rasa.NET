@@ -31,6 +31,7 @@ namespace Rasa.Repositories.UnitOfWork
         public IMapRegionRepository MapRegions => _parent.MapRegions;
         public IMapMarkerRepository MapMarkers => _parent.MapMarkers;
         public IMapEmitterRepository MapEmitters => _parent.MapEmitters;
+        public IControlPointRepository ControlPoints => _parent.ControlPoints;
         public ISpawnPoolArrivalRepository SpawnPoolArrivals => _parent.SpawnPoolArrivals;
         public IRecipeRepository Recipes => _parent.Recipes;
 

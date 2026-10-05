@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Rasa.Data;
 using Rasa.Missions.Runtime;
+using Rasa.Missions.Scenes;
 using Rasa.Repositories.Char;
 using Rasa.Structures;
 using Rasa.Structures.Char;
@@ -14,7 +15,7 @@ namespace Rasa.Game.Missions.Persistence
         internal static readonly IReadOnlySet<string> Supported = new HashSet<string>(StringComparer.Ordinal)
         {
             "character.level-is-even", "account.starting-experience-entitled", "character.starting-experience-completed",
-            "character.starting-experience-active"
+            "character.starting-experience-active", "character.soldier-family", "character.specialist-family"
         };
 
         internal static MissionRequirementFacts WithLevel(MissionRequirementFacts facts, uint level) =>
@@ -62,6 +63,10 @@ namespace Rasa.Game.Missions.Persistence
                 custom[fact] = fact switch
                 {
                     "character.level-is-even" => (character?.Level ?? player.Level) % 2 == 0,
+                    "character.soldier-family" => CharacterClassTree.Is(
+                        (CharacterClass)(character?.Class ?? player.Class), CharacterClass.Soldier),
+                    "character.specialist-family" => CharacterClassTree.Is(
+                        (CharacterClass)(character?.Class ?? player.Class), CharacterClass.Specialist),
                     "account.starting-experience-entitled" => ReadAccountEntitlement(player, character, unit),
                     "character.starting-experience-completed" => unit == null
                         ? player.StartingExperienceCompleted
@@ -84,7 +89,9 @@ namespace Rasa.Game.Missions.Persistence
                 unit == null ? player.MissionSuccessHistory :
                     history.Where(entry => entry.Rewarded || entry.Outcome is 1 or 4).Select(entry => entry.MissionId).ToHashSet(),
                 unit == null ? player.MissionRewardTimes.Keys.ToHashSet() :
-                    history.Where(entry => entry.Rewarded).Select(entry => entry.MissionId).ToHashSet());
+                    history.Where(entry => entry.Rewarded).Select(entry => entry.MissionId).ToHashSet(),
+                // Where the character stands is the world's to say, not the character database's.
+                MapContextId: player.MapChannel?.MapInfo?.MapContextId ?? player.MapContextId);
         }
 
         private static bool ReadAccountEntitlement(Manifestation player, CharacterEntry character, ICharUnitOfWork unit)
@@ -95,6 +102,70 @@ namespace Rasa.Game.Missions.Persistence
             if (account == null)
                 throw new MissionRuleException($"No authoritative account entitlement fact is available for character {player.Id}.");
             return account.CanSkipBootcamp;
+        }
+
+        internal static MissionRequirementFacts WithAssignmentItems(MissionRequirementFacts facts, Manifestation player,
+            MissionRequirement requirement, ICharUnitOfWork unit, Func<uint, Mission> resolve)
+        {
+            var requested = MissionRequirementEvaluator.AssignmentItemRequirements(requirement);
+            if (requested.Count == 0)
+                return facts with { AssignmentItems = new Dictionary<AssignmentItemRequirement, uint>() };
+            if (unit == null || resolve == null)
+                throw new MissionRuleException("Assignment inventory eligibility requires authoritative character and content sources.");
+            var quantities = new Dictionary<AssignmentItemRequirement, uint>();
+            foreach (var item in requested)
+                quantities[item] = AssignmentQuantity(player, item, unit, resolve);
+            return facts with { AssignmentItems = quantities };
+        }
+
+        private static uint AssignmentQuantity(Manifestation player, AssignmentItemRequirement requirement,
+            ICharUnitOfWork unit, Func<uint, Mission> resolve)
+        {
+            var definition = resolve(requirement.MissionId);
+            if (definition?.IsOperational != true ||
+                !definition.Items.TryGetValue(requirement.ItemKey, out var binding) ||
+                binding.Scope != MissionItemScope.AssignmentIssued)
+                throw new MissionRuleException("Assignment inventory requirement names no operational issued-item binding.");
+            var assignment = unit.CharacterMissions.GetByCharacterAndMission(player.Id, requirement.MissionId);
+            if (assignment?.MissionState != (uint)MissionState.Active ||
+                assignment.ContentRevision != definition.ContentRevision ||
+                unit.CharacterMissionItems.GetQuarantine(player.Id, assignment.AssignmentId) != null)
+                return 0;
+            if (requirement.SourceOfferMissionId is uint sourceMission)
+            {
+                var offer = unit.MissionOffers.Get(player.Id, sourceMission);
+                var recipient = unit.CharacterMissions.GetByCharacterAndMission(player.Id, sourceMission);
+                var source = offer?.SourceInstanceId == null ? null :
+                    unit.CharacterMissions.Runtime.Scene(offer.SourceInstanceId);
+                if (offer?.State != MissionOfferState.Consumed ||
+                    offer.SourceKind != Rasa.Missions.Definitions.MissionOfferSourceKind.Scene ||
+                    recipient?.AssignmentId != offer.ConsumedAssignmentId ||
+                    recipient.Generation != offer.ConsumedAssignmentGeneration ||
+                    offer.SourceAssignmentId != assignment.AssignmentId ||
+                    offer.SourceAssignmentGeneration != assignment.Generation ||
+                    source?.AssignmentId != assignment.AssignmentId ||
+                    source.MissionId != assignment.MissionId || source.Generation != offer.SourceGeneration ||
+                    source.Status is not ("Running" or "Waiting"))
+                    return 0;
+            }
+            var character = unit.Characters.Get(player.Id)
+                ?? throw new MissionRuleException("Assignment inventory owner is unavailable.");
+            var owners = unit.CharacterMissionItems.GetOwned(player.Id).Where(owner =>
+                owner.MissionId == assignment.MissionId && owner.AssignmentId == assignment.AssignmentId &&
+                owner.Generation == assignment.Generation && owner.ItemKey == requirement.ItemKey).ToArray();
+            var slots = unit.CharacterInventories.GetItems(character.AccountId).Where(slot =>
+                    slot.CharacterId == player.Id && slot.InventoryType == (uint)InventoryType.Personal)
+                .GroupBy(slot => slot.ItemId).ToDictionary(group => group.Key, group => group.Count());
+            var items = unit.Items.GetItems(owners.Select(owner => owner.ItemId).ToArray()).ToDictionary(item => item.ItemId);
+            ulong quantity = 0;
+            foreach (var owner in owners)
+            {
+                if (slots.GetValueOrDefault(owner.ItemId) != 1 || !items.TryGetValue(owner.ItemId, out var item) ||
+                    item.ItemTemplateId != binding.ItemTemplateId || item.StackSize != owner.Quantity)
+                    return 0;
+                quantity += owner.Quantity;
+            }
+            return checked((uint)quantity);
         }
 
         internal static bool HasCompletedStartingExperience(ICharUnitOfWork unit, uint characterId) =>

@@ -6,12 +6,15 @@ namespace Rasa.Packets.MapChannel.Server
     /// <summary>
     /// An item's condition changed. Addressed to the item entity, not to a manager.
     ///
-    /// Resending ItemInfo also updates the client's stored hit points, which is why repaired
-    /// items showed the right number - but Recv_ItemStatus is the only thing in the client that
-    /// posts UI_UPDATE_ITEM_REPAIRED (the vendor's repair list) and, when an item crosses zero
-    /// in either direction, UI_UPDATE_WEAPON_DRAWER_BROKEN_STATUS (the drawer's broken icon).
-    /// UI_UPDATE_REPAIR_ITEMS fires only when an item enters or leaves the inventory, so
-    /// without this the repair list stayed stale and a repaired weapon kept its broken icon.
+    /// Recv_ItemStatus is the only thing in the client that posts UI_UPDATE_ITEM_REPAIRED (the
+    /// vendor's repair list) and, when an item crosses zero in either direction,
+    /// UI_UPDATE_WEAPON_DRAWER_BROKEN_STATUS (the drawer's broken icon). UI_UPDATE_REPAIR_ITEMS
+    /// fires only when an item enters or leaves the inventory.
+    ///
+    /// It decides both by comparing the hit points it carries with the ones the item had, so
+    /// it has to be what tells the client of the change. Recv_ItemInfo stores the hit points
+    /// too, and posts nothing: an ItemInfo with the new hit points ahead of this leaves it
+    /// nothing to compare, and neither event is posted.
     /// </summary>
     public class ItemStatusPacket : ServerPythonPacket
     {

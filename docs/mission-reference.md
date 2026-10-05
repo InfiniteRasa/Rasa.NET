@@ -104,14 +104,21 @@ is valid for **five UTC minutes**, with expiry excluded. Creation timestamps
 are canonical microseconds for MySQL `datetime(6)` compatibility; final time
 checks use the current UTC clock.
 
-There are at most **30 stored transient slots per recipient** through this API.
+There are at most **30 pending slots per recipient** through this API.
 Issuance prunes expired, invalid-session and terminal rows other than the slot
-being reused. Consumed/cancelled rows are not permanent mission history.
+being reused. A consumed row is retained while its exact target assignment is
+active or awaiting reward; it can still be the authority for an original
+delivery batch. Consumed/cancelled rows are not permanent mission history.
 Identical creation preserves the offer ID/expiry and sends no second dialog.
 A different live source cannot overwrite an existing valid slot.
 Session-invalid rows fail closed immediately; their physical cancellation or
 collection can wait until another authority operation. An old connection
 cannot cancel a newer connection's pending offer.
+
+`OfferRadioMissionIntent.IfEligible` defaults to false. When explicitly true,
+ordinary source requirements, admission and capacity failures produce a logged
+no-op; malformed or stale source identity still rejects the transaction.
+This is intended for optional follow-up/recovery offers, not mandatory offers.
 
 Radio acceptance revalidates the pending offer, predecessor, source, ownership,
 requirements, repeat entitlement, duplicate assignment and journal capacity.
@@ -424,8 +431,14 @@ provide the native counter-text binding. Generic counters require all three.
 Targets must exceed initial values. Do not combine counter ranges with
 `SourceSpawnResolved`.
 
-Multiple progress triggers form an all-distinct-subject set only for waypoints
-or Logos; they are not a general AND expression. Counter text uses
+Multiple waypoint or Logos triggers form an all-distinct-subject set. A scoped
+`ScenarioEvent` set uses one mission/scenario, distinct nonzero event IDs,
+`InitialValue = 0` and `TargetValue = number of events`. Its `CounterId` still
+names the scenario; native display counter `0` is derived from the set.
+Assignment-generation receipts retain observed events across replay and
+reconnect. Multiple eligible `CreatureKilled` subjects can also share one
+ordinary incrementing counter. None of these forms is a general AND expression.
+Counter text uses
 `ClientCounter0TextId`, `ClientCounter1TextId`, `ClientCounter2TextId`.
 
 Objective states are `NotAssigned = 0` (revealed), `Incomplete = 1` (active),
@@ -446,10 +459,32 @@ from client projections. Hidden objectives remain in definitions and storage.
 | `IssueMissionItem` (10) | `ItemIntentJson` containing an `IssueMissionItemIntent` |
 | `ConsumeMissionItem` (11) | `ItemIntentJson` containing a `ConsumeMissionItemIntent` |
 | `RemoveMissionItems` (12) | `ItemIntentJson` containing a `RemoveMissionItemsIntent` |
+| `FailRelatedMission` (13) | `ItemIntentJson` containing a `FailRelatedMissionIntent`; another active assignment's required-objective failure and cleanup |
 
 Reward rows distinguish fixed and selectable items. At most one turn-in reward
 ID is selected per mission; selectable rewards require a native selection.
 Scene reward grants cannot contain selectable alternatives.
+Insert referenced reward/scenario rows before their actions: World foreign keys
+are immediate. Parameter-set checks also apply on insertion. In particular,
+insert a flag action with both flag ID and value, not null fields followed by
+an update. Related failure uses the originating transition transaction and
+does not authorize direct cross-assignment inventory operations.
+
+An existing item/action identity is not proof of a functional reward. Wilderness
+reconstructs unsupported bomb, grenade, adrenaline, trauma-kit and module rewards
+as the documented action-419 medpacks, retaining XP, credits, selection indices
+and quantities. Its forward correction uses the complete
+`(mission_id, content_revision, reward_id, item_id)` key, including on rollback.
+Fixed rows that converge on the same template remain separate preview rows and
+grant their combined quantity. Do not rewrite every matching medpack on `Down`
+or imply that healing implements the replaced historical effect.
+
+`mission_evidence.reconstruction_note` is `TEXT`. Its content must survive
+provider upgrades and rollbacks unchanged; SQL generation alone does not prove
+that an inserted note fits a provider's previous column width. Wilderness
+widens storage before the first long insertion and repeats that widening in
+an additive forward compatibility migration for already-applied databases.
+The compatibility migration's `Down` does not narrow or truncate notes.
 
 ## Assignment-owned quest items
 
@@ -701,10 +736,15 @@ Event/counter triggers cannot be repurposed as choice transitions. Missing or
 ambiguous transitions, duplicate native topics, unknown kinds, missing NPC
 packages and unbound scene sequences fail authoring validation.
 
-The native window has callbacks **1, 2 and 3**, not zero-based indices. Author
-all three mappings before exposing a choice topic. Sparse maps are rejected:
-the packet contains no option labels or list of available indices, so the
-server cannot hide a missing mapping from the native window.
+The native window has callbacks **1, 2 and 3**, not zero-based indices. It
+creates a link only for a nonempty native text slot. Author consecutive
+mappings `1/2`, optionally `3`, matching those texts. Maps with holes, unknown
+indices or an unexecutable branch are rejected. Do not invent a third outcome
+for a native two-choice topic. The server sends no custom option labels.
+
+Optional `Requirement` applies to this exact objective/package/flag topic at
+presentation, execution and commit. Optional `SourceCreatureId` restricts it
+to a specific World creature without renumbering a reused native package.
 
 For isolated tests, mission `339`, objective `8`, package `586`, flag `1` has
 reviewed native body text `4318` and choice texts `4319/4320/4321`. Given authored
@@ -756,6 +796,7 @@ Bind `MissionRequirement` expressions to `MissionSceneDefinition.Requirement`,
 | `MissionStateRequirement` | Mission ID, optional state, optional accepted flag |
 | `FlagRequirement` | Server-owned flag ID and value |
 | `CustomRequirement` | Registered pure handler key |
+| `AssignmentItemRequirement` | Source mission, item key, minimum quantity; optional consumed-source offer mission |
 
 ```csharp
 var requirement = new AllRequirements(new MissionRequirement[]
@@ -774,13 +815,21 @@ archived history. These are mission states, not objective states.
 
 Current custom keys are `example.even-level`,
 `account.starting-experience-entitlement`, and
-`character.starting-experience-completed`. Handlers declare their required
+`character.starting-experience-completed`, `character.soldier-family` and
+`character.specialist-family`. Class-family facts use the existing class tree
+and authoritative saved class, including advanced descendants. Handlers declare their required
 boolean facts; Game must provide them for both runtime queries and durable
 transactions. Unknown handlers/facts fail explicitly. Nesting is bounded to 32.
 `character.starting-experience-active` is also available for durable radio-source
 requirements; it is not a runtime-cache predicate. Both active and completed
 starting-experience facts use the fresh `ReadState` scalar query during durable
 validation rather than EF's previously tracked state.
+
+Assignment-item requirements count only physically held, unquarantined stock
+owned by the exact active assignment and matching its declared template.
+`SourceOfferMissionId` also requires the consumed offer and original source
+assignment/generation. The fact is revalidated against planned item/failure
+mutations in the same transaction, not inferred from a cached flag.
 
 ## Persistent character flags
 
@@ -919,6 +968,17 @@ The client must open the dialog before Continue, remain near the same object
 in the same instance, and retain the same mission assignment. Completion
 uses the existing transactional progress planner, restricted to the bound
 objective. Opening a dialog never grants inventory or advances progress.
+An NPC-capable object declaration supplies that mission's native package
+reference without a fake `npc_package` creature row.
+
+`SceneActorDefinition.UseAction` binds native use recovery to a sequence;
+`Destruction` binds actual zero-HP damage to a sequence and native destroyed
+state. Both are optional and omitted from historical JSON when absent.
+They validate the current owner, role, run, generation, source entity and
+incomplete objective before committing. Ordinary mission-qualified
+`CharacterOwned` loot bindings also reconcile retained unbound inventory
+monotonically when their collection stage activates or recovers; they never
+delete retained stock or replay its quantity as fresh increments.
 
 `SharedKey` is for private experience-owned actors. It does not make personal
 copies of main-world NPCs. Keep the role consistent between mission and
@@ -960,6 +1020,20 @@ authored sequences. Timers have names of at most 64 characters, a target sequenc
 and `WallClock` or `ActiveScene` policy. One decision permits at most 64 world
 intents, character intents and signals combined. A checkpoint is a JSON object
 limited to 16,384 UTF-8 bytes.
+
+On reconnect, current active assignment scenes receive `Recovered` after
+attachment and pending-message delivery. This lets a still-eligible source
+reissue expired radio authority for the new session without repeating
+acceptance or rewards. A rejected transient recovery is retried against the
+same owner connection and scene generation; a departed owner or retired run
+cannot retain that retry.
+
+A committed assignment reward retires its owned scene using the exact durable
+reward receipt. Pending timers, messages and effects are cancelled, local props
+are removed and disabled, and retirement is retried if persistence fails.
+Resume performs this retirement before world reconstruction, so rewarded egg
+clusters cannot reappear. Private experience roots and newer public leases
+remain outside that assignment's cleanup.
 
 ### Actor gameplay policies
 
@@ -1021,12 +1095,18 @@ actor-removal intents and private-map cleanup retain their existing behavior.
 ## Public encounters and private experiences
 
 `PublicEncounterBinding` identifies mission, spawn, role, script and owner-loss
-policy (`Reset`, `Wait`, `Continue`). Main-world NPCs remain public; admission
+policy (`Reset`, `Wait`, `Continue`, `Fail`). Main-world NPCs remain public; admission
 reserves the existing spawn. Deliberate initiator abandonment cancels its run.
 `AllowPartyJoin` explicitly permits later shared assignments to join that run;
 it defaults to false and is independent of `IncludeEligibleParty`, which
 captures already-assigned eligible members at reservation time. Neither option
 automatically accepts a mission for anyone.
+
+`Fail` commits the current assignment's required-objective failure before
+releasing the actor. A `ManualCombat` binding keeps its named public actor
+protected from damage, targeting and retaliation until an `AttackActorIntent`
+authorizes combat for that lease and operation. Missiles retain that exact
+authorization instance, so an old impact cannot become valid in a later fight.
 
 `MissionCreditPolicy` supports `Personal`, `NearbyParty` and
 `EncounterParticipants`. Shared modes require a positive finite radius and

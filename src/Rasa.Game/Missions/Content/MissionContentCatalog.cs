@@ -79,7 +79,8 @@ namespace Rasa.Managers
                     selected = enabled.ToDictionary(entry => entry.MissionId, entry => entry.ContentRevision);
                 }
                 var snapshot = new MissionContentLoader().Load(unit.MissionContent, selected);
-                Report = new MissionContentValidator().Validate(snapshot, unit);
+                var objectPackages = MissionContentValidator.GetNativeObjectPackages(snapshot, unit);
+                Report = new MissionContentValidator().Validate(snapshot, unit, objectPackages);
                 foreach (var entry in MissionDefinitionCatalog.CreateDefinitions(snapshot, Report))
                     Missions[entry.Key] = entry.Value;
                 foreach (var entry in MissionDefinitionCatalog.CreateRewardDefinitions(snapshot, Report))
@@ -99,7 +100,8 @@ namespace Rasa.Managers
                     var publicSpawnIds = (unit.Spawnpools
                         ?? throw new InvalidOperationException("Migrated mission validation requires the World spawn repository."))
                         .Get().Select(entry => entry.Id).ToHashSet();
-                    var npcPackageIds = (unit.NpcPackages?.Get() ?? new List<NpcPackageEntry>())
+                    var npcPackages = unit.NpcPackages?.Get() ?? new List<NpcPackageEntry>();
+                    var npcPackageIds = npcPackages
                         .Select(entry => entry.PackageId).ToHashSet();
                     foreach (var binding in content.GetSceneBindings().Where(binding =>
                         selected.TryGetValue(binding.MissionId, out var revision) && revision == binding.ContentRevision))
@@ -116,13 +118,18 @@ namespace Rasa.Managers
                                 throw new MissionRuleException($"Mission {binding.MissionId}: migrated public spawn {actor.TemplateId} does not exist.");
                         foreach (var credit in document.Credit.Where(entry => entry.Value.Mode != MissionCreditMode.Personal))
                             if (Missions[binding.MissionId].Objectives[credit.Key].GetExecutableTransitionsOrLegacyDefault()
-                                .Any(transition => transition.ProgressRule?.Kind is not
-                                    (Data.MissionProgressEventKind.CreatureKilled or Data.MissionProgressEventKind.ScenarioEvent)))
+                                .Any(transition => transition.ProgressRule == null ||
+                                    !MissionProgressRule.IsKill(transition.ProgressRule.Kind) &&
+                                    transition.ProgressRule.Kind != Data.MissionProgressEventKind.ScenarioEvent))
                                 throw new MissionRuleException($"Mission {binding.MissionId}: objective {credit.Key} cannot share personal actions.");
                         SceneBindings.Add(binding.MissionId, document);
                         Missions[binding.MissionId] = Missions[binding.MissionId].WithPolicies(document.Credit, document.Requirement,
                             document.TurnInRequirement, document.ObjectiveRequirements);
                         Missions[binding.MissionId] = Missions[binding.MissionId].WithItems(document.Items, document.AcceptanceItems);
+                        if (document.Titles != null)
+                            Missions[binding.MissionId] = Missions[binding.MissionId].WithTitles(document.Titles);
+                        if (document.Category != null)
+                            Missions[binding.MissionId] = Missions[binding.MissionId].WithClientCategory(document.Category);
                         var itemErrors = Rasa.Missions.Definitions.MissionItemValidation.Errors(Missions[binding.MissionId],
                             document.Sequences.Values.SelectMany(sequence => sequence.Character)).ToArray();
                         if (itemErrors.Length > 0)
@@ -133,10 +140,16 @@ namespace Rasa.Managers
                             if (document.Items.Any(item => !templates.Contains(item.ItemTemplateId)))
                                 throw new MissionRuleException($"Mission {binding.MissionId}: mission item template is missing.");
                         }
+                        Rasa.Game.Missions.Persistence.MissionLootPlanner.ValidateReferences(Missions[binding.MissionId], unit);
                         if (document.Dialogue != null)
                         {
-                            if (document.Dialogue.Any(topic => !npcPackageIds.Contains(topic.NpcPackageId)))
+                            if (document.Dialogue.Any(topic => !npcPackageIds.Contains(topic.NpcPackageId) &&
+                                objectPackages.GetValueOrDefault(binding.MissionId)?.Contains(topic.NpcPackageId) != true))
                                 throw new MissionRuleException($"Mission {binding.MissionId}: dialogue references a missing NPC package.");
+                            if (document.Dialogue.Any(topic => topic.SourceCreatureId.HasValue &&
+                                !npcPackages.Any(package => package.Id == topic.SourceCreatureId.Value &&
+                                    package.PackageId == topic.NpcPackageId)))
+                                throw new MissionRuleException($"Mission {binding.MissionId}: dialogue names the wrong creature for its native package.");
                             var mission = Missions[binding.MissionId].WithDialogue(document.Dialogue);
                             var errors = Rasa.Missions.Definitions.MissionDialogueValidation.Errors(mission).ToArray();
                             if (errors.Length > 0)

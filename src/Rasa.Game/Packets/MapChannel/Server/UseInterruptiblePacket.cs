@@ -17,8 +17,10 @@
     /// (SetInterruptibleSFXOverrlaps(False)).
     ///
     /// Only the clan control point (clancontrolpoint.py) reads an argument after the actor - the
-    /// using clan, to pick its AFS / Bane / your clan / other clan effect. Nothing here is one, so
-    /// only the actor is sent.
+    /// using clan, to pick its AFS / Bane / your clan / other clan effect - and it must have it:
+    /// its OnBeforeUseInterruptible(actorId, usingClanId) takes exactly the one. So an object of
+    /// that kind is sent the clan (DynamicObjectManager.UseInterruptibleOf), and any other only
+    /// the actor.
     /// </summary>
     public class UseInterruptiblePacket : ServerPythonPacket
     {
@@ -26,15 +28,22 @@
 
         public ulong ActorId { get; set; }
 
-        public UseInterruptiblePacket(ulong actorId)
+        /// <summary>The clan of the actor, for a clan control point; null for any other object, which is sent no such argument.</summary>
+        public int? UsingClanId { get; set; }
+
+        public UseInterruptiblePacket(ulong actorId, int? usingClanId = null)
         {
             ActorId = actorId;
+            UsingClanId = usingClanId;
         }
 
         public override void Write(PythonWriter pw)
         {
-            pw.WriteTuple(1);
+            pw.WriteTuple(UsingClanId == null ? 1 : 2);
             pw.WriteULong(ActorId);
+
+            if (UsingClanId != null)
+                pw.WriteInt(UsingClanId.Value);
         }
     }
 }

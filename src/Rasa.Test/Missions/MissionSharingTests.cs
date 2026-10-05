@@ -772,7 +772,7 @@ namespace Rasa.Test.Missions
         }
 
         [TestMethod]
-        public void BootcampKeepsPrivateOnceUnshareablePolicyAndDisabledWorldContent()
+        public void BootcampKeepsPrivateOnceUnshareablePolicyAlongsidePublicContent()
         {
             using var harness = BootcampRuntimeTestHarness.Create();
             var ids = new uint[] { 1990, 1992, 1994, 1995, 2005 };
@@ -783,7 +783,14 @@ namespace Rasa.Test.Missions
                 Assert.AreEqual(MissionRepeatKind.Once, harness.Manager.LoadedMissions[id].RepeatPolicy.Kind);
                 Assert.IsFalse(harness.Manager.Sharing.TryShare(harness.Client, id));
             }
-            Assert.IsFalse(harness.WorldContext.MissionContentDefinitionEntries.Any(entry => entry.Enabled && !ids.Contains(entry.MissionId)));
+            CollectionAssert.AreEquivalent(ids, harness.WorldContext.MissionContentDefinitionEntries
+                .Where(entry => entry.Enabled && entry.ContentRevision == "deployment_11")
+                .Select(entry => entry.MissionId).ToArray());
+
+            // The battlefields' Targets of Opportunity are unshareable as well: each character is
+            // offered their own on arriving.
+            foreach (var id in Rasa.Services.Preloader.TargetsOfOpportunitySeed.Zones.Select(zone => zone.MissionId))
+                Assert.IsFalse(harness.Manager.LoadedMissions[id].Shareable);
         }
 
         [TestMethod]

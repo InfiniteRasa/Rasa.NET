@@ -17,7 +17,7 @@ namespace Rasa.Managers
     using Structures.World;
     using Timer;
 
-    public class MapChannelManager
+    public partial class MapChannelManager
     {
         private static MapChannelManager _instance;
         private static readonly object InstanceLock = new object();
@@ -248,6 +248,9 @@ namespace Rasa.Managers
             Timer.Add("CheckForMapTriggers", 1000, true, null);
             Timer.Add("MissionDeadlineUpdate", 1000, true, null);
             Timer.Add("Regenerate", 1000, true, null);
+            Timer.Add("AutoSave", AutoSave.PassIntervalMs, true, null);
+            Timer.Add("MuteExpiry", 1000, true, null);
+            Timer.Add("SharedInstances", 1000, true, null);
         }
 
         private readonly Dictionary<string, long> _workerFaultQuietUntil = new();
@@ -294,6 +297,24 @@ namespace Rasa.Managers
 
             // Clan feuds whose time is up.
             Guard("ClanFeuds.Worker", null, () => ClanFeuds.Instance.Worker());
+
+            // Duel challenges that lapsed and duels whose time is up.
+            Guard("Duels.Worker", null, () => Duels.Instance.Worker());
+
+            // Squad wargame challenges that lapsed and squad wargames whose time is up.
+            Guard("SquadWargames.Worker", null, () => SquadWargames.Instance.Worker());
+
+            // Shared copies of a map that have stood empty long enough are closed.
+            if (Timer.IsTriggered("SharedInstances"))
+            {
+                Guard("MapChannelManager.SharedInstanceWorker", null, SharedInstanceWorker);
+
+                // The squad instances: the weekly reset, when its time has come.
+                Guard("MapChannelManager.SquadInstanceWorker", null, SquadInstanceWorker);
+
+                // The clans' control points: their pay, and their weekly reset.
+                Guard("ControlPoints.ClanWorker", null, () => ControlPoints.Instance.ClanWorker());
+            }
 
             // Server-wide lists, ticked once. These used to run inside the per-map loop below,
             // guarded by that map having players, so with N populated maps every auto-fire
@@ -397,6 +418,15 @@ namespace Rasa.Managers
                     {
                         Guard("MapTriggerManager.TriggersProximityWorker", mapChannel, () => MapTriggerManager.Instance.TriggersProximityWorker(mapChannel));
 
+                        // hospitals gained by walking up to them
+                        Guard("Hospitals.Worker", mapChannel, () => Hospitals.Worker(mapChannel));
+
+                        // control points: in service once the garrison is down, lost when its own is
+                        Guard("ControlPoints.Worker", mapChannel, () => ControlPoints.Instance.Worker(mapChannel));
+
+                        // a battleground's match: its teams kept where they may be, its clock and its points
+                        Guard("Battlegrounds.Worker", mapChannel, () => Battlegrounds.Instance.Worker(mapChannel));
+
                         // zone borders and instance doors: anyone standing in one leaves the map
                         Guard("MapLinkManager.Worker", mapChannel, () => MapLinkManager.Instance.Worker(mapChannel));
 
@@ -417,6 +447,9 @@ namespace Rasa.Managers
 
                         // Dropship beacons: settled, sent away, and the travel window for the squad in reach.
                         Guard("DropshipBeacons.Worker", mapChannel, () => DropshipBeacons.Worker(mapChannel));
+
+                        // Personal Waypoints: taken away in their time, and the waypoint window for whoever they are for.
+                        Guard("PersonalWaypoints.Worker", mapChannel, () => PersonalWaypoints.Worker(mapChannel));
 
                         // Scatterbombs: the spent bombs are taken away once their blasts have played.
                         Guard("AbilityManager.ScatterbombWorker", mapChannel, () => AbilityManager.Instance.ScatterbombWorker(mapChannel));
@@ -455,6 +488,14 @@ namespace Rasa.Managers
 
                     _missionScenarioService?.TickMap(mapChannel);
 
+                    // the players due a save (AutoSave)
+                    if (Timer.IsTriggered("AutoSave"))
+                        Guard("AutoSave.Worker", mapChannel, () => AutoSave.Worker(mapChannel, Environment.TickCount64));
+
+                    // silences that have run out (Moderation)
+                    if (Timer.IsTriggered("MuteExpiry"))
+                        Guard("Moderation.Worker", mapChannel, () => Moderation.Worker(mapChannel));
+
                     // warn idle players and flag long-idle ones for removal below
                     ManifestationManager.Instance.CheckInactivity(mapChannel);
 
@@ -467,35 +508,91 @@ namespace Rasa.Managers
                     // character still registered, in the cells and fought by creatures meanwhile.
                     // RemovePlayer writes to the database, so a crowd is spread over a few ticks
                     // by RemovalBudgetMs rather than stalling one; the first always goes.
-                    var removalFrom = System.Diagnostics.Stopwatch.GetTimestamp();
-                    var removed = 0;
-
-                    foreach (var client in mapChannel.ClientList.ToArray())
-                        if (client != null && client.Player.RemoveFromMap)
-                        {
-                            if (removed > 0 && System.Diagnostics.Stopwatch.GetElapsedTime(removalFrom).TotalMilliseconds >= RemovalBudgetMs)
-                                break;
-
-                            removed++;
-
-                            // The MainLoop thread has no handler of its own, so an exception
-                            // escaping here stops the whole server ticking. Clear the flag
-                            // first and drop the entry on failure so a bad removal is logged
-                            // once instead of retried - and thrown - on every tick.
-                            client.Player.RemoveFromMap = false;
-
-                            try
-                            {
-                                RemovePlayer(client, true);
-                            }
-                            catch (Exception e)
-                            {
-                                Logger.WriteLog(LogType.Error, $"Failed to remove {client.Player.FamilyName} from map {mapChannel.MapInfo.MapContextId}: {e}");
-                                mapChannel.ClientList.Remove(client);
-                            }
-                        }
+                    RemoveFlaggedPlayers(mapChannel, budgeted: true);
                 }
             }
+        }
+
+        /// <summary>
+        /// Takes every player on every map who is flagged for removal out of the world now, with
+        /// no time budget and no player left lingering in a fight (CombatLogout): for a shutdown,
+        /// after every connection has been closed. Returns how many.
+        /// </summary>
+        public int RemoveAllFlaggedPlayers()
+        {
+            var removed = 0;
+
+            foreach (var mapChannel in MapChannelArray.Values
+                         .Concat(_privateInstances.Snapshot())
+                         .Distinct()
+                         .ToArray())
+            {
+                foreach (var client in mapChannel.ClientList.ToArray())
+                    if (client?.Player != null)
+                        client.Player.LingerUntil = 0;
+
+                removed += RemoveFlaggedPlayers(mapChannel, budgeted: false);
+            }
+
+            return removed;
+        }
+
+        /// <summary>
+        /// One map's removal pass: each player flagged for removal (RemoveFromMap) taken out with
+        /// RemovePlayer. Budgeted, it stops after RemovalBudgetMs, the first always going.
+        /// </summary>
+        private int RemoveFlaggedPlayers(MapChannel mapChannel, bool budgeted)
+        {
+            var removalFrom = System.Diagnostics.Stopwatch.GetTimestamp();
+            var removed = 0;
+
+            foreach (var client in mapChannel.ClientList.ToArray())
+                if (client != null && client.Player.RemoveFromMap)
+                {
+                    // Dropped mid-fight and still in it (CombatLogout): a later tick.
+                    if (CombatLogout.Holds(client.Player))
+                        continue;
+
+                    if (budgeted && removed > 0 && System.Diagnostics.Stopwatch.GetElapsedTime(removalFrom).TotalMilliseconds >= RemovalBudgetMs)
+                        break;
+
+                    removed++;
+
+                    // The MainLoop thread has no handler of its own, so an exception
+                    // escaping here stops the whole server ticking. Clear the flag
+                    // first and drop the entry on failure so a bad removal is logged
+                    // once instead of retried - and thrown - on every tick.
+                    client.Player.RemoveFromMap = false;
+
+                    try
+                    {
+                        RemovePlayer(client, true);
+
+                        // A dropped connection's character: whatever else the main loop
+                        // would have cleared up for it, which it left to this (CleanupDisconnected).
+                        if (client.State == ClientState.Disconnected)
+                            CleanupDisconnected(client);
+                    }
+                    catch (Exception e)
+                    {
+                        Logger.WriteLog(LogType.Error, $"Failed to remove {client.Player.FamilyName} from map {mapChannel.MapInfo.MapContextId}: {e}");
+                        mapChannel.ClientList.Remove(client);
+
+                        if (client.State == ClientState.Disconnected)
+                        {
+                            try
+                            {
+                                CleanupDisconnected(client);
+                            }
+                            catch (Exception inner)
+                            {
+                                Logger.WriteLog(LogType.Error, $"And clearing up after {client.Player.FamilyName} threw as well: {inner}");
+                            }
+                        }
+                    }
+                }
+
+            return removed;
         }
 
         /// <summary>How long one map's removal pass may run in a tick before the rest wait for the next; see MapChannelWorker.</summary>
@@ -608,6 +705,12 @@ namespace Rasa.Managers
                 // The buffs brought from the map left, now there is somebody to show them to.
                 EffectCarry.Restore(client);
 
+                // And the padlock on a locked wagered item.
+                InventoryManager.SyncWagerLock(client.Player);
+
+                // A battleground's teams, clock and scoreboard.
+                Battlegrounds.Instance.PlayerEntered(client);
+
                 // And what they sold before the ride, still to be bought back.
                 NpcManager.Instance.ResendBuyback(client);
 
@@ -621,6 +724,9 @@ namespace Rasa.Managers
             InventoryManager.Instance.InitForClient(client);
             ManifestationManager.Instance.UpdateStatsValues(client, true);
             client.Player.Attributes[Attributes.Chi].Current = 0;
+
+            // Worked out on full; a character just loaded goes back to what it left with.
+            RelogVitals.ApplyVitals(client.Player);
 
             // register new Player
             EntityManager.Instance.RegisterEntity(client.Player.EntityId, EntityType.Character);
@@ -652,6 +758,20 @@ namespace Rasa.Managers
             // the gate on this side, and must walk out of it before it can send them back.
             MapLinkManager.Instance.PlayerEnteredMap(client);
             ManifestationManager.Instance.AssignPlayer(client);
+
+            // The Rez Trauma and no-healing a character just loaded left with, as its client now
+            // has its actor to show them on (nothing on any other arrival).
+            RelogVitals.RestorePenalties(client, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+
+            // The padlock on a wagered item that is locked in its slot: on every arrival, the
+            // effects of the map left having gone with it.
+            InventoryManager.SyncWagerLock(client.Player);
+
+            // A battleground's teams, clock and scoreboard.
+            Battlegrounds.Instance.PlayerEntered(client);
+
+            // Why a character that left the world on a map of several copies is outside it.
+            ShowArrivalNotice(client);
 
             // The buffs brought from the map left (nothing on a login): after the player is in
             // the cells and their own client has its actor's info, so the attach reaches it and
@@ -734,10 +854,13 @@ namespace Rasa.Managers
             MapLinkManager.Instance.PlayerEnteredMap(client);
             _assignPlayer(client);
 
-            // As on any arrival: the buffs carried over, the buyback list, the clan's feuds.
+            // As on any arrival: the buffs carried over, the padlock of a locked wagered item, the
+            // buyback list, the clan's feuds.
             EffectCarry.Restore(client);
+            InventoryManager.SyncWagerLock(client.Player);
             NpcManager.Instance.ResendBuyback(client);
             ClanFeuds.Instance.PlayerEnteredWorld(client);
+            Battlegrounds.Instance.PlayerEntered(client);
 
             client.PendingTransfer = null;
             client.State = ClientState.Ingame;
@@ -820,6 +943,15 @@ namespace Rasa.Managers
             if (player == null)
                 return;
 
+            // A character flagged for removal and still on a map's list is that map's worker's:
+            // it takes them out with RemovePlayer - the position, cooldowns, health and death
+            // penalties saved, a dead player sent to their hospital - and then comes back here.
+            // This used to run first whenever the connection closed during a tick, after that
+            // tick's worker: the character was taken out without any of the saves, and a body
+            // left in a fight it dropped out of (CombatLogout) vanished at once.
+            if (IsLeftToWorker(client))
+                return;
+
             ManifestationManager.Instance.RemovePlayerCharacter(client);
             if (player.ClanId != 0)
                 ClanManager.Instance.RemovePlayer(client);
@@ -852,6 +984,24 @@ namespace Rasa.Managers
             player.Disconected = true;
         }
 
+        /// <summary>
+        /// Whether a map worker will take this client's character out: flagged for removal and on
+        /// the list of a map the worker visits.
+        /// </summary>
+        private bool IsLeftToWorker(Client client)
+        {
+            var player = client.Player;
+
+            if (player == null || !player.RemoveFromMap)
+                return false;
+
+            foreach (var map in MapChannelArray.Values.Concat(_privateInstances.Snapshot()))
+                if (map?.ClientList != null && map.ClientList.Contains(client))
+                    return true;
+
+            return false;
+        }
+
         internal void DetachMissionScenes(Client client, MapChannel map) =>
             _missionScenarioService?.Detach(client, map);
 
@@ -871,6 +1021,11 @@ namespace Rasa.Managers
         {
             if (!MapChannelArray.TryGetValue(mapContextId, out var mapChannel))
                 return false;
+
+            // A map entered as a squad's instance: theirs, not the map's own channel.
+            if (IsSquadInstanceMap(mapContextId))
+                return EnterSquadInstance(client, mapContextId, position, orientation, byDoor: false);
+
             return ChangeMap(client, mapChannel, position, orientation);
         }
 
@@ -1036,6 +1191,13 @@ namespace Rasa.Managers
                 // their rows on arrival, like the lists above, and were left registered each time.
                 DestroyInventory(client, player.Inventory.InboxItems);
 
+                // So is the wagered item.
+                if (player.Inventory.WagerItem != 0)
+                {
+                    EntityManager.Instance.DestroyPhysicalEntity(client, player.Inventory.WagerItem, EntityType.Item);
+                    player.Inventory.WagerItem = 0;
+                }
+
                 // Listed items are the auction house's (AuctionHouseManager.Listed), which keeps
                 // them while the seller is away and gives the same objects back on their next
                 // load; the seller's list of them only goes.
@@ -1048,6 +1210,12 @@ namespace Rasa.Managers
                 RemovalStep(client, "discarding the buyback list", () => NpcManager.Instance.DiscardBuybackItems(client));
 
             RemovalStep(client, "removing queued actions", () => ActorActionManager.Instance.RemoveActor(player));
+
+            // Leaving the world: health, armour, power and the death penalties to the database,
+            // while the effects are still on to be read (RelogVitals). After the removal of the
+            // character, which takes a dead player to their hospital first.
+            if (logout)
+                RemovalStep(client, "saving health and death penalties", () => RelogVitals.Save(client));
 
             // Effects are per map as far as the clients know - nobody on the next map was told
             // about them - and a sprint left running would keep draining adrenaline unseen.

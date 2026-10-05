@@ -21,7 +21,12 @@ namespace Rasa.Missions.Scenes
         string SharedKey = null, uint? WindupMilliseconds = null, uint MissionId = 0,
         uint? GroupId = null, uint SpawnId = 0, ScenePosition FollowOffset = null,
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] SceneObjectConversation Conversation = null,
-        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] Definitions.ActorGameplayPolicy GameplayPolicy = null);
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] Definitions.ActorGameplayPolicy GameplayPolicy = null,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] SceneObjectAction UseAction = null,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] SceneObjectDestruction Destruction = null);
+    public sealed record SceneObjectAction(uint MissionId, uint ObjectiveId, uint SequenceId, uint ActionArgId = 1);
+    public sealed record SceneObjectDestruction(uint MissionId, uint ObjectiveId, uint SequenceId,
+        uint HitPoints = 100, uint DestroyedState = 2);
     public sealed record SceneObjectConversation(uint MissionId, uint ObjectiveId, uint NpcPackageId,
         uint DialogObjectiveId, uint PlayerFlagId = 1,
         [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] Definitions.MissionDialogueKind Kind =
@@ -35,7 +40,8 @@ namespace Rasa.Missions.Scenes
     public sealed record SceneObservation(
         SceneEventKind Kind, uint Generation, string Name = null, string Role = null,
         string OperationKey = null, uint SequenceId = 0, int Waypoint = 0, string DeliveryKey = null,
-        ScenePosition Position = null);
+        ScenePosition Position = null,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] ulong? SourceEntityId = null);
     public sealed record SceneTimerChange(
         string Name, SceneClockPolicy ClockPolicy, DateTime? DueAtUtc,
         uint SequenceId = 0, bool Cancel = false);
@@ -82,6 +88,7 @@ namespace Rasa.Missions.Scenes
     [JsonDerivedType(typeof(ConsumeMissionItemIntent), "consume-mission-item")]
     [JsonDerivedType(typeof(RemoveMissionItemsIntent), "remove-mission-items")]
     [JsonDerivedType(typeof(OfferRadioMissionIntent), "offer-radio-mission")]
+    [JsonDerivedType(typeof(FailRelatedMissionIntent), "fail-related-mission")]
     public abstract record CharacterIntent(string OperationKey);
     public sealed record GrantRewardIntent(string OperationKey, uint MissionId, uint RewardId) : CharacterIntent(OperationKey);
     public sealed record GrantAbilityIntent(string OperationKey, uint SkillId, uint AbilityId, byte Level, byte? Slot) : CharacterIntent(OperationKey);
@@ -99,8 +106,10 @@ namespace Rasa.Missions.Scenes
         string ItemKey, uint Quantity, MissionItemScope Scope) : CharacterIntent(OperationKey);
     public sealed record RemoveMissionItemsIntent(string OperationKey, uint MissionId,
         string ItemKey) : CharacterIntent(OperationKey);
-    public sealed record OfferRadioMissionIntent(string OperationKey, uint MissionId, bool ForceDialog = true)
+    public sealed record OfferRadioMissionIntent(string OperationKey, uint MissionId, bool ForceDialog = true,
+        [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool IfEligible = false)
         : CharacterIntent(OperationKey);
+    public sealed record FailRelatedMissionIntent(string OperationKey, uint MissionId) : CharacterIntent(OperationKey);
 
     public sealed class SceneSequence
     {

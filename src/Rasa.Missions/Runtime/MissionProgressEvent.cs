@@ -36,6 +36,14 @@ namespace Rasa.Structures
         public static MissionProgressEvent Creature(uint creatureDbId) =>
             new(MissionProgressEventKind.CreatureKilled, creatureDbId);
 
+        /// <summary>The kill of a creature whose class carries this creature flag.</summary>
+        public static MissionProgressEvent CreatureFlag(uint creatureFlagId) =>
+            new(MissionProgressEventKind.CreatureFlagKilled, creatureFlagId);
+
+        /// <summary>The kill of a creature of this entity class.</summary>
+        public static MissionProgressEvent CreatureClass(uint entityClassId) =>
+            new(MissionProgressEventKind.CreatureClassKilled, entityClassId);
+
         public static MissionProgressEvent Mission(uint completedMissionId) =>
             new(MissionProgressEventKind.MissionCompleted, completedMissionId);
 

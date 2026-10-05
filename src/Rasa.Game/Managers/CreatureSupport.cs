@@ -42,6 +42,9 @@ namespace Rasa.Managers
     ///    (3 s) later stands up at HEAL_PERCENT of its health and goes back to its fight; the next
     ///    death is a death.
     ///
+    /// A Polymorphed player has the Caretaker's and the Technician's revives too, at their
+    /// player-facing level, for their own side's dead (IsRevivableBy, AbilityManager.MorphRevive).
+    ///
     /// A creature finished by a Critical Death is neither: the finishing move destroys the body,
     /// "Your target can't self-resuscitate ... and allies can't bring back the target" (the
     /// strategy guide). Creature.CritKilled.
@@ -219,6 +222,31 @@ namespace Rasa.Managers
 
             // Claimed by Reanimation, Cadaver Immolation, a Hortimonculus.
             return !AbilityManager.IsBiologicalCorpse(corpse) || AbilityManager.IsUsableCorpse(corpse);
+        }
+
+        /// <summary>
+        /// Whether a player's revive - a Polymorphed Caretaker's Resuscitate, a Technician's
+        /// Jumpstart (AbilityManager.MorphRevive) - may bring this corpse back: a FRIENDLY
+        /// creature the world put there, dead less than ReviveWindowMs, of the kind asked for
+        /// (<paramref name="machines"/>: MECHANICAL or MACHINA; otherwise the rest), and a body
+        /// nothing else has claimed. Not a summon that was killed: it is nobody's once dead, and
+        /// with no spawn pool it has no place in the world to stand up into.
+        /// </summary>
+        public static bool IsRevivableBy(Manifestation player, Creature corpse, bool machines)
+        {
+            if (player == null || corpse == null || corpse.State != CharacterState.Dead || corpse.IsScripted)
+                return false;
+
+            if (corpse.TargetCategory != TargetCategory.Friendly || corpse.MasterEntityId != 0 || corpse.SpawnPool == null)
+                return false;
+
+            if (IsCasting(corpse) || CreatureBombs.IsCorpseClaimed(corpse) || AbilityManager.IsCorpseInUse(corpse))
+                return false;
+
+            if (corpse.Controller.DeadTime > ReviveWindowMs || corpse.CritKilled)
+                return false;
+
+            return IsMachine(corpse) == machines;
         }
 
         /// <summary>Whether this caster's revive may bring this corpse back: a Technician's jumpstart machines alone, summoned turrets included.</summary>
@@ -535,6 +563,9 @@ namespace Rasa.Managers
                 SpawnPoolManager.Instance.IncreaseAliveCreatureCount(creature.SpawnPool);
                 SpawnPoolManager.Instance.DecreaseDeadCreatureCount(creature.SpawnPool);
             }
+
+            // A wreck is its own model again first: Revived shows its weapon on it.
+            AlternateMesh.OnRevive(mapChannel, creature);
 
             CellManager.Instance.CellCallMethod(mapChannel, creature, new RevivedPacket(source?.EntityId ?? creature.EntityId));
             CellManager.Instance.CellCallMethod(mapChannel, creature, new UpdateHealthPacket(health, creature.EntityId));

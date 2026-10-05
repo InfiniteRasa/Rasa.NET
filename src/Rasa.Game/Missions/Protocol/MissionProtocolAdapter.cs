@@ -63,24 +63,42 @@ namespace Rasa.Managers
             return snapshot;
         }
 
-        internal void PublishMissionStatus(Client client, uint missionId, string description)
+        /// <summary>
+        /// Refreshes the client's copy of a mission after something MissionStatusInfo alone carries
+        /// has changed - a deadline started, satisfied or ended, an indicator revealed.
+        ///
+        /// The whole snapshot goes, not the one mission: the client's Recv_MissionStatusInfo
+        /// (missionlog.py) REPLACES its mission data with the dictionary it is given, and drops
+        /// from the tracker every mission not in it (UpdateMissionTrackingToAvatarMissions). This
+        /// used to send a dictionary holding only the mission that changed, so every other mission
+        /// vanished from the journal and the tracker until the next login sent the full snapshot -
+        /// when a timed mission failed, and equally when a timed objective started or an indicator
+        /// was revealed. No other message updates one mission quietly: MissionGained and
+        /// ObjectiveRevealed both play the mission-accepted effect.
+        /// </summary>
+        internal void PublishMissionStatus(Client client, uint missionId, string description) =>
+            PublishMissionStatus(client, new[] { missionId }, description);
+
+        /// <summary>
+        /// One snapshot for any number of missions that changed together; nothing if none of them
+        /// is a mission the client is shown.
+        /// </summary>
+        internal void PublishMissionStatus(Client client, IEnumerable<uint> missionIds, string description)
         {
-            if (client?.Player == null ||
-                !client.Player.Missions.TryGetValue(missionId, out var runtimeMission) ||
-                !_catalog.TryGetOperational(missionId, out var definition) ||
-                !MissionApplication.IsPublishedState(runtimeMission.State))
+            if (client?.Player == null || missionIds == null)
+                return;
+
+            var shown = missionIds.Any(missionId =>
+                client.Player.Missions.TryGetValue(missionId, out var runtimeMission) &&
+                _catalog.TryGetOperational(missionId, out _) &&
+                MissionApplication.IsPublishedState(runtimeMission.State));
+
+            if (!shown)
                 return;
 
             PublishMissionPacket(
                 client,
-                new MissionStatusInfoPacket(
-                    new Dictionary<uint, MissionInfo>
-                    {
-                        [missionId] = BuildPublishedMissionInfo(
-                            client.Player,
-                            definition,
-                            runtimeMission)
-                    }),
+                new MissionStatusInfoPacket(BuildStatusSnapshot(client.Player)),
                 description);
         }
 

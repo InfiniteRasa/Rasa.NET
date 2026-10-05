@@ -39,7 +39,8 @@ namespace Rasa.Managers
     ///   the caster and assisting them;
     /// - a creature is immune from the moment it is controlled until DURATION after it ends.
     /// A target that is not biological, or immune, is refused (GameEffectAttachFailed, IMMUNE).
-    /// The PvP effects are not carried out.
+    /// On an enemy player across a wargame it is a stun or a hold on their attacks instead
+    /// (AbilityManager.PvpControl).
     /// </summary>
     public partial class AbilityManager
     {

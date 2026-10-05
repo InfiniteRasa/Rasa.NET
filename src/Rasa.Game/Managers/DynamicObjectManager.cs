@@ -46,6 +46,7 @@ namespace Rasa.Managers
         /// 163 of the 166 logos classes 6, and the control point 7.
         /// </summary>
         public const uint FootlockerUseArgId = 1;
+        public const uint SurveyUseArgId = 3;
 
         /// <inheritdoc cref="FootlockerUseArgId"/>
         public const uint LogosUseArgId = 6;
@@ -119,9 +120,11 @@ namespace Rasa.Managers
 
         internal void InitDynamicObjects()
         {
-            InitControlPoints();
             InitFootlockers();
             InitTeleporters();
+
+            // After the teleporters: a control point's hospital and waypoint are among them.
+            ControlPoints.Instance.Init(_gameUnitOfWorkFactory);
             LogosManager.Instance.LogosInit();
             KraftwerksManager.Instance.KraftwerksInit();
         }
@@ -131,9 +134,16 @@ namespace Rasa.Managers
             if (template == null || mapChannel == null)
                 return;
 
+            // The control points are the open world's (ControlPoints): a private copy of the map
+            // has the objects as they stood when it was made, and nothing to capture.
             mapChannel.ControlPoints.Clear();
             foreach (var entry in template.ControlPoints)
+            {
                 AddClonedDynamicObject(mapChannel.ControlPoints, entry.Key, entry.Value, mapChannel);
+
+                if (mapChannel.ControlPoints.TryGetValue(entry.Key, out var copy))
+                    copy.IsEnabled = false;
+            }
 
             mapChannel.FootLockers.Clear();
             foreach (var entry in template.FootLockers)
@@ -260,6 +270,17 @@ namespace Rasa.Managers
                     $"{client.Player.FamilyName} sent {packet.ActionId}/{packet.ActionArgId} to use object {packet.EntityId}; an object is used with {ActionId.UseObject}. Ignored.");
                 return;
             }
+            if (obj.MissionUseAction != null &&
+                !(_missionManager ?? MissionApplication.Instance).Scenes.CanUseObject(client, obj, packet.ActionArgId))
+            {
+                Logger.WriteLog(LogType.Debug, $"Rejected stale or unauthorized scene object use {obj.EntityId}.");
+                return;
+            }
+            if (obj.MissionDestruction != null && obj.MissionUseAction == null)
+            {
+                Logger.WriteLog(LogType.Debug, $"Object {obj.EntityId} must be destroyed, not used.");
+                return;
+            }
             if (obj.MissionConversation != null)
             {
                 (_missionManager ?? MissionApplication.Instance).ObjectConversations.Open(client, obj.EntityId);
@@ -289,15 +310,67 @@ namespace Rasa.Managers
             {
                 case DynamicObjectType.ControlPoint:
                     {
+                        // One of the world's (ControlPoints) is the Bane's, with none of its
+                        // garrison standing: the worker has it out of service otherwise, a second
+                        // behind at most. Or it is a clan's, and the player's clan is at feud
+                        // with that one. A scene's own object of this kind is only used.
+                        var point = ControlPoints.Instance.PointOf(obj);
+
+                        // One of a match's (Battlegrounds) is for a team that does not hold it,
+                        // while the match runs and with its Simulated Bane dead.
+                        var teamPoint = Battlegrounds.Instance.PointOf(obj);
+
+                        if (point != null && !ControlPoints.Instance.MayCapture(client.Player.MapChannel, point, client)
+                            || teamPoint != null && !Battlegrounds.Instance.MayCapture(client, teamPoint))
+                        {
+                            ActorManager.RefuseRequest(client, packet.ActionId, packet.ActionArgId, PlayerMessage.PmUseObjectNotUsable);
+                            break;
+                        }
+
                         if (!TryLockForUse(client, obj, packet))
                             break;
 
+                        var captureMs = teamPoint != null ? Battlegrounds.Instance.CaptureMsOf(teamPoint)
+                            : point != null ? ControlPoints.Instance.CaptureMsOf(point) : ControlPoints.CaptureMs;
+
                         // The object's id rides on the action so its recovery can find the lock.
-                        var controlAction = new ActionData(client.Player, packet.ActionId, packet.ActionArgId, 10000);
+                        var controlAction = new ActionData(client.Player, packet.ActionId, packet.ActionArgId, captureMs);
                         controlAction.SourceId = obj.EntityId;
 
                         client.CallMethod(client.Player.EntityId, new PerformWindupPacket(PerformType.TwoArgs, packet.ActionId, packet.ActionArgId));
-                        client.CallMethod(packet.EntityId, new UsePacket(client.Player.EntityId, obj.StateId, 10000));
+
+                        if (point != null || teamPoint != null)
+                        {
+                            // What a claim looks like is the lock (TryLockForUse): locked to the
+                            // claimant and used interruptibly, the object puts its contested
+                            // effect on in place of its owner's - usabledata's specialFX
+                            // (class, state, state), arch_eloh_controlpoint_contested for the
+                            // Eloh point - aimed at them, until the lock is let go. It has no
+                            // claiming state: CONTROLPOINT's states are owned, owned and
+                            // unclaimed, and 177 and 180 are in no augmentation's.
+                            //
+                            // So no Use. To the state it is already in, Use is a transition from
+                            // the state to itself, which reads the same key: a second contested
+                            // effect that nothing stops, and the owner's put back under it.
+                            //
+                            // Everyone else is shown the claimant at it. A use with argument 7
+                            // has a windup of its own (animation family 1264, FX family 1490),
+                            // which their clients play only if told, with the object as its
+                            // argument (UseObject.Windup); the recovery ends it, or
+                            // ActionInterrupt (CaptureControlPointRecovery). Whoever comes into
+                            // view later is shown it then (ShowClaimsTo).
+                            if (client.Player.MapChannel != null)
+                                client.CellIgnoreSelfCallMethod(client,
+                                    new PerformWindupPacket(PerformType.ThreeArgs, packet.ActionId, packet.ActionArgId, obj.EntityId));
+                        }
+                        else
+                            client.CallMethod(packet.EntityId, new UsePacket(client.Player.EntityId, obj.StateId, (int)captureMs));
+
+                        if (teamPoint != null)
+                            Battlegrounds.Instance.Claiming(client, teamPoint);
+
+                        if (point != null)
+                            ControlPoints.Instance.Claiming(client.Player.MapChannel, point, client);
                         client.Player.MapChannel.PerformRecovery.Add(controlAction);
 
                         if (!obj.TriggeredByPlayers.Contains(client))
@@ -306,6 +379,15 @@ namespace Rasa.Managers
                     }
                 case DynamicObjectType.Lockbox:
                     {
+                        // A control point's clan lockbox is the clan's that holds the point
+                        // (ControlPoints): out of service to anyone else's client, so only one
+                        // that did not know yet asks.
+                        if (!ControlPoints.Instance.MayOpenLockbox(client, obj))
+                        {
+                            ActorManager.RefuseRequest(client, packet.ActionId, packet.ActionArgId, PlayerMessage.PmUseObjectNotUsable);
+                            break;
+                        }
+
                         client.CallMethod(client.Player.EntityId, new PerformWindupPacket(PerformType.TwoArgs, packet.ActionId, packet.ActionArgId));
                         client.CallMethod(packet.EntityId, new UsePacket(client.Player.EntityId, obj.StateId, 100));
                         client.Player.MapChannel.PerformRecovery.Add(new ActionData(client.Player, packet.ActionId, packet.ActionArgId, 100));
@@ -314,6 +396,7 @@ namespace Rasa.Managers
                             obj.TriggeredByPlayers.Add(client);
                         break;
                     }
+                case DynamicObjectType.PracticeDummy when obj.MissionUseAction != null:
                 case DynamicObjectType.Logos:
                     {
                         if (!TryLockForUse(client, obj, packet))
@@ -343,8 +426,14 @@ namespace Rasa.Managers
                     // The hovering ship is a two-state switch to the client, so it offers a use;
                     // there is nothing to do with one - the pad works by walking into the beam.
                     break;
+                case DynamicObjectType.TeamTeleporter:
+                    // Likewise a team's teleporter (Battlegrounds): it is walked into.
+                    break;
                 case DynamicObjectType.DropshipBeacon:
                     DropshipBeacons.Use(client, obj, packet);
+                    break;
+                case DynamicObjectType.PersonalWaypoint:
+                    PersonalWaypoints.Use(client, obj, packet);
                     break;
                 default:
                     Logger.WriteLog(LogType.Debug, $"ToDo: RequestUseObjectPacket: unsuported object type {obj.DynamicObjectType}");
@@ -369,10 +458,14 @@ namespace Rasa.Managers
 
                     if (controlPoint.RespawnTime <= 0)
                     {
+                        // As its owner has it (ControlPoints); unclaimed only if nobody said.
+                        if (controlPoint.StateId == 0)
+                            controlPoint.StateId = UseObjectState.CpointStateUnclaimed;
+                        if (controlPoint.WindupTime == 0)
+                            controlPoint.WindupTime = ControlPoints.CaptureMs;
+
                         CellManager.Instance.AddToWorld(mapChannel, controlPoint);
                         controlPoint.IsInWorld = true;
-                        controlPoint.StateId = UseObjectState.CpointStateUnclaimed;
-                        controlPoint.WindupTime = 10000;
                     }
                 }
 
@@ -522,15 +615,8 @@ namespace Rasa.Managers
                             (_missionManager ?? MissionApplication.Instance).ObjectConversations.Status(recipient, dynamicObject));
                 return;
             }
-            CellManager.Instance.CellCallMethod(
-                mapChannel,
-                dynamicObject,
-                new UsableInfoPacket(
-                    dynamicObject.IsEnabled,
-                    dynamicObject.StateId,
-                    0,
-                    dynamicObject.WindupTime,
-                    dynamicObject.ActivateMission));
+            // To each client its own: whether the object is mission activated is the player's (MissionObjects).
+            SendUsableInfo(mapChannel, dynamicObject, dynamicObject.WindupTime);
 
             if (enabled && dynamicObject.MissionLootSource != null &&
                 CellManager.TryGetCellCoordinates(dynamicObject.Position, out var cellX, out var cellZ))
@@ -539,6 +625,20 @@ namespace Rasa.Managers
                 foreach (var client in CellManager.Instance.GetClientsInCells(mapChannel, cells))
                     PublishRewardLoot(client, dynamicObject);
             }
+        }
+
+        /// <summary>
+        /// An object's UsableInfo to every client in its cells, each with the mission that
+        /// activates the object for its own player (MissionObjects).
+        /// </summary>
+        private void SendUsableInfo(MapChannel mapChannel, DynamicObject dynamicObject, uint windupTime)
+        {
+            if (mapChannel == null || !CellManager.TryGetCellCoordinates(dynamicObject.Position, out var x, out var z))
+                return;
+
+            foreach (var client in CellManager.Instance.GetClientsInCells(mapChannel, CellManager.Instance.CreateCellMatrix(mapChannel, x, z)))
+                client.CallMethod(dynamicObject.EntityId,
+                    MissionObjects.InfoFor(client, dynamicObject, dynamicObject.IsEnabled, windupTime, _missionManager));
         }
 
         // 1 object to n client's
@@ -582,19 +682,34 @@ namespace Rasa.Managers
                     dynamicObject.SceneRunId != null && dynamicObject.IsEnabled),
                 new WorldLocationDescriptorPacket(dynamicObject.Position, dynamicObject.Rotation)
             };
+
+            // A control point a clan holds: whose it is, ahead of UsableInfo. The owner picks the
+            // state's effect - your clan's, another's - and the client only keeps it when told:
+            // the state that comes next is what takes it (ClanAssociationPacket).
+            if (ControlPoints.Instance.ClanShownBy(dynamicObject) is { } owningClan)
+                entityData.Add(new ClanAssociationPacket(owningClan));
+
+            // In service to this client or not, for an object that is so to some and not others:
+            // a clan's control point, and its lockbox (ControlPoints).
+            var enabled = ControlPoints.Instance.ShownUsable(client, dynamicObject) ?? dynamicObject.IsEnabled;
+
             if (dynamicObject.MissionConversation is { } conversation)
             {
                 entityData.Add(new NPCInfoPacket(conversation.NpcPackageId));
                 entityData.Add((_missionManager ?? MissionApplication.Instance).ObjectConversations.Status(client, dynamicObject));
             }
             else
-                entityData.Add(new UsableInfoPacket(
-                    // A beacon's ship is in service for its deployer's squad alone (DropshipBeacons).
+                // With the mission that activates it for this client's player (MissionObjects).
+                entityData.Add(MissionObjects.InfoFor(
+                    client, dynamicObject,
+                    // A beacon's ship is in service for its deployer's squad alone (DropshipBeacons),
+                    // and a Personal Waypoint for its owner, or their squad (PersonalWaypoints).
                     dynamicObject.DynamicObjectType == DynamicObjectType.DropshipBeacon
                         ? DropshipBeacons.ShowTo(client, dynamicObject)
-                        : dynamicObject.IsEnabled,
-                    dynamicObject.StateId, 0,
-                    dynamicObject.WindupTime, dynamicObject.ActivateMission));
+                        : dynamicObject.DynamicObjectType == DynamicObjectType.PersonalWaypoint
+                            ? PersonalWaypoints.ShowTo(client, dynamicObject)
+                            : enabled,
+                    dynamicObject.WindupTime, _missionManager));
 
             // Only for an object that actually has a lock. An unlocked usable is the default the
             // client already assumes, and sending a lock of zeroes would tell it the same thing
@@ -602,11 +717,18 @@ namespace Rasa.Managers
             if (dynamicObject.Lock != null)
                 entityData.Add(new LockInfoPacket(dynamicObject.Lock));
 
+            // A clan control point: whether it is a PvP one. The client keeps the answer and
+            // asks for it nowhere (PvPEnabledPacket).
+            if (IsClanControlPoint(classInfo))
+                entityData.Add(new PvPEnabledPacket(IsPvPClanControlPoint(dynamicObject.EntityClassId)));
+
             if (dynamicObject.DynamicObjectType == DynamicObjectType.PracticeDummy)
             {
                 entityData.Add(new TargetCategoryPacket(TargetCategory.Object));
                 entityData.Add(new DamageInfoPacket(
-                    true, false, PracticeTargetManager.HitPoints, PracticeTargetManager.HitPoints));
+                    dynamicObject.IsEnabled, false,
+                    dynamicObject.MissionDestruction?.HitPoints ?? PracticeTargetManager.HitPoints,
+                    dynamicObject.MissionDestruction == null ? PracticeTargetManager.HitPoints : dynamicObject.CurrentHitPoints));
             }
 
             client.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(dynamicObject.EntityId, dynamicObject.EntityClassId, entityData));
@@ -620,13 +742,55 @@ namespace Rasa.Managers
             if (dynamicObject.DynamicObjectType == DynamicObjectType.ForceField)
                 ForceFields.ShowTo(client, dynamicObject);
 
+            // A battleground's control point: the team that holds it.
+            if (dynamicObject.DynamicObjectType == DynamicObjectType.ControlPoint)
+                Battlegrounds.Instance.ShowTo(client, dynamicObject);
+
+            // A Personal Waypoint: its hit points, and what it is to this client.
+            if (dynamicObject.DynamicObjectType == DynamicObjectType.PersonalWaypoint)
+                PersonalWaypoints.Introduce(client, dynamicObject);
+
             // Someone is partway through using it. Players are introduced before objects, and the
             // user is standing at it, so this client already has the actor the effect runs to.
             if (dynamicObject.UsedBy != null)
             {
                 client.CallMethod(dynamicObject.EntityId, new LockToActorPacket(dynamicObject.UsedBy.EntityId));
-                client.CallMethod(dynamicObject.EntityId, new UseInterruptiblePacket(dynamicObject.UsedBy.EntityId));
+                client.CallMethod(dynamicObject.EntityId, UseInterruptibleOf(dynamicObject, dynamicObject.UsedBy));
             }
+        }
+
+        /// <summary>
+        /// UseInterruptible for an actor's timed use of an object. A clan control point is told
+        /// the clan of whoever is using it as well - its in-use effect is by the clan that holds
+        /// it and the clan that is at it - and its client method takes that argument or fails;
+        /// a user in no clan is the AFS's. Any other object is told the actor alone.
+        /// </summary>
+        internal static UseInterruptiblePacket UseInterruptibleOf(DynamicObject obj, Actor user)
+        {
+            if (!IsClanControlPoint(EntityClassManager.Instance.GetClassInfo(obj.EntityClassId)))
+                return new UseInterruptiblePacket(user.EntityId);
+
+            var clanId = (user as Manifestation)?.ClanId ?? 0;
+
+            return new UseInterruptiblePacket(user.EntityId, clanId != 0 ? (int)clanId : ControlPoints.VirtualClanAfs);
+        }
+
+        /// <summary>TEST_ClanControlPoint_PvE: the one class of the client's with the CLANCONTROLPOINT augmentation.</summary>
+        public const EntityClasses PveClanControlPointClass = (EntityClasses)29329;
+
+        /// <summary>Whether objects of the class are clan control points: the client gives them Recv_PvPEnabled and Recv_ClanAssociation.</summary>
+        public static bool IsClanControlPoint(EntityClass classInfo)
+        {
+            return classInfo?.Augmentations != null && classInfo.Augmentations.Contains(AugmentationType.ClanControlPoint);
+        }
+
+        /// <summary>
+        /// What PvPEnabled says of a clan control point of this class: false for the PvE test
+        /// point, as its name has it, and for any other what the client holds until told.
+        /// </summary>
+        public static bool IsPvPClanControlPoint(EntityClasses classId)
+        {
+            return classId != PveClanControlPointClass;
         }
 
         private static void PublishRewardLoot(Client client, DynamicObject dynamicObject)
@@ -715,7 +879,7 @@ namespace Rasa.Managers
             obj.UsedBy = user;
 
             CellManager.Instance.CellCallMethod(obj, new LockToActorPacket(user.EntityId));
-            CellManager.Instance.CellCallMethod(obj, new UseInterruptiblePacket(user.EntityId));
+            CellManager.Instance.CellCallMethod(obj, UseInterruptibleOf(obj, user));
 
             return true;
         }
@@ -759,39 +923,112 @@ namespace Rasa.Managers
 
         #region ControlPoint
 
-        internal void InitControlPoints()
+        /// <summary>
+        /// Whether an object is a control point somebody fights over - the world's (ControlPoints)
+        /// or a match's (Battlegrounds) - and not a scene's object of the same kind.
+        /// </summary>
+        private static bool IsFoughtOver(DynamicObject obj) =>
+            ControlPoints.Instance.PointOf(obj) != null || Battlegrounds.Instance.PointOf(obj) != null;
+
+        /// <summary>
+        /// Whether an action is a claim of a control point that was interrupted. It has no
+        /// recovery to show (ActorActionManager): the others, who were shown its windup, are told
+        /// it was interrupted instead, and the claimant's request is closed
+        /// (<see cref="CaptureControlPointRecovery"/>).
+        /// </summary>
+        internal bool IsInterruptedClaim(ActionData action)
         {
-            //var contolPoints = ControlPointTable.GetControlPoints();
-            var mapChannel = MapChannelManager.Instance.FindByContextId(1220);
-
-            var newControlPoint = new DynamicObject
-            {
-                Position = new Vector3(197.66f, 162.27f, -54.08f),
-                Rotation = 3.05f,
-                MapContextId = 1220,
-                EntityClassId = (EntityClasses)3814,
-                DynamicObjectType = DynamicObjectType.ControlPoint,
-                ObjectData = new ControlPointStatus(215, 1, 1, 30000)
-            };
-
-            newControlPoint.DynamicObjectType = DynamicObjectType.ControlPoint;
-
-            mapChannel.ControlPoints.Add(1, newControlPoint);
+            return action != null && action.IsInrerrupted && ClaimedBy(action) != null;
         }
 
+        /// <summary>The control point somebody fights over that an action is a use of, or null.</summary>
+        private static DynamicObject ClaimedBy(ActionData action)
+        {
+            return action != null
+                   && action.ActionId == ActionId.UseObject && action.ActionArgId == ControlPointUseArgId
+                   && action.SourceId != 0
+                   && EntityManager.Instance.TryGetObject(action.SourceId, out var obj)
+                   && obj.DynamicObjectType == DynamicObjectType.ControlPoint && IsFoughtOver(obj)
+                ? obj
+                : null;
+        }
+
+        /// <summary>
+        /// Shows a client the claims under way by players it has just been given: the claimant's
+        /// windup, which went to whoever could see them when the claim began (RequestUseObject)
+        /// and to nobody since. Without it a player arriving partway through sees the object's
+        /// contested effect run to somebody standing idle.
+        ///
+        /// Called once the client has everything else of the same change of view (CellManager),
+        /// objects included: the windup's effect is aimed at the object, and a client that has
+        /// not got the object yet aims it at nothing. It goes once for each time the claimant's
+        /// entity is made there, and is not sent again to aim it better: the client ignores a
+        /// windup of the action an actor is already winding up (Recv_PerformWindup returns on
+        /// doneWindup).
+        /// </summary>
+        internal void ShowClaimsTo(Client viewer, IEnumerable<Client> introduced)
+        {
+            var mapChannel = viewer?.Player?.MapChannel;
+
+            if (mapChannel == null || introduced == null || mapChannel.PerformRecovery.Count == 0)
+                return;
+
+            foreach (var action in mapChannel.PerformRecovery.ToArray())
+            {
+                if (action == null || action.IsInrerrupted || action.Actor == null || action.Actor == viewer.Player)
+                    continue;
+
+                var obj = ClaimedBy(action);
+
+                if (obj == null || obj.UsedBy != action.Actor)
+                    continue;
+
+                if (!introduced.Any(client => client != null && client != viewer && client.Player == action.Actor))
+                    continue;
+
+                // Cloaked, and not to this one's squad: their entity was not made there.
+                if (action.Actor is Manifestation claimant && Detection.IsHiddenFrom(claimant, viewer))
+                    continue;
+
+                viewer.CallMethod(action.Actor.EntityId,
+                    new PerformWindupPacket(PerformType.ThreeArgs, action.ActionId, action.ActionArgId, obj.EntityId));
+            }
+        }
+
+        /// <summary>
+        /// A control point's use has run its time (ActorActionManager): the point is the AFS's,
+        /// or the player's clan's, if the player is still standing at it and its garrison is
+        /// still down (ControlPoints). An object of this kind that is not one of the world's
+        /// points - a scene's - changes state as it always did. Either way the use counts for a
+        /// mission that asks for it.
+        /// </summary>
         internal void CaptureControlPointRecovery(MapChannel mapChannel, ActionData action)
         {
-            foreach (var entry in mapChannel.ControlPoints)
+            // Over a copy: a point a clan takes or loses has its object changed for another
+            // (ControlPoints.Rebuild), which puts the new one in the map's list as this runs.
+            foreach (var entry in mapChannel.ControlPoints.ToArray())
             {
                 var controlpoint = entry.Value;
 
                 foreach (var client in controlpoint.TriggeredByPlayers)
                     if (client.Player == action.Actor)
                     {
+                        controlpoint.TriggeredByPlayers.Remove(client);
+
                         if (action.IsInrerrupted)
                         {
-                            Logger.WriteLog(LogType.Debug, $"Action is interupted");
-                            controlpoint.TriggeredByPlayers.Remove(client);
+                            // The others are still showing the claimant at it. The claimant's own
+                            // client stopped when it sent the interrupt, and keeps the request
+                            // open until it is answered.
+                            if (IsFoughtOver(controlpoint))
+                            {
+                                if (client.Player?.MapChannel != null)
+                                    client.CellIgnoreSelfCallMethod(client,
+                                        new ActionInterruptPacket(action.Actor.EntityId, action.ActionId, action.ActionArgId));
+
+                                ActorManager.ResolveInterruptedRequest(client, action.ActionId, action.ActionArgId);
+                            }
+
                             break;
                         }
 
@@ -801,28 +1038,42 @@ namespace Rasa.Managers
                         {
                             Logger.WriteLog(LogType.Security,
                                 $"{client.Player.FamilyName} was no longer at control point {controlpoint.EntityId} when the use finished; not captured.");
-                            controlpoint.TriggeredByPlayers.Remove(client);
                             break;
                         }
 
-                        Logger.WriteLog(LogType.Debug, $"Action Exicuted");
-                        controlpoint.TriggeredByPlayers.Remove(client);
-                        controlpoint.TargetCategory = controlpoint.TargetCategory == TargetCategory.Friendly ? TargetCategory.Hostile : TargetCategory.Friendly;
-                        controlpoint.StateId = controlpoint.StateId == UseObjectState.CpointStateFactionAOwned ? UseObjectState.CpointStateFactionBOwned : UseObjectState.CpointStateFactionAOwned;
+                        var point = ControlPoints.Instance.PointOf(controlpoint);
+                        var teamPoint = Battlegrounds.Instance.PointOf(controlpoint);
 
-                        CellManager.Instance.CellCallMethod(
-                            mapChannel,
-                            controlpoint,
-                            new ForceStatePacket(controlpoint.StateId, 100));
-                        CellManager.Instance.CellCallMethod(
-                            mapChannel,
-                            controlpoint,
-                            new UsableInfoPacket(
-                                controlpoint.IsEnabled,
-                                controlpoint.StateId,
-                                0,
-                                10000,
-                                0));
+                        if (teamPoint != null)
+                        {
+                            if (!Battlegrounds.Instance.Captured(client, teamPoint))
+                                break;
+                        }
+                        else if (point != null)
+                        {
+                            if (!ControlPoints.Instance.Captured(mapChannel, client, point))
+                                break;
+                        }
+                        else
+                        {
+                            controlpoint.TargetCategory = controlpoint.TargetCategory == TargetCategory.Friendly ? TargetCategory.Hostile : TargetCategory.Friendly;
+                            controlpoint.StateId = controlpoint.StateId == UseObjectState.CpointStateFactionAOwned ? UseObjectState.CpointStateFactionBOwned : UseObjectState.CpointStateFactionAOwned;
+
+                            CellManager.Instance.CellCallMethod(
+                                mapChannel,
+                                controlpoint,
+                                new ForceStatePacket(controlpoint.StateId, 100));
+                            CellManager.Instance.CellCallMethod(
+                                mapChannel,
+                                controlpoint,
+                                new UsableInfoPacket(
+                                    controlpoint.IsEnabled,
+                                    controlpoint.StateId,
+                                    0,
+                                    10000,
+                                    0));
+                        }
+
                         (_missionManager ?? MissionApplication.Instance).RecordProgress(
                             client,
                             MissionProgressEvent.Interaction(
@@ -1003,11 +1254,18 @@ namespace Rasa.Managers
                             $"{client.Player.FamilyName} was no longer at object {obj.EntityId} when the use finished; nothing given.");
                         return;
                     }
+                    if (obj.MissionUseAction != null)
+                    {
+                        (_missionManager ?? MissionApplication.Instance).Scenes.UseObject(client, obj, action.ActionArgId);
+                        return;
+                    }
 
                     // Usable supplies mouse targeting; its completion opens loot, never claims it.
                     if (obj.MissionLootSource != null || obj.LootDispenserEntityId != 0)
                     {
-                        if (obj.LootDispenserEntityId != 0)
+                        // Emptied in an attempt the player gave up: the use is the objective.
+                        if (obj.LootDispenserEntityId != 0 &&
+                            !LootDispenserManager.Instance.FinishEmptyRewardLoot(client, mapChannel, obj))
                             LootDispenserManager.Instance.RequestCorpseLooting(
                                 client,
                                 new Packets.LootDispenser.Client.RequestCorpseLootingPacket
@@ -1017,14 +1275,7 @@ namespace Rasa.Managers
                         return;
                     }
 
-                    CellManager.Instance.CellCallMethod(
-                        obj,
-                        new UsableInfoPacket(
-                            obj.IsEnabled,
-                            obj.StateId,
-                            0,
-                            obj.WindupTime == 0 ? DefaultScenarioUseWindupMs : obj.WindupTime,
-                            0));
+                    SendUsableInfo(mapChannel, obj, obj.WindupTime == 0 ? DefaultScenarioUseWindupMs : obj.WindupTime);
 
                     (_missionManager ?? MissionApplication.Instance).RecordProgress(
                         client,
@@ -1133,6 +1384,9 @@ namespace Rasa.Managers
             using var unitOfWork = _gameUnitOfWorkFactory.CreateWorld();
             var teleporters = unitOfWork.Teleporters.GetTeleporters();
 
+            // What each battlefield's waypoint title asks for is the waypoints on its map.
+            WaypointTitles.Load(teleporters);
+
             foreach (var teleporter in teleporters)
             {
                 if (teleporter.MapContextId == 0)
@@ -1151,6 +1405,13 @@ namespace Rasa.Managers
                     Comment = teleporter.Description,
                     ObjectData = new WaypointInfo(teleporter.Id, false, (WaypointType)teleporter.Type)
                 };
+
+                // The client names a waypoint from its own table by this id, when it is gained and
+                // in every row of the travel window. One it has no name for reads "ERROR- 23-
+                // Missing translation for waypointlanguage ID ...": say so here, where it is data.
+                if (teleporter.Type is 2 or 3 or 4 && !HospitalGraveyards.ClientNames(teleporter.Id))
+                    MapErrorManager.Instance.Record(teleporter.MapContextId,
+                        $"Teleporter {teleporter.Id} ({teleporter.Description}) can be gained and the client has no name for its id: its waypoint names end at {HospitalGraveyards.LastClientWaypoint}.");
 
                 switch (teleporter.Type)
                 {
@@ -1244,6 +1505,9 @@ namespace Rasa.Managers
 
                 client.Player.GainedWaypoints.Add(waypoint);
                 PublishWaypointGrant(client, waypoint, recordProgress, missionManager);
+
+                // The last waypoint of a battlefield is its title (WaypointTitles).
+                WaypointTitles.Gained(client, waypoint.WaypointId);
                 return true;
             }
         }
@@ -1326,12 +1590,25 @@ namespace Rasa.Managers
                 }
                 if (client.State != ClientState.Ingame || client.Player?.MapChannel == null || client.Player.Id == 0 ||
                     client.Player.Disconected || client.Player.RemoveFromMap || client.Player.LogoutActive ||
+                    client.Player.State == CharacterState.Dead ||
                     !CellManager.Instance.IsInWorld(client) ||
                     !Teleporters.TryGetValue(packet.WaypointId, out var teleporter) ||
                     teleporter.ObjectData is not WaypointInfo info)
                 {
                     RejectTravel(client, "Invalid waypoint or player state.");
                     return;
+                }
+
+                // In a squad's instance or a shared copy of the map, the waypoint is the copy's
+                // own: the one in the world's list stands on the map's own channel, which is
+                // another place, and every pick was refused as "not in the selected instance".
+                var here = client.Player.MapChannel;
+
+                if ((here.IsSquadInstance || here.IsSharedInstance) && teleporter.MapContextId == here.MapInfo.MapContextId
+                    && here.Teleporters.TryGetValue(packet.WaypointId, out var copied) && copied.ObjectData is WaypointInfo copiedInfo)
+                {
+                    teleporter = copied;
+                    info = copiedInfo;
                 }
 
                 // The travel window names the map by the id its row was listed under, and every
@@ -1396,7 +1673,9 @@ namespace Rasa.Managers
                     MapInstanceScope.Contains(origin, source) &&
                     (isDropship ? client.Player.IsNear5m(source) : client.Player.IsNear2m(source))) ||
                     // A Dropship Extraction Beacon's ship: one way out onto the network.
-                    isDropship && !isStartingExperienceExit && DropshipBeacons.IsNearUsable(client, origin);
+                    isDropship && !isStartingExperienceExit && DropshipBeacons.IsNearUsable(client, origin) ||
+                    // A Personal Waypoint: onto the map's waypoints.
+                    info.WaypointType == WaypointType.Waypoint && PersonalWaypoints.IsNearUsable(client, origin);
                 var destination = isDropship ? teleporter.Position : teleporter.Position + new Vector3(0, 1, 0);
                 if (!nearbySource || !CellManager.TryGetCellCoordinates(destination, out _, out _) ||
                     !double.IsFinite(teleporter.Rotation) || !float.IsFinite((float)teleporter.Rotation))
@@ -1418,45 +1697,105 @@ namespace Rasa.Managers
                     return;
                 }
 
-                var timeout = client.Server?.Config.GameConfig.TransferTimeoutSeconds ??
-                    Config.GameConfig.DefaultTransferTimeoutSeconds;
-                if (timeout <= 0)
+                BeginLocalTravel(client, origin, destination, teleporter.Rotation);
+            }
+        }
+
+        /// <summary>
+        /// The player is taken to a place on the map they are on, as a waypoint takes them: held
+        /// until the client has acknowledged the teleport (<see cref="TeleportAcknowledge"/>).
+        /// Called with the client's lock held, by SelectWaypoint and ReturnToWormhole.
+        /// </summary>
+        private void BeginLocalTravel(Client client, MapChannel map, Vector3 destination, double rotation)
+        {
+            var timeout = client.Server?.Config.GameConfig.TransferTimeoutSeconds ??
+                Config.GameConfig.DefaultTransferTimeoutSeconds;
+            if (timeout <= 0)
+            {
+                Logger.WriteLog(LogType.Error, "TransferTimeoutSeconds must be positive.");
+                RejectTravel(client, "Travel timeout configuration is invalid.");
+                return;
+            }
+
+            var transfer = new PlayerTransfer
+            {
+                OriginMap = map,
+                OriginPosition = client.Player.Position,
+                OriginRotation = client.Player.Rotation,
+                DestinationMap = map,
+                DestinationPosition = destination,
+                DestinationRotation = rotation,
+                Deadline = checked(_clock() + timeout * 1000L),
+                IsDropship = false
+            };
+            client.PendingTransfer = transfer;
+            client.CallMethod(SysEntity.ClientMethodId, new RequestMovementBlockPacket());
+
+            client.CellCallMethod(client, client.Player.EntityId, new PreTeleportPacket(TeleportType.Default));
+            client.State = ClientState.Teleporting;
+            client.SetWorldPosition(destination, rotation);
+            CellManager.Instance.UpdateVisibility(client);
+
+            // BeginTeleport before the Teleport, as the dropships send it. The client answers a
+            // Teleport with TeleportAcknowledge only if a BeginTeleport has queued the answer
+            // (actor.py BeginTeleport -> _TeleportAckQueue; Recv_Teleport -> _TeleportAck, which
+            // sends nothing with none queued). Sent the other way round the ack was queued
+            // after the one chance to send it had gone: the player played the teleport, stayed
+            // held by RequestMovementBlock with the transfer never completed, and was dropped
+            // when it timed out.
+            client.CallMethod(SysEntity.ClientMethodId, new BeginTeleportPacket());
+            client.CallMethod(client.Player.EntityId,
+                new TeleportPacket(destination, rotation, TeleportType.Default, 5));
+            client.CellMoveObject(client, new MoveObjectMessage(client.Player.EntityId, client.Movement), false);
+        }
+
+        /// <summary>
+        /// ReturnToWormhole: the player has picked a "Temp Wormhole" row of a waypoint window, and
+        /// goes to that Personal Waypoint (<see cref="PersonalWaypoints"/>). It has to be one they
+        /// may return to, on the map they are on, and they have to be where such a window opens:
+        /// at a waypoint of the map, or at another Personal Waypoint of theirs.
+        /// </summary>
+        internal void ReturnToWormhole(Client client, ulong wormholeId)
+        {
+            lock (client.SyncRoot)
+            {
+                if (client.PendingTransfer != null)
                 {
-                    Logger.WriteLog(LogType.Error, "TransferTimeoutSeconds must be positive.");
-                    RejectTravel(client, "Travel timeout configuration is invalid.");
+                    Logger.WriteLog(LogType.Network, "Ignored a wormhole selection during transfer.");
+                    return;
+                }
+                if (client.State != ClientState.Ingame || client.Player?.MapChannel == null || client.Player.Id == 0 ||
+                    client.Player.Disconected || client.Player.RemoveFromMap || client.Player.LogoutActive ||
+                    client.Player.State == CharacterState.Dead ||
+                    !CellManager.Instance.IsInWorld(client))
+                {
+                    RejectTravel(client, "Invalid wormhole or player state.");
                     return;
                 }
 
-                var transfer = new PlayerTransfer
+                var origin = client.Player.MapChannel;
+
+                if (!PersonalWaypoints.TryGetReturnPoint(client, origin, wormholeId, out var position, out var rotation))
                 {
-                    OriginMap = origin,
-                    OriginPosition = client.Player.Position,
-                    OriginRotation = client.Player.Rotation,
-                    DestinationMap = destinationMap,
-                    DestinationPosition = destination,
-                    DestinationRotation = teleporter.Rotation,
-                    Deadline = checked(_clock() + timeout * 1000L),
-                    IsDropship = false
-                };
-                client.PendingTransfer = transfer;
-                client.CallMethod(SysEntity.ClientMethodId, new RequestMovementBlockPacket());
+                    RejectTravel(client, "Wormhole is gone, or is not this player's to return to.");
+                    return;
+                }
 
-                client.CellCallMethod(client, client.Player.EntityId, new PreTeleportPacket(TeleportType.Default));
-                client.State = ClientState.Teleporting;
-                client.SetWorldPosition(destination, teleporter.Rotation);
-                CellManager.Instance.UpdateVisibility(client);
+                var nearbySource = origin.Teleporters.Values.Any(source =>
+                    source.ObjectData is WaypointInfo { WaypointType: WaypointType.Waypoint, Contested: false } &&
+                    MapInstanceScope.Contains(origin, source) && client.Player.IsNear2m(source)) ||
+                    PersonalWaypoints.IsNearUsable(client, origin, wormholeId);
 
-                // BeginTeleport before the Teleport, as the dropships send it. The client answers a
-                // Teleport with TeleportAcknowledge only if a BeginTeleport has queued the answer
-                // (actor.py BeginTeleport -> _TeleportAckQueue; Recv_Teleport -> _TeleportAck, which
-                // sends nothing with none queued). Sent the other way round the ack was queued
-                // after the one chance to send it had gone: the player played the teleport, stayed
-                // held by RequestMovementBlock with the transfer never completed, and was dropped
-                // when it timed out.
-                client.CallMethod(SysEntity.ClientMethodId, new BeginTeleportPacket());
-                client.CallMethod(client.Player.EntityId,
-                    new TeleportPacket(destination, teleporter.Rotation, TeleportType.Default, 5));
-                client.CellMoveObject(client, new MoveObjectMessage(client.Player.EntityId, client.Movement), false);
+                // A metre over where it stands, as over a waypoint's pad.
+                var destination = position + new Vector3(0, 1, 0);
+
+                if (!nearbySource || !CellManager.TryGetCellCoordinates(destination, out _, out _) || !double.IsFinite(rotation))
+                {
+                    RejectTravel(client, "No nearby departure station or invalid destination position.");
+                    return;
+                }
+
+                BeginLocalTravel(client, origin, destination, rotation);
             }
         }
 
@@ -1803,6 +2142,11 @@ namespace Rasa.Managers
             }
             var cells = CellManager.Instance.CreateCellMatrix(mapChannel, x, z);
 
+            // The Bane hold the control point it belongs to (ControlPoints): it opens for nobody,
+            // and is not gained by standing in it.
+            if (obj.ObjectData is WaypointInfo { Contested: true })
+                return;
+
             foreach (var client in CellManager.Instance.GetClientsInCells(mapChannel, cells))
             {
                 if (client.State != ClientState.Ingame || client.PendingTransfer != null)
@@ -1828,9 +2172,14 @@ namespace Rasa.Managers
 
                 var waypointInfoList = CreateListOfWaypoints(client, objectData.WaypointType);
 
+                // A waypoint's window lists the Personal Waypoints the player may return to.
+                var returnPoints = objectData.WaypointType == WaypointType.Waypoint
+                    ? PersonalWaypoints.ReturnPoints(client, mapChannel)
+                    : null;
+
                 client.CallMethod(SysEntity.ClientMethodId,
                     new EnteredWaypointPacket(mapChannel.MapInfo.MapContextId, obj.MapContextId,
-                        waypointInfoList, objectData.WaypointType, objectData.WaypointId));
+                        waypointInfoList, objectData.WaypointType, objectData.WaypointId, returnPoints));
 
                 // check if we already added him to the waypoint
             }
@@ -1842,9 +2191,11 @@ namespace Rasa.Managers
             {
                 var client = obj.TriggeredByPlayers[i];
 
+                // Out of range, gone - or the waypoint has just been lost with them standing in it.
                 if (client.State != ClientState.Ingame ||
                     client.Player?.MapChannel != obj.RuntimeMapChannel ||
-                    !client.Player.IsNear2m(obj))
+                    !client.Player.IsNear2m(obj) ||
+                    obj.ObjectData is WaypointInfo { Contested: true })
                 {
                     obj.TriggeredByPlayers.RemoveAt(i);
 
@@ -1955,6 +2306,37 @@ namespace Rasa.Managers
 
             return given;
         }
+
+        /// <summary>
+        /// Gives the player every discoverable waypoint on their current map, the way walking
+        /// over each waypoint would. This deliberately excludes local teleporters, wormholes,
+        /// dropship pads and hospitals.
+        /// </summary>
+        internal int GainAllWaypointsOnCurrentMap(Client client)
+        {
+            if (client?.Player?.MapChannel == null)
+                return 0;
+
+            var mapContextId = client.Player.MapChannel.MapInfo.MapContextId;
+            var given = 0;
+
+            foreach (var teleporter in Teleporters.Values)
+            {
+                if (teleporter.MapContextId != mapContextId ||
+                    !(teleporter.ObjectData is WaypointInfo info) ||
+                    info.WaypointType != WaypointType.Waypoint ||
+                    Characters.StartingExperience.IsExitWaypoint(info.WaypointId))
+                    continue;
+
+                if (client.Player.GainedWaypoints.Any(w => w.WaypointId == info.WaypointId))
+                    continue;
+
+                CheckPlayerWaypoint(client, info);
+                given++;
+            }
+
+            return given;
+        }
         #endregion
 
         private static void AddClonedDynamicObject(
@@ -1999,6 +2381,7 @@ namespace Rasa.Managers
             clone.IsEnabled = source.IsEnabled;
             clone.StateId = source.StateId;
             clone.WindupTime = source.WindupTime;
+            clone.NameOverrideId = source.NameOverrideId;
             clone.ActivateMission = source.ActivateMission;
             clone.ObjectData = CloneObjectData(source.ObjectData);
 

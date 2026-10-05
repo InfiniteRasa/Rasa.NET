@@ -110,7 +110,9 @@ namespace Rasa.Managers
                 AppearanceWeaponClassId = variant.WeaponClassIds.Length > 0 ? variant.WeaponClassIds[0] : 0,
                 MinionTypeId = BotMinionTypeId,
                 DespawnTypeId = BotDespawnTypeId,
-                RepairPercent = variant.RepairPercent
+                RepairPercent = variant.RepairPercent,
+                // A machine, for an enemy's Hack (HackAction.CheckAction reads the flag).
+                Dress = bot => bot.ExtraFlags.Add(CreatureFlag.Mechanical)
             };
 
             spec.Weapons.AddRange(weapons);

@@ -9,6 +9,12 @@ namespace Rasa.Repositories.Auth.Account
         void Create(string email, string userName, string password);
 
         /// <summary>
+        /// The account that has this user name or this e-mail address, either compared without
+        /// regard to case; the one with the user name when there are two. Null for none.
+        /// </summary>
+        AuthAccountEntry FindByUserNameOrEmail(string userName, string email);
+
+        /// <summary>
         /// Searches an account by its username and verifies a password match.
         /// </summary>
         /// <param name="name">the username</param>

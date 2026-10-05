@@ -62,11 +62,20 @@ namespace Rasa.Structures
         public uint ActivateMission { get; internal set; }
 
         /// <summary>
+        /// The name the client shows in place of its class's (UsableInfo's nameOverrideId, a row
+        /// of the client's usablenameoverridelanguage), or 0 for the class's own.
+        /// </summary>
+        public uint NameOverrideId { get; internal set; }
+
+        /// <summary>
         /// The LootDispenser attached to this object, or 0. Mirrors Creature.CorpseLootEntityId -
         /// same mechanism, just attached to a scripted prop instead of a kill.
         /// </summary>
         public ulong LootDispenserEntityId { get; set; }
         internal MissionLootSource MissionLootSource { get; set; }
         internal Rasa.Missions.Scenes.SceneObjectConversation MissionConversation { get; set; }
+        internal Rasa.Missions.Scenes.SceneObjectAction MissionUseAction { get; set; }
+        internal Rasa.Missions.Scenes.SceneObjectDestruction MissionDestruction { get; set; }
+        internal uint CurrentHitPoints { get; set; }
     }
 }
