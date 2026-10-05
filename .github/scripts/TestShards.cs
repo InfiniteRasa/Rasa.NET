@@ -14,6 +14,9 @@
 //
 // Every lane but the last lists what it runs; the last runs everything the others don't list. So a
 // test this script fails to find, or one added since, still runs exactly once, in the last lane.
+//
+// Tests in an excluded category (ExcludedCategories below: the live-MySQL tests, which run in their
+// own job against a MySQL server) are left out of the plan, and every lane's filter excludes them.
 
 using System.Reflection;
 using System.Reflection.Metadata;
@@ -26,6 +29,8 @@ if (args.Length < 3)
     return 2;
 }
 
+string[] ExcludedCategories = ["MySql"];
+
 var assemblyPath = args[0];
 var laneCount = int.Parse(args[1]);
 var outputDir = args[2];
@@ -37,7 +42,7 @@ if (laneCount < 1)
     return 2;
 }
 
-var classes = FindTests(assemblyPath);
+var classes = FindTests(assemblyPath, ExcludedCategories);
 if (classes.Count == 0)
 {
     Console.Error.WriteLine($"no [TestClass] types found in {assemblyPath}");
@@ -85,6 +90,8 @@ for (var i = 0; i < laneCount; i++)
         filter = listed.Count > 0
             ? string.Join("&", listed.Select(t => t.Replace("=", "!=")))
             : "FullyQualifiedName!=__run_everything__";
+    // & binds tighter than |, so a lane's list of alternatives is grouped before the exclusion.
+    filter = $"({filter})" + string.Concat(ExcludedCategories.Select(c => $"&TestCategory!={c}"));
     File.WriteAllText(Path.Combine(outputDir, $"lane-{i}.filter"), filter);
 }
 
@@ -111,8 +118,9 @@ if (!string.IsNullOrEmpty(summary))
     File.AppendAllLines(summary, report.Prepend("### Test lanes").Append(""));
 return 0;
 
-// Test class full name -> test method name -> number of cases (each [DataRow] is one).
-static Dictionary<string, Dictionary<string, int>> FindTests(string path)
+// Test class full name -> test method name -> number of cases (each [DataRow] is one). A method
+// with, or in a class with, a [TestCategory] in excluded isn't listed.
+static Dictionary<string, Dictionary<string, int>> FindTests(string path, string[] excluded)
 {
     using var stream = File.OpenRead(path);
     using var pe = new PEReader(stream);
@@ -122,7 +130,8 @@ static Dictionary<string, Dictionary<string, int>> FindTests(string path)
     foreach (var handle in md.TypeDefinitions)
     {
         var type = md.GetTypeDefinition(handle);
-        if ((type.Attributes & TypeAttributes.Abstract) != 0 || !HasAttribute(md, type.GetCustomAttributes(), "TestClassAttribute"))
+        if ((type.Attributes & TypeAttributes.Abstract) != 0 || !HasAttribute(md, type.GetCustomAttributes(), "TestClassAttribute")
+            || Categories(md, type.GetCustomAttributes()).Intersect(excluded).Any())
             continue;
 
         var methods = new Dictionary<string, int>(StringComparer.Ordinal);
@@ -130,7 +139,8 @@ static Dictionary<string, Dictionary<string, int>> FindTests(string path)
         {
             var method = md.GetMethodDefinition(methodHandle);
             var attributes = method.GetCustomAttributes();
-            if (!HasAttribute(md, attributes, "TestMethodAttribute") && !HasAttribute(md, attributes, "DataTestMethodAttribute"))
+            if (!HasAttribute(md, attributes, "TestMethodAttribute") && !HasAttribute(md, attributes, "DataTestMethodAttribute")
+                || Categories(md, attributes).Intersect(excluded).Any())
                 continue;
             methods[md.GetString(method.Name)] =
                 Math.Max(1, attributes.Count(a => AttributeName(md, md.GetCustomAttribute(a)) == "DataRowAttribute"));
@@ -145,6 +155,20 @@ static Dictionary<string, Dictionary<string, int>> FindTests(string path)
 
 static bool HasAttribute(MetadataReader md, CustomAttributeHandleCollection attributes, string name) =>
     attributes.Any(a => AttributeName(md, md.GetCustomAttribute(a)) == name);
+
+// The names in [TestCategory("...")] attributes: a blob of the 0x0001 prolog and one string argument.
+static IEnumerable<string> Categories(MetadataReader md, CustomAttributeHandleCollection attributes)
+{
+    foreach (var handle in attributes)
+    {
+        var attribute = md.GetCustomAttribute(handle);
+        if (AttributeName(md, attribute) != "TestCategoryAttribute")
+            continue;
+        var blob = md.GetBlobReader(attribute.Value);
+        if (blob.ReadUInt16() == 1 && blob.ReadSerializedString() is { } category)
+            yield return category;
+    }
+}
 
 static string? AttributeName(MetadataReader md, CustomAttribute attribute)
 {

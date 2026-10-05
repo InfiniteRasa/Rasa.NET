@@ -425,6 +425,29 @@ The compatibility tests verify that the SDK, Docker images and package versions 
 dotnet test src\Rasa.Test\Rasa.Test.csproj --filter "FullyQualifiedName~Compatibility"
 ```
 
+### Live MySQL tests
+
+The tests in the `MySql` category run against a real MySQL server: every MySQL migration applied from empty, the same row counts as Sqlite in every table afterwards, and accounts, characters and missions written and read back through the repositories. CI runs them against MySQL 8.0 and 8.4 in the `mysql` job and leaves them out of the other test lanes. Without a server, `dotnet test` reports them as skipped.
+
+To run them locally, start a throwaway server (`--tmpfs` keeps its data in memory, which makes the seed migrations much faster):
+
+```powershell
+docker run -d --name rasa-mysql -p 3306:3306 --tmpfs /var/lib/mysql -e MYSQL_ROOT_PASSWORD=rasa-ci mysql:8.4
+```
+
+Point the design-time factories at it with a `src\Rasa.DBL\databasesettings.env.json` (see [Database configuration](#database-configuration)) that sets `Host` `127.0.0.1`, `User` `root`, `Password` `rasa-ci` and a `TimeoutInMilliseconds` of a few minutes for each of `Auth`, `Char` and `World`; the timeout is also the command timeout, and the World seed is large. Then build, apply the migrations, and run the category with the server in `RASA_TEST_MYSQL`:
+
+```powershell
+dotnet build src\Rasa.Test
+dotnet ef database update --no-build --project src\Rasa.DBL --startup-project src\Rasa.Game --context MySqlAuthContext
+dotnet ef database update --no-build --project src\Rasa.DBL --startup-project src\Rasa.Game --context MySqlCharContext
+dotnet ef database update --no-build --project src\Rasa.DBL --startup-project src\Rasa.Game --context MySqlWorldContext
+$env:RASA_TEST_MYSQL = "Server=127.0.0.1;Port=3306;User ID=root;Password=rasa-ci"
+dotnet test src\Rasa.Test --no-build --filter TestCategory=MySql
+```
+
+The tests use the database names from `databasesettings.json` and remove the rows they add. Delete `databasesettings.env.json` afterwards, or the servers you run from that build will read it too.
+
 ### Create a game user
 The authentication server can be used to create a user by running a command in the terminal. The usage is: `create <email> <username> <password>`. Running this command will create a new user in the database that you can use to login with the game client.
 
