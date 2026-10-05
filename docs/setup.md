@@ -138,6 +138,174 @@ If you want to overwrite one or multiple settings from the appsettings.json of `
 | `LogSessions` | `true` | Log voice logins, logouts and refusals. |
 
 Changes are picked up when the file is reloaded; a new `BindAddress` or `Port` restarts the voice listener. Type `voice` on the game server console to see who is connected. Players talk with the game's push-to-talk key while in a squad, with voice enabled in their options.
+
+### Message of the day
+`Rasa.Game` shows players a message in the client's message-of-the-day window as they enter the world. It is configured in the `MessageOfTheDay` section of its appsettings.json:
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `Text` | `Welcome to the Infinite Rasa server.` | The message, in English. Every client falls back to it. Empty sends no message at all. |
+| `ShowEveryLogin` | `false` | `false`: a player sees each message once, at the first login after it changes (the client remembers the last one it showed). `true`: every login shows it. |
+| `Translations` | `{}` | The message in other languages, by the client's language id. A client set to a language with no entry gets `Text`. Used only while `ShowEveryLogin` is `false`. |
+
+The language ids are `2` Korean, `3` Japanese, `4` Chinese, `5` French, `6` German, `7` Italian, `8` Spanish, `9` Portuguese and `10` Russian. English is `1` and always comes from `Text`; an entry for `1` under `Translations` is ignored.
+
+```json
+{
+  "MessageOfTheDay": {
+    "Text": "Welcome to the server.",
+    "ShowEveryLogin": false,
+    "Translations": {
+      "5": "Bienvenue sur le serveur.",
+      "6": "Willkommen auf dem Server."
+    }
+  }
+}
+```
+
+The message is sent once per connection, when the player first enters the world. A change to the file applies at once, without a restart, and goes to everyone already in the world. A missing section uses the default text. Type `motd` on the game server console to see the message in force; the GM command `.motd` shows it to you as players get it (see the [GM command reference](gm-commands.md)).
+
+### REST API
+`Rasa.Game` can report its status, and create accounts, over HTTP on a port of its own. It is configured in the `ApiConfig.Rest` section of its appsettings.json:
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `Enabled` | `true` | `false` closes the listener. A missing `ApiConfig` section also means off. |
+| `BindAddress` | `0.0.0.0` | Local address the listener binds to. Empty or `0.0.0.0` binds every interface. |
+| `Port` | `8104` | TCP port (docker-compose maps `8104`). |
+| `Public` | `false` | `true` lets the endpoints answer without a key. An endpoint with a `Public` of its own goes by that instead. |
+| `ApiKey` | `""` | A key every endpoint accepts. Empty for none. |
+| `AllowedIps` | `[]` | The addresses that may ask: single addresses (`203.0.113.7`) and ranges (`10.0.0.0/8`), IPv4 or IPv6. Empty answers every address. An entry that is no address and no range allows nobody and is logged as an error. |
+| `Endpoints` | see below | Settings for one endpoint, by its name. |
+| `Tls` | off | HTTPS in place of HTTP on the same port; see below. |
+
+As shipped the API listens but answers nobody: `Public` is `false` and no key is set, so `/healthcheck` and `/serverstatus` answer `401` until you set an `ApiKey` or make them public. The startup log lists every endpoint as `off`, `public` or `key`.
+
+A key is sent in the `X-API-Key` header, or as `Authorization: Bearer <key>`.
+
+| Endpoint | Answer |
+|---|---|
+| `GET /healthcheck` | `{"game_server_status":"healthy","app_server_status":"healthy"}`, each `healthy` or `unhealthy`. The status is `200` when both are healthy and `503` when either is not, with the same body. |
+| `GET /serverstatus` | `{"uptimeseconds":45000,"currentconnections":3,"peakconnections":9,"maxconnections":1024}` |
+| `POST /addaccount` | Creates a login; see below. Off until it is turned on. |
+
+- `game_server_status` is `healthy` while the server has finished loading, is listening for players, has not been shut down, and its world loop ticked within `ApiConfig.LoopStallSeconds` (default `15`).
+- `app_server_status` is `healthy` while the link to the Auth server is up and logged in.
+- `currentconnections` is the number of players holding a slot, the number the server list shows. `maxconnections` is `ServerInfoConfig.MaxPlayers`, `peakconnections` the most there have been since the server started, and `uptimeseconds` the time since it opened its ports.
+
+A request is refused with `403` from an address not on `AllowedIps`, `404` for a path that names no endpoint or one that is off, `405` for the wrong method, and `401` for a missing or wrong key.
+
+Each entry under `Endpoints` (`healthcheck`, `serverstatus`, `addaccount`) has:
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `Enabled` | `true` | `false` makes the endpoint a `404`. |
+| `Public` | not set | Whether this endpoint answers without a key. Left out, `Rest.Public` decides. |
+| `ApiKey` | `""` | A key for this endpoint alone. The global `ApiKey` still opens it. |
+
+`healthcheck` and `serverstatus` are on without an entry. To give a monitor a key that opens nothing else, leave the global `ApiKey` empty and set an `ApiKey` on those two entries.
+
+#### Creating accounts
+`POST /addaccount` makes a login as the Auth console's `create` command does. The accounts are the Auth server's, so Game hands the request on over its link to Auth, which has to be connected. The body is JSON, sent as `application/json`:
+
+```json
+{ "email": "test@test.com", "username": "test", "password": "test" }
+```
+
+The user name may be 14 bytes and the password 16, the most the game client can send; the user name has no spaces in it, and the e-mail has to look like an address.
+
+| Status | Meaning |
+|---|---|
+| `201` | `{"result":"created","username":"test","account_id":12}` |
+| `400` | The body is not that JSON, or the details will not do; `error` says what is wrong. |
+| `409` | `{"error":"username taken"}` or `{"error":"email taken"}` |
+| `415` | The body was not sent as `application/json`. |
+| `500` | The Auth server could not store the account; its log says why. |
+| `503` | The Auth server is not connected. |
+| `504` | The Auth server did not answer in time. The account may or may not have been created. |
+
+Because it changes something, this endpoint is stricter than the other two:
+
+- With no entry under `Endpoints` it is off. An entry turns it on unless it says `"Enabled": false`, which is what the shipped file has; an entry that leaves `Enabled` out counts as on.
+- `Rest.Public` never makes it public. Only `"Public": true` in its own entry does, and then anyone who can reach the port can create accounts.
+- Its own `ApiKey` opens it, and so does the global `ApiKey`. Hand the global key only to those who may create accounts, or leave it empty and give each endpoint its own.
+
+```json
+{
+  "ApiConfig": {
+    "Rest": {
+      "Endpoints": {
+        "healthcheck": { "ApiKey": "<key for the monitor>" },
+        "serverstatus": { "ApiKey": "<key for the monitor>" },
+        "addaccount": { "Enabled": true, "ApiKey": "<key for creating accounts>" }
+      }
+    }
+  }
+}
+```
+
+#### HTTPS
+The `Tls` section turns the port from HTTP to HTTPS:
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `Enabled` | `false` | `true` makes the port speak HTTPS and nothing else. |
+| `CertificatePath` | `""` | The certificate: a PKCS#12 file (`.pfx`, `.p12`) with its private key inside, or a PEM file, which may hold the chain after the certificate, and the key. |
+| `CertificatePassword` | `""` | The password of the PKCS#12 file, or of an encrypted PEM key. Empty for none. |
+| `KeyPath` | `""` | The PEM private key, when it is not in the certificate's file. |
+| `MinimumProtocol` | `Tls12` | `Tls12` accepts TLS 1.2 and 1.3; `Tls13` accepts TLS 1.3 alone. |
+
+Without TLS, keys and the passwords sent to `/addaccount` cross the network as they are: keep the port on a network you trust, or turn TLS on. With TLS on, a certificate that cannot be loaded leaves the API off; it never falls back to HTTP. A connection from an address not on `AllowedIps` is then closed before the handshake, in place of the `403`. The certificate's files are looked at again every minute and on every configuration reload, so a renewed certificate is taken up without a restart.
+
+#### Requests and reloads
+Every connection carries one request and is closed after its answer. A request has 5 seconds, 64 connections are served at once, and the request's headers and a POST's body may each be 8 KB.
+
+```
+curl -H "X-API-Key: <key>" http://127.0.0.1:8104/healthcheck
+curl -H "Authorization: Bearer <key>" http://127.0.0.1:8104/serverstatus
+curl -X POST -H "X-API-Key: <key>" -H "Content-Type: application/json" -d "{\"email\":\"test@test.com\",\"username\":\"test\",\"password\":\"test\"}" http://127.0.0.1:8104/addaccount
+```
+
+These are written for a command prompt or a Unix shell; Windows PowerShell quotes the JSON differently.
+
+Changes are picked up when the file is reloaded: keys, `Public`, the endpoints' entries and `AllowedIps` count from the next request, and a new `BindAddress` or `Port` reopens the listener. A listener that cannot open its port stays off, and the game server starts without it.
+
+### Status port
+`Rasa.Game` also answers on a plain TCP port, for a monitor that does not speak HTTP. It is configured in the `ApiConfig.StatusPort` section of its appsettings.json:
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `Enabled` | `true` | `false` closes the port. A missing `ApiConfig` section also means off. |
+| `BindAddress` | `0.0.0.0` | Local address the listener binds to. Empty or `0.0.0.0` binds every interface. |
+| `Port` | `8105` | TCP port (docker-compose maps `8105`). |
+| `AllowedIps` | `[]` | The addresses that may ask: single addresses and ranges, as for the REST API. Empty answers every address; a connection from any other address is closed unanswered. |
+
+Connect and send anything - one byte is enough, and what it is does not matter - and the server answers with the whole status as one line of JSON, then closes:
+
+```json
+{"game_server_status":"healthy","app_server_status":"healthy","uptimeseconds":45000,"currentconnections":3,"peakconnections":9,"maxconnections":1024}
+```
+
+The fields are those of `/healthcheck` and `/serverstatus` above. Nothing is answered until something has been sent.
+
+The status port has no key. As shipped it is on and answers any address that can reach it, so put your monitor's address in `AllowedIps`, keep the port behind your firewall, or turn it off. Changes are picked up when the file is reloaded, as for the REST API.
+
+### Password hashing
+`Rasa.Auth` stores each account's password as a PBKDF2-HMAC-SHA256 hash with a salt of the account's own. The `PasswordHashConfig` section of its appsettings.json sets the rest:
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `Pepper` | `""` | A secret mixed into every password hash and kept out of the database, so a stolen copy of the account table cannot be cracked without it. Use a long random value. Empty for none. |
+| `Iterations` | `600000` | PBKDF2 iterations. `0`, or a missing value, means 600,000; anything under 100,000 is raised to 100,000. More iterations make every login, and every guess at a password, cost more work. |
+
+- Changing `Iterations` is safe. Each hash records its own count, and an account is rehashed to the current one at its next login.
+- Adding a `Pepper` later is safe. Accounts hashed without one are given it at their next login.
+- **Changing or removing a `Pepper` once it is set locks out every account hashed with it**, until the old value is put back: a hash cannot be turned back into the password to redo. Set it once, and keep a copy where a reinstall will not lose it.
+
+`appsettings.json` is tracked by git, so set the pepper in `appsettings.env.json` (see above), which is not.
+
+The Auth server logs what is in force at startup and whenever it changes (`Passwords: PBKDF2-HMAC-SHA256, 600000 iterations, per-account salt, pepper set.`), and logs an error when a pepper is changed or removed while it runs. A change applies from the next login, without a restart. Accounts made with the console's `create` command and through `/addaccount` are hashed the same way. Hashes from before PBKDF2, a single SHA-256, are still accepted and are replaced at the account's next login.
+
 ### Game configuration ownership
 
 `Rasa.Game\Config` owns the server settings loaded from `src\Rasa.Game\appsettings.json`:
