@@ -217,6 +217,7 @@ namespace Rasa.Managers
             RegisterCommand(".givelogos", GmLevel.Admin, GiveLogosCommand, "logosId");
             RegisterCommand(".removelogos", GmLevel.Admin, RemoveLogosCommand, "logosIdOrAll");
             RegisterCommand(".givepads", GmLevel.Admin, GivePadsCommand);
+            RegisterCommand(".givewaypoints", GmLevel.Admin, GiveWaypointsCommand);
             RegisterCommand(".givexp", GmLevel.Admin, GiveXpCommand, "ammount");
             RegisterCommand(".setlevel", GmLevel.Admin, SetLevelCommand, "level");
             RegisterCommand(".failmission", GmLevel.Admin, FailMissionCommand, "missionId");
@@ -1758,6 +1759,14 @@ namespace Rasa.Managers
             var given = DynamicObjectManager.Instance.GainAllDropshipPads(_client);
 
             CommunicatorManager.Instance.SystemMessage(_client, $"{given} dropship pad{(given == 1 ? "" : "s")} gained; step onto a pad to see them.");
+        }
+
+        /// <summary>Gains every discoverable waypoint on the current map, as walking over each would.</summary>
+        private void GiveWaypointsCommand(string[] parts)
+        {
+            var given = DynamicObjectManager.Instance.GainAllWaypointsOnCurrentMap(_client);
+
+            CommunicatorManager.Instance.SystemMessage(_client, $"{given} waypoint{(given == 1 ? "" : "s")} gained on the current map.");
         }
 
         /// <summary>
