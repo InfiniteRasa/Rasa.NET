@@ -122,21 +122,30 @@ If you want to overwrite one or multiple settings from the appsettings.json of `
 
 - The env.json files is ignored in git. Keep it that way, this configuration applies only for your development enviroment.
 
-### Data API
-`Rasa.Game` includes an optional HTTP Data API. It is disabled by default and must be explicitly enabled in the `DataApiConfig` section of `appsettings.env.json`.
+### REST and in-game APIs
+`Rasa.Game` exposes HTTP endpoints through the shared `ApiConfig.Rest` listener. The in-game endpoints are grouped under `/ingame` and can be enabled together with the `ingame*` endpoint entry.
 
 ```json
 {
-  "DataApiConfig": {
-    "Enabled": true,
-    "JwtSecret": "replace-with-a-random-secret-at-least-32-bytes"
+  "ApiConfig": {
+    "Rest": {
+      "Enabled": true,
+      "Public": false,
+      "JwtSecret": "",
+      "JwtTokenLifetimeSeconds": 86400,
+      "Endpoints": {
+        "ingame*": {
+          "Enabled": true
+        }
+      }
+    }
   }
 }
 ```
 
-`JwtSecret` is required when the Data API is enabled and must be at least 32 UTF-8 bytes. Keep the secret out of source control; `appsettings.env.json` is the recommended place for it. A suitable secret can be generated with `openssl rand -hex 32`. If the API is enabled without a valid secret, the Data API will not start; the rest of the game server continues running.
+`JwtSecret` is optional. When it is empty, the server generates a random process-local signing secret; set it to a value of at least 32 UTF-8 bytes if issued tokens should remain valid across server restarts. Keep an overridden secret out of source control; `appsettings.env.json` is the recommended place for it. A suitable value can be generated with `openssl rand -hex 32`.
 
-The API listens on port `8104` by default and issues signed session JWTs with a default lifetime of 24 hours (`TokenLifetimeSeconds: 86400`). Both values can be overridden in `DataApiConfig`.
+The REST listener uses port `8104` by default. In-game session authentication uses `/ingame/session/challenge` and `/ingame/session/exchange`, and the item catalog is available under `/ingame/items`, `/ingame/items/categories`, and `/ingame/items/{id}`. Issued in-game JWTs default to a 24-hour lifetime (`JwtTokenLifetimeSeconds: 86400`).
 
 ### Squad voice chat
 `Rasa.Game` runs the voice server the game client's built-in squad voice chat connects to. It is configured in the `VoiceConfig` section of its appsettings.json:

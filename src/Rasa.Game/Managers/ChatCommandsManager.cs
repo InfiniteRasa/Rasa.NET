@@ -8,7 +8,6 @@ namespace Rasa.Managers
     using Navigation;
     using Data;
     using Game;
-    using Http;
     using Models;
     using Packets.Game.Server;
     using Packets.MapChannel.Server;
@@ -89,14 +88,14 @@ namespace Rasa.Managers
 
             var parts = command.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
-            // Internal handshake used by the injected native UI to prove that an HTTP Data API
-            // challenge belongs to this already-authenticated game connection. It is intentionally
-            // not registered in _commands, so it does not appear in .help.
-            if (string.Equals(parts[0], ".dataapiauth", StringComparison.OrdinalIgnoreCase))
+            // Internal handshake used by the injected native UI to prove that an HTTP in-game
+            // API challenge belongs to this already-authenticated game connection. It is not
+            // registered in _commands, so it does not appear in .help.
+            if (string.Equals(parts[0], ".ingameapiauth", StringComparison.OrdinalIgnoreCase))
             {
-                var approved = parts.Length == 2 && DataApiHttpServer.Instance.AuthorizeChallenge(client, parts[1]);
+                var approved = parts.Length == 2 && Api.ApiHost.Instance.IngameSessions.AuthorizeChallenge(client, parts[1]);
                 CommunicatorManager.Instance.SystemMessage(client,
-                    approved ? "Data API session authorized." : "Data API session authorization failed.");
+                    approved ? "In-game API session authorized." : "In-game API session authorization failed.");
                 return;
             }
 

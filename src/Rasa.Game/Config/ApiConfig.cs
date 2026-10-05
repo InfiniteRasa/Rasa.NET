@@ -51,13 +51,23 @@ namespace Rasa.Config
         public string ApiKey { get; set; } = "";
 
         /// <summary>
+        /// HMAC secret for JWT-backed API authentication such as the in-game API. Empty uses a
+        /// random process-local secret; set this to keep tokens valid across server restarts.
+        /// A configured value must be at least 32 UTF-8 bytes.
+        /// </summary>
+        public string JwtSecret { get; set; } = "";
+
+        /// <summary>Lifetime of JWTs issued by the REST API, in seconds.</summary>
+        public int JwtTokenLifetimeSeconds { get; set; } = 86400;
+
+        /// <summary>
         /// The addresses the API answers: single addresses ("203.0.113.7") and ranges
         /// ("10.0.0.0/8"). Missing or empty answers every address.
         /// </summary>
         public List<string> AllowedIps { get; set; } = new List<string>();
 
         /// <summary>
-        /// The endpoints' own settings, by name ("healthcheck", "serverstatus", "addaccount").
+        /// The endpoints' own settings, by name ("healthcheck", "serverstatus", "addaccount") or by a trailing-prefix wildcard ("ingame*").
         /// An endpoint with no entry is on, and goes by <see cref="Public"/> and
         /// <see cref="ApiKey"/>. One that changes something ("addaccount", which makes logins)
         /// is the other way about: off with no entry, on only by an Enabled of true in its own,

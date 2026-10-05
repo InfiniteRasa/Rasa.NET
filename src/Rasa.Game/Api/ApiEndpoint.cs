@@ -29,6 +29,13 @@ namespace Rasa.Api
         /// </summary>
         public virtual bool Sensitive => false;
 
+        /// <summary>Whether the REST API key/public policy is applied before Handle runs.</summary>
+        public virtual bool RequiresApiKey => true;
+
+        /// <summary>Whether this endpoint handles a normalized path. Override for parameterized routes.</summary>
+        public virtual bool Matches(string endpointName) =>
+            string.Equals(Name?.Trim('/'), endpointName, StringComparison.OrdinalIgnoreCase);
+
         public abstract ApiResponse Handle(ApiRequest request);
     }
 
@@ -55,6 +62,29 @@ namespace Rasa.Api
 
         /// <summary>The path as an endpoint's name: no slashes at either end, lower case.</summary>
         public string EndpointName => (Path ?? "").Trim('/').ToLowerInvariant();
+
+        /// <summary>The URL query parsed into decoded name/value pairs.</summary>
+        public Dictionary<string, string> QueryParameters
+        {
+            get
+            {
+                var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                if (string.IsNullOrEmpty(Query))
+                    return values;
+
+                foreach (var part in Query.Split('&', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    var equals = part.IndexOf('=');
+                    var rawKey = equals >= 0 ? part.Substring(0, equals) : part;
+                    var rawValue = equals >= 0 ? part.Substring(equals + 1) : string.Empty;
+                    var key = Uri.UnescapeDataString(rawKey.Replace('+', ' '));
+                    var value = Uri.UnescapeDataString(rawValue.Replace('+', ' '));
+                    values[key] = value;
+                }
+
+                return values;
+            }
+        }
 
         /// <summary>
         /// The key the request carries: the X-API-Key header, or the token of
