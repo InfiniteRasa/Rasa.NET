@@ -3,6 +3,12 @@
     using Data;
     using Memory;
 
+    /// <summary>
+    /// The Create Auctions tab's Create Auction button: (g_auctioneerId, itemId, price,
+    /// duration), client/auctionhouse.py RequestCreateAuction. The item is the selected row's,
+    /// int(itemWidget.GetID()) (client/ui/auctioncreateauctions.py OnItemSelected): a Python int,
+    /// where the auctioneer is the long the server opened the window with.
+    /// </summary>
     public class RequestCreateAuctionPacket : ClientPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.RequestCreateAuction;
@@ -16,8 +22,8 @@
         {
             Logger.WriteLog(LogType.AI, $"{pr.ToString()}");
             pr.ReadTuple();
-            EntityId = pr.ReadULong();
-            ItemEntityId = pr.ReadULong();
+            EntityId = pr.ReadId();
+            ItemEntityId = pr.ReadId();
             Price = pr.ReadUInt();
             switch (pr.PeekType())
             {

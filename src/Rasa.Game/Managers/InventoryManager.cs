@@ -948,15 +948,19 @@ namespace Rasa.Managers
         }
 
         /// <summary>
-        /// The Pick Up Items tab's Receive button: takes one item out of the inbox and into the
-        /// pack. The inbox is a flat list, not a slotted inventory, so the item is found by its
-        /// entity id rather than by a source slot.
+        /// The Pick Up Items tab: takes one item out of the inbox and into the pack. The inbox
+        /// is a flat list, not a slotted inventory, so the item is found by its entity id rather
+        /// than by a source slot.
+        ///
+        /// Where it goes is the slot it was dropped on, when that slot can take it: one of the
+        /// item's own tab, and free - the inbox has no slot to swap an item back into, so a swap
+        /// would drop whatever was in the pack. Otherwise it is the first free slot of the
+        /// item's tab, which is every Receive, Receive All and right-click: those name no slot
+        /// (RequestTakeItemFromInboxInventoryPacket). With the tab full the item stays in the
+        /// inbox and the player is told.
         /// </summary>
         public void RequestTakeItemFromInboxInventory(Client client, RequestTakeItemFromInboxInventoryPacket packet)
         {
-            if (packet.DestSlot >= 250)
-                return;
-
             if (!client.Player.Inventory.InboxItems.Contains(packet.ItemEntityId))
             {
                 Logger.WriteLog(LogType.Error, $"Character {client.Player.Id} asked for inbox item {packet.ItemEntityId}, which is not in their inbox.");
@@ -968,11 +972,11 @@ namespace Rasa.Managers
             if (item == null || IsProtected(item))
                 return;
 
-            // The destination has to be free: the inbox has no slot to swap an item back into,
-            // so a swap here would drop whatever was in the pack.
-            if (client.Player.Inventory.PersonalInventory[(int)packet.DestSlot] != 0)
+            var destSlot = InboxDestination(client.Player.Inventory.PersonalInventory, item, packet.DestSlot);
+
+            if (destSlot < 0)
             {
-                Logger.WriteLog(LogType.Debug, $"Character {client.Player.Id} asked to take inbox item {packet.ItemEntityId} into occupied slot {packet.DestSlot}.");
+                client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(PlayerMessage.PmInventoryFull, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
                 return;
             }
 
@@ -980,11 +984,33 @@ namespace Rasa.Managers
             client.CallMethod(SysEntity.ClientInventoryManagerId, new RemoveInboxItemPacket(packet.ItemEntityId));
 
             item.OwnerId = client.Player.Id;
-            item.OwnerSlotId = packet.DestSlot;
+            item.OwnerSlotId = (uint)destSlot;
 
             // The row exists already - it was written when the item entered the inbox - so this
             // moves it rather than inserting a second one.
-            AddItemBySlot(client, InventoryType.Personal, packet.ItemEntityId, packet.DestSlot, true);
+            AddItemBySlot(client, InventoryType.Personal, packet.ItemEntityId, (uint)destSlot, true);
+        }
+
+        /// <summary>
+        /// The pack slot an inbox item goes to: the one asked for if it is a free slot of the
+        /// item's own tab, or else the first free slot of that tab. -1 when the tab is full, or
+        /// the item has no tab. A tab is fifty slots, as AddItemToInventory has them.
+        /// </summary>
+        private static int InboxDestination(List<ulong> pack, Item item, uint? asked)
+        {
+            var first = ((int)item.ItemTemplate.InventoryCategory - 1) * 50;
+
+            if (first < 0 || first + 50 > pack.Count)
+                return -1;
+
+            if (asked.HasValue && asked.Value >= first && asked.Value < first + 50 && pack[(int)asked.Value] == 0)
+                return (int)asked.Value;
+
+            for (var slot = first; slot < first + 50; slot++)
+                if (pack[slot] == 0)
+                    return slot;
+
+            return -1;
         }
 
         /// <summary>
