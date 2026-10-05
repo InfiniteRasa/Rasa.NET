@@ -171,7 +171,7 @@ namespace Rasa.Test.World
                     (2, 575, 2), (2, 622, 2), (2, 583, 2), (2, 135, 2),
                     (3, 582, 2), (3, 607, 2), (3, 534, 2), (3, 624, 2), (3, 541, 2), (3, 576, 2), (3, 613, 5), (3, 583, 2), (3, 57, 2)
                 })
-                    context.Database.ExecuteSqlRaw($"insert into character_teleporter (character_id, waypointId, waypoint_type) values ({character}, {waypoint}, {type});");
+                    context.Database.ExecuteSql($"insert into character_teleporter (character_id, waypointId, waypoint_type) values ({character}, {waypoint}, {type});");
 
                 migrator.Migrate();
 

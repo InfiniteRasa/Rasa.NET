@@ -813,9 +813,12 @@ namespace Rasa.Test.Missions
                     ["mission_scenario_step"] = 52, ["mission_evidence"] = 17, ["mission_scene_binding"] = 5,
                     ["mission_channel_policy"] = 1, ["mission_repeat_policy"] = 0
                 };
+                // A table name can't be a SQL parameter; these come from the literal list above.
+#pragma warning disable EF1002
                 foreach (var (table, count) in expected)
                     Assert.AreEqual(count, context.Database.SqlQueryRaw<int>(
                         $"SELECT COUNT(*) AS Value FROM {table} WHERE content_revision = 'deployment_11'").Single(), table);
+#pragma warning restore EF1002
                 Assert.AreEqual(1, context.Set<MissionExperienceBindingEntry>().Count());
             });
         }

@@ -21,7 +21,6 @@ namespace Rasa.Managers
     {
         private static MapChannelManager _instance;
         private static readonly object InstanceLock = new object();
-        private readonly int MapChannel_PlayerQueue = 32;
         public readonly Dictionary<uint, MapChannel> MapChannelArray = new Dictionary<uint, MapChannel>();           // list of loaded maps
         public readonly Timer Timer = new();
 

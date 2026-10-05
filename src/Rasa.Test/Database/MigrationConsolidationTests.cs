@@ -101,8 +101,8 @@ namespace Rasa.Test.Database
                 ("mission_scene", "assignment_id", "''"),
                 ("mission_timer", "sequence_id", "0")
             })
-                Assert.AreEqual(value, database.Database.SqlQueryRaw<string>(
-                    $"SELECT dflt_value AS Value FROM pragma_table_info('{table}') WHERE name = '{column}'").Single(),
+                Assert.AreEqual(value, database.Database.SqlQuery<string>(
+                    $"SELECT dflt_value AS Value FROM pragma_table_info({table}) WHERE name = {column}").Single(),
                     $"{table}.{column}");
         }
 

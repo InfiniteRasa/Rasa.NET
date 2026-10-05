@@ -18,7 +18,7 @@ namespace Rasa.Test.Missions
     [DoNotParallelize]
     public class MissionEquipmentProgressTests
     {
-        [DataTestMethod]
+        [TestMethod]
         [DataRow(false)]
         [DataRow(true)]
         public void CommittedEquipCompletesConfiguredEquipmentObjective(bool matchTemplateId)

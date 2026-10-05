@@ -287,7 +287,7 @@ namespace Rasa.Memory
             var currentPosition = Writer.BaseStream.Position;
 
             Writer.BaseStream.Position = BeginPositon;
-            Writer.BaseStream.Read(data, 0, data.Length);
+            Writer.BaseStream.ReadExactly(data);
             Writer.BaseStream.Position = currentPosition;
 
             using var pr = new PythonReader(new BinaryReader(new MemoryStream(data)));
