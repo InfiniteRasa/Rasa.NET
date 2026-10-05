@@ -258,11 +258,6 @@ namespace Rasa.Test.Missions
         }
 
         [TestMethod]
-        // Creature timers (buffs, bombs, habits) run on Environment.TickCount64, so how far the
-        // escort gets in 1,200 simulated ticks depends on how fast the machine runs them: this fails
-        // on a loaded CI runner, and in class order on Windows. It needs an injectable clock.
-        [Ignore("Quarantined: depends on wall-clock time; see the linked issue.")]
-        [GitHubWorkItem("https://github.com/InfiniteRasa/Rasa.NET/issues/132")]
         public void ForeanEscortsCanFollowFromTheCaveExitToTheReclaimedBase()
         {
             using var harness = BootcampRuntimeTestHarness.Create(useWorldContent: true);
@@ -282,10 +277,12 @@ namespace Rasa.Test.Missions
             CellManager.Instance.UpdateVisibility(harness.Client);
             harness.Client.Player.Attributes[Attributes.Health] =
                 new ActorAttributes(Attributes.Health, 100000, 100000, 100000, 0, 0);
-            // The route, not the fights on it: the Thrax at the base deal real damage (creature
-            // attacks), and a Forean killed there would lie where it fell.
-            foreach (var forean in foreans)
-                forean.Attributes[Attributes.Health] = new ActorAttributes(Attributes.Health, 100000, 100000, 100000, 0, 0);
+            // The route, not the fights on it: an escort engages the Thrax at the base within 20 of
+            // its owner, and where that fight has it at the last tick depends on creature timers
+            // that run on Environment.TickCount64 (windups, habits), so on how fast the machine runs.
+            foreach (var hostile in Actors(harness).Where(actor =>
+                         foreans.Any(forean => CreatureManager.IsHostileTarget(harness.BootcampMap, forean, actor))).ToArray())
+                CellManager.Instance.RemoveCreatureFromWorld(harness.BootcampMap, hostile);
             var route = harness.BootcampMap.NavMesh.FindPath(exit.Position, destination, out var complete);
 
             AdvanceCombat(harness, 1200);
