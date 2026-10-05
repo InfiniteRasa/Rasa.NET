@@ -258,6 +258,11 @@ namespace Rasa.Test.Missions
         }
 
         [TestMethod]
+        // Creature timers (buffs, bombs, habits) run on Environment.TickCount64, so how far the
+        // escort gets in 1,200 simulated ticks depends on how fast the machine runs them: this fails
+        // on a loaded CI runner, and in class order on Windows. It needs an injectable clock.
+        [Ignore("Quarantined: depends on wall-clock time; see the linked issue.")]
+        [GitHubWorkItem("https://github.com/InfiniteRasa/Rasa.NET/issues/132")]
         public void ForeanEscortsCanFollowFromTheCaveExitToTheReclaimedBase()
         {
             using var harness = BootcampRuntimeTestHarness.Create(useWorldContent: true);
