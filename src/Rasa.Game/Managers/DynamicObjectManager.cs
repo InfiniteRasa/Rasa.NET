@@ -2306,6 +2306,37 @@ namespace Rasa.Managers
 
             return given;
         }
+
+        /// <summary>
+        /// Gives the player every discoverable waypoint on their current map, the way walking
+        /// over each waypoint would. This deliberately excludes local teleporters, wormholes,
+        /// dropship pads and hospitals.
+        /// </summary>
+        internal int GainAllWaypointsOnCurrentMap(Client client)
+        {
+            if (client?.Player?.MapChannel == null)
+                return 0;
+
+            var mapContextId = client.Player.MapChannel.MapInfo.MapContextId;
+            var given = 0;
+
+            foreach (var teleporter in Teleporters.Values)
+            {
+                if (teleporter.MapContextId != mapContextId ||
+                    !(teleporter.ObjectData is WaypointInfo info) ||
+                    info.WaypointType != WaypointType.Waypoint ||
+                    Characters.StartingExperience.IsExitWaypoint(info.WaypointId))
+                    continue;
+
+                if (client.Player.GainedWaypoints.Any(w => w.WaypointId == info.WaypointId))
+                    continue;
+
+                CheckPlayerWaypoint(client, info);
+                given++;
+            }
+
+            return given;
+        }
         #endregion
 
         private static void AddClonedDynamicObject(

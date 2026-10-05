@@ -635,8 +635,8 @@ namespace Rasa.Test.Missions
                 root = root.Parent;
             if (root == null)
                 throw new DirectoryNotFoundException("Repository root not found.");
-            maps.MapChannelArray[BootcampMapContextId].NavMesh = new NavMeshQuery(NavMeshFile.Read(
-                NavMeshFile.PathFor(Path.Combine(root.FullName, "navmesh"), "adv_bootcamp")));
+            maps.MapChannelArray[BootcampMapContextId].NavMesh = TestNavMeshes.Query(
+                NavMeshFile.PathFor(Path.Combine(root.FullName, "navmesh"), "adv_bootcamp"));
         }
 
         // What character creation puts in a new character's Tabula (CharacterManager.StartingLogos):
@@ -1055,8 +1055,8 @@ namespace Rasa.Test.Missions
                     throw new DirectoryNotFoundException("Repository root not found.");
 
                 var template = Maps.MapChannelArray[BootcampMapContextId];
-                template.NavMesh = new NavMeshQuery(NavMeshFile.Read(
-                    NavMeshFile.PathFor(Path.Combine(root.FullName, "navmesh"), "adv_bootcamp")));
+                template.NavMesh = TestNavMeshes.Query(
+                    NavMeshFile.PathFor(Path.Combine(root.FullName, "navmesh"), "adv_bootcamp"));
                 BootcampMap.NavMesh = template.NavMesh;
 
                 foreach (var entry in WorldContext.Set<CreatureEntry>()

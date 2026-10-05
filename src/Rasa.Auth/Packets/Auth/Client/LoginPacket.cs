@@ -44,6 +44,7 @@ namespace Rasa.Packets.Auth.Client
             Password = Encoding.UTF8.GetString(buff, 14, FirstZeroIndex(buff, 14, 16));
             GameId = reader.ReadUInt32();
             CDKey = reader.ReadUInt16();
+            reader.EnsureFullyConsumed("Auth login payload");
         }
 
         public void Write(BinaryWriter writer)

@@ -15,7 +15,7 @@ namespace Rasa.Test.Missions.Encounters
                 root = root.Parent;
             if (root == null)
                 throw new DirectoryNotFoundException("Repository navmesh assets were not found.");
-            map.NavMesh = new NavMeshQuery(NavMeshFile.Read(Path.Combine(root.FullName, "navmesh", "adv_bootcamp.nav")));
+            map.NavMesh = TestNavMeshes.Query(Path.Combine(root.FullName, "navmesh", "adv_bootcamp.nav"));
             return map.NavMesh.Nearest(new Vector3(391.5f, 120.059f, 164.8f))
                 ?? throw new InvalidOperationException("Fixture start is not on the real mesh.");
         }

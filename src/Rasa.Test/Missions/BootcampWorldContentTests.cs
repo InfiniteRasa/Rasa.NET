@@ -324,10 +324,10 @@ namespace Rasa.Test.Missions
 
                 CollectionAssert.IsSubsetOf(BootcampNpcIds, creatureIds.OrderBy(id => id).ToArray());
 
-                var bootcampNav = new NavMeshQuery(NavMeshFile.Read(
-                    NavMeshFile.PathFor(Path.Combine(FindRepositoryRoot(), "navmesh"), "adv_bootcamp")));
-                var wildernessNav = new NavMeshQuery(NavMeshFile.Read(
-                    NavMeshFile.PathFor(Path.Combine(FindRepositoryRoot(), "navmesh"), "adv_foreas_concordia_wilderness")));
+                var bootcampNav = TestNavMeshes.Query(
+                    NavMeshFile.PathFor(Path.Combine(FindRepositoryRoot(), "navmesh"), "adv_bootcamp"));
+                var wildernessNav = TestNavMeshes.Query(
+                    NavMeshFile.PathFor(Path.Combine(FindRepositoryRoot(), "navmesh"), "adv_foreas_concordia_wilderness"));
 
                 foreach (var spawn in context.SpawnPoolEntries
                              .Where(entry => entry.Id >= 510203 && entry.Id <= 510206))

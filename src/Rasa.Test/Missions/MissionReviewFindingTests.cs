@@ -38,8 +38,8 @@ namespace Rasa.Test.Missions
             var repositoryRoot = FindRepositoryRoot();
             foreach (var relativePath in new[]
                      {
-                         @"src\Rasa.Game\Missions\MissionApplication.cs",
-                         @"src\Rasa.Game\Missions\MissionSceneHost.cs"
+                         Path.Combine("src", "Rasa.Game", "Missions", "MissionApplication.cs"),
+                         Path.Combine("src", "Rasa.Game", "Missions", "MissionSceneHost.cs")
                      })
             {
                 var path = Path.Combine(repositoryRoot, relativePath);

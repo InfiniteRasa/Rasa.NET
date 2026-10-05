@@ -79,7 +79,8 @@ namespace Rasa.Test.Missions.Wilderness
                 World.ChangeTracker.Clear();
             }
             Map = Context.Map;
-            Map.NavMesh = new NavMeshQuery(WildernessNavMesh.Value.NavMesh);
+            Map.NavMesh = TestNavMeshes.Query(
+                NavMeshFile.PathFor(Path.Combine(RepositoryRoot(), "navmesh"), "adv_foreas_concordia_wilderness"));
 
             var manifestations = new ManifestationManager(this);
             Maps = new MapChannelManager(this, refreshStats: (_, _) => { }, assignPlayer: _ => { },

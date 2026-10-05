@@ -171,6 +171,7 @@ A map's start groups are generated in this order:
 | `.givelogos <logosId>` | Admin | Adds a Logos (1–408, with gaps) to your Tabula. Ids the client doesn't know and Logos you already have are refused. |
 | `.removelogos <logosId\|all>` | Admin | Removes one Logos, or all of them, from your Tabula, including the saved rows. |
 | `.givepads` | Admin | Unlocks every dropship pad in the world for you. |
+| `.givewaypoints` | Admin | Unlocks every discoverable waypoint on your current map for you. This does not grant dropships, wormholes, hospitals, or local teleporters. |
 | `.addtitle <titleId>` | Admin | Grants you a title (`titledata` id): saved with the character, and announced by the client with "you have gained the title". |
 
 ## Missions
