@@ -69,7 +69,7 @@ namespace Rasa.Test.Missions
                 root = root.Parent;
             if (root == null)
                 throw new DirectoryNotFoundException("Repository root not found.");
-            return new NavMeshQuery(NavMeshFile.Read(Path.Combine(root.FullName, "navmesh", "adv_bootcamp.nav")));
+            return TestNavMeshes.Query(Path.Combine(root.FullName, "navmesh", "adv_bootcamp.nav"));
         }
     }
 }
