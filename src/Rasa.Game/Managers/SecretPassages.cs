@@ -23,6 +23,18 @@ namespace Rasa.Managers
     /// the chamber, facing the logos; the end of the chamber's hall puts them back on the shelf
     /// between the obelisks, facing the drop. A teleport ends the descent (PlaceAt), so the
     /// fall costs nothing.
+    ///
+    /// Concordia Wilderness, Alia Caverns (Receptive Reception, "acquire the Logos information
+    /// from the shrine within"). The tunnels behind the waterfall end in sixteen metres of Eloh
+    /// corridor (adv_foreas_concordia_wilderness, 835, 286, 723..739) whose far doorway opens on
+    /// nothing: no room behind it, no map link, no instance. The shrine is 181 m further north,
+    /// sealed: ten identical rooms stacked one above the other at 832, y, 920..985, 64 m apart
+    /// from y 352 down to y -224, each a corridor with an open south end, a room and a Logos
+    /// dispenser base at z 960. The Enhance logos is in the fourth, floor y 159.9. The cave's
+    /// doorway is the way in to that one, and that room's corridor end is the way back. Both
+    /// boxes are a slab across the doorway, starting just short of where the floor stops, so
+    /// nobody walks off the edge; the hillside over the cave is 70 m above the first, and there
+    /// is no ground at all around the second.
     /// </summary>
     public static class SecretPassages
     {
@@ -108,7 +120,23 @@ namespace Rasa.Managers
             new Vector3(-325f, 150f, -344f), new Vector3(-305f, 212f, -330f),
             new Vector3(-347.8f, 523.5f, -531f), 0f);
 
-        public static readonly Passage[] All = { JumpAndBelieve, GrowthHallEnd };
+        public const uint ConcordiaWilderness = 1220;
+
+        /// <summary>The open north end of the Alia Caverns corridor (floor y 286.0, ceiling 291.5, x 827..843, the floor stops at z 739.2).</summary>
+        public static readonly Passage AliaCavernsDoor = new Passage(
+            "Concordia Wilderness: Alia Caverns, the doorway at the end of the Eloh corridor into the Enhance shrine",
+            ConcordiaWilderness,
+            new Vector3(826f, 280f, 738.5f), new Vector3(844f, 296f, 744f),
+            new Vector3(832f, 160.1f, 927f), MathF.PI);
+
+        /// <summary>The open south end of the Enhance shrine's corridor (floor y 159.9, ceiling 165.4, x 824..840, the floor stops at z 919.8): back into the cave.</summary>
+        public static readonly Passage EnhanceShrineExit = new Passage(
+            "Concordia Wilderness: the end of the Enhance shrine's corridor, back into Alia Caverns",
+            ConcordiaWilderness,
+            new Vector3(823f, 154f, 915f), new Vector3(841f, 170f, 920.6f),
+            new Vector3(835f, 286.3f, 733f), 0f);
+
+        public static readonly Passage[] All = { JumpAndBelieve, GrowthHallEnd, AliaCavernsDoor, EnhanceShrineExit };
 
         /// <summary>The passage a step on this map passes through, if any.</summary>
         public static Passage Crossed(uint mapContextId, Vector3 from, Vector3 to)
@@ -141,7 +169,12 @@ namespace Rasa.Managers
             return true;
         }
 
-        /// <summary>Moves the player to the passage's far end: the server's position, their own client, and everyone who can see them.</summary>
+        /// <summary>
+        /// Moves the player to the passage's far end: the server's position, their own client,
+        /// the cells they now see (the far end is out of sight of the near one, and what stands
+        /// there - a logos - is to be on screen on arrival, not after the next step), and
+        /// everyone who can see them there.
+        /// </summary>
         public static void Take(Client client, Passage passage)
         {
             var player = client.Player;
@@ -155,8 +188,11 @@ namespace Rasa.Managers
 
             client.MoveObject(player.EntityId, movement);
 
-            if (player.MapChannel != null)
-                client.CellMoveObject(client, new Packets.Protocol.MoveObjectMessage(player.EntityId, movement), true);
+            if (player.MapChannel == null)
+                return;
+
+            CellManager.Instance.UpdateVisibility(client);
+            client.CellMoveObject(client, new Packets.Protocol.MoveObjectMessage(player.EntityId, movement), true);
         }
     }
 }
