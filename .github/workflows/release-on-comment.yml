@@ -52,7 +52,7 @@ jobs:
           exit 0
         fi
 
+        # 👀 now; the release run adds 🚀 or 👎 when it finishes.
         react eyes
         gh workflow run release-container.yml -R "$REPO" --ref development \
-          -f requested_by="$COMMENTER" -f pull_request="$PR"
-        react rocket
+          -f requested_by="$COMMENTER" -f pull_request="$PR" -f comment_id="$COMMENT_ID"

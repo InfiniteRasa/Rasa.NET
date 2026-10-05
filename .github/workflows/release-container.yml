@@ -11,6 +11,9 @@ on:
       pull_request:
         description: The PR the /release comment was on
         required: false
+      comment_id:
+        description: The /release comment, which gets a reaction for the outcome
+        required: false
 
 permissions:
   contents: read
@@ -22,24 +25,44 @@ concurrency:
 jobs:
   release:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 60
     permissions:
       contents: read
       actions: read
+      issues: write
       packages: write
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         ref: development
-    # Only a commit whose CI passed is released.
-    - name: Check CI passed on this commit
+    # Only a commit whose CI passed on development is released. A /release usually comes right
+    # after a merge, while that commit's CI is still running, so this waits for it to finish. The
+    # container smoke test only runs when the image's inputs changed; if it ran, it must pass too.
+    - name: Wait for CI on this commit
       env:
         GH_TOKEN: ${{ github.token }}
         REPO: ${{ github.repository }}
       run: |
         sha=$(git rev-parse HEAD)
-        if [ -z "$(gh run list -R "$REPO" --workflow dotnet.yml --commit "$sha" --status success --json databaseId --jq '.[].databaseId')" ]; then
-          echo "::error::CI hasn't passed on development's HEAD ($sha) yet; release after it does."
+        latest() {
+          gh run list -R "$REPO" --workflow "$1" --commit "$sha" --event push --branch development \
+            --limit 1 --json status,conclusion --jq '.[0] | "\(.status) \(.conclusion)"'
+        }
+        for _ in $(seq 80); do
+          ci=$(latest dotnet.yml)
+          container=$(latest container.yml)
+          if [ "${ci%% *}" = completed ] && { [ -z "$container" ] || [ "${container%% *}" = completed ]; }; then
+            break
+          fi
+          sleep 30
+        done
+        echo "dotnet.yml: ${ci:-no run}; container.yml: ${container:-no run}"
+        if [ "$ci" != "completed success" ]; then
+          echo "::error::CI on development's HEAD ($sha) didn't pass (${ci:-no run}); nothing was released."
+          exit 1
+        fi
+        if [ -n "$container" ] && [ "$container" != "completed success" ]; then
+          echo "::error::The container smoke test on $sha didn't pass ($container); nothing was released."
           exit 1
         fi
     # GHCR names must be lowercase. The dated tag is what gets kept and pruned; latest and
@@ -87,3 +110,14 @@ jobs:
         if [ -n "$REQUESTED_BY" ]; then
           echo "Requested by @$REQUESTED_BY${PR:+ on #$PR}." >> "$GITHUB_STEP_SUMMARY"
         fi
+    - name: React to the /release comment
+      if: always() && inputs.comment_id != ''
+      env:
+        GH_TOKEN: ${{ github.token }}
+        REPO: ${{ github.repository }}
+        COMMENT_ID: ${{ inputs.comment_id }}
+        OUTCOME: ${{ job.status }}
+      run: |
+        content=-1
+        [ "$OUTCOME" = success ] && content=rocket
+        gh api --method POST "repos/$REPO/issues/comments/$COMMENT_ID/reactions" -f content="$content" > /dev/null

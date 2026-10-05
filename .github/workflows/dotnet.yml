@@ -9,9 +9,11 @@ permissions:
   contents: read
 
 # A new push to a PR cancels that PR's older run. Runs on development are never cancelled: a
-# cancelled run saves no NuGet cache and leaves no timings for the next run's test plan.
+# cancelled run saves no NuGet cache, leaves no timings for the next run's test plan, and leaves
+# its commit unreleasable. Each push gets a group of its own, since a group holds only one
+# pending run and replaces it with the next.
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.ref }}${{ github.event_name == 'push' && format('-{0}', github.sha) || '' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
@@ -100,7 +102,8 @@ jobs:
         HEAD: ${{ github.head_ref }}
       run: |
         last_green() {
-          gh run list -R "$REPO" --workflow dotnet.yml --status success --limit 3             --json databaseId --jq '.[].databaseId' "$@" 2>/dev/null || true
+          gh run list -R "$REPO" --workflow dotnet.yml --status success --limit 3 \
+            --json databaseId --jq '.[].databaseId' "$@" 2>/dev/null || true
         }
         runs=$(last_green --branch development --event push)
         if [ -z "$runs" ] && [ -n "$HEAD" ]; then
@@ -108,12 +111,14 @@ jobs:
         fi
         for run in $runs; do
           echo "Timings from run $run."
-          gh run download "$run" -R "$REPO" --pattern 'test-results-*' --dir "timings/$run"             || echo "::notice::No timings from run $run."
+          gh run download "$run" -R "$REPO" --pattern 'test-results-*' --dir "timings/$run" \
+            || echo "::notice::No timings from run $run."
         done
     - name: Plan test lanes
       id: plan
       run: |
-        dotnet run .github/scripts/TestShards.cs --           src/Rasa.Test/bin/Debug/net10.0/Rasa.Test.dll $((RUNNERS * LANES)) src/Rasa.Test/bin/Debug/net10.0/lanes timings
+        dotnet run .github/scripts/TestShards.cs -- \
+          src/Rasa.Test/bin/Debug/net10.0/Rasa.Test.dll $((RUNNERS * LANES)) src/Rasa.Test/bin/Debug/net10.0/lanes timings
         echo "runners=$(jq -cn --argjson n "$RUNNERS" '[range($n)]')" >> "$GITHUB_OUTPUT"
     # One archive so file modes survive (upload-artifact doesn't keep them).
     - name: Package test build
@@ -158,7 +163,11 @@ jobs:
         dotnet test "$bin/Rasa.Test.dll" --list-tests > /dev/null
         pids=()
         for lane in $(seq $((RUNNER * LANES)) $((RUNNER * LANES + LANES - 1))); do
-          dotnet test "$bin/Rasa.Test.dll"             --filter "$(cat "$bin/lanes/lane-$lane.filter")"             --blame-hang-timeout 10m             --logger "trx;LogFileName=lane-$lane.trx"             --results-directory "TestResults/lane-$lane" > "lane-$lane.log" 2>&1 &
+          dotnet test "$bin/Rasa.Test.dll" \
+            --filter "$(cat "$bin/lanes/lane-$lane.filter")" \
+            --blame-hang-timeout 10m \
+            --logger "trx;LogFileName=lane-$lane.trx" \
+            --results-directory "TestResults/lane-$lane" > "lane-$lane.log" 2>&1 &
           pids+=("$lane:$!")
         done
         status=0

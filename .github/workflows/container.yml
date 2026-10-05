@@ -5,9 +5,9 @@ name: Container
 on:
   push:
     branches: [ development ]
-    paths: [ Dockerfile, .dockerignore, docker-compose.yml, global.json, Directory.Packages.props, 'navmesh/**', 'src/**', .github/workflows/container.yml ]
+    paths: [ Dockerfile, .dockerignore, docker-compose.yml, global.json, Directory.Packages.props, Rasa.NET.sln, '.config/**', 'navmesh/**', 'src/**', .github/workflows/container.yml ]
   pull_request:
-    paths: [ Dockerfile, .dockerignore, docker-compose.yml, global.json, Directory.Packages.props, 'navmesh/**', 'src/**', .github/workflows/container.yml ]
+    paths: [ Dockerfile, .dockerignore, docker-compose.yml, global.json, Directory.Packages.props, Rasa.NET.sln, '.config/**', 'navmesh/**', 'src/**', .github/workflows/container.yml ]
 
 permissions:
   contents: read
@@ -27,6 +27,7 @@ jobs:
     # The layer cache is read on every run and written only from development, for the same
     # reason as the NuGet cache in dotnet.yml: a PR's cache can only be read by that PR.
     - name: Build the image
+      id: image
       uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
       with:
         context: .
@@ -50,10 +51,13 @@ jobs:
           if ready auth 'Listening for clients on port' && ready game 'Server ready!'; then
             exit 0
           fi
-          if [ -n "$(docker compose ps --status exited --quiet)" ]; then
-            echo "::error::A service exited during startup."
-            exit 1
-          fi
+          # Both services have restart: always, so a crash shows as a restart, not an exit.
+          for id in $(docker compose ps --all --quiet); do
+            if [ "$(docker inspect -f '{{.RestartCount}} {{.State.Status}}' "$id")" != "0 running" ]; then
+              echo "::error::A service crashed or stopped during startup."
+              exit 1
+            fi
+          done
           sleep 2
         done
         echo "::error::The servers weren't ready within 4 minutes."
@@ -75,7 +79,7 @@ jobs:
             fi
           done
           for port in $(jq -r --arg s "$service" '.services[$s].ports[]? | select(.protocol == "udp") | .target' <<< "$config"); do
-            if docker compose logs --no-color "$service" | grep -q "UDP port $port"; then
+            if docker compose logs --no-color "$service" | grep -qE "UDP port ${port}([^0-9]|$)"; then
               echo "$service listens on udp/$port"
             else
               echo "::error::$service never logged listening on udp/$port, which docker-compose.yml maps."
@@ -90,14 +94,17 @@ jobs:
     - name: Service logs
       if: always()
       run: docker compose logs --no-color
-    # Advisory: reports known HIGH and CRITICAL vulnerabilities without failing the job. Pinned by
-    # commit: the trivy-action tags were overwritten with a credential stealer in March 2026
-    # (CVE-2026-33634).
+    # Advisory: reports known HIGH and CRITICAL vulnerabilities and never fails the job, not even
+    # when the vulnerability database can't be downloaded. Its cache is off so PR runs save none.
+    # Pinned by commit: the trivy-action tags were overwritten with a credential stealer in March
+    # 2026 (CVE-2026-33634).
     - name: Scan the image
-      if: always()
+      if: always() && steps.image.outcome == 'success'
+      continue-on-error: true
       uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
       with:
         image-ref: rasa_net
         severity: HIGH,CRITICAL
         ignore-unfixed: true
         exit-code: '0'
+        cache: 'false'

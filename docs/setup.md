@@ -39,9 +39,10 @@ The SDK version lives in two places: `global.json` and the `sdk` build stage in
 the `Dockerfile`. NuGet versions all live in `Directory.Packages.props`, and the
 `dotnet-ef` tool in `.config/dotnet-tools.json` follows the EF Core packages.
 Change every copy in the same commit; `PlatformCompatibilityTests` fails when
-they disagree. Dependabot opens grouped update PRs (`.github/dependabot.yml`);
-an SDK PR from Dependabot changes `global.json` only, so push the matching
-`Dockerfile` tag to that PR's branch before merging it. EF Core 10 and Pomelo
+they disagree. Dependabot opens grouped update PRs (`.github/dependabot.yml`),
+and moves `global.json` and the `Dockerfile` together in one SDK PR. If an SDK
+PR changes only one of them (for example because the image isn't published
+yet), push the other change to that PR's branch before merging it. EF Core 10 and Pomelo
 updates are ignored until the project chooses a MySQL provider for EF Core 10.
 
 The supported portable deployment identifiers are `win-x64`, `osx-x64` and `linux-x64`. These preserve the Windows, macOS and Linux x64 deployment families, not support for the obsolete operating-system versions named by the old .NET 5 identifiers. Use an operating system supported by .NET 10.

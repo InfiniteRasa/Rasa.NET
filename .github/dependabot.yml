@@ -22,7 +22,8 @@ updates:
   - package-ecosystem: docker
     directory: /
     multi-ecosystem-group: dotnet-sdk
-    patterns: [ "dotnet/*" ]
+    # The Dockerfile's only images are the SDK and runtime.
+    patterns: [ "*" ]
     ignore:
       - dependency-name: "dotnet/*"
         versions: [ ">= 11" ]

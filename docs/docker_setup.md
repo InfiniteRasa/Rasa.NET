@@ -111,7 +111,7 @@ docker tag ghcr.io/infiniterasa/rasa.net:latest rasa_net
 docker compose up --no-build
 ```
 
-Each release also has a dated tag (`<yyyyMMdd-HHmm>-<commit>`); the 14 newest
+Released images are built for `linux/amd64` only. Each release also has a dated tag (`<yyyyMMdd-HHmm>-<commit>`); the 14 newest
 are kept.
 
 ## Start Server

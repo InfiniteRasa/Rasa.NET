@@ -28,10 +28,13 @@ jobs:
       run: |
         kind=users
         [ "$(gh api "repos/$REPO" --jq .owner.type)" = Organization ] && kind=orgs
-        if gh api "$kind/$OWNER/packages/container/rasa.net" > /dev/null 2>&1; then
+        if out=$(gh api "$kind/$OWNER/packages/container/rasa.net" 2>&1); then
           echo "exists=true" >> "$GITHUB_OUTPUT"
-        else
+        elif grep -q 'HTTP 404' <<< "$out"; then
           echo "::notice::No rasa.net container package yet; nothing to prune."
+        else
+          echo "$out"
+          exit 1
         fi
     - if: steps.package.outputs.exists == 'true'
       uses: actions/delete-package-versions@e5bc658cc4c965c472efe991f8beea3981499c55 # v5.0.0
