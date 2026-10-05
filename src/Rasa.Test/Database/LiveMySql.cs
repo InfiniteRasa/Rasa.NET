@@ -1,6 +1,5 @@
 using System;
-using System.IO;
-using System.Text.Json;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using MySqlConnector;
@@ -17,8 +16,8 @@ namespace Rasa.Test.Database
     /// Contexts on a live MySQL server, for the tests in the "MySql" category. The server comes from
     /// RASA_TEST_MYSQL, a MySqlConnector connection string without a database
     /// ("Server=127.0.0.1;Port=3306;User ID=root;Password=..."); the database names are the ones
-    /// databasesettings.json gives, which is where `dotnet ef database update` applied the
-    /// migrations. Contexts are configured the way the servers configure them (server version
+    /// databasesettings.json and databasesettings.env.json give, which is where
+    /// `dotnet ef database update` applied the migrations. Contexts are configured the way the servers configure them (server version
     /// detection, the bounded migration lock), not with the offline setup the model tests use.
     ///
     /// CI runs this category in its own job against mysql:8.0 and mysql:8.4 and leaves it out of
@@ -38,9 +37,12 @@ namespace Rasa.Test.Database
                     $"{ServerVariable} is not set. These tests need a MySQL server with the migrations applied; see docs/setup.md.");
 
             var builder = new MySqlConnectionStringBuilder(server);
-            using var settings = JsonDocument.Parse(File.ReadAllText(
-                Path.Combine(AppContext.BaseDirectory, "databasesettings.json")));
-            var databases = settings.RootElement.GetProperty("Databases");
+            var databases = new ConfigurationBuilder()
+                .SetBasePath(AppContext.BaseDirectory)
+                .AddJsonFile("databasesettings.json", false, false)
+                .AddJsonFile("databasesettings.env.json", true, false)
+                .Build()
+                .GetSection("Databases");
 
             DatabaseConnectionConfiguration Connection(string name) => new()
             {
@@ -48,7 +50,7 @@ namespace Rasa.Test.Database
                 Port = builder.Port,
                 User = builder.UserID,
                 Password = builder.Password,
-                Database = databases.GetProperty(name).GetProperty("Database").GetString(),
+                Database = databases[$"{name}:Database"],
                 TimeoutInMilliseconds = 30000
             };
 

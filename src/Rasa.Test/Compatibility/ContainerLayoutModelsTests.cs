@@ -173,6 +173,45 @@ namespace Rasa.Test.Compatibility
         }
 
         [TestMethod]
+        public void StagesAreAddressableByIndexAndInheritTheirParentsWorkingDirectory()
+        {
+            using var repository = new DockerRepositoryFixture();
+            repository.Write(".dockerignore", "**/bin\n**/obj\n");
+            repository.Write("Dockerfile", """
+                FROM --platform=linux/amd64 mcr.microsoft.com/dotnet/sdk:10.0.401 AS source
+                WORKDIR /app
+                COPY src /app/src
+                FROM source AS build
+                RUN dotnet build src/App/App.csproj -c Release
+                FROM mcr.microsoft.com/dotnet/runtime:10.0
+                COPY --from=1 /app/src/App/bin/Release/net10.0 /app
+                """);
+            repository.Write("src/App/App.csproj", Project("App"));
+
+            var stages = DockerImageLayout.CreateStages(repository.Root);
+
+            Assert.AreEqual("/app", stages[1].WorkingDirectory);
+            Assert.IsTrue(stages[1].ContainsFile("/app/src/App/bin/Release/net10.0/App.dll"));
+            Assert.IsTrue(stages[2].ContainsFile("/app/App.dll"));
+            Assert.AreEqual("/", stages[2].WorkingDirectory);
+        }
+
+        [TestMethod]
+        public void CopyFromTheCurrentStageIsRejected()
+        {
+            using var repository = new DockerRepositoryFixture();
+            repository.Write(".dockerignore", string.Empty);
+            repository.Write("Dockerfile", """
+                FROM scratch AS build
+                WORKDIR /app
+                COPY --from=build /app /copy
+                """);
+
+            Assert.ThrowsExactly<InvalidDataException>(
+                () => DockerImageLayout.Create(repository.Root));
+        }
+
+        [TestMethod]
         public void CopyFromAnUnknownStageIsRejected()
         {
             using var repository = new DockerRepositoryFixture();

@@ -23,9 +23,13 @@ namespace Rasa.Test.Compatibility
 
         internal static IReadOnlyList<string> ReadDockerfileImages(string dockerfile)
         {
+            // The image of each FROM, without flags such as --platform or a pinned @sha256 digest.
             return DockerfileModel.Parse(dockerfile).Instructions
                 .Where(instruction => instruction.Name == "FROM")
-                .Select(instruction => instruction.Arguments.Split(' ', StringSplitOptions.RemoveEmptyEntries)[0])
+                .Select(instruction => instruction.Arguments
+                    .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                    .First(field => !field.StartsWith("--", StringComparison.Ordinal))
+                    .Split('@')[0])
                 .ToArray();
         }
 
@@ -46,10 +50,12 @@ namespace Rasa.Test.Compatibility
             foreach (var tag in sdkTags.Where(tag => tag != sdk))
                 problems.Add($"The Dockerfile builds with {SdkImage}:{tag}, but global.json pins {sdk}.");
 
+            // The runtime image may float on the line (10.0) or pin a patch (10.0.5).
             var final = images.LastOrDefault() ?? string.Empty;
             var sdkLine = string.Join('.', sdk.Split('.').Take(2));
-            if (final != $"{RuntimeImage}:{sdkLine}")
-                problems.Add($"The Dockerfile's final stage is {final}, not {RuntimeImage}:{sdkLine}.");
+            var runtimeLine = $"{RuntimeImage}:{sdkLine}";
+            if (final != runtimeLine && !final.StartsWith(runtimeLine + ".", StringComparison.Ordinal))
+                problems.Add($"The Dockerfile's final stage is {final}, not {runtimeLine}.");
 
             return problems;
         }

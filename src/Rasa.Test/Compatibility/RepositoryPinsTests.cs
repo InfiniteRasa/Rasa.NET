@@ -50,6 +50,18 @@ namespace Rasa.Test.Compatibility
         }
 
         [TestMethod]
+        public void SdkCheckReadsImagesPastPlatformFlagsDigestsAndPatchPins()
+        {
+            var dockerfile = """
+                FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0.401@sha256:0123 AS build
+                FROM mcr.microsoft.com/dotnet/runtime:10.0.12 AS runtime
+                """;
+
+            Assert.AreEqual(0, RepositoryPins.CheckSdk(GlobalJson, dockerfile).Count);
+            Assert.AreEqual(1, RepositoryPins.CheckSdk(GlobalJson, dockerfile.Replace("10.0.12", "10.01")).Count);
+        }
+
+        [TestMethod]
         public void PackageCheckAcceptsMatchingVersions()
         {
             Assert.AreEqual(0, RepositoryPins.CheckPackages(Packages(), ToolManifest).Count);

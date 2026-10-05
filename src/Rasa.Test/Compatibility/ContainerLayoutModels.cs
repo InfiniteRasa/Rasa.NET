@@ -203,6 +203,7 @@ namespace Rasa.Test.Compatibility
 
         internal string BaseImage { get; }
         internal string User { get; private set; } = "root";
+        internal string WorkingDirectory { get; private set; } = "/";
 
         private DockerImageLayout(string baseImage)
         {
@@ -225,24 +226,28 @@ namespace Rasa.Test.Compatibility
             var stageNames = new Dictionary<string, DockerImageLayout>(
                 StringComparer.OrdinalIgnoreCase);
             DockerImageLayout layout = null;
-            var workingDirectory = "/";
 
             foreach (var instruction in dockerfile.Instructions)
             {
                 if (instruction.Name == "FROM")
                 {
-                    var from = SplitArguments(instruction.Arguments);
-                    if (from.Count != 1 &&
-                        !(from.Count == 3 && from[1].Equals("AS", StringComparison.OrdinalIgnoreCase)))
+                    // --platform and other flags choose how the base image is pulled, not what
+                    // the stage holds.
+                    var from = SplitArguments(instruction.Arguments)
+                        .Where(field => !field.StartsWith("--", StringComparison.Ordinal))
+                        .ToArray();
+                    if (from.Length != 1 &&
+                        !(from.Length == 3 && from[1].Equals("AS", StringComparison.OrdinalIgnoreCase)))
                         throw new InvalidDataException($"Unsupported Docker FROM instruction: {instruction.Arguments}");
 
                     layout = new DockerImageLayout(from[0]);
                     if (stageNames.TryGetValue(from[0], out var parent))
                         layout.CopyStage(parent);
+                    // COPY --from takes a stage's name or its index.
+                    stageNames[stages.Count.ToString(System.Globalization.CultureInfo.InvariantCulture)] = layout;
                     stages.Add(layout);
-                    if (from.Count == 3)
+                    if (from.Length == 3)
                         stageNames[from[2]] = layout;
-                    workingDirectory = "/";
                     continue;
                 }
 
@@ -256,15 +261,15 @@ namespace Rasa.Test.Compatibility
                 switch (instruction.Name)
                 {
                     case "WORKDIR":
-                        workingDirectory = PosixPath.Resolve(
-                            workingDirectory,
+                        layout.WorkingDirectory = PosixPath.Resolve(
+                            layout.WorkingDirectory,
                             instruction.Arguments);
-                        layout.AddDirectory(workingDirectory);
+                        layout.AddDirectory(layout.WorkingDirectory);
                         break;
                     case "COPY":
                         layout.ApplyCopy(
                             repositoryRoot,
-                            workingDirectory,
+                            layout.WorkingDirectory,
                             instruction.Arguments,
                             dockerIgnore,
                             stageNames);
@@ -278,7 +283,7 @@ namespace Rasa.Test.Compatibility
                             build.Configuration.Equals(
                                 "Release",
                                 StringComparison.OrdinalIgnoreCase))
-                            layout.ApplyBuild(workingDirectory, build);
+                            layout.ApplyBuild(layout.WorkingDirectory, build);
                         break;
                 }
             }
@@ -330,7 +335,7 @@ namespace Rasa.Test.Compatibility
 
             if (fromStage != null)
             {
-                if (!stages.TryGetValue(fromStage, out var stage))
+                if (!stages.TryGetValue(fromStage, out var stage) || stage == this)
                     throw new InvalidDataException($"Docker COPY --from names no earlier stage: {arguments}");
                 ApplyStageCopy(stage, workingDirectory, fields[0], fields[1]);
                 return;
@@ -428,6 +433,7 @@ namespace Rasa.Test.Compatibility
             foreach (var pair in parent._copiedHostFiles)
                 _copiedHostFiles[pair.Key] = pair.Value;
             User = parent.User;
+            WorkingDirectory = parent.WorkingDirectory;
         }
 
         private void ApplyBuild(

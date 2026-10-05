@@ -92,6 +92,16 @@ namespace Rasa.Test.Compatibility
         }
 
         [TestMethod]
+        public void DockerBuildStageHasTheFilesThatPinTheBuild()
+        {
+            var build = DockerImageLayout.CreateStages(FindRepositoryRoot())[0];
+
+            // Without these, the image would restore and build with other versions than CI.
+            foreach (var file in new[] { "global.json", "Directory.Packages.props", ".config/dotnet-tools.json" })
+                Assert.IsTrue(build.ContainsFile("/app/" + file), $"The build stage has no /app/{file}.");
+        }
+
+        [TestMethod]
         public void DockerServicesRunWhereRequiredConfigurationAndAssetsExist()
         {
             var repositoryRoot = FindRepositoryRoot();
