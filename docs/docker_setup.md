@@ -50,11 +50,11 @@ docker compose build
 ```
 
 On a Linux host, the container's `app` user (UID 1654) must be able to write the
-mounted files. Docker Desktop on Windows and macOS doesn't need this.
+mounted databases. Docker Desktop on Windows and macOS doesn't need this.
 
 ```sh
-touch rasaauth.db rasachar.db rasaworld.db appsettings.env.json
-sudo chown 1654:1654 rasaauth.db rasachar.db rasaworld.db appsettings.env.json
+touch rasaauth.db rasachar.db rasaworld.db
+sudo chown 1654:1654 rasaauth.db rasachar.db rasaworld.db
 ```
 
 This branch's consolidated migration history requires fresh databases,
