@@ -1866,9 +1866,10 @@ namespace Rasa.Managers
             foreach (var characterOption in optionsList)
                 player.CharacterOptions.Add(new CharacterOptions((CharacterOption)characterOption.OptionId, characterOption.Value));
 
+            // Character-specific options must be available before the controlled actor becomes
+            // available. USER_CONTROLLER_AVAILABLE causes the retail client to load mission
+            // tracking from these MissionTrack options.
             client.CallMethod(SysEntity.ClientMethodId, new CharacterOptionsPacket(player.CharacterOptions));
-
-            client.CallMethod(SysEntity.ClientMethodId, new SetControlledActorIdPacket(player.EntityId));
 
             // Inventory deltas precede LoginOk. Refresh the tray after its controlled actor
             // exists so the initial image does not depend on opening the equipment selector.
@@ -1893,6 +1894,13 @@ namespace Rasa.Managers
 
             client.CallMethod(player.EntityId, new ActorInfoPacket(player));
             MissionApplication.Instance.PublishInitialState(client);
+
+            // SetControlledActorId can immediately cause USER_CONTROLLER_AVAILABLE on the
+            // retail client when the actor already exists. That event loads and filters the
+            // saved MissionTrack options against the current mission list, so both the
+            // character options and initial mission state must be sent first.
+            client.CallMethod(SysEntity.ClientMethodId, new SetControlledActorIdPacket(player.EntityId));
+
             _characterManager.OfferStartingExperienceMission(client);
 
             // Its cooldowns: the client's actor is new on every map and starts with none.
