@@ -1263,7 +1263,9 @@ namespace Rasa.Managers
                     // Usable supplies mouse targeting; its completion opens loot, never claims it.
                     if (obj.MissionLootSource != null || obj.LootDispenserEntityId != 0)
                     {
-                        if (obj.LootDispenserEntityId != 0)
+                        // Emptied in an attempt the player gave up: the use is the objective.
+                        if (obj.LootDispenserEntityId != 0 &&
+                            !LootDispenserManager.Instance.FinishEmptyRewardLoot(client, mapChannel, obj))
                             LootDispenserManager.Instance.RequestCorpseLooting(
                                 client,
                                 new Packets.LootDispenser.Client.RequestCorpseLootingPacket

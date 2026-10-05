@@ -2179,6 +2179,7 @@ namespace Rasa.Managers
                 client.CallMethod(
                     client.Player.EntityId,
                     new MissionClearedPacket(missionId));
+                RefreshNpcConversationStatuses(client);
                 return true;
             }
         }
@@ -2247,6 +2248,7 @@ namespace Rasa.Managers
                             this,
                             TryExecuteScenario,
                             TryExecuteFailureTransitionScenario);
+                        RefreshNpcConversationStatuses(client);
                         return true;
                     }
                     if (!removed)
@@ -2265,6 +2267,11 @@ namespace Rasa.Managers
                 inventoryPublication?.Invoke(client);
                 Scenes.CompleteAssignmentCancellation(cancelledScenes);
                 PublishMissionPacket(client, new MissionDiscardedPacket(missionId), $"mission {missionId} abandoned");
+
+                // The giver has the mission to offer again, and whoever the abandoned objectives
+                // were talked through with has not. Nothing told the client: the giver showed no
+                // offer until the player went out of its sight and back, or logged in again.
+                RefreshNpcConversationStatuses(client);
                 return true;
             }
         }

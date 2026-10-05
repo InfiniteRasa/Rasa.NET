@@ -1077,7 +1077,14 @@ namespace Rasa.Game.Missions
                         if (recorded && !Rasa.Missions.Definitions.MissionItemValidation.IsItemIntent(intent) &&
                             intent is not OfferRadioMissionIntent)
                             continue;
-                        _characters.Apply(resident.Owner, next, intent, unit, publication);
+                        // A reward's receipt is its run's, and every assignment's scene is a new run:
+                        // one the character was paid in an attempt they then abandoned or failed is
+                        // not paid to the attempt after it. This run still takes its receipt.
+                        var paidBefore = !recorded && intent is GrantRewardIntent && scene.MissionId != 0 &&
+                            store.GrantedInUnfinishedAttempt(scene.OwnerCharacterId, scene.MissionId,
+                                scene.ScriptKey, intent.OperationKey);
+                        if (!paidBefore)
+                            _characters.Apply(resident.Owner, next, intent, unit, publication);
                         if (!recorded)
                             store.Add(new MissionReceiptEntry
                             {
