@@ -1,0 +1,89 @@
+name: Release container
+
+# Builds development's HEAD and pushes it to GHCR. Started by a maintainer's /release comment
+# (release-on-comment.yml) or by hand from the Actions tab.
+on:
+  workflow_dispatch:
+    inputs:
+      requested_by:
+        description: Who asked for the release
+        required: false
+      pull_request:
+        description: The PR the /release comment was on
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-container
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      actions: read
+      packages: write
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        ref: development
+    # Only a commit whose CI passed is released.
+    - name: Check CI passed on this commit
+      env:
+        GH_TOKEN: ${{ github.token }}
+        REPO: ${{ github.repository }}
+      run: |
+        sha=$(git rev-parse HEAD)
+        if [ -z "$(gh run list -R "$REPO" --workflow dotnet.yml --commit "$sha" --status success --json databaseId --jq '.[].databaseId')" ]; then
+          echo "::error::CI hasn't passed on development's HEAD ($sha) yet; release after it does."
+          exit 1
+        fi
+    # GHCR names must be lowercase. The dated tag is what gets kept and pruned; latest and
+    # development always point at the newest release.
+    - name: Name the image
+      id: name
+      env:
+        REPO: ${{ github.repository }}
+      run: |
+        {
+          echo "image=ghcr.io/${REPO,,}"
+          echo "dated=$(date -u +%Y%m%d-%H%M)-$(git rev-parse --short=7 HEAD)"
+          echo "revision=$(git rev-parse HEAD)"
+        } >> "$GITHUB_OUTPUT"
+    - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+    - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ github.token }}
+    # No provenance or SBOM: they're pushed as untagged manifests, which the prune workflow
+    # would count and could delete out from under their image.
+    - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+      with:
+        context: .
+        push: true
+        provenance: false
+        sbom: false
+        tags: |
+          ${{ steps.name.outputs.image }}:${{ steps.name.outputs.dated }}
+          ${{ steps.name.outputs.image }}:development
+          ${{ steps.name.outputs.image }}:latest
+        labels: |
+          org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          org.opencontainers.image.revision=${{ steps.name.outputs.revision }}
+        cache-from: type=gha
+    - name: Summary
+      env:
+        IMAGE: ${{ steps.name.outputs.image }}
+        DATED: ${{ steps.name.outputs.dated }}
+        REQUESTED_BY: ${{ inputs.requested_by }}
+        PR: ${{ inputs.pull_request }}
+      run: |
+        echo "Pushed \`$IMAGE:$DATED\` (also \`development\` and \`latest\`)." >> "$GITHUB_STEP_SUMMARY"
+        if [ -n "$REQUESTED_BY" ]; then
+          echo "Requested by @$REQUESTED_BY${PR:+ on #$PR}." >> "$GITHUB_STEP_SUMMARY"
+        fi

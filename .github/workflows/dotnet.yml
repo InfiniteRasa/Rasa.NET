@@ -78,7 +78,7 @@ jobs:
       uses: actions/cache/restore@v6
       with:
         path: ~/.nuget/packages
-        key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'global.json', '.config/dotnet-tools.json') }}
+        key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Packages.props', 'global.json', '.config/dotnet-tools.json') }}
         restore-keys: nuget-${{ runner.os }}-
     - name: Restore dependencies
       run: dotnet restore
@@ -178,10 +178,45 @@ jobs:
         path: TestResults/
         retention-days: 14
 
+  # Fails when any of the six EF contexts has model changes no migration covers. The design-time
+  # factories use a fixed MySQL server version, so no database server is needed.
+  drift:
+    name: migration drift
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+    - uses: actions/checkout@v7
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v6
+      with:
+        global-json-file: global.json
+    - name: Restore NuGet cache
+      uses: actions/cache/restore@v6
+      with:
+        path: ~/.nuget/packages
+        key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Packages.props', 'global.json', '.config/dotnet-tools.json') }}
+        restore-keys: nuget-${{ runner.os }}-
+    - run: dotnet tool restore
+    - run: dotnet build src/Rasa.Game
+    - name: Check every context for pending model changes
+      run: |
+        status=0
+        for context in SqliteAuthContext MySqlAuthContext SqliteCharContext MySqlCharContext SqliteWorldContext MySqlWorldContext; do
+          echo "::group::$context"
+          if ! dotnet ef migrations has-pending-model-changes --no-build               --project src/Rasa.DBL --startup-project src/Rasa.Game --context "$context"; then
+            echo "::error::$context has model changes without a migration (or could not be checked)."
+            status=1
+          fi
+          echo "::endgroup::"
+        done
+        exit $status
+
   # The one check to require: it passes when every lane passed, or when the PR changed only docs.
   tests-complete:
     name: tests complete
-    needs: [ changes, build, test ]
+    needs: [ changes, build, test, drift ]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -196,6 +231,7 @@ jobs:
         CHANGES: ${{ needs.changes.result }}
         BUILD: ${{ needs.build.result }}
         TEST: ${{ needs.test.result }}
+        DRIFT: ${{ needs.drift.result }}
       run: |
         if [ "$CHANGES" = success ] && [ "$CODE" = false ]; then
           echo "Docs-only change; tests skipped."
@@ -208,7 +244,7 @@ jobs:
           failed=$((failed + $(grep -o '<UnitTestResult [^>]*outcome="Failed"' "$trx" | wc -l)))
         done
         echo "Across all lanes: $total results, $passed passed, $failed failed." | tee -a "$GITHUB_STEP_SUMMARY"
-        if [ "$BUILD" != success ] || [ "$TEST" != success ]; then
-          echo "::error::build: $BUILD, test runners: $TEST"
+        if [ "$BUILD" != success ] || [ "$TEST" != success ] || [ "$DRIFT" != success ]; then
+          echo "::error::build: $BUILD, test runners: $TEST, migration drift: $DRIFT"
           exit 1
         fi

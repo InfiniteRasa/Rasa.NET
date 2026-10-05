@@ -33,6 +33,17 @@ roll-forward is disabled so local builds, CI and Docker use the same version.
 - [Download the .NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) and install version **10.0.401**. The SDK includes the runtime.
 - From the repository root, run `dotnet --version` and verify `10.0.401`.
 
+#### Updating the SDK or packages
+
+The SDK version lives in two places: `global.json` and the `sdk` build stage in
+the `Dockerfile`. NuGet versions all live in `Directory.Packages.props`, and the
+`dotnet-ef` tool in `.config/dotnet-tools.json` follows the EF Core packages.
+Change every copy in the same commit; `PlatformCompatibilityTests` fails when
+they disagree. Dependabot opens grouped update PRs (`.github/dependabot.yml`);
+an SDK PR from Dependabot changes `global.json` only, so push the matching
+`Dockerfile` tag to that PR's branch before merging it. EF Core 10 and Pomelo
+updates are ignored until the project chooses a MySQL provider for EF Core 10.
+
 The supported portable deployment identifiers are `win-x64`, `osx-x64` and `linux-x64`. These preserve the Windows, macOS and Linux x64 deployment families, not support for the obsolete operating-system versions named by the old .NET 5 identifiers. Use an operating system supported by .NET 10.
 
 ### Optional: Install MySQL Server and MySQL Workbench
@@ -190,17 +201,20 @@ First restore the solution and the repository-local EF tool from the repository 
 - Open powershell
 - `dotnet restore`
 - `dotnet tool restore`
-- `dotnet ef --version` (expected: `9.0.20`)
+- `dotnet ef --version` (expected: the `dotnet-ef` version in `.config/dotnet-tools.json`)
 
 Before upgrading an existing database, back it up and test these commands on a disposable copy. Keep `__EFMigrationsHistory`; do not use `EnsureCreated`, delete the database, or suppress pending-model errors to bypass an upgrade failure. SQLite applies migrations automatically on server startup; MySQL requires the commands below before starting the servers.
 
-Before declaring content or gameplay work ready, also check for provider/model
-drift from the repository root:
+Before declaring content or gameplay work ready, also check all six contexts for
+provider/model drift from the repository root. CI's `migration drift` job runs the
+same commands and fails on any pending change. None of them needs a database server.
 
-- `dotnet ef migrations has-pending-model-changes --project src\Rasa.DBL --startup-project src\Rasa.Game --context SqliteWorldContext`
-- `dotnet ef migrations has-pending-model-changes --project src\Rasa.DBL --startup-project src\Rasa.Game --context MySqlWorldContext`
-- `dotnet ef migrations has-pending-model-changes --project src\Rasa.DBL --startup-project src\Rasa.Game --context SqliteCharContext`
-- `dotnet ef migrations has-pending-model-changes --project src\Rasa.DBL --startup-project src\Rasa.Game --context MySqlCharContext`
+- `dotnet ef migrations has-pending-model-changes --project src/Rasa.DBL --startup-project src/Rasa.Game --context SqliteAuthContext`
+- `dotnet ef migrations has-pending-model-changes --project src/Rasa.DBL --startup-project src/Rasa.Game --context MySqlAuthContext`
+- `dotnet ef migrations has-pending-model-changes --project src/Rasa.DBL --startup-project src/Rasa.Game --context SqliteCharContext`
+- `dotnet ef migrations has-pending-model-changes --project src/Rasa.DBL --startup-project src/Rasa.Game --context MySqlCharContext`
+- `dotnet ef migrations has-pending-model-changes --project src/Rasa.DBL --startup-project src/Rasa.Game --context SqliteWorldContext`
+- `dotnet ef migrations has-pending-model-changes --project src/Rasa.DBL --startup-project src/Rasa.Game --context MySqlWorldContext`
 
 If required mission content is broken, `Rasa.Game` now logs each actionable
 mission diagnostic and refuses to print `Server ready!` until the content is
@@ -405,7 +419,7 @@ Use `--map adv_foreas_concordia_wilderness` to rebuild one map. Generated files 
 
 ### Database compatibility tests
 
-The compatibility tests verify the pinned SDK, all solution project targets, the retained navigation project/package references, cryptographic fixtures, connection-string-specific MySQL server-version caching, and deterministic migration-lock names for schemas through MySQL's 64-character limit. The MySQL configuration tests use a fixed server version and do not connect to a database.
+The compatibility tests verify that the SDK, Docker images and package versions agree across the files that pin them, all solution project targets, the retained navigation project/package references, the Docker image layout, cryptographic fixtures, connection-string-specific MySQL server-version caching, and deterministic migration-lock names for schemas through MySQL's 64-character limit. The MySQL configuration tests use a fixed server version and do not connect to a database.
 
 ```powershell
 dotnet test src\Rasa.Test\Rasa.Test.csproj --filter "FullyQualifiedName~Compatibility"
