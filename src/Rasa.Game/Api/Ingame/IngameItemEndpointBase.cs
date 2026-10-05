@@ -25,7 +25,7 @@ namespace Rasa.Api.Ingame
                 && entityClass.ItemTemplates.TryGetValue(templateId, out template);
         }
 
-        protected static IngameItemSummary ToSummary(ItemTemplate template, EntityClass entityClass) =>
+        private protected static IngameItemSummary ToSummary(ItemTemplate template, EntityClass entityClass) =>
             new IngameItemSummary(
                 template.ItemTemplateId,
                 entityClass.ClassId,
@@ -34,7 +34,7 @@ namespace Rasa.Api.Ingame
                 entityClass.ItemClassInfo?.StackSize ?? 0,
                 template.QualityId);
 
-        protected static IngameItemDetails ToDetails(ItemTemplate template, EntityClass entityClass)
+        private protected static IngameItemDetails ToDetails(ItemTemplate template, EntityClass entityClass)
         {
             var itemClass = entityClass.ItemClassInfo;
             var equipable = entityClass.EquipableClassInfo;
