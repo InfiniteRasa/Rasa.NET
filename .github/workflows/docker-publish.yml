@@ -3,14 +3,14 @@ name: Build and Publish Docker Image
 on:
   push:
     branches:
-      - docker-image-publish
+      - development
     tags:
       - 'v*'
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
-  DEVELOPMENT_BRANCH: docker-image-publish
+  DEVELOPMENT_BRANCH: development
 
 jobs:
   build:
