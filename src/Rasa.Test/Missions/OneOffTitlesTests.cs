@@ -191,7 +191,8 @@ namespace Rasa.Test.Missions
                 world.GetService<IMigrator>().Migrate(WorldBefore);
                 var before = Dump(world);
 
-                CollectionAssert.AreEqual(new[] { "20261118000000_Oneoff_titles" }, world.Database.GetPendingMigrations().ToArray());
+                // Its own is the next, and then what is dated after it.
+                Assert.AreEqual("20261118000000_Oneoff_titles", world.Database.GetPendingMigrations().First());
 
                 world.Database.Migrate();
 
