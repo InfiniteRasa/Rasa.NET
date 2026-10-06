@@ -1728,6 +1728,29 @@ namespace Rasa.Managers
         }
 
         /// <summary>
+        /// A knockback (CrowdControl.Knockback): the creature is thrown to where it ends, facing
+        /// back along the way it went. Its clients fly the arc themselves (MovementType.Knockback)
+        /// from wherever they have it, and look at nothing else sent for it until it is back on
+        /// its feet, so they are told once and the server has it at the end from the start.
+        /// Whatever was carrying it stops.
+        /// </summary>
+        public void Throw(MapChannel mapChannel, Creature creature, Vector3 destination, Vector3 direction)
+        {
+            creature.KnockbackTo = null;
+            creature.KnockbackSpeed = 0;
+            creature.KnockbackIsPull = false;
+
+            creature.Position = destination;
+            creature.LastYaw = (float)Math.Atan2(direction.X, direction.Z);
+
+            // To the clients that have it where it was thrown from, before its cell moves with it.
+            PublishMovement(creature, Movement.Knockback(destination, new Vector2(creature.LastYaw, 0f)));
+
+            if (mapChannel != null)
+                SynchronizeMovementCell(mapChannel, creature);
+        }
+
+        /// <summary>
         /// Tells everyone who can see the creature that it is standing still where it is, facing
         /// the way it last faced. Used when something stops it in its tracks - a stun, a freeze, the
         /// end of a knockback - since the clients otherwise carry on extrapolating its last
