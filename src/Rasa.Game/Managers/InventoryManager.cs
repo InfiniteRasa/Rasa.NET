@@ -612,15 +612,63 @@ namespace Rasa.Managers
                 return;
 
             // A swap takes the footlocker's item out into the pack.
-            if (client.Player.Inventory.HomeInventory[(int)packet.DestSlot] != 0 && !MayTakeFromHome(client, client.Player.Inventory.HomeInventory[(int)packet.DestSlot]))
+            var swappedOut = client.Player.Inventory.HomeInventory[(int)packet.DestSlot];
+
+            if (swappedOut != 0 && !MayTakeFromHome(client, swappedOut))
                 return;
 
+            // Where it goes is settled before anything moves: a refusal leaves both items alone.
+            var returnSlot = swappedOut != 0 ? OwnTabSlot(client, swappedOut, packet.SrcSlot) : (int)packet.SrcSlot;
+
+            if (returnSlot < 0)
+            {
+                client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(PlayerMessage.PmInventoryFull, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
+                return;
+            }
+
             RemoveItemBySlot(client, InventoryType.Personal, packet.SrcSlot);
-            // if toSlot is not empty, move current item to SrcSlot (item swap)
-            if (client.Player.Inventory.HomeInventory[(int)packet.DestSlot] != 0)
-                AddItemBySlot(client, InventoryType.Personal, client.Player.Inventory.HomeInventory[(int)packet.DestSlot], packet.SrcSlot, true);
+            // if toSlot is not empty, move current item to the pack (item swap)
+            if (swappedOut != 0)
+                AddItemBySlot(client, InventoryType.Personal, swappedOut, (uint)returnSlot, true);
 
             AddItemBySlot(client, InventoryType.HomeInventory, entityId, packet.DestSlot, true);
+        }
+
+        /// <summary>
+        /// The pack slot for an item that comes out of the footlocker or the clan lockbox: the
+        /// one named, when it is one of the item's own tab, and otherwise the first free slot
+        /// of that tab. -1 when the tab has none.
+        ///
+        /// The pack is a tab of fifty slots for each inventory category, and every inventory
+        /// plan refuses to act while any stack sits outside its own (InventoryPlan
+        /// .ValidateSnapshot): one item out of place stopped pack moves, corpse loot,
+        /// consumables and mission items for the character, and the row was read back by slot
+        /// at the next login. Storage has no such tabs, and the slot a swap names for the item
+        /// coming out is only where the other item was: the client sends a drop on a storage
+        /// slot whatever that slot holds (lockboxwindow.OnDNDDrop), so a rifle dropped on
+        /// stored ammunition put the ammunition among the equipment. The client itself sends an
+        /// item dropped on another tab to a free slot of its own (inventorywindow.OnDNDDrop).
+        ///
+        /// A named slot of the item's own tab is returned whether or not it is free: what is in
+        /// it is the caller's to swap.
+        /// </summary>
+        private static int OwnTabSlot(Client client, ulong entityId, uint slot)
+        {
+            var item = EntityManager.Instance.GetItem(entityId);
+
+            // Nothing to place; the callers' own handling of a missing item stands.
+            if (item == null)
+                return (int)slot;
+
+            return IsInOwnTab(item, slot) ? (int)slot : PackDestination(client.Player.Inventory.PersonalInventory, item, null);
+        }
+
+        /// <summary>Whether a pack slot is one of the fifty of the item's own tab.</summary>
+        private static bool IsInOwnTab(Item item, uint slot)
+        {
+            var first = ((int)item.ItemTemplate.InventoryCategory - 1) * PersonalCategorySize;
+
+            return first >= 0 && slot >= first && slot < first + PersonalCategorySize;
         }
 
         public void ClanLockbox_DepositItemInSlot(Client client, ClanLockbox_DepositItemInSlotPacket packet)
@@ -661,6 +709,16 @@ namespace Rasa.Managers
             if (depositedItem == null)
                 return;
 
+            // The lockbox's item comes out to a slot of its own tab (OwnTabSlot), settled
+            // before anything moves.
+            var returnSlot = wasSwap ? OwnTabSlot(client, client.Player.Inventory.ClanInventory[(int)packet.DestSlot], packet.SrcSlot) : (int)packet.SrcSlot;
+
+            if (returnSlot < 0)
+            {
+                client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(PlayerMessage.PmInventoryFull, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
+                return;
+            }
+
             RemoveItemBySlot(client, InventoryType.Personal, packet.SrcSlot);
 
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
@@ -671,7 +729,7 @@ namespace Rasa.Managers
             if (wasSwap)
             {
                 unitOfWork.CharacterInventories.DeleteInvItemByItemId(depositedItem.Id);
-                AddItemBySlot(client, InventoryType.Personal, client.Player.Inventory.ClanInventory[(int)packet.DestSlot], packet.SrcSlot, true, true);
+                AddItemBySlot(client, InventoryType.Personal, client.Player.Inventory.ClanInventory[(int)packet.DestSlot], (uint)returnSlot, true, true);
 
                 RemoveItemBySlotForClan(client.Player.ClanId, packet.DestSlot, 0);
                 unitOfWork.ClanInventories.DeleteInvItem(client.Player.ClanId, packet.DestSlot);
@@ -815,14 +873,35 @@ namespace Rasa.Managers
 
             var entityId = client.Player.Inventory.ClanInventory[(int)packet.SrcSlot];
 
-            if (entityId == 0 || HasProtected(entityId, client.Player.Inventory.PersonalInventory[(int)packet.DestSlot]))
+            if (entityId == 0)
+                return;
+
+            var destSlot = packet.DestSlot;
+
+            // A named slot is one of the item's own tab, as the client sends it. One of another
+            // tab is not taken, nor what is in it swapped: the item goes to a free slot of its
+            // own (OwnTabSlot). With no slot named, AddItemToInventory places it below.
+            if (!packet.ManagePersonalSlot)
+            {
+                var ownSlot = OwnTabSlot(client, entityId, packet.DestSlot);
+
+                if (ownSlot < 0)
+                {
+                    client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(PlayerMessage.PmInventoryFull, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
+                    return;
+                }
+
+                destSlot = (uint)ownSlot;
+            }
+
+            if (HasProtected(entityId, client.Player.Inventory.PersonalInventory[(int)destSlot]))
                 return;
 
             var tempItem = EntityManager.Instance.GetItem(entityId);
-            bool wasSwap = client.Player.Inventory.PersonalInventory[(int)packet.DestSlot] != 0;
+            bool wasSwap = client.Player.Inventory.PersonalInventory[(int)destSlot] != 0;
 
             // A swap puts the pack's item in the lockbox.
-            if (wasSwap && !packet.ManagePersonalSlot && !MayStore(client, client.Player.Inventory.PersonalInventory[(int)packet.DestSlot], true))
+            if (wasSwap && !packet.ManagePersonalSlot && !MayStore(client, client.Player.Inventory.PersonalInventory[(int)destSlot], true))
                 return;
 
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
@@ -845,19 +924,19 @@ namespace Rasa.Managers
                 {
                     RemoveItemBySlot(client, InventoryType.ClanInventory, packet.SrcSlot);
                     unitOfWork.ClanInventories.DeleteInvItem(client.Player.ClanId, packet.SrcSlot);
-                    AddItemBySlot(client, InventoryType.ClanInventory, client.Player.Inventory.PersonalInventory[(int)packet.DestSlot], packet.SrcSlot, true, true);
+                    AddItemBySlot(client, InventoryType.ClanInventory, client.Player.Inventory.PersonalInventory[(int)destSlot], packet.SrcSlot, true, true);
 
                     var newEntityId = client.Player.Inventory.ClanInventory[(int)packet.SrcSlot];
                     RefreshClanLockbox(client.Player.ClanId, newEntityId, client.Player.Id, packet.SrcSlot, ref client.Player.Inventory.ClanInventory, true);
 
-                    var swappedOut = EntityManager.Instance.GetItem(client.Player.Inventory.PersonalInventory[(int)packet.DestSlot]);
+                    var swappedOut = EntityManager.Instance.GetItem(client.Player.Inventory.PersonalInventory[(int)destSlot]);
 
-                    RemoveItemBySlot(client, InventoryType.Personal, packet.DestSlot);
+                    RemoveItemBySlot(client, InventoryType.Personal, destSlot);
 
                     if (swappedOut != null)
                         unitOfWork.CharacterInventories.DeleteInvItemByItemId(swappedOut.Id);
                 }
-                AddItemBySlot(client, InventoryType.Personal, entityId, packet.DestSlot, true, true);
+                AddItemBySlot(client, InventoryType.Personal, entityId, destSlot, true, true);
             }
 
             if (!wasSwap)
@@ -929,22 +1008,37 @@ namespace Rasa.Managers
 
             var entityId = client.Player.Inventory.HomeInventory[(int)packet.SrcSlot];
 
-            if (entityId == 0 || HasProtected(entityId, client.Player.Inventory.PersonalInventory[(int)packet.DestSlot]))
+            if (entityId == 0)
+                return;
+
+            // The client names a slot of the item's own tab. One of another tab is not taken,
+            // nor what is in it swapped: the item goes to a free slot of its own (OwnTabSlot).
+            var ownSlot = OwnTabSlot(client, entityId, packet.DestSlot);
+
+            if (ownSlot < 0)
+            {
+                client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(PlayerMessage.PmInventoryFull, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
+                return;
+            }
+
+            var destSlot = (uint)ownSlot;
+
+            if (HasProtected(entityId, client.Player.Inventory.PersonalInventory[(int)destSlot]))
                 return;
 
             if (!MayTakeFromHome(client, entityId))
                 return;
 
             // A swap puts the pack's item in the footlocker.
-            if (client.Player.Inventory.PersonalInventory[(int)packet.DestSlot] != 0 && !MayStore(client, client.Player.Inventory.PersonalInventory[(int)packet.DestSlot], false))
+            if (client.Player.Inventory.PersonalInventory[(int)destSlot] != 0 && !MayStore(client, client.Player.Inventory.PersonalInventory[(int)destSlot], false))
                 return;
 
             RemoveItemBySlot(client, InventoryType.HomeInventory, packet.SrcSlot);
             // if toSlot is not empty, move current item to SrcSlot (item swap)
-            if (client.Player.Inventory.PersonalInventory[(int)packet.DestSlot] != 0)
-                AddItemBySlot(client, InventoryType.HomeInventory, client.Player.Inventory.PersonalInventory[(int)packet.DestSlot], packet.SrcSlot, true);
+            if (client.Player.Inventory.PersonalInventory[(int)destSlot] != 0)
+                AddItemBySlot(client, InventoryType.HomeInventory, client.Player.Inventory.PersonalInventory[(int)destSlot], packet.SrcSlot, true);
 
-            AddItemBySlot(client, InventoryType.Personal, entityId, packet.DestSlot, true);
+            AddItemBySlot(client, InventoryType.Personal, entityId, destSlot, true);
         }
 
         /// <summary>
@@ -972,7 +1066,7 @@ namespace Rasa.Managers
             if (item == null || IsProtected(item))
                 return;
 
-            var destSlot = InboxDestination(client.Player.Inventory.PersonalInventory, item, packet.DestSlot);
+            var destSlot = PackDestination(client.Player.Inventory.PersonalInventory, item, packet.DestSlot);
 
             if (destSlot < 0)
             {
@@ -992,21 +1086,23 @@ namespace Rasa.Managers
         }
 
         /// <summary>
-        /// The pack slot an inbox item goes to: the one asked for if it is a free slot of the
+        /// The free pack slot an item goes to: the one asked for if it is a free slot of the
         /// item's own tab, or else the first free slot of that tab. -1 when the tab is full, or
-        /// the item has no tab. A tab is fifty slots, as AddItemToInventory has them.
+        /// the item has no tab. A tab is fifty slots, as AddItemToInventory has them. Used for
+        /// an inbox item, and for one that leaves storage without a slot of its own tab named
+        /// (OwnTabSlot).
         /// </summary>
-        private static int InboxDestination(List<ulong> pack, Item item, uint? asked)
+        private static int PackDestination(List<ulong> pack, Item item, uint? asked)
         {
-            var first = ((int)item.ItemTemplate.InventoryCategory - 1) * 50;
+            var first = ((int)item.ItemTemplate.InventoryCategory - 1) * PersonalCategorySize;
 
-            if (first < 0 || first + 50 > pack.Count)
+            if (first < 0 || first + PersonalCategorySize > pack.Count)
                 return -1;
 
-            if (asked.HasValue && asked.Value >= first && asked.Value < first + 50 && pack[(int)asked.Value] == 0)
+            if (asked.HasValue && asked.Value >= first && asked.Value < first + PersonalCategorySize && pack[(int)asked.Value] == 0)
                 return (int)asked.Value;
 
-            for (var slot = first; slot < first + 50; slot++)
+            for (var slot = first; slot < first + PersonalCategorySize; slot++)
                 if (pack[slot] == 0)
                     return slot;
 
