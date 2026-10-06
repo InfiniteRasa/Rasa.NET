@@ -479,7 +479,7 @@ namespace Rasa.Managers
             {
                 if (player.Missions.ContainsKey(definition.MissionId) ||
                     player.MissionSuccessHistory.Contains(definition.MissionId) ||
-                    player.Missions.Values.Count(mission => mission.State != MissionState.Completed) >= MissionRuntime.JournalCapacity ||
+                    player.Missions.Values.Count(mission => mission.State is not (MissionState.Completed or MissionState.Failed)) >= MissionRuntime.JournalCapacity ||
                     !ArePrerequisitesSatisfied(player, definition.MissionId, out _))
                     continue;
 
@@ -1089,8 +1089,11 @@ namespace Rasa.Managers
         internal bool HasJournalCapacity(uint characterId, uint missionId, ICharUnitOfWork unit)
         {
             var previous = unit.CharacterMissions.GetByCharacterAndMission(characterId, missionId);
+            // Count leaves out the rewarded and the failed; any other entry of this mission is
+            // the one the new assignment would replace.
             return MissionRuntime.Admit(true, false, false, unit.CharacterMissions.Count(characterId) -
-                (previous != null && previous.MissionState != (uint)MissionState.Completed ? 1 : 0)).Rejection !=
+                (previous != null && previous.MissionState is not
+                    ((uint)MissionState.Completed or (uint)MissionState.Failed) ? 1 : 0)).Rejection !=
                 MissionRejection.JournalFull;
         }
 
