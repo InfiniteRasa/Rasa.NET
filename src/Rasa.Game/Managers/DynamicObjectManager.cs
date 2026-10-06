@@ -811,6 +811,9 @@ namespace Rasa.Managers
             if (dynamicObject.DynamicObjectType == DynamicObjectType.PersonalWaypoint)
                 PersonalWaypoints.Introduce(client, dynamicObject);
 
+            // A propellant pool's proxy: the pool burning on it.
+            PropellantPools.ShowTo(client, dynamicObject);
+
             // Someone is partway through using it. Players are introduced before objects, and the
             // user is standing at it, so this client already has the actor the effect runs to.
             if (dynamicObject.UsedBy != null)

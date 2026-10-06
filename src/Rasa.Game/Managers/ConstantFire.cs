@@ -50,8 +50,8 @@ namespace Rasa.Managers
     /// listed as shots of the one pulse. The reach and the angle are ConeWeapons': the action's
     /// own range (maxRange 10 on every (140, arg) row) and 45 degrees either side. A
     /// pulse may leave a pool on the ground (PROPELLANT_POOL_EFFECT 10000047), which is
-    /// <see cref="PropellantPools"/>'; PROPELLANT_PUMP_EFFECT 10000046 has no numbers or
-    /// behaviour in the client and is not done.
+    /// <see cref="PropellantPools"/>'; PROPELLANT_PUMP_EFFECT 10000046 does nothing on the
+    /// client and is not sent (see there).
     ///
     /// Machine guns (WEAPON_MACHINEGUN 149, a charged action in actionModules): the client's
     /// MachinegunAttack is a ConstantFireAttack like the rest - a looping windup while the

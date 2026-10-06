@@ -9,6 +9,7 @@ namespace Rasa.Test.World
     using Rasa.Game;
     using Rasa.Managers;
     using Rasa.Packets;
+    using Rasa.Packets.Game.Server;
     using Rasa.Packets.MapChannel.Server;
     using Rasa.Packets.Protocol;
     using Rasa.Structures;
@@ -339,10 +340,119 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
+        public void AClientThatComesIntoViewOfAPoolIsSentItWithItsProxy()
+        {
+            using var world = new WorldTestContext();
+            var shooter = Watch(world, 0);
+            var victim = Spawn(world, new Vector3(0, 0, -6), TargetCategory.Hostile);
+            PropellantPools.RollPercent = () => Always;
+
+            PropellantPools.OnPulse(world.Map, shooter.Player, 70, DamageType.Sonic, 10f, new List<Actor>());
+            PropellantPools.RollPercent = () => Never;
+
+            // Whoever was there is sent the proxy and then the pool, once.
+            var first = Calls(shooter);
+            var created = first.Select(call => call.Packet).OfType<CreatePhysicalEntityPacket>().Single();
+            Assert.AreEqual(AbilityManager.LocationProxyClass, created.ClassId);
+            var attached = first.Single(call => call.Packet is GameEffectAttachedPacket);
+            Assert.AreEqual(created.EntityId, attached.EntityId);
+            var effectId = ((GameEffectAttachedPacket)attached.Packet).EffectId;
+
+            // Someone arrives three seconds into it.
+            for (var second = 1; second <= 3; second++)
+            {
+                _now += PropellantPools.TickIntervalMs;
+                PropellantPools.Worker(world.Map);
+            }
+
+            var late = world.CreateClient(x: 3);
+            CellManager.Instance.AddToWorld(late);
+
+            var seen = Calls(late);
+            var proxyAt = seen.FindIndex(call => call.Packet is CreatePhysicalEntityPacket made && made.EntityId == created.EntityId);
+            var poolAt = seen.FindIndex(call => call.Packet is GameEffectAttachedPacket);
+            Assert.IsGreaterThanOrEqualTo(0, proxyAt, "the proxy");
+            Assert.IsGreaterThan(proxyAt, poolAt, "and the pool, after the object it is on");
+            Assert.AreEqual(created.EntityId, seen[poolAt].EntityId);
+
+            var shown = seen.Select(call => call.Packet).OfType<GameEffectAttachedPacket>().Single();
+            Assert.AreEqual(PropellantPools.PoolTypeId, shown.EffectTypeId);
+            Assert.AreEqual(effectId, shown.EffectId, "the same effect the ticks are of");
+            Assert.AreEqual((uint)DamageType.Sonic, shown.EffectLevel);
+            Assert.AreEqual(shooter.Player.EntityId, shown.SourceId);
+            Assert.IsTrue(shown.Announced, "the client draws an effect's FX as it announces it");
+
+            // Those who had it are not sent it again.
+            Assert.IsEmpty(Calls(shooter).Where(call => call.Packet is GameEffectAttachedPacket).ToArray());
+
+            // The newcomer gets the ticks from here on, and the end.
+            _now += PropellantPools.TickIntervalMs;
+            PropellantPools.Worker(world.Map);
+            Assert.AreEqual(effectId, Calls(late).Select(call => call.Packet).OfType<GameEffectTickPacket>().Single().EffectId);
+            Assert.AreEqual(1000 - 4 * 10, Health(victim));
+
+            // Walking out of view and back: the client threw the proxy away, and is sent both again.
+            late.Player.Position = new Vector3(5000, 0, 5000);
+            CellManager.Instance.UpdateVisibility(late);
+            Calls(late);
+            late.Player.Position = new Vector3(3, 0, 0);
+            CellManager.Instance.UpdateVisibility(late);
+            Assert.AreEqual(effectId, Calls(late).Select(call => call.Packet).OfType<GameEffectAttachedPacket>().Single().EffectId);
+        }
+
+        [TestMethod]
+        public void APoolThatHasBeenPutOutIsNotShownToANewcomer()
+        {
+            using var world = new WorldTestContext();
+            var shooter = Watch(world, 0);
+            PropellantPools.RollPercent = () => Always;
+
+            PropellantPools.OnPulse(world.Map, shooter.Player, 70, DamageType.Fire, 10f, new List<Actor>());
+            PropellantPools.RollPercent = () => Never;
+
+            // Burnt out, its proxy still waiting out the fade.
+            _now += PropellantPools.DurationMs;
+            PropellantPools.Worker(world.Map);
+            Assert.IsEmpty(PropellantPools.Of(shooter.Player));
+
+            var late = world.CreateClient(x: 3);
+            CellManager.Instance.AddToWorld(late);
+
+            var seen = Calls(late).Select(call => call.Packet).ToArray();
+            Assert.HasCount(1, seen.OfType<CreatePhysicalEntityPacket>().Where(made => made.ClassId == AbilityManager.LocationProxyClass).ToArray());
+            Assert.IsEmpty(seen.OfType<GameEffectAttachedPacket>().ToArray());
+        }
+
+        [TestMethod]
+        public void AnotherObjectOfTheProxysClassIsSentNothing()
+        {
+            using var world = new WorldTestContext();
+            var shooter = Watch(world, 0);
+            PropellantPools.RollPercent = () => Always;
+            PropellantPools.OnPulse(world.Map, shooter.Player, 70, DamageType.Fire, 10f, new List<Actor>());
+
+            // A firework's or a flare's proxy is the same class.
+            var other = new DynamicObject
+            {
+                EntityClassId = AbilityManager.LocationProxyClass,
+                Position = new Vector3(1, 0, 1),
+                MapContextId = world.Map.MapInfo.MapContextId,
+                IsEnabled = false
+            };
+            Calls(shooter);
+            CellManager.Instance.AddToWorld(world.Map, other);
+
+            var seen = Calls(shooter).Select(call => call.Packet).ToArray();
+            Assert.HasCount(1, seen.OfType<CreatePhysicalEntityPacket>().ToArray());
+            Assert.IsEmpty(seen.OfType<GameEffectAttachedPacket>().ToArray());
+        }
+
+        [TestMethod]
         public void FiringAPropellantGunLeavesThePoolOfItsPulse()
         {
             using var context = new WeaponAmmoContext(clip: 100);
             var world = context.World;
+            world.AddClass(AbilityManager.LocationProxyClass);
             var shooter = context.Client;
             foreach (var attribute in new[] { Attributes.Armor, Attributes.Power, Attributes.Regen })
                 shooter.Player.Attributes[attribute] = new ActorAttributes(attribute, 100, 100, 100, 0, 0);
@@ -385,6 +495,7 @@ namespace Rasa.Test.World
                     Assert.IsTrue(manager.PlayerTryFireWeapon(shooter));
                 }
 
+                // (A pulse that crits may put an effect of its own on the target: only the pool's are counted.)
                 Assert.HasCount(1, PropellantPools.Of(shooter.Player));
                 // No second pool and no second gun effect. A crit's own effect on the victim may
                 // come with any pulse, at random, and is not what this is about.
@@ -407,6 +518,13 @@ namespace Rasa.Test.World
         }
 
         private static int Health(Creature creature) => creature.Attributes[Attributes.Health].Current;
+
+        /// <summary>What the client was sent, each with the entity it was sent to.</summary>
+        private static List<CallMethodMessage> Calls(Client client) =>
+            WorldTestContext.Drain(client)
+                .Select(packet => packet.Message)
+                .OfType<CallMethodMessage>()
+                .ToList();
 
         private static PythonPacket[] Sent(Client client) =>
             WorldTestContext.Drain(client)
@@ -444,6 +562,8 @@ namespace Rasa.Test.World
         /// <summary>A client standing in the map's cells, so what is sent near it reaches it.</summary>
         private static Client Watch(WorldTestContext world, float x, bool listed = true)
         {
+            // The pool's proxy is of a class the server has loaded.
+            world.AddClass(AbilityManager.LocationProxyClass);
             var client = world.CreateClient(x: x);
             var seed = CellManager.Instance.GetCellSeed(client.Player.Position);
             client.Player.Cells = CellsAt(world, client.Player.Position);
