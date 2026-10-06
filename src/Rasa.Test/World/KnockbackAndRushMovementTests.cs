@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System.Threading;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Rasa.Test.World
@@ -14,9 +15,9 @@ namespace Rasa.Test.World
     using Rasa.Structures;
 
     /// <summary>
-    /// A knockback is a movement of its own type (MovementType.Knockback): the client flies the
-    /// arc itself, and looks at nothing else sent for the entity until it is back on its feet. So
-    /// the server says where it ends once, and nothing while it is under way.
+    /// A knockback and a rush are movements of their own type (MovementType.Knockback, Rush): the
+    /// client flies the arc or makes the run itself, and looks at nothing else sent for the entity
+    /// until it is done. So the server says where it ends once, and nothing while it is under way.
     /// </summary>
     [TestClass]
     [DoNotParallelize]
@@ -204,6 +205,268 @@ namespace Rasa.Test.World
 
         #endregion
 
+        #region A creature's rush
+
+        [TestMethod]
+        public void ARushingCreatureIsSentOnceAndSteppedInSilence()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 30);
+            var creature = Spawn(world, "Kael", 0);
+            Drain(watcher);
+
+            BehaviorManager.Instance.Rush(creature, new Vector3(20, 0, 0), 20f);
+
+            var sent = MovesOf(watcher, creature.EntityId);
+
+            Assert.AreEqual(1, sent.Count);
+            Assert.AreEqual(MovementType.Rush, sent[0].Type);
+            Assert.AreEqual(new Vector3(20, 0, 0), sent[0].Position);
+            Assert.AreEqual(20f, sent[0].Velocity, 0.001f);
+            Assert.IsTrue(creature.IsRushing);
+
+            // Half a second at 20 m/s: half way, on the server alone.
+            Think(world, 500);
+
+            Assert.AreEqual(0, MovesOf(watcher, creature.EntityId).Count, "The clients are making the run themselves.");
+            Assert.AreEqual(10f, creature.Position.X, 0.01f);
+            Assert.IsTrue(creature.IsRushing);
+
+            // There: told it stands where the run ends, with an ordinary movement.
+            Think(world, 750);
+
+            Assert.IsFalse(creature.IsRushing);
+            Assert.IsNull(creature.KnockbackTo);
+            Assert.AreEqual(20f, creature.Position.X, 0.01f);
+
+            var after = MovesOf(watcher, creature.EntityId);
+
+            Assert.IsTrue(after.Count >= 1);
+            Assert.IsTrue(after.All(move => move.Type == MovementType.Normal));
+            Assert.AreEqual(20f, after[0].Position.X, 0.01f);
+        }
+
+        [TestMethod]
+        public void ARushIsHeldToTheSpeedAMovementCanCarry()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 30);
+            var creature = Spawn(world, "Fast", 0);
+            Drain(watcher);
+
+            BehaviorManager.Instance.Rush(creature, new Vector3(20, 0, 0), 200f);
+
+            Assert.AreEqual(Movement.MaxVelocity, creature.KnockbackSpeed, 0.001f, "The server runs it at what the clients are told.");
+            Assert.AreEqual(Movement.MaxVelocity, MovesOf(watcher, creature.EntityId).Single().Velocity, 0.001f);
+        }
+
+        [TestMethod]
+        public void ARushCutShortEndsWhereItsClientsHaveIt()
+        {
+            using var world = new WorldTestContext();
+            var killer = world.CreateClient(x: 200);
+            var watcher = Watch(world, x: 30);
+            var creature = Spawn(world, "Kael", 0);
+
+            BehaviorManager.Instance.Rush(creature, new Vector3(20, 0, 0), 20f);
+            Think(world, 250);
+            Assert.IsTrue(creature.Position.X < 20f);
+            Drain(watcher);
+
+            // Killed part-way: its clients run it to the end, so that is where the body is.
+            creature.Attributes[Attributes.Health].Current = 0;
+            CreatureManager.Instance.HandleCreatureKill(world.Map, creature, killer.Player);
+
+            Assert.AreEqual(CharacterState.Dead, creature.State);
+            Assert.AreEqual(new Vector3(20, 0, 0), creature.Position);
+            Assert.IsFalse(creature.IsRushing);
+            Assert.IsNull(creature.KnockbackTo);
+        }
+
+        [TestMethod]
+        public void ACarryThatIsNotARushEndsWhereItHasGotTo()
+        {
+            using var world = new WorldTestContext();
+            var creature = Spawn(world, "Pulled", 0);
+
+            creature.KnockbackTo = new Vector3(20, 0, 0);
+            creature.KnockbackSpeed = 20f;
+            creature.KnockbackIsPull = true;
+            Think(world, 250);
+
+            var reached = creature.Position;
+
+            Assert.IsTrue(reached.X > 0f && reached.X < 20f);
+
+            BehaviorManager.Instance.EndCarry(world.Map, creature);
+
+            Assert.AreEqual(reached, creature.Position);
+            Assert.IsNull(creature.KnockbackTo);
+        }
+
+        [TestMethod]
+        public void ACarryElsewhereIsNoLongerTheRush()
+        {
+            using var world = new WorldTestContext();
+            var watcher = Watch(world, x: 30);
+            var creature = Spawn(world, "Kael", 0);
+
+            BehaviorManager.Instance.Rush(creature, new Vector3(20, 0, 0), 20f);
+
+            // A Vortex takes hold of it mid-run: an ordinary carry, a step at a time, to the clients.
+            creature.KnockbackTo = new Vector3(0, 0, 20);
+            Drain(watcher);
+
+            Assert.IsFalse(creature.IsRushing);
+
+            Think(world, 250);
+
+            Assert.IsTrue(MovesOf(watcher, creature.EntityId).Count >= 1);
+        }
+
+        #endregion
+
+        #region Rushing Blow
+
+        [TestMethod]
+        public void AChargeIsSentOnceToEveryoneAndCarriedInSilence()
+        {
+            using var world = new WorldTestContext();
+            var performer = Watch(world, x: 0);
+            var watcher = Watch(world, x: 10);
+            var target = Spawn(world, "Target", 30);
+            Drain(performer, watcher);
+
+            var windupMs = AbilityManager.ChargeWindupMs(30f);
+
+            Pend(world, performer, windupMs);
+            AbilityManager.StartCharge(world.Map, performer, performer.Player, target, ActionId.AaCommandoRushingBlow, windupMs);
+
+            // ChargeStopShort short of the target, there as the windup ends.
+            var end = new Vector3(30 - AbilityManager.ChargeStopShort, 0, 0);
+            var speed = (30 - AbilityManager.ChargeStopShort) / (windupMs / 1000f);
+
+            foreach (var client in new[] { performer, watcher })
+            {
+                var moves = MovesOf(client, performer.Player.EntityId);
+
+                Assert.AreEqual(1, moves.Count);
+                Assert.AreEqual(MovementType.Rush, moves[0].Type);
+                Assert.AreEqual(end, moves[0].Position);
+                Assert.AreEqual(Math.Min(speed, Movement.MaxVelocity), moves[0].Velocity, 0.01f);
+            }
+
+            Assert.AreEqual(Vector3.Zero, performer.Player.Position, "The server's carry has not begun.");
+            Assert.IsTrue(AbilityManager.IsCharging(performer.Player));
+
+            // Carried on the server a tick at a time, and nobody told.
+            Thread.Sleep(100);
+            AbilityManager.Instance.ChargeWorker(world.Map);
+
+            Assert.IsTrue(performer.Player.Position.X > 0f);
+            Assert.AreEqual(0, MovesOf(performer, performer.Player.EntityId).Count);
+            Assert.AreEqual(0, MovesOf(watcher, performer.Player.EntityId).Count);
+
+            // The blow lands with the target where it was: they are where they were sent.
+            AbilityManager.FinishCharge(performer.Player);
+
+            Assert.AreEqual(end, performer.Player.Position);
+            Assert.IsFalse(AbilityManager.IsCharging(performer.Player));
+            Assert.AreEqual(0, MovesOf(performer, performer.Player.EntityId).Count);
+            Assert.AreEqual(0, MovesOf(watcher, performer.Player.EntityId).Count);
+        }
+
+        [TestMethod]
+        public void AChargeAtATargetThatMovedIsSentOnToWhereItEnds()
+        {
+            using var world = new WorldTestContext();
+            var performer = Watch(world, x: 0);
+            var watcher = Watch(world, x: 10);
+            var target = Spawn(world, "Target", 30);
+            var windupMs = AbilityManager.ChargeWindupMs(30f);
+
+            Pend(world, performer, windupMs);
+            AbilityManager.StartCharge(world.Map, performer, performer.Player, target, ActionId.AaCommandoRushingBlow, windupMs);
+
+            var first = MovesOf(watcher, performer.Player.EntityId).Single();
+
+            Drain(performer);
+
+            target.Position = new Vector3(40, 0, 0);
+            AbilityManager.FinishCharge(performer.Player);
+
+            var end = new Vector3(40 - AbilityManager.ChargeStopShort, 0, 0);
+
+            Assert.AreEqual(end, performer.Player.Position);
+
+            foreach (var client in new[] { performer, watcher })
+            {
+                var moves = MovesOf(client, performer.Player.EntityId);
+
+                Assert.AreEqual(1, moves.Count);
+                Assert.AreEqual(MovementType.Rush, moves[0].Type);
+                Assert.AreEqual(end, moves[0].Position);
+                Assert.AreEqual(first.Velocity, moves[0].Velocity, 0.001f);
+            }
+        }
+
+        [TestMethod]
+        public void AChargeCutShortTellsItsClientsWhereTheServerHasThePerformer()
+        {
+            using var world = new WorldTestContext();
+            var performer = Watch(world, x: 0);
+            var watcher = Watch(world, x: 10);
+            var target = Spawn(world, "Target", 30);
+            var windupMs = AbilityManager.ChargeWindupMs(30f);
+            var pending = Pend(world, performer, windupMs);
+
+            AbilityManager.StartCharge(world.Map, performer, performer.Player, target, ActionId.AaCommandoRushingBlow, windupMs);
+            Thread.Sleep(100);
+            AbilityManager.Instance.ChargeWorker(world.Map);
+
+            var reached = performer.Player.Position;
+
+            Assert.IsTrue(reached.X > 0f && reached.X < 28f);
+            Drain(performer, watcher);
+
+            // Interrupted: no blow, and the carry stops where it is.
+            pending.IsInrerrupted = true;
+            AbilityManager.Instance.ChargeWorker(world.Map);
+
+            Assert.IsFalse(AbilityManager.IsCharging(performer.Player));
+            Assert.AreEqual(reached, performer.Player.Position);
+
+            foreach (var client in new[] { performer, watcher })
+            {
+                var moves = MovesOf(client, performer.Player.EntityId);
+
+                Assert.AreEqual(1, moves.Count);
+                Assert.AreEqual(MovementType.Normal, moves[0].Type, "An ordinary placement, applied when their run is over.");
+                Assert.AreEqual(reached.X, moves[0].Position.X, 0.01f);
+            }
+        }
+
+        [TestMethod]
+        public void AChargeFromArmsLengthSendsNobodyAnywhere()
+        {
+            using var world = new WorldTestContext();
+            var performer = Watch(world, x: 0);
+            var watcher = Watch(world, x: 10);
+            var target = Spawn(world, "Target", 1.5f);
+            var windupMs = AbilityManager.ChargeWindupMs(1.5f);
+
+            Drain(performer, watcher);
+            Pend(world, performer, windupMs);
+            AbilityManager.StartCharge(world.Map, performer, performer.Player, target, ActionId.AaCommandoRushingBlow, windupMs);
+            AbilityManager.FinishCharge(performer.Player);
+
+            Assert.AreEqual(Vector3.Zero, performer.Player.Position);
+            Assert.AreEqual(0, MovesOf(performer, performer.Player.EntityId).Count);
+            Assert.AreEqual(0, MovesOf(watcher, performer.Player.EntityId).Count);
+        }
+
+        #endregion
+
         #region Fixture
 
         /// <summary>The movements sent to this client for the entity since it was last drained, in order.</summary>
@@ -227,6 +490,16 @@ namespace Rasa.Test.World
         {
             for (var elapsed = 0L; elapsed < milliseconds; elapsed += 250)
                 BehaviorManager.Instance.MapChannelThink(world.Map, 250);
+        }
+
+        /// <summary>The performer's Rushing Blow, wound up and waiting to land.</summary>
+        private static ActionData Pend(WorldTestContext world, Client performer, long windupMs)
+        {
+            var pending = new ActionData(performer.Player, ActionId.AaCommandoRushingBlow, 1, windupMs);
+
+            world.Map.PerformRecovery.Add(pending);
+
+            return pending;
         }
 
         /// <summary>A hostile creature in the map's cells.</summary>

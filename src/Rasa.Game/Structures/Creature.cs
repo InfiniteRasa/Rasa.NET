@@ -56,6 +56,14 @@ namespace Rasa.Structures
         public bool KnockbackIsPull { get; set; }
 
         /// <summary>
+        /// Where a rush is taking the creature (BehaviorManager.Rush): a carry its clients make
+        /// themselves, told once where it ends. It is a rush for as long as that is still where
+        /// it is being carried, so anything that carries it somewhere else ends it.
+        /// </summary>
+        public System.Numerics.Vector3? RushTo { get; set; }
+        public bool IsRushing => KnockbackTo is System.Numerics.Vector3 to && RushTo is System.Numerics.Vector3 rush && to == rush;
+
+        /// <summary>
         /// Run by something other than its own behaviour - a crab mine (AbilityManager.CrabMineWorker):
         /// BehaviorManager only carries it where it is being carried, and never scans, fights or wanders for it.
         /// </summary>

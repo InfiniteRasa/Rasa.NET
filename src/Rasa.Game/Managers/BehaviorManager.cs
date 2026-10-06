@@ -1695,9 +1695,10 @@ namespace Rasa.Managers
         }
 
         /// <summary>
-        /// One tick of a knockback in progress (CrowdControl.Knockback): the creature slides
-        /// toward where it is being carried at the knockback's speed, still facing whoever hit it,
-        /// and is told to stop when it gets there. Returns whether it was moving.
+        /// One tick of a carry in progress (a Vortex's pull, a crab mine's run, a Kael's rush):
+        /// the creature goes toward where it is being carried at the carry's speed, and is told
+        /// to stop when it gets there. A rush is stepped without a word to the clients, who are
+        /// making the run themselves. Returns whether it was moving.
         /// </summary>
         private bool StepKnockback(MapChannel mapChannel, Creature creature, long delta)
         {
@@ -1713,7 +1714,8 @@ namespace Rasa.Managers
             if (remaining > 0.05)
             {
                 var speed = creature.KnockbackSpeed > 0 ? creature.KnockbackSpeed : CrowdControl.KnockbackSpeed;
-                var moved = UpdateEntityMovement(difX, difY, difZ, creature, mapChannel, speed, true, delta, knockback: true, faceAlong: creature.KnockbackIsPull);
+                var moved = UpdateEntityMovement(difX, difY, difZ, creature, mapChannel, speed, true, delta, knockback: true, faceAlong: creature.KnockbackIsPull,
+                    publish: !creature.IsRushing);
 
                 if (moved < remaining - 0.05)
                     return true;
@@ -1722,6 +1724,7 @@ namespace Rasa.Managers
             creature.KnockbackTo = null;
             creature.KnockbackSpeed = 0;
             creature.KnockbackIsPull = false;
+            creature.RushTo = null;
             StopMoving(creature);
 
             return true;
@@ -1739,6 +1742,7 @@ namespace Rasa.Managers
             creature.KnockbackTo = null;
             creature.KnockbackSpeed = 0;
             creature.KnockbackIsPull = false;
+            creature.RushTo = null;
 
             creature.Position = destination;
             creature.LastYaw = (float)Math.Atan2(direction.X, direction.Z);
@@ -1748,6 +1752,48 @@ namespace Rasa.Managers
 
             if (mapChannel != null)
                 SynchronizeMovementCell(mapChannel, creature);
+        }
+
+        /// <summary>
+        /// A rush (KaelRushingBlow): the creature runs straight to where it ends at this speed,
+        /// facing the way it goes. Its clients make the run themselves (MovementType.Rush), so
+        /// they are told once, here. The server keeps its own place along the line a tick at a
+        /// time (StepKnockback) and sends nothing more until it is over. The speed is held to what
+        /// a movement can carry, so the two run at the same rate.
+        /// </summary>
+        public void Rush(Creature creature, Vector3 destination, float speed)
+        {
+            speed = Math.Clamp(speed, 1f, Movement.MaxVelocity);
+
+            creature.KnockbackTo = destination;
+            creature.KnockbackDirection = CrowdControl.AwayFrom(creature.Position, destination);
+            creature.KnockbackSpeed = speed;
+            creature.KnockbackIsPull = true;    // faces the way it runs
+            creature.RushTo = destination;
+            creature.LastYaw = AbilityManager.YawTowards(creature.Position, destination);
+
+            PublishMovement(creature, Movement.Rush(destination, speed, new Vector2(creature.LastYaw, 0f)));
+        }
+
+        /// <summary>
+        /// Ends whatever is carrying the creature, where it has got to. A rush is the exception:
+        /// its clients are making the run themselves and cannot be stopped part-way, so the
+        /// creature is put where the rush ends, which is where they will have it.
+        /// </summary>
+        public void EndCarry(MapChannel mapChannel, Creature creature)
+        {
+            if (creature.IsRushing)
+            {
+                creature.Position = creature.RushTo.Value;
+
+                if ((mapChannel ?? creature.RuntimeMapChannel) is MapChannel map)
+                    SynchronizeMovementCell(map, creature);
+            }
+
+            creature.KnockbackTo = null;
+            creature.KnockbackSpeed = 0;
+            creature.KnockbackIsPull = false;
+            creature.RushTo = null;
         }
 
         /// <summary>
@@ -2486,8 +2532,9 @@ namespace Rasa.Managers
         /// </param>
         /// <returns>The distance actually moved.</returns>
         /// <param name="faceAlong">A carry that faces the way it goes (a Vortex pull) rather than back the way it came.</param>
+        /// <param name="publish">Whether the step is sent to the clients: not for a rush, which they are making themselves.</param>
         float UpdateEntityMovement(double difX, double difY, double difZ, Creature creature, MapChannel mapChannel, float speed, bool isMoved, long elapsedMs, bool knockback = false, bool faceAlong = false,
-            bool synchronizeVisibility = false)
+            bool synchronizeVisibility = false, bool publish = true)
         {
             if (!knockback)
             {
@@ -2538,6 +2585,9 @@ namespace Rasa.Managers
                 creature.Rotation = vX;
                 SynchronizeMovementCell(mapChannel, creature);
             }
+
+            if (!publish)
+                return step;
 
             // send movement update
             var movement = new Movement(new Vector3(creature.Position.X, creature.Position.Y, creature.Position.Z), velocity, 0x08, new Vector2(vX, 0f));

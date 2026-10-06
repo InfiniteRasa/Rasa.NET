@@ -226,7 +226,7 @@ namespace Rasa.Managers
             var stateIds = new List<CharacterState> { CharacterState.Dead };
 
             creature.State = CharacterState.Dead;
-            creature.KnockbackTo = null;
+            BehaviorManager.Instance.EndCarry(mapChannel, creature);
 
             // Dead is at zero health, for every caller. All but Critical Death arrive with that
             // done. A creature killed out of its window - left to die, or finished - arrives
