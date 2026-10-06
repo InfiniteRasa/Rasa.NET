@@ -248,7 +248,9 @@ namespace Rasa.Managers
         /// RequestIntegrateItem(kraftwerksId, targetItemId, moduleItemId, slot,
         /// CRAFTACTION_INSERTION): one of a stack of module items into the slot, 0 to 3, of the
         /// target. Nothing is made, so nothing waits at the station; the player is told
-        /// "Crafting success!" and sees the item in their pack under its new name.
+        /// "Crafting success!" and sees the item in their pack under its new name. The item is
+        /// theirs by name too from then on: its tooltip reads "Modified By" and their family
+        /// name, as a fabricated item reads its maker's.
         /// </summary>
         internal void RequestIntegrateItem(Client client, RequestIntegrateItemPacket packet)
         {
@@ -301,7 +303,7 @@ namespace Rasa.Managers
             }
 
             Pay(client, cost);
-            ItemModules.Set(client, target, (int)packet.Slot, module.ModuleId, _gameUnitOfWorkFactory);
+            ItemModules.Set(client, target, (int)packet.Slot, module.ModuleId, _gameUnitOfWorkFactory, client.Player.FamilyName);
             Logger.WriteLog(LogType.Debug, $"{client.Player.FamilyName} integrates module {module.ModuleId} into slot {packet.Slot} of item {target.Id} for {cost} {Mimeogel} at station {station.EntityId}");
             Succeed(client, station);
             client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(PlayerMessage.PmCraftingSuccess, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));

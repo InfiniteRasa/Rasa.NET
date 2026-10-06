@@ -1,4 +1,6 @@
-﻿namespace Rasa.Packets.MapChannel.Server
+﻿using System.Collections.Generic;
+
+namespace Rasa.Packets.MapChannel.Server
 {
     using Data;
     using Memory;
@@ -35,7 +37,7 @@
             // tooltip and leaves out of its name and of the crafting station. No item template
             // is known to have any - that was the server's to know - so none is sent.
             pw.WriteList(0);
-            WriteLootModuleIds(pw);             // 'lootModuleIds'
+            WriteLootModuleIds(pw, Item.ModuleIds);     // 'lootModuleIds'
             pw.WriteInt(Item.ItemTemplate.QualityId);
             pw.WriteBool(Item.IsBound);         // 'boundToCharacter': this item, not its template
             pw.WriteBool(Item.ItemTemplate.ItemInfo.Tradable);
@@ -44,7 +46,7 @@
         }
 
         /// <summary>
-        /// The item's module slots (Item.ModuleIds), as the client holds them: a list by slot,
+        /// An item's module slots (Item.ModuleIds), as the client holds them: a list by slot,
         /// with None for an empty one, that may stop short of four. craftingnew.
         /// ItemHasEmptyModuleSlot takes either for empty - "len(moduleIds) &lt; 4", then "moduleId
         /// is None" - and the crafting station's extraction and integration pages take a
@@ -54,9 +56,8 @@
         /// The client names the item by these (gameuiutil.GetItemName): by the module of the
         /// highest moduleclasspriority, and only if the first slot is not empty.
         /// </summary>
-        private void WriteLootModuleIds(PythonWriter pw)
+        internal static void WriteLootModuleIds(PythonWriter pw, IReadOnlyList<uint> moduleIds)
         {
-            var moduleIds = Item.ModuleIds;
             var count = moduleIds.Count;
 
             while (count > 0 && moduleIds[count - 1] == 0)

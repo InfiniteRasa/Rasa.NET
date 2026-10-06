@@ -133,12 +133,21 @@ namespace Rasa.Managers
         /// Puts a module in one of an item's slots, or empties the slot with 0: the item's row is
         /// written, and its owner's client is sent the item's ItemInfo again - which is what
         /// makes it name the item anew and ask for the module's tooltip (gameui.
-        /// OnItemInfoReceived); Recv_ItemModuleModified only stores the list.
+        /// OnItemInfoReceived); Recv_ItemModuleModified only stores the list
+        /// (ItemModuleModifiedPacket).
+        ///
+        /// With a name, the item is that player's work from now on: the client's tooltip shows an
+        /// item's crafter name, and shows it as "Modified By: name". It takes the place of
+        /// whoever made the item or modified it before.
         /// </summary>
-        public static void Set(Client client, Item item, int slot, uint moduleId, IGameUnitOfWorkFactory factory)
+        public static void Set(Client client, Item item, int slot, uint moduleId, IGameUnitOfWorkFactory factory, string modifiedBy = null)
         {
             item.SetModule(slot, moduleId);
-            Save(client, item, factory);
+
+            if (modifiedBy != null)
+                item.Crafter = modifiedBy;
+
+            Save(client, item, factory, modifiedBy != null);
         }
 
         /// <summary>Empties every slot of the item.</summary>
@@ -150,10 +159,15 @@ namespace Rasa.Managers
             Save(client, item, factory);
         }
 
-        private static void Save(Client client, Item item, IGameUnitOfWorkFactory factory)
+        private static void Save(Client client, Item item, IGameUnitOfWorkFactory factory, bool crafter = false)
         {
             using (var unitOfWork = factory.CreateChar())
+            {
                 unitOfWork.Items.UpdateModules(item);
+
+                if (crafter)
+                    unitOfWork.Items.UpdateCrafter(item);
+            }
 
             var classInfo = EntityClassManager.Instance.GetClassInfo(item.ItemTemplate.Class);
 

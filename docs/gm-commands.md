@@ -167,7 +167,7 @@ A map's start groups are generated in this order:
 | `.givexp <amount>` | Admin | Gives you experience. |
 | `.chg_class <class>` | Admin | Changes your class. Class names: RECRUIT, SOLDIER, SPECIALIST, COMMANDO, RANGER, SAPPER, BIOTECHNICIAN, GRENADIER, GUARDIAN, SNIPER, SPY, DEMOLITIONIST, ENGINEER, MEDIC, EXOBIOLOGIST. |
 | `.givecredits <amount> [familyName]` | Admin | Credits for you or a player in the world. A negative amount takes credits away; the balance stops at zero and never goes negative. The player is told. |
-| `.giveitem <itemTemplateId> [quantity]` | Admin | Puts an item in your own inventory. With no quantity you get a full stack. You are recorded as the crafter. |
+| `.giveitem <itemTemplateId> [quantity]` | Admin | Puts an item in your own inventory. With no quantity you get a full stack. You are recorded as the crafter, which the item's tooltip shows as "Modified By" and your family name. |
 | `.givelogos <logosId>` | Admin | Adds a Logos (1–408, with gaps) to your Tabula. Ids the client doesn't know and Logos you already have are refused. |
 | `.removelogos <logosId\|all>` | Admin | Removes one Logos, or all of them, from your Tabula, including the saved rows. |
 | `.givepads` | Admin | Unlocks every dropship pad in the world for you. |
@@ -186,7 +186,7 @@ Item modules:
 - A crafting station works on modules by the client's own rules, and everything has to be in your pack:
   - **Salvage** destroys an item for Mimeomech: 5, 10, 25 or 100 for an Uncommon, Rare, Epic or Legendary weapon, piece of armor or tool, plus what its modules are worth, times a fifth of its level. A stack of modules or of salvage is salvaged whole. A Normal item with no modules is worth nothing.
   - **Extraction** takes the module out of one slot for a Mimeomech fee and makes it an item again. A strength 5 module cannot be extracted.
-  - **Integration** puts a module item into an empty slot. The module has to be for that kind of item (armor, weapon or tool), and the item must not have one of that kind already. The fee grows with the item's quality and level, the module's strength and the modules already in the item.
+  - **Integration** puts a module item into an empty slot. The module has to be for that kind of item (armor, weapon or tool), and the item must not have one of that kind already. The fee grows with the item's quality and level, the module's strength and the modules already in the item. The item's tooltip then reads "Modified By" and the player's family name, in place of whoever made or modified it before.
   - **Upgrade** turns a module item of strength 1 to 4 into the next strength, for 1, 5, 20 or 100 Mimeomech.
   - Mimeomech and modules that are made wait under "Items Created" until taken. The item worked on stays in your pack.
 - To try it: `.giveitem 123339 500` is Mimeomech, and the module items are in [gm-items/crafting-materials.md](gm-items/crafting-materials.md), for example `.giveitem 122963` (Armor Module: Body Bonus [1]).

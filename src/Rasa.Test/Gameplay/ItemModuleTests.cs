@@ -377,6 +377,50 @@ namespace Rasa.Test.Gameplay
         }
 
         [TestMethod]
+        public void ItemModuleModifiedIsTheItemsSlotsAndNothingElse()
+        {
+            static List<uint?> Sent(params uint[] slots)
+            {
+                using var stream = new MemoryStream();
+                using var writer = new PythonWriter(new BinaryWriter(stream));
+                var packet = new ItemModuleModifiedPacket(slots);
+
+                Assert.AreEqual(GameOpcode.ItemModuleModified, packet.Opcode);
+                Assert.AreEqual(717, (int)packet.Opcode);
+                packet.Write(writer);
+                stream.Position = 0;
+
+                using var reader = new PythonReader(new BinaryReader(stream));
+                var moduleIds = new List<uint?>();
+
+                // Recv_ItemModuleModified(moduleIds): one argument, the list.
+                Assert.AreEqual(1, reader.ReadTuple());
+
+                for (var i = reader.ReadList(); i > 0; i--)
+                {
+                    if (reader.PeekType() == PythonType.Int)
+                        moduleIds.Add(reader.ReadUInt());
+                    else
+                    {
+                        reader.ReadNoneStruct();
+                        moduleIds.Add(null);
+                    }
+                }
+
+                Assert.AreEqual(stream.Length, stream.Position);
+
+                return moduleIds;
+            }
+
+            // The list ItemInfo sends as lootModuleIds: by slot, None for an empty one before a
+            // full one, and nothing after the last full one.
+            Assert.AreEqual(0, Sent(0, 0, 0, 0).Count);
+            CollectionAssert.AreEqual(new uint?[] { Body1 }, Sent(Body1, 0, 0, 0));
+            CollectionAssert.AreEqual(new uint?[] { null, null, FireResist1 }, Sent(0, 0, FireResist1, 0));
+            CollectionAssert.AreEqual(new uint?[] { Body1, Health1, FireResist1, StealArmor1 }, Sent(Body1, Health1, FireResist1, StealArmor1));
+        }
+
+        [TestMethod]
         public void AMigratedWorldHasTheModulesAndOneTakenBackHasNeitherTable()
         {
             const string tables = "select name from sqlite_master where type = 'table' and name in ('module_class', 'module_effect') order by name";
@@ -471,6 +515,18 @@ namespace Rasa.Test.Gameplay
 
                 context.ChangeTracker.Clear();
                 CollectionAssert.AreEqual(new uint[] { 0, 0, 0, 0 }, repository.GetItem(plain).Modules);
+
+                // The name it is "Modified By" is written by itself, and the slots are left as they were.
+                made.Crafter = "Kupper";
+                repository.UpdateCrafter(made);
+                context.ChangeTracker.Clear();
+
+                var modified = repository.GetItem(made.Id);
+
+                Assert.AreEqual("Kupper", modified.CrafterName);
+                CollectionAssert.AreEqual(new uint[] { 0, Health1, 0, 0 }, modified.Modules);
+                Assert.AreEqual((28u, 1u), (modified.ItemTemplateId, modified.StackSize));
+                Assert.AreEqual("", repository.GetItem(plain).CrafterName);
 
                 // Taken back, the columns are gone and the items are still there.
                 migrator.Migrate(CharBefore);

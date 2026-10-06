@@ -13,6 +13,7 @@ namespace Rasa.Repositories.Char.Items
         void UpdateAmmo(IItemChange item);
         void UpdateBoundCharacter(IItemChange item);
         void UpdateColor(IItemChange item);
+        void UpdateCrafter(IItemChange item);
         void UpdateCurrentHitPoints(IItemChange item);
         void UpdateItemStackSize(IItemChange item);
         void UpdateModules(IItemChange item);

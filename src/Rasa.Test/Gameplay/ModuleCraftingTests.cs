@@ -539,6 +539,14 @@ namespace Rasa.Test.Gameplay
                 return unit.Items.GetItem(item.Id).Modules;
             }
 
+            /// <summary>The name the item's row has for its tooltip's "Modified By".</summary>
+            internal string SavedCrafter(Item item)
+            {
+                using var unit = _harness.Context.CreateChar();
+
+                return unit.Items.GetItem(item.Id).CrafterName;
+            }
+
             /// <summary>The one item of the template in the pack.</summary>
             internal Item Only(uint templateId) => Client.Player.Inventory.PersonalInventory
                 .Where(entityId => entityId != 0)
@@ -565,6 +573,27 @@ namespace Rasa.Test.Gameplay
 
         private static bool Succeeded(IReadOnlyList<PythonPacket> sent) =>
             sent.OfType<CraftingResultPacket>().Single().Opcode == GameOpcode.CraftingSuccess;
+
+        /// <summary>The third value of an ItemInfo: the crafter name the client shows as "Modified By", or null for None.</summary>
+        private static string CrafterSent(ItemInfoPacket packet)
+        {
+            using var stream = new MemoryStream();
+            using var writer = new Rasa.Memory.PythonWriter(new BinaryWriter(stream));
+
+            packet.Write(writer);
+            stream.Position = 0;
+
+            using var reader = new Rasa.Memory.PythonReader(new BinaryReader(stream));
+
+            reader.ReadTuple();
+            reader.SkipValue();
+            reader.SkipValue();
+
+            if (reader.PeekType() != Rasa.Memory.PythonType.String)
+                return null;
+
+            return reader.ReadString();
+        }
 
         private static string Refusal(IReadOnlyList<PythonPacket> sent)
         {
@@ -648,6 +677,8 @@ namespace Rasa.Test.Gameplay
             CollectionAssert.AreEqual(new uint[] { 0, 0, Crit5, 0 }, weapon.ModuleIds.ToArray());
             CollectionAssert.AreEqual(new uint[] { 0, 0, Crit5, 0 }, bench.Saved(weapon));
             Assert.AreSame(weapon, sent.OfType<ItemInfoPacket>().Single().Item, "and the client is told what it carries now");
+            Assert.AreEqual("", weapon.Crafter, "taking a module out puts nobody's name on the item");
+            Assert.AreEqual("", bench.SavedCrafter(weapon));
 
             var job = Jobs(sent).Single();
 
@@ -701,6 +732,7 @@ namespace Rasa.Test.Gameplay
             Assert.AreEqual(2u, modules.StackSize);
             Assert.AreEqual(100u, bench.Carried(MimeogelClass));
             CollectionAssert.AreEqual(new uint[] { 0, 0, Mind5, 0 }, bench.Saved(armor));
+            Assert.AreEqual("", bench.SavedCrafter(armor), "a refusal puts no name on it");
 
             // Into an empty one: one module of the stack and the fee are gone, and the item has it.
             sent = bench.After((station, id) => station.RequestIntegrateItem(bench.Client, Integrate(id, armor, modules, 1)));
@@ -712,6 +744,15 @@ namespace Rasa.Test.Gameplay
             CollectionAssert.AreEqual(new uint[] { 0, Body1, Mind5, 0 }, bench.Saved(armor));
             Assert.AreSame(armor, sent.OfType<ItemInfoPacket>().Single().Item);
             Assert.AreEqual(0, Jobs(sent).Count, "nothing is made, so nothing waits");
+
+            // The item is the player's work now: the name its tooltip shows as "Modified By",
+            // on the item, in its row, and in the ItemInfo the client was sent.
+            var name = bench.Client.Player.FamilyName;
+
+            Assert.IsFalse(string.IsNullOrEmpty(name));
+            Assert.AreEqual(name, armor.Crafter);
+            Assert.AreEqual(name, bench.SavedCrafter(armor));
+            Assert.AreEqual(name, CrafterSent(sent.OfType<ItemInfoPacket>().Single()));
             Assert.AreEqual(PlayerMessage.PmCraftingSuccess, sent.OfType<DisplayClientMessagePacket>().Single().MsgId);
 
             // A second of the kind is refused, and so is a module for another kind of item.
@@ -742,6 +783,24 @@ namespace Rasa.Test.Gameplay
             Assert.IsFalse(bench.InPack(crit));
             CollectionAssert.AreEqual(new uint[] { 0, 0, 0, Crit1 }, bench.Saved(weapon));
             Assert.AreEqual(62u, bench.Carried(MimeogelClass));
+            Assert.AreEqual(name, bench.SavedCrafter(weapon));
+
+            // And whoever made an item, or modified it before, gives way to whoever modifies it now.
+            var theirs = bench.GiveGear(ToolClass, LootQuality.Normal, 1);
+
+            theirs.Crafter = "Somebody";
+            Assert.AreEqual(ItemModules.IntegrationProblem.WrongKindOfItem, ItemModules.CanIntegrate(modules, theirs));
+            sent = bench.After((station, id) => station.RequestIntegrateItem(bench.Client, Integrate(id, theirs, modules, 0)));
+            Assert.AreEqual("That module is for another kind of item.", Refusal(sent));
+            Assert.AreEqual("Somebody", theirs.Crafter, "not by a refusal");
+
+            var made = bench.GiveGear(ArmorClass, LootQuality.Normal, 1);
+
+            made.Crafter = "Somebody";
+            sent = bench.After((station, id) => station.RequestIntegrateItem(bench.Client, Integrate(id, made, modules, 0)));
+            Assert.IsTrue(Succeeded(sent));
+            Assert.AreEqual(name, made.Crafter);
+            Assert.AreEqual(name, bench.SavedCrafter(made));
         }
 
         [TestMethod]

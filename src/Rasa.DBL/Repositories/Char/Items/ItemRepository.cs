@@ -158,6 +158,12 @@ namespace Rasa.Repositories.Char.Items
             UpdateColumn(item, nameof(ItemEntry.Color), entry => entry.Color = item.Color);
         }
 
+        /// <summary>The name the item's tooltip gives as "Modified By".</summary>
+        public void UpdateCrafter(IItemChange item)
+        {
+            UpdateColumn(item, nameof(ItemEntry.CrafterName), entry => entry.CrafterName = item.Crafter ?? "");
+        }
+
         public void UpdateCurrentHitPoints(IItemChange item)
         {
             UpdateColumn(item, nameof(ItemEntry.CurrentHitPoints), entry => entry.CurrentHitPoints = item.CurrentHitPoints);
