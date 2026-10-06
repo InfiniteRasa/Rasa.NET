@@ -162,6 +162,60 @@ namespace Rasa.Test.World
             Assert.IsFalse(sent.Any(packet => packet is DisplayClientMessagePacket));
         }
 
+        [TestMethod]
+        public void TwoItemsSavedInOnePackSlotAreBothInThePackAfterLogin()
+        {
+            // Where a deposit into a full tab used to lead: the item's row stayed in its pack
+            // slot with the list empty there, a purchase was given the slot and a row of its
+            // own, and from the next login one of the two was in no slot.
+            using var fixture = new Fixture();
+            var ammo = fixture.InPack(Ammo, 5, PackSlot);
+            var bought = fixture.InPack(Filler, 1, PackSlot);
+            var other = fixture.InPack(Filler + 1, 1, PackSlot + 1);
+
+            fixture.Login();
+
+            var slots = fixture.SlotsByItem();
+
+            Assert.AreEqual(3, slots.Count);
+            Assert.AreEqual(PackSlot + 1, slots[other.Id]);
+            CollectionAssert.AreEquivalent(new[] { PackSlot, PackSlot + 2 }, new[] { slots[ammo.Id], slots[bought.Id] }, "one keeps the slot, the other has the first free one of the tab");
+            fixture.AssertPackRow(ammo, slots[ammo.Id], 5);
+            fixture.AssertPackRow(bought, slots[bought.Id], 1);
+            fixture.AssertPackRow(other, PackSlot + 1, 1);
+
+            // The client is shown each once, where it is.
+            var shown = fixture.Sent().OfType<InventoryAddItemPacket>().Where(packet => packet.Type == InventoryType.Personal).ToArray();
+
+            CollectionAssert.AreEquivalent(new[] { (uint)PackSlot, (uint)PackSlot + 1, (uint)PackSlot + 2 }, shown.Select(packet => packet.SlotId).ToArray());
+            fixture.AssertThePackStillWorks(fixture.Loaded(PackSlot + 2));
+
+            // And they stay where they are.
+            var before = fixture.SlotsByItem();
+
+            fixture.Login();
+
+            CollectionAssert.AreEquivalent(before.ToArray(), fixture.SlotsByItem().ToArray());
+        }
+
+        [TestMethod]
+        public void ASecondItemInOnePackSlotIsLeftWhenTheTabIsFull()
+        {
+            using var fixture = new Fixture();
+            var ammo = fixture.InPack(Ammo, 5, PackSlot);
+            var bought = fixture.InPack(Filler, 1, PackSlot);
+
+            for (var slot = PackSlot + 1; slot < PackSlot + 50; slot++)
+                fixture.InPack(Filler + 1, 1, slot);
+
+            fixture.Login();
+
+            // As it was: one of the two is shown, and both rows are as they were.
+            Assert.AreEqual(50, fixture.SlotsByItem().Count);
+            fixture.AssertPackRow(ammo, PackSlot, 5);
+            fixture.AssertPackRow(bought, PackSlot, 1);
+        }
+
         /// <summary>The leader of a clan, online, with its lockbox open to them.</summary>
         private sealed class Fixture : IDisposable
         {
@@ -238,6 +292,20 @@ namespace Rasa.Test.World
                     Quantity = 1
                 });
             }
+
+            /// <summary>The lists built again from the rows, as at a login.</summary>
+            internal void Login()
+            {
+                Sent();
+                Inventory.InitCharacterInventory(Client);
+            }
+
+            /// <summary>The item in that pack slot.</summary>
+            internal Item Loaded(int slot) => EntityManager.Instance.GetItem(Pack[slot]);
+
+            /// <summary>Each item in the pack, by its item id, and the slot it is in.</summary>
+            internal Dictionary<uint, int> SlotsByItem() => Enumerable.Range(0, Pack.Count).Where(slot => Pack[slot] != 0)
+                .ToDictionary(slot => Loaded(slot).Id, slot => slot);
 
             internal List<CallMethodMessage> SentMessages() => WorldTestContext.Drain(Client)
                 .Select(packet => packet.Message).OfType<CallMethodMessage>().ToList();

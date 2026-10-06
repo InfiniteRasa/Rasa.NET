@@ -2400,7 +2400,8 @@ namespace Rasa.Managers
             for (uint i = 0; i < 5; i++)
                 client.Player.Inventory.WeaponDrawer.Add(0);
 
-            // Pack items saved in a slot that is not one of their own tab; placed after the loop.
+            // Pack items saved in a slot that is not one of their own tab, or in one another
+            // item already has; placed after the loop.
             var misplaced = new List<Item>();
             var pack = client.Player.Inventory.PersonalInventory;
 
@@ -2465,7 +2466,7 @@ namespace Rasa.Managers
                     {
                         // A mission's item is left where its row has it: it is moved only by
                         // its mission's own plan.
-                        if (IsInOwnTab(newItem, newItem.OwnerSlotId) || IsProtected(newItem))
+                        if (IsProtected(newItem) || IsInOwnTab(newItem, newItem.OwnerSlotId) && pack[(int)newItem.OwnerSlotId] == 0)
                             AddItemBySlot(client, InventoryType.Personal, newItem.EntityId, newItem.OwnerSlotId, false);
                         else
                         {
@@ -2532,6 +2533,12 @@ namespace Rasa.Managers
             // the row is moved with it. With the rest of the pack in, the free slots are known;
             // one that moves may free a slot another was waiting for, so they are gone through
             // until none moves.
+            //
+            // The same is done for a second item saved in one slot. A deposit into a full clan
+            // lockbox tab used to take the item out of the pack list and leave its row
+            // (ClanLockbox_DepositItemInTab); a purchase could then be given that slot, and a
+            // second row for it. Loaded by slot the later row replaced the earlier in the list:
+            // one item was in no slot, and every plan was refused for the two rows.
             misplaced.Sort((left, right) => left.OwnerSlotId.CompareTo(right.OwnerSlotId));
 
             for (var moved = true; moved && misplaced.Count > 0;)
@@ -2554,7 +2561,7 @@ namespace Rasa.Managers
                     moved = true;
 
                     Logger.WriteLog(LogType.Error,
-                        $"Character {client.Player.Id} item {item.Id} was in pack slot {saved}, outside its tab ({item.ItemTemplate.InventoryCategory}); moved to slot {slot}.");
+                        $"Character {client.Player.Id} item {item.Id} was in pack slot {saved}, {WhyMisplaced(item, saved)}; moved to slot {slot}.");
                 }
             }
 
@@ -2562,9 +2569,13 @@ namespace Rasa.Managers
             foreach (var item in misplaced)
             {
                 Logger.WriteLog(LogType.Error,
-                    $"Character {client.Player.Id} item {item.Id} is in pack slot {item.OwnerSlotId}, outside its tab ({item.ItemTemplate.InventoryCategory}), and that tab is full; left there.");
+                    $"Character {client.Player.Id} item {item.Id} is in pack slot {item.OwnerSlotId}, {WhyMisplaced(item, item.OwnerSlotId)}, and its tab is full; left there.");
                 AddItemBySlot(client, InventoryType.Personal, item.EntityId, item.OwnerSlotId, false);
             }
+
+            static string WhyMisplaced(Item item, uint saved) => IsInOwnTab(item, saved)
+                ? "which another item has"
+                : $"outside its tab ({item.ItemTemplate.InventoryCategory})";
 
             // character_inventory rows arrive in whatever order the query returns them, and
             // both lists are shown in the order things happened, so put them back in slot order.
