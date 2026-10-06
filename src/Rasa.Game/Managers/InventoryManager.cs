@@ -1560,6 +1560,10 @@ namespace Rasa.Managers
         public void UpdateItemSlot(Client client, ulong entityId)
         {
             Item tempItem = EntityManager.Instance.GetItem(entityId);
+
+            if (tempItem == null)
+                return;
+
             ItemManager.Instance.SendItemDataToClient(client, tempItem, false);
         }
 
@@ -2798,10 +2802,24 @@ namespace Rasa.Managers
 
         public void RefreshClanLockbox(uint clanId, ulong entityId, uint characterId, uint slotId, ref List<ulong> clanInventory, bool addBySlot)
         {
-            if (addBySlot)
-                ClanManager.Instance.CallMethodForOnlineMembers(clanId, (client) => AddItemBySlot(client, InventoryType.ClanInventory, entityId, slotId, false), characterId);
+            // The item may no longer exist. A stack taken out with a right-click that fits wholly
+            // into one the taker carries is merged away by AddItemToInventory, entity and rows,
+            // and only the taker is told. The other members still hold the entity, so they are
+            // told it is gone as well; there is nothing to put in a slot or to send data for.
+            // UpdateItemSlot dereferenced the missing item, and the throw closed the taker's
+            // connection after the merge had committed and before the reload below went out.
+            if (entityId != 0 && EntityManager.Instance.GetItem(entityId) == null)
+            {
+                ClanManager.Instance.CallMethodForOnlineMembers(clanId, (uint)SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(entityId), characterId);
+            }
+            else
+            {
+                if (addBySlot)
+                    ClanManager.Instance.CallMethodForOnlineMembers(clanId, (client) => AddItemBySlot(client, InventoryType.ClanInventory, entityId, slotId, false), characterId);
 
-            ClanManager.Instance.CallMethodForOnlineMembers(clanId, (client) => UpdateItemSlot(client, entityId), characterId);
+                ClanManager.Instance.CallMethodForOnlineMembers(clanId, (client) => UpdateItemSlot(client, entityId), characterId);
+            }
+
             ClanManager.Instance.CallMethodForOnlineMembers(clanId, (uint)SysEntity.ClientInventoryManagerId, new InventoryReloadPacket(InventoryType.ClanInventory, clanInventory, 500));
         }
 
