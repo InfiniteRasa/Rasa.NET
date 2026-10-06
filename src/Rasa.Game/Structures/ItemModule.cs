@@ -23,6 +23,27 @@ namespace Rasa.Structures
         /// <summary>What the client calls it; may be empty.</summary>
         public string Comment { get; }
 
+        /// <summary>The class set whose items it goes into - armor, weapons or tools; 0 for none.</summary>
+        public uint ClassSetId { get; }
+
+        /// <summary>The module as an item in a pack - what an extraction makes; 0 for none.</summary>
+        public uint ItemTemplateId { get; }
+
+        /// <summary>That item's class; 0 for none.</summary>
+        public uint ItemClassId { get; }
+
+        /// <summary>Mimeogel to take it out of an item again; 0, it cannot be taken out.</summary>
+        public uint ExtractCost { get; }
+
+        /// <summary>Mimeogel it adds to the salvage of the item it is in, or is salvaged for itself.</summary>
+        public uint SalvageGain { get; }
+
+        /// <summary>Mimeogel to upgrade it; 0, it cannot be upgraded.</summary>
+        public uint UpgradeCost { get; }
+
+        /// <summary>The module an upgrade makes of it; 0 for none.</summary>
+        public uint UpgradeModuleId { get; }
+
         /// <summary>What it does, in the order the client is sent it. Empty when that is not known.</summary>
         public List<ModuleInfo> Effects { get; } = new List<ModuleInfo>();
 
@@ -32,6 +53,13 @@ namespace Rasa.Structures
             Level = entry.Level;
             VariantId = entry.VariantId;
             Comment = entry.Comment ?? "";
+            ClassSetId = entry.ClassSetId;
+            ItemTemplateId = entry.ItemTemplateId;
+            ItemClassId = entry.ItemClassId;
+            ExtractCost = entry.ExtractCost;
+            SalvageGain = entry.SalvageGain;
+            UpgradeCost = entry.UpgradeCost;
+            UpgradeModuleId = entry.UpgradeModuleId;
         }
     }
 

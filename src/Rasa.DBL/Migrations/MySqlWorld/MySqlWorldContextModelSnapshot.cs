@@ -2375,6 +2375,21 @@ namespace Rasa.Migrations.MySqlWorld
                         });
                 });
 
+            modelBuilder.Entity("Rasa.Structures.World.ModifiableClassEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("id");
+
+                    b.Property<uint>("ClassSetId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("class_set_id");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("modifiable_class");
+                });
+
             modelBuilder.Entity("Rasa.Structures.World.ModuleClassEntry", b =>
                 {
                     b.Property<uint>("Id")
@@ -2480,6 +2495,25 @@ namespace Rasa.Migrations.MySqlWorld
                     b.HasKey("Id");
 
                     b.ToTable("module_effect");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.ModuleItemEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("id");
+
+                    b.Property<uint>("ModuleId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("module_id");
+
+                    b.Property<uint>("Strength")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("strength");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("module_item");
                 });
 
             modelBuilder.Entity("Rasa.Structures.World.NpcGreetingEntry", b =>

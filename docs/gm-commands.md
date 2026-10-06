@@ -182,7 +182,14 @@ A map's start groups are generated in this order:
 Item modules:
 
 - A module is what gives an item its prefix and a bonus line: a Rifle with `100060` (Armor Module: Body Bonus [1]) is a "Titan Rifle" with "[1] Body: +N" in its tooltip. The client names the item by the module in its **first** slot, or by a later one of higher priority; with the first slot empty it shows no prefix.
-- **A module does nothing yet.** The tooltip is all there is: no bonus is applied, nothing drops with a module, and the crafting station's salvage, extraction, integration and upgrade pages are still declined. `.module` is the only way an item gets one.
+- **A module does nothing yet.** The tooltip is all there is: no bonus is applied, and nothing drops with a module. An item gets one from `.module`, or at a crafting station.
+- A crafting station works on modules by the client's own rules, and everything has to be in your pack:
+  - **Salvage** destroys an item for Mimeomech: 5, 10, 25 or 100 for an Uncommon, Rare, Epic or Legendary weapon, piece of armor or tool, plus what its modules are worth, times a fifth of its level. A stack of modules or of salvage is salvaged whole. A Normal item with no modules is worth nothing.
+  - **Extraction** takes the module out of one slot for a Mimeomech fee and makes it an item again. A strength 5 module cannot be extracted.
+  - **Integration** puts a module item into an empty slot. The module has to be for that kind of item (armor, weapon or tool), and the item must not have one of that kind already. The fee grows with the item's quality and level, the module's strength and the modules already in the item.
+  - **Upgrade** turns a module item of strength 1 to 4 into the next strength, for 1, 5, 20 or 100 Mimeomech.
+  - Mimeomech and modules that are made wait under "Items Created" until taken. The item worked on stays in your pack.
+- To try it: `.giveitem 123339 500` is Mimeomech, and the module items are in [gm-items/crafting-materials.md](gm-items/crafting-materials.md), for example `.giveitem 122963` (Armor Module: Body Bonus [1]).
 - The modules are the world database's `module_class` (867 rows, from the client's own crafting data) and their effects `module_effect` (290 rows). The ones a crafting station would put in are 66 kinds at five strengths; 58 of the kinds have an effect row. The eight "Debuff ... Resist" weapon kinds, the sets and the rest have none, and show no bonus line.
 - `.module` does not apply the crafting station's rules: it will put an armor module in a weapon, or two of a kind in one item.
 
