@@ -1040,14 +1040,51 @@ namespace Rasa.Managers
             if (assignment != null && assignment.MissionState is not (2 or 4) ||
                 store.HasPendingReward(player.Id, definition.MissionId))
                 failure = "an active assignment or unsettled reward already exists.";
-            else if (assignment?.MissionState == (uint)MissionState.Failed && definition.RepeatPolicy.Kind == MissionRepeatKind.Once)
-                failure = "a Once mission retains its failed journal until it is dismissed.";
+            else if (assignment?.MissionState == (uint)MissionState.Failed && IsLeftToItsRetry(definition))
+                failure = "the failed attempt is what its retry mission is offered for.";
             else if (!definition.RepeatPolicy.Allows(_utcNow(),
                 assignment?.MissionState == 4 || store.EverSucceeded(player.Id, definition.MissionId),
                 store.LastRewardedAtUtc(player.Id, definition.MissionId)))
                 failure = "the repeat policy is not eligible at the current UTC time.";
             return failure == null;
         }
+
+        /// <summary>
+        /// Whether a failed attempt at this mission stays as it is, because another mission is
+        /// the way to try again: an operational mission that asks for this one Failed. Bootcamp's
+        /// Calling for Reinforcements has its retry, which is offered for as long as the journal
+        /// holds the first one failed. Taking the first again would replace that entry and take
+        /// the retry away, or run beside a retry already accepted, at the same wreck.
+        ///
+        /// Every other failed mission is taken again where it was given, and the new attempt
+        /// replaces the failed one (TryAcceptMission). There used to be a step in between: a
+        /// Once mission kept its failed journal entry until the player dismissed it, with
+        /// AbandonMission. The client cannot send that for a failed mission. Recv_MissionFailed
+        /// takes the mission out of its log (missionlog.py); after a login the log lists only
+        /// the active and the successful ones (currentmissionswindow.py _UpdateMissionList);
+        /// and Abandon is that list's button, enabled for an active mission. So a mission that
+        /// failed - by its timer, by an escort's death, or by Abandon on a mission with a
+        /// deadline, which fails it - was never offered again, and a recruit who failed
+        /// Bootcamp's retry as well had no mission left to open the way out.
+        /// </summary>
+        internal bool IsLeftToItsRetry(Mission failed) =>
+            failed.RepeatPolicy.Kind == MissionRepeatKind.Once &&
+            _catalog.Missions.Values.Any(other => other.MissionId != failed.MissionId && other.IsOperational &&
+                (AsksForFailed(other.Requirement, failed.MissionId) ||
+                    _catalog.Prerequisites.TryGetValue(other.MissionId, out var prerequisites) &&
+                    prerequisites.Any(prerequisite =>
+                        prerequisite.Kind is MissionPrerequisiteKind.MissionAccepted or MissionPrerequisiteKind.MissionCompleted &&
+                        prerequisite.RequiredMissionId == failed.MissionId &&
+                        prerequisite.RequiredMissionStateValue == (byte)MissionState.Failed)));
+
+        private static bool AsksForFailed(MissionRequirement requirement, uint missionId) =>
+            requirement switch
+            {
+                MissionStateRequirement mission => mission.MissionId == missionId && mission.State == MissionState.Failed,
+                AllRequirements all => all.Items.Any(item => AsksForFailed(item, missionId)),
+                AnyRequirement any => any.Items.Any(item => AsksForFailed(item, missionId)),
+                _ => false
+            };
 
         internal bool HasJournalCapacity(uint characterId, uint missionId, ICharUnitOfWork unit)
         {
@@ -1816,6 +1853,9 @@ namespace Rasa.Managers
                     publicationPlan.Publish(client, this, convergeMission: false);
                     aggregatePlan.Publish(client, convergeFlags: false, convergeMissions: false);
                 }
+
+                // A failed mission is its giver's to give again, and is shown over them.
+                RefreshNpcConversationStatuses(client);
                 return true;
             }
         }
@@ -1876,6 +1916,9 @@ namespace Rasa.Managers
                 client.CallMethod(
                     client.Player.EntityId,
                     new MissionFailedPacket(missionId));
+
+                // A failed mission is its giver's to give again, and is shown over them.
+                RefreshNpcConversationStatuses(client);
                 return true;
             }
         }
@@ -3448,7 +3491,7 @@ namespace Rasa.Managers
                 player.Missions.TryGetValue(mission.MissionId, out var log);
                 if (log == null || log.State is MissionState.Failed or MissionState.Completed)
                 {
-                    if (log?.State == MissionState.Failed && mission.RepeatPolicy.Kind == MissionRepeatKind.Once)
+                    if (log?.State == MissionState.Failed && IsLeftToItsRetry(mission))
                         continue;
                     var gives = mission.AcceptanceChannel.HasFlag(MissionChannel.Npc) && mission.MissionGiver == creature.DbId;
                     var everSucceeded = log?.State == MissionState.Completed ||

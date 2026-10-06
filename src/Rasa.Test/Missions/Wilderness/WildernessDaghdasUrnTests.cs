@@ -147,8 +147,6 @@ namespace Rasa.Test.Missions.Wilderness
                 harness.Tick();
             }
             Assert.IsNull(harness.Manager.PublicActors.Handle(harness.Map, 176));
-            new NpcManager(harness, harness.Manager).AbandonMission(harness.Client,
-                new AbandonMissionPacket { MissionId = 682 });
             Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, todae.EntityId, 682));
             Assert.AreNotEqual(assignment, harness.Client.Player.Missions[682].AssignmentId);
             Assert.IsFalse(harness.Manager.Scenes.Submit(lease.RunId,

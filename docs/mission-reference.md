@@ -304,9 +304,15 @@ generation and stored content revision during creation and hydration.
 `legacy`/`unversioned` remain compatible stored revisions, not permission to
 substitute another attempt.
 The committed native projection sends `MissionCleared` before `MissionGained`
-when replacing a terminal journal. `Once` keeps its prior failure-dismissal
-behavior, including Bootcamp's authored failure/reset flow; automatic terminal
-replacement is an opt-in repeat behavior.
+when replacing a terminal journal. A failed `Once` journal is replaced the same
+way: the native client removes a failed mission from its log on `MissionFailed`
+and lists only active and successful missions, so it cannot send the
+`AbandonMission` that used to dismiss the failed entry. `IsLeftToItsRetry`
+holds back one case, a failed `Once` mission that another operational mission
+requires in state `Failed` (Bootcamp's retry of Calling for Reinforcements):
+that journal stays failed and the requiring mission is offered instead.
+Bootcamp's authored failure/reset flow is unchanged, and the retry itself is
+offered again after it fails. A succeeded `Once` mission is never offered again.
 
 Transaction participants run `Prepare`, the initial flush,
 `FinalizePersistence`, another flush if needed, all `Validate` guards, and

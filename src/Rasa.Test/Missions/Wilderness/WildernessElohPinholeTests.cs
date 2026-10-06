@@ -425,12 +425,9 @@ namespace Rasa.Test.Missions.Wilderness
 
             if (fail)
             {
+                // The client has dropped the failed mission from its log and has no way to
+                // dismiss it: the new assignment below takes the failed one's place.
                 Assert.AreEqual(MissionState.Failed, harness.Client.Player.Missions[508].State);
-                Assert.IsFalse(harness.Manager.AcceptOfferedMission(harness.Client, maxwell.EntityId, 508),
-                    "A failed Once mission remains in the journal until the player dismisses it.");
-                new NpcManager(harness, harness.Manager).AbandonMission(harness.Client,
-                    new AbandonMissionPacket { MissionId = 508 });
-                Assert.IsFalse(harness.Client.Player.Missions.ContainsKey(508));
             }
             Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, maxwell.EntityId, 508));
             Assert.AreNotEqual(assignment, harness.Client.Player.Missions[508].AssignmentId);

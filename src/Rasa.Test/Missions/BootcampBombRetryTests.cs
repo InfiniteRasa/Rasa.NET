@@ -1,6 +1,7 @@
 extern alias RasaGame;
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -8,6 +9,7 @@ namespace Rasa.Test.Missions
 {
     using Rasa.Data;
     using Rasa.Game;
+    using Rasa.Packets.Mission.Server;
     using Rasa.Structures;
     using Rasa.Structures.Char;
 
@@ -178,15 +180,27 @@ namespace Rasa.Test.Missions
         }
 
         [TestMethod]
-        public void AbandoningRetryDuringActiveDeadlineFailsAndResetsMission2005OnceWithoutReofferingRetry()
+        public void AbandoningRetryDuringActiveDeadlineFailsAndResetsMission2005OnceAndOffersItAgain()
         {
             using var harness = BootcampRuntimeTestHarness.Create();
             var youngblood = AcceptRetryMission(harness);
 
             var dropship = FindScenarioObject(harness, "bootcamp-dropship-debris");
             Assert.IsTrue(dropship.IsEnabled);
+            harness.MovePlayerTo(youngblood);
+            harness.Drain();
 
             Assert.IsTrue(harness.Manager.TryAbandon(harness.Client, 2005));
+
+            // With Captain Youngblood in view, the client is told at once that he has the retry
+            // to give: his status is what puts the mission icon over him.
+            var shown = Rasa.Test.World.WorldTestContext.Drain(harness.Client).Select(packet => packet.Message)
+                .OfType<Rasa.Packets.Protocol.CallMethodMessage>()
+                .Where(method => method.EntityId == youngblood.EntityId)
+                .Select(method => method.Packet).OfType<Rasa.Packets.MapChannel.Server.NPCConversationStatusPacket>().ToArray();
+            Assert.IsTrue(shown.Length > 0);
+            Assert.AreEqual(ConversationStatus.Available, shown.Last().ConvoStatusId);
+            CollectionAssert.AreEqual(new[] { 2005U }, shown.Last().Data);
 
             AssertFailedRetryReset(
                 harness,
@@ -194,16 +208,13 @@ namespace Rasa.Test.Missions
                 dropship,
                 expectedDeadlineState: CharacterMissionDeadlineState.Cancelled);
 
-            Assert.IsFalse(harness.Manager.AcceptOfferedMission(
-                harness.Client,
-                youngblood.EntityId,
-                2005));
             Assert.IsFalse(harness.Manager.TryAbandon(harness.Client, 2005));
             AssertResetScenarioRecordedOnce(harness, 2005, 4, stepCount: 4);
+            AssertRetryIsTakenAgain(harness, youngblood);
         }
 
         [TestMethod]
-        public void AbandoningRetryDuringTheFuseFailsAndResetsMission2005OnceWithoutReofferingRetry()
+        public void AbandoningRetryDuringTheFuseFailsAndResetsMission2005OnceAndOffersItAgain()
         {
             using var harness = BootcampRuntimeTestHarness.Create();
             var youngblood = AcceptRetryMission(harness);
@@ -220,12 +231,40 @@ namespace Rasa.Test.Missions
                 dropship,
                 expectedDeadlineState: CharacterMissionDeadlineState.Cancelled);
 
-            Assert.IsFalse(harness.Manager.AcceptOfferedMission(
-                harness.Client,
-                youngblood.EntityId,
-                2005));
             Assert.IsFalse(harness.Manager.TryAbandon(harness.Client, 2005));
             AssertResetScenarioRecordedOnce(harness, 2005, 4, stepCount: 4);
+            AssertRetryIsTakenAgain(harness, youngblood);
+        }
+
+        // The mission the retry is for stays failed: the retry is the way to try it again, and
+        // is offered for as long as the journal holds it failed.
+        [TestMethod]
+        public void TheFailedFinaleIsNotGivenAgainBesideItsRetry()
+        {
+            using var harness = BootcampRuntimeTestHarness.Create();
+            StartTimedFinale(harness);
+            harness.UseObjectAndRecover(FindScenarioObject(harness, "bootcamp-conrad-corpse"));
+            harness.UtcNow += BombDeadline + TimeSpan.FromSeconds(1);
+            Assert.IsTrue(harness.Manager.EvaluateDeadlines(harness.Client));
+            var youngblood = BootcampRuntimeTestHarness.FindCreature(
+                harness.BootcampMap,
+                BootcampRuntimeTestHarness.CaptainYoungbloodCreatureId);
+
+            Assert.IsTrue(harness.Manager.ClassifyNpcConversation(harness.Client.Player, youngblood)
+                .TryGetStatus(out _, out var offered));
+            CollectionAssert.AreEqual(new[] { 2005U }, offered.ToArray());
+            Assert.IsFalse(harness.Manager.AcceptOfferedMission(harness.Client, youngblood.EntityId, 1995));
+            Assert.AreEqual(MissionState.Failed, harness.Client.Player.Missions[1995].State);
+
+            // Nor while the retry is in hand, nor once it has failed in its turn.
+            Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, youngblood.EntityId, 2005));
+            Assert.IsFalse(harness.Manager.AcceptOfferedMission(harness.Client, youngblood.EntityId, 1995));
+            Assert.IsTrue(harness.Manager.TryAbandon(harness.Client, 2005));
+            Assert.IsFalse(harness.Manager.AcceptOfferedMission(harness.Client, youngblood.EntityId, 1995));
+            Assert.AreEqual(MissionState.Failed, harness.Client.Player.Missions[1995].State);
+            Assert.IsTrue(harness.Manager.ClassifyNpcConversation(harness.Client.Player, youngblood)
+                .TryGetStatus(out _, out offered));
+            CollectionAssert.AreEqual(new[] { 2005U }, offered.ToArray());
         }
 
         private static void StartTimedFinale(BootcampRuntimeTestHarness.Harness harness)
@@ -300,10 +339,35 @@ namespace Rasa.Test.Missions
                 BootcampRuntimeTestHarness.CorporalVanValkenbergPackageId));
             AssertResetScenarioRecordedOnce(harness, 2005, 4, stepCount: 4);
 
+            // The client has taken the failed retry out of its log and can send nothing to
+            // dismiss it: Captain Youngblood has it to give again.
             var classification = harness.Manager.ClassifyNpcConversation(harness.Client.Player, youngblood);
-            if (!classification.TryGetStatus(out _, out var missionIds))
-                return;
-            CollectionAssert.DoesNotContain(missionIds, 2005U);
+            Assert.IsTrue(classification.TryGetStatus(out _, out var missionIds));
+            CollectionAssert.AreEqual(new[] { 2005U }, missionIds.ToArray());
+        }
+
+        /// <summary>A new attempt in place of the failed one: its own charge, wreck and ten minutes.</summary>
+        private static void AssertRetryIsTakenAgain(BootcampRuntimeTestHarness.Harness harness, Creature youngblood)
+        {
+            var failed = harness.Client.Player.Missions[2005].AssignmentId;
+            harness.Drain();
+
+            Assert.IsTrue(harness.Manager.AcceptOfferedMission(
+                harness.Client,
+                youngblood.EntityId,
+                2005));
+
+            Assert.AreEqual(MissionState.Active, harness.Client.Player.Missions[2005].State);
+            Assert.AreNotEqual(failed, harness.Client.Player.Missions[2005].AssignmentId);
+            Assert.AreEqual(MissionObjectiveState.Incomplete, harness.Client.Player.Missions[2005].Objectives[1].State);
+            CollectionAssert.AreEqual(new[] { typeof(MissionClearedPacket), typeof(MissionGainedPacket) },
+                harness.Drain().Where(packet => packet is MissionClearedPacket or MissionGainedPacket)
+                    .Select(packet => packet.GetType()).ToArray());
+            Assert.AreEqual(1, harness.ReadOwnedTemplateCounts(11519).GetValueOrDefault(11519U));
+            Assert.IsTrue(FindScenarioObject(harness, "bootcamp-dropship-debris").IsEnabled);
+            var deadline = ReadDeadline(harness, 2005);
+            Assert.AreEqual(CharacterMissionDeadlineState.Active, deadline.State);
+            Assert.AreEqual(harness.UtcNow + BombDeadline, deadline.DueAtUtc);
         }
 
         private static void AssertResetScenarioRecordedOnce(
