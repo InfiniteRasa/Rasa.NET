@@ -115,7 +115,8 @@ namespace Rasa.Managers
             // the client floats "Immune" over them (COMBAT_IMMUNE_ANNOUNCED).
             // So does a creature running home after a leash (BehaviorManager.Leash): a slow would
             // keep it from getting there, a DoT would hurt what it is immune to.
-            if (!effect.IsBuff && (DebuffsBlocked(actor) || actor is Creature returning && BehaviorManager.IsReturning(returning)))
+            // Not the world's own (GameEffect.Environmental): no immunity to debuffs is one to lava.
+            if (!effect.IsBuff && !effect.Environmental && (DebuffsBlocked(actor) || actor is Creature returning && BehaviorManager.IsReturning(returning)))
             {
                 CellManager.Instance.CellCallMethod(mapChannel, actor,
                     new GameEffectAttachFailedPacket(effect.TypeId, GameEffectAttachFailedPacket.FailReason.Immune, effect.SourceId));

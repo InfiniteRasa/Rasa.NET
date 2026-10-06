@@ -65,6 +65,13 @@ namespace Rasa.Structures
         public bool IsBuff { get; set; } = true;
 
         /// <summary>
+        /// The world's doing and nobody's: lava (Managers.LavaDamage). What keeps debuffs off an
+        /// actor does not keep this off (GameEffectManager.Attach), and what takes debuffs away
+        /// does not take it (AbilityManager.DebuffsOn): only getting out of it does.
+        /// </summary>
+        public bool Environmental { get; set; }
+
+        /// <summary>
         /// Whether the attach packet itself announces the effect (plays its attach FX and posts
         /// the status icon). An ability's effects are attached quietly and announced by the
         /// ability's own recovery on the client - PerformRecovery names the entities hit and the

@@ -711,6 +711,10 @@ namespace Rasa.Game
                 // A fall, if this Move ended one (FallDamage), and the flags for a GM watching them.
                 FallDamage.OnMove(this, previousPosition, Player.Position, moveTick);
 
+                // Into lava, or out of it (LavaDamage): looked at on the Move, so a run across a
+                // narrow lake is not missed between two passes of the worker.
+                LavaDamage.OnMove(this);
+
                 if (moveMessage != null)
                     FallDamage.ShowMoveFlags(this, moveMessage, previousPosition);
 

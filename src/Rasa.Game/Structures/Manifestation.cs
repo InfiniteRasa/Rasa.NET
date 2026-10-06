@@ -173,6 +173,9 @@ namespace Rasa.Structures
         /// <summary>The descent under way, if any, for falling damage (Managers.FallDamage).</summary>
         public FallTracker Fall { get; } = new FallTracker();
 
+        /// <summary>When they last stood in lava and when it may next burn them (Managers.LavaDamage).</summary>
+        public LavaContact Lava { get; } = new LavaContact();
+
         /// <summary>
         /// Always false: this server has no trial accounts. The single source for every packet
         /// that reports the flag (IsTrialAccount, WhoAck), so the client never shows the trial

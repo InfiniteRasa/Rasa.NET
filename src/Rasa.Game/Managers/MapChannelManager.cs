@@ -483,6 +483,9 @@ namespace Rasa.Managers
 
                         // Falls that ended with the player standing still: no Move to end them.
                         Guard("FallDamage.Worker", mapChannel, () => FallDamage.Worker(mapChannel));
+
+                        // Lava: whoever is standing in it burns, moving or not.
+                        Guard("LavaDamage.Worker", mapChannel, () => LavaDamage.Worker(mapChannel));
                     }
 
                     // a second's health, armour, power and chi for everyone here
