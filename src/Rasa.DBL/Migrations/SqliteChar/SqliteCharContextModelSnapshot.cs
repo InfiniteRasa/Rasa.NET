@@ -1590,6 +1590,22 @@ namespace Rasa.Migrations.SqliteChar
                         .HasColumnType("INTEGER")
                         .HasColumnName("item_template_id");
 
+                    b.Property<uint>("Module1")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("module_1");
+
+                    b.Property<uint>("Module2")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("module_2");
+
+                    b.Property<uint>("Module3")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("module_3");
+
+                    b.Property<uint>("Module4")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("module_4");
+
                     b.Property<uint>("StackSize")
                         .HasColumnType("INTEGER")
                         .HasColumnName("stack_size");

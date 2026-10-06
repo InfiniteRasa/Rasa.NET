@@ -85,6 +85,12 @@ namespace Rasa.Repositories.Char.Items
         /// </summary>
         private void UpdateColumn(IItemChange item, string column, Action<ItemEntry> write)
         {
+            UpdateColumns(item, new[] { column }, write);
+        }
+
+        /// <summary>The same for the columns one change writes together.</summary>
+        private void UpdateColumns(IItemChange item, string[] columns, Action<ItemEntry> write)
+        {
             // Already tracked here - Attach refuses a second instance of the same key - so it is
             // written where it is, with everything else it carries left alone.
             var tracked = _charContext.ItemEntries.Local.FirstOrDefault(e => e.ItemId == item.Id);
@@ -100,7 +106,9 @@ namespace Rasa.Repositories.Char.Items
 
             write(entry);
             _charContext.Attach(entry);
-            _charContext.Entry(entry).Property(column).IsModified = true;
+
+            foreach (var column in columns)
+                _charContext.Entry(entry).Property(column).IsModified = true;
 
             try
             {
@@ -159,6 +167,14 @@ namespace Rasa.Repositories.Char.Items
         {
             CharacterMissionItem.MissionItemMutationGuard.RequireUnbound(_charContext, item.Id);
             UpdateColumn(item, nameof(ItemEntry.StackSize), entry => entry.StackSize = item.StackSize);
+        }
+
+        /// <summary>The item's four module slots, written together.</summary>
+        public void UpdateModules(IItemChange item)
+        {
+            UpdateColumns(item,
+                new[] { nameof(ItemEntry.Module1), nameof(ItemEntry.Module2), nameof(ItemEntry.Module3), nameof(ItemEntry.Module4) },
+                entry => entry.SetModules(item.ModuleIds));
         }
     }
 }

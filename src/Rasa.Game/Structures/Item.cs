@@ -1,5 +1,8 @@
-﻿namespace Rasa.Structures
+﻿using System.Collections.Generic;
+
+namespace Rasa.Structures
 {
+    using Char;
     using Managers;
     using Repositories.Char.Items;
 
@@ -47,6 +50,18 @@
         /// </summary>
         public bool IsBound => BoundCharacterId != 0 || (ItemTemplate?.BoundToCharacter ?? false);
         public MissionItemOwnership MissionOwnership { get; internal set; }
+
+        private readonly uint[] _moduleIds = new uint[ItemEntry.ModuleSlots];
+
+        /// <summary>
+        /// The module in each of the item's four module slots - a module_class id - or 0 for an
+        /// empty slot. What the client is sent as lootModuleIds; persisted in items.module_1 to
+        /// module_4. Changed through Managers.ItemModules.
+        /// </summary>
+        public IReadOnlyList<uint> ModuleIds => _moduleIds;
+
+        /// <summary>Puts a module in a slot, 0 to 3, or empties it with 0.</summary>
+        public void SetModule(int slot, uint moduleId) => _moduleIds[slot] = moduleId;
         // weapon specific
         public uint CurrentAmmo { get; set; }
         public bool IsJammed { get; set; }

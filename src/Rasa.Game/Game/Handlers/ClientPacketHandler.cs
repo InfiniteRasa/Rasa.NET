@@ -598,7 +598,8 @@
         ///    spGenShared_ModuleClassCrafting and spGenShared_RecipeModuleEnhancement have no rows
         ///    (the recipe templates, their inputs and the module classes do), so no item passes the
         ///    disassembly slot's check and there is no modification recipe;
-        ///  - here, items carry no modules: ItemInfo sends empty classModuleIds and lootModuleIds.
+        ///  - here, no item is found or made with a module: one has any only when a game master
+        ///    has put it there (Managers.ItemModules).
         ///
         /// The C++ server only listed the ids. The v2 pages' requests are answered by
         /// KraftwerksManager.

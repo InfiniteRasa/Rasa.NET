@@ -2234,6 +2234,8 @@ namespace Rasa.Managers
                 BoundCharacterId = itemData.BoundCharacterId
             };
 
+            ItemModules.Read(newItem, itemData);
+
             // check if item is weapon
             if (newItem.ItemTemplate.WeaponInfo != null)
                 newItem.CurrentAmmo = itemData.AmmoCount;
@@ -2701,10 +2703,7 @@ namespace Rasa.Managers
 
         public void RequestTooltipForModuleId(Client client, int moduleId)
         {
-            Logger.WriteLog(LogType.Debug, $"ToDo: RequestTooltipForModuleId");
-            //var moduleInfo = new ItemModule(moduleId, 1, new ModuleInfo(1, 1, 1, 1, 1, 1, 1, 1, 1));
-
-            //client.SendPacket(12, new ModuleTooltipInfoPacket(moduleInfo));
+            ItemModules.RequestTooltip(client, moduleId);
         }
 
         public bool ValidateItemEquip(Client client, Item itemToEquip)

@@ -244,6 +244,7 @@ namespace Rasa.Managers
             RegisterCommand(".givecredits", GmLevel.Admin, GiveCreditsCommand, "amount", "familyName");
             RegisterCommand(".giveitem", GmLevel.Admin, GiveItemCommand, "itemTemplateId", "quantity");
             RegisterCommand(".givelogos", GmLevel.Admin, GiveLogosCommand, "logosId");
+            RegisterCommand(".module", GmLevel.Admin, ModuleCommand, "item|find", "add|remove|text", "moduleId|slot|all", "slot");
             RegisterCommand(".removelogos", GmLevel.Admin, RemoveLogosCommand, "logosIdOrAll");
             RegisterCommand(".givepads", GmLevel.Admin, GivePadsCommand);
             RegisterCommand(".givewaypoints", GmLevel.Admin, GiveWaypointsCommand);
@@ -1848,6 +1849,197 @@ namespace Rasa.Managers
                     }
 
             return;
+        }
+
+        /// <summary>
+        /// .module: the modules of one of your own items (ItemModules) - shown, put in a slot or
+        /// taken out. The item is the weapon in hand, a piece of armor worn, or a slot of the
+        /// pack. Nothing of the crafting station's rules is applied: which items a module fits,
+        /// or one of a kind an item. ".module find" searches the modules by what the client
+        /// calls them.
+        /// </summary>
+        private void ModuleCommand(string[] parts)
+        {
+            const string usage = "usage: .module | .module <item> | .module <item> add <moduleId> [slot 1-4] | .module <item> remove <slot 1-4|all> | .module find <text> - "
+                + "<item> is weapon, helmet, vest, gloves, legs, boots or a pack slot number";
+            var client = _client;
+
+            if (parts.Length == 1)
+            {
+                var shown = 0;
+
+                foreach (var word in ModuleItemWords)
+                {
+                    var worn = ModuleItem(word);
+
+                    if (worn == null)
+                        continue;
+
+                    ShowModules(word, worn);
+                    shown++;
+                }
+
+                if (shown == 0)
+                    CommunicatorManager.Instance.SystemMessage(client, $"You hold no weapon and wear no armor. {usage}");
+
+                return;
+            }
+
+            if (parts[1] == "find")
+            {
+                var words = parts.Skip(2).Where(word => word.Length > 0).ToList();
+
+                if (words.Count == 0)
+                {
+                    CommunicatorManager.Instance.SystemMessage(client, usage);
+                    return;
+                }
+
+                var found = ItemModules.All
+                    .Where(module => words.All(word => module.Comment.Contains(word, StringComparison.OrdinalIgnoreCase)))
+                    .OrderBy(module => module.ModuleId)
+                    .ToList();
+
+                foreach (var module in found.Take(25))
+                    CommunicatorManager.Instance.SystemMessage(client, $"{module.ModuleId} {module.Comment}{(module.Effects.Count == 0 ? " - no effect known" : "")}");
+
+                CommunicatorManager.Instance.SystemMessage(client, found.Count > 25
+                    ? $"{found.Count} modules match; the first 25 are shown."
+                    : $"{found.Count} module{(found.Count == 1 ? "" : "s")} match{(found.Count == 1 ? "es" : "")}.");
+                return;
+            }
+
+            var item = ModuleItem(parts[1]);
+
+            if (item == null)
+            {
+                CommunicatorManager.Instance.SystemMessage(client, $"You have no item there: {parts[1]}. {usage}");
+                return;
+            }
+
+            if (parts.Length == 2)
+            {
+                ShowModules(parts[1], item);
+                return;
+            }
+
+            if (parts[2] == "remove" && parts.Length == 4)
+            {
+                if (parts[3] == "all")
+                {
+                    ItemModules.Clear(client, item, Server.GameUnitOfWorkFactory);
+                    Logger.WriteLog(LogType.Command, $"{client.Player.FamilyName} took every module out of item {item.Id}.");
+                    ShowModules(parts[1], item);
+                    return;
+                }
+
+                if (!int.TryParse(parts[3], out var emptied) || emptied < 1 || emptied > ItemModules.Slots)
+                {
+                    CommunicatorManager.Instance.SystemMessage(client, usage);
+                    return;
+                }
+
+                var had = item.ModuleIds[emptied - 1];
+
+                if (had == 0)
+                {
+                    CommunicatorManager.Instance.SystemMessage(client, $"Slot {emptied} is empty.");
+                    return;
+                }
+
+                ItemModules.Set(client, item, emptied - 1, 0, Server.GameUnitOfWorkFactory);
+                Logger.WriteLog(LogType.Command, $"{client.Player.FamilyName} took module {had} out of slot {emptied} of item {item.Id}.");
+                ShowModules(parts[1], item);
+                return;
+            }
+
+            if (parts[2] != "add" || parts.Length < 4 || parts.Length > 5)
+            {
+                CommunicatorManager.Instance.SystemMessage(client, usage);
+                return;
+            }
+
+            if (!uint.TryParse(parts[3], out var moduleId) || !ItemModules.TryGet(moduleId, out _))
+            {
+                CommunicatorManager.Instance.SystemMessage(client, $"There is no module {parts[3]}; .module find <text> searches them.");
+                return;
+            }
+
+            // Modules are for what is worn or wielded, one item to a row: a stack would take
+            // them into every stack it was merged with or split from.
+            if (item.Id == 0 || EntityClassManager.Instance.GetClassInfo(item.ItemTemplate.Class)?.EquipableClassInfo == null)
+            {
+                CommunicatorManager.Instance.SystemMessage(client, "That item is not a weapon, a piece of armor or a tool: it takes no modules.");
+                return;
+            }
+
+            var slot = ItemModules.FreeSlot(item) + 1;
+
+            if (parts.Length == 5 && (!int.TryParse(parts[4], out slot) || slot < 1 || slot > ItemModules.Slots))
+            {
+                CommunicatorManager.Instance.SystemMessage(client, usage);
+                return;
+            }
+
+            if (slot == 0)
+            {
+                CommunicatorManager.Instance.SystemMessage(client, "All four slots are full; take a module out first.");
+                return;
+            }
+
+            if (item.ModuleIds[slot - 1] != 0)
+            {
+                CommunicatorManager.Instance.SystemMessage(client, $"Slot {slot} holds module {item.ModuleIds[slot - 1]}; take it out first.");
+                return;
+            }
+
+            ItemModules.Set(client, item, slot - 1, moduleId, Server.GameUnitOfWorkFactory);
+            Logger.WriteLog(LogType.Command, $"{client.Player.FamilyName} put module {moduleId} in slot {slot} of item {item.Id}.");
+            ShowModules(parts[1], item);
+        }
+
+        private static readonly string[] ModuleItemWords = { "weapon", "helmet", "vest", "gloves", "legs", "boots" };
+
+        /// <summary>
+        /// The item of yours a ".module" command names: the weapon in hand, a piece of armor
+        /// worn, or the item in a slot of the pack, counted from 1 - the first slot of its
+        /// Equipment tab. Null when there is none there.
+        /// </summary>
+        private Item ModuleItem(string word)
+        {
+            var inventory = _client.Player.Inventory;
+            EquipmentData? equipment = word.ToLowerInvariant() switch
+            {
+                "weapon" => EquipmentData.Weapon,
+                "helmet" => EquipmentData.Helmet,
+                "vest" => EquipmentData.Torso,
+                "gloves" => EquipmentData.Gloves,
+                "legs" => EquipmentData.Legs,
+                "boots" => EquipmentData.Shoes,
+                _ => null
+            };
+
+            ulong entityId = 0;
+
+            if (equipment != null)
+            {
+                if ((int)equipment.Value < inventory.EquippedInventory.Count)
+                    entityId = inventory.EquippedInventory[(int)equipment.Value];
+            }
+            else if (int.TryParse(word, out var packSlot) && packSlot >= 1 && packSlot <= inventory.PersonalInventory.Count)
+                entityId = inventory.PersonalInventory[packSlot - 1];
+
+            return entityId != 0 ? EntityManager.Instance.GetItem(entityId) : null;
+        }
+
+        private void ShowModules(string word, Item item)
+        {
+            CommunicatorManager.Instance.SystemMessage(_client, $"{word}: item template {item.ItemTemplate.ItemTemplateId}, item level {ItemModules.LevelOf(item)}"
+                + (item.ModuleIds.All(moduleId => moduleId == 0) ? ", no modules" : ""));
+
+            for (var slot = 0; slot < ItemModules.Slots; slot++)
+                if (item.ModuleIds[slot] != 0)
+                    CommunicatorManager.Instance.SystemMessage(_client, $"  slot {slot + 1}: {ItemModules.Describe(item.ModuleIds[slot], item)}");
         }
 
         /// <summary>Gains every dropship pad in the world, as walking into each beam would.</summary>

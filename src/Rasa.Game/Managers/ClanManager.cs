@@ -212,6 +212,8 @@ namespace Rasa.Managers
                         BoundCharacterId = itemData.BoundCharacterId
                     };
 
+                    ItemModules.Read(newItem, itemData);
+
                     // check if item is weapon
                     if (newItem.ItemTemplate.WeaponInfo != null)
                         newItem.CurrentAmmo = itemData.AmmoCount;

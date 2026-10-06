@@ -173,6 +173,18 @@ A map's start groups are generated in this order:
 | `.givepads` | Admin | Unlocks every dropship pad in the world for you. |
 | `.givewaypoints` | Admin | Unlocks every discoverable waypoint on your current map for you. This does not grant dropships, wormholes, hospitals, or local teleporters. |
 | `.addtitle <titleId>` | Admin | Grants you a title (`titledata` id): saved with the character, and announced by the client with "you have gained the title". |
+| `.module` | Admin | The modules on the weapon in your hand and on each piece of armor you wear: for each full slot, the module's id, what the client calls it, and what its bonus comes to at the item's level. |
+| `.module <item>` | Admin | The same for one item. `<item>` is `weapon`, `helmet`, `vest`, `gloves`, `legs`, `boots`, or the number of a pack slot, counted from 1 at the first slot of the Equipment tab. |
+| `.module <item> add <moduleId> [slot]` | Admin | Puts a module in one of the item's four slots: the one named (1–4), else the first empty one. A full slot is refused, and so is an item that is not a weapon, a piece of armor or a tool. Saved with the item. |
+| `.module <item> remove <slot\|all>` | Admin | Empties one slot, or all four. Saved with the item. |
+| `.module find <text>` | Admin | Searches the modules by what the client calls them, for example `.module find health armor`; every word must match (up to 25 results). A module marked "no effect known" can be put on an item and names it, but shows no bonus line. |
+
+Item modules:
+
+- A module is what gives an item its prefix and a bonus line: a Rifle with `100060` (Armor Module: Body Bonus [1]) is a "Titan Rifle" with "[1] Body: +N" in its tooltip. The client names the item by the module in its **first** slot, or by a later one of higher priority; with the first slot empty it shows no prefix.
+- **A module does nothing yet.** The tooltip is all there is: no bonus is applied, nothing drops with a module, and the crafting station's salvage, extraction, integration and upgrade pages are still declined. `.module` is the only way an item gets one.
+- The modules are the world database's `module_class` (867 rows, from the client's own crafting data) and their effects `module_effect` (290 rows). The ones a crafting station would put in are 66 kinds at five strengths; 58 of the kinds have an effect row. The eight "Debuff ... Resist" weapon kinds, the sets and the rest have none, and show no bonus line.
+- `.module` does not apply the crafting station's rules: it will put an armor module in a weapon, or two of a kind in one item.
 
 ## Missions
 

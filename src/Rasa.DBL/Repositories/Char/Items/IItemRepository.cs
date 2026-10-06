@@ -15,5 +15,6 @@ namespace Rasa.Repositories.Char.Items
         void UpdateColor(IItemChange item);
         void UpdateCurrentHitPoints(IItemChange item);
         void UpdateItemStackSize(IItemChange item);
+        void UpdateModules(IItemChange item);
     }
 }

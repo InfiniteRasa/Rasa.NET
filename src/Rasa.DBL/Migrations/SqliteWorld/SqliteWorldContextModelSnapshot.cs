@@ -2321,6 +2321,113 @@ namespace Rasa.Migrations.SqliteWorld
                         });
                 });
 
+            modelBuilder.Entity("Rasa.Structures.World.ModuleClassEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("id");
+
+                    b.Property<uint>("ClassSetId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("class_set_id");
+
+                    b.Property<string>("Comment")
+                        .IsRequired()
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("comment");
+
+                    b.Property<uint>("ExtractCost")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("extract_cost");
+
+                    b.Property<uint>("IntegrateCost")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("integrate_cost");
+
+                    b.Property<uint>("ItemClassId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("item_class_id");
+
+                    b.Property<uint>("ItemTemplateId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("item_template_id");
+
+                    b.Property<uint>("Level")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("level");
+
+                    b.Property<uint>("SalvageGain")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("salvage_gain");
+
+                    b.Property<uint>("UpgradeCost")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("upgrade_cost");
+
+                    b.Property<uint>("UpgradeModuleId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("upgrade_module_id");
+
+                    b.Property<uint>("VariantId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("variant_id");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("module_class");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.ModuleEffectEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("id");
+
+                    b.Property<int?>("Arg1")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("arg1");
+
+                    b.Property<int?>("Arg2")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("arg2");
+
+                    b.Property<int?>("Arg3")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("arg3");
+
+                    b.Property<int?>("Arg4")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("arg4");
+
+                    b.Property<uint>("EffectId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("effect_id");
+
+                    b.Property<double>("ExpValue")
+                        .HasColumnType("REAL")
+                        .HasColumnName("exp_value");
+
+                    b.Property<double>("FlatValue")
+                        .HasColumnType("REAL")
+                        .HasColumnName("flat_value");
+
+                    b.Property<double>("LinearValue")
+                        .HasColumnType("REAL")
+                        .HasColumnName("linear_value");
+
+                    b.Property<uint>("ModuleId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("module_id");
+
+                    b.Property<uint>("SetLevel")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("set_level");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("module_effect");
+                });
+
             modelBuilder.Entity("Rasa.Structures.World.NpcGreetingEntry", b =>
                 {
                     b.Property<uint>("Id")

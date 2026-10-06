@@ -31,9 +31,9 @@ namespace Rasa.Managers
     /// stated quantity, standing within reach of a station with no job of theirs still running
     /// there. The ingredients and credits are taken, the schematic is kept, and a job with the
     /// recipe's time goes on the station for that player; the result is created when they take
-    /// it. The Crafting v2 pages - salvage, extraction, integration, upgrade - need per-item
-    /// modules the server does not have yet, and are still declined with a failure the window
-    /// can show.
+    /// it. The Crafting v2 pages - salvage, extraction, integration, upgrade - work on the
+    /// modules an item carries (ItemModules). An item can carry them now, but the pages' own
+    /// rules are not here yet, and they are still declined with a failure the window can show.
     /// </summary>
     public class KraftwerksManager
     {
@@ -299,7 +299,7 @@ namespace Rasa.Managers
         }
 
         /// <summary>
-        /// The Crafting v2 requests, until items can carry modules: the window is told the
+        /// The Crafting v2 requests, until they are answered: the window is told the
         /// request failed so it re-enables its buttons, and the player is told why.
         /// </summary>
         private void Decline(Client client, ulong kraftwerksId, string request, string what)

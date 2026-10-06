@@ -64,6 +64,8 @@ namespace Rasa.Context.World
         public DbSet<SpawnPoolArrivalEntry> SpawnPoolArrivalEntries { get; set; }
         public DbSet<RecipeEntry> RecipeEntries { get; set; }
         public DbSet<RecipeInputEntry> RecipeInputEntries { get; set; }
+        public DbSet<ModuleClassEntry> ModuleClassEntries { get; set; }
+        public DbSet<ModuleEffectEntry> ModuleEffectEntries { get; set; }
         public DbSet<NpcMissionEntry> NpcMissionEntries { get; set; }
         public DbSet<NpcMissionRewardEntry> NpcMissionRewardEntries { get; set; }
         public DbSet<MissionContentDefinitionEntry> MissionContentDefinitionEntries { get; set; }
