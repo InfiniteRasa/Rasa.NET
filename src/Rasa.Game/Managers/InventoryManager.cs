@@ -2392,6 +2392,10 @@ namespace Rasa.Managers
             for (uint i = 0; i < 5; i++)
                 client.Player.Inventory.WeaponDrawer.Add(0);
 
+            // Pack items saved in a slot that is not one of their own tab; placed after the loop.
+            var misplaced = new List<Item>();
+            var pack = client.Player.Inventory.PersonalInventory;
+
             foreach (var item in getInventoryData)
             {
                 var inventoryType = (InventoryType)item.InventoryType;
@@ -2450,7 +2454,20 @@ namespace Rasa.Managers
                 if (item.CharacterId == client.Player.Id)
                 {
                     if ((InventoryType)item.InventoryType == InventoryType.Personal)
-                        AddItemBySlot(client, InventoryType.Personal, newItem.EntityId, newItem.OwnerSlotId, false);
+                    {
+                        // A mission's item is left where its row has it: it is moved only by
+                        // its mission's own plan.
+                        if (IsInOwnTab(newItem, newItem.OwnerSlotId) || IsProtected(newItem))
+                            AddItemBySlot(client, InventoryType.Personal, newItem.EntityId, newItem.OwnerSlotId, false);
+                        else
+                        {
+                            // Its slot is kept for it until it has another.
+                            if (newItem.OwnerSlotId < pack.Count && pack[(int)newItem.OwnerSlotId] == 0)
+                                pack[(int)newItem.OwnerSlotId] = newItem.EntityId;
+
+                            misplaced.Add(newItem);
+                        }
+                    }
 
                     else if ((InventoryType)item.InventoryType == InventoryType.EquipedInventory)
                         AddItemBySlot(client, InventoryType.EquipedInventory, newItem.EntityId, newItem.OwnerSlotId, false);
@@ -2498,6 +2515,47 @@ namespace Rasa.Managers
                     }
                 }
 
+            }
+
+            // A pack item whose row has it in another tab's slot. A swap with the footlocker or
+            // the clan lockbox used to leave one there (OwnTabSlot), and while it sits there
+            // every inventory plan for the character is refused. Loaded by slot it came back
+            // the same at each login, so it is given the first free slot of its own tab and
+            // the row is moved with it. With the rest of the pack in, the free slots are known;
+            // one that moves may free a slot another was waiting for, so they are gone through
+            // until none moves.
+            misplaced.Sort((left, right) => left.OwnerSlotId.CompareTo(right.OwnerSlotId));
+
+            for (var moved = true; moved && misplaced.Count > 0;)
+            {
+                moved = false;
+
+                foreach (var item in misplaced.ToArray())
+                {
+                    var saved = item.OwnerSlotId;
+                    var slot = PackDestination(pack, item, null);
+
+                    if (slot < 0)
+                        continue;
+
+                    if (saved < pack.Count && pack[(int)saved] == item.EntityId)
+                        pack[(int)saved] = 0;
+
+                    AddItemBySlot(client, InventoryType.Personal, item.EntityId, (uint)slot, true);
+                    misplaced.Remove(item);
+                    moved = true;
+
+                    Logger.WriteLog(LogType.Error,
+                        $"Character {client.Player.Id} item {item.Id} was in pack slot {saved}, outside its tab ({item.ItemTemplate.InventoryCategory}); moved to slot {slot}.");
+                }
+            }
+
+            // No room in its own tab: shown where it is, as it was before.
+            foreach (var item in misplaced)
+            {
+                Logger.WriteLog(LogType.Error,
+                    $"Character {client.Player.Id} item {item.Id} is in pack slot {item.OwnerSlotId}, outside its tab ({item.ItemTemplate.InventoryCategory}), and that tab is full; left there.");
+                AddItemBySlot(client, InventoryType.Personal, item.EntityId, item.OwnerSlotId, false);
             }
 
             // character_inventory rows arrive in whatever order the query returns them, and

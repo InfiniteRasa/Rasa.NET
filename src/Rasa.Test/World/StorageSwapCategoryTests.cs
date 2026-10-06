@@ -163,6 +163,95 @@ namespace Rasa.Test.World
             fixture.AssertThePackStillWorks();
         }
 
+        [TestMethod]
+        public void AnItemSavedInASlotOfAnotherTabIsPutInItsOwnAtLogin()
+        {
+            // What a swap left behind before it sent the item to its own tab: the row is read
+            // back by slot, so the pack was refused everything at every login after it.
+            using var fixture = new Fixture(false);
+            var ammo = fixture.InPack(Ammo, InventoryCategory.Consumable, 3);
+            var rifle = fixture.InPack(Rifle, InventoryCategory.Equipment, 4);
+            var medkit = fixture.InPack(Medkit, InventoryCategory.Consumable, Consumables);
+
+            fixture.Login();
+
+            Assert.AreEqual(0UL, fixture.Pack[3]);
+            Assert.AreEqual(ammo.Id, fixture.Loaded(Consumables + 1).Id, "the first free slot of its tab");
+            Assert.AreEqual((uint)(Consumables + 1), fixture.Loaded(Consumables + 1).OwnerSlotId);
+            Assert.AreEqual(rifle.Id, fixture.Loaded(4).Id);
+            Assert.AreEqual(medkit.Id, fixture.Loaded(Consumables).Id);
+            fixture.AssertPackRow(ammo, Consumables + 1);
+            fixture.AssertPackRow(rifle, 4);
+            fixture.AssertPackRow(medkit, Consumables);
+
+            // The client is shown it where it now is, once.
+            var shown = fixture.Sent().OfType<InventoryAddItemPacket>().Where(packet => packet.EntityId == fixture.Pack[Consumables + 1]).ToArray();
+
+            Assert.AreEqual((uint)(Consumables + 1), shown.Single().SlotId);
+            fixture.AssertThePackStillWorks();
+
+            // And it stays there.
+            fixture.Login();
+
+            Assert.AreEqual(ammo.Id, fixture.Loaded(Consumables + 1).Id);
+            Assert.AreEqual(0UL, fixture.Pack[3]);
+        }
+
+        [TestMethod]
+        public void TwoItemsSavedInEachOthersTabsAreBothPutRight()
+        {
+            // The ammunition has no free slot until the rifle has left the one it is in.
+            using var fixture = new Fixture(false);
+            var ammo = fixture.InPack(Ammo, InventoryCategory.Consumable, 3);
+            var rifle = fixture.InPack(Rifle, InventoryCategory.Equipment, Consumables + 10);
+
+            fixture.Fill(Consumables);
+            fixture.Login();
+
+            Assert.AreEqual(rifle.Id, fixture.Loaded(Equipment).Id);
+            Assert.AreEqual(ammo.Id, fixture.Loaded(Consumables + 10).Id);
+            Assert.AreEqual(0UL, fixture.Pack[3]);
+            fixture.AssertPackRow(rifle, Equipment);
+            fixture.AssertPackRow(ammo, Consumables + 10);
+            Assert.AreEqual(TabSize + 1, fixture.Pack.Count(entityId => entityId != 0));
+            fixture.AssertThePackStillWorks();
+        }
+
+        [TestMethod]
+        public void AnItemIsNotPutInTheSlotOfOneThatCannotLeaveIt()
+        {
+            // The only slot of the ammunition's tab that is not taken is the one the rifle is
+            // in, and the rifle's own tab is full.
+            using var fixture = new Fixture(false);
+            var ammo = fixture.InPack(Ammo, InventoryCategory.Consumable, 120);
+            var rifle = fixture.InPack(Rifle, InventoryCategory.Equipment, Consumables + 10);
+
+            fixture.Fill(Equipment);
+            fixture.Fill(Consumables);
+            fixture.Login();
+
+            Assert.AreEqual(ammo.Id, fixture.Loaded(120).Id);
+            Assert.AreEqual(rifle.Id, fixture.Loaded(Consumables + 10).Id);
+            fixture.AssertPackRow(ammo, 120);
+            fixture.AssertPackRow(rifle, Consumables + 10);
+            Assert.AreEqual(2 * TabSize + 1, fixture.Pack.Count(entityId => entityId != 0));
+        }
+
+        [TestMethod]
+        public void AnItemSavedInASlotOfAnotherTabStaysWhenItsOwnIsFull()
+        {
+            using var fixture = new Fixture(false);
+            var ammo = fixture.InPack(Ammo, InventoryCategory.Consumable, 3);
+
+            fixture.Fill(Consumables);
+            fixture.Login();
+
+            Assert.AreEqual(ammo.Id, fixture.Loaded(3).Id);
+            Assert.AreEqual(3u, fixture.Loaded(3).OwnerSlotId);
+            fixture.AssertPackRow(ammo, 3);
+            Assert.AreEqual(TabSize + 1, fixture.Pack.Count(entityId => entityId != 0));
+        }
+
         /// <summary>A character with a footlocker, or with a clan lockbox they lead, and the two requests of each.</summary>
         private sealed class Fixture : IDisposable
         {
@@ -255,6 +344,16 @@ namespace Rasa.Test.World
                 else
                     Inventory.RequestTakeItemFromHomeInventory(Client, new RequestTakeItemFromHomeInventoryPacket { SrcSlot = (uint)storageSlot, DestSlot = (uint)packSlot, Quantity = 1 });
             }
+
+            /// <summary>The lists built again from the rows, as at a login.</summary>
+            internal void Login()
+            {
+                Sent();
+                Inventory.InitCharacterInventory(Client);
+            }
+
+            /// <summary>The item in that pack slot.</summary>
+            internal Item Loaded(int slot) => EntityManager.Instance.GetItem(Pack[slot]);
 
             internal List<Rasa.Packets.PythonPacket> Sent() => WorldTestContext.Drain(Client)
                 .Select(packet => packet.Message).OfType<CallMethodMessage>().Select(message => message.Packet).ToList();
