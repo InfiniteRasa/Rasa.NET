@@ -952,6 +952,11 @@ namespace Rasa.Managers
             if (IsLeftToWorker(client))
                 return;
 
+            // A character still in the world that no worker will come for - between maps, on a
+            // loading screen - leaves it here, with the same saves (RemoveStrandedPlayer). What
+            // follows clears up after either.
+            RemoveStrandedPlayer(client);
+
             ManifestationManager.Instance.RemovePlayerCharacter(client);
             if (player.ClanId != 0)
                 ClanManager.Instance.RemovePlayer(client);
@@ -1308,21 +1313,6 @@ namespace Rasa.Managers
         }
 
         /// <summary>
-        /// Takes a disconnected player out of the world when no map channel is going to.
-        ///
-        /// Close() only flags a departing player; the map channel worker acts on the flag, and
-        /// looks for it among the clients on its own map's list. A player on no map's list is
-        /// never looked at. A dropship journey is exactly that: the departure takes the client
-        /// off its map's list when it sends the Wonkavate, and only MapLoaded puts it on the
-        /// arrival map's, keeping the manifestation and its items registered in between. A
-        /// connection that dropped on that loading screen - a crash, Alt+F4 - left them all
-        /// registered for as long as the server ran.
-        ///
-        /// Called on the main loop for each connection it drops. A player still registered and
-        /// on no map's list or login queue is removed here, the way the worker would have; any
-        /// other is left alone, so nobody is removed twice.
-        /// </summary>
-        /// <summary>
         /// Whether any map still lists a connection of this account, on its client list or its
         /// login queue. A connection that has closed stays on its map's list until the worker has
         /// taken its character out of the world, so this is true for exactly as long as a
@@ -1344,6 +1334,32 @@ namespace Rasa.Managers
             return false;
         }
 
+        /// <summary>
+        /// Takes a disconnected player out of the world when no map channel is going to.
+        ///
+        /// Close() only flags a departing player; the map channel worker acts on the flag, and
+        /// looks for it among the clients on its own map's list. A player on no map's list is
+        /// never looked at. A journey between maps is exactly that: a map link, a summon, a
+        /// teleport or a dropship takes the client off its map's list when it sends the
+        /// Wonkavate, and only MapLoaded puts it on the arrival map's, keeping the manifestation
+        /// and its items registered in between. A connection that ends on that loading screen -
+        /// a crash, Alt+F4, the network, or a load that runs past the transfer deadline
+        /// (CheckTransferTimeout), which closes it - has its origin put back by Close() and is
+        /// then on no list at all.
+        ///
+        /// Called from CleanupDisconnected, which the main loop runs for each connection it
+        /// drops. A player still registered and on no map's list or login queue is removed here,
+        /// the way the worker would have: out of the squad, trade, summons and looking-for-group,
+        /// friends told, the position, health, death penalties and cooldowns saved. Any other is
+        /// left alone, so nobody is removed twice - and a character on the login queue, which
+        /// never arrived and has nothing worked out to save, is not saved over.
+        ///
+        /// Left uncalled, the squad kept such a member shown online for good (only
+        /// PartyManager.RemovePlayer marks one offline, and a leader's lead is passed on only
+        /// then), their next login was taken for a map change and sent no squad, and nothing
+        /// since the last save was kept: die, revive, step through a map link and close the
+        /// client, and the death penalties were gone.
+        /// </summary>
         public void RemoveStrandedPlayer(Client client)
         {
             var player = client.Player;
