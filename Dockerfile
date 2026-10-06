@@ -13,3 +13,11 @@ RUN dotnet restore --source "$NUGET_SOURCE"
 RUN dotnet build --no-restore --configuration Release
 
 COPY navmesh /app/src/Rasa.Game/bin/Release/net10.0/navmesh
+
+RUN mkdir -p /app/auth /app/game
+RUN cp -a /app/src/Rasa.Auth/bin/Release/net10.0/. /app/auth/
+RUN cp -a /app/src/Rasa.Game/bin/Release/net10.0/. /app/game/
+
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]

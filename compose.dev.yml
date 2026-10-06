@@ -1,0 +1,45 @@
+services:
+  auth:
+    image: rasa_net
+    restart: always
+    build: .
+    command: ["auth"]
+    stdin_open: true
+    tty: true
+    ports:
+      - "2106:2106"
+      - "2107:2107"
+    volumes:
+      - type: bind
+        source: ./rasaauth.db
+        target: /app/auth/rasaauth.db
+        bind:
+          create_host_path: false
+
+  game:
+    image: rasa_net
+    restart: always
+    build: .
+    command: ["game"]
+    stdin_open: true
+    tty: true
+    ports:
+      - "8102:8102"
+      - "8001:8001"
+      - "8103:8103/udp"
+      - "8104:8104"
+      - "8105:8105"
+    volumes:
+      - type: bind
+        source: ./rasachar.db
+        target: /app/game/rasachar.db
+        bind:
+          create_host_path: false
+
+      - type: bind
+        source: ./rasaworld.db
+        target: /app/game/rasaworld.db
+        bind:
+          create_host_path: false
+
+      - ./appsettings.env.json:/app/game/appsettings.env.json
