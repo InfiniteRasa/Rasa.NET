@@ -528,6 +528,7 @@ namespace Rasa.Game
             Battlegrounds.Instance.Init();
             RegionManager.Instance.RegionInit();
             EmitterManager.Instance.EmitterInit();
+            SecretPassages.DoorwayInit();
             MapMarkerManager.Instance.MapMarkerInit();
             SpawnPoolManager.Instance.ValidatePools();
             RecipeManager.Instance.RecipeInit();

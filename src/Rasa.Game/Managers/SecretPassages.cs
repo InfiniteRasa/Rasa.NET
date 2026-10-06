@@ -1,10 +1,13 @@
 ﻿using System;
+using System.Linq;
 using System.Numerics;
 
 namespace Rasa.Managers
 {
+    using Data;
     using Game;
     using Models;
+    using Structures;
 
     /// <summary>
     /// Hidden same-map teleports: a box in the world that moves whoever enters it somewhere else
@@ -32,9 +35,27 @@ namespace Rasa.Managers
     /// from y 352 down to y -224, each a corridor with an open south end, a room and a Logos
     /// dispenser base at z 960. The Enhance logos is in the fourth, floor y 159.9. The cave's
     /// doorway is the way in to that one, and that room's corridor end is the way back. Both
-    /// boxes are a slab across the doorway, starting just short of where the floor stops, so
-    /// nobody walks off the edge; the hillside over the cave is 70 m above the first, and there
-    /// is no ground at all around the second.
+    /// boxes are a slab across the doorway, starting 1.7 m short of where the floor stops, so
+    /// nobody walks off the edge or into what stands in the doorway (below) first; the hillside
+    /// over the cave is 70 m above the first, and there is no ground at all around the second.
+    ///
+    /// What stands in those two doorways (<see cref="Doorways"/>). Open, each shows the void the
+    /// map ends in. The client's map marks six ways out of the Wilderness - the two passes to
+    /// the Divide and four instance doors - with one piece, TerraForeasCavernInstance (6977): an
+    /// 8 m stub of cave tunnel, 14.3 m wide and 10.7 m high, plugged with rock at the back and
+    /// lined just inside its mouth with the swirling band of a transition (the mesh's own
+    /// animation, terra_foreas_cavern_instance.anm, so it plays wherever the mesh is). The maps
+    /// put it against Eloh cavern pieces elsewhere on Foreas (Palisades, Valverde Descent). One
+    /// stands behind each doorway here, mouth to the corridor: the opening in the corridor's end
+    /// is an oval 12.6 m by 5.5 m, the band is 12.6 m across, so it shows down both sides and
+    /// along the floor. The stub's axis is 4.5 m over the corridor floor and its mouth 0.44 m
+    /// inside the corridor's end: placed so, no line of sight from anywhere a head can be in the
+    /// corridor reaches past the rock (checked against the client's meshes from 77 head
+    /// positions each; 0.5 m higher and slivers of void show at the corners). The server makes
+    /// them as the client's map loader makes its own pieces (DynamicObjectType.Scenery). The
+    /// stub's rock has collision like any piece of a map, so each passage's slab starts 1.2 m
+    /// ahead of its stub's mouth, the whole width of the corridor: whoever walks at the doorway
+    /// is through before they touch it.
     /// </summary>
     public static class SecretPassages
     {
@@ -126,17 +147,157 @@ namespace Rasa.Managers
         public static readonly Passage AliaCavernsDoor = new Passage(
             "Concordia Wilderness: Alia Caverns, the doorway at the end of the Eloh corridor into the Enhance shrine",
             ConcordiaWilderness,
-            new Vector3(826f, 280f, 738.5f), new Vector3(844f, 296f, 744f),
+            new Vector3(826f, 280f, 737.5f), new Vector3(844f, 296f, 744f),
             new Vector3(832f, 160.1f, 927f), MathF.PI);
 
         /// <summary>The open south end of the Enhance shrine's corridor (floor y 159.9, ceiling 165.4, x 824..840, the floor stops at z 919.8): back into the cave.</summary>
         public static readonly Passage EnhanceShrineExit = new Passage(
             "Concordia Wilderness: the end of the Enhance shrine's corridor, back into Alia Caverns",
             ConcordiaWilderness,
-            new Vector3(823f, 154f, 915f), new Vector3(841f, 170f, 920.6f),
+            new Vector3(823f, 154f, 915f), new Vector3(841f, 170f, 921.5f),
             new Vector3(835f, 286.3f, 733f), 0f);
 
         public static readonly Passage[] All = { JumpAndBelieve, GrowthHallEnd, AliaCavernsDoor, EnhanceShrineExit };
+
+        /// <summary>A piece of scenery that fills the doorway a passage is in, so that it does not open on nothing.</summary>
+        public sealed class Doorway
+        {
+            public Doorway(string name, Passage passage, EntityClasses classId, Vector3 position, float yaw, Vector3 seenFrom)
+            {
+                Name = name;
+                Passage = passage;
+                ClassId = classId;
+                Position = position;
+                Yaw = yaw;
+                SeenFrom = seenFrom;
+            }
+
+            public string Name { get; }
+
+            /// <summary>The passage whose doorway this fills.</summary>
+            public Passage Passage { get; }
+
+            public uint MapContextId => Passage.MapContextId;
+            public EntityClasses ClassId { get; }
+
+            /// <summary>The piece's origin: for the cave stub, on its axis at the plugged end.</summary>
+            public Vector3 Position { get; }
+
+            /// <summary>Turn about the vertical, as a DynamicObject's Rotation. At 0 the cave stub's mouth is 8.3 m towards -Z.</summary>
+            public float Yaw { get; }
+
+            /// <summary>
+            /// The place whose map cell the piece is filed in (DynamicObject.CellAnchor). A client
+            /// has an object from two cells of 25.6 m around it, 51 to 77 m; filed where it stands,
+            /// behind the doorway, the piece would come too late for someone looking down the
+            /// length of the way to it, who would see the doorway open first.
+            /// </summary>
+            public Vector3 SeenFrom { get; }
+
+            /// <summary>The middle of the cave stub's mouth, at floor height: 8.3 m along its axis from the origin and 4.5 m down.</summary>
+            public Vector3 Mouth => Position + Vector3.Transform(new Vector3(0f, -CavernTransitionFloor, -CavernTransitionLength), Quaternion.CreateFromYawPitchRoll(Yaw, 0f, 0f));
+        }
+
+        /// <summary>TerraForeasCavernInstance: the cave mouth with the transition's swirl that the Wilderness map puts at every way out of it.</summary>
+        public const EntityClasses CavernTransition = (EntityClasses)6977;
+
+        /// <summary>From the cave stub's origin to its mouth, along its axis (the mesh's bounds).</summary>
+        public const float CavernTransitionLength = 8.3f;
+
+        /// <summary>How far under the cave stub's axis a corridor's floor is put.</summary>
+        public const float CavernTransitionFloor = 4.5f;
+
+        /// <summary>Behind the open north end of the Alia Caverns corridor (its end at z 739.14, floor y 286.0).</summary>
+        public static readonly Doorway AliaCavernsDoorway = new Doorway(
+            "Concordia Wilderness: the transition in the Alia Caverns corridor's doorway",
+            AliaCavernsDoor, CavernTransition,
+            new Vector3(835f, 290.5f, 747f), 0f,
+            // The tunnel runs straight at the doorway from z 647: in the cell of z 691..717, the piece is there from z 640 on.
+            new Vector3(835f, 286f, 705f));
+
+        /// <summary>Behind the open south end of the Enhance shrine's corridor (its end at z 919.86, floor y 159.93): the same, turned about.</summary>
+        public static readonly Doorway EnhanceShrineDoorway = new Doorway(
+            "Concordia Wilderness: the transition in the Enhance shrine corridor's doorway",
+            EnhanceShrineExit, CavernTransition,
+            new Vector3(832f, 164.43f, 912f), MathF.PI,
+            // The room ends at z 985: in the cell of z 947..973, the piece is there throughout the shrine.
+            new Vector3(832f, 160f, 960f));
+
+        public static readonly Doorway[] Doorways = { AliaCavernsDoorway, EnhanceShrineDoorway };
+
+        /// <summary>Puts the doorways on every loaded map that has any. Runs after MapChannelInit.</summary>
+        public static void DoorwayInit()
+        {
+            var placed = 0;
+
+            foreach (var mapContextId in Doorways.Select(d => d.MapContextId).Distinct())
+            {
+                var mapChannel = MapChannelManager.Instance.FindByContextId(mapContextId);
+
+                if (mapChannel != null)
+                    placed += PlaceDoorways(mapChannel);
+            }
+
+            Logger.WriteLog(LogType.Initialize, $"Placed {placed} of {Doorways.Length} secret passage doorways");
+        }
+
+        /// <summary>
+        /// Puts this map's doorways on one channel of it - the open world's or a private copy -
+        /// and tells whoever is in range. One the channel already has is left alone. Returns how
+        /// many were added.
+        /// </summary>
+        public static int PlaceDoorways(MapChannel mapChannel)
+        {
+            if (mapChannel?.MapInfo == null)
+                return 0;
+
+            var placed = 0;
+
+            foreach (var doorway in Doorways)
+            {
+                if (doorway.MapContextId != mapChannel.MapInfo.MapContextId || DoorwayObject(mapChannel, doorway) != null)
+                    continue;
+
+                // A class the server's data does not have cannot be sent: the doorway stays open, as before.
+                if (EntityClassManager.Instance.GetClassInfo(doorway.ClassId) == null)
+                {
+                    Logger.WriteLog(LogType.Error, $"Entity class {(uint)doorway.ClassId} is not loaded; left out: {doorway.Name}");
+                    continue;
+                }
+
+                CellManager.Instance.AddToWorld(mapChannel, new DynamicObject
+                {
+                    EntityClassId = doorway.ClassId,
+                    DynamicObjectType = DynamicObjectType.Scenery,
+                    ObjectData = doorway,
+                    Position = doorway.Position,
+                    Rotation = doorway.Yaw,
+                    CellAnchor = doorway.SeenFrom,
+                    MapContextId = doorway.MapContextId,
+                    TargetCategory = TargetCategory.Object,
+                    Comment = doorway.Name,
+                    IsInWorld = true
+                });
+
+                placed++;
+            }
+
+            return placed;
+        }
+
+        /// <summary>The object standing for a doorway on a map channel, or null.</summary>
+        public static DynamicObject DoorwayObject(MapChannel mapChannel, Doorway doorway)
+        {
+            if (mapChannel?.MapCellInfo == null || doorway == null)
+                return null;
+
+            foreach (var cell in mapChannel.MapCellInfo.Cells.Values)
+                foreach (var obj in cell.DynamicObjectList)
+                    if (obj.DynamicObjectType == DynamicObjectType.Scenery && ReferenceEquals(obj.ObjectData, doorway))
+                        return obj;
+
+            return null;
+        }
 
         /// <summary>The passage a step on this map passes through, if any.</summary>
         public static Passage Crossed(uint mapContextId, Vector3 from, Vector3 to)

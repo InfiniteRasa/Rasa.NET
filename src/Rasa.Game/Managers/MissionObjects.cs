@@ -104,7 +104,7 @@ namespace Rasa.Managers
             {
                 inView.Add(obj.EntityId);
 
-                if (obj.DynamicObjectType == DynamicObjectType.Emitter || obj.MissionConversation != null)
+                if (obj.DynamicObjectType == DynamicObjectType.Emitter || obj.DynamicObjectType == DynamicObjectType.Scenery || obj.MissionConversation != null)
                     continue;
 
                 var activation = ActivationFor(client, obj, missions);

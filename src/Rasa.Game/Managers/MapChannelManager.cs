@@ -1502,6 +1502,9 @@ namespace Rasa.Managers
         {
             SpawnPoolManager.Instance.CloneTemplateMap(template, map);
             DynamicObjectManager.Instance.CloneTemplateMap(template, map);
+
+            // Not among the template's own objects: the passages are by map, and so is what stands in their doorways.
+            SecretPassages.PlaceDoorways(map);
         }
     }
 }

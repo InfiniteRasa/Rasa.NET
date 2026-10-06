@@ -675,6 +675,18 @@ namespace Rasa.Managers
                 return;
             }
 
+            // Scenery is no usable either: what a .map places, made the way the client's own map
+            // loader makes it (gamemap.py: CreateEntity, then a position and an orientation).
+            if (dynamicObject.DynamicObjectType == DynamicObjectType.Scenery)
+            {
+                client.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(dynamicObject.EntityId, dynamicObject.EntityClassId, new List<PythonPacket>
+                {
+                    new IsTargetablePacket(false),
+                    new WorldLocationDescriptorPacket(dynamicObject.Position, dynamicObject.Rotation)
+                }));
+                return;
+            }
+
             var entityData = new List<PythonPacket>
             {
                 // PhysicalEntity
