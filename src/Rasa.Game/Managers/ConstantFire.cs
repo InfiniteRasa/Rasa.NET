@@ -257,7 +257,7 @@ namespace Rasa.Managers
                 var amount = GameEffectManager.ApplyResist(target, rolled, out var resisted, damageType);
                 var landed = ActorManager.Instance.Damage(mapChannel, target, amount, player, out var outcome, damageType);
 
-                pulse.Add(new TickEntry
+                var shot = new TickEntry
                 {
                     EntityId = target.EntityId,
                     Amount = outcome.Delivered,
@@ -267,10 +267,14 @@ namespace Rasa.Managers
                     DamageType = damageType,
                     IsCritical = crit,
                     DeathBlow = landed > 0 && target.Attributes[Attributes.Health].Current <= 0
-                });
+                };
 
+                pulse.Add(shot);
+
+                // The crit's effect on a creature is announced by this shot of the pulse (HitEffects).
                 if (crit && !outcome.Immune && target.State != CharacterState.Dead && target.State != CharacterState.Dying && target.Attributes[Attributes.Health].Current > 0)
-                    CritEffects.OnCritical(mapChannel, target, player, damageType, amount);
+                    using (HitEffects.On(target, player, shot.TargetEffectIds))
+                        CritEffects.OnCritical(mapChannel, target, player, damageType, amount);
 
                 if (leech)
                     Leech(mapChannel, player, landed, tick);
@@ -372,8 +376,7 @@ namespace Rasa.Managers
             var dealt = GameEffectManager.ApplyResist(target, amount, out var resisted, session.DamageType);
             var landed = ActorManager.Instance.Damage(mapChannel, target, dealt, player, out var outcome, session.DamageType);
 
-            args.HitEntities.Add(target.EntityId);
-            args.HitData.Add(new HitData
+            var hit = new HitData
             {
                 EntityId = target.EntityId,
                 DamageType = session.DamageType,
@@ -383,10 +386,15 @@ namespace Rasa.Managers
                 WasImune = outcome.Immune ? 1 : 0,
                 IsCritical = crit ? 1 : 0,
                 DeathBlow = landed > 0 && target.Attributes[Attributes.Health].Current <= 0 ? 1 : 0
-            });
+            };
 
+            args.HitEntities.Add(target.EntityId);
+            args.HitData.Add(hit);
+
+            // The crit's effect on a creature is announced by the release's hit, in the recovery that ends the fire (HitEffects).
             if (crit && !outcome.Immune && target.State != CharacterState.Dead && target.State != CharacterState.Dying && target.Attributes[Attributes.Health].Current > 0)
-                CritEffects.OnCritical(mapChannel, target, player, session.DamageType, dealt);
+                using (HitEffects.On(target, player, hit.TargetEffectIds))
+                    CritEffects.OnCritical(mapChannel, target, player, session.DamageType, dealt);
         }
 
         private static Session Begin(MapChannel mapChannel, Client client, Item weapon, ActionData action, DamageType damageType)

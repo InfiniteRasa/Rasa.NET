@@ -273,6 +273,30 @@ namespace Rasa.Managers
         /// </summary>
         private static bool StunAndCheckCritDeath(MapChannel mapChannel, Creature creature, Missile missile)
         {
+            // What the hit puts on the creature is announced by the hit, when the shot is seen
+            // to land: attached quietly and named in this creature's entry of the recovery
+            // (HitEffects). With no entry to name them in they announce themselves, as before.
+            using (HitEffects.On(creature, missile.Source, HitOf(missile, creature)?.TargetEffectIds))
+                return ApplyHitEffects(mapChannel, creature, missile);
+        }
+
+        /// <summary>The missile's entry for a hit on this actor in the recovery it will be sent in, or null.</summary>
+        private static HitData HitOf(Missile missile, Actor struck)
+        {
+            var hits = missile?.Args?.HitData;
+
+            if (hits == null || struck == null)
+                return null;
+
+            for (var i = hits.Count - 1; i >= 0; i--)
+                if (hits[i] != null && hits[i].EntityId == struck.EntityId)
+                    return hits[i];
+
+            return null;
+        }
+
+        private static bool ApplyHitEffects(MapChannel mapChannel, Creature creature, Missile missile)
+        {
             var damageType = missile.DamageType == 0 ? DamageType.Physical : missile.DamageType;
 
             if (missile.Source is Manifestation)
@@ -1093,7 +1117,7 @@ namespace Rasa.Managers
                 if (missile.TargetEntityId != 0)
                 {
                     missile.Args.MisstEntities.Add(missile.TargetEntityId);
-                    missile.Args.Missdata.Add(0);
+                    missile.Args.Missdata.Add(MissTypeMiss);
                 }
                 Logger.WriteLog(LogType.Debug, $"Retired manual-combat missile from {manual.EntityId} was rejected.");
                 CellManager.Instance.CellCallMethod(mapChannel, missile.Source, CreatureAttacks.RecoveryFor(missile));
@@ -1193,8 +1217,10 @@ namespace Rasa.Managers
             }
             else if (missile.TargetEntityId != 0)
             {
+                // A plain miss. It went out as misstype 0, which is no row of the client's
+                // table: a KeyError there, and no "Miss!" (DamageInfoWriter.WriteMissTypes).
                 missile.Args.MisstEntities.Add(missile.TargetEntityId);
-                missile.Args.Missdata.Add(0);
+                missile.Args.Missdata.Add(MissTypeMiss);
             }
 
             switch (targetType)

@@ -183,6 +183,10 @@ namespace Rasa.Managers
 
             effect.AttachArgs = attachArgs.ToList();
 
+            // A weapon hit being resolved on this creature announces what it puts on it: the
+            // effect goes on quietly and the hit names it (HitEffects).
+            HitEffects.Claim(actor, effect);
+
             var attached = AttachedPacket(effect, effect.AnnounceOnAttach);
 
             if (effect.ServerOnly)

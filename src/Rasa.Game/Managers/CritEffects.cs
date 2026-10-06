@@ -171,6 +171,10 @@ namespace Rasa.Managers
 
             var arc = NewDebuff(mapChannel, source, CritElectricTypeId, ElectricEffectMs);
 
+            // Announced by its own attach, and not by the hit (HitEffects): the tick below draws
+            // the arcs from the effect's FX, which is only there once it has been announced.
+            arc.AnnounceWithHit = false;
+
             GameEffectManager.Instance.Attach(mapChannel, target, arc);
 
             if (arcTo.Count == 0)
