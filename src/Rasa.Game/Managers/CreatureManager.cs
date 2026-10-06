@@ -264,7 +264,10 @@ namespace Rasa.Managers
                     (_missionManager ?? MissionApplication.Instance).RecordScenarioCreatureDeath(creature.SpawnPool);
             }
 
-            // todo: How were credits and experience calculated when multiple players attacked the same creature? Did only the player with the first strike get experience?
+            // The kill is one player's - whoever landed it - and what it is worth is shared with
+            // their squad near the corpse: its experience and adrenaline (KillShares), its loot
+            // (LootDispenserManager), a boss's title and a garrison's prestige. Someone outside
+            // the squad who fought it too has no part in it.
 
             Client client = null;
 
@@ -297,7 +300,11 @@ namespace Rasa.Managers
                 experience += (uint)(Random.Shared.Next() % (experienceRange * 2 + 1)) - experienceRange;
 
                 // todo: Depending on level difference reduce experience
-                _manifestationManager.GainExperience(client, experience);
+
+                // Split evenly with the squad in range of the corpse (KillShares).
+                var sharers = KillShares.SharersFor(client, creature.Position);
+
+                KillShares.AwardExperience(_manifestationManager, sharers, client, experience);
 
                 // A finishing move pays the kill over again: "You get full experience for killing
                 // the enemy, and you get full experience again at the end of the Finishing Move.
@@ -305,15 +312,13 @@ namespace Rasa.Managers
                 // strategy guide). Paid as a second award flagged as the crit kill, so the client
                 // prints the ordinary line and then its "by Crit Killing" line, one for each.
                 if (critKill != CritKill.None)
-                    _manifestationManager.GainExperience(client, experience, critKill);
+                    KillShares.AwardExperience(_manifestationManager, sharers, client, experience, critKill);
 
                 // Adrenaline is earned here and nowhere else: it does not regenerate. See
                 // ManifestationManager.AdrenalinePerKillPercent. Doubled for a finish, in one
                 // award rather than two, so the bar shows one number rather than two on top of
-                // each other.
-                var adrenaline = _manifestationManager.AdrenalineForKill(client);
-
-                _manifestationManager.GainAdrenaline(client, critKill != CritKill.None ? adrenaline * 2 : adrenaline);
+                // each other. Split with the squad as the experience is.
+                KillShares.AwardAdrenaline(_manifestationManager, sharers, critKill != CritKill.None);
 
                 // One of a control point's Bane garrison is worth prestige as well (ControlPoints).
                 ControlPoints.Instance.CreatureKilled(creature, client);
