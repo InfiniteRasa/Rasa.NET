@@ -792,7 +792,6 @@ namespace Rasa.Managers
 
             if (IsProtected(tempItem))
                 return;
-            RemoveItemBySlot(client, InventoryType.Personal, (uint)packet.SrcSlot);
 
             // AddItemToClanInventory saves the stack sizes it changes, and deletes every row
             // of an item it merges away; updating tempItem here afterwards was redundant, and
@@ -800,11 +799,20 @@ namespace Rasa.Managers
             Item item = AddItemToClanInventory(client, tempItem, firstSlot, lastSlot, unlocked);
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
 
+            // No free slot in the tab: the item, or what is left of it after the stacks it
+            // could join, stays in the pack. The client asks this without looking for room
+            // (inventory.AddItemToClanInventoryTab with no slot), and the item used to be taken
+            // out of the pack before a place was found for it: it was then in neither list
+            // until the next login, its row still in the pack slot, and with a row in a slot
+            // the list has empty every inventory plan for the character is refused.
             if (item == null)
             {
                 client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(PlayerMessage.PmInventoryFull, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
                 return;
             }
+
+            // It has a place, or has been merged away: out of the pack.
+            RemoveItemBySlot(client, InventoryType.Personal, (uint)packet.SrcSlot);
 
             // The personal row is found by item id: the character id it was written with is
             // not always this character's.
