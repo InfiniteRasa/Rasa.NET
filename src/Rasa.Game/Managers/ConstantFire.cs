@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Rasa.Managers
 {
@@ -47,10 +48,10 @@ namespace Rasa.Managers
     /// pulse hits every hostile creature within PropellantRange of the shooter and ConeHalfAngleOf
     /// degrees either side of the way they face, each with its own crit roll and resistance, all
     /// listed as shots of the one pulse. The reach and the angle are ConeWeapons': the action's
-    /// own range (maxRange 10 on every (140, arg) row) and 45 degrees either side. The
-    /// pool the propellant leaves (PROPELLANT_POOL_EFFECT 10000047, with FX for each damage type)
-    /// and PROPELLANT_PUMP_EFFECT 10000046 have no numbers or behaviour in the client and are
-    /// not done.
+    /// own range (maxRange 10 on every (140, arg) row) and 45 degrees either side. A
+    /// pulse may leave a pool on the ground (PROPELLANT_POOL_EFFECT 10000047), which is
+    /// <see cref="PropellantPools"/>'; PROPELLANT_PUMP_EFFECT 10000046 has no numbers or
+    /// behaviour in the client and is not done.
     ///
     /// Machine guns (WEAPON_MACHINEGUN 149, a charged action in actionModules): the client's
     /// MachinegunAttack is a ConstantFireAttack like the rest - a looping windup while the
@@ -219,6 +220,8 @@ namespace Rasa.Managers
             // A propellant gun sprays the cone in front of the shooter; the others hit what they aim
             // at. An enemy player across a wargame is a target like a creature (Pvp).
             var targets = new List<Actor>();
+            List<Actor> pool = null;
+            var poolReach = 0f;
 
             if (session.ActionId == ActionId.WeaponFlamethrower)
             {
@@ -228,6 +231,11 @@ namespace Rasa.Managers
 
                 targets.AddRange(AbilityManager.HostilesInCone(mapChannel, player, facing, range, halfAngle));
                 targets.AddRange(Pvp.EnemiesInCone(mapChannel, player, facing, range, halfAngle));
+
+                // The pool it may leave is of the pulse as fired, and lands under those it reached
+                // while they still stand.
+                pool = targets.Where(target => target.State != CharacterState.Dead && target.State != CharacterState.Dying).ToList();
+                poolReach = range - ConeWeapons.RangeSlack;
             }
             else if (ResolveTarget(mapChannel, player) is Actor aimed && (aimed is Creature || Pvp.IsEnemyTarget(player, aimed)))
                 targets.Add(aimed);
@@ -272,6 +280,9 @@ namespace Rasa.Managers
             }
 
             PulseAtObject(mapChannel, player, session, damage, damageType, pulse);
+
+            if (pool != null)
+                PropellantPools.OnPulse(mapChannel, player, damage, damageType, poolReach, pool);
 
             CellManager.Instance.CellCallMethod(mapChannel, player, tick);
         }
@@ -321,6 +332,8 @@ namespace Rasa.Managers
 
                 Sessions.Remove(client);
             }
+
+            PropellantPools.Stopped(client.Player);
 
             var mapChannel = client.Player?.MapChannel;
 
