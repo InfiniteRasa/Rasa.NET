@@ -207,9 +207,10 @@ namespace Rasa.Managers
         }
 
         /// <summary>
-        /// .moveflags: for a GM watching, the Move packet's flags byte and leading byte whenever
-        /// either changes, with the height and the step up or down - to find whether the client
-        /// marks being in the air or in water there, which nothing has decoded.
+        /// .moveflags: for a GM watching, the Move packet's flags byte, its leading byte and its
+        /// movement type whenever one changes, with the height and the step up or down. The type
+        /// is 1 on the Move that starts a jump (MovementType.Jump); nothing in a Move marks
+        /// falling or water.
         /// </summary>
         public static void ShowMoveFlags(Client client, Packets.Protocol.MoveMessage move, Vector3 from)
         {
@@ -219,7 +220,7 @@ namespace Rasa.Managers
                 return;
 
             var movement = move.Movement;
-            var packed = (move.UnkByte << 16) | (movement.UnknownByte << 8) | movement.Flags;
+            var packed = (move.UnkByte << 16) | ((byte)movement.Type << 8) | movement.Flags;
 
             if (packed == tracker.LastFlags)
                 return;
@@ -229,7 +230,7 @@ namespace Rasa.Managers
             var to = movement.Position;
 
             CommunicatorManager.Instance.SystemMessage(client,
-                $"move flags {Convert.ToString(movement.Flags, 2).PadLeft(8, '0')} (0x{movement.Flags:X2}), bytes {move.UnkByte}/{movement.UnknownByte}, "
+                $"move flags {Convert.ToString(movement.Flags, 2).PadLeft(8, '0')} (0x{movement.Flags:X2}), bytes {move.UnkByte}/{(byte)movement.Type}, "
                 + $"y {to.Y:0.00} ({to.Y - from.Y:+0.00;-0.00}), water here {(InWater(client.Player.MapChannel?.MapInfo?.MapName, to) ? "yes" : "no")}");
         }
 
