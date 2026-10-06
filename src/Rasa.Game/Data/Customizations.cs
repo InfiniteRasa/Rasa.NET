@@ -14,7 +14,10 @@ namespace Rasa.Data
     ///    colorcustomizationwindow.py, in swatch order;
     ///  - customizationRestriction: the item classes it may be used on, which the client checks
     ///    in CustomizeAction.CheckAction (Customization.IsIncludedClass). A class with no list
-    ///    may be used on anything.
+    ///    may be used on anything;
+    ///  - customizationChoice: the hair and the faces the two modification items offer;
+    ///  - customizationClassPalette: the texture a hair or skin colour is picked from, whose
+    ///    colours are here (<see cref="Palettes"/>).
     ///
     /// Every armour paint with a list shares the same 2550 armour classes; some add a few more
     /// (the Sunset officer uniform, the AFS police armour, the detail faces), and the Boxing
@@ -30,6 +33,13 @@ namespace Rasa.Data
         /// for. The client sends the swatch widget's colour as it reads it back.
         /// </summary>
         public const int HueTolerance = 2;
+
+        /// <summary>
+        /// Ours: the same for a colour picked off a palette texture. The client sends the pixel
+        /// it clicked as it decodes the texture, and a DXT1 texel is 5, 6 and 5 bits a channel:
+        /// one decoder's 8 bits and another's differ by up to 7.
+        /// </summary>
+        public const int PaletteTolerance = 8;
 
         public static readonly IReadOnlyDictionary<uint, CustomizationType> Types = new Dictionary<uint, CustomizationType>
         {
@@ -462,6 +472,152 @@ namespace Rasa.Data
             },
         };
 
+        // palette_hum_hair_cauc.dds, _asian and _african, of data\ui.glm: one file under three
+        // names. 256 by 256, DXT1: 64 swatches, eight a row, with black lines between them.
+        private static readonly uint[] HairPalette =
+        {
+            0xFFE7E3DE, 0xFFDEE3E7, 0xFFD6E3EF, 0xFFCEE7F7, 0xFFCEDFF7, 0xFFD6D7EF, 0xFFD6DBEF, 0xFFE4E1E1, 0xFFDEE3E6,
+            0xFFDAE3E7, 0xFFD3E4EF, 0xFFD0E5F4, 0xFFCEDEF3, 0xFFD6D6EF, 0xFFD6DBEC, 0xFFCECFCE, 0xFFCECFD6, 0xFFC6D3DE,
+            0xFFBDD3E7, 0xFFB5D3EF, 0xFFB5C7EF, 0xFFBDBAE7, 0xFFBDC3DE, 0xFFD2D0CE, 0xFFCBD0D3, 0xFFC5D2DA, 0xFFBAD4E4,
+            0xFFB2D4EC, 0xFFB2C8EC, 0xFFBABBE6, 0xFFBDC4E1, 0xFFBDBAB5, 0xFFB5BEC6, 0xFFADBECE, 0xFF9CC3D6, 0xFF8CC3E7,
+            0xFF8CB2E7, 0xFF9C9EDE, 0xFFA5AAD6, 0xFFBDBAB9, 0xFFB5BCC1, 0xFFAABECB, 0xFF9CC1D8, 0xFF8EC3E7, 0xFF8EB0E7,
+            0xFF999CDB, 0xFFA4AAD2, 0xFFA4A4A4, 0xFF9CA6AD, 0xFF8CAABD, 0xFF7BAECE, 0xFF6BAEDE, 0xFF6B96DE, 0xFF7B7DCE,
+            0xFF8492C6, 0xFFA7A3A2, 0xFF99A6AF, 0xFF8EAABA, 0xFF7EAFCE, 0xFF6BAFDE, 0xFF6A96DE, 0xFF787BD0, 0xFF8690C5,
+            0xFF8E8A89, 0xFF7E8C9A, 0xFF6E92A4, 0xFF5A96BD, 0xFF429AD6, 0xFF4279D6, 0xFF5259C6, 0xFF6371B5, 0xFF8C8987,
+            0xFF7F8D98, 0xFF6F93A5, 0xFF5A97BD, 0xFF4299D6, 0xFF4277D6, 0xFF5459C3, 0xFF6572B2, 0xFF635F5E, 0xFF52636F,
+            0xFF426B7F, 0xFF2C6E9A, 0xFF186DB5, 0xFF1849B5, 0xFF26289F, 0xFF36468E, 0xFF446A7E, 0xFF2B6E9C, 0xFF186DB9,
+            0xFF184AB9, 0xFF26299F, 0xFF393A39, 0xFF2E3A42, 0xFF253E4E, 0xFF18435E, 0xFF0C4177, 0xFF0C2A77, 0xFF141667,
+            0xFF202858, 0xFF393939, 0xFF313A42, 0xFF184260, 0xFF0A4175, 0xFF0A2975, 0xFF141666, 0xFF1E2857, 0xFF020202,
+            0xFF050505, 0xFF1C2025, 0xFF14222D, 0xFF0C2439, 0xFF082646, 0xFF051944, 0xFF0B0C39, 0xFF101531, 0xFF040404,
+            0xFF000400, 0xFF082645, 0xFF0A0C39,
+        };
+
+        /// <summary>
+        /// The colours a hair or skin colour item offers: every colour of its palette texture
+        /// (customizationClassPalette, customizationwindow.py _SetupPalette) but that of the
+        /// pixel at its corner, which the window takes for the border and does not let be
+        /// picked (OnColorClicked) - on the hair palette the black of the lines, on a skin
+        /// palette, which starts with a swatch, the first swatch. A click takes the pixel under
+        /// it (GetPixelColor), so the blends DXT1 leaves along a swatch's edge are colours too.
+        /// Packed as <see cref="Hues"/> are, in the order they are met reading the texture. The
+        /// corner's colour may still be asked for where another colour of the palette is within
+        /// <see cref="PaletteTolerance"/> of it: the hair palette's darkest swatch is all but black.
+        /// </summary>
+        public static readonly IReadOnlyDictionary<uint, uint[]> Palettes = new Dictionary<uint, uint[]>
+        {
+            [3735] = HairPalette, // Hair Color Modification 3
+            [4088] = HairPalette, // Hair Color Modification 2
+            [4089] = HairPalette, // Hair Color Modification 1
+            // Melanotan for Caucasians: palette_hum_skin_cauc.dds, 16 swatches
+            [3734] = new uint[]
+            {
+                0xFF626365, 0xFF9CA3B2, 0xFF636563, 0xFF9CA8B1, 0xFF9CACB1, 0xFF626363, 0xFF656365, 0xFF626265, 0xFF606265,
+                0xFF636363, 0xFF94B2C6, 0xFF899FB2, 0xFF889EB1, 0xFF738899, 0xFF768899, 0xFF637584, 0xFF96B3C5, 0xFF758899,
+                0xFF657683, 0xFF636163, 0xFF626362, 0xFF99A7C5, 0xFF8997B2, 0xFF73829C, 0xFF738199, 0xFF636E84, 0xFF98A8C5,
+                0xFF8897B1, 0xFF758299, 0xFF656E83, 0xFF626465, 0xFF949EC6, 0xFF898EB2, 0xFF888FB1, 0xFF737B99, 0xFF737999,
+                0xFF636984, 0xFF969FC5, 0xFF757A99, 0xFF636983,
+            },
+            // Melanotan for Africans: palette_hum_skin_african.dds, 16 swatches
+            [4086] = new uint[]
+            {
+                0xFF31394D, 0xFF293842, 0xFF2D3842, 0xFF313652, 0xFF393552, 0xFF36344F, 0xFF33344C, 0xFF474A68, 0xFF29384A,
+                0xFF39475A, 0xFF364657, 0xFF313052, 0xFF343157, 0xFF313852, 0xFF3E475F, 0xFF424163, 0xFF3C3F5D, 0xFF5A657B,
+                0xFF3C475D, 0xFF5A597B, 0xFF3E3D5F, 0xFF3F3B5D, 0xFF3C495D, 0xFF3D485E, 0xFF5A5D7B, 0xFF3D3C5E, 0xFF3F3A5D,
+                0xFF5A617B, 0xFF3C485D, 0xFF3C3F57, 0xFF39424F, 0xFF4A5563, 0xFF44435A, 0xFF52516B, 0xFF524E68, 0xFF3F4855,
+                0xFF445260, 0xFF26293C, 0xFF282F3C, 0xFF292839, 0xFF29273C, 0xFF293039, 0xFF262F3C, 0xFF3C4252, 0xFF262F39,
+                0xFF262E3C, 0xFF474857, 0xFF2B283C, 0xFF2B263C, 0xFF444A57, 0xFF31384A, 0xFF262D37, 0xFF313842, 0xFF393C42,
+                0xFF2E2A36, 0xFF393842, 0xFF393845, 0xFF2E3239, 0xFF151523, 0xFF101821, 0xFF131920, 0xFF292431, 0xFF232931,
+                0xFF242A31, 0xFF141624, 0xFF36363E, 0xFF1B1B23, 0xFF141A24, 0xFF2D2C35, 0xFF262531, 0xFF313439, 0xFF252A31,
+            },
+            // Skin Color Modification: palette_hum_skin_asian.dds, 16 swatches
+            [4087] = new uint[]
+            {
+                0xFF9AB1CE, 0xFF84A2C6, 0xFF86A2C8, 0xFF6B7F9C, 0xFF6A7F9C, 0xFF627387, 0xFF5A7594, 0xFF5E7594, 0xFFADBAD6,
+                0xFFADB6CE, 0xFF8492C6, 0xFF848EB5, 0xFF7689B0, 0xFF68759A, 0xFF687394, 0xFF637594, 0xFF5E6990, 0xFF63698C,
+                0xFFAFB7D3, 0xFF919EC8, 0xFF8494C9, 0xFF6B759C, 0xFF5E6994, 0xFF949FC2, 0xFF8394C8, 0xFF8694C8, 0xFF6B7594,
+                0xFF6A759C, 0xFF5E6987, 0xFF5A6994, 0xFF8697B2, 0xFF8C9AB5, 0xFF525D6B, 0xFF4F5B70, 0xFF4A5563, 0xFF353E4A,
+                0xFF363F4C, 0xFF293039, 0xFF181C20, 0xFF182021, 0xFF8094AF, 0xFF657183, 0xFF4C5A6D, 0xFF333D47, 0xFF181A1C,
+                0xFF8394B1, 0xFF637184, 0xFF4F5A6E, 0xFF4F5A6D, 0xFF363C47, 0xFF7688A1, 0xFF7E8BA7, 0xFF52556B, 0xFF4C5A6B,
+                0xFF4C535F, 0xFF3E414C, 0xFF39414A, 0xFF2E3337, 0xFF23252C, 0xFF292829, 0xFF8187AF, 0xFF687089, 0xFF4F536B,
+                0xFF41424C, 0xFF394142, 0xFF181821, 0xFF8387B1, 0xFF6B718C, 0xFF4F536D, 0xFF525163, 0xFF41424E, 0xFF393C42,
+                0xFF18191B, 0xFF18191E,
+            },
+        };
+
+        /// <summary>
+        /// The hair and the faces a modification item offers (customizationChoice), each with
+        /// the item template the windows name it by - the one the creation window has for it
+        /// (generated.client.starterinfo) - and in that window's order. All but Bald are human.
+        /// </summary>
+        public static readonly IReadOnlyDictionary<uint, (uint ClassId, uint TemplateId)[]> Choices = new Dictionary<uint, (uint, uint)[]>
+        {
+            // Hairstyle Modification
+            [1068] = new (uint, uint)[]
+            {
+                (3672, 42), // Style A
+                (3663, 36), // Style B
+                (9355, 1775), // Style C
+                (9356, 1776), // Style D
+                (9781, 1941), // Style E
+                (9782, 1942), // Style F
+                (9783, 1943), // Style G
+                (9784, 1944), // Style H
+                (3812, 60), // Bald
+            },
+            // Face Modification
+            [1069] = new (uint, uint)[]
+            {
+                (20824, 42276), // Asian v3 (Average)
+                (4083, 99), // Asian v1 (Average)
+                (10239, 2245), // Asian v2 (Average)
+                (20825, 42277), // Asian v4 (Average)
+                (24016, 49684), // Asian v1 (Round)
+                (24017, 49685), // Asian v2 (Round)
+                (24018, 49686), // Asian v3 (Round)
+                (24019, 49687), // Asian v4 (Round)
+                (24028, 49696), // Asian v1 (Square)
+                (24029, 49697), // Asian v2 (Square)
+                (24030, 49698), // Asian v3 (Square)
+                (24031, 49699), // Asian v4 (Square)
+                (24004, 49672), // Asian v1 (Long)
+                (24005, 49673), // Asian v2 (Long)
+                (24006, 49674), // Asian v3 (Long)
+                (24007, 49675), // Asian v4 (Long)
+                (3813, 61), // Caucasian v1 (Average)
+                (7508, 611), // Caucasian v2 (Average)
+                (7694, 683), // Caucasian v3 (Average)
+                (7695, 684), // Caucasian v4 (Average)
+                (24020, 49688), // Caucasian v1 (Round)
+                (24021, 49689), // Caucasian v2 (Round)
+                (24022, 49690), // Caucasian v3 (Round)
+                (24023, 49691), // Caucasian v4 (Round)
+                (24032, 49700), // Caucasian v1 (Square)
+                (24033, 49701), // Caucasian v2 (Square)
+                (24034, 49702), // Caucasian v3 (Square)
+                (24035, 49703), // Caucasian v4 (Square)
+                (24008, 49676), // Caucasian v1 (Long)
+                (24009, 49677), // Caucasian v2 (Long)
+                (24010, 49678), // Caucasian v3 (Long)
+                (24011, 49679), // Caucasian v4 (Long)
+                (3667, 39), // African v1 (Average)
+                (7506, 609), // African v2 (Average)
+                (7507, 610), // African v3 (Average)
+                (7693, 682), // African v4 (Average)
+                (24012, 49680), // African v1 (Round)
+                (24013, 49681), // African v2 (Round)
+                (24014, 49682), // African v3 (Round)
+                (24015, 49683), // African v4 (Round)
+                (24024, 49692), // African v1 (Square)
+                (24025, 49693), // African v2 (Square)
+                (24026, 49694), // African v3 (Square)
+                (24027, 49695), // African v4 (Square)
+                (24000, 49668), // African v1 (Long)
+                (24001, 49669), // African v2 (Long)
+                (24002, 49670), // African v3 (Long)
+                (24003, 49671), // African v4 (Long)
+            },
+        };
+
         /// <summary>The armour classes every armour paint with a restriction list may colour (2550).</summary>
         private static readonly HashSet<uint> Armor = new HashSet<uint>
         {
@@ -788,11 +944,40 @@ namespace Rasa.Data
         /// The swatch of this paint the colour asked for is: the nearest of its 25 with every
         /// channel within <see cref="HueTolerance"/>, as that swatch's own packed colour.
         /// </summary>
-        public static bool TryMatchHue(uint customizationClassId, Color asked, out uint hue)
+        public static bool TryMatchHue(uint customizationClassId, Color asked, out uint hue) =>
+            TryMatch(Hues, HueTolerance, customizationClassId, asked, out hue);
+
+        /// <summary>
+        /// Whether the colour asked for is one of this hair or skin colour item's palette: every
+        /// channel within <see cref="PaletteTolerance"/> of one of its colours. The colour kept
+        /// is the one asked for, which is the one the window showed on the player.
+        /// </summary>
+        public static bool IsOnPalette(uint customizationClassId, Color asked) =>
+            TryMatch(Palettes, PaletteTolerance, customizationClassId, asked, out _);
+
+        /// <summary>The hair or face this modification item offers under the item template picked.</summary>
+        public static bool TryGetChoice(uint customizationClassId, uint templateId, out uint classId)
+        {
+            classId = 0;
+
+            if (templateId == 0 || !Choices.TryGetValue(customizationClassId, out var choices))
+                return false;
+
+            foreach (var choice in choices)
+                if (choice.TemplateId == templateId)
+                {
+                    classId = choice.ClassId;
+                    return true;
+                }
+
+            return false;
+        }
+
+        private static bool TryMatch(IReadOnlyDictionary<uint, uint[]> offered, int tolerance, uint customizationClassId, Color asked, out uint hue)
         {
             hue = 0;
 
-            if (asked == null || !Hues.TryGetValue(customizationClassId, out var choices))
+            if (asked == null || !offered.TryGetValue(customizationClassId, out var choices))
                 return false;
 
             var best = int.MaxValue;
@@ -804,7 +989,7 @@ namespace Rasa.Data
                 var green = Math.Abs(swatch.Green - asked.Green);
                 var blue = Math.Abs(swatch.Blue - asked.Blue);
 
-                if (red > HueTolerance || green > HueTolerance || blue > HueTolerance || red + green + blue >= best)
+                if (red > tolerance || green > tolerance || blue > tolerance || red + green + blue >= best)
                     continue;
 
                 best = red + green + blue;

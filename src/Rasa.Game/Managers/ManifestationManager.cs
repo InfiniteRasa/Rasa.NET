@@ -2245,7 +2245,7 @@ namespace Rasa.Managers
                 new RaceIdPacket(player.Race),
                 new AttributeInfoPacket(player.Attributes),
                 new PreloadDataPacket(client.Player.Inventory.EquippedInventory[13], player.Abilities),
-                new AppearanceDataPacket(player.AppearanceData),
+                new AppearanceDataPacket(player.AppearanceData, ofPlayer: true),
                 // With the appearance: a client that meets the player later has had no
                 // ShowHelmetChanged, and every actor starts with the helmet shown.
                 new ShowHelmetChangedPacket(ShowsHelmet(client)),
@@ -2987,15 +2987,7 @@ namespace Rasa.Managers
 
         public void GetCustomizationChoices(Client client, GetCustomizationChoicesPacket packet)
         {
-            // ToDo
-            var test = EntityManager.Instance.GetEntityType(packet.EntityId);
-            var testChoices = new Dictionary<int, int>
-            {
-                { 3663, 36 },
-                { 3672, 42 },
-                { 3812, 60 }
-            };
-            client.CallMethod(SysEntity.ClientMethodId, new CustomizationChoicesPacket(packet.EntityId, testChoices));
+            Customization.Choices(client, packet);
         }
 
         private int GetLevelNeededExperience(int level)
@@ -3296,6 +3288,27 @@ namespace Rasa.Managers
         public void RequestCustomization(Client client, RequestCustomizationPacket packet)
         {
             Customization.Request(client, packet);
+        }
+
+        /// <summary>
+        /// What the player shows in a slot that no item is worn in - the hair and the face, whose
+        /// colour is the skin's - changed and kept (character_appearance). Everyone is told by
+        /// <see cref="UpdateAppearance"/>, which the caller sends when it is done.
+        /// </summary>
+        public void SetAppearance(Client client, EquipmentData slot, uint classId, Color color)
+        {
+            var player = client.Player;
+
+            if (!player.AppearanceData.TryGetValue(slot, out var shown))
+                player.AppearanceData.Add(slot, shown = new AppearanceData { SlotId = slot, Hue2 = new Color(2139062144) });
+
+            shown.Class = classId;
+            shown.Color = color;
+
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+
+            unitOfWork.CharacterAppearances.AddOrUpdate(player.Id, new CharacterAppearanceEntry((uint)slot, classId, color.Hue));
+            unitOfWork.Complete();
         }
 
         #region Movement
@@ -4117,7 +4130,7 @@ namespace Rasa.Managers
             if (client.Player == null)
                 return;
 
-            client.CellCallMethod(client, client.Player.EntityId, new AppearanceDataPacket(client.Player.AppearanceData));
+            client.CellCallMethod(client, client.Player.EntityId, new AppearanceDataPacket(client.Player.AppearanceData, ofPlayer: true));
         }
 
         // Health calculation:
