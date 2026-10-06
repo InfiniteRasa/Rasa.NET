@@ -2964,6 +2964,11 @@ namespace Rasa.Managers
                                     objective.ObjectiveState = (byte)MissionObjectiveState.Completed;
                                     states[objective.ObjectiveId] = MissionObjectiveState.Completed;
                                     completed = true;
+                                    // Its title, as a counted objective gives its own
+                                    // (GrantObjectiveTitle): saved with the completion.
+                                    if (definition.TitleId is uint titleId && titleId != 0 &&
+                                        _unit.CharacterTitles.Add(owner.CharacterId, titleId))
+                                        owner.Titles[(tracked.Definition.MissionId, definition.ObjectiveId)] = titleId;
                                 }
                             }
                         } while (completed);
@@ -3011,7 +3016,8 @@ namespace Rasa.Managers
                             var changedCounter = counterId.HasValue && prior.Counters[counterId.Value] != current.Counters[counterId.Value];
                             if (completed || changedCounter)
                                 publications.Add(ProgressPublication.Aggregate(tracked.Definition, snapshot, definition.ObjectiveId,
-                                    changedCounter ? counterId : null, changedCounter ? current.Counters[counterId.Value] : null, completed));
+                                    changedCounter ? counterId : null, changedCounter ? current.Counters[counterId.Value] : null, completed,
+                                    owner.Titles.GetValueOrDefault((tracked.Definition.MissionId, definition.ObjectiveId))));
                         }
                     }
                     owner.Publication.CompleteAggregates(publications,
@@ -3030,6 +3036,9 @@ namespace Rasa.Managers
                 internal Dictionary<uint, TrackedMission> Missions { get; } = new();
                 internal HashSet<uint> Completable { get; } = new();
                 internal HashSet<uint> HistorySources { get; } = new();
+
+                /// <summary>The titles this transaction's aggregate completions gave, by mission and objective.</summary>
+                internal Dictionary<(uint MissionId, uint ObjectiveId), uint> Titles { get; } = new();
                 internal Owner(uint characterId, MissionProgressPublicationPlan publication)
                 {
                     CharacterId = characterId;
@@ -3066,7 +3075,9 @@ namespace Rasa.Managers
         /// <summary>
         /// The title an objective gives when it completes (the scene binding's titles), saved in
         /// the transaction that completes it. 0 when it gives none, or the character has it
-        /// already - a second character's worth of the same kills earns nothing twice.
+        /// already - a second character's worth of the same kills earns nothing twice. An
+        /// objective that is the sum of others gives its own where it completes
+        /// (AggregateProgressTransaction.Prepare).
         /// </summary>
         private static uint GrantObjectiveTitle(MissionObjectiveDefinition objective, ICharUnitOfWork unitOfWork, Client client) =>
             objective.TitleId is uint titleId && titleId != 0 &&

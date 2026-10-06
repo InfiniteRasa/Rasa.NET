@@ -1988,6 +1988,17 @@ namespace Rasa.Managers
             _characterManager.OfferStartingExperienceMission(client);
             MissionApplication.Instance.OfferArrivalMissions(client);
 
+            // A mission's area that is this map: entered by arriving. Not worth the map to
+            // them if it fails.
+            try
+            {
+                client.MissionAreaService?.RecordArrival(client);
+            }
+            catch (Exception e)
+            {
+                Logger.WriteLog(LogType.Error, $"Mission areas on arrival, character {player.Id}: {e.Message}");
+            }
+
             // Its cooldowns: the client's actor is new on every map and starts with none.
             ActionReuse.SendTo(client);
 

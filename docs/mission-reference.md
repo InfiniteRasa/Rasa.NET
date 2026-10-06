@@ -408,6 +408,11 @@ area, objective-state and timer trigger shapes in one transition is rejected.
 | `ObjectiveState` | `RelatedObjectiveId`, `RelatedState` |
 | `TimerElapsed` | Positive `DurationSeconds` |
 
+An area is entered by a Move that takes the character from outside it to inside
+it; arriving on a map inside one, by a map change or a login, is not entering
+it. A `mission_area` of shape `Map` (4) is the whole of its map and has no
+outside: it is entered by arriving on the map (the Mires operations of 1585).
+
 Progress event values come from `MissionProgressEventKind`, not client opcodes:
 
 | Value | Event | Parameter meaning |
