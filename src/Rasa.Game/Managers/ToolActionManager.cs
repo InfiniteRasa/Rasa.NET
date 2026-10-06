@@ -436,10 +436,12 @@ namespace Rasa.Managers
 
                 case ActionId.ToolFieldRepair:
                 {
-                    // Armour on a player, health on a creature. repairtool.py refuses a dead
-                    // player but allows a machina, so health is what brings a downed bot back
-                    // and armour is what the tool does for a trooper. The hit data carries both
-                    // slots either way and the client announces whichever is non-zero.
+                    // Armour on a player, health on a creature: armour is what the tool does for
+                    // a trooper, health for a bot. The hit data carries both slots either way and
+                    // the client announces whichever is non-zero. Neither goes onto the dead
+                    // (RestoreArmor, Heal): a target that died during the windup takes nothing,
+                    // and a downed machine, which the tool may be aimed at, is not brought back
+                    // by it yet.
                     var isPlayer = EntityManager.Instance.Players.ContainsKey(target.EntityId);
 
                     var armored = isPlayer
@@ -848,19 +850,22 @@ namespace Rasa.Managers
             if (IsRestoringTool(packet.ActionId) && !Pvp.MayHelp(client.Player, targetActor))
                 return PlayerMessage.PmTargetInvalid;
 
-            // repairtool.py refuses a dead player outright; healdisc.py allows a corpse only at
-            // Healing 3 or better. ToDo: repairtool also refuses dead BIOLOGICAL creatures, which
-            // needs creature flags.
+            // A dead target. The healing disc may be aimed at one at Healing 3 (healdisc.py
+            // canTargetDead), and below it targetedaction.py says ACTION_FAILED_TARGET_DEAD. The
+            // repair tool is a healing disc (repairtool.py: RepairToolAction(HealDiscAction)) with
+            // a check of its own after that one, ExtraCheckAction: a dead player, and a dead
+            // creature that HasFlag(BIOLOGICAL), are TARGET_INVALID. What it may be aimed at dead
+            // is a machine - or a creature whose class says neither, as the client has it.
             if (targetActor.State == CharacterState.Dead)
             {
-                if (packet.ActionId == ActionId.ToolFieldRepair && player != null)
-                    return PlayerMessage.PmTargetInvalid;
-
-                if (packet.ActionId == ActionId.ToolHealingDisc && !CanTargetCorpse(client))
-                    return PlayerMessage.PmActionFailedTargetDead;
-
                 if (packet.ActionId == ActionId.ToolArmorAugmentation || packet.ActionId == ActionId.ToolNerfweapon)
                     return PlayerMessage.PmActionFailedTargetDead;
+
+                if (!CanTargetCorpse(client))
+                    return PlayerMessage.PmActionFailedTargetDead;
+
+                if (packet.ActionId == ActionId.ToolFieldRepair && (player != null || AbilityManager.IsBiologicalCorpse(creature)))
+                    return PlayerMessage.PmTargetInvalid;
             }
 
             return null;
