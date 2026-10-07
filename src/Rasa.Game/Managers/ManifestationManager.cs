@@ -2278,6 +2278,7 @@ namespace Rasa.Managers
                     continue;
 
                 tempClient.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(client.Player.EntityId));
+                PartyManager.ManifestationGone(tempClient, client);
                 AbilityManager.HideMorphFrom(tempClient, client.Player);
             }
         }
@@ -2293,6 +2294,7 @@ namespace Rasa.Managers
                     continue;
 
                 client.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(tempClient.Player.EntityId));
+                PartyManager.ManifestationGone(client, tempClient);
                 AbilityManager.HideMorphFrom(client, tempClient.Player);
             }
 
@@ -2314,6 +2316,9 @@ namespace Rasa.Managers
                     continue;
 
                 tempClient.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(player.EntityId, player.EntityClass, CreatePlayerEntityData(client, tempClient)));
+
+                // A squad mate's: whose it is goes with it, every time it is made (PartyManager).
+                PartyManager.ManifestationMade(tempClient, client);
 
                 // What is on them - a buff, a DoT, a morph - went out before this client was here.
                 GameEffectManager.ShowEffectsTo(tempClient, player);
@@ -2353,6 +2358,7 @@ namespace Rasa.Managers
                     continue;
 
                 client.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(tempClient.Player.EntityId, tempClient.Player.EntityClass, CreatePlayerEntityData(tempClient, client)));
+                PartyManager.ManifestationMade(client, tempClient);
 
                 // What is on them - a buff, a DoT, a morph - went out before this client was here.
                 GameEffectManager.ShowEffectsTo(client, tempClient.Player);

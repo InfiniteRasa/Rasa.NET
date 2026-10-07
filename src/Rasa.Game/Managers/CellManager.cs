@@ -200,6 +200,9 @@ namespace Rasa.Managers
 
             // Last, with the players and the objects there: anyone among them claiming a control point.
             DynamicObjectManager.Instance.ShowClaimsTo(client, ListOfClients);
+
+            // And the squad on other maps, who were given no entity: the id this one is known by.
+            PartyManager.Instance.PlacedOnMap(client);
         }
 
         internal bool RemoveCreatureFromWorld(MapChannel mapChannel, Creature creature)
