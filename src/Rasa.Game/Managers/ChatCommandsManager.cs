@@ -166,6 +166,7 @@ namespace Rasa.Managers
             RegisterCommand(".regions", GmLevel.Observer, RegionsCommand);
             RegisterCommand(".emitters", GmLevel.Observer, EmittersCommand);
             RegisterCommand(".fxpackages", GmLevel.Observer, FxPackagesCommand);
+            RegisterCommand(".ambients", GmLevel.Observer, AmbientsCommand);
             RegisterCommand(".navmesh", GmLevel.Observer, NavMeshCommand, "action", "x", "y", "z");
             RegisterCommand(".near", GmLevel.Observer, NearCommand);
             RegisterCommand(".npcinfo", GmLevel.Observer, NpcInfoCommand);
@@ -220,6 +221,7 @@ namespace Rasa.Managers
             RegisterCommand(".destination", GmLevel.GameMaster, DestinationCommand, "contextIdOrMapName");
             RegisterCommand(".placefield", GmLevel.GameMaster, PlaceFieldCommand, "action", "arg1", "arg2", "arg3");
             RegisterCommand(".pose", GmLevel.GameMaster, PoseCommand, "pose");
+            RegisterCommand(".ambient", GmLevel.GameMaster, AmbientCommand, "class | clear");
             RegisterCommand(".removeobj", GmLevel.GameMaster, RemoveObjectCommand, "entityId");
             RegisterCommand(".moveobj", GmLevel.GameMaster, MoveObjectCommand, "entityId", "x", "y", "z", "rotation");
             RegisterCommand(".rename", GmLevel.GameMaster, RenameCommand, "part", "newName", "familyName");
@@ -769,6 +771,101 @@ namespace Rasa.Managers
 
             CommunicatorManager.Instance.SystemMessage(_client,
                 $"Pose = {creature.Pose} ({(int)creature.Pose}){(creature.Pose != NpcPose.None && !creature.PoseShown ? ". It takes it up when it is next standing idle" : "")}. Not saved.");
+        }
+
+        /// <summary>The client's ambient figures whose names have every word given, or all of them (AmbientNpcs).</summary>
+        private static List<EntityClass> AmbientFigures(IEnumerable<string> words)
+        {
+            var wanted = words.Where(word => word.Length > 0).ToList();
+
+            return AmbientNpcs.Figures()
+                .Where(figure => wanted.All(word => AmbientNpcs.ShortName(figure).Contains(word, StringComparison.OrdinalIgnoreCase)))
+                .ToList();
+        }
+
+        private void AmbientsCommand(string[] parts)
+        {
+            var found = AmbientFigures(parts.Skip(1));
+
+            if (found.Count == 0)
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, "No ambient figure matches.");
+                return;
+            }
+
+            CommunicatorManager.Instance.SystemMessage(_client,
+                $"{found.Count} ambient figure(s), class id and name. {AmbientNpcs.OnChannel(_client.Player.MapChannel).Count} stand on this map.");
+
+            foreach (var figure in found.Take(25))
+                CommunicatorManager.Instance.SystemMessage(_client, $"{figure.ClassId} {AmbientNpcs.ShortName(figure)}");
+
+            if (found.Count > 25)
+                CommunicatorManager.Instance.SystemMessage(_client, $"... and {found.Count - 25} more; add a word to narrow it: .ambients sitting");
+        }
+
+        /// <summary>Stands one of the client's ambient figures where the GM is, to look at; not saved (AmbientNpcs).</summary>
+        private void AmbientCommand(string[] parts)
+        {
+            var mapChannel = _client.Player.MapChannel;
+
+            if (parts.Length != 2)
+            {
+                CommunicatorManager.Instance.SystemMessage(_client,
+                    "usage: .ambient class | clear - a class id or a name from .ambients; stands the figure where you are, facing your way. Not saved.");
+                return;
+            }
+
+            if (parts[1].Equals("clear", StringComparison.OrdinalIgnoreCase))
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, $"Took away {AmbientNpcs.TakeAwayPutDown(mapChannel)} figure(s) put down with .ambient.");
+                return;
+            }
+
+            EntityClass chosen;
+
+            if (uint.TryParse(parts[1], out var classId))
+            {
+                chosen = AmbientNpcs.ClassOf((EntityClasses)classId);
+
+                if (!AmbientNpcs.IsFigure(chosen))
+                {
+                    CommunicatorManager.Instance.SystemMessage(_client, $"Class {classId} is not an ambient figure. See .ambients.");
+                    return;
+                }
+            }
+            else
+            {
+                var found = AmbientFigures(new[] { parts[1] });
+
+                // A whole name wins over the names it is part of: MaleSitting, MaleSittingTalkingV01.
+                chosen = found.FirstOrDefault(figure => AmbientNpcs.ShortName(figure).Equals(parts[1], StringComparison.OrdinalIgnoreCase))
+                    ?? (found.Count == 1 ? found[0] : null);
+
+                if (chosen == null)
+                {
+                    CommunicatorManager.Instance.SystemMessage(_client, found.Count == 0
+                        ? $"No ambient figure is named '{parts[1]}'. See .ambients."
+                        : $"{found.Count} ambient figures match '{parts[1]}': {string.Join(", ", found.Take(8).Select(AmbientNpcs.ShortName))}{(found.Count > 8 ? ", ..." : "")}");
+                    return;
+                }
+            }
+
+            var position = _client.Movement.Position;
+            var rotation = _client.Movement.ViewDirection.X;
+            var figureObject = AmbientNpcs.PutDown(mapChannel, (EntityClasses)chosen.ClassId, position, rotation);
+
+            if (figureObject == null)
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, "The figure could not be put down here.");
+                return;
+            }
+
+            CommunicatorManager.Instance.SystemMessage(_client,
+                $"{AmbientNpcs.ShortName(chosen)} [{chosen.ClassId}] stands where you were, facing your way. Not saved; .ambient clear takes it away.");
+
+            // Logged as .where is, with the class, so the line is all a row of ambient_npc needs.
+            Logger.WriteLog(LogType.Command,
+                $"[.ambient] {_client.Player.FamilyName}: class={chosen.ClassId} {AmbientNpcs.ShortName(chosen)} map={_client.Player.MapContextId} pos=({position.X:0.####}, {position.Y:0.####}, {position.Z:0.####}) rot={rotation:0.####}");
         }
 
         private void BarkCommand(string[] parts)

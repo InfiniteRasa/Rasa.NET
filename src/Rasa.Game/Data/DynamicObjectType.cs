@@ -19,6 +19,7 @@
         DropshipBeacon      = 15,   // a Dropship Extraction Beacon's personal dropship (DropshipBeacons)
         TeamTeleporter      = 16,   // the pad at a team's teleporter in a battleground's staging area (Battlegrounds)
         PersonalWaypoint    = 17,   // a Personal Waypoint a player has put down (PersonalWaypoints)
-        Scenery             = 18    // a piece of a map the server puts there: a mesh, no use and no target (SecretPassages)
+        Scenery             = 18,   // a piece of a map the server puts there: a mesh, no use and no target (SecretPassages)
+        AmbientNpc          = 19    // one of the client's ambient figures: a model playing its own animations, no use and no target (AmbientNpcs)
     }
 }

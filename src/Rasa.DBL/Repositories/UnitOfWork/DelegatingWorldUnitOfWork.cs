@@ -33,6 +33,7 @@ namespace Rasa.Repositories.UnitOfWork
         public IMapEmitterRepository MapEmitters => _parent.MapEmitters;
         public IControlPointRepository ControlPoints => _parent.ControlPoints;
         public IItemModuleRepository ItemModules => _parent.ItemModules;
+        public IAmbientNpcRepository AmbientNpcs => _parent.AmbientNpcs;
         public ISpawnPoolArrivalRepository SpawnPoolArrivals => _parent.SpawnPoolArrivals;
         public IRecipeRepository Recipes => _parent.Recipes;
 

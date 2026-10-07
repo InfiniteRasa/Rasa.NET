@@ -20,6 +20,8 @@
             throw new System.NotSupportedException("This world unit of work has no control point data.");
         IItemModuleRepository ItemModules =>
             throw new System.NotSupportedException("This world unit of work has no item module data.");
+        IAmbientNpcRepository AmbientNpcs =>
+            throw new System.NotSupportedException("This world unit of work has no ambient NPC data.");
         ISpawnPoolArrivalRepository SpawnPoolArrivals { get; }
         IRecipeRepository Recipes { get; }
         INpcMissionRepository NpcMissions { get; }

@@ -26,7 +26,7 @@ namespace Rasa.Test.World
     /// <summary>
     /// An NPC at a post in a pose (NpcPoses): what the pose is on the creature and in what a
     /// client is sent, that it keeps its post, and that it comes off for a fight and goes back
-    /// on afterwards. And the pools' poses (spawnpool_pose) with the four NPCs seeded with one.
+    /// on afterwards. And the pools' poses (spawnpool_pose) with the NPCs seeded with one.
     /// </summary>
     [TestClass]
     [DoNotParallelize]
@@ -551,7 +551,7 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
-        public void TheSeedIsFourPostedNpcsAtTheProvingGroundsAndNoOtherPoolHasAPose()
+        public void TheSeedIsThePostedNpcsOfTheProvingGroundsAndNoOtherPoolHasAPose()
         {
             var directory = Path.Combine(AppContext.BaseDirectory, "TestDatabases", Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(directory);
@@ -567,14 +567,15 @@ namespace Rasa.Test.World
                 {
                     var poses = new Rasa.Repositories.World.SpawnpoolRepository(context).GetPoses().OrderBy(row => row.Id).ToList();
 
-                    CollectionAssert.AreEqual(new uint[] { 400001, 400002, 400003, 400004 }, poses.Select(row => row.Id).ToArray());
-                    CollectionAssert.AreEqual(new byte[] { 1, 1, 2, 2 }, poses.Select(row => row.Pose).ToArray());
+                    // The four of the first lot, and the six riflemen of the second (BootcampGarrisonNpcs).
+                    CollectionAssert.AreEqual(new uint[] { 400001, 400002, 400003, 400004, 400101, 400102, 400103, 400104, 400105, 400106 }, poses.Select(row => row.Id).ToArray());
+                    CollectionAssert.AreEqual(new byte[] { 1, 1, 2, 2, 2, 2, 2, 2, 2, 2 }, poses.Select(row => row.Pose).ToArray());
 
                     var pools = context.SpawnPoolEntries.AsNoTracking().ToList();
                     var posed = pools.Where(pool => poses.Any(row => row.Id == pool.Id)).OrderBy(pool => pool.Id).ToList();
 
-                    Assert.AreEqual(4, posed.Count, "Each pose is of a pool there is.");
-                    CollectionAssert.AreEqual(new uint[] { 400001, 400002, 400003, 400003 }, posed.Select(pool => pool.Creature1Id).ToArray());
+                    Assert.AreEqual(10, posed.Count, "Each pose is of a pool there is.");
+                    CollectionAssert.AreEqual(new uint[] { 400001, 400002, 400003, 400003, 400003, 400003, 400003, 400003, 400003, 400003 }, posed.Select(pool => pool.Creature1Id).ToArray());
 
                     foreach (var pool in posed)
                     {

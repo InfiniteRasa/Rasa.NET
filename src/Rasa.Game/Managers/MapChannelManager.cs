@@ -1519,6 +1519,9 @@ namespace Rasa.Managers
 
             // Not among the template's own objects: the passages are by map, and so is what stands in their doorways.
             SecretPassages.PlaceDoorways(map);
+
+            // Nor are the ambient figures: rows by map (ambient_npc).
+            AmbientNpcs.Place(map);
         }
     }
 }

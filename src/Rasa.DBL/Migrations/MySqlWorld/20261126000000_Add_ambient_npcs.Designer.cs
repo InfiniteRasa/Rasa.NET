@@ -2,42 +2,50 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Rasa.Context.World;
 
 #nullable disable
 
-namespace Rasa.Migrations.SqliteWorld
+namespace Rasa.Migrations.MySqlWorld
 {
-    [DbContext(typeof(SqliteWorldContext))]
-    partial class SqliteWorldContextModelSnapshot : ModelSnapshot
+    [DbContext(typeof(MySqlWorldContext))]
+    [Migration("20261126000000_Add_ambient_npcs")]
+    partial class Add_ambient_npcs
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "9.0.20");
+            modelBuilder
+                .HasAnnotation("ProductVersion", "9.0.20")
+                .HasAnnotation("Relational:MaxIdentifierLength", 64);
+
+            MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
 
             modelBuilder.Entity("Rasa.Structures.World.ActionCostEntry", b =>
                 {
                     b.Property<uint>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("id");
 
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<uint>("Id"));
+
                     b.Property<uint>("ActionId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("action_id");
 
                     b.Property<uint>("AttributeId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("attribute_id");
 
                     b.Property<int>("Cost")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("cost");
 
                     b.Property<uint>("Level")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("level");
 
                     b.HasKey("Id");
@@ -49,11 +57,13 @@ namespace Rasa.Migrations.SqliteWorld
                 {
                     b.Property<uint>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("id");
 
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<uint>("Id"));
+
                     b.Property<byte>("IsCharged")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("is_charged");
 
                     b.Property<string>("Module")
@@ -77,23 +87,25 @@ namespace Rasa.Migrations.SqliteWorld
                 {
                     b.Property<uint>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("id");
 
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<uint>("Id"));
+
                     b.Property<uint>("ActionId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("action_id");
 
                     b.Property<uint>("ItemClassId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("item_class_id");
 
                     b.Property<uint>("Level")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("level");
 
                     b.Property<uint>("Quantity")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("quantity");
 
                     b.HasKey("Id");
@@ -105,47 +117,49 @@ namespace Rasa.Migrations.SqliteWorld
                 {
                     b.Property<uint>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("id");
 
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<uint>("Id"));
+
                     b.Property<uint>("ActionId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("action_id");
 
                     b.Property<uint>("Level")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("level");
 
                     b.Property<int>("MaxRange")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("max_range");
 
                     b.Property<byte>("Preload")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("preload");
 
                     b.Property<uint?>("RecoveryAnimFamilyId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("recovery_anim_family_id");
 
                     b.Property<int>("RecoveryMs")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("recovery_ms");
 
                     b.Property<int>("ReuseMs")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("reuse_ms");
 
                     b.Property<byte>("StartReuseOnPerform")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("start_reuse_on_perform");
 
                     b.Property<uint?>("WindupAnimFamilyId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("windup_anim_family_id");
 
                     b.Property<int>("WindupMs")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("windup_ms");
 
                     b.HasKey("Id");
@@ -157,23 +171,25 @@ namespace Rasa.Migrations.SqliteWorld
                 {
                     b.Property<uint>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("id");
 
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<uint>("Id"));
+
                     b.Property<uint>("ActionId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("action_id");
 
                     b.Property<uint>("Level")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("level");
 
                     b.Property<uint>("PropertyId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("property_id");
 
                     b.Property<int>("Value")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("value");
 
                     b.HasKey("Id");
@@ -185,11 +201,11 @@ namespace Rasa.Migrations.SqliteWorld
                 {
                     b.Property<uint>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("id");
 
                     b.Property<uint>("ClassId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("class_id");
 
                     b.Property<string>("Comment")
@@ -198,23 +214,23 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("comment");
 
                     b.Property<uint>("MapContextId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("map_context_id");
 
                     b.Property<double>("PosX")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("pos_x");
 
                     b.Property<double>("PosY")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("pos_y");
 
                     b.Property<double>("PosZ")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("pos_z");
 
                     b.Property<double>("Rotation")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("rotation");
 
                     b.HasKey("Id");
@@ -226,19 +242,21 @@ namespace Rasa.Migrations.SqliteWorld
                 {
                     b.Property<uint>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("class_id");
 
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<uint>("Id"));
+
                     b.Property<uint>("MaxDamageAbsorbed")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("max_damage_absorbed");
 
                     b.Property<uint>("MinDamageAbsorbed")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("min_damage_absorbed");
 
                     b.Property<int>("RegenRate")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("regen_rate");
 
                     b.HasKey("Id");
@@ -249,23 +267,23 @@ namespace Rasa.Migrations.SqliteWorld
             modelBuilder.Entity("Rasa.Structures.World.ControlPointEntry", b =>
                 {
                     b.Property<uint>("Id")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("id");
 
                     b.Property<uint>("ClassId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("class_id");
 
                     b.Property<byte>("DefaultOwner")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("default_owner");
 
                     b.Property<uint>("MapContextId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("map_context_id");
 
                     b.Property<ulong>("MarkerEntityId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("bigint unsigned")
                         .HasColumnName("marker_entity_id");
 
                     b.Property<string>("Name")
@@ -274,19 +292,19 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("name");
 
                     b.Property<double>("PosX")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("pos_x");
 
                     b.Property<double>("PosY")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("pos_y");
 
                     b.Property<double>("PosZ")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("pos_z");
 
                     b.Property<double>("Rotation")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("rotation");
 
                     b.HasKey("Id");
@@ -297,15 +315,15 @@ namespace Rasa.Migrations.SqliteWorld
             modelBuilder.Entity("Rasa.Structures.World.ControlPointLinkEntry", b =>
                 {
                     b.Property<uint>("ControlPointId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("control_point_id");
 
                     b.Property<byte>("Kind")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("kind");
 
                     b.Property<uint>("ObjectId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("object_id");
 
                     b.HasKey("ControlPointId", "Kind", "ObjectId");
@@ -317,23 +335,25 @@ namespace Rasa.Migrations.SqliteWorld
                 {
                     b.Property<uint>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("id");
 
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<uint>("Id"));
+
                     b.Property<uint>("ActionArgId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("action_arg_id");
 
                     b.Property<uint>("ActionId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("action_id");
 
                     b.Property<uint>("Cooldown")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("cooldown");
 
                     b.Property<uint>("DamageType")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("damage_type");
 
                     b.Property<string>("Description")
@@ -342,23 +362,23 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("description");
 
                     b.Property<uint>("MaxDamage")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("max_damage");
 
                     b.Property<uint>("MinDamage")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("min_damage");
 
                     b.Property<double>("RangeMax")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("range_max");
 
                     b.Property<double>("RangeMin")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("range_min");
 
                     b.Property<uint>("Windup")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("windup");
 
                     b.HasKey("Id");
@@ -369,7 +389,7 @@ namespace Rasa.Migrations.SqliteWorld
             modelBuilder.Entity("Rasa.Structures.World.CreatureActorNameEntry", b =>
                 {
                     b.Property<uint>("Id")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("id");
 
                     b.Property<string>("ActorName")
@@ -385,19 +405,19 @@ namespace Rasa.Migrations.SqliteWorld
             modelBuilder.Entity("Rasa.Structures.World.CreatureAppearanceEntry", b =>
                 {
                     b.Property<uint>("ClassId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("Class_id");
 
                     b.Property<uint>("Color")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("color");
 
                     b.Property<uint>("Id")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("id");
 
                     b.Property<uint>("SlotId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("slot_id");
 
                     b.ToTable("creature_appearance");
@@ -406,11 +426,11 @@ namespace Rasa.Migrations.SqliteWorld
             modelBuilder.Entity("Rasa.Structures.World.CreatureClassFlagEntry", b =>
                 {
                     b.Property<uint>("ClassId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("class_id");
 
                     b.Property<uint>("FlagId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("flag_id");
 
                     b.HasKey("ClassId", "FlagId");
@@ -422,43 +442,45 @@ namespace Rasa.Migrations.SqliteWorld
                 {
                     b.Property<uint>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("id");
 
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<uint>("Id"));
+
                     b.Property<uint>("Action1")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("action1");
 
                     b.Property<uint>("Action2")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("action2");
 
                     b.Property<uint>("Action3")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("action3");
 
                     b.Property<uint>("Action4")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("action4");
 
                     b.Property<uint>("Action5")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("action5");
 
                     b.Property<uint>("Action6")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("action6");
 
                     b.Property<uint>("Action7")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("action7");
 
                     b.Property<uint>("Action8")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("action8");
 
                     b.Property<uint>("ClassId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("class_id");
 
                     b.Property<string>("Comment")
@@ -467,27 +489,27 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("comment");
 
                     b.Property<uint>("Faction")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("faction");
 
                     b.Property<uint>("Level")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("level");
 
                     b.Property<uint>("MaxHitPoints")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("max_hp");
 
                     b.Property<uint>("NameId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("name_id");
 
                     b.Property<uint>("RunSpeed")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("run_speed");
 
                     b.Property<uint>("WalkSpeed")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("walk_speed");
 
                     b.HasKey("Id");
@@ -499,27 +521,29 @@ namespace Rasa.Migrations.SqliteWorld
                 {
                     b.Property<uint>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("id");
 
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<uint>("Id"));
+
                     b.Property<int>("Armor")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("armor");
 
                     b.Property<int>("Body")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("body");
 
                     b.Property<int>("Health")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("health");
 
                     b.Property<int>("Mind")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("mind");
 
                     b.Property<int>("Spirit")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("spirit");
 
                     b.HasKey("Id");
@@ -531,8 +555,10 @@ namespace Rasa.Migrations.SqliteWorld
                 {
                     b.Property<uint>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<uint>("Id"));
 
                     b.Property<string>("AugList")
                         .IsRequired()
@@ -540,7 +566,7 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("aug_list");
 
                     b.Property<byte>("ClassCollisionRole")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("class_collision_role");
 
                     b.Property<string>("ClassName")
@@ -549,11 +575,11 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("class_name");
 
                     b.Property<uint>("MeshId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("mesh_id");
 
                     b.Property<byte>("TargetFlag")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("target_flag");
 
                     b.HasKey("Id");
@@ -565,11 +591,13 @@ namespace Rasa.Migrations.SqliteWorld
                 {
                     b.Property<uint>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("id");
 
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<uint>("Id"));
+
                     b.Property<uint>("SlotId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("slot_id");
 
                     b.HasKey("Id");
@@ -581,12 +609,12 @@ namespace Rasa.Migrations.SqliteWorld
                 {
                     b.Property<uint>("Level")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("level")
                         .HasAnnotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.None);
 
-                    b.Property<long>("Experience")
-                        .HasColumnType("bigint(20)")
+                    b.Property<ulong>("Experience")
+                        .HasColumnType("bigint(20) unsigned")
                         .HasColumnName("experience");
 
                     b.HasKey("Level");
@@ -598,11 +626,13 @@ namespace Rasa.Migrations.SqliteWorld
                 {
                     b.Property<uint>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("id");
 
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<uint>("Id"));
+
                     b.Property<uint>("ClassId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("class_id");
 
                     b.Property<string>("Comment")
@@ -611,23 +641,23 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("comment");
 
                     b.Property<uint>("MapContextId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("map_context_id");
 
                     b.Property<double>("PosX")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("pos_x");
 
                     b.Property<double>("PosY")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("pos_y");
 
                     b.Property<double>("PosZ")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("pos_z");
 
                     b.Property<double>("Rotation")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("rotation");
 
                     b.HasKey("Id");
@@ -639,39 +669,41 @@ namespace Rasa.Migrations.SqliteWorld
                 {
                     b.Property<uint>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("id");
 
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<uint>("Id"));
+
                     b.Property<uint>("DragAudioSetId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("drag_audio_set_id");
 
                     b.Property<uint>("DropAudioSetId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("drop_audio_set_id");
 
-                    b.Property<byte>("HidenInventoryFlag")
+                    b.Property<ulong>("HidenInventoryFlag")
                         .HasColumnType("bit")
                         .HasColumnName("hidden_invenotry_flag");
 
                     b.Property<uint>("InventoryIconStringId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("inventory_icon_string_id");
 
-                    b.Property<byte>("IsConsumableFlag")
+                    b.Property<ulong>("IsConsumableFlag")
                         .HasColumnType("bit")
                         .HasColumnName("is_consumable_flag");
 
                     b.Property<uint>("LootValue")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("loot_value");
 
                     b.Property<int>("MaxHitPoints")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("max_hp");
 
                     b.Property<uint>("StackSize")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("stack_size");
 
                     b.HasKey("Id");
@@ -683,19 +715,21 @@ namespace Rasa.Migrations.SqliteWorld
                 {
                     b.Property<uint>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("id");
 
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<uint>("Id"));
+
                     b.Property<uint>("ActionId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("action_id");
 
                     b.Property<uint>("ItemTemplateId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("item_template_id");
 
                     b.Property<uint>("Level")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("level");
 
                     b.HasKey("Id");
@@ -707,11 +741,13 @@ namespace Rasa.Migrations.SqliteWorld
                 {
                     b.Property<uint>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("id");
 
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<uint>("Id"));
+
                     b.Property<int>("ArmorValue")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("armor_value");
 
                     b.HasKey("Id");
@@ -723,51 +759,53 @@ namespace Rasa.Migrations.SqliteWorld
                 {
                     b.Property<uint>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("id");
 
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<uint>("Id"));
+
                     b.Property<byte>("BoundToCharacterFlag")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("bound_to_character_flag");
 
                     b.Property<int>("BuyPrice")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("buy_price");
 
                     b.Property<byte>("HasAccountUniqueFlag")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("has_account_unique_flag");
 
                     b.Property<byte>("HasBoEFlag")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("has_boe_flag");
 
                     b.Property<byte>("HasCharacterUniqueFlag")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("has_character_unique_flag");
 
                     b.Property<byte>("HasSellableFlag")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("has_sellable_flag");
 
                     b.Property<byte>("InventoryCategory")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("inventory_category");
 
                     b.Property<byte>("NotPlacableInLockboxFlag")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("not_placable_in_lockbox_flag");
 
                     b.Property<byte>("NotTradableFlag")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("not_tradable_flag");
 
                     b.Property<byte>("QualityId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("quality_id");
 
                     b.Property<int>("SellPrice")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("sell_price");
 
                     b.HasKey("Id");
@@ -779,12 +817,12 @@ namespace Rasa.Migrations.SqliteWorld
                 {
                     b.Property<uint>("ItemTemplateId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("itemTemplateId")
                         .HasAnnotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.None);
 
                     b.Property<uint>("ItemClass")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("itemClassId");
 
                     b.HasKey("ItemTemplateId");
@@ -796,15 +834,17 @@ namespace Rasa.Migrations.SqliteWorld
                 {
                     b.Property<uint>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("id");
 
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<uint>("Id"));
+
                     b.Property<byte>("RequirementType")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("req_type");
 
                     b.Property<byte>("RequirementValue")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("req_value");
 
                     b.HasKey("Id");
@@ -816,11 +856,13 @@ namespace Rasa.Migrations.SqliteWorld
                 {
                     b.Property<uint>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("id");
 
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<uint>("Id"));
+
                     b.Property<byte>("RaceId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("race_id");
 
                     b.HasKey("Id");
@@ -832,15 +874,17 @@ namespace Rasa.Migrations.SqliteWorld
                 {
                     b.Property<uint>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("id");
 
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<uint>("Id"));
+
                     b.Property<int>("SkillId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("skill_id");
 
                     b.Property<byte>("SkillLevel")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("skill_level");
 
                     b.HasKey("Id");
@@ -851,15 +895,15 @@ namespace Rasa.Migrations.SqliteWorld
             modelBuilder.Entity("Rasa.Structures.World.ItemTemplateResistanceEntry", b =>
                 {
                     b.Property<uint>("Id")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("id");
 
                     b.Property<byte>("ResistanceType")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("resistance_type");
 
                     b.Property<int>("ResistanceValue")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("resistance_value");
 
                     b.ToTable("itemtemplate_resistance");
@@ -869,95 +913,97 @@ namespace Rasa.Migrations.SqliteWorld
                 {
                     b.Property<uint>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("id");
 
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<uint>("Id"));
+
                     b.Property<uint>("AeRadius")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("ae_radius");
 
                     b.Property<uint>("AeType")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("ae_type");
 
                     b.Property<double>("AimRate")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("aim_rate");
 
                     b.Property<uint>("AltActionArgId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("alt_action_arg_id");
 
                     b.Property<uint>("AltActionId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("alt_action_id");
 
                     b.Property<uint>("AltAeRadius")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("alt_ae_radius");
 
                     b.Property<uint>("AltAeType")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("alt_ae_type");
 
                     b.Property<uint>("AltDamageType")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("alt_damage_type");
 
                     b.Property<uint>("AltMaxDamage")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("alt_max_damage");
 
                     b.Property<uint>("AltRange")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("alt_range");
 
                     b.Property<uint>("AmmoPerShot")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("ammo_per_shot");
 
                     b.Property<uint>("AttackType")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("attack_type");
 
                     b.Property<uint>("CoolRate")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("cool_rate");
 
                     b.Property<double>("HeatPerShot")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("heat_per_shot");
 
                     b.Property<uint>("Range")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("range");
 
                     b.Property<uint>("RecoilAmount")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("recoil_amount");
 
                     b.Property<uint>("Recovery")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("recovery");
 
                     b.Property<uint>("Refire")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("refire");
 
                     b.Property<uint>("ReloadTime")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("reload_time");
 
                     b.Property<uint>("ReuseOverride")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("reuse_override");
 
                     b.Property<uint>("ToolType")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("tool_type");
 
                     b.Property<uint>("Windup")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("windup");
 
                     b.HasKey("Id");
@@ -969,11 +1015,13 @@ namespace Rasa.Migrations.SqliteWorld
                 {
                     b.Property<uint>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("id");
 
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<uint>("Id"));
+
                     b.Property<uint>("ClassId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("class_id");
 
                     b.Property<string>("Comment")
@@ -982,23 +1030,23 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("comment");
 
                     b.Property<uint>("MapContextId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("map_context_id");
 
                     b.Property<double>("PosX")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("pos_x");
 
                     b.Property<double>("PosY")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("pos_y");
 
                     b.Property<double>("PosZ")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("pos_z");
 
                     b.Property<double>("Rotation")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("rotation");
 
                     b.HasKey("Id");
@@ -1010,15 +1058,17 @@ namespace Rasa.Migrations.SqliteWorld
                 {
                     b.Property<uint>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("id");
 
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<uint>("Id"));
+
                     b.Property<uint>("ClassId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("class_id");
 
                     b.Property<uint>("MapContextId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("map_context_id");
 
                     b.Property<string>("Name")
@@ -1027,15 +1077,15 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("name");
 
                     b.Property<double>("PosX")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("pos_x");
 
                     b.Property<double>("PosY")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("pos_y");
 
                     b.Property<double>("PosZ")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("pos_z");
 
                     b.HasKey("Id");
@@ -1047,7 +1097,7 @@ namespace Rasa.Migrations.SqliteWorld
                 {
                     b.Property<uint>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("id");
 
                     b.Property<string>("Comment")
@@ -1056,31 +1106,31 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("comment");
 
                     b.Property<byte>("IsOn")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("is_on");
 
                     b.Property<uint>("MapContextId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("map_context_id");
 
                     b.Property<uint>("PackageId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("package_id");
 
                     b.Property<double>("PosX")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("pos_x");
 
                     b.Property<double>("PosY")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("pos_y");
 
                     b.Property<double>("PosZ")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("pos_z");
 
                     b.Property<double>("Rotation")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("rotation");
 
                     b.HasKey("Id");
@@ -1092,11 +1142,13 @@ namespace Rasa.Migrations.SqliteWorld
                 {
                     b.Property<uint>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("map_context_id");
 
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<uint>("Id"));
+
                     b.Property<uint>("BaseRegion")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("base_region");
 
                     b.Property<string>("MapName")
@@ -1105,7 +1157,7 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("map_name");
 
                     b.Property<uint>("MapVersion")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("map_version");
 
                     b.HasKey("Id");
@@ -1117,8 +1169,10 @@ namespace Rasa.Migrations.SqliteWorld
                 {
                     b.Property<uint>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<uint>("Id"));
 
                     b.Property<string>("Comment")
                         .IsRequired()
@@ -1126,51 +1180,51 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("comment");
 
                     b.Property<uint>("DestMapContextId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("dest_map_context_id");
 
                     b.Property<double>("DestPosX")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("dest_pos_x");
 
                     b.Property<double>("DestPosY")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("dest_pos_y");
 
                     b.Property<double>("DestPosZ")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("dest_pos_z");
 
                     b.Property<double>("DestRotation")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("dest_rotation");
 
                     b.Property<byte>("Enabled")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("enabled");
 
                     b.Property<byte>("Kind")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("kind");
 
                     b.Property<uint>("MapContextId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("map_context_id");
 
                     b.Property<double>("PosX")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("pos_x");
 
                     b.Property<double>("PosY")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("pos_y");
 
                     b.Property<double>("PosZ")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("pos_z");
 
                     b.Property<double>("Radius")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("radius");
 
                     b.HasKey("Id");
@@ -1181,11 +1235,11 @@ namespace Rasa.Migrations.SqliteWorld
             modelBuilder.Entity("Rasa.Structures.World.MapMarkerEntry", b =>
                 {
                     b.Property<ulong>("MarkerEntityId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("bigint unsigned")
                         .HasColumnName("marker_entity_id");
 
                     b.Property<uint>("MapContextId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("map_context_id");
 
                     b.Property<string>("Comment")
@@ -1193,19 +1247,19 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("comment");
 
                     b.Property<uint>("MarkerType")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("marker_type");
 
                     b.Property<double>("MatchDistance")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("match_distance");
 
                     b.Property<uint>("ObjectId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("object_id");
 
                     b.Property<byte>("ObjectKind")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("object_kind");
 
                     b.HasKey("MarkerEntityId", "MapContextId");
@@ -1219,8 +1273,10 @@ namespace Rasa.Migrations.SqliteWorld
                 {
                     b.Property<uint>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<uint>("Id"));
 
                     b.Property<string>("Comment")
                         .IsRequired()
@@ -1228,55 +1284,55 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("comment");
 
                     b.Property<byte>("Enabled")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("enabled");
 
                     b.Property<double>("HalfX")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("half_x");
 
                     b.Property<double>("HalfZ")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("half_z");
 
                     b.Property<uint>("MapContextId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("map_context_id");
 
                     b.Property<double>("MaxY")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("max_y");
 
                     b.Property<double>("MinY")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("min_y");
 
                     b.Property<double>("PosX")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("pos_x");
 
                     b.Property<double>("PosY")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("pos_y");
 
                     b.Property<double>("PosZ")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("pos_z");
 
                     b.Property<double>("Radius")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("radius");
 
                     b.Property<uint>("RegionId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("region_id");
 
                     b.Property<byte>("Shape")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("shape");
 
                     b.Property<byte>("Underground")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("underground");
 
                     b.HasKey("Id");
@@ -1287,7 +1343,7 @@ namespace Rasa.Migrations.SqliteWorld
             modelBuilder.Entity("Rasa.Structures.World.MissionActionEntry", b =>
                 {
                     b.Property<uint>("MissionId")
-                        .HasColumnType("integer")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("mission_id");
 
                     b.Property<string>("ContentRevision")
@@ -1295,15 +1351,15 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("content_revision");
 
                     b.Property<uint>("ObjectiveId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("objective_id");
 
                     b.Property<uint>("TransitionId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("transition_id");
 
                     b.Property<uint>("ActionId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("action_id");
 
                     b.Property<string>("Comment")
@@ -1312,55 +1368,55 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("comment");
 
                     b.Property<uint?>("IndicatorId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("indicator_id");
 
                     b.Property<string>("ItemIntentJson")
-                        .HasColumnType("TEXT")
+                        .HasColumnType("longtext")
                         .HasColumnName("item_intent");
 
                     b.Property<byte>("Kind")
-                        .HasColumnType("tinyint(3)")
+                        .HasColumnType("tinyint(3) unsigned")
                         .HasColumnName("kind");
 
                     b.Property<uint?>("NpcPackageId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("npc_package_id");
 
                     b.Property<byte?>("ObjectiveState")
-                        .HasColumnType("tinyint(3)")
+                        .HasColumnType("tinyint(3) unsigned")
                         .HasColumnName("objective_state");
 
                     b.Property<uint?>("PlayerFlagId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("player_flag_id");
 
                     b.Property<uint?>("PlayerFlagValue")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("player_flag_value");
 
                     b.Property<byte>("Requirement")
-                        .HasColumnType("tinyint(3)")
+                        .HasColumnType("tinyint(3) unsigned")
                         .HasColumnName("requirement");
 
                     b.Property<uint?>("RewardId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("reward_id");
 
                     b.Property<uint?>("ScenarioId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("scenario_id");
 
                     b.Property<uint>("Sequence")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("sequence");
 
                     b.Property<uint?>("SpawnGroupId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("spawn_group_id");
 
                     b.Property<uint?>("TargetObjectiveId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("target_objective_id");
 
                     b.HasKey("MissionId", "ContentRevision", "ObjectiveId", "TransitionId", "ActionId");
@@ -1384,7 +1440,7 @@ namespace Rasa.Migrations.SqliteWorld
             modelBuilder.Entity("Rasa.Structures.World.MissionAreaEntry", b =>
                 {
                     b.Property<uint>("MissionId")
-                        .HasColumnType("integer")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("mission_id");
 
                     b.Property<string>("ContentRevision")
@@ -1392,7 +1448,7 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("content_revision");
 
                     b.Property<uint>("AreaId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("area_id");
 
                     b.Property<string>("Comment")
@@ -1401,43 +1457,43 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("comment");
 
                     b.Property<double?>("ExtentX")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("extent_x");
 
                     b.Property<double?>("ExtentY")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("extent_y");
 
                     b.Property<double?>("ExtentZ")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("extent_z");
 
                     b.Property<uint>("MapContextId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("map_context_id");
 
                     b.Property<double>("PosX")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("pos_x");
 
                     b.Property<double>("PosY")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("pos_y");
 
                     b.Property<double>("PosZ")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("pos_z");
 
                     b.Property<double?>("Radius")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("radius");
 
                     b.Property<byte>("Requirement")
-                        .HasColumnType("tinyint(3)")
+                        .HasColumnType("tinyint(3) unsigned")
                         .HasColumnName("requirement");
 
                     b.Property<byte>("Shape")
-                        .HasColumnType("tinyint(3)")
+                        .HasColumnType("tinyint(3) unsigned")
                         .HasColumnName("shape");
 
                     b.HasKey("MissionId", "ContentRevision", "AreaId");
@@ -1448,7 +1504,7 @@ namespace Rasa.Migrations.SqliteWorld
             modelBuilder.Entity("Rasa.Structures.World.MissionChannelPolicyEntry", b =>
                 {
                     b.Property<uint>("MissionId")
-                        .HasColumnType("integer")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("mission_id");
 
                     b.Property<string>("ContentRevision")
@@ -1456,11 +1512,11 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("content_revision");
 
                     b.Property<int>("AcceptanceChannel")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("acceptance_channel");
 
                     b.Property<int>("CompletionChannel")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("completion_channel");
 
                     b.Property<string>("RadioSources")
@@ -1479,7 +1535,7 @@ namespace Rasa.Migrations.SqliteWorld
             modelBuilder.Entity("Rasa.Structures.World.MissionContentDefinitionEntry", b =>
                 {
                     b.Property<uint>("MissionId")
-                        .HasColumnType("integer")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("mission_id")
                         .HasAnnotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.None);
 
@@ -1488,15 +1544,15 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("content_revision");
 
                     b.Property<byte>("AbandonmentPolicy")
-                        .HasColumnType("tinyint(3)")
+                        .HasColumnType("tinyint(3) unsigned")
                         .HasColumnName("abandonment_policy");
 
                     b.Property<uint>("CategoryId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("category_id");
 
                     b.Property<uint>("ClientNameTextId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("client_name_text_id");
 
                     b.Property<string>("Comment")
@@ -1506,36 +1562,36 @@ namespace Rasa.Migrations.SqliteWorld
 
                     b.Property<bool>("Enabled")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint(1)")
                         .HasDefaultValue(false)
                         .HasColumnName("enabled");
 
                     b.Property<uint?>("GiverId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("giver_id");
 
                     b.Property<byte>("GroupType")
-                        .HasColumnType("tinyint(3)")
+                        .HasColumnType("tinyint(3) unsigned")
                         .HasColumnName("group_type");
 
                     b.Property<uint>("Level")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("level");
 
                     b.Property<bool>("RadioCompleteable")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint(1)")
                         .HasColumnName("radio_completeable");
 
                     b.Property<uint?>("ReceiverId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("receiver_id");
 
                     b.Property<byte>("Requirement")
-                        .HasColumnType("tinyint(3)")
+                        .HasColumnType("tinyint(3) unsigned")
                         .HasColumnName("requirement");
 
                     b.Property<bool>("Shareable")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint(1)")
                         .HasColumnName("shareable");
 
                     b.HasKey("MissionId", "ContentRevision");
@@ -1548,7 +1604,7 @@ namespace Rasa.Migrations.SqliteWorld
             modelBuilder.Entity("Rasa.Structures.World.MissionEvidenceEntry", b =>
                 {
                     b.Property<uint>("MissionId")
-                        .HasColumnType("integer")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("mission_id");
 
                     b.Property<string>("ContentRevision")
@@ -1556,11 +1612,11 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("content_revision");
 
                     b.Property<uint>("EvidenceId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("evidence_id");
 
                     b.Property<double>("Confidence")
-                        .HasColumnType("double")
+                        .HasColumnType("double unsigned")
                         .HasColumnName("confidence");
 
                     b.Property<string>("LocalClientPath")
@@ -1568,11 +1624,11 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("local_client_path");
 
                     b.Property<uint>("OwnerId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("owner_id");
 
                     b.Property<byte>("OwnerKind")
-                        .HasColumnType("tinyint(3)")
+                        .HasColumnType("tinyint(3) unsigned")
                         .HasColumnName("owner_kind");
 
                     b.Property<string>("ReconstructionNote")
@@ -1581,7 +1637,7 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("reconstruction_note");
 
                     b.Property<byte>("SourceKind")
-                        .HasColumnType("tinyint(3)")
+                        .HasColumnType("tinyint(3) unsigned")
                         .HasColumnName("source_kind");
 
                     b.Property<string>("SourceUri")
@@ -1608,11 +1664,11 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("bindings");
 
                     b.Property<bool>("Enabled")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint(1)")
                         .HasColumnName("enabled");
 
                     b.Property<uint>("MapContextId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("map_context_id");
 
                     b.HasKey("ExperienceKey");
@@ -1623,7 +1679,7 @@ namespace Rasa.Migrations.SqliteWorld
             modelBuilder.Entity("Rasa.Structures.World.MissionIndicatorEntry", b =>
                 {
                     b.Property<uint>("MissionId")
-                        .HasColumnType("integer")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("mission_id");
 
                     b.Property<string>("ContentRevision")
@@ -1631,11 +1687,11 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("content_revision");
 
                     b.Property<uint>("ObjectiveId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("objective_id");
 
                     b.Property<uint>("IndicatorId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("indicator_id");
 
                     b.Property<string>("Comment")
@@ -1644,27 +1700,27 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("comment");
 
                     b.Property<double>("PosX")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("pos_x");
 
                     b.Property<double>("PosY")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("pos_y");
 
                     b.Property<double>("PosZ")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("pos_z");
 
                     b.Property<double>("Radius")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("radius");
 
                     b.Property<byte>("Requirement")
-                        .HasColumnType("tinyint(3)")
+                        .HasColumnType("tinyint(3) unsigned")
                         .HasColumnName("requirement");
 
                     b.Property<bool>("Show3DEffect")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint(1)")
                         .HasColumnName("show_3d_effect");
 
                     b.HasKey("MissionId", "ContentRevision", "ObjectiveId", "IndicatorId");
@@ -1675,7 +1731,7 @@ namespace Rasa.Migrations.SqliteWorld
             modelBuilder.Entity("Rasa.Structures.World.MissionObjectiveDefinitionEntry", b =>
                 {
                     b.Property<uint>("MissionId")
-                        .HasColumnType("integer")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("mission_id");
 
                     b.Property<string>("ContentRevision")
@@ -1683,27 +1739,27 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("content_revision");
 
                     b.Property<uint>("ObjectiveId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("objective_id");
 
                     b.Property<uint>("ClientBodyTextId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("client_body_text_id");
 
                     b.Property<uint?>("ClientCounter0TextId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("client_counter_0_text_id");
 
                     b.Property<uint?>("ClientCounter1TextId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("client_counter_1_text_id");
 
                     b.Property<uint?>("ClientCounter2TextId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("client_counter_2_text_id");
 
                     b.Property<uint>("ClientNameTextId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("client_name_text_id");
 
                     b.Property<string>("Comment")
@@ -1712,19 +1768,19 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("comment");
 
                     b.Property<byte>("InitialState")
-                        .HasColumnType("tinyint(3)")
+                        .HasColumnType("tinyint(3) unsigned")
                         .HasColumnName("initial_state");
 
                     b.Property<bool>("IsRequired")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint(1)")
                         .HasColumnName("is_required");
 
                     b.Property<uint>("Ordinal")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("ordinal");
 
                     b.Property<byte>("Requirement")
-                        .HasColumnType("tinyint(3)")
+                        .HasColumnType("tinyint(3) unsigned")
                         .HasColumnName("requirement");
 
                     b.HasKey("MissionId", "ContentRevision", "ObjectiveId");
@@ -1735,7 +1791,7 @@ namespace Rasa.Migrations.SqliteWorld
             modelBuilder.Entity("Rasa.Structures.World.MissionObjectiveTransitionEntry", b =>
                 {
                     b.Property<uint>("MissionId")
-                        .HasColumnType("integer")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("mission_id");
 
                     b.Property<string>("ContentRevision")
@@ -1743,11 +1799,11 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("content_revision");
 
                     b.Property<uint>("ObjectiveId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("objective_id");
 
                     b.Property<uint>("TransitionId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("transition_id");
 
                     b.Property<string>("Comment")
@@ -1756,19 +1812,19 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("comment");
 
                     b.Property<byte?>("FromState")
-                        .HasColumnType("tinyint(3)")
+                        .HasColumnType("tinyint(3) unsigned")
                         .HasColumnName("from_state");
 
                     b.Property<byte>("Requirement")
-                        .HasColumnType("tinyint(3)")
+                        .HasColumnType("tinyint(3) unsigned")
                         .HasColumnName("requirement");
 
                     b.Property<uint>("Sequence")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("sequence");
 
                     b.Property<byte?>("ToState")
-                        .HasColumnType("tinyint(3)")
+                        .HasColumnType("tinyint(3) unsigned")
                         .HasColumnName("to_state");
 
                     b.HasKey("MissionId", "ContentRevision", "ObjectiveId", "TransitionId");
@@ -1779,7 +1835,7 @@ namespace Rasa.Migrations.SqliteWorld
             modelBuilder.Entity("Rasa.Structures.World.MissionPrerequisiteEntry", b =>
                 {
                     b.Property<uint>("MissionId")
-                        .HasColumnType("integer")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("mission_id");
 
                     b.Property<string>("ContentRevision")
@@ -1787,7 +1843,7 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("content_revision");
 
                     b.Property<uint>("PrerequisiteId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("prerequisite_id");
 
                     b.Property<string>("Comment")
@@ -1796,31 +1852,31 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("comment");
 
                     b.Property<byte>("Kind")
-                        .HasColumnType("tinyint(3)")
+                        .HasColumnType("tinyint(3) unsigned")
                         .HasColumnName("kind");
 
                     b.Property<uint?>("PlayerFlagId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("player_flag_id");
 
                     b.Property<uint?>("PlayerFlagValue")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("player_flag_value");
 
                     b.Property<uint?>("RequiredLevel")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("required_level");
 
                     b.Property<uint?>("RequiredMissionId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("required_mission_id");
 
                     b.Property<byte?>("RequiredMissionState")
-                        .HasColumnType("tinyint(3)")
+                        .HasColumnType("tinyint(3) unsigned")
                         .HasColumnName("required_mission_state");
 
                     b.Property<byte>("Requirement")
-                        .HasColumnType("tinyint(3)")
+                        .HasColumnType("tinyint(3) unsigned")
                         .HasColumnName("requirement");
 
                     b.HasKey("MissionId", "ContentRevision", "PrerequisiteId");
@@ -1831,7 +1887,7 @@ namespace Rasa.Migrations.SqliteWorld
             modelBuilder.Entity("Rasa.Structures.World.MissionRepeatPolicyEntry", b =>
                 {
                     b.Property<uint>("MissionId")
-                        .HasColumnType("integer")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("mission_id");
 
                     b.Property<string>("ContentRevision")
@@ -1839,15 +1895,15 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("content_revision");
 
                     b.Property<uint?>("CooldownSeconds")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("cooldown_seconds");
 
                     b.Property<int>("Kind")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("repeat_kind");
 
                     b.Property<uint?>("ResetSecondUtc")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("reset_second_utc");
 
                     b.HasKey("MissionId", "ContentRevision");
@@ -1861,7 +1917,7 @@ namespace Rasa.Migrations.SqliteWorld
             modelBuilder.Entity("Rasa.Structures.World.MissionRewardDefinitionEntry", b =>
                 {
                     b.Property<uint>("MissionId")
-                        .HasColumnType("integer")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("mission_id");
 
                     b.Property<string>("ContentRevision")
@@ -1869,7 +1925,7 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("content_revision");
 
                     b.Property<uint>("RewardId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("reward_id");
 
                     b.Property<string>("Comment")
@@ -1878,23 +1934,23 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("comment");
 
                     b.Property<uint>("Credits")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("credits");
 
                     b.Property<uint>("Experience")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("experience");
 
                     b.Property<uint>("Prestige")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("prestige");
 
                     b.Property<byte>("Requirement")
-                        .HasColumnType("tinyint(3)")
+                        .HasColumnType("tinyint(3) unsigned")
                         .HasColumnName("requirement");
 
                     b.Property<byte>("SelectionCount")
-                        .HasColumnType("tinyint(3)")
+                        .HasColumnType("tinyint(3) unsigned")
                         .HasColumnName("selection_count");
 
                     b.HasKey("MissionId", "ContentRevision", "RewardId");
@@ -1908,7 +1964,7 @@ namespace Rasa.Migrations.SqliteWorld
             modelBuilder.Entity("Rasa.Structures.World.MissionRewardItemEntry", b =>
                 {
                     b.Property<uint>("MissionId")
-                        .HasColumnType("integer")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("mission_id");
 
                     b.Property<string>("ContentRevision")
@@ -1916,23 +1972,23 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("content_revision");
 
                     b.Property<uint>("RewardId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("reward_id");
 
                     b.Property<uint>("ItemId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("item_id");
 
                     b.Property<uint>("ItemTemplateId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("item_template_id");
 
                     b.Property<byte>("Kind")
-                        .HasColumnType("tinyint(3)")
+                        .HasColumnType("tinyint(3) unsigned")
                         .HasColumnName("kind");
 
                     b.Property<uint>("Quantity")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("quantity");
 
                     b.HasKey("MissionId", "ContentRevision", "RewardId", "ItemId");
@@ -1946,7 +2002,7 @@ namespace Rasa.Migrations.SqliteWorld
             modelBuilder.Entity("Rasa.Structures.World.MissionScenarioEntry", b =>
                 {
                     b.Property<uint>("MissionId")
-                        .HasColumnType("integer")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("mission_id");
 
                     b.Property<string>("ContentRevision")
@@ -1954,7 +2010,7 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("content_revision");
 
                     b.Property<uint>("ScenarioId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("scenario_id");
 
                     b.Property<string>("Comment")
@@ -1968,12 +2024,12 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("name");
 
                     b.Property<byte>("Requirement")
-                        .HasColumnType("tinyint(3)")
+                        .HasColumnType("tinyint(3) unsigned")
                         .HasColumnName("requirement");
 
                     b.Property<byte>("StartPolicy")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(3)")
+                        .HasColumnType("tinyint(3) unsigned")
                         .HasDefaultValue((byte)1)
                         .HasColumnName("start_policy");
 
@@ -1985,7 +2041,7 @@ namespace Rasa.Migrations.SqliteWorld
             modelBuilder.Entity("Rasa.Structures.World.MissionScenarioStepEntry", b =>
                 {
                     b.Property<uint>("MissionId")
-                        .HasColumnType("integer")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("mission_id");
 
                     b.Property<string>("ContentRevision")
@@ -1993,22 +2049,22 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("content_revision");
 
                     b.Property<uint>("ScenarioId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("scenario_id");
 
                     b.Property<uint>("StepId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("step_id");
 
                     b.Property<uint?>("AbilityId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("ability_id");
 
                     b.Property<byte?>("AbilitySlot")
-                        .HasColumnType("tinyint(3)")
+                        .HasColumnType("tinyint(3) unsigned")
                         .HasColumnName("ability_slot");
 
-                    b.Property<bool?>("AccountSkipEntitlement")
+                    b.Property<ulong?>("AccountSkipEntitlement")
                         .HasColumnType("bit")
                         .HasColumnName("account_skip_entitlement");
 
@@ -2017,7 +2073,7 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("attempt_key");
 
                     b.Property<uint?>("AudioSetId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("audio_set_id");
 
                     b.Property<string>("Comment")
@@ -2026,7 +2082,7 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("comment");
 
                     b.Property<uint?>("DelayMilliseconds")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("delay_milliseconds");
 
                     b.Property<string>("DynamicObjectKey")
@@ -2035,87 +2091,87 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("dynamic_object_key");
 
                     b.Property<uint?>("EntityClassId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("entity_class_id");
 
-                    b.Property<bool?>("InitialInteractionEnabled")
+                    b.Property<ulong?>("InitialInteractionEnabled")
                         .HasColumnType("bit")
                         .HasColumnName("initial_interaction_enabled");
 
                     b.Property<byte>("Kind")
-                        .HasColumnType("tinyint(3)")
+                        .HasColumnType("tinyint(3) unsigned")
                         .HasColumnName("kind");
 
                     b.Property<uint?>("MapContextId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("map_context_id");
 
                     b.Property<double?>("Orientation")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("orientation");
 
                     b.Property<double?>("PosX")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("pos_x");
 
                     b.Property<double?>("PosY")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("pos_y");
 
                     b.Property<double?>("PosZ")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("pos_z");
 
                     b.Property<byte?>("QualificationKey")
-                        .HasColumnType("tinyint(3)")
+                        .HasColumnType("tinyint(3) unsigned")
                         .HasColumnName("qualification_key");
 
                     b.Property<byte?>("QualificationValue")
-                        .HasColumnType("tinyint(3)")
+                        .HasColumnType("tinyint(3) unsigned")
                         .HasColumnName("qualification_value");
 
                     b.Property<byte>("Requirement")
-                        .HasColumnType("tinyint(3)")
+                        .HasColumnType("tinyint(3) unsigned")
                         .HasColumnName("requirement");
 
                     b.Property<uint?>("RewardId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("reward_id");
 
                     b.Property<uint?>("ScenarioEventId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("scenario_event_id");
 
                     b.Property<uint>("Sequence")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("sequence");
 
                     b.Property<uint?>("SkillId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("skill_id");
 
                     b.Property<byte?>("SkillLevel")
-                        .HasColumnType("tinyint(3)")
+                        .HasColumnType("tinyint(3) unsigned")
                         .HasColumnName("skill_level");
 
                     b.Property<uint?>("SpawnGroupId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("spawn_group_id");
 
                     b.Property<uint?>("SpawnId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("spawn_id");
 
                     b.Property<uint?>("TargetObjectiveId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("target_objective_id");
 
                     b.Property<uint?>("TargetScenarioId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("target_scenario_id");
 
                     b.Property<uint?>("TutorialId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("tutorial_id");
 
                     b.HasKey("MissionId", "ContentRevision", "ScenarioId", "StepId");
@@ -2139,7 +2195,7 @@ namespace Rasa.Migrations.SqliteWorld
             modelBuilder.Entity("Rasa.Structures.World.MissionSceneBindingEntry", b =>
                 {
                     b.Property<uint>("MissionId")
-                        .HasColumnType("integer")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("mission_id");
 
                     b.Property<string>("ContentRevision")
@@ -2156,7 +2212,7 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("script_key");
 
                     b.Property<int>("StateVersion")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("state_version");
 
                     b.HasKey("MissionId", "ContentRevision");
@@ -2167,7 +2223,7 @@ namespace Rasa.Migrations.SqliteWorld
             modelBuilder.Entity("Rasa.Structures.World.MissionSpawnEntry", b =>
                 {
                     b.Property<uint>("MissionId")
-                        .HasColumnType("integer")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("mission_id");
 
                     b.Property<string>("ContentRevision")
@@ -2175,35 +2231,35 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("content_revision");
 
                     b.Property<uint>("SpawnGroupId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("spawn_group_id");
 
                     b.Property<uint>("SpawnId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("spawn_id");
 
                     b.Property<uint>("CreatureId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("creature_id");
 
                     b.Property<double>("PosX")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("pos_x");
 
                     b.Property<double>("PosY")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("pos_y");
 
                     b.Property<double>("PosZ")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("pos_z");
 
                     b.Property<uint>("Quantity")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("quantity");
 
                     b.Property<double>("Rotation")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("rotation");
 
                     b.HasKey("MissionId", "ContentRevision", "SpawnGroupId", "SpawnId");
@@ -2214,7 +2270,7 @@ namespace Rasa.Migrations.SqliteWorld
             modelBuilder.Entity("Rasa.Structures.World.MissionSpawnGroupEntry", b =>
                 {
                     b.Property<uint>("MissionId")
-                        .HasColumnType("integer")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("mission_id");
 
                     b.Property<string>("ContentRevision")
@@ -2222,11 +2278,11 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("content_revision");
 
                     b.Property<uint>("SpawnGroupId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("spawn_group_id");
 
                     b.Property<uint?>("AreaId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("area_id");
 
                     b.Property<string>("Comment")
@@ -2235,24 +2291,24 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("comment");
 
                     b.Property<bool>("Enabled")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint(1)")
                         .HasColumnName("enabled");
 
                     b.Property<uint>("MapContextId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("map_context_id");
 
                     b.Property<byte>("Requirement")
-                        .HasColumnType("tinyint(3)")
+                        .HasColumnType("tinyint(3) unsigned")
                         .HasColumnName("requirement");
 
                     b.Property<uint?>("RespawnSeconds")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("respawn_seconds");
 
                     b.Property<byte>("SpawnPolicy")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("tinyint(3)")
+                        .HasColumnType("tinyint(3) unsigned")
                         .HasDefaultValue((byte)0)
                         .HasColumnName("spawn_policy");
 
@@ -2266,7 +2322,7 @@ namespace Rasa.Migrations.SqliteWorld
             modelBuilder.Entity("Rasa.Structures.World.MissionTriggerEntry", b =>
                 {
                     b.Property<uint>("MissionId")
-                        .HasColumnType("integer")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("mission_id");
 
                     b.Property<string>("ContentRevision")
@@ -2274,19 +2330,19 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("content_revision");
 
                     b.Property<uint>("ObjectiveId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("objective_id");
 
                     b.Property<uint>("TransitionId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("transition_id");
 
                     b.Property<uint>("TriggerId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("trigger_id");
 
                     b.Property<uint?>("AreaId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("area_id");
 
                     b.Property<string>("Comment")
@@ -2295,59 +2351,59 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("comment");
 
                     b.Property<uint?>("CounterId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("counter_id");
 
                     b.Property<uint?>("DurationSeconds")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("duration_seconds");
 
                     b.Property<byte?>("EventKind")
-                        .HasColumnType("tinyint(3)")
+                        .HasColumnType("tinyint(3) unsigned")
                         .HasColumnName("event_kind");
 
                     b.Property<uint?>("InitialValue")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("initial_value");
 
                     b.Property<byte>("Kind")
-                        .HasColumnType("tinyint(3)")
+                        .HasColumnType("tinyint(3) unsigned")
                         .HasColumnName("kind");
 
                     b.Property<uint?>("NpcPackageId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("npc_package_id");
 
                     b.Property<uint?>("PlayerFlagId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("player_flag_id");
 
                     b.Property<uint?>("RelatedObjectiveId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("related_objective_id");
 
                     b.Property<byte?>("RelatedState")
-                        .HasColumnType("tinyint(3)")
+                        .HasColumnType("tinyint(3) unsigned")
                         .HasColumnName("related_state");
 
                     b.Property<byte>("Requirement")
-                        .HasColumnType("tinyint(3)")
+                        .HasColumnType("tinyint(3) unsigned")
                         .HasColumnName("requirement");
 
                     b.Property<uint>("Sequence")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("sequence");
 
                     b.Property<bool?>("SourceSpawnResolved")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint(1)")
                         .HasColumnName("source_spawn_resolved");
 
                     b.Property<uint?>("SubjectId")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("subject_id");
 
                     b.Property<uint?>("TargetValue")
-                        .HasColumnType("int(11)")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("target_value");
 
                     b.HasKey("MissionId", "ContentRevision", "ObjectiveId", "TransitionId", "TriggerId");
@@ -2365,11 +2421,11 @@ namespace Rasa.Migrations.SqliteWorld
             modelBuilder.Entity("Rasa.Structures.World.ModifiableClassEntry", b =>
                 {
                     b.Property<uint>("Id")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("id");
 
                     b.Property<uint>("ClassSetId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("class_set_id");
 
                     b.HasKey("Id");
@@ -2380,11 +2436,11 @@ namespace Rasa.Migrations.SqliteWorld
             modelBuilder.Entity("Rasa.Structures.World.ModuleClassEntry", b =>
                 {
                     b.Property<uint>("Id")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("id");
 
                     b.Property<uint>("ClassSetId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("class_set_id");
 
                     b.Property<string>("Comment")
@@ -2393,39 +2449,39 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("comment");
 
                     b.Property<uint>("ExtractCost")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("extract_cost");
 
                     b.Property<uint>("IntegrateCost")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("integrate_cost");
 
                     b.Property<uint>("ItemClassId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("item_class_id");
 
                     b.Property<uint>("ItemTemplateId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("item_template_id");
 
                     b.Property<uint>("Level")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("level");
 
                     b.Property<uint>("SalvageGain")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("salvage_gain");
 
                     b.Property<uint>("UpgradeCost")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("upgrade_cost");
 
                     b.Property<uint>("UpgradeModuleId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("upgrade_module_id");
 
                     b.Property<uint>("VariantId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("variant_id");
 
                     b.HasKey("Id");
@@ -2436,47 +2492,47 @@ namespace Rasa.Migrations.SqliteWorld
             modelBuilder.Entity("Rasa.Structures.World.ModuleEffectEntry", b =>
                 {
                     b.Property<uint>("Id")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("id");
 
                     b.Property<int?>("Arg1")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("arg1");
 
                     b.Property<int?>("Arg2")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("arg2");
 
                     b.Property<int?>("Arg3")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("arg3");
 
                     b.Property<int?>("Arg4")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("arg4");
 
                     b.Property<uint>("EffectId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("effect_id");
 
                     b.Property<double>("ExpValue")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("exp_value");
 
                     b.Property<double>("FlatValue")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("flat_value");
 
                     b.Property<double>("LinearValue")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("linear_value");
 
                     b.Property<uint>("ModuleId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("module_id");
 
                     b.Property<uint>("SetLevel")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("set_level");
 
                     b.HasKey("Id");
@@ -2487,15 +2543,15 @@ namespace Rasa.Migrations.SqliteWorld
             modelBuilder.Entity("Rasa.Structures.World.ModuleItemEntry", b =>
                 {
                     b.Property<uint>("Id")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("id");
 
                     b.Property<uint>("ModuleId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("module_id");
 
                     b.Property<uint>("Strength")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("strength");
 
                     b.HasKey("Id");
@@ -2506,11 +2562,11 @@ namespace Rasa.Migrations.SqliteWorld
             modelBuilder.Entity("Rasa.Structures.World.NpcGreetingEntry", b =>
                 {
                     b.Property<uint>("Id")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("id");
 
                     b.Property<uint>("GreetingId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("greeting_id");
 
                     b.HasKey("Id");
@@ -2522,11 +2578,13 @@ namespace Rasa.Migrations.SqliteWorld
                 {
                     b.Property<uint>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("id");
 
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<uint>("Id"));
+
                     b.Property<byte>("CategoryId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("category_id");
 
                     b.Property<string>("Comment")
@@ -2535,27 +2593,27 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("comment");
 
                     b.Property<uint>("GiverId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("giver_id");
 
                     b.Property<byte>("GroupType")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("group_type");
 
                     b.Property<uint>("Level")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("level");
 
                     b.Property<bool>("RadioCompleteable")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint(1)")
                         .HasColumnName("radio_completeable");
 
                     b.Property<uint>("ReciverId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("reciver_id");
 
                     b.Property<bool>("Shareable")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint(1)")
                         .HasColumnName("shareable");
 
                     b.HasKey("Id");
@@ -2566,23 +2624,23 @@ namespace Rasa.Migrations.SqliteWorld
             modelBuilder.Entity("Rasa.Structures.World.NpcMissionRewardEntry", b =>
                 {
                     b.Property<int>("Credits")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("credits");
 
                     b.Property<uint>("Id")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("id");
 
                     b.Property<uint>("ItemTemplateId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("item_template_id");
 
                     b.Property<uint>("Quantity")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("quantity");
 
                     b.Property<byte>("Type")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("type");
 
                     b.ToTable("npc_mission_reward");
@@ -2592,8 +2650,10 @@ namespace Rasa.Migrations.SqliteWorld
                 {
                     b.Property<uint>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<uint>("Id"));
 
                     b.Property<string>("Comment")
                         .IsRequired()
@@ -2601,7 +2661,7 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("comment");
 
                     b.Property<uint>("PackageId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("package_id");
 
                     b.HasKey("Id");
@@ -2616,11 +2676,11 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("name");
 
                     b.Property<byte>("Type")
-                        .HasColumnType("tinyint(3)")
+                        .HasColumnType("tinyint(3) unsigned")
                         .HasColumnName("type");
 
                     b.Property<byte>("Gender")
-                        .HasColumnType("tinyint(3)")
+                        .HasColumnType("tinyint(3) unsigned")
                         .HasColumnName("gender");
 
                     b.HasKey("Name", "Type", "Gender");
@@ -2632,27 +2692,29 @@ namespace Rasa.Migrations.SqliteWorld
                 {
                     b.Property<uint>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("id");
 
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<uint>("Id"));
+
                     b.Property<uint>("EnergyCost")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("energy_cost");
 
                     b.Property<uint>("KraftwerksSeconds")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("kraftwerks_seconds");
 
                     b.Property<uint>("MinLevel")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("min_level");
 
                     b.Property<uint>("ResultAmount")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("result_amount");
 
                     b.Property<uint>("ResultTemplateId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("result_template_id");
 
                     b.HasKey("Id");
@@ -2664,19 +2726,21 @@ namespace Rasa.Migrations.SqliteWorld
                 {
                     b.Property<uint>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("id");
 
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<uint>("Id"));
+
                     b.Property<uint>("InputClassId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("input_class_id");
 
                     b.Property<uint>("Quantity")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("quantity");
 
                     b.Property<uint>("RecipeId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("recipe_id");
 
                     b.HasKey("Id");
@@ -2687,16 +2751,16 @@ namespace Rasa.Migrations.SqliteWorld
             modelBuilder.Entity("Rasa.Structures.World.SkillCharacterEntry", b =>
                 {
                     b.Property<uint>("Id")
-                        .HasColumnType("integer")
+                        .HasColumnType("int(11) unsigned")
                         .HasColumnName("id")
                         .HasAnnotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.None);
 
                     b.Property<uint>("ClassId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("class_id");
 
                     b.Property<uint>("RequiredLevel")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("required_level");
 
                     b.HasKey("Id");
@@ -2708,7 +2772,7 @@ namespace Rasa.Migrations.SqliteWorld
                 {
                     b.Property<uint>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("id");
 
                     b.Property<string>("Comment")
@@ -2717,31 +2781,31 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("comment");
 
                     b.Property<ulong>("EntityId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("bigint unsigned")
                         .HasColumnName("entity_id");
 
                     b.Property<byte>("Kind")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("kind");
 
                     b.Property<uint>("PoolId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("pool_id");
 
                     b.Property<double>("PosX")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("pos_x");
 
                     b.Property<double>("PosY")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("pos_y");
 
                     b.Property<double>("PosZ")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("pos_z");
 
                     b.Property<double>("Rotation")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("rotation");
 
                     b.HasKey("Id");
@@ -2753,115 +2817,117 @@ namespace Rasa.Migrations.SqliteWorld
                 {
                     b.Property<uint>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("id");
 
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<uint>("Id"));
+
                     b.Property<byte>("AnimType")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("anim_type");
 
                     b.Property<uint>("Creature1Id")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("creature_1_Id");
 
                     b.Property<byte>("Creature1MaxCount")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("creature_1_max_count");
 
                     b.Property<byte>("Creature1MinCount")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("creature_1_min_count");
 
                     b.Property<uint>("Creature2Id")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("creature_2_Id");
 
                     b.Property<byte>("Creature2MaxCount")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("creature_2_max_count");
 
                     b.Property<byte>("Creature2MinCount")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("creature_2_min_count");
 
                     b.Property<uint>("Creature3Id")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("creature_3_Id");
 
                     b.Property<byte>("Creature3MaxCount")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("creature_3_max_count");
 
                     b.Property<byte>("Creature3MinCount")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("creature_3_min_count");
 
                     b.Property<uint>("Creature4Id")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("creature_4_Id");
 
                     b.Property<byte>("Creature4MaxCount")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("creature_4_max_count");
 
                     b.Property<byte>("Creature4MinCount")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("creature_4_min_count");
 
                     b.Property<uint>("Creature5Id")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("creature_5_Id");
 
                     b.Property<byte>("Creature5MaxCount")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("creature_5_max_count");
 
                     b.Property<byte>("Creature5MinCount")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("creature_5_min_count");
 
                     b.Property<uint>("Creature6Id")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("creature_6_Id");
 
                     b.Property<byte>("Creature6MaxCount")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("creature_6_max_count");
 
                     b.Property<byte>("Creature6MinCount")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("creature_6_min_count");
 
                     b.Property<uint>("MapContextId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("map_context_id");
 
                     b.Property<byte>("Mode")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("mode");
 
                     b.Property<double>("PosX")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("pos_x");
 
                     b.Property<double>("PosY")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("pos_y");
 
                     b.Property<double>("PosZ")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("pos_z");
 
                     b.Property<uint>("RespawnTime")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("respown_time");
 
                     b.Property<double>("Rotation")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("rotation");
 
                     b.Property<double>("Radius")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("radius");
 
                     b.HasKey("Id");
@@ -2872,31 +2938,31 @@ namespace Rasa.Migrations.SqliteWorld
             modelBuilder.Entity("Rasa.Structures.World.SpawnPoolPatrolEntry", b =>
                 {
                     b.Property<uint>("PoolId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("pool_id");
 
                     b.Property<uint>("Step")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("step");
 
                     b.Property<double?>("Facing")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("facing");
 
                     b.Property<uint>("PauseMs")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("pause_ms");
 
                     b.Property<double>("PosX")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("pos_x");
 
                     b.Property<double>("PosY")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("pos_y");
 
                     b.Property<double>("PosZ")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("pos_z");
 
                     b.HasKey("PoolId", "Step");
@@ -2907,11 +2973,11 @@ namespace Rasa.Migrations.SqliteWorld
             modelBuilder.Entity("Rasa.Structures.World.SpawnPoolPoseEntry", b =>
                 {
                     b.Property<uint>("Id")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("id");
 
                     b.Property<byte>("Pose")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("pose");
 
                     b.HasKey("Id");
@@ -2923,11 +2989,13 @@ namespace Rasa.Migrations.SqliteWorld
                 {
                     b.Property<uint>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("id");
 
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<uint>("Id"));
+
                     b.Property<uint>("ClassId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("class_id");
 
                     b.Property<string>("Description")
@@ -2936,27 +3004,27 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnName("description");
 
                     b.Property<uint>("MapContextId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("map_context_id");
 
                     b.Property<double>("PosX")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("pos_x");
 
                     b.Property<double>("PosY")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("pos_y");
 
                     b.Property<double>("PosZ")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("pos_z");
 
                     b.Property<double>("Rotation")
-                        .HasColumnType("REAL")
+                        .HasColumnType("double")
                         .HasColumnName("rotation");
 
                     b.Property<byte>("Type")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("type");
 
                     b.HasKey("Id");
@@ -2968,11 +3036,13 @@ namespace Rasa.Migrations.SqliteWorld
                 {
                     b.Property<uint>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("id");
 
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<uint>("Id"));
+
                     b.Property<uint>("PackageId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("package_id");
 
                     b.HasKey("Id");
@@ -2983,11 +3053,11 @@ namespace Rasa.Migrations.SqliteWorld
             modelBuilder.Entity("Rasa.Structures.World.VendorItemEntry", b =>
                 {
                     b.Property<uint>("Id")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("id");
 
                     b.Property<uint>("ItemTemplateId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("item_template_id");
 
                     b.ToTable("vendor_item");
@@ -2996,11 +3066,11 @@ namespace Rasa.Migrations.SqliteWorld
             modelBuilder.Entity("Rasa.Structures.World.VendorPriceEntry", b =>
                 {
                     b.Property<uint>("Id")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("id");
 
                     b.Property<int>("ItemPrice")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("item_price");
 
                     b.HasKey("Id");
@@ -3012,110 +3082,112 @@ namespace Rasa.Migrations.SqliteWorld
                 {
                     b.Property<uint>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("id");
 
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<uint>("Id"));
+
                     b.Property<uint>("AmmoClassId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("ammo_class_id");
 
                     b.Property<uint>("AttackActionArgId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("attack_action_arg_id");
 
                     b.Property<uint>("AttackActionId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("attack_action_id");
 
                     b.Property<uint>("ClipSize")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("clip_size");
 
                     b.Property<byte>("DamageType")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("damage_type");
 
                     b.Property<byte>("DrawActionId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("draw_action_id");
 
                     b.Property<int>("MaxDamage")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("max_damage");
 
                     b.Property<int>("MinDamage")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("min_damage");
 
-                    b.Property<bool>("RangeType")
+                    b.Property<ulong>("RangeType")
                         .HasColumnType("bit")
                         .HasColumnName("range_type");
 
-                    b.Property<bool>("RecoveryOverride")
+                    b.Property<ulong>("RecoveryOverride")
                         .HasColumnType("bit")
                         .HasColumnName("recovery_override");
 
                     b.Property<byte>("ReloadActionId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("reload_action_id");
 
-                    b.Property<bool>("ReloadOverride")
+                    b.Property<ulong>("ReloadOverride")
                         .HasColumnType("bit")
                         .HasColumnName("reload_override");
 
-                    b.Property<bool>("ReuseOverride")
+                    b.Property<ulong>("ReuseOverride")
                         .HasColumnType("bit")
                         .HasColumnName("reuse_override");
 
                     b.Property<byte>("StowActionId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("tinyint unsigned")
                         .HasColumnName("stow_action_id");
 
-                    b.Property<bool>("UnknownArg1")
+                    b.Property<ulong>("UnknownArg1")
                         .HasColumnType("bit")
                         .HasColumnName("unk_arg1");
 
-                    b.Property<bool>("UnknownArg2")
+                    b.Property<ulong>("UnknownArg2")
                         .HasColumnType("bit")
                         .HasColumnName("unk_arg2");
 
-                    b.Property<bool>("UnknownArg3")
+                    b.Property<ulong>("UnknownArg3")
                         .HasColumnType("bit")
                         .HasColumnName("unk_arg3");
 
-                    b.Property<bool>("UnknownArg4")
+                    b.Property<ulong>("UnknownArg4")
                         .HasColumnType("bit")
                         .HasColumnName("unk_arg4");
 
-                    b.Property<bool>("UnknownArg5")
+                    b.Property<ulong>("UnknownArg5")
                         .HasColumnType("bit")
                         .HasColumnName("unk_arg5");
 
                     b.Property<uint>("UnknownArg6")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("unk_arg6");
 
-                    b.Property<bool>("UnknownArg7")
+                    b.Property<ulong>("UnknownArg7")
                         .HasColumnType("bit")
                         .HasColumnName("unk_arg7");
 
                     b.Property<uint>("UnknownArg8")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("unk_arg8");
 
                     b.Property<int>("Velocity")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("velocity");
 
                     b.Property<uint>("WeaponAnimConditionCode")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("weapon_anim_condition_code");
 
                     b.Property<uint>("WeaponTemplatId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int unsigned")
                         .HasColumnName("weapon_template_id");
 
-                    b.Property<bool>("WindupOverride")
+                    b.Property<ulong>("WindupOverride")
                         .HasColumnType("bit")
                         .HasColumnName("windup_override");
 
@@ -3303,7 +3375,8 @@ namespace Rasa.Migrations.SqliteWorld
                     b.HasOne("Rasa.Structures.World.MissionScenarioEntry", null)
                         .WithMany()
                         .HasForeignKey("MissionId", "ContentRevision", "TargetScenarioId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_mission_scenario_step_mission_scenario_mission_id_content_r~1");
 
                     b.HasOne("Rasa.Structures.World.MissionSpawnEntry", null)
                         .WithMany()

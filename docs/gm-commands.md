@@ -103,6 +103,7 @@ These change nothing in the world, except where noted.
 | `.regions` | Observer | Whether you are underground, the region ids you are being sent, and the region volumes on this map, nearest first (up to 12). |
 | `.emitters` | Observer | FX emitters on this map, nearest first (up to 15). |
 | `.fxpackages <word> [word ...]` | Observer | Searches the client's FX package names; every word must match (up to 25 results). |
+| `.ambients [word ...]` | Observer | The client's ambient figures - people who are scenery: a soldier at a firing range, two men talking on chairs, a medic at a monitor - as class id and name, and how many stand on this map. Words narrow the list; every word must be in the name (up to 25 results). |
 | `.navmesh` | Observer | Whether this map has a navmesh, and the navmesh ground height under you. |
 | `.navmesh path <x> <y> <z>` | Observer | The route the AI would take from you to that point: complete or partial, number of corners, length. |
 | `.cover` | Observer | Cover between you and your target in both directions: body points visible and the ranged damage multiplier. Needs `navmesh/<map>.cover`. |
@@ -265,6 +266,7 @@ Map links, region volumes, FX emitters and crafting stations are **saved to the 
 |---|---|---|
 | `.createobj <entityClassId>` | GameMaster | A dynamic object at your feet, facing your way. |
 | `.createobjonloc <entityClassId> <x> <y> <z> <orientation>` | GameMaster | A dynamic object at the given point. |
+| `.ambient <class>` / `.ambient clear` | GameMaster | Stands one of the client's ambient figures where you are, facing your way, for everyone on the map. The class is an id or a name from `.ambients`; part of a name will do if only one figure has it. A seated figure brings no chair, and the firing range soldier brings his own target, 14.25 m in front of him. It is not saved: `clear` takes away the ones put down this way on this map, and a restart takes them all. The ones that stay are rows of `ambient_npc`. Also written to the server log with an `[.ambient]` tag: class, map, position and facing. |
 | `.removeobj <entityId>` | GameMaster | Removes an entity from the world for everyone. |
 | `.deleteobj <entityId>` | GameMaster | Sends `DestroyPhysicalEntity` to **your own client only**; the object still exists on the server. |
 | `.moveobj <entityId> <x> <y> <z> [yawDegrees \| qx qy qz qw]` | GameMaster | Moves a non-actor object for every client on the map. Also works on static map objects, but only for clients on the map now. Actors are refused. |

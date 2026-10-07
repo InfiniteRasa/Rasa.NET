@@ -532,6 +532,7 @@ namespace Rasa.Game
             RegionManager.Instance.RegionInit();
             EmitterManager.Instance.EmitterInit();
             SecretPassages.DoorwayInit();
+            AmbientNpcs.Init(GameUnitOfWorkFactory);
             MapMarkerManager.Instance.MapMarkerInit();
             SpawnPoolManager.Instance.ValidatePools();
             RecipeManager.Instance.RecipeInit();

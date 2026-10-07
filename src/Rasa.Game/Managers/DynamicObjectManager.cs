@@ -687,6 +687,13 @@ namespace Rasa.Managers
                 return;
             }
 
+            // An ambient figure is a usable nobody can use: its one state, which is what starts its animation.
+            if (dynamicObject.DynamicObjectType == DynamicObjectType.AmbientNpc)
+            {
+                client.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(dynamicObject.EntityId, dynamicObject.EntityClassId, AmbientNpcs.EntityData(dynamicObject)));
+                return;
+            }
+
             var entityData = new List<PythonPacket>
             {
                 // PhysicalEntity

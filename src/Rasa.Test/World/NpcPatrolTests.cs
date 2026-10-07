@@ -578,7 +578,10 @@ namespace Rasa.Test.World
                     Assert.AreEqual("NPC_Clothing_Officer_3_Helmet", classes[worn.Single(row => row.SlotId == 1).ClassId]);
 
                     // Down takes the table and the officer away and leaves the rest; Up puts them back.
+                    // Counted at this migration: what a later one adds goes with that one.
                     var migrator = context.GetService<IMigrator>();
+                    migrator.Migrate(Migration);
+
                     var pools = context.SpawnPoolEntries.AsNoTracking().Count();
                     var creatures = context.CreatureEntries.AsNoTracking().Count();
 
