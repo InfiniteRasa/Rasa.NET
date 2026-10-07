@@ -63,3 +63,24 @@ namespace Rasa.Api.Ingame
         public uint Hue2 { get; set; }
     }
 }
+
+namespace Rasa.Api.Ingame
+{
+    public sealed record IngameCreatureActionOptionsResponse(List<IngameCreatureActionOption> Actions);
+
+    public sealed class IngameCreatureActionOption
+    {
+        public uint Id { get; set; }
+        public string Description { get; set; }
+        public uint ActionId { get; set; }
+        public string ActionName { get; set; }
+        public uint ActionArgId { get; set; }
+        public double RangeMin { get; set; }
+        public double RangeMax { get; set; }
+        public uint Cooldown { get; set; }
+        public uint Windup { get; set; }
+        public uint MinDamage { get; set; }
+        public uint MaxDamage { get; set; }
+        public uint DamageType { get; set; }
+    }
+}
