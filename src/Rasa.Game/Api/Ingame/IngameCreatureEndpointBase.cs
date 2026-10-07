@@ -38,7 +38,9 @@ namespace Rasa.Api.Ingame
                 creature.NameId,
                 creature.Level,
                 creature.Faction,
-                IsNpc(entityClass));
+                IsNpc(entityClass),
+                entityClass?.Augmentations?.Select(value => value.ToString()).ToList()
+                    ?? new List<string>());
 
         protected static IngameCreatureDetails ToDetails(
             CreatureEntry creature,

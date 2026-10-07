@@ -13,7 +13,8 @@ namespace Rasa.Api.Ingame
         uint NameId,
         uint Level,
         uint Faction,
-        bool IsNpc);
+        bool IsNpc,
+        List<string> Augmentations);
 
     public sealed class IngameCreatureDetails
     {
