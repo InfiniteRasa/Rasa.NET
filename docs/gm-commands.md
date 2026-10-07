@@ -26,7 +26,7 @@ Conventions used below:
 
 - `<x>` is required and `[x]` is optional.
 - `#entityId` means a literal `#` followed by an entity id, for example `#1234`. `#target` means whatever you have selected.
-- A dot command's arguments are split on single spaces, so a family name or map name cannot contain spaces unless the command says otherwise.
+- A dot command's arguments are split on spaces, and any number of spaces in a row counts as one. A family name or map name cannot contain spaces unless the command says otherwise.
 - Unless a command names another player, it acts on you.
 
 ## Access levels
@@ -350,6 +350,7 @@ Timer types: 1 TestTimer, 2 TimeTillReinforcements, 3 Countdown, 4 TimeTillAdven
 | `.flag set <name\|id>` / `.flag clear <name\|id>` | Admin | Changes a flag for everyone now in the world and everyone who logs in later, **until restart**. After a restart, `GameDataConfig.ServerFlags` applies again. |
 | `/killmap` | Admin | With no argument, opens the map picker. |
 | `/killmap <map>` | Admin | Resets the map on its next tick: its spawn pools' creatures are removed and the pools start over. |
+| `.ingameapiauth` | Admin | Not typed: a UI injected into the client sends it. The answer is a one-time code, good for 60 seconds and from the same address, which `POST /ingame/session/exchange` turns into a login to the REST API's `/ingame` endpoints. Not listed by `.help`, and refused while `ingame/session/exchange` is off, as it is as shipped. See the REST sections of the [setup guide](setup.md). |
 
 Known server flags: PtsTestGateNpc 1, PtsPvpMap 4, PtsNewCrafting 7, MapEpicGauntlet 8, PtsDisablePalisades 9, MinionCommands 10, TestFlag1 10000001, TestFlag2 10000002.
 

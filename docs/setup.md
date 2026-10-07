@@ -225,30 +225,35 @@ The chance is per hit, so a weapon that hits more often fires them more often. A
 |---|---|---|
 | `Enabled` | `true` | `false` closes the listener. A missing `ApiConfig` section also means off. |
 | `BindAddress` | `0.0.0.0` | Local address the listener binds to. Empty or `0.0.0.0` binds every interface. |
-| `Port` | `8104` | TCP port (docker-compose maps `8104`). |
+| `Port` | `8104` | TCP port (the compose files map `8104`). |
 | `Public` | `false` | `true` lets the endpoints answer without a key. An endpoint with a `Public` of its own goes by that instead. |
 | `ApiKey` | `""` | A key every endpoint accepts. Empty for none. |
+| `JwtSecret` | `""` | Signs the tokens the `/ingame` endpoints go by; see [REST and in-game APIs](#rest-and-in-game-apis) above. Empty makes a new secret at every start. |
+| `JwtTokenLifetimeSeconds` | `86400` | How long such a token lasts. |
 | `AllowedIps` | `[]` | The addresses that may ask: single addresses (`203.0.113.7`) and ranges (`10.0.0.0/8`), IPv4 or IPv6. Empty answers every address. An entry that is no address and no range allows nobody and is logged as an error. |
 | `Endpoints` | see below | Settings for one endpoint, by its name. |
 | `Tls` | off | HTTPS in place of HTTP on the same port; see below. |
 
-As shipped the API listens but answers nobody: `Public` is `false` and no key is set, so `/healthcheck` and `/serverstatus` answer `401` until you set an `ApiKey` or make them public. The startup log lists every endpoint as `off`, `public` or `key`.
+As shipped the API listens but answers nobody: `Public` is `false` and no key is set, so `/healthcheck` and `/serverstatus` answer `401` until you set an `ApiKey` or make them public. The startup log lists every endpoint as `off`, `public`, `key` or `endpoint auth`.
 
 A key is sent in the `X-API-Key` header, or as `Authorization: Bearer <key>`.
+
+The `/ingame` endpoints take no key, and are the ones the startup log calls `endpoint auth`: `Rest.Public`, `Rest.ApiKey` and a `Public` or `ApiKey` in their own entries do nothing for them. `POST /ingame/session/exchange` takes the one-time code that `.ingameapiauth` gives an Admin in the game, and the others take the token it answers with, as `Authorization: Bearer <token>`. `AllowedIps` applies to them as it does to the rest.
 
 | Endpoint | Answer |
 |---|---|
 | `GET /healthcheck` | `{"game_server_status":"healthy","app_server_status":"healthy"}`, each `healthy` or `unhealthy`. The status is `200` when both are healthy and `503` when either is not, with the same body. |
 | `GET /serverstatus` | `{"uptimeseconds":45000,"currentconnections":3,"peakconnections":9,"maxconnections":1024}` |
 | `POST /addaccount` | Creates a login; see below. Off until it is turned on. |
+| `POST /ingame/session/exchange`, `GET /ingame/items`, `GET /ingame/items/categories`, `GET /ingame/items/{id}` | The in-game API; see [REST and in-game APIs](#rest-and-in-game-apis) above. Each is off until it is turned on. |
 
 - `game_server_status` is `healthy` while the server has finished loading, is listening for players, has not been shut down, and its world loop ticked within `ApiConfig.LoopStallSeconds` (default `15`).
 - `app_server_status` is `healthy` while the link to the Auth server is up and logged in.
 - `currentconnections` is the number of players holding a slot, the number the server list shows. `maxconnections` is `ServerInfoConfig.MaxPlayers`, `peakconnections` the most there have been since the server started, and `uptimeseconds` the time since it opened its ports.
 
-A request is refused with `403` from an address not on `AllowedIps`, `404` for a path that names no endpoint or one that is off, `405` for the wrong method, and `401` for a missing or wrong key.
+A request is refused with `403` from an address not on `AllowedIps`, `404` for a path that names no endpoint or one that is off, `405` for the wrong method, and `401` for a missing or wrong key or, at an `/ingame` endpoint, a code or token that is missing, wrong or no longer good.
 
-Each entry under `Endpoints` (`healthcheck`, `serverstatus`, `addaccount`) has:
+Each entry under `Endpoints` (`healthcheck`, `serverstatus`, `addaccount` and the `/ingame` ones) has:
 
 | Setting | Default | Meaning |
 |---|---|---|
@@ -256,7 +261,7 @@ Each entry under `Endpoints` (`healthcheck`, `serverstatus`, `addaccount`) has:
 | `Public` | not set | Whether this endpoint answers without a key. Left out, `Rest.Public` decides. |
 | `ApiKey` | `""` | A key for this endpoint alone. The global `ApiKey` still opens it. |
 
-`healthcheck` and `serverstatus` are on without an entry. To give a monitor a key that opens nothing else, leave the global `ApiKey` empty and set an `ApiKey` on those two entries.
+`healthcheck` and `serverstatus` are on without an entry. The `/ingame` endpoints are off without one, as `addaccount` is, and `Enabled` is the only setting of theirs that counts. To give a monitor a key that opens nothing else, leave the global `ApiKey` empty and set an `ApiKey` on those two entries.
 
 #### Creating accounts
 `POST /addaccount` makes a login as the Auth console's `create` command does. The accounts are the Auth server's, so Game hands the request on over its link to Auth, which has to be connected. The body is JSON, sent as `application/json`:
@@ -330,7 +335,7 @@ Changes are picked up when the file is reloaded: keys, `Public`, the endpoints' 
 |---|---|---|
 | `Enabled` | `true` | `false` closes the port. A missing `ApiConfig` section also means off. |
 | `BindAddress` | `0.0.0.0` | Local address the listener binds to. Empty or `0.0.0.0` binds every interface. |
-| `Port` | `8105` | TCP port (docker-compose maps `8105`). |
+| `Port` | `8105` | TCP port (the compose files map `8105`). |
 | `AllowedIps` | `[]` | The addresses that may ask: single addresses and ranges, as for the REST API. Empty answers every address; a connection from any other address is closed unanswered. |
 
 Connect and send anything - one byte is enough, and what it is does not matter - and the server answers with the whole status as one line of JSON, then closes:
