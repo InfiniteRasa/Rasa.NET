@@ -318,6 +318,15 @@ namespace Rasa.Structures
         /// <summary>A freeze: while it is on, a creature cannot move but can still attack; see CrowdControl.</summary>
         public bool IsRoot { get; set; }
 
+        /// <summary>
+        /// What it does to a player that their item modules can resist, when the effect does not
+        /// say so otherwise: DamageType.Root for a creature's web or net, DamageType.Blind for
+        /// its flash. 0 for most; a root (IsRoot), a blinding (Blinds) and a slow
+        /// (MovementModifierPercent under 100) are known without it. See
+        /// ItemModuleBonuses.ControlKindOf.
+        /// </summary>
+        public DamageType ControlKind { get; set; }
+
         /// <summary>EMP crit's Armor Suppression: while on, the holder's armour stops nothing and every hit goes to health.</summary>
         public bool SuppressesArmor { get; set; }
 

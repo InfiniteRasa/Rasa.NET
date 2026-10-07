@@ -522,6 +522,131 @@ namespace Rasa.Test.Missions
             AssertPackStillAcceptsChanges(harness, rifle, takenOffTo, putOnFrom);
         }
 
+        // Item modules (ItemModuleBonuses): what a piece put on carries counts at once, and the
+        // player is marked, so the next tick looks at what their client has to be told.
+        [TestMethod]
+        public void ModulesInBootsAndRifleCountOnceOnAndAreToldOnTheNextTick()
+        {
+            const uint body1 = 100060;          // Armor Module: Body Bonus [1]
+            const uint weaponResistFire1 = 900301;  // Weapon Module: Resist Fire [1]: 6
+            const uint crit5 = 900051;          // Weapon Module: Crit Hit Bonus [5]
+
+            using var harness = BootcampRuntimeTestHarness.Create();
+            var actors = PrepareActors(harness);
+            Accept(harness, actors.McAllister);
+            CompleteObjective(harness, actors.Delessio, 4);
+            LootCrate(harness);
+
+            ItemModules.Load(Rasa.Services.Preloader.ItemModuleSeed.Classes, Rasa.Services.Preloader.ItemModuleSeed.Effects);
+
+            var player = harness.Client.Player;
+            var map = player.MapChannel;
+            var boots = player.Inventory.PersonalInventory.Where(id => id != 0)
+                .Select(id => EntityManager.Instance.GetItem(id))
+                .Single(item => item.ItemTemplateId == 13066);
+
+            ManifestationManager.Instance.UpdateStatsValues(harness.Client, false);
+
+            var body = player.Attributes[Attributes.Body].CurrentMax;
+
+            Assert.IsTrue(ItemModules.TryGet(body1, out var module), "the module");
+
+            var bonus = module.Effects.Single().Amount(ItemModules.LevelOf(boots));
+
+            Assert.IsTrue(bonus > 0, "its bonus");
+            boots.SetModule(0, body1);
+            player.ModulesChanged = false;
+            ItemModuleBonuses.Worker(map);
+            Assert.AreEqual(body, player.Attributes[Attributes.Body].CurrentMax, "in the pack it is nothing");
+
+            // Put on: RequestEquipArmor works the stats out again as it always did, and marks.
+            EquipBoots(harness);
+            Assert.IsTrue(player.ModulesChanged, "marked by the boots");
+            Assert.AreEqual(body + bonus, player.Attributes[Attributes.Body].CurrentMax);
+            Assert.AreEqual(body, player.Attributes[Attributes.Body].NormalMax);
+
+            // The tick: told once, and not again.
+            harness.Drain();
+            ItemModuleBonuses.Worker(map);
+            Assert.IsFalse(player.ModulesChanged);
+            Assert.HasCount(1, harness.Drain().OfType<AttributeInfoPacket>().ToArray());
+            ItemModuleBonuses.Worker(map);
+            player.ModulesChanged = true;
+            ItemModuleBonuses.Worker(map);
+            Assert.IsEmpty(harness.Drain().OfType<AttributeInfoPacket>().ToArray());
+
+            // The rifle, with a module the client is shown the resistance of and one it is shown nothing of.
+            CompleteObjective(harness, actors.Delessio, 5);
+            CompleteObjective(harness, actors.Hartmann, 6);
+
+            var rifle = player.Inventory.PersonalInventory.Where(id => id != 0)
+                .Select(id => EntityManager.Instance.GetItem(id))
+                .Single(item => item.ItemTemplateId == 13713);
+
+            int Fire() => player.ResistanceData.Where(resist => resist.ResistanceType == DamageType.Fire).Sum(resist => resist.ResistanceAmmount);
+
+            var fire = Fire();
+
+            rifle.SetModule(0, weaponResistFire1);
+            rifle.SetModule(1, crit5);
+            player.ModulesChanged = false;
+            Assert.AreEqual(0, ItemModuleBonuses.Of(player).CritChance, "in the pack");
+
+            EquipAndReloadRifle(harness);
+            Assert.IsTrue(player.ModulesChanged, "into the drawer slot that is in hand");
+            Assert.AreEqual(5, ItemModuleBonuses.Of(player).CritChance, "read where it is used, it counts at once");
+            Assert.AreEqual(fire, Fire(), "a weapon taken in hand tells nobody anything by itself");
+
+            harness.Drain();
+            ItemModuleBonuses.Worker(map);
+            Assert.AreEqual(fire + 6, Fire(), "the tick does");
+
+            var told = harness.Drain();
+
+            Assert.HasCount(1, told.OfType<AttributeInfoPacket>().ToArray());
+            Assert.AreEqual(fire + 6, told.OfType<ResistanceDataPacket>().Last().ResistanceData
+                .Where(resist => resist.ResistanceType == DamageType.Fire).Sum(resist => resist.ResistanceAmmount));
+
+            // An empty drawer slot armed: the rifle is put away, and its modules with it. Arming
+            // saves the slot through the character manager, which here is the harness's.
+            var characters = typeof(CharacterManager).GetField("_instance", BindingFlags.Static | BindingFlags.NonPublic);
+            var before = characters.GetValue(null);
+
+            characters.SetValue(null, new CharacterManager(harness.Context, harness.Manager));
+
+            try
+            {
+                ManifestationManager.Instance.RequestArmWeapon(harness.Client, 1);
+                Assert.IsTrue(player.ModulesChanged, "marked by the arming");
+                Assert.AreEqual(0, ItemModuleBonuses.Of(player).CritChance);
+                ItemModuleBonuses.Worker(map);
+                Assert.AreEqual(fire, Fire());
+
+                // Taken in hand again.
+                ManifestationManager.Instance.RequestArmWeapon(harness.Client, 0);
+                ItemModuleBonuses.Worker(map);
+                Assert.AreEqual(fire + 6, Fire());
+            }
+            finally
+            {
+                characters.SetValue(null, before);
+            }
+
+            // Then out of the drawer altogether.
+
+            InventoryManager.Instance.RequestEquipWeapon(harness.Client, new RequestEquipWeaponPacket
+            {
+                SrcSlot = FreeEquipmentSlot(harness),
+                InventoryType = InventoryType.Personal,
+                DestSlot = 0
+            });
+            Assert.IsTrue(player.Inventory.PersonalInventory.Contains(rifle.EntityId), "back in the pack");
+            Assert.IsTrue(player.ModulesChanged, "marked by the taking out");
+            ItemModuleBonuses.Worker(map);
+            Assert.AreEqual(fire, Fire());
+            Assert.AreEqual(body + bonus, player.Attributes[Attributes.Body].CurrentMax, "the boots are still on");
+        }
+
         // Reported in play: a player could shoot the friendly soldiers on the perimeter bridge.
         // The damage was always refused; the clients were still shown the soldier being hit.
         [TestMethod]

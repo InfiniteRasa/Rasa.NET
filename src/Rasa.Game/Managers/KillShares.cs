@@ -117,8 +117,10 @@ namespace Rasa.Managers
             if (share == 0)
                 return 0;
 
+            // Each their part, with what their own item modules add to it: "3% experience from
+            // kills." (ItemModuleBonuses). The part returned is the part before that.
             foreach (var sharer in paid)
-                manifestations.GainExperience(sharer, share,
+                manifestations.GainExperience(sharer, ItemModuleBonuses.WithExperience(sharer.Player, share),
                     sharer == killer || critKill == CritKill.None ? critKill : CritKill.Team);
 
             return share;

@@ -31,9 +31,10 @@ namespace Rasa.Managers
     ///  - which items are modules (module_item);
     ///  - what an item is salvaged for, and what it costs to put a module in.
     ///
-    /// What is not: a module does nothing yet. No bonus is applied for one - the tooltip is the
-    /// whole of it - and nothing that drops has any. A game master puts one on an item with
-    /// ".module".
+    /// What a module does for the player wearing or holding the item is ItemModuleBonuses.
+    ///
+    /// What is not: nothing that drops has any, and a set gives nothing for its pieces. A game
+    /// master puts one on an item with ".module".
     /// </summary>
     public static class ItemModules
     {
@@ -173,6 +174,10 @@ namespace Rasa.Managers
 
             if (client != null && classInfo != null)
                 client.CallMethod(item.EntityId, new ItemInfoPacket(item, classInfo));
+
+            // Worn or in hand, what it gives its owner has changed (ItemModuleBonuses).
+            if (client?.Player != null)
+                client.Player.ModulesChanged = true;
         }
 
         #region The crafting station's rules (shared/craftingnew.py)

@@ -182,7 +182,15 @@ A map's start groups are generated in this order:
 Item modules:
 
 - A module is what gives an item its prefix and a bonus line: a Rifle with `100060` (Armor Module: Body Bonus [1]) is a "Titan Rifle" with "[1] Body: +N" in its tooltip. The client names the item by the module in its **first** slot, or by a later one of higher priority; with the first slot empty it shows no prefix.
-- **A module does nothing yet.** The tooltip is all there is: no bonus is applied, and nothing drops with a module. An item gets one from `.module`, or at a crafting station.
+- A module counts while its item is worn, or is the weapon or tool in your hand; a weapon that is only in the drawer counts for nothing, and neither does a broken item. The amount is the one the tooltip shows, worked out for the item's level. Nothing drops with a module: an item gets one from `.module`, or at a crafting station.
+  - **Body, Mind, Spirit** add to the attribute, shown in green beside the base in the attributes window, and bring what the attribute brings: health, armor, crit chance from Spirit.
+  - **Health, Power, Regen, Total Armor** add to the maximum (Total Armor to its own piece, before the Body bonus). **Regen Health / Power / Armor** add that much a second to the bar's regeneration; in combat health regenerates at a fifth and armor not at all, as without modules.
+  - **Resist** to a kind of damage goes into the resistance list of the character window and comes off that damage. **Resist** to being stunned, knocked back, slowed, held or blinded is the chance in percent that it does not land ("Resisted" floats over you), added to Graviton Armor's for stuns and knockbacks.
+  - **Crit Hit Chance** adds to every crit roll, weapon or ability. **Perceived Threat** lowers the hate your damage and healing make. **Armor Piercing** is the share of a weapon hit that goes past armor. **Movement Speed** and **experience from kills** are percentages.
+  - **Steal Health / Power / Adrenaline / Armor** (weapon): each hit of the weapon that does damage has a chance to take that much from the target and give it to you. Health is taken as damage - armor first - and heals you by what was lost; the others move from the target's bar to yours, as far as it has any and you have room. A creature has no power or adrenaline, so those two only take from another player.
+  - **Debuff ... Resist** (weapon): each hit has a chance to put "Debuff: Resist - Fire" on the target for 10 seconds, cutting its resistance to that kind of damage by 10 to 30 - for everyone who hits it. A resistance below zero is that many percent more damage.
+  - The two chances are 10% a hit and are settings: see [Item modules](setup.md#item-modules) in the setup guide. The debuff's seconds are `arg2` of the module's `module_effect` row, which the tooltip reads too.
+  - A change takes hold on the server's next tick: swap weapons and the attributes window follows a moment later. Set modules do nothing for their pieces.
 - A crafting station works on modules by the client's own rules, and everything has to be in your pack:
   - **Salvage** destroys an item for Mimeomech: 5, 10, 25 or 100 for an Uncommon, Rare, Epic or Legendary weapon, piece of armor or tool, plus what its modules are worth, times a fifth of its level. A stack of modules or of salvage is salvaged whole. A Normal item with no modules is worth nothing.
   - **Extraction** takes the module out of one slot for a Mimeomech fee and makes it an item again. A strength 5 module cannot be extracted.
@@ -190,7 +198,7 @@ Item modules:
   - **Upgrade** turns a module item of strength 1 to 4 into the next strength, for 1, 5, 20 or 100 Mimeomech.
   - Mimeomech and modules that are made wait under "Items Created" until taken. The item worked on stays in your pack.
 - To try it: `.giveitem 123339 500` is Mimeomech, and the module items are in [gm-items/crafting-materials.md](gm-items/crafting-materials.md), for example `.giveitem 122963` (Armor Module: Body Bonus [1]).
-- The modules are the world database's `module_class` (867 rows, from the client's own crafting data) and their effects `module_effect` (290 rows). The ones a crafting station would put in are 66 kinds at five strengths; 58 of the kinds have an effect row. The eight "Debuff ... Resist" weapon kinds, the sets and the rest have none, and show no bonus line.
+- The modules are the world database's `module_class` (867 rows, from the client's own crafting data) and their effects `module_effect` (330 rows). The ones a crafting station would put in are 66 kinds at five strengths, and each has an effect row. The sets and the rest have none: they show no bonus line and do nothing.
 - `.module` does not apply the crafting station's rules: it will put an armor module in a weapon, or two of a kind in one item.
 
 ## Missions
@@ -218,7 +226,7 @@ These are testing tools. Their changes are held in memory only.
 |---|---|---|
 | `.effect [list] [#entityId\|#target]` | GameMaster | The effects on you or on the actor named: id, type, level, buff or debuff, source, time left, paused. |
 | `.effect pause\|restart <effectId\|all> [#entityId\|#target]` | GameMaster | Stops or restarts an effect's clock; the client shows its "Paused" tooltip. |
-| `.vamp <health\|power\|armor\|adrenaline> <amount> [#entityId]` | GameMaster | Steals up to that amount from your target or the actor named, as the Vamp item modules will. |
+| `.vamp <health\|power\|armor\|adrenaline> <amount> [#entityId]` | GameMaster | Steals up to that amount from your target or the actor named, as a weapon's Steal module does on a hit. |
 | `.immune [all \| off \| <type> ... \| -<type> ...]` | GameMaster | Makes your target (or you, with no target) immune to all damage or to the damage types named. With no argument, shows the current immunities. |
 | `.falldamage <metres>` | GameMaster | Deals you the damage a fall of that height would, and says whether you are standing in water. |
 | `.blockaction [actionId [off]]` | GameMaster | With no argument, lists the actions blocked for you and why. With an id, blocks that action for you; `off` removes only the GM block. |

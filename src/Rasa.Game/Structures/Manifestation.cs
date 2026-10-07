@@ -282,6 +282,19 @@ namespace Rasa.Structures
         /// </summary>
         public int ArmorRegenRate { get; set; }
 
+        /// <summary>
+        /// What the player's client was last told its item modules give (ModuleTotals.Shown);
+        /// null before the first telling, which is nothing. See ItemModuleBonuses.Changed.
+        /// </summary>
+        public string ModulesShown { get; set; }
+
+        /// <summary>
+        /// Something the player wears or holds was put on, taken off, modified, broken or mended
+        /// since their modules were last looked at; ItemModuleBonuses.Worker sees to it on the
+        /// next tick, once for however many things changed.
+        /// </summary>
+        public bool ModulesChanged { get; set; }
+
         /// <summary>Seconds of regeneration ticked so far (ActorManager.Regenerate); the in-combat period is a multiple of them.</summary>
         public long RegenSeconds { get; set; }
 

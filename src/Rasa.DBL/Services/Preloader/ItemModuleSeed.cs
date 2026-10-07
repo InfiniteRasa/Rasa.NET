@@ -29,11 +29,11 @@ namespace Rasa.Services.Preloader
     /// that bonus ("Body: %(amount)s", "Resist: $damageType%(arg1)s %(amount)s", "Steal
     /// Health: %(amount)s"): read off the text, not stated by the data.
     ///
-    /// So 290 rows, one each for 58 of the 66 kinds. Left without a row:
-    ///  - the eight "Debuff ... Resist" weapon modules (40): their line is "Reduce Resist:
-    ///    Fire by %(amount)s for %(arg2)s sec", and nothing in the client says how long;
-    ///  - the 46 bonus modules that are no item, the sets and the rest: the client has their
-    ///    names and nothing of what they did.
+    /// So 290 rows, one each for 58 of the 66 kinds. The eight "Debuff ... Resist" weapon
+    /// modules (40) are DebuffEffects, a later migration's: their line is "Reduce Resist: Fire
+    /// by %(amount)s for %(arg2)s sec", nothing in the client says how long, and the seconds
+    /// are ours. Left without a row are the 46 bonus modules that are no item, the sets and the
+    /// rest: the client has their names and nothing of what they did.
     /// A module with no row is still a module: an item carries it, is named by it, and shows no
     /// line for it.
     /// </summary>
@@ -1237,6 +1237,74 @@ namespace Rasa.Services.Preloader
             E(290, 900512, 151, -50, 0, 0), // Tool Module: Threat Reduction [5]
         };
 
+        /// <summary>How long a resist debuff lasts, in seconds: the row's arg2, which the tooltip prints and the server goes by.</summary>
+        public const int DebuffSeconds = 10;
+
+        private static ModuleEffectEntry D(uint id, uint moduleId, uint effectId, double flat, int damageType) => new()
+        {
+            Id = id,
+            ModuleId = moduleId,
+            EffectId = effectId,
+            FlatValue = flat,
+            Arg1 = damageType,
+            Arg2 = DebuffSeconds
+        };
+
+        /// <summary>
+        /// The rows of Add_resist_debuff_module_effects: the eight "Debuff ... Resist" weapon
+        /// modules at their five strengths, which Effects left out for want of a duration.
+        /// (id, module, effect, amount, damage type); each lasts DebuffSeconds.
+        ///
+        /// The effect is the client's DEBUFF_*_RESIST_PROC for the kind of damage, whose tooltip
+        /// is the module's line: "Reduce Resist: Fire by %(amount)s for %(arg2)s sec". The amount
+        /// is the module item's own "Base Bonus: -10", and stays the negative number the item
+        /// states. arg2 is the seconds, which the client has no number for: ours. arg1 is the
+        /// kind of damage, as on the Resist modules' rows; the tooltip does not read it.
+        /// </summary>
+        public static readonly IReadOnlyList<ModuleEffectEntry> DebuffEffects = new[]
+        {
+            D(291, 900220, 9, -10, 1), // Weapon Module: Debuff Physical Resist [1]
+            D(292, 900221, 9, -15, 1), // Weapon Module: Debuff Physical Resist [2]
+            D(293, 900222, 9, -20, 1), // Weapon Module: Debuff Physical Resist [3]
+            D(294, 900223, 9, -25, 1), // Weapon Module: Debuff Physical Resist [4]
+            D(295, 900224, 9, -30, 1), // Weapon Module: Debuff Physical Resist [5]
+            D(296, 900225, 172, -10, 7), // Weapon Module: Debuff Sonic Resist [1]
+            D(297, 900226, 172, -15, 7), // Weapon Module: Debuff Sonic Resist [2]
+            D(298, 900227, 172, -20, 7), // Weapon Module: Debuff Sonic Resist [3]
+            D(299, 900228, 172, -25, 7), // Weapon Module: Debuff Sonic Resist [4]
+            D(300, 900229, 172, -30, 7), // Weapon Module: Debuff Sonic Resist [5]
+            D(301, 900230, 173, -10, 13), // Weapon Module: Debuff Electric Resist [1]
+            D(302, 900231, 173, -15, 13), // Weapon Module: Debuff Electric Resist [2]
+            D(303, 900232, 173, -20, 13), // Weapon Module: Debuff Electric Resist [3]
+            D(304, 900233, 173, -25, 13), // Weapon Module: Debuff Electric Resist [4]
+            D(305, 900234, 173, -30, 13), // Weapon Module: Debuff Electric Resist [5]
+            D(306, 900235, 171, -10, 6), // Weapon Module: Debuff Photonic Resist [1]
+            D(307, 900236, 171, -15, 6), // Weapon Module: Debuff Photonic Resist [2]
+            D(308, 900237, 171, -20, 6), // Weapon Module: Debuff Photonic Resist [3]
+            D(309, 900238, 171, -25, 6), // Weapon Module: Debuff Photonic Resist [4]
+            D(310, 900239, 171, -30, 6), // Weapon Module: Debuff Photonic Resist [5]
+            D(311, 900240, 112, -10, 2), // Weapon Module: Debuff Fire Resist [1]
+            D(312, 900241, 112, -15, 2), // Weapon Module: Debuff Fire Resist [2]
+            D(313, 900242, 112, -20, 2), // Weapon Module: Debuff Fire Resist [3]
+            D(314, 900243, 112, -25, 2), // Weapon Module: Debuff Fire Resist [4]
+            D(315, 900244, 112, -30, 2), // Weapon Module: Debuff Fire Resist [5]
+            D(316, 900245, 113, -10, 3), // Weapon Module: Debuff Ice Resist [1]
+            D(317, 900246, 113, -15, 3), // Weapon Module: Debuff Ice Resist [2]
+            D(318, 900247, 113, -20, 3), // Weapon Module: Debuff Ice Resist [3]
+            D(319, 900248, 113, -25, 3), // Weapon Module: Debuff Ice Resist [4]
+            D(320, 900249, 113, -30, 3), // Weapon Module: Debuff Ice Resist [5]
+            D(321, 900250, 114, -10, 4), // Weapon Module: Debuff Virulent Resist [1]
+            D(322, 900251, 114, -15, 4), // Weapon Module: Debuff Virulent Resist [2]
+            D(323, 900252, 114, -20, 4), // Weapon Module: Debuff Virulent Resist [3]
+            D(324, 900253, 114, -25, 4), // Weapon Module: Debuff Virulent Resist [4]
+            D(325, 900254, 114, -30, 4), // Weapon Module: Debuff Virulent Resist [5]
+            D(326, 900255, 115, -10, 5), // Weapon Module: Debuff EMP Resist [1]
+            D(327, 900256, 115, -15, 5), // Weapon Module: Debuff EMP Resist [2]
+            D(328, 900257, 115, -20, 5), // Weapon Module: Debuff EMP Resist [3]
+            D(329, 900258, 115, -25, 5), // Weapon Module: Debuff EMP Resist [4]
+            D(330, 900259, 115, -30, 5), // Weapon Module: Debuff EMP Resist [5]
+        };
+
         private static string Text(string value) => "'" + value.Replace("'", "''") + "'";
 
         private static string Number(double value) => value.ToString("R", CultureInfo.InvariantCulture);
@@ -1247,8 +1315,17 @@ namespace Rasa.Services.Preloader
             Classes.Select(row =>
                     $"insert into {ModuleClassEntry.TableName} (id, variant_id, level, class_set_id, item_template_id, item_class_id, extract_cost, integrate_cost, salvage_gain, upgrade_cost, upgrade_module_id, comment) " +
                     $"values ({row.Id}, {row.VariantId}, {row.Level}, {row.ClassSetId}, {row.ItemTemplateId}, {row.ItemClassId}, {row.ExtractCost}, {row.IntegrateCost}, {row.SalvageGain}, {row.UpgradeCost}, {row.UpgradeModuleId}, {Text(row.Comment)});")
-                .Concat(Effects.Select(row =>
-                    $"insert into {ModuleEffectEntry.TableName} (id, module_id, effect_id, set_level, flat_value, linear_value, exp_value, arg1, arg2, arg3, arg4) " +
-                    $"values ({row.Id}, {row.ModuleId}, {row.EffectId}, {row.SetLevel}, {Number(row.FlatValue)}, {Number(row.LinearValue)}, {Number(row.ExpValue)}, {Number(row.Arg1)}, {Number(row.Arg2)}, {Number(row.Arg3)}, {Number(row.Arg4)});"));
+                .Concat(Effects.Select(InsertEffect));
+
+        private static string InsertEffect(ModuleEffectEntry row) =>
+            $"insert into {ModuleEffectEntry.TableName} (id, module_id, effect_id, set_level, flat_value, linear_value, exp_value, arg1, arg2, arg3, arg4) " +
+            $"values ({row.Id}, {row.ModuleId}, {row.EffectId}, {row.SetLevel}, {Number(row.FlatValue)}, {Number(row.LinearValue)}, {Number(row.ExpValue)}, {Number(row.Arg1)}, {Number(row.Arg2)}, {Number(row.Arg3)}, {Number(row.Arg4)});";
+
+        /// <summary>Add_resist_debuff_module_effects, up.</summary>
+        public static IEnumerable<string> DebuffInsertStatements => DebuffEffects.Select(InsertEffect);
+
+        /// <summary>Add_resist_debuff_module_effects, down.</summary>
+        public static string DebuffDeleteStatement =>
+            $"delete from {ModuleEffectEntry.TableName} where id between {DebuffEffects[0].Id} and {DebuffEffects[DebuffEffects.Count - 1].Id};";
     }
 }

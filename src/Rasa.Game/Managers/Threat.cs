@@ -47,13 +47,17 @@ namespace Rasa.Managers
         /// <summary>How much more a rival has to be hated to take the creature off its current target.</summary>
         public const int TakeoverPercent = 110;
 
-        /// <summary>The attacker's perceived threat, in percent: 100 plus the THREAT_MODIFIER_PERCENT on the effects on them.</summary>
+        /// <summary>
+        /// The attacker's perceived threat, in percent: 100 plus the THREAT_MODIFIER_PERCENT on
+        /// the effects on them, and plus their item modules' "Perceived Threat: -10%"
+        /// (ItemModuleBonuses).
+        /// </summary>
         public static int ThreatModifierOf(Actor actor)
         {
             if (actor == null)
                 return 100;
 
-            var percent = 100;
+            var percent = 100 + ItemModuleBonuses.Of(actor).ThreatPercent;
 
             foreach (var effect in actor.ActiveEffects.Values)
                 percent += effect.ThreatModifierPercent;

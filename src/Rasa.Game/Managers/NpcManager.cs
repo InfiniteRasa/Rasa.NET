@@ -971,6 +971,9 @@ namespace Rasa.Managers
             using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
             unitOfWork.Items.UpdateCurrentHitPoints(item);
 
+            // Mended, a broken item's modules count again (ItemModuleBonuses).
+            client.Player.ModulesChanged = true;
+
             // Worn armour that is being worn gave less to the armour bar than it will now.
             if (client.Player.Inventory.EquippedInventory.Contains(itemEntityId)
                 && EntityClassManager.Instance.GetClassInfo(item.ItemTemplate.Class)?.ArmorClassInfo != null)

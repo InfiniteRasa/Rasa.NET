@@ -216,6 +216,10 @@ namespace Rasa.Managers
 
                 WeaponBonus(mapChannel, creature, missile);
 
+                // The weapon's modules: a steal, a resist debuff, each on its own roll.
+                if (missile.WeaponProcs != null && missile.DamageA > 0)
+                    ItemModuleBonuses.OnWeaponHit(mapChannel, missile.Source, creature, missile.WeaponProcs);
+
                 // Explosive Nanites go off on damage taken.
                 if (missile.DamageA > 0)
                     AbilityManager.OnCreatureDamaged(mapChannel, creature);
@@ -512,6 +516,10 @@ namespace Rasa.Managers
 
                 WeaponBonus(mapChannel, enemy, missile);
 
+                // The weapon's modules: a steal, a resist debuff, each on its own roll.
+                if (missile.WeaponProcs != null)
+                    ItemModuleBonuses.OnWeaponHit(mapChannel, missile.Source, enemy, missile.WeaponProcs);
+
                 if (missile.StunMs > 0 && Stuns.Roll(missile.StunChance))
                     PlayerCrowdControl.Stun(mapChannel, enemy, missile.Source, Pvp.ScaleDuration(missile.Source, enemy, missile.StunMs));
 
@@ -642,7 +650,7 @@ namespace Rasa.Managers
             }
         }
 
-        /// <param name="armorBypassPercent">Percent of the damage that skips armour: the Torqueshell and Injection Gun skills.</param>
+        /// <param name="armorBypassPercent">Percent of the damage that skips armour: the Torqueshell and Injection Gun skills. A player's item modules add their "Armor Piercing" to it here.</param>
         /// <param name="critBonus">Crit chance in percent the attack adds to the shooter's own (Firearms on a rifle).</param>
         /// <param name="melee">A melee swing, for the crouching crit modifiers.</param>
         /// <param name="stunChance">Chance in percent the hit stuns a creature for stunMs (Hand to Hand, grenades).</param>
@@ -668,11 +676,19 @@ namespace Rasa.Managers
             if (!melee && action.Actor is Manifestation rangedShooter)
                 damage = GameEffectManager.ApplyRangedDamage(rangedShooter, damage);
 
+            // A player's weapon attack, shot or swing: the modules in what they wear and hold
+            // pierce armor too, and the weapon's may steal or debuff where it lands
+            // (ItemModuleBonuses).
+            var modules = ItemModuleBonuses.Of(action.Actor);
+
+            armorBypassPercent += modules.ArmorPierce;
+
             var missile = new Missile
             {
                 CreatureAction = creatureAction,
                 DamageA = damage,
                 DamageType = damageType,
+                WeaponProcs = modules.Procs.Count > 0 ? modules.Procs : null,
                 ArmorBypassPercent = Math.Max(0, Math.Min(100, armorBypassPercent)),
                 Source = action.Actor,
                 SourceCombatAuthorization = sourceCombatAuthorization,
@@ -961,6 +977,7 @@ namespace Rasa.Managers
             {
                 DamageA = damage,
                 DamageType = missile.DamageType,
+                WeaponProcs = missile.WeaponProcs,
                 ArmorBypassPercent = missile.ArmorBypassPercent,
                 Source = shooter,
                 TargetActor = creature,

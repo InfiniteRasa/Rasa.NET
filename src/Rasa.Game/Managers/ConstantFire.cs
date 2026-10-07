@@ -246,6 +246,10 @@ namespace Rasa.Managers
                 pulse.Add(new TickEntry { EntityId = player.Target, Amount = taken, DamageType = damageType });
             }
 
+            // The modules in what the shooter wears and holds: their armor piercing, and what the
+            // weapon's do on a hit (ItemModuleBonuses).
+            var modules = ItemModuleBonuses.Of(player);
+
             foreach (var target in targets)
             {
                 if (target.State == CharacterState.Dead || target.State == CharacterState.Dying)
@@ -255,7 +259,7 @@ namespace Rasa.Managers
                 var rolled = RangeFalloff.Scale(damage, weapon.ItemTemplate.WeaponInfo.Range, player.Position, target.Position);
                 var crit = CriticalHits.Resolve(player, target, false, CriticalHits.AttackerChance(player, false, critBonus), ref rolled);
                 var amount = GameEffectManager.ApplyResist(target, rolled, out var resisted, damageType);
-                var landed = ActorManager.Instance.Damage(mapChannel, target, amount, player, out var outcome, damageType);
+                var landed = ActorManager.Instance.Damage(mapChannel, target, amount, player, out var outcome, damageType, armorBypassPercent: modules.ArmorPierce);
 
                 var shot = new TickEntry
                 {
@@ -275,6 +279,10 @@ namespace Rasa.Managers
                 if (crit && !outcome.Immune && target.State != CharacterState.Dead && target.State != CharacterState.Dying && target.Attributes[Attributes.Health].Current > 0)
                     using (HitEffects.On(target, player, shot.TargetEffectIds))
                         CritEffects.OnCritical(mapChannel, target, player, damageType, amount);
+
+                // The weapon's modules: a steal, a resist debuff, each on its own roll (ItemModuleBonuses).
+                if (landed > 0 && modules.Procs.Count > 0)
+                    ItemModuleBonuses.OnWeaponHit(mapChannel, player, target, modules.Procs);
 
                 if (leech)
                     Leech(mapChannel, player, landed, tick);
@@ -373,8 +381,9 @@ namespace Rasa.Managers
                 return;
 
             var crit = CriticalHits.Resolve(player, target, false, CriticalHits.AttackerChance(player, false, session.CritBonus), ref amount);
+            var modules = ItemModuleBonuses.Of(player);
             var dealt = GameEffectManager.ApplyResist(target, amount, out var resisted, session.DamageType);
-            var landed = ActorManager.Instance.Damage(mapChannel, target, dealt, player, out var outcome, session.DamageType);
+            var landed = ActorManager.Instance.Damage(mapChannel, target, dealt, player, out var outcome, session.DamageType, armorBypassPercent: modules.ArmorPierce);
 
             var hit = new HitData
             {
@@ -395,6 +404,10 @@ namespace Rasa.Managers
             if (crit && !outcome.Immune && target.State != CharacterState.Dead && target.State != CharacterState.Dying && target.Attributes[Attributes.Health].Current > 0)
                 using (HitEffects.On(target, player, hit.TargetEffectIds))
                     CritEffects.OnCritical(mapChannel, target, player, session.DamageType, dealt);
+
+            // The weapon's modules, as on any hit of it.
+            if (landed > 0 && modules.Procs.Count > 0)
+                ItemModuleBonuses.OnWeaponHit(mapChannel, player, target, modules.Procs);
         }
 
         private static Session Begin(MapChannel mapChannel, Client client, Item weapon, ActionData action, DamageType damageType)

@@ -16,6 +16,11 @@
         internal Game.Missions.World.ScriptedCombatAuthorization SourceCombatAuthorization { get; set; }
         /// <summary>Percent of DamageA that skips armour and comes straight off health (Torqueshell and Injection Guns skills).</summary>
         public int ArmorBypassPercent { get; set; }
+        /// <summary>
+        /// A player's weapon attack: what the modules in the weapon do on a hit - a steal, a
+        /// resist debuff - as the weapon had them when it was fired (ItemModuleBonuses.OnWeaponHit).
+        /// </summary>
+        public System.Collections.Generic.IReadOnlyList<Managers.ModuleProc> WeaponProcs { get; set; }
         /// <summary>The attack's damage type, as reported to the clients; 0 is treated as physical.</summary>
         public DamageType DamageType { get; set; }
         /// <summary>A melee swing rather than a shot: crouching helps a shot crit and helps a swing crit the one crouching.</summary>

@@ -165,6 +165,25 @@ The language ids are `2` Korean, `3` Japanese, `4` Chinese, `5` French, `6` Germ
 
 The message is sent once per connection, when the player first enters the world. A change to the file applies at once, without a restart, and goes to everyone already in the world. A missing section uses the default text. Type `motd` on the game server console to see the message in force; the GM command `.motd` shows it to you as players get it (see the [GM command reference](gm-commands.md)).
 
+### Item modules
+A weapon's Steal and Debuff Resist modules fire on a hit by chance, and the client has no number for the chance. It is set in the `ItemModules` section of `Rasa.Game`'s appsettings.json:
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `StealChancePercent` | `10` | Chance in percent, on each hit of the weapon that does damage, that each Steal Health, Power, Adrenaline or Armor module in it takes its amount. `0` or less: never. `100`: every hit. |
+| `ResistDebuffChancePercent` | `10` | The same for each Debuff Resist module putting its debuff on the target. |
+
+```json
+{
+  "ItemModules": {
+    "StealChancePercent": 10,
+    "ResistDebuffChancePercent": 10
+  }
+}
+```
+
+The chance is per hit, so a weapon that hits more often fires them more often. A change to the file applies at once, without a restart; a missing section uses the defaults. How long a resist debuff lasts is not a setting: it is `arg2`, in seconds, of the module's row in the world database's `module_effect` table (10 as migrated), and is read at startup. What each module does is in the [GM command reference](gm-commands.md).
+
 ### REST API
 `Rasa.Game` can report its status, and create accounts, over HTTP on a port of its own. It is configured in the `ApiConfig.Rest` section of its appsettings.json:
 

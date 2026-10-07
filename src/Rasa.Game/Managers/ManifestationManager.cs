@@ -653,6 +653,49 @@ namespace Rasa.Managers
                     haste, new List<int> { skillId }, toolType.HasValue ? new List<int> { (int)toolType.Value } : null);
 
             SyncArmorSkills(client, mapChannel, player);
+
+            // The run speed modules in what they wear, as a standing effect of the server's own
+            // (ItemModuleBonuses.MovementPassive) - put on here because this is run on every map
+            // arrival and every change of armor, and the effect ends with the map.
+            SyncModuleSpeed(mapChannel, player);
+        }
+
+        /// <summary>
+        /// What a change in the player's item modules has to tell their client besides the
+        /// attributes (ItemModuleBonuses.Changed): the resistance list, and the run speed. The
+        /// skills' own standing effects are left as they are - a weapon swapped in a fight
+        /// should not take every one of them off and put it on again.
+        /// </summary>
+        public void SyncModulePassives(Client client)
+        {
+            var player = client?.Player;
+            var mapChannel = player?.MapChannel;
+
+            if (mapChannel == null)
+                return;
+
+            var (pump, pieces) = ArmorOf(player, ArmorSkills.Hazmat);
+
+            RebuildResistances(client, player, ArmorSkills.HazmatResist(pump, pieces));
+            SyncModuleSpeed(mapChannel, player);
+        }
+
+        /// <summary>The run speed modules' standing effect, as the modules now make it: left alone when it is already that, taken off with none.</summary>
+        private static void SyncModuleSpeed(MapChannel mapChannel, Manifestation player)
+        {
+            var wanted = 100 + ItemModuleBonuses.Of(player).MovementPercent;
+            var present = player.ActiveEffects.Values.Where(e => e.IsSkillPassive && e.TypeId == ItemModuleBonuses.MovementTypeId).ToList();
+
+            if (present.Count == 1 && present[0].MovementModifierPercent == wanted)
+                return;
+
+            foreach (var old in present)
+                GameEffectManager.Instance.DettachEffect(mapChannel, player, old);
+
+            var effect = ItemModuleBonuses.MovementPassive(mapChannel, player);
+
+            if (effect != null)
+                GameEffectManager.Instance.Attach(mapChannel, player, effect);
         }
 
         /// <summary>
@@ -824,7 +867,8 @@ namespace Rasa.Managers
 
         /// <summary>
         /// The player's resistance to each damage type: what their armour pieces carry
-        /// (itemtemplate_resistance) plus Hazmat Armor's bonus to its four types. Nothing built
+        /// (itemtemplate_resistance) plus Hazmat Armor's bonus to its four types and what their
+        /// item modules resist. Nothing built
         /// this list before, so the character window read zero for every resistance whatever was
         /// worn. Sent to the player's own client, which is who reads it; others get it in the
         /// player's entity data when they meet them.
@@ -847,6 +891,10 @@ namespace Rasa.Managers
             if (hazmat > 0)
                 foreach (var type in ArmorSkills.HazmatTypes)
                     totals[type] = totals.GetValueOrDefault(type) + hazmat;
+
+            // And what the modules in their armor and the weapon in hand resist (ItemModuleBonuses).
+            foreach (var resist in ItemModuleBonuses.DamageResistsOf(player))
+                totals[resist.Key] = totals.GetValueOrDefault(resist.Key) + resist.Value;
 
             player.ResistanceData = totals.Where(t => t.Value != 0).Select(t => new ResistanceData(t.Key, t.Value)).ToList();
 
@@ -1671,6 +1719,7 @@ namespace Rasa.Managers
             // used to leave the previous weapon in EquippedInventory[13], so the player kept
             // firing a weapon they had put away.
             client.Player.Inventory.EquippedInventory[13] = weapon?.EntityId ?? 0;
+            client.Player.ModulesChanged = true;    // another weapon's modules (ItemModuleBonuses)
 
             if (weapon == null)
             {
@@ -4219,6 +4268,17 @@ namespace Rasa.Managers
             if (client == null)
                 return;
 
+            RefreshStats(client);
+        }
+
+        /// <summary>The same, for a caller that has the player's client in hand.</summary>
+        public void RefreshStats(Client client)
+        {
+            var player = client?.Player;
+
+            if (player?.MapChannel == null)
+                return;
+
             UpdateStatsValues(client, false);
 
             client.CallMethod(player.EntityId, new AttributeInfoPacket(player.Attributes));
@@ -4278,6 +4338,19 @@ namespace Rasa.Managers
             totalMind   = WithPercent(totalMind,   GameEffectManager.AttributePercentOf(player, Attributes.Mind));
             totalSpirit = WithPercent(totalSpirit, GameEffectManager.AttributePercentOf(player, Attributes.Spirit));
 
+            // What the modules in the armor worn and the weapon in hand add (ItemModuleBonuses).
+            // Body, Mind and Spirit first: a module's point of Body is a point of Body, with the
+            // health and armor that brings. The attribute keeps the two apart - the base, and
+            // the base with the modules, which the attributes window shows beside it in green.
+            var modules = ItemModuleBonuses.Of(player);
+            var baseBody = totalBody;
+            var baseMind = totalMind;
+            var baseSpirit = totalSpirit;
+
+            totalBody += modules.Body;
+            totalMind += modules.Mind;
+            totalSpirit += modules.Spirit;
+
             // Health
             float levelBasedHealth = HealthBaselinePerLevel[level - 1];
             levelBasedHealth = levelBasedHealth / (2 * (level - 1) + 2 * (2 * (level - 1) + 10) + 10);
@@ -4301,14 +4374,9 @@ namespace Rasa.Managers
             float baseRegen = (2 * level + 100) / attributeDivisor;
             int totalRegen = (int)(baseRegen * (totalMind + 2 * totalSpirit));
           
-            // Bonuses
-            var bodyBonus = 0;
-            var mindBonus = 0;
-            var spiritBonus = 0;
-
-            var healthBonus = 0;
-            var chiBonus    = 0;
-            var regenBonus  = 0;
+            // Bonuses: the modules'.
+            var healthBonus = modules.Health;
+            var regenBonus  = modules.Regen;
 
             float armorBonusPercent = (float)Math.Max(0.0, (totalBody - (2 * (level - 1) + 10)) * 0.667);   // every body attribute over the default base attribute gives 0.667% bonus armo;
             float logosBonusPercent = (float)Math.Max(0.0, (totalMind - (2 * (level - 1) + 10)) * 0.375);   // every mind attribute over the default base attribute gives 0.375% bonus logos damage
@@ -4316,28 +4384,28 @@ namespace Rasa.Managers
 
 
             // body
-            attribute[Attributes.Body].NormalMax    = totalBody;
-            attribute[Attributes.Body].CurrentMax   = attribute[Attributes.Body].NormalMax + bodyBonus;
+            attribute[Attributes.Body].NormalMax    = baseBody;
+            attribute[Attributes.Body].CurrentMax   = totalBody;
             attribute[Attributes.Body].Current      = attribute[Attributes.Body].CurrentMax;
 
-            attribute[Attributes.Mind].NormalMax    = totalMind;
-            attribute[Attributes.Mind].CurrentMax   = attribute[Attributes.Mind].NormalMax + mindBonus;
+            attribute[Attributes.Mind].NormalMax    = baseMind;
+            attribute[Attributes.Mind].CurrentMax   = totalMind;
             attribute[Attributes.Mind].Current      = attribute[Attributes.Mind].CurrentMax;
 
-            attribute[Attributes.Spirit].NormalMax  = totalSpirit;
-            attribute[Attributes.Spirit].CurrentMax = attribute[Attributes.Spirit].NormalMax + spiritBonus;
+            attribute[Attributes.Spirit].NormalMax  = baseSpirit;
+            attribute[Attributes.Spirit].CurrentMax = totalSpirit;
             attribute[Attributes.Spirit].Current    = attribute[Attributes.Spirit].CurrentMax;
 
             // health
             attribute[Attributes.Health].NormalMax  = totalHealth;
-            attribute[Attributes.Health].CurrentMax = totalHealth;
+            attribute[Attributes.Health].CurrentMax = Math.Max(1, totalHealth + healthBonus);
 
             // chi/adrenaline
             attribute[Attributes.Chi].NormalMax     = totalPower;
             attribute[Attributes.Chi].CurrentMax    = totalPower;
 
             attribute[Attributes.Regen].NormalMax   = totalRegen; // regenRate in percent
-            attribute[Attributes.Regen].CurrentMax  = totalRegen;
+            attribute[Attributes.Regen].CurrentMax  = Math.Max(0, totalRegen + regenBonus);
 
             if (fullreset)
             {
@@ -4361,7 +4429,10 @@ namespace Rasa.Managers
             // computing the rate and storing it on the wrong attribute meant no player has ever
             // regenerated health at all. The period has to be non-zero as well:
             // _EvaluatePredictedRefresh returns early on a period of 0.
-            attribute[Attributes.Health].RefreshAmount = (int)Math.Round(2D * attribute[Attributes.Regen].CurrentMax / 100, 0);
+            var regenRate = (int)Math.Round(2D * attribute[Attributes.Regen].CurrentMax / 100, 0);
+
+            // And what a module regenerates by itself, a second: "Regen Health: 3 HP/sec".
+            attribute[Attributes.Health].RefreshAmount = Math.Max(0, regenRate + modules.HealthRegen);
 
             // Power regenerates at the health rate for now. The live game regenerated power by a
             // formula of its own that is not known; without any regeneration an ability could be
@@ -4376,12 +4447,11 @@ namespace Rasa.Managers
             // sprint's 1.5% a second drain and make it free. Kills grant it in
             // CreatureManager.HandleCreatureKill; its RefreshAmount stays 0 so the client
             // predicts nothing.
-            attribute[Attributes.Power].RefreshAmount = attribute[Attributes.Health].RefreshAmount;
+            attribute[Attributes.Power].RefreshAmount = Math.Max(0, regenRate + modules.PowerRegen);
             attribute[Attributes.Chi].RefreshAmount = 0;
             // 2.0 per second is the base regeneration for health
             // calculate armor max
             var armorMax = 0.0d;
-            //float armorBonus = 0; // todo! (From item modules)
             var armorBonusPct = player.Attributes[Attributes.Body].CurrentMax * 0.0066666d;
             var armorRegenRate = 0;
 
@@ -4423,7 +4493,9 @@ namespace Rasa.Managers
                 // gives no regeneration either: "no longer gain any benefit".
                 var effectiveness = Durability.EffectivenessOf(equipmentItem);
 
-                armorMax += equipmentItem.ItemTemplate.ArmorValue * effectiveness;      // the class's max_hp (itemtemplate_armor, Add_armor_values)
+                // A module's "Total Armor" is the piece's own: "a bonus to the item's total damage
+                // absorption capacity" (ItemModuleBonuses).
+                armorMax += (equipmentItem.ItemTemplate.ArmorValue + modules.ArmorOf.GetValueOrDefault(equipmentItem.EntityId)) * effectiveness;      // the class's max_hp (itemtemplate_armor, Add_armor_values)
 
                 if (effectiveness > 0)
                     armorRegenRate += classInfo.ArmorClassInfo.RegenRate;
@@ -4436,7 +4508,8 @@ namespace Rasa.Managers
             // RefreshAmount out of combat. It used to be assigned to Current, which the fullreset
             // branch a few lines below overwrites unconditionally - so it was computed,
             // discarded, and armour never regenerated either.
-            player.ArmorRegenRate = armorRegenRate;
+            // With what a module recharges by itself: "Regen Armor: 3 HP/sec".
+            player.ArmorRegenRate = Math.Max(0, armorRegenRate + modules.ArmorRegen);
             attribute[Attributes.Armor].NormalMax = (int)Math.Round(armorMax, 0);
             attribute[Attributes.Armor].CurrentMax = attribute[Attributes.Armor].NormalMax;
             if (fullreset)
@@ -4448,7 +4521,7 @@ namespace Rasa.Managers
             attribute[Attributes.Power].NormalMax = 100 + (player.Level - 1) * 2 * 4 + player.SpentMind * 3;
             // Bio Augmentation's +Power.
             var powerBonus = WithPercent(attribute[Attributes.Power].NormalMax, GameEffectManager.AttributePercentOf(player, Attributes.Power)) - attribute[Attributes.Power].NormalMax;
-            attribute[Attributes.Power].CurrentMax = attribute[Attributes.Power].NormalMax + powerBonus;
+            attribute[Attributes.Power].CurrentMax = Math.Max(1, attribute[Attributes.Power].NormalMax + powerBonus + modules.Power);
             if (fullreset)
                 attribute[Attributes.Power].Current = attribute[Attributes.Power].CurrentMax;
             else

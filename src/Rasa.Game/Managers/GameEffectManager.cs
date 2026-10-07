@@ -143,6 +143,16 @@ namespace Rasa.Managers
                 return;
             }
 
+            // A player's armor modules may turn away what would hold them where they stand, slow
+            // them or blind them - "Resist: Root 9" is nine chances in a hundred - and "Resisted"
+            // floats over them, as for a stun their Graviton Armor shrugs off (ItemModuleBonuses).
+            if (ItemModuleBonuses.ResistsControl(actor, effect))
+            {
+                CellManager.Instance.CellCallMethod(mapChannel, actor,
+                    new GameEffectAttachFailedPacket(effect.TypeId, GameEffectAttachFailedPacket.FailReason.Resist, effect.SourceId));
+                return;
+            }
+
             // A debuff from an enemy player (or their creature) lasts PVP_EFFECT_DURATION_MODIFIER
             // less (Pvp). Stuns and knockbacks are scaled where they are made, their flight and
             // getup being worked out from the time; a bomb's clock is its fuse, not a duration.

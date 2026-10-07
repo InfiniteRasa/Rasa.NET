@@ -45,6 +45,7 @@ namespace Rasa.Test.Gameplay
         private const uint StealArmor1 = 900260;    // Weapon Module: Steal Armor [1]
         private const uint FireDebuff1 = 900240;    // Weapon Module: Debuff Fire Resist [1]
         private const uint ScoutSuit = 900348;      // Set: Scout Suit Mk I
+        private const uint Salvage = 900776;        // a piece of salvage: a strength, and no effect
 
         [ClassInitialize]
         public static void Initialize(TestContext context)
@@ -54,7 +55,7 @@ namespace Rasa.Test.Gameplay
         }
 
         [TestInitialize]
-        public void LoadTheSeed() => ItemModules.Load(ItemModuleSeed.Classes, ItemModuleSeed.Effects);
+        public void LoadTheSeed() => ItemModules.Load(ItemModuleSeed.Classes, ItemModuleSeed.Effects.Concat(ItemModuleSeed.DebuffEffects));
 
         private static List<string> Rows(RasaDbContextBase context, string sql)
         {
@@ -137,8 +138,9 @@ namespace Rasa.Test.Gameplay
             Assert.IsTrue(effects.All(row => byId[row.ModuleId].ItemTemplateId != 0 && row.SetLevel == 0 && row.Arg2 == null && row.Arg3 == null && row.Arg4 == null));
             Assert.AreEqual(58, effects.Select(row => (byId[row.ModuleId].VariantId, byId[row.ModuleId].ClassSetId)).Distinct().Count());
 
-            // The eight "Debuff ... Resist" kinds are the ones left out: their line needs a
-            // length of time the client does not have.
+            // The eight "Debuff ... Resist" kinds are the ones left out here: their line needs a
+            // length of time the client does not have, and their rows are a later migration's
+            // (ItemModuleSeed.DebuffEffects, ItemModuleBonusTests).
             var without = held.Where(row => effects.All(effect => effect.ModuleId != row.Id)).ToList();
 
             Assert.AreEqual(40, without.Count);
@@ -287,7 +289,7 @@ namespace Rasa.Test.Gameplay
 
             // A module with no effect known, a set, and an id that is no module at all: answered,
             // so the client stops asking, with nothing to draw.
-            foreach (var (moduleId, level) in new[] { (FireDebuff1, 1u), (ScoutSuit, 0u), (5u, 0u) })
+            foreach (var (moduleId, level) in new[] { (Salvage, 1u), (ScoutSuit, 0u), (5u, 0u) })
             {
                 using var reader = Answer(moduleId, out var stream);
 
@@ -645,6 +647,9 @@ namespace Rasa.Test.Gameplay
                 Assert.AreEqual($"{slot}: item template {rifle}, item level 20", shown[0]);
                 Assert.AreEqual($"  slot 1: {Body1} Armor Module: Body Bonus [1] - effect 330: +3 at item level 20", shown[1]);
 
+                // And its owner is marked, for what it gives them to be looked at on the next tick (ItemModuleBonuses).
+                Assert.IsTrue(harness.Client.Player.ModulesChanged);
+
                 // Into a slot named; not into a full one; not a module there is not.
                 Say($".module {slot} add {FireDebuff1} 3");
                 CollectionAssert.AreEqual(new uint[] { Body1, 0, FireDebuff1, 0 }, Saved(weapon), "a slot named");
@@ -654,7 +659,7 @@ namespace Rasa.Test.Gameplay
                 Assert.IsTrue(Say($".module {slot} add {Health1} 5").Single().StartsWith("usage:"));
                 CollectionAssert.AreEqual(new uint[] { Body1, 0, FireDebuff1, 0 }, Saved(weapon), "refusals change nothing");
 
-                Assert.IsTrue(Say($".module {slot}").Last().EndsWith("Debuff Fire Resist [1] - no effect known"));
+                Assert.IsTrue(Say($".module {slot}").Last().EndsWith("Debuff Fire Resist [1] - effect 112: -10 at item level 20"));
 
                 // Taken out of a slot.
                 Assert.IsTrue(Say($".module {slot} remove 2").Single().Contains("Slot 2 is empty"));
@@ -675,7 +680,8 @@ namespace Rasa.Test.Gameplay
                 Assert.AreEqual(6, found.Count);
                 Assert.AreEqual($"{Body1} Armor Module: Body Bonus [1]", found[0]);
                 Assert.AreEqual("5 modules match.", found[5]);
-                Assert.IsTrue(Say(".module find debuff fire [1]").First().EndsWith("no effect known"));
+                Assert.AreEqual($"{FireDebuff1} Weapon Module: Debuff Fire Resist [1]", Say(".module find debuff fire [1]").First());
+                Assert.IsTrue(Say(".module find scout suit mk").First().EndsWith("no effect known"), "a set");
 
                 // The item's row is the item: a new login reads the slots back.
                 harness.ReconnectFromSelection();

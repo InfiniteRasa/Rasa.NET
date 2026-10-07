@@ -316,7 +316,8 @@ namespace Rasa.Managers
         /// beside it. Falling is not combat damage and does not come through here
         /// (FallDamage.Apply): a shield does not soften a fall, nor does an immunity stop one.
         /// </summary>
-        public int Damage(MapChannel mapChannel, Actor target, int amount, Actor source, out DamageOutcome outcome, DamageType damageType = DamageType.Physical, bool isPeriodic = false)
+        /// <param name="armorBypassPercent">Percent of the hit that goes past the armour for the attacker's own part - a constant-fire weapon's "Armor Piercing" modules (ItemModuleBonuses) - on top of the target's Target Painting.</param>
+        public int Damage(MapChannel mapChannel, Actor target, int amount, Actor source, out DamageOutcome outcome, DamageType damageType = DamageType.Physical, bool isPeriodic = false, int armorBypassPercent = 0)
         {
             outcome = new DamageOutcome { Delivered = amount };
 
@@ -368,7 +369,10 @@ namespace Rasa.Managers
             if (target.Attributes.TryGetValue(Attributes.Armor, out var armor) && armor.Current > 0 && !GameEffectManager.ArmorSuppressed(target))
             {
                 // Target Painting: that share of the hit goes past the armour.
-                armorTaken = Math.Min(amount - amount * GameEffectManager.ArmorPiercePercentOf(target) / 100, armor.Current);
+                // And the attacker's own piercing, the two added and at most all of it.
+                var bypass = Math.Min(100, GameEffectManager.ArmorPiercePercentOf(target) + Math.Max(0, armorBypassPercent));
+
+                armorTaken = Math.Min(amount - amount * bypass / 100, armor.Current);
                 armor.Current -= armorTaken;
                 CellManager.Instance.CellCallMethod(mapChannel, target, target is Creature
                     ? new UpdateArmorPacket(GameEffectManager.WithRegen(target, armor), target.EntityId)

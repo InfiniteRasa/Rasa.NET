@@ -401,6 +401,9 @@ namespace Rasa.Managers
                     // players whose combat timer has run out
                     Guard("ManifestationManager.CombatWorker", mapChannel, () => ManifestationManager.Instance.CombatWorker(mapChannel));
 
+                    // players whose equipment changed: what its modules give them now
+                    Guard("ItemModuleBonuses.Worker", mapChannel, () => ItemModuleBonuses.Worker(mapChannel));
+
                     // CellManager worker
                     if (Timer.IsTriggered("CellUpdateVisibility"))
                         Guard("CellManager.DoWork", mapChannel, () => CellManager.Instance.DoWork(mapChannel));

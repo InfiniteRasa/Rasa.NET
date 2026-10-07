@@ -40,12 +40,18 @@ namespace Rasa.Managers
     ///
     /// Graviton Armor: "Knockback / Stun Resist: X%" (+3% a pump per piece): the chance that a
     /// stun or knockback does not land at all (GameEffectManager.KnockbackStunResistOf), shown
-    /// as "Resisted" when it does not.
+    /// as "Resisted" when it does not. An armor module's "Resist: Stun" or "Resist: Knockback"
+    /// adds to it for its own kind (ItemModuleBonuses.ControlResistPercent).
     /// </summary>
     public static class PlayerCrowdControl
     {
-        /// <summary>The chance, in percent, that a stun or knockback on this actor is resisted: its Graviton Armor, at most 100.</summary>
-        public static int ResistPercent(Actor actor) => Math.Min(100, GameEffectManager.KnockbackStunResistOf(actor));
+        /// <summary>
+        /// The chance, in percent, that a stun or a knockback on this actor is resisted: its
+        /// Graviton Armor, which is for both, and its item modules' Resist for the one it is
+        /// (ItemModuleBonuses) - at most 100.
+        /// </summary>
+        public static int ResistPercent(Actor actor, DamageType kind) =>
+            Math.Min(100, GameEffectManager.KnockbackStunResistOf(actor) + ItemModuleBonuses.ControlResistPercent(actor, kind));
 
         private static bool CanBeHeld(Manifestation player)
         {
@@ -64,7 +70,7 @@ namespace Rasa.Managers
             if (!CanBeHeld(player) || durationMs <= 0 || mapChannel == null)
                 return false;
 
-            if (Stuns.Roll(ResistPercent(player)))
+            if (Stuns.Roll(ResistPercent(player, DamageType.Stun)))
             {
                 Resisted(mapChannel, player, Stuns.StunTypeId, source);
                 return false;
@@ -99,7 +105,7 @@ namespace Rasa.Managers
             if (!CanBeHeld(player) || source == null || distance <= 0f || mapChannel == null)
                 return false;
 
-            if (Stuns.Roll(ResistPercent(player)))
+            if (Stuns.Roll(ResistPercent(player, DamageType.KnockBack)))
             {
                 Resisted(mapChannel, player, CrowdControl.KnockbackTypeId, source);
                 return false;
@@ -213,7 +219,7 @@ namespace Rasa.Managers
             if (Vector3.Distance(player.Position, destination) <= 0.1f)
                 return false;
 
-            if (Stuns.Roll(ResistPercent(player)))
+            if (Stuns.Roll(ResistPercent(player, DamageType.KnockBack)))
             {
                 Resisted(mapChannel, player, CrowdControl.KnockbackTypeId, puller);
                 return false;

@@ -1781,9 +1781,11 @@ namespace Rasa.Managers
                     break;
                 case InventoryType.EquipedInventory:
                     client.Player.Inventory.EquippedInventory[(int)slotId] = tempItem.EntityId; // update slot
+                    client.Player.ModulesChanged = true;    // what it carries counts from now (ItemModuleBonuses)
                     break;
                 case InventoryType.WeaponDrawerInventory:
                     client.Player.Inventory.WeaponDrawer[(int)slotId] = tempItem.EntityId; // update slot
+                    client.Player.ModulesChanged = true;
 
                     // EquippedInventory[13] is the weapon in hand, which is the drawer slot
                     // ActiveWeapon names - not whichever drawer slot was written last. This
@@ -2186,9 +2188,11 @@ namespace Rasa.Managers
                     break;
                 case InventoryType.EquipedInventory:
                     player.Inventory.EquippedInventory[(int)slotIndex] = 0; // update slot
+                    player.ModulesChanged = true;   // its modules no longer count (ItemModuleBonuses)
                     break;
                 case InventoryType.WeaponDrawerInventory:
                     player.Inventory.WeaponDrawer[(int)slotIndex] = 0;    // update slot
+                    player.ModulesChanged = true;
 
                     if (slotIndex == player.ActiveWeapon)
                         player.Inventory.EquippedInventory[13] = 0;       // nothing in hand
@@ -2924,10 +2928,12 @@ namespace Rasa.Managers
                 case InventoryType.EquipedInventory:
                     entityId = client.Player.Inventory.EquippedInventory[(int)slotIndex];
                     client.Player.Inventory.EquippedInventory[(int)slotIndex] = 0;
+                    client.Player.ModulesChanged = true;    // its modules no longer count (ItemModuleBonuses)
                     break;
                 case InventoryType.WeaponDrawerInventory:
                     entityId = client.Player.Inventory.WeaponDrawer[(int)slotIndex];
                     client.Player.Inventory.WeaponDrawer[(int)slotIndex] = 0;
+                    client.Player.ModulesChanged = true;
 
                     if (slotIndex == client.Player.ActiveWeapon)
                         client.Player.Inventory.EquippedInventory[13] = 0;
