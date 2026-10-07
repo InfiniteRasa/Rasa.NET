@@ -1,3 +1,5 @@
+extern alias RasaGame;
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -7,12 +9,14 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Rasa.Test.World
 {
+    using ClientState = RasaGame::Rasa.Data.ClientState;
     using Rasa.Data;
     using Rasa.Managers;
     using Rasa.Models;
     using Rasa.Navigation;
     using Rasa.Packets;
     using Rasa.Packets.Game.Server;
+    using Rasa.Packets.MapChannel.Client;
     using Rasa.Packets.MapChannel.Server;
     using Rasa.Packets.Protocol;
     using Rasa.Structures;
@@ -39,6 +43,26 @@ namespace Rasa.Test.World
                 NavMeshFile.PathFor(Path.Combine(directory.FullName, "navmesh"), "adv_foreas_concordia_wilderness"));
         }
 
+        [TestCleanup]
+        public void Cleanup()
+        {
+            SecretPassages.Travel = null;
+        }
+
+        /// <summary>The object manager the Alia Caverns passages travel by, saving nothing but counting what it would.</summary>
+        private static DynamicObjectManager Travel(WorldTestContext world, Action saved = null)
+        {
+            var manager = WaypointTravelTests.CreateManager(world, (_, update, _) =>
+            {
+                if (update == CharacterUpdate.Position)
+                    saved?.Invoke();
+            });
+
+            SecretPassages.Travel = manager;
+
+            return manager;
+        }
+
         private static uint CenterCell(Vector3 position)
         {
             Assert.IsTrue(CellManager.TryGetCellCoordinates(position, out var x, out var z));
@@ -47,43 +71,52 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
-        public void TheAliaCavernsDoorwayIsAPassageAndTheCorridorBeforeItIsNot()
+        public void TheGroundBeforeTheAliaCavernsAlcoveIsAPassageAndTheCorridorBeforeItIsNot()
         {
-            // Walking up the corridor, short of the doorway.
+            // Walking up the corridor, short of the alcove; and along either wall right to the corridor's end.
             Assert.IsNull(SecretPassages.Crossed(Wilderness, new Vector3(835f, 286f, 724f), new Vector3(835f, 286f, 731f)));
-            Assert.IsNull(SecretPassages.Crossed(Wilderness, new Vector3(829f, 286f, 733f), new Vector3(841f, 286f, 737f)));
+            Assert.IsNull(SecretPassages.Crossed(Wilderness, new Vector3(829f, 286f, 733f), new Vector3(841f, 286f, 736f)));
+            Assert.IsNull(SecretPassages.Crossed(Wilderness, new Vector3(827.5f, 286f, 734f), new Vector3(827.5f, 286f, 738.8f)));
+            Assert.IsNull(SecretPassages.Crossed(Wilderness, new Vector3(842.5f, 286f, 734f), new Vector3(842.5f, 286f, 738.8f)));
 
-            // Through the doorway: at a walk, along either wall, and in one long jump over the edge.
+            // Up to the alcove: at a walk, off to one side of the niche, into the niche, and in one long jump at it.
             Assert.AreSame(SecretPassages.AliaCavernsDoor,
-                SecretPassages.Crossed(Wilderness, new Vector3(835f, 286f, 737f), new Vector3(835f, 286f, 739f)));
+                SecretPassages.Crossed(Wilderness, new Vector3(835f, 286f, 735f), new Vector3(835f, 286f, 737f)));
             Assert.AreSame(SecretPassages.AliaCavernsDoor,
-                SecretPassages.Crossed(Wilderness, new Vector3(827.5f, 286f, 738f), new Vector3(827.5f, 286f, 738.8f)));
+                SecretPassages.Crossed(Wilderness, new Vector3(832.5f, 286f, 736f), new Vector3(832.5f, 286f, 737.5f)));
             Assert.AreSame(SecretPassages.AliaCavernsDoor,
-                SecretPassages.Crossed(Wilderness, new Vector3(842.5f, 286f, 738f), new Vector3(842.5f, 286f, 738.8f)));
+                SecretPassages.Crossed(Wilderness, new Vector3(835f, 286f, 738.5f), new Vector3(835f, 286f, 740f)));
             Assert.AreSame(SecretPassages.AliaCavernsDoor,
-                SecretPassages.Crossed(Wilderness, new Vector3(835f, 288f, 736f), new Vector3(835f, 284f, 747f)));
+                SecretPassages.Crossed(Wilderness, new Vector3(835f, 288f, 733f), new Vector3(835f, 284f, 747f)));
 
             // The same step on another map is nothing.
-            Assert.IsNull(SecretPassages.Crossed(SecretPassages.TordenAbyss, new Vector3(835f, 286f, 737f), new Vector3(835f, 286f, 739f)));
+            Assert.IsNull(SecretPassages.Crossed(SecretPassages.TordenAbyss, new Vector3(835f, 286f, 735f), new Vector3(835f, 286f, 737f)));
         }
 
         [TestMethod]
-        public void TheEnhanceShrineCorridorEndIsAPassageAndTheShrineIsNot()
+        public void TheGroundBeforeTheEnhanceShrineAlcoveIsAPassageAndTheShrineIsNot()
         {
-            // Around the room and down the corridor, short of its end.
+            // Around the room and down the corridor, short of the alcove; and along a wall to the corridor's end.
             Assert.IsNull(SecretPassages.Crossed(Wilderness, new Vector3(832f, 160f, 958f), new Vector3(832f, 160f, 940f)));
-            Assert.IsNull(SecretPassages.Crossed(Wilderness, new Vector3(826f, 160f, 934f), new Vector3(838f, 160f, 922f)));
+            Assert.IsNull(SecretPassages.Crossed(Wilderness, new Vector3(826f, 160f, 934f), new Vector3(838f, 160f, 923f)));
+            Assert.IsNull(SecretPassages.Crossed(Wilderness, new Vector3(824.5f, 160f, 925f), new Vector3(824.5f, 160f, 920.2f)));
 
             Assert.AreSame(SecretPassages.EnhanceShrineExit,
-                SecretPassages.Crossed(Wilderness, new Vector3(832f, 160f, 922f), new Vector3(832f, 160f, 920f)));
+                SecretPassages.Crossed(Wilderness, new Vector3(832f, 160f, 924f), new Vector3(832f, 160f, 922f)));
             Assert.AreSame(SecretPassages.EnhanceShrineExit,
-                SecretPassages.Crossed(Wilderness, new Vector3(824.5f, 160f, 921f), new Vector3(824.5f, 160f, 920.2f)));
+                SecretPassages.Crossed(Wilderness, new Vector3(834.5f, 160f, 923f), new Vector3(834.5f, 160f, 921.5f)));
             Assert.AreSame(SecretPassages.EnhanceShrineExit,
-                SecretPassages.Crossed(Wilderness, new Vector3(839.5f, 160f, 921f), new Vector3(839.5f, 160f, 920.2f)));
+                SecretPassages.Crossed(Wilderness, new Vector3(832f, 160f, 920.5f), new Vector3(832f, 160f, 919f)));
 
             // The identical rooms above and below it, 64 m apart, are not this one.
-            Assert.IsNull(SecretPassages.Crossed(Wilderness, new Vector3(832f, 224f, 922f), new Vector3(832f, 224f, 920f)));
-            Assert.IsNull(SecretPassages.Crossed(Wilderness, new Vector3(832f, 96f, 922f), new Vector3(832f, 96f, 920f)));
+            Assert.IsNull(SecretPassages.Crossed(Wilderness, new Vector3(832f, 224f, 924f), new Vector3(832f, 224f, 920f)));
+            Assert.IsNull(SecretPassages.Crossed(Wilderness, new Vector3(832f, 96f, 924f), new Vector3(832f, 96f, 920f)));
+
+            // The Alia Caverns pair shows itself; the Torden Abyss pair does not.
+            Assert.IsTrue(SecretPassages.AliaCavernsDoor.WithEffect);
+            Assert.IsTrue(SecretPassages.EnhanceShrineExit.WithEffect);
+            Assert.IsFalse(SecretPassages.JumpAndBelieve.WithEffect);
+            Assert.IsFalse(SecretPassages.GrowthHallEnd.WithEffect);
         }
 
         [TestMethod]
@@ -143,79 +176,126 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
-        public void NothingWalkableLiesInsideTheAliaCavernsPassages()
+        public void TheFloorRunsFromEachArrivalIntoTheOtherPassage()
         {
             var nav = WildernessNavMesh();
 
-            foreach (var passage in new[] { SecretPassages.AliaCavernsDoor, SecretPassages.EnhanceShrineExit })
+            foreach (var doorway in SecretPassages.Doorways)
             {
-                for (var x = passage.Min.X; x <= passage.Max.X; x += 1f)
-                {
-                    // Past the first 1.7 m, where the corridor's own floor reaches into the slab.
-                    var open = passage == SecretPassages.AliaCavernsDoor;
-                    var from = open ? passage.Min.Z + 1.7f : passage.Min.Z;
-                    var to = open ? passage.Max.Z : passage.Max.Z - 1.7f;
+                // Where the corridor's floor still is, a metre and a half out from the alcove's wall: inside the passage.
+                var before = doorway.Position + doorway.Out * 1.5f + new Vector3(0f, 0.2f, 0f);
 
-                    for (var z = from; z <= to; z += 0.5f)
-                    {
-                        for (var y = passage.Min.Y; y <= passage.Max.Y; y += 2f)
-                        {
-                            var hit = nav.NearestInColumn(new Vector3(x, y, z), 2f);
+                Assert.IsTrue(nav.IsOnMesh(before), $"no floor before {doorway.Name}");
+                Assert.IsTrue(doorway.Passage.Contains(before), $"the floor before {doorway.Name} is not in its passage");
 
-                            if (hit is Vector3 point && MathF.Abs(point.X - x) < 0.3f && MathF.Abs(point.Z - z) < 0.3f)
-                                Assert.IsFalse(passage.Contains(point), $"{passage.Name} covers walkable ground at {point}");
-                        }
-                    }
-                }
+                // And whoever arrives in this corridor can walk there.
+                var arriving = SecretPassages.All.Single(passage => passage != doorway.Passage && passage.MapContextId == doorway.MapContextId &&
+                    Vector3.Distance(passage.Destination, doorway.Position) < 20f);
+
+                nav.FindPath(arriving.Destination, before, out var reached);
+                Assert.IsTrue(reached, $"no floor from where {arriving.Name} ends to {doorway.Name}");
             }
         }
 
         [TestMethod]
-        public void WalkingThroughTheAliaCavernsDoorwayPutsThePlayerInTheShrineAndBackAgain()
+        public void WalkingUpToTheAliaCavernsAlcoveTeleportsThePlayerIntoTheShrineAndBackAgain()
         {
             using var world = new WorldTestContext();
 
             world.Map.NavMesh = WildernessNavMesh();
 
+            var saved = 0;
+            var manager = Travel(world, () => saved++);
             var client = world.CreateClient();
             var player = client.Player;
 
             CellManager.Instance.AddToWorld(client);
-            player.PlaceAt(new Vector3(835f, 286.2f, 734f));
+            player.PlaceAt(new Vector3(835f, 286.2f, 732f));
             player.MoveBudget = 60;
             WorldTestContext.Drain(client);
 
-            // Up the corridor: an ordinary step.
-            Assert.IsTrue(client.HandleMovement(new Movement(new Vector3(835f, 286.2f, 736.5f), Vector2.Zero)));
-            Assert.AreEqual(new Vector3(835f, 286.2f, 736.5f), player.Position);
+            // Up the corridor and onto the disc: ordinary steps.
+            Assert.IsTrue(client.HandleMovement(new Movement(new Vector3(835f, 286.2f, 734.5f), Vector2.Zero)));
+            Assert.IsTrue(client.HandleMovement(new Movement(new Vector3(835f, 286.2f, 736f), Vector2.Zero)));
+            Assert.AreEqual(new Vector3(835f, 286.2f, 736f), player.Position);
+            Assert.AreEqual(ClientState.Ingame, client.State);
 
-            // Through the doorway.
-            Assert.IsTrue(client.HandleMovement(new Movement(new Vector3(835f, 286.2f, 739f), Vector2.Zero)));
+            // Up to the niche: taken, as a waypoint takes them.
+            Assert.IsTrue(client.HandleMovement(new Movement(new Vector3(835f, 286.2f, 737.5f), Vector2.Zero)));
             Assert.AreEqual(SecretPassages.AliaCavernsDoor.Destination, player.Position);
-            Assert.AreEqual(MathF.PI, player.Rotation, 1e-4f);
-
-            var told = WorldTestContext.Drain(client).Select(packet => packet.Message).OfType<MoveObjectMessage>().ToList();
-
-            Assert.IsTrue(told.Count > 0, "the player's own client was not moved");
+            Assert.AreEqual(MathF.PI, (float)player.Rotation, 1e-4f);
+            Assert.AreEqual(ClientState.Teleporting, client.State);
+            Assert.IsNotNull(client.PendingTransfer);
             Assert.AreEqual(CenterCell(SecretPassages.AliaCavernsDoor.Destination), player.Cells[2, 2], "the player still sees the cave's cells");
 
-            // To the logos and back to the corridor's end, as ordinary steps.
+            var sent = Methods(client);
+            var pre = sent.FindIndex(packet => packet is PreTeleportPacket);
+            var begin = sent.FindIndex(packet => packet is BeginTeleportPacket);
+            var teleport = sent.FindIndex(packet => packet is TeleportPacket);
+
+            Assert.IsTrue(pre >= 0, "no teleport effect where they stood");
+            Assert.IsTrue(begin > pre && teleport > begin, "PreTeleport, BeginTeleport, Teleport: the order the client answers");
+            Assert.AreEqual(SecretPassages.AliaCavernsDoor.Destination, ((TeleportPacket)sent[teleport]).Position);
+            Assert.IsFalse(sent.Any(packet => packet is TeleportArrivalPacket), "arrived before the client answered");
+
+            // Held until the client answers: a step sent meanwhile is not taken.
+            Assert.IsFalse(client.HandleMovement(new Movement(new Vector3(832f, 160.1f, 930f), Vector2.Zero)));
+            Assert.AreEqual(SecretPassages.AliaCavernsDoor.Destination, player.Position);
+            Assert.AreEqual(0, saved);
+
+            manager.TeleportAcknowledge(client);
+
+            Assert.AreEqual(ClientState.Ingame, client.State);
+            Assert.IsNull(client.PendingTransfer);
+            Assert.AreEqual(1, saved);
+            Assert.IsTrue(Methods(client).Any(packet => packet is TeleportArrivalPacket), "no teleport effect where they arrived");
+
+            // To the logos and back down the corridor, as ordinary steps.
             player.MoveBudget = 60;
             Assert.IsTrue(client.HandleMovement(new Movement(new Vector3(832f, 160.1f, 933f), Vector2.Zero)));
             Assert.AreEqual(new Vector3(832f, 160.1f, 933f), player.Position);
-            Assert.IsTrue(client.HandleMovement(new Movement(new Vector3(832f, 160.1f, 922.5f), Vector2.Zero)));
-            Assert.AreEqual(new Vector3(832f, 160.1f, 922.5f), player.Position);
+            Assert.IsTrue(client.HandleMovement(new Movement(new Vector3(832f, 160.1f, 923.5f), Vector2.Zero)));
+            Assert.AreEqual(new Vector3(832f, 160.1f, 923.5f), player.Position);
 
-            // Out through the corridor's open end.
-            Assert.IsTrue(client.HandleMovement(new Movement(new Vector3(832f, 160.1f, 920f), Vector2.Zero)));
+            // Up to the shrine's own alcove: back to the cave.
+            Assert.IsTrue(client.HandleMovement(new Movement(new Vector3(832f, 160.1f, 921.5f), Vector2.Zero)));
             Assert.AreEqual(SecretPassages.EnhanceShrineExit.Destination, player.Position);
-            Assert.AreEqual(0f, player.Rotation, 1e-4f);
+            Assert.AreEqual(0f, (float)player.Rotation, 1e-4f);
+            Assert.AreEqual(ClientState.Teleporting, client.State);
             Assert.AreEqual(CenterCell(SecretPassages.EnhanceShrineExit.Destination), player.Cells[2, 2], "the player still sees the shrine's cells");
+            Assert.IsTrue(Methods(client).Any(packet => packet is PreTeleportPacket));
+
+            manager.TeleportAcknowledge(client);
+
+            Assert.AreEqual(ClientState.Ingame, client.State);
+            Assert.AreEqual(2, saved);
 
             // And on down the tunnels.
             player.MoveBudget = 60;
             Assert.IsTrue(client.HandleMovement(new Movement(new Vector3(835f, 286.3f, 729f), Vector2.Zero)));
             Assert.AreEqual(new Vector3(835f, 286.3f, 729f), player.Position);
+        }
+
+        [TestMethod]
+        public void APlayerWhoCannotTravelIsLeftBeforeTheAlcove()
+        {
+            using var world = new WorldTestContext();
+
+            var manager = Travel(world);
+            var client = world.CreateClient();
+            var player = client.Player;
+
+            CellManager.Instance.AddToWorld(client);
+            player.PlaceAt(new Vector3(835f, 286.2f, 736f));
+            player.MoveBudget = 60;
+            player.State = CharacterState.Dead;
+            WorldTestContext.Drain(client);
+
+            Assert.IsFalse(manager.TakePassage(client, SecretPassages.AliaCavernsDoor.Destination, SecretPassages.AliaCavernsDoor.Rotation));
+            Assert.AreEqual(new Vector3(835f, 286.2f, 736f), player.Position);
+            Assert.AreEqual(ClientState.Ingame, client.State);
+            Assert.IsNull(client.PendingTransfer);
+            Assert.AreEqual(0, WorldTestContext.Drain(client).Count);
         }
 
         private static void AssertNear(Vector3 expected, Vector3 actual, float tolerance, string what)
@@ -234,42 +314,47 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
-        public void EachWildernessDoorwayStandsMouthToItsCorridorJustInsideTheEnd()
+        public void EachWildernessAlcoveStandsAtItsCorridorsEndWithItsPassageBeforeIt()
         {
-            // The corridors' ends are at z 739.14 and z 919.86, their floors at y 286.0 and y 159.93.
-            AssertNear(new Vector3(835f, 286f, 738.7f), SecretPassages.AliaCavernsDoorway.Mouth, 0.01f, "the cave doorway's mouth");
-            AssertNear(new Vector3(832f, 159.93f, 920.3f), SecretPassages.EnhanceShrineDoorway.Mouth, 0.01f, "the shrine doorway's mouth");
+            // The corridors' straights have their origins at z 739 and z 920, on floors at y 286.0 and y 159.93.
+            Assert.AreEqual(new Vector3(835f, 286f, 739f), SecretPassages.AliaCavernsDoorway.Position);
+            Assert.AreEqual(new Vector3(832f, 159.93f, 920f), SecretPassages.EnhanceShrineDoorway.Position);
+            AssertNear(new Vector3(0f, 0f, -1f), SecretPassages.AliaCavernsDoorway.Out, 1e-5f, "the cave alcove opens down the corridor");
+            AssertNear(new Vector3(0f, 0f, 1f), SecretPassages.EnhanceShrineDoorway.Out, 1e-5f, "the shrine alcove opens up the corridor");
 
             Assert.AreSame(SecretPassages.AliaCavernsDoor, SecretPassages.AliaCavernsDoorway.Passage);
             Assert.AreSame(SecretPassages.EnhanceShrineExit, SecretPassages.EnhanceShrineDoorway.Passage);
 
             foreach (var doorway in SecretPassages.Doorways)
             {
-                Assert.AreEqual(SecretPassages.CavernTransition, doorway.ClassId, doorway.Name);
-                Assert.IsTrue(doorway.Passage.Contains(doorway.Mouth), $"{doorway.Name} is not in its passage");
+                Assert.AreEqual(SecretPassages.ElohAlcove, doorway.ClassId, doorway.Name);
+                Assert.AreEqual(UseObjectState.TsState1, doorway.State, doorway.Name);
 
-                // Out of the stub and into the corridor, level; and across the corridor.
-                var back = doorway.Mouth - doorway.Position;
-                back.Y = 0f;
-                back = Vector3.Normalize(back);
-                var across = new Vector3(back.Z, 0f, -back.X);
+                var away = doorway.Out;
+                var across = new Vector3(away.Z, 0f, -away.X);
                 var head = new Vector3(0f, 0.3f, 0f);
 
-                for (var side = -7f; side <= 7f; side += 1f)
+                for (var side = -2.9f; side <= 2.9f; side += 0.58f)
                 {
-                    var at = doorway.Mouth + across * side + head;
+                    var at = doorway.Position + across * side + head;
 
-                    // Walking at the doorway anywhere across it: through 1.2 m before the rock of the rim.
+                    // Walking at the alcove: taken 2.5 m out from its wall, and anywhere on to the back of the niche.
                     Assert.AreSame(doorway.Passage,
-                        SecretPassages.Crossed(doorway.MapContextId, at + back * 1.3f, at + back * 1.15f), $"{doorway.Name}, {side} m across");
-                    Assert.IsNull(SecretPassages.Crossed(doorway.MapContextId, at + back * 3f, at + back * 1.3f), $"{doorway.Name}, {side} m across");
+                        SecretPassages.Crossed(doorway.MapContextId, at + away * 2.6f, at + away * 2.4f), $"{doorway.Name}, {side} m across");
+                    Assert.IsNull(SecretPassages.Crossed(doorway.MapContextId, at + away * 5.8f, at + away * 2.6f), $"{doorway.Name}, {side} m across");
+                    Assert.IsTrue(doorway.Passage.Contains(at - away * 1.4f), $"{doorway.Name}, the back of the niche {side} m across");
                 }
 
-                // Whoever arrives in this corridor comes out of the other passage, clear of the stub.
-                var arriving = SecretPassages.All.Single(passage => passage != doorway.Passage && passage.MapContextId == doorway.MapContextId &&
-                    Vector3.Distance(passage.Destination, doorway.Mouth) < 20f);
+                // Beside the niche's arms, against the alcove's wall: not taken.
+                foreach (var side in new[] { -3.2f, 3.2f, -6f, 6f })
+                    Assert.IsNull(SecretPassages.Crossed(doorway.MapContextId,
+                        doorway.Position + across * side + head + away * 4f, doorway.Position + across * side + head + away * 0.6f), $"{doorway.Name}, {side} m across");
 
-                Assert.IsTrue(Vector3.Dot(arriving.Destination - doorway.Mouth, back) > 5f, $"{arriving.Name} ends too near {doorway.Name}");
+                // Whoever arrives in this corridor comes out of the other passage clear of this one, a run's step and more.
+                var arriving = SecretPassages.All.Single(passage => passage != doorway.Passage && passage.MapContextId == doorway.MapContextId &&
+                    Vector3.Distance(passage.Destination, doorway.Position) < 20f);
+
+                Assert.IsTrue(Vector3.Dot(arriving.Destination - doorway.Position, away) > SecretPassages.AlcoveReach + 3f, $"{arriving.Name} ends too near {doorway.Name}");
             }
         }
 
@@ -278,7 +363,7 @@ namespace Rasa.Test.World
         {
             using var world = new WorldTestContext();
 
-            world.AddClass(SecretPassages.CavernTransition);
+            world.AddClass(SecretPassages.ElohAlcove);
 
             var torden = new MapChannel
             {
@@ -302,9 +387,10 @@ namespace Rasa.Test.World
 
                     Assert.IsNotNull(obj, doorway.Name);
                     Assert.AreEqual(DynamicObjectType.Scenery, obj.DynamicObjectType);
-                    Assert.AreEqual(SecretPassages.CavernTransition, obj.EntityClassId);
+                    Assert.AreEqual(SecretPassages.ElohAlcove, obj.EntityClassId);
                     Assert.AreEqual(doorway.Position, obj.Position);
                     Assert.AreEqual(doorway.Yaw, obj.Rotation, 1e-6);
+                    Assert.AreEqual(UseObjectState.TsState1, obj.StateId);
                     Assert.AreEqual(Wilderness, obj.MapContextId);
                     Assert.AreSame(world.Map, obj.RuntimeMapChannel);
                     Assert.AreEqual(1, world.Map.MapCellInfo.Cells.Values.Sum(cell => cell.DynamicObjectList.Count(o => ReferenceEquals(o, obj))));
@@ -324,7 +410,7 @@ namespace Rasa.Test.World
             using var world = new WorldTestContext();
 
             var classes = EntityClassManager.Instance.LoadedEntityClasses;
-            var had = classes.Remove(SecretPassages.CavernTransition, out var kept);
+            var had = classes.Remove(SecretPassages.ElohAlcove, out var kept);
 
             try
             {
@@ -337,21 +423,35 @@ namespace Rasa.Test.World
                 Remove(world.Map);
 
                 if (had)
-                    classes[SecretPassages.CavernTransition] = kept;
+                    classes[SecretPassages.ElohAlcove] = kept;
             }
         }
 
         [TestMethod]
-        public void APlayerIsShownTheDoorwayInViewAsUntargetableSceneryAndTheOtherOnArrival()
+        public void APlayerIsShownTheAlcoveInViewAsLitUntargetableSceneryAndTheOtherOnArrival()
         {
             using var world = new WorldTestContext();
 
             // A class the world data marks targetable would still be sent as not: scenery is never a target.
-            world.AddClass(SecretPassages.CavernTransition);
+            world.AddClass(SecretPassages.ElohAlcove);
+            Travel(world);
+
+            DynamicObject plain = null;
 
             try
             {
                 Assert.AreEqual(2, SecretPassages.PlaceDoorways(world.Map));
+
+                // A piece of scenery with no state to stand in, beside it.
+                plain = new DynamicObject
+                {
+                    EntityClassId = SecretPassages.ElohAlcove,
+                    DynamicObjectType = DynamicObjectType.Scenery,
+                    Position = new Vector3(835f, 286f, 730f),
+                    MapContextId = Wilderness,
+                    IsInWorld = true
+                };
+                CellManager.Instance.AddToWorld(world.Map, plain);
 
                 var cave = SecretPassages.DoorwayObject(world.Map, SecretPassages.AliaCavernsDoorway);
                 var shrine = SecretPassages.DoorwayObject(world.Map, SecretPassages.EnhanceShrineDoorway);
@@ -364,34 +464,47 @@ namespace Rasa.Test.World
                 var seen = Methods(client);
                 var made = seen.OfType<CreatePhysicalEntityPacket>().Single(packet => packet.EntityId == cave.EntityId);
 
-                Assert.AreEqual(SecretPassages.CavernTransition, made.ClassId);
-                Assert.AreEqual(2, made.EntityData.Count, "scenery is sent a target flag and a place, and nothing a usable is");
+                Assert.AreEqual(SecretPassages.ElohAlcove, made.ClassId);
+                Assert.AreEqual(3, made.EntityData.Count, "the alcove is sent a target flag, a place and its state, and nothing else a usable is");
                 Assert.IsFalse(((IsTargetablePacket)made.EntityData[0]).IsTargetable);
 
                 var where = (WorldLocationDescriptorPacket)made.EntityData[1];
 
-                Assert.AreEqual(new Vector3(835f, 290.5f, 747f), where.Position);
-                Assert.IsTrue(MathF.Abs(Quaternion.Dot(where.Rotation, Quaternion.Identity)) > 0.99999f, $"the cave doorway is turned: {where.Rotation}");
+                Assert.AreEqual(new Vector3(835f, 286f, 739f), where.Position);
+                Assert.IsTrue(MathF.Abs(Quaternion.Dot(where.Rotation, Quaternion.Identity)) > 0.99999f, $"the cave alcove is turned: {where.Rotation}");
+
+                var state = (UsableInfoPacket)made.EntityData[2];
+
+                Assert.IsFalse(state.Enabled, "the alcove can be used");
+                Assert.AreEqual(UseObjectState.TsState1, state.CurState, "the alcove is not lit");
+                Assert.AreEqual(0u, state.MissionActivated);
+
+                // Scenery with no state is sent none.
+                Assert.AreEqual(2, seen.OfType<CreatePhysicalEntityPacket>().Single(packet => packet.EntityId == plain.EntityId).EntityData.Count);
 
                 // 181 m off: not in view from the cave.
                 Assert.IsFalse(seen.OfType<CreatePhysicalEntityPacket>().Any(packet => packet.EntityId == shrine.EntityId));
 
-                // Through the doorway: the shrine's is there on arrival, turned about, and the cave's is gone.
+                // Up to the alcove: the shrine's is there on arrival, turned about, and the cave's is gone.
                 player.MoveBudget = 60;
-                Assert.IsTrue(client.HandleMovement(new Movement(new Vector3(835f, 286.2f, 738f), Vector2.Zero)));
+                Assert.IsTrue(client.HandleMovement(new Movement(new Vector3(835f, 286.2f, 737f), Vector2.Zero)));
                 Assert.AreEqual(SecretPassages.AliaCavernsDoor.Destination, player.Position);
 
                 seen = Methods(client);
                 made = seen.OfType<CreatePhysicalEntityPacket>().Single(packet => packet.EntityId == shrine.EntityId);
                 where = (WorldLocationDescriptorPacket)made.EntityData[1];
 
-                Assert.AreEqual(SecretPassages.CavernTransition, made.ClassId);
-                Assert.AreEqual(new Vector3(832f, 164.43f, 912f), where.Position);
-                Assert.IsTrue(MathF.Abs(Quaternion.Dot(where.Rotation, new Quaternion(0f, 1f, 0f, 0f))) > 0.99999f, $"the shrine doorway is not turned about: {where.Rotation}");
-                Assert.IsTrue(seen.OfType<DestroyPhysicalEntityPacket>().Any(packet => packet.EntityId == cave.EntityId), "the cave doorway was left on the client");
+                Assert.AreEqual(SecretPassages.ElohAlcove, made.ClassId);
+                Assert.AreEqual(new Vector3(832f, 159.93f, 920f), where.Position);
+                Assert.IsTrue(MathF.Abs(Quaternion.Dot(where.Rotation, new Quaternion(0f, 1f, 0f, 0f))) > 0.99999f, $"the shrine alcove is not turned about: {where.Rotation}");
+                Assert.AreEqual(UseObjectState.TsState1, ((UsableInfoPacket)made.EntityData[2]).CurState);
+                Assert.IsTrue(seen.OfType<DestroyPhysicalEntityPacket>().Any(packet => packet.EntityId == cave.EntityId), "the cave alcove was left on the client");
             }
             finally
             {
+                if (plain != null)
+                    CellManager.Instance.RemoveFromWorld(world.Map, plain);
+
                 Remove(world.Map);
             }
         }
@@ -401,7 +514,7 @@ namespace Rasa.Test.World
         {
             using var world = new WorldTestContext();
 
-            world.AddClass(SecretPassages.CavernTransition);
+            world.AddClass(SecretPassages.ElohAlcove);
 
             try
             {
@@ -412,7 +525,7 @@ namespace Rasa.Test.World
 
                 // Filed by where it is seen from, sent as standing where it stands.
                 Assert.AreEqual(new Vector3(835f, 286f, 705f), cave.CellPosition);
-                Assert.AreEqual(new Vector3(835f, 290.5f, 747f), cave.Position);
+                Assert.AreEqual(new Vector3(835f, 286f, 739f), cave.Position);
                 Assert.AreEqual(new Vector3(832f, 160f, 960f), shrine.CellPosition);
 
                 bool Shown(Vector3 at, DynamicObject obj)
@@ -432,7 +545,7 @@ namespace Rasa.Test.World
                 // The tunnel runs straight at the cave's doorway from z 647, 92 m off; its own cell would give it at 48 m.
                 Assert.IsTrue(Shown(new Vector3(835f, 285.2f, 648f), cave), "at the far end of the straight tunnel");
                 Assert.IsTrue(Shown(new Vector3(835f, 286f, 695f), cave), "at the corridor's coupler");
-                Assert.IsTrue(Shown(new Vector3(835f, 286.2f, 737f), cave), "at the doorway");
+                Assert.IsTrue(Shown(new Vector3(835f, 286.2f, 736f), cave), "before the alcove");
                 Assert.IsFalse(Shown(new Vector3(835f, 280f, 600f), cave), "outside the cave");
 
                 // The shrine: from its corridor's end to the back wall of the room, 65 m.
@@ -456,7 +569,7 @@ namespace Rasa.Test.World
         {
             using var world = new WorldTestContext();
 
-            world.AddClass(SecretPassages.CavernTransition);
+            world.AddClass(SecretPassages.ElohAlcove);
 
             var maps = new MapChannelManager(null, privateInstances: new PrivateMapInstanceService());
 

@@ -10,11 +10,13 @@ namespace Rasa.Managers
     using Structures;
 
     /// <summary>
-    /// Hidden same-map teleports: a box in the world that moves whoever enters it somewhere else
-    /// on the map, with no loading screen and nothing on screen to give it away. Checked on every
-    /// accepted Move (Client), against the step the player just took, so a fall fast enough to
-    /// pass through a thin box between two Moves still counts. Ours: the client has no such
-    /// thing, and nothing in its data says where the original ones were.
+    /// Same-map teleports the map has no teleporter for: a box in the world that moves whoever
+    /// enters it somewhere else on the map, with no loading screen. Checked on every accepted
+    /// Move (Client), against the step the player just took, so a fall fast enough to pass
+    /// through a thin box between two Moves still counts. Ours: the client has no such thing,
+    /// and nothing in its data says where the original ones were. Torden Abyss's are hidden,
+    /// with nothing on screen to give them away; Alia Caverns's are an Eloh alcove one walks
+    /// up to, and take the player as a teleporter does (<see cref="Passage.WithEffect"/>).
     ///
     /// Torden Abyss, Jump and Believe. Two Eloh obelisks stand on the lip of the Abyssal Shelf
     /// (adv_arieki_torden_abyss, around -348, 523, -535), their glyphs reading "Jump" and
@@ -29,39 +31,38 @@ namespace Rasa.Managers
     ///
     /// Concordia Wilderness, Alia Caverns (Receptive Reception, "acquire the Logos information
     /// from the shrine within"). The tunnels behind the waterfall end in sixteen metres of Eloh
-    /// corridor (adv_foreas_concordia_wilderness, 835, 286, 723..739) whose far doorway opens on
-    /// nothing: no room behind it, no map link, no instance. The shrine is 181 m further north,
-    /// sealed: ten identical rooms stacked one above the other at 832, y, 920..985, 64 m apart
-    /// from y 352 down to y -224, each a corridor with an open south end, a room and a Logos
-    /// dispenser base at z 960. The Enhance logos is in the fourth, floor y 159.9. The cave's
-    /// doorway is the way in to that one, and that room's corridor end is the way back. Both
-    /// boxes are a slab across the doorway, starting 1.7 m short of where the floor stops, so
-    /// nobody walks off the edge or into what stands in the doorway (below) first; the hillside
-    /// over the cave is 70 m above the first, and there is no ground at all around the second.
+    /// corridor (adv_foreas_concordia_wilderness, 835, 286, 723..739) whose far end the map
+    /// leaves open on nothing: no room behind it, no map link, no instance. The shrine is 181 m
+    /// further north, sealed: ten identical rooms stacked one above the other at 832, y,
+    /// 920..985, 64 m apart from y 352 down to y -224, each a corridor with an open south end,
+    /// a room and a Logos dispenser base at z 960. The Enhance logos is in the fourth, floor
+    /// y 159.9.
     ///
-    /// What stands in those two doorways (<see cref="Doorways"/>). Open, each shows the void the
-    /// map ends in. The client's map marks six ways out of the Wilderness - the two passes to
-    /// the Divide and four instance doors - with one piece, TerraForeasCavernInstance (6977): an
-    /// 8 m stub of cave tunnel, 14.3 m wide and 10.7 m high, plugged with rock at the back and
-    /// lined just inside its mouth with the swirling band of a transition (the mesh's own
-    /// animation, terra_foreas_cavern_instance.anm, so it plays wherever the mesh is). The maps
-    /// put it against Eloh cavern pieces elsewhere on Foreas (Palisades, Valverde Descent). One
-    /// stands behind each doorway here, mouth to the corridor: the opening in the corridor's end
-    /// is an oval 12.6 m by 5.5 m, the band is 12.6 m across, so it shows down both sides and
-    /// along the floor. The stub's axis is 4.5 m over the corridor floor and its mouth 0.44 m
-    /// inside the corridor's end: placed so, no line of sight from anywhere a head can be in the
-    /// corridor reaches past the rock (checked against the client's meshes from 77 head
-    /// positions each; 0.5 m higher and slivers of void show at the corners). The server makes
-    /// them as the client's map loader makes its own pieces (DynamicObjectType.Scenery). The
-    /// stub's rock has collision like any piece of a map, so each passage's slab starts 1.2 m
-    /// ahead of its stub's mouth, the whole width of the corridor: whoever walks at the doorway
-    /// is through before they touch it.
+    /// What closes those two open ends (<see cref="Doorways"/>), as a screenshot of the live
+    /// game shows the cave's closed: an Eloh alcove, UsableTwoStateElohTemplesSpawner (22954) -
+    /// a wall across the corridor with a pointed niche in the middle of it and a disc on the
+    /// floor before the niche, lit in its second state by that state's effect
+    /// (arch_eloh_temples_spawner_on.pkg). It is the piece the Eloh Temples map closes its own
+    /// corridor ends with, set at the end's own origin and turned as the corridor is; the end
+    /// of a straight has the profile of that map's tee arms to a centimetre, and so placed no
+    /// line of sight from anywhere a head can be in either corridor passes it (checked against
+    /// the client's meshes from 60 head positions each). The Wilderness .map leaves the two
+    /// ends open and has no such piece, which is a usable and so the server's to place: it is
+    /// made here as the client's map loader makes its own pieces, with the state that lights
+    /// it (DynamicObjectType.Scenery).
+    ///
+    /// The passage is the ground before the niche: the inner half of the disc and the niche
+    /// itself, 6 m across. Whoever walks up to it is taken as a teleporter takes them - the
+    /// teleport's effect where they stood and where they arrive - into the shrine's corridor,
+    /// facing the logos, 7 m out from the shrine's own alcove; and that alcove takes them back
+    /// to the cave's corridor, facing the tunnels. The alcove is the client's to collide with:
+    /// its wall stops anyone short of where the corridor's floor ends.
     /// </summary>
     public static class SecretPassages
     {
         public sealed class Passage
         {
-            public Passage(string name, uint mapContextId, Vector3 min, Vector3 max, Vector3 destination, float rotation)
+            public Passage(string name, uint mapContextId, Vector3 min, Vector3 max, Vector3 destination, float rotation, bool withEffect = false)
             {
                 Name = name;
                 MapContextId = mapContextId;
@@ -69,6 +70,7 @@ namespace Rasa.Managers
                 Max = Vector3.Max(min, max);
                 Destination = destination;
                 Rotation = rotation;
+                WithEffect = withEffect;
             }
 
             public string Name { get; }
@@ -82,6 +84,13 @@ namespace Rasa.Managers
 
             /// <summary>The way the player faces on arrival, as Player.Rotation: 0 faces -Z.</summary>
             public float Rotation { get; }
+
+            /// <summary>
+            /// Whether it takes the player as a teleporter does, with the teleport's effect at
+            /// both ends and the client's answer awaited (DynamicObjectManager.TakePassage),
+            /// rather than moving them unseen.
+            /// </summary>
+            public bool WithEffect { get; }
 
             public bool Contains(Vector3 p) =>
                 p.X >= Min.X && p.X <= Max.X && p.Y >= Min.Y && p.Y <= Max.Y && p.Z >= Min.Z && p.Z <= Max.Z;
@@ -143,30 +152,43 @@ namespace Rasa.Managers
 
         public const uint ConcordiaWilderness = 1220;
 
-        /// <summary>The open north end of the Alia Caverns corridor (floor y 286.0, ceiling 291.5, x 827..843, the floor stops at z 739.2).</summary>
-        public static readonly Passage AliaCavernsDoor = new Passage(
-            "Concordia Wilderness: Alia Caverns, the doorway at the end of the Eloh corridor into the Enhance shrine",
-            ConcordiaWilderness,
-            new Vector3(826f, 280f, 737.5f), new Vector3(844f, 296f, 744f),
-            new Vector3(832f, 160.1f, 927f), MathF.PI);
+        /// <summary>UsableTwoStateElohTemplesSpawner: the Eloh alcove that closes a corridor's end.</summary>
+        public const EntityClasses ElohAlcove = (EntityClasses)22954;
 
-        /// <summary>The open south end of the Enhance shrine's corridor (floor y 159.9, ceiling 165.4, x 824..840, the floor stops at z 919.8): back into the cave.</summary>
-        public static readonly Passage EnhanceShrineExit = new Passage(
-            "Concordia Wilderness: the end of the Enhance shrine's corridor, back into Alia Caverns",
+        /// <summary>How far out from an alcove's wall, into its corridor, its passage begins: the niche's arms reach 2 m, the disc 5.8 m.</summary>
+        public const float AlcoveReach = 2.5f;
+
+        /// <summary>How far to either side of the middle of an alcove its passage reaches: the niche is 2.6 m wide, between arms 5.9 m apart.</summary>
+        public const float AlcoveHalfWidth = 3f;
+
+        /// <summary>How far behind an alcove's wall its passage reaches: the niche is 1.4 m deep.</summary>
+        public const float AlcoveDepth = 2f;
+
+        /// <summary>Before the alcove at the north end of the Alia Caverns corridor (835, 286, 739; floor y 286.0, ceiling 291.5).</summary>
+        public static readonly Passage AliaCavernsDoor = new Passage(
+            "Concordia Wilderness: Alia Caverns, the alcove at the end of the Eloh corridor into the Enhance shrine",
             ConcordiaWilderness,
-            new Vector3(823f, 154f, 915f), new Vector3(841f, 170f, 921.5f),
-            new Vector3(835f, 286.3f, 733f), 0f);
+            new Vector3(835f - AlcoveHalfWidth, 280f, 739f - AlcoveReach), new Vector3(835f + AlcoveHalfWidth, 296f, 739f + AlcoveDepth),
+            new Vector3(832f, 160.1f, 927f), MathF.PI, withEffect: true);
+
+        /// <summary>Before the alcove at the south end of the Enhance shrine's corridor (832, 159.93, 920; floor y 159.9, ceiling 165.4): back into the cave.</summary>
+        public static readonly Passage EnhanceShrineExit = new Passage(
+            "Concordia Wilderness: the alcove at the end of the Enhance shrine's corridor, back into Alia Caverns",
+            ConcordiaWilderness,
+            new Vector3(832f - AlcoveHalfWidth, 154f, 920f - AlcoveDepth), new Vector3(832f + AlcoveHalfWidth, 170f, 920f + AlcoveReach),
+            new Vector3(835f, 286.3f, 733f), 0f, withEffect: true);
 
         public static readonly Passage[] All = { JumpAndBelieve, GrowthHallEnd, AliaCavernsDoor, EnhanceShrineExit };
 
-        /// <summary>A piece of scenery that fills the doorway a passage is in, so that it does not open on nothing.</summary>
+        /// <summary>The piece that closes the open end of a corridor a passage is at, so that it does not open on nothing.</summary>
         public sealed class Doorway
         {
-            public Doorway(string name, Passage passage, EntityClasses classId, Vector3 position, float yaw, Vector3 seenFrom)
+            public Doorway(string name, Passage passage, EntityClasses classId, UseObjectState state, Vector3 position, float yaw, Vector3 seenFrom)
             {
                 Name = name;
                 Passage = passage;
                 ClassId = classId;
+                State = state;
                 Position = position;
                 Yaw = yaw;
                 SeenFrom = seenFrom;
@@ -174,52 +196,46 @@ namespace Rasa.Managers
 
             public string Name { get; }
 
-            /// <summary>The passage whose doorway this fills.</summary>
+            /// <summary>The passage that is before this piece.</summary>
             public Passage Passage { get; }
 
             public uint MapContextId => Passage.MapContextId;
             public EntityClasses ClassId { get; }
 
-            /// <summary>The piece's origin: for the cave stub, on its axis at the plugged end.</summary>
+            /// <summary>The state the piece stands in, which is what puts that state's effect on it.</summary>
+            public UseObjectState State { get; }
+
+            /// <summary>The piece's origin: for the alcove, the middle of the corridor's end, on its floor.</summary>
             public Vector3 Position { get; }
 
-            /// <summary>Turn about the vertical, as a DynamicObject's Rotation. At 0 the cave stub's mouth is 8.3 m towards -Z.</summary>
+            /// <summary>Turn about the vertical, as a DynamicObject's Rotation. At 0 the alcove's niche opens towards -Z.</summary>
             public float Yaw { get; }
 
             /// <summary>
             /// The place whose map cell the piece is filed in (DynamicObject.CellAnchor). A client
             /// has an object from two cells of 25.6 m around it, 51 to 77 m; filed where it stands,
-            /// behind the doorway, the piece would come too late for someone looking down the
-            /// length of the way to it, who would see the doorway open first.
+            /// at the end of the way to it, the piece would come too late for someone looking down
+            /// the length of that way, who would see the end open first.
             /// </summary>
             public Vector3 SeenFrom { get; }
 
-            /// <summary>The middle of the cave stub's mouth, at floor height: 8.3 m along its axis from the origin and 4.5 m down.</summary>
-            public Vector3 Mouth => Position + Vector3.Transform(new Vector3(0f, -CavernTransitionFloor, -CavernTransitionLength), Quaternion.CreateFromYawPitchRoll(Yaw, 0f, 0f));
+            /// <summary>Level, out of the niche and down the corridor.</summary>
+            public Vector3 Out => Vector3.Transform(new Vector3(0f, 0f, -1f), Quaternion.CreateFromYawPitchRoll(Yaw, 0f, 0f));
         }
 
-        /// <summary>TerraForeasCavernInstance: the cave mouth with the transition's swirl that the Wilderness map puts at every way out of it.</summary>
-        public const EntityClasses CavernTransition = (EntityClasses)6977;
-
-        /// <summary>From the cave stub's origin to its mouth, along its axis (the mesh's bounds).</summary>
-        public const float CavernTransitionLength = 8.3f;
-
-        /// <summary>How far under the cave stub's axis a corridor's floor is put.</summary>
-        public const float CavernTransitionFloor = 4.5f;
-
-        /// <summary>Behind the open north end of the Alia Caverns corridor (its end at z 739.14, floor y 286.0).</summary>
+        /// <summary>At the open north end of the Alia Caverns corridor (its straight's origin; the end is at z 739.14).</summary>
         public static readonly Doorway AliaCavernsDoorway = new Doorway(
-            "Concordia Wilderness: the transition in the Alia Caverns corridor's doorway",
-            AliaCavernsDoor, CavernTransition,
-            new Vector3(835f, 290.5f, 747f), 0f,
-            // The tunnel runs straight at the doorway from z 647: in the cell of z 691..717, the piece is there from z 640 on.
+            "Concordia Wilderness: the alcove at the end of the Alia Caverns corridor",
+            AliaCavernsDoor, ElohAlcove, UseObjectState.TsState1,
+            new Vector3(835f, 286f, 739f), 0f,
+            // The tunnel runs straight at the corridor from z 647: in the cell of z 691..717, the piece is there from z 640 on.
             new Vector3(835f, 286f, 705f));
 
-        /// <summary>Behind the open south end of the Enhance shrine's corridor (its end at z 919.86, floor y 159.93): the same, turned about.</summary>
+        /// <summary>At the open south end of the Enhance shrine's corridor (its straight's origin; the end is at z 919.86): the same, turned about.</summary>
         public static readonly Doorway EnhanceShrineDoorway = new Doorway(
-            "Concordia Wilderness: the transition in the Enhance shrine corridor's doorway",
-            EnhanceShrineExit, CavernTransition,
-            new Vector3(832f, 164.43f, 912f), MathF.PI,
+            "Concordia Wilderness: the alcove at the end of the Enhance shrine's corridor",
+            EnhanceShrineExit, ElohAlcove, UseObjectState.TsState1,
+            new Vector3(832f, 159.93f, 920f), MathF.PI,
             // The room ends at z 985: in the cell of z 947..973, the piece is there throughout the shrine.
             new Vector3(832f, 160f, 960f));
 
@@ -269,6 +285,7 @@ namespace Rasa.Managers
                 {
                     EntityClassId = doorway.ClassId,
                     DynamicObjectType = DynamicObjectType.Scenery,
+                    StateId = doorway.State,
                     ObjectData = doorway,
                     Position = doorway.Position,
                     Rotation = doorway.Yaw,
@@ -330,11 +347,16 @@ namespace Rasa.Managers
             return true;
         }
 
+        /// <summary>The object manager a passage with an effect travels by; the game's own unless a test has put another here.</summary>
+        internal static DynamicObjectManager Travel { get; set; }
+
         /// <summary>
         /// Moves the player to the passage's far end: the server's position, their own client,
         /// the cells they now see (the far end is out of sight of the near one, and what stands
         /// there - a logos - is to be on screen on arrival, not after the next step), and
-        /// everyone who can see them there.
+        /// everyone who can see them there. A passage with an effect does all of that as a
+        /// waypoint does, and holds the player until their client has answered the teleport;
+        /// one who cannot travel now stays where they stepped, and is taken on a later step.
         /// </summary>
         public static void Take(Client client, Passage passage)
         {
@@ -342,6 +364,12 @@ namespace Rasa.Managers
             var movement = new Movement(passage.Destination, new Vector2(passage.Rotation, 0f));
 
             Logger.WriteLog(LogType.Debug, $"{player.FamilyName} took the secret passage {passage.Name}: {player.Position} -> {passage.Destination}");
+
+            if (passage.WithEffect)
+            {
+                (Travel ?? DynamicObjectManager.Instance).TakePassage(client, passage.Destination, passage.Rotation);
+                return;
+            }
 
             player.PlaceAt(passage.Destination);
             player.Rotation = passage.Rotation;
