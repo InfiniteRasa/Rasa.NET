@@ -2238,6 +2238,9 @@ namespace Rasa.Managers
                 // PhysicalEntity
                 new IsTargetablePacket(EntityClassManager.Instance.GetClassInfo(player.EntityClass).TargetFlag),
                 new WorldLocationDescriptorPacket(player.Position, player.Rotation),
+                // The height chosen at creation. Nothing else sizes them: without it every
+                // player stood at 1.0 in the world, whatever the selection screen had shown.
+                BodyAttributesPacket.ForPlayer(player.Scale),
                 // Manifestation
                 new CurrentCharacterIdPacket(player.EntityId),
                 new CharacterClassPacket(player.Class),

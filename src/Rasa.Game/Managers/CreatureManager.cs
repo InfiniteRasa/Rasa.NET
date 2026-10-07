@@ -633,7 +633,9 @@ namespace Rasa.Managers
                 // PhysicalEntity
                 new IsTargetablePacket(EntityClassManager.Instance.GetClassInfo(EntityManager.Instance.GetEntityClassId(creature.EntityId)).TargetFlag),
                 new WorldLocationDescriptorPacket(creature.Position, creature.Rotation),
-                new BodyAttributesPacket(creature.Scale, hue, 0, 0, hue2),
+                // Ignoring collision volumes and walkable surfaces, as creatures always have: the
+                // packet wrote 1 and 1 whatever it was given.
+                new BodyAttributesPacket(creature.Scale, hue, BodyAttributesPacket.Ignore, BodyAttributesPacket.Ignore, hue2),
                 // Creature augmentation
                 new CreatureInfoPacket(creature.NameId, false, CreatureFlagsOf(creature)),
                 // Actor augmentation
