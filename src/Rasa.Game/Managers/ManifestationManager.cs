@@ -1319,7 +1319,7 @@ namespace Rasa.Managers
             // The rate change is not in that packet - it carries nothing - so the attributes go
             // too. AttributeInfo rather than UpdateAttributes because only AttributeInfo carries
             // refreshPeriod, which is the field the modifier moves.
-            client.CallMethod(client.Player.EntityId, new AttributeInfoPacket(client.Player.Attributes));
+            client.CallMethod(client.Player.EntityId, new AttributeInfoPacket(client.Player));
         }
 
         /// <summary>Takes the player out of combat and restores their regeneration.</summary>
@@ -1337,7 +1337,7 @@ namespace Rasa.Managers
                 return;
 
             client.CallMethod(client.Player.EntityId, new PlayerExitedCombatPacket());
-            client.CallMethod(client.Player.EntityId, new AttributeInfoPacket(client.Player.Attributes));
+            client.CallMethod(client.Player.EntityId, new AttributeInfoPacket(client.Player));
         }
 
         /// <summary>
@@ -1969,7 +1969,7 @@ namespace Rasa.Managers
                     $"AccountId = {client.AccountEntry.Id} tried to allocate {packet.Body}/{packet.Mind}/{packet.Spirit} attribute points with {available} available.");
 
                 // Whatever the client's window thinks, this is where the character stands.
-                client.CallMethod(client.Player.EntityId, new AttributeInfoPacket(client.Player.Attributes));
+                client.CallMethod(client.Player.EntityId, new AttributeInfoPacket(client.Player));
                 return;
             }
 
@@ -2028,7 +2028,7 @@ namespace Rasa.Managers
             // when AttributeInfo causes the window to reload its B/M/S state.
             SendAvailableAllocationPoints(client);
 
-            client.CallMethod(client.Player.EntityId, new AttributeInfoPacket(client.Player.Attributes));
+            client.CallMethod(client.Player.EntityId, new AttributeInfoPacket(client.Player));
         }
 
         /// <summary>
@@ -2381,7 +2381,7 @@ namespace Rasa.Managers
                 new CharacterClassPacket(player.Class),
                 // Item race requirements are checked against it (Item.CanActorUse, the tooltip).
                 new RaceIdPacket(player.Race),
-                new AttributeInfoPacket(player.Attributes),
+                new AttributeInfoPacket(player),
                 new PreloadDataPacket(client.Player.Inventory.EquippedInventory[13], player.Abilities),
                 new AppearanceDataPacket(player.AppearanceData, ofPlayer: true),
                 // With the appearance: a client that meets the player later has had no
@@ -2562,7 +2562,7 @@ namespace Rasa.Managers
                 UpdateStatsValues(client, true);
                 client.CallMethod(
                     player.EntityId,
-                    new AttributeInfoPacket(player.Attributes));
+                    new AttributeInfoPacket(player));
                 SendAvailableAllocationPoints(client);
 
                 var opened = AvailableClassIds(player);
@@ -2710,7 +2710,7 @@ namespace Rasa.Managers
 
                 UpdateStatsValues(client, true);
                 client.CallMethod(player.EntityId,
-                    new AttributeInfoPacket(player.Attributes));
+                    new AttributeInfoPacket(player));
                 SendAvailableAllocationPoints(client);
 
                 // Reaching 5, 15 or 30 is what opens the next tier. This is the packet that
@@ -3061,7 +3061,7 @@ namespace Rasa.Managers
                 client.CallMethod(player.EntityId, new CharacterClassPacket(player.Class));
 
             UpdateStatsValues(client, true);
-            client.CallMethod(player.EntityId, new AttributeInfoPacket(player.Attributes));
+            client.CallMethod(player.EntityId, new AttributeInfoPacket(player));
 
             if (untrain.Count > 0)
             {
@@ -4377,7 +4377,7 @@ namespace Rasa.Managers
 
             UpdateStatsValues(client, false);
 
-            client.CallMethod(player.EntityId, new AttributeInfoPacket(player.Attributes));
+            client.CallMethod(player.EntityId, new AttributeInfoPacket(player));
             client.CallMethod(player.EntityId, new UpdatePowerPacket(player.Attributes[Attributes.Power], 0));
             CellManager.Instance.CellCallMethod(player.MapChannel, player, new UpdateHealthPacket(player.Attributes[Attributes.Health], 0));
 

@@ -30,6 +30,9 @@ namespace Rasa.Test.Gameplay
     [DoNotParallelize]
     public class PowerBarRefreshTests
     {
+        private const int MechAuraPercent = 50;
+        private const int RegenerationWaveTypeId = 10000019;        // REGENERATIONWAVE, as AbilityManager has it
+
         #region A period
 
         [TestMethod]
@@ -116,6 +119,101 @@ namespace Rasa.Test.Gameplay
             Assert.AreEqual(0, other.Player.Attributes[Attributes.Power].RefreshPeriod, "as they are made");
             ManifestationManager.Instance.UpdateStatsValues(other, true);
             Assert.AreEqual(CombatRegen.RegenPeriodSeconds, other.Player.Attributes[Attributes.Power].RefreshPeriod);
+        }
+
+        #endregion
+
+        #region A rate
+
+        [TestMethod]
+        public void ARateAnEffectMakesIsKeptThroughAFight()
+        {
+            using var context = new ProgressionTestContext();
+            var client = Player(context, 20);
+            var bar = Arrive(client, power: 10);
+            var now = 0;
+
+            MechAura(context.World, client);
+            Receive(client, bar, now);
+            Assert.IsTrue(GameEffectManager.RegenAmount(client.Player, client.Player.Attributes[Attributes.Power]) > Rate(client), "the aura quickens it");
+            Together(context.World, client, bar, ref now, 5, "with the aura on");
+
+            ManifestationManager.Instance.EnterCombat(client);
+            Receive(client, bar, now);
+            Together(context.World, client, bar, ref now, 5, "in the fight");
+
+            ManifestationManager.Instance.ExitCombat(client);
+            Receive(client, bar, now);
+            Together(context.World, client, bar, ref now, 5, "after it");
+        }
+
+        [TestMethod]
+        public void AttributeInfoCarriesTheRatesTheEffectsMakeAndLeavesTheAttributesAsTheyAre()
+        {
+            using var context = new ProgressionTestContext();
+            var client = Player(context, 20);
+            var player = client.Player;
+            var held = player.Attributes;
+            var map = context.World.Map;
+
+            // As a piece of armor gives it (ManifestationManager.ApplyRegenPeriod).
+            held[Attributes.Armor].RefreshAmount = 8;
+            held[Attributes.Power].Current = 10;
+
+            var health = held[Attributes.Health].RefreshAmount;
+            var power = held[Attributes.Power].RefreshAmount;
+
+            Assert.IsTrue(health > 0 && power > 0);
+
+            // Regeneration Wave on health and power, and Graviton armor's own on armor.
+            GameEffectManager.Instance.Attach(map, player, Effect(map, player, RegenerationWaveTypeId, wave => wave.RegenPercent = 400));
+            GameEffectManager.Instance.Attach(map, player, Effect(map, player, ArmorSkills.GravitonVisibleTypeId, graviton => graviton.ArmorRegenPercent = 50));
+
+            var sent = new AttributeInfoPacket(player).ActorAttributes;
+
+            CollectionAssert.AreEqual(held.Keys.ToList(), sent.Keys.ToList(), "all of them, in their order");
+
+            Assert.AreEqual(5 * health, sent[Attributes.Health].RefreshAmount);
+            Assert.AreEqual(5 * power, sent[Attributes.Power].RefreshAmount);
+            Assert.AreEqual(12, sent[Attributes.Armor].RefreshAmount);
+
+            foreach (var id in new[] { Attributes.Health, Attributes.Power, Attributes.Armor })
+            {
+                Assert.AreEqual(held[id].RefreshPeriod, sent[id].RefreshPeriod, $"{id}: the period it has");
+                Assert.AreEqual(held[id].Current, sent[id].Current);
+                Assert.AreEqual(held[id].CurrentMax, sent[id].CurrentMax);
+                Assert.AreEqual(held[id].NormalMax, sent[id].NormalMax);
+            }
+
+            // The attributes keep their own rates: the stats work those out again from nothing,
+            // and the effects are applied to what they leave.
+            Assert.AreEqual(health, held[Attributes.Health].RefreshAmount);
+            Assert.AreEqual(power, held[Attributes.Power].RefreshAmount);
+            Assert.AreEqual(8, held[Attributes.Armor].RefreshAmount);
+
+            foreach (var id in held.Keys.Where(id => id != Attributes.Health && id != Attributes.Armor && id != Attributes.Power))
+                Assert.AreSame(held[id], sent[id], $"{id} regenerates by nothing");
+        }
+
+        [TestMethod]
+        public void ARateAnEffectMakesIsKeptWhenAnAbilityIsPaidFor()
+        {
+            using var context = new ProgressionTestContext();
+            var client = Player(context, 20);
+            var bar = Arrive(client, power: 60);
+            var now = 0;
+            var ability = new ActionLevelInfo { ActionId = ActionId.AaRecruitLightning, Level = 1 };
+
+            ability.Costs.Add(new ActionCost { Attribute = Attributes.Power, Amount = 40 });
+
+            MechAura(context.World, client);
+            Receive(client, bar, now);
+
+            AbilityManager.TakeCosts(client, client.Player, ability);
+            Receive(client, bar, now);
+
+            Assert.AreEqual(20, bar.At(now), "paid");
+            Together(context.World, client, bar, ref now, 5, "after paying");
         }
 
         #endregion
@@ -216,7 +314,7 @@ namespace Rasa.Test.Gameplay
             Assert.IsTrue(attribute.CurrentMax >= 100, "room to count in");
             attribute.Current = power;
 
-            bar.Info(new AttributeInfoPacket(client.Player.Attributes).ActorAttributes[Attributes.Power], 0);
+            bar.Info(new AttributeInfoPacket(client.Player).ActorAttributes[Attributes.Power], 0);
             bar.Update(new UpdateAttributesPacket(client.Player.Attributes, 0).AttributeDataList[Attributes.Power], 0);
 
             return bar;
@@ -263,6 +361,36 @@ namespace Rasa.Test.Gameplay
 
         /// <summary>What Power gains a second with nothing on the player.</summary>
         private static int Rate(Client client) => client.Player.Attributes[Attributes.Power].RefreshAmount;
+
+        /// <summary>The Mech armor skill's aura, as ManifestationManager.SyncArmorSkills puts it on.</summary>
+        private static void MechAura(WorldTestContext world, Client client)
+        {
+            var effect = Effect(world.Map, client.Player, ArmorSkills.MechAuraTypeId, aura => aura.PowerRegenPercent = MechAuraPercent);
+
+            effect.IsSkillPassive = true;
+            effect.AllowDetach = false;
+            GameEffectManager.Instance.Attach(world.Map, client.Player, effect);
+        }
+
+        /// <summary>A standing effect of the player's own, of that type, that does that and nothing else.</summary>
+        private static GameEffect Effect(MapChannel map, Manifestation player, int typeId, Action<GameEffect> does)
+        {
+            var effect = new GameEffect
+            {
+                TypeId = typeId,
+                EffectId = GameEffectManager.Instance.NextEffectId(map),
+                EffectLevel = 1,
+                SourceId = player.EntityId,
+                Source = player,
+                SourceLevel = player.Level,
+                ExpiresTick = long.MaxValue,
+                AnnounceOnAttach = true
+            };
+
+            does(effect);
+
+            return effect;
+        }
 
         #endregion
     }

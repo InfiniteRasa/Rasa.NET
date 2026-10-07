@@ -1209,6 +1209,21 @@ namespace Rasa.Managers
         }
 
         /// <summary>
+        /// The actor's attributes for sending whole (AttributeInfo): health, armour and power as
+        /// copies carrying the regeneration rate the effects on the actor make, the others as they
+        /// are held, in the order they are held in.
+        /// </summary>
+        public static Dictionary<Attributes, ActorAttributes> WithRegen(Actor actor)
+        {
+            var shown = new Dictionary<Attributes, ActorAttributes>(actor.Attributes.Count);
+
+            foreach (var (id, attribute) in actor.Attributes)
+                shown[id] = id == Attributes.Health || id == Attributes.Armor || id == Attributes.Power ? WithRegen(actor, attribute) : attribute;
+
+            return shown;
+        }
+
+        /// <summary>
         /// MaxHealthPercent, applied: the maximum moves by that share of what it was, and so
         /// does the current health, so a full bar stays full and a lowered maximum does not
         /// leave health above it. The points moved are kept on the effect and are exactly what

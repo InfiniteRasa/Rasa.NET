@@ -426,7 +426,7 @@ namespace Rasa.Managers
             ManifestationManager.Instance.SyncSkillPassives(client);
 
             // Send Data to client
-            client.CallMethod(client.Player.EntityId, new AttributeInfoPacket(client.Player.Attributes));
+            client.CallMethod(client.Player.EntityId, new AttributeInfoPacket(client.Player));
 
             if (itemToEquip != null &&
                 client.Player.Inventory.EquippedInventory[(int)packet.DestSlot] == entityIdInventoryItem)
