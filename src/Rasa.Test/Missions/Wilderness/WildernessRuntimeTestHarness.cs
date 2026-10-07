@@ -242,7 +242,7 @@ namespace Rasa.Test.Missions.Wilderness
 
         /// <summary>
         /// The same for the pools' poses, the table of which is Add_npc_poses': a World stopped
-        /// before that migration has no pool with a pose.
+        /// before that migration has no pool with a pose. And for their patrols, Add_npc_patrols'.
         /// </summary>
         private sealed class SpawnpoolsOfThisWorld : SpawnpoolRepository, ISpawnpoolRepository
         {
@@ -254,6 +254,11 @@ namespace Rasa.Test.Missions.Wilderness
                 HasTable(Rasa.Structures.World.SpawnPoolPoseEntry.TableName)
                     ? GetPoses()
                     : new List<Rasa.Structures.World.SpawnPoolPoseEntry>();
+
+            List<Rasa.Structures.World.SpawnPoolPatrolEntry> ISpawnpoolRepository.GetPatrols() =>
+                HasTable(Rasa.Structures.World.SpawnPoolPatrolEntry.TableName)
+                    ? GetPatrols()
+                    : new List<Rasa.Structures.World.SpawnPoolPatrolEntry>();
 
             private bool HasTable(string name) => _context.Database
                 .SqlQueryRaw<int>("SELECT COUNT(*) AS Value FROM sqlite_master WHERE type = 'table' AND name = {0}", name)

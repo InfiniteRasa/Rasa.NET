@@ -88,6 +88,7 @@ namespace Rasa.Context.World
         public DbSet<NpcPackageEntry> NpcPackageEntries { get; set; }
         public DbSet<RandomNameEntry> RandomNameEntries { get; set; }
         public DbSet<SpawnPoolEntry> SpawnPoolEntries { get; set; }
+        public DbSet<SpawnPoolPatrolEntry> SpawnPoolPatrolEntries { get; set; }
         public DbSet<SpawnPoolPoseEntry> SpawnPoolPoseEntries { get; set; }
         public DbSet<TeleporterEntry> TeleporterEntries { get; set; }
         public DbSet<VendorEntry> VendorEntries { get; set; }
@@ -110,6 +111,7 @@ namespace Rasa.Context.World
             SetupMapMarker(modelBuilder);
             SetupControlPoints(modelBuilder);
             SetupCreatureClassFlag(modelBuilder);
+            SetupSpawnPoolPatrol(modelBuilder);
             SetupSkillCharacter(modelBuilder);
             SetupMissionContent(modelBuilder);
             modelBuilder.Entity<MissionSceneBindingEntry>()
@@ -166,6 +168,13 @@ namespace Rasa.Context.World
         {
             modelBuilder.Entity<CreatureClassFlagEntry>()
                 .HasKey(e => new { e.ClassId, e.FlagId });
+        }
+
+        /// <summary>A pool's patrol is several steps, so the row is the pool and the step.</summary>
+        private static void SetupSpawnPoolPatrol(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<SpawnPoolPatrolEntry>()
+                .HasKey(e => new { e.PoolId, e.Step });
         }
 
         private void SetupExperienceForLevel(ModelBuilder modelBuilder)

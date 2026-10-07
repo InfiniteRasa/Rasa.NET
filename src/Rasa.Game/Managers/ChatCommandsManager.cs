@@ -2791,6 +2791,9 @@ namespace Rasa.Managers
                     if (creature.Pose != NpcPose.None)
                         msg += $"Pose = {creature.Pose} ({(int)creature.Pose}){(creature.PoseShown ? "" : ", not shown now")}\n";
 
+                    if (creature.Patrol != null)
+                        msg += $"Patrol = {Patrols.Describe(creature)}\n";
+
                     msg += $"PosX = {creature.Position.X}\n";
                     msg += $"PosY = {creature.Position.Y}\n";
                     msg += $"PosZ = {creature.Position.Z}\n";

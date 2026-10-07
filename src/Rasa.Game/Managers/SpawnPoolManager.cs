@@ -222,10 +222,33 @@ namespace Rasa.Managers
                     poses++;
             }
 
+            // The beat a pool's creature walks (spawnpool_patrol; Patrols).
+            var patrols = 0;
+
+            foreach (var (poolId, steps) in Patrols.FromRows(unitOfWork.Spawnpools.GetPatrols()))
+            {
+                if (!LoadedSpawnPools.TryGetValue(poolId, out var pool))
+                {
+                    Logger.WriteLog(LogType.Error, $"spawnpool_patrol {poolId} names a spawnpool that is not loaded.");
+                    continue;
+                }
+
+                // A pose is for standing at a post.
+                if (pool.Pose != NpcPose.None)
+                {
+                    Logger.WriteLog(LogType.Error, $"SpawnPool {poolId} has a patrol and a pose ({pool.Pose}). It patrols, and has no pose.");
+                    pool.Pose = NpcPose.None;
+                    poses--;
+                }
+
+                pool.Patrol = steps;
+                patrols++;
+            }
+
             foreach (var mapChannel in MapChannelManager.Instance.MapChannelArray.Values)
                 InitializeMapChannel(mapChannel);
 
-            Logger.WriteLog(LogType.Initialize, $"Loaded {LoadedSpawnPools.Count} SpawnPools, {arrivals} arrival points, {poses} posed");
+            Logger.WriteLog(LogType.Initialize, $"Loaded {LoadedSpawnPools.Count} SpawnPools, {arrivals} arrival points, {poses} posed, {patrols} patrolling");
         }
 
         internal void InitializeMapChannel(MapChannel mapChannel)
@@ -449,6 +472,14 @@ namespace Rasa.Managers
                     if (spawnPool.Pose != NpcPose.None)
                         NpcPoses.Assign(creature, spawnPool.Pose, (float)spawnPool.Rotation, show: arrival == null);
 
+                    // Its beat (Patrols), which it sets off on at its first think: from here,
+                    // facing the way it was placed, or from wherever it walks in to.
+                    if (spawnPool.Patrol != null)
+                    {
+                        creature.Patrol = spawnPool.Patrol;
+                        creature.LastYaw = (float)creature.Rotation;
+                    }
+
                     if (spawnPool.FollowOwnerCharacterId != 0 ||
                         spawnPool.FollowTargetEntityId != 0)
                         BehaviorManager.Instance.SetActionFollow(
@@ -601,6 +632,10 @@ namespace Rasa.Managers
         /// So the pool's height has to be the floor's, and StandingHeights (the migration
         /// Stand_npcs_on_their_floors) made it so: measured against the client's terrain and the
         /// collision meshes of each map's entities.
+        ///
+        /// The one creature of a pool with a beat (Patrols) stands on the point too: its steps
+        /// are floor heights it walks between in straight lines, and the pool's point is where
+        /// it starts.
         /// </summary>
         internal static Vector3 SpawnPoint(MapChannel mapChannel, SpawnPool pool, int count, Creature creature = null)
         {
@@ -625,7 +660,7 @@ namespace Rasa.Managers
                 pos.X += Random.Shared.Next() % 5 - 2;
                 pos.Z += Random.Shared.Next() % 5 - 2;
             }
-            else if (BehaviorManager.NeverMoves(creature))
+            else if (BehaviorManager.NeverMoves(creature) || pool.Patrol != null)
             {
                 return pos;
             }
@@ -801,6 +836,7 @@ namespace Rasa.Managers
                 Rotation = template.Rotation,
                 Radius = template.Radius,
                 Pose = template.Pose,
+                Patrol = template.Patrol,
                 SpawnSlot = template.SpawnSlot?.Select(slot =>
                     new SpawnPoolSlot(slot.CreatureId, slot.CountMin, slot.CountMax)).ToList() ?? new List<SpawnPoolSlot>(),
                 Mode = template.Mode,

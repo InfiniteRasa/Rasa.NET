@@ -12,6 +12,9 @@ namespace Rasa.Repositories.World
 
         /// <summary>The pools that have a pose (spawnpool_pose).</summary>
         List<SpawnPoolPoseEntry> GetPoses();
+
+        /// <summary>Every step of every pool's patrol (spawnpool_patrol), each pool's in the order they are walked.</summary>
+        List<SpawnPoolPatrolEntry> GetPatrols();
     }
     public class SpawnpoolRepository : ISpawnpoolRepository
     {
@@ -33,6 +36,14 @@ namespace Rasa.Repositories.World
         public List<SpawnPoolPoseEntry> GetPoses()
         {
             return _worldContext.CreateNoTrackingQuery(_worldContext.SpawnPoolPoseEntries).ToList();
+        }
+
+        public List<SpawnPoolPatrolEntry> GetPatrols()
+        {
+            return _worldContext.CreateNoTrackingQuery(_worldContext.SpawnPoolPatrolEntries)
+                .OrderBy(step => step.PoolId)
+                .ThenBy(step => step.Step)
+                .ToList();
         }
     }
 }

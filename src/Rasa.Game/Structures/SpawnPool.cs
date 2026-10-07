@@ -19,6 +19,9 @@ namespace Rasa.Structures
 
         /// <summary>How its creatures stand at their post (spawnpool_pose; NpcPoses); None for a pool with no pose.</summary>
         public Data.NpcPose Pose { get; set; }
+
+        /// <summary>The beat its creature walks (spawnpool_patrol; Managers.Patrols); null for a pool with none.</summary>
+        public IReadOnlyList<PatrolStep> Patrol { get; set; }
         public List<SpawnPoolSlot> SpawnSlot { get; set; }
 
         /// <summary>Where its creatures arrive (spawnpool_arrival): a pad or bay the Bane dropship lands on, a teleporter. Empty: they appear on its ground.</summary>

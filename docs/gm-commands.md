@@ -96,7 +96,7 @@ These change nothing in the world, except where noted.
 | `.where` | Observer | Your position, facing and map id. Also written to the server log with a `[.where]` tag. |
 | `.getdistance` | Observer | Distance to your selected target. For a creature it measures to the creature's **spawn pool position**, not to the creature. Objects print "ToDo". |
 | `.near` | Observer | Lists the objects and creatures in your cells. The output goes to the **server console**, not to chat. |
-| `.npcinfo` | Observer | For your target: entity id and type. For a creature it adds DB id, target category, health, armour and its regeneration, spawn pool id, its pose if it has one, and position. |
+| `.npcinfo` | Observer | For your target: entity id and type. For a creature it adds DB id, target category, health, armour and its regeneration, spawn pool id, its pose if it has one, where it is on its patrol if it has one (`spawnpool_patrol`), and position. |
 | `.maperrors` | Observer | The map-errors dialog for the map you are on (the same one an Observer or above gets on entering a broken map). |
 | `.missions [characterId]` | Observer | Mission state for a character: you by default, or the character id given. |
 | `.links` | Observer | Map links on this map, nearest first (up to 10), marking the one you are standing in. |

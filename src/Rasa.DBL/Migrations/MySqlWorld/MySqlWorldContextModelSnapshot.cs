@@ -2892,6 +2892,41 @@ namespace Rasa.Migrations.MySqlWorld
                     b.ToTable("spawnpool");
                 });
 
+            modelBuilder.Entity("Rasa.Structures.World.SpawnPoolPatrolEntry", b =>
+                {
+                    b.Property<uint>("PoolId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("pool_id");
+
+                    b.Property<uint>("Step")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("step");
+
+                    b.Property<double?>("Facing")
+                        .HasColumnType("double")
+                        .HasColumnName("facing");
+
+                    b.Property<uint>("PauseMs")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("pause_ms");
+
+                    b.Property<double>("PosX")
+                        .HasColumnType("double")
+                        .HasColumnName("pos_x");
+
+                    b.Property<double>("PosY")
+                        .HasColumnType("double")
+                        .HasColumnName("pos_y");
+
+                    b.Property<double>("PosZ")
+                        .HasColumnType("double")
+                        .HasColumnName("pos_z");
+
+                    b.HasKey("PoolId", "Step");
+
+                    b.ToTable("spawnpool_patrol");
+                });
+
             modelBuilder.Entity("Rasa.Structures.World.SpawnPoolPoseEntry", b =>
                 {
                     b.Property<uint>("Id")
