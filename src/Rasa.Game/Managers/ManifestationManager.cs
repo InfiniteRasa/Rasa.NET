@@ -2606,7 +2606,12 @@ namespace Rasa.Managers
         }
 
         /// <param name="critKill">A kill by a finishing move: the client adds its "by Crit Killing" line.</param>
-        internal void GainExperience(Client client, uint experience, CritKill critKill = CritKill.None)
+        /// <param name="streakMod">
+        /// What a kill streak multiplied the experience by, 1 for nothing (KillStreaks): the
+        /// client adds " (+100% Kill Streak Bonus)" for 2, and shows the experience over it as
+        /// the base.
+        /// </param>
+        internal void GainExperience(Client client, uint experience, CritKill critKill = CritKill.None, int streakMod = 1)
         {
             var player = client?.Player;
             if (player == null || experience == 0 || client.State != ClientState.Ingame ||
@@ -2678,8 +2683,9 @@ namespace Rasa.Managers
 
             player.Experience = experienceAfter;
             client.CallMethod(player.EntityId,
-                new ExperienceChangedPacket(new XPInfo(experienceAfter, experience, experience)
+                new ExperienceChangedPacket(new XPInfo(experienceAfter, experience, streakMod > 1 ? experience / (uint)streakMod : experience)
                 {
+                    StreakMod = Math.Max(1, streakMod),
                     WasCritKill = critKill == CritKill.Own,
                     WasTeamCritKill = critKill == CritKill.Team
                 }));

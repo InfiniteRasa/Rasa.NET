@@ -277,7 +277,7 @@ namespace Rasa.Managers
             RegisterCommand(".removeobj", GmLevel.GameMaster, RemoveObjectCommand, "entityId");
             RegisterCommand(".moveobj", GmLevel.GameMaster, MoveObjectCommand, "entityId", "x", "y", "z", "rotation");
             RegisterCommand(".rename", GmLevel.GameMaster, RenameCommand, "part", "newName", "familyName");
-            RegisterCommand(".setkillstreak", GmLevel.GameMaster, SetKillStreakCommand, "streakCount");
+            RegisterCommand(".setkillstreak", GmLevel.GameMaster, SetKillStreakCommand, "level");
             RegisterCommand(".setregion", GmLevel.GameMaster, SetRegionCommand, "regionIdsOrOff");
             RegisterCommand(".speed", GmLevel.GameMaster, SpeedCommand, "value");
             RegisterCommand(".tele", GmLevel.GameMaster, TeleCommand, "posX", "posY", "posZ");
@@ -3169,9 +3169,11 @@ namespace Rasa.Managers
                 SendCommandUsage(".setkillstreak");
                 return;
             }
+            // The streak itself, not only its picture: the next kills are multiplied by it, and
+            // it lapses eight seconds after the last one as any other does (KillStreaks).
             if (parts.Length == 2)
                 if (int.TryParse(parts[1], out int count))
-                    _client.CallMethod(SysEntity.ClientMethodId, new SetKillStreakPacket(count));
+                    KillStreaks.Set(_client, count);
 
             return;
         }

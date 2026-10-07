@@ -323,6 +323,10 @@ namespace Rasa.Managers
                 // each other. Split with the squad as the experience is.
                 KillShares.AwardAdrenaline(_manifestationManager, sharers, critKill != CritKill.None);
 
+                // And the kill counts towards the kill streak of each of them: after its
+                // experience, which is paid at the streak they had before it (KillStreaks).
+                KillStreaks.KillCounted(sharers);
+
                 // One of a control point's Bane garrison is worth prestige as well (ControlPoints).
                 ControlPoints.Instance.CreatureKilled(creature, client);
             }

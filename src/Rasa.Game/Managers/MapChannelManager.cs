@@ -304,6 +304,9 @@ namespace Rasa.Managers
             // Squad wargame challenges that lapsed and squad wargames whose time is up.
             Guard("SquadWargames.Worker", null, () => SquadWargames.Instance.Worker());
 
+            // Kill streaks whose eight seconds are up.
+            Guard("KillStreaks.Worker", null, KillStreaks.Worker);
+
             // Shared copies of a map that have stood empty long enough are closed.
             if (Timer.IsTriggered("SharedInstances"))
             {
@@ -1101,6 +1104,7 @@ namespace Rasa.Managers
                 client.Player.TrackingTargetEntityId = 0;
                 MinionManager.Instance.DismissAll(client);
                 AbilityManager.DismissPet(client.Player);
+                KillStreaks.End(client);
                 DynamicObjectManager.Instance.ForgetPlayer(origin, client);
                 MapLinkManager.Instance.RemovePlayer(client);
                 RegionManager.Instance.RemovePlayer(client);
@@ -1277,6 +1281,9 @@ namespace Rasa.Managers
             // maps." Leaving the map is leaving them behind, so they are dismissed, not orphaned.
             RemovalStep(client, "dismissing minions", () => MinionManager.Instance.DismissAll(client));
             RemovalStep(client, "sending the pet home", () => AbilityManager.DismissPet(client.Player));
+
+            // A kill streak is of the map it was made on.
+            RemovalStep(client, "ending the kill streak", () => KillStreaks.End(client));
 
             // Off every waypoint, pad, station and control point's list of who is at it; nothing
             // else takes a player who left standing on one off it.

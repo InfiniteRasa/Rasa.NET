@@ -163,7 +163,7 @@ A map's start groups are generated in this order:
 | `.rename first\|last <NewName> [familyName]` | GameMaster | Renames yourself or the player with that family name (the name must be in the world). `last` renames the family, so every character on the account. |
 | `/changefirstname`, `/changelastname` | GameMaster | The client's own rename slash commands, for yourself. |
 | `.heal [full\|<amount>] [familyName]` | GameMaster | Heals you or a player in the world. Does not revive the dead. |
-| `.setkillstreak <count>` | GameMaster | Sends `SetKillStreak` to your own client (display only). |
+| `.setkillstreak <level>` | GameMaster | Gives you a kill streak of that level, 0 to 5 (x2 to x6 experience from kills), whatever your character's level allows. It is a real streak: your next kills are multiplied by it, and it ends eight seconds after your last kill, or now with 0. No prestige is paid for it. |
 | `.setlevel <level>` | Admin | Puts your character at level 1–50. Going up passes through every level in between, as experience would; going down resets what the new level no longer allows. Equipment worn above the new level stays equipped. |
 | `.givexp <amount>` | Admin | Gives you experience. |
 | `.chg_class <class>` | Admin | Changes your class. Class names: RECRUIT, SOLDIER, SPECIALIST, COMMANDO, RANGER, SAPPER, BIOTECHNICIAN, GRENADIER, GUARDIAN, SNIPER, SPY, DEMOLITIONIST, ENGINEER, MEDIC, EXOBIOLOGIST. |

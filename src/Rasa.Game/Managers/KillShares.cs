@@ -38,8 +38,8 @@ namespace Rasa.Managers
     /// AdrenalinePerKillPercent of it, scaled by their Regen), so what is split is each
     /// sharer's own figure for the kill, doubled for a finish, and not the killer's.
     ///
-    /// No group bonus is added: XPInfo's groupMod stays 1, and each sharer's line is their share
-    /// and nothing more.
+    /// No group bonus is added: XPInfo's groupMod stays 1. Each sharer's part is multiplied by
+    /// their own kill streak (KillStreaks), which their line says, and by nothing else.
     /// </summary>
     public static class KillShares
     {
@@ -118,10 +118,16 @@ namespace Rasa.Managers
                 return 0;
 
             // Each their part, with what their own item modules add to it: "3% experience from
-            // kills." (ItemModuleBonuses). The part returned is the part before that.
+            // kills." (ItemModuleBonuses) - and that, times their own kill streak (KillStreaks).
+            // The part returned is the part before either.
             foreach (var sharer in paid)
-                manifestations.GainExperience(sharer, ItemModuleBonuses.WithExperience(sharer.Player, share),
-                    sharer == killer || critKill == CritKill.None ? critKill : CritKill.Team);
+            {
+                var streak = KillStreaks.MultiplierOf(sharer);
+                var part = ItemModuleBonuses.WithExperience(sharer.Player, share);
+
+                manifestations.GainExperience(sharer, (uint)Math.Min(uint.MaxValue, (ulong)part * (ulong)streak),
+                    sharer == killer || critKill == CritKill.None ? critKill : CritKill.Team, streak);
+            }
 
             return share;
         }
