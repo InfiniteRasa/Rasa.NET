@@ -93,6 +93,12 @@ namespace Rasa.Managers
             // registered in _commands, so it does not appear in .help.
             if (string.Equals(parts[0], ".ingameapiauth", StringComparison.OrdinalIgnoreCase))
             {
+                // On the audit log as any other command is: it is answered here, ahead of the
+                // table the rest are looked up in, so nothing below records it. The line is all
+                // that is kept; the exchange code it is answered with is not part of it.
+                Audit?.Record(client, GmCommandSource.Chat, ".ingameapiauth", command, GmLevel.Admin,
+                    parts.Length == 1 && HasLevel(client, GmLevel.Admin) ? GmCommandResult.Executed : GmCommandResult.Denied);
+
                 if (parts.Length != 1 || !HasLevel(client, GmLevel.Admin))
                 {
                     CommunicatorManager.Instance.SystemMessage(client,
