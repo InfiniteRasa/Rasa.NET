@@ -1266,6 +1266,14 @@ namespace Rasa.Game
 
             Logger.WriteLog(LogType.Network, "*** Connected to the Auth Server!");
 
+            // The Auth server speaks first on this link (it asks for the server's info every
+            // thirty seconds) and what this side sends is an answer, the REST API's /addaccount
+            // aside. So if the path between them goes without either end's close arriving, this
+            // side has nothing to send that would fail and never finds out. The probes turn
+            // that into a socket error here in about a minute and a half, as they do on the
+            // Auth server's end of the same link.
+            socket.EnableKeepAlive();
+
             socket.OnReceive += OnCommunicatorReceive;
             socket.Send(new LoginRequestPacket
             {

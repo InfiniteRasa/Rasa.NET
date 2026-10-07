@@ -272,6 +272,22 @@ namespace Rasa.Test.Networking
         }
 
         [TestMethod]
+        public void TheLinkIsProbedWhileItIsIdle()
+        {
+            // The Auth server speaks first on this link, so a path that has gone dead is only
+            // ever found out by the probes.
+            using var auth = new FakeAuth();
+            var game = Game(auth.Port);
+
+            game.ConnectCommunicator();
+            Assert.IsTrue(Soon(() => game.AuthLinkUp), "logged in");
+
+            var socket = game.AuthCommunicator.Socket;
+
+            Assert.AreNotEqual(0, (int)socket.GetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive));
+        }
+
+        [TestMethod]
         public void OnceTheServerIsStoppingTheLinkIsNotMadeAgain()
         {
             using var auth = new FakeAuth();
