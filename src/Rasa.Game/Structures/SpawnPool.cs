@@ -7,23 +7,7 @@ namespace Rasa.Structures
 {
     public class SpawnPool : IHasPosition
     {
-        /// <summary>
-        /// The first id of the generated pools. Every preloader that makes pools out of the
-        /// client's data - its map markers, mission text, map labels - numbers them from here
-        /// (ServiceNpcSpawnpoolPreloader: "Ids start at 500000 so nothing hand-seeded is
-        /// disturbed"); the ones below it are SpawnpoolPreloader's, entered by hand.
-        /// </summary>
-        public const uint FirstGeneratedId = 500000;
-
         public uint DbId { get; set; }         // id of the spawnpool
-
-        /// <summary>
-        /// One of the spawnpool table's pools that was entered by hand. Its height is the
-        /// surface's own - within 0.03 m of the client's terrain and collision meshes on average
-        /// - where a generated pool's is a marker's, a label's or one figure for a row of NPCs.
-        /// A pool a mission scene makes for itself takes its id from the scene and is neither.
-        /// </summary>
-        public bool IsHandSeeded => DbId != 0 && DbId < FirstGeneratedId && ScenarioKey == null;
 
         public Vector3 Position { get; set; }
         public double Rotation { get; set; }

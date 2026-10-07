@@ -1130,6 +1130,18 @@ namespace Rasa.Managers
         #region Wander
 
         /// <summary>
+        /// Whether the creature can go nowhere: it has no walking speed and no running speed. A
+        /// vendor, a hospital's medic, a mission's contact. It neither strolls, nor chases, nor
+        /// runs home, so it is on the spot its pool put it for as long as it lives
+        /// (SpawnPoolManager.SpawnPoint). One with a running speed alone does not stroll either,
+        /// but it runs when it fights.
+        /// </summary>
+        public static bool NeverMoves(Creature creature)
+        {
+            return creature != null && creature.WalkSpeed < 0.01f && creature.RunSpeed < 0.01f;
+        }
+
+        /// <summary>
         /// Where a stroll goes: a point within <see cref="WanderStepDistance"/> of where the
         /// creature stands and at least <see cref="WanderMinStep"/> from it, inside its spawn zone
         /// (<see cref="WanderZoneOf"/>), and at least <see cref="WanderSpacing"/> from every other

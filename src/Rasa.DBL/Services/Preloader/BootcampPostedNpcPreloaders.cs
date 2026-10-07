@@ -25,8 +25,9 @@ namespace Rasa.Services.Preloader
     /// are safe ground. Level 5, the level of the base's medic.
     ///
     /// Ids from 400001, under the 500000 the generated pools start at: these are entered by
-    /// hand, at a height a GM stood at, so each keeps it unless the navmesh is under the point
-    /// (the game server's SpawnPool.IsHandSeeded).
+    /// hand, at a height a GM stood at, and each keeps it. With no speed they stand exactly on
+    /// their pool's point and are not put on the navmesh (the game server's
+    /// BehaviorManager.NeverMoves, SpawnPoolManager.SpawnPoint).
     ///
     /// Poses are the game server's NpcPose: 1 standing at its post, 2 with its weapon out.
     /// </summary>

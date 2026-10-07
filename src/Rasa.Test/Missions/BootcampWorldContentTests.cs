@@ -677,7 +677,7 @@ namespace Rasa.Test.Missions
             {
                 context.Database.Migrate();
                 var spawn = context.SpawnPoolEntries.AsNoTracking().Single(entry => entry.Id == 510206);
-                Assert.AreEqual(120.059, spawn.PosY, 0.001);
+                Assert.AreEqual(119.7, spawn.PosY, 0.001);   // 120.059 as seeded; his floor's since Stand_npcs_on_their_floors
                 Assert.AreEqual(510206U, spawn.Creature1Id);
                 Assert.AreEqual(7U, context.CreatureEntries.AsNoTracking().Single(entry => entry.Id == 510203).RunSpeed);
             });

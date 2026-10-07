@@ -553,7 +553,7 @@ namespace Rasa.Managers
             var mapChannel = pool.RuntimeMapChannel ?? MapChannelManager.Instance.FindByContextId(pool.MapContextId);
 
             // An emplacement stands on its mount, which is exactly where its pool is.
-            var pos = Emplacements.Is(creature) ? pool.Position : SpawnPoint(mapChannel, pool, count);
+            var pos = Emplacements.Is(creature) ? pool.Position : SpawnPoint(mapChannel, pool, count, creature);
 
             // A mission scene's recovered pose, in the private instance it belongs to.
             var map = pool.RuntimeMapChannel;
@@ -588,24 +588,21 @@ namespace Rasa.Managers
         /// or, for a centre whose height is a map label's guess, the nearest walkable point in
         /// the column above and below it.
         ///
-        /// One creature alone on a point that was entered by hand (SpawnPool.IsHandSeeded) is
-        /// brought down onto the mesh and never lifted onto it. The navmesh's height is the top
-        /// of a 0.2 m voxel, sampled every 2.4 m and joined up with straight lines, and anything
-        /// an agent can step onto - 0.9 m - is ground to it: beside a low wall the mesh is a ramp
-        /// up to the wall's top. So it is an upper bound on the ground and not the ground: a
-        /// point above it is in the air, a point under it may be standing exactly right. Lt Col
-        /// Cimoch stands on open ground 1.5 m from a line of sandbags in Alia Das, at the
-        /// terrain's height to 5 cm, and the mesh under him is 0.75 m higher. Against the
-        /// client's terrain and collision meshes, the 78 such points are 0.03 m off the surface
-        /// on average as entered (0.36 m at most) and 0.19 m on the mesh (0.70 m).
+        /// One creature alone on a point that can go nowhere (BehaviorManager.NeverMoves) is not
+        /// put on the mesh at all: it stands on the point, as an emplacement stands on its mount.
+        /// What moves is on the mesh from its first step, so it starts there; what cannot is
+        /// wherever this puts it for as long as it lives, and the navmesh is not the floor.
+        /// Its height is the top of a 0.2 m voxel, sampled every 2.4 m and joined up with
+        /// straight lines, and anything an agent can step onto - 0.9 m - is ground to it: it is
+        /// 0.17 m over the floor at the median, and beside a low wall, a cot or a crate it is a
+        /// ramp up to the top of it. Lt Col Cimoch stands on open ground 1.5 m from a line of
+        /// sandbags in Alia Das, and the mesh under him is 0.70 m over the terrain.
         ///
-        /// A generated point's height is a marker's, a label's or one figure for a row of
-        /// trainers. Of the 34 that the mesh lifts by half a metre or more, the entered height
-        /// is the nearer to the floor at 18 and the mesh's at 16 - the point is inside a
-        /// platform as often as the mesh is over the ground - so those are snapped both ways as
-        /// before.
+        /// So the pool's height has to be the floor's, and StandingHeights (the migration
+        /// Stand_npcs_on_their_floors) made it so: measured against the client's terrain and the
+        /// collision meshes of each map's entities.
         /// </summary>
-        internal static Vector3 SpawnPoint(MapChannel mapChannel, SpawnPool pool, int count)
+        internal static Vector3 SpawnPoint(MapChannel mapChannel, SpawnPool pool, int count, Creature creature = null)
         {
             var pos = pool.Position;
 
@@ -628,11 +625,9 @@ namespace Rasa.Managers
                 pos.X += Random.Shared.Next() % 5 - 2;
                 pos.Z += Random.Shared.Next() % 5 - 2;
             }
-            else if (pool.IsHandSeeded)
+            else if (BehaviorManager.NeverMoves(creature))
             {
-                var ground = NavMeshManager.SnapToGround(mapChannel, pos);
-
-                return ground.Y < pos.Y ? ground : pos;
+                return pos;
             }
 
             return NavMeshManager.SnapToGround(mapChannel, pos);

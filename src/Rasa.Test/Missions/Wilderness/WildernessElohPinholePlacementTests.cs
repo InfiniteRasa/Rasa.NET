@@ -22,7 +22,7 @@ namespace Rasa.Test.Missions.Wilderness
                 "Canonical Witherspoon pool 101 must introduce a real NPC, not remain a zero-count pool.");
             Assert.AreEqual(101U, witherspoon.DbId);
             Assert.AreEqual(208U, witherspoon.Npc.NpcPackageId);
-            AssertSpawnPose(harness, 101, witherspoon, (505d, 238.757, 223d), 0.8);
+            AssertSpawnPose(harness, 101, witherspoon, (505d, 238.4, 223d), 0.8);
             Assert.AreEqual(1, harness.Map.MapCellInfo.Cells.Values.SelectMany(cell => cell.CreatureList)
                 .Count(creature => creature.DbId == 101));
             var surface = harness.Map.NavMesh.GroundHeight(witherspoon.Position);
@@ -228,8 +228,8 @@ namespace Rasa.Test.Missions.Wilderness
                 $"Spawn {spawnId} may only project onto its qualified nearby surface.");
             Assert.AreEqual(authored.X, creature.Position.X);
             Assert.AreEqual(authored.Z, creature.Position.Z);
-            // A hand-seeded pool (SpawnPool.IsHandSeeded): the mesh brings it down and never lifts it.
-            var expected = creature.SpawnPool.IsHandSeeded ? Math.Min(surface.Value, authored.Y) : surface.Value;
+            // What can go nowhere stands on its pool's point; what moves starts on the mesh (SpawnPoolManager.SpawnPoint).
+            var expected = BehaviorManager.NeverMoves(creature) ? authored.Y : surface.Value;
             Assert.IsTrue(Math.Abs(expected - creature.Position.Y) < 0.001f);
             Assert.IsTrue(Math.Abs(Math.IEEERemainder(creature.Rotation - heading, 2 * Math.PI)) < 0.001);
             AssertGrounded(harness, creature.Position);

@@ -658,13 +658,10 @@ namespace Rasa.Test.World
                 Assert.IsTrue(npc.PoseShown);
                 Assert.AreEqual(TargetCategory.Friendly, npc.TargetCategory);
                 Assert.IsNull(npc.Npc, "A soldier on guard, with nothing to say or sell.");
-                // On the spot it was placed, and never lifted above where the GM stood (a pool
-                // entered by hand: SpawnPool.IsHandSeeded).
-                Assert.IsTrue(npc.SpawnPool.IsHandSeeded);
-                Assert.AreEqual(npc.SpawnPool.Position.X, npc.Position.X);
-                Assert.AreEqual(npc.SpawnPool.Position.Z, npc.Position.Z);
-                Assert.IsLessThanOrEqualTo(npc.SpawnPool.Position.Y, npc.Position.Y);
-                Assert.IsLessThan(1.5f, npc.SpawnPool.Position.Y - npc.Position.Y);
+                // On the spot it was placed, at the height the GM stood at: it has no speed, so
+                // it is not put on the navmesh (BehaviorManager.NeverMoves).
+                Assert.IsTrue(BehaviorManager.NeverMoves(npc));
+                Assert.AreEqual(npc.SpawnPool.Position, npc.Position);
                 Assert.AreEqual(npc.SpawnPool.Rotation, npc.Rotation);
             }
 
