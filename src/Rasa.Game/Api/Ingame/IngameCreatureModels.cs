@@ -2,9 +2,9 @@ using System.Collections.Generic;
 
 namespace Rasa.Api.Ingame
 {
-    internal sealed record IngameCreatureSearchResponse(string Search, List<IngameCreatureSummary> Creatures);
+    public sealed record IngameCreatureSearchResponse(string Search, List<IngameCreatureSummary> Creatures);
 
-    internal sealed record IngameCreatureSummary(
+    public sealed record IngameCreatureSummary(
         uint Id,
         string Comment,
         uint ClassId,
@@ -15,7 +15,7 @@ namespace Rasa.Api.Ingame
         uint Faction,
         bool IsNpc);
 
-    internal sealed class IngameCreatureDetails
+    public sealed class IngameCreatureDetails
     {
         public uint Id { get; set; }
         public string Comment { get; set; }
@@ -47,7 +47,7 @@ namespace Rasa.Api.Ingame
         public List<IngameCreatureAppearance> Appearance { get; set; }
     }
 
-    internal sealed class IngameCreatureAppearance
+    public sealed class IngameCreatureAppearance
     {
         public uint SlotId { get; set; }
         public string Slot { get; set; }
