@@ -49,11 +49,13 @@ namespace Rasa.Managers
     /// its maxAmt. A level 5-9 healing disc heals 127, its field repair counterpart repairs 190,
     /// and both scale to five figures at the cap.
     ///
-    /// Three things the client does that the server cannot match yet, marked ToDo rather than
-    /// guessed at: creature flags (BIOLOGICAL / MECHANICAL / MACHINA) are not loaded server-side,
-    /// there is no cipherable flag on dynamic objects, and the cone and radial variants are
-    /// treated as single-target because ae_radius is a placeholder 1 on all 2440
-    /// itemtemplate_weapon rows. All three refuse or narrow conservatively.
+    /// What a tool may be used on goes by the creature's flags, as the client's checks do
+    /// (BIOLOGICAL, MECHANICAL, MACHINA): harvesting, the repair tool and the dead, and the
+    /// healing disc (<see cref="DiscHeals"/>).
+    ///
+    /// One thing the client does that the server cannot match yet: the cone and radial variants
+    /// are treated as single-target, because ae_radius is a placeholder 1 on all 2440
+    /// itemtemplate_weapon rows.
     /// </summary>
     public class ToolActionManager
     {
@@ -868,7 +870,29 @@ namespace Rasa.Managers
                     return PlayerMessage.PmTargetInvalid;
             }
 
+            // The healing disc's own check, after all of the above as in the client's
+            // CheckAction (healdisc.py ExtraCheckAction): a creature that is neither BIOLOGICAL
+            // nor MACHINA is TARGET_INVALID, alive or dead. The repair tool has a check of its
+            // own in place of this one, and the armour augmentation has none.
+            if (packet.ActionId == ActionId.ToolHealingDisc && creature != null && !DiscHeals(creature))
+                return PlayerMessage.PmTargetInvalid;
+
             return null;
+        }
+
+        /// <summary>
+        /// Whether a creature is one the healing disc works on: healdisc.py's
+        /// "target.HasFlag(creatureflag.BIOLOGICAL) or target.HasFlag(creatureflag.MACHINA)".
+        /// The client asks that of the flags it was sent in CreatureInfo, and those are what is
+        /// asked here - the class's and the creature's own (CreatureManager.CreatureFlagsOf) -
+        /// so the two never disagree: a creature the server refuses is one the client would not
+        /// let the disc be aimed at. A class with no flags at all is neither, to both.
+        /// </summary>
+        public static bool DiscHeals(Creature creature)
+        {
+            var flags = CreatureManager.CreatureFlagsOf(creature);
+
+            return flags.Contains((int)CreatureFlag.Biological) || flags.Contains((int)CreatureFlag.Machina);
         }
 
         private static PlayerMessage? ValidateHarvestTarget(Client client, RequestToolActionPacket packet,

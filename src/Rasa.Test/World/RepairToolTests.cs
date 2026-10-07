@@ -28,7 +28,7 @@ namespace Rasa.Test.World
     {
         private const EntityClasses RepairToolClass = (EntityClasses)990781;
         private const EntityClasses HealingDiscClass = (EntityClasses)990782;
-        private const int Amount = 50;
+        internal const int Amount = 50;
 
         private readonly List<Creature> _creatures = new List<Creature>();
 
@@ -36,10 +36,7 @@ namespace Rasa.Test.World
         public void ForgetTheCreatures()
         {
             foreach (var creature in _creatures)
-            {
-                EntityManager.Instance.UnregisterEntity(creature.EntityId);
-                EntityManager.Instance.UnregisterCreature(creature.EntityId);
-            }
+                Forget(creature);
 
             _creatures.Clear();
         }
@@ -153,7 +150,7 @@ namespace Rasa.Test.World
         }
 
         /// <summary>The request is refused with a message, and nothing is begun.</summary>
-        private static PlayerMessage? Refused(WorldTestContext world, Client client, ActionId actionId, ulong targetId)
+        internal static PlayerMessage? Refused(WorldTestContext world, Client client, ActionId actionId, ulong targetId)
         {
             MissionTestContext.Drain(client);
 
@@ -167,7 +164,7 @@ namespace Rasa.Test.World
         }
 
         /// <summary>The request is taken, the windup runs, and the tool lands.</summary>
-        private static ToolActionRecoveryPacket Use(WorldTestContext world, Client client, ActionId actionId, ulong targetId,
+        internal static ToolActionRecoveryPacket Use(WorldTestContext world, Client client, ActionId actionId, ulong targetId,
             System.Action duringWindup = null)
         {
             MissionTestContext.Drain(client);
@@ -197,7 +194,7 @@ namespace Rasa.Test.World
         }
 
         /// <summary>The player with a direct tool of the action in hand, and the Tools skill that is the client's "Healing".</summary>
-        private static Client Arm(WorldTestContext world, Client client, ActionId actionId, int healing)
+        internal static Client Arm(WorldTestContext world, Client client, ActionId actionId, int healing)
         {
             var classId = actionId == ActionId.ToolFieldRepair ? RepairToolClass : HealingDiscClass;
 
@@ -236,6 +233,15 @@ namespace Rasa.Test.World
         /// <summary>A creature of the players' side, hurt or dead, of the substance its flags give it.</summary>
         private Creature Creature(WorldTestContext world, float x, bool dead, params CreatureFlag[] flags)
         {
+            var creature = NewCreature(world, x, dead, flags);
+
+            _creatures.Add(creature);
+            return creature;
+        }
+
+        /// <summary>The same, for another class's tests to keep and forget (<see cref="Forget"/>).</summary>
+        internal static Creature NewCreature(WorldTestContext world, float x, bool dead, params CreatureFlag[] flags)
+        {
             var map = world.Map;
             var creature = new Creature
             {
@@ -260,8 +266,13 @@ namespace Rasa.Test.World
             creature.Cells = CellManager.Instance.CreateCellMatrix(map, seed & 0xFFFF, seed >> 16);
             CellManager.Instance.GetCell(map, seed & 0xFFFF, seed >> 16).CreatureList.Add(creature);
 
-            _creatures.Add(creature);
             return creature;
+        }
+
+        internal static void Forget(Creature creature)
+        {
+            EntityManager.Instance.UnregisterEntity(creature.EntityId);
+            EntityManager.Instance.UnregisterCreature(creature.EntityId);
         }
 
         private static RequestToolActionPacket Request(ActionId actionId, ulong targetId)
