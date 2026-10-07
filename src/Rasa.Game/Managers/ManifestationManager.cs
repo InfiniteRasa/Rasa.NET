@@ -1885,7 +1885,61 @@ namespace Rasa.Managers
                     if (RegisterAutoFire(client, ShotWait(client.Player, Environment.TickCount64)))
                         ActorManager.Instance.SetAutoFireCombatMode(client, true);
                     break;
+
+                // No shot, and the button is down all the same. The client sends StartAutoFire
+                // once, when the button goes down, and after it only the keep-alives until the
+                // button comes up (gameui.py StartPrimaryAction returns while IsAutoFiring). What
+                // it did before sending was one of three things, locally and without a request
+                // of its own - draw a stowed weapon, reload an empty one, or fire - and whichever
+                // it was it now counts itself auto-firing, with every shot from here the
+                // server's to fire (manifestation.py StartAutoFire). The draw and the reload are
+                // done by TryFireWeapon, which says NotFired for both, and for that no timer was
+                // started: the first hold of the fire button after a login or a zone change drew
+                // the weapon and fired nothing, a hold on an empty clip reloaded and fired
+                // nothing, and nothing came of either until the button was let go and pressed
+                // again. The same for a first shot refused for reach, or held back by a stun or
+                // a reload still going.
+                //
+                // So the press starts the fire here too. The timer asks again as it does for a
+                // fire already running, and TryFireWeapon answers each time - first when the
+                // draw or the reload is over, where there is one, and otherwise a refire on.
+                case FireResult.NotFired:
+                    // Not for someone who has left the world, and not for the dead: their client
+                    // fires nothing until they are up again, and this press was on its way when
+                    // they died.
+                    if (client.Player == null || client.State != ClientState.Ingame || client.Player.State == CharacterState.Dead)
+                        break;
+
+                    var busy = WeaponBusyFor(client.Player);
+
+                    // The tick after it is over: the auto-fire list is walked before the map's
+                    // queued actions, so on the tick a reload ends the clip is still empty when
+                    // the fire has its turn.
+                    if (RegisterAutoFire(client, busy < 0 ? -1 : busy + 1))
+                        ActorManager.Instance.SetAutoFireCombatMode(client, true);
+                    break;
             }
+        }
+
+        /// <summary>
+        /// How long before the draw or the reload the player is in the middle of is over, in ms;
+        /// -1 when they are in neither. An interrupted one is already over, as IsReloading has it.
+        /// </summary>
+        private static long WeaponBusyFor(Manifestation player)
+        {
+            var queue = player.MapChannel?.PerformRecovery;
+
+            if (queue == null)
+                return -1;
+
+            var busy = -1L;
+
+            foreach (var action in queue)
+                if (action.Actor == player && !action.IsInrerrupted
+                    && (action.ActionId == ActionId.WeaponDraw || action.ActionId == ActionId.WeaponReload))
+                    busy = Math.Max(busy, Math.Max(0, action.WaitTime - action.PassedTime));
+
+            return busy;
         }
 
         public void StopAutoFire(Client client)
