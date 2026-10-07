@@ -731,8 +731,8 @@ namespace Rasa.Managers
                 unitOfWork.CharacterInventories.DeleteInvItemByItemId(depositedItem.Id);
                 AddItemBySlot(client, InventoryType.Personal, client.Player.Inventory.ClanInventory[(int)packet.DestSlot], (uint)returnSlot, true, true);
 
-                RemoveItemBySlotForClan(client.Player.ClanId, packet.DestSlot, 0);
                 unitOfWork.ClanInventories.DeleteInvItem(client.Player.ClanId, packet.DestSlot);
+                RemoveItemBySlotForClan(client.Player.ClanId, packet.DestSlot, 0);
             }
 
             AddItemBySlot(client, InventoryType.ClanInventory, entityId, packet.DestSlot, true, true);
@@ -949,8 +949,10 @@ namespace Rasa.Managers
 
             if (!wasSwap)
             {
-                RemoveItemBySlotForClan(client.Player.ClanId, packet.SrcSlot, 0);
+                // The lockbox row goes as soon as the pack has its own: nothing the other
+                // members' copies need can leave the item with a row in both.
                 unitOfWork.ClanInventories.DeleteInvItem(client.Player.ClanId, packet.SrcSlot);
+                RemoveItemBySlotForClan(client.Player.ClanId, packet.SrcSlot, 0);
 
                 RefreshClanLockbox(client.Player.ClanId, entityId, client.Player.Id, 0, ref client.Player.Inventory.ClanInventory, false);
             }
@@ -2059,7 +2061,9 @@ namespace Rasa.Managers
 
                     // notify client of changed stack count
                     //client.CallMethod(slotItem.EntityId, new SetStackCountPacket(slotItem.Stacksize));
-                    ClanManager.Instance.CallMethodForOnlineMembers(client.Player.ClanId, slotItem.EntityId, new SetStackCountPacket(slotItem.StackSize));
+                    var stackCount = new SetStackCountPacket(slotItem.StackSize);
+
+                    ForClanLockboxHolders(client.Player.ClanId, (member) => member.CallMethod(slotItem.EntityId, stackCount));
 
                     if (item.StackSize == 0)
                     {
@@ -2982,22 +2986,50 @@ namespace Rasa.Managers
             // connection after the merge had committed and before the reload below went out.
             if (entityId != 0 && EntityManager.Instance.GetItem(entityId) == null)
             {
-                ClanManager.Instance.CallMethodForOnlineMembers(clanId, (uint)SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(entityId), characterId);
+                var destroy = new DestroyPhysicalEntityPacket(entityId);
+
+                ForClanLockboxHolders(clanId, (client) => client.CallMethod(SysEntity.ClientMethodId, destroy), characterId);
             }
             else
             {
                 if (addBySlot)
-                    ClanManager.Instance.CallMethodForOnlineMembers(clanId, (client) => AddItemBySlot(client, InventoryType.ClanInventory, entityId, slotId, false), characterId);
+                    ForClanLockboxHolders(clanId, (client) => AddItemBySlot(client, InventoryType.ClanInventory, entityId, slotId, false), characterId);
 
-                ClanManager.Instance.CallMethodForOnlineMembers(clanId, (client) => UpdateItemSlot(client, entityId), characterId);
+                ForClanLockboxHolders(clanId, (client) => UpdateItemSlot(client, entityId), characterId);
             }
 
-            ClanManager.Instance.CallMethodForOnlineMembers(clanId, (uint)SysEntity.ClientInventoryManagerId, new InventoryReloadPacket(InventoryType.ClanInventory, clanInventory, 500));
+            var reload = new InventoryReloadPacket(InventoryType.ClanInventory, clanInventory, 500);
+
+            ForClanLockboxHolders(clanId, (client) => client.CallMethod(SysEntity.ClientInventoryManagerId, reload));
         }
 
         public void RemoveItemBySlotForClan(uint clanId, uint slotId, uint skipThisCharacter)
         {
-            ClanManager.Instance.CallMethodForOnlineMembers(clanId, (client) => RemoveItemBySlot(client, InventoryType.ClanInventory, slotId), skipThisCharacter);
+            ForClanLockboxHolders(clanId, (client) => RemoveItemBySlot(client, InventoryType.ClanInventory, slotId), skipThisCharacter);
+        }
+
+        /// <summary>
+        /// Does something for each of the clan's members who holds its lockbox, which is to say
+        /// has the list of five hundred slots that InitClanInventory builds when a character
+        /// arrives in the world. Each member's connection has its own copy of the lockbox, and
+        /// a change one member makes is made in every copy.
+        ///
+        /// A member who has chosen a character and is still on the loading screen has no copy
+        /// yet: their list has no slots. The clan's roster is cached whole when the server
+        /// starts, and a member leaves it only by logging out, so on their first login since
+        /// then they are on the roster, with their character's id on the connection, before
+        /// MapLoaded. A change reaching them there indexed the empty list (RemoveItemBySlot)
+        /// and threw out of the handler of whoever made it: that player was disconnected with
+        /// the change half made. They need none of it - InitClanInventory reads the rows as
+        /// they then are.
+        /// </summary>
+        private void ForClanLockboxHolders(uint clanId, Action<Client> change, uint skipCharacterId = 0)
+        {
+            ClanManager.Instance.CallMethodForOnlineMembers(clanId, (client) =>
+            {
+                if (client.Player.Inventory.ClanInventory.Count == ClanLockboxTab.TotalSlots)
+                    change(client);
+            }, skipCharacterId);
         }
 
         #endregion
