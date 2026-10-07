@@ -33,6 +33,9 @@ namespace Rasa.Repositories.World
         /// <summary>Gives a creature row a greeting, or changes the one it has.</summary>
         void SaveNpcGreeting(uint creatureId, uint greetingId) => throw new System.NotSupportedException();
 
+        /// <summary>Marks a creature row's greeting as important, or not. False if the row has no greeting.</summary>
+        bool SaveNpcGreetingImportant(uint creatureId, bool important) => throw new System.NotSupportedException();
+
         /// <summary>Takes a creature row's greeting away. False if it had none.</summary>
         bool DeleteNpcGreeting(uint creatureId) => throw new System.NotSupportedException();
     }

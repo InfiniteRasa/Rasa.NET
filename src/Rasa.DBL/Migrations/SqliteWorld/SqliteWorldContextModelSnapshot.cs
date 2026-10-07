@@ -2595,6 +2595,10 @@ namespace Rasa.Migrations.SqliteWorld
                         .HasColumnType("INTEGER")
                         .HasColumnName("greeting_id");
 
+                    b.Property<bool>("Important")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("important");
+
                     b.HasKey("Id");
 
                     b.ToTable("npc_greeting");

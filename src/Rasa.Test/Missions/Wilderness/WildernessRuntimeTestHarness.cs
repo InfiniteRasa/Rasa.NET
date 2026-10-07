@@ -222,7 +222,9 @@ namespace Rasa.Test.Missions.Wilderness
         /// such table, where a server's World, migrated to the end, always has. A World without
         /// the table has no greetings, as one with the table and no rows has none.
         ///
-        /// A table a later migration adds, read as the harness starts, needs the same.
+        /// A table a later migration adds, read as the harness starts, needs the same. So does a
+        /// column: a World stopped between Add_npc_greetings and Add_npc_greeting_important has
+        /// the lines and no column for the mark, and its lines are read as not marked.
         /// </summary>
         private sealed class CreaturesOfThisWorld : CreatureRepository, ICreatureRepository
         {
@@ -230,10 +232,17 @@ namespace Rasa.Test.Missions.Wilderness
 
             internal CreaturesOfThisWorld(SqliteWorldContext context) : base(context) => _context = context;
 
-            List<Rasa.Structures.World.NpcGreetingEntry> ICreatureRepository.GetNpcGreetings() =>
-                HasTable(Rasa.Structures.World.NpcGreetingEntry.TableName)
+            List<Rasa.Structures.World.NpcGreetingEntry> ICreatureRepository.GetNpcGreetings()
+            {
+                if (!HasTable(Rasa.Structures.World.NpcGreetingEntry.TableName))
+                    return new List<Rasa.Structures.World.NpcGreetingEntry>();
+
+                return HasColumn(Rasa.Structures.World.NpcGreetingEntry.TableName, "important")
                     ? GetNpcGreetings()
-                    : new List<Rasa.Structures.World.NpcGreetingEntry>();
+                    : _context.NpcGreetingEntries
+                        .FromSqlRaw($"SELECT id, greeting_id, 0 AS important FROM {Rasa.Structures.World.NpcGreetingEntry.TableName}")
+                        .AsNoTracking().ToList();
+            }
 
             List<Rasa.Structures.World.CreatureBattlecryEntry> ICreatureRepository.GetBattlecries() =>
                 HasTable(Rasa.Structures.World.CreatureBattlecryEntry.TableName)
@@ -242,6 +251,10 @@ namespace Rasa.Test.Missions.Wilderness
 
             private bool HasTable(string name) => _context.Database
                 .SqlQueryRaw<int>("SELECT COUNT(*) AS Value FROM sqlite_master WHERE type = 'table' AND name = {0}", name)
+                .AsEnumerable().Single() > 0;
+
+            private bool HasColumn(string table, string name) => _context.Database
+                .SqlQueryRaw<int>("SELECT COUNT(*) AS Value FROM pragma_table_info({0}) WHERE name = {1}", table, name)
                 .AsEnumerable().Single() > 0;
         }
 

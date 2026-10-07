@@ -777,9 +777,9 @@ namespace Rasa.Managers
             var actorNames = new Dictionary<uint, string>();
             foreach (var entry in unitOfWork.Creatures.GetActorNames())
                 actorNames[entry.Id] = entry.ActorName;
-            var greetings = new Dictionary<uint, uint>();
+            var greetings = new Dictionary<uint, Structures.World.NpcGreetingEntry>();
             foreach (var entry in unitOfWork.Creatures.GetNpcGreetings())
-                greetings[entry.Id] = entry.GreetingId;
+                greetings[entry.Id] = entry;
 
             // The battle cry package of each class and creature row that has one (Battlecries).
             var battlecries = Battlecries.Load(unitOfWork.Creatures.GetBattlecries());
@@ -857,8 +857,11 @@ namespace Rasa.Managers
                     creature.Npc = isNpc;
 
                 // The line it greets a player with, if it has one of its own (NpcGreetings).
-                if (isNpc != null && greetings.TryGetValue(data.Id, out var greetingId) && NpcGreetings.IsLine(greetingId))
-                    isNpc.GreetingId = greetingId;
+                if (isNpc != null && greetings.TryGetValue(data.Id, out var greeting) && NpcGreetings.IsLine(greeting.GreetingId))
+                {
+                    isNpc.GreetingId = greeting.GreetingId;
+                    isNpc.GreetingImportant = greeting.Important;
+                }
 
                 if (isAuctioneer)
                     creature.Npc.NpcIsAuctioneer = true;

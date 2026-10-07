@@ -31,6 +31,16 @@ namespace Rasa.Managers
     /// conversation window. This is what most of the lines were for - the soldiers and
     /// villagers who stand about and say one thing. An NPC with no line of its own is as it
     /// was: nothing to say, and not to be spoken to.
+    ///
+    /// A line can be marked important (npc_greeting.important, Npc.GreetingImportant), and the
+    /// NPC then has the client's other greeting status in the same place, with nothing else to
+    /// talk about: CONVO_STATUS_IMPORTANT_GREETING, which overheadwindow.py draws as
+    /// OVERHEAD_DIALOG_AVAILABLE - a grey speech bubble over its head, in the manner of the
+    /// mission radios - and its conversation is the line under CONVO_TYPE_IMPORTANT_GREETING.
+    /// npc.py shows that one ahead of an ambient objective, a mission reminder and a shop, so
+    /// it is sent only where the plain greeting was: as the whole conversation. Which NPCs were
+    /// marked was the server's to know as well; a game master marks one (".greeting important"),
+    /// and one starts marked, by footage of the live game (NpcGreetingSeed.Marked).
     /// </summary>
     public static class NpcGreetings
     {
@@ -57,6 +67,9 @@ namespace Rasa.Managers
 
         /// <summary>Whether an NPC has a line of its own, and so can be spoken to for it.</summary>
         public static bool HasOwn(Creature creature) => creature?.Npc != null && creature.Npc.GreetingId != 0;
+
+        /// <summary>Whether an NPC's own line is marked important: the speech bubble over its head.</summary>
+        public static bool IsImportant(Creature creature) => HasOwn(creature) && creature.Npc.GreetingImportant;
 
         /// <summary>Whether the client has a greeting of this id.</summary>
         public static bool IsLine(uint greetingId)
@@ -112,6 +125,35 @@ namespace Rasa.Managers
             }
 
             creature.Npc.GreetingId = 0;
+            creature.Npc.GreetingImportant = false;
+
+            return true;
+        }
+
+        /// <summary>
+        /// Marks an NPC's own line important, or plain again, kept in the world database with
+        /// the line (npc_greeting.important). False if it has no line of its own - there is
+        /// nothing to mark - or it could not be kept.
+        /// </summary>
+        public static bool SetImportant(Creature creature, bool important, IGameUnitOfWorkFactory factory)
+        {
+            if (!HasOwn(creature))
+                return false;
+
+            try
+            {
+                using var unitOfWork = factory.CreateWorld();
+
+                if (!unitOfWork.Creatures.SaveNpcGreetingImportant(creature.DbId, important))
+                    return false;
+            }
+            catch (Exception e)
+            {
+                Logger.WriteLog(LogType.Error, $"The greeting of creature {creature.DbId} was not marked: {e.Message}");
+                return false;
+            }
+
+            creature.Npc.GreetingImportant = important;
 
             return true;
         }

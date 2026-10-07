@@ -264,7 +264,7 @@ namespace Rasa.Managers
             RegisterCommand(".linkhere", GmLevel.GameMaster, LinkHereCommand, "destMapId", "destX", "destY", "destZ", "radius", "kind");
             RegisterCommand(".kraftwerks", GmLevel.GameMaster, KraftwerksCommand, "stationIdOrHere", "action", "value");
             RegisterCommand(".cp", GmLevel.GameMaster, ControlPointCommand, "id", "action");
-            RegisterCommand(".greeting", GmLevel.GameMaster, GreetingCommand, "greetingId|clear|show", "greetingId");
+            RegisterCommand(".greeting", GmLevel.GameMaster, GreetingCommand, "greetingId|clear|important|show", "greetingId|on|off");
             RegisterCommand(".instance", GmLevel.GameMaster, InstanceCommand, "action", "number");
             RegisterCommand(".bg", GmLevel.GameMaster, BattlegroundCommand, "action", "arg1", "arg2");
             RegisterCommand(".region", GmLevel.GameMaster, RegionCommand, "modeOrId", "regionOrAction", "arg1", "arg2", "comment");
@@ -3697,10 +3697,13 @@ namespace Rasa.Managers
         /// default again. Kept in the world database for the NPC's creature row. The server has
         /// only the ids, so the line is shown by having the game master's own client display
         /// it; ".greeting show" does that for any line, with nothing targeted.
+        ///
+        /// ".greeting important" marks the NPC's own line important, and "off" plain again: the
+        /// speech bubble over its head while it has nothing else for a player. Kept with the line.
         /// </summary>
         private void GreetingCommand(string[] parts)
         {
-            const string usage = "usage: .greeting | .greeting <greetingId> | .greeting clear (each with an NPC targeted) | .greeting show <greetingId>";
+            const string usage = "usage: .greeting | .greeting <greetingId> | .greeting clear | .greeting important [on | off] (each with an NPC targeted) | .greeting show <greetingId>";
             var client = _client;
 
             if (parts.Length == 3 && parts[1] == "show")
@@ -3715,7 +3718,9 @@ namespace Rasa.Managers
                 return;
             }
 
-            if (parts.Length > 2)
+            var marking = parts.Length >= 2 && parts[1] == "important";
+
+            if (parts.Length > 2 && !(marking && parts.Length == 3 && (parts[2] == "on" || parts[2] == "off")))
             {
                 CommunicatorManager.Instance.SystemMessage(client, usage);
                 return;
@@ -3737,9 +3742,41 @@ namespace Rasa.Managers
             if (parts.Length == 1)
             {
                 CommunicatorManager.Instance.SystemMessage(client, NpcGreetings.HasOwn(creature)
-                    ? $"{who} says greeting {creature.Npc.GreetingId}."
+                    ? $"{who} says greeting {creature.Npc.GreetingId}{(NpcGreetings.IsImportant(creature) ? ", marked important" : "")}."
                     : $"{who} has no greeting of its own: it says the default, {NpcGreetings.Default}.");
                 client.CallMethod(client.Player.EntityId, new ForceConversePacket(NpcGreetings.For(creature), creature.NameId != 0 ? creature.NameId : (uint?)null));
+                return;
+            }
+
+            if (marking)
+            {
+                var important = parts.Length == 2 || parts[2] == "on";
+
+                if (!NpcGreetings.HasOwn(creature))
+                {
+                    CommunicatorManager.Instance.SystemMessage(client, $"{who} has no greeting of its own to mark: give it one first, .greeting <greetingId>.");
+                    return;
+                }
+
+                if (NpcGreetings.IsImportant(creature) == important)
+                {
+                    CommunicatorManager.Instance.SystemMessage(client, important
+                        ? $"Greeting {creature.Npc.GreetingId} of {who} is marked important already."
+                        : $"Greeting {creature.Npc.GreetingId} of {who} is not marked important.");
+                    return;
+                }
+
+                if (!NpcGreetings.SetImportant(creature, important, Server.GameUnitOfWorkFactory))
+                {
+                    CommunicatorManager.Instance.SystemMessage(client, $"The greeting of {who} could not be marked; see the server log.");
+                    return;
+                }
+
+                CommunicatorManager.Instance.SystemMessage(client, important
+                    ? $"Greeting {creature.Npc.GreetingId} of {who} is marked important: the speech bubble is over its head while it has nothing else for a player."
+                    : $"Greeting {creature.Npc.GreetingId} of {who} is plain again: no speech bubble.");
+                Logger.WriteLog(LogType.Command, $"{client.Player.FamilyName} marked the greeting of creature {creature.DbId} {(important ? "important" : "plain")}.");
+                RefreshGreetingStatus(creature);
                 return;
             }
 
@@ -3777,15 +3814,16 @@ namespace Rasa.Managers
                 return;
             }
 
-            CommunicatorManager.Instance.SystemMessage(client, $"{who} says greeting {greetingId}.");
+            CommunicatorManager.Instance.SystemMessage(client, $"{who} says greeting {greetingId}{(NpcGreetings.IsImportant(creature) ? ", marked important as its last was" : "")}.");
             Logger.WriteLog(LogType.Command, $"{client.Player.FamilyName} gave creature {creature.DbId} greeting {greetingId}.");
             RefreshGreetingStatus(creature);
             client.CallMethod(client.Player.EntityId, new ForceConversePacket((int)greetingId, creature.NameId != 0 ? creature.NameId : (uint?)null));
         }
 
         /// <summary>
-        /// Whether an NPC can be spoken to depends on its having a line of its own: every client
-        /// that has an NPC of this creature row on the game master's map is told its status anew.
+        /// Whether an NPC can be spoken to depends on its having a line of its own, and the speech
+        /// bubble over it on the line's being marked important: every client that has an NPC of
+        /// this creature row on the game master's map is told its status anew.
         /// </summary>
         private void RefreshGreetingStatus(Creature creature)
         {

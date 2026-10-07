@@ -167,6 +167,19 @@ namespace Rasa.Repositories.World
             _worldContext.SaveChanges();
         }
 
+        public bool SaveNpcGreetingImportant(uint creatureId, bool important)
+        {
+            var row = _worldContext.CreateTrackingQuery(_worldContext.NpcGreetingEntries).FirstOrDefault(e => e.Id == creatureId);
+
+            if (row == null)
+                return false;
+
+            row.Important = important;
+            _worldContext.SaveChanges();
+
+            return true;
+        }
+
         public bool DeleteNpcGreeting(uint creatureId)
         {
             var row = _worldContext.CreateTrackingQuery(_worldContext.NpcGreetingEntries).FirstOrDefault(e => e.Id == creatureId);

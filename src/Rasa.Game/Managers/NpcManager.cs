@@ -212,7 +212,9 @@ namespace Rasa.Managers
             // into the mission's name.
             //
             // An NPC with a line of its own says it instead (NpcGreetings): the greeting alone,
-            // which the client shows in its conversation window.
+            // which the client shows in its conversation window. A line marked important goes
+            // as the client's important greeting, the topic of the status that put the speech
+            // bubble over the NPC; the window is the same.
             //
             // A mission the player holds and hands in here, not ready yet, comes first: player
             // message 621, "You have not yet completed the requirements for this mission." It is
@@ -221,7 +223,8 @@ namespace Rasa.Managers
             if (convoDataDict.Count == 0)
             {
                 if (NpcGreetings.HasOwn(creature))
-                    convoDataDict.Add(ConversationType.Greeting, NpcGreetings.For(creature));
+                    convoDataDict.Add(NpcGreetings.IsImportant(creature) ? ConversationType.ImportantGreering : ConversationType.Greeting,
+                        NpcGreetings.For(creature));
                 else
                     convoDataDict.Add(ConversationType.EndConversation, true);
 
@@ -502,9 +505,13 @@ namespace Rasa.Managers
             // The client's greeting status: no pip over the NPC, and the converse action, which
             // npc.py offers on any status but None. The conversation is the line alone
             // (OpenConversation). An NPC with no line of its own stays at None, as it was.
+            //
+            // One whose line is marked important has the important greeting status instead:
+            // the same, with OVERHEAD_DIALOG_AVAILABLE over its head - the grey speech bubble.
             if (statusSet == false && NpcGreetings.HasOwn(creature))
             {
-                client.CallMethod(creature.EntityId, new NPCConversationStatusPacket(ConversationStatus.Greeting, new List<uint>()));
+                client.CallMethod(creature.EntityId, new NPCConversationStatusPacket(
+                    NpcGreetings.IsImportant(creature) ? ConversationStatus.ImportantGreeting : ConversationStatus.Greeting, new List<uint>()));
                 statusSet = true;
             }
 

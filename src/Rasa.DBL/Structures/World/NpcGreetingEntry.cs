@@ -31,5 +31,15 @@ namespace Rasa.Structures.World
         [Column("greeting_id")]
         [Required]
         public uint GreetingId { get; set; }
+
+        /// <summary>
+        /// Whether the NPC is marked as having something to say: the client's important
+        /// greeting, a speech bubble over its head while it has nothing else for the player.
+        /// Which NPCs were was the server's to know, as the lines were; a game master sets it
+        /// (".greeting important"), and one starts with it (NpcGreetingSeed.Marked).
+        /// </summary>
+        [Column("important")]
+        [Required]
+        public bool Important { get; set; }
     }
 }
