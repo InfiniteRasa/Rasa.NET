@@ -2828,6 +2828,21 @@ namespace Rasa.Migrations.SqliteWorld
                     b.ToTable("spawnpool");
                 });
 
+            modelBuilder.Entity("Rasa.Structures.World.SpawnPoolPoseEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("id");
+
+                    b.Property<byte>("Pose")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("pose");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("spawnpool_pose");
+                });
+
             modelBuilder.Entity("Rasa.Structures.World.TeleporterEntry", b =>
                 {
                     b.Property<uint>("Id")

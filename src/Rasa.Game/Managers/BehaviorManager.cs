@@ -354,6 +354,9 @@ namespace Rasa.Managers
             // left on it is not one to go on to the fighting below.
             if (creature.State == CharacterState.Dead || creature.Attributes[Attributes.Health].Current <= 0)
             {
+                // The dead hold no pose (NpcPoses).
+                NpcPoses.Drop(mapChannel, creature);
+
                 // A walker that has fallen becomes its wreck (AlternateMesh).
                 AlternateMesh.DeadTick(mapChannel, creature, Environment.TickCount64);
 
@@ -370,13 +373,21 @@ namespace Rasa.Managers
                 return; // creature dead
             }
 
-            // Held in its Critical Death window: it neither moves nor fights.
+            // Held in its Critical Death window: it neither moves nor fights, nor holds a pose.
             if (creature.State == CharacterState.Dying)
+            {
+                NpcPoses.Drop(mapChannel, creature);
                 return;
+            }
 
             // Knocked back, or stunned: it goes where the knockback carries it and nothing else,
             // but it can still cross into another cell doing so.
             var knockedBack = StepKnockback(mapChannel, creature, delta);
+
+            // A pose is held standing idle at a post (NpcPoses): thrown, stunned, walking or
+            // run by something else, it is off until the creature is idle again.
+            if (creature.PoseShown && (knockedBack || Stuns.IsStunned(creature) || !NpcPoses.AtRest(creature)))
+                NpcPoses.Drop(mapChannel, creature);
 
             // Mid-charge (Kael rushing blow), winding up to blow itself up (a Fithik), to drop an
             // egg (a Stalker) or any ability (CreatureWindups), in a cocoon (an Atta grub), or a
@@ -495,6 +506,10 @@ namespace Rasa.Managers
                 {
                     wander.IdleMs += delta;
 
+                    // An NPC with a post goes back to it and takes its pose up again (NpcPoses).
+                    if (NpcPoses.HoldsPost(creature) && !creature.PoseShown && TakePost(mapChannel, creature))
+                        return;
+
                     // A Filcher sees loot to steal, a hurt Xanx a dead one to eat; a Predator
                     // scans where it stands (CreatureHabits). An errand does not wait for the
                     // stroll's interval.
@@ -531,6 +546,10 @@ namespace Rasa.Managers
 
                         // A Shield Drone covers a piece of ground, so it stays on it.
                         if (ShieldDrone.HoldsGround(creature))
+                            return;
+
+                        // An NPC at a post stays at it (NpcPoses).
+                        if (NpcPoses.HoldsPost(creature))
                             return;
 
                         var destination = PickStroll(mapChannel, creature);
@@ -1202,6 +1221,31 @@ namespace Rasa.Managers
             var dz = a.Z - b.Z;
 
             return (float)Math.Sqrt(dx * dx + dz * dz);
+        }
+
+        /// <summary>
+        /// An idle NPC whose pose is off (NpcPoses) gets back to its post: it walks there if it is
+        /// more than NpcPoses.PostReachedDistance away and can walk - once, noticing a fight on
+        /// the way as any walk in does - and true is returned while it is setting off. There, or
+        /// wherever that walk left it, or where it stands if it cannot walk or has no post on
+        /// this map (a creature a GM posed that was never placed), it faces the way it was placed
+        /// and takes the pose up again.
+        /// </summary>
+        private bool TakePost(MapChannel mapChannel, Creature creature)
+        {
+            var post = creature.HomePos.Position;
+
+            if (!creature.PoseWalkedBack && creature.WalkSpeed >= 0.01f
+                && creature.HomePos.MapContextid == creature.MapContextId
+                && AcrossGround(creature.Position, post) > NpcPoses.PostReachedDistance)
+            {
+                creature.PoseWalkedBack = true;
+                WalkIn(creature, post);
+                return true;
+            }
+
+            NpcPoses.StandAtPost(mapChannel, creature);
+            return false;
         }
 
         /// <summary>
@@ -2104,6 +2148,9 @@ namespace Rasa.Managers
 
             // Whatever brought it here - the scan, a hit, an assist - the target is on its table.
             Threat.Noticed(creature, targetEntityId);
+
+            // A pose it held at its post comes off (NpcPoses): it stands up, with what it really holds.
+            NpcPoses.Drop(creature.RuntimeMapChannel ?? MapChannelManager.Instance.FindByContextId(creature.MapContextId), creature);
 
             // Its weapon out for the fight, if it carries one.
             CreatureWeaponDraw.Draw(creature.RuntimeMapChannel ?? MapChannelManager.Instance.FindByContextId(creature.MapContextId), creature);

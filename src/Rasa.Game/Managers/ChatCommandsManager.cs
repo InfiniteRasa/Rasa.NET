@@ -219,6 +219,7 @@ namespace Rasa.Managers
             RegisterCommand(".msg", GmLevel.GameMaster, MessageCommand, "type", "value", "extra");
             RegisterCommand(".destination", GmLevel.GameMaster, DestinationCommand, "contextIdOrMapName");
             RegisterCommand(".placefield", GmLevel.GameMaster, PlaceFieldCommand, "action", "arg1", "arg2", "arg3");
+            RegisterCommand(".pose", GmLevel.GameMaster, PoseCommand, "pose");
             RegisterCommand(".removeobj", GmLevel.GameMaster, RemoveObjectCommand, "entityId");
             RegisterCommand(".moveobj", GmLevel.GameMaster, MoveObjectCommand, "entityId", "x", "y", "z", "rotation");
             RegisterCommand(".rename", GmLevel.GameMaster, RenameCommand, "part", "newName", "familyName");
@@ -731,6 +732,43 @@ namespace Rasa.Managers
 
             CommunicatorManager.Instance.SystemMessage(_client,
                 $"A {metres:0.#} m fall: {taken} health taken{(water ? "; you are in water, where a real fall would have taken nothing" : "")}.");
+        }
+
+        /// <summary>
+        /// .pose [pose]: puts your target, a creature, in a pose at the spot it was spawned on
+        /// (NpcPoses) - by name or number - or, with none, takes its pose off. With nothing after
+        /// it, says what pose the target has and lists them. For trying a pose out: it lasts as
+        /// long as that creature lives and is saved nowhere. A pool's own pose is its spawnpool_pose row.
+        /// </summary>
+        private void PoseCommand(string[] parts)
+        {
+            var creature = _client.Player.Target != 0 && EntityManager.Instance.GetEntityType(_client.Player.Target) == EntityType.Creature
+                ? EntityManager.Instance.GetCreature(_client.Player.Target)
+                : null;
+
+            if (creature == null || parts.Length > 2)
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, "usage: .pose [pose] - with a creature targeted. Poses: " + string.Join(", ", NpcPoses.Names));
+                return;
+            }
+
+            if (parts.Length == 1)
+            {
+                CommunicatorManager.Instance.SystemMessage(_client,
+                    $"Pose = {creature.Pose} ({(int)creature.Pose}){(creature.Pose != NpcPose.None && !creature.PoseShown ? ", not shown now" : "")}. Poses: " + string.Join(", ", NpcPoses.Names));
+                return;
+            }
+
+            if (!NpcPoses.TryParse(parts[1], out var pose))
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, $"No pose '{parts[1]}'. Poses: " + string.Join(", ", NpcPoses.Names));
+                return;
+            }
+
+            NpcPoses.Change(_client.Player.MapChannel, creature, pose);
+
+            CommunicatorManager.Instance.SystemMessage(_client,
+                $"Pose = {creature.Pose} ({(int)creature.Pose}){(creature.Pose != NpcPose.None && !creature.PoseShown ? ". It takes it up when it is next standing idle" : "")}. Not saved.");
         }
 
         private void BarkCommand(string[] parts)
@@ -2749,6 +2787,9 @@ namespace Rasa.Managers
 
                     if (creature.SpawnPool != null)
                         msg += $"SpawnPoolDbId = {creature.SpawnPool.DbId}\n";
+
+                    if (creature.Pose != NpcPose.None)
+                        msg += $"Pose = {creature.Pose} ({(int)creature.Pose}){(creature.PoseShown ? "" : ", not shown now")}\n";
 
                     msg += $"PosX = {creature.Position.X}\n";
                     msg += $"PosY = {creature.Position.Y}\n";

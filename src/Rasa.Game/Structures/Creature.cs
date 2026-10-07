@@ -123,6 +123,25 @@ namespace Rasa.Structures
         /// <summary>Whether it has its weapon out (CreatureWeaponDraw): TOOL_READY on the clients.</summary>
         public bool WeaponDrawn { get; set; }
 
+        /// <summary>The pose it takes at its post (NpcPoses); None for a creature with none.</summary>
+        public NpcPose Pose { get; set; }
+
+        /// <summary>Whether the pose is on it now. Off while it fights, is carried or walks back to its post.</summary>
+        public bool PoseShown { get; set; }
+
+        /// <summary>The way it faces at its post, or null for one whose facing is left as it is.</summary>
+        public float? PostYaw { get; set; }
+
+        /// <summary>It has walked back towards its post once since the pose came off; it takes the pose up where that left it.</summary>
+        public bool PoseWalkedBack { get; set; }
+
+        /// <summary>
+        /// An ambient pose's class is in its weapon slot (NpcPoses): what it holds when not posed
+        /// is PoseHeldWeapon, null for nothing.
+        /// </summary>
+        public bool PoseHoldsItsClass { get; set; }
+        public AppearanceData PoseHeldWeapon { get; set; }
+
         /// <summary>The target the clients in range were last told this creature has (Targets.Sync); 0 for none.</summary>
         public ulong ShownTargetId { get; set; }
 

@@ -22,6 +22,10 @@ namespace Rasa.Managers
     /// with its weapon out carries TOOL_READY and the combat stance in its ActorInfo, so a player
     /// who comes upon the fight sees it armed. A dead one keeps it out: the body lies with its gun.
     /// "Armed" is a class in the weapon slot of its appearance; one without is told nothing.
+    ///
+    /// An NPC whose pose has its weapon out (NpcPoses) holds it without the stance: TOOL_READY
+    /// alone is the client's "ready for combat", a rifle across the chest. A fight adds the
+    /// stance, and its end takes only the stance away.
     /// </summary>
     public static class CreatureWeaponDraw
     {
@@ -32,13 +36,21 @@ namespace Rasa.Managers
         /// <summary>The creature draws, if it is armed and has not already.</summary>
         public static void Draw(MapChannel mapChannel, Creature creature)
         {
-            if (mapChannel == null || creature == null || creature.WeaponDrawn || !IsArmed(creature))
+            if (mapChannel == null || creature == null || !IsArmed(creature))
+                return;
+
+            // Out for its pose already: only the stance is new.
+            var drawn = creature.WeaponDrawn;
+
+            if (drawn && (creature.InCombatMode || !NpcPoses.KeepsWeaponOut(creature)))
                 return;
 
             creature.WeaponDrawn = true;
             creature.InCombatMode = true;
 
-            CellManager.Instance.CellCallMethod(mapChannel, creature, new WeaponReadyPacket(true));
+            if (!drawn)
+                CellManager.Instance.CellCallMethod(mapChannel, creature, new WeaponReadyPacket(true));
+
             CellManager.Instance.CellCallMethod(mapChannel, creature, new RequestVisualCombatModePacket(true));
         }
 
@@ -48,6 +60,17 @@ namespace Rasa.Managers
             if (mapChannel == null || creature == null || !creature.WeaponDrawn
                 || creature.State == CharacterState.Dead || creature.State == CharacterState.Dying)
                 return;
+
+            // Out for its pose: it stays out, and only a stance it took for a fight goes.
+            if (NpcPoses.KeepsWeaponOut(creature))
+            {
+                if (!creature.InCombatMode)
+                    return;
+
+                creature.InCombatMode = false;
+                CellManager.Instance.CellCallMethod(mapChannel, creature, new RequestVisualCombatModePacket(false));
+                return;
+            }
 
             creature.WeaponDrawn = false;
             creature.InCombatMode = false;

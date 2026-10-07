@@ -205,10 +205,27 @@ namespace Rasa.Managers
                 arrivals++;
             }
 
+            // How a pool's creatures stand at their post (spawnpool_pose; NpcPoses).
+            var poses = 0;
+
+            foreach (var row in unitOfWork.Spawnpools.GetPoses())
+            {
+                if (!LoadedSpawnPools.TryGetValue(row.Id, out var pool))
+                {
+                    Logger.WriteLog(LogType.Error, $"spawnpool_pose {row.Id} names a spawnpool that is not loaded.");
+                    continue;
+                }
+
+                pool.Pose = NpcPoses.FromRow(row.Id, row.Pose);
+
+                if (pool.Pose != NpcPose.None)
+                    poses++;
+            }
+
             foreach (var mapChannel in MapChannelManager.Instance.MapChannelArray.Values)
                 InitializeMapChannel(mapChannel);
 
-            Logger.WriteLog(LogType.Initialize, $"Loaded {LoadedSpawnPools.Count} SpawnPools, {arrivals} arrival points");
+            Logger.WriteLog(LogType.Initialize, $"Loaded {LoadedSpawnPools.Count} SpawnPools, {arrivals} arrival points, {poses} posed");
         }
 
         internal void InitializeMapChannel(MapChannel mapChannel)
@@ -427,6 +444,10 @@ namespace Rasa.Managers
                         RandomizePosition(creature, creatureList.Count);
                     else
                         CreatureManager.Instance.SetLocation(creature, BaneArrivals.StepOut(mapChannel, arrival), arrival.Rotation, spawnPool.MapContextId);
+
+                    // Its pose at its post (NpcPoses). One that arrives somewhere else takes it up when it gets there.
+                    if (spawnPool.Pose != NpcPose.None)
+                        NpcPoses.Assign(creature, spawnPool.Pose, (float)spawnPool.Rotation, show: arrival == null);
 
                     if (spawnPool.FollowOwnerCharacterId != 0 ||
                         spawnPool.FollowTargetEntityId != 0)
@@ -784,6 +805,7 @@ namespace Rasa.Managers
                 Position = template.Position,
                 Rotation = template.Rotation,
                 Radius = template.Radius,
+                Pose = template.Pose,
                 SpawnSlot = template.SpawnSlot?.Select(slot =>
                     new SpawnPoolSlot(slot.CreatureId, slot.CountMin, slot.CountMax)).ToList() ?? new List<SpawnPoolSlot>(),
                 Mode = template.Mode,

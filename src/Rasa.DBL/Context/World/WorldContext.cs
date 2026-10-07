@@ -88,6 +88,7 @@ namespace Rasa.Context.World
         public DbSet<NpcPackageEntry> NpcPackageEntries { get; set; }
         public DbSet<RandomNameEntry> RandomNameEntries { get; set; }
         public DbSet<SpawnPoolEntry> SpawnPoolEntries { get; set; }
+        public DbSet<SpawnPoolPoseEntry> SpawnPoolPoseEntries { get; set; }
         public DbSet<TeleporterEntry> TeleporterEntries { get; set; }
         public DbSet<VendorEntry> VendorEntries { get; set; }
         public DbSet<VendorItemEntry> VendorItemEntries { get; set; }

@@ -212,7 +212,7 @@ namespace Rasa.Test.Missions.Wilderness
                 new MapEmitterRepository(context), new SpawnPoolArrivalRepository(context), new RecipeRepository(context),
                 new NpcMissionRepository(context), new NpcMissionRewardRepository(context),
                 new MissionContentRepository(context), new NpcPackageRepository(context),
-                new PlayerRandomNameRepository(context), new SpawnpoolRepository(context), new TeleporterRepository(context));
+                new PlayerRandomNameRepository(context), new SpawnpoolsOfThisWorld(context), new TeleporterRepository(context));
         }
 
         /// <summary>
@@ -234,6 +234,26 @@ namespace Rasa.Test.Missions.Wilderness
                 HasTable(Rasa.Structures.World.NpcGreetingEntry.TableName)
                     ? GetNpcGreetings()
                     : new List<Rasa.Structures.World.NpcGreetingEntry>();
+
+            private bool HasTable(string name) => _context.Database
+                .SqlQueryRaw<int>("SELECT COUNT(*) AS Value FROM sqlite_master WHERE type = 'table' AND name = {0}", name)
+                .AsEnumerable().Single() > 0;
+        }
+
+        /// <summary>
+        /// The same for the pools' poses, the table of which is Add_npc_poses': a World stopped
+        /// before that migration has no pool with a pose.
+        /// </summary>
+        private sealed class SpawnpoolsOfThisWorld : SpawnpoolRepository, ISpawnpoolRepository
+        {
+            private readonly SqliteWorldContext _context;
+
+            internal SpawnpoolsOfThisWorld(SqliteWorldContext context) : base(context) => _context = context;
+
+            List<Rasa.Structures.World.SpawnPoolPoseEntry> ISpawnpoolRepository.GetPoses() =>
+                HasTable(Rasa.Structures.World.SpawnPoolPoseEntry.TableName)
+                    ? GetPoses()
+                    : new List<Rasa.Structures.World.SpawnPoolPoseEntry>();
 
             private bool HasTable(string name) => _context.Database
                 .SqlQueryRaw<int>("SELECT COUNT(*) AS Value FROM sqlite_master WHERE type = 'table' AND name = {0}", name)

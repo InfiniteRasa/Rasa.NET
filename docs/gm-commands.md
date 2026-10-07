@@ -96,7 +96,7 @@ These change nothing in the world, except where noted.
 | `.where` | Observer | Your position, facing and map id. Also written to the server log with a `[.where]` tag. |
 | `.getdistance` | Observer | Distance to your selected target. For a creature it measures to the creature's **spawn pool position**, not to the creature. Objects print "ToDo". |
 | `.near` | Observer | Lists the objects and creatures in your cells. The output goes to the **server console**, not to chat. |
-| `.npcinfo` | Observer | For your target: entity id and type. For a creature it adds DB id, target category, health, armour and its regeneration, spawn pool id and position. |
+| `.npcinfo` | Observer | For your target: entity id and type. For a creature it adds DB id, target category, health, armour and its regeneration, spawn pool id, its pose if it has one, and position. |
 | `.maperrors` | Observer | The map-errors dialog for the map you are on (the same one an Observer or above gets on entering a broken map). |
 | `.missions [characterId]` | Observer | Mission state for a character: you by default, or the character id given. |
 | `.links` | Observer | Map links on this map, nearest first (up to 10), marking the one you are standing in. |
@@ -253,6 +253,7 @@ Values these commands accept:
 | `.comehere <entityId>` | GameMaster | Sends a `MoveObject` to your own client that brings the entity to you. Only your client sees it move; the server's copy stays put. |
 | `.bark <entityId> <barkId>` | GameMaster | Plays a bark on that entity, on your client only. |
 | `.creatureappearance <entityId> <slotId> <classId> <color>` | GameMaster | Sets one appearance slot on a creature. |
+| `.pose [pose]` | GameMaster | Puts your target, a creature, in a pose at the spot it stands on: `standing`, `weaponout`, `crouched`, `crouchedweaponout`, `leaning`, `sitting`, `lyingdown`, `atconsole`, `handtool`, by name or number (1 to 9). `none` takes its pose off. With no pose, says which the target has. It lasts until that creature dies and is not saved; a spawn pool's own pose is its `spawnpool_pose` row. The last five are human only, and `atconsole` and `handtool` female only. |
 | `.creatureloc` | GameMaster | Registered but does nothing: the body is commented out. |
 | `.reloadcreatures` | Admin | Clears and re-reads the creature table. Creatures already spawned are unaffected. |
 

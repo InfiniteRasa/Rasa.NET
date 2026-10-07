@@ -9,6 +9,9 @@ namespace Rasa.Repositories.World
     public interface ISpawnpoolRepository
     {
         List<SpawnPoolEntry> Get();
+
+        /// <summary>The pools that have a pose (spawnpool_pose).</summary>
+        List<SpawnPoolPoseEntry> GetPoses();
     }
     public class SpawnpoolRepository : ISpawnpoolRepository
     {
@@ -25,6 +28,11 @@ namespace Rasa.Repositories.World
             var spawnPoolEntries = query.ToList();
 
             return spawnPoolEntries;
+        }
+
+        public List<SpawnPoolPoseEntry> GetPoses()
+        {
+            return _worldContext.CreateNoTrackingQuery(_worldContext.SpawnPoolPoseEntries).ToList();
         }
     }
 }

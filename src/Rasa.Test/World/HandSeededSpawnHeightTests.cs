@@ -31,6 +31,12 @@ namespace Rasa.Test.World
             public List<object[]> All() => GetRows().ToList();
         }
 
+        /// <summary>The posted NPCs' rows (BootcampPostedNpcPreloaders), each entered where a GM stood: hand-seeded too.</summary>
+        private sealed class PostedNpcRows : BootcampPostedNpcSpawnpoolPreloader
+        {
+            public List<object[]> All() => GetRows().ToList();
+        }
+
         private static Vector3 PositionOf(SpawnPoolEntry entry)
         {
             return new Vector3((float)entry.PosX, (float)entry.PosY, (float)entry.PosZ);
@@ -151,7 +157,7 @@ namespace Rasa.Test.World
         [TestMethod]
         public void EveryPoolUnderTheFirstGeneratedIdIsOneOfTheHandSeededRows()
         {
-            var seeded = new HandSeededRows().All().Select(row => Convert.ToUInt32(row[0])).ToHashSet();
+            var seeded = new HandSeededRows().All().Concat(new PostedNpcRows().All()).Select(row => Convert.ToUInt32(row[0])).ToHashSet();
 
             Assert.IsTrue(seeded.Contains(CimochPool));
             Assert.IsTrue(seeded.All(id => id < SpawnPool.FirstGeneratedId));
