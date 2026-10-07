@@ -103,6 +103,8 @@ namespace Rasa.Managers
                     var npcPackages = unit.NpcPackages?.Get() ?? new List<NpcPackageEntry>();
                     var npcPackageIds = npcPackages
                         .Select(entry => entry.PackageId).ToHashSet();
+                    // Read once for every mission that asks, not once a mission.
+                    var references = new Rasa.Game.Missions.Persistence.MissionLootPlanner.WorldReferences(unit);
                     foreach (var binding in content.GetSceneBindings().Where(binding =>
                         selected.TryGetValue(binding.MissionId, out var revision) && revision == binding.ContentRevision))
                     {
@@ -136,11 +138,11 @@ namespace Rasa.Managers
                             throw new MissionRuleException($"Mission {binding.MissionId}: {string.Join("; ", itemErrors)}");
                         if (document.Items?.Count > 0)
                         {
-                            var templates = unit.Equipment.GetItemTemplateClasses().Select(entry => entry.ItemTemplateId).ToHashSet();
+                            var templates = references.ClassedTemplates;
                             if (document.Items.Any(item => !templates.Contains(item.ItemTemplateId)))
                                 throw new MissionRuleException($"Mission {binding.MissionId}: mission item template is missing.");
                         }
-                        Rasa.Game.Missions.Persistence.MissionLootPlanner.ValidateReferences(Missions[binding.MissionId], unit);
+                        Rasa.Game.Missions.Persistence.MissionLootPlanner.ValidateReferences(Missions[binding.MissionId], references);
                         if (document.Dialogue != null)
                         {
                             if (document.Dialogue.Any(topic => !npcPackageIds.Contains(topic.NpcPackageId) &&
@@ -197,7 +199,7 @@ namespace Rasa.Managers
                                     source.Key == scene.Script))
                                 throw new MissionRuleException($"Scene {scene.Script}: radio offer {offer.MissionId} has no authorized target source.");
                     MissionSceneValidation.ValidateSharedActors(scenes);
-                    ValidateActorPolicies(unit);
+                    ValidateActorPolicies(references);
                 }
             }
             Runtime = new MissionRuntime(Missions.Values);
@@ -221,8 +223,9 @@ namespace Rasa.Managers
                     throw new MissionRuleException($"Object {actor.Role}: conversation has no matching authored dialogue topic.");
         }
 
-        private void ValidateActorPolicies(IWorldUnitOfWork unit)
+        private void ValidateActorPolicies(Rasa.Game.Missions.Persistence.MissionLootPlanner.WorldReferences references)
         {
+            var unit = references.Unit;
             var policies = SceneBindings.SelectMany(scene => scene.Value.Actors.Values
                     .Where(actor => actor.GameplayPolicy != null)
                     .Select(actor => (Source: $"Mission {scene.Key}, actor {actor.Role}", Policy: actor.GameplayPolicy)))
@@ -241,14 +244,14 @@ namespace Rasa.Managers
             var loot = policies.Where(entry => entry.Policy.Loot != null).ToArray();
             if (loot.Length == 0)
                 return;
-            var equipment = unit.Equipment
-                ?? throw new MissionRuleException("Actor loot validation requires the World equipment repository.");
-            var templates = equipment.GetItemTemplates().Select(entry => entry.Id).ToHashSet();
-            var links = equipment.GetItemTemplateClasses().ToDictionary(entry => entry.ItemTemplateId, entry => entry.ItemClass);
-            var classes = equipment.GetItemClasses().ToDictionary(entry => entry.Id, entry => entry.StackSize);
-            var entityClasses = (unit.EntityClasses
-                ?? throw new MissionRuleException("Actor loot validation requires the World entity-class repository."))
-                .Get().Select(entry => entry.Id).ToHashSet();
+            if (unit.Equipment == null)
+                throw new MissionRuleException("Actor loot validation requires the World equipment repository.");
+            var templates = references.Templates;
+            var links = references.TemplateClasses;
+            var classes = references.StackSizes;
+            if (unit.EntityClasses == null)
+                throw new MissionRuleException("Actor loot validation requires the World entity-class repository.");
+            var entityClasses = references.EntityClasses;
             foreach (var entry in loot)
                 foreach (var drop in entry.Policy.Loot.Drops)
                     if (!templates.Contains(drop.TemplateId) || !links.TryGetValue(drop.TemplateId, out var itemClass) ||
