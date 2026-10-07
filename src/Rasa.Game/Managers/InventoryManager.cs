@@ -321,6 +321,11 @@ namespace Rasa.Managers
                 return;
             }
 
+            // No pack slot: the client sends None only with the clan lockbox named, for a piece
+            // dropped on one of its tab buttons, and that has been answered above.
+            if (packet.NoSlotNamed)
+                return;
+
             if (packet.SrcSlot < 0 || packet.SrcSlot >= 50)
             {
                 Logger.WriteLog(LogType.Debug, $"SrcSlot out of range => {packet.SrcSlot}");
@@ -439,6 +444,11 @@ namespace Rasa.Managers
                 Logger.WriteLog(LogType.Debug, $"Unsupported inventory => {invType}");
                 return;
             }
+
+            // No pack slot: the client sends None only with the clan lockbox named, for a
+            // weapon dropped on one of its tab buttons, and that has been answered above.
+            if (packet.NoSlotNamed)
+                return;
 
             // Both slots arrive as uint, so only the upper bound is worth testing. Weapons come
             // out of the equipment half of the personal inventory, the same fifty slots the
@@ -832,36 +842,84 @@ namespace Rasa.Managers
             if (client.Player.ClanId == 0)
                 return;
 
-            if (packet.SrcSlot == packet.DestSlot)
-                return;
-
             if (packet.SrcSlot < 0 || packet.SrcSlot >= 500)
-                return;
-
-            if (packet.DestSlot < 0 || packet.DestSlot >= 500)
-                return;
-
-            if (!ClanSlotIsUnlocked(client, (uint)packet.DestSlot))
                 return;
 
             var entityId = client.Player.Inventory.ClanInventory[(int)packet.SrcSlot];
 
-            if (entityId == 0 || HasProtected(entityId, client.Player.Inventory.ClanInventory[(int)packet.DestSlot]))
+            if (entityId == 0)
+                return;
+
+            var destSlot = packet.DestSlot;
+
+            // Dropped on a tab button, not on a slot (ClanLockbox_MoveItemPacket).
+            if (packet.NoSlotNamed)
+            {
+                var tabSlot = TabButtonSlot(client, packet.SrcSlot);
+
+                if (tabSlot < 0)
+                    return;
+
+                destSlot = (uint)tabSlot;
+            }
+
+            if (packet.SrcSlot == destSlot)
+                return;
+
+            if (destSlot < 0 || destSlot >= 500)
+                return;
+
+            if (!ClanSlotIsUnlocked(client, destSlot))
+                return;
+
+            if (HasProtected(entityId, client.Player.Inventory.ClanInventory[(int)destSlot]))
                 return;
 
             // If DestSlot is not empty, move current item to SrcSlot (item swap)
-            if (client.Player.Inventory.ClanInventory[(int)packet.DestSlot] != 0)
+            if (client.Player.Inventory.ClanInventory[(int)destSlot] != 0)
             {
                 // Todo swap items
                 return;
             }
             RemoveItemBySlot(client, InventoryType.ClanInventory, packet.SrcSlot); // Put this above swap if check once swap is implemented
 
-            EntityManager.Instance.GetItem(entityId).OwnerSlotId = packet.DestSlot;
-            AddItemBySlot(client, InventoryType.ClanInventory, entityId, packet.DestSlot, true, false);
+            EntityManager.Instance.GetItem(entityId).OwnerSlotId = destSlot;
+            AddItemBySlot(client, InventoryType.ClanInventory, entityId, destSlot, true, false);
 
             RemoveItemBySlotForClan(client.Player.ClanId, packet.SrcSlot, client.Player.Id);
-            RefreshClanLockbox(client.Player.ClanId, entityId, client.Player.Id, packet.DestSlot, ref client.Player.Inventory.ClanInventory, true);
+            RefreshClanLockbox(client.Player.ClanId, entityId, client.Player.Id, destSlot, ref client.Player.Inventory.ClanInventory, true);
+        }
+
+        /// <summary>
+        /// Where a lockbox item dropped on one of the lockbox's tab buttons goes, or -1 for
+        /// nowhere.
+        ///
+        /// The client sends the move with None for the slot and does not say which tab the
+        /// button was (ClanLockbox_MoveItemPacket). The reader took an int there, so the
+        /// gesture closed the player's connection. For an item from the pack the client names
+        /// the tab its window shows, and the footlocker's window finds a slot of the tab
+        /// dropped on before it sends anything; this request has neither.
+        ///
+        /// With two tabs bought the tab can only be the one the item is not in, and it goes to
+        /// the first free slot there; with that tab full it stays and the player is told, in
+        /// the client's own words for a full clan tab. With one tab there is nowhere else, and
+        /// with more than two there is no telling which was meant, so the item stays where it
+        /// is: the window changes tab under a drag held over a button, and a drop on a slot
+        /// names it.
+        /// </summary>
+        private static int TabButtonSlot(Client client, uint srcSlot)
+        {
+            if (UnlockedClanSlots(client) != 2 * ClanLockboxTab.SlotsPerTab)
+                return -1;
+
+            var (first, last) = ClanLockboxTab.SlotRange(srcSlot < ClanLockboxTab.SlotsPerTab ? ClanLockboxTab.FreeTab + 1 : ClanLockboxTab.FreeTab);
+
+            for (var slot = first; slot < last; slot++)
+                if (client.Player.Inventory.ClanInventory[(int)slot] == 0)
+                    return (int)slot;
+
+            client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(PlayerMessage.PmYourFootlockerIsFull, new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages));
+            return -1;
         }
 
         public void ClanLockbox_WithdrawItem(Client client, ClanLockbox_WithdrawItemPacket packet)
