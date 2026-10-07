@@ -213,6 +213,11 @@ namespace Rasa.Managers
             //
             // An NPC with a line of its own says it instead (NpcGreetings): the greeting alone,
             // which the client shows in its conversation window.
+            //
+            // A mission the player holds and hands in here, not ready yet, comes first: player
+            // message 621, "You have not yet completed the requirements for this mission." It is
+            // what the player came about - Corporal DeSimone, asked to take Gearing Up for Battle
+            // before its last objective, answered that Capture the Flag was not available.
             if (convoDataDict.Count == 0)
             {
                 if (NpcGreetings.HasOwn(creature))
@@ -220,7 +225,13 @@ namespace Rasa.Managers
                 else
                     convoDataDict.Add(ConversationType.EndConversation, true);
 
-                if (conversation.NotYetAvailable.Count > 0)
+                if (conversation.Unfinished.Count > 0)
+                {
+                    client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(
+                        PlayerMessage.PmHaveNotCompletedRequirements, new Dictionary<string, string>(),
+                        MsgFilterId.GeneralSystemMessages));
+                }
+                else if (conversation.NotYetAvailable.Count > 0)
                 {
                     var message = new DisplayClientMessagePacket(PlayerMessage.PmMissionNotAvailableNow,
                         new Dictionary<string, string>(), MsgFilterId.GeneralSystemMessages);

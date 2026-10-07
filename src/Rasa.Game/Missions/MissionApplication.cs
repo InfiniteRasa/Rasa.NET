@@ -3425,6 +3425,10 @@ namespace Rasa.Managers
                     var dialogue = classified.Dialogue.FirstOrDefault(candidate => candidate.Key == key);
                     if (Interactions.TryCaptureTopic(client, key, unit, out var topic, dialogue?.ProgressionObjectiveId))
                         topics.Add(topic with { Dialogue = dialogue?.Definition });
+                    else if (key.Kind != MissionConversationTopicKind.Acceptance)
+                        // A mission the character holds: the journal has it and the saved assignment does not agree.
+                        Logger.WriteLog(LogType.Error,
+                            $"Mission {key.MissionId} {key.Kind} was not offered to character {client.Player.Id} by NPC {target.Creature.DbId}: its saved assignment is missing or does not match the mission log.");
                 }
                 if (!Interactions.CanOpen(client, target, unit))
                     return false;
@@ -3486,6 +3490,7 @@ namespace Rasa.Managers
             var completeable = new Dictionary<uint, RewardInfo>();
             var rewardable = new List<RewardableMissions>();
             var notYetAvailable = new List<uint>();
+            var unfinished = new List<uint>();
 
             foreach (var mission in _runtime.ForNpc(creature.DbId, creature.Npc.NpcPackageId))
             {
@@ -3534,6 +3539,10 @@ namespace Rasa.Managers
                         continue;
                     }
 
+                    // Held, handed in here, and not ready: said when the NPC has nothing else to say.
+                    if (mission.CompletionChannel.HasFlag(MissionChannel.Npc) && mission.MissionReciver == creature.DbId)
+                        unfinished.Add(mission.MissionId);
+
                     dialogue.AddRange(OpenTopics(player, mission, log, creature.Npc.NpcPackageId, creature.DbId));
                 }
                 else if (log.State == MissionState.Success &&
@@ -3551,7 +3560,8 @@ namespace Rasa.Managers
                 dialogue,
                 completeable,
                 rewardable,
-                notYetAvailable);
+                notYetAvailable,
+                unfinished);
         }
 
         /// <summary>
