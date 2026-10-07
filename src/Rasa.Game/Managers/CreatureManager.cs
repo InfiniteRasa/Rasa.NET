@@ -209,6 +209,9 @@ namespace Rasa.Managers
             else if (CreatureSupport.DefersDeath(mapChannel, creature))
                 return;
 
+            // A creature that has killed its target says so (Battlecries).
+            Battlecries.KilledTarget(mapChannel, killedBy as Creature);
+
             // Killed by something fighting for a player - a trap's shot, a creature turned by
             // Traitor, a minion: the kill is that player's, experience, adrenaline, loot and
             // harvest rights alike. The blow stays the creature's for threat.
@@ -776,6 +779,10 @@ namespace Rasa.Managers
             var greetings = new Dictionary<uint, uint>();
             foreach (var entry in unitOfWork.Creatures.GetNpcGreetings())
                 greetings[entry.Id] = entry.GreetingId;
+
+            // The battle cry package of each class and creature row that has one (Battlecries).
+            var battlecries = Battlecries.Load(unitOfWork.Creatures.GetBattlecries());
+            Logger.WriteLog(LogType.Initialize, $"Loaded {battlecries} creature battle cry packages");
 
             foreach (var data in creatureList)
             {

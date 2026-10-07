@@ -235,6 +235,11 @@ namespace Rasa.Test.Missions.Wilderness
                     ? GetNpcGreetings()
                     : new List<Rasa.Structures.World.NpcGreetingEntry>();
 
+            List<Rasa.Structures.World.CreatureBattlecryEntry> ICreatureRepository.GetBattlecries() =>
+                HasTable(Rasa.Structures.World.CreatureBattlecryEntry.TableName)
+                    ? GetBattlecries()
+                    : new List<Rasa.Structures.World.CreatureBattlecryEntry>();
+
             private bool HasTable(string name) => _context.Database
                 .SqlQueryRaw<int>("SELECT COUNT(*) AS Value FROM sqlite_master WHERE type = 'table' AND name = {0}", name)
                 .AsEnumerable().Single() > 0;

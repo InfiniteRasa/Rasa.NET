@@ -247,6 +247,7 @@ namespace Rasa.Managers
             RegisterCommand(".allowdeath", GmLevel.GameMaster, AllowDeathCommand, "on|off");
             RegisterCommand(".feud", GmLevel.GameMaster, FeudCommand, "action", "arg1", "arg2");
             RegisterCommand(".bark", GmLevel.GameMaster, BarkCommand, "creatureEntityId", "barkId");
+            RegisterCommand(".battlecry", GmLevel.GameMaster, BattlecryCommand, "packageId", "typeId");
             RegisterCommand(".comehere", GmLevel.GameMaster, ComeHereCommand, "creatureEntityId");
             RegisterCommand(".createobj", GmLevel.GameMaster, CreateObjectCommand, "entityClassId");
             RegisterCommand(".createobjonloc", GmLevel.GameMaster, CreateObjectOnLocationCommand, "entityClassId", "posX", "posY", "posZ", "orientation");
@@ -917,6 +918,47 @@ namespace Rasa.Managers
             // Logged as .where is, with the class, so the line is all a row of ambient_npc needs.
             Logger.WriteLog(LogType.Command,
                 $"[.ambient] {_client.Player.FamilyName}: class={chosen.ClassId} {AmbientNpcs.ShortName(chosen)} map={_client.Player.MapContextId} pos=({position.X:0.####}, {position.Y:0.####}, {position.Z:0.####}) rot={rotation:0.####}");
+        }
+
+        /// <summary>
+        /// .battlecry [packageId typeId], with a creature targeted: what package it has, or one
+        /// cry of any package played on it for everyone near - how a package sounds on a
+        /// creature before it is given it in creature_battlecry.
+        /// </summary>
+        private void BattlecryCommand(string[] parts)
+        {
+            var creature = _client.Player.Target != 0 && EntityManager.Instance.GetEntityType(_client.Player.Target) == EntityType.Creature
+                ? EntityManager.Instance.GetCreature(_client.Player.Target)
+                : null;
+
+            if (creature == null || (parts.Length != 1 && parts.Length != 3))
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, "usage: .battlecry [packageId typeId] - with a creature targeted. Packages: "
+                    + string.Join(", ", Battlecries.Packages.Keys.OrderBy(id => id)) + ". Types: "
+                    + string.Join(", ", Enum.GetValues<BattlecryType>().Select(type => $"{(int)type} {type}")));
+                return;
+            }
+
+            if (parts.Length == 1)
+            {
+                var own = Battlecries.PackageOf(creature);
+
+                CommunicatorManager.Instance.SystemMessage(_client, own == 0
+                    ? $"Class {(uint)creature.EntityClass}, creature {creature.DbId}: no battle cry package."
+                    : $"Class {(uint)creature.EntityClass}, creature {creature.DbId}: battle cry package {own}, types {string.Join(", ", Battlecries.Packages[own])}.");
+                return;
+            }
+
+            if (!int.TryParse(parts[1], out var packageId) || !int.TryParse(parts[2], out var typeId)
+                || !Battlecries.Play(_client.Player.MapChannel, creature, packageId, (BattlecryType)typeId))
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, Battlecries.Packages.TryGetValue(packageId, out var types)
+                    ? $"Package {packageId} has no cry of type {parts[2]}. It has: {string.Join(", ", types)}."
+                    : $"No battle cry package '{parts[1]}'. Packages: {string.Join(", ", Battlecries.Packages.Keys.OrderBy(id => id))}.");
+                return;
+            }
+
+            CommunicatorManager.Instance.SystemMessage(_client, $"Battle cry {packageId}/{typeId} ({(BattlecryType)typeId}) sent from the creature. Clients with battle cries off hear nothing.");
         }
 
         private void BarkCommand(string[] parts)
@@ -2941,6 +2983,9 @@ namespace Rasa.Managers
 
                     if (creature.Patrol != null)
                         msg += $"Patrol = {Patrols.Describe(creature)}\n";
+
+                    if (Battlecries.PackageOf(creature) != 0)
+                        msg += $"Battlecry = package {Battlecries.PackageOf(creature)}\n";
 
                     msg += $"PosX = {creature.Position.X}\n";
                     msg += $"PosY = {creature.Position.Y}\n";

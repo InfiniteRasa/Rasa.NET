@@ -73,6 +73,10 @@ namespace Rasa.Managers
             if (target is Manifestation player && (Pvp.IsSafe(player) || !target.Attributes.TryGetValue(Attributes.Health, out var health) || health.Current <= 0))
                 return;
 
+            // And what a creature shouts at one (Battlecries).
+            if (target is Creature struck)
+                Battlecries.Crit(mapChannel, struck);
+
             switch (damageType)
             {
                 case DamageType.Ice when target is Creature frozen:

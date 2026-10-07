@@ -20,6 +20,9 @@ namespace Rasa.Repositories.World
         /// <summary>The greeting each NPC has been given (npc_greeting). An NPC with no row has the default.</summary>
         List<NpcGreetingEntry> GetNpcGreetings() => new List<NpcGreetingEntry>();
 
+        /// <summary>The battle cry package each class and creature row has been given (creature_battlecry). One with no row is silent.</summary>
+        List<CreatureBattlecryEntry> GetBattlecries() => new List<CreatureBattlecryEntry>();
+
         /// <summary>Gives a creature row a greeting, or changes the one it has.</summary>
         void SaveNpcGreeting(uint creatureId, uint greetingId) => throw new System.NotSupportedException();
 

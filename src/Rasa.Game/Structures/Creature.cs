@@ -130,6 +130,9 @@ namespace Rasa.Structures
         /// </summary>
         public IReadOnlyList<PatrolStep> Patrol { get; set; }
 
+        /// <summary>What Battlecries keeps about it between thinks; null until its first, and not copied from a template.</summary>
+        public Managers.BattlecryState Cries;
+
         /// <summary>The pose it takes at its post (NpcPoses); None for a creature with none.</summary>
         public NpcPose Pose { get; set; }
 

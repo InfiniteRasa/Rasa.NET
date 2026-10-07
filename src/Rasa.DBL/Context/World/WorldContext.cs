@@ -36,6 +36,7 @@ namespace Rasa.Context.World
         public DbSet<CreatureActionEntry> CreatureActionEntries { get; set; }
         public DbSet<CreatureAppearanceEntry> CreatureAppearanceEntries { get; set; }
         public DbSet<CreatureStatEntry> CreatureStatEntries { get; set; }
+        public DbSet<CreatureBattlecryEntry> CreatureBattlecryEntries { get; set; }
         public DbSet<CreatureClassFlagEntry> CreatureClassFlagEntries { get; set; }
         public DbSet<SkillCharacterEntry> SkillCharacterEntries { get; set; }
         public DbSet<ExperienceForLevelEntry> ExperienceForLevelEntries { get; set; }
@@ -112,6 +113,7 @@ namespace Rasa.Context.World
             SetupMapMarker(modelBuilder);
             SetupControlPoints(modelBuilder);
             SetupCreatureClassFlag(modelBuilder);
+            SetupCreatureBattlecry(modelBuilder);
             SetupSpawnPoolPatrol(modelBuilder);
             SetupSkillCharacter(modelBuilder);
             SetupMissionContent(modelBuilder);
@@ -169,6 +171,13 @@ namespace Rasa.Context.World
         {
             modelBuilder.Entity<CreatureClassFlagEntry>()
                 .HasKey(e => new { e.ClassId, e.FlagId });
+        }
+
+        /// <summary>A battle cry package is given to a class or to a creature row, so the row is the scope and the target.</summary>
+        private static void SetupCreatureBattlecry(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<CreatureBattlecryEntry>()
+                .HasKey(e => new { e.Scope, e.TargetId });
         }
 
         /// <summary>A pool's patrol is several steps, so the row is the pool and the step.</summary>

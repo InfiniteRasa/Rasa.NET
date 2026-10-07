@@ -403,6 +403,25 @@ namespace Rasa.Migrations.SqliteWorld
                     b.ToTable("creature_appearance");
                 });
 
+            modelBuilder.Entity("Rasa.Structures.World.CreatureBattlecryEntry", b =>
+                {
+                    b.Property<uint>("Scope")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("scope");
+
+                    b.Property<uint>("TargetId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("target_id");
+
+                    b.Property<uint>("PackageId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("package_id");
+
+                    b.HasKey("Scope", "TargetId");
+
+                    b.ToTable("creature_battlecry");
+                });
+
             modelBuilder.Entity("Rasa.Structures.World.CreatureClassFlagEntry", b =>
                 {
                     b.Property<uint>("ClassId")

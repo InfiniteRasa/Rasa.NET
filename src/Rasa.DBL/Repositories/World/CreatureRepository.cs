@@ -23,6 +23,11 @@ namespace Rasa.Repositories.World
             return creatureEntries;
         }
 
+        public List<CreatureBattlecryEntry> GetBattlecries()
+        {
+            return _worldContext.CreateNoTrackingQuery(_worldContext.CreatureBattlecryEntries).ToList();
+        }
+
         /// <summary>
         /// Every creature class's flags, in one read. Keyed by class rather than by creature, so
         /// this is loaded once with the entity classes rather than per spawn.

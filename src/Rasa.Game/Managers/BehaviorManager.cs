@@ -386,6 +386,10 @@ namespace Rasa.Managers
                 return;
             }
 
+            // What it shouts about how it stands now against the think before: a fight begun or
+            // over, a wound, a halt on its beat (Battlecries).
+            Battlecries.Observe(mapChannel, creature);
+
             // Knocked back, or stunned: it goes where the knockback carries it and nothing else,
             // but it can still cross into another cell doing so.
             var knockedBack = StepKnockback(mapChannel, creature, delta);
