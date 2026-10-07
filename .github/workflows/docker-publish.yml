@@ -1,0 +1,91 @@
+name: Build and Publish Docker Image
+
+on:
+  push:
+    branches:
+      - development
+    tags:
+      - 'v*'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  DEVELOPMENT_BRANCH: development
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Determine publish type
+        id: publish
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == "refs/heads/${DEVELOPMENT_BRANCH}" ]]; then
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+            echo "is_development=true" >> "$GITHUB_OUTPUT"
+            echo "is_release=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            git fetch origin "${DEVELOPMENT_BRANCH}"
+
+            if git merge-base --is-ancestor "$GITHUB_SHA" "origin/${DEVELOPMENT_BRANCH}"; then
+              echo "should_publish=true" >> "$GITHUB_OUTPUT"
+              echo "is_development=false" >> "$GITHUB_OUTPUT"
+              echo "is_release=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "should_publish=false" >> "$GITHUB_OUTPUT"
+              echo "is_development=false" >> "$GITHUB_OUTPUT"
+              echo "is_release=false" >> "$GITHUB_OUTPUT"
+
+              echo "Tag does not point to a commit on ${DEVELOPMENT_BRANCH}"
+            fi
+
+            exit 0
+          fi
+
+          echo "should_publish=false" >> "$GITHUB_OUTPUT"
+          echo "is_development=false" >> "$GITHUB_OUTPUT"
+          echo "is_release=false" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GitHub Container Registry
+        if: steps.publish.outputs.should_publish == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker metadata
+        if: steps.publish.outputs.should_publish == 'true'
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          flavor: |
+            latest=false
+          tags: |
+            type=raw,value=unstable,enable=${{ steps.publish.outputs.is_development == 'true' }}
+            type=ref,event=tag,enable=${{ steps.publish.outputs.is_release == 'true' }}
+            type=raw,value=latest,enable=${{ steps.publish.outputs.is_release == 'true' }}
+
+      - name: Build and push Docker image
+        if: steps.publish.outputs.should_publish == 'true'
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
