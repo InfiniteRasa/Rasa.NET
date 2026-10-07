@@ -494,7 +494,8 @@ namespace Rasa.Managers
             if (amount <= 0 || attribute.Current >= attribute.CurrentMax)
                 return;
 
-            // A period of 0 is one the stats never set; the client treats an unset period as 1.
+            // Never 0 once the stats have been worked out (ManifestationManager.ApplyRegenPeriod);
+            // this is only a guard against dividing by one.
             var period = Math.Max(1, attribute.RefreshPeriod);
 
             if (second % period != 0)

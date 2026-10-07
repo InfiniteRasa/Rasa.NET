@@ -1341,7 +1341,7 @@ namespace Rasa.Managers
         }
 
         /// <summary>
-        /// Sets the health and armour regeneration for the player's current combat state.
+        /// Sets the health, armour and power regeneration for the player's current combat state.
         ///
         /// Health: the period, five times longer in combat. The period rather than the amount,
         /// because both are integers on the wire and a base amount of 2 scaled by 0.2 truncates
@@ -1356,14 +1356,23 @@ namespace Rasa.Managers
         /// since they scale this amount. Armour put back directly (ActorManager.RestoreArmor)
         /// still goes on.
         ///
-        /// This is the only place either is set, including the out-of-combat values, so that
+        /// Power: the base period, in combat and out. The server has always counted it that way
+        /// (ActorManager.Regenerate takes a period nothing set as 1), but the attribute kept the
+        /// 0 it was made with, and AttributeInfo is the one packet that carries the period: every
+        /// one of them - on entering combat and on leaving it, on a change of armor, on an
+        /// attribute point - made the client a Power that stood still, until an UpdatePower or
+        /// an UpdateAttributes put a 1 back (actor.py UpdateAttribute). The client asks for no
+        /// ability its own figure cannot pay for (CheckConsumables), so the server's refilled
+        /// bar was no use to it.
+        ///
+        /// This is the only place any of them is set, including the out-of-combat values, so that
         /// there is one answer rather than two that have to agree. It is called at the end of
         /// UpdateStatsValues for that reason and for a second one: UpdateStatsValues recomputes
         /// the rates from scratch, so without it, changing a piece of armour mid-fight would
         /// quietly restore full regeneration.
         ///
         /// A period of zero would stop regeneration entirely - the client's
-        /// _EvaluatePredictedRefresh returns early on one - so neither branch may yield it.
+        /// _EvaluatePredictedRefresh returns early on one - so no branch may yield it.
         /// </summary>
         public void ApplyRegenPeriod(Manifestation player)
         {
@@ -1378,6 +1387,9 @@ namespace Rasa.Managers
 
             armor.RefreshAmount = player.InCombat && !CombatRegen.ArmorRegeneratesInCombat ? 0 : player.ArmorRegenRate;
             armor.RefreshPeriod = CombatRegen.RegenPeriodSeconds;
+
+            if (player.Attributes.TryGetValue(Attributes.Power, out var power))
+                power.RefreshPeriod = CombatRegen.RegenPeriodSeconds;
         }
 
         /// <summary>Drops players out of combat once their timer has run out.</summary>
