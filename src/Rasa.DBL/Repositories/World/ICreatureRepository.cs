@@ -7,6 +7,13 @@ namespace Rasa.Repositories.World
     {
         List<CreatureEntry> Get();
         List<CreatureClassFlagEntry> GetClassFlags();
+
+        /// <summary>
+        /// Puts these flags in place of the ones each of these classes has (creature_class_flag),
+        /// in one transaction; a class with no flags given is left with none, and a class not
+        /// named is not touched.
+        /// </summary>
+        void ReplaceClassFlags(IReadOnlyDictionary<uint, IReadOnlyCollection<uint>> flagsByClass) => throw new System.NotSupportedException();
         CreatureStatEntry GetCreatureStats(uint creatureId);
         CreatureActionEntry GetCreatureActionById(uint id);
         Dictionary<uint, CreatureActionEntry> GetCreatureActions();

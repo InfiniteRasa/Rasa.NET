@@ -454,6 +454,16 @@ namespace Rasa.Game
             _accountRelay.Connected = () => AuthLinkUp;
             _accountRelay.Send = request => (AuthCommunicator ?? throw new InvalidOperationException("the link to the Auth server is down")).Send(request);
             api.Accounts.Create = _accountRelay.Create;
+
+            // gametools' editors read and write the creature flags and the loot pools through
+            // these; each of the four is off until its own entry in ApiConfig turns it on.
+            var monsterFlags = new MonsterFlagStore(GameUnitOfWorkFactory);
+            var lootPools = new LootPoolStore(GameUnitOfWorkFactory);
+
+            api.MonsterFlags.Store = monsterFlags;
+            api.UpdateMonsterFlags.Store = monsterFlags;
+            api.LootPools.Store = lootPools;
+            api.UpdateLootPools.Store = lootPools;
             api.Status.Started();
             _apiApplied = true;
             api.Apply(Config.ApiConfig);
@@ -537,6 +547,9 @@ namespace Rasa.Game
             SpawnPoolManager.Instance.ValidatePools();
             RecipeManager.Instance.RecipeInit();
             ItemModules.Init(GameUnitOfWorkFactory);
+
+            // What creatures drop (loot_group and its two tables); none, until pools are given.
+            LootPools.Init(GameUnitOfWorkFactory);
             AbilityManager.Instance.AbilityInit();
             ManifestationManager.Instance.LoadSkillClasses();
 

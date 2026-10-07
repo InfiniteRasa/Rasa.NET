@@ -38,6 +38,7 @@ namespace Rasa.Context.World
         public DbSet<CreatureStatEntry> CreatureStatEntries { get; set; }
         public DbSet<CreatureBattlecryEntry> CreatureBattlecryEntries { get; set; }
         public DbSet<CreatureClassFlagEntry> CreatureClassFlagEntries { get; set; }
+        public DbSet<CreatureLootGroupEntry> CreatureLootGroupEntries { get; set; }
         public DbSet<SkillCharacterEntry> SkillCharacterEntries { get; set; }
         public DbSet<ExperienceForLevelEntry> ExperienceForLevelEntries { get; set; }
         public DbSet<EntityClassEntry> EntityClassEntries { get; set; }
@@ -54,6 +55,8 @@ namespace Rasa.Context.World
         public DbSet<ItemTemplateResistanceEntry> ItemTemplateResistanceEntries { get; set; }
         public DbSet<ItemTemplateWeaponEntry> ItemTemplateWeaponEntries { get; set; }
         public DbSet<LogosEntry> LogosEntries { get; set; }
+        public DbSet<LootGroupEntry> LootGroupEntries { get; set; }
+        public DbSet<LootGroupItemEntry> LootGroupItemEntries { get; set; }
         public DbSet<MapInfoEntry> MapInfoEntries { get; set; }
         public DbSet<MapLinkEntry> MapLinkEntries { get; set; }
         public DbSet<KraftwerksEntry> KraftwerksEntries { get; set; }
@@ -115,6 +118,7 @@ namespace Rasa.Context.World
             SetupCreatureClassFlag(modelBuilder);
             SetupCreatureBattlecry(modelBuilder);
             SetupSpawnPoolPatrol(modelBuilder);
+            SetupLootGroups(modelBuilder);
             SetupSkillCharacter(modelBuilder);
             SetupMissionContent(modelBuilder);
             modelBuilder.Entity<MissionSceneBindingEntry>()
@@ -185,6 +189,16 @@ namespace Rasa.Context.World
         {
             modelBuilder.Entity<SpawnPoolPatrolEntry>()
                 .HasKey(e => new { e.PoolId, e.Step });
+        }
+
+        /// <summary>A pool holds an item once, and a creature has a pool once: each row is its pair.</summary>
+        private static void SetupLootGroups(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<LootGroupItemEntry>()
+                .HasKey(e => new { e.GroupId, e.ItemTemplateId });
+
+            modelBuilder.Entity<CreatureLootGroupEntry>()
+                .HasKey(e => new { e.CreatureId, e.GroupId });
         }
 
         private void SetupExperienceForLevel(ModelBuilder modelBuilder)

@@ -396,6 +396,10 @@ namespace Rasa.Managers
             if (profile != null)
                 return CreateAuthoredLoot(killer, loot, profile, partyId);
 
+            // A creature that has been given loot pools drops what they roll (LootPools).
+            if (loot.Corpse != null && LootPools.Current.For(loot.Corpse.DbId) is { Count: > 0 } pools)
+                return CreatePoolLoot(killer, loot, pools, partyId);
+
             int giveLoot;
 
             lock (Roll)
@@ -416,6 +420,79 @@ namespace Rasa.Managers
 
                 if (item != null)
                     loot.LootItems.Add(new LootItem(item, killer.Player.EntityId, partyId));
+            }
+
+            return loot;
+        }
+
+        /// <summary>
+        /// The loot of a creature with loot pools: the credits every corpse has, and an item for
+        /// each row of its pools that came up, made now, as the ordinary loot's are, so that the
+        /// corpse window has an entity behind every row. A row whose item the server has not
+        /// got gives nothing, and one that asks for more than a stack gives a stack. If the
+        /// items cannot be stored the corpse has its credits and no more: a kill is not undone
+        /// by its loot.
+        /// </summary>
+        private LootDispenser CreatePoolLoot(Client owner, LootDispenser loot, IReadOnlyList<LootPool> pools, uint partyId)
+        {
+            var staged = new List<Item>();
+            var committed = false;
+
+            try
+            {
+                var drops = LootPools.Roll(pools, _lootRoll);
+
+                if (drops.Count > 0)
+                {
+                    using var unit = _gameUnitOfWorkFactory.CreateChar();
+                    unit.ExecuteTransaction(() =>
+                    {
+                        foreach (var (templateId, quantity) in drops)
+                        {
+                            var template = ItemManager.Instance.GetItemTemplateById(templateId);
+                            var itemClass = template == null ? null :
+                                EntityClassManager.Instance.GetClassInfo(template.Class)?.ItemClassInfo;
+
+                            if (itemClass == null)
+                                continue;
+
+                            var item = ItemManager.StageItem(template, Math.Min(quantity, Math.Max(1u, itemClass.StackSize)), string.Empty);
+                            staged.Add(item);
+                            item.Id = unit.Items.CreateItem(item);
+                            if (item.Id == 0)
+                                throw new GameplayRejectionException($"Loot pool item {templateId} was not persisted.");
+                        }
+                    });
+                }
+
+                committed = true;
+            }
+            catch (Exception error) when (error is GameplayRejectionException || error is DbException || error is DbUpdateException || error is InvalidOperationException)
+            {
+                Logger.WriteLog(LogType.Error, $"Loot pool items for creature {loot.Corpse?.DbId} could not be made: {error.Message}");
+            }
+            finally
+            {
+                if (!committed)
+                {
+                    foreach (var item in staged)
+                        EntityManager.Instance.FreeEntity(item.EntityId);
+
+                    staged.Clear();
+                }
+            }
+
+            loot.Credits = _lootRoll(1, 10);
+            loot.LootQuality = LootQuality.Junk;
+
+            foreach (var item in staged)
+            {
+                EntityManager.Instance.RegisterEntity(item.EntityId, EntityType.Item);
+                EntityManager.Instance.RegisterItem(item.EntityId, item);
+                loot.LootItems.Add(new LootItem(item, owner.Player.EntityId, partyId));
+                var quality = (LootQuality)item.ItemTemplate.QualityId;
+                if (quality.Rank() > loot.LootQuality.Rank())
+                    loot.LootQuality = quality;
             }
 
             return loot;

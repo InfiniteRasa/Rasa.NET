@@ -22,6 +22,9 @@
             throw new System.NotSupportedException("This world unit of work has no item module data.");
         IAmbientNpcRepository AmbientNpcs =>
             throw new System.NotSupportedException("This world unit of work has no ambient NPC data.");
+
+        ILootGroupRepository LootGroups =>
+            throw new System.NotSupportedException("This world unit of work has no loot pool data.");
         ISpawnPoolArrivalRepository SpawnPoolArrivals { get; }
         IRecipeRepository Recipes { get; }
         INpcMissionRepository NpcMissions { get; }

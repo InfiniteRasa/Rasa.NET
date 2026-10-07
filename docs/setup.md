@@ -219,7 +219,7 @@ A weapon's Steal and Debuff Resist modules fire on a hit by chance, and the clie
 The chance is per hit, so a weapon that hits more often fires them more often. A change to the file applies at once, without a restart; a missing section uses the defaults. How long a resist debuff lasts is not a setting: it is `arg2`, in seconds, of the module's row in the world database's `module_effect` table (10 as migrated), and is read at startup. What each module does is in the [GM command reference](gm-commands.md).
 
 ### REST API
-`Rasa.Game` can report its status, and create accounts, over HTTP on a port of its own. It is configured in the `ApiConfig.Rest` section of its appsettings.json:
+`Rasa.Game` can report its status, create accounts, and let the [game tools](../gametools/README.md) read and change creature flags and loot pools, over HTTP on a port of its own. It is configured in the `ApiConfig.Rest` section of its appsettings.json:
 
 | Setting | Default | Meaning |
 |---|---|---|
@@ -231,6 +231,7 @@ The chance is per hit, so a weapon that hits more often fires them more often. A
 | `JwtSecret` | `""` | Signs the tokens the `/ingame` endpoints go by; see [REST and in-game APIs](#rest-and-in-game-apis) above. Empty makes a new secret at every start. |
 | `JwtTokenLifetimeSeconds` | `86400` | How long such a token lasts. |
 | `AllowedIps` | `[]` | The addresses that may ask: single addresses (`203.0.113.7`) and ranges (`10.0.0.0/8`), IPv4 or IPv6. Empty answers every address. An entry that is no address and no range allows nobody and is logged as an error. |
+| `AllowedOrigins` | `[]` | The web pages that may use the API from a browser, by origin: `"null"` for a page opened from a file on disk, as the game tools are; `"http://tools.example"` for one served from there; `"*"` for any. Empty lets no page use it. It opens only endpoints that want a key; see Game tools below. |
 | `Endpoints` | see below | Settings for one endpoint, by its name. |
 | `Tls` | off | HTTPS in place of HTTP on the same port; see below. |
 
@@ -246,6 +247,8 @@ The `/ingame` endpoints take no key, and are the ones the startup log calls `end
 | `GET /serverstatus` | `{"uptimeseconds":45000,"currentconnections":3,"peakconnections":9,"maxconnections":1024}` |
 | `POST /addaccount` | Creates a login; see below. Off until it is turned on. |
 | `POST /ingame/session/exchange`, `GET /ingame/items`, `GET /ingame/items/categories`, `GET /ingame/items/{id}` | The in-game API; see [REST and in-game APIs](#rest-and-in-game-apis) above. Each is off until it is turned on. |
+| `GET /monsterflags`, `POST /updatemonsterflags` | The flags of the creature classes, read and changed; see Game tools below. Off until turned on. |
+| `GET /lootpools`, `POST /updatelootpools` | The loot pools, read and replaced; see Game tools below. Off until turned on. |
 
 - `game_server_status` is `healthy` while the server has finished loading, is listening for players, has not been shut down, and its world loop ticked within `ApiConfig.LoopStallSeconds` (default `15`).
 - `app_server_status` is `healthy` while the link to the Auth server is up and logged in.
@@ -253,7 +256,7 @@ The `/ingame` endpoints take no key, and are the ones the startup log calls `end
 
 A request is refused with `403` from an address not on `AllowedIps`, `404` for a path that names no endpoint or one that is off, `405` for the wrong method, and `401` for a missing or wrong key or, at an `/ingame` endpoint, a code or token that is missing, wrong or no longer good.
 
-Each entry under `Endpoints` (`healthcheck`, `serverstatus`, `addaccount` and the `/ingame` ones) has:
+Each entry under `Endpoints` (`healthcheck`, `serverstatus`, `addaccount`, the `/ingame` ones, and `monsterflags`, `updatemonsterflags`, `lootpools`, `updatelootpools`) has:
 
 | Setting | Default | Meaning |
 |---|---|---|
@@ -302,6 +305,47 @@ Because it changes something, this endpoint is stricter than the other two:
 }
 ```
 
+#### Game tools
+The editors in the repository's [`gametools`](../gametools/README.md) folder are web pages that read and change a running server through four endpoints. Each speaks its editor's own file, so what a `GET` returns can be loaded into the editor and what the editor saves can be sent with `POST`:
+
+| Endpoint | What it does |
+|---|---|
+| `GET /monsterflags` | Every creature class with its flags (`creature_class_flag`): `{"schema":"rasa.creature_flags/1","source":"server","creatures":[{"class_id":6032,"class_name":"Bane_Amoeboid_v1","flags":[5,71]}]}` |
+| `POST /updatemonsterflags` | `{"creatures":[{"class_id":6032,"flags":[5,71,142]}]}` gives each class named exactly these flags, in the database and in the running server. A class not named is not touched. |
+| `GET /lootpools` | Every loot pool and which creature rows have which (`loot_group`, `loot_group_item`, `creature_loot_group`): `{"format":"rasa-loot-tables","version":1,"source":"server","groups":[{"id":1,"name":"Thrax junk","note":"","items":[{"itemTemplateId":28,"chance":5,"minQuantity":1,"maxQuantity":3}]}],"assignments":[{"creatureId":118,"groupId":1}]}` |
+| `POST /updatelootpools` | The same shape. It replaces every pool and assignment, in the database in one transaction and in the running server, where the next kill rolls it. |
+
+| Status | Meaning |
+|---|---|
+| `200` | Read, or changed: `{"result":"updated",...}` with counts, and `"warnings"` when there is something to remark on. |
+| `400` | The body is not that JSON, or names a class, flag, item or creature the server has not got. `error` says so and `problems` lists what is wrong. Nothing was changed. |
+| `415` | The body was not sent as `application/json`. |
+| `503` | The server has not finished starting. |
+
+A creature that has loot pools drops what they roll, with the few credits every corpse has: each item of each pool is rolled on its own at its `chance`, a percent, and gives from `minQuantity` to `maxQuantity`, never more than a stack. A creature with no pool drops what it always has. The three tables ship empty; on MySQL they have to be created before this version is started, as for any migration.
+
+All four follow the rules of `/addaccount`: off with no entry of their own, never public because `Rest.Public` is, opened by their own `ApiKey` or the global one.
+
+A browser will not let a web page send a key to another address, or read the answer, unless the server says the page may. `AllowedOrigins` is that list, and it is empty as shipped. The game tools are opened from disk, which a browser calls the origin `null`:
+
+```json
+{
+  "ApiConfig": {
+    "Rest": {
+      "AllowedOrigins": [ "null" ],
+      "Endpoints": {
+        "monsterflags": { "Enabled": true, "ApiKey": "<key for reading>" },
+        "updatemonsterflags": { "Enabled": true, "ApiKey": "<key for changing>" },
+        "lootpools": { "Enabled": true, "ApiKey": "<key for reading>" },
+        "updatelootpools": { "Enabled": true, "ApiKey": "<key for changing>" }
+      }
+    }
+  }
+}
+```
+
+An origin on the list may use every endpoint that wants a key, and no endpoint that answers without one: a public endpoint is never opened to pages, since any page a browser inside your network happened to load could then use it. The `/ingame` endpoints, which go by a code and a token of their own in place of a key, are not opened to pages either. A page that is refused is logged with its origin and the reason.
+
 #### HTTPS
 The `Tls` section turns the port from HTTP to HTTPS:
 
@@ -316,7 +360,7 @@ The `Tls` section turns the port from HTTP to HTTPS:
 Without TLS, keys and the passwords sent to `/addaccount` cross the network as they are: keep the port on a network you trust, or turn TLS on. With TLS on, a certificate that cannot be loaded leaves the API off; it never falls back to HTTP. A connection from an address not on `AllowedIps` is then closed before the handshake, in place of the `403`. The certificate's files are looked at again every minute and on every configuration reload, so a renewed certificate is taken up without a restart.
 
 #### Requests and reloads
-Every connection carries one request and is closed after its answer. A request has 5 seconds, 64 connections are served at once, and the request's headers and a POST's body may each be 8 KB.
+Every connection carries one request and is closed after its answer. A request has 5 seconds, 64 connections are served at once, and the request's headers and a POST's body may each be 8 KB. The two game tools endpoints that take a body take up to 8 MB, only read one that large once the request's key has been checked, and then give it a minute to arrive. A request turned away while its body is still being sent is answered, and the rest of the body is read and dropped so that the sender gets to the answer.
 
 ```
 curl -H "X-API-Key: <key>" http://127.0.0.1:8104/healthcheck
@@ -326,7 +370,7 @@ curl -X POST -H "X-API-Key: <key>" -H "Content-Type: application/json" -d "{\"em
 
 These are written for a command prompt or a Unix shell; Windows PowerShell quotes the JSON differently.
 
-Changes are picked up when the file is reloaded: keys, `Public`, the endpoints' entries and `AllowedIps` count from the next request, and a new `BindAddress` or `Port` reopens the listener. A listener that cannot open its port stays off, and the game server starts without it.
+Changes are picked up when the file is reloaded: keys, `Public`, the endpoints' entries, `AllowedIps` and `AllowedOrigins` count from the next request, and a new `BindAddress` or `Port` reopens the listener. A listener that cannot open its port stays off, and the game server starts without it.
 
 ### Status port
 `Rasa.Game` also answers on a plain TCP port, for a monitor that does not speak HTTP. It is configured in the `ApiConfig.StatusPort` section of its appsettings.json:
