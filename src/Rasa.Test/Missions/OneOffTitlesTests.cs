@@ -1,3 +1,5 @@
+extern alias RasaGame;
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -11,6 +13,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Rasa.Test.Missions
 {
+    using ClientState = RasaGame::Rasa.Data.ClientState;
     using Rasa.Context.Char;
     using Rasa.Context.World;
     using Rasa.Data;
@@ -538,6 +541,80 @@ namespace Rasa.Test.Missions
             }
         }
 
+        /// <summary>
+        /// Reported from play: "Unable to offer mission 1829: Radio offer has no authorized
+        /// recipient, revision or source." A client that changes maps is Teleporting when its
+        /// player is assigned to the new one, and an offer and an area are for a player who is
+        /// in the world: the battlefield's mission was not offered to anyone who travelled
+        /// there, and an operation - only ever reached by a map change - was not entered.
+        /// </summary>
+        [TestMethod]
+        public void AMapChangeOffersTheMissionAndEntersTheOperationWhenTheArrivalIsOver()
+        {
+            using var harness = BootcampRuntimeTestHarness.Create();
+            var client = harness.Client;
+            client.MissionAreaService = new MissionAreaService(() => harness.Manager);
+            AddMap(harness, MiresMap);
+            AddMap(harness, 2115);
+
+            // The harness's maps assign no player on MapLoaded; the server's do.
+            typeof(MapChannelManager).GetField("_assignPlayer", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+                .SetValue(harness.Maps, (Action<Client>)ManifestationManager.Instance.AssignPlayer);
+
+            // By the loading screen, as a pass, a summon and .teleport take a player (ChangeMap),
+            // and the client's MapLoaded through the handler.
+            Assert.IsTrue(harness.Maps.ChangeMap(client, MiresMap, new Vector3(100, 5, 100), 0));
+            Assert.AreEqual(ClientState.Teleporting, client.State);
+            harness.Drain();
+            harness.RouteMapLoaded();
+
+            Assert.AreEqual(ClientState.Ingame, client.State);
+            Assert.AreEqual(MiresMap, client.Player.MapContextId);
+            Assert.AreEqual(Mires, harness.Drain().OfType<DispenseRadioMissionPacket>().Single().MissionId);
+            Assert.IsFalse(client.MissionArrivalPending);
+            Assert.IsTrue(harness.Manager.TryAcceptRadioMission(client, Mires));
+            harness.Drain();
+
+            Assert.IsTrue(harness.Maps.ChangeMap(client, 2115, new Vector3(100, 5, 100), 0));
+            harness.RouteMapLoaded();
+
+            Assert.AreEqual(1U, harness.Drain().OfType<UpdateObjectiveCounterPacket>().Single().CounterValue);
+            Assert.AreEqual(MissionObjectiveState.Completed, client.Player.Missions[Mires].Objectives[56].State);
+
+            // Set down by a ship, as a waypoint and a teleporter take a player: in the game when it lifts off.
+            Arrive(harness, 2125);
+            client.LoadingMap = 2125;
+            client.State = ClientState.Teleporting;
+            ManifestationManager.Instance.AssignPlayer(client);
+
+            Assert.IsTrue(client.MissionArrivalPending);
+            Assert.IsEmpty(harness.Drain().OfType<UpdateObjectiveCounterPacket>().ToArray());
+
+            var objects = DynamicObjectManager.Instance;
+            var arrival = new Dropship(TargetCategory.Friendly, DropshipType.Teleporter, client, DropshipRole.Arrival);
+            CellManager.Instance.AddToWorld(client.Player.MapChannel, arrival);
+            objects.Dropships.Add(arrival.EntityId, arrival);
+
+            try
+            {
+                for (var step = 0; step < 6 && client.State != ClientState.Ingame; step++)
+                    objects.DropshipsWorker(client.Player.MapChannel, Math.Max(0, arrival.PhaseTimeleft));
+            }
+            finally
+            {
+                CellManager.Instance.RemoveFromWorld(client.Player.MapChannel, arrival);
+                objects.Dropships.Remove(arrival.EntityId);
+            }
+
+            Assert.AreEqual(ClientState.Ingame, client.State, "the ship has lifted off");
+            Assert.IsFalse(client.MissionArrivalPending);
+            Assert.AreEqual(2U, harness.Drain().OfType<UpdateObjectiveCounterPacket>().Single().CounterValue);
+
+            // Asked for once: nothing is left to do for a transfer that changed no map.
+            ManifestationManager.Instance.FinishArrival(client);
+            Assert.IsEmpty(harness.Drain());
+        }
+
         [TestMethod]
         public void AMissionTakenBeforeIsKeptWithItsCountsOnceItHasTheNewObjectives()
         {
@@ -654,11 +731,9 @@ namespace Rasa.Test.Missions
             new[] { MissionProgressEvent.Creature(creatureId), MissionProgressEvent.CreatureClass(classId) }
                 .Concat(flags.Select(MissionProgressEvent.CreatureFlag)).ToArray();
 
-        /// <summary>The player onto another of the harness's maps, as a map change leaves them.</summary>
-        private static void Arrive(BootcampRuntimeTestHarness.Harness harness, uint mapContextId)
+        /// <summary>Another map for the harness, if it has not got it.</summary>
+        private static void AddMap(BootcampRuntimeTestHarness.Harness harness, uint mapContextId)
         {
-            var client = harness.Client;
-
             if (mapContextId != BootcampRuntimeTestHarness.BootcampMapContextId && harness.Maps.FindByContextId(mapContextId) == null)
                 harness.Maps.MapChannelArray.Add(mapContextId, new MapChannel
                 {
@@ -666,6 +741,14 @@ namespace Rasa.Test.Missions
                     ClientList = new List<Client>(),
                     PlayerLimit = 128
                 });
+        }
+
+        /// <summary>The player onto another of the harness's maps, as a map change leaves them.</summary>
+        private static void Arrive(BootcampRuntimeTestHarness.Harness harness, uint mapContextId)
+        {
+            var client = harness.Client;
+
+            AddMap(harness, mapContextId);
 
             var destination = mapContextId == BootcampRuntimeTestHarness.BootcampMapContextId
                 ? harness.BootcampMap

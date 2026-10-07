@@ -1210,6 +1210,7 @@ namespace Rasa.Managers
                             {
                                 dropship.Client.State = ClientState.Ingame;
                                 Maps.ResumeMissionScenes(dropship.Client);
+                                ManifestationManager.Instance.FinishArrival(dropship.Client);
                                 ManifestationManager.Instance.ResetInactivity(dropship.Client);
                             }
                         }
@@ -1910,6 +1911,7 @@ namespace Rasa.Managers
                 client.PendingTransfer = null;
                 client.State = ClientState.Ingame;
                 Maps.ResumeMissionScenes(client);
+                ManifestationManager.Instance.FinishArrival(client);
                 client.CallMethod(client.Player.EntityId, new TeleportArrivalPacket());
                 client.CallMethod(SysEntity.ClientMethodId, new UnrequestMovementBlockPacket());
             }

@@ -1986,6 +1986,41 @@ namespace Rasa.Managers
             client.CallMethod(client.Player.EntityId, new AttributeInfoPacket(client.Player.Attributes));
         }
 
+        /// <summary>
+        /// A map change is over and the client is in the game again: what AssignPlayer left
+        /// for now. Called wherever a transfer makes the client Ingame, and does nothing for
+        /// one that put the player on no new map.
+        /// </summary>
+        internal void FinishArrival(Client client)
+        {
+            if (client?.Player == null || !client.MissionArrivalPending || client.State != ClientState.Ingame)
+                return;
+
+            MissionArrival(client);
+        }
+
+        /// <summary>
+        /// The player has come onto a map and is in the world: the missions offered by radio
+        /// to whoever arrives there (MissionApplication.OfferArrivalMissions), and the areas
+        /// of held missions that are the whole map (MissionAreaService.RecordArrival).
+        /// </summary>
+        private void MissionArrival(Client client)
+        {
+            client.MissionArrivalPending = false;
+            MissionApplication.Instance.OfferArrivalMissions(client);
+
+            // A mission's area that is this map: entered by arriving. Not worth the map to
+            // them if it fails.
+            try
+            {
+                client.MissionAreaService?.RecordArrival(client);
+            }
+            catch (Exception e)
+            {
+                Logger.WriteLog(LogType.Error, $"Mission areas on arrival, character {client.Player.Id}: {e.Message}");
+            }
+        }
+
         public void AssignPlayer(Client client)
         {
             var player = client.Player;
@@ -2035,18 +2070,16 @@ namespace Rasa.Managers
             client.CallMethod(SysEntity.ClientMethodId, new SetControlledActorIdPacket(player.EntityId));
 
             _characterManager.OfferStartingExperienceMission(client);
-            MissionApplication.Instance.OfferArrivalMissions(client);
 
-            // A mission's area that is this map: entered by arriving. Not worth the map to
-            // them if it fails.
-            try
-            {
-                client.MissionAreaService?.RecordArrival(client);
-            }
-            catch (Exception e)
-            {
-                Logger.WriteLog(LogType.Error, $"Mission areas on arrival, character {player.Id}: {e.Message}");
-            }
+            // What the missions make of the arrival is for a player who is in the world
+            // (MissionInteractionPolicy.IsActivePlayer). Logging in, that is now. Changing maps,
+            // the client is Teleporting until the arrival is over, and a radio offer made here
+            // was refused - "Radio offer has no authorized recipient, revision or source" - and
+            // the map's area not entered: left for FinishArrival.
+            if (client.State == ClientState.Ingame)
+                MissionArrival(client);
+            else
+                client.MissionArrivalPending = true;
 
             // Its cooldowns: the client's actor is new on every map and starts with none.
             ActionReuse.SendTo(client);

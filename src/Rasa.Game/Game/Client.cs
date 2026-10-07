@@ -52,6 +52,13 @@ namespace Rasa.Game
         internal bool AwaitingMapLoaded { get; set; }
 
         /// <summary>
+        /// The player has been put on a map and what its missions make of that is still to be
+        /// done: the client came by a map change and is Teleporting until the arrival is over
+        /// (ManifestationManager.AssignPlayer sets it, FinishArrival answers it).
+        /// </summary>
+        internal bool MissionArrivalPending { get; set; }
+
+        /// <summary>
         /// EnableDevCommands has gone to this connection. What it switches on lives in the client
         /// process, which a map change or a trip to the character screen does not restart, so it
         /// is sent once; see MapChannelManager.MapLoaded.

@@ -878,6 +878,7 @@ namespace Rasa.Managers
             client.PendingTransfer = null;
             client.State = ClientState.Ingame;
             ResumeMissionScenes(client);
+            ManifestationManager.Instance.FinishArrival(client);
             ManifestationManager.Instance.ResetInactivity(client);
             client.CallMethod(SysEntity.ClientMethodId, new UnrequestMovementBlockPacket());
             _enterMapChannels(client);
