@@ -46,6 +46,8 @@ namespace Rasa.Api
             Rest.Register(new IngameItemCategoriesEndpoint(IngameSessions));
             Rest.Register(new IngameItemsEndpoint(IngameSessions));
             Rest.Register(new IngameItemDetailsEndpoint(IngameSessions));
+            Rest.Register(new IngameCreaturesEndpoint(IngameSessions));
+            Rest.Register(new IngameCreatureDetailsEndpoint(IngameSessions));
         }
 
         /// <summary>The settings in force from now. A listener that cannot open its port stays off; the world is not held up.</summary>
