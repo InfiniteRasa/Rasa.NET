@@ -362,6 +362,162 @@ namespace Rasa.Test.World
 
         #endregion
 
+        #region Rivers, slopes and falls
+
+        // Worked out apart from the server, from the client's meshes and .map files: the middle
+        // of one triangle of lava as it is drawn, on a flat river, on a slope and on a fall.
+        private const string RiverMap = "adv_arieki_ligo_burningsteps";
+        private static readonly Vector3 OnARiver = new Vector3(-482.870f, 248.000f, 379.113f);
+        private static readonly Vector3 OnASlope = new Vector3(-626.667f, 252.827f, 395.443f);
+        private static readonly Vector3 SlopeNormal = new Vector3(0.424f, 0.906f, 0f);
+        private const string FallMap = "adv_arieki_ligo_ashendesert_baneconscriptfacility";
+        private static readonly Vector3 OnAFall = new Vector3(135.430f, 88.851f, -223.160f);
+
+        /// <summary>A lava mesh's floor is this far under the lava as it is drawn.</summary>
+        private const float Floor = 0.14f;
+
+        [TestMethod]
+        public void TheMapsPlaceFourHundredAndFiftyEightPiecesOfFlowingLavaOnTwelveMaps()
+        {
+            var flows = LavaFlows.ByMap.Values.SelectMany(placed => placed).ToList();
+
+            Assert.AreEqual(12, LavaFlows.ByMap.Count);
+            Assert.AreEqual(458, flows.Count);
+            Assert.AreEqual(47, LavaFlows.Shapes.Count);
+            Assert.AreEqual(369, flows.Count(flow => flow.Shape.StartsWith("terra_arieki_lava_river_")), "rivers, slopes and falls");
+            Assert.AreEqual(85, flows.Count(flow => flow.Shape.StartsWith("terra_arieki_ligo_lava_wall_")), "cliff walls with a fall");
+            Assert.AreEqual(2, flows.Count(flow => flow.Shape.StartsWith("terra_arieki_cavern_rocky_room_lava_")));
+            Assert.AreEqual(2, flows.Count(flow => flow.Shape.StartsWith("arch_brann_wall_staal_detention_lava_")));
+            Assert.IsFalse(LavaFlows.Shapes.Keys.Any(name => name.Contains("lake") || name.Contains("goo")), "the lakes are LavaSurfaces, and goo is not lava");
+            Assert.IsTrue(LavaFlows.ByMap.Keys.All(name => name == name.ToLowerInvariant()));
+        }
+
+        [TestMethod]
+        public void EveryPlacedPieceHasItsShapeAndEveryTriangleItsCorners()
+        {
+            foreach (var flow in LavaFlows.ByMap.Values.SelectMany(placed => placed))
+            {
+                Assert.IsTrue(LavaFlows.Shapes.ContainsKey(flow.Shape), flow.Shape);
+                Assert.IsTrue(flow.Scale > 0);
+                Assert.IsTrue(MathF.Abs(flow.Rotation.Length() - 1f) < 1e-4f);
+            }
+
+            foreach (var (name, shape) in LavaFlows.Shapes)
+            {
+                Assert.AreEqual(0, shape.Corners.Length % 3, name);
+                Assert.AreEqual(0, shape.Triangles.Length % 3, name);
+                Assert.IsTrue(shape.Triangles.Length > 0, name);
+                Assert.IsTrue(shape.Triangles.All(corner => corner < shape.Corners.Length / 3), name);
+            }
+        }
+
+        [TestMethod]
+        public void EveryTriangleOfLavaIsLavaAtItsOwnMiddle()
+        {
+            foreach (var (map, flows) in LavaFlows.ByMap)
+            {
+                var triangles = 0;
+
+                foreach (var flow in flows)
+                {
+                    var shape = LavaFlows.Shapes[flow.Shape];
+
+                    for (var i = 0; i + 2 < shape.Triangles.Length; i += 3)
+                    {
+                        var middle = (Corner(flow, shape, shape.Triangles[i]) + Corner(flow, shape, shape.Triangles[i + 1]) + Corner(flow, shape, shape.Triangles[i + 2])) / 3f;
+
+                        triangles++;
+                        Assert.IsTrue(LavaDamage.InLava(map, middle), $"{map}: {flow.Shape} at {middle}");
+                    }
+                }
+
+                Assert.AreEqual(triangles, LavaFlowFields.TriangleCount(map), map);
+            }
+        }
+
+        [TestMethod]
+        public void AFlatRiverIsLavaAtItsSurfaceAndAtItsFloor()
+        {
+            Assert.IsFalse(LavaSurfaces.ByMap[RiverMap].Any(lake => lake.Covers(OnARiver.X, OnARiver.Z) && MathF.Abs(lake.SurfaceY - OnARiver.Y) < 2f), "a river, with no lake under it");
+
+            Assert.IsTrue(LavaDamage.InLava(RiverMap, OnARiver), "the lava as it is drawn");
+            Assert.IsTrue(LavaDamage.InLava(RiverMap, OnARiver - new Vector3(0, Floor, 0)), "where feet are, on its floor");
+            Assert.IsTrue(LavaDamage.InLava(RiverMap, OnARiver + new Vector3(0, LavaDamage.Above - 0.01f, 0)));
+            Assert.IsFalse(LavaDamage.InLava(RiverMap, OnARiver + new Vector3(0, LavaDamage.Above + 0.05f, 0)), "the bank, a little higher");
+            Assert.IsFalse(LavaDamage.InLava(RiverMap, OnARiver + new Vector3(0, 3f, 0)), "a bridge over it");
+            Assert.IsFalse(LavaDamage.InLava(RiverMap, OnARiver - new Vector3(0, LavaDamage.Below + 0.05f, 0)), "under it");
+            Assert.IsFalse(LavaDamage.InLava(RiverMap, OnARiver + new Vector3(0, 40f, 300f)), "nowhere near it");
+        }
+
+        [TestMethod]
+        public void ASlopeIsLavaAlongItsRiseAtTheHeightItHasThere()
+        {
+            Assert.IsTrue(LavaDamage.InLava(RiverMap, OnASlope));
+            Assert.IsTrue(LavaDamage.InLava(RiverMap, OnASlope - SlopeNormal * Floor), "on its floor");
+            Assert.IsFalse(LavaDamage.InLava(RiverMap, OnASlope + new Vector3(0, 0.5f, 0)), "over it");
+            Assert.IsFalse(LavaDamage.InLava(RiverMap, OnASlope - new Vector3(0, 1f, 0)), "under it");
+
+            // A step up the slope is higher by the slope's rise, and still lava.
+            var uphill = Vector3.Normalize(new Vector3(-SlopeNormal.X, 0, -SlopeNormal.Z)) * 0.5f;
+            var rise = -(SlopeNormal.X * uphill.X + SlopeNormal.Z * uphill.Z) / SlopeNormal.Y;
+
+            Assert.IsTrue(rise > 0.2f, "it climbs");
+            Assert.IsTrue(LavaDamage.InLava(RiverMap, OnASlope + uphill + new Vector3(0, rise, 0)));
+            Assert.IsFalse(LavaDamage.InLava(RiverMap, OnASlope + uphill + new Vector3(0, rise + 0.5f, 0)));
+        }
+
+        [TestMethod]
+        public void AFallBurnsWhoeverIsWithinReachOfItsSheet()
+        {
+            Assert.IsTrue(LavaDamage.InLava(FallMap, OnAFall), "in the sheet");
+            Assert.IsTrue(LavaDamage.InLava(FallMap, OnAFall + new Vector3(LavaDamage.Reach - 0.1f, 0, 0)), "against it");
+            Assert.IsTrue(LavaDamage.InLava(FallMap, OnAFall - new Vector3(LavaDamage.Reach - 0.1f, 0, 0)), "against it from the other side");
+            Assert.IsFalse(LavaDamage.InLava(FallMap, OnAFall + new Vector3(LavaDamage.Reach + 0.4f, 0, 0)), "a step back from it");
+            Assert.IsFalse(LavaDamage.InLava(FallMap, OnAFall - new Vector3(LavaDamage.Reach + 0.4f, 0, 0)));
+        }
+
+        [TestMethod]
+        public void StandingOnARiverBurnsAsALakeDoes()
+        {
+            using var world = new WorldTestContext();
+            world.Map.MapInfo.MapName = RiverMap;
+            var client = Stand(world, OnARiver - new Vector3(0, Floor, 0));
+
+            LavaDamage.Worker(world.Map);
+
+            var sent = Sent(client);
+            Assert.AreEqual(LavaDamage.EffectTypeId, sent.OfType<GameEffectAttachedPacket>().Single().EffectTypeId);
+            Assert.AreEqual(700, sent.OfType<GameEffectTickPacket>().Single().Entries.Single().Amount);
+            Assert.AreEqual(300, client.Player.Attributes[Attributes.Health].Current);
+
+            client.Player.Position = OnARiver + new Vector3(0, 3f, 0);
+            _now += LavaDamage.IntervalMs;
+            LavaDamage.Worker(world.Map);
+            Assert.AreEqual(0, Ticks(client), "on the bridge over it");
+        }
+
+        [TestMethod]
+        public void AMapWithRiversAndNoLakesIsWatchedToo()
+        {
+            var map = LavaFlows.ByMap.Keys.First(name => !LavaSurfaces.ByMap.ContainsKey(name));
+            var flow = LavaFlows.ByMap[map].First(placed => placed.Shape.Contains("straight"));
+            var shape = LavaFlows.Shapes[flow.Shape];
+            var middle = (Corner(flow, shape, shape.Triangles[0]) + Corner(flow, shape, shape.Triangles[1]) + Corner(flow, shape, shape.Triangles[2])) / 3f;
+
+            using var world = new WorldTestContext();
+            world.Map.MapInfo.MapName = map;
+            var client = Stand(world, middle - new Vector3(0, Floor, 0));
+
+            LavaDamage.OnMove(client);
+
+            Assert.AreEqual(1, Ticks(client), map);
+        }
+
+        private static Vector3 Corner(LavaFlow flow, LavaShape shape, int corner) =>
+            flow.ToWorld(new Vector3(shape.Corners[corner * 3], shape.Corners[corner * 3 + 1], shape.Corners[corner * 3 + 2]));
+
+        #endregion
+
         #region Helpers
 
         /// <summary>A world on a map that has lava, and the first of its lakes.</summary>
