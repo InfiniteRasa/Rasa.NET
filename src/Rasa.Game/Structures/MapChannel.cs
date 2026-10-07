@@ -49,6 +49,9 @@ namespace Rasa.Structures
         //public int TimerMissileUpdate { get; set; }
         //public int TimerDynObjUpdate { get; set; }
         public long MapChannelElapsed { get; set; }
+
+        /// <summary>The tick at which this channel's sky started running: when the channel was made (Managers.SkyClock).</summary>
+        internal long SkyStartedTick { get; set; } = System.Environment.TickCount64;
         /// <summary>Milliseconds since this map's creatures last ran BehaviorManager.CreatureThink.</summary>
         public long ControllerElapsed { get; set; }
         //public int TimerPlayerUpdate { get; set; }

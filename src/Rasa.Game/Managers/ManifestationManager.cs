@@ -2105,7 +2105,9 @@ namespace Rasa.Managers
             // as its requested slot as well.
             client.CallMethod(player.EntityId, new AbilityDrawerSlotPacket(player.CurrentAbilityDrawer, false));
 
-            client.CallMethod(SysEntity.ClientGameMapId, new SetSkyTimePacket { RunningTime = 6666666 });   // ToDo add actual time how long map is running
+            // How long this map's sky has been running, which is what puts it at the same
+            // time of day for everyone on the map (SkyClock).
+            SkyClock.Send(client);
 
             client.CallMethod(SysEntity.ClientMethodId, new SetCurrentContextIdPacket(client.Player.MapChannel.MapInfo.MapContextId));
 

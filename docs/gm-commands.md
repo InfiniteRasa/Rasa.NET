@@ -101,6 +101,7 @@ These change nothing in the world, except where noted.
 | `.missions [characterId]` | Observer | Mission state for a character: you by default, or the character id given. |
 | `.links` | Observer | Map links on this map, nearest first (up to 10), marking the one you are standing in. |
 | `.regions` | Observer | Whether you are underground, the region ids you are being sent, and the region volumes on this map, nearest first (up to 12). |
+| `.skytime` | Observer | How long this map's sky has been running, how long its day lasts, and the time of day there now (00:00 midnight, 12:00 noon). |
 | `.emitters` | Observer | FX emitters on this map, nearest first (up to 15). |
 | `.fxpackages <word> [word ...]` | Observer | Searches the client's FX package names; every word must match (up to 25 results). |
 | `.ambients [word ...]` | Observer | The client's ambient figures - people who are scenery: a soldier at a firing range, two men talking on chairs, a medic at a monitor - as class id and name, and how many stand on this map. Words narrow the list; every word must be in the name (up to 25 results). |
@@ -282,6 +283,7 @@ Map links, region volumes, FX emitters and crafting stations are **saved to the 
 | `.region here <regionId> [radius] [comment]` / `.region box <regionId> <halfX> <halfZ> [comment]` | GameMaster | Creates a region volume at your position: a circle (radius defaults to 50) or a box. |
 | `.region <id> here \| radius <r> \| size <hx> <hz> \| y <min> <max> \| underground 0\|1\|2 \| region <regionId> \| enable \| disable \| comment <text> \| delete` | GameMaster | Edits a volume. For `underground`: 0 = any, 1 = underground only, 2 = surface only. |
 | `.setregion <regionId> [regionId ...]` / `.setregion off` | GameMaster | Forces the listed region ids on your own client until `off` or a map change. |
+| `.setskytime <hh:mm>` | GameMaster | Runs this map's sky on to that time of day for everyone on the map (this copy of it, for an instance). It runs on from there; a restart puts every map back at its own starting hour. |
 | `.emitter here <package> [off] [comment]` | GameMaster | Places an FX emitter. The package is a name or id from `.fxpackages`. |
 | `.emitter <id> on \| off \| package <package> \| here \| comment <text> \| delete` | GameMaster | Edits an emitter; `on` and `off` also set its default state. |
 | `.kraftwerks` | GameMaster | Crafting stations on this map, nearest first. |

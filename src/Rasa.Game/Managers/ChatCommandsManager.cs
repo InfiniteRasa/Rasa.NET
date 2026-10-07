@@ -215,6 +215,7 @@ namespace Rasa.Managers
             RegisterCommand(".help", GmLevel.Observer, HelpGmCommand, "command");
             RegisterCommand(".links", GmLevel.Observer, LinksCommand);
             RegisterCommand(".regions", GmLevel.Observer, RegionsCommand);
+            RegisterCommand(".skytime", GmLevel.Observer, SkyTimeCommand);
             RegisterCommand(".emitters", GmLevel.Observer, EmittersCommand);
             RegisterCommand(".fxpackages", GmLevel.Observer, FxPackagesCommand);
             RegisterCommand(".ambients", GmLevel.Observer, AmbientsCommand);
@@ -279,6 +280,7 @@ namespace Rasa.Managers
             RegisterCommand(".rename", GmLevel.GameMaster, RenameCommand, "part", "newName", "familyName");
             RegisterCommand(".setkillstreak", GmLevel.GameMaster, SetKillStreakCommand, "level");
             RegisterCommand(".setregion", GmLevel.GameMaster, SetRegionCommand, "regionIdsOrOff");
+            RegisterCommand(".setskytime", GmLevel.GameMaster, SetSkyTimeCommand, "hh:mm");
             RegisterCommand(".speed", GmLevel.GameMaster, SpeedCommand, "value");
             RegisterCommand(".tele", GmLevel.GameMaster, TeleCommand, "posX", "posY", "posZ");
             RegisterCommand(".teleport", GmLevel.GameMaster, TeleportCommand, "posX", "posY", "posZ", "mapId");
@@ -4258,6 +4260,50 @@ namespace Rasa.Managers
 
             RegionManager.Instance.Hold(client, regionIds);
             CommunicatorManager.Instance.SystemMessage(client, $"Holding regions [{string.Join(", ", regionIds)}] until .setregion off or a map change.");
+        }
+
+        /// <summary>How long this map's sky has been running, and the time of day that makes it.</summary>
+        private void SkyTimeCommand(string[] parts)
+        {
+            var client = _client;
+            var map = client.Player.MapChannel;
+            var running = SkyClock.RunningSeconds(map);
+            var ran = $"This map's sky has run {running / 3600}h {running / 60 % 60:00}m ({running} s)";
+
+            if (!SkyClock.TryGetTimeOfDay(map, out var timeOfDay, out var day))
+            {
+                CommunicatorManager.Instance.SystemMessage(client, $"{ran}. The length of this map's day is not known here.");
+                return;
+            }
+
+            CommunicatorManager.Instance.SystemMessage(client,
+                $"{ran}. Its day lasts {day.Length / 60} min and its sky starts at {SkyClock.ClockText((double)(day.Start % day.Length) / day.Length)}: it is {SkyClock.ClockText(timeOfDay)} there now.");
+        }
+
+        /// <summary>Runs this map's sky on to a time of day, for everyone on the map.</summary>
+        private void SetSkyTimeCommand(string[] parts)
+        {
+            var client = _client;
+            var map = client.Player.MapChannel;
+            var clock = parts.Length == 2 ? parts[1].Split(':') : Array.Empty<string>();
+            var minutes = 0;
+
+            if (clock.Length < 1 || clock.Length > 2 || !int.TryParse(clock[0], out var hours) || hours < 0 || hours > 23 ||
+                clock.Length == 2 && (!int.TryParse(clock[1], out minutes) || minutes < 0 || minutes > 59))
+            {
+                CommunicatorManager.Instance.SystemMessage(client, "usage: .setskytime hh:mm (a 24-hour clock: 00:00 midnight, 12:00 noon)");
+                return;
+            }
+
+            if (!SkyClock.TrySetTimeOfDay(map, (hours * 60 + minutes) / (24.0 * 60.0)))
+            {
+                CommunicatorManager.Instance.SystemMessage(client, "The length of this map's day is not known here, so no time of day can be set on it.");
+                return;
+            }
+
+            SkyClock.TryGetTimeOfDay(map, out var timeOfDay, out _);
+            CommunicatorManager.Instance.SystemMessage(client,
+                $"This map's sky is at {SkyClock.ClockText(timeOfDay)} for everyone on it, and runs on from there ({SkyClock.RunningSeconds(map)} s).");
         }
 
         /// <summary>The region volumes on this map, nearest first, and what you are currently sent.</summary>
