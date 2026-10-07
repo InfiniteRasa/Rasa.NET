@@ -25,6 +25,19 @@ namespace Rasa.Structures
         /// player's construction bot is MECHANICAL, though its class carries no flags.
         /// </summary>
         public List<CreatureFlag> ExtraFlags { get; set; } = new List<CreatureFlag>();
+
+        /// <summary>
+        /// The two tints of its body (BodyAttributes hue and hue2, which the client puts on the
+        /// mesh with body.SetHue2). What a creature's were was the server's to know and is not
+        /// in the client's data, so they are rolled - once, when the creature is made, which is
+        /// when it spawns: every client that is ever shown it is sent these two, and it looks
+        /// the same to all of them for as long as it lives. One made from a template, or from
+        /// another creature, rolls its own (the copy constructor does not take them); a corpse
+        /// that rises is given its body's (AbilityManager.Raise).
+        /// </summary>
+        public Color Hue { get; set; } = Color.RandomColor();
+        public Color Hue2 { get; set; } = Color.RandomColor();
+
         public long UpdatePositionCounter;                                       // decreases, when it hits 0 and the cell position changed, call creature_updateCellLocation()
         public Dictionary<EquipmentData, AppearanceData> AppearanceData { get; set; }
         //sint32 lastattack;

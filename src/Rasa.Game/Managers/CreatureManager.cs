@@ -631,10 +631,6 @@ namespace Rasa.Managers
             // (MissionContacts.Entering).
             MissionContacts.Entering(client, creature);
 
-            // random colors for now
-            var hue = Color.RandomColor();
-            var hue2 = Color.RandomColor();
-
             var entityData = new List<PythonPacket>
             {
                 // PhysicalEntity
@@ -642,7 +638,8 @@ namespace Rasa.Managers
                 new WorldLocationDescriptorPacket(creature.Position, creature.Rotation),
                 // Ignoring collision volumes and walkable surfaces, as creatures always have: the
                 // packet wrote 1 and 1 whatever it was given.
-                new BodyAttributesPacket(creature.Scale, hue, BodyAttributesPacket.Ignore, BodyAttributesPacket.Ignore, hue2),
+                // Its own two tints, rolled when it was made (Creature.Hue): the same to everyone.
+                new BodyAttributesPacket(creature.Scale, creature.Hue, BodyAttributesPacket.Ignore, BodyAttributesPacket.Ignore, creature.Hue2),
                 // Creature augmentation
                 new CreatureInfoPacket(creature.NameId, false, CreatureFlagsOf(creature)),
                 // Actor augmentation
