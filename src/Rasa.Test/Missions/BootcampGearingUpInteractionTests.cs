@@ -256,6 +256,112 @@ namespace Rasa.Test.Missions
             AssertConversationUpdate(harness, actors.Hartmann);
         }
 
+        // A Practice Dummy that is hit swings back and comes up again: the client's one animation
+        // for it, which it plays for the dummy's destroyed state (PracticeTargetManager).
+        [TestMethod]
+        public void AHitKnocksThePracticeDummyBackAndItIsUpAgainWhenTheSwingIsOver()
+        {
+            using var harness = BootcampRuntimeTestHarness.Create();
+            var actors = PrepareActors(harness);
+            Accept(harness, actors.McAllister);
+            CompleteObjective(harness, actors.Delessio, 4);
+            LootCrate(harness);
+            EquipBoots(harness);
+            CompleteObjective(harness, actors.Delessio, 5);
+            CompleteObjective(harness, actors.Hartmann, 6);
+            var rifle = EquipAndReloadRifle(harness);
+            var map = harness.BootcampMap;
+            var targets = map.DynamicObjects.Where(candidate => (uint)candidate.EntityClassId == 29365).ToArray();
+            var target = targets.Single(candidate => candidate.Position == PracticePositions[0]);
+            var clock = PracticeTargetManager.Now;
+            var now = 5000L;
+
+            // The states the clients in range were told of, and for which object.
+            (ulong EntityId, UseObjectState State)[] Told() => WorldTestContext.Drain(harness.Client)
+                .Select(packet => packet.Message).OfType<CallMethodMessage>()
+                .Where(message => message.Packet is ForceStatePacket)
+                .Select(message => (message.EntityId, ((ForceStatePacket)message.Packet).State)).ToArray();
+
+            void Shoot()
+            {
+                harness.Client.Player.NextShotAt = 0;
+                harness.Client.Player.Target = target.EntityId;
+                MissileManager.Instance.RequestWeaponAttack(harness.Client,
+                    new RequestWeaponAttackPacket { ActionId = ActionId.WeaponAttack, ActionArgId = 133 });
+                MissileManager.Instance.DoWork(map, 1000);
+            }
+
+            PracticeTargetManager.Now = () => now;
+
+            try
+            {
+                Assert.AreEqual(900, PracticeTargetManager.SwingMs, "arch_hum_practice_target_hit_v01.anm is 0.9 s");
+                harness.Drain();
+
+                // Hit: the destroyed state, which is what plays the animation - and only the
+                // clients' picture of it. The object is as its scene made it.
+                Shoot();
+                CollectionAssert.AreEqual(new[] { (target.EntityId, UseObjectState.StateDestroyed) }, Told());
+                Assert.AreEqual(19U, rifle.CurrentAmmo);
+                Assert.AreEqual(UseObjectState.StateNull, target.StateId);
+                Assert.IsTrue(target.IsInWorld && target.IsEnabled);
+                Assert.AreEqual(now + 900, map.PracticeSwings[target.EntityId]);
+                Assert.AreEqual(MissionObjectiveState.Completed, harness.Client.Player.Missions[1992].Objectives[3].State);
+
+                // Not over yet: nothing.
+                now += 899;
+                PracticeTargetManager.Worker(map);
+                Assert.IsEmpty(Told());
+
+                // Hit again while it swings: a hit like any other, and no second swing.
+                Shoot();
+                Assert.AreEqual(18U, rifle.CurrentAmmo);
+                Assert.IsEmpty(Told());
+                Assert.AreEqual(5900L, map.PracticeSwings[target.EntityId], "the first swing's end stands");
+
+                // Over: intact, which stops the animation and lets it be targeted again.
+                now += 1;
+                PracticeTargetManager.Worker(map);
+                CollectionAssert.AreEqual(new[] { (target.EntityId, UseObjectState.IdesStateIntact) }, Told());
+                Assert.AreEqual(0, map.PracticeSwings.Count);
+                PracticeTargetManager.Worker(map);
+                Assert.IsEmpty(Told());
+
+                // And the next hit knocks it back again.
+                Shoot();
+                CollectionAssert.AreEqual(new[] { (target.EntityId, UseObjectState.StateDestroyed) }, Told());
+
+                // One taken out of the world partway is not stood up.
+                target.IsInWorld = false;
+                now += 900;
+                PracticeTargetManager.Worker(map);
+                Assert.IsEmpty(Told());
+                Assert.AreEqual(0, map.PracticeSwings.Count);
+                target.IsInWorld = true;
+
+                // Lightning does it as a bullet does, to the dummy it strikes.
+                CompleteObjective(harness, actors.Hartmann, 9);
+                harness.MovePlayerTo(new Vector3(380, 120, 177));
+                CellManager.Instance.UpdateVisibility(harness.Client);
+                harness.Drain();
+                CastLightning(harness, targets[1]);
+                CollectionAssert.AreEqual(new[] { (targets[1].EntityId, UseObjectState.StateDestroyed) }, Told());
+
+                // Nothing that is no Practice Dummy is knocked back.
+                var crate = BootcampRuntimeTestHarness.FindScenarioObject(map, "bootcamp-equipment-crate");
+                PracticeTargetManager.Swing(map, crate);
+                PracticeTargetManager.Swing(map, null);
+                PracticeTargetManager.Swing(null, target);
+                Assert.IsEmpty(Told());
+                Assert.AreEqual(1, map.PracticeSwings.Count);
+            }
+            finally
+            {
+                PracticeTargetManager.Now = clock;
+                map.PracticeSwings.Clear();
+            }
+        }
+
         [TestMethod]
         public void TrainingPreservesAlreadyLearnedRecruitSkillsAndRearrangedStartingAbilities()
         {

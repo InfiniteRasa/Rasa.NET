@@ -126,5 +126,11 @@ namespace Rasa.Structures
 
         // Missiles on this mapChannel
         public List<Missile> QueuedMissiles = new List<Missile>();
+
+        /// <summary>
+        /// The Practice Dummies a hit has knocked back, by entity id, and the tick each is up
+        /// again (PracticeTargetManager.Swing). Locked on itself.
+        /// </summary>
+        internal readonly Dictionary<ulong, long> PracticeSwings = new Dictionary<ulong, long>();
     }
 }

@@ -393,6 +393,10 @@ namespace Rasa.Managers
 
                     Guard("ActorActionManager.DoWork", mapChannel, () => ActorActionManager.Instance.DoWork(mapChannel, delta));
                     Guard("MissileManager.DoWork", mapChannel, () => MissileManager.Instance.DoWork(mapChannel, delta));
+
+                    // practice dummies a hit knocked back, up again
+                    Guard("PracticeTargetManager.Worker", mapChannel, () => PracticeTargetManager.Worker(mapChannel));
+
                     Guard("BehaviorManager.MapChannelThink", mapChannel, () => BehaviorManager.Instance.MapChannelThink(mapChannel, delta));
 
                     // despawn timers, and minions whose master has gone
