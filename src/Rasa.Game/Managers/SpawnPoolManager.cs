@@ -566,6 +566,23 @@ namespace Rasa.Managers
         /// nearest walkable point to the centre, within the pool's own radius, stands in for it -
         /// or, for a centre whose height is a map label's guess, the nearest walkable point in
         /// the column above and below it.
+        ///
+        /// One creature alone on a point that was entered by hand (SpawnPool.IsHandSeeded) is
+        /// brought down onto the mesh and never lifted onto it. The navmesh's height is the top
+        /// of a 0.2 m voxel, sampled every 2.4 m and joined up with straight lines, and anything
+        /// an agent can step onto - 0.9 m - is ground to it: beside a low wall the mesh is a ramp
+        /// up to the wall's top. So it is an upper bound on the ground and not the ground: a
+        /// point above it is in the air, a point under it may be standing exactly right. Lt Col
+        /// Cimoch stands on open ground 1.5 m from a line of sandbags in Alia Das, at the
+        /// terrain's height to 5 cm, and the mesh under him is 0.75 m higher. Against the
+        /// client's terrain and collision meshes, the 78 such points are 0.03 m off the surface
+        /// on average as entered (0.36 m at most) and 0.19 m on the mesh (0.70 m).
+        ///
+        /// A generated point's height is a marker's, a label's or one figure for a row of
+        /// trainers. Of the 34 that the mesh lifts by half a metre or more, the entered height
+        /// is the nearer to the floor at 18 and the mesh's at 16 - the point is inside a
+        /// platform as often as the mesh is over the ground - so those are snapped both ways as
+        /// before.
         /// </summary>
         internal static Vector3 SpawnPoint(MapChannel mapChannel, SpawnPool pool, int count)
         {
@@ -589,6 +606,12 @@ namespace Rasa.Managers
             {
                 pos.X += Random.Shared.Next() % 5 - 2;
                 pos.Z += Random.Shared.Next() % 5 - 2;
+            }
+            else if (pool.IsHandSeeded)
+            {
+                var ground = NavMeshManager.SnapToGround(mapChannel, pos);
+
+                return ground.Y < pos.Y ? ground : pos;
             }
 
             return NavMeshManager.SnapToGround(mapChannel, pos);

@@ -228,7 +228,9 @@ namespace Rasa.Test.Missions.Wilderness
                 $"Spawn {spawnId} may only project onto its qualified nearby surface.");
             Assert.AreEqual(authored.X, creature.Position.X);
             Assert.AreEqual(authored.Z, creature.Position.Z);
-            Assert.IsTrue(Math.Abs(surface.Value - creature.Position.Y) < 0.001f);
+            // A hand-seeded pool (SpawnPool.IsHandSeeded): the mesh brings it down and never lifts it.
+            var expected = creature.SpawnPool.IsHandSeeded ? Math.Min(surface.Value, authored.Y) : surface.Value;
+            Assert.IsTrue(Math.Abs(expected - creature.Position.Y) < 0.001f);
             Assert.IsTrue(Math.Abs(Math.IEEERemainder(creature.Rotation - heading, 2 * Math.PI)) < 0.001);
             AssertGrounded(harness, creature.Position);
         }
