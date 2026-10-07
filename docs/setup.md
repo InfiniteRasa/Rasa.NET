@@ -122,6 +122,40 @@ If you want to overwrite one or multiple settings from the appsettings.json of `
 
 - The env.json files is ignored in git. Keep it that way, this configuration applies only for your development enviroment.
 
+### REST and in-game APIs
+`Rasa.Game` exposes HTTP endpoints through the shared `ApiConfig.Rest` listener. The in-game endpoints are grouped under `/ingame`. Each in-game endpoint is disabled by default and must be enabled explicitly in `ApiConfig.Rest.Endpoints`.
+
+```json
+{
+  "ApiConfig": {
+    "Rest": {
+      "Enabled": true,
+      "Public": false,
+      "JwtSecret": "",
+      "JwtTokenLifetimeSeconds": 86400,
+      "Endpoints": {
+        "ingame/session/exchange": {
+          "Enabled": true
+        },
+        "ingame/items": {
+          "Enabled": true
+        },
+        "ingame/items/categories": {
+          "Enabled": true
+        },
+        "ingame/items/{id}": {
+          "Enabled": true
+        }
+      }
+    }
+  }
+}
+```
+
+`JwtSecret` is optional. When it is empty, the server generates a random process-local signing secret; set it to a value of at least 32 UTF-8 bytes if issued tokens should remain valid across server restarts. Keep an overridden secret out of source control; `appsettings.env.json` is the recommended place for it. A suitable value can be generated with `openssl rand -hex 32`.
+
+The REST listener uses port `8104` by default. An Admin-or-higher game client starts in-game API authentication with `.ingameapiauth`; the server returns a short-lived one-time exchange code through that authenticated game connection, and the injected UI sends it to `POST /ingame/session/exchange` to receive a JWT. The item catalog is available under `/ingame/items`, `/ingame/items/categories`, and `/ingame/items/{id}` and independently requires permission to use `.giveitem`. Issued in-game JWTs default to a 24-hour lifetime (`JwtTokenLifetimeSeconds: 86400`).
+
 ### Squad voice chat
 `Rasa.Game` runs the voice server the game client's built-in squad voice chat connects to. It is configured in the `VoiceConfig` section of its appsettings.json:
 

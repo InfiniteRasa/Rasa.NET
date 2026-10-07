@@ -82,6 +82,22 @@ namespace Rasa.Api
             }
         }
 
+        /// <summary>Whether a registered endpoint is currently enabled by the REST configuration.</summary>
+        public bool IsEndpointEnabled(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name) || _config?.Enabled != true)
+                return false;
+
+            name = name.Trim('/').ToLowerInvariant();
+            var endpoint = ResolveEndpoint(name);
+            if (endpoint == null)
+                return false;
+
+            var settings = EndpointConfigOf(_config, name)
+                ?? EndpointConfigOf(_config, endpoint.Name.Trim('/'));
+            return IsEnabled(endpoint, settings);
+        }
+
         /// <summary>Adds an endpoint, in place of any of the same name.</summary>
         public void Register(ApiEndpoint endpoint)
         {
@@ -158,6 +174,7 @@ namespace Rasa.Api
 
                 var endpoint = EndpointConfigOf(config, name);
                 var state = !IsEnabled(registered, endpoint) ? "off"
+                    : registered?.RequiresApiKey == false ? "endpoint auth"
                     : IsPublic(config, registered, endpoint) ? "public"
                     : HasKey(config, endpoint) ? "key"
                     : "key, and none is set: it answers nobody until an ApiKey is set or it is made public";
@@ -255,10 +272,27 @@ namespace Rasa.Api
                 return null;
 
             foreach (var entry in config.Endpoints)
-                if (string.Equals(entry.Key?.Trim('/'), name, StringComparison.OrdinalIgnoreCase))
+            {
+                var key = entry.Key?.Trim('/');
+                if (string.IsNullOrEmpty(key))
+                    continue;
+
+                if (string.Equals(key, name, StringComparison.OrdinalIgnoreCase))
                     return entry.Value;
+            }
 
             return null;
+        }
+
+        private ApiEndpoint ResolveEndpoint(string name)
+        {
+            lock (_endpoints)
+            {
+                if (_endpoints.TryGetValue(name, out var exact))
+                    return exact;
+
+                return _endpoints.Values.FirstOrDefault(endpoint => endpoint.Matches(name));
+            }
         }
 
         /// <summary>On unless its entry says otherwise; a sensitive one, off unless its entry says otherwise.</summary>
@@ -300,12 +334,8 @@ namespace Rasa.Api
             }
 
             var name = request.EndpointName;
-            ApiEndpoint endpoint;
-
-            lock (_endpoints)
-                _endpoints.TryGetValue(name, out endpoint);
-
-            var settings = endpoint == null ? null : EndpointConfigOf(config, name);
+            var endpoint = ResolveEndpoint(name);
+            var settings = endpoint == null ? null : EndpointConfigOf(config, name) ?? EndpointConfigOf(config, endpoint.Name.Trim('/'));
 
             if (!IsEnabled(endpoint, settings))
                 return ApiResponse.Error(404, "not found");
@@ -316,7 +346,7 @@ namespace Rasa.Api
                     Allow = endpoint.Method == "POST" ? "POST" : "GET, HEAD"
                 };
 
-            if (!IsPublic(config, endpoint, settings))
+            if (endpoint.RequiresApiKey && !IsPublic(config, endpoint, settings))
             {
                 var key = request.ApiKey;
 
