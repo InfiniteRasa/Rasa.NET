@@ -2263,6 +2263,19 @@ namespace Rasa.Managers
                     continue;
                 }
 
+                // A lockbox row for an item that is in a character's inventory. A withdraw puts
+                // the pack row in and then takes the lockbox row out; one that was stopped
+                // between the two (a throw out of the handler, as a member on the loading
+                // screen used to cause) left both. The pack row is the half that was done, so
+                // the item is the character's and this row is removed. Shown here as well it
+                // was one item in two places, to be taken out a second time.
+                if (unitOfWork.CharacterInventories.FindByItemId(item.ItemId) != null)
+                {
+                    Logger.WriteLog(LogType.Error, $"Clan {client.Player.ClanId} lockbox slot {item.SlotId} refers to item {item.ItemId}, which is in a character's inventory; row removed.");
+                    unitOfWork.ClanInventories.DeleteInvItemByItemId(item.ItemId);
+                    continue;
+                }
+
                 var itemTemplate = ItemManager.Instance.GetItemTemplateById(itemData.ItemTemplateId);
 
                 if (itemTemplate == null)
@@ -2281,6 +2294,18 @@ namespace Rasa.Managers
                     {
                         tempItem = existingItem;
                     }
+                }
+
+                // Nothing registered for it. A lockbox item is registered when the server
+                // starts and when it is deposited, and released only as it leaves; one whose
+                // entity went with the pack of a player disconnected half way through taking
+                // it out had a row and no entity, and was dereferenced below: every member of
+                // the clan was disconnected at MapLoaded until the server was restarted. It is
+                // registered now, as ClansInit would have.
+                if (tempItem == null)
+                {
+                    Logger.WriteLog(LogType.Error, $"Clan {client.Player.ClanId} lockbox slot {item.SlotId} item {item.ItemId} had no entity; registered.");
+                    tempItem = CreateLoadedItem(itemData, itemTemplate, 0, item.SlotId);
                 }
 
                 // check if item is weapon

@@ -181,6 +181,63 @@ namespace Rasa.Test.World
             fixture.AssertNoLockboxRows();
         }
 
+        [TestMethod]
+        [DataRow(true, DisplayName = "its owner in the world")]
+        [DataRow(false, DisplayName = "its owner gone")]
+        public void ALockboxRowForAnItemSomeoneCarriesIsDroppedWhenTheLockboxLoads(bool ownerInWorld)
+        {
+            // What a withdraw cut short used to leave: the item's pack row in, its lockbox row
+            // not yet out. The pack row is the half that was done, so the item is its owner's.
+            using var fixture = new Fixture();
+            var taken = fixture.InPack(Ammo, 3, PackSlot);
+
+            using (var unit = fixture.Context.CreateChar())
+                unit.ClanInventories.AddInvItem(fixture.Clan.Id, 0, taken.Id);
+
+            // Disconnected, their pack's entities are released (MapChannelManager.CleanupDisconnected).
+            if (!ownerInWorld)
+            {
+                fixture.Taker.Player.Inventory.PersonalInventory[PackSlot] = 0;
+                EntityManager.Instance.ReleaseEntity(taken.EntityId, EntityType.Item);
+            }
+
+            fixture.Arrive();
+
+            Assert.IsTrue(fixture.Loading.Player.Inventory.ClanInventory.All(entityId => entityId == 0));
+            Assert.IsFalse(fixture.Sent(fixture.Loading).Any(packet => packet is InventoryAddItemPacket));
+            fixture.AssertPackRow(taken, PackSlot);
+            fixture.AssertNoLockboxRows();
+        }
+
+        [TestMethod]
+        public void ALockboxItemWithNoEntityIsLoadedWithTheLockbox()
+        {
+            // A lockbox row whose item has a row of its own and nothing registered for it.
+            using var fixture = new Fixture();
+            var stored = fixture.InLockbox(Ammo, 3, 0);
+
+            fixture.Taker.Player.Inventory.ClanInventory[0] = 0;
+            fixture.Other.Player.Inventory.ClanInventory[0] = 0;
+            EntityManager.Instance.ReleaseEntity(stored.EntityId, EntityType.Item);
+
+            fixture.Arrive();
+
+            var loaded = EntityManager.Instance.GetItem(fixture.Loading.Player.Inventory.ClanInventory[0]);
+
+            Assert.IsNotNull(loaded);
+            Assert.AreEqual(stored.Id, loaded.Id);
+            Assert.AreEqual(3u, loaded.StackSize);
+            Assert.AreEqual(0u, loaded.OwnerSlotId);
+            Assert.IsTrue(fixture.Sent(fixture.Loading).OfType<InventoryAddItemPacket>().Any(packet =>
+                packet.Type == InventoryType.ClanInventory && packet.EntityId == loaded.EntityId && packet.SlotId == 0));
+            fixture.AssertLockboxRow(stored, 0);
+
+            // The next member to arrive is given the same one.
+            fixture.Inventory.InitClanInventory(fixture.Other);
+
+            Assert.AreEqual(loaded.EntityId, fixture.Other.Player.Inventory.ClanInventory[0]);
+        }
+
         /// <summary>
         /// A clan of three, in the order its members are gone through: the leader, who acts; a
         /// member on the loading screen of their login; and a member in the world.
