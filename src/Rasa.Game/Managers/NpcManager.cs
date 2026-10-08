@@ -214,17 +214,23 @@ namespace Rasa.Managers
             // An NPC with a line of its own says it instead (NpcGreetings): the greeting alone,
             // which the client shows in its conversation window. A line marked important goes
             // as the client's important greeting, the topic of the status that put the speech
-            // bubble over the NPC; the window is the same.
+            // bubble over the NPC; the window is the same. It goes that way once to a
+            // character: being sent it is reading it, and after that the line is the plain
+            // greeting and the bubble is gone (NpcGreetings.MarkRead, below the Converse).
             //
             // A mission the player holds and hands in here, not ready yet, comes first: player
             // message 621, "You have not yet completed the requirements for this mission." It is
             // what the player came about - Corporal DeSimone, asked to take Gearing Up for Battle
             // before its last objective, answered that Capture the Flag was not available.
+            var unread = false;
+
             if (convoDataDict.Count == 0)
             {
                 if (NpcGreetings.HasOwn(creature))
-                    convoDataDict.Add(NpcGreetings.IsImportant(creature) ? ConversationType.ImportantGreering : ConversationType.Greeting,
-                        NpcGreetings.For(creature));
+                {
+                    unread = NpcGreetings.IsUnread(client.Player, creature);
+                    convoDataDict.Add(unread ? ConversationType.ImportantGreering : ConversationType.Greeting, NpcGreetings.For(creature));
+                }
                 else
                     convoDataDict.Add(ConversationType.EndConversation, true);
 
@@ -346,6 +352,11 @@ namespace Rasa.Managers
             */
 
             client.CallMethod(creature.EntityId, new ConversePacket(convoDataDict));
+
+            // The marked line has been read: kept for the character, and the NPC's status is
+            // sent again, which is the plain greeting now - the client takes the bubble down.
+            if (unread && NpcGreetings.MarkRead(client.Player, creature, _gameUnitOfWorkFactory))
+                UpdateConversationStatus(client, creature);
         }
 
         public void UpdateConversationStatus(
@@ -508,10 +519,11 @@ namespace Rasa.Managers
             //
             // One whose line is marked important has the important greeting status instead:
             // the same, with OVERHEAD_DIALOG_AVAILABLE over its head - the grey speech bubble.
+            // That is until this character has read the line; then it is the plain status.
             if (statusSet == false && NpcGreetings.HasOwn(creature))
             {
                 client.CallMethod(creature.EntityId, new NPCConversationStatusPacket(
-                    NpcGreetings.IsImportant(creature) ? ConversationStatus.ImportantGreeting : ConversationStatus.Greeting, new List<uint>()));
+                    NpcGreetings.IsUnread(client.Player, creature) ? ConversationStatus.ImportantGreeting : ConversationStatus.Greeting, new List<uint>()));
                 statusSet = true;
             }
 

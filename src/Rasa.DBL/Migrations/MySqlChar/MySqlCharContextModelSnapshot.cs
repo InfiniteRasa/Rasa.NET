@@ -376,6 +376,25 @@ namespace Rasa.Migrations.MySqlChar
                         });
                 });
 
+            modelBuilder.Entity("Rasa.Structures.Char.CharacterGreetingReadEntry", b =>
+                {
+                    b.Property<uint>("CharacterId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("character_id");
+
+                    b.Property<uint>("CreatureId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("creature_id");
+
+                    b.Property<uint>("GreetingId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("greeting_id");
+
+                    b.HasKey("CharacterId", "CreatureId");
+
+                    b.ToTable("character_greeting_read");
+                });
+
             modelBuilder.Entity("Rasa.Structures.Char.CharacterInventoryEntry", b =>
                 {
                     b.Property<uint>("ItemId")

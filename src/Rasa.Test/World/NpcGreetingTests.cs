@@ -596,7 +596,7 @@ namespace Rasa.Test.World
                 Assert.IsTrue(idle.Npc.GreetingImportant);
                 Assert.AreEqual((9078u, 488u, true), Marks(database).Single());
 
-                StringAssert.Contains(Said(Run(".greeting")), "says greeting 488, marked important.");
+                StringAssert.Contains(Said(Run(".greeting")), "says greeting 488, marked important; you have not read it.");
 
                 var again = Run(".greeting important on");
                 StringAssert.Contains(Said(again), "marked important already");

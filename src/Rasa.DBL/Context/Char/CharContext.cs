@@ -35,6 +35,7 @@ namespace Rasa.Context.Char
         public DbSet<CharacterAbilityDrawerEntry> CharacterAbilityDrawerEntries { get; set; }
         public DbSet<CharacterAppearanceEntry> CharacterAppearanceEntries { get; set; }
         public DbSet<CharacterBossKillEntry> CharacterBossKillEntries { get; set; }
+        public DbSet<CharacterGreetingReadEntry> CharacterGreetingReadEntries { get; set; }
         public DbSet<CharacterInventoryEntry> CharacterInventoryEntries { get; set; }
         public DbSet<CharacterLockboxEntry> CharacterLockboxEntries { get; set; }
         public DbSet<CharacterLogosEntry> CharacterLogosEntries { get; set; }
@@ -141,6 +142,7 @@ namespace Rasa.Context.Char
             SetupCharacterTeleporterTable(modelBuilder);
             SetupCharacterTitleTable(modelBuilder);
             SetupCharacterBossKillTable(modelBuilder);
+            SetupCharacterGreetingReadTable(modelBuilder);
             SetupCharacterOptionsTable(modelBuilder);
             SetupClanMemberTable(modelBuilder);
             SetupClanTable(modelBuilder);
@@ -465,6 +467,12 @@ namespace Rasa.Context.Char
         {
             modelBuilder.Entity<CharacterBossKillEntry>()
                 .HasKey(e => new { e.CharacterId, e.CreatureNameId });
+        }
+
+        private void SetupCharacterGreetingReadTable(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<CharacterGreetingReadEntry>()
+                .HasKey(e => new { e.CharacterId, e.CreatureId });
         }
 
         private void SetupCharacterStartingExperienceTables(ModelBuilder modelBuilder)

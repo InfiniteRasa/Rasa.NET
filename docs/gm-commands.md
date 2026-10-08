@@ -295,6 +295,7 @@ Map links, region volumes, FX emitters and crafting stations are **saved to the 
 | `.greeting` | GameMaster | For the NPC you have targeted: which greeting line it says, and the line itself, shown in your conversation window. |
 | `.greeting <greetingId>` / `.greeting clear` | GameMaster | Gives the targeted NPC that line as its own, or takes its own line away so it says the default ("Greetings.") again. Kept in the world database for the NPC's creature row. The id is one of the client's `npcgreetinglanguage` lines; an id the client has not got is refused. |
 | `.greeting important` / `.greeting important off` | GameMaster | Marks the targeted NPC's own line important, or plain again. A marked NPC stands with the grey speech bubble over its head while it has nothing else for the player looking at it. It needs a line of its own first. Kept in the world database with the line; `.greeting important on` is the same as `.greeting important`. |
+| `.greeting unread` | GameMaster | Forgets that your own character has read the targeted NPC's marked line, so it has the speech bubble for you again. For looking at a marked NPC a second time; other characters are not touched. |
 | `.greeting show <greetingId>` | GameMaster | Shows any greeting line in your conversation window, with nothing targeted: for finding the line you want. |
 | `.cp <id> lockbox` / `.cp <id> lockbox remove` | GameMaster | Sets the point's clan lockbox down where you stand, facing as you face, or moves it there if it has one; `remove` takes it away. Kept in the world database. The lockbox is on the map only while a clan holds the point. |
 
@@ -305,6 +306,7 @@ NPC greetings:
 - The speech bubble is the client's "dialog available" icon, the one it draws for an important greeting. It is the NPC's status only when nothing else is: a mission to give, hand in or remind of, a trainer's, a vendor's, an auctioneer's or a clan master's icon comes first, and so does a mission the player cannot take yet. The NPC still says its line as before.
 - The client does not say which NPCs had the bubble either. General Beacham starts with it, as the General in the footage has it; every other NPC is yours to mark. A changed line keeps the mark; `.greeting clear` takes the mark away with the line.
 - The command changes every NPC of the same creature row, and players near one on your map see it at once; elsewhere it shows when the NPC next comes into view.
+- The bubble is for a line the character has not read. Talking to the NPC and being shown the marked line reads it: the bubble goes at once and does not come back for that character, after a relog either (kept in the character database, `character_greeting_read`). The NPC still says the line when spoken to. Giving the NPC a different line makes it unread for everyone again; unmarking and marking the same line does not.
 
 Clan-owned control points (`ControlPoints` in `appsettings.json`):
 

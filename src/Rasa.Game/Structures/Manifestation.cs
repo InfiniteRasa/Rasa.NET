@@ -49,6 +49,12 @@ namespace Rasa.Structures
 
         /// <summary>The bosses the character has killed, by creature name id (Managers.BossTitles). Locked on when read or written.</summary>
         public HashSet<uint> BossKills { get; set; } = new HashSet<uint>();
+
+        /// <summary>
+        /// The important lines the character has read: the NPC's creature row to the line it
+        /// was (character_greeting_read, Managers.NpcGreetings). Locked on when read or written.
+        /// </summary>
+        public Dictionary<uint, uint> GreetingsRead { get; set; } = new Dictionary<uint, uint>();
         public uint CurrentTitle { get; set; }
         public int CurrentAbilityDrawer { get; set; }
         public Dictionary<uint, MissionLog> Missions { get; set; } = new();

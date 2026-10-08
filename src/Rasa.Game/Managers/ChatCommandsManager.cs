@@ -264,7 +264,7 @@ namespace Rasa.Managers
             RegisterCommand(".linkhere", GmLevel.GameMaster, LinkHereCommand, "destMapId", "destX", "destY", "destZ", "radius", "kind");
             RegisterCommand(".kraftwerks", GmLevel.GameMaster, KraftwerksCommand, "stationIdOrHere", "action", "value");
             RegisterCommand(".cp", GmLevel.GameMaster, ControlPointCommand, "id", "action");
-            RegisterCommand(".greeting", GmLevel.GameMaster, GreetingCommand, "greetingId|clear|important|show", "greetingId|on|off");
+            RegisterCommand(".greeting", GmLevel.GameMaster, GreetingCommand, "greetingId|clear|important|unread|show", "greetingId|on|off");
             RegisterCommand(".instance", GmLevel.GameMaster, InstanceCommand, "action", "number");
             RegisterCommand(".bg", GmLevel.GameMaster, BattlegroundCommand, "action", "arg1", "arg2");
             RegisterCommand(".region", GmLevel.GameMaster, RegionCommand, "modeOrId", "regionOrAction", "arg1", "arg2", "comment");
@@ -3700,10 +3700,13 @@ namespace Rasa.Managers
         ///
         /// ".greeting important" marks the NPC's own line important, and "off" plain again: the
         /// speech bubble over its head while it has nothing else for a player. Kept with the line.
+        ///
+        /// The bubble is there for a character until they have read the line. ".greeting unread"
+        /// forgets that the game master's own character has read the targeted NPC.
         /// </summary>
         private void GreetingCommand(string[] parts)
         {
-            const string usage = "usage: .greeting | .greeting <greetingId> | .greeting clear | .greeting important [on | off] (each with an NPC targeted) | .greeting show <greetingId>";
+            const string usage = "usage: .greeting | .greeting <greetingId> | .greeting clear | .greeting important [on | off] | .greeting unread (each with an NPC targeted) | .greeting show <greetingId>";
             var client = _client;
 
             if (parts.Length == 3 && parts[1] == "show")
@@ -3742,7 +3745,7 @@ namespace Rasa.Managers
             if (parts.Length == 1)
             {
                 CommunicatorManager.Instance.SystemMessage(client, NpcGreetings.HasOwn(creature)
-                    ? $"{who} says greeting {creature.Npc.GreetingId}{(NpcGreetings.IsImportant(creature) ? ", marked important" : "")}."
+                    ? $"{who} says greeting {creature.Npc.GreetingId}{(!NpcGreetings.IsImportant(creature) ? "" : NpcGreetings.HasRead(client.Player, creature) ? ", marked important; you have read it" : ", marked important; you have not read it")}."
                     : $"{who} has no greeting of its own: it says the default, {NpcGreetings.Default}.");
                 client.CallMethod(client.Player.EntityId, new ForceConversePacket(NpcGreetings.For(creature), creature.NameId != 0 ? creature.NameId : (uint?)null));
                 return;
@@ -3777,6 +3780,21 @@ namespace Rasa.Managers
                     : $"Greeting {creature.Npc.GreetingId} of {who} is plain again: no speech bubble.");
                 Logger.WriteLog(LogType.Command, $"{client.Player.FamilyName} marked the greeting of creature {creature.DbId} {(important ? "important" : "plain")}.");
                 RefreshGreetingStatus(creature);
+                return;
+            }
+
+            if (parts[1] == "unread")
+            {
+                if (!NpcGreetings.Forget(client.Player, creature, Server.GameUnitOfWorkFactory))
+                {
+                    CommunicatorManager.Instance.SystemMessage(client, $"You have not read a marked line of {who}.");
+                    return;
+                }
+
+                CommunicatorManager.Instance.SystemMessage(client, NpcGreetings.IsImportant(creature)
+                    ? $"You have not read the line of {who} any more: it has the speech bubble for you again."
+                    : $"You have not read the line of {who} any more. It is not marked important now, so there is no speech bubble.");
+                Npcs.UpdateConversationStatus(client, creature);
                 return;
             }
 
