@@ -92,11 +92,6 @@ namespace Rasa.Test.Missions
         }
 
         [TestMethod]
-        // Catches a real race: SceneApplication.Tick takes due timers from SceneDueQueue (a PriorityQueue
-        // and a Dictionary, unsynchronized) outside _dispatchGate, so two overlapping evaluations can
-        // each skip the deadline and neither commits it (expected 1, actual 0). Seen on loaded CI runners.
-        [Ignore("Quarantined: exposes an unsynchronized due-timer queue; see the linked issue.")]
-        [GitHubWorkItem("https://github.com/InfiniteRasa/Rasa.NET/issues/132")]
         public void ConcurrentDeadlineEvaluationCommitsOneCompletion()
         {
             using var context = MissionTestContext.WithCustomDefinitions(

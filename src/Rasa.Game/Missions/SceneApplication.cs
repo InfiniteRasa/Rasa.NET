@@ -141,7 +141,15 @@ namespace Rasa.Game.Missions
                 Submit(runId, new SceneObservation(SceneEventKind.Signal, _runs[runId].Run.Generation, SequenceId: trigger.SequenceId));
         }
 
+        // Under the dispatch gate: it re-attaches runs from their rows, and a commit landing in
+        // between would leave the resident a revision behind ("Concurrent scene revision").
         internal void Resume(Client client)
+        {
+            lock (_dispatchGate)
+                ResumeCore(client);
+        }
+
+        private void ResumeCore(Client client)
         {
             if (client?.Player?.MapChannel == null || client.State != Data.ClientState.Ingame || client.PendingTransfer != null)
                 return;
@@ -1537,22 +1545,25 @@ namespace Rasa.Game.Missions
             foreach (var retry in _messageRetries.Where(entry => entry.Value <= _utcNow() &&
                 _runs.TryGetValue(entry.Key, out var run) && run.Map == map).ToArray())
                 DrainMessages(retry.Key);
-            foreach (var due in _due.TakeDue(_utcNow()))
-            {
-                if (!_runs.TryGetValue(due.RunId, out var resident))
-                    continue;
-                if (resident.Map != map)
-                { _due.Schedule(due); continue; }
-                if (scope == SceneTickScope.Deadlines && !due.ObjectiveId.HasValue ||
-                    scope == SceneTickScope.Scripts && due.ObjectiveId.HasValue)
-                { _due.Schedule(due); continue; }
-                if (!Submit(due.RunId, new SceneObservation(due.ObjectiveId.HasValue
-                        ? SceneEventKind.ObjectiveDeadlineElapsed : SceneEventKind.TimerElapsed,
-                    due.Generation, due.Name, SequenceId: due.SequenceId)))
-                    _due.Schedule(due with { DueAtUtc = _utcNow().AddSeconds(1) });
-                else
-                    changed = true;
-            }
+            // Taken and submitted under the dispatch gate, as Submit commits: two overlapping ticks
+            // (the map's, a deadline evaluation) each see a timer either still due or committed.
+            lock (_dispatchGate)
+                foreach (var due in _due.TakeDue(_utcNow()))
+                {
+                    if (!_runs.TryGetValue(due.RunId, out var resident))
+                        continue;
+                    if (resident.Map != map)
+                    { _due.Schedule(due); continue; }
+                    if (scope == SceneTickScope.Deadlines && !due.ObjectiveId.HasValue ||
+                        scope == SceneTickScope.Scripts && due.ObjectiveId.HasValue)
+                    { _due.Schedule(due); continue; }
+                    if (!SubmitCore(due.RunId, new SceneObservation(due.ObjectiveId.HasValue
+                            ? SceneEventKind.ObjectiveDeadlineElapsed : SceneEventKind.TimerElapsed,
+                        due.Generation, due.Name, SequenceId: due.SequenceId)))
+                        _due.Schedule(due with { DueAtUtc = _utcNow().AddSeconds(1) });
+                    else
+                        changed = true;
+                }
             if (scope != SceneTickScope.Deadlines)
             {
                 _world.Tick(map, _utcNow());
