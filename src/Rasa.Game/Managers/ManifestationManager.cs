@@ -1047,37 +1047,13 @@ namespace Rasa.Managers
                     return FireResult.NotFired;
             }
 
+            // The rounds come out of the clip in memory. The row is not written for a shot: it
+            // was, in a transaction of its own on this loop, for every shot of every player
+            // (WeaponClips, which says when it is written instead).
             if (usesAmmo)
             {
-                var ammoAfter = weapon.CurrentAmmo - weapon.ItemTemplate.WeaponInfo.AmmoPerShot;
-                try
-                {
-                    using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
-                    unitOfWork.ExecuteTransaction(() =>
-                    {
-                        var saved = unitOfWork.Items.GetItem(weapon.Id);
-                        if (saved == null || saved.AmmoCount != weapon.CurrentAmmo)
-                            throw new GameplayRejectionException("Weapon clip changed before the shot committed.");
-
-                        unitOfWork.Items.UpdateAmmo(new Item
-                        {
-                            Id = weapon.Id,
-                            CurrentAmmo = ammoAfter
-                        });
-                    });
-                }
-                catch (Exception error) when (
-                    error is GameplayRejectionException ||
-                    error is DbUpdateException ||
-                    error is DbException)
-                {
-                    Logger.WriteLog(LogType.Error,
-                        $"Could not persist shot for item {weapon.Id}: {error.Message}");
-                    return FireResult.NotFired;
-                }
-
-                weapon.CurrentAmmo = ammoAfter;
-                client.CallMethod(weapon.EntityId, new WeaponAmmoInfoPacket(ammoAfter));
+                WeaponClips.Spend(client, weapon, weapon.ItemTemplate.WeaponInfo.AmmoPerShot, _gameUnitOfWorkFactory);
+                client.CallMethod(weapon.EntityId, new WeaponAmmoInfoPacket(weapon.CurrentAmmo));
             }
 
             client.Player.NextShotAt = Math.Max(client.Player.NextShotAt, now - ShotTolerance) +
@@ -1692,6 +1668,9 @@ namespace Rasa.Managers
                 client.CallMethod(client.Player.EntityId, new ArmWeaponFailedPacket(requestedWeaponDrawerSlot));
                 return;
             }
+
+            // The weapon going out of the hand has its clip written (WeaponClips).
+            WeaponClips.Save(InventoryManager.Instance.CurrentWeapon(client));
 
             client.Player.ActiveWeapon = (byte)requestedWeaponDrawerSlot;
 
@@ -4051,7 +4030,11 @@ namespace Rasa.Managers
             if (mapChannel == null)
                 return;
 
-            var weaponClassInfo = EntityClassManager.Instance.GetWeaponClassInfo(InventoryManager.Instance.CurrentWeapon(client));
+            var weapon = InventoryManager.Instance.CurrentWeapon(client);
+            var weaponClassInfo = EntityClassManager.Instance.GetWeaponClassInfo(weapon);
+
+            // Put away: its clip is written (WeaponClips).
+            WeaponClips.Save(weapon);
 
             if (weaponClassInfo != null)
                 QueueWeaponReadyChange(mapChannel, new ActionData(client.Player, ActionId.WeaponStow, (uint)weaponClassInfo.StowActionId, 500));
@@ -4724,8 +4707,10 @@ namespace Rasa.Managers
                 using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
                 unitOfWork.ExecuteTransaction(() =>
                 {
+                    // The row is what it was when the rounds not yet written were spent
+                    // (WeaponClips): the shots since are in memory, and this writes over them.
                     var savedWeapon = unitOfWork.Items.GetItem(weapon.Id);
-                    if (savedWeapon == null || savedWeapon.AmmoCount != weapon.CurrentAmmo)
+                    if (savedWeapon == null || savedWeapon.AmmoCount != WeaponClips.RowCountOf(weapon))
                         throw new GameplayRejectionException("Weapon clip changed during reload.");
 
                     foreach (var stack in consumed)
@@ -4781,6 +4766,7 @@ namespace Rasa.Managers
 
             ClearJam(client, weapon);
             weapon.CurrentAmmo = loaded;
+            WeaponClips.Saved(weapon);
             client.CallMethod(weapon.EntityId, new WeaponAmmoInfoPacket(loaded));
             client.Player.CurrentAction = 0;
 

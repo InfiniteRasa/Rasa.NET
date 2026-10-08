@@ -2191,6 +2191,8 @@ namespace Rasa.Managers
                     player.ModulesChanged = true;   // its modules no longer count (ItemModuleBonuses)
                     break;
                 case InventoryType.WeaponDrawerInventory:
+                    // Out of the drawer, wherever it goes next: its clip is written (WeaponClips).
+                    WeaponClips.Save(EntityManager.Instance.GetItem(player.Inventory.WeaponDrawer[(int)slotIndex]));
                     player.Inventory.WeaponDrawer[(int)slotIndex] = 0;    // update slot
                     player.ModulesChanged = true;
 
@@ -2370,9 +2372,9 @@ namespace Rasa.Managers
                     tempItem = CreateLoadedItem(itemData, itemTemplate, 0, item.SlotId);
                 }
 
-                // check if item is weapon
+                // check if item is weapon: its row's clip, or the one still waiting to be written
                 if (tempItem.ItemTemplate.WeaponInfo != null)
-                    tempItem.CurrentAmmo = itemData.AmmoCount;
+                    WeaponClips.Loaded(tempItem, itemData.AmmoCount);
 
                 // fill invenoty slot
                 ItemManager.Instance.SendItemDataToClient(client, tempItem, false);
@@ -2431,9 +2433,11 @@ namespace Rasa.Managers
 
             ItemModules.Read(newItem, itemData);
 
-            // check if item is weapon
+            // check if item is weapon: its row's clip, or the one still waiting to be written
+            // for that row - its holder back before the save, an item given back by the auction
+            // house (WeaponClips)
             if (newItem.ItemTemplate.WeaponInfo != null)
-                newItem.CurrentAmmo = itemData.AmmoCount;
+                WeaponClips.Loaded(newItem, itemData.AmmoCount);
 
             EntityManager.Instance.RegisterEntity(newItem.EntityId, EntityType.Item);
             EntityManager.Instance.RegisterItem(newItem.EntityId, newItem);
@@ -2932,6 +2936,8 @@ namespace Rasa.Managers
                     break;
                 case InventoryType.WeaponDrawerInventory:
                     entityId = client.Player.Inventory.WeaponDrawer[(int)slotIndex];
+                    // Out of the drawer, wherever it goes next: its clip is written (WeaponClips).
+                    WeaponClips.Save(EntityManager.Instance.GetItem(entityId));
                     client.Player.Inventory.WeaponDrawer[(int)slotIndex] = 0;
                     client.Player.ModulesChanged = true;
 

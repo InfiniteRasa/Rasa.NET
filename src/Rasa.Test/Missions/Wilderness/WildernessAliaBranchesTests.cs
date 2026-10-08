@@ -649,8 +649,16 @@ namespace Rasa.Test.Missions.Wilderness
                 Assert.AreEqual(attempts - 1, target.Lock.CipherAttemptsLeft,
                     "Either decode outcome must reach the normal lock-attempt boundary.");
                 Assert.AreEqual(10U, HeldQuantity(harness, 56));
-                using var unit = harness.CreateChar();
-                Assert.AreEqual(9U, unit.Items.GetItem(cipher.Id).AmmoCount);
+
+                // A use of a tool comes out of the clip in memory, as a shot does; the row is
+                // written when the clip is saved (WeaponClips).
+                using (var unit = harness.CreateChar())
+                    Assert.AreEqual(10U, unit.Items.GetItem(cipher.Id).AmmoCount);
+
+                WeaponClips.Save(cipher);
+
+                using (var unit = harness.CreateChar())
+                    Assert.AreEqual(9U, unit.Items.GetItem(cipher.Id).AmmoCount);
             }
             finally
             {

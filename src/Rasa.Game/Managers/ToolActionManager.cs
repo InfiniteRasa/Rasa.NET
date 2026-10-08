@@ -308,13 +308,11 @@ namespace Rasa.Managers
         {
             var perShot = tool.ItemTemplate.WeaponInfo?.AmmoPerShot ?? 0;
 
+            // Out of the clip in memory, as a shot's are; the row is written later (WeaponClips).
             if (perShot > 0 && tool.CurrentAmmo >= perShot)
             {
-                tool.CurrentAmmo -= perShot;
+                WeaponClips.Spend(client, tool, perShot, _gameUnitOfWorkFactory);
                 client.CallMethod(tool.EntityId, new WeaponAmmoInfoPacket(tool.CurrentAmmo));
-
-                using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
-                unitOfWork.Items.UpdateAmmo(tool);
             }
 
             // A tool barrel heats like any other. Done after the shot is paid for, so a shot that

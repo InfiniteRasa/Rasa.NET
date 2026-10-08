@@ -307,6 +307,9 @@ namespace Rasa.Managers
             // Kill streaks whose eight seconds are up.
             Guard("KillStreaks.Worker", null, KillStreaks.Worker);
 
+            // The clips of weapons fired since they were last written, every fifteen seconds.
+            Guard("WeaponClips.Worker", null, WeaponClips.Worker);
+
             // Shared copies of a map that have stood empty long enough are closed.
             if (Timer.IsTriggered("SharedInstances"))
             {
@@ -974,6 +977,9 @@ namespace Rasa.Managers
             // follows clears up after either.
             RemoveStrandedPlayer(client);
 
+            // Whatever clip was not written on the way out of their last map (WeaponClips).
+            WeaponClips.SaveFor(client);
+
             ManifestationManager.Instance.RemovePlayerCharacter(client);
             if (player.ClanId != 0)
                 ClanManager.Instance.RemovePlayer(client);
@@ -1105,6 +1111,7 @@ namespace Rasa.Managers
                 MinionManager.Instance.DismissAll(client);
                 AbilityManager.DismissPet(client.Player);
                 KillStreaks.End(client);
+                WeaponClips.SaveFor(client);
                 DynamicObjectManager.Instance.ForgetPlayer(origin, client);
                 MapLinkManager.Instance.RemovePlayer(client);
                 RegionManager.Instance.RemovePlayer(client);
@@ -1201,6 +1208,9 @@ namespace Rasa.Managers
                 EntityManager.Instance.UnregisterPlayer(player.EntityId);
                 EntityManager.Instance.UnregisterActor(player.EntityId);
             });
+
+            // The clips of the weapons they fired, before the weapons are let go (WeaponClips).
+            RemovalStep(client, "saving weapon clips", () => WeaponClips.SaveFor(client));
 
             // unregister character Inventory
             RemovalStep(client, "releasing the inventory", () =>

@@ -1,6 +1,5 @@
 using System;
 using System.Linq;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Rasa.Test.Gameplay
@@ -18,32 +17,28 @@ namespace Rasa.Test.Gameplay
     public class WeaponAmmoConsolidationTests
     {
         [TestMethod]
-        public void ShotPersistsBeforePublishingAndFailureLeavesClipUnchanged()
+        public void ShotSpendsTheClipInMemoryAndItsRowIsWrittenLater()
         {
+            // A shot was a transaction of its own, and refused if it could not be committed. The
+            // clip is spent in memory now and its row written at the moments WeaponClips names
+            // (WeaponClipTests), so a shot neither writes nor waits on the database.
             using var context = new WeaponAmmoContext();
             var manager = new ManifestationManager(context);
-            context.BeforeSave = _ =>
-            {
-                Assert.AreEqual(7u, context.Weapon.CurrentAmmo);
-                Assert.AreEqual(0, WorldTestContext.Drain(context.Client).Count);
-                throw new DbUpdateException("Injected shot failure.");
-            };
-
-            Assert.IsFalse(manager.PlayerTryFireWeapon(context.Client));
-
-            Assert.AreEqual(7u, context.Weapon.CurrentAmmo);
-            Assert.AreEqual(7u, context.Read(context.Weapon).AmmoCount);
-            Assert.AreEqual(0, context.World.Map.QueuedMissiles.Count);
-            context.BeforeSave = null;
+            var saves = context.SaveAttempts;
 
             Assert.IsTrue(manager.PlayerTryFireWeapon(context.Client));
             Assert.AreEqual(6u, context.Weapon.CurrentAmmo);
-            Assert.AreEqual(6u, context.Read(context.Weapon).AmmoCount);
+            Assert.AreEqual(7u, context.Read(context.Weapon).AmmoCount);
+            Assert.AreEqual(saves, context.SaveAttempts);
             Assert.AreEqual(1, context.World.Map.QueuedMissiles.Count);
             Assert.AreEqual(6u, WorldTestContext.Drain(context.Client)
                 .Select(packet => packet.Message).OfType<CallMethodMessage>()
                 .Select(message => message.Packet).OfType<WeaponAmmoInfoPacket>()
                 .Single().AmmoInfo);
+
+            WeaponClips.SaveAll();
+
+            Assert.AreEqual(6u, context.Read(context.Weapon).AmmoCount);
         }
 
         [TestMethod]

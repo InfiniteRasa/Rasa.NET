@@ -1057,6 +1057,17 @@ namespace Rasa.Game
                 }
             }
 
+            // Each character's removal wrote the clips of the weapons they had fired; this is
+            // for any that belonged to nobody who was taken out.
+            try
+            {
+                WeaponClips.SaveAll();
+            }
+            catch (Exception e)
+            {
+                Logger.WriteLog(LogType.Error, $"Saving the weapon clips for the shutdown threw: {e}");
+            }
+
             Logger.WriteLog(LogType.Initialize, $"Shutdown: {clients.Count} connection(s) closed, {removed} character(s) saved and taken out of the world.");
         }
 
