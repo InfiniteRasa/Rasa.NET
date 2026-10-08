@@ -34,6 +34,8 @@ namespace Rasa.Test.World
     {
         private const uint Account = 61;
         private const long Hour = 3_600_000;
+        private const ActionId Wave = (ActionId)194;
+        private const ActionId Boost = (ActionId)195;
 
         private IGameUnitOfWorkFactory _factoryBefore;
 
@@ -135,6 +137,77 @@ namespace Rasa.Test.World
 
         #endregion
 
+        #region Cooldowns
+
+        [TestMethod]
+        public void LoadingACharacterLeavesItsSavedCooldownsInTheDatabase()
+        {
+            using var context = new BootcampSelectionTestContext();
+            var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            var characterId = Wounded(context, now);
+
+            Cooling(context, characterId, now + Hour);
+
+            // Somebody else's, which is theirs.
+            var other = context.SeedCharacter(Account, 2, "Other");
+
+            Cooling(context, other, now + 2 * Hour, Boost);
+
+            var player = Choose(context).Player;
+
+            // On the server's clock for the session...
+            Assert.AreEqual(Hour, player.ActionReuseUntil[Wave] - Environment.TickCount64, 5000);
+            Assert.AreEqual(1, player.ActionReuseUntil.Count, "its own and no other's");
+
+            // ...and still in the row, for a server that stops before it has saved anybody.
+            Assert.AreEqual($"{(uint)Wave} until {now + Hour}", Cooldowns(context, characterId));
+            Assert.AreEqual($"{(uint)Boost} until {now + 2 * Hour}", Cooldowns(context, other));
+        }
+
+        [TestMethod]
+        public void ACharacterDroppedBeforeTheMapHasListedItKeepsItsCooldowns()
+        {
+            using var context = new BootcampSelectionTestContext();
+            var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            var characterId = Wounded(context, now);
+
+            Cooling(context, characterId, now + Hour);
+
+            // Chosen, and gone in the same tick: the main loop clears up after the connection
+            // before the map's worker has put it on the map's list, and nothing is saved.
+            var client = Choose(context);
+
+            client.Close(false);
+            context.Maps.CleanupDisconnected(client);
+
+            Assert.IsFalse(client.Player.MapChannel?.QueuedClients.Contains(client) ?? false);
+            Assert.AreEqual($"{(uint)Wave} until {now + Hour}", Cooldowns(context, characterId));
+            Assert.AreEqual(Left(now), Saved(context, characterId));
+        }
+
+        [TestMethod]
+        public void ACharacterDroppedOnTheLoginLoadingScreenKeepsItsCooldowns()
+        {
+            using var context = new BootcampSelectionTestContext();
+            var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            var characterId = Wounded(context, now);
+
+            Cooling(context, characterId, now + Hour);
+
+            var client = Choose(context);
+
+            context.Maps.MapChannelWorker(0);
+            client.Close(false);
+            context.Maps.MapChannelWorker(0);
+
+            var saved = Cooldowns(context, characterId).Split(" until ");
+
+            Assert.AreEqual($"{(uint)Wave}", saved[0]);
+            Assert.AreEqual(now + Hour, long.Parse(saved[1]), 5000, "saved again from the server's clock");
+        }
+
+        #endregion
+
         #region Fixture
 
         /// <summary>A character that left the world hurt, with Rez Trauma and the no-healing still to run.</summary>
@@ -166,6 +239,26 @@ namespace Rasa.Test.World
 
             return $"health {row.CurrentHealth}, armor {row.CurrentArmor}, power {row.CurrentPower}, " +
                    $"Rez Trauma x{row.RezTraumaStacks} until {row.RezTraumaEndsAt}, no healing until {row.NoHealEndsAt}";
+        }
+
+        /// <summary>A cooldown the character left the world with, to end at that wall-clock time.</summary>
+        private static void Cooling(BootcampSelectionTestContext context, uint characterId, long readyAt, ActionId action = Wave)
+        {
+            using var unit = context.CreateChar();
+
+            unit.CharacterActionReuses.Replace(characterId, new[] { new CharacterActionReuseEntry(characterId, (uint)action, readyAt) });
+        }
+
+        /// <summary>The character's saved cooldowns, as its next login will read them.</summary>
+        private static string Cooldowns(BootcampSelectionTestContext context, uint characterId)
+        {
+            using var database = context.OpenChar();
+
+            return string.Join(", ", database.CharacterActionReuseEntries.AsNoTracking()
+                .Where(entry => entry.CharacterId == characterId)
+                .OrderBy(entry => entry.ActionId)
+                .AsEnumerable()
+                .Select(entry => $"{entry.ActionId} until {entry.ReadyAt}"));
         }
 
         /// <summary>A connection that picks the character on the selection screen, and can be closed.</summary>

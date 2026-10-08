@@ -20,8 +20,17 @@ namespace Rasa.Managers
     ///   ready and was refused it until the server's timer ran out.
     /// - On leaving the world (logout or a dropped connection) the ones with at least
     ///   MinSavedMs left are written to character_action_reuse, with the wall-clock time they
-    ///   end; loading the character reads them back into ActionReuseUntil and removes the rows.
+    ///   end; loading the character reads them back into ActionReuseUntil.
     ///   A relog no longer resets the hour-long account rewards, the class waves or Adrenaline Boost.
+    /// - The rows stay where they are when they are read, and every save replaces the lot
+    ///   (the autosave's too). Loading used to remove them, which left a character with no
+    ///   saved cooldowns from the moment it was chosen until something saved it again. Two
+    ///   things end a session inside that gap: a connection that goes in the tick the
+    ///   character was chosen, before the map's worker has it on its list, is cleared up with
+    ///   no saves at all; and a server that stops without its shutdown, before the player's
+    ///   first autosave. Either way the next login found every cooldown over. A row whose
+    ///   time has passed is passed over on loading (<see cref="Restore"/>) and goes with the
+    ///   next save.
     /// </summary>
     public static class ActionReuse
     {

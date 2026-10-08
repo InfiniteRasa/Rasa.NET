@@ -112,7 +112,7 @@ namespace Rasa.Test.World
             }
 
             using (var unit = context.CreateChar())
-                Assert.AreEqual((uint)Cooling, unit.CharacterActionReuses.Take(player.Id).Single().ActionId);
+                Assert.AreEqual((uint)Cooling, unit.CharacterActionReuses.Get(player.Id).Single().ActionId);
 
             // And out of the world.
             Assert.IsFalse(EntityManager.Instance.Players.ContainsKey(player.EntityId));
