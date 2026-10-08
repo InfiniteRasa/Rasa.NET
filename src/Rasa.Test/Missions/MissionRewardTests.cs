@@ -640,9 +640,13 @@ namespace Rasa.Test.Missions
 
             Assert.IsFalse(context.Manager.CompleteOfferedMission(
                 context.Client, wrong.EntityId, 429, 0));
+            Assert.AreEqual(0, context.Drain().Count);
             context.Client.Player.Missions[429].Completeable = false;
             Assert.IsFalse(context.Manager.CompleteOfferedMission(
                 context.Client, context.Receiver.EntityId, 429, 0));
+            // Asked for a mission that is not ready, the NPC it is handed in to says so.
+            var said = (Rasa.Packets.Communicator.Server.DisplayClientMessagePacket)context.Drain().Single();
+            Assert.AreEqual(PlayerMessage.PmHaveNotCompletedRequirements, said.MsgId);
             context.Client.Player.Missions[429].Completeable = true;
             Assert.IsFalse(context.Manager.CompleteOfferedMission(
                 context.Client, context.Receiver.EntityId, 429, 2, null));

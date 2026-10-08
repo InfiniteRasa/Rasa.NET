@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Loot Table Editor</title>
+<style>
+:root {
+  --ground: #eef1f4; --panel: #ffffff; --panel-2: #f6f8fa; --ink: #17202a;
+  --muted: #5a6775; --line: #d3dae1; --accent: #0f6e8c; --accent-ink: #ffffff;
+  --accent-soft: #dff0f5; --danger: #b3261e; --warn: #8a5a00;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ground: #12171c; --panel: #1a2128; --panel-2: #212a33; --ink: #e6ebf0;
+    --muted: #9aa7b4; --line: #313c47; --accent: #4fc3e0; --accent-ink: #06222b;
+    --accent-soft: #173844; --danger: #ff8a80; --warn: #f2c14e; color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 14px/1.45 var(--sans); display: flex; flex-direction: column; }
+button, input, select, textarea { font: inherit; color: inherit; }
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+p { margin: 0; max-width: 70ch; }
+.mono { font-family: var(--mono); font-size: 12px; }
+.muted { color: var(--muted); }
+.num, input[type=number], td { font-variant-numeric: tabular-nums; }
+.bar { display: flex; align-items: center; gap: 20px; padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.bar h1 { font-size: 16px; font-weight: 650; letter-spacing: .01em; }
+.tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+.tab { border: 1px solid transparent; background: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; color: var(--muted); font-weight: 600; }
+.tab:hover { color: var(--ink); background: var(--panel-2); }
+.tab[aria-selected=true] { color: var(--accent); background: var(--accent-soft); }
+.status { margin-inline-start: auto; font-size: 12.5px; color: var(--muted); max-width: 70ch; }
+.bad { color: var(--danger); }
+.warn { color: var(--warn); }
+main { flex: 1; min-height: 0; }
+.view { display: none; height: 100%; }
+.view.on { display: grid; }
+#view-profiles { grid-template-columns: 240px minmax(340px, 1fr) minmax(460px, 1.2fr); }
+#view-bindings { grid-template-columns: minmax(320px, 1fr) minmax(320px, 1fr); }
+#view-export.on { display: block; overflow: auto; padding: 16px; }
+.pane { display: flex; flex-direction: column; min-height: 0; min-width: 0; border-inline-end: 1px solid var(--line); background: var(--panel); }
+.pane:last-child { border-inline-end: 0; }
+.pane-head { padding: 12px 14px 10px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
+.pane-head h2 { font-size: 14px; font-weight: 700; }
+.pane-body { flex: 1; overflow: auto; min-height: 0; }
+.pane-foot { border-top: 1px solid var(--line); padding: 9px 14px; font-size: 12.5px; color: var(--muted); background: var(--panel-2); }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.grow { flex: 1; min-width: 0; }
+.form { padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+label { display: flex; flex-direction: column; gap: 4px; color: var(--muted); font-size: 12.5px; min-width: 0; }
+label.inline { display: inline-flex; flex-direction: row; align-items: center; gap: 6px; }
+input, select, textarea { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; min-width: 0; max-width: 100%; caret-color: var(--accent); }
+input[type=number] { width: 100px; text-align: right; }
+input[type=checkbox] { width: auto; }
+textarea { width: 100%; min-height: 60px; resize: vertical; }
+input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+::selection { background: var(--accent); color: var(--accent-ink); }
+* { scrollbar-color: var(--muted) var(--panel-2); scrollbar-width: thin; }
+a { color: var(--accent); text-underline-offset: .2em; }
+.btn { border: 1px solid var(--line); background: var(--panel); padding: 6px 11px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px; }
+.btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.btn:disabled { opacity: .55; cursor: default; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.primary:hover:not(:disabled) { filter: brightness(1.08); color: var(--accent-ink); }
+.btn.danger:hover:not(:disabled) { border-color: var(--danger); color: var(--danger); }
+.glist { list-style: none; margin: 0; padding: 6px; display: flex; flex-direction: column; gap: 2px; }
+.pick { display: block; width: 100%; text-align: start; border: 1px solid transparent; background: none; border-radius: 6px; padding: 8px 10px; cursor: pointer; overflow-wrap: anywhere; }
+.pick:hover { background: var(--panel-2); }
+.pick.on { background: var(--accent-soft); border-color: var(--accent); }
+.pick strong { display: block; }
+.pick small { color: var(--muted); }
+.empty { padding: 28px 18px; color: var(--muted); text-align: center; }
+.table-scroll { overflow: auto; }
+table { border-collapse: collapse; width: 100%; }
+th { position: sticky; top: 0; background: var(--panel-2); text-align: start; font-size: 12px; color: var(--muted); padding: 7px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+td { padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; overflow-wrap: anywhere; }
+#i-body table { min-width: 620px; }
+#i-body td { white-space: nowrap; }
+td input[type=number] { width: 78px; }
+.export-section { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+.export-section h2 { font-size: 15px; }
+#sql { height: 320px; font-family: var(--mono); font-size: 12px; white-space: pre; }
+#srv-msg, #x-msg, #edit-msg, #binding-msg { white-space: pre-line; overflow-wrap: anywhere; }
+#edit-msg { padding: 8px 16px; border-bottom: 1px solid var(--line); background: var(--panel); }
+#edit-msg:empty { display: none; }
+#toast { position: fixed; inset-inline: 16px; bottom: 20px; width: fit-content; max-width: calc(100vw - 32px); margin: auto; background: var(--ink); color: var(--ground); padding: 9px 14px; border-radius: 8px; display: none; gap: 12px; align-items: center; box-shadow: 0 6px 24px rgba(0,0,0,.25); }
+#toast.on { display: flex; }
+#toast button { background: none; border: 1px solid currentColor; color: inherit; border-radius: 5px; padding: 2px 9px; cursor: pointer; }
+@media (max-width: 1150px) {
+  html, body { height: auto; min-height: 100%; }
+  main { min-height: auto; }
+  #view-profiles.on, #view-bindings.on { display: flex; flex-direction: column; height: auto; }
+  .pane { border-inline-end: 0; border-bottom: 1px solid var(--line); }
+  .pane-body { max-height: 70vh; }
+}
+@media (max-width: 600px) {
+  body, input, select, textarea { font-size: 16px; }
+  .bar { gap: 12px; }
+  .tab { padding: 6px 8px; font-size: 14px; }
+  .row > label { flex: 1 1 140px; }
+  td input[type=number] { width: 68px; }
+}
+@media (prefers-reduced-motion: no-preference) { .btn, .tab, .pick { transition: background .12s, border-color .12s, color .12s; } }
+</style>
+</head>
+<body>
+<header class="bar">
+  <h1>Loot Table Editor</h1>
+  <nav class="tabs" role="tablist" aria-label="Sections">
+    <button class="tab" role="tab" id="tab-profiles" aria-controls="view-profiles" data-tab="profiles" aria-selected="true">Profiles and groups</button>
+    <button class="tab" role="tab" id="tab-bindings" aria-controls="view-bindings" data-tab="bindings" aria-selected="false" tabindex="-1">Map and creature bindings</button>
+    <button class="tab" role="tab" id="tab-export" aria-controls="view-export" data-tab="export" aria-selected="false" tabindex="-1">Save and export</button>
+  </nav>
+  <div class="status" id="status" role="status"></div>
+</header>
+<div id="edit-msg" role="alert"></div>
+<main>
+  <section class="view on" id="view-profiles" role="tabpanel" aria-labelledby="tab-profiles">
+    <div class="pane">
+      <div class="pane-head">
+        <h2>Profiles</h2>
+        <input type="search" id="p-search" aria-label="Search profiles" placeholder="Search profile key">
+        <div class="row"><button class="btn primary" id="p-new">New profile</button><button class="btn" id="p-copy">Duplicate</button></div>
+      </div>
+      <div class="pane-body"><ul class="glist" id="p-list"></ul></div>
+      <div class="pane-foot">Keys are lowercase ASCII, digits, "_" or "-". Empty profiles explicitly mean no ordinary items.</div>
+    </div>
+    <div class="pane">
+      <div class="pane-head"><h2>Profile and group settings</h2></div>
+      <div class="pane-body">
+        <div class="form" id="profile-form">
+          <label>Profile key (1..64 characters)<input id="p-key" maxlength="64" pattern="[a-z0-9_\-]+" autocomplete="off"></label>
+          <label>Description<textarea id="p-description"></textarea></label>
+          <label>Content revision (up to 32 characters)<input id="p-revision" maxlength="32"></label>
+          <label>Provenance<textarea id="p-provenance"></textarea></label>
+          <label>Evidence notes<textarea id="p-evidence"></textarea></label>
+          <h3>Groups</h3>
+          <div class="row"><select id="g-select" class="grow" aria-label="Select group"></select><button class="btn" id="g-new">New group</button><button class="btn danger" id="g-remove">Remove group</button></div>
+          <label>Group key (1..32 characters)<input id="g-key" maxlength="32" pattern="[a-z0-9_\-]+"></label>
+          <label>Kind<select id="g-kind"><option value="1">Junk (one type maximum)</option><option value="2">Ammunition</option><option value="3">Consumable</option><option value="4">Equipment</option></select></label>
+          <label>Group admission (basis points, 10000 = 100%)<input type="number" id="g-chance" min="0" max="10000" step="1" aria-describedby="g-admission-help"></label>
+          <p class="muted" id="g-admission-help">Admission is tested once per group, independently of candidate weights.</p>
+          <div class="row"><label>Minimum rolls<input type="number" id="g-min" min="0" max="32" step="1"></label><label>Maximum rolls<input type="number" id="g-max" min="0" max="32" step="1"></label><label>Sort order<input type="number" id="g-order" step="1"></label></div>
+        </div>
+      </div>
+    </div>
+    <div class="pane">
+      <div class="pane-head">
+        <h2>Weighted candidates</h2>
+        <p class="muted">Weights are conditional on an admitted group and each roll. They are not drop percentages. Rolls sample with replacement; quantity bounds are inclusive.</p>
+        <form id="item-add" class="row">
+          <label>Native template ID<input type="number" id="i-template" min="1" max="4294967295" step="1" required></label>
+          <label>Relative weight<input type="number" id="i-weight" min="1" max="2147483647" step="1" value="1" required></label>
+          <button class="btn primary" id="i-add" type="submit">Add candidate</button>
+        </form>
+        <p class="muted">Use native IDs from World. Server validation checks quality, augmentations, inventory, stack limits and required-map coverage.</p>
+      </div>
+      <div class="pane-body table-scroll" id="i-body"></div>
+      <div class="pane-foot" id="g-foot" role="status"></div>
+    </div>
+  </section>
+  <section class="view" id="view-bindings" role="tabpanel" aria-labelledby="tab-bindings">
+    <div class="pane">
+      <div class="pane-head"><h2>Map / creature -> profile</h2><p class="muted">One profile per map and native creature row. To suppress ordinary items, bind an empty profile. Unnamed bindings are retained by the server.</p></div>
+      <div class="pane-body table-scroll" id="binding-body"></div>
+    </div>
+    <div class="pane">
+      <div class="pane-head"><h2>Edit bindings and map policies</h2></div>
+      <div class="pane-body form">
+        <form id="binding-form" class="form">
+          <label>Native map context ID<input type="number" id="b-map" min="1" max="4294967295" step="1" required></label>
+          <label>Native creature ID<input type="number" id="b-creature" min="1" max="4294967295" step="1" required></label>
+          <label>Profile<select id="b-profile" required></select></label>
+          <button class="btn primary" type="submit">Set binding</button>
+        </form>
+        <h3>Map policies</h3>
+        <p class="muted">Required maps must cover every eligible native spawn, arrival, garrison and mission scene source. Existing required policies cannot be disabled here.</p>
+        <div id="policy-body" class="table-scroll"></div>
+        <form id="policy-form" class="row">
+          <label>Native map context ID<input type="number" id="policy-map" min="1" max="4294967295" step="1" required></label>
+          <label class="inline"><input type="checkbox" id="policy-required" checked> Require profiles</label>
+          <button class="btn" type="submit">Set map policy</button>
+        </form>
+        <div id="binding-msg" role="alert"></div>
+      </div>
+    </div>
+  </section>
+  <section class="view" id="view-export" role="tabpanel" aria-labelledby="tab-export">
+    <div class="export-section">
+      <h2>Game server</h2><p id="srv-where" class="muted"></p><div class="row" id="srv-row"></div><div id="srv-msg" role="status"></div>
+    </div>
+    <div class="export-section">
+      <h2>Project file</h2>
+      <p class="muted">Weighted format rasa-weighted-loot-profiles, version 2. This browser keeps your draft separately from old flat projects. Save a file for backup or review. No secret settings are included.</p>
+      <div class="row"><button class="btn primary" id="x-save">Save project file</button><button class="btn" id="x-load">Load project file</button><input type="file" id="x-file" accept=".json,application/json" hidden><button class="btn danger" id="x-reset">Clear browser draft</button></div>
+      <div id="x-msg" role="status"></div>
+    </div>
+    <div class="export-section"><h2>Checks</h2><p class="muted">Local checks cover structure and numeric bounds only. The server's canonical catalog performs native-item and required-map validation before commit.</p><ul id="x-checks"></ul></div>
+    <div class="export-section">
+      <h2>Database rows</h2>
+      <p class="muted">Five existing canonical tables: loot_profile, ordinary_loot_group, loot_item, creature_loot_binding and loot_map_policy. The export updates named profiles and preserves unnamed bindings. Review and validate offline before applying; SQL cannot publish a running catalog.</p>
+      <div class="row"><label>SQL dialect<select id="x-sql-dialect" aria-describedby="x-sql-help"><option value="sqlite">SQLite</option><option value="mysql">MySQL</option></select></label></div>
+      <p class="muted" id="x-sql-help">Choose the database you will apply this export to. MySQL uses UTF-8 hex text, independent of backslash SQL mode.</p>
+      <div class="row"><button class="btn primary" id="x-sql-save">Download .sql</button><button class="btn" id="x-sql-copy">Copy SQL</button><span id="x-sql-msg" role="status"></span></div>
+      <textarea id="sql" readonly spellcheck="false" aria-label="SQL export"></textarea>
+    </div>
+  </section>
+</main>
+<div id="toast" role="status"><span id="toast-text"></span><button id="toast-undo">Undo</button></div>
+<script src="gametools.config.js"></script>
+<script src="gametools.js"></script>
+<script src="weighted-loot-project.js"></script>
+<script src="weighted-loot-editor.js"></script>
+</body>
+</html>

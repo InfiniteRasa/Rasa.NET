@@ -197,6 +197,7 @@ namespace Rasa.Managers
 
             child.Attributes.Add(Attributes.Health, new ActorAttributes(Attributes.Health, health, health, health, 0, 0));
             child.Attributes.Add(Attributes.Speed, new ActorAttributes(Attributes.Speed, 1, 1, 1, 0, 0));
+            child.TintAtSpawn();
 
             var spit = Spit(action.ActionArgId, childLevel);
 

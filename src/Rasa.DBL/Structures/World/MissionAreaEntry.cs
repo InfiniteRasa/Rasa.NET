@@ -7,7 +7,14 @@ namespace Rasa.Structures.World
     {
         Sphere = 1,
         Cylinder = 2,
-        Box = 3
+        Box = 3,
+
+        /// <summary>
+        /// The whole of the area's map: no position and no extent are read. No Move goes into
+        /// it from outside, so it is entered by arriving on the map
+        /// (MissionAreaService.RecordArrival) - "Entered the Fluxite Mines".
+        /// </summary>
+        Map = 4
     }
 
     [Table(TableName)]

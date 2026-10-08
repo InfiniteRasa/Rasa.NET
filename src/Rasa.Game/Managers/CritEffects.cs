@@ -73,6 +73,10 @@ namespace Rasa.Managers
             if (target is Manifestation player && (Pvp.IsSafe(player) || !target.Attributes.TryGetValue(Attributes.Health, out var health) || health.Current <= 0))
                 return;
 
+            // And what a creature shouts at one (Battlecries).
+            if (target is Creature struck)
+                Battlecries.Crit(mapChannel, struck);
+
             switch (damageType)
             {
                 case DamageType.Ice when target is Creature frozen:
@@ -170,6 +174,10 @@ namespace Rasa.Managers
                 .ToList();
 
             var arc = NewDebuff(mapChannel, source, CritElectricTypeId, ElectricEffectMs);
+
+            // Announced by its own attach, and not by the hit (HitEffects): the tick below draws
+            // the arcs from the effect's FX, which is only there once it has been announced.
+            arc.AnnounceWithHit = false;
 
             GameEffectManager.Instance.Attach(mapChannel, target, arc);
 

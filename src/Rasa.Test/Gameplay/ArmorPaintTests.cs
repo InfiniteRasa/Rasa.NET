@@ -266,8 +266,10 @@ namespace Rasa.Test.Gameplay
             // An item that is not a paint, used as one.
             AssertRefused(harness, paint, vest, colour, Paint(snowball, vest.EntityId, swatch), PlayerMessage.PmActionFailedBadData);
 
-            // The kinds not carried out: a hair colour.
-            AssertRefused(harness, paint, vest, colour, Paint(paint, 0, swatch, argId: 1), PlayerMessage.PmCannotPerformActionNow);
+            // A paint used as a hair colour, which it is not (AppearanceChangeTests), and a
+            // weapon colour, which this client has no item for.
+            AssertRefused(harness, paint, vest, colour, Paint(paint, 0, swatch, argId: 1), PlayerMessage.PmActionFailedBadData);
+            AssertRefused(harness, paint, vest, colour, Paint(paint, vest.EntityId, swatch, argId: 3), PlayerMessage.PmCannotPerformActionNow);
 
             // Dead.
             harness.Client.Player.State = CharacterState.Dead;

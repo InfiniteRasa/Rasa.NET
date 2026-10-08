@@ -9,8 +9,9 @@ namespace Rasa.Managers
 
     /// <summary>
     /// Stealing an attribute: what the item modules Health Vamp, Vamp Power, Vamp Chi and Vamp
-    /// Armor did on a hit ("Steal Health / Power / Adrenaline / Armor: %(amount)s", module
-    /// variants 24-27). The modules are not wired yet; .vamp does it by hand.
+    /// Armor do on a hit ("Steal Health / Power / Adrenaline / Armor: %(amount)s", module
+    /// variants 24-27). A weapon carrying one does it on a hit (ItemModuleBonuses.OnWeaponHit);
+    /// .vamp does it by hand.
     ///
     /// The client shows a steal through a vampiric damage effect on the victim whose source is
     /// the thief (damageeffect.py BaseVampiricDamageEffect): the server attaches it, moves the

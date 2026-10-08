@@ -959,6 +959,108 @@ namespace Rasa.Managers
 
         #endregion
 
+        #region A member's manifestation on the other members' clients
+
+        /*
+         * The client draws a squad member as one - the name and the bars over their head that
+         * the squad's display options ask for, the live row in the squad window, the squad's pip
+         * on the radar - from two things together: the member's entity id (party.py
+         * g_squadMembers[userId]) and the entity.
+         *
+         *  - Recv_AddSquadMember(userId, entityId) stores the id and, if the client has the
+         *    entity, lights it up (EnableSquadMemberInUI). If it has not, it waits for the entity,
+         *    once: OnSquadMemberCreated unregisters itself as it fires.
+         *  - Destroying the entity takes what it was flagged as with it (overheadwindow.py
+         *    OnEntityDestroying) and nothing puts that back: the id is still stored and the wait
+         *    is used up, so the entity made again has over its head what any player has. The
+         *    squad window is not told the entity went, and shows the health it last had for as
+         *    long as it is gone.
+         *  - Recv_RemoveSquadMember(userId, entityId) greys the row, takes out what
+         *    AddSquadMember registered and forgets the id (DisableSquadMemberInUI). Without it a
+         *    second AddSquadMember registers everything a second time.
+         *
+         * The server made and destroyed members' entities in more places than it said whose they
+         * were: on every map change, for the one who went and for the ones who stayed, and on one
+         * map whenever a member took a waypoint out of the others' sight (CellManager, FarAllies).
+         * From then on squad mates stood next to each other with no squad name or bars over
+         * them, until one logged in again.
+         *
+         * So the squad is told with the entity, wherever that is done:
+         *  - made on a member's client: RemoveSquadMember and AddSquadMember, in that order and
+         *    after the CreatePhysicalEntity, which leaves the client lit once whatever it was
+         *    before - waiting, lit by the wait, or neither (ManifestationMade);
+         *  - destroyed on a member's client: RemoveSquadMember (ManifestationGone);
+         *  - and when a member has been placed on a map, they and the members on other maps are
+         *    told each other's ids (PlacedOnMap).
+         */
+
+        /// <summary>The member's entity has just been made on this client: whose it is.</summary>
+        internal static void ManifestationMade(Client viewer, Client member)
+        {
+            if (AreSquadMates(viewer, member))
+                Announce(viewer, member);
+        }
+
+        /// <summary>The member's entity has just been destroyed on this client: their row goes with it.</summary>
+        internal static void ManifestationGone(Client viewer, Client member)
+        {
+            if (AreSquadMates(viewer, member))
+                viewer.CallMethod(SysEntity.ClientPartyManagerId, new RemoveSquadMemberPacket(member.AccountEntry.Id, member.Player.EntityId));
+        }
+
+        /// <summary>
+        /// A member has been placed on a map (CellManager.AddToWorld). The members there with
+        /// them are told as each entity is made; this is for the ones on other maps, who are
+        /// given no entity: they and the member are told each other's ids.
+        ///
+        /// It is what SendPartyState gives a member who logs in, and for the same two things: the
+        /// client waits for the entity, so the member is lit the moment they are on its map; and
+        /// the squad window draws who is talking by the id (party.py OnStartSpeaking), whatever
+        /// map they are on.
+        ///
+        /// Here and not where the entity was destroyed, because the client keeps a destroyed
+        /// entity for a second while it fades (clientmethod.py FADE_TIME): an AddSquadMember in
+        /// that second lights the one that is going and waits for nothing.
+        ///
+        /// A member logging in is not in the squad yet when the cells place them: their player
+        /// has no squad until PlayerEnteredWorld, which follows and sends all of it.
+        /// </summary>
+        internal void PlacedOnMap(Client client)
+        {
+            if (client?.AccountEntry == null)
+                return;
+
+            var party = PartyOf(client);
+
+            if (party == null)
+                return;
+
+            // Everyone but those on the member's map, the member among them.
+            foreach (var other in OnlineClients(party))
+            {
+                if (other.Player.MapChannel == client.Player.MapChannel)
+                    continue;
+
+                Announce(other, client);
+                Announce(client, other);
+            }
+        }
+
+        private static bool AreSquadMates(Client viewer, Client member) =>
+            viewer?.Player != null && member?.Player != null && member.AccountEntry != null &&
+            Detection.SameSquad(viewer.Player, member.Player);
+
+        private static void Announce(Client viewer, Client member)
+        {
+            var userId = member.AccountEntry.Id;
+            var entityId = member.Player.EntityId;
+
+            viewer.CallMethod(SysEntity.ClientPartyManagerId, new RemoveSquadMemberPacket(userId, entityId));
+            viewer.CallMethod(SysEntity.ClientPartyManagerId, new AddSquadMemberPacket(userId, entityId));
+        }
+
+        #endregion
+
         #region Helper Functions
 
         /// <summary>

@@ -402,10 +402,15 @@ namespace Rasa.Test.Missions
             }
 
             Assert.AreEqual(14, world.Set<MissionContentDefinitionEntry>().AsNoTracking().Count(row => row.ContentRevision == TargetsOfOpportunitySeed.Revision));
-            Assert.AreEqual(59 + 14, world.Set<MissionObjectiveDefinitionEntry>().AsNoTracking().Count(row => row.ContentRevision == TargetsOfOpportunitySeed.Revision));
-            Assert.AreEqual(TargetsOfOpportunitySeed.Zones.Sum(zone => zone.Kills.Sum(kill => kill.Subjects.Count)),
+            // The seed's rows, and those added to three of its missions since (TargetsOfOpportunitySeed.OneOffs).
+            var added = TargetsOfOpportunitySeed.OneOffs.Objectives.Length;
+            var addedTriggers = TargetsOfOpportunitySeed.OneOffs.KillTriggers.Length + TargetsOfOpportunitySeed.OneOffs.AreaTriggers.Length;
+
+            Assert.AreEqual(59 + 14 + added, world.Set<MissionObjectiveDefinitionEntry>().AsNoTracking().Count(row => row.ContentRevision == TargetsOfOpportunitySeed.Revision));
+            Assert.AreEqual(TargetsOfOpportunitySeed.Zones.Sum(zone => zone.Kills.Sum(kill => kill.Subjects.Count)) + addedTriggers,
                 world.Set<MissionTriggerEntry>().AsNoTracking().Count(row => row.ContentRevision == TargetsOfOpportunitySeed.Revision));
-            Assert.AreEqual(42, world.Set<MissionEvidenceEntry>().AsNoTracking().Count(row => row.ContentRevision == TargetsOfOpportunitySeed.Revision));
+            Assert.AreEqual(42 + TargetsOfOpportunitySeed.OneOffs.Evidence.Length,
+                world.Set<MissionEvidenceEntry>().AsNoTracking().Count(row => row.ContentRevision == TargetsOfOpportunitySeed.Revision));
         }
 
         #endregion
@@ -424,7 +429,9 @@ namespace Rasa.Test.Missions
                 Assert.AreEqual(TargetsOfOpportunitySeed.Revision, mission.ContentRevision);
                 Assert.AreEqual(MissionChannel.Radio, mission.AcceptanceChannel);
                 Assert.AreEqual(MissionChannel.Radio, mission.CompletionChannel);
-                Assert.HasCount(zone.Kills.Count + 1, mission.Objectives);
+                // Its kills, "complete all", and what was added to it since (OneOffTitlesTests).
+                Assert.HasCount(zone.Kills.Count + 1 + (TargetsOfOpportunitySeed.OneOffs.AddedObjectives.GetValueOrDefault(zone.MissionId)?.Length ?? 0),
+                    mission.Objectives);
 
                 var all = mission.Objectives[zone.AllObjectiveId];
                 Assert.IsTrue(all.IsRequired.Value, "the one required objective: nothing completes it, the mission stays");

@@ -33,10 +33,13 @@ namespace Rasa.Managers
     {
         private const int CureDebuffGuardTypeId = 181;      // CURE_DEBUFF_GUARD
 
-        /// <summary>Every debuff on an actor: what Cure takes off, and what the tray shows in red.</summary>
+        /// <summary>
+        /// Every debuff on an actor that Cure takes off: what the tray shows in red, but for
+        /// the world's own (GameEffect.Environmental) - burning in lava ends by leaving it.
+        /// </summary>
         public static List<GameEffect> DebuffsOn(Actor actor)
         {
-            return actor.ActiveEffects.Values.Where(e => !e.IsBuff && !e.IsSkillPassive).ToList();
+            return actor.ActiveEffects.Values.Where(e => !e.IsBuff && !e.IsSkillPassive && !e.Environmental).ToList();
         }
 
         /// <summary>Whether this pump of Cure brings back the dead: P3 Resuscitate and P5 Group Resuscitate (CureAction.canTargetDead).</summary>

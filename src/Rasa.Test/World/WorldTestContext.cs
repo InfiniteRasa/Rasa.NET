@@ -30,6 +30,10 @@ namespace Rasa.Test.World
 
         internal WorldTestContext()
         {
+            // No clip a test before this one fired is waiting to be written during this one:
+            // item ids start again with every test's database (WeaponClips).
+            WeaponClips.Reset();
+
             if (Logger.Config == null)
                 Logger.UpdateConfig(new Logger.LoggerConfig());
             AddClass(EntityClasses.HumanBaseMale);

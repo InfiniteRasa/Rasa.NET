@@ -17,11 +17,11 @@ namespace Rasa.Test.Database
     [TestClass]
     public class OrdinaryLootMigrationTests
     {
-        internal const string PreviousMigration = "20261117000000_Hold_captive_pierre";
-        internal const string SchemaMigration = "20261118000000_Add_ordinary_loot_tables";
+        internal const string PreviousMigration = FlatLootArchiveMigrationTests.ArchiveMigration;
+        internal const string SchemaMigration = "20261202000100_Add_ordinary_loot_tables";
         private static readonly string[] Tables =
         {
-            "loot_profile", "loot_group", "loot_item", "creature_loot_binding", "loot_map_policy"
+            "loot_profile", "ordinary_loot_group", "loot_item", "creature_loot_binding", "loot_map_policy"
         };
 
         [TestMethod]
@@ -32,7 +32,7 @@ namespace Rasa.Test.Database
             using var context = PersistenceIntegrationTests.CreateContext(contextType, "unused");
             var model = context.GetService<IDesignTimeModel>().Model;
             var profile = RequireEntity(model, "LootProfileEntry", "loot_profile", "ProfileKey");
-            var group = RequireEntity(model, "LootGroupEntry", "loot_group", "ProfileKey", "GroupKey");
+            var group = RequireEntity(model, "OrdinaryLootGroupEntry", "ordinary_loot_group", "ProfileKey", "GroupKey");
             var item = RequireEntity(model, "LootItemEntry", "loot_item",
                 "ProfileKey", "GroupKey", "ItemTemplateId");
             var binding = RequireEntity(model, "CreatureLootBindingEntry", "creature_loot_binding",
@@ -57,7 +57,7 @@ namespace Rasa.Test.Database
 
             AssertForeignKeys(group, ("loot_profile", new[] { "ProfileKey" }));
             AssertForeignKeys(item,
-                ("loot_group", new[] { "ProfileKey", "GroupKey" }),
+                ("ordinary_loot_group", new[] { "ProfileKey", "GroupKey" }),
                 ("itemtemplate", new[] { "ItemTemplateId" }));
             AssertForeignKeys(binding,
                 ("loot_profile", new[] { "ProfileKey" }),
@@ -172,7 +172,7 @@ namespace Rasa.Test.Database
             Assert.AreEqual(0L, context.Database.SqlQueryRaw<long>("SELECT COUNT(*) AS Value FROM pragma_foreign_key_check").Single());
 
             context.LootProfileEntries.Add(new LootProfileEntry { ProfileKey = "test" });
-            context.LootGroupEntries.Add(new LootGroupEntry
+            context.OrdinaryLootGroupEntries.Add(new OrdinaryLootGroupEntry
             {
                 ProfileKey = "test", GroupKey = "ammo", Kind = LootGroupKind.Ammunition,
                 ChanceBasisPoints = 10000, MinimumRolls = 1, MaximumRolls = 1
@@ -201,21 +201,21 @@ namespace Rasa.Test.Database
         [TestMethod]
         [DataRow("INSERT INTO loot_profile VALUES ('', '', '', '', '')", 275)]
         [DataRow("INSERT INTO loot_profile VALUES ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', '', '', '', '')", 275)]
-        [DataRow("INSERT INTO loot_group VALUES ('alpha', '', 1, 0, 0, 0, 0)", 275)]
-        [DataRow("INSERT INTO loot_group VALUES ('alpha', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 1, 0, 0, 0, 0)", 275)]
-        [DataRow("UPDATE loot_group SET chance_basis_points = -1", 275)]
-        [DataRow("UPDATE loot_group SET kind = 0", 275)]
-        [DataRow("UPDATE loot_group SET kind = 5", 275)]
-        [DataRow("UPDATE loot_group SET kind = 257", 275)]
-        [DataRow("UPDATE loot_group SET chance_basis_points = 10001", 275)]
-        [DataRow("UPDATE loot_group SET minimum_rolls = -1", 275)]
-        [DataRow("UPDATE loot_group SET minimum_rolls = 2, maximum_rolls = 1", 275)]
+        [DataRow("INSERT INTO ordinary_loot_group VALUES ('alpha', '', 1, 0, 0, 0, 0)", 275)]
+        [DataRow("INSERT INTO ordinary_loot_group VALUES ('alpha', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 1, 0, 0, 0, 0)", 275)]
+        [DataRow("UPDATE ordinary_loot_group SET chance_basis_points = -1", 275)]
+        [DataRow("UPDATE ordinary_loot_group SET kind = 0", 275)]
+        [DataRow("UPDATE ordinary_loot_group SET kind = 5", 275)]
+        [DataRow("UPDATE ordinary_loot_group SET kind = 257", 275)]
+        [DataRow("UPDATE ordinary_loot_group SET chance_basis_points = 10001", 275)]
+        [DataRow("UPDATE ordinary_loot_group SET minimum_rolls = -1", 275)]
+        [DataRow("UPDATE ordinary_loot_group SET minimum_rolls = 2, maximum_rolls = 1", 275)]
         [DataRow("UPDATE loot_item SET weight = 0", 275)]
         [DataRow("UPDATE loot_item SET weight = -1", 275)]
         [DataRow("UPDATE loot_item SET minimum_quantity = 0", 275)]
         [DataRow("UPDATE loot_item SET minimum_quantity = -1", 275)]
         [DataRow("UPDATE loot_item SET minimum_quantity = 2, maximum_quantity = 1", 275)]
-        [DataRow("INSERT INTO loot_group VALUES ('absent', 'ammo', 2, 0, 0, 0, 0)", 787)]
+        [DataRow("INSERT INTO ordinary_loot_group VALUES ('absent', 'ammo', 2, 0, 0, 0, 0)", 787)]
         [DataRow("INSERT INTO loot_item VALUES ('absent', 'ammo', 1, 1, 1, 1, 0)", 787)]
         [DataRow("INSERT INTO loot_item VALUES ('alpha', 'absent', 1, 1, 1, 1, 0)", 787)]
         [DataRow("INSERT INTO loot_item VALUES ('zeta', 'ammo', 1, 1, 1, 1, 0)", 787)]
@@ -225,12 +225,12 @@ namespace Rasa.Test.Database
         [DataRow("INSERT INTO creature_loot_binding VALUES (20, 2, 'absent')", 787)]
         [DataRow("INSERT INTO loot_map_policy VALUES (30, 1)", 787)]
         [DataRow("INSERT INTO loot_profile SELECT * FROM loot_profile WHERE profile_key = 'alpha'", 1555)]
-        [DataRow("INSERT INTO loot_group SELECT * FROM loot_group WHERE profile_key = 'alpha' AND group_key = 'ammo'", 1555)]
+        [DataRow("INSERT INTO ordinary_loot_group SELECT * FROM ordinary_loot_group WHERE profile_key = 'alpha' AND group_key = 'ammo'", 1555)]
         [DataRow("INSERT INTO loot_item SELECT * FROM loot_item WHERE item_template_id = 1", 1555)]
         [DataRow("INSERT INTO creature_loot_binding SELECT * FROM creature_loot_binding WHERE map_context_id = 20", 1555)]
         [DataRow("INSERT INTO loot_map_policy SELECT * FROM loot_map_policy WHERE map_context_id = 10", 1555)]
         [DataRow("DELETE FROM loot_profile WHERE profile_key = 'alpha'", 1811)]
-        [DataRow("DELETE FROM loot_group WHERE profile_key = 'alpha' AND group_key = 'ammo'", 1811)]
+        [DataRow("DELETE FROM ordinary_loot_group WHERE profile_key = 'alpha' AND group_key = 'ammo'", 1811)]
         [DataRow("DELETE FROM itemtemplate WHERE id = 1", 1811)]
         [DataRow("DELETE FROM map_info WHERE map_context_id = 10", 1811)]
         [DataRow("DELETE FROM creature WHERE id = 1", 1811)]
@@ -253,7 +253,7 @@ namespace Rasa.Test.Database
             var profile = new string('a', 64);
             var group = new string('b', 32);
             context.LootProfileEntries.Add(new LootProfileEntry { ProfileKey = profile });
-            context.LootGroupEntries.Add(new LootGroupEntry
+            context.OrdinaryLootGroupEntries.Add(new OrdinaryLootGroupEntry
             {
                 ProfileKey = profile, GroupKey = group, Kind = LootGroupKind.Junk,
                 ChanceBasisPoints = 10000, MinimumRolls = 0, MaximumRolls = 0
@@ -266,9 +266,9 @@ namespace Rasa.Test.Database
             context.SaveChanges();
             context.ChangeTracker.Clear();
             Assert.AreEqual(64, context.LootProfileEntries.Single(entry => entry.ProfileKey == profile).ProfileKey.Length);
-            Assert.AreEqual(32, context.LootGroupEntries.Single(entry => entry.ProfileKey == profile).GroupKey.Length);
-            context.Database.ExecuteSqlRaw("UPDATE loot_group SET chance_basis_points = 0");
-            Assert.IsTrue(context.LootGroupEntries.AsNoTracking().All(entry => entry.ChanceBasisPoints == 0));
+            Assert.AreEqual(32, context.OrdinaryLootGroupEntries.Single(entry => entry.ProfileKey == profile).GroupKey.Length);
+            context.Database.ExecuteSqlRaw("UPDATE ordinary_loot_group SET chance_basis_points = 0");
+            Assert.IsTrue(context.OrdinaryLootGroupEntries.AsNoTracking().All(entry => entry.ChanceBasisPoints == 0));
         }
 
         private static Dictionary<string, long> NativeCounts(WorldContext context) => new()
@@ -280,7 +280,7 @@ namespace Rasa.Test.Database
 
         private static string[] ExistingLootTables(WorldContext context) => context.Database.SqlQueryRaw<string>(
             "SELECT name AS Value FROM sqlite_master WHERE type = 'table' AND name IN " +
-            "('loot_profile', 'loot_group', 'loot_item', 'creature_loot_binding', 'loot_map_policy')").ToArray();
+            "('loot_profile', 'ordinary_loot_group', 'loot_item', 'creature_loot_binding', 'loot_map_policy')").ToArray();
 
         internal static Migration RequireSchemaMigration(DbContext context)
         {

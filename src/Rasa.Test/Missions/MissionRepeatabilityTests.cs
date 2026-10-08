@@ -14,6 +14,9 @@ using Rasa.Missions.Scenes;
 using Rasa.Game.Missions.Persistence;
 using Rasa.Test.Missions.Encounters;
 using Rasa.Packets.Mission.Server;
+using Rasa.Test.World;
+using Rasa.Packets.Protocol;
+using Rasa.Packets.MapChannel.Server;
 using System.Numerics;
 using System.Threading.Tasks;
 using Rasa.Game.Missions.World;
@@ -946,6 +949,98 @@ namespace Rasa.Test.Missions
             context.AddRewardTemplate(28, 3147);
             Assert.IsTrue(context.Manager.AcceptOfferedMission(context.Client, context.AddNpc(77).EntityId, 321));
             return context;
+        }
+
+        // A mission that fails is out of the client's log (missionlog.py Recv_MissionFailed), and
+        // nothing the client can send dismisses the failed attempt: Abandon is the log's button
+        // for a mission it lists. The giver has the mission to give again, and is shown so.
+        [TestMethod]
+        [DataRow(false, DisplayName = "in the same session")]
+        [DataRow(true, DisplayName = "after the server has been restarted")]
+        public void AFailedOnceMissionIsGivenAgainAndTheNewAttemptTakesTheFailedOnesPlace(bool restarted)
+        {
+            using var context = RepeatContext(MissionRepeatPolicy.Once);
+            var giver = context.AddNpc(77);
+            var receiver = context.AddNpc(88);
+            Assert.IsTrue(context.Manager.AcceptOfferedMission(context.Client, giver.EntityId, 321));
+            var failed = context.ReadMission(321);
+            WorldTestContext.Drain(context.Client);
+
+            Assert.IsTrue(context.Manager.TryFailMission(context.Client, 321));
+
+            var shown = WorldTestContext.Drain(context.Client).Select(packet => packet.Message).OfType<CallMethodMessage>()
+                .Where(method => method.EntityId == giver.EntityId)
+                .Select(method => method.Packet).OfType<NPCConversationStatusPacket>().ToArray();
+            Assert.IsTrue(shown.Length > 0, "the giver's status is sent when the mission fails");
+            Assert.AreEqual(ConversationStatus.Available, shown.Last().ConvoStatusId);
+            CollectionAssert.AreEqual(new[] { 321U }, shown.Last().Data);
+
+            var missions = context.Manager;
+
+            if (restarted)
+            {
+                missions = new MissionApplication(context, context.Manager.LoadedMissions,
+                    new Dictionary<uint, MissionRewardDefinition>
+                    {
+                        [321] = new(0, new Dictionary<CurencyType, int> { [CurencyType.Credits] = 7 },
+                            Array.Empty<MissionRewardItem>(), Array.Empty<MissionRewardItem>())
+                    }, new ManifestationManager(context));
+                using var unit = context.CreateChar();
+                missions.HydrateAndClearInvalid(context.Client.Player, unit);
+                Assert.AreEqual(MissionState.Failed, context.Client.Player.Missions[321].State);
+            }
+
+            Assert.IsTrue(missions.AcceptOfferedMission(context.Client, giver.EntityId, 321));
+
+            CollectionAssert.AreEqual(new[] { typeof(MissionClearedPacket), typeof(MissionGainedPacket) },
+                context.Drain().Where(packet => packet is MissionClearedPacket or MissionGainedPacket)
+                    .Select(packet => packet.GetType()).ToArray());
+            var attempt = context.ReadMission(321);
+            Assert.AreEqual((uint)MissionState.Active, attempt.MissionState);
+            Assert.AreNotEqual(failed.AssignmentId, attempt.AssignmentId);
+            Assert.AreEqual(failed.Generation + 1, attempt.Generation);
+            using (var unit = context.CreateChar())
+            {
+                var history = unit.CharacterMissions.Runtime.History(1).Single();
+                Assert.AreEqual(failed.AssignmentId, history.AssignmentId);
+                Assert.AreEqual((uint)MissionState.Failed, history.Outcome);
+            }
+
+            // Carried through, it is done once and for all, as any Once mission.
+            Assert.IsTrue(missions.CompleteOfferedMission(context.Client, receiver.EntityId, 321, null, null));
+            Assert.IsFalse(missions.AcceptOfferedMission(context.Client, giver.EntityId, 321));
+            Assert.IsFalse(missions.ClassifyNpcConversation(context.Client.Player, giver).TryGetStatus(out _, out _));
+        }
+
+        // The content can give a failed mission its own way of being tried again: another
+        // mission that asks for it failed, as Bootcamp's retry asks of Calling for Reinforcements.
+        // Then the failed attempt is left as it is, for that mission to be offered against.
+        [TestMethod]
+        [DataRow(true, DisplayName = "a retry mission in the content")]
+        [DataRow(false, DisplayName = "a retry mission that is not operational")]
+        public void AFailedOnceMissionWithARetryMissionIsLeftToIt(bool operational)
+        {
+            var retry = Definition(requirement: new MissionStateRequirement(321, MissionState.Failed, Accepted: true), missionId: 322);
+            using var context = RepeatContext(MissionRepeatPolicy.Once,
+                dependent: operational ? retry : retry.DisableOperational("not yet authored"));
+            var giver = context.AddNpc(77);
+            Assert.IsTrue(context.Manager.AcceptOfferedMission(context.Client, giver.EntityId, 321));
+            Assert.IsTrue(context.Manager.TryFailMission(context.Client, 321));
+
+            Assert.IsTrue(context.Manager.ClassifyNpcConversation(context.Client.Player, giver).TryGetStatus(out var status, out var offered));
+            Assert.AreEqual(ConversationStatus.Available, status);
+            CollectionAssert.AreEqual(new[] { operational ? 322U : 321U }, offered);
+
+            Assert.AreEqual(!operational, context.Manager.AcceptOfferedMission(context.Client, giver.EntityId, 321));
+            Assert.AreEqual(operational ? MissionState.Failed : MissionState.Active, context.Client.Player.Missions[321].State);
+
+            if (!operational)
+                return;
+
+            Assert.IsTrue(context.Manager.AcceptOfferedMission(context.Client, giver.EntityId, 322));
+            Assert.IsFalse(context.Manager.AcceptOfferedMission(context.Client, giver.EntityId, 321),
+                "nor beside the retry once that is in hand");
+            Assert.AreEqual((uint)MissionState.Failed, context.ReadMission(321).MissionState);
         }
 
         private static MissionTestContext RepeatContext(MissionRepeatPolicy policy, Func<DateTime> utcNow = null,

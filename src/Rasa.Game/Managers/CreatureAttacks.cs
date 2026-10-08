@@ -101,16 +101,28 @@ namespace Rasa.Managers
         /// <summary>The recovery for a missile: a creature's ability in its class's shape, anything else as a weapon attack.</summary>
         public static ServerPythonPacket RecoveryFor(Missile missile)
         {
-            if (missile.Source is Creature && AbilityManager.Instance != null
-                && AbilityManager.Instance.TryGetAction(missile.ActionId, missile.ActionArgId, out var module, out _))
-            {
-                var shape = ShapeOfModule(module);
-
-                if (shape != RecoveryShape.Weapon)
-                    return new CreatureAbilityRecovery(missile, shape);
-            }
+            if (TryGetAbilityShape(missile, out var shape))
+                return new CreatureAbilityRecovery(missile, shape);
 
             return new WeaponAttackRecovery(missile);
+        }
+
+        /// <summary>
+        /// Whether a missile is a weapon attack to the clients: its recovery the weapon's
+        /// (RecoveryFor), read by a BaseWeaponAttack - a shot or a swing, a player's or a
+        /// creature's - rather than by a creature ability's own class.
+        /// </summary>
+        public static bool IsWeaponAttack(Missile missile) => missile != null && !TryGetAbilityShape(missile, out _);
+
+        private static bool TryGetAbilityShape(Missile missile, out RecoveryShape shape)
+        {
+            shape = RecoveryShape.Weapon;
+
+            if (missile.Source is Creature && AbilityManager.Instance != null
+                && AbilityManager.Instance.TryGetAction(missile.ActionId, missile.ActionArgId, out var module, out _))
+                shape = ShapeOfModule(module);
+
+            return shape != RecoveryShape.Weapon;
         }
 
         private static DamageType Resolve(CreatureAction action)

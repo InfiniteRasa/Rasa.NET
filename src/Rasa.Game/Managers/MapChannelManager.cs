@@ -304,6 +304,12 @@ namespace Rasa.Managers
             // Squad wargame challenges that lapsed and squad wargames whose time is up.
             Guard("SquadWargames.Worker", null, () => SquadWargames.Instance.Worker());
 
+            // Kill streaks whose eight seconds are up.
+            Guard("KillStreaks.Worker", null, KillStreaks.Worker);
+
+            // The clips of weapons fired since they were last written, every fifteen seconds.
+            Guard("WeaponClips.Worker", null, WeaponClips.Worker);
+
             // Shared copies of a map that have stood empty long enough are closed.
             if (Timer.IsTriggered("SharedInstances"))
             {
@@ -393,6 +399,10 @@ namespace Rasa.Managers
 
                     Guard("ActorActionManager.DoWork", mapChannel, () => ActorActionManager.Instance.DoWork(mapChannel, delta));
                     Guard("MissileManager.DoWork", mapChannel, () => MissileManager.Instance.DoWork(mapChannel, delta));
+
+                    // practice dummies a hit knocked back, up again
+                    Guard("PracticeTargetManager.Worker", mapChannel, () => PracticeTargetManager.Worker(mapChannel));
+
                     Guard("BehaviorManager.MapChannelThink", mapChannel, () => BehaviorManager.Instance.MapChannelThink(mapChannel, delta));
 
                     // despawn timers, and minions whose master has gone
@@ -400,6 +410,9 @@ namespace Rasa.Managers
 
                     // players whose combat timer has run out
                     Guard("ManifestationManager.CombatWorker", mapChannel, () => ManifestationManager.Instance.CombatWorker(mapChannel));
+
+                    // players whose equipment changed: what its modules give them now
+                    Guard("ItemModuleBonuses.Worker", mapChannel, () => ItemModuleBonuses.Worker(mapChannel));
 
                     // CellManager worker
                     if (Timer.IsTriggered("CellUpdateVisibility"))
@@ -442,6 +455,9 @@ namespace Rasa.Managers
                         // Fire Support's beacons: their blasts and napalm pools.
                         Guard("AbilityManager.FireSupportWorker", mapChannel, () => AbilityManager.Instance.FireSupportWorker(mapChannel));
 
+                        // The pools propellant guns leave: their ticks and their burning out.
+                        Guard("PropellantPools.Worker", mapChannel, () => PropellantPools.Worker(mapChannel));
+
                         // Toys: rockets and fireworks taken away once they are done, pets whose owner has gone.
                         Guard("AbilityManager.ToyWorker", mapChannel, () => AbilityManager.Instance.ToyWorker(mapChannel));
 
@@ -480,6 +496,9 @@ namespace Rasa.Managers
 
                         // Falls that ended with the player standing still: no Move to end them.
                         Guard("FallDamage.Worker", mapChannel, () => FallDamage.Worker(mapChannel));
+
+                        // Lava: whoever is standing in it burns, moving or not.
+                        Guard("LavaDamage.Worker", mapChannel, () => LavaDamage.Worker(mapChannel));
                     }
 
                     // a second's health, armour, power and chi for everyone here
@@ -865,6 +884,7 @@ namespace Rasa.Managers
             client.PendingTransfer = null;
             client.State = ClientState.Ingame;
             ResumeMissionScenes(client);
+            ManifestationManager.Instance.FinishArrival(client);
             ManifestationManager.Instance.ResetInactivity(client);
             client.CallMethod(SysEntity.ClientMethodId, new UnrequestMovementBlockPacket());
             _enterMapChannels(client);
@@ -951,6 +971,14 @@ namespace Rasa.Managers
             // left in a fight it dropped out of (CombatLogout) vanished at once.
             if (IsLeftToWorker(client))
                 return;
+
+            // A character still in the world that no worker will come for - between maps, on a
+            // loading screen - leaves it here, with the same saves (RemoveStrandedPlayer). What
+            // follows clears up after either.
+            RemoveStrandedPlayer(client);
+
+            // Whatever clip was not written on the way out of their last map (WeaponClips).
+            WeaponClips.SaveFor(client);
 
             ManifestationManager.Instance.RemovePlayerCharacter(client);
             if (player.ClanId != 0)
@@ -1082,6 +1110,8 @@ namespace Rasa.Managers
                 client.Player.TrackingTargetEntityId = 0;
                 MinionManager.Instance.DismissAll(client);
                 AbilityManager.DismissPet(client.Player);
+                KillStreaks.End(client);
+                WeaponClips.SaveFor(client);
                 DynamicObjectManager.Instance.ForgetPlayer(origin, client);
                 MapLinkManager.Instance.RemovePlayer(client);
                 RegionManager.Instance.RemovePlayer(client);
@@ -1179,6 +1209,9 @@ namespace Rasa.Managers
                 EntityManager.Instance.UnregisterActor(player.EntityId);
             });
 
+            // The clips of the weapons they fired, before the weapons are let go (WeaponClips).
+            RemovalStep(client, "saving weapon clips", () => WeaponClips.SaveFor(client));
+
             // unregister character Inventory
             RemovalStep(client, "releasing the inventory", () =>
             {
@@ -1259,6 +1292,9 @@ namespace Rasa.Managers
             RemovalStep(client, "dismissing minions", () => MinionManager.Instance.DismissAll(client));
             RemovalStep(client, "sending the pet home", () => AbilityManager.DismissPet(client.Player));
 
+            // A kill streak is of the map it was made on.
+            RemovalStep(client, "ending the kill streak", () => KillStreaks.End(client));
+
             // Off every waypoint, pad, station and control point's list of who is at it; nothing
             // else takes a player who left standing on one off it.
             RemovalStep(client, "leaving waypoints and objects", () => DynamicObjectManager.Instance.ForgetPlayer(mapChannel, client));
@@ -1308,21 +1344,6 @@ namespace Rasa.Managers
         }
 
         /// <summary>
-        /// Takes a disconnected player out of the world when no map channel is going to.
-        ///
-        /// Close() only flags a departing player; the map channel worker acts on the flag, and
-        /// looks for it among the clients on its own map's list. A player on no map's list is
-        /// never looked at. A dropship journey is exactly that: the departure takes the client
-        /// off its map's list when it sends the Wonkavate, and only MapLoaded puts it on the
-        /// arrival map's, keeping the manifestation and its items registered in between. A
-        /// connection that dropped on that loading screen - a crash, Alt+F4 - left them all
-        /// registered for as long as the server ran.
-        ///
-        /// Called on the main loop for each connection it drops. A player still registered and
-        /// on no map's list or login queue is removed here, the way the worker would have; any
-        /// other is left alone, so nobody is removed twice.
-        /// </summary>
-        /// <summary>
         /// Whether any map still lists a connection of this account, on its client list or its
         /// login queue. A connection that has closed stays on its map's list until the worker has
         /// taken its character out of the world, so this is true for exactly as long as a
@@ -1344,6 +1365,32 @@ namespace Rasa.Managers
             return false;
         }
 
+        /// <summary>
+        /// Takes a disconnected player out of the world when no map channel is going to.
+        ///
+        /// Close() only flags a departing player; the map channel worker acts on the flag, and
+        /// looks for it among the clients on its own map's list. A player on no map's list is
+        /// never looked at. A journey between maps is exactly that: a map link, a summon, a
+        /// teleport or a dropship takes the client off its map's list when it sends the
+        /// Wonkavate, and only MapLoaded puts it on the arrival map's, keeping the manifestation
+        /// and its items registered in between. A connection that ends on that loading screen -
+        /// a crash, Alt+F4, the network, or a load that runs past the transfer deadline
+        /// (CheckTransferTimeout), which closes it - has its origin put back by Close() and is
+        /// then on no list at all.
+        ///
+        /// Called from CleanupDisconnected, which the main loop runs for each connection it
+        /// drops. A player still registered and on no map's list or login queue is removed here,
+        /// the way the worker would have: out of the squad, trade, summons and looking-for-group,
+        /// friends told, the position, health, death penalties and cooldowns saved. Any other is
+        /// left alone, so nobody is removed twice - and a character on the login queue, which
+        /// never arrived and has nothing worked out to save, is not saved over.
+        ///
+        /// Left uncalled, the squad kept such a member shown online for good (only
+        /// PartyManager.RemovePlayer marks one offline, and a leader's lead is passed on only
+        /// then), their next login was taken for a map change and sent no squad, and nothing
+        /// since the last save was kept: die, revive, step through a map link and close the
+        /// client, and the death penalties were gone.
+        /// </summary>
         public void RemoveStrandedPlayer(Client client)
         {
             var player = client.Player;
@@ -1486,6 +1533,12 @@ namespace Rasa.Managers
         {
             SpawnPoolManager.Instance.CloneTemplateMap(template, map);
             DynamicObjectManager.Instance.CloneTemplateMap(template, map);
+
+            // Not among the template's own objects: the passages are by map, and so is what stands in their doorways.
+            SecretPassages.PlaceDoorways(map);
+
+            // Nor are the ambient figures: rows by map (ambient_npc).
+            AmbientNpcs.Place(map);
         }
     }
 }

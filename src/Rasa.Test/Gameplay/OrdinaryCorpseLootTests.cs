@@ -196,7 +196,7 @@ namespace Rasa.Test.Gameplay
         {
             using var fixture = new Fixture(content =>
             {
-                content.Groups.Add(new LootGroupEntry { ProfileKey = "regular", GroupKey = "equipment",
+                content.Groups.Add(new OrdinaryLootGroupEntry { ProfileKey = "regular", GroupKey = "equipment",
                     Kind = LootGroupKind.Equipment, ChanceBasisPoints = 10000, MinimumRolls = 1, MaximumRolls = 1, SortOrder = 2 });
                 content.Items.Add(new LootItemEntry { ProfileKey = "regular", GroupKey = "equipment", ItemTemplateId = 902,
                     Weight = 1, MinimumQuantity = 1, MaximumQuantity = 1 });

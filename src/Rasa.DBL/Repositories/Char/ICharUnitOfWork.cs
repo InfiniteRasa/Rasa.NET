@@ -66,6 +66,8 @@
             throw new System.NotSupportedException("This character unit of work has no chat log.");
         CharacterBossKill.ICharacterBossKillRepository CharacterBossKills =>
             throw new System.NotSupportedException("This character unit of work has no boss kill store.");
+        CharacterGreetingRead.ICharacterGreetingReadRepository CharacterGreetingReads =>
+            throw new System.NotSupportedException("This character unit of work has no store of the greetings read.");
         SquadInstance.ISquadInstanceRepository SquadInstances =>
             throw new System.NotSupportedException("This character unit of work has no squad instance store.");
         ICharacterMissionDeadlineRepository CharacterMissionDeadlines { get; }

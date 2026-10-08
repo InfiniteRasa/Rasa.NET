@@ -30,8 +30,14 @@ namespace Rasa.Structures
         /// <summary>The share of the hit that got past cover (Managers.Cover): 1.0 for none in the way; the client colours its hit display by it.</summary>
         public double CoverModifier { get; set; } = 1.0;
         public int WasImune { get; set; }
-        public List<uint> TargetEffectIds { get; set; } // ToDo
-        public List<uint> SourceEffectIds { get; set; } // ToDo
+        /// <summary>
+        /// The types of the effects this hit put on its target, and on whoever dealt it, quietly:
+        /// the client's Actor.AnnounceDamage announces one effect of each type on the entity as
+        /// it plays the hit, so the effect is seen when the hit is (Managers.HitEffects). They
+        /// are effect type ids, for all the client's field is called targetEffectIds.
+        /// </summary>
+        public List<uint> TargetEffectIds { get; } = new List<uint>();
+        public List<uint> SourceEffectIds { get; } = new List<uint>();
         public List<object> OnHitData { get; set; }           // ToDo
         /// <summary>A creature's lightning: the arcs and extra damage this hit set off, the arcData its onHitData carries (CreatureLightning).</summary>
         public List<Packets.MapChannel.Server.TickEntry> Arcs { get; } = new List<Packets.MapChannel.Server.TickEntry>();

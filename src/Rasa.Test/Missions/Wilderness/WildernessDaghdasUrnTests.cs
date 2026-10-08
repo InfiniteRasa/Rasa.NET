@@ -147,8 +147,6 @@ namespace Rasa.Test.Missions.Wilderness
                 harness.Tick();
             }
             Assert.IsNull(harness.Manager.PublicActors.Handle(harness.Map, 176));
-            new NpcManager(harness, harness.Manager).AbandonMission(harness.Client,
-                new AbandonMissionPacket { MissionId = 682 });
             Assert.IsTrue(harness.Manager.AcceptOfferedMission(harness.Client, todae.EntityId, 682));
             Assert.AreNotEqual(assignment, harness.Client.Player.Missions[682].AssignmentId);
             Assert.IsFalse(harness.Manager.Scenes.Submit(lease.RunId,
@@ -454,8 +452,10 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.IsTrue(target.Attributes[Attributes.Health].Current + target.Attributes[Attributes.Armor].Current < before);
             Assert.AreEqual(ammoAfterShot, weapon.CurrentAmmo);
             Assert.AreEqual(reserveBeforeShot, Held(harness, 28), "Firing consumes the clip, not reserve stacks.");
+            // The shot is out of the clip in memory; the row holds the clip it was fired from
+            // until it is saved (WeaponClips) - here by the reload that follows.
             using (var shot = harness.CreateChar())
-                Assert.AreEqual(ammoAfterShot, shot.Items.GetItem(weapon.Id).AmmoCount);
+                Assert.AreEqual(clip, shot.Items.GetItem(weapon.Id).AmmoCount);
             var reserve = Held(harness, 28);
             ManifestationManager.Instance.RequestWeaponReload(harness.Client, true);
             ActorActionManager.Instance.DoWork(harness.Map, 10000);

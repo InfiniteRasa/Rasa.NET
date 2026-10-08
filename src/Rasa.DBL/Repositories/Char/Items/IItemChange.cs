@@ -17,5 +17,10 @@ namespace Rasa.Repositories.Char.Items
         public uint CurrentAmmo { get; set; }
         public uint BoundCharacterId { get; set; }
 
+        /// <summary>
+        /// The module in each of the item's module slots, 0 for an empty one: at most four of
+        /// them, and none for an item that carries no modules.
+        /// </summary>
+        public IReadOnlyList<uint> ModuleIds => Array.Empty<uint>();
     }
 }

@@ -17,6 +17,8 @@ namespace Rasa.Test.Missions
     using Rasa.Packets.MapChannel.Client;
     using Rasa.Packets.MapChannel.Server;
     using Rasa.Packets.Mission.Server;
+    using Rasa.Test.World;
+    using Rasa.Packets.Protocol;
     using Rasa.Repositories.Char.CharacterFlag;
     using Rasa.Repositories.Char.CharacterStartingExperience;
     using Rasa.Repositories.Char.CharacterTeleporter;
@@ -176,6 +178,123 @@ namespace Rasa.Test.Missions
             AssertDurableBootcampDeparture(
                 harness,
                 expectedMissionId: MissionBombRetry);
+        }
+
+        // The retry fails too, and then again: once when its timer runs out, once by Abandon,
+        // which fails a mission that has a deadline. Each time the client has taken the failed
+        // mission out of its log (missionlog.py Recv_MissionFailed) and lists nothing to select,
+        // so it has no AbandonMission to send that would dismiss the failed attempt. All the
+        // player can do is go back to Captain Youngblood.
+        [TestMethod]
+        [DataRow(false, DisplayName = "the character stays logged in")]
+        [DataRow(true, DisplayName = "the character logs in again after each failure")]
+        public void FreshCharacterWhoFailsTheRetryTwiceIsGivenItAgainAndDepartsToAliaDas(bool relog)
+        {
+            using var harness = CreateFreshBootcampHarness();
+            var youngblood = StartTimedFinale(harness);
+            harness.UseObjectAndRecover(FindScenarioObject(harness, "bootcamp-conrad-corpse"));
+            harness.UtcNow += BombDeadline + TimeSpan.FromSeconds(1);
+            Assert.IsTrue(harness.Manager.EvaluateDeadlines(harness.Client));
+            Assert.AreEqual(MissionState.Failed, harness.Client.Player.Missions[MissionCallingForReinforcements].State);
+
+            // First retry: the timer runs out.
+            youngblood = TakeTheRetry(harness, relog, replaces: false);
+            Assert.AreEqual(1, harness.ReadOwnedTemplateCounts(11519).GetValueOrDefault(11519U));
+            harness.UtcNow += BombDeadline + TimeSpan.FromSeconds(1);
+            Assert.IsTrue(harness.Manager.EvaluateDeadlines(harness.Client));
+            var failure = WorldTestContext.Drain(harness.Client).Select(packet => packet.Message).OfType<CallMethodMessage>().ToArray();
+            Assert.AreEqual(1, failure.Count(method => method.Packet is MissionFailedPacket failed && failed.MissionId == MissionBombRetry));
+            Assert.AreEqual(MissionState.Failed, harness.Client.Player.Missions[MissionBombRetry].State);
+            Assert.AreEqual(0, harness.ReadOwnedTemplateCounts(11519).GetValueOrDefault(11519U));
+
+            // The player has not moved from Captain Youngblood: he is shown with the retry to give.
+            var shown = failure.Where(method => method.EntityId == youngblood.EntityId)
+                .Select(method => method.Packet).OfType<NPCConversationStatusPacket>().Last();
+            Assert.AreEqual(ConversationStatus.Available, shown.ConvoStatusId);
+            CollectionAssert.AreEqual(new[] { MissionBombRetry }, shown.Data);
+
+            // Second retry: abandoned, with the charge planted and the fuse burning.
+            youngblood = TakeTheRetry(harness, relog, replaces: true);
+            Assert.AreEqual(1, harness.ReadOwnedTemplateCounts(11519).GetValueOrDefault(11519U));
+            harness.UseObjectAndRecover(FindScenarioObject(harness, "bootcamp-dropship-debris"));
+            new NpcManager(harness.Context, harness.Manager).AbandonMission(harness.Client,
+                new AbandonMissionPacket { MissionId = MissionBombRetry });
+            Assert.AreEqual(1, harness.Drain().OfType<MissionFailedPacket>().Count(packet => packet.MissionId == MissionBombRetry));
+            Assert.AreEqual(MissionState.Failed, harness.Client.Player.Missions[MissionBombRetry].State);
+
+            // Third: carried through, and out of Bootcamp.
+            youngblood = TakeTheRetry(harness, relog, replaces: true);
+            Assert.AreEqual(1, harness.ReadOwnedTemplateCounts(11519).GetValueOrDefault(11519U), "one charge, for this attempt");
+            harness.UseObjectAndRecover(FindScenarioObject(harness, "bootcamp-dropship-debris"));
+            Assert.AreEqual(0, harness.ReadOwnedTemplateCounts(11519).GetValueOrDefault(11519U));
+            harness.UtcNow += FuseDelay;
+            Assert.IsTrue(harness.Manager.TickScenarios(harness.Client));
+            harness.UtcNow += ArrivalDelay;
+            Assert.IsTrue(harness.Manager.TickScenarios(harness.Client));
+
+            var van = BootcampRuntimeTestHarness.FindNpcByPackage(
+                harness.BootcampMap,
+                BootcampRuntimeTestHarness.CorporalVanValkenbergPackageId);
+            Assert.IsNotNull(van);
+            BootcampExtractionAssaultTests.DefeatAll(harness);
+            Assert.IsTrue(harness.Manager.CompleteOfferedObjective(harness.Client, van.EntityId, MissionBombRetry, 4, 1));
+
+            AssertMissionChainThroughRetryDeparture(harness);
+            Assert.IsTrue(harness.Client.Player.Missions[MissionBombRetry].Completeable);
+
+            using (var unit = harness.Context.CreateChar())
+            {
+                Assert.AreEqual(2, unit.CharacterMissions.Runtime.History(harness.Client.Player.Id)
+                    .Count(row => row.MissionId == MissionBombRetry && row.Outcome == (uint)MissionState.Failed),
+                    "both failed attempts are in the history");
+                Assert.AreEqual(1, unit.CharacterMissions.Get(harness.Client.Player.Id).Count(row => row.MissionId == MissionBombRetry),
+                    "and the journal holds the one in hand");
+            }
+
+            DepartToAliaDas(harness);
+            AssertDurableBootcampDeparture(harness, expectedMissionId: MissionBombRetry);
+        }
+
+        /// <summary>
+        /// Back to Captain Youngblood, as the client goes: his conversation, which offers the
+        /// retry and not the mission it is the retry of, and AssignNPCMission.
+        /// </summary>
+        private static Creature TakeTheRetry(BootcampRuntimeTestHarness.Harness harness, bool relog, bool replaces)
+        {
+            if (relog)
+                harness.ReconnectFresh();
+
+            var youngblood = BootcampRuntimeTestHarness.FindCreature(harness.BootcampMap,
+                BootcampRuntimeTestHarness.CaptainYoungbloodCreatureId);
+            Assert.IsNotNull(youngblood);
+            harness.MovePlayerTo(youngblood);
+            CellManager.Instance.UpdateVisibility(harness.Client);
+            harness.Drain();
+
+            var npcs = new NpcManager(harness.Context, harness.Manager);
+            npcs.RequestNpcConverse(harness.Client, new RequestNPCConversePacket { EntityId = youngblood.EntityId });
+            var conversation = harness.Drain().OfType<ConversePacket>().Single();
+            Assert.IsTrue(conversation.ConvoDataDict.TryGetValue(ConversationType.MissionDispense, out var offers),
+                "Captain Youngblood has a mission to give");
+            CollectionAssert.AreEquivalent(new[] { MissionBombRetry }, ((Dictionary<uint, MissionInfo>)offers).Keys.ToArray());
+
+            npcs.AssignNPCMission(harness.Client,
+                new AssignNPCMissionPacket { NpcEntityId = youngblood.EntityId, MissionId = MissionBombRetry });
+
+            Assert.AreEqual(MissionState.Active, harness.Client.Player.Missions[MissionBombRetry].State);
+            Assert.AreEqual(MissionState.Failed, harness.Client.Player.Missions[MissionCallingForReinforcements].State);
+
+            // A new attempt in place of a failed one: the old entry cleared, then the gain.
+            CollectionAssert.AreEqual(
+                replaces ? new[] { typeof(MissionClearedPacket), typeof(MissionGainedPacket) } : new[] { typeof(MissionGainedPacket) },
+                harness.Drain().Where(packet => packet is MissionClearedPacket or MissionGainedPacket)
+                    .Select(packet => packet.GetType()).ToArray());
+
+            using var unit = harness.Context.CreateChar();
+            var deadline = unit.CharacterMissionDeadlines.Get(harness.Client.Player.Id, MissionBombRetry);
+            Assert.AreEqual(CharacterMissionDeadlineState.Active, deadline.State);
+            Assert.AreEqual(harness.UtcNow + BombDeadline, deadline.DueAtUtc, "the new attempt has its own ten minutes");
+            return youngblood;
         }
 
         [TestMethod]

@@ -10,14 +10,16 @@ namespace Rasa.Managers
     /// Knockback, slows and freezes on creatures. A player is knocked back and stunned by
     /// PlayerCrowdControl; nothing a creature does slows or roots a player yet.
     ///
-    /// Knockback: the creature slides KNOCKBACK_DISTANCE metres straight away from whoever hit it,
-    /// at KnockbackSpeed, stopping short where the navmesh ends, then takes the client's getup
-    /// time (KNOCKBACK_GETUP_TIME_MSEC 2000) to recover. It is a stun for all of that - the
-    /// effect is flagged IsStun, so it also counts towards Critical Death. The client's
-    /// KnockbackEffect (KNOCKBACK 8, and CRIT_SONIC 7 for a Sonic crit) takes the duration in its
-    /// OnAttach. Sources: Tectonic Strike 3-15 m, Concussive Wave 20/30 m, Rushing Blow 3-15 m,
-    /// Force Blast P6/P7 10 m (KNOCKBACK_DISTANCE), and Sonic crits at the client's
-    /// KNOCKBACK_DEFAULT_DISTANCE of 10 m.
+    /// Knockback: the creature is thrown KNOCKBACK_DISTANCE metres straight away from whoever hit
+    /// it, stopping short where the navmesh ends or a force field stands, then takes the client's
+    /// getup time (KNOCKBACK_GETUP_TIME_MSEC 2000) to recover. The clients fly it there
+    /// themselves, at KnockbackSpeed: a MoveObject of MovementType.Knockback puts its controller
+    /// into the client's KnockbackState for the flight and the getup (BehaviorManager.Throw). It
+    /// is a stun for all of that - the effect is flagged IsStun, so it also counts towards
+    /// Critical Death. The client's KnockbackEffect (KNOCKBACK 8, and CRIT_SONIC 7 for a Sonic
+    /// crit) takes the duration in its OnAttach. Sources: Tectonic Strike 3-15 m, Concussive Wave
+    /// 20/30 m, Rushing Blow 3-15 m, Force Blast P6/P7 10 m (KNOCKBACK_DISTANCE), and Sonic crits
+    /// at the client's KNOCKBACK_DEFAULT_DISTANCE of 10 m.
     ///
     /// Slow: an effect with MovementModifierPercent below 100; the creature moves at that percent
     /// of its speed (GameEffectManager.UpdateMovementMod sets MovementSpeed, which BehaviorManager
@@ -43,7 +45,7 @@ namespace Rasa.Managers
         /// <summary>gameconstants.KNOCKBACK_GETUP_TIME_MSEC: the time on the ground after landing.</summary>
         public const int GetupMs = 2000;
 
-        /// <summary>Metres a second a knocked-back creature slides. Not in the client.</summary>
+        /// <summary>Metres a second a knockback flies over the ground: the constant the client's KnockbackState times its arc by.</summary>
         public const float KnockbackSpeed = 15f;
 
         /// <summary>Virulent crit: "Crippled: -50% Movement" for 4 s. Not in the client.</summary>
@@ -110,6 +112,37 @@ namespace Rasa.Managers
         }
 
         /// <summary>
+        /// Where a creature carried in a straight line from one point to another stops: at the
+        /// last half-metre step before a force field it may not pass (ForceFields.Stops), or at
+        /// the end. What a carry stepped a tick at a time finds as it goes, for one the clients
+        /// make themselves and are told the end of beforehand.
+        /// </summary>
+        public static Vector3 BeforeFields(MapChannel mapChannel, Creature creature, Vector3 from, Vector3 to)
+        {
+            var line = to - from;
+            var length = line.Length();
+
+            if (length <= 0.001f || mapChannel == null || ForceFields.OnMap(mapChannel).Count == 0)
+                return to;
+
+            var dir = line / length;
+            var at = from;
+
+            for (var d = PathStep; ; d += PathStep)
+            {
+                var next = d >= length ? to : from + dir * d;
+
+                if (ForceFields.Stops(mapChannel, creature, at, next))
+                    return at;
+
+                if (d >= length)
+                    return to;
+
+                at = next;
+            }
+        }
+
+        /// <summary>
         /// Knocks a creature back from <paramref name="source"/>. typeId is the client effect that
         /// shows it: KNOCKBACK, or CRIT_SONIC for a Sonic crit. extraStunMs keeps it down that much
         /// longer after the getup time (Hand to Hand's "Stun Duration").
@@ -124,16 +157,18 @@ namespace Rasa.Managers
 
             var dir = AwayFrom(source.Position, target.Position);
             var destination = KnockbackDestination(mapChannel, target.Position, dir, distance);
+
+            // An emplacement is knocked down where it stands, not off its mount. Nor is anything
+            // run from outside its own behaviour moved (a trap, a Reality Ripper, a crab mine):
+            // nothing ever stepped a knockback for those.
+            var thrown = !Emplacements.Is(target) && !target.IsScripted;
+
+            if (thrown)
+                destination = BeforeFields(mapChannel, target, target.Position, destination);
+
             var travelled = Vector3.Distance(target.Position, destination);
             var flightMs = (int)(travelled / KnockbackSpeed * 1000f);
             var downMs = flightMs + GetupMs + Math.Max(0, extraStunMs);
-
-            // An emplacement is knocked down where it stands, not off its mount.
-            if (travelled > 0.1f && !Emplacements.Is(target))
-            {
-                target.KnockbackTo = destination;
-                target.KnockbackDirection = dir;
-            }
 
             var knock = new GameEffect
             {
@@ -151,8 +186,16 @@ namespace Rasa.Managers
             // KnockbackEffect.OnAttach(target, duration).
             GameEffectManager.Instance.Attach(mapChannel, target, knock, downMs / 1000.0);
 
-            // A knockback is a stun: it may open the Critical Death window.
-            CritDeathManager.Instance.TryEnterPreDeath(mapChannel, target, source, damageType);
+            // Refused (Cure's immunity, a creature running home): not thrown either. Its clients
+            // would have it down for the flight and the getup while it went on as it was.
+            var landed = target.ActiveEffects.ContainsKey(knock.EffectId);
+
+            // A knockback is a stun: it may open the Critical Death window. A creature held in it
+            // stays where it stands.
+            var held = CritDeathManager.Instance.TryEnterPreDeath(mapChannel, target, source, damageType);
+
+            if (landed && thrown && !held && travelled > 0.1f)
+                BehaviorManager.Instance.Throw(mapChannel, target, destination, dir);
 
             return true;
         }

@@ -37,6 +37,13 @@ namespace Rasa.Loot
             return new Validation(world).Load();
         }
 
+        internal static OrdinaryLootCatalog Load(IWorldUnitOfWork world, OrdinaryLootContentSnapshot content)
+        {
+            ArgumentNullException.ThrowIfNull(world);
+            ArgumentNullException.ThrowIfNull(content);
+            return new Validation(world).Load(content);
+        }
+
         internal OrdinaryLootProfile Resolve(uint mapContextId, uint creatureId)
         {
             if (_bindings.TryGetValue((mapContextId, creatureId), out var profile))
@@ -58,8 +65,13 @@ namespace Rasa.Loot
             {
                 var snapshot = Read(() => Required(_world.OrdinaryLoot, "ordinary loot").Get(), "ordinary loot tables");
                 FailIfInvalid();
+                return Load(snapshot);
+            }
+
+            internal OrdinaryLootCatalog Load(OrdinaryLootContentSnapshot snapshot)
+            {
                 var profiles = Rows(snapshot.Profiles, "loot_profile");
-                var groups = Rows(snapshot.Groups, "loot_group");
+                var groups = Rows(snapshot.Groups, "ordinary_loot_group");
                 var items = Rows(snapshot.Items, "loot_item");
                 var bindings = Rows(snapshot.Bindings, "creature_loot_binding");
                 var policies = Rows(snapshot.MapPolicies, "loot_map_policy");
@@ -70,6 +82,10 @@ namespace Rasa.Loot
                     Key(profile.ProfileKey, 64, $"profile {profile.ProfileKey ?? "<null>"}");
                     if (!profileKeys.Add(profile.ProfileKey))
                         Error($"profile {profile.ProfileKey}: duplicate profile key.");
+                    if (profile.Description == null || profile.Provenance == null || profile.EvidenceNotes == null)
+                        Error($"profile {profile.ProfileKey}: description, provenance and evidence notes must be strings.");
+                    if (profile.ContentRevision == null || profile.ContentRevision.Length > 32)
+                        Error($"profile {profile.ProfileKey}: content revision must be a string of at most 32 characters.");
                 }
                 var groupKeys = new HashSet<(string Profile, string Group)>();
                 foreach (var group in groups)
@@ -173,7 +189,7 @@ namespace Rasa.Loot
                     binding => immutableProfiles[binding.ProfileKey]), requiredMaps);
             }
 
-            private void ValidateNativeItems(IReadOnlyList<LootItemEntry> items, IReadOnlyList<LootGroupEntry> groups)
+            private void ValidateNativeItems(IReadOnlyList<LootItemEntry> items, IReadOnlyList<OrdinaryLootGroupEntry> groups)
             {
                 var equipment = Read(() => Required(_world.Equipment, "equipment"), "native equipment repository");
                 if (equipment == null)

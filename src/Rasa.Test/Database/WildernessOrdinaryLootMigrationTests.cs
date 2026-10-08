@@ -22,7 +22,7 @@ namespace Rasa.Test.Database
     [DoNotParallelize]
     public class WildernessOrdinaryLootMigrationTests
     {
-        internal const string ContentMigration = "20261118000100_Wilderness_ordinary_loot_v1";
+        internal const string ContentMigration = "20261202000200_Wilderness_ordinary_loot_v1";
         private const string ThraxRegular = "wilderness_v1_thrax_10_14";
         private static readonly uint[] Bosses =
         {
@@ -50,14 +50,14 @@ namespace Rasa.Test.Database
                 var inserts = migration.UpOperations.Cast<InsertDataOperation>().ToArray();
                 CollectionAssert.AreEqual(new[]
                 {
-                    "loot_profile", "loot_group", "loot_item", "creature_loot_binding", "loot_map_policy"
+                    "loot_profile", "ordinary_loot_group", "loot_item", "creature_loot_binding", "loot_map_policy"
                 }, inserts.Select(operation => operation.Table).ToArray());
                 CollectionAssert.AreEqual(new[] { 27, 83, 179, 36, 1 },
                     inserts.Select(operation => operation.Values.GetLength(0)).ToArray());
                 var deletes = migration.DownOperations.Cast<DeleteDataOperation>().ToArray();
                 CollectionAssert.AreEqual(new[]
                 {
-                    "creature_loot_binding", "loot_item", "loot_map_policy", "loot_group", "loot_profile"
+                    "creature_loot_binding", "loot_item", "loot_map_policy", "ordinary_loot_group", "loot_profile"
                 }, deletes.Select(operation => operation.Table).ToArray());
                 foreach (var delete in deletes)
                 {
@@ -77,7 +77,7 @@ namespace Rasa.Test.Database
             var migrator = mysql.GetService<IMigrator>();
             var up = migrator.GenerateScript(OrdinaryLootMigrationTests.SchemaMigration, ContentMigration);
             var down = migrator.GenerateScript(ContentMigration, OrdinaryLootMigrationTests.SchemaMigration);
-            foreach (var table in new[] { "loot_profile", "loot_group", "loot_item", "creature_loot_binding", "loot_map_policy" })
+            foreach (var table in new[] { "loot_profile", "ordinary_loot_group", "loot_item", "creature_loot_binding", "loot_map_policy" })
             {
                 StringAssert.Contains(up, $"INSERT INTO `{table}`");
                 StringAssert.Contains(down, $"DELETE FROM `{table}`");
@@ -331,7 +331,7 @@ namespace Rasa.Test.Database
         {
             protected override void Up(MigrationBuilder migrationBuilder)
             {
-                migrationBuilder.UpdateData("loot_group", new[] { "profile_key", "group_key" },
+                migrationBuilder.UpdateData("ordinary_loot_group", new[] { "profile_key", "group_key" },
                     new object[] { ThraxRegular, "consumable" }, "chance_basis_points", 0);
                 migrationBuilder.UpdateData("loot_item", new[] { "profile_key", "group_key", "item_template_id" },
                     new object[] { ThraxRegular, "equipment", 3061U }, "weight", 1);
@@ -339,7 +339,7 @@ namespace Rasa.Test.Database
 
             protected override void Down(MigrationBuilder migrationBuilder)
             {
-                migrationBuilder.UpdateData("loot_group", new[] { "profile_key", "group_key" },
+                migrationBuilder.UpdateData("ordinary_loot_group", new[] { "profile_key", "group_key" },
                     new object[] { ThraxRegular, "consumable" }, "chance_basis_points", 1000);
                 migrationBuilder.UpdateData("loot_item", new[] { "profile_key", "group_key", "item_template_id" },
                     new object[] { ThraxRegular, "equipment", 3061U }, "weight", 35);
@@ -431,7 +431,7 @@ namespace Rasa.Test.Database
         private static void AddForeignContent(WorldContext context)
         {
             context.LootProfileEntries.Add(new LootProfileEntry { ProfileKey = "unowned" });
-            context.LootGroupEntries.Add(new LootGroupEntry
+            context.OrdinaryLootGroupEntries.Add(new OrdinaryLootGroupEntry
             {
                 ProfileKey = "unowned", GroupKey = "ammo", Kind = LootGroupKind.Ammunition,
                 ChanceBasisPoints = 10000, MinimumRolls = 1, MaximumRolls = 1

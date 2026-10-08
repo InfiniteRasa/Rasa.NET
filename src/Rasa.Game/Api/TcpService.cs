@@ -21,6 +21,25 @@ namespace Rasa.Api
         /// <summary>How long a connection has to say what it wants and be answered, in milliseconds.</summary>
         public const int ExchangeTimeoutMs = 5000;
 
+        /// <summary>
+        /// The time a connection has: a token that ends what waits on it, and the means for
+        /// the listener to give a connection it has reason to more.
+        /// </summary>
+        public sealed class ExchangeLimit
+        {
+            private readonly CancellationTokenSource _source;
+
+            internal ExchangeLimit(CancellationTokenSource source)
+            {
+                _source = source;
+            }
+
+            public CancellationToken Token => _source.Token;
+
+            /// <summary>This long from now and no longer, in place of what was left. Nothing for a connection whose time is already up.</summary>
+            public void Restart(int milliseconds) => _source.CancelAfter(milliseconds);
+        }
+
         /// <summary>The most connections served at once; one more is closed unanswered.</summary>
         public const int MaxConnections = 64;
 
@@ -193,7 +212,7 @@ namespace Rasa.Api
 
                     var remote = IpAllowList.Normalize((client.Client.RemoteEndPoint as IPEndPoint)?.Address);
 
-                    await Exchange(client.GetStream(), remote, limit.Token).ConfigureAwait(false);
+                    await Exchange(client.GetStream(), remote, new ExchangeLimit(limit)).ConfigureAwait(false);
                 }
             }
             catch (OperationCanceledException)
@@ -221,7 +240,7 @@ namespace Rasa.Api
         }
 
         /// <summary>One connection's exchange. The stream is closed when this returns or throws.</summary>
-        protected abstract Task Exchange(Stream stream, IPAddress remote, CancellationToken limit);
+        protected abstract Task Exchange(Stream stream, IPAddress remote, ExchangeLimit time);
 
         /// <summary>
         /// Notes a refusal in the log, at most one line every half minute however many there

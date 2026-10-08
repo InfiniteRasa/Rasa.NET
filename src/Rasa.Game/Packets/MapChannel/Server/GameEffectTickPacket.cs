@@ -145,5 +145,8 @@ namespace Rasa.Packets.MapChannel.Server
         public DamageType DamageType { get; set; }
         public bool IsCritical { get; set; }
         public bool DeathBlow { get; set; }
+
+        /// <summary>The types of the effects the hit put on its target quietly, for the client to announce with it (HitData.TargetEffectIds).</summary>
+        public List<uint> TargetEffectIds { get; } = new List<uint>();
     }
 }

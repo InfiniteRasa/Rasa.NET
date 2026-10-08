@@ -64,10 +64,15 @@ namespace Rasa.Test.Missions
         private const uint FreshPendingCharacterId = 2;
         private const byte FreshPendingSlot = 1;
 
+        /// <param name="worldMigration">
+        /// The world as this migration left it, rather than as the last: the later ones' Down is run
+        /// on the migrated world before anything is read from it. For a test of what a later
+        /// migration took out.
+        /// </param>
         internal static Harness Create(bool useWorldContent = false, Action<MapChannelManager> initializeMaps = null,
-            Action<IDictionary<uint, MissionSceneDefinition>> configureScenes = null)
+            Action<IDictionary<uint, MissionSceneDefinition>> configureScenes = null, string worldMigration = null)
         {
-            var bootstrap = CreateBootstrap(useWorldContent, configureScenes);
+            var bootstrap = CreateBootstrap(useWorldContent, configureScenes, worldMigration);
             initializeMaps?.Invoke(bootstrap.Maps);
             ConfigureRuntimePlayer(bootstrap.Context.Client);
             GrantStartingLogos(bootstrap.Context, bootstrap.Context.Client.Player);
@@ -392,7 +397,7 @@ namespace Rasa.Test.Missions
         }
 
         private static Bootstrap CreateBootstrap(bool useWorldContent,
-            Action<IDictionary<uint, MissionSceneDefinition>> configureScenes = null)
+            Action<IDictionary<uint, MissionSceneDefinition>> configureScenes = null, string worldMigration = null)
         {
             var databaseDirectory = Path.Combine(
                 AppContext.BaseDirectory,
@@ -402,6 +407,9 @@ namespace Rasa.Test.Missions
             var worldDatabase = Path.Combine(databaseDirectory, "world");
             var worldContext = (SqliteWorldContext)CreateContext(typeof(SqliteWorldContext), worldDatabase);
             Rasa.Test.Database.MigratedDatabaseTemplates.Migrate(worldContext, worldContext.Initialize);
+            if (worldMigration != null)
+                Microsoft.EntityFrameworkCore.Infrastructure.AccessorExtensions
+                    .GetService<Microsoft.EntityFrameworkCore.Migrations.IMigrator>(worldContext).Migrate(worldMigration);
             Content.MissionContentTestSupport.ConfigureScenes(worldContext, configureScenes);
 
             var context = MissionTestContext.WithCustomDefinitions(new Dictionary<uint, Mission>());

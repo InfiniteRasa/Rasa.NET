@@ -44,8 +44,8 @@ namespace Rasa.Managers
     ///    out at 64 m and come back.
     ///  - one taken out of the world is taken off every client that was given it
     ///    (<see cref="Removed"/>): no cell would tell them.
-    /// Walking back into its cells gives it again as any creature is; the client takes a
-    /// creature it already holds as an update.
+    /// Walking back into its cells takes it off the client and gives it again as the cells
+    /// give any creature (<see cref="Entering"/>): made anew, not updated.
     ///
     /// Of what a creature's cells are told, a client holding it from afar is told its moves
     /// (<see cref="Relay"/>), so the marker is where the NPC is; nothing else, until it is back
@@ -151,10 +151,35 @@ namespace Rasa.Managers
 
                 // The creature as any client is given it, its conversation status with it
                 // (CreateCreatureOnClient): MissionComplete or ObjectivComplete and the missions,
-                // which is the marker.
-                client.FarContacts.Add(creature.EntityId);
+                // which is the marker. Held from afar once it has been given: CreateCreatureOnClient
+                // takes one already held off the client first (Entering).
                 CreatureManager.Instance.CreateCreatureOnClient(client, creature);
+                client.FarContacts.Add(creature.EntityId);
             }
+        }
+
+        /// <summary>
+        /// The creature is about to be given to the client (CreatureManager.CreateCreatureOnClient):
+        /// if the client holds it from afar, it is destroyed there first and is its cells' from
+        /// here on, so that what follows makes it anew.
+        ///
+        /// A CreatePhysicalEntity for an entity the client holds is not a creation.
+        /// clientmethod.py hands it to Recv_UpdatePhysicalEntity: the body is taken out of the
+        /// world, the entity data applied again, and the body put back. The conversation status
+        /// sent after it is the one the NPC already had, and overheadwindow.py's
+        /// HandleUpdateOverheadIndicator returns at once on a status it is already showing - so
+        /// the icon attached to the body when the NPC was given from afar is never attached
+        /// again, whatever taking the body out of the world did to it. mapwindow.py makes its
+        /// marker again on every status, which is how a hand-in NPC came to be marked on the map
+        /// and to stand there with nothing over its head. Destroyed first, the NPC arrives as any
+        /// NPC walking into view does, and gets its icon as a mission giver gets theirs.
+        /// </summary>
+        public static void Entering(Client client, Creature creature)
+        {
+            if (client == null || creature == null || !client.FarContacts.Remove(creature.EntityId))
+                return;
+
+            client.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(creature.EntityId));
         }
 
         /// <summary>The map's turn: every client on it whose check has come due.</summary>

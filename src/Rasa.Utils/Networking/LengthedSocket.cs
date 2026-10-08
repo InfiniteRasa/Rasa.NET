@@ -54,6 +54,15 @@ namespace Rasa.Networking
                 {
                     // Closed before anyone asked; there is nothing left to read it from.
                 }
+                catch (SocketException)
+                {
+                    // Reset by the other side before anyone asked, on a connection this side
+                    // made (an accepted one has its address from the accept): the system has no
+                    // peer to name any more and says "not connected". Close reads this, so the
+                    // exception came out of Close, and whatever the caller did after closing
+                    // was not done - for the game server's link to the Auth server, that was
+                    // the reconnect.
+                }
 
                 return _remoteAddress ?? IPAddress.None;
             }

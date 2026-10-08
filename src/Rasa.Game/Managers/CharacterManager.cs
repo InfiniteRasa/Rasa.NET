@@ -1168,6 +1168,7 @@ namespace Rasa.Managers
                 Skills = MapChannelManager.Instance.GetPlayerSkills(character.Id),
                 Titles = unitOfWork.CharacterTitles.Get(character.Id),
                 BossKills = unitOfWork.CharacterBossKills.Get(character.Id).ToHashSet(),
+                GreetingsRead = unitOfWork.CharacterGreetingReads.Get(character.Id),
                 Abilities = MapChannelManager.Instance.GetPlayerAbilities(character.Id),
                 LoginTime = DateTime.Now,
                 Logos = logos
@@ -1180,8 +1181,9 @@ namespace Rasa.Managers
                 Game.Missions.Persistence.MissionRequirementFactsAdapter.HasCompletedStartingExperience(unitOfWork, character.Id);
 
             // The cooldowns it logged out with, on the server's clock; ActionReuseTimes takes
-            // them to the client when it arrives in the world.
-            ActionReuse.Restore(newCharacter, unitOfWork.CharacterActionReuses.Take(character.Id),
+            // them to the client when it arrives in the world. Read, and left where they are
+            // until the character is next saved (ActionReuse).
+            ActionReuse.Restore(newCharacter, unitOfWork.CharacterActionReuses.Get(character.Id),
                 Environment.TickCount64, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
 
             // The health, armour, power and death penalties it left with, put back as it arrives

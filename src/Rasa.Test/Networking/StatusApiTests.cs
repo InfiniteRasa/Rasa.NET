@@ -949,7 +949,14 @@ namespace Rasa.Test.Networking
                 Assert.IsFalse(host.Rest.Running, "the port is somebody else's");
                 Assert.IsTrue(host.StatusPort.Running, "and the other listener is not held up by it");
                 Assert.AreEqual(40000, host.Status.StallMs);
-                CollectionAssert.AreEqual(new[] { "addaccount", "healthcheck", "serverstatus" }, host.Rest.Endpoints.ToArray());
+                CollectionAssert.AreEqual(
+                    new[]
+                    {
+                        "addaccount", "healthcheck",
+                        "ingame/items", "ingame/items/categories", "ingame/items/{id}", "ingame/session/exchange",
+                        "lootpools", "monsterflags", "serverstatus", "updatelootpools", "updatemonsterflags"
+                    },
+                    host.Rest.Endpoints.ToArray());
 
                 // An address that is none, a port that is none.
                 config.StatusPort.BindAddress = "everywhere";

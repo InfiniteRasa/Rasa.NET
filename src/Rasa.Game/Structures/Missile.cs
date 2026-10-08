@@ -16,6 +16,11 @@
         internal Game.Missions.World.ScriptedCombatAuthorization SourceCombatAuthorization { get; set; }
         /// <summary>Percent of DamageA that skips armour and comes straight off health (Torqueshell and Injection Guns skills).</summary>
         public int ArmorBypassPercent { get; set; }
+        /// <summary>
+        /// A player's weapon attack: what the modules in the weapon do on a hit - a steal, a
+        /// resist debuff - as the weapon had them when it was fired (ItemModuleBonuses.OnWeaponHit).
+        /// </summary>
+        public System.Collections.Generic.IReadOnlyList<Managers.ModuleProc> WeaponProcs { get; set; }
         /// <summary>The attack's damage type, as reported to the clients; 0 is treated as physical.</summary>
         public DamageType DamageType { get; set; }
         /// <summary>A melee swing rather than a shot: crouching helps a shot crit and helps a swing crit the one crouching.</summary>
@@ -57,6 +62,13 @@
         public Managers.CreatureArea? AreaOverride { get; set; }
         /// <summary>Where AreaOverride is centred, in place of the target's position.</summary>
         public System.Numerics.Vector3? AreaCentre { get; set; }
+        /// <summary>
+        /// Whether the to-hit roll went against it (ToHit): made as a weapon is fired, and null
+        /// for a missile that has not been rolled for, which is rolled for as it lands.
+        /// </summary>
+        public bool? Missed { get; set; }
+        /// <summary>A player's shot the server is holding for its flight (ShotFlight): it does not land if the shooter has left the map by then.</summary>
+        public bool HeldForFlight { get; set; }
         public long TriggerTime { get; set; }       // amount of milliseconds left before the missile is triggered, is decreased on every tick
         public MissileArgs Args = new MissileArgs();
     }

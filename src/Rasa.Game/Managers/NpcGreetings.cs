@@ -31,6 +31,26 @@ namespace Rasa.Managers
     /// conversation window. This is what most of the lines were for - the soldiers and
     /// villagers who stand about and say one thing. An NPC with no line of its own is as it
     /// was: nothing to say, and not to be spoken to.
+    ///
+    /// A line can be marked important (npc_greeting.important, Npc.GreetingImportant), and the
+    /// NPC then has the client's other greeting status in the same place, with nothing else to
+    /// talk about: CONVO_STATUS_IMPORTANT_GREETING, which overheadwindow.py draws as
+    /// OVERHEAD_DIALOG_AVAILABLE - a grey speech bubble over its head, in the manner of the
+    /// mission radios - and its conversation is the line under CONVO_TYPE_IMPORTANT_GREETING.
+    /// npc.py shows that one ahead of an ambient objective, a mission reminder and a shop, so
+    /// it is sent only where the plain greeting was: as the whole conversation. Which NPCs were
+    /// marked was the server's to know as well; a game master marks one (".greeting important"),
+    /// and one starts marked, by footage of the live game (NpcGreetingSeed.Marked).
+    ///
+    /// The bubble is for a line the player has not read. Footage of the live game shows it gone
+    /// from an NPC once the player has spoken to it, and not back. The client does none of
+    /// that - it draws the bubble for as long as the status says so - so the server keeps who
+    /// has read what (character_greeting_read, Manifestation.GreetingsRead): the NPC's creature
+    /// row and the line it was. Being shown a marked line as the conversation is reading it
+    /// (NpcManager.OpenConversation); from then on that character has the plain greeting
+    /// status and the plain greeting of that NPC, which still says the line when asked. The
+    /// line is kept with the row so that an NPC given another one is unread again - it has
+    /// something new to say.
     /// </summary>
     public static class NpcGreetings
     {
@@ -57,6 +77,96 @@ namespace Rasa.Managers
 
         /// <summary>Whether an NPC has a line of its own, and so can be spoken to for it.</summary>
         public static bool HasOwn(Creature creature) => creature?.Npc != null && creature.Npc.GreetingId != 0;
+
+        /// <summary>Whether an NPC's own line is marked important: the speech bubble over its head.</summary>
+        public static bool IsImportant(Creature creature) => HasOwn(creature) && creature.Npc.GreetingImportant;
+
+        /// <summary>Whether the character has read the NPC's own line - the one it has now.</summary>
+        public static bool HasRead(Manifestation player, Creature creature)
+        {
+            if (player == null || !HasOwn(creature))
+                return false;
+
+            lock (player.GreetingsRead)
+                return player.GreetingsRead.TryGetValue(creature.DbId, out var line) && line == creature.Npc.GreetingId;
+        }
+
+        /// <summary>
+        /// Whether the NPC has the speech bubble for this character: its line is marked
+        /// important and the character has not read it.
+        /// </summary>
+        public static bool IsUnread(Manifestation player, Creature creature) =>
+            IsImportant(creature) && !HasRead(player, creature);
+
+        /// <summary>
+        /// The character has read the NPC's line: kept for the character
+        /// (character_greeting_read), in place of any line of that NPC read before. False if
+        /// they had read it already, or there is no line of the NPC's own to have read.
+        ///
+        /// A read that cannot be saved still counts until the character logs out: the bubble
+        /// they have just answered does not stay over the NPC.
+        /// </summary>
+        public static bool MarkRead(Manifestation player, Creature creature, IGameUnitOfWorkFactory factory)
+        {
+            if (player == null || !HasOwn(creature) || creature.DbId == 0)
+                return false;
+
+            lock (player.GreetingsRead)
+            {
+                if (player.GreetingsRead.TryGetValue(creature.DbId, out var line) && line == creature.Npc.GreetingId)
+                    return false;
+
+                if (player.Id != 0)
+                {
+                    try
+                    {
+                        using var unitOfWork = factory.CreateChar();
+                        unitOfWork.CharacterGreetingReads.Set(player.Id, creature.DbId, creature.Npc.GreetingId);
+                    }
+                    catch (Exception e)
+                    {
+                        Logger.WriteLog(LogType.Error, $"Character {player.Id} reading greeting {creature.Npc.GreetingId} of creature {creature.DbId} was not saved: {e.Message}");
+                    }
+                }
+
+                player.GreetingsRead[creature.DbId] = creature.Npc.GreetingId;
+
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Forgets that the character has read the NPC, whichever line of it that was: its
+        /// marked line is unread for them again. False if they had read none or it could not
+        /// be taken out.
+        /// </summary>
+        public static bool Forget(Manifestation player, Creature creature, IGameUnitOfWorkFactory factory)
+        {
+            if (player == null || creature == null || creature.DbId == 0)
+                return false;
+
+            lock (player.GreetingsRead)
+            {
+                if (!player.GreetingsRead.ContainsKey(creature.DbId))
+                    return false;
+
+                if (player.Id != 0)
+                {
+                    try
+                    {
+                        using var unitOfWork = factory.CreateChar();
+                        unitOfWork.CharacterGreetingReads.Remove(player.Id, creature.DbId);
+                    }
+                    catch (Exception e)
+                    {
+                        Logger.WriteLog(LogType.Error, $"Character {player.Id} having read creature {creature.DbId} was not forgotten: {e.Message}");
+                        return false;
+                    }
+                }
+
+                return player.GreetingsRead.Remove(creature.DbId);
+            }
+        }
 
         /// <summary>Whether the client has a greeting of this id.</summary>
         public static bool IsLine(uint greetingId)
@@ -112,6 +222,35 @@ namespace Rasa.Managers
             }
 
             creature.Npc.GreetingId = 0;
+            creature.Npc.GreetingImportant = false;
+
+            return true;
+        }
+
+        /// <summary>
+        /// Marks an NPC's own line important, or plain again, kept in the world database with
+        /// the line (npc_greeting.important). False if it has no line of its own - there is
+        /// nothing to mark - or it could not be kept.
+        /// </summary>
+        public static bool SetImportant(Creature creature, bool important, IGameUnitOfWorkFactory factory)
+        {
+            if (!HasOwn(creature))
+                return false;
+
+            try
+            {
+                using var unitOfWork = factory.CreateWorld();
+
+                if (!unitOfWork.Creatures.SaveNpcGreetingImportant(creature.DbId, important))
+                    return false;
+            }
+            catch (Exception e)
+            {
+                Logger.WriteLog(LogType.Error, $"The greeting of creature {creature.DbId} was not marked: {e.Message}");
+                return false;
+            }
+
+            creature.Npc.GreetingImportant = important;
 
             return true;
         }

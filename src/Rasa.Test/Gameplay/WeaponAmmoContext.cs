@@ -42,6 +42,8 @@ namespace Rasa.Test.Gameplay
 
         internal WeaponAmmoContext(uint clip = 7, uint characterId = 1)
         {
+            // No clip of an earlier test's is waiting to be written to this one's database.
+            WeaponClips.Reset();
             System.IO.Directory.CreateDirectory(_directory);
             using (var context = Open())
                 context.Database.Migrate();
@@ -309,6 +311,8 @@ namespace Rasa.Test.Gameplay
 
         public void Dispose()
         {
+            // Nor one of this test's to a database that is about to be deleted.
+            WeaponClips.Reset();
             ManifestationManager.Instance.RemovePlayerCharacter(Client);
             foreach (var entityId in _items.Select(item => item.EntityId).Distinct())
             {

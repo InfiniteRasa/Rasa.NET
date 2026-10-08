@@ -70,6 +70,172 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
+        public void LoaderReadsThePoolsPoseAndEveryCopyOfTheMapKeepsIt()
+        {
+            var data = new SpawnData();
+            data.Pools.Add(new SpawnPoolEntry { Id = 55, MapContextId = 1220 });
+            data.Pools.Add(new SpawnPoolEntry { Id = 56, MapContextId = 1220 });
+            data.Pools.Add(new SpawnPoolEntry { Id = 57, MapContextId = 1220 });
+            data.Poses.Add(new SpawnPoolPoseEntry { Id = 55, Pose = 2 });
+            data.Poses.Add(new SpawnPoolPoseEntry { Id = 57, Pose = 77 });
+            data.Poses.Add(new SpawnPoolPoseEntry { Id = 99, Pose = 1 });
+            var manager = new SpawnPoolManager(data);
+
+            manager.SpawnPoolInit();
+
+            Assert.AreEqual(Data.NpcPose.WeaponOut, manager.LoadedSpawnPools[55].Pose);
+            Assert.AreEqual(Data.NpcPose.None, manager.LoadedSpawnPools[56].Pose);
+            Assert.AreEqual(Data.NpcPose.None, manager.LoadedSpawnPools[57].Pose, "A number that is no pose is none.");
+            Assert.HasCount(3, manager.LoadedSpawnPools, "A row for a pool there is not is passed over.");
+
+            var map = CreateMap();
+            manager.InitializeMapChannel(map);
+
+            Assert.AreEqual(Data.NpcPose.WeaponOut, map.SpawnPools.Single(pool => pool.DbId == 55).Pose);
+        }
+
+        [TestMethod]
+        public void LoaderReadsThePoolsPatrolInStepOrderAndEveryCopyOfTheMapKeepsIt()
+        {
+            var data = new SpawnData();
+            data.Pools.Add(new SpawnPoolEntry { Id = 55, MapContextId = 1220 });
+            data.Pools.Add(new SpawnPoolEntry { Id = 56, MapContextId = 1220 });
+            data.Pools.Add(new SpawnPoolEntry { Id = 57, MapContextId = 1220 });
+            data.Patrols.Add(new SpawnPoolPatrolEntry { PoolId = 55, Step = 2, PosX = 9, PosY = 1, PosZ = 3 });
+            data.Patrols.Add(new SpawnPoolPatrolEntry { PoolId = 55, Step = 1, PosX = 5, PosY = 1, PosZ = 3, Facing = 0.5, PauseMs = 4000 });
+            data.Patrols.Add(new SpawnPoolPatrolEntry { PoolId = 57, Step = 0, PosX = 5, PosY = 1, PosZ = 3 });
+            data.Patrols.Add(new SpawnPoolPatrolEntry { PoolId = 99, Step = 0, PosX = 5, PosY = 1, PosZ = 3 });
+            data.Poses.Add(new SpawnPoolPoseEntry { Id = 56, Pose = 2 });
+            data.Poses.Add(new SpawnPoolPoseEntry { Id = 57, Pose = 2 });
+            var manager = new SpawnPoolManager(data);
+
+            manager.SpawnPoolInit();
+
+            var beat = manager.LoadedSpawnPools[55].Patrol;
+
+            Assert.HasCount(2, beat);
+            Assert.AreEqual(new Vector3(5, 1, 3), beat[0].Position);
+            Assert.AreEqual(0.5f, beat[0].Facing);
+            Assert.AreEqual(4000L, beat[0].PauseMs);
+            Assert.AreEqual(new Vector3(9, 1, 3), beat[1].Position);
+            Assert.IsNull(beat[1].Facing);
+            Assert.IsNull(manager.LoadedSpawnPools[56].Patrol);
+            Assert.AreEqual(Data.NpcPose.WeaponOut, manager.LoadedSpawnPools[56].Pose);
+            Assert.HasCount(3, manager.LoadedSpawnPools, "A row for a pool there is not is passed over.");
+
+            // A pose is for standing at a post: a pool with a beat walks it, and has none.
+            Assert.HasCount(1, manager.LoadedSpawnPools[57].Patrol);
+            Assert.AreEqual(Data.NpcPose.None, manager.LoadedSpawnPools[57].Pose);
+
+            var map = CreateMap();
+            manager.InitializeMapChannel(map);
+
+            Assert.AreSame(beat, map.SpawnPools.Single(pool => pool.DbId == 55).Patrol);
+            Assert.IsNull(map.SpawnPools.Single(pool => pool.DbId == 56).Patrol);
+        }
+
+        [TestMethod]
+        public void TheCreatureOfAPoolWithAPatrolIsMadeOnThePoolsPointFacingItsWayWithItsBeat()
+        {
+            using var world = new WorldTestContext();
+            using var runtime = new SpawnRuntime(world.Map, new SpawnData());
+            var officerClass = unchecked((Data.EntityClasses)(-2));
+            world.AddClass(officerClass);
+            EntityClassManager.Instance.LoadedEntityClasses[officerClass].Augmentations.Add(Data.AugmentationType.Creature);
+
+            runtime.Creatures.LoadedCreatures[3] = new Creature { DbId = 3, EntityClass = officerClass, WalkSpeed = 1, AppearanceData = new() };
+
+            var beat = new[] { new PatrolStep(new Vector3(10, 0, 10)), new PatrolStep(new Vector3(14, 0, 10)) };
+            var pool = CreatePool();
+            pool.UpdateTimer = pool.RespawnTime;
+            pool.Position = new Vector3(10, 0, 10);
+            pool.Rotation = 1.5;
+            pool.Patrol = beat;
+            pool.SpawnSlot.Add(new SpawnPoolSlot(3, 1, 1));
+            var loose = CreatePool();
+            loose.DbId = 56;
+            loose.UpdateTimer = loose.RespawnTime;
+            loose.Position = new Vector3(20, 0, 10);
+            loose.SpawnSlot.Add(new SpawnPoolSlot(3, 1, 1));
+            var manager = new SpawnPoolManager(null);
+            manager.LoadedSpawnPools.Add(pool.DbId, pool);
+            manager.LoadedSpawnPools.Add(loose.DbId, loose);
+
+            manager.SpawnPoolWorker(world.Map, 0);
+
+            var officer = EntityManager.Instance.Creatures.Values.Single(creature => creature.SpawnPool == pool);
+            var other = EntityManager.Instance.Creatures.Values.Single(creature => creature.SpawnPool == loose);
+
+            Assert.AreSame(beat, officer.Patrol);
+            Assert.AreEqual(new Vector3(10, 0, 10), officer.Position);
+            Assert.AreEqual(1.5f, officer.LastYaw, "The way it is shown standing is the way its first turn is measured from.");
+            Assert.IsTrue(Patrols.Has(officer));
+
+            Assert.IsNull(other.Patrol);
+            Assert.IsFalse(Patrols.Has(other));
+        }
+
+        [TestMethod]
+        [DataRow(Data.NpcPose.WeaponOut)]
+        [DataRow(Data.NpcPose.Sitting)]
+        public void ACreatureOfAPosedPoolIsMadeInItsPoseFacingThePoolsWay(Data.NpcPose pose)
+        {
+            const uint rifle = 27220;
+
+            using var world = new WorldTestContext();
+            using var runtime = new SpawnRuntime(world.Map, new SpawnData());
+            var soldierClass = unchecked((Data.EntityClasses)(-2));
+            world.AddClass(soldierClass);
+            EntityClassManager.Instance.LoadedEntityClasses[soldierClass].Augmentations.Add(Data.AugmentationType.Creature);
+
+            var template = new Creature
+            {
+                DbId = 3,
+                EntityClass = soldierClass,
+                AppearanceData = new()
+                {
+                    [Data.EquipmentData.Weapon] = new AppearanceData { SlotId = Data.EquipmentData.Weapon, Class = rifle, Color = new Color(1), Hue2 = new Color(1) }
+                }
+            };
+            runtime.Creatures.LoadedCreatures[3] = template;
+
+            var pool = CreatePool();
+            pool.UpdateTimer = pool.RespawnTime;
+            pool.Position = new Vector3(10, 0, 10);
+            pool.Rotation = 1.5;
+            pool.Pose = pose;
+            pool.SpawnSlot.Add(new SpawnPoolSlot(3, 1, 1));
+            var unposed = CreatePool();
+            unposed.DbId = 56;
+            unposed.UpdateTimer = unposed.RespawnTime;
+            unposed.Position = new Vector3(20, 0, 10);
+            unposed.SpawnSlot.Add(new SpawnPoolSlot(3, 1, 1));
+            var manager = new SpawnPoolManager(null);
+            manager.LoadedSpawnPools.Add(pool.DbId, pool);
+            manager.LoadedSpawnPools.Add(unposed.DbId, unposed);
+
+            manager.SpawnPoolWorker(world.Map, 0);
+
+            var posed = EntityManager.Instance.Creatures.Values.Single(creature => creature.SpawnPool == pool);
+            var other = EntityManager.Instance.Creatures.Values.Single(creature => creature.SpawnPool == unposed);
+
+            Assert.AreEqual(pose, posed.Pose);
+            Assert.IsTrue(posed.PoseShown, "It is in its pose before anyone is shown it.");
+            Assert.AreEqual(1.5f, posed.PostYaw);
+            Assert.AreEqual(1.5, posed.Rotation);
+            Assert.AreEqual(pose == Data.NpcPose.WeaponOut, posed.WeaponDrawn);
+            Assert.AreEqual(pose == Data.NpcPose.Sitting ? NpcPoses.SittingClass : rifle, posed.AppearanceData[Data.EquipmentData.Weapon].Class);
+
+            // The creature of a pool with no pose, made from the same template, is as it ever was.
+            Assert.AreEqual(Data.NpcPose.None, other.Pose);
+            Assert.IsFalse(other.PoseShown);
+            Assert.IsNull(other.PostYaw);
+            Assert.IsFalse(other.WeaponDrawn);
+            Assert.AreEqual(rifle, other.AppearanceData[Data.EquipmentData.Weapon].Class);
+            Assert.AreEqual(rifle, template.AppearanceData[Data.EquipmentData.Weapon].Class);
+        }
+
+        [TestMethod]
         public void WorkerOnlyAdvancesPoolsOnItsOwnMap()
         {
             var manager = new SpawnPoolManager(null);
@@ -689,6 +855,10 @@ namespace Rasa.Test.World
         private sealed class SpawnData : IGameUnitOfWorkFactory, IWorldUnitOfWork, ISpawnpoolRepository, ISpawnPoolArrivalRepository, ICreatureRepository
         {
             public List<SpawnPoolEntry> Pools { get; } = new();
+            public List<SpawnPoolPoseEntry> Poses { get; } = new();
+            public List<SpawnPoolPoseEntry> GetPoses() => Poses;
+            public List<SpawnPoolPatrolEntry> Patrols { get; } = new();
+            public List<SpawnPoolPatrolEntry> GetPatrols() => Patrols;
             public Action<uint> ReadStats { get; set; }
             public ISpawnpoolRepository Spawnpools => this;
             public IMapEmitterRepository MapEmitters => null;

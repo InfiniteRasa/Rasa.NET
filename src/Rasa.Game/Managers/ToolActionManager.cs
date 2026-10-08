@@ -49,11 +49,13 @@ namespace Rasa.Managers
     /// its maxAmt. A level 5-9 healing disc heals 127, its field repair counterpart repairs 190,
     /// and both scale to five figures at the cap.
     ///
-    /// Three things the client does that the server cannot match yet, marked ToDo rather than
-    /// guessed at: creature flags (BIOLOGICAL / MECHANICAL / MACHINA) are not loaded server-side,
-    /// there is no cipherable flag on dynamic objects, and the cone and radial variants are
-    /// treated as single-target because ae_radius is a placeholder 1 on all 2440
-    /// itemtemplate_weapon rows. All three refuse or narrow conservatively.
+    /// What a tool may be used on goes by the creature's flags, as the client's checks do
+    /// (BIOLOGICAL, MECHANICAL, MACHINA): harvesting, the repair tool and the dead, and the
+    /// healing disc (<see cref="DiscHeals"/>).
+    ///
+    /// One thing the client does that the server cannot match yet: the cone and radial variants
+    /// are treated as single-target, because ae_radius is a placeholder 1 on all 2440
+    /// itemtemplate_weapon rows.
     /// </summary>
     public class ToolActionManager
     {
@@ -306,13 +308,11 @@ namespace Rasa.Managers
         {
             var perShot = tool.ItemTemplate.WeaponInfo?.AmmoPerShot ?? 0;
 
+            // Out of the clip in memory, as a shot's are; the row is written later (WeaponClips).
             if (perShot > 0 && tool.CurrentAmmo >= perShot)
             {
-                tool.CurrentAmmo -= perShot;
+                WeaponClips.Spend(client, tool, perShot, _gameUnitOfWorkFactory);
                 client.CallMethod(tool.EntityId, new WeaponAmmoInfoPacket(tool.CurrentAmmo));
-
-                using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
-                unitOfWork.Items.UpdateAmmo(tool);
             }
 
             // A tool barrel heats like any other. Done after the shot is paid for, so a shot that
@@ -436,10 +436,12 @@ namespace Rasa.Managers
 
                 case ActionId.ToolFieldRepair:
                 {
-                    // Armour on a player, health on a creature. repairtool.py refuses a dead
-                    // player but allows a machina, so health is what brings a downed bot back
-                    // and armour is what the tool does for a trooper. The hit data carries both
-                    // slots either way and the client announces whichever is non-zero.
+                    // Armour on a player, health on a creature: armour is what the tool does for
+                    // a trooper, health for a bot. The hit data carries both slots either way and
+                    // the client announces whichever is non-zero. Neither goes onto the dead
+                    // (RestoreArmor, Heal): a target that died during the windup takes nothing,
+                    // and a downed machine, which the tool may be aimed at, is not brought back
+                    // by it yet.
                     var isPlayer = EntityManager.Instance.Players.ContainsKey(target.EntityId);
 
                     var armored = isPlayer
@@ -848,22 +850,47 @@ namespace Rasa.Managers
             if (IsRestoringTool(packet.ActionId) && !Pvp.MayHelp(client.Player, targetActor))
                 return PlayerMessage.PmTargetInvalid;
 
-            // repairtool.py refuses a dead player outright; healdisc.py allows a corpse only at
-            // Healing 3 or better. ToDo: repairtool also refuses dead BIOLOGICAL creatures, which
-            // needs creature flags.
+            // A dead target. The healing disc may be aimed at one at Healing 3 (healdisc.py
+            // canTargetDead), and below it targetedaction.py says ACTION_FAILED_TARGET_DEAD. The
+            // repair tool is a healing disc (repairtool.py: RepairToolAction(HealDiscAction)) with
+            // a check of its own after that one, ExtraCheckAction: a dead player, and a dead
+            // creature that HasFlag(BIOLOGICAL), are TARGET_INVALID. What it may be aimed at dead
+            // is a machine - or a creature whose class says neither, as the client has it.
             if (targetActor.State == CharacterState.Dead)
             {
-                if (packet.ActionId == ActionId.ToolFieldRepair && player != null)
-                    return PlayerMessage.PmTargetInvalid;
-
-                if (packet.ActionId == ActionId.ToolHealingDisc && !CanTargetCorpse(client))
-                    return PlayerMessage.PmActionFailedTargetDead;
-
                 if (packet.ActionId == ActionId.ToolArmorAugmentation || packet.ActionId == ActionId.ToolNerfweapon)
                     return PlayerMessage.PmActionFailedTargetDead;
+
+                if (!CanTargetCorpse(client))
+                    return PlayerMessage.PmActionFailedTargetDead;
+
+                if (packet.ActionId == ActionId.ToolFieldRepair && (player != null || AbilityManager.IsBiologicalCorpse(creature)))
+                    return PlayerMessage.PmTargetInvalid;
             }
 
+            // The healing disc's own check, after all of the above as in the client's
+            // CheckAction (healdisc.py ExtraCheckAction): a creature that is neither BIOLOGICAL
+            // nor MACHINA is TARGET_INVALID, alive or dead. The repair tool has a check of its
+            // own in place of this one, and the armour augmentation has none.
+            if (packet.ActionId == ActionId.ToolHealingDisc && creature != null && !DiscHeals(creature))
+                return PlayerMessage.PmTargetInvalid;
+
             return null;
+        }
+
+        /// <summary>
+        /// Whether a creature is one the healing disc works on: healdisc.py's
+        /// "target.HasFlag(creatureflag.BIOLOGICAL) or target.HasFlag(creatureflag.MACHINA)".
+        /// The client asks that of the flags it was sent in CreatureInfo, and those are what is
+        /// asked here - the class's and the creature's own (CreatureManager.CreatureFlagsOf) -
+        /// so the two never disagree: a creature the server refuses is one the client would not
+        /// let the disc be aimed at. A class with no flags at all is neither, to both.
+        /// </summary>
+        public static bool DiscHeals(Creature creature)
+        {
+            var flags = CreatureManager.CreatureFlagsOf(creature);
+
+            return flags.Contains((int)CreatureFlag.Biological) || flags.Contains((int)CreatureFlag.Machina);
         }
 
         private static PlayerMessage? ValidateHarvestTarget(Client client, RequestToolActionPacket packet,

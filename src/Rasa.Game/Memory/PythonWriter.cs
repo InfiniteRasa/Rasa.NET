@@ -122,6 +122,18 @@ namespace Rasa.Memory
                 Writer.Write((byte) 0x20);
         }
 
+        /// <summary>
+        /// The number the other side reads for one written with <see cref="WriteDouble"/>: the
+        /// nearest single-precision one, unless that is 0.01 or more away. 0.05 is read as
+        /// 0.0500000007..., and what the client then works out from it - a tooltip's amount,
+        /// rounded up - is worked out from that. Anything the server has to work out the same
+        /// way starts from this.
+        /// </summary>
+        public static double AsRead(double value)
+        {
+            return Math.Abs(value - (float) value) < 0.01D ? (float) value : value;
+        }
+
         public void WriteDouble(double value)
         {
             if (Math.Abs(value) < double.Epsilon)

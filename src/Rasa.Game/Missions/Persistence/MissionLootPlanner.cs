@@ -175,25 +175,81 @@ namespace Rasa.Game.Missions.Persistence
                 !protectedIds.Contains(item.ItemId)).Sum(item => (long)item.StackSize);
         }
 
-        internal static void ValidateReferences(Mission mission, IWorldUnitOfWork unit)
+        /// <summary>
+        /// The World tables that mission and actor loot is checked against, each read the first
+        /// time it is asked for and kept for as long as this is: the mission catalog checks
+        /// every mission with a drop as it loads, and the item templates alone are some thirty
+        /// thousand rows.
+        /// </summary>
+        internal sealed class WorldReferences
+        {
+            private readonly IWorldUnitOfWork _unit;
+            private HashSet<uint> _creatures;
+            private HashSet<uint> _maps;
+            private HashSet<uint> _templates;
+            private List<Rasa.Structures.World.ItemTemplateItemClassEntry> _linkRows;
+            private HashSet<uint> _classed;
+            private Dictionary<uint, uint> _links;
+            private Dictionary<uint, uint> _classes;
+            private HashSet<uint> _entityClasses;
+
+            internal WorldReferences(IWorldUnitOfWork unit)
+            {
+                _unit = unit;
+            }
+
+            internal IWorldUnitOfWork Unit => _unit;
+
+            /// <summary>creature.id of every creature row.</summary>
+            internal HashSet<uint> Creatures => _creatures ??= _unit.Creatures.Get().Select(entry => entry.Id).ToHashSet();
+
+            /// <summary>The map context ids there are.</summary>
+            internal HashSet<uint> Maps => _maps ??= _unit.MapInfos.Get().Select(entry => entry.Id).ToHashSet();
+
+            /// <summary>The item template ids there are.</summary>
+            internal HashSet<uint> Templates => _templates ??= _unit.Equipment.GetItemTemplates().Select(entry => entry.Id).ToHashSet();
+
+            private List<Rasa.Structures.World.ItemTemplateItemClassEntry> LinkRows => _linkRows ??= _unit.Equipment.GetItemTemplateClasses();
+
+            /// <summary>The item templates that have an item class.</summary>
+            internal HashSet<uint> ClassedTemplates => _classed ??= LinkRows.Select(entry => entry.ItemTemplateId).ToHashSet();
+
+            /// <summary>Item template to its item class.</summary>
+            internal Dictionary<uint, uint> TemplateClasses =>
+                _links ??= LinkRows.ToDictionary(entry => entry.ItemTemplateId, entry => entry.ItemClass);
+
+            /// <summary>Item class to its stack size.</summary>
+            internal Dictionary<uint, uint> StackSizes =>
+                _classes ??= _unit.Equipment.GetItemClasses().ToDictionary(entry => entry.Id, entry => entry.StackSize);
+
+            /// <summary>The entity class ids there are.</summary>
+            internal HashSet<uint> EntityClasses => _entityClasses ??= _unit.EntityClasses.Get().Select(entry => entry.Id).ToHashSet();
+        }
+
+        internal static void ValidateReferences(Mission mission, IWorldUnitOfWork unit) =>
+            ValidateReferences(mission, new WorldReferences(unit));
+
+        /// <param name="references">Shared by the caller across missions, so the tables are read once and not once a mission.</param>
+        internal static void ValidateReferences(Mission mission, WorldReferences references)
         {
             var bindings = mission.Items.Values.Where(binding => binding.Drop != null).ToArray();
             if (bindings.Length == 0)
                 return;
-            var creatures = (unit.Creatures
-                ?? throw new MissionRuleException("Mission loot validation requires the World creature repository."))
-                .Get().Select(entry => entry.Id).ToHashSet();
-            var maps = (unit.MapInfos
-                ?? throw new MissionRuleException("Mission loot validation requires the World map repository."))
-                .Get().Select(entry => entry.Id).ToHashSet();
-            var equipment = unit.Equipment
-                ?? throw new MissionRuleException("Mission loot validation requires the World equipment repository.");
-            var templates = equipment.GetItemTemplates().Select(entry => entry.Id).ToHashSet();
-            var links = equipment.GetItemTemplateClasses().ToDictionary(entry => entry.ItemTemplateId, entry => entry.ItemClass);
-            var classes = equipment.GetItemClasses().ToDictionary(entry => entry.Id, entry => entry.StackSize);
-            var entityClasses = (unit.EntityClasses
-                ?? throw new MissionRuleException("Mission loot validation requires the World entity-class repository."))
-                .Get().Select(entry => entry.Id).ToHashSet();
+            var unit = references.Unit;
+            if (unit.Creatures == null)
+                throw new MissionRuleException("Mission loot validation requires the World creature repository.");
+            var creatures = references.Creatures;
+            if (unit.MapInfos == null)
+                throw new MissionRuleException("Mission loot validation requires the World map repository.");
+            var maps = references.Maps;
+            if (unit.Equipment == null)
+                throw new MissionRuleException("Mission loot validation requires the World equipment repository.");
+            var templates = references.Templates;
+            var links = references.TemplateClasses;
+            var classes = references.StackSizes;
+            if (unit.EntityClasses == null)
+                throw new MissionRuleException("Mission loot validation requires the World entity-class repository.");
+            var entityClasses = references.EntityClasses;
             foreach (var binding in bindings)
             {
                 if (MissionItemValidation.BindingError(binding) is { } error)

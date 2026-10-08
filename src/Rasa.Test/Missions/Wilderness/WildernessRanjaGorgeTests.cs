@@ -1184,8 +1184,15 @@ namespace Rasa.Test.Missions.Wilderness
                 target.Attributes[Attributes.Armor].Current < armor,
                 "The equipped reward must deal real damage through the native weapon request.");
             Assert.IsTrue(weapon.CurrentAmmo < ammunition);
-            using var unit = harness.CreateChar();
-            Assert.AreEqual(weapon.CurrentAmmo, unit.Items.GetItem(weapon.Id).AmmoCount);
+
+            // Out of the clip in memory; the row is written when the clip is saved (WeaponClips).
+            using (var unit = harness.CreateChar())
+                Assert.AreEqual(ammunition, unit.Items.GetItem(weapon.Id).AmmoCount);
+
+            WeaponClips.Save(weapon);
+
+            using (var unit = harness.CreateChar())
+                Assert.AreEqual(weapon.CurrentAmmo, unit.Items.GetItem(weapon.Id).AmmoCount);
         }
     }
 }

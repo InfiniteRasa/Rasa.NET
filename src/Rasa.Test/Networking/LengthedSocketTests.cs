@@ -205,6 +205,36 @@ namespace Rasa.Test.Networking
             Assert.AreEqual(1, disconnects);
         }
 
+        [TestMethod]
+        public void ClosingAConnectionTheOtherSideHasResetDoesNotThrow()
+        {
+            // A connection this side made, whose address nobody has asked for yet: the game
+            // server's link to the Auth server is one. The other side resets it, and no receive
+            // is armed here to be told so, so the socket still counts itself connected.
+            using var listener = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            listener.Bind(new IPEndPoint(IPAddress.Loopback, 0));
+            listener.Listen(1);
+
+            using var connected = new ManualResetEventSlim();
+            var transport = new LengthedSocket(SizeType.Word);
+            transport.OnConnect = _ => connected.Set();
+            transport.OnError = _ => { };
+            transport.ConnectAsync(listener.LocalEndPoint);
+
+            var accepted = listener.Accept();
+            Assert.IsTrue(connected.Wait(TimeSpan.FromSeconds(5)), "connected");
+
+            accepted.LingerState = new LingerOption(true, 0);
+            accepted.Close();
+            Assert.IsTrue(transport.Socket.Poll(5_000_000, SelectMode.SelectRead), "the reset has arrived");
+
+            // Close reads the address for whoever logs it afterwards, and the system may have
+            // none to give for a connection that has been reset.
+            transport.Close();
+
+            Assert.IsFalse(transport.Connected);
+        }
+
         private static async Task<(Socket Sender, Socket Accepted)> ConnectAsync()
         {
             using var listener = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);

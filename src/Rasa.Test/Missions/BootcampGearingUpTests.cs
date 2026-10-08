@@ -404,8 +404,16 @@ namespace Rasa.Test.Missions
 
             Assert.IsTrue(manifestation.PlayerTryFireWeapon(harness.Client));
             Assert.AreEqual(19U, weapon.CurrentAmmo);
-            using var unit = harness.Context.CreateChar();
-            Assert.AreEqual(19U, unit.Items.GetItem(weapon.Id).AmmoCount);
+
+            // The shot is out of the clip in memory; its row is written when the clip is saved
+            // (WeaponClips), and holds the reload's 20 until then.
+            using (var unit = harness.Context.CreateChar())
+                Assert.AreEqual(20U, unit.Items.GetItem(weapon.Id).AmmoCount);
+
+            Rasa.Managers.WeaponClips.Save(weapon);
+
+            using (var unit = harness.Context.CreateChar())
+                Assert.AreEqual(19U, unit.Items.GetItem(weapon.Id).AmmoCount);
         }
 
         private static void AssertMissionOrder(

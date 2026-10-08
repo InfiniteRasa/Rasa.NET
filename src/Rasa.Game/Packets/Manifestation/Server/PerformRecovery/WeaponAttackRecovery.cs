@@ -26,27 +26,13 @@
             pw.WriteList(Missile.Args.MisstEntities.Count);  // misses
             foreach (var entity in Missile.Args.MisstEntities)
                 pw.WriteULong(entity);
-            pw.WriteList(Missile.Args.Missdata.Count);       // missdata: a misstype for each miss
-            foreach (var missType in Missile.Args.Missdata)
-                pw.WriteUInt(missType);
+            DamageInfoWriter.WriteMissTypes(pw, Missile.Args.Missdata);  // missdata: a misstype for each miss
             pw.WriteList(Missile.Args.HitData.Count);
             foreach (var hit in Missile.Args.HitData)
             {
                 pw.WriteTuple(3);
                 pw.WriteULong(hit.EntityId);         // target entityid
-                pw.WriteTuple(12);              // rawinfo start
-                    pw.WriteUInt((uint)TypeOf(hit));    // self.damagetype
-                    pw.WriteUInt(hit.Reflected);        // self.reflected
-                    pw.WriteUInt(hit.Filtered);         // self.filtered
-                    pw.WriteUInt(hit.Absorbed);         // self.absorbed
-                    pw.WriteUInt(hit.Resisted);         // self.resisted
-                    pw.WriteLong(hit.FinalAmt);         // self.finalamt: each hit its own (a launcher's splash)
-                    pw.WriteInt(hit.IsCritical);        // self.iscrit
-                    pw.WriteInt(hit.DeathBlow);         // self.deathblow
-                    pw.WriteDouble(hit.CoverModifier);    // self.covermodifier
-                    pw.WriteInt(hit.WasImune);          // self.wasimmune
-                    pw.WriteList(0);                    // todo: targeteffectids
-                    pw.WriteList(0);                    // todo: sourceeffectids
+                DamageInfoWriter.WriteRawInfo(pw, hit, TypeOf(hit));    // rawInfo, with the effects the hit put on its target
                 pw.WriteTuple(1);                   // OnHitData
                 pw.WriteList(0);
             }

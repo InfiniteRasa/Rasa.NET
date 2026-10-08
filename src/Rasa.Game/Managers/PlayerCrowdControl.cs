@@ -25,25 +25,33 @@ namespace Rasa.Managers
     /// On the client:
     /// - a stun is STUN (86): StunEffect.OnAnnounceAttach puts the player in its uncontrolled
     ///   state with movement blocked, and OnDetach lets them go;
-    /// - a knockback is KNOCKBACK (8), KnockbackEffect.OnAttach(target, duration). The client
-    ///   has a native KnockbackState, but nothing in its Python starts it, so the server moves the
-    ///   player itself: the same destination a creature is knocked to (CrowdControl
-    ///   KnockbackDestination - straight away from the source, stopped where the navmesh ends),
-    ///   set as their position and sent to them and everyone around (MoveObject), with movement
-    ///   blocked (RequestMovementBlock) until the effect ends - the flight at KnockbackSpeed and
-    ///   GetupMs on the ground.
+    /// - a knockback is KNOCKBACK (8), KnockbackEffect.OnAttach(target, duration), which only
+    ///   keeps the duration. What throws the player is the movement: a MoveObject of
+    ///   MovementType.Knockback puts their controller into its KnockbackState, which flies the
+    ///   arc to the position at KnockbackSpeed and keeps them down for GetupMs, stunned and then
+    ///   blocked, on their own client and on everyone's who sees them. The position is the
+    ///   destination a creature is knocked to (CrowdControl KnockbackDestination - straight away
+    ///   from the source, stopped where the navmesh ends). The server has them there from the
+    ///   start, with movement blocked (RequestMovementBlock) until the effect ends - the flight
+    ///   and the getup, the same length as the client's state.
     ///
     /// Either is a stun on the server (GameEffect.IsStun, Stuns.IsStunned): no weapon fire,
     /// melee or abilities until it ends.
     ///
     /// Graviton Armor: "Knockback / Stun Resist: X%" (+3% a pump per piece): the chance that a
     /// stun or knockback does not land at all (GameEffectManager.KnockbackStunResistOf), shown
-    /// as "Resisted" when it does not.
+    /// as "Resisted" when it does not. An armor module's "Resist: Stun" or "Resist: Knockback"
+    /// adds to it for its own kind (ItemModuleBonuses.ControlResistPercent).
     /// </summary>
     public static class PlayerCrowdControl
     {
-        /// <summary>The chance, in percent, that a stun or knockback on this actor is resisted: its Graviton Armor, at most 100.</summary>
-        public static int ResistPercent(Actor actor) => Math.Min(100, GameEffectManager.KnockbackStunResistOf(actor));
+        /// <summary>
+        /// The chance, in percent, that a stun or a knockback on this actor is resisted: its
+        /// Graviton Armor, which is for both, and its item modules' Resist for the one it is
+        /// (ItemModuleBonuses) - at most 100.
+        /// </summary>
+        public static int ResistPercent(Actor actor, DamageType kind) =>
+            Math.Min(100, GameEffectManager.KnockbackStunResistOf(actor) + ItemModuleBonuses.ControlResistPercent(actor, kind));
 
         private static bool CanBeHeld(Manifestation player)
         {
@@ -62,7 +70,7 @@ namespace Rasa.Managers
             if (!CanBeHeld(player) || durationMs <= 0 || mapChannel == null)
                 return false;
 
-            if (Stuns.Roll(ResistPercent(player)))
+            if (Stuns.Roll(ResistPercent(player, DamageType.Stun)))
             {
                 Resisted(mapChannel, player, Stuns.StunTypeId, source);
                 return false;
@@ -89,7 +97,7 @@ namespace Rasa.Managers
 
         /// <summary>
         /// Knocks a player back distance metres from source, unless their Graviton Armor resists
-        /// it: moved to where the knockback ends, and held there for the flight, the getup and
+        /// it: thrown to where the knockback ends, and held there for the flight, the getup and
         /// extraStunMs more. Returns whether it landed.
         /// </summary>
         public static bool Knockback(MapChannel mapChannel, Manifestation player, Actor source, float distance, int extraStunMs = 0)
@@ -97,7 +105,7 @@ namespace Rasa.Managers
             if (!CanBeHeld(player) || source == null || distance <= 0f || mapChannel == null)
                 return false;
 
-            if (Stuns.Roll(ResistPercent(player)))
+            if (Stuns.Roll(ResistPercent(player, DamageType.KnockBack)))
             {
                 Resisted(mapChannel, player, CrowdControl.KnockbackTypeId, source);
                 return false;
@@ -134,8 +142,8 @@ namespace Rasa.Managers
             {
                 player.PlaceAt(destination);
 
-                // To them and to everyone around: the player is where the knockback left them.
-                var movement = new Movement(destination, client.Movement?.ViewDirection ?? new Vector2(0f, 0f));
+                // To them and to everyone around: thrown to where the knockback leaves them.
+                var movement = Movement.Knockback(destination, client.Movement?.ViewDirection ?? new Vector2(0f, 0f));
                 client.CellMoveObject(client, new MoveObjectMessage(player.EntityId, movement), false);
             }
 
@@ -211,7 +219,7 @@ namespace Rasa.Managers
             if (Vector3.Distance(player.Position, destination) <= 0.1f)
                 return false;
 
-            if (Stuns.Roll(ResistPercent(player)))
+            if (Stuns.Roll(ResistPercent(player, DamageType.KnockBack)))
             {
                 Resisted(mapChannel, player, CrowdControl.KnockbackTypeId, puller);
                 return false;

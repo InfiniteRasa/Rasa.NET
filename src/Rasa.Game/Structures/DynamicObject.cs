@@ -20,6 +20,17 @@ namespace Rasa.Structures
         public object ObjectData { get; set; }
         public Vector3 Position { get; set; }
         public double Rotation { get; set; }
+
+        /// <summary>
+        /// Where the object is filed in its map's cells when that is not where it stands: scenery
+        /// that is in sight from further off than the two cells around its own (SecretPassages).
+        /// Null for everything else.
+        /// </summary>
+        public Vector3? CellAnchor { get; set; }
+
+        /// <summary>The position that picks the object's cell, and with it who is shown the object.</summary>
+        public Vector3 CellPosition => CellAnchor ?? Position;
+
         public uint MapContextId { get; set; }
         public MapChannel RuntimeMapChannel { get; set; }
 

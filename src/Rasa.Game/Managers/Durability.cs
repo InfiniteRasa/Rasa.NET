@@ -284,7 +284,13 @@ namespace Rasa.Managers
             ItemManager.Instance.SaveHitPoints(item);
 
             if (after == 0)
+            {
                 client.CallMethod(item.EntityId, isArmor ? (PythonPacket)new ArmorBrokenPacket() : new WeaponBrokenPacket());
+
+                // Broken, its modules give nothing either (ItemModuleBonuses).
+                if (client.Player != null)
+                    client.Player.ModulesChanged = true;
+            }
 
             // The armour bar is summed from the pieces as their condition leaves them.
             if (isArmor && Effectiveness(after) != Effectiveness(before))

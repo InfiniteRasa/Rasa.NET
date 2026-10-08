@@ -1,6 +1,8 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 
+using Microsoft.EntityFrameworkCore;
+
 namespace Rasa.Repositories.World
 {
     using Context.World;
@@ -23,6 +25,11 @@ namespace Rasa.Repositories.World
             return creatureEntries;
         }
 
+        public List<CreatureBattlecryEntry> GetBattlecries()
+        {
+            return _worldContext.CreateNoTrackingQuery(_worldContext.CreatureBattlecryEntries).ToList();
+        }
+
         /// <summary>
         /// Every creature class's flags, in one read. Keyed by class rather than by creature, so
         /// this is loaded once with the entity classes rather than per spawn.
@@ -32,6 +39,29 @@ namespace Rasa.Repositories.World
             var query = _worldContext.CreateNoTrackingQuery(_worldContext.CreatureClassFlagEntries);
 
             return query.ToList();
+        }
+
+        public void ReplaceClassFlags(IReadOnlyDictionary<uint, IReadOnlyCollection<uint>> flagsByClass)
+        {
+            if (flagsByClass == null || flagsByClass.Count == 0)
+                return;
+
+            using var transaction = _worldContext.Database.BeginTransaction();
+
+            // A few hundred classes at a time, so the list of them stays a short one.
+            foreach (var classes in flagsByClass.Keys.Chunk(400))
+                _worldContext.CreatureClassFlagEntries.RemoveRange(
+                    _worldContext.CreateTrackingQuery(_worldContext.CreatureClassFlagEntries).Where(e => classes.Contains(e.ClassId)).ToList());
+
+            _worldContext.SaveChanges();
+
+            foreach (var entry in flagsByClass)
+                foreach (var flag in entry.Value.Distinct())
+                    _worldContext.CreatureClassFlagEntries.Add(new CreatureClassFlagEntry { ClassId = entry.Key, FlagId = flag });
+
+            _worldContext.SaveChanges();
+            transaction.Commit();
+            _worldContext.ChangeTracker.Clear();
         }
 
         public CreatureStatEntry GetCreatureStats(uint creatureId)
@@ -135,6 +165,19 @@ namespace Rasa.Repositories.World
                 row.GreetingId = greetingId;
 
             _worldContext.SaveChanges();
+        }
+
+        public bool SaveNpcGreetingImportant(uint creatureId, bool important)
+        {
+            var row = _worldContext.CreateTrackingQuery(_worldContext.NpcGreetingEntries).FirstOrDefault(e => e.Id == creatureId);
+
+            if (row == null)
+                return false;
+
+            row.Important = important;
+            _worldContext.SaveChanges();
+
+            return true;
         }
 
         public bool DeleteNpcGreeting(uint creatureId)

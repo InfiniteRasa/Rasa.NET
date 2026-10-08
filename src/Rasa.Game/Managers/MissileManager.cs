@@ -216,6 +216,10 @@ namespace Rasa.Managers
 
                 WeaponBonus(mapChannel, creature, missile);
 
+                // The weapon's modules: a steal, a resist debuff, each on its own roll.
+                if (missile.WeaponProcs != null && missile.DamageA > 0)
+                    ItemModuleBonuses.OnWeaponHit(mapChannel, missile.Source, creature, missile.WeaponProcs);
+
                 // Explosive Nanites go off on damage taken.
                 if (missile.DamageA > 0)
                     AbilityManager.OnCreatureDamaged(mapChannel, creature);
@@ -249,22 +253,8 @@ namespace Rasa.Managers
         /// <summary>misstype 2, a dodge: the player a creature's area ability was wound up at had left its area when it landed (CreatureWindups).</summary>
         public const uint MissTypeDodge = 2;
 
-        /// <summary>misstype 1, a plain miss: a shot at someone under Chaff that went wide.</summary>
+        /// <summary>misstype 1, a plain miss: a shot that went wide (ToHit).</summary>
         public const uint MissTypeMiss = 1;
-
-        /// <summary>
-        /// Whether a shot goes wide for the Chaff on its target: MissPercentOf the target, rolled.
-        /// A blow at arm's length is not turned by a cloud of foil.
-        /// </summary>
-        public static bool MissesForChaff(Missile missile, Func<int, bool> roll)
-        {
-            if (missile == null || missile.IsMelee || missile.TargetActor == null)
-                return false;
-
-            var percent = GameEffectManager.MissPercentOf(missile.TargetActor);
-
-            return percent > 0 && roll(percent);
-        }
 
         /// <summary>
         /// A hit that left its creature alive: the stuns, knockback, slow and freeze it carries (an
@@ -272,6 +262,30 @@ namespace Rasa.Managers
         /// its Critical Death window. Returns whether the window opened.
         /// </summary>
         private static bool StunAndCheckCritDeath(MapChannel mapChannel, Creature creature, Missile missile)
+        {
+            // What the hit puts on the creature is announced by the hit, when the shot is seen
+            // to land: attached quietly and named in this creature's entry of the recovery
+            // (HitEffects). With no entry to name them in they announce themselves, as before.
+            using (HitEffects.On(creature, missile.Source, HitOf(missile, creature)?.TargetEffectIds))
+                return ApplyHitEffects(mapChannel, creature, missile);
+        }
+
+        /// <summary>The missile's entry for a hit on this actor in the recovery it will be sent in, or null.</summary>
+        private static HitData HitOf(Missile missile, Actor struck)
+        {
+            var hits = missile?.Args?.HitData;
+
+            if (hits == null || struck == null)
+                return null;
+
+            for (var i = hits.Count - 1; i >= 0; i--)
+                if (hits[i] != null && hits[i].EntityId == struck.EntityId)
+                    return hits[i];
+
+            return null;
+        }
+
+        private static bool ApplyHitEffects(MapChannel mapChannel, Creature creature, Missile missile)
         {
             var damageType = missile.DamageType == 0 ? DamageType.Physical : missile.DamageType;
 
@@ -349,6 +363,26 @@ namespace Rasa.Managers
         /// shows it as Immune.
         /// </summary>
         private static bool PlayersMayFight(Manifestation attacker, Manifestation defender) => Pvp.AreEnemies(attacker, defender);
+
+        /// <summary>
+        /// Who a player's armour and health updates name as having done it, for a missile's hit.
+        ///
+        /// The client leaves a bar alone when the update names an entity it can see
+        /// (Actor.UpdateAttribute: "announce = not HasEntity(whoId)") and moves it when that
+        /// entity's damage is announced (Actor.AnnounceDamage ends in AnnounceAttrChange of
+        /// HEALTH and ARMOR) - which for a shot is when it is seen to land, its flight after the
+        /// recovery arrives (ShotFlight). Naming nobody, as every update here used to, moved a
+        /// player's bars the moment a creature fired, ahead of the shot and of its number.
+        ///
+        /// Named only where the client is known to announce the damage: a creature's weapon
+        /// attack, whose class is a BaseWeaponAttack and whose DoHits announces every hit. A
+        /// creature ability's class does what it likes with its hits (BaseActorAbility.DoHits
+        /// is its DoAbility), and a bar that waited on one that announces nothing would not
+        /// move at all. A player's shot at a player names nobody either: the server has already
+        /// held that one for its flight, and the bars are due when it lands.
+        /// </summary>
+        internal static ulong StagedBy(Missile missile)
+            => missile?.Source is Creature attacker && CreatureAttacks.IsWeaponAttack(missile) ? attacker.EntityId : 0;
 
         private void DoDamageToPlayer(MapChannel mapChannel, Missile missile)
         {
@@ -432,14 +466,18 @@ namespace Rasa.Managers
             // suppresses it
             var armorDecrease = GameEffectManager.ArmorSuppressed(actor) ? 0 : Math.Min(ArmorShare(missile), actor.Attributes[Attributes.Armor].Current);
 
+            // Whose doing it is, to the clients: a creature's shot is shown landing after its
+            // flight, and the bars move with it rather than as it is fired (StagedBy).
+            var stagedBy = StagedBy(missile);
+
             actor.Attributes[Attributes.Armor].Current -= armorDecrease;
-            CellManager.Instance.CellCallMethod(mapChannel, actor, new UpdateArmorPacket(actor.Attributes[Attributes.Armor], 0));
+            CellManager.Instance.CellCallMethod(mapChannel, actor, new UpdateArmorPacket(actor.Attributes[Attributes.Armor], stagedBy));
 
             // decrease health (if armor is depleted)
             var healthDecrease = Math.Min(missile.DamageA - armorDecrease, actor.Attributes[Attributes.Health].Current);
 
             actor.Attributes[Attributes.Health].Current -= healthDecrease;
-            CellManager.Instance.CellCallMethod(mapChannel, actor, new UpdateHealthPacket(actor.Attributes[Attributes.Health], 0));
+            CellManager.Instance.CellCallMethod(mapChannel, actor, new UpdateHealthPacket(actor.Attributes[Attributes.Health], stagedBy));
 
             // Brought to zero: dead, or defeated in a duel - the kill counted, back on full and safe
             // for a while - or a GM who may not die back on their feet (PlayerDeath). Either way the
@@ -487,6 +525,10 @@ namespace Rasa.Managers
                     CritEffects.OnCritical(mapChannel, enemy, missile.Source, damageType, missile.DamageA);
 
                 WeaponBonus(mapChannel, enemy, missile);
+
+                // The weapon's modules: a steal, a resist debuff, each on its own roll.
+                if (missile.WeaponProcs != null)
+                    ItemModuleBonuses.OnWeaponHit(mapChannel, missile.Source, enemy, missile.WeaponProcs);
 
                 if (missile.StunMs > 0 && Stuns.Roll(missile.StunChance))
                     PlayerCrowdControl.Stun(mapChannel, enemy, missile.Source, Pvp.ScaleDuration(missile.Source, enemy, missile.StunMs));
@@ -568,7 +610,9 @@ namespace Rasa.Managers
         }
 
         /// <summary>
-        /// Lands the missiles whose flight time has run out, and only those.
+        /// Lands the missiles whose time has run out, and only those: a creature's ability when
+        /// its windup is done (CreatureWindups), a player's shot held for its flight (ShotFlight),
+        /// and everything else on the pass after it was launched.
         ///
         /// Every queued missile used to be triggered on the pass after it was launched, whatever
         /// its trigger time said - the distance to the target was measured, written on the
@@ -606,6 +650,12 @@ namespace Rasa.Managers
                     continue;
                 }
 
+                // A shot held for its flight (ShotFlight) whose shooter has left the map since -
+                // through a waypoint, or out of the game: it lands on nothing. The shooter's
+                // cell is where its recovery is sent, and that is on another map now.
+                if (missile.HeldForFlight && !IsOnMap(mapChannel, missile.Source))
+                    continue;
+
                 try
                 {
                     MissileTrigger(mapChannel, missile);
@@ -618,7 +668,7 @@ namespace Rasa.Managers
             }
         }
 
-        /// <param name="armorBypassPercent">Percent of the damage that skips armour: the Torqueshell and Injection Gun skills.</param>
+        /// <param name="armorBypassPercent">Percent of the damage that skips armour: the Torqueshell and Injection Gun skills. A player's item modules add their "Armor Piercing" to it here.</param>
         /// <param name="critBonus">Crit chance in percent the attack adds to the shooter's own (Firearms on a rifle).</param>
         /// <param name="melee">A melee swing, for the crouching crit modifiers.</param>
         /// <param name="stunChance">Chance in percent the hit stuns a creature for stunMs (Hand to Hand, grenades).</param>
@@ -626,10 +676,20 @@ namespace Rasa.Managers
         /// <param name="splashRadius">Metres around the target a launcher's splash reaches (Splash); 0 for none.</param>
         /// <param name="coneHalfAngle">Degrees either side of the shooter's facing a cone weapon hits (ConeWeapons); 0 for a single target.</param>
         /// <param name="knockbackStunMs">How much longer a creature the knockback lands on stays down (Hand to Hand).</param>
-        /// <param name="landsInMs">A creature ability's windup and flight (CreatureWindups): when it lands, in place of the half a millisecond a metre a shot takes.</param>
+        /// <param name="landsInMs">A creature ability's windup and flight (CreatureWindups): when it lands, in place of the next pass a shot resolves on.</param>
         /// <param name="optimalRange">A player's weapon shot: the weapon's optimal range, past which its damage drops (RangeFalloff); 0 for no drop.</param>
-        public void MissileLaunch(MapChannel mapChannel, ActionData action, int damage, int armorBypassPercent = 0, DamageType damageType = 0, double critBonus = 0, bool melee = false, int stunChance = 0, int stunMs = 0, int rootMs = 0, int knockbackChance = 0, float splashRadius = 0, float coneHalfAngle = 0, int knockbackStunMs = 0, CreatureAction creatureAction = null, int? landsInMs = null, float optimalRange = 0)
+        /// <param name="flightVelocity">A player's weapon shot: the weapon class's velocity, which their client flies it at (ShotFlight). Null for anything the server does not hold for a flight - a swing, a creature's attack.</param>
+        /// <param name="refireMs">A player's weapon shot: how soon the weapon can be fired again; a shot is held for its flight only if it lands before that (ShotFlight).</param>
+        public void MissileLaunch(MapChannel mapChannel, ActionData action, int damage, int armorBypassPercent = 0, DamageType damageType = 0, double critBonus = 0, bool melee = false, int stunChance = 0, int stunMs = 0, int rootMs = 0, int knockbackChance = 0, float splashRadius = 0, float coneHalfAngle = 0, int knockbackStunMs = 0, CreatureAction creatureAction = null, int? landsInMs = null, float optimalRange = 0, int? flightVelocity = null, long refireMs = 0)
         {
+            // How long before it lands, from how far it has to go. A player's shot is held for
+            // its flight where their client can still show it land (ShotFlight); anything else
+            // resolves on the next pass, as the half a millisecond a metre it used to be given
+            // always came to.
+            int LandsIn(float distance) => flightVelocity.HasValue && !melee
+                ? ShotFlight.HeldMs(distance, flightVelocity.Value, refireMs)
+                : (int)(distance * 0.5f);
+
             var manualSource = action.Actor as Creature;
             var sourceCombatAuthorization = manualSource?.ScriptedCombatAuthorization;
             if (manualSource != null &&
@@ -644,11 +704,19 @@ namespace Rasa.Managers
             if (!melee && action.Actor is Manifestation rangedShooter)
                 damage = GameEffectManager.ApplyRangedDamage(rangedShooter, damage);
 
+            // A player's weapon attack, shot or swing: the modules in what they wear and hold
+            // pierce armor too, and the weapon's may steal or debuff where it lands
+            // (ItemModuleBonuses).
+            var modules = ItemModuleBonuses.Of(action.Actor);
+
+            armorBypassPercent += modules.ArmorPierce;
+
             var missile = new Missile
             {
                 CreatureAction = creatureAction,
                 DamageA = damage,
                 DamageType = damageType,
+                WeaponProcs = modules.Procs.Count > 0 ? modules.Procs : null,
                 ArmorBypassPercent = Math.Max(0, Math.Min(100, armorBypassPercent)),
                 Source = action.Actor,
                 SourceCombatAuthorization = sourceCombatAuthorization,
@@ -709,7 +777,7 @@ namespace Rasa.Managers
                         return;
 
                     missile.TargetEntityId = action.TargetId;
-                    triggerTime = (int)(fieldDistance * 0.5f);
+                    triggerTime = LandsIn(fieldDistance);
                 }
                 else if (targetType == EntityType.Object && PersonalWaypoints.TryGetPosition(action.TargetId, out var waypointPosition))
                 {
@@ -725,7 +793,7 @@ namespace Rasa.Managers
                         return;
 
                     missile.TargetEntityId = action.TargetId;
-                    triggerTime = (int)(waypointDistance * 0.5f);
+                    triggerTime = LandsIn(waypointDistance);
                 }
                 else if (targetType == EntityType.Object)
                 {
@@ -744,7 +812,7 @@ namespace Rasa.Managers
 
                     missile.TargetObject = practiceTarget;
                     missile.TargetEntityId = action.TargetId;
-                    triggerTime = (int)(targetDistance * 0.5f);
+                    triggerTime = LandsIn(targetDistance);
                 }
                 else
                 {
@@ -791,7 +859,7 @@ namespace Rasa.Managers
                         return;
                     }
 
-                    triggerTime = (int)(distance * 0.5f);
+                    triggerTime = LandsIn(distance);
                 }
             }
             else
@@ -807,6 +875,7 @@ namespace Rasa.Managers
             missile.TargetActor = targetActor;
             missile.TriggerTime = landsInMs ?? triggerTime;
             missile.AfterWindup = landsInMs.HasValue;
+            missile.HeldForFlight = !landsInMs.HasValue && flightVelocity.HasValue && !melee && triggerTime > 0;
 
             // Wound up where its target stands now: a cone points there, a ring around a target
             // lands there, whoever is there when it goes off (CreatureWindups).
@@ -818,6 +887,22 @@ namespace Rasa.Managers
 
             if (action.Actor is Creature)
                 missile.AreaDamage = damage;
+
+            // A weapon's shot at somebody: the to-hit roll (ToHit), made as the trigger is
+            // pulled. One that misses with nothing else to land - no splash, no cone - is not
+            // held for its flight: the clients are told now, while the shooter's own is still
+            // flying the round.
+            if (targetActor != null && !melee && CreatureAttacks.IsWeaponAttack(missile))
+            {
+                missile.Missed = ToHit.Misses(missile);
+
+                if (missile.Missed == true && missile.HeldForFlight && missile.SplashRadius <= 0
+                    && (missile.ConeTargets == null || missile.ConeTargets.Count == 0))
+                {
+                    missile.TriggerTime = 0;
+                    missile.HeldForFlight = false;
+                }
+            }
 
             // An escort's owner opening fire gives the escort its target (mission scenes).
             if (targetActor is Creature attackedCreature)
@@ -937,6 +1022,7 @@ namespace Rasa.Managers
             {
                 DamageA = damage,
                 DamageType = missile.DamageType,
+                WeaponProcs = missile.WeaponProcs,
                 ArmorBypassPercent = missile.ArmorBypassPercent,
                 Source = shooter,
                 TargetActor = creature,
@@ -1093,7 +1179,7 @@ namespace Rasa.Managers
                 if (missile.TargetEntityId != 0)
                 {
                     missile.Args.MisstEntities.Add(missile.TargetEntityId);
-                    missile.Args.Missdata.Add(0);
+                    missile.Args.Missdata.Add(MissTypeMiss);
                 }
                 Logger.WriteLog(LogType.Debug, $"Retired manual-combat missile from {manual.EntityId} was rejected.");
                 CellManager.Instance.CellCallMethod(mapChannel, missile.Source, CreatureAttacks.RecoveryFor(missile));
@@ -1117,10 +1203,12 @@ namespace Rasa.Managers
                 return;
             }
 
-            // Chaff around the target: "interferes with enemy targeting, making you and nearby
-            // allies harder to hit". A shot that goes wide is a plain miss (misstype 1); what it
-            // would have done around its target still happens, as a deflected one's does.
-            if ((targetType == EntityType.Character || targetType == EntityType.Creature) && MissesForChaff(missile, Stuns.Roll))
+            // The to-hit roll (ToHit): a weapon's was made as it was fired, on how its target was
+            // moving and the Chaff around it - "interferes with enemy targeting, making you and
+            // nearby allies harder to hit" - and a creature ability's is made now, for the Chaff alone.
+            // A shot that goes wide is a plain miss (misstype 1); what it would have done around
+            // its target still happens, as a deflected one's does.
+            if ((targetType == EntityType.Character || targetType == EntityType.Creature) && (missile.Missed ?? ToHit.Misses(missile)))
             {
                 missile.Args.MisstEntities.Add(missile.TargetEntityId);
                 missile.Args.Missdata.Add(MissTypeMiss);
@@ -1193,8 +1281,10 @@ namespace Rasa.Managers
             }
             else if (missile.TargetEntityId != 0)
             {
+                // A plain miss. It went out as misstype 0, which is no row of the client's
+                // table: a KeyError there, and no "Miss!" (DamageInfoWriter.WriteMissTypes).
                 missile.Args.MisstEntities.Add(missile.TargetEntityId);
-                missile.Args.Missdata.Add(0);
+                missile.Args.Missdata.Add(MissTypeMiss);
             }
 
             switch (targetType)

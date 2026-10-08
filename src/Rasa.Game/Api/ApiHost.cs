@@ -3,6 +3,7 @@ using System;
 namespace Rasa.Api
 {
     using Config;
+    using Ingame;
 
     /// <summary>
     /// The server's status listeners and what they report: the REST API with its endpoints, the
@@ -25,6 +26,17 @@ namespace Rasa.Api
         /// <summary>POST /addaccount; Server gives it its way to the Auth server.</summary>
         public AddAccountEndpoint Accounts { get; } = new AddAccountEndpoint();
 
+        /// <summary>Authentication shared by all /ingame endpoints.</summary>
+        public IngameSessionService IngameSessions { get; } = new IngameSessionService();
+
+        /// <summary>GET /monsterflags and POST /updatemonsterflags, for gametools' Monster Flag Editor; Server gives them their store.</summary>
+        public MonsterFlagsEndpoint MonsterFlags { get; } = new MonsterFlagsEndpoint();
+        public UpdateMonsterFlagsEndpoint UpdateMonsterFlags { get; } = new UpdateMonsterFlagsEndpoint();
+
+        /// <summary>GET /lootpools and POST /updatelootpools, for gametools' Loot Table Editor; Server gives them their store.</summary>
+        public WeightedLootEndpoint WeightedLoot { get; } = new WeightedLootEndpoint();
+        public UpdateWeightedLootEndpoint UpdateWeightedLoot { get; } = new UpdateWeightedLootEndpoint();
+
         public ApiHost() : this(new ServerStatus())
         {
         }
@@ -38,6 +50,14 @@ namespace Rasa.Api
             Rest.Register(new HealthCheckEndpoint(status));
             Rest.Register(new ServerStatusEndpoint(status));
             Rest.Register(Accounts);
+            Rest.Register(new IngameSessionExchangeEndpoint(IngameSessions));
+            Rest.Register(new IngameItemCategoriesEndpoint(IngameSessions));
+            Rest.Register(new IngameItemsEndpoint(IngameSessions));
+            Rest.Register(new IngameItemDetailsEndpoint(IngameSessions));
+            Rest.Register(MonsterFlags);
+            Rest.Register(UpdateMonsterFlags);
+            Rest.Register(WeightedLoot);
+            Rest.Register(UpdateWeightedLoot);
         }
 
         /// <summary>The settings in force from now. A listener that cannot open its port stays off; the world is not held up.</summary>
@@ -46,6 +66,8 @@ namespace Rasa.Api
             config ??= new ApiConfig();
 
             Status.StallMs = Math.Min(Math.Max(1, config.LoopStallSeconds), 86400) * 1000;
+
+            IngameSessions.Apply(config.Rest);
 
             try
             {

@@ -37,9 +37,16 @@ namespace Rasa.Repositories.Char.CharacterMission
                 : new List<CharacterMissionEntry>();
         }
 
+        /// <summary>
+        /// The missions that take a place in the character's log: the active ones and those
+        /// waiting for their reward, as the client counts them against its thirty
+        /// (missionlog.py GetCurrentMissionCount: MISSION_ACTIVE and MISSION_SUCCESS). A
+        /// rewarded mission (4) takes none, and nor does a failed one (2): the client has taken
+        /// it out of its log, and the player cannot remove a row they are not shown.
+        /// </summary>
         public int Count(uint characterId) =>
             _charContext.CharacterMissionEntries.Count(entry => entry.CharacterId == characterId &&
-                entry.MissionState != 4);
+                entry.MissionState != 4 && entry.MissionState != 2);
 
         [CanBeNull]
         public CharacterMissionEntry GetByCharacterAndMission(uint characterId, uint missionId)

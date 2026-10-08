@@ -61,8 +61,10 @@ namespace Rasa.Api
                 $"{Label}: {(allowed.AllowsAll ? "any address may ask" : $"{allowed.Count} allowed address(es) or range(s)")}.");
         }
 
-        protected override async Task Exchange(Stream stream, IPAddress remote, CancellationToken limit)
+        protected override async Task Exchange(Stream stream, IPAddress remote, ExchangeLimit time)
         {
+            var limit = time.Token;
+
             if (!_allowed.Allows(remote))
             {
                 Refused($"{remote}, which is not on AllowedIps");

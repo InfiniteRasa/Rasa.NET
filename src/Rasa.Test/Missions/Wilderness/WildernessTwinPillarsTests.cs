@@ -785,7 +785,8 @@ namespace Rasa.Test.Missions.Wilderness
                 "The nav surface must agree with the adopted native terrain/hospital floor, not another layer.");
             Assert.AreEqual(authored.X, actor.Position.X, 0.001f);
             Assert.AreEqual(authored.Z, actor.Position.Z, 0.001f);
-            Assert.AreEqual(ground.Value, actor.Position.Y, 0.001f);
+            // What can go nowhere stands on its pool's point; what moves starts on the mesh (SpawnPoolManager.SpawnPoint).
+            Assert.AreEqual(BehaviorManager.NeverMoves(actor) ? authored.Y : ground.Value, actor.Position.Y, 0.001f);
             Assert.IsTrue(Vector3.Distance(actor.Position, authored) < 0.5f);
         }
     }

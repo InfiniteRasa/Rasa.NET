@@ -287,6 +287,27 @@ namespace Rasa.Test.Missions
         }
 
         [TestMethod]
+        public void AMissionItemSavedOutsideItsTabIsLeftThereAtLogin()
+        {
+            // The login puts an ordinary pack item saved in another tab's slot into its own
+            // (StorageSwapCategoryTests). A mission's item is moved only by its mission's plan.
+            using var context = Create(true, MissionId);
+            var original = Owned(context).Single();
+            var slot = original.OwnerSlotId;
+            ItemManager.Instance.GetItemTemplateById(TemplateId).InventoryCategory = InventoryCategory.Mission;
+
+            new InventoryManager(context, context.Manager).InitCharacterInventory(context.Client);
+
+            var reloaded = Owned(context).Single();
+            Assert.AreEqual(original.Id, reloaded.Id);
+            Assert.AreEqual(slot, reloaded.OwnerSlotId);
+            Assert.AreEqual(reloaded.EntityId, context.Client.Player.Inventory.PersonalInventory[(int)slot]);
+            Assert.AreEqual(original.MissionOwnership, reloaded.MissionOwnership);
+            using var verify = context.CreateChar();
+            Assert.AreEqual(slot, verify.CharacterInventories.FindByItemId(original.Id).SlotId);
+        }
+
+        [TestMethod]
         public void InventoryReloadRestoresProvenanceWithoutIssuingOrRevivingConsumedItems()
         {
             using var context = Create(true, MissionId);

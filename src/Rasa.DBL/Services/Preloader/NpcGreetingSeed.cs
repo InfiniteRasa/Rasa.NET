@@ -26,6 +26,9 @@ namespace Rasa.Services.Preloader
     ///
     /// Every other NPC has no row, and says the default until a game master gives it a line
     /// (".greeting").
+    ///
+    /// A later migration adds the mark of an important line, and with it the NPCs that start
+    /// marked (<see cref="Marked"/>).
     /// </summary>
     public static class NpcGreetingSeed
     {
@@ -118,5 +121,36 @@ namespace Rasa.Services.Preloader
 
         public static IEnumerable<string> InsertStatements =>
             Rows.Select(row => $"insert into {NpcGreetingEntry.TableName} (id, greeting_id) values ({row.CreatureId}, {row.GreetingId});");
+
+        /// <summary>
+        /// The NPCs that start with a line marked important - the speech bubble over them
+        /// (NpcGreetings) - each with the line: the rows of Add_npc_greeting_important.
+        ///
+        /// Nothing in the client says which NPCs had the bubble, and these lines' words do not
+        /// give their speakers away either. One is here by another kind of evidence:
+        ///  - footage: a recording of the live game shows the NPC under the bubble, saying the
+        ///    line. It is a Brigadier General who gives 488, "We want to take Earth back. We
+        ///    want this war over with.", and the world has one.
+        /// </summary>
+        public static readonly IReadOnlyList<(uint CreatureId, uint GreetingId)> Marked = new (uint, uint)[]
+        {
+            (510002, 488), // Brigadier General Beacham, Alia Das: footage
+        };
+
+        /// <summary>
+        /// The statements that give the marked NPCs their lines. insertOrIgnore is the
+        /// provider's insert that leaves a row already there alone ("insert or ignore" in
+        /// SQLite, "insert ignore" in MySQL): an NPC a game master has given a line keeps it.
+        /// The mark then goes on the row if the line is the one it is for - the seeded row, or
+        /// the same line given by hand before - and on no other line.
+        /// </summary>
+        public static IEnumerable<string> MarkStatements(string insertOrIgnore)
+        {
+            foreach (var row in Marked)
+            {
+                yield return $"{insertOrIgnore} into {NpcGreetingEntry.TableName} (id, greeting_id, important) values ({row.CreatureId}, {row.GreetingId}, 1);";
+                yield return $"update {NpcGreetingEntry.TableName} set important = 1 where id = {row.CreatureId} and greeting_id = {row.GreetingId};";
+            }
+        }
     }
 }

@@ -290,6 +290,20 @@ namespace Rasa.Managers
                     throw new GameplayRejectionException("The complete item grant does not fit its inventory categories.");
             }
 
+            internal uint GrantCapacity(uint templateId)
+            {
+                var template = RequireTemplate(templateId);
+                var maximum = EntityClassManager.Instance.LoadedEntityClasses[template.Class].ItemClassInfo.StackSize;
+                var start = ((int)template.InventoryCategory - 1) * PersonalCategorySize;
+                var free = Enumerable.Range(start, PersonalCategorySize)
+                    .Count(index => !_stacks.Any(stack => stack.Index == index && stack.Count > 0));
+                var capacity = (ulong)free * maximum;
+                foreach (var stack in _stacks.Where(stack => stack.Template.ItemTemplateId == templateId &&
+                    stack.Ownership == null && stack.Count > 0))
+                    capacity += stack.Maximum - stack.Count;
+                return (uint)Math.Min(uint.MaxValue, capacity);
+            }
+
             private void ValidateLoot(LootItem loot, IReadOnlyList<CharacterInventoryEntry> rows)
             {
                 var item = loot?.Item;
@@ -431,6 +445,9 @@ namespace Rasa.Managers
                         saved?.ItemTemplateId != stack.Template.ItemTemplateId || saved.StackSize != stack.Count ||
                         (owner == null ? stack.Ownership != null : owner.Quantity != stack.Count || ToOwnership(owner) != stack.Ownership))
                         throw new GameplayRejectionException("Final inventory identity, count or provenance does not match the transaction plan.");
+                    if (stack.Staged != null && (!saved.Modules.SequenceEqual(item.ModuleIds) ||
+                        (saved.CrafterName ?? "") != (item.Crafter ?? "")))
+                        throw new GameplayRejectionException("Created item modules or crafter do not match the transaction plan.");
                 }
                 if (_unit.CharacterMissionItems.GetOwned(_client.Player.Id).Count != final.Count(stack => stack.Ownership != null))
                     throw new GameplayRejectionException("Final assignment ledger does not match the inventory plan.");

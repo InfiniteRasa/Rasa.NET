@@ -623,11 +623,11 @@ namespace Rasa.Managers
                 titleId: titleId);
 
         internal static ProgressPublication Aggregate(Mission definition, MissionLog committed,
-            uint objectiveId, uint? counterId, uint? counterValue, bool completed) =>
+            uint objectiveId, uint? counterId, uint? counterValue, bool completed, uint titleId = 0) =>
             new(definition, committed, definition.MissionId, objectiveId,
                 completed ? MissionObjectiveState.Completed : null, counterId, counterValue,
                 counterId.HasValue ? 0U : null,
                 counterId.HasValue ? definition.Objectives[objectiveId].Counters[counterId.Value].TargetValue : null,
-                completed, MissionApplication.TransitionActionApplication.Empty);
+                completed, MissionApplication.TransitionActionApplication.Empty, titleId: titleId);
     }
 }

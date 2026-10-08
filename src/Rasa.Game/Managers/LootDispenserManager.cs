@@ -1022,6 +1022,14 @@ namespace Rasa.Managers
                 return;
             }
 
+            // A rare item off a creature's corpse is worth prestige to whoever takes it
+            // (ItemLootPrestige), kept in the same write as the item: both or neither.
+            var prestigeAwards = ItemLootPrestige.Awards(loot, items);
+            var currentPrestige = client.Player.Credits.GetValueOrDefault(CurencyType.Prestige);
+            var prestigeAfter = (int)Math.Min(
+                currentPrestige + prestigeAwards.Sum(award => (long)award.Amount), int.MaxValue);
+            var prestigeGranted = prestigeAfter > currentPrestige;
+
             var grant = new InventoryManager.LootGrant(_beforeItemPublication);
             var missionManager = _missionManager ?? MissionApplication.Instance;
             var progressPlan =
@@ -1041,6 +1049,9 @@ namespace Rasa.Managers
                         character.Credit != currentCredits)
                         throw new GameplayRejectionException(
                             "Durable character ownership or credits changed.");
+                    if (prestigeGranted && character.Prestige != currentPrestige)
+                        throw new GameplayRejectionException(
+                            "Durable character prestige changed.");
 
                     var source = loot.AttachedObject?.MissionLootSource;
                     CharacterMissionObjectiveEntry rewardObjective = null;
@@ -1083,6 +1094,9 @@ namespace Rasa.Managers
                     if (creditsGranted)
                         unitOfWork.Characters.UpdateCharacterCredits(
                             client.Player.Id, creditsAfter);
+                    if (prestigeGranted)
+                        unitOfWork.Characters.UpdateCharacterPrestige(
+                            client.Player.Id, prestigeAfter);
 
                     // The rest of the squad's shares, in the same write: each one's purse as the
                     // server has it, or none of it happens.
@@ -1112,6 +1126,9 @@ namespace Rasa.Managers
             }
 
             grant.Publish(client);
+
+            if (prestigeGranted)
+                client.Player.Credits[CurencyType.Prestige] = prestigeAfter;
 
             if (includeCredits)
             {
@@ -1186,6 +1203,26 @@ namespace Rasa.Managers
             MissionApplication.TryPublish(
                 () => GotLoot(client, loot, takenItems, ownShare),
                 $"corpse {loot.EntityId} loot result");
+
+            // The prestige a rare item was worth: the balance, and a line for each item by name.
+            if (prestigeGranted)
+            {
+                MissionApplication.TryPublish(
+                    () => client.CallMethod(
+                        client.Player.EntityId,
+                        new UpdateCreditsPacket(
+                            CurencyType.Prestige,
+                            prestigeAfter,
+                            prestigeAfter - currentPrestige)),
+                    $"corpse {loot.EntityId} item prestige");
+                foreach (var award in prestigeAwards)
+                    MissionApplication.TryPublish(
+                        () => client.CallMethod(
+                            SysEntity.ClientPrestigeSystemId,
+                            new ReceivedItemLootPrestigePacket(
+                                award.Amount, award.QualityId, award.Row.ItemTemplateId)),
+                        $"corpse {loot.EntityId} item prestige notice");
+            }
 
             var paid = new List<(Client Recipient, int Share)>();
             if (creditsGranted)

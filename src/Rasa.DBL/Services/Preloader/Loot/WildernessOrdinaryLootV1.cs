@@ -4,7 +4,7 @@ using Rasa.Structures.World;
 namespace Rasa.Services.Preloader.Loot
 {
     /// <summary>
-    /// Frozen ordinary content inventoried after 20261118000000 on an owned SQLite World.
+    /// Frozen ordinary content inventoried on an owned SQLite World; schema boundary 20261202000100.
     /// All rates, equal within-species junk weights, ammunition assignments and level bands
     /// are reconstructed starting balance, not recovered retail distributions.
     /// Native identities come from itemtemplate -> itemtemplate_itemclass -> entityclass/
@@ -45,7 +45,7 @@ namespace Rasa.Services.Preloader.Loot
         private const string Provenance = "reconstructed starter balance; native IDs verified against migrated World";
         private const string NativeEvidence =
             "Native itemtemplate/class links, Item augmentation, inventory category, visibility, stack, flags, "
-            + "equip slots and class-keyed level/skill requirements verified after 20261118000000. "
+            + "equip slots and class-keyed level/skill requirements verified at schema boundary 20261202000100. "
             + "Medpack 44917 -> class 21969, level 1, item action 419 (ItemTemplateActionPreloader). "
             + "Rates and pool selection are reconstruction, not retail evidence. ";
         private const string Thrax = NativeEvidence + "Thrax junk 41665/41666 -> classes 20306/20307; cartridges 28 -> 3147.";
@@ -406,7 +406,7 @@ namespace Rasa.Services.Preloader.Loot
         {
             migration.InsertData("loot_profile",
                 new[] { "profile_key", "description", "content_revision", "provenance", "evidence_notes" }, Profiles);
-            migration.InsertData("loot_group",
+            migration.InsertData("ordinary_loot_group",
                 new[] { "profile_key", "group_key", "kind", "chance_basis_points", "minimum_rolls", "maximum_rolls", "sort_order" }, Groups);
             migration.InsertData("loot_item",
                 new[] { "profile_key", "group_key", "item_template_id", "weight", "minimum_quantity", "maximum_quantity", "sort_order" }, Items);
@@ -421,7 +421,7 @@ namespace Rasa.Services.Preloader.Loot
             migration.DeleteData("creature_loot_binding", new[] { "map_context_id", "creature_id" }, Keys(Bindings, 2));
             migration.DeleteData("loot_item", new[] { "profile_key", "group_key", "item_template_id" }, Keys(Items, 3));
             migration.DeleteData("loot_map_policy", "map_context_id", 1220U);
-            migration.DeleteData("loot_group", new[] { "profile_key", "group_key" }, Keys(Groups, 2));
+            migration.DeleteData("ordinary_loot_group", new[] { "profile_key", "group_key" }, Keys(Groups, 2));
             migration.DeleteData("loot_profile", new[] { "profile_key" }, Keys(Profiles, 1));
         }
 

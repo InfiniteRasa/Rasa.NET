@@ -1195,7 +1195,7 @@ namespace Rasa.Managers
             return null;
         }
 
-        private static void TakeCosts(Client client, Manifestation player, ActionLevelInfo info)
+        internal static void TakeCosts(Client client, Manifestation player, ActionLevelInfo info)
         {
             foreach (var cost in info.Costs)
             {
@@ -1207,7 +1207,10 @@ namespace Rasa.Managers
                 switch (cost.Attribute)
                 {
                     case Attributes.Power:
-                        client.CallMethod(player.EntityId, new UpdatePowerPacket(attribute, 0));
+                        // With the rate the effects on them make. The client takes the amount in
+                        // every UpdatePower as its rate from then on, and it is the client's own
+                        // count that decides whether the next ability is asked for.
+                        client.CallMethod(player.EntityId, new UpdatePowerPacket(GameEffectManager.WithRegen(player, attribute), 0));
                         break;
                     case Attributes.Chi:
                         client.CallMethod(player.EntityId, new UpdateChiPacket(attribute, 0));

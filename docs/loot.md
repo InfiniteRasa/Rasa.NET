@@ -20,7 +20,7 @@ The five tables and their CLR rows live in
 | Table / row type | Primary key | Other columns |
 | --- | --- | --- |
 | `loot_profile` / `LootProfileEntry` | `profile_key` | `description`, `content_revision`, `provenance`, `evidence_notes` |
-| `loot_group` / `LootGroupEntry` | `profile_key`, `group_key` | `kind`, `chance_basis_points`, `minimum_rolls`, `maximum_rolls`, `sort_order` |
+| `ordinary_loot_group` / `OrdinaryLootGroupEntry` | `profile_key`, `group_key` | `kind`, `chance_basis_points`, `minimum_rolls`, `maximum_rolls`, `sort_order` |
 | `loot_item` / `LootItemEntry` | `profile_key`, `group_key`, `item_template_id` | `weight`, `minimum_quantity`, `maximum_quantity`, `sort_order` |
 | `creature_loot_binding` / `CreatureLootBindingEntry` | `map_context_id`, `creature_id` | `profile_key` |
 | `loot_map_policy` / `LootMapPolicyEntry` | `map_context_id` | `require_profiles` |
@@ -125,8 +125,8 @@ mission additions can raise its quality.
 
 ## Reference: frozen Wilderness v1
 
-The paired schema migration is `20261118000000_Add_ordinary_loot_tables`.
-The data pair `20261118000100_Wilderness_ordinary_loot_v1` follows it and calls
+The paired schema migration is `20261202000100_Add_ordinary_loot_tables`.
+The data pair `20261202000200_Wilderness_ordinary_loot_v1` follows it and calls
 the frozen
 [`WildernessOrdinaryLootV1`](../src/Rasa.DBL/Services/Preloader/Loot/WildernessOrdinaryLootV1.cs)
 helper. It installs 27 profiles, 83 groups, 179 candidates, 36 bindings and one
@@ -165,6 +165,47 @@ were not inserted. The frozen helper and
 [independent native-content expectations](../src/Rasa.Test/Database/WildernessOrdinaryLootMigrationTests.cs)
 hold the complete curated inventory; no runtime pool scans every native item.
 
+## Reference: legacy flat configuration boundary
+
+The incoming numeric `LootGroupEntry` is not `OrdinaryLootGroupEntry`. Its
+historical `20261128000000_Add_loot_groups` migration still creates `loot_group`,
+`loot_group_item` and `creature_loot_group`, with their original numeric keys
+and independent per-item percentage chances.
+
+After the incoming `20261201000000_Add_bootcamp_trainees` tail, both providers
+run `20261202000000_Archive_flat_loot_pools`. It renames those three tables to
+`legacy_flat_loot_group`, `legacy_flat_loot_group_item` and
+`legacy_flat_creature_loot_group`, preserving every row and value. Rollback
+restores the original names. The weighted schema and Wilderness content then
+follow at `20261202000100` and `20261202000200`.
+
+These are inactive compatibility archives, not a second loot backend.
+The flat generator, publisher and write repository have been removed.
+The existing unconfigured-map fallback remains inside the
+ordinary generation path; archived pool assignments do not change it.
+
+Any nonempty archive, including orphan item or assignment rows, blocks weighted
+catalog readiness with table/count diagnostics. Export and review the original
+rows, explicitly author weighted profiles, group admissions, candidates and
+map/creature bindings, and validate them before deciding to clear the archives.
+Clearing requires an approved authoring decision and a retained export; the
+server never deletes or converts these rows automatically. A per-item percent
+cannot be imported as a relative candidate weight.
+
+The [gametools editor and REST routes](../gametools/README.md#weighted-loot-contract)
+now read and save only `rasa-weighted-loot-profiles`, version 2. They reject the
+old `rasa-loot-tables` percentage payload, never write the archives, and keep the
+same readiness guard for archive contents. The historical row types remain
+mapped solely to preserve archive diagnostics and migration/model metadata.
+
+The live store makes private copies, validates the whole candidate with the same
+native-item and coverage validator used at startup, persists changes in one
+World transaction, then publishes the immutable catalog after commit. An edit
+replaces the groups/items of explicitly named profiles and upserts bindings and
+policies. Unnamed content remains; existing required-map policies cannot be
+disabled. Database or validation failure changes neither durable content nor
+the published catalog. Existing captured profiles and corpses remain intact.
+
 ## How-to: tune and deploy ordinary loot
 
 1. Choose the exact installed profile/group/candidate keys and record the
@@ -177,17 +218,17 @@ hold the complete curated inventory; no runtime pool scans every native item.
    `MySqlWorldContext` with the repository's EF 9.0.20 tool, following
    [setup](setup.md#creating-migrations). Assign the same unique ID ordered after
    the latest installed/repository World history. This repository already has
-   forward-dated IDs through `20261118000100`; scaffolding on October 7, 2026
+   forward-dated IDs through `20261202000200`; scaffolding on October 7, 2026
    would generate an earlier timestamp. Do not use that raw timestamp.
 
    With the current tail, an example next ID is
-   `20261118000200_Tune_wilderness_loot_v2`. Recheck both histories if later
+   `20261202000300_Tune_wilderness_loot_v2`. Recheck both histories if later
    migrations have since been added. **Before building, scripting or applying
    the pair**, rename the scaffolded files in both `Migrations\SqliteWorld` and
    `Migrations\MySqlWorld` to
-   `20261118000200_Tune_wilderness_loot_v2.cs` and
-   `20261118000200_Tune_wilderness_loot_v2.Designer.cs`, and set each designer to
-   `[Migration("20261118000200_Tune_wilderness_loot_v2")]`.
+   `20261202000300_Tune_wilderness_loot_v2.cs` and
+   `20261202000300_Tune_wilderness_loot_v2.Designer.cs`, and set each designer to
+   `[Migration("20261202000300_Tune_wilderness_loot_v2")]`.
    Keep the scaffolded class/partial names and provider `DbContext` attributes
    consistent. A data-only migration has no model diff; do not add schema
    operations or hand-edit snapshots to disguise one. Never deploy the raw
@@ -207,7 +248,7 @@ hold the complete curated inventory; no runtime pool scans every native item.
 
            internal static void Up(MigrationBuilder migration)
            {
-               migration.UpdateData("loot_group",
+               migration.UpdateData("ordinary_loot_group",
                    new[] { "profile_key", "group_key" },
                    new object[] { Profile, "consumable" },
                    "chance_basis_points", 0);
@@ -219,7 +260,7 @@ hold the complete curated inventory; no runtime pool scans every native item.
 
            internal static void Down(MigrationBuilder migration)
            {
-               migration.UpdateData("loot_group",
+               migration.UpdateData("ordinary_loot_group",
                    new[] { "profile_key", "group_key" },
                    new object[] { Profile, "consumable" },
                    "chance_basis_points", 1000);

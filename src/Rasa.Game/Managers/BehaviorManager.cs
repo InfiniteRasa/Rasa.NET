@@ -59,6 +59,12 @@ namespace Rasa.Managers
         public const byte BehaviorActionFollowingPath = 1;  // will automatically be triggered by wander if there is an active ai path
         public const byte BehaviorActionFighting = 2;
         public const byte BehaviorActionWander = 3;
+
+        /// <summary>
+        /// Walking its beat (Patrols; <see cref="AdvancePatrol"/>): what a creature with one does
+        /// in place of standing and strolling. It notices a fight as a wandering creature does,
+        /// and goes back to wandering - and from there to its beat - when it is over.
+        /// </summary>
         public const byte BehaviorActionPatrol = 4;
 
         /// <summary>
@@ -354,6 +360,9 @@ namespace Rasa.Managers
             // left on it is not one to go on to the fighting below.
             if (creature.State == CharacterState.Dead || creature.Attributes[Attributes.Health].Current <= 0)
             {
+                // The dead hold no pose (NpcPoses).
+                NpcPoses.Drop(mapChannel, creature);
+
                 // A walker that has fallen becomes its wreck (AlternateMesh).
                 AlternateMesh.DeadTick(mapChannel, creature, Environment.TickCount64);
 
@@ -370,13 +379,25 @@ namespace Rasa.Managers
                 return; // creature dead
             }
 
-            // Held in its Critical Death window: it neither moves nor fights.
+            // Held in its Critical Death window: it neither moves nor fights, nor holds a pose.
             if (creature.State == CharacterState.Dying)
+            {
+                NpcPoses.Drop(mapChannel, creature);
                 return;
+            }
+
+            // What it shouts about how it stands now against the think before: a fight begun or
+            // over, a wound, a halt on its beat (Battlecries).
+            Battlecries.Observe(mapChannel, creature);
 
             // Knocked back, or stunned: it goes where the knockback carries it and nothing else,
             // but it can still cross into another cell doing so.
             var knockedBack = StepKnockback(mapChannel, creature, delta);
+
+            // A pose is held standing idle at a post (NpcPoses): thrown, stunned, walking or
+            // run by something else, it is off until the creature is idle again.
+            if (creature.PoseShown && (knockedBack || Stuns.IsStunned(creature) || !NpcPoses.AtRest(creature)))
+                NpcPoses.Drop(mapChannel, creature);
 
             // Mid-charge (Kael rushing blow), winding up to blow itself up (a Fithik), to drop an
             // egg (a Stalker) or any ability (CreatureWindups), in a cocoon (an Atta grub), or a
@@ -495,6 +516,17 @@ namespace Rasa.Managers
                 {
                     wander.IdleMs += delta;
 
+                    // A creature with a beat walks it whenever it has nothing else to do (Patrols).
+                    if (Patrols.Has(creature))
+                    {
+                        SetActionPatrol(creature);
+                        return;
+                    }
+
+                    // An NPC with a post goes back to it and takes its pose up again (NpcPoses).
+                    if (NpcPoses.HoldsPost(creature) && !creature.PoseShown && TakePost(mapChannel, creature))
+                        return;
+
                     // A Filcher sees loot to steal, a hurt Xanx a dead one to eat; a Predator
                     // scans where it stands (CreatureHabits). An errand does not wait for the
                     // stroll's interval.
@@ -531,6 +563,10 @@ namespace Rasa.Managers
 
                         // A Shield Drone covers a piece of ground, so it stays on it.
                         if (ShieldDrone.HoldsGround(creature))
+                            return;
+
+                        // An NPC at a post stays at it (NpcPoses).
+                        if (NpcPoses.HoldsPost(creature))
                             return;
 
                         var destination = PickStroll(mapChannel, creature);
@@ -662,6 +698,15 @@ namespace Rasa.Managers
                 var speed = gap > MinionManager.MaxFollowTargetDistance ? creature.RunSpeed : creature.WalkSpeed;
 
                 FollowPath(mapChannel, creature, speed, delta);
+            }
+            else if (creature.Controller.CurrentAction == BehaviorActionPatrol)
+            {
+                // It notices a fight on its beat as a wandering creature does.
+                if (creature.LastAgression >= AggroScanDelayMs && ScansForEnemies(creature)
+                    && CheckForAttackableEntityInRange(mapChannel, creature, creature.AggroRange))
+                    return;
+
+                AdvancePatrol(mapChannel, creature, delta);
             }
             else if (creature.Controller.CurrentAction == BehaviorActionFollowingPath)
             {
@@ -1111,6 +1156,18 @@ namespace Rasa.Managers
         #region Wander
 
         /// <summary>
+        /// Whether the creature can go nowhere: it has no walking speed and no running speed. A
+        /// vendor, a hospital's medic, a mission's contact. It neither strolls, nor chases, nor
+        /// runs home, so it is on the spot its pool put it for as long as it lives
+        /// (SpawnPoolManager.SpawnPoint). One with a running speed alone does not stroll either,
+        /// but it runs when it fights.
+        /// </summary>
+        public static bool NeverMoves(Creature creature)
+        {
+            return creature != null && creature.WalkSpeed < 0.01f && creature.RunSpeed < 0.01f;
+        }
+
+        /// <summary>
         /// Where a stroll goes: a point within <see cref="WanderStepDistance"/> of where the
         /// creature stands and at least <see cref="WanderMinStep"/> from it, inside its spawn zone
         /// (<see cref="WanderZoneOf"/>), and at least <see cref="WanderSpacing"/> from every other
@@ -1205,6 +1262,31 @@ namespace Rasa.Managers
         }
 
         /// <summary>
+        /// An idle NPC whose pose is off (NpcPoses) gets back to its post: it walks there if it is
+        /// more than NpcPoses.PostReachedDistance away and can walk - once, noticing a fight on
+        /// the way as any walk in does - and true is returned while it is setting off. There, or
+        /// wherever that walk left it, or where it stands if it cannot walk or has no post on
+        /// this map (a creature a GM posed that was never placed), it faces the way it was placed
+        /// and takes the pose up again.
+        /// </summary>
+        private bool TakePost(MapChannel mapChannel, Creature creature)
+        {
+            var post = creature.HomePos.Position;
+
+            if (!creature.PoseWalkedBack && creature.WalkSpeed >= 0.01f
+                && creature.HomePos.MapContextid == creature.MapContextId
+                && AcrossGround(creature.Position, post) > NpcPoses.PostReachedDistance)
+            {
+                creature.PoseWalkedBack = true;
+                WalkIn(creature, post);
+                return true;
+            }
+
+            NpcPoses.StandAtPost(mapChannel, creature);
+            return false;
+        }
+
+        /// <summary>
         /// Tells the clients the creature has stopped where it is. The last step of a walk goes out
         /// with the walking speed, and the clients carry an entity on at the speed they were last
         /// given - left there, it would drift past the spot for its whole wait.
@@ -1259,6 +1341,190 @@ namespace Rasa.Managers
             wander.MovingMs = 0;
             wander.Arriving = true;
             wander.ArrivalTimeoutMs = ReturnTimeoutFor(Vector3.Distance(creature.Position, destination), creature.WalkSpeed);
+        }
+
+        #endregion
+
+        #region Patrol
+
+        /// <summary>
+        /// Puts a creature with a beat (Patrols) onto it: it makes for the step it was last going
+        /// to - the first, for one just made - from wherever it is.
+        /// </summary>
+        private static void SetActionPatrol(Creature creature)
+        {
+            var controller = creature.Controller;
+            var patrol = controller.ActionPatrol;
+
+            controller.CurrentAction = BehaviorActionPatrol;
+            controller.Path.Clear();
+            controller.PathIndex = 0;
+
+            if (patrol.Step < 0 || patrol.Step >= creature.Patrol.Count)
+                patrol.Step = 0;
+
+            patrol.Arrived = false;
+            patrol.Faced = false;
+            patrol.WaitMs = 0;
+            patrol.Rejoining = true;
+            patrol.LeftAt = creature.Position;
+        }
+
+        /// <summary>
+        /// One think of a beat (Patrols). Standing out a turn or a pause, nothing. On a step, the
+        /// turn to its facing and its pause, then on to the next. Off the beat, a walk to the
+        /// step across the navmesh. Otherwise a turn to face the step if it is not ahead, and
+        /// then the walk: straight at it, at walk speed, and exactly onto it.
+        /// </summary>
+        private void AdvancePatrol(MapChannel mapChannel, Creature creature, long delta)
+        {
+            // Its beat taken away, or its legs: it stands and strolls as any creature does.
+            if (!Patrols.Has(creature))
+            {
+                SetActionWander(creature);
+                return;
+            }
+
+            var steps = creature.Patrol;
+            var controller = creature.Controller;
+            var patrol = controller.ActionPatrol;
+
+            if (patrol.Step < 0 || patrol.Step >= steps.Count)
+                patrol.Step = 0;
+
+            // Not where the patrol left it: pushed aside, thrown, put somewhere. It goes back
+            // to the step, and does again whatever it does there.
+            if (Vector3.Distance(creature.Position, patrol.LeftAt) > Patrols.MovedTolerance)
+            {
+                patrol.Rejoining = true;
+                patrol.Arrived = false;
+                patrol.Faced = false;
+                patrol.WaitMs = 0;
+                patrol.LeftAt = creature.Position;
+            }
+
+            if (patrol.WaitMs > 0)
+            {
+                patrol.WaitMs -= delta;
+
+                if (patrol.WaitMs > 0)
+                    return;
+
+                patrol.WaitMs = 0;
+            }
+
+            if (patrol.Arrived)
+            {
+                if (!patrol.Faced)
+                {
+                    var here = steps[patrol.Step];
+
+                    patrol.Faced = true;
+                    patrol.WaitMs = (here.Facing is float facing ? TurnTo(creature, facing) : 0) + here.PauseMs;
+
+                    if (patrol.WaitMs > 0)
+                        return;
+                }
+
+                patrol.Step = (patrol.Step + 1) % steps.Count;
+                patrol.Arrived = false;
+                patrol.Faced = false;
+            }
+
+            var step = steps[patrol.Step];
+            var across = AcrossGround(creature.Position, step.Position);
+
+            if (patrol.Rejoining)
+            {
+                if (across > Patrols.RejoinDistance)
+                {
+                    if (controller.Path.Count == 0)
+                        BuildPath(mapChannel, creature, step.Position);
+
+                    // No route - no navmesh under one end of it - is a straight walk from here.
+                    if (controller.Path.Count > 0)
+                    {
+                        // The end of the route is as near the step as the mesh goes.
+                        if (FollowPath(mapChannel, creature, creature.WalkSpeed, delta))
+                            patrol.Rejoining = false;
+
+                        creature.Rotation = creature.LastYaw;
+                        patrol.LeftAt = creature.Position;
+                        return;
+                    }
+                }
+
+                patrol.Rejoining = false;
+                controller.Path.Clear();
+                controller.PathIndex = 0;
+            }
+
+            var to = step.Position - creature.Position;
+            var remaining = to.Length();
+            var moved = remaining;
+
+            // Over the step already, a hair above or below it, there is no way to face: it is put on it.
+            if (across > 0.01f)
+            {
+                var heading = AbilityManager.YawTowards(creature.Position, step.Position);
+
+                // The step is not ahead of it: it turns where it stands, and walks when it has.
+                if (MathF.Abs(Patrols.Turn(creature.LastYaw, heading)) > Patrols.TurnInPlace)
+                {
+                    patrol.WaitMs = TurnTo(creature, heading);
+                    return;
+                }
+
+                moved = UpdateEntityMovement(to.X, to.Y, to.Z, creature, mapChannel, creature.WalkSpeed, true, delta, grounded: false);
+                creature.Rotation = creature.LastYaw;
+            }
+
+            // The step is clamped to the distance left, so covering it is being there.
+            if (moved >= remaining - 0.001f)
+            {
+                creature.Position = step.Position;
+
+                if (Patrols.WalksOn(steps, patrol.Step, creature.LastYaw))
+                {
+                    // Nothing to do here and the next step ahead: its next think walks on.
+                    patrol.Step = (patrol.Step + 1) % steps.Count;
+                }
+                else
+                {
+                    patrol.Arrived = true;
+                    patrol.Faced = false;
+
+                    // The last step of a walk goes out with its speed, and the clients carry
+                    // it on at that until they are told it has stopped (StopWalking) - whether
+                    // that step was this think's, or the one that brought it off the navmesh
+                    // and onto the step a think ago.
+                    if (moved > 0.001f || controller.LastMovement?.Velocity > 0f)
+                        PublishMovement(creature, new Movement(creature.Position, 0f, 0x08, new Vector2(creature.LastYaw, 0f)));
+                }
+            }
+
+            patrol.LeftAt = creature.Position;
+        }
+
+        /// <summary>
+        /// Turns a standing creature to face <paramref name="yaw"/>: one stop, where it is, with
+        /// the new facing, which the client turns it to at its class's own rate. Returns how long
+        /// the turn is given (Patrols.TurnMs) - nothing, and nothing sent, if it faces that way
+        /// already.
+        /// </summary>
+        private static long TurnTo(Creature creature, float yaw)
+        {
+            var turn = Patrols.Turn(creature.LastYaw, yaw);
+
+            if (MathF.Abs(turn) < Patrols.FacingTolerance)
+                return 0;
+
+            creature.LastYaw = yaw;
+            creature.Rotation = yaw;
+
+            PublishMovement(creature, new Movement(creature.Position, 0f, 0x08, new Vector2(yaw, 0f)));
+
+            return Patrols.TurnMs(turn);
         }
 
         #endregion
@@ -1695,9 +1961,10 @@ namespace Rasa.Managers
         }
 
         /// <summary>
-        /// One tick of a knockback in progress (CrowdControl.Knockback): the creature slides
-        /// toward where it is being carried at the knockback's speed, still facing whoever hit it,
-        /// and is told to stop when it gets there. Returns whether it was moving.
+        /// One tick of a carry in progress (a Vortex's pull, a crab mine's run, a Kael's rush):
+        /// the creature goes toward where it is being carried at the carry's speed, and is told
+        /// to stop when it gets there. A rush is stepped without a word to the clients, who are
+        /// making the run themselves. Returns whether it was moving.
         /// </summary>
         private bool StepKnockback(MapChannel mapChannel, Creature creature, long delta)
         {
@@ -1713,7 +1980,8 @@ namespace Rasa.Managers
             if (remaining > 0.05)
             {
                 var speed = creature.KnockbackSpeed > 0 ? creature.KnockbackSpeed : CrowdControl.KnockbackSpeed;
-                var moved = UpdateEntityMovement(difX, difY, difZ, creature, mapChannel, speed, true, delta, knockback: true, faceAlong: creature.KnockbackIsPull);
+                var moved = UpdateEntityMovement(difX, difY, difZ, creature, mapChannel, speed, true, delta, knockback: true, faceAlong: creature.KnockbackIsPull,
+                    publish: !creature.IsRushing);
 
                 if (moved < remaining - 0.05)
                     return true;
@@ -1722,9 +1990,76 @@ namespace Rasa.Managers
             creature.KnockbackTo = null;
             creature.KnockbackSpeed = 0;
             creature.KnockbackIsPull = false;
+            creature.RushTo = null;
             StopMoving(creature);
 
             return true;
+        }
+
+        /// <summary>
+        /// A knockback (CrowdControl.Knockback): the creature is thrown to where it ends, facing
+        /// back along the way it went. Its clients fly the arc themselves (MovementType.Knockback)
+        /// from wherever they have it, and look at nothing else sent for it until it is back on
+        /// its feet, so they are told once and the server has it at the end from the start.
+        /// Whatever was carrying it stops.
+        /// </summary>
+        public void Throw(MapChannel mapChannel, Creature creature, Vector3 destination, Vector3 direction)
+        {
+            creature.KnockbackTo = null;
+            creature.KnockbackSpeed = 0;
+            creature.KnockbackIsPull = false;
+            creature.RushTo = null;
+
+            creature.Position = destination;
+            creature.LastYaw = (float)Math.Atan2(direction.X, direction.Z);
+
+            // To the clients that have it where it was thrown from, before its cell moves with it.
+            PublishMovement(creature, Movement.Knockback(destination, new Vector2(creature.LastYaw, 0f)));
+
+            if (mapChannel != null)
+                SynchronizeMovementCell(mapChannel, creature);
+        }
+
+        /// <summary>
+        /// A rush (KaelRushingBlow): the creature runs straight to where it ends at this speed,
+        /// facing the way it goes. Its clients make the run themselves (MovementType.Rush), so
+        /// they are told once, here. The server keeps its own place along the line a tick at a
+        /// time (StepKnockback) and sends nothing more until it is over. The speed is held to what
+        /// a movement can carry, so the two run at the same rate.
+        /// </summary>
+        public void Rush(Creature creature, Vector3 destination, float speed)
+        {
+            speed = Math.Clamp(speed, 1f, Movement.MaxVelocity);
+
+            creature.KnockbackTo = destination;
+            creature.KnockbackDirection = CrowdControl.AwayFrom(creature.Position, destination);
+            creature.KnockbackSpeed = speed;
+            creature.KnockbackIsPull = true;    // faces the way it runs
+            creature.RushTo = destination;
+            creature.LastYaw = AbilityManager.YawTowards(creature.Position, destination);
+
+            PublishMovement(creature, Movement.Rush(destination, speed, new Vector2(creature.LastYaw, 0f)));
+        }
+
+        /// <summary>
+        /// Ends whatever is carrying the creature, where it has got to. A rush is the exception:
+        /// its clients are making the run themselves and cannot be stopped part-way, so the
+        /// creature is put where the rush ends, which is where they will have it.
+        /// </summary>
+        public void EndCarry(MapChannel mapChannel, Creature creature)
+        {
+            if (creature.IsRushing)
+            {
+                creature.Position = creature.RushTo.Value;
+
+                if ((mapChannel ?? creature.RuntimeMapChannel) is MapChannel map)
+                    SynchronizeMovementCell(map, creature);
+            }
+
+            creature.KnockbackTo = null;
+            creature.KnockbackSpeed = 0;
+            creature.KnockbackIsPull = false;
+            creature.RushTo = null;
         }
 
         /// <summary>
@@ -2035,6 +2370,9 @@ namespace Rasa.Managers
 
             // Whatever brought it here - the scan, a hit, an assist - the target is on its table.
             Threat.Noticed(creature, targetEntityId);
+
+            // A pose it held at its post comes off (NpcPoses): it stands up, with what it really holds.
+            NpcPoses.Drop(creature.RuntimeMapChannel ?? MapChannelManager.Instance.FindByContextId(creature.MapContextId), creature);
 
             // Its weapon out for the fight, if it carries one.
             CreatureWeaponDraw.Draw(creature.RuntimeMapChannel ?? MapChannelManager.Instance.FindByContextId(creature.MapContextId), creature);
@@ -2463,8 +2801,10 @@ namespace Rasa.Managers
         /// </param>
         /// <returns>The distance actually moved.</returns>
         /// <param name="faceAlong">A carry that faces the way it goes (a Vortex pull) rather than back the way it came.</param>
+        /// <param name="publish">Whether the step is sent to the clients: not for a rush, which they are making themselves.</param>
+        /// <param name="grounded">Whether the step ends on the navmesh, as every walk's does but a beat's between two authored points (Patrols).</param>
         float UpdateEntityMovement(double difX, double difY, double difZ, Creature creature, MapChannel mapChannel, float speed, bool isMoved, long elapsedMs, bool knockback = false, bool faceAlong = false,
-            bool synchronizeVisibility = false)
+            bool synchronizeVisibility = false, bool publish = true, bool grounded = true)
         {
             if (!knockback)
             {
@@ -2507,7 +2847,8 @@ namespace Rasa.Managers
 
                 // Path corners carry the navmesh height; between them the ground is not a
                 // straight line, so keep the feet on it.
-                creature.Position = NavMeshManager.SnapToGround(mapChannel, creature.Position);
+                if (grounded)
+                    creature.Position = NavMeshManager.SnapToGround(mapChannel, creature.Position);
             }
 
             if (synchronizeVisibility)
@@ -2515,6 +2856,9 @@ namespace Rasa.Managers
                 creature.Rotation = vX;
                 SynchronizeMovementCell(mapChannel, creature);
             }
+
+            if (!publish)
+                return step;
 
             // send movement update
             var movement = new Movement(new Vector3(creature.Position.X, creature.Position.Y, creature.Position.Z), velocity, 0x08, new Vector2(vX, 0f));

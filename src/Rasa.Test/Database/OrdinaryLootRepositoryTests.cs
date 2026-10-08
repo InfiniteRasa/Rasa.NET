@@ -62,7 +62,7 @@ namespace Rasa.Test.Database
             Assert.AreEqual(0, context.ChangeTracker.Entries().Count());
 
             AssertReadOnly((IList<LootProfileEntry>)snapshot.Profiles);
-            AssertReadOnly((IList<LootGroupEntry>)snapshot.Groups);
+            AssertReadOnly((IList<OrdinaryLootGroupEntry>)snapshot.Groups);
             AssertReadOnly((IList<LootItemEntry>)snapshot.Items);
             AssertReadOnly((IList<CreatureLootBindingEntry>)snapshot.Bindings);
             AssertReadOnly((IList<LootMapPolicyEntry>)snapshot.MapPolicies);
@@ -99,7 +99,7 @@ namespace Rasa.Test.Database
         public void SnapshotCopiesCollectionMembershipAndRemainsReadableAfterContextDisposal()
         {
             var profiles = new List<LootProfileEntry> { new() { ProfileKey = "empty" } };
-            var groups = new List<LootGroupEntry> { new() { ProfileKey = "empty", GroupKey = "ammo" } };
+            var groups = new List<OrdinaryLootGroupEntry> { new() { ProfileKey = "empty", GroupKey = "ammo" } };
             var items = new List<LootItemEntry> { new() { ProfileKey = "empty", GroupKey = "ammo", ItemTemplateId = 1 } };
             var bindings = new List<CreatureLootBindingEntry> { new() { MapContextId = 10, CreatureId = 1, ProfileKey = "empty" } };
             var policies = new List<LootMapPolicyEntry> { new() { MapContextId = 10, RequireProfiles = true } };
@@ -177,11 +177,11 @@ namespace Rasa.Test.Database
                     ProfileKey = "alpha", Description = "A distribution", ContentRevision = "test_v1",
                     Provenance = "Reconstructed", EvidenceNotes = "Test evidence"
                 });
-            context.LootGroupEntries.AddRange(
-                new LootGroupEntry { ProfileKey = "zeta", GroupKey = "consumable", Kind = LootGroupKind.Consumable },
-                new LootGroupEntry { ProfileKey = "alpha", GroupKey = "junk", Kind = LootGroupKind.Junk },
-                new LootGroupEntry { ProfileKey = "alpha", GroupKey = "equipment", Kind = LootGroupKind.Equipment },
-                new LootGroupEntry
+            context.OrdinaryLootGroupEntries.AddRange(
+                new OrdinaryLootGroupEntry { ProfileKey = "zeta", GroupKey = "consumable", Kind = LootGroupKind.Consumable },
+                new OrdinaryLootGroupEntry { ProfileKey = "alpha", GroupKey = "junk", Kind = LootGroupKind.Junk },
+                new OrdinaryLootGroupEntry { ProfileKey = "alpha", GroupKey = "equipment", Kind = LootGroupKind.Equipment },
+                new OrdinaryLootGroupEntry
                 {
                     ProfileKey = "alpha", GroupKey = "ammo", Kind = LootGroupKind.Ammunition,
                     ChanceBasisPoints = 3000, MinimumRolls = 0, MaximumRolls = 2, SortOrder = -1

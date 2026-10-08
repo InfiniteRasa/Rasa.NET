@@ -44,15 +44,17 @@ namespace Rasa.Services.Preloader
     /// Linkers", "Killed 50 Linkers"): it is what the log shows.
     ///
     /// Sixty-three of the client's sixty-nine kill titles. Fourteen of them are of creatures
-    /// that stand nowhere in their battlefield yet, and count from the day they do. Not here:
-    /// five whose creature does not exist (the Maligo Elite, Smart Mines, Berserk Thraxus
-    /// Machina, Infected Foreans, Thrax Scavengers), and Palisades Stalker Killer, whose
-    /// objective is in the earlier Palisades mission (1630) only.
+    /// that stand nowhere in their battlefield yet, and count from the day they do. Two more,
+    /// the Undertaker's Infected Foreans and Palisades Stalker Killer, whose objective is in
+    /// the earlier Palisades mission (1630) only, were added to these missions afterwards
+    /// (<see cref="OneOffs"/>). Not here: four whose creature is a name in the client and
+    /// nothing in the world - no row, no class, no flag of its own to count by (the Maligo
+    /// Elite Guardsmen, Smart Mines, Berserk Thraxus Machina, Thrax Scavengers).
     ///
     /// The missions are optional content: one a database cannot stand up - a battlefield whose
     /// map it has not got - is left inactive, and the rest run.
     /// </summary>
-    public static class TargetsOfOpportunitySeed
+    public static partial class TargetsOfOpportunitySeed
     {
         public const string Revision = "targets_1";
 

@@ -223,6 +223,11 @@ namespace Rasa.Loot
                 errors.Add($"Ordinary loot {source}: repository is unsupported ({error.Message}).");
                 return null;
             }
+            catch (LegacyFlatLootArchiveException error)
+            {
+                errors.Add($"Ordinary loot {source}: {error.Message}");
+                return null;
+            }
         }
 
         private T Decode<T>(string json, string source) where T : class

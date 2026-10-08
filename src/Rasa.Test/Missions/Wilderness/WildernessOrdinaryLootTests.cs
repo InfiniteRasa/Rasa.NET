@@ -426,7 +426,7 @@ namespace Rasa.Test.Missions.Wilderness
                 additionalContent: migration =>
                 {
                     migration.Sql("DELETE FROM loot_item WHERE profile_key = 'wilderness_v1_thrax_5_9'");
-                    migration.Sql("DELETE FROM loot_group WHERE profile_key = 'wilderness_v1_thrax_5_9'");
+                    migration.Sql("DELETE FROM ordinary_loot_group WHERE profile_key = 'wilderness_v1_thrax_5_9'");
                 });
             var profile = OrdinaryLootCatalog.Current.Resolve(1220, 57);
             Assert.IsNotNull(profile);

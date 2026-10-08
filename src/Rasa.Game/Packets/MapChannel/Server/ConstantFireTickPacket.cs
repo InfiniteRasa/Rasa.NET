@@ -65,7 +65,8 @@ namespace Rasa.Packets.MapChannel.Server
                 {
                     pw.WriteTuple(3);               // (targetId, rawInfo, onHitData)
                     pw.WriteULong(shot.EntityId);
-                    DamageInfoWriter.WriteRawInfo(pw, shot.DamageType, shot.Amount, shot.Resisted, shot.IsCritical, shot.DeathBlow, absorbed: shot.Absorbed, wasImmune: shot.WasImmune);
+                    DamageInfoWriter.WriteRawInfo(pw, shot.DamageType, shot.Amount, shot.Resisted, shot.IsCritical, shot.DeathBlow, absorbed: shot.Absorbed, wasImmune: shot.WasImmune,
+                        targetEffectIds: shot.TargetEffectIds);
                     pw.WriteNoneStruct();
                 }
 

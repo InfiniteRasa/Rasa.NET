@@ -451,7 +451,7 @@ namespace Rasa.Test.Gameplay
             Assert.IsNull(context.Storage.Read(context.Item));
         }
 
-        private sealed class LootFixture : System.IDisposable
+        internal sealed class LootFixture : System.IDisposable
         {
             internal WeaponAmmoContext Storage { get; } = new(characterId: 42);
             internal Rasa.Game.Client Client => Storage.Client;

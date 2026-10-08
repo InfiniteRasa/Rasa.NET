@@ -86,6 +86,7 @@ namespace Rasa.Repositories.Char
             GmCommandLogs = new GmCommandLog.GmCommandLogRepository(dbContext);
             ChatLogs = new ChatLog.ChatLogRepository(dbContext);
             CharacterBossKills = new CharacterBossKill.CharacterBossKillRepository(dbContext);
+            CharacterGreetingReads = new CharacterGreetingRead.CharacterGreetingReadRepository(dbContext);
             SquadInstances = new SquadInstance.SquadInstanceRepository(dbContext);
             CharacterMissionItems = new CharacterMissionItem.CharacterMissionItemRepository(dbContext);
             CharacterMissionDeadlines = characterMissionDeadlines;
@@ -125,6 +126,7 @@ namespace Rasa.Repositories.Char
         public GmCommandLog.IGmCommandLogRepository GmCommandLogs { get; }
         public ChatLog.IChatLogRepository ChatLogs { get; }
         public CharacterBossKill.ICharacterBossKillRepository CharacterBossKills { get; }
+        public CharacterGreetingRead.ICharacterGreetingReadRepository CharacterGreetingReads { get; }
         public SquadInstance.ISquadInstanceRepository SquadInstances { get; }
         public CharacterMissionItem.ICharacterMissionItemRepository CharacterMissionItems { get; }
         public ICharacterMissionDeadlineRepository CharacterMissionDeadlines { get; }

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text.Json;
 using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Rasa.Data;
 using Rasa.Game;
@@ -68,7 +69,7 @@ namespace Rasa.Test.Gameplay
         public void CatalogDetachesAllMutableRowsAndSortsGroupsAndCandidatesWithoutKillTimeReads()
         {
             var data = new Content();
-            data.Groups.Add(new LootGroupEntry
+            data.Groups.Add(new OrdinaryLootGroupEntry
             {
                 ProfileKey = "regular", GroupKey = "first", Kind = LootGroupKind.Equipment,
                 ChanceBasisPoints = 10000, MinimumRolls = 1, MaximumRolls = 1, SortOrder = 0
@@ -264,7 +265,7 @@ namespace Rasa.Test.Gameplay
         public void SortTiesUseOrdinalKeysAndTemplateIdsAsDeterministicTieBreakers()
         {
             var data = new Content();
-            data.Groups.Add(new LootGroupEntry
+            data.Groups.Add(new OrdinaryLootGroupEntry
             {
                 ProfileKey = "regular", GroupKey = "aaa", Kind = LootGroupKind.Equipment,
                 ChanceBasisPoints = 10000, MinimumRolls = 1, MaximumRolls = 1, SortOrder = 1
@@ -650,7 +651,7 @@ namespace Rasa.Test.Gameplay
                 EntityManager.Instance.FreeEntity(staged.EntityId);
             }
             harness.World.LootProfileEntries.Add(new LootProfileEntry { ProfileKey = "verified_native" });
-            harness.World.LootGroupEntries.Add(new LootGroupEntry
+            harness.World.OrdinaryLootGroupEntries.Add(new OrdinaryLootGroupEntry
             {
                 ProfileKey = "verified_native", GroupKey = "drop", Kind = LootGroupKind.Equipment,
                 ChanceBasisPoints = 10000, MinimumRolls = 1, MaximumRolls = 1
@@ -677,6 +678,23 @@ namespace Rasa.Test.Gameplay
         }
 
         [TestMethod]
+        public void NonemptyFlatArchiveFailsReadinessWithActionableDiagnosticsWithoutReplacingTheCatalog()
+        {
+            using var harness = Rasa.Test.Missions.Wilderness.WildernessRuntimeTestHarness.Create();
+            var before = OrdinaryLootCatalog.Current;
+            harness.World.Database.ExecuteSqlRaw(
+                "INSERT INTO legacy_flat_loot_group VALUES (17, 'Old pool', 'Not a weight')");
+            using var world = harness.CreateWorld();
+
+            var error = Assert.ThrowsExactly<LootContentException>(() => OrdinaryLootCatalog.Load(world));
+            StringAssert.Contains(error.Message, "legacy_flat_loot_group=1");
+            StringAssert.Contains(error.Message, "author");
+            StringAssert.Contains(error.Message, "percent");
+            Assert.IsFalse(Rasa.Game.Server.LoadOrdinaryLootAndCheckReadiness(world));
+            Assert.AreSame(before, OrdinaryLootCatalog.Current);
+        }
+
+        [TestMethod]
         public void ReadinessDoesNotCatchUnrelatedProgrammingErrors()
         {
             var data = new Content { UnexpectedFailure = true };
@@ -693,7 +711,7 @@ namespace Rasa.Test.Gameplay
             data.Items[0].MaximumQuantity = 3;
             var catalog = Load(data);
             CollectionAssert.AreEqual(new[] { (901U, 3U) }, Resolve(catalog, 1220, 501).Roll((min, max) => min).ToArray());
-            data.Groups.Add(new LootGroupEntry
+            data.Groups.Add(new OrdinaryLootGroupEntry
             {
                 ProfileKey = "regular", GroupKey = "other", Kind = LootGroupKind.Junk,
                 ChanceBasisPoints = 10000, MinimumRolls = 1, MaximumRolls = 1
@@ -772,7 +790,7 @@ namespace Rasa.Test.Gameplay
         public sealed class Content : IOrdinaryLootRepository
         {
             internal List<LootProfileEntry> Profiles { get; } = new() { new() { ProfileKey = "regular" } };
-            internal List<LootGroupEntry> Groups { get; } = new()
+            internal List<OrdinaryLootGroupEntry> Groups { get; } = new()
             {
                 new() { ProfileKey = "regular", GroupKey = "ammo", Kind = LootGroupKind.Ammunition,
                     ChanceBasisPoints = 10000, MinimumRolls = 1, MaximumRolls = 1, SortOrder = 1 }

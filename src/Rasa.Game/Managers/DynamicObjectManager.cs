@@ -675,6 +675,33 @@ namespace Rasa.Managers
                 return;
             }
 
+            // Scenery is no usable either: what a .map places, made the way the client's own map
+            // loader makes it (gamemap.py: CreateEntity, then a position and an orientation).
+            // A piece whose class is a usable all the same is given the state it is to stand
+            // in, which is what puts that state's effect on it (usable.py Recv_UsableInfo); it
+            // is sent as out of service, so it is neither used nor picked out.
+            if (dynamicObject.DynamicObjectType == DynamicObjectType.Scenery)
+            {
+                var scenery = new List<PythonPacket>
+                {
+                    new IsTargetablePacket(false),
+                    new WorldLocationDescriptorPacket(dynamicObject.Position, dynamicObject.Rotation)
+                };
+
+                if (dynamicObject.StateId != 0)
+                    scenery.Add(new UsableInfoPacket(false, dynamicObject.StateId, 0, 0, 0));
+
+                client.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(dynamicObject.EntityId, dynamicObject.EntityClassId, scenery));
+                return;
+            }
+
+            // An ambient figure is a usable nobody can use: its one state, which is what starts its animation.
+            if (dynamicObject.DynamicObjectType == DynamicObjectType.AmbientNpc)
+            {
+                client.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(dynamicObject.EntityId, dynamicObject.EntityClassId, AmbientNpcs.EntityData(dynamicObject)));
+                return;
+            }
+
             var entityData = new List<PythonPacket>
             {
                 // PhysicalEntity
@@ -1198,6 +1225,7 @@ namespace Rasa.Managers
                             {
                                 dropship.Client.State = ClientState.Ingame;
                                 Maps.ResumeMissionScenes(dropship.Client);
+                                ManifestationManager.Instance.FinishArrival(dropship.Client);
                                 ManifestationManager.Instance.ResetInactivity(dropship.Client);
                             }
                         }
@@ -1750,6 +1778,29 @@ namespace Rasa.Managers
         }
 
         /// <summary>
+        /// A secret passage that shows itself (SecretPassages): the player who has walked into
+        /// it is taken to its far end as a waypoint takes them - the teleport's effect where
+        /// they stood and where they arrive, held until their client has answered. False when
+        /// they cannot travel now, and nothing has been done.
+        /// </summary>
+        internal bool TakePassage(Client client, Vector3 destination, double rotation)
+        {
+            lock (client.SyncRoot)
+            {
+                if (client.PendingTransfer != null || client.State != ClientState.Ingame ||
+                    client.Player?.MapChannel == null || client.Player.Disconected || client.Player.RemoveFromMap ||
+                    client.Player.LogoutActive || client.Player.State == CharacterState.Dead ||
+                    !CellManager.Instance.IsInWorld(client) ||
+                    !CellManager.TryGetCellCoordinates(destination, out _, out _) || !double.IsFinite(rotation))
+                    return false;
+
+                BeginLocalTravel(client, client.Player.MapChannel, destination, rotation);
+
+                return client.PendingTransfer != null;
+            }
+        }
+
+        /// <summary>
         /// ReturnToWormhole: the player has picked a "Temp Wormhole" row of a waypoint window, and
         /// goes to that Personal Waypoint (<see cref="PersonalWaypoints"/>). It has to be one they
         /// may return to, on the map they are on, and they have to be where such a window opens:
@@ -1898,6 +1949,7 @@ namespace Rasa.Managers
                 client.PendingTransfer = null;
                 client.State = ClientState.Ingame;
                 Maps.ResumeMissionScenes(client);
+                ManifestationManager.Instance.FinishArrival(client);
                 client.CallMethod(client.Player.EntityId, new TeleportArrivalPacket());
                 client.CallMethod(SysEntity.ClientMethodId, new UnrequestMovementBlockPacket());
             }

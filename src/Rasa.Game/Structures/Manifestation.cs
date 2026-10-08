@@ -49,6 +49,12 @@ namespace Rasa.Structures
 
         /// <summary>The bosses the character has killed, by creature name id (Managers.BossTitles). Locked on when read or written.</summary>
         public HashSet<uint> BossKills { get; set; } = new HashSet<uint>();
+
+        /// <summary>
+        /// The important lines the character has read: the NPC's creature row to the line it
+        /// was (character_greeting_read, Managers.NpcGreetings). Locked on when read or written.
+        /// </summary>
+        public Dictionary<uint, uint> GreetingsRead { get; set; } = new Dictionary<uint, uint>();
         public uint CurrentTitle { get; set; }
         public int CurrentAbilityDrawer { get; set; }
         public Dictionary<uint, MissionLog> Missions { get; set; } = new();
@@ -92,6 +98,13 @@ namespace Rasa.Structures
 
         /// <summary>Environment.TickCount64 when MoveBudget was last brought up to date.</summary>
         public long MoveBudgetTick { get; set; } = Environment.TickCount64;
+
+        /// <summary>
+        /// The velocity of the last Move accepted from the player's client, if it took them
+        /// somewhere; 0 if it left them where they were, and after being put somewhere. Whether
+        /// a shot at them is at someone on the move (Managers.ToHit).
+        /// </summary>
+        internal float MoveVelocity { get; set; }
 
         /// <summary>
         /// Environment.TickCount64 of the last movement correction sent to this client, so a
@@ -150,6 +163,7 @@ namespace Rasa.Structures
             Position = position;
             MoveBudget = 0;
             MoveBudgetTick = Environment.TickCount64;
+            MoveVelocity = 0;
             UnsupportedSinceTick = 0;
 
             // Put somewhere, not fallen there: whatever descent was under way is over.
@@ -172,6 +186,9 @@ namespace Rasa.Structures
 
         /// <summary>The descent under way, if any, for falling damage (Managers.FallDamage).</summary>
         public FallTracker Fall { get; } = new FallTracker();
+
+        /// <summary>When they last stood in lava and when it may next burn them (Managers.LavaDamage).</summary>
+        public LavaContact Lava { get; } = new LavaContact();
 
         /// <summary>
         /// Always false: this server has no trial accounts. The single source for every packet
@@ -278,6 +295,19 @@ namespace Rasa.Structures
         /// (ManifestationManager.ApplyRegenPeriod).
         /// </summary>
         public int ArmorRegenRate { get; set; }
+
+        /// <summary>
+        /// What the player's client was last told its item modules give (ModuleTotals.Shown);
+        /// null before the first telling, which is nothing. See ItemModuleBonuses.Changed.
+        /// </summary>
+        public string ModulesShown { get; set; }
+
+        /// <summary>
+        /// Something the player wears or holds was put on, taken off, modified, broken or mended
+        /// since their modules were last looked at; ItemModuleBonuses.Worker sees to it on the
+        /// next tick, once for however many things changed.
+        /// </summary>
+        public bool ModulesChanged { get; set; }
 
         /// <summary>Seconds of regeneration ticked so far (ActorManager.Regenerate); the in-combat period is a multiple of them.</summary>
         public long RegenSeconds { get; set; }

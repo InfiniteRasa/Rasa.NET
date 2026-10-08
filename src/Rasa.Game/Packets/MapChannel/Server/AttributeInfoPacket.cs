@@ -3,18 +3,32 @@
 namespace Rasa.Packets.MapChannel.Server
 {
     using Data;
+    using Managers;
     using Memory;
     using Structures;
 
+    /// <summary>
+    /// actor.py Recv_AttributeInfo(attrDict): every attribute of the actor, each made anew on the
+    /// client from (normalMax, currentMax, current, refreshAmount, refreshPeriod). It is the one
+    /// packet that carries the period; UpdateAttribute sets a 1.
+    ///
+    /// The client counts health, armour and power up by itself from the amount and the period it
+    /// was last given (ActorAttribute._EvaluatePredictedRefresh), so what is sent is what the
+    /// server counts by: the amounts as the effects on the actor make them
+    /// (GameEffectManager.WithRegen). Sent the attributes as they are held, a player under
+    /// Regeneration Wave or a Mech armor aura was put back to the base rate by every one of
+    /// these - on entering and leaving combat, on a change of armor, on an attribute point -
+    /// while the server went on at the effect's.
+    /// </summary>
     public class AttributeInfoPacket : ServerPythonPacket
     {
         public override GameOpcode Opcode { get; } = GameOpcode.AttributeInfo;
         
         public Dictionary<Attributes, ActorAttributes> ActorAttributes { get; set; }
         
-        public AttributeInfoPacket(Dictionary<Attributes, ActorAttributes> actorAttributes)
+        public AttributeInfoPacket(Actor actor)
         {
-            ActorAttributes = actorAttributes;
+            ActorAttributes = GameEffectManager.WithRegen(actor);
         }
 
         public override void Write(PythonWriter pw)
