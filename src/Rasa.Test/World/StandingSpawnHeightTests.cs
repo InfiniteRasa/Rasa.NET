@@ -142,7 +142,8 @@ namespace Rasa.Test.World
             Assert.AreEqual(200, StandingHeights.WorldUp.Length);
             Assert.AreEqual(200, StandingHeights.WorldDown.Length);
 
-            void AssertCorrected(bool expected)
+            // Moved since by a later migration: Corporal DeSimone (Place_bootcamp_base_npcs).
+            void AssertCorrected(bool expected, params uint[] movedSince)
             {
                 harness.World.ChangeTracker.Clear();
 
@@ -150,6 +151,9 @@ namespace Rasa.Test.World
 
                 foreach (var (pool, x, y, z) in corrected)
                 {
+                    if (movedSince.Contains(pool))
+                        continue;
+
                     Assert.IsTrue(rows.TryGetValue(pool, out var row), $"spawnpool {pool} is not in the world.");
 
                     var there = Math.Abs(row.PosY - y) < 0.000001
@@ -161,7 +165,7 @@ namespace Rasa.Test.World
             }
 
             // The migrated world.
-            AssertCorrected(true);
+            AssertCorrected(true, Rasa.Services.Preloader.BootcampBaseNpcs.DeSimonePoolId);
 
             // The vendor of Torcastra Prison was 5.69 m over the floor of the hall; Private
             // Parsons a metre in the ground; General Beacham in the sandbags beside Cimoch.

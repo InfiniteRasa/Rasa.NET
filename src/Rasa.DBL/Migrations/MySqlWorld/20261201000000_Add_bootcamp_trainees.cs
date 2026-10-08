@@ -1,11 +1,9 @@
-﻿using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Migrations;
+﻿using Microsoft.EntityFrameworkCore.Migrations;
 
 using JetBrains.Annotations;
 
 namespace Rasa.Migrations.MySqlWorld
 {
-    using Context.World;
     using Services.Preloader;
 
     /// <summary>
@@ -17,8 +15,6 @@ namespace Rasa.Migrations.MySqlWorld
     /// </summary>
     // ReSharper disable once InconsistentNaming
     [UsedImplicitly]
-    [DbContext(typeof(MySqlWorldContext))]
-    [Migration("20261201000000_Add_bootcamp_trainees")]
     public partial class Add_bootcamp_trainees : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)

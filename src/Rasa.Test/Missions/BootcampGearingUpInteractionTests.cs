@@ -31,11 +31,13 @@ namespace Rasa.Test.Missions
     public class BootcampGearingUpInteractionTests
     {
         private static readonly Vector3 CratePosition = new(398, 122, 173);
+        /// <summary>
+        /// The east lane's. The middle and west lanes' two went with Place_bootcamp_base_npcs: they
+        /// stood in front of the target the firing range soldiers' own model carries.
+        /// </summary>
         private static readonly Vector3[] PracticePositions =
         {
-            new(386, 120, 184.7f),
-            new(380, 120, 186),
-            new(375, 120, 186)
+            new(386, 120, 184.7f)
         };
 
         [TestMethod]
@@ -70,7 +72,7 @@ namespace Rasa.Test.Missions
             var targets = harness.BootcampMap.DynamicObjects
                 .Where(target => (uint)target.EntityClassId == 29365)
                 .ToArray();
-            Assert.AreEqual(3, targets.Length, "Three real Practice Dummy props must already be in the map.");
+            Assert.AreEqual(1, targets.Length, "The real Practice Dummy prop must already be in the map.");
             CollectionAssert.AreEquivalent(PracticePositions, targets.Select(target => target.Position).ToArray());
             Assert.IsTrue(targets.All(target => target.IsInWorld));
             harness.Drain();
@@ -80,7 +82,7 @@ namespace Rasa.Test.Missions
 
             var introductions = harness.Drain().OfType<CreatePhysicalEntityPacket>()
                 .Where(packet => (uint)packet.ClassId == 29365).ToArray();
-            Assert.AreEqual(3, introductions.Length);
+            Assert.AreEqual(1, introductions.Length);
             foreach (var introduction in introductions)
             {
                 Assert.IsFalse(introduction.EntityData.Any(packet => packet is CreatureInfoPacket),
@@ -97,7 +99,7 @@ namespace Rasa.Test.Missions
             var targets = harness.BootcampMap.DynamicObjects
                 .Where(target => (uint)target.EntityClassId == 29365)
                 .Select(target => target.EntityId).OrderBy(id => id).ToArray();
-            Assert.AreEqual(3, targets.Length);
+            Assert.AreEqual(1, targets.Length);
             var actors = PrepareActors(harness);
             Accept(harness, actors.McAllister);
             CompleteObjective(harness, actors.Delessio, 4);
@@ -344,8 +346,8 @@ namespace Rasa.Test.Missions
                 harness.MovePlayerTo(new Vector3(380, 120, 177));
                 CellManager.Instance.UpdateVisibility(harness.Client);
                 harness.Drain();
-                CastLightning(harness, targets[1]);
-                CollectionAssert.AreEqual(new[] { (targets[1].EntityId, UseObjectState.StateDestroyed) }, Told());
+                CastLightning(harness, targets[0]);
+                CollectionAssert.AreEqual(new[] { (targets[0].EntityId, UseObjectState.StateDestroyed) }, Told());
 
                 // Nothing that is no Practice Dummy is knocked back.
                 var crate = BootcampRuntimeTestHarness.FindScenarioObject(map, "bootcamp-equipment-crate");
@@ -452,7 +454,7 @@ namespace Rasa.Test.Missions
             var beforeChi = harness.Client.Player.Attributes[Attributes.Chi].Current;
             harness.Drain();
 
-            CastLightning(harness, targets[1]);
+            CastLightning(harness, targets[0]);
 
             Assert.AreEqual(beforeChi - 10, harness.Client.Player.Attributes[Attributes.Chi].Current);
             Assert.AreEqual(MissionObjectiveState.Completed,
@@ -489,18 +491,18 @@ namespace Rasa.Test.Missions
         }
 
         [TestMethod]
-        public void PracticeTargetsRemainExactlyThreeAcrossPrivateInstanceReconnect()
+        public void PracticeTargetsRemainExactlyOneAcrossPrivateInstanceReconnect()
         {
             using var harness = BootcampRuntimeTestHarness.Create();
             var before = harness.BootcampMap.DynamicObjects
                 .Where(target => (uint)target.EntityClassId == 29365).ToArray();
-            Assert.AreEqual(3, before.Length);
+            Assert.AreEqual(1, before.Length);
 
             harness.ReconnectFresh();
 
             var after = harness.BootcampMap.DynamicObjects
                 .Where(target => (uint)target.EntityClassId == 29365).ToArray();
-            Assert.AreEqual(3, after.Length);
+            Assert.AreEqual(1, after.Length);
             CollectionAssert.AreEquivalent(PracticePositions, after.Select(target => target.Position).ToArray());
             Assert.IsTrue(after.All(target => target.IsInWorld && target.StateId == UseObjectState.StateNull));
             Assert.IsFalse(before.Any(target =>
@@ -814,7 +816,7 @@ namespace Rasa.Test.Missions
             var beforeChi = harness.Client.Player.Attributes[Attributes.Chi].Current;
             harness.Drain();
 
-            CastLightning(harness, targets[1], expectPerformed: false);
+            CastLightning(harness, targets[0], expectPerformed: false);
 
             Assert.AreEqual(beforeChi, harness.Client.Player.Attributes[Attributes.Chi].Current);
             Assert.IsTrue(harness.Drain().OfType<UserActionFailedPacket>().Any(packet =>

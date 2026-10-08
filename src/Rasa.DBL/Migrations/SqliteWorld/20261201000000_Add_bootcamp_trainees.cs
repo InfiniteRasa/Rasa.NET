@@ -1,11 +1,9 @@
-﻿using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Migrations;
+﻿using Microsoft.EntityFrameworkCore.Migrations;
 
 using JetBrains.Annotations;
 
 namespace Rasa.Migrations.SqliteWorld
 {
-    using Context.World;
     using Services.Preloader;
 
     /// <summary>
@@ -17,8 +15,6 @@ namespace Rasa.Migrations.SqliteWorld
     /// </summary>
     // ReSharper disable once InconsistentNaming
     [UsedImplicitly]
-    [DbContext(typeof(SqliteWorldContext))]
-    [Migration("20261201000000_Add_bootcamp_trainees")]
     public partial class Add_bootcamp_trainees : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)

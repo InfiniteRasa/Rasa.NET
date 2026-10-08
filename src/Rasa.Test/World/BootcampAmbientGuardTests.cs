@@ -71,8 +71,8 @@ namespace Rasa.Test.World
 
                 Assert.IsFalse(world.SpawnPoolEntries.AsNoTracking().Any(pool => pools.Contains(pool.Id)));
                 Assert.IsFalse(spawnpools.GetPoses().Any(row => pools.Contains(row.Id)));
-                Assert.IsFalse(spawnpools.GetPatrols().Any());
-                CollectionAssert.AreEqual(new uint[] { 400001, 400002 }, spawnpools.GetPoses().Select(row => row.Id).OrderBy(id => id).ToArray(),
+                Assert.IsFalse(spawnpools.GetPatrols().Any(row => row.PoolId == BootcampTrainingOfficer.PoolId));
+                CollectionAssert.AreEqual(new uint[] { 400001, 400002 }, spawnpools.GetPoses().Select(row => row.Id).Where(id => id <= BootcampTrainingOfficer.PoolId).OrderBy(id => id).ToArray(),
                     "the Forean Warrior and the unarmed Infantryman keep their posts");
                 Assert.IsTrue(world.CreatureEntries.AsNoTracking().Any(row => row.Id == BootcampPostedNpcs.InfantrymanWithRifleId));
                 Assert.IsTrue(world.CreatureEntries.AsNoTracking().Any(row => row.Id == BootcampTrainingOfficer.CreatureId));
@@ -110,7 +110,7 @@ namespace Rasa.Test.World
 
                 Assert.HasCount(9, new AmbientNpcRepository(world).Get().Where(row => row.Id >= BootcampAmbientGuards.FirstId));
                 Assert.IsFalse(world.SpawnPoolEntries.AsNoTracking().Any(pool => pools.Contains(pool.Id)));
-                Assert.IsFalse(spawnpools.GetPatrols().Any());
+                Assert.IsFalse(spawnpools.GetPatrols().Any(row => row.PoolId == BootcampTrainingOfficer.PoolId));
             }
             finally
             {
