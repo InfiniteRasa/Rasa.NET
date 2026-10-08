@@ -28,15 +28,35 @@ namespace Rasa.Structures
 
         /// <summary>
         /// The two tints of its body (BodyAttributes hue and hue2, which the client puts on the
-        /// mesh with body.SetHue2). What a creature's were was the server's to know and is not
-        /// in the client's data, so they are rolled - once, when the creature is made, which is
-        /// when it spawns: every client that is ever shown it is sent these two, and it looks
-        /// the same to all of them for as long as it lives. One made from a template, or from
-        /// another creature, rolls its own (the copy constructor does not take them); a corpse
-        /// that rises is given its body's (AbilityManager.Raise).
+        /// mesh with body.SetHue2), or none: null, which goes out as None and leaves the model
+        /// in its own colours, as a player's is. Set once when it spawns (<see cref="TintAtSpawn"/>)
+        /// and sent as they are to every client that is ever shown it.
+        ///
+        /// What a creature's were was the server's to know and is not in the client's data. The
+        /// ones made in code - a player's summons, clone, pets and deployables - have none; the
+        /// copy constructor does not take them, so a creature made from a template or from another
+        /// has its own; a corpse that rises keeps its body's (AbilityManager.Raise).
         /// </summary>
-        public Color Hue { get; set; } = Color.RandomColor();
-        public Color Hue2 { get; set; } = Color.RandomColor();
+        public Color Hue { get; set; }
+        public Color Hue2 { get; set; }
+
+        /// <summary>
+        /// Its tints for this life, chosen as it spawns: none for a FRIENDLY creature - the AFS
+        /// soldiers, vendors and townsfolk, whose models have stock colours of their own that a
+        /// tint paints over - and two random ones for anything else.
+        /// </summary>
+        internal void TintAtSpawn()
+        {
+            if (TargetCategory == TargetCategory.Friendly)
+            {
+                Hue = null;
+                Hue2 = null;
+                return;
+            }
+
+            Hue = Color.RandomColor();
+            Hue2 = Color.RandomColor();
+        }
 
         public long UpdatePositionCounter;                                       // decreases, when it hits 0 and the cell position changed, call creature_updateCellLocation()
         public Dictionary<EquipmentData, AppearanceData> AppearanceData { get; set; }

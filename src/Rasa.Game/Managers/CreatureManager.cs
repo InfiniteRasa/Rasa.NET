@@ -547,6 +547,7 @@ namespace Rasa.Managers
 
             creature.State = CharacterState.Idle;
             creature.Name = entityClass.ClassName;
+            creature.TintAtSpawn();
 
             // set creature stats
             using var unitOfWork = _gameUnitOfWorkFactory.CreateWorld();
@@ -638,7 +639,7 @@ namespace Rasa.Managers
                 new WorldLocationDescriptorPacket(creature.Position, creature.Rotation),
                 // Ignoring collision volumes and walkable surfaces, as creatures always have: the
                 // packet wrote 1 and 1 whatever it was given.
-                // Its own two tints, rolled when it was made (Creature.Hue): the same to everyone.
+                // Its own tints, or none, chosen when it spawned (Creature.TintAtSpawn): the same to everyone.
                 new BodyAttributesPacket(creature.Scale, creature.Hue, BodyAttributesPacket.Ignore, BodyAttributesPacket.Ignore, creature.Hue2),
                 // Creature augmentation
                 new CreatureInfoPacket(creature.NameId, false, CreatureFlagsOf(creature)),
@@ -716,6 +717,7 @@ namespace Rasa.Managers
             creature.SpawnPool = spawnPool;
             creature.State = CharacterState.Idle;
             creature.Name = entityClass.ClassName;
+            creature.TintAtSpawn();
             EnsureScenarioAttributes(creature);
             SetLocation(creature, position, rotation, spawnPool?.MapContextId ?? creature.MapContextId);
             creature.Controller.CurrentAction = BehaviorManager.BehaviorActionWander;

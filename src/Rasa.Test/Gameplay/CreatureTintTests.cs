@@ -16,16 +16,18 @@ namespace Rasa.Test.Gameplay
     using Rasa.Test.Missions;
 
     /// <summary>
-    /// A creature's two body tints (BodyAttributes hue and hue2): rolled once when it is made,
+    /// A creature's two body tints (BodyAttributes hue and hue2): chosen once when it spawns,
     /// and sent as they are to whoever is shown it, however often. They used to be rolled each
     /// time it was shown to a client, so two players saw two creatures, and one player a new
-    /// one every time it came back into range.
+    /// one every time it came back into range. A FRIENDLY one - an AFS soldier, a vendor - has
+    /// none, and keeps its model's stock colours.
     /// </summary>
     [TestClass]
     [DoNotParallelize]
     public class CreatureTintTests
     {
         private const uint ThraxSoldier = 3;            // Bane_Thrax_Soldier (20757)
+        private const uint Infantryman = 400002;        // "Infantryman at a post, unarmed", Redshirt_Human_Soldier_Light_Male, FRIENDLY
 
         [TestMethod]
         public void ACreatureIsSentTheTintsItWasMadeWithEveryTimeItIsShown()
@@ -77,7 +79,8 @@ namespace Rasa.Test.Gameplay
             Assert.AreNotSame(template.Hue2, soldier.Hue2);
             Assert.AreNotSame(soldier.Hue, another.Hue);
             Assert.AreNotSame(soldier.Hue2, another.Hue2);
-            Assert.AreNotSame(soldier.Hue, new Creature(soldier).Hue, "a copy is another creature");
+            Assert.IsNull(new Creature(soldier).Hue, "a copy is another creature, and has not spawned");
+            Assert.IsNull(new Creature().Hue, "one made in code - a player's summon or pet - has none");
 
             // A corpse raised to fight for a player is the same body.
             soldier.Attributes[Attributes.Health].Current = 0;
@@ -95,6 +98,27 @@ namespace Rasa.Test.Gameplay
             Assert.AreNotSame(soldier, raised);
             Assert.AreSame(soldier.Hue, raised.Hue);
             Assert.AreSame(soldier.Hue2, raised.Hue2);
+        }
+
+        [TestMethod]
+        public void AFriendlyCreatureHasNoTintAndKeepsItsStockColours()
+        {
+            using var harness = BootcampRuntimeTestHarness.Create();
+            var guard = Spawn(harness, Infantryman);
+
+            Assert.AreEqual(TargetCategory.Friendly, guard.TargetCategory);
+            Assert.IsNull(guard.Hue);
+            Assert.IsNull(guard.Hue2);
+
+            harness.Drain();
+            CreatureManager.Instance.CreateCreatureOnClient(harness.Client, guard);
+
+            var body = harness.Drain().OfType<CreatePhysicalEntityPacket>()
+                .Single(created => created.EntityId == guard.EntityId)
+                .EntityData.OfType<BodyAttributesPacket>().Single();
+
+            Assert.IsNull(body.Hue, "None, as a player's: the client paints no tint over the model");
+            Assert.IsNull(body.Hue2);
         }
 
         private static AbilityManager Abilities() =>
