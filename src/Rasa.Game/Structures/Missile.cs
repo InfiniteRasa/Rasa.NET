@@ -62,6 +62,13 @@
         public Managers.CreatureArea? AreaOverride { get; set; }
         /// <summary>Where AreaOverride is centred, in place of the target's position.</summary>
         public System.Numerics.Vector3? AreaCentre { get; set; }
+        /// <summary>
+        /// Whether the to-hit roll went against it (ToHit): made as a weapon is fired, and null
+        /// for a missile that has not been rolled for, which is rolled for as it lands.
+        /// </summary>
+        public bool? Missed { get; set; }
+        /// <summary>A player's shot the server is holding for its flight (ShotFlight): it does not land if the shooter has left the map by then.</summary>
+        public bool HeldForFlight { get; set; }
         public long TriggerTime { get; set; }       // amount of milliseconds left before the missile is triggered, is decreased on every tick
         public MissileArgs Args = new MissileArgs();
     }

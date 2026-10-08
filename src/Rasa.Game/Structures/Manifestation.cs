@@ -100,6 +100,13 @@ namespace Rasa.Structures
         public long MoveBudgetTick { get; set; } = Environment.TickCount64;
 
         /// <summary>
+        /// The velocity of the last Move accepted from the player's client, if it took them
+        /// somewhere; 0 if it left them where they were, and after being put somewhere. Whether
+        /// a shot at them is at someone on the move (Managers.ToHit).
+        /// </summary>
+        internal float MoveVelocity { get; set; }
+
+        /// <summary>
         /// Environment.TickCount64 of the last movement correction sent to this client, so a
         /// client that keeps sending refused positions is snapped back and logged at a bounded
         /// rate rather than once per packet.
@@ -156,6 +163,7 @@ namespace Rasa.Structures
             Position = position;
             MoveBudget = 0;
             MoveBudgetTick = Environment.TickCount64;
+            MoveVelocity = 0;
             UnsupportedSinceTick = 0;
 
             // Put somewhere, not fallen there: whatever descent was under way is over.

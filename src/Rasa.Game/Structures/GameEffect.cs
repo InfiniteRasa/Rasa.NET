@@ -183,9 +183,9 @@ namespace Rasa.Structures
         public int IncomingRangedPercent { get; set; }
 
         /// <summary>
-        /// Percent of the shots aimed at the holder that miss it (Chaff's
-        /// DEFENSIVE_TOHIT_MODIFIER, "harder to hit"); melee is unaffected. The strongest on the
-        /// holder counts.
+        /// Percent taken off the chance that a shot aimed at the holder hits it (Chaff's
+        /// DEFENSIVE_TOHIT_MODIFIER, "harder to hit"; Managers.ToHit); melee is unaffected. The
+        /// strongest on the holder counts.
         /// </summary>
         public int MissPercent { get; set; }
 

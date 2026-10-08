@@ -123,7 +123,7 @@ namespace Rasa.Managers
         /// allowance a shot is charged from when it was due instead, so over any stretch of time
         /// no more than one shot per refire is fired - plus, once, twice the allowance's worth.
         /// </summary>
-        private const long ShotTolerance = 250;
+        internal const long ShotTolerance = 250;
 
         /// <summary>
         /// The least a shot is charged, in ms. The auto-fire list is walked once every 100 ms
@@ -1147,7 +1147,11 @@ namespace Rasa.Managers
                 knockbackChance: knockbackChance,
                 splashRadius: Splash.RadiusOf(weapon.ItemTemplate.WeaponInfo),
                 coneHalfAngle: ConeWeapons.IsCone(weapon.ItemTemplate.WeaponInfo, weaponClassInfo) ? ConeWeapons.HalfAngleOf(weapon.ItemTemplate.WeaponInfo) : 0,
-                optimalRange: weapon.ItemTemplate.WeaponInfo.Range);
+                optimalRange: weapon.ItemTemplate.WeaponInfo.Range,
+                // The weapon class's velocity, which the shooter's client flies the shot at, and
+                // how soon the weapon can be fired again (ShotFlight).
+                flightVelocity: weaponClassInfo.Velocity,
+                refireMs: Math.Max(MinRefire, weapon.ItemTemplate.WeaponInfo.Refire));
             
             return FireResult.Fired;
         }

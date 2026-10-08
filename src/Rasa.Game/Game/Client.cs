@@ -739,6 +739,10 @@ namespace Rasa.Game
                 MissionInteractionPolicy.InvalidateIfUnavailable(this);
                 Player.Rotation = movement.ViewDirection.X;
                 Movement = movement;
+
+                // On the move or not, for whoever shoots at them (ToHit): a Move that says so
+                // and has taken them somewhere.
+                Player.MoveVelocity = movement.Position != previousPosition ? movement.Velocity : 0;
                 MissionAreaService?.RecordAcceptedMovement(
                     this,
                     previousPosition,
