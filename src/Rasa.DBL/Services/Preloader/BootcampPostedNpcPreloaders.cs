@@ -122,6 +122,12 @@ namespace Rasa.Services.Preloader
             Insert(migrationBuilder, SpawnPoolEntry.TableName, Columns);
         }
 
+        /// <summary>The pools of these ids alone: a later migration's Down putting back pools it took out.</summary>
+        public void Preload(MigrationBuilder migrationBuilder, ICollection<uint> ids)
+        {
+            Insert(migrationBuilder, SpawnPoolEntry.TableName, Columns, row => ids.Contains((uint)row[0]));
+        }
+
         protected override IEnumerable<object[]> GetRows()
         {
             yield return Pool(BootcampPostedNpcs.ForeanWarriorPoolId, 404.0625f, 120.7656f, 110.1328f, 0.6549f, BootcampPostedNpcs.ForeanWarriorId);
@@ -144,6 +150,12 @@ namespace Rasa.Services.Preloader
         public void Preload(MigrationBuilder migrationBuilder)
         {
             Insert(migrationBuilder, SpawnPoolPoseEntry.TableName, new[] { "id", "pose" });
+        }
+
+        /// <summary>The poses of these pools alone: a later migration's Down putting back pools it took out.</summary>
+        public void Preload(MigrationBuilder migrationBuilder, ICollection<uint> ids)
+        {
+            Insert(migrationBuilder, SpawnPoolPoseEntry.TableName, new[] { "id", "pose" }, row => ids.Contains((uint)row[0]));
         }
 
         protected override IEnumerable<object[]> GetRows()

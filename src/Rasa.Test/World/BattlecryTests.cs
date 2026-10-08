@@ -439,7 +439,7 @@ namespace Rasa.Test.World
         [TestMethod]
         public void TheTrainingOfficerCallsTheHaltAtHisTwoStopsAndTheOffAsHeLeavesThem()
         {
-            using var harness = BootcampRuntimeTestHarness.Create(useWorldContent: true);
+            using var harness = BootcampRuntimeTestHarness.Create(useWorldContent: true, worldMigration: BootcampAmbientGuardTests.Before);
             harness.Client.Player.GmFlagAlwaysFriendly = true;
             SpawnPoolManager.Instance.SpawnPoolWorker(harness.BootcampMap, 0);
 

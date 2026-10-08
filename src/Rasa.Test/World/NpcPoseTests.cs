@@ -4,6 +4,8 @@ using System.IO;
 using System.Linq;
 using System.Numerics;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Rasa.Test.World
@@ -561,7 +563,12 @@ namespace Rasa.Test.World
                 var database = Path.Combine(directory, "world");
 
                 using (var context = PersistenceIntegrationTests.CreateContext(typeof(SqliteWorldContext), database))
+                {
                     MigratedDatabaseTemplates.Migrate(context, () => context.Database.Migrate());
+
+                    // As they were seeded: Add_bootcamp_ambient_guards, after, put figures in their place.
+                    context.GetService<IMigrator>().Migrate(BootcampAmbientGuardTests.Before);
+                }
 
                 using (var context = (WorldContext)PersistenceIntegrationTests.CreateContext(typeof(SqliteWorldContext), database))
                 {
@@ -635,7 +642,7 @@ namespace Rasa.Test.World
         [TestMethod]
         public void TheFourStandAtTheirPostsOnTheProvingGroundsAndAPlayerIsShownThemPosed()
         {
-            using var harness = BootcampRuntimeTestHarness.Create(useWorldContent: true);
+            using var harness = BootcampRuntimeTestHarness.Create(useWorldContent: true, worldMigration: BootcampAmbientGuardTests.Before);
             harness.Client.Player.GmFlagAlwaysFriendly = true;
             SpawnPoolManager.Instance.SpawnPoolWorker(harness.BootcampMap, 0);
 
