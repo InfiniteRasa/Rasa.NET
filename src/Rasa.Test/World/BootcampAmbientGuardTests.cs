@@ -50,7 +50,7 @@ namespace Rasa.Test.World
 
                 using var world = (WorldContext)PersistenceIntegrationTests.CreateContext(typeof(SqliteWorldContext), database);
 
-                var figures = new AmbientNpcRepository(world).Get().Where(row => row.Id >= BootcampAmbientGuards.FirstId).ToList();
+                var figures = new AmbientNpcRepository(world).Get().Where(row => row.Id >= BootcampAmbientGuards.FirstId && row.Id <= BootcampAmbientGuards.LastId).ToList();
                 var classes = world.EntityClassEntries.AsNoTracking().ToDictionary(entry => entry.Id);
 
                 CollectionAssert.AreEqual(new uint[] { 7, 8, 9, 10, 11, 12, 13, 14, 15 }, figures.Select(row => row.Id).ToArray());
@@ -160,7 +160,7 @@ namespace Rasa.Test.World
 
             try
             {
-                AmbientNpcs.Load(rows.Where(row => row.Id >= BootcampAmbientGuards.FirstId));
+                AmbientNpcs.Load(rows.Where(row => row.Id >= BootcampAmbientGuards.FirstId && row.Id <= BootcampAmbientGuards.LastId));
 
                 Assert.AreEqual(9, AmbientNpcs.Place(harness.BootcampMap));
 
