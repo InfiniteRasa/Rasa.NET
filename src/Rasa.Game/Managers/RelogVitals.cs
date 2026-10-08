@@ -22,7 +22,8 @@ namespace Rasa.Managers
     /// - On leaving the world (a logout or a dropped connection, MapChannelManager.RemovePlayer,
     ///   before the effects are cleared) the three values go to the character's row, with the
     ///   wall-clock time each penalty wears off.
-    /// - On loading, the row's values are held on the manifestation (Manifestation.LeftWith).
+    /// - On loading, the row's values are held on the manifestation (Manifestation.LeftWith),
+    ///   and nothing is saved over the row while they are (<see cref="Save"/>).
     /// - On arriving in the world, the values go back on once the stats have been worked out,
     ///   no higher than the maximum they come to now (<see cref="ApplyVitals"/>), and the
     ///   penalties go back on once the player's own client has its actor
@@ -80,12 +81,24 @@ namespace Rasa.Managers
                 .OrderByDescending(e => e.RemainingMs)
                 .FirstOrDefault();
 
-        /// <summary>Writes what a player leaving the world has left. Replaces whatever was saved before.</summary>
+        /// <summary>
+        /// Writes what a player leaving the world has left. Replaces whatever was saved before.
+        ///
+        /// Not for a character that has yet to arrive (<see cref="Manifestation.LeftWith"/> still
+        /// held): its health, armour and power are worked out when its client answers the login's
+        /// Wonkavate with MapLoaded, and until then they are the zeros the manifestation was made
+        /// with, with no effect on it. The map's worker has such a client on its list a tick
+        /// after the character was chosen, so a connection that ended on the login loading
+        /// screen - a crash, a closed client - was taken out with a logout's saves, and this one
+        /// wrote the nothing over the row: no health saved, which is full health; armour and
+        /// power 0; Rez Trauma and the no-healing gone. Done on purpose it was a heal and a way
+        /// out of the death penalties. The row is what such a character left with, and stays.
+        /// </summary>
         public static void Save(Client client)
         {
             var player = client?.Player;
 
-            if (player == null || player.Id == 0)
+            if (player == null || player.Id == 0 || player.LeftWith != null)
                 return;
 
             var saved = Capture(player, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
