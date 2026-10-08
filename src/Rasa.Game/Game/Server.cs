@@ -387,6 +387,7 @@ namespace Rasa.Game
             // is up.
             return new ServerStartupLifecycle(
                 ValidateMissionReadiness,
+                ValidateOrdinaryLootReadiness,
                 () => Loop.Start(),
                 SetupCommunicator,
                 CreateListenerSocket,
@@ -403,6 +404,28 @@ namespace Rasa.Game
             EntityClassManager.Instance.LoadEntityClasses();
             var missionValidation = MissionApplication.Instance.LoadMissions();
             return LogMissionValidationAndCheckReadiness(missionValidation);
+        }
+
+        private bool ValidateOrdinaryLootReadiness()
+        {
+            using var world = GameUnitOfWorkFactory.CreateWorld();
+            return LoadOrdinaryLootAndCheckReadiness(world);
+        }
+
+        internal static bool LoadOrdinaryLootAndCheckReadiness(Repositories.World.IWorldUnitOfWork world)
+        {
+            try
+            {
+                Loot.OrdinaryLootCatalog.Publish(Loot.OrdinaryLootCatalog.Load(world));
+                return true;
+            }
+            catch (Loot.LootContentException error)
+            {
+                foreach (var diagnostic in error.Diagnostics)
+                    Logger.WriteLog(LogType.Error, diagnostic);
+                Logger.WriteLog(LogType.Error, "Ordinary loot content validation failed; the Game server will not report ready.");
+                return false;
+            }
         }
 
         private void CreateListenerSocket()

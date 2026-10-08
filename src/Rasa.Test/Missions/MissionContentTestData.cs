@@ -28,6 +28,7 @@ namespace Rasa.Test.Missions
         internal List<MissionScenarioEntry> Scenarios { get; } = new();
         internal List<MissionScenarioStepEntry> ScenarioSteps { get; } = new();
         internal List<MissionEvidenceEntry> Evidence { get; } = new();
+        internal IOrdinaryLootRepository OrdinaryLoot { get; set; }
 
         internal HashSet<uint> NpcPackageIds { get; } = new() { 77 };
         internal Dictionary<uint, uint> ItemTemplateClasses { get; } = new()
@@ -392,8 +393,11 @@ namespace Rasa.Test.Missions
 
         private sealed class FakeWorldUnitOfWork : IWorldUnitOfWork
         {
+            private readonly MissionContentFixture _fixture;
+
             internal FakeWorldUnitOfWork(MissionContentFixture fixture)
             {
+                _fixture = fixture;
                 Equipment = new FakeEquipmentRepository(fixture);
                 Creatures = new FakeCreatureRepository(fixture);
                 EntityClasses = new FakeEntityClassRepository(fixture);
@@ -417,6 +421,8 @@ namespace Rasa.Test.Missions
             public INpcMissionRepository NpcMissions => null;
             public INpcMissionRewardRepository NpcMissionRewards => null;
             public IMissionContentRepository MissionContent { get; }
+            public IOrdinaryLootRepository OrdinaryLoot => _fixture.OrdinaryLoot ??
+                throw new NotSupportedException("This mission fixture must explicitly configure ordinary loot.");
             public INpcPackageRepository NpcPackages { get; }
             public IPlayerRandomNameRepository RandomNames => null;
             public ISpawnpoolRepository Spawnpools => null;

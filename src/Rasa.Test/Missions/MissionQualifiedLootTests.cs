@@ -18,6 +18,7 @@ using Rasa.Packets.LootDispenser.Server;
 using Rasa.Packets.Party.Server;
 using Rasa.Structures;
 using Rasa.Structures.World;
+using Rasa.Test.Gameplay;
 
 namespace Rasa.Test.Missions
 {
@@ -183,6 +184,51 @@ namespace Rasa.Test.Missions
             Assert.IsTrue(quest.Taken);
             Assert.AreEqual(1U, fixture.HeldQuantity);
             Assert.AreEqual(1U, fixture.Counter);
+        }
+
+        [TestMethod]
+        [DataRow(PartyLootMethod.FreeForAll, false)]
+        [DataRow(PartyLootMethod.Rotation, false)]
+        [DataRow(PartyLootMethod.DiceRoll, false)]
+        [DataRow(PartyLootMethod.FreeForAll, true)]
+        [DataRow(PartyLootMethod.Rotation, true)]
+        [DataRow(PartyLootMethod.DiceRoll, true)]
+        public void CatalogDropsAreAllocatedBeforePlanningTheKillersQualifiedDeficit(PartyLootMethod method, bool sameTemplate)
+        {
+            using var fixture = new Fixture(ordinaryTemplate: sameTemplate ? 28U : 29U);
+            var context = fixture.Context;
+            var member = context.CreateAdditionalClient(2);
+            member.Player.Attributes[Attributes.Health] = new(Attributes.Health, 100, 100, 100, 0, 0);
+            using var party = new PartyScope(method, context.Client, member);
+            party.Party.LootRotation = 1;
+            ItemManager.Instance.GetItemTemplateById(28).QualityId = (int)LootQuality.Normal;
+            ItemManager.Instance.GetItemTemplateById(29).QualityId = (int)LootQuality.Normal;
+
+            var loot = fixture.Spawn(squadLoot: true);
+
+            var ordinary = loot.LootItems.Single(item => item.ItemQuantity == 2);
+            Assert.AreEqual(sameTemplate ? 28U : 29U, ordinary.ItemTemplateId);
+            var qualified = loot.LootItems.Where(item => item.ItemQuantity == 1).ToArray();
+            var needsPersonal = !sameTemplate || !ordinary.MayTake(context.Client.Player.EntityId);
+            Assert.AreEqual(needsPersonal ? 1 : 0, qualified.Length);
+            Assert.AreEqual(0U, fixture.Counter, "Creation and squad allocation cannot grant acquisition progress.");
+            Assert.AreEqual(0U, fixture.HeldQuantity);
+            if (needsPersonal)
+            {
+                var quest = qualified.Single();
+                Assert.AreEqual(28U, quest.ItemTemplateId);
+                Assert.AreEqual(context.Client.Player.EntityId, quest.ReservedFor);
+                Assert.AreEqual(context.Client.Player.EntityId, quest.ActorId);
+                Assert.AreEqual(0U, quest.PartyId);
+                Assert.IsFalse(quest.MayTake(member.Player.EntityId));
+                fixture.Manager.RequestLootItemFromCorpse(context.Client, new RequestLootItemFromCorpsePacket
+                {
+                    EntityId = loot.EntityId, ItemId = quest.EntityId, DestSlot = 50
+                });
+                Assert.IsTrue(quest.Taken);
+                Assert.IsFalse(ordinary.Taken);
+                Assert.AreEqual(1U, fixture.Counter);
+            }
         }
 
         [TestMethod]
@@ -594,9 +640,10 @@ namespace Rasa.Test.Missions
             internal uint HeldQuantity => (uint)Context.Client.Player.Inventory.PersonalInventory.Where(id => id != 0)
                 .Select(EntityManager.Instance.GetItem).Where(item => item.ItemTemplate.ItemTemplateId == QuestTemplateId)
                 .Sum(item => (long)item.StackSize);
+            private readonly OrdinaryLootCatalogScope _ordinaryCatalog;
 
             internal Fixture(int chance = 100, uint quantity = 1, bool accept = true, bool authorDrop = true,
-                int percentile = 0, bool issueProtected = false, uint questTemplateId = 28)
+                int percentile = 0, bool issueProtected = false, uint questTemplateId = 28, uint? ordinaryTemplate = null)
             {
                 QuestTemplateId = questTemplateId;
                 var objective = new MissionObjectiveDefinition(1, 1001, 1002, new uint?[] { null, null, null }, 1,
@@ -629,9 +676,23 @@ namespace Rasa.Test.Missions
                 if (questTemplateId != 28)
                     Context.AddRewardTemplate(28, 3149);
                 Context.AddRewardTemplate(29, 3148);
+                if (ordinaryTemplate.HasValue)
+                {
+                    var content = new OrdinaryLootCatalogTests.Content();
+                    content.Items[0].ItemTemplateId = ordinaryTemplate.Value;
+                    content.Items[0].MinimumQuantity = 2;
+                    content.Items[0].MaximumQuantity = 2;
+                    content.Templates[0].Id = ordinaryTemplate.Value;
+                    content.Links[0].ItemTemplateId = ordinaryTemplate.Value;
+                    content.Creatures[0].Id = 3;
+                    content.Pools[0].Creature1Id = 3;
+                    content.Bindings[0].CreatureId = 3;
+                    _ordinaryCatalog = new OrdinaryLootCatalogScope(content.World);
+                }
                 Context.Client.Player.Attributes[Attributes.Health] = new ActorAttributes(Attributes.Health, 100, 100, 100, 0, 0);
                 Manager = new LootDispenserManager(Context, missionManager: Context.Manager,
-                    lootRoll: (minimum, maximum) => maximum == 100 ? percentile : minimum);
+                    lootRoll: (minimum, maximum) => maximum == 100 ? percentile : minimum,
+                    ordinaryLootResolver: ordinaryTemplate.HasValue ? null : Context.ResolveSyntheticLegacyLoot);
                 if (accept)
                     Assert.IsTrue(Context.Manager.AcceptOfferedMission(Context.Client, Context.AddNpc(77).EntityId, 901));
                 Context.Drain();
@@ -685,6 +746,7 @@ namespace Rasa.Test.Missions
                 Context.AfterSave = null;
                 foreach (var loot in Context.Map.LootDispensers.Values.ToArray())
                     Manager.RemoveForCreature(Context.Map, loot.Corpse);
+                _ordinaryCatalog?.Dispose();
                 Context.Dispose();
             }
         }

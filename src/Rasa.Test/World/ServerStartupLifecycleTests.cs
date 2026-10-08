@@ -21,6 +21,11 @@ namespace Rasa.Test.World
                     calls.Add("validate-missions");
                     return false;
                 },
+                validateLootReadiness: () =>
+                {
+                    calls.Add("validate-loot");
+                    return true;
+                },
                 startLoop: () => calls.Add("start-loop"),
                 setupCommunicator: () => calls.Add("setup-communicator"),
                 createListener: () => calls.Add("create-listener"),
@@ -47,6 +52,11 @@ namespace Rasa.Test.World
                     calls.Add("validate-missions");
                     return true;
                 },
+                validateLootReadiness: () =>
+                {
+                    calls.Add("validate-loot");
+                    return true;
+                },
                 startLoop: () => calls.Add("start-loop"),
                 setupCommunicator: () => calls.Add("setup-communicator"),
                 createListener: () => calls.Add("create-listener"),
@@ -62,6 +72,7 @@ namespace Rasa.Test.World
                 new[]
                 {
                     "validate-missions",
+                    "validate-loot",
                     "load-remaining",
                     "create-listener",
                     "register-login-queue",
@@ -84,6 +95,11 @@ namespace Rasa.Test.World
                     calls.Add("validate-missions");
                     return true;
                 },
+                validateLootReadiness: () =>
+                {
+                    calls.Add("validate-loot");
+                    return true;
+                },
                 startLoop: () => calls.Add("start-loop"),
                 setupCommunicator: () => calls.Add("setup-communicator"),
                 createListener: () =>
@@ -103,6 +119,7 @@ namespace Rasa.Test.World
                 new[]
                 {
                     "validate-missions",
+                    "validate-loot",
                     "load-remaining",
                     "create-listener",
                     "cleanup"

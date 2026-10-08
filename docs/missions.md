@@ -85,6 +85,14 @@ Gorge author the same supported medpack policy before their activation.
 Daghda's Urn installs Skeev's World data and its manual-combat scene binding
 together. See the [coverage and reconstruction ledger](wilderness-missions.md).
 
+Ordinary creature drops use the separate
+[World loot catalog](loot.md), not mission rewards or `ActorGameplayPolicy.Loot`.
+Explicit scene/Bootcamp authored loot remains personal; ordinary loot retains
+squad allocation. Qualified personal mission drops are appended after ordinary
+squad rolls and revalidated at pickup, which is when collection progress advances.
+New rewarding actors on a required map also need ordinary coverage unless they
+have an explicit authored override; missing coverage blocks Game readiness.
+
 Mission-authored World creature, spawn-pool and attack identities use
 `630001..630199`, separate from PR105's Divide rows. Native mission, class and
 item IDs are unchanged, as are Char outcome flags `530002` and `530003`.

@@ -207,6 +207,13 @@ mission diagnostic and refuses to print `Server ready!` until the content is
 fixed. Apply the matching World migrations and deploy the required C# mission
 scripts; there is no separate active-release requirement.
 
+Ordinary loot also validates and copies migrated World rows before Game accepts
+clients. The paired `20261118000000_Add_ordinary_loot_tables` schema and
+`20261118000100_Wilderness_ordinary_loot_v1` data migration make map 1220 require
+complete ordinary bindings. Invalid content blocks readiness; applying matching
+migrations and restarting loads the catalog, without a live-reload command.
+See [ordinary-loot deployment and tuning](loot.md#how-to-tune-and-deploy-ordinary-loot).
+
 The .NET 10 platform update itself requires no schema change. Apply the
 repository's migrations in their recorded order, subject to the fresh-database
 boundary below.
@@ -244,6 +251,13 @@ Mission definitions, rewards, routes and scene bindings belong in C# **data**
 migrations, using shared helpers where appropriate. See [mission authoring](missions.md).
 Keep schema changes separate, and add a new migration instead of modifying
 previously applied migration data.
+
+Ordinary loot chances and candidate pools are data too. Use a new paired World
+data migration, not edits to an applied seed/helper or gameplay constants.
+World history is forward-dated through `20261118000100`; a scaffold's current-date
+ID may sort before installed content. Before using it, assign an ID after the
+current tail and keep both providers' filenames/designer attributes consistent.
+See the [verified tuning example and ordering steps](loot.md#how-to-tune-and-deploy-ordinary-loot).
 
 Always ensure, that a migration only does one or the other. This is very easy, as we use code first approach. If you're developing a feature that requires an update to the schema of one or more of the databases, change the entry classes in RASA.DBL/Structures or add new entries by creating the class and adding a DbSet<EntryClass> to the respective DbContext. Then, create a migration applying those changes by executing the following commands:
 

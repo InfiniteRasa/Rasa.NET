@@ -23,6 +23,7 @@
         INpcMissionRepository NpcMissions { get; }
         INpcMissionRewardRepository NpcMissionRewards { get; }
         IMissionContentRepository MissionContent { get; }
+        IOrdinaryLootRepository OrdinaryLoot { get; }
         INpcPackageRepository NpcPackages { get; }
         IPlayerRandomNameRepository RandomNames { get; }
         ISpawnpoolRepository Spawnpools { get; }

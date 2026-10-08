@@ -41,6 +41,8 @@ namespace Rasa.Repositories.UnitOfWork
 
         public IMissionContentRepository MissionContent => _parent.MissionContent;
 
+        public IOrdinaryLootRepository OrdinaryLoot => _parent.OrdinaryLoot;
+
         public INpcPackageRepository NpcPackages => _parent.NpcPackages;
 
         public IPlayerRandomNameRepository RandomNames => _parent.RandomNames;

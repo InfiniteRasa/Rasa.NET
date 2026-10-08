@@ -300,7 +300,57 @@ need no intervening worker tick. Rejected travel does not cancel combat.
 The separate corpse-eligibility revision does not change for local travel;
 loot remains subject to its original ownership, lifetime and current distance.
 
+## Ordinary loot regression
+
+The [maintainer loot reference](loot.md) defines the five-table contract, frozen
+Wilderness balance, managed-map readiness and forward migration-based tuning.
+Run the focused profile/catalog, native corpse, pickup, squad/mission, startup
+and provider compatibility checks together:
+
+```powershell
+$filter = '(FullyQualifiedName~OrdinaryLoot|FullyQualifiedName~OrdinaryCorpseLootTests|FullyQualifiedName~LootConsolidationTests|FullyQualifiedName~MissionQualifiedLootTests|FullyQualifiedName~BootcampEncounterLootTests|FullyQualifiedName~PublicSceneActorPolicyTests|FullyQualifiedName~ServerStartupLifecycleTests|FullyQualifiedName~BootcampStartupValidationTests|FullyQualifiedName~WildernessMigrationTests|FullyQualifiedName~MigrationConsolidationTests|FullyQualifiedName~MigrationSnapshotsMatchCombinedModels|FullyQualifiedName~MigrationIdsAreUniqueAndOrdered|FullyQualifiedName~Pr95WorldModelRetainsIndexesAndColumnContracts)'
+dotnet test src\Rasa.Test\Rasa.Test.csproj --no-restore --filter $filter --logger 'console;verbosity=minimal' -v quiet
+```
+
+[`WildernessOrdinaryLootTests`](../src/Rasa.Test/Missions/Wilderness/WildernessOrdinaryLootTests.cs)
+spawns migrated native pools, lands real player missiles and exercises
+`RequestCorpseLooting`, `RequestLootAllFromCorpse` and
+`RequestLootItemFromCorpse`. Exact drops, native item entities, packet targets/
+payloads and persisted pickup are checked for Thrax, Miasma and Glognar, alongside
+empty outcomes, duplicate/range/lifetime refusals, full bags, rollback/retry,
+creation cleanup, captured unclaimed IDs at map departure and mission 479's
+pickup-time assignment revalidation. The latter uses a controlled durable
+generation mismatch, not an abandonment/replacement lifecycle.
+
+[`OrdinaryCorpseLootTests`](../src/Rasa.Test/Gameplay/OrdinaryCorpseLootTests.cs)
+and [`MissionQualifiedLootTests`](../src/Rasa.Test/Missions/MissionQualifiedLootTests.cs)
+cover ordinary squad allocation and personal mission reservations.
+[`WildernessOrdinaryLootMigrationTests`](../src/Rasa.Test/Database/WildernessOrdinaryLootMigrationTests.cs)
+checks independent frozen native pools, exact rarity weights, fresh/upgrade/
+rollback parity and reversible data-only tuning.
+Startup tests cover validation before network acceptance; MySQL model/SQL checks
+are offline and SQLite fixtures own their disposable databases.
+
+Automated packets and requests do not prove native-client delivery/rendering,
+live MySQL execution, a deployed restart or original retail probabilities.
+On a disposable deployment with client 1.16.5.0, verify readiness, kill a regular
+hostile and named boss without an active mission, open the manual menu, take one
+item and the remainder, and inspect inventory/closure. Repeat with squad
+allocation and a qualified collection item. Use explicit MySQL migration and
+restart steps from [setup](setup.md#applying-migrations), not a user database
+reset. Auto-loot filtering and credits timing are not changed by this rollout.
+
+The full `Rasa.Test.Missions` selector earlier on this page includes the unchanged
+`GenericMissionRuntimeFilesDoNotContainBootcampMissionIdSwitches` source-scan
+failure: it matches `2005` in a `MissionApplication.cs` explanatory comment.
+If excluding that baseline for a targeted gate, name it explicitly and do not
+report a full-suite-green result.
+
 ## Owner-only corpse loot
+
+This section describes pickup admission and transactions. Ordinary squad
+allocation and explicit personal authored overrides are described in
+[the loot reference](loot.md#lookup-coverage-and-readiness).
 
 Run the focused checks with:
 
@@ -335,11 +385,11 @@ to the origin, not animated client connection points. Its out-of-range
 rejections now include the actual/configured distances in the debug log;
 lootability effects alone do not mean a corpse is currently in reach.
 
-Both requests recheck the living, active owner, account/character identity,
+Both requests recheck the living, active eligible looter, account/character identity,
 registered player and corpse, current map/cell membership, corpse attachment and
 original lifetimes. Logging out, departure/re-entry, expired/removed corpses,
 foreign ownership and non-finite or out-of-range positions cannot grant loot.
-No obstacle, collision or group-distribution data is inferred.
+No obstacle or collision check is inferred.
 
 Supported requests use the existing layouts:
 
@@ -383,12 +433,14 @@ and credit updates precede `ActorGotLoot`, `TakenInfo`, disabled `CanLootItems`,
 `GotLoot` and dispenser destruction. Queued loot packets snapshot their values
 before runtime loot is cleared. Consumption is terminal even for empty or
 credit-only loot. The dispenser is removed, its item identities reclaimed, and
-the corpse attachment cleared. Dispenser request IDs are not recycled, so a
-delayed claim cannot address a later corpse. Expiry uses the existing 20-second
-corpse timer and disables/destroys the dispenser before destroying the corpse.
-Loot tables and random template, quantity, credit and quality selection are
-unchanged. Mission rewards use their own atomic turn-in path; party distribution
-remains separate work.
+the corpse attachment cleared. Published dispenser request IDs are not recycled, so a
+delayed claim cannot address a later corpse. Corpse age limits remain 20 seconds
+when empty, 120 seconds while lootable, and 300 seconds while its menu is open.
+Expiry disables/destroys the dispenser before destroying the corpse.
+Ordinary item distributions now come from the migrated catalog, and corpse
+quality reflects actual items. Credits amounts/timing and this pickup transaction
+are unchanged. Mission rewards retain their own atomic turn-in path; ordinary
+squad allocation remains the existing policy, not a second pickup engine.
 
 These automated checks do not drive the native 1.16.5.0 client. Verify opening,
 item display, manual take-all, inventory updates and closure in the native

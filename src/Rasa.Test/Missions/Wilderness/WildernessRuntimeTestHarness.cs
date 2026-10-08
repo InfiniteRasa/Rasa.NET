@@ -45,7 +45,9 @@ namespace Rasa.Test.Missions.Wilderness
             Directory.CreateDirectory(_directory);
         }
 
-        private void Initialize(Action<MigrationBuilder> additionalContent, string targetWorldMigration)
+        private void Initialize(Action<MigrationBuilder> additionalContent, string targetWorldMigration,
+            Func<int, int, int> lootRoll, Action<Item> beforeItemPublication,
+            Action<LootDispenser> beforeCorpsePublication)
         {
             Context = MissionTestContext.WithCustomDefinitions(new Dictionary<uint, Mission>());
             World = OpenWorld();
@@ -78,6 +80,21 @@ namespace Rasa.Test.Missions.Wilderness
                 transaction.Commit();
                 World.ChangeTracker.Clear();
             }
+            Func<uint, uint, Rasa.Loot.OrdinaryLootProfile> historicalLoot = null;
+            if (World.Database.GetAppliedMigrations().Contains("20261118000000_Add_ordinary_loot_tables"))
+            {
+                using var world = CreateWorld();
+                var catalog = new Rasa.Test.Gameplay.OrdinaryLootCatalogScope(world);
+                _restoreServices.Add(catalog.Dispose);
+            }
+            else if (targetWorldMigration != null)
+            {
+                // Explicitly stopped before the loot schema; never hide failures loading migrated content.
+                historicalLoot = (map, creature) => map == 1220 ? null :
+                    throw new InvalidOperationException($"Historical Wilderness fixture has no loot scope for map {map}.");
+            }
+            else
+                throw new InvalidOperationException("Fully migrated Wilderness fixture is missing the ordinary loot schema.");
             Map = Context.Map;
             Map.NavMesh = TestNavMeshes.Query(
                 NavMeshFile.PathFor(Path.Combine(RepositoryRoot(), "navmesh"), "adv_foreas_concordia_wilderness"));
@@ -101,7 +118,9 @@ namespace Rasa.Test.Missions.Wilderness
             Install(CreateService<ToolActionManager>());
             Install(new InventoryManager(this, Manager));
             Install(new SpawnPoolManager(this));
-            Install(new LootDispenserManager(this, missionManager: Manager));
+            Install(new LootDispenserManager(this, missionManager: Manager,
+                beforeItemPublication: beforeItemPublication, lootRoll: lootRoll,
+                ordinaryLootResolver: historicalLoot, beforeCorpsePublication: beforeCorpsePublication));
             Install(CreateService<ItemManager>());
             Install(CreateService<EntityClassManager>());
             Install(CreateService<ClanManager>());
@@ -121,12 +140,14 @@ namespace Rasa.Test.Missions.Wilderness
         }
 
         internal static WildernessRuntimeTestHarness Create(Action<MigrationBuilder> additionalContent = null,
-            string targetWorldMigration = null)
+            string targetWorldMigration = null, Func<int, int, int> lootRoll = null,
+            Action<Item> beforeItemPublication = null, Action<LootDispenser> beforeCorpsePublication = null)
         {
             var harness = new WildernessRuntimeTestHarness();
             try
             {
-                harness.Initialize(additionalContent, targetWorldMigration);
+                harness.Initialize(additionalContent, targetWorldMigration, lootRoll,
+                    beforeItemPublication, beforeCorpsePublication);
                 return harness;
             }
             catch
@@ -211,7 +232,7 @@ namespace Rasa.Test.Missions.Wilderness
                 new MapRegionRepository(context), new MapMarkerRepository(context),
                 new MapEmitterRepository(context), new SpawnPoolArrivalRepository(context), new RecipeRepository(context),
                 new NpcMissionRepository(context), new NpcMissionRewardRepository(context),
-                new MissionContentRepository(context), new NpcPackageRepository(context),
+                new MissionContentRepository(context), new OrdinaryLootRepository(context), new NpcPackageRepository(context),
                 new PlayerRandomNameRepository(context), new SpawnpoolRepository(context), new TeleporterRepository(context));
         }
 

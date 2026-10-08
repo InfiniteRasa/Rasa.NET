@@ -911,6 +911,13 @@ namespace Rasa.Test.Missions
         public IWorldUnitOfWork CreateWorld() =>
             throw new InvalidOperationException("Unexpected world database access.");
 
+        internal Rasa.Loot.OrdinaryLootProfile ResolveSyntheticLegacyLoot(uint mapContextId, uint creatureId)
+        {
+            if (mapContextId != Map.MapInfo.MapContextId)
+                throw new InvalidOperationException($"Synthetic mission fixture has no loot scope for map {mapContextId}.");
+            return null;
+        }
+
         internal SqliteCharContext Open() =>
             new(
                 Options.Create(new DatabaseConfiguration

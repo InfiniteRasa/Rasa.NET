@@ -447,10 +447,10 @@ namespace Rasa.Test.Missions.Wilderness
             var seededEncounter = JsonSerializer.Deserialize<MissionSceneDefinition>(seeded, MissionContentCodec.Options).PublicEncounter;
             Assert.IsFalse(seededEncounter.ManualCombat);
             Assert.IsFalse(seeded.Contains("manualCombat"));
-            CollectionAssert.AreEqual(new[] { "20261117000000_Hold_captive_pierre" },
-                harness.World.Database.GetPendingMigrations().ToArray());
+            Assert.AreEqual("20261117000000_Hold_captive_pierre",
+                harness.World.Database.GetPendingMigrations().First());
 
-            harness.World.Initialize();
+            harness.World.GetService<IMigrator>().Migrate("20261117000000_Hold_captive_pierre");
 
             var held = Scene(666);
             Assert.AreEqual(seededEncounter with { ManualCombat = true },
