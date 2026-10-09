@@ -3,11 +3,14 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 
 namespace Rasa.Test.Compatibility
 {
+    // Models only the Compose fields asserted by our deployment tests. In particular,
+    // long-form bind mounts are not scalar YAML strings; their target is a child field.
     internal sealed class ComposeLayout
     {
         private readonly IReadOnlyDictionary<string, ComposeService> _services;
@@ -19,11 +22,12 @@ namespace Rasa.Test.Compatibility
 
         internal static ComposeLayout Parse(string yaml)
         {
-            var services = new Dictionary<string, ComposeServiceBuilder>(
-                StringComparer.Ordinal);
+            var services = new Dictionary<string, ComposeServiceBuilder>(StringComparer.Ordinal);
             ComposeServiceBuilder currentService = null;
+            ComposeVolumeBuilder currentVolume = null;
             var inServices = false;
             var inVolumes = false;
+            var inBind = false;
 
             foreach (var rawLine in yaml.Replace("\r", string.Empty).Split('\n'))
             {
@@ -39,7 +43,9 @@ namespace Rasa.Test.Compatibility
                 {
                     inServices = line == "services:";
                     currentService = null;
+                    currentVolume = null;
                     inVolumes = false;
+                    inBind = false;
                     continue;
                 }
 
@@ -51,7 +57,9 @@ namespace Rasa.Test.Compatibility
                     var name = line.Substring(0, line.Length - 1);
                     currentService = new ComposeServiceBuilder(name);
                     services.Add(name, currentService);
+                    currentVolume = null;
                     inVolumes = false;
+                    inBind = false;
                     continue;
                 }
 
@@ -61,6 +69,8 @@ namespace Rasa.Test.Compatibility
                 if (indent == 4)
                 {
                     inVolumes = line == "volumes:";
+                    currentVolume = null;
+                    inBind = false;
                     if (inVolumes)
                         continue;
 
@@ -83,38 +93,76 @@ namespace Rasa.Test.Compatibility
                     continue;
                 }
 
-                if (inVolumes && indent == 6 && line.StartsWith("- ", StringComparison.Ordinal))
-                    currentService.VolumeDestinations.Add(ParseVolumeDestination(
-                        Unquote(line.Substring(2).Trim())));
+                if (!inVolumes)
+                    continue;
+
+                if (indent == 6 && line.StartsWith("- ", StringComparison.Ordinal))
+                {
+                    currentVolume = new ComposeVolumeBuilder();
+                    currentService.Volumes.Add(currentVolume);
+                    inBind = false;
+                    var item = Unquote(line.Substring(2).Trim());
+                    if (item.StartsWith("type:", StringComparison.Ordinal))
+                        currentVolume.Type = Unquote(item.Substring("type:".Length).Trim());
+                    else
+                        currentVolume.FromShortSyntax(item);
+                    continue;
+                }
+
+                if (currentVolume == null)
+                    continue;
+
+                if (indent == 8)
+                {
+                    inBind = line == "bind:";
+                    if (inBind)
+                        continue;
+
+                    var separator = line.IndexOf(':');
+                    if (separator < 0)
+                        continue;
+                    var property = line.Substring(0, separator);
+                    var value = Unquote(line.Substring(separator + 1).Trim());
+                    switch (property)
+                    {
+                        case "type": currentVolume.Type = value; break;
+                        case "source": currentVolume.Source = value; break;
+                        case "target": currentVolume.Destination = value; break;
+                    }
+                    continue;
+                }
+
+                if (inBind && indent == 10 && line.StartsWith("create_host_path:", StringComparison.Ordinal))
+                {
+                    var value = Unquote(line.Substring("create_host_path:".Length).Trim());
+                    if (!bool.TryParse(value, out var createHostPath))
+                        throw new InvalidDataException($"Invalid bind create_host_path value: {value}");
+                    currentVolume.CreateHostPath = createHostPath;
+                }
             }
 
             return new ComposeLayout(services.ToDictionary(
-                pair => pair.Key,
-                pair => pair.Value.Build(),
-                StringComparer.Ordinal));
+                pair => pair.Key, pair => pair.Value.Build(), StringComparer.Ordinal));
         }
 
         internal ComposeService GetService(string name)
         {
             if (!_services.TryGetValue(name, out var service))
                 throw new InvalidDataException($"Compose service '{name}' was not found.");
-
             return service;
-        }
-
-        private static string ParseVolumeDestination(string value)
-        {
-            var fields = value.Split(':');
-            var destination = fields.FirstOrDefault(field =>
-                field.StartsWith("/", StringComparison.Ordinal));
-            if (destination == null)
-                throw new InvalidDataException($"Volume '{value}' has no absolute container destination.");
-
-            return PosixPath.Normalize(destination);
         }
 
         private static IReadOnlyList<string> SplitCommand(string value)
         {
+            if (value.StartsWith("[", StringComparison.Ordinal))
+            {
+                using var document = JsonDocument.Parse(value);
+                if (document.RootElement.ValueKind != JsonValueKind.Array)
+                    throw new InvalidDataException($"Compose command is not a list: {value}");
+                return document.RootElement.EnumerateArray()
+                    .Select(element => element.GetString()).ToArray();
+            }
+
             return Regex.Matches(value, @"""[^""]*""|'[^']*'|\S+")
                 .Cast<Match>()
                 .Select(match => Unquote(match.Value))
@@ -149,7 +197,6 @@ namespace Rasa.Test.Compatibility
                 ((value[0] == '"' && value[value.Length - 1] == '"') ||
                  (value[0] == '\'' && value[value.Length - 1] == '\'')))
                 return value.Substring(1, value.Length - 2);
-
             return value;
         }
 
@@ -158,15 +205,54 @@ namespace Rasa.Test.Compatibility
             internal string Name { get; }
             internal string WorkingDirectory { get; set; }
             internal IReadOnlyList<string> Command { get; set; } = Array.Empty<string>();
-            internal List<string> VolumeDestinations { get; } = new List<string>();
+            internal List<ComposeVolumeBuilder> Volumes { get; } = new List<ComposeVolumeBuilder>();
 
-            internal ComposeServiceBuilder(string name)
-            {
-                Name = name;
-            }
+            internal ComposeServiceBuilder(string name) => Name = name;
 
             internal ComposeService Build() =>
-                new ComposeService(Name, WorkingDirectory, Command, VolumeDestinations);
+                new ComposeService(Name, WorkingDirectory, Command, Volumes.Select(volume => volume.Build()).ToArray());
+        }
+
+        private sealed class ComposeVolumeBuilder
+        {
+            internal string Type { get; set; } = "bind";
+            internal string Source { get; set; }
+            internal string Destination { get; set; }
+            internal bool? CreateHostPath { get; set; }
+
+            internal void FromShortSyntax(string value)
+            {
+                var fields = value.Split(':');
+                if (fields.Length < 2 || fields.Length > 3)
+                    throw new InvalidDataException($"Unsupported Compose volume: {value}");
+                Source = fields[0];
+                Destination = fields[1];
+            }
+
+            internal ComposeVolume Build()
+            {
+                if (string.IsNullOrWhiteSpace(Destination) ||
+                    !Destination.StartsWith("/", StringComparison.Ordinal))
+                    throw new InvalidDataException($"Volume '{Source ?? Type}' has no absolute container destination.");
+                return new ComposeVolume(Type, Source, PosixPath.Normalize(Destination), CreateHostPath);
+            }
+        }
+    }
+
+    internal sealed class ComposeVolume
+    {
+        internal string Type { get; }
+        internal string Source { get; }
+        internal string Destination { get; }
+        // Null means Compose's default. false means a missing host file must not become a directory.
+        internal bool? CreateHostPath { get; }
+
+        internal ComposeVolume(string type, string source, string destination, bool? createHostPath)
+        {
+            Type = type;
+            Source = source;
+            Destination = destination;
+            CreateHostPath = createHostPath;
         }
     }
 
@@ -175,18 +261,18 @@ namespace Rasa.Test.Compatibility
         internal string Name { get; }
         internal string WorkingDirectory { get; }
         internal IReadOnlyList<string> Command { get; }
-        internal IReadOnlyList<string> VolumeDestinations { get; }
+        internal IReadOnlyList<ComposeVolume> Volumes { get; }
+        internal IReadOnlyList<string> VolumeDestinations => Volumes.Select(volume => volume.Destination).ToArray();
 
-        internal ComposeService(
-            string name,
-            string workingDirectory,
-            IReadOnlyList<string> command,
-            IReadOnlyList<string> volumeDestinations)
+        internal ComposeService(string name, string workingDirectory, IReadOnlyList<string> command,
+            IReadOnlyList<ComposeVolume> volumes)
         {
             Name = name;
-            WorkingDirectory = PosixPath.Normalize(workingDirectory);
+            // No working_dir in Compose is valid: the Dockerfile WORKDIR/entrypoint supplies it.
+            WorkingDirectory = string.IsNullOrWhiteSpace(workingDirectory)
+                ? null : PosixPath.Normalize(workingDirectory);
             Command = command;
-            VolumeDestinations = volumeDestinations;
+            Volumes = volumes;
         }
     }
 
@@ -211,37 +297,101 @@ namespace Rasa.Test.Compatibility
             var dockerfile = DockerfileModel.Parse(
                 File.ReadAllText(Path.Combine(repositoryRoot, "Dockerfile")));
             var dockerIgnore = DockerIgnoreMatcher.Load(repositoryRoot);
+            var stages = new Dictionary<string, DockerImageLayout>(StringComparer.OrdinalIgnoreCase);
             var workingDirectory = "/";
 
             foreach (var instruction in dockerfile.Instructions)
             {
                 switch (instruction.Name)
                 {
+                    case "FROM":
+                        // A new FROM starts an independent filesystem. The runtime image
+                        // only gets files from a build stage via COPY --from=build.
+                        layout = new DockerImageLayout();
+                        workingDirectory = "/";
+                        var stage = Regex.Match(instruction.Arguments,
+                            @"(?:^|\s)AS\s+(\S+)\s*$", RegexOptions.IgnoreCase);
+                        if (stage.Success)
+                            stages.Add(stage.Groups[1].Value, layout);
+                        break;
                     case "WORKDIR":
-                        workingDirectory = PosixPath.Resolve(
-                            workingDirectory,
-                            instruction.Arguments);
+                        workingDirectory = PosixPath.Resolve(workingDirectory, instruction.Arguments);
                         layout.AddDirectory(workingDirectory);
                         break;
                     case "COPY":
-                        layout.ApplyCopy(
-                            repositoryRoot,
-                            workingDirectory,
-                            instruction.Arguments,
-                            dockerIgnore);
+                        var copy = SplitArguments(instruction.Arguments);
+                        if (copy.Count == 3 && copy[0].StartsWith("--from=", StringComparison.Ordinal))
+                        {
+                            var stageName = copy[0].Substring("--from=".Length);
+                            if (!stages.TryGetValue(stageName, out var source))
+                                throw new InvalidDataException($"Docker COPY refers to unknown stage '{stageName}'.");
+                            layout.CopyImagePath(source, copy[1], PosixPath.Resolve(workingDirectory, copy[2]));
+                        }
+                        else
+                        {
+                            layout.ApplyCopy(repositoryRoot, workingDirectory, instruction.Arguments, dockerIgnore);
+                        }
                         break;
                     case "RUN":
                         var build = DotNetBuildCommand.Parse(instruction.Arguments);
                         if (build != null &&
-                            build.Configuration.Equals(
-                                "Release",
-                                StringComparison.OrdinalIgnoreCase))
+                            build.Configuration.Equals("Release", StringComparison.OrdinalIgnoreCase))
+                        {
                             layout.ApplyBuild(workingDirectory, build);
+                            break;
+                        }
+
+                        // Materialize the packaging commands used by the Rasa Dockerfile:
+                        // RUN mkdir -p /out/auth /out/game
+                        // RUN cp -a /app/src/Rasa.Auth/bin/Release/net10.0/. /out/auth/
+                        var run = SplitArguments(instruction.Arguments);
+                        if (run.Count >= 3 && run[0] == "mkdir" && run[1] == "-p")
+                        {
+                            foreach (var directory in run.Skip(2))
+                                layout.AddDirectory(PosixPath.Resolve(workingDirectory, directory));
+                        }
+                        else if (run.Count == 4 && run[0] == "cp" && run[1] == "-a")
+                        {
+                            layout.CopyImagePath(layout,
+                                PosixPath.Resolve(workingDirectory, run[2]),
+                                PosixPath.Resolve(workingDirectory, run[3]));
+                        }
                         break;
                 }
             }
 
             return layout;
+        }
+
+        private void CopyImagePath(DockerImageLayout sourceImage, string sourcePath, string destinationPath)
+        {
+            // COPY /directory /destination copies the directory contents into destination.
+            // cp -a /directory/. /destination/ also copies its contents.
+            var source = PosixPath.Normalize(sourcePath);
+            if (source.EndsWith("/.", StringComparison.Ordinal))
+                source = source.Substring(0, source.Length - 2);
+            var destination = PosixPath.Normalize(destinationPath);
+
+            if (sourceImage._directories.Contains(source))
+            {
+                AddDirectory(destination);
+                var prefix = source.TrimEnd('/') + "/";
+                // Snapshot: RUN cp can copy files within the same simulated image.
+                var files = sourceImage._files
+                    .Where(path => path.StartsWith(prefix, StringComparison.Ordinal))
+                    .ToArray();
+                if (files.Length == 0)
+                    throw new InvalidDataException($"Docker copy source directory '{source}' has no files.");
+                foreach (var file in files)
+                    AddFile(PosixPath.Resolve(destination, file.Substring(prefix.Length)));
+                return;
+            }
+
+            if (!sourceImage._files.Contains(source))
+                throw new InvalidDataException($"Docker copy source '{source}' does not exist in its stage.");
+            if (destinationPath.EndsWith("/", StringComparison.Ordinal) || _directories.Contains(destination))
+                destination = PosixPath.Resolve(destination, source.Substring(source.LastIndexOf('/') + 1));
+            AddFile(destination);
         }
 
         internal bool ContainsFile(string path) =>

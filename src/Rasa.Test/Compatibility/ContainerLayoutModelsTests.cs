@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Rasa.Test.Compatibility
@@ -129,6 +130,100 @@ namespace Rasa.Test.Compatibility
 
             Assert.ThrowsExactly<InvalidDataException>(
                 () => DockerImageLayout.Create(repository.Root));
+        }
+
+        [TestMethod]
+        public void ComposeLongFormBindMountsRetainTheirTargetAndMissingFileProtection()
+        {
+            var compose = ComposeLayout.Parse("""
+                services:
+                  auth:
+                    command: ["auth"]
+                    volumes:
+                      - type: bind
+                        source: ./rasaauth.db
+                        target: /app/auth/rasaauth.db
+                        bind:
+                          create_host_path: false
+                  game:
+                    command: ["game"]
+                    volumes:
+                      - type: bind
+                        source: ./rasachar.db
+                        target: /app/game/rasachar.db
+                        bind:
+                          create_host_path: false
+                      - ./appsettings.env.json:/app/game/appsettings.env.json
+                """);
+
+            var auth = compose.GetService("auth");
+            CollectionAssert.AreEqual(new[] { "auth" }, auth.Command.ToArray());
+            Assert.IsNull(auth.WorkingDirectory, "Compose does not need working_dir for an entrypoint-driven image.");
+            Assert.AreEqual(1, auth.Volumes.Count);
+            Assert.AreEqual("bind", auth.Volumes[0].Type);
+            Assert.AreEqual("./rasaauth.db", auth.Volumes[0].Source);
+            Assert.AreEqual("/app/auth/rasaauth.db", auth.Volumes[0].Destination);
+            Assert.IsTrue(auth.Volumes[0].CreateHostPath == false);
+
+            var game = compose.GetService("game");
+            CollectionAssert.AreEqual(new[] { "game" }, game.Command.ToArray());
+            Assert.AreEqual(2, game.Volumes.Count);
+            Assert.AreEqual("/app/game/rasachar.db", game.Volumes[0].Destination);
+            Assert.IsTrue(game.Volumes[0].CreateHostPath == false);
+            Assert.AreEqual("/app/game/appsettings.env.json", game.Volumes[1].Destination);
+            Assert.IsNull(game.Volumes[1].CreateHostPath,
+                "Short-form binds use Docker Compose's default create-host-path behavior.");
+        }
+
+        [TestMethod]
+        public void ComposeRejectsLongFormMountWithoutAbsoluteTarget()
+        {
+            Assert.ThrowsExactly<InvalidDataException>(() => ComposeLayout.Parse("""
+                services:
+                  game:
+                    volumes:
+                      - type: bind
+                        source: ./database.db
+                        target: database.db
+                """));
+        }
+
+        [TestMethod]
+        public void MultiStageDockerBuildCopiesOnlyThePackagedOutputsIntoRuntimeImage()
+        {
+            using var repository = new DockerRepositoryFixture();
+            repository.Write("Dockerfile", """
+                FROM scratch AS build
+                WORKDIR /app
+                COPY src /app/src
+                COPY Rasa.NET.sln /app
+                RUN dotnet build --configuration Release
+                RUN mkdir -p /out/auth /out/game
+                RUN cp -a /app/src/Auth/bin/Release/net10.0/. /out/auth/
+                RUN cp -a /app/src/Game/bin/Release/net10.0/. /out/game/
+                FROM scratch AS runtime
+                WORKDIR /app
+                COPY --from=build /out/auth /app/auth
+                COPY --from=build /out/game /app/game
+                COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+                ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+                """);
+            repository.Write("Rasa.NET.sln", Solution(@"src\Auth\Auth.csproj", @"src\Game\Game.csproj"));
+            repository.Write("src/Auth/Auth.csproj", Project("Auth", null, "appsettings.json"));
+            repository.Write("src/Auth/appsettings.json", "{}");
+            repository.Write("src/Game/Game.csproj", Project("Game", null, "appsettings.json"));
+            repository.Write("src/Game/appsettings.json", "{}");
+            repository.Write("docker-entrypoint.sh", "#!/bin/sh\n");
+
+            var image = DockerImageLayout.Create(repository.Root);
+
+            Assert.IsTrue(image.ContainsFile("/app/auth/Auth.dll"));
+            Assert.IsTrue(image.ContainsFile("/app/auth/appsettings.json"));
+            Assert.IsTrue(image.ContainsFile("/app/game/Game.dll"));
+            Assert.IsTrue(image.ContainsFile("/app/game/appsettings.json"));
+            Assert.IsTrue(image.ContainsFile("/usr/local/bin/docker-entrypoint.sh"));
+            Assert.IsFalse(image.ContainsFile("/app/src/Auth/bin/Release/net10.0/Auth.dll"),
+                "Build-stage files should not leak into the runtime image.");
         }
 
         private static string Project(
