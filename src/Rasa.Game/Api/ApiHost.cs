@@ -58,6 +58,9 @@ namespace Rasa.Api
             Rest.Register(UpdateMonsterFlags);
             Rest.Register(LootPools);
             Rest.Register(UpdateLootPools);
+            Rest.Register(new IngameCreaturesEndpoint(IngameSessions));
+            Rest.Register(new IngameCreatureActionsEndpoint(IngameSessions));
+            Rest.Register(new IngameCreatureDetailsEndpoint(IngameSessions));
         }
 
         /// <summary>The settings in force from now. A listener that cannot open its port stays off; the world is not held up.</summary>
