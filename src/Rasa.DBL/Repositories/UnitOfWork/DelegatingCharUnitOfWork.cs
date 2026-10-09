@@ -73,6 +73,7 @@ namespace Rasa.Repositories.UnitOfWork
         public Char.GmCommandLog.IGmCommandLogRepository GmCommandLogs => _parent.GmCommandLogs;
         public Char.ChatLog.IChatLogRepository ChatLogs => _parent.ChatLogs;
         public Char.CharacterBossKill.ICharacterBossKillRepository CharacterBossKills => _parent.CharacterBossKills;
+        public Char.CharacterGreetingRead.ICharacterGreetingReadRepository CharacterGreetingReads => _parent.CharacterGreetingReads;
         public Char.SquadInstance.ISquadInstanceRepository SquadInstances => _parent.SquadInstances;
 
         public ICharacterMissionDeadlineRepository CharacterMissionDeadlines =>

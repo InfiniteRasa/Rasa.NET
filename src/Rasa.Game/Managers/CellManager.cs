@@ -132,8 +132,8 @@ namespace Rasa.Managers
             EntityManager.Instance.RegisterDynamicObject(dynamicObject);
 
             // calculate initial cell(x, z)
-            var cellPosX = (uint)(dynamicObject.Position.X / CellSize + CellBias);
-            var cellPosZ = (uint)(dynamicObject.Position.Z / CellSize + CellBias);
+            var cellPosX = (uint)(dynamicObject.CellPosition.X / CellSize + CellBias);
+            var cellPosZ = (uint)(dynamicObject.CellPosition.Z / CellSize + CellBias);
 
             // create matrix
             var cellMatrix = CreateCellMatrix(mapChannel, cellPosX, cellPosZ);
@@ -200,6 +200,9 @@ namespace Rasa.Managers
 
             // Last, with the players and the objects there: anyone among them claiming a control point.
             DynamicObjectManager.Instance.ShowClaimsTo(client, ListOfClients);
+
+            // And the squad on other maps, who were given no entity: the id this one is known by.
+            PartyManager.Instance.PlacedOnMap(client);
         }
 
         internal bool RemoveCreatureFromWorld(MapChannel mapChannel, Creature creature)
@@ -293,8 +296,8 @@ namespace Rasa.Managers
             EntityManager.Instance.FreeEntity(dynObject.EntityId);
             dynObject.RuntimeMapChannel = null;
 
-            var cellX = (uint)((dynObject.Position.X / CellSize) + CellBias);
-            var cellZ = (uint)((dynObject.Position.Z / CellSize) + CellBias);
+            var cellX = (uint)((dynObject.CellPosition.X / CellSize) + CellBias);
+            var cellZ = (uint)((dynObject.CellPosition.Z / CellSize) + CellBias);
             var cellMatrix = CreateCellMatrix(mapChannel, cellX, cellZ);
             var ListOfClients = new List<Client>();
 
@@ -588,7 +591,7 @@ namespace Rasa.Managers
         /// <summary>The clients that have been given an object: those in the cells around where it stands.</summary>
         internal List<Client> ClientsSeeing(MapChannel mapChannel, DynamicObject obj)
         {
-            if (mapChannel == null || obj == null || !TryGetCellCoordinates(obj.Position, out var cellPosX, out var cellPosZ))
+            if (mapChannel == null || obj == null || !TryGetCellCoordinates(obj.CellPosition, out var cellPosX, out var cellPosZ))
                 return new List<Client>();
 
             return GetClientsInCells(mapChannel, CreateCellMatrix(mapChannel, cellPosX, cellPosZ));
@@ -604,7 +607,7 @@ namespace Rasa.Managers
 
         internal void CellCallMethod(MapChannel mapChannel, DynamicObject obj, PythonPacket packet)
         {
-            if (!TryGetCellCoordinates(obj.Position, out var cellPosX, out var cellPosZ))
+            if (!TryGetCellCoordinates(obj.CellPosition, out var cellPosX, out var cellPosZ))
                 throw new InvalidDataException("Dynamic object position is outside the cell grid.");
             var cellMatrix = CreateCellMatrix(mapChannel, cellPosX, cellPosZ);
 

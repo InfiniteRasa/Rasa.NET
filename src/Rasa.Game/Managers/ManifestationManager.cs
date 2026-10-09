@@ -123,7 +123,7 @@ namespace Rasa.Managers
         /// allowance a shot is charged from when it was due instead, so over any stretch of time
         /// no more than one shot per refire is fired - plus, once, twice the allowance's worth.
         /// </summary>
-        private const long ShotTolerance = 250;
+        internal const long ShotTolerance = 250;
 
         /// <summary>
         /// The least a shot is charged, in ms. The auto-fire list is walked once every 100 ms
@@ -653,6 +653,49 @@ namespace Rasa.Managers
                     haste, new List<int> { skillId }, toolType.HasValue ? new List<int> { (int)toolType.Value } : null);
 
             SyncArmorSkills(client, mapChannel, player);
+
+            // The run speed modules in what they wear, as a standing effect of the server's own
+            // (ItemModuleBonuses.MovementPassive) - put on here because this is run on every map
+            // arrival and every change of armor, and the effect ends with the map.
+            SyncModuleSpeed(mapChannel, player);
+        }
+
+        /// <summary>
+        /// What a change in the player's item modules has to tell their client besides the
+        /// attributes (ItemModuleBonuses.Changed): the resistance list, and the run speed. The
+        /// skills' own standing effects are left as they are - a weapon swapped in a fight
+        /// should not take every one of them off and put it on again.
+        /// </summary>
+        public void SyncModulePassives(Client client)
+        {
+            var player = client?.Player;
+            var mapChannel = player?.MapChannel;
+
+            if (mapChannel == null)
+                return;
+
+            var (pump, pieces) = ArmorOf(player, ArmorSkills.Hazmat);
+
+            RebuildResistances(client, player, ArmorSkills.HazmatResist(pump, pieces));
+            SyncModuleSpeed(mapChannel, player);
+        }
+
+        /// <summary>The run speed modules' standing effect, as the modules now make it: left alone when it is already that, taken off with none.</summary>
+        private static void SyncModuleSpeed(MapChannel mapChannel, Manifestation player)
+        {
+            var wanted = 100 + ItemModuleBonuses.Of(player).MovementPercent;
+            var present = player.ActiveEffects.Values.Where(e => e.IsSkillPassive && e.TypeId == ItemModuleBonuses.MovementTypeId).ToList();
+
+            if (present.Count == 1 && present[0].MovementModifierPercent == wanted)
+                return;
+
+            foreach (var old in present)
+                GameEffectManager.Instance.DettachEffect(mapChannel, player, old);
+
+            var effect = ItemModuleBonuses.MovementPassive(mapChannel, player);
+
+            if (effect != null)
+                GameEffectManager.Instance.Attach(mapChannel, player, effect);
         }
 
         /// <summary>
@@ -824,7 +867,8 @@ namespace Rasa.Managers
 
         /// <summary>
         /// The player's resistance to each damage type: what their armour pieces carry
-        /// (itemtemplate_resistance) plus Hazmat Armor's bonus to its four types. Nothing built
+        /// (itemtemplate_resistance) plus Hazmat Armor's bonus to its four types and what their
+        /// item modules resist. Nothing built
         /// this list before, so the character window read zero for every resistance whatever was
         /// worn. Sent to the player's own client, which is who reads it; others get it in the
         /// player's entity data when they meet them.
@@ -847,6 +891,10 @@ namespace Rasa.Managers
             if (hazmat > 0)
                 foreach (var type in ArmorSkills.HazmatTypes)
                     totals[type] = totals.GetValueOrDefault(type) + hazmat;
+
+            // And what the modules in their armor and the weapon in hand resist (ItemModuleBonuses).
+            foreach (var resist in ItemModuleBonuses.DamageResistsOf(player))
+                totals[resist.Key] = totals.GetValueOrDefault(resist.Key) + resist.Value;
 
             player.ResistanceData = totals.Where(t => t.Value != 0).Select(t => new ResistanceData(t.Key, t.Value)).ToList();
 
@@ -999,37 +1047,13 @@ namespace Rasa.Managers
                     return FireResult.NotFired;
             }
 
+            // The rounds come out of the clip in memory. The row is not written for a shot: it
+            // was, in a transaction of its own on this loop, for every shot of every player
+            // (WeaponClips, which says when it is written instead).
             if (usesAmmo)
             {
-                var ammoAfter = weapon.CurrentAmmo - weapon.ItemTemplate.WeaponInfo.AmmoPerShot;
-                try
-                {
-                    using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
-                    unitOfWork.ExecuteTransaction(() =>
-                    {
-                        var saved = unitOfWork.Items.GetItem(weapon.Id);
-                        if (saved == null || saved.AmmoCount != weapon.CurrentAmmo)
-                            throw new GameplayRejectionException("Weapon clip changed before the shot committed.");
-
-                        unitOfWork.Items.UpdateAmmo(new Item
-                        {
-                            Id = weapon.Id,
-                            CurrentAmmo = ammoAfter
-                        });
-                    });
-                }
-                catch (Exception error) when (
-                    error is GameplayRejectionException ||
-                    error is DbUpdateException ||
-                    error is DbException)
-                {
-                    Logger.WriteLog(LogType.Error,
-                        $"Could not persist shot for item {weapon.Id}: {error.Message}");
-                    return FireResult.NotFired;
-                }
-
-                weapon.CurrentAmmo = ammoAfter;
-                client.CallMethod(weapon.EntityId, new WeaponAmmoInfoPacket(ammoAfter));
+                WeaponClips.Spend(client, weapon, weapon.ItemTemplate.WeaponInfo.AmmoPerShot, _gameUnitOfWorkFactory);
+                client.CallMethod(weapon.EntityId, new WeaponAmmoInfoPacket(weapon.CurrentAmmo));
             }
 
             client.Player.NextShotAt = Math.Max(client.Player.NextShotAt, now - ShotTolerance) +
@@ -1123,7 +1147,11 @@ namespace Rasa.Managers
                 knockbackChance: knockbackChance,
                 splashRadius: Splash.RadiusOf(weapon.ItemTemplate.WeaponInfo),
                 coneHalfAngle: ConeWeapons.IsCone(weapon.ItemTemplate.WeaponInfo, weaponClassInfo) ? ConeWeapons.HalfAngleOf(weapon.ItemTemplate.WeaponInfo) : 0,
-                optimalRange: weapon.ItemTemplate.WeaponInfo.Range);
+                optimalRange: weapon.ItemTemplate.WeaponInfo.Range,
+                // The weapon class's velocity, which the shooter's client flies the shot at, and
+                // how soon the weapon can be fired again (ShotFlight).
+                flightVelocity: weaponClassInfo.Velocity,
+                refireMs: Math.Max(MinRefire, weapon.ItemTemplate.WeaponInfo.Refire));
             
             return FireResult.Fired;
         }
@@ -1295,7 +1323,7 @@ namespace Rasa.Managers
             // The rate change is not in that packet - it carries nothing - so the attributes go
             // too. AttributeInfo rather than UpdateAttributes because only AttributeInfo carries
             // refreshPeriod, which is the field the modifier moves.
-            client.CallMethod(client.Player.EntityId, new AttributeInfoPacket(client.Player.Attributes));
+            client.CallMethod(client.Player.EntityId, new AttributeInfoPacket(client.Player));
         }
 
         /// <summary>Takes the player out of combat and restores their regeneration.</summary>
@@ -1313,11 +1341,11 @@ namespace Rasa.Managers
                 return;
 
             client.CallMethod(client.Player.EntityId, new PlayerExitedCombatPacket());
-            client.CallMethod(client.Player.EntityId, new AttributeInfoPacket(client.Player.Attributes));
+            client.CallMethod(client.Player.EntityId, new AttributeInfoPacket(client.Player));
         }
 
         /// <summary>
-        /// Sets the health and armour regeneration for the player's current combat state.
+        /// Sets the health, armour and power regeneration for the player's current combat state.
         ///
         /// Health: the period, five times longer in combat. The period rather than the amount,
         /// because both are integers on the wire and a base amount of 2 scaled by 0.2 truncates
@@ -1332,14 +1360,23 @@ namespace Rasa.Managers
         /// since they scale this amount. Armour put back directly (ActorManager.RestoreArmor)
         /// still goes on.
         ///
-        /// This is the only place either is set, including the out-of-combat values, so that
+        /// Power: the base period, in combat and out. The server has always counted it that way
+        /// (ActorManager.Regenerate takes a period nothing set as 1), but the attribute kept the
+        /// 0 it was made with, and AttributeInfo is the one packet that carries the period: every
+        /// one of them - on entering combat and on leaving it, on a change of armor, on an
+        /// attribute point - made the client a Power that stood still, until an UpdatePower or
+        /// an UpdateAttributes put a 1 back (actor.py UpdateAttribute). The client asks for no
+        /// ability its own figure cannot pay for (CheckConsumables), so the server's refilled
+        /// bar was no use to it.
+        ///
+        /// This is the only place any of them is set, including the out-of-combat values, so that
         /// there is one answer rather than two that have to agree. It is called at the end of
         /// UpdateStatsValues for that reason and for a second one: UpdateStatsValues recomputes
         /// the rates from scratch, so without it, changing a piece of armour mid-fight would
         /// quietly restore full regeneration.
         ///
         /// A period of zero would stop regeneration entirely - the client's
-        /// _EvaluatePredictedRefresh returns early on one - so neither branch may yield it.
+        /// _EvaluatePredictedRefresh returns early on one - so no branch may yield it.
         /// </summary>
         public void ApplyRegenPeriod(Manifestation player)
         {
@@ -1354,6 +1391,9 @@ namespace Rasa.Managers
 
             armor.RefreshAmount = player.InCombat && !CombatRegen.ArmorRegeneratesInCombat ? 0 : player.ArmorRegenRate;
             armor.RefreshPeriod = CombatRegen.RegenPeriodSeconds;
+
+            if (player.Attributes.TryGetValue(Attributes.Power, out var power))
+                power.RefreshPeriod = CombatRegen.RegenPeriodSeconds;
         }
 
         /// <summary>Drops players out of combat once their timer has run out.</summary>
@@ -1645,6 +1685,9 @@ namespace Rasa.Managers
                 return;
             }
 
+            // The weapon going out of the hand has its clip written (WeaponClips).
+            WeaponClips.Save(InventoryManager.Instance.CurrentWeapon(client));
+
             client.Player.ActiveWeapon = (byte)requestedWeaponDrawerSlot;
 
             client.CallMethod(client.Player.EntityId, new WeaponDrawerSlotPacket(requestedWeaponDrawerSlot, true));
@@ -1671,6 +1714,7 @@ namespace Rasa.Managers
             // used to leave the previous weapon in EquippedInventory[13], so the player kept
             // firing a weapon they had put away.
             client.Player.Inventory.EquippedInventory[13] = weapon?.EntityId ?? 0;
+            client.Player.ModulesChanged = true;    // another weapon's modules (ItemModuleBonuses)
 
             if (weapon == null)
             {
@@ -1836,7 +1880,61 @@ namespace Rasa.Managers
                     if (RegisterAutoFire(client, ShotWait(client.Player, Environment.TickCount64)))
                         ActorManager.Instance.SetAutoFireCombatMode(client, true);
                     break;
+
+                // No shot, and the button is down all the same. The client sends StartAutoFire
+                // once, when the button goes down, and after it only the keep-alives until the
+                // button comes up (gameui.py StartPrimaryAction returns while IsAutoFiring). What
+                // it did before sending was one of three things, locally and without a request
+                // of its own - draw a stowed weapon, reload an empty one, or fire - and whichever
+                // it was it now counts itself auto-firing, with every shot from here the
+                // server's to fire (manifestation.py StartAutoFire). The draw and the reload are
+                // done by TryFireWeapon, which says NotFired for both, and for that no timer was
+                // started: the first hold of the fire button after a login or a zone change drew
+                // the weapon and fired nothing, a hold on an empty clip reloaded and fired
+                // nothing, and nothing came of either until the button was let go and pressed
+                // again. The same for a first shot refused for reach, or held back by a stun or
+                // a reload still going.
+                //
+                // So the press starts the fire here too. The timer asks again as it does for a
+                // fire already running, and TryFireWeapon answers each time - first when the
+                // draw or the reload is over, where there is one, and otherwise a refire on.
+                case FireResult.NotFired:
+                    // Not for someone who has left the world, and not for the dead: their client
+                    // fires nothing until they are up again, and this press was on its way when
+                    // they died.
+                    if (client.Player == null || client.State != ClientState.Ingame || client.Player.State == CharacterState.Dead)
+                        break;
+
+                    var busy = WeaponBusyFor(client.Player);
+
+                    // The tick after it is over: the auto-fire list is walked before the map's
+                    // queued actions, so on the tick a reload ends the clip is still empty when
+                    // the fire has its turn.
+                    if (RegisterAutoFire(client, busy < 0 ? -1 : busy + 1))
+                        ActorManager.Instance.SetAutoFireCombatMode(client, true);
+                    break;
             }
+        }
+
+        /// <summary>
+        /// How long before the draw or the reload the player is in the middle of is over, in ms;
+        /// -1 when they are in neither. An interrupted one is already over, as IsReloading has it.
+        /// </summary>
+        private static long WeaponBusyFor(Manifestation player)
+        {
+            var queue = player.MapChannel?.PerformRecovery;
+
+            if (queue == null)
+                return -1;
+
+            var busy = -1L;
+
+            foreach (var action in queue)
+                if (action.Actor == player && !action.IsInrerrupted
+                    && (action.ActionId == ActionId.WeaponDraw || action.ActionId == ActionId.WeaponReload))
+                    busy = Math.Max(busy, Math.Max(0, action.WaitTime - action.PassedTime));
+
+            return busy;
         }
 
         public void StopAutoFire(Client client)
@@ -1875,7 +1973,7 @@ namespace Rasa.Managers
                     $"AccountId = {client.AccountEntry.Id} tried to allocate {packet.Body}/{packet.Mind}/{packet.Spirit} attribute points with {available} available.");
 
                 // Whatever the client's window thinks, this is where the character stands.
-                client.CallMethod(client.Player.EntityId, new AttributeInfoPacket(client.Player.Attributes));
+                client.CallMethod(client.Player.EntityId, new AttributeInfoPacket(client.Player));
                 return;
             }
 
@@ -1934,7 +2032,42 @@ namespace Rasa.Managers
             // when AttributeInfo causes the window to reload its B/M/S state.
             SendAvailableAllocationPoints(client);
 
-            client.CallMethod(client.Player.EntityId, new AttributeInfoPacket(client.Player.Attributes));
+            client.CallMethod(client.Player.EntityId, new AttributeInfoPacket(client.Player));
+        }
+
+        /// <summary>
+        /// A map change is over and the client is in the game again: what AssignPlayer left
+        /// for now. Called wherever a transfer makes the client Ingame, and does nothing for
+        /// one that put the player on no new map.
+        /// </summary>
+        internal void FinishArrival(Client client)
+        {
+            if (client?.Player == null || !client.MissionArrivalPending || client.State != ClientState.Ingame)
+                return;
+
+            MissionArrival(client);
+        }
+
+        /// <summary>
+        /// The player has come onto a map and is in the world: the missions offered by radio
+        /// to whoever arrives there (MissionApplication.OfferArrivalMissions), and the areas
+        /// of held missions that are the whole map (MissionAreaService.RecordArrival).
+        /// </summary>
+        private void MissionArrival(Client client)
+        {
+            client.MissionArrivalPending = false;
+            MissionApplication.Instance.OfferArrivalMissions(client);
+
+            // A mission's area that is this map: entered by arriving. Not worth the map to
+            // them if it fails.
+            try
+            {
+                client.MissionAreaService?.RecordArrival(client);
+            }
+            catch (Exception e)
+            {
+                Logger.WriteLog(LogType.Error, $"Mission areas on arrival, character {client.Player.Id}: {e.Message}");
+            }
         }
 
         public void AssignPlayer(Client client)
@@ -1955,7 +2088,21 @@ namespace Rasa.Managers
             // tracking from these MissionTrack options.
             client.CallMethod(SysEntity.ClientMethodId, new CharacterOptionsPacket(player.CharacterOptions));
 
-            client.CallMethod(SysEntity.ClientGameMapId, new SetSkyTimePacket { RunningTime = 6666666 });   // ToDo add actual time how long map is running
+            // Inventory deltas precede LoginOk. Refresh the tray after its controlled actor
+            // exists so the initial image does not depend on opening the equipment selector.
+            client.CallMethod(SysEntity.ClientInventoryManagerId,
+                new Packets.Inventory.Server.InventoryCreatePacket(
+                    InventoryType.WeaponDrawerInventory, player.Inventory.WeaponDrawer.ToList(),
+                    player.Inventory.WeaponDrawer.Count));
+            client.CallMethod(player.EntityId, new WeaponDrawerSlotPacket(player.ActiveWeapon, false));
+
+            // The armed ability too, with its loadout page: not requested, so the client takes it
+            // as its requested slot as well.
+            client.CallMethod(player.EntityId, new AbilityDrawerSlotPacket(player.CurrentAbilityDrawer, false));
+
+            // How long this map's sky has been running, which is what puts it at the same
+            // time of day for everyone on the map (SkyClock).
+            SkyClock.Send(client);
 
             client.CallMethod(SysEntity.ClientMethodId, new SetCurrentContextIdPacket(client.Player.MapChannel.MapInfo.MapContextId));
 
@@ -1988,7 +2135,16 @@ namespace Rasa.Managers
             client.CallMethod(player.EntityId, new AbilityDrawerSlotPacket(player.CurrentAbilityDrawer, false));
 
             _characterManager.OfferStartingExperienceMission(client);
-            MissionApplication.Instance.OfferArrivalMissions(client);
+
+            // What the missions make of the arrival is for a player who is in the world
+            // (MissionInteractionPolicy.IsActivePlayer). Logging in, that is now. Changing maps,
+            // the client is Teleporting until the arrival is over, and a radio offer made here
+            // was refused - "Radio offer has no authorized recipient, revision or source" - and
+            // the map's area not entered: left for FinishArrival.
+            if (client.State == ClientState.Ingame)
+                MissionArrival(client);
+            else
+                client.MissionArrivalPending = true;
 
             // Its cooldowns: the client's actor is new on every map and starts with none.
             ActionReuse.SendTo(client);
@@ -2133,6 +2289,7 @@ namespace Rasa.Managers
                     continue;
 
                 tempClient.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(client.Player.EntityId));
+                PartyManager.ManifestationGone(tempClient, client);
                 AbilityManager.HideMorphFrom(tempClient, client.Player);
             }
         }
@@ -2148,6 +2305,7 @@ namespace Rasa.Managers
                     continue;
 
                 client.CallMethod(SysEntity.ClientMethodId, new DestroyPhysicalEntityPacket(tempClient.Player.EntityId));
+                PartyManager.ManifestationGone(client, tempClient);
                 AbilityManager.HideMorphFrom(client, tempClient.Player);
             }
 
@@ -2169,6 +2327,9 @@ namespace Rasa.Managers
                     continue;
 
                 tempClient.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(player.EntityId, player.EntityClass, CreatePlayerEntityData(client, tempClient)));
+
+                // A squad mate's: whose it is goes with it, every time it is made (PartyManager).
+                PartyManager.ManifestationMade(tempClient, client);
 
                 // What is on them - a buff, a DoT, a morph - went out before this client was here.
                 GameEffectManager.ShowEffectsTo(tempClient, player);
@@ -2208,6 +2369,7 @@ namespace Rasa.Managers
                     continue;
 
                 client.CallMethod(SysEntity.ClientMethodId, new CreatePhysicalEntityPacket(tempClient.Player.EntityId, tempClient.Player.EntityClass, CreatePlayerEntityData(tempClient, client)));
+                PartyManager.ManifestationMade(client, tempClient);
 
                 // What is on them - a buff, a DoT, a morph - went out before this client was here.
                 GameEffectManager.ShowEffectsTo(client, tempClient.Player);
@@ -2229,14 +2391,17 @@ namespace Rasa.Managers
                 // PhysicalEntity
                 new IsTargetablePacket(EntityClassManager.Instance.GetClassInfo(player.EntityClass).TargetFlag),
                 new WorldLocationDescriptorPacket(player.Position, player.Rotation),
+                // The height chosen at creation. Nothing else sizes them: without it every
+                // player stood at 1.0 in the world, whatever the selection screen had shown.
+                BodyAttributesPacket.ForPlayer(player.Scale),
                 // Manifestation
                 new CurrentCharacterIdPacket(player.EntityId),
                 new CharacterClassPacket(player.Class),
                 // Item race requirements are checked against it (Item.CanActorUse, the tooltip).
                 new RaceIdPacket(player.Race),
-                new AttributeInfoPacket(player.Attributes),
+                new AttributeInfoPacket(player),
                 new PreloadDataPacket(client.Player.Inventory.EquippedInventory[13], player.Abilities),
-                new AppearanceDataPacket(player.AppearanceData),
+                new AppearanceDataPacket(player.AppearanceData, ofPlayer: true),
                 // With the appearance: a client that meets the player later has had no
                 // ShowHelmetChanged, and every actor starts with the helmet shown.
                 new ShowHelmetChangedPacket(ShowsHelmet(client)),
@@ -2415,7 +2580,7 @@ namespace Rasa.Managers
                 UpdateStatsValues(client, true);
                 client.CallMethod(
                     player.EntityId,
-                    new AttributeInfoPacket(player.Attributes));
+                    new AttributeInfoPacket(player));
                 SendAvailableAllocationPoints(client);
 
                 var opened = AvailableClassIds(player);
@@ -2452,7 +2617,12 @@ namespace Rasa.Managers
         }
 
         /// <param name="critKill">A kill by a finishing move: the client adds its "by Crit Killing" line.</param>
-        internal void GainExperience(Client client, uint experience, CritKill critKill = CritKill.None)
+        /// <param name="streakMod">
+        /// What a kill streak multiplied the experience by, 1 for nothing (KillStreaks): the
+        /// client adds " (+100% Kill Streak Bonus)" for 2, and shows the experience over it as
+        /// the base.
+        /// </param>
+        internal void GainExperience(Client client, uint experience, CritKill critKill = CritKill.None, int streakMod = 1)
         {
             var player = client?.Player;
             if (player == null || experience == 0 || client.State != ClientState.Ingame ||
@@ -2524,8 +2694,9 @@ namespace Rasa.Managers
 
             player.Experience = experienceAfter;
             client.CallMethod(player.EntityId,
-                new ExperienceChangedPacket(new XPInfo(experienceAfter, experience, experience)
+                new ExperienceChangedPacket(new XPInfo(experienceAfter, experience, streakMod > 1 ? experience / (uint)streakMod : experience)
                 {
+                    StreakMod = Math.Max(1, streakMod),
                     WasCritKill = critKill == CritKill.Own,
                     WasTeamCritKill = critKill == CritKill.Team
                 }));
@@ -2557,7 +2728,7 @@ namespace Rasa.Managers
 
                 UpdateStatsValues(client, true);
                 client.CallMethod(player.EntityId,
-                    new AttributeInfoPacket(player.Attributes));
+                    new AttributeInfoPacket(player));
                 SendAvailableAllocationPoints(client);
 
                 // Reaching 5, 15 or 30 is what opens the next tier. This is the packet that
@@ -2908,7 +3079,7 @@ namespace Rasa.Managers
                 client.CallMethod(player.EntityId, new CharacterClassPacket(player.Class));
 
             UpdateStatsValues(client, true);
-            client.CallMethod(player.EntityId, new AttributeInfoPacket(player.Attributes));
+            client.CallMethod(player.EntityId, new AttributeInfoPacket(player));
 
             if (untrain.Count > 0)
             {
@@ -2978,15 +3149,7 @@ namespace Rasa.Managers
 
         public void GetCustomizationChoices(Client client, GetCustomizationChoicesPacket packet)
         {
-            // ToDo
-            var test = EntityManager.Instance.GetEntityType(packet.EntityId);
-            var testChoices = new Dictionary<int, int>
-            {
-                { 3663, 36 },
-                { 3672, 42 },
-                { 3812, 60 }
-            };
-            client.CallMethod(SysEntity.ClientMethodId, new CustomizationChoicesPacket(packet.EntityId, testChoices));
+            Customization.Choices(client, packet);
         }
 
         private int GetLevelNeededExperience(int level)
@@ -3287,6 +3450,27 @@ namespace Rasa.Managers
         public void RequestCustomization(Client client, RequestCustomizationPacket packet)
         {
             Customization.Request(client, packet);
+        }
+
+        /// <summary>
+        /// What the player shows in a slot that no item is worn in - the hair and the face, whose
+        /// colour is the skin's - changed and kept (character_appearance). Everyone is told by
+        /// <see cref="UpdateAppearance"/>, which the caller sends when it is done.
+        /// </summary>
+        public void SetAppearance(Client client, EquipmentData slot, uint classId, Color color)
+        {
+            var player = client.Player;
+
+            if (!player.AppearanceData.TryGetValue(slot, out var shown))
+                player.AppearanceData.Add(slot, shown = new AppearanceData { SlotId = slot, Hue2 = new Color(2139062144) });
+
+            shown.Class = classId;
+            shown.Color = color;
+
+            using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
+
+            unitOfWork.CharacterAppearances.AddOrUpdate(player.Id, new CharacterAppearanceEntry((uint)slot, classId, color.Hue));
+            unitOfWork.Complete();
         }
 
         #region Movement
@@ -3876,7 +4060,11 @@ namespace Rasa.Managers
             if (mapChannel == null)
                 return;
 
-            var weaponClassInfo = EntityClassManager.Instance.GetWeaponClassInfo(InventoryManager.Instance.CurrentWeapon(client));
+            var weapon = InventoryManager.Instance.CurrentWeapon(client);
+            var weaponClassInfo = EntityClassManager.Instance.GetWeaponClassInfo(weapon);
+
+            // Put away: its clip is written (WeaponClips).
+            WeaponClips.Save(weapon);
 
             if (weaponClassInfo != null)
                 QueueWeaponReadyChange(mapChannel, new ActionData(client.Player, ActionId.WeaponStow, (uint)weaponClassInfo.StowActionId, 500));
@@ -4108,7 +4296,7 @@ namespace Rasa.Managers
             if (client.Player == null)
                 return;
 
-            client.CellCallMethod(client, client.Player.EntityId, new AppearanceDataPacket(client.Player.AppearanceData));
+            client.CellCallMethod(client, client.Player.EntityId, new AppearanceDataPacket(client.Player.AppearanceData, ofPlayer: true));
         }
 
         // Health calculation:
@@ -4194,9 +4382,20 @@ namespace Rasa.Managers
             if (client == null)
                 return;
 
+            RefreshStats(client);
+        }
+
+        /// <summary>The same, for a caller that has the player's client in hand.</summary>
+        public void RefreshStats(Client client)
+        {
+            var player = client?.Player;
+
+            if (player?.MapChannel == null)
+                return;
+
             UpdateStatsValues(client, false);
 
-            client.CallMethod(player.EntityId, new AttributeInfoPacket(player.Attributes));
+            client.CallMethod(player.EntityId, new AttributeInfoPacket(player));
             client.CallMethod(player.EntityId, new UpdatePowerPacket(player.Attributes[Attributes.Power], 0));
             CellManager.Instance.CellCallMethod(player.MapChannel, player, new UpdateHealthPacket(player.Attributes[Attributes.Health], 0));
 
@@ -4253,6 +4452,19 @@ namespace Rasa.Managers
             totalMind   = WithPercent(totalMind,   GameEffectManager.AttributePercentOf(player, Attributes.Mind));
             totalSpirit = WithPercent(totalSpirit, GameEffectManager.AttributePercentOf(player, Attributes.Spirit));
 
+            // What the modules in the armor worn and the weapon in hand add (ItemModuleBonuses).
+            // Body, Mind and Spirit first: a module's point of Body is a point of Body, with the
+            // health and armor that brings. The attribute keeps the two apart - the base, and
+            // the base with the modules, which the attributes window shows beside it in green.
+            var modules = ItemModuleBonuses.Of(player);
+            var baseBody = totalBody;
+            var baseMind = totalMind;
+            var baseSpirit = totalSpirit;
+
+            totalBody += modules.Body;
+            totalMind += modules.Mind;
+            totalSpirit += modules.Spirit;
+
             // Health
             float levelBasedHealth = HealthBaselinePerLevel[level - 1];
             levelBasedHealth = levelBasedHealth / (2 * (level - 1) + 2 * (2 * (level - 1) + 10) + 10);
@@ -4276,14 +4488,9 @@ namespace Rasa.Managers
             float baseRegen = (2 * level + 100) / attributeDivisor;
             int totalRegen = (int)(baseRegen * (totalMind + 2 * totalSpirit));
           
-            // Bonuses
-            var bodyBonus = 0;
-            var mindBonus = 0;
-            var spiritBonus = 0;
-
-            var healthBonus = 0;
-            var chiBonus    = 0;
-            var regenBonus  = 0;
+            // Bonuses: the modules'.
+            var healthBonus = modules.Health;
+            var regenBonus  = modules.Regen;
 
             float armorBonusPercent = (float)Math.Max(0.0, (totalBody - (2 * (level - 1) + 10)) * 0.667);   // every body attribute over the default base attribute gives 0.667% bonus armo;
             float logosBonusPercent = (float)Math.Max(0.0, (totalMind - (2 * (level - 1) + 10)) * 0.375);   // every mind attribute over the default base attribute gives 0.375% bonus logos damage
@@ -4291,28 +4498,28 @@ namespace Rasa.Managers
 
 
             // body
-            attribute[Attributes.Body].NormalMax    = totalBody;
-            attribute[Attributes.Body].CurrentMax   = attribute[Attributes.Body].NormalMax + bodyBonus;
+            attribute[Attributes.Body].NormalMax    = baseBody;
+            attribute[Attributes.Body].CurrentMax   = totalBody;
             attribute[Attributes.Body].Current      = attribute[Attributes.Body].CurrentMax;
 
-            attribute[Attributes.Mind].NormalMax    = totalMind;
-            attribute[Attributes.Mind].CurrentMax   = attribute[Attributes.Mind].NormalMax + mindBonus;
+            attribute[Attributes.Mind].NormalMax    = baseMind;
+            attribute[Attributes.Mind].CurrentMax   = totalMind;
             attribute[Attributes.Mind].Current      = attribute[Attributes.Mind].CurrentMax;
 
-            attribute[Attributes.Spirit].NormalMax  = totalSpirit;
-            attribute[Attributes.Spirit].CurrentMax = attribute[Attributes.Spirit].NormalMax + spiritBonus;
+            attribute[Attributes.Spirit].NormalMax  = baseSpirit;
+            attribute[Attributes.Spirit].CurrentMax = totalSpirit;
             attribute[Attributes.Spirit].Current    = attribute[Attributes.Spirit].CurrentMax;
 
             // health
             attribute[Attributes.Health].NormalMax  = totalHealth;
-            attribute[Attributes.Health].CurrentMax = totalHealth;
+            attribute[Attributes.Health].CurrentMax = Math.Max(1, totalHealth + healthBonus);
 
             // chi/adrenaline
             attribute[Attributes.Chi].NormalMax     = totalPower;
             attribute[Attributes.Chi].CurrentMax    = totalPower;
 
             attribute[Attributes.Regen].NormalMax   = totalRegen; // regenRate in percent
-            attribute[Attributes.Regen].CurrentMax  = totalRegen;
+            attribute[Attributes.Regen].CurrentMax  = Math.Max(0, totalRegen + regenBonus);
 
             if (fullreset)
             {
@@ -4336,7 +4543,10 @@ namespace Rasa.Managers
             // computing the rate and storing it on the wrong attribute meant no player has ever
             // regenerated health at all. The period has to be non-zero as well:
             // _EvaluatePredictedRefresh returns early on a period of 0.
-            attribute[Attributes.Health].RefreshAmount = (int)Math.Round(2D * attribute[Attributes.Regen].CurrentMax / 100, 0);
+            var regenRate = (int)Math.Round(2D * attribute[Attributes.Regen].CurrentMax / 100, 0);
+
+            // And what a module regenerates by itself, a second: "Regen Health: 3 HP/sec".
+            attribute[Attributes.Health].RefreshAmount = Math.Max(0, regenRate + modules.HealthRegen);
 
             // Power regenerates at the health rate for now. The live game regenerated power by a
             // formula of its own that is not known; without any regeneration an ability could be
@@ -4351,12 +4561,11 @@ namespace Rasa.Managers
             // sprint's 1.5% a second drain and make it free. Kills grant it in
             // CreatureManager.HandleCreatureKill; its RefreshAmount stays 0 so the client
             // predicts nothing.
-            attribute[Attributes.Power].RefreshAmount = attribute[Attributes.Health].RefreshAmount;
+            attribute[Attributes.Power].RefreshAmount = Math.Max(0, regenRate + modules.PowerRegen);
             attribute[Attributes.Chi].RefreshAmount = 0;
             // 2.0 per second is the base regeneration for health
             // calculate armor max
             var armorMax = 0.0d;
-            //float armorBonus = 0; // todo! (From item modules)
             var armorBonusPct = player.Attributes[Attributes.Body].CurrentMax * 0.0066666d;
             var armorRegenRate = 0;
 
@@ -4398,7 +4607,9 @@ namespace Rasa.Managers
                 // gives no regeneration either: "no longer gain any benefit".
                 var effectiveness = Durability.EffectivenessOf(equipmentItem);
 
-                armorMax += equipmentItem.ItemTemplate.ArmorValue * effectiveness;      // the class's max_hp (itemtemplate_armor, Add_armor_values)
+                // A module's "Total Armor" is the piece's own: "a bonus to the item's total damage
+                // absorption capacity" (ItemModuleBonuses).
+                armorMax += (equipmentItem.ItemTemplate.ArmorValue + modules.ArmorOf.GetValueOrDefault(equipmentItem.EntityId)) * effectiveness;      // the class's max_hp (itemtemplate_armor, Add_armor_values)
 
                 if (effectiveness > 0)
                     armorRegenRate += classInfo.ArmorClassInfo.RegenRate;
@@ -4411,7 +4622,8 @@ namespace Rasa.Managers
             // RefreshAmount out of combat. It used to be assigned to Current, which the fullreset
             // branch a few lines below overwrites unconditionally - so it was computed,
             // discarded, and armour never regenerated either.
-            player.ArmorRegenRate = armorRegenRate;
+            // With what a module recharges by itself: "Regen Armor: 3 HP/sec".
+            player.ArmorRegenRate = Math.Max(0, armorRegenRate + modules.ArmorRegen);
             attribute[Attributes.Armor].NormalMax = (int)Math.Round(armorMax, 0);
             attribute[Attributes.Armor].CurrentMax = attribute[Attributes.Armor].NormalMax;
             if (fullreset)
@@ -4423,7 +4635,7 @@ namespace Rasa.Managers
             attribute[Attributes.Power].NormalMax = 100 + (player.Level - 1) * 2 * 4 + player.SpentMind * 3;
             // Bio Augmentation's +Power.
             var powerBonus = WithPercent(attribute[Attributes.Power].NormalMax, GameEffectManager.AttributePercentOf(player, Attributes.Power)) - attribute[Attributes.Power].NormalMax;
-            attribute[Attributes.Power].CurrentMax = attribute[Attributes.Power].NormalMax + powerBonus;
+            attribute[Attributes.Power].CurrentMax = Math.Max(1, attribute[Attributes.Power].NormalMax + powerBonus + modules.Power);
             if (fullreset)
                 attribute[Attributes.Power].Current = attribute[Attributes.Power].CurrentMax;
             else
@@ -4525,8 +4737,10 @@ namespace Rasa.Managers
                 using var unitOfWork = _gameUnitOfWorkFactory.CreateChar();
                 unitOfWork.ExecuteTransaction(() =>
                 {
+                    // The row is what it was when the rounds not yet written were spent
+                    // (WeaponClips): the shots since are in memory, and this writes over them.
                     var savedWeapon = unitOfWork.Items.GetItem(weapon.Id);
-                    if (savedWeapon == null || savedWeapon.AmmoCount != weapon.CurrentAmmo)
+                    if (savedWeapon == null || savedWeapon.AmmoCount != WeaponClips.RowCountOf(weapon))
                         throw new GameplayRejectionException("Weapon clip changed during reload.");
 
                     foreach (var stack in consumed)
@@ -4582,6 +4796,7 @@ namespace Rasa.Managers
 
             ClearJam(client, weapon);
             weapon.CurrentAmmo = loaded;
+            WeaponClips.Saved(weapon);
             client.CallMethod(weapon.EntityId, new WeaponAmmoInfoPacket(loaded));
             client.Player.CurrentAction = 0;
 

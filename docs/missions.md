@@ -202,8 +202,14 @@ and new item/scene ownership. It does not reset persistent flags or copy prior
 progress or choices. Existing exclusive public actors must finish returning
 and release their old lease before another run can reserve them.
 The client receives the old journal's clear followed by the new mission gain,
-only after commit. `Once` retains its existing failure-dismissal behavior;
-Bootcamp's failed retry does not become an automatic new offer.
+only after commit. A failed attempt is a terminal journal entry like any other,
+`Once` included: the mission is offered again where it was given, and accepting
+it replaces the failed entry. The client drops a failed mission from its log and
+has no request that would dismiss it first, so no dismissal is asked for. The
+one exception is a failed mission that another operational mission requires
+`Failed`: it stays as it is, and that mission is the retry. Bootcamp's failed
+Calling for Reinforcements is left to its retry, and a failed retry is offered
+again.
 
 Cooldown starts at the committed reward timestamp. A Daily reward uses the
 window containing its commit, even when the attempt began before reset.

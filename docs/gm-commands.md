@@ -26,7 +26,7 @@ Conventions used below:
 
 - `<x>` is required and `[x]` is optional.
 - `#entityId` means a literal `#` followed by an entity id, for example `#1234`. `#target` means whatever you have selected.
-- A dot command's arguments are split on single spaces, so a family name or map name cannot contain spaces unless the command says otherwise.
+- A dot command's arguments are split on spaces, and any number of spaces in a row counts as one. A family name or map name cannot contain spaces unless the command says otherwise.
 - Unless a command names another player, it acts on you.
 
 ## Access levels
@@ -96,13 +96,15 @@ These change nothing in the world, except where noted.
 | `.where` | Observer | Your position, facing and map id. Also written to the server log with a `[.where]` tag. |
 | `.getdistance` | Observer | Distance to your selected target. For a creature it measures to the creature's **spawn pool position**, not to the creature. Objects print "ToDo". |
 | `.near` | Observer | Lists the objects and creatures in your cells. The output goes to the **server console**, not to chat. |
-| `.npcinfo` | Observer | For your target: entity id and type. For a creature it adds DB id, target category, health, armour and its regeneration, spawn pool id and position. |
+| `.npcinfo` | Observer | For your target: entity id and type. For a creature it adds DB id, target category, health, armour and its regeneration, spawn pool id, its pose if it has one, where it is on its patrol if it has one (`spawnpool_patrol`), its battle cry package if it has one (`creature_battlecry`), and position. |
 | `.maperrors` | Observer | The map-errors dialog for the map you are on (the same one an Observer or above gets on entering a broken map). |
 | `.missions [characterId]` | Observer | Mission state for a character: you by default, or the character id given. |
 | `.links` | Observer | Map links on this map, nearest first (up to 10), marking the one you are standing in. |
 | `.regions` | Observer | Whether you are underground, the region ids you are being sent, and the region volumes on this map, nearest first (up to 12). |
+| `.skytime` | Observer | How long this map's sky has been running, how long its day lasts, and the time of day there now (00:00 midnight, 12:00 noon). |
 | `.emitters` | Observer | FX emitters on this map, nearest first (up to 15). |
 | `.fxpackages <word> [word ...]` | Observer | Searches the client's FX package names; every word must match (up to 25 results). |
+| `.ambients [word ...]` | Observer | The client's ambient figures - people who are scenery: a soldier at a firing range, two men talking on chairs, a medic at a monitor - as class id and name, and how many stand on this map. Words narrow the list; every word must be in the name (up to 25 results). |
 | `.navmesh` | Observer | Whether this map has a navmesh, and the navmesh ground height under you. |
 | `.navmesh path <x> <y> <z>` | Observer | The route the AI would take from you to that point: complete or partial, number of corners, length. |
 | `.cover` | Observer | Cover between you and your target in both directions: body points visible and the ranged damage multiplier. Needs `navmesh/<map>.cover`. |
@@ -162,17 +164,44 @@ A map's start groups are generated in this order:
 | `.rename first\|last <NewName> [familyName]` | GameMaster | Renames yourself or the player with that family name (the name must be in the world). `last` renames the family, so every character on the account. |
 | `/changefirstname`, `/changelastname` | GameMaster | The client's own rename slash commands, for yourself. |
 | `.heal [full\|<amount>] [familyName]` | GameMaster | Heals you or a player in the world. Does not revive the dead. |
-| `.setkillstreak <count>` | GameMaster | Sends `SetKillStreak` to your own client (display only). |
+| `.setkillstreak <level>` | GameMaster | Gives you a kill streak of that level, 0 to 5 (x2 to x6 experience from kills), whatever your character's level allows. It is a real streak: your next kills are multiplied by it, and it ends eight seconds after your last kill, or now with 0. No prestige is paid for it. |
 | `.setlevel <level>` | Admin | Puts your character at level 1–50. Going up passes through every level in between, as experience would; going down resets what the new level no longer allows. Equipment worn above the new level stays equipped. |
 | `.givexp <amount>` | Admin | Gives you experience. |
 | `.chg_class <class>` | Admin | Changes your class. Class names: RECRUIT, SOLDIER, SPECIALIST, COMMANDO, RANGER, SAPPER, BIOTECHNICIAN, GRENADIER, GUARDIAN, SNIPER, SPY, DEMOLITIONIST, ENGINEER, MEDIC, EXOBIOLOGIST. |
 | `.givecredits <amount> [familyName]` | Admin | Credits for you or a player in the world. A negative amount takes credits away; the balance stops at zero and never goes negative. The player is told. |
-| `.giveitem <itemTemplateId> [quantity]` | Admin | Puts an item in your own inventory. With no quantity you get a full stack. You are recorded as the crafter. |
+| `.giveitem <itemTemplateId> [quantity]` | Admin | Puts an item in your own inventory. With no quantity you get a full stack. You are recorded as the crafter, which the item's tooltip shows as "Modified By" and your family name. |
 | `.givelogos <logosId>` | Admin | Adds a Logos (1–408, with gaps) to your Tabula. Ids the client doesn't know and Logos you already have are refused. |
 | `.removelogos <logosId\|all>` | Admin | Removes one Logos, or all of them, from your Tabula, including the saved rows. |
 | `.givepads` | Admin | Unlocks every dropship pad in the world for you. |
 | `.givewaypoints` | Admin | Unlocks every discoverable waypoint on your current map for you. This does not grant dropships, wormholes, hospitals, or local teleporters. |
 | `.addtitle <titleId>` | Admin | Grants you a title (`titledata` id): saved with the character, and announced by the client with "you have gained the title". |
+| `.module` | Admin | The modules on the weapon in your hand and on each piece of armor you wear: for each full slot, the module's id, what the client calls it, and what its bonus comes to at the item's level. |
+| `.module <item>` | Admin | The same for one item. `<item>` is `weapon`, `helmet`, `vest`, `gloves`, `legs`, `boots`, or the number of a pack slot, counted from 1 at the first slot of the Equipment tab. |
+| `.module <item> add <moduleId> [slot]` | Admin | Puts a module in one of the item's four slots: the one named (1–4), else the first empty one. A full slot is refused, and so is an item that is not a weapon, a piece of armor or a tool. Saved with the item. |
+| `.module <item> remove <slot\|all>` | Admin | Empties one slot, or all four. Saved with the item. |
+| `.module find <text>` | Admin | Searches the modules by what the client calls them, for example `.module find health armor`; every word must match (up to 25 results). A module marked "no effect known" can be put on an item and names it, but shows no bonus line. |
+
+Item modules:
+
+- A module is what gives an item its prefix and a bonus line: a Rifle with `100060` (Armor Module: Body Bonus [1]) is a "Titan Rifle" with "[1] Body: +N" in its tooltip. The client names the item by the module in its **first** slot, or by a later one of higher priority; with the first slot empty it shows no prefix.
+- A module counts while its item is worn, or is the weapon or tool in your hand; a weapon that is only in the drawer counts for nothing, and neither does a broken item. The amount is the one the tooltip shows, worked out for the item's level. Nothing drops with a module: an item gets one from `.module`, or at a crafting station.
+  - **Body, Mind, Spirit** add to the attribute, shown in green beside the base in the attributes window, and bring what the attribute brings: health, armor, crit chance from Spirit.
+  - **Health, Power, Regen, Total Armor** add to the maximum (Total Armor to its own piece, before the Body bonus). **Regen Health / Power / Armor** add that much a second to the bar's regeneration; in combat health regenerates at a fifth and armor not at all, as without modules.
+  - **Resist** to a kind of damage goes into the resistance list of the character window and comes off that damage. **Resist** to being stunned, knocked back, slowed, held or blinded is the chance in percent that it does not land ("Resisted" floats over you), added to Graviton Armor's for stuns and knockbacks.
+  - **Crit Hit Chance** adds to every crit roll, weapon or ability. **Perceived Threat** lowers the hate your damage and healing make. **Armor Piercing** is the share of a weapon hit that goes past armor. **Movement Speed** and **experience from kills** are percentages.
+  - **Steal Health / Power / Adrenaline / Armor** (weapon): each hit of the weapon that does damage has a chance to take that much from the target and give it to you. Health is taken as damage - armor first - and heals you by what was lost; the others move from the target's bar to yours, as far as it has any and you have room. A creature has no power or adrenaline, so those two only take from another player.
+  - **Debuff ... Resist** (weapon): each hit has a chance to put "Debuff: Resist - Fire" on the target for 10 seconds, cutting its resistance to that kind of damage by 10 to 30 - for everyone who hits it. A resistance below zero is that many percent more damage.
+  - The two chances are 10% a hit and are settings: see [Item modules](setup.md#item-modules) in the setup guide. The debuff's seconds are `arg2` of the module's `module_effect` row, which the tooltip reads too.
+  - A change takes hold on the server's next tick: swap weapons and the attributes window follows a moment later. Set modules do nothing for their pieces.
+- A crafting station works on modules by the client's own rules, and everything has to be in your pack:
+  - **Salvage** destroys an item for Mimeomech: 5, 10, 25 or 100 for an Uncommon, Rare, Epic or Legendary weapon, piece of armor or tool, plus what its modules are worth, times a fifth of its level. A stack of modules or of salvage is salvaged whole. A Normal item with no modules is worth nothing.
+  - **Extraction** takes the module out of one slot for a Mimeomech fee and makes it an item again. A strength 5 module cannot be extracted.
+  - **Integration** puts a module item into an empty slot. The module has to be for that kind of item (armor, weapon or tool), and the item must not have one of that kind already. The fee grows with the item's quality and level, the module's strength and the modules already in the item. The item's tooltip then reads "Modified By" and the player's family name, in place of whoever made or modified it before.
+  - **Upgrade** turns a module item of strength 1 to 4 into the next strength, for 1, 5, 20 or 100 Mimeomech.
+  - Mimeomech and modules that are made wait under "Items Created" until taken. The item worked on stays in your pack.
+- To try it: `.giveitem 123339 500` is Mimeomech, and the module items are in [gm-items/crafting-materials.md](gm-items/crafting-materials.md), for example `.giveitem 122963` (Armor Module: Body Bonus [1]).
+- The modules are the world database's `module_class` (867 rows, from the client's own crafting data) and their effects `module_effect` (330 rows). The ones a crafting station would put in are 66 kinds at five strengths, and each has an effect row. The sets and the rest have none: they show no bonus line and do nothing.
+- `.module` does not apply the crafting station's rules: it will put an armor module in a weapon, or two of a kind in one item.
 
 ## Missions
 
@@ -199,7 +228,7 @@ These are testing tools. Their changes are held in memory only.
 |---|---|---|
 | `.effect [list] [#entityId\|#target]` | GameMaster | The effects on you or on the actor named: id, type, level, buff or debuff, source, time left, paused. |
 | `.effect pause\|restart <effectId\|all> [#entityId\|#target]` | GameMaster | Stops or restarts an effect's clock; the client shows its "Paused" tooltip. |
-| `.vamp <health\|power\|armor\|adrenaline> <amount> [#entityId]` | GameMaster | Steals up to that amount from your target or the actor named, as the Vamp item modules will. |
+| `.vamp <health\|power\|armor\|adrenaline> <amount> [#entityId]` | GameMaster | Steals up to that amount from your target or the actor named, as a weapon's Steal module does on a hit. |
 | `.immune [all \| off \| <type> ... \| -<type> ...]` | GameMaster | Makes your target (or you, with no target) immune to all damage or to the damage types named. With no argument, shows the current immunities. |
 | `.falldamage <metres>` | GameMaster | Deals you the damage a fall of that height would, and says whether you are standing in water. |
 | `.blockaction [actionId [off]]` | GameMaster | With no argument, lists the actions blocked for you and why. With an id, blocks that action for you; `off` removes only the GM block. |
@@ -225,7 +254,9 @@ Values these commands accept:
 | `.minion list` / `.minion clear` | GameMaster | Lists your minions, or dismisses them all. |
 | `.comehere <entityId>` | GameMaster | Sends a `MoveObject` to your own client that brings the entity to you. Only your client sees it move; the server's copy stays put. |
 | `.bark <entityId> <barkId>` | GameMaster | Plays a bark on that entity, on your client only. |
+| `.battlecry [packageId typeId]` | GameMaster | With a creature targeted. Bare, it says which battle cry package the creature has (`creature_battlecry`: its own row's, or else its class's). With a package (2 to 22) and a cry type (1 Aggro, 2 KilledTarget, 3 ReceivedDamage, 4 ReceivedCriticalDamage, 5 Help, 6 CloseToDeath, 7 EnterCombat, 8 ExitCombat, 9 StartPatrol, 10 StopPatrol, 11 ResumePatrol) it plays that cry from the creature for everyone near, whatever package the creature has; it is refused for a pair the client has no sound for. Nothing is saved. A client with "Enable Battle Cries" off hears nothing. |
 | `.creatureappearance <entityId> <slotId> <classId> <color>` | GameMaster | Sets one appearance slot on a creature. |
+| `.pose [pose]` | GameMaster | Puts your target, a creature, in a pose at the spot it stands on: `standing`, `weaponout`, `crouched`, `crouchedweaponout`, `leaning`, `sitting`, `lyingdown`, `atconsole`, `handtool`, by name or number (1 to 9). `none` takes its pose off. With no pose, says which the target has. It lasts until that creature dies and is not saved; a spawn pool's own pose is its `spawnpool_pose` row. The last five are human only, and `atconsole` and `handtool` female only. |
 | `.creatureloc` | GameMaster | Registered but does nothing: the body is commented out. |
 | `.reloadcreatures` | Admin | Clears and re-reads the creature table. Creatures already spawned are unaffected. |
 
@@ -237,6 +268,7 @@ Map links, region volumes, FX emitters and crafting stations are **saved to the 
 |---|---|---|
 | `.createobj <entityClassId>` | GameMaster | A dynamic object at your feet, facing your way. |
 | `.createobjonloc <entityClassId> <x> <y> <z> <orientation>` | GameMaster | A dynamic object at the given point. |
+| `.ambient <class>` / `.ambient clear` | GameMaster | Stands one of the client's ambient figures where you are, facing your way, for everyone on the map. The class is an id or a name from `.ambients`; part of a name will do if only one figure has it. A seated figure brings no chair, and the firing range soldier brings his own target, 14.25 m in front of him. It is not saved: `clear` takes away the ones put down this way on this map, and a restart takes them all. The ones that stay are rows of `ambient_npc`. Also written to the server log with an `[.ambient]` tag: class, map, position and facing. |
 | `.removeobj <entityId>` | GameMaster | Removes an entity from the world for everyone. |
 | `.deleteobj <entityId>` | GameMaster | Sends `DestroyPhysicalEntity` to **your own client only**; the object still exists on the server. |
 | `.moveobj <entityId> <x> <y> <z> [yawDegrees \| qx qy qz qw]` | GameMaster | Moves a non-actor object for every client on the map. Also works on static map objects, but only for clients on the map now. Actors are refused. |
@@ -251,6 +283,7 @@ Map links, region volumes, FX emitters and crafting stations are **saved to the 
 | `.region here <regionId> [radius] [comment]` / `.region box <regionId> <halfX> <halfZ> [comment]` | GameMaster | Creates a region volume at your position: a circle (radius defaults to 50) or a box. |
 | `.region <id> here \| radius <r> \| size <hx> <hz> \| y <min> <max> \| underground 0\|1\|2 \| region <regionId> \| enable \| disable \| comment <text> \| delete` | GameMaster | Edits a volume. For `underground`: 0 = any, 1 = underground only, 2 = surface only. |
 | `.setregion <regionId> [regionId ...]` / `.setregion off` | GameMaster | Forces the listed region ids on your own client until `off` or a map change. |
+| `.setskytime <hh:mm>` | GameMaster | Runs this map's sky on to that time of day for everyone on the map (this copy of it, for an instance). It runs on from there; a restart puts every map back at its own starting hour. |
 | `.emitter here <package> [off] [comment]` | GameMaster | Places an FX emitter. The package is a name or id from `.fxpackages`. |
 | `.emitter <id> on \| off \| package <package> \| here \| comment <text> \| delete` | GameMaster | Edits an emitter; `on` and `off` also set its default state. |
 | `.kraftwerks` | GameMaster | Crafting stations on this map, nearest first. |
@@ -261,13 +294,19 @@ Map links, region volumes, FX emitters and crafting stations are **saved to the 
 | `.cp <id> goto \| here` | GameMaster | Goes to a control point, or stands its object where you are (kept in the world database). |
 | `.greeting` | GameMaster | For the NPC you have targeted: which greeting line it says, and the line itself, shown in your conversation window. |
 | `.greeting <greetingId>` / `.greeting clear` | GameMaster | Gives the targeted NPC that line as its own, or takes its own line away so it says the default ("Greetings.") again. Kept in the world database for the NPC's creature row. The id is one of the client's `npcgreetinglanguage` lines; an id the client has not got is refused. |
+| `.greeting important` / `.greeting important off` | GameMaster | Marks the targeted NPC's own line important, or plain again. A marked NPC stands with the grey speech bubble over its head while it has nothing else for the player looking at it. It needs a line of its own first. Kept in the world database with the line; `.greeting important on` is the same as `.greeting important`. |
+| `.greeting unread` | GameMaster | Forgets that your own character has read the targeted NPC's marked line, so it has the speech bubble for you again. For looking at a marked NPC a second time; other characters are not touched. |
 | `.greeting show <greetingId>` | GameMaster | Shows any greeting line in your conversation window, with nothing targeted: for finding the line you want. |
 | `.cp <id> lockbox` / `.cp <id> lockbox remove` | GameMaster | Sets the point's clan lockbox down where you stand, facing as you face, or moves it there if it has one; `remove` takes it away. Kept in the world database. The lockbox is on the map only while a clan holds the point. |
 
 NPC greetings:
 
 - The greeting heads the topic list of an NPC with more than one thing to talk about. An NPC with a line of its own and nothing else to talk about can also be spoken to, and says the line.
-- The client has the lines but not who says which. 82 NPCs start with the line their text gives away; every other NPC says "Greetings." until it is given one with `.greeting`.
+- The client has the lines but not who says which. 82 NPCs start with the line their text gives away, and Brigadier General Beacham at Alia Das with 488, which footage of the live game shows a Brigadier General saying; every other NPC says "Greetings." until it is given one with `.greeting`.
+- The speech bubble is the client's "dialog available" icon, the one it draws for an important greeting. It is the NPC's status only when nothing else is: a mission to give, hand in or remind of, a trainer's, a vendor's, an auctioneer's or a clan master's icon comes first, and so does a mission the player cannot take yet. The NPC still says its line as before.
+- The client does not say which NPCs had the bubble either. General Beacham starts with it, as the General in the footage has it; every other NPC is yours to mark. A changed line keeps the mark; `.greeting clear` takes the mark away with the line.
+- The command changes every NPC of the same creature row, and players near one on your map see it at once; elsewhere it shows when the NPC next comes into view.
+- The bubble is for a line the character has not read. Talking to the NPC and being shown the marked line reads it: the bubble goes at once and does not come back for that character, after a relog either (kept in the character database, `character_greeting_read`). The NPC still says the line when spoken to. Giving the NPC a different line makes it unread for everyone again; unmarking and marking the same line does not.
 
 Clan-owned control points (`ControlPoints` in `appsettings.json`):
 
@@ -320,6 +359,7 @@ Timer types: 1 TestTimer, 2 TimeTillReinforcements, 3 Countdown, 4 TimeTillAdven
 | `.flag set <name\|id>` / `.flag clear <name\|id>` | Admin | Changes a flag for everyone now in the world and everyone who logs in later, **until restart**. After a restart, `GameDataConfig.ServerFlags` applies again. |
 | `/killmap` | Admin | With no argument, opens the map picker. |
 | `/killmap <map>` | Admin | Resets the map on its next tick: its spawn pools' creatures are removed and the pools start over. |
+| `.ingameapiauth` | Admin | Not typed: a UI injected into the client sends it. The answer is a one-time code, good for 60 seconds and from the same address, which `POST /ingame/session/exchange` turns into a login to the REST API's `/ingame` endpoints. Not listed by `.help`, and refused while `ingame/session/exchange` is off, as it is as shipped. See the REST sections of the [setup guide](setup.md). |
 
 Known server flags: PtsTestGateNpc 1, PtsPvpMap 4, PtsNewCrafting 7, MapEpicGauntlet 8, PtsDisablePalisades 9, MinionCommands 10, TestFlag1 10000001, TestFlag2 10000002.
 

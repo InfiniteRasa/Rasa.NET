@@ -43,9 +43,8 @@ namespace Rasa.Managers
     ///    CHAFFSOURCE 90 on the Forean - the class's targetGameEffect, TARGET_SELF - for DURATION
     ///    (60 s), and as an aura every INTERVAL (5 s) CHAFF 91 on its own side within
     ///    RADIUS_AROUND_SOURCE (6 m), which ChaffSourceEffect.OnTick announces on the ids each
-    ///    tick names. On all of them DEFENSIVE_TOHIT_MODIFIER (50) is the share of shots at them
-    ///    that go wide (GameEffect.MissPercent, MissileManager.MissesForChaff): the server has no
-    ///    to-hit roll of its own for the modifier to move, so it is read as a miss chance.
+    ///    tick names. On all of them DEFENSIVE_TOHIT_MODIFIER (50) comes off the chance that a
+    ///    shot at them hits (GameEffect.MissPercent, ToHit).
     ///
     /// Each is used only when it would do something - not while its effect is still on, not a
     /// warcry with nobody to hear it, not a channel with no Linker to feed - and otherwise the

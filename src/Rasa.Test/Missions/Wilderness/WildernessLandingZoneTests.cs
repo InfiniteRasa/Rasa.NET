@@ -439,9 +439,12 @@ namespace Rasa.Test.Missions.Wilderness
             for (var count = 0U; count < retained; count++)
                 Take(harness, Kill(harness, 3, 580019));
             var npcs = new NpcManager(harness, harness.Manager);
+            // Failed, the mission is out of the client's log, with no Abandon to send for it:
+            // the new assignment below takes the failed one's place as it is.
             if (fail)
                 Assert.IsTrue(harness.Manager.TryFailMission(harness.Client, 776));
-            npcs.AbandonMission(harness.Client, new AbandonMissionPacket { MissionId = 776 });
+            else
+                npcs.AbandonMission(harness.Client, new AbandonMissionPacket { MissionId = 776 });
             Assert.AreEqual(retained, HeldQuantity(harness, 2524));
             harness.MoveTo(ojy.Position);
             npcs.RequestNpcConverse(harness.Client, new RequestNPCConversePacket { EntityId = ojy.EntityId });

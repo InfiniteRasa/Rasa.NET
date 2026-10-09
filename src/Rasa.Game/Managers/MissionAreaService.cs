@@ -39,7 +39,21 @@ namespace Rasa.Managers
         internal bool RecordAcceptedMovement(
             Client client,
             Vector3 previousPosition,
-            Vector3 currentPosition)
+            Vector3 currentPosition) =>
+            Record(client, area => !Contains(area, previousPosition) && Contains(area, currentPosition));
+
+        /// <summary>
+        /// The character has come onto a map (ManifestationManager.AssignPlayer): an area that
+        /// is the whole of that map (MissionAreaShape.Map) is entered. No Move takes them into
+        /// it - there is no outside of it to come from - so the step
+        /// <see cref="RecordAcceptedMovement"/> looks for never comes. It is how "Entered the
+        /// Fluxite Mines" is told. An area with a shape is not entered this way: arriving inside
+        /// one is as it was, and it is entered by walking into it.
+        /// </summary>
+        internal bool RecordArrival(Client client) =>
+            Record(client, area => area.Shape == Rasa.Structures.World.MissionAreaShape.Map);
+
+        private bool Record(Client client, Func<MissionAreaDefinition, bool> entered)
         {
             if (client?.Player?.MapChannel == null)
                 return false;
@@ -83,8 +97,7 @@ namespace Rasa.Managers
                             area.MapContextId != client.Player.MapChannel.MapInfo.MapContextId)
                             continue;
 
-                        if (!Contains(area, previousPosition) &&
-                            Contains(area, currentPosition))
+                        if (entered(area))
                             events.Add((missionLog.MissionId, areaId));
                     }
                 }
@@ -120,6 +133,7 @@ namespace Rasa.Managers
                     Math.Abs(delta.X) <= area.ExtentX.Value &&
                     Math.Abs(delta.Y) <= area.ExtentY.Value &&
                     Math.Abs(delta.Z) <= area.ExtentZ.Value,
+                Rasa.Structures.World.MissionAreaShape.Map => true,
                 _ => false
             };
 

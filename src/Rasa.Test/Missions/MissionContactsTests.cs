@@ -229,13 +229,65 @@ namespace Rasa.Test.Missions
 
             harness.MovePlayerTo(deSimone);
             CellManager.Instance.UpdateVisibility(harness.Client);
-            Assert.IsTrue(harness.Drain().OfType<CreatePhysicalEntityPacket>().Any(packet => packet.EntityId == deSimone.EntityId),
-                "given as his cells give him: the client takes it as an update");
+
+            // Taken off the client and made anew, in that order, with his status after: a second
+            // CreatePhysicalEntity alone is an update on the client, and the status after an
+            // update is one its overhead window already shows - no icon is attached again.
+            var his = WorldTestContext.Drain(harness.Client).Select(sent => sent.Message).OfType<CallMethodMessage>()
+                .Where(message =>
+                    message.Packet is DestroyPhysicalEntityPacket destroyed && destroyed.EntityId == deSimone.EntityId ||
+                    message.Packet is CreatePhysicalEntityPacket created && created.EntityId == deSimone.EntityId ||
+                    message.Packet is NPCConversationStatusPacket && message.EntityId == deSimone.EntityId)
+                .Select(message => message.Packet).ToArray();
+            Assert.HasCount(3, his);
+            Assert.IsInstanceOfType(his[0], typeof(DestroyPhysicalEntityPacket));
+            Assert.IsInstanceOfType(his[1], typeof(CreatePhysicalEntityPacket));
+            Assert.AreEqual(ConversationStatus.MissionComplete, ((NPCConversationStatusPacket)his[2]).ConvoStatusId);
+            Assert.IsEmpty(harness.Client.FarContacts.ToArray(), "his cells have him now");
 
             MissionContacts.Sync(harness.Client);
 
             Assert.IsEmpty(harness.Client.FarContacts.ToArray());
-            Assert.IsEmpty(harness.Drain().OfType<DestroyPhysicalEntityPacket>().Where(packet => packet.EntityId == deSimone.EntityId).ToArray());
+            var after = harness.Drain();
+            Assert.IsEmpty(after.OfType<DestroyPhysicalEntityPacket>().Where(packet => packet.EntityId == deSimone.EntityId).ToArray());
+            Assert.IsEmpty(after.OfType<CreatePhysicalEntityPacket>().Where(packet => packet.EntityId == deSimone.EntityId).ToArray());
+        }
+
+        [TestMethod]
+        public void AnNpcTheClientNeverHeldIsOnlyCreated()
+        {
+            using var harness = BootcampRuntimeTestHarness.Create();
+            var deSimone = Start(harness, finished: false);
+
+            harness.MovePlayerTo(deSimone);
+            CellManager.Instance.UpdateVisibility(harness.Client);
+
+            var packets = harness.Drain();
+            Assert.HasCount(1, packets.OfType<CreatePhysicalEntityPacket>().Where(packet => packet.EntityId == deSimone.EntityId).ToArray());
+            Assert.IsEmpty(packets.OfType<DestroyPhysicalEntityPacket>().Where(packet => packet.EntityId == deSimone.EntityId).ToArray());
+        }
+
+        [TestMethod]
+        public void HeldFromAfarAndWalkingIntoViewHeIsMadeAnewToo()
+        {
+            using var harness = BootcampRuntimeTestHarness.Create();
+            var deSimone = Start(harness, finished: true);
+            MissionContacts.Sync(harness.Client);
+            Assert.IsTrue(harness.Client.FarContacts.Contains(deSimone.EntityId));
+            harness.Drain();
+
+            // He walks to the player: his cells change, and the player's are among the new ones.
+            Assert.IsTrue(CellManager.TryGetCellCoordinates(harness.Client.Player.Position, out var x, out var z));
+            deSimone.Position = harness.Client.Player.Position;
+            CreatureManager.Instance.CellUpdateLocation(harness.BootcampMap, deSimone, x, z);
+
+            var his = harness.Drain().Where(packet =>
+                packet is DestroyPhysicalEntityPacket destroyed && destroyed.EntityId == deSimone.EntityId ||
+                packet is CreatePhysicalEntityPacket created && created.EntityId == deSimone.EntityId).ToArray();
+            Assert.HasCount(2, his);
+            Assert.IsInstanceOfType(his[0], typeof(DestroyPhysicalEntityPacket));
+            Assert.IsInstanceOfType(his[1], typeof(CreatePhysicalEntityPacket));
+            Assert.IsEmpty(harness.Client.FarContacts.ToArray());
         }
 
         [TestMethod]

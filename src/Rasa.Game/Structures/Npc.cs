@@ -29,5 +29,11 @@ namespace Rasa.Structures
         /// (npc_greeting), or 0 if it has none of its own and says the default (NpcGreetings).
         /// </summary>
         public uint GreetingId { get; set; }
+
+        /// <summary>
+        /// Whether its line is marked important (npc_greeting.important): it stands with the
+        /// client's speech bubble over its head while it has nothing else for the player.
+        /// </summary>
+        public bool GreetingImportant { get; set; }
     }
 }

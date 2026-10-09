@@ -154,13 +154,15 @@ namespace Rasa.Memory
             WriteDebugByte(41);
 
             WriteDebugByte(3);
-            WriteByte(movement.UnknownByte);
+            WriteByte((byte)movement.Type);
 
             WritePackedFloat((int)(movement.Position.X * 256.0f));
             WritePackedFloat((int)(movement.Position.Y * 256.0f));
             WritePackedFloat((int)(movement.Position.Z * 256.0f));
 
-            WritePackedVelocity((ushort)(movement.Velocity * 1024.0f));
+            // Clamped as the client clamps its own: what does not fit in sixteen bits is the most
+            // they hold, where a bare cast would wrap 70 m/s round to 6.
+            WritePackedVelocity((ushort)Math.Clamp(movement.Velocity * 1024.0f, 0f, ushort.MaxValue));
 
             WriteByte(movement.Flags);
 

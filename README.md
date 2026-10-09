@@ -7,6 +7,12 @@ This project is in development and not complete. You may not be able to play the
 ## How-to use this code
 There are a few required tools and steps to get everything setup before you can run the game. Follow the steps in the [setup guide](docs/setup.md). Creature pathfinding uses the checked-in per-map navmeshes; see [navigation and navmesh assets](docs/setup.md#navigation-and-navmesh-assets).
 
+## Game tools
+The [game tools](gametools/README.md) are two web pages for a running server: an
+editor for creature class flags and one for loot pools. Each opens from disk and,
+with a settings file beside it, reads from and writes to the server through its
+REST API.
+
 ## Contributing
 If you are interested in helping in the development of Rasa.NET, please [join the Discord](https://discord.gg/Ph68FmA) and chat!
 

@@ -366,6 +366,25 @@ namespace Rasa.Migrations.SqliteChar
                         });
                 });
 
+            modelBuilder.Entity("Rasa.Structures.Char.CharacterGreetingReadEntry", b =>
+                {
+                    b.Property<uint>("CharacterId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("character_id");
+
+                    b.Property<uint>("CreatureId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("creature_id");
+
+                    b.Property<uint>("GreetingId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("greeting_id");
+
+                    b.HasKey("CharacterId", "CreatureId");
+
+                    b.ToTable("character_greeting_read");
+                });
+
             modelBuilder.Entity("Rasa.Structures.Char.CharacterInventoryEntry", b =>
                 {
                     b.Property<uint>("ItemId")
@@ -1589,6 +1608,22 @@ namespace Rasa.Migrations.SqliteChar
                     b.Property<uint>("ItemTemplateId")
                         .HasColumnType("INTEGER")
                         .HasColumnName("item_template_id");
+
+                    b.Property<uint>("Module1")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("module_1");
+
+                    b.Property<uint>("Module2")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("module_2");
+
+                    b.Property<uint>("Module3")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("module_3");
+
+                    b.Property<uint>("Module4")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("module_4");
 
                     b.Property<uint>("StackSize")
                         .HasColumnType("INTEGER")

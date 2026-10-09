@@ -50,7 +50,8 @@ namespace Rasa.Test.Gameplay
             CollectionAssert.AreEquivalent(Crucible, WaypointTitles.WaypointsOf(CruciblePathfinder).ToArray());
             CollectionAssert.AreEquivalent(Abyss, WaypointTitles.WaypointsOf(AbyssPathfinder).ToArray());
 
-            var counts = WaypointTitles.Zones.ToDictionary(zone => zone.Name, zone => WaypointTitles.WaypointsOf(zone.TitleId).Count);
+            var counts = WaypointTitles.Zones.GroupBy(zone => zone.Name)
+                .ToDictionary(zones => zones.Key, zones => zones.Select(zone => WaypointTitles.WaypointsOf(zone.TitleId).Count).Distinct().Single());
             CollectionAssert.AreEquivalent(
                 new Dictionary<string, int>
                 {
@@ -62,9 +63,11 @@ namespace Rasa.Test.Gameplay
             // Waypoints only: no dropship pad, no hospital, no instance's, no local teleporter, neither
             // of the two the client has no name of their own for.
             var world = harness.WorldContext.Set<TeleporterEntry>().AsNoTracking().ToDictionary(row => row.Id);
-            var all = WaypointTitles.Zones.SelectMany(zone => WaypointTitles.WaypointsOf(zone.TitleId)).ToArray();
+            var all = WaypointTitles.Zones.SelectMany(zone => WaypointTitles.WaypointsOf(zone.TitleId)).Distinct().ToArray();
+            var byMap = WaypointTitles.Zones.GroupBy(zone => zone.MapContextId).Select(zones => zones.First())
+                .SelectMany(zone => WaypointTitles.WaypointsOf(zone.TitleId)).ToArray();
 
-            Assert.HasCount(all.Length, all.Distinct().ToArray(), "a waypoint is one battlefield's");
+            Assert.HasCount(all.Length, byMap, "a waypoint is one battlefield's");
 
             foreach (var zone in WaypointTitles.Zones)
                 foreach (var id in WaypointTitles.WaypointsOf(zone.TitleId))
@@ -98,12 +101,60 @@ namespace Rasa.Test.Gameplay
             Assert.IsTrue(WaypointTitles.WaypointsOf(AbyssPathfinder).Contains(375u));
             Assert.IsTrue(WaypointTitles.WaypointsOf(MarshesPathfinder).Contains(137u));
 
-            // One title a battlefield: the Pathfinder for Divide and Marshes.
-            Assert.HasCount(11, WaypointTitles.Zones.Select(zone => zone.TitleId).Distinct().ToArray());
+            // One title a battlefield, but two for Divide and Marshes: a Pathfinder and a
+            // Wanderer, of the same waypoints.
+            Assert.HasCount(13, WaypointTitles.Zones.Select(zone => zone.TitleId).Distinct().ToArray());
+            Assert.HasCount(11, WaypointTitles.Zones.Select(zone => zone.MapContextId).Distinct().ToArray());
             Assert.HasCount(11, WaypointTitles.WaypointsOf(DividePathfinder));
             Assert.HasCount(7, WaypointTitles.WaypointsOf(MarshesPathfinder));
-            Assert.IsEmpty(WaypointTitles.WaypointsOf(DivideWanderer).ToArray());
-            Assert.IsEmpty(WaypointTitles.WaypointsOf(MarshesWanderer).ToArray());
+            CollectionAssert.AreEquivalent(WaypointTitles.WaypointsOf(DividePathfinder).ToArray(), WaypointTitles.WaypointsOf(DivideWanderer).ToArray());
+            CollectionAssert.AreEquivalent(WaypointTitles.WaypointsOf(MarshesPathfinder).ToArray(), WaypointTitles.WaypointsOf(MarshesWanderer).ToArray());
+        }
+
+        [TestMethod]
+        public void TheLastWaypointOfTheDivideMakesAPathfinderAndAWanderer()
+        {
+            using var harness = Start();
+            var divide = WaypointTitles.WaypointsOf(DividePathfinder).OrderBy(id => id).ToArray();
+
+            foreach (var waypointId in divide.Take(divide.Length - 1))
+                Gain(harness, waypointId);
+
+            Assert.IsEmpty(harness.Drain().OfType<TitleAddedPacket>().ToArray(), "all but one");
+
+            Gain(harness, divide[^1]);
+
+            CollectionAssert.AreEquivalent(new[] { DividePathfinder, DivideWanderer },
+                harness.Drain().OfType<TitleAddedPacket>().Select(packet => packet.TitleId).ToArray());
+
+            using (var unit = harness.Context.CreateChar())
+                CollectionAssert.IsSubsetOf(new[] { DividePathfinder, DivideWanderer }, unit.CharacterTitles.Get(harness.Client.Player.Id).ToArray());
+        }
+
+        [TestMethod]
+        public void APathfinderFromBeforeTheWandererWasGivenIsOneOnComingOntoAMap()
+        {
+            using var harness = Start();
+
+            // Every waypoint of the Marshes and the Pathfinder they earned, as it was.
+            var entries = WaypointTitles.WaypointsOf(MarshesPathfinder)
+                .Select(id => new CharacterTeleporterEntry(harness.Client.Player.Id, id, (byte)WaypointType.Waypoint)).ToArray();
+
+            using (var unit = harness.Context.CreateChar())
+            {
+                foreach (var entry in entries)
+                    unit.CharacterTeleporters.Add(entry);
+
+                Assert.IsTrue(unit.CharacterTitles.Add(harness.Client.Player.Id, MarshesPathfinder));
+            }
+
+            harness.Client.Player.GainedWaypoints.AddRange(entries);
+            harness.Client.Player.Titles.Add(MarshesPathfinder);
+            harness.Drain();
+
+            ManifestationManager.Instance.AssignPlayer(harness.Client);
+
+            Assert.AreEqual(MarshesWanderer, harness.Drain().OfType<TitleAddedPacket>().Single().TitleId);
         }
 
         [TestMethod]

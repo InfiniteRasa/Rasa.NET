@@ -304,9 +304,15 @@ generation and stored content revision during creation and hydration.
 `legacy`/`unversioned` remain compatible stored revisions, not permission to
 substitute another attempt.
 The committed native projection sends `MissionCleared` before `MissionGained`
-when replacing a terminal journal. `Once` keeps its prior failure-dismissal
-behavior, including Bootcamp's authored failure/reset flow; automatic terminal
-replacement is an opt-in repeat behavior.
+when replacing a terminal journal. A failed `Once` journal is replaced the same
+way: the native client removes a failed mission from its log on `MissionFailed`
+and lists only active and successful missions, so it cannot send the
+`AbandonMission` that used to dismiss the failed entry. `IsLeftToItsRetry`
+holds back one case, a failed `Once` mission that another operational mission
+requires in state `Failed` (Bootcamp's retry of Calling for Reinforcements):
+that journal stays failed and the requiring mission is offered instead.
+Bootcamp's authored failure/reset flow is unchanged, and the retry itself is
+offered again after it fails. A succeeded `Once` mission is never offered again.
 
 Transaction participants run `Prepare`, the initial flush,
 `FinalizePersistence`, another flush if needed, all `Validate` guards, and
@@ -407,6 +413,11 @@ area, objective-state and timer trigger shapes in one transition is rejected.
 | `AreaEntered` | `AreaId` |
 | `ObjectiveState` | `RelatedObjectiveId`, `RelatedState` |
 | `TimerElapsed` | Positive `DurationSeconds` |
+
+An area is entered by a Move that takes the character from outside it to inside
+it; arriving on a map inside one, by a map change or a login, is not entering
+it. A `mission_area` of shape `Map` (4) is the whole of its map and has no
+outside: it is entered by arriving on the map (the Mires operations of 1585).
 
 Progress event values come from `MissionProgressEventKind`, not client opcodes:
 

@@ -93,6 +93,12 @@ namespace Rasa.Managers
             // registered in _commands, so it does not appear in .help.
             if (string.Equals(parts[0], ".ingameapiauth", StringComparison.OrdinalIgnoreCase))
             {
+                // On the audit log as any other command is: it is answered here, ahead of the
+                // table the rest are looked up in, so nothing below records it. The line is all
+                // that is kept; the exchange code it is answered with is not part of it.
+                Audit?.Record(client, GmCommandSource.Chat, ".ingameapiauth", command, GmLevel.Admin,
+                    parts.Length == 1 && HasLevel(client, GmLevel.Admin) ? GmCommandResult.Executed : GmCommandResult.Denied);
+
                 if (parts.Length != 1 || !HasLevel(client, GmLevel.Admin))
                 {
                     CommunicatorManager.Instance.SystemMessage(client,
@@ -209,8 +215,10 @@ namespace Rasa.Managers
             RegisterCommand(".help", GmLevel.Observer, HelpGmCommand, "command");
             RegisterCommand(".links", GmLevel.Observer, LinksCommand);
             RegisterCommand(".regions", GmLevel.Observer, RegionsCommand);
+            RegisterCommand(".skytime", GmLevel.Observer, SkyTimeCommand);
             RegisterCommand(".emitters", GmLevel.Observer, EmittersCommand);
             RegisterCommand(".fxpackages", GmLevel.Observer, FxPackagesCommand);
+            RegisterCommand(".ambients", GmLevel.Observer, AmbientsCommand);
             RegisterCommand(".navmesh", GmLevel.Observer, NavMeshCommand, "action", "x", "y", "z");
             RegisterCommand(".near", GmLevel.Observer, NearCommand);
             RegisterCommand(".npcinfo", GmLevel.Observer, NpcInfoCommand);
@@ -240,6 +248,7 @@ namespace Rasa.Managers
             RegisterCommand(".allowdeath", GmLevel.GameMaster, AllowDeathCommand, "on|off");
             RegisterCommand(".feud", GmLevel.GameMaster, FeudCommand, "action", "arg1", "arg2");
             RegisterCommand(".bark", GmLevel.GameMaster, BarkCommand, "creatureEntityId", "barkId");
+            RegisterCommand(".battlecry", GmLevel.GameMaster, BattlecryCommand, "packageId", "typeId");
             RegisterCommand(".comehere", GmLevel.GameMaster, ComeHereCommand, "creatureEntityId");
             RegisterCommand(".createobj", GmLevel.GameMaster, CreateObjectCommand, "entityClassId");
             RegisterCommand(".createobjonloc", GmLevel.GameMaster, CreateObjectOnLocationCommand, "entityClassId", "posX", "posY", "posZ", "orientation");
@@ -255,7 +264,7 @@ namespace Rasa.Managers
             RegisterCommand(".linkhere", GmLevel.GameMaster, LinkHereCommand, "destMapId", "destX", "destY", "destZ", "radius", "kind");
             RegisterCommand(".kraftwerks", GmLevel.GameMaster, KraftwerksCommand, "stationIdOrHere", "action", "value");
             RegisterCommand(".cp", GmLevel.GameMaster, ControlPointCommand, "id", "action");
-            RegisterCommand(".greeting", GmLevel.GameMaster, GreetingCommand, "greetingId|clear|show", "greetingId");
+            RegisterCommand(".greeting", GmLevel.GameMaster, GreetingCommand, "greetingId|clear|important|unread|show", "greetingId|on|off");
             RegisterCommand(".instance", GmLevel.GameMaster, InstanceCommand, "action", "number");
             RegisterCommand(".bg", GmLevel.GameMaster, BattlegroundCommand, "action", "arg1", "arg2");
             RegisterCommand(".region", GmLevel.GameMaster, RegionCommand, "modeOrId", "regionOrAction", "arg1", "arg2", "comment");
@@ -264,11 +273,14 @@ namespace Rasa.Managers
             RegisterCommand(".msg", GmLevel.GameMaster, MessageCommand, "type", "value", "extra");
             RegisterCommand(".destination", GmLevel.GameMaster, DestinationCommand, "contextIdOrMapName");
             RegisterCommand(".placefield", GmLevel.GameMaster, PlaceFieldCommand, "action", "arg1", "arg2", "arg3");
+            RegisterCommand(".pose", GmLevel.GameMaster, PoseCommand, "pose");
+            RegisterCommand(".ambient", GmLevel.GameMaster, AmbientCommand, "class | clear");
             RegisterCommand(".removeobj", GmLevel.GameMaster, RemoveObjectCommand, "entityId");
             RegisterCommand(".moveobj", GmLevel.GameMaster, MoveObjectCommand, "entityId", "x", "y", "z", "rotation");
             RegisterCommand(".rename", GmLevel.GameMaster, RenameCommand, "part", "newName", "familyName");
-            RegisterCommand(".setkillstreak", GmLevel.GameMaster, SetKillStreakCommand, "streakCount");
+            RegisterCommand(".setkillstreak", GmLevel.GameMaster, SetKillStreakCommand, "level");
             RegisterCommand(".setregion", GmLevel.GameMaster, SetRegionCommand, "regionIdsOrOff");
+            RegisterCommand(".setskytime", GmLevel.GameMaster, SetSkyTimeCommand, "hh:mm");
             RegisterCommand(".speed", GmLevel.GameMaster, SpeedCommand, "value");
             RegisterCommand(".tele", GmLevel.GameMaster, TeleCommand, "posX", "posY", "posZ");
             RegisterCommand(".teleport", GmLevel.GameMaster, TeleportCommand, "posX", "posY", "posZ", "mapId");
@@ -289,6 +301,7 @@ namespace Rasa.Managers
             RegisterCommand(".givecredits", GmLevel.Admin, GiveCreditsCommand, "amount", "familyName");
             RegisterCommand(".giveitem", GmLevel.Admin, GiveItemCommand, "itemTemplateId", "quantity");
             RegisterCommand(".givelogos", GmLevel.Admin, GiveLogosCommand, "logosId");
+            RegisterCommand(".module", GmLevel.Admin, ModuleCommand, "item|find", "add|remove|text", "moduleId|slot|all", "slot");
             RegisterCommand(".removelogos", GmLevel.Admin, RemoveLogosCommand, "logosIdOrAll");
             RegisterCommand(".givepads", GmLevel.Admin, GivePadsCommand);
             RegisterCommand(".givewaypoints", GmLevel.Admin, GiveWaypointsCommand);
@@ -775,6 +788,179 @@ namespace Rasa.Managers
 
             CommunicatorManager.Instance.SystemMessage(_client,
                 $"A {metres:0.#} m fall: {taken} health taken{(water ? "; you are in water, where a real fall would have taken nothing" : "")}.");
+        }
+
+        /// <summary>
+        /// .pose [pose]: puts your target, a creature, in a pose at the spot it was spawned on
+        /// (NpcPoses) - by name or number - or, with none, takes its pose off. With nothing after
+        /// it, says what pose the target has and lists them. For trying a pose out: it lasts as
+        /// long as that creature lives and is saved nowhere. A pool's own pose is its spawnpool_pose row.
+        /// </summary>
+        private void PoseCommand(string[] parts)
+        {
+            var creature = _client.Player.Target != 0 && EntityManager.Instance.GetEntityType(_client.Player.Target) == EntityType.Creature
+                ? EntityManager.Instance.GetCreature(_client.Player.Target)
+                : null;
+
+            if (creature == null || parts.Length > 2)
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, "usage: .pose [pose] - with a creature targeted. Poses: " + string.Join(", ", NpcPoses.Names));
+                return;
+            }
+
+            if (parts.Length == 1)
+            {
+                CommunicatorManager.Instance.SystemMessage(_client,
+                    $"Pose = {creature.Pose} ({(int)creature.Pose}){(creature.Pose != NpcPose.None && !creature.PoseShown ? ", not shown now" : "")}. Poses: " + string.Join(", ", NpcPoses.Names));
+                return;
+            }
+
+            if (!NpcPoses.TryParse(parts[1], out var pose))
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, $"No pose '{parts[1]}'. Poses: " + string.Join(", ", NpcPoses.Names));
+                return;
+            }
+
+            NpcPoses.Change(_client.Player.MapChannel, creature, pose);
+
+            CommunicatorManager.Instance.SystemMessage(_client,
+                $"Pose = {creature.Pose} ({(int)creature.Pose}){(creature.Pose != NpcPose.None && !creature.PoseShown ? ". It takes it up when it is next standing idle" : "")}. Not saved.");
+        }
+
+        /// <summary>The client's ambient figures whose names have every word given, or all of them (AmbientNpcs).</summary>
+        private static List<EntityClass> AmbientFigures(IEnumerable<string> words)
+        {
+            var wanted = words.Where(word => word.Length > 0).ToList();
+
+            return AmbientNpcs.Figures()
+                .Where(figure => wanted.All(word => AmbientNpcs.ShortName(figure).Contains(word, StringComparison.OrdinalIgnoreCase)))
+                .ToList();
+        }
+
+        private void AmbientsCommand(string[] parts)
+        {
+            var found = AmbientFigures(parts.Skip(1));
+
+            if (found.Count == 0)
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, "No ambient figure matches.");
+                return;
+            }
+
+            CommunicatorManager.Instance.SystemMessage(_client,
+                $"{found.Count} ambient figure(s), class id and name. {AmbientNpcs.OnChannel(_client.Player.MapChannel).Count} stand on this map.");
+
+            foreach (var figure in found.Take(25))
+                CommunicatorManager.Instance.SystemMessage(_client, $"{figure.ClassId} {AmbientNpcs.ShortName(figure)}");
+
+            if (found.Count > 25)
+                CommunicatorManager.Instance.SystemMessage(_client, $"... and {found.Count - 25} more; add a word to narrow it: .ambients sitting");
+        }
+
+        /// <summary>Stands one of the client's ambient figures where the GM is, to look at; not saved (AmbientNpcs).</summary>
+        private void AmbientCommand(string[] parts)
+        {
+            var mapChannel = _client.Player.MapChannel;
+
+            if (parts.Length != 2)
+            {
+                CommunicatorManager.Instance.SystemMessage(_client,
+                    "usage: .ambient class | clear - a class id or a name from .ambients; stands the figure where you are, facing your way. Not saved.");
+                return;
+            }
+
+            if (parts[1].Equals("clear", StringComparison.OrdinalIgnoreCase))
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, $"Took away {AmbientNpcs.TakeAwayPutDown(mapChannel)} figure(s) put down with .ambient.");
+                return;
+            }
+
+            EntityClass chosen;
+
+            if (uint.TryParse(parts[1], out var classId))
+            {
+                chosen = AmbientNpcs.ClassOf((EntityClasses)classId);
+
+                if (!AmbientNpcs.IsFigure(chosen))
+                {
+                    CommunicatorManager.Instance.SystemMessage(_client, $"Class {classId} is not an ambient figure. See .ambients.");
+                    return;
+                }
+            }
+            else
+            {
+                var found = AmbientFigures(new[] { parts[1] });
+
+                // A whole name wins over the names it is part of: MaleSitting, MaleSittingTalkingV01.
+                chosen = found.FirstOrDefault(figure => AmbientNpcs.ShortName(figure).Equals(parts[1], StringComparison.OrdinalIgnoreCase))
+                    ?? (found.Count == 1 ? found[0] : null);
+
+                if (chosen == null)
+                {
+                    CommunicatorManager.Instance.SystemMessage(_client, found.Count == 0
+                        ? $"No ambient figure is named '{parts[1]}'. See .ambients."
+                        : $"{found.Count} ambient figures match '{parts[1]}': {string.Join(", ", found.Take(8).Select(AmbientNpcs.ShortName))}{(found.Count > 8 ? ", ..." : "")}");
+                    return;
+                }
+            }
+
+            var position = _client.Movement.Position;
+            var rotation = _client.Movement.ViewDirection.X;
+            var figureObject = AmbientNpcs.PutDown(mapChannel, (EntityClasses)chosen.ClassId, position, rotation);
+
+            if (figureObject == null)
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, "The figure could not be put down here.");
+                return;
+            }
+
+            CommunicatorManager.Instance.SystemMessage(_client,
+                $"{AmbientNpcs.ShortName(chosen)} [{chosen.ClassId}] stands where you were, facing your way. Not saved; .ambient clear takes it away.");
+
+            // Logged as .where is, with the class, so the line is all a row of ambient_npc needs.
+            Logger.WriteLog(LogType.Command,
+                $"[.ambient] {_client.Player.FamilyName}: class={chosen.ClassId} {AmbientNpcs.ShortName(chosen)} map={_client.Player.MapContextId} pos=({position.X:0.####}, {position.Y:0.####}, {position.Z:0.####}) rot={rotation:0.####}");
+        }
+
+        /// <summary>
+        /// .battlecry [packageId typeId], with a creature targeted: what package it has, or one
+        /// cry of any package played on it for everyone near - how a package sounds on a
+        /// creature before it is given it in creature_battlecry.
+        /// </summary>
+        private void BattlecryCommand(string[] parts)
+        {
+            var creature = _client.Player.Target != 0 && EntityManager.Instance.GetEntityType(_client.Player.Target) == EntityType.Creature
+                ? EntityManager.Instance.GetCreature(_client.Player.Target)
+                : null;
+
+            if (creature == null || (parts.Length != 1 && parts.Length != 3))
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, "usage: .battlecry [packageId typeId] - with a creature targeted. Packages: "
+                    + string.Join(", ", Battlecries.Packages.Keys.OrderBy(id => id)) + ". Types: "
+                    + string.Join(", ", Enum.GetValues<BattlecryType>().Select(type => $"{(int)type} {type}")));
+                return;
+            }
+
+            if (parts.Length == 1)
+            {
+                var own = Battlecries.PackageOf(creature);
+
+                CommunicatorManager.Instance.SystemMessage(_client, own == 0
+                    ? $"Class {(uint)creature.EntityClass}, creature {creature.DbId}: no battle cry package."
+                    : $"Class {(uint)creature.EntityClass}, creature {creature.DbId}: battle cry package {own}, types {string.Join(", ", Battlecries.Packages[own])}.");
+                return;
+            }
+
+            if (!int.TryParse(parts[1], out var packageId) || !int.TryParse(parts[2], out var typeId)
+                || !Battlecries.Play(_client.Player.MapChannel, creature, packageId, (BattlecryType)typeId))
+            {
+                CommunicatorManager.Instance.SystemMessage(_client, Battlecries.Packages.TryGetValue(packageId, out var types)
+                    ? $"Package {packageId} has no cry of type {parts[2]}. It has: {string.Join(", ", types)}."
+                    : $"No battle cry package '{parts[1]}'. Packages: {string.Join(", ", Battlecries.Packages.Keys.OrderBy(id => id))}.");
+                return;
+            }
+
+            CommunicatorManager.Instance.SystemMessage(_client, $"Battle cry {packageId}/{typeId} ({(BattlecryType)typeId}) sent from the creature. Clients with battle cries off hear nothing.");
         }
 
         private void BarkCommand(string[] parts)
@@ -1895,6 +2081,197 @@ namespace Rasa.Managers
             return;
         }
 
+        /// <summary>
+        /// .module: the modules of one of your own items (ItemModules) - shown, put in a slot or
+        /// taken out. The item is the weapon in hand, a piece of armor worn, or a slot of the
+        /// pack. Nothing of the crafting station's rules is applied: which items a module fits,
+        /// or one of a kind an item. ".module find" searches the modules by what the client
+        /// calls them.
+        /// </summary>
+        private void ModuleCommand(string[] parts)
+        {
+            const string usage = "usage: .module | .module <item> | .module <item> add <moduleId> [slot 1-4] | .module <item> remove <slot 1-4|all> | .module find <text> - "
+                + "<item> is weapon, helmet, vest, gloves, legs, boots or a pack slot number";
+            var client = _client;
+
+            if (parts.Length == 1)
+            {
+                var shown = 0;
+
+                foreach (var word in ModuleItemWords)
+                {
+                    var worn = ModuleItem(word);
+
+                    if (worn == null)
+                        continue;
+
+                    ShowModules(word, worn);
+                    shown++;
+                }
+
+                if (shown == 0)
+                    CommunicatorManager.Instance.SystemMessage(client, $"You hold no weapon and wear no armor. {usage}");
+
+                return;
+            }
+
+            if (parts[1] == "find")
+            {
+                var words = parts.Skip(2).Where(word => word.Length > 0).ToList();
+
+                if (words.Count == 0)
+                {
+                    CommunicatorManager.Instance.SystemMessage(client, usage);
+                    return;
+                }
+
+                var found = ItemModules.All
+                    .Where(module => words.All(word => module.Comment.Contains(word, StringComparison.OrdinalIgnoreCase)))
+                    .OrderBy(module => module.ModuleId)
+                    .ToList();
+
+                foreach (var module in found.Take(25))
+                    CommunicatorManager.Instance.SystemMessage(client, $"{module.ModuleId} {module.Comment}{(module.Effects.Count == 0 ? " - no effect known" : "")}");
+
+                CommunicatorManager.Instance.SystemMessage(client, found.Count > 25
+                    ? $"{found.Count} modules match; the first 25 are shown."
+                    : $"{found.Count} module{(found.Count == 1 ? "" : "s")} match{(found.Count == 1 ? "es" : "")}.");
+                return;
+            }
+
+            var item = ModuleItem(parts[1]);
+
+            if (item == null)
+            {
+                CommunicatorManager.Instance.SystemMessage(client, $"You have no item there: {parts[1]}. {usage}");
+                return;
+            }
+
+            if (parts.Length == 2)
+            {
+                ShowModules(parts[1], item);
+                return;
+            }
+
+            if (parts[2] == "remove" && parts.Length == 4)
+            {
+                if (parts[3] == "all")
+                {
+                    ItemModules.Clear(client, item, Server.GameUnitOfWorkFactory);
+                    Logger.WriteLog(LogType.Command, $"{client.Player.FamilyName} took every module out of item {item.Id}.");
+                    ShowModules(parts[1], item);
+                    return;
+                }
+
+                if (!int.TryParse(parts[3], out var emptied) || emptied < 1 || emptied > ItemModules.Slots)
+                {
+                    CommunicatorManager.Instance.SystemMessage(client, usage);
+                    return;
+                }
+
+                var had = item.ModuleIds[emptied - 1];
+
+                if (had == 0)
+                {
+                    CommunicatorManager.Instance.SystemMessage(client, $"Slot {emptied} is empty.");
+                    return;
+                }
+
+                ItemModules.Set(client, item, emptied - 1, 0, Server.GameUnitOfWorkFactory);
+                Logger.WriteLog(LogType.Command, $"{client.Player.FamilyName} took module {had} out of slot {emptied} of item {item.Id}.");
+                ShowModules(parts[1], item);
+                return;
+            }
+
+            if (parts[2] != "add" || parts.Length < 4 || parts.Length > 5)
+            {
+                CommunicatorManager.Instance.SystemMessage(client, usage);
+                return;
+            }
+
+            if (!uint.TryParse(parts[3], out var moduleId) || !ItemModules.TryGet(moduleId, out _))
+            {
+                CommunicatorManager.Instance.SystemMessage(client, $"There is no module {parts[3]}; .module find <text> searches them.");
+                return;
+            }
+
+            // Modules are for what is worn or wielded, one item to a row: a stack would take
+            // them into every stack it was merged with or split from.
+            if (item.Id == 0 || EntityClassManager.Instance.GetClassInfo(item.ItemTemplate.Class)?.EquipableClassInfo == null)
+            {
+                CommunicatorManager.Instance.SystemMessage(client, "That item is not a weapon, a piece of armor or a tool: it takes no modules.");
+                return;
+            }
+
+            var slot = ItemModules.FreeSlot(item) + 1;
+
+            if (parts.Length == 5 && (!int.TryParse(parts[4], out slot) || slot < 1 || slot > ItemModules.Slots))
+            {
+                CommunicatorManager.Instance.SystemMessage(client, usage);
+                return;
+            }
+
+            if (slot == 0)
+            {
+                CommunicatorManager.Instance.SystemMessage(client, "All four slots are full; take a module out first.");
+                return;
+            }
+
+            if (item.ModuleIds[slot - 1] != 0)
+            {
+                CommunicatorManager.Instance.SystemMessage(client, $"Slot {slot} holds module {item.ModuleIds[slot - 1]}; take it out first.");
+                return;
+            }
+
+            ItemModules.Set(client, item, slot - 1, moduleId, Server.GameUnitOfWorkFactory);
+            Logger.WriteLog(LogType.Command, $"{client.Player.FamilyName} put module {moduleId} in slot {slot} of item {item.Id}.");
+            ShowModules(parts[1], item);
+        }
+
+        private static readonly string[] ModuleItemWords = { "weapon", "helmet", "vest", "gloves", "legs", "boots" };
+
+        /// <summary>
+        /// The item of yours a ".module" command names: the weapon in hand, a piece of armor
+        /// worn, or the item in a slot of the pack, counted from 1 - the first slot of its
+        /// Equipment tab. Null when there is none there.
+        /// </summary>
+        private Item ModuleItem(string word)
+        {
+            var inventory = _client.Player.Inventory;
+            EquipmentData? equipment = word.ToLowerInvariant() switch
+            {
+                "weapon" => EquipmentData.Weapon,
+                "helmet" => EquipmentData.Helmet,
+                "vest" => EquipmentData.Torso,
+                "gloves" => EquipmentData.Gloves,
+                "legs" => EquipmentData.Legs,
+                "boots" => EquipmentData.Shoes,
+                _ => null
+            };
+
+            ulong entityId = 0;
+
+            if (equipment != null)
+            {
+                if ((int)equipment.Value < inventory.EquippedInventory.Count)
+                    entityId = inventory.EquippedInventory[(int)equipment.Value];
+            }
+            else if (int.TryParse(word, out var packSlot) && packSlot >= 1 && packSlot <= inventory.PersonalInventory.Count)
+                entityId = inventory.PersonalInventory[packSlot - 1];
+
+            return entityId != 0 ? EntityManager.Instance.GetItem(entityId) : null;
+        }
+
+        private void ShowModules(string word, Item item)
+        {
+            CommunicatorManager.Instance.SystemMessage(_client, $"{word}: item template {item.ItemTemplate.ItemTemplateId}, item level {ItemModules.LevelOf(item)}"
+                + (item.ModuleIds.All(moduleId => moduleId == 0) ? ", no modules" : ""));
+
+            for (var slot = 0; slot < ItemModules.Slots; slot++)
+                if (item.ModuleIds[slot] != 0)
+                    CommunicatorManager.Instance.SystemMessage(_client, $"  slot {slot + 1}: {ItemModules.Describe(item.ModuleIds[slot], item)}");
+        }
+
         /// <summary>Gains every dropship pad in the world, as walking into each beam would.</summary>
         private void GivePadsCommand(string[] parts)
         {
@@ -2603,6 +2980,15 @@ namespace Rasa.Managers
                     if (creature.SpawnPool != null)
                         msg += $"SpawnPoolDbId = {creature.SpawnPool.DbId}\n";
 
+                    if (creature.Pose != NpcPose.None)
+                        msg += $"Pose = {creature.Pose} ({(int)creature.Pose}){(creature.PoseShown ? "" : ", not shown now")}\n";
+
+                    if (creature.Patrol != null)
+                        msg += $"Patrol = {Patrols.Describe(creature)}\n";
+
+                    if (Battlecries.PackageOf(creature) != 0)
+                        msg += $"Battlecry = package {Battlecries.PackageOf(creature)}\n";
+
                     msg += $"PosX = {creature.Position.X}\n";
                     msg += $"PosY = {creature.Position.Y}\n";
                     msg += $"PosZ = {creature.Position.Z}\n";
@@ -2785,9 +3171,11 @@ namespace Rasa.Managers
                 SendCommandUsage(".setkillstreak");
                 return;
             }
+            // The streak itself, not only its picture: the next kills are multiplied by it, and
+            // it lapses eight seconds after the last one as any other does (KillStreaks).
             if (parts.Length == 2)
                 if (int.TryParse(parts[1], out int count))
-                    _client.CallMethod(SysEntity.ClientMethodId, new SetKillStreakPacket(count));
+                    KillStreaks.Set(_client, count);
 
             return;
         }
@@ -3309,10 +3697,16 @@ namespace Rasa.Managers
         /// default again. Kept in the world database for the NPC's creature row. The server has
         /// only the ids, so the line is shown by having the game master's own client display
         /// it; ".greeting show" does that for any line, with nothing targeted.
+        ///
+        /// ".greeting important" marks the NPC's own line important, and "off" plain again: the
+        /// speech bubble over its head while it has nothing else for a player. Kept with the line.
+        ///
+        /// The bubble is there for a character until they have read the line. ".greeting unread"
+        /// forgets that the game master's own character has read the targeted NPC.
         /// </summary>
         private void GreetingCommand(string[] parts)
         {
-            const string usage = "usage: .greeting | .greeting <greetingId> | .greeting clear (each with an NPC targeted) | .greeting show <greetingId>";
+            const string usage = "usage: .greeting | .greeting <greetingId> | .greeting clear | .greeting important [on | off] | .greeting unread (each with an NPC targeted) | .greeting show <greetingId>";
             var client = _client;
 
             if (parts.Length == 3 && parts[1] == "show")
@@ -3327,7 +3721,9 @@ namespace Rasa.Managers
                 return;
             }
 
-            if (parts.Length > 2)
+            var marking = parts.Length >= 2 && parts[1] == "important";
+
+            if (parts.Length > 2 && !(marking && parts.Length == 3 && (parts[2] == "on" || parts[2] == "off")))
             {
                 CommunicatorManager.Instance.SystemMessage(client, usage);
                 return;
@@ -3349,9 +3745,56 @@ namespace Rasa.Managers
             if (parts.Length == 1)
             {
                 CommunicatorManager.Instance.SystemMessage(client, NpcGreetings.HasOwn(creature)
-                    ? $"{who} says greeting {creature.Npc.GreetingId}."
+                    ? $"{who} says greeting {creature.Npc.GreetingId}{(!NpcGreetings.IsImportant(creature) ? "" : NpcGreetings.HasRead(client.Player, creature) ? ", marked important; you have read it" : ", marked important; you have not read it")}."
                     : $"{who} has no greeting of its own: it says the default, {NpcGreetings.Default}.");
                 client.CallMethod(client.Player.EntityId, new ForceConversePacket(NpcGreetings.For(creature), creature.NameId != 0 ? creature.NameId : (uint?)null));
+                return;
+            }
+
+            if (marking)
+            {
+                var important = parts.Length == 2 || parts[2] == "on";
+
+                if (!NpcGreetings.HasOwn(creature))
+                {
+                    CommunicatorManager.Instance.SystemMessage(client, $"{who} has no greeting of its own to mark: give it one first, .greeting <greetingId>.");
+                    return;
+                }
+
+                if (NpcGreetings.IsImportant(creature) == important)
+                {
+                    CommunicatorManager.Instance.SystemMessage(client, important
+                        ? $"Greeting {creature.Npc.GreetingId} of {who} is marked important already."
+                        : $"Greeting {creature.Npc.GreetingId} of {who} is not marked important.");
+                    return;
+                }
+
+                if (!NpcGreetings.SetImportant(creature, important, Server.GameUnitOfWorkFactory))
+                {
+                    CommunicatorManager.Instance.SystemMessage(client, $"The greeting of {who} could not be marked; see the server log.");
+                    return;
+                }
+
+                CommunicatorManager.Instance.SystemMessage(client, important
+                    ? $"Greeting {creature.Npc.GreetingId} of {who} is marked important: the speech bubble is over its head while it has nothing else for a player."
+                    : $"Greeting {creature.Npc.GreetingId} of {who} is plain again: no speech bubble.");
+                Logger.WriteLog(LogType.Command, $"{client.Player.FamilyName} marked the greeting of creature {creature.DbId} {(important ? "important" : "plain")}.");
+                RefreshGreetingStatus(creature);
+                return;
+            }
+
+            if (parts[1] == "unread")
+            {
+                if (!NpcGreetings.Forget(client.Player, creature, Server.GameUnitOfWorkFactory))
+                {
+                    CommunicatorManager.Instance.SystemMessage(client, $"You have not read a marked line of {who}.");
+                    return;
+                }
+
+                CommunicatorManager.Instance.SystemMessage(client, NpcGreetings.IsImportant(creature)
+                    ? $"You have not read the line of {who} any more: it has the speech bubble for you again."
+                    : $"You have not read the line of {who} any more. It is not marked important now, so there is no speech bubble.");
+                Npcs.UpdateConversationStatus(client, creature);
                 return;
             }
 
@@ -3389,15 +3832,16 @@ namespace Rasa.Managers
                 return;
             }
 
-            CommunicatorManager.Instance.SystemMessage(client, $"{who} says greeting {greetingId}.");
+            CommunicatorManager.Instance.SystemMessage(client, $"{who} says greeting {greetingId}{(NpcGreetings.IsImportant(creature) ? ", marked important as its last was" : "")}.");
             Logger.WriteLog(LogType.Command, $"{client.Player.FamilyName} gave creature {creature.DbId} greeting {greetingId}.");
             RefreshGreetingStatus(creature);
             client.CallMethod(client.Player.EntityId, new ForceConversePacket((int)greetingId, creature.NameId != 0 ? creature.NameId : (uint?)null));
         }
 
         /// <summary>
-        /// Whether an NPC can be spoken to depends on its having a line of its own: every client
-        /// that has an NPC of this creature row on the game master's map is told its status anew.
+        /// Whether an NPC can be spoken to depends on its having a line of its own, and the speech
+        /// bubble over it on the line's being marked important: every client that has an NPC of
+        /// this creature row on the game master's map is told its status anew.
         /// </summary>
         private void RefreshGreetingStatus(Creature creature)
         {
@@ -3872,6 +4316,50 @@ namespace Rasa.Managers
 
             RegionManager.Instance.Hold(client, regionIds);
             CommunicatorManager.Instance.SystemMessage(client, $"Holding regions [{string.Join(", ", regionIds)}] until .setregion off or a map change.");
+        }
+
+        /// <summary>How long this map's sky has been running, and the time of day that makes it.</summary>
+        private void SkyTimeCommand(string[] parts)
+        {
+            var client = _client;
+            var map = client.Player.MapChannel;
+            var running = SkyClock.RunningSeconds(map);
+            var ran = $"This map's sky has run {running / 3600}h {running / 60 % 60:00}m ({running} s)";
+
+            if (!SkyClock.TryGetTimeOfDay(map, out var timeOfDay, out var day))
+            {
+                CommunicatorManager.Instance.SystemMessage(client, $"{ran}. The length of this map's day is not known here.");
+                return;
+            }
+
+            CommunicatorManager.Instance.SystemMessage(client,
+                $"{ran}. Its day lasts {day.Length / 60} min and its sky starts at {SkyClock.ClockText((double)(day.Start % day.Length) / day.Length)}: it is {SkyClock.ClockText(timeOfDay)} there now.");
+        }
+
+        /// <summary>Runs this map's sky on to a time of day, for everyone on the map.</summary>
+        private void SetSkyTimeCommand(string[] parts)
+        {
+            var client = _client;
+            var map = client.Player.MapChannel;
+            var clock = parts.Length == 2 ? parts[1].Split(':') : Array.Empty<string>();
+            var minutes = 0;
+
+            if (clock.Length < 1 || clock.Length > 2 || !int.TryParse(clock[0], out var hours) || hours < 0 || hours > 23 ||
+                clock.Length == 2 && (!int.TryParse(clock[1], out minutes) || minutes < 0 || minutes > 59))
+            {
+                CommunicatorManager.Instance.SystemMessage(client, "usage: .setskytime hh:mm (a 24-hour clock: 00:00 midnight, 12:00 noon)");
+                return;
+            }
+
+            if (!SkyClock.TrySetTimeOfDay(map, (hours * 60 + minutes) / (24.0 * 60.0)))
+            {
+                CommunicatorManager.Instance.SystemMessage(client, "The length of this map's day is not known here, so no time of day can be set on it.");
+                return;
+            }
+
+            SkyClock.TryGetTimeOfDay(map, out var timeOfDay, out _);
+            CommunicatorManager.Instance.SystemMessage(client,
+                $"This map's sky is at {SkyClock.ClockText(timeOfDay)} for everyone on it, and runs on from there ({SkyClock.RunningSeconds(map)} s).");
         }
 
         /// <summary>The region volumes on this map, nearest first, and what you are currently sent.</summary>

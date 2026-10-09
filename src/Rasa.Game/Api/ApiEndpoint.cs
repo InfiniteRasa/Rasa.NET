@@ -22,10 +22,10 @@ namespace Rasa.Api
         public virtual string Method => "GET";
 
         /// <summary>
-        /// An endpoint that changes something. It is off until its own entry in
-        /// ApiConfig.Rest.Endpoints turns it on, and the API being public does not make it
-        /// public: only a Public of its own does. Its own key and the global key open it as
-        /// they open any other.
+        /// An endpoint that changes something, or gives out what the server's keeper may not
+        /// want given out. It is off until its own entry in ApiConfig.Rest.Endpoints turns it
+        /// on, and the API being public does not make it public: only a Public of its own does.
+        /// Its own key and the global key open it as they open any other.
         /// </summary>
         public virtual bool Sensitive => false;
 
@@ -35,6 +35,15 @@ namespace Rasa.Api
         /// <summary>Whether this endpoint handles a normalized path. Override for parameterized routes.</summary>
         public virtual bool Matches(string endpointName) =>
             string.Equals(Name?.Trim('/'), endpointName, StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// The most a POST's body may come to for this endpoint, in bytes. One that takes more
+        /// than <see cref="ApiServer.MaxBodyBytes"/> is asked for its key before its body is
+        /// read, so nobody without one has the server hold a large body for them. It does
+        /// nothing for an endpoint that is not asked for the key
+        /// (<see cref="RequiresApiKey"/>): that one takes the usual cap.
+        /// </summary>
+        public virtual int MaxBodyBytes => ApiServer.MaxBodyBytes;
 
         public abstract ApiResponse Handle(ApiRequest request);
     }
@@ -59,6 +68,28 @@ namespace Rasa.Api
 
         /// <summary>Who asked.</summary>
         public IPAddress Remote { get; set; }
+
+        /// <summary>Set by the server once every rule has let the request through to its endpoint, key and all.</summary>
+        internal bool LetThrough { get; set; }
+
+        /// <summary>The page that sent it, by a browser's Origin header ("null" for a page opened from disk); null for none.</summary>
+        public string Origin
+        {
+            get
+            {
+                if (!Headers.TryGetValue("Origin", out var origin) || string.IsNullOrWhiteSpace(origin))
+                    return null;
+
+                origin = origin.Trim();
+
+                // It is sent back in a header of the answer: nothing that is not plain text.
+                foreach (var letter in origin)
+                    if (letter < 0x21 || letter > 0x7e)
+                        return null;
+
+                return origin.Length <= 256 ? origin : null;
+            }
+        }
 
         /// <summary>The path as an endpoint's name: no slashes at either end, lower case.</summary>
         public string EndpointName => (Path ?? "").Trim('/').ToLowerInvariant();
@@ -122,6 +153,9 @@ namespace Rasa.Api
 
         /// <summary>For a 405: the methods that are allowed.</summary>
         public string Allow { get; set; }
+
+        /// <summary>Headers beyond the ones every answer has: what a browser asks before it lets a page read it.</summary>
+        public List<KeyValuePair<string, string>> Headers { get; } = new List<KeyValuePair<string, string>>();
 
         public ApiResponse(int status, string json)
         {

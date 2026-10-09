@@ -32,7 +32,20 @@ namespace Rasa.Api
     /// own entry under Endpoints turns it on, and is public only by a Public of its own.
     ///
     /// A POST's body is read by its Content-Length, up to <see cref="MaxBodyBytes"/>: more is
-    /// 413, and one sent in chunks, with no length, is 411.
+    /// 413, and one sent in chunks, with no length, is 411. An endpoint may take more
+    /// (ApiEndpoint.MaxBodyBytes); a body over the usual cap is read only once the rules above
+    /// have let the request through, key and all, and such a request has
+    /// <see cref="LongBodyTimeoutMs"/> to arrive in place of the connection's few seconds. The
+    /// answer to a request that was let through has the connection's time over again to go
+    /// out, whatever its endpoint took. A request turned away with its body unsent is
+    /// answered and its body then read and thrown away (<see cref="Discard"/>), in what time
+    /// the connection has left: a client told no in the middle of sending hears the no.
+    ///
+    /// A web page is another matter (<see cref="OpenToPage"/>): a browser asks first, with an
+    /// OPTIONS request, whether a page from somewhere else may send a key, and lets the page
+    /// read an answer only if the answer says it may. Both are said only to a page whose
+    /// origin is on ApiConfig.Rest.AllowedOrigins, and only for an endpoint that wants a key:
+    /// with the list empty, as it is unless set, no page gets anywhere.
     ///
     /// It is HTTP written by hand on a TcpListener, not HttpListener: that one goes through
     /// http.sys on Windows, which wants an administrator or a URL reservation for any address
@@ -50,8 +63,23 @@ namespace Rasa.Api
         /// <summary>The most a request's line and headers may come to, in bytes.</summary>
         public const int MaxRequestBytes = 8192;
 
-        /// <summary>The most a POST's body may come to, in bytes.</summary>
+        /// <summary>The most a POST's body may come to, in bytes, for an endpoint that does not say otherwise.</summary>
         public const int MaxBodyBytes = 8192;
+
+        /// <summary>How long a request has whose body is over <see cref="MaxBodyBytes"/> and is read, in milliseconds.</summary>
+        public const int LongBodyTimeoutMs = 60000;
+
+        /// <summary>The most of an unread body that is read and thrown away after its answer: twice the longest any endpoint takes.</summary>
+        public const int MaxDiscardBytes = 16 * 1024 * 1024;
+
+        /// <summary>How long a client that is having its body thrown away may send none of it before the connection is closed, in milliseconds.</summary>
+        public const int DiscardIdleMs = 1000;
+
+        /// <summary>The headers a page may send: the two a key travels in, and the body's type.</summary>
+        public const string PageHeaders = "X-API-Key, Authorization, Content-Type";
+
+        /// <summary>How long a browser may go on what it was told before it asks again, in seconds.</summary>
+        public const int PageAnswerSeconds = 600;
 
         private readonly Dictionary<string, ApiEndpoint> _endpoints = new Dictionary<string, ApiEndpoint>(StringComparer.OrdinalIgnoreCase);
 
@@ -184,6 +212,11 @@ namespace Rasa.Api
 
             lines.Add(allowed.AllowsAll ? "any address may ask." : $"{allowed.Count} allowed address(es) or range(s).");
 
+            var origins = (config.AllowedOrigins ?? new List<string>()).Where(origin => !string.IsNullOrWhiteSpace(origin)).Select(origin => origin.Trim()).ToList();
+
+            if (origins.Count > 0)
+                lines.Add($"web pages may use the endpoints that want a key from: {string.Join(", ", origins)}.");
+
             var described = $"{LocalEndPoint}|{string.Join("|", lines)}";
 
             if (described == _described)
@@ -284,6 +317,16 @@ namespace Rasa.Api
             return null;
         }
 
+        /// <summary>The endpoint a path names, by its name or by a route of its own, and its settings: an entry under the path asked for, else one under the endpoint's name.</summary>
+        private ApiEndpoint Find(RestApiConfig config, string name, out ApiEndpointConfig settings)
+        {
+            var endpoint = ResolveEndpoint(name);
+
+            settings = endpoint == null ? null : EndpointConfigOf(config, name) ?? EndpointConfigOf(config, endpoint.Name.Trim('/'));
+
+            return endpoint;
+        }
+
         private ApiEndpoint ResolveEndpoint(string name)
         {
             lock (_endpoints)
@@ -326,6 +369,35 @@ namespace Rasa.Api
         public ApiResponse Respond(ApiRequest request)
         {
             var config = _config;
+            var refusal = Refusal(request, config, out var endpoint, out var settings);
+
+            if (refusal != null)
+                return OpenToPage(request, refusal);
+
+            if (IsPreflight(request))
+                return Preflight(request, config, endpoint, settings);
+
+            try
+            {
+                return OpenToPage(request, endpoint.Handle(request) ?? ApiResponse.Error(500, "internal error"));
+            }
+            catch (Exception e)
+            {
+                Logger.WriteLog(LogType.Error, $"{Label}: /{request.EndpointName} failed: {e}");
+                return OpenToPage(request, ApiResponse.Error(500, "internal error"));
+            }
+        }
+
+        /// <summary>
+        /// What turns a request away before its endpoint is asked - the address, the path, the
+        /// method, the key, in that order - or null for one that is let through. A browser's
+        /// question about a page (<see cref="IsPreflight"/>) carries no key and is asked none:
+        /// it is let through as far as the path, and <see cref="Preflight"/> answers it.
+        /// </summary>
+        private ApiResponse Refusal(ApiRequest request, RestApiConfig config, out ApiEndpoint endpoint, out ApiEndpointConfig settings)
+        {
+            endpoint = null;
+            settings = null;
 
             if (!_allowed.Allows(request.Remote))
             {
@@ -334,17 +406,17 @@ namespace Rasa.Api
             }
 
             var name = request.EndpointName;
-            var endpoint = ResolveEndpoint(name);
-            var settings = endpoint == null ? null : EndpointConfigOf(config, name) ?? EndpointConfigOf(config, endpoint.Name.Trim('/'));
+
+            endpoint = Find(config, name, out settings);
 
             if (!IsEnabled(endpoint, settings))
                 return ApiResponse.Error(404, "not found");
 
+            if (IsPreflight(request))
+                return null;
+
             if (!Accepts(endpoint, request.Method))
-                return new ApiResponse(405, ServerStatus.Json(writer => writer.WriteString("error", "method not allowed")))
-                {
-                    Allow = endpoint.Method == "POST" ? "POST" : "GET, HEAD"
-                };
+                return NotAllowed(endpoint);
 
             if (endpoint.RequiresApiKey && !IsPublic(config, endpoint, settings))
             {
@@ -361,19 +433,118 @@ namespace Rasa.Api
                 }
             }
 
-            try
-            {
-                return endpoint.Handle(request) ?? ApiResponse.Error(500, "internal error");
-            }
-            catch (Exception e)
-            {
-                Logger.WriteLog(LogType.Error, $"{Label}: /{name} failed: {e}");
-                return ApiResponse.Error(500, "internal error");
-            }
+            request.LetThrough = true;
+
+            return null;
         }
 
-        protected override async Task Exchange(Stream stream, IPAddress remote, CancellationToken limit)
+        private static ApiResponse NotAllowed(ApiEndpoint endpoint) =>
+            new ApiResponse(405, ServerStatus.Json(writer => writer.WriteString("error", "method not allowed")))
+            {
+                Allow = endpoint.Method == "POST" ? "POST" : "GET, HEAD"
+            };
+
+        #region Web pages
+
+        /// <summary>
+        /// A browser asking, before it sends a page's request, whether it may: OPTIONS, with the
+        /// page's origin and the method it means to use.
+        /// </summary>
+        private static bool IsPreflight(ApiRequest request) =>
+            request.Method == "OPTIONS" && request.Origin != null && request.Headers.ContainsKey("Access-Control-Request-Method");
+
+        /// <summary>Whether pages from this origin are on AllowedOrigins: by name, or by "*".</summary>
+        private static bool OriginAllowed(RestApiConfig config, string origin)
         {
+            if (origin == null || config.AllowedOrigins == null)
+                return false;
+
+            foreach (var entry in config.AllowedOrigins)
+            {
+                var allowed = entry?.Trim().TrimEnd('/');
+
+                if (string.IsNullOrEmpty(allowed))
+                    continue;
+
+                if (allowed == "*" || string.Equals(allowed, origin.TrimEnd('/'), StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Whether a page from the request's origin may use this endpoint: the origin is
+        /// allowed, and the endpoint wants the API's key. One that answers without a key stays
+        /// shut to pages - a key is something a page has to have been given, and without one
+        /// any page a browser inside the network loads could use the endpoint. So does one
+        /// that goes by a check of its own in place of the key (ApiEndpoint.RequiresApiKey,
+        /// the /ingame endpoints): it is as it was before pages were let in at all.
+        /// </summary>
+        private static bool PageMayUse(RestApiConfig config, ApiRequest request, ApiEndpoint endpoint, ApiEndpointConfig settings) =>
+            IsEnabled(endpoint, settings) && endpoint.RequiresApiKey && !IsPublic(config, endpoint, settings) && OriginAllowed(config, request.Origin);
+
+        /// <summary>The answer to a browser's question: 204 and what the page may send, or 403 and nothing.</summary>
+        private ApiResponse Preflight(ApiRequest request, RestApiConfig config, ApiEndpoint endpoint, ApiEndpointConfig settings)
+        {
+            if (!PageMayUse(config, request, endpoint, settings))
+            {
+                Refused($"a page from {request.Origin} at /{request.EndpointName}: {(OriginAllowed(config, request.Origin) ? "the endpoint does not want the API's key, and only one that does is opened to pages" : "its origin is not on AllowedOrigins")}");
+                return ApiResponse.Error(403, "origin not allowed");
+            }
+
+            request.Headers.TryGetValue("Access-Control-Request-Method", out var wanted);
+
+            if (!Accepts(endpoint, (wanted ?? "").Trim().ToUpperInvariant()))
+                return NotAllowed(endpoint);
+
+            var answer = new ApiResponse(204, "");
+
+            answer.Headers.Add(new KeyValuePair<string, string>("Access-Control-Allow-Origin", request.Origin));
+            answer.Headers.Add(new KeyValuePair<string, string>("Access-Control-Allow-Methods", endpoint.Method == "POST" ? "POST" : "GET, HEAD"));
+            answer.Headers.Add(new KeyValuePair<string, string>("Access-Control-Allow-Headers", PageHeaders));
+            answer.Headers.Add(new KeyValuePair<string, string>("Access-Control-Max-Age", PageAnswerSeconds.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+            answer.Headers.Add(new KeyValuePair<string, string>("Vary", "Origin"));
+
+            // A browser on a public page asking after a private address wants this said too.
+            if (request.Headers.TryGetValue("Access-Control-Request-Private-Network", out var network)
+                && string.Equals(network?.Trim(), "true", StringComparison.OrdinalIgnoreCase))
+                answer.Headers.Add(new KeyValuePair<string, string>("Access-Control-Allow-Private-Network", "true"));
+
+            return answer;
+        }
+
+        /// <summary>
+        /// Lets the page that sent a request read its answer, whatever the answer is - a wrong
+        /// key as much as the data - if a page from there may use the endpoint at all. For any
+        /// other page, and for a request no page sent, the answer goes out as it is.
+        /// </summary>
+        private ApiResponse OpenToPage(ApiRequest request, ApiResponse response)
+        {
+            if (request?.Origin == null || response == null)
+                return response;
+
+            // An address that is not answered is not told which endpoints a page may use.
+            if (!_allowed.Allows(request.Remote))
+                return response;
+
+            var config = _config;
+            var endpoint = Find(config, request.EndpointName, out var settings);
+
+            if (!PageMayUse(config, request, endpoint, settings))
+                return response;
+
+            response.Headers.Add(new KeyValuePair<string, string>("Access-Control-Allow-Origin", request.Origin));
+            response.Headers.Add(new KeyValuePair<string, string>("Vary", "Origin"));
+
+            return response;
+        }
+
+        #endregion
+
+        protected override async Task Exchange(Stream stream, IPAddress remote, ExchangeLimit time)
+        {
+            var limit = time.Token;
             var config = _config;
             SslStream secure = null;
 
@@ -418,6 +589,7 @@ namespace Rasa.Api
             var headEnd = EndOfHead(buffer, length);
             var request = Parse(Encoding.ASCII.GetString(buffer, 0, headEnd < 0 ? length : headEnd));
             ApiResponse response;
+            var unsent = 0;
 
             if (request == null)
             {
@@ -426,18 +598,33 @@ namespace Rasa.Api
             else
             {
                 request.Remote = remote;
-                response = await ReadBody(stream, request, buffer, headEnd, length, limit).ConfigureAwait(false) ?? Respond(request);
+
+                var (unread, left) = await ReadBody(stream, request, buffer, headEnd, length, time).ConfigureAwait(false);
+
+                unsent = left;
+                response = unread != null ? OpenToPage(request, unread) : Respond(request);
             }
 
             var bytes = Render(response, request?.Method == "HEAD");
 
+            // What an endpoint took to do its work is not taken out of the time its answer
+            // has to go out: a change that was made is a change the client is told of. Only
+            // for a request that was let through - one turned away has what time is left.
+            if (request?.LetThrough == true)
+                time.Restart(ExchangeTimeoutMs);
+
             await stream.WriteAsync(bytes, 0, bytes.Length, limit).ConfigureAwait(false);
             await stream.FlushAsync(limit).ConfigureAwait(false);
 
-            // The TLS goodbye, so the client knows the answer was whole.
+            var whole = unsent <= 0 || await Discard(stream, unsent, limit).ConfigureAwait(false);
+
+            // The TLS goodbye, so the client knows the answer was whole. Not on a stream a
+            // read was broken off on: the answer said how long it was.
             if (secure != null)
             {
-                await secure.ShutdownAsync().ConfigureAwait(false);
+                if (whole)
+                    await secure.ShutdownAsync().ConfigureAwait(false);
+
                 await secure.DisposeAsync().ConfigureAwait(false);
             }
         }
@@ -472,23 +659,48 @@ namespace Rasa.Api
         /// The body of a POST into <see cref="ApiRequest.Body"/>: what arrived with the headers
         /// and the rest by Content-Length. Null when it is read (or there is none to read);
         /// otherwise the answer to a body that cannot be taken.
+        ///
+        /// One longer than <see cref="MaxBodyBytes"/> is read only for an endpoint that takes
+        /// that much, and only for a request the endpoint would answer: the answer that turns
+        /// the request away is given in place of reading it, with how much of the body the
+        /// client has still to send (0 for one that waits to be told to go on, and so sends
+        /// none).
         /// </summary>
-        private static async Task<ApiResponse> ReadBody(Stream stream, ApiRequest request, byte[] buffer, int headEnd, int length, CancellationToken limit)
+        private async Task<(ApiResponse Refusal, int Unsent)> ReadBody(Stream stream, ApiRequest request, byte[] buffer, int headEnd, int length, ExchangeLimit time)
         {
+            var limit = time.Token;
+
             if (request.Method != "POST")
-                return null;
+                return (null, 0);
 
             if (request.Headers.ContainsKey("Transfer-Encoding"))
-                return ApiResponse.Error(411, "length required");
+                return (ApiResponse.Error(411, "length required"), 0);
 
             if (!request.Headers.TryGetValue("Content-Length", out var text))
-                return null;
+                return (null, 0);
 
             if (!int.TryParse(text, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var wanted))
-                return ApiResponse.Error(400, "bad request");
+                return (ApiResponse.Error(400, "bad request"), 0);
+
+            var waits = request.Headers.TryGetValue("Expect", out var expect)
+                && string.Equals(expect, "100-continue", StringComparison.OrdinalIgnoreCase);
 
             if (wanted > MaxBodyBytes)
-                return ApiResponse.Error(413, "request body too large");
+            {
+                var unsent = waits ? 0 : Math.Max(0, wanted - (length - headEnd));
+                var refusal = Refusal(request, _config, out var endpoint, out _);
+
+                if (refusal != null)
+                    return (refusal, unsent);
+
+                // Let through without the API's key, by an endpoint that checks for itself
+                // only once it has the body: such a one takes the usual cap and no more.
+                if (wanted > endpoint.MaxBodyBytes || !endpoint.RequiresApiKey)
+                    return (ApiResponse.Error(413, "request body too large"), unsent);
+
+                // Megabytes do not cross every network in the few seconds a connection has.
+                time.Restart(LongBodyTimeoutMs);
+            }
 
             var body = new byte[wanted];
             var have = Math.Min(wanted, length - headEnd);
@@ -496,8 +708,7 @@ namespace Rasa.Api
             Buffer.BlockCopy(buffer, headEnd, body, 0, have);
 
             // A client that waits to be told to go on before it sends the body.
-            if (have < wanted && request.Headers.TryGetValue("Expect", out var expect)
-                && string.Equals(expect, "100-continue", StringComparison.OrdinalIgnoreCase))
+            if (have < wanted && waits)
             {
                 var goOn = Encoding.ASCII.GetBytes("HTTP/1.1 100 Continue\r\n\r\n");
 
@@ -510,14 +721,60 @@ namespace Rasa.Api
                 var read = await stream.ReadAsync(body, have, wanted - have, limit).ConfigureAwait(false);
 
                 if (read <= 0)
-                    return ApiResponse.Error(400, "bad request");
+                    return (ApiResponse.Error(400, "bad request"), 0);
 
                 have += read;
             }
 
             request.Body = Encoding.UTF8.GetString(body);
 
-            return null;
+            return (null, 0);
+        }
+
+        /// <summary>
+        /// Reads and throws away the body of a request that was answered without it. The
+        /// answer is on its way while the client is still sending, and a connection closed on
+        /// a client that is sending is a connection reset: a browser shows the page a network
+        /// failure and never the answer. Read to its end, the client gets to the answer.
+        ///
+        /// It costs the sender's bandwidth and nothing kept: no more than
+        /// <see cref="MaxDiscardBytes"/>, no longer than the connection has left, which for a
+        /// request turned away is what remains of its first few seconds, and not past
+        /// <see cref="DiscardIdleMs"/> of a client sending nothing. False when it was broken
+        /// off.
+        /// </summary>
+        private static async Task<bool> Discard(Stream stream, int unsent, CancellationToken limit)
+        {
+            var scrap = new byte[16 * 1024];
+            var left = Math.Min(unsent, MaxDiscardBytes);
+
+            try
+            {
+                using var idle = CancellationTokenSource.CreateLinkedTokenSource(limit);
+
+                while (left > 0)
+                {
+                    idle.CancelAfter(DiscardIdleMs);
+
+                    var read = await stream.ReadAsync(scrap, 0, Math.Min(scrap.Length, left), idle.Token).ConfigureAwait(false);
+
+                    if (read <= 0)
+                        break;
+
+                    left -= read;
+                }
+
+                return true;
+            }
+            catch (OperationCanceledException)
+            {
+                // Out of time, or a client gone quiet: the answer was sent, and that is as much as can be done.
+                return false;
+            }
+            catch (IOException)
+            {
+                return false;
+            }
         }
 
         private static int EndOfHead(byte[] buffer, int length)
@@ -576,16 +833,24 @@ namespace Rasa.Api
         /// <summary>A response as it goes on the wire; without its body for a HEAD.</summary>
         public static byte[] Render(ApiResponse response, bool headOnly)
         {
-            var body = Encoding.UTF8.GetBytes(response.Json);
+            // 204 is an answer with nothing in it.
+            var empty = response.Status == 204;
+            var body = empty ? Array.Empty<byte>() : Encoding.UTF8.GetBytes(response.Json);
             var head = new StringBuilder();
 
             head.Append("HTTP/1.1 ").Append(response.Status).Append(' ').Append(ReasonOf(response.Status)).Append("\r\n");
-            head.Append("Content-Type: application/json; charset=utf-8\r\n");
+
+            if (!empty)
+                head.Append("Content-Type: application/json; charset=utf-8\r\n");
+
             head.Append("Content-Length: ").Append(body.Length).Append("\r\n");
             head.Append("Cache-Control: no-store\r\n");
 
             if (!string.IsNullOrEmpty(response.Allow))
                 head.Append("Allow: ").Append(response.Allow).Append("\r\n");
+
+            foreach (var header in response.Headers)
+                head.Append(header.Key).Append(": ").Append(header.Value).Append("\r\n");
 
             head.Append("Connection: close\r\n\r\n");
 
@@ -606,6 +871,7 @@ namespace Rasa.Api
         {
             200 => "OK",
             201 => "Created",
+            204 => "No Content",
             400 => "Bad Request",
             401 => "Unauthorized",
             403 => "Forbidden",

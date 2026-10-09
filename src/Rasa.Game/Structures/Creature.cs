@@ -25,6 +25,39 @@ namespace Rasa.Structures
         /// player's construction bot is MECHANICAL, though its class carries no flags.
         /// </summary>
         public List<CreatureFlag> ExtraFlags { get; set; } = new List<CreatureFlag>();
+
+        /// <summary>
+        /// The two tints of its body (BodyAttributes hue and hue2, which the client puts on the
+        /// mesh with body.SetHue2), or none: null, which goes out as None and leaves the model
+        /// in its own colours, as a player's is. Set once when it spawns (<see cref="TintAtSpawn"/>)
+        /// and sent as they are to every client that is ever shown it.
+        ///
+        /// What a creature's were was the server's to know and is not in the client's data. The
+        /// ones made in code - a player's summons, clone, pets and deployables - have none; the
+        /// copy constructor does not take them, so a creature made from a template or from another
+        /// has its own; a corpse that rises keeps its body's (AbilityManager.Raise).
+        /// </summary>
+        public Color Hue { get; set; }
+        public Color Hue2 { get; set; }
+
+        /// <summary>
+        /// Its tints for this life, chosen as it spawns: none for a FRIENDLY creature - the AFS
+        /// soldiers, vendors and townsfolk, whose models have stock colours of their own that a
+        /// tint paints over - and two random ones for anything else.
+        /// </summary>
+        internal void TintAtSpawn()
+        {
+            if (TargetCategory == TargetCategory.Friendly)
+            {
+                Hue = null;
+                Hue2 = null;
+                return;
+            }
+
+            Hue = Color.RandomColor();
+            Hue2 = Color.RandomColor();
+        }
+
         public long UpdatePositionCounter;                                       // decreases, when it hits 0 and the cell position changed, call creature_updateCellLocation()
         public Dictionary<EquipmentData, AppearanceData> AppearanceData { get; set; }
         //sint32 lastattack;
@@ -54,6 +87,14 @@ namespace Rasa.Structures
         /// </summary>
         public float KnockbackSpeed { get; set; }
         public bool KnockbackIsPull { get; set; }
+
+        /// <summary>
+        /// Where a rush is taking the creature (BehaviorManager.Rush): a carry its clients make
+        /// themselves, told once where it ends. It is a rush for as long as that is still where
+        /// it is being carried, so anything that carries it somewhere else ends it.
+        /// </summary>
+        public System.Numerics.Vector3? RushTo { get; set; }
+        public bool IsRushing => KnockbackTo is System.Numerics.Vector3 to && RushTo is System.Numerics.Vector3 rush && to == rush;
 
         /// <summary>
         /// Run by something other than its own behaviour - a crab mine (AbilityManager.CrabMineWorker):
@@ -114,6 +155,35 @@ namespace Rasa.Structures
 
         /// <summary>Whether it has its weapon out (CreatureWeaponDraw): TOOL_READY on the clients.</summary>
         public bool WeaponDrawn { get; set; }
+
+        /// <summary>
+        /// The beat it walks when it has nothing else to do (Patrols): its pool's, given as the
+        /// pool makes it; null for a creature with none. Where it is on it is in its Controller's
+        /// ActionPatrol.
+        /// </summary>
+        public IReadOnlyList<PatrolStep> Patrol { get; set; }
+
+        /// <summary>What Battlecries keeps about it between thinks; null until its first, and not copied from a template.</summary>
+        public Managers.BattlecryState Cries;
+
+        /// <summary>The pose it takes at its post (NpcPoses); None for a creature with none.</summary>
+        public NpcPose Pose { get; set; }
+
+        /// <summary>Whether the pose is on it now. Off while it fights, is carried or walks back to its post.</summary>
+        public bool PoseShown { get; set; }
+
+        /// <summary>The way it faces at its post, or null for one whose facing is left as it is.</summary>
+        public float? PostYaw { get; set; }
+
+        /// <summary>It has walked back towards its post once since the pose came off; it takes the pose up where that left it.</summary>
+        public bool PoseWalkedBack { get; set; }
+
+        /// <summary>
+        /// An ambient pose's class is in its weapon slot (NpcPoses): what it holds when not posed
+        /// is PoseHeldWeapon, null for nothing.
+        /// </summary>
+        public bool PoseHoldsItsClass { get; set; }
+        public AppearanceData PoseHeldWeapon { get; set; }
 
         /// <summary>The target the clients in range were last told this creature has (Targets.Sync); 0 for none.</summary>
         public ulong ShownTargetId { get; set; }

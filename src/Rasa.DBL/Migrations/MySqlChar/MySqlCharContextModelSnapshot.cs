@@ -376,6 +376,25 @@ namespace Rasa.Migrations.MySqlChar
                         });
                 });
 
+            modelBuilder.Entity("Rasa.Structures.Char.CharacterGreetingReadEntry", b =>
+                {
+                    b.Property<uint>("CharacterId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("character_id");
+
+                    b.Property<uint>("CreatureId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("creature_id");
+
+                    b.Property<uint>("GreetingId")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("greeting_id");
+
+                    b.HasKey("CharacterId", "CreatureId");
+
+                    b.ToTable("character_greeting_read");
+                });
+
             modelBuilder.Entity("Rasa.Structures.Char.CharacterInventoryEntry", b =>
                 {
                     b.Property<uint>("ItemId")
@@ -1615,6 +1634,22 @@ namespace Rasa.Migrations.MySqlChar
                     b.Property<uint>("ItemTemplateId")
                         .HasColumnType("int unsigned")
                         .HasColumnName("item_template_id");
+
+                    b.Property<uint>("Module1")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("module_1");
+
+                    b.Property<uint>("Module2")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("module_2");
+
+                    b.Property<uint>("Module3")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("module_3");
+
+                    b.Property<uint>("Module4")
+                        .HasColumnType("int unsigned")
+                        .HasColumnName("module_4");
 
                     b.Property<uint>("StackSize")
                         .HasColumnType("int unsigned")
