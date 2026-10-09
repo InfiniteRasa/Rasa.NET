@@ -159,6 +159,9 @@ namespace Rasa.Managers
             victim.State = CharacterState.Dead;
             victim.DiedInPvp = pvp;
 
+            // A creature that has killed its target says so (Battlecries).
+            Battlecries.KilledTarget(mapChannel, source as Creature);
+
             if (victim.Attributes.TryGetValue(Attributes.Health, out var health))
                 health.Current = 0;
 

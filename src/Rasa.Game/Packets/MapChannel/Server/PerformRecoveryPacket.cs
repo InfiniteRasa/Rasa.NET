@@ -72,25 +72,13 @@ namespace Rasa.Packets.MapChannel.Server
                     pw.WriteList(MissileArgs.MisstEntities.Count);  // List of missed entities
                     foreach (var entity in MissileArgs.MisstEntities)
                         pw.WriteULong(entity);
-                    pw.WriteList(0);                                // ToDo: List of misses data
+                    DamageInfoWriter.WriteMissTypes(pw, MissileArgs.Missdata);     // a misstype for each miss
                     pw.WriteList(MissileArgs.HitData.Count);        // List of hits data
                     foreach (var hit in MissileArgs.HitData)
                     {
                         pw.WriteTuple(3);
                             pw.WriteULong(hit.EntityId);         // target entityId
-                            pw.WriteTuple(12);                   // rawInfo start
-                                pw.WriteUInt((uint)hit.DamageType); // self.damageType
-                                pw.WriteUInt(hit.Reflected);        // self.reflected
-                                pw.WriteUInt(hit.Filtered);         // self.filtered
-                                pw.WriteUInt(hit.Absorbed);         // self.absorbed
-                                pw.WriteUInt(hit.Resisted);         // self.resisted
-                                pw.WriteLong(hit.FinalAmt);         // self.finalAmt
-                                pw.WriteInt(hit.IsCritical);        // self.isCrit
-                                pw.WriteInt(hit.DeathBlow);         // self.deathBlow    ToDo => maybe bool
-                                pw.WriteDouble(hit.CoverModifier);    // self.coverModifier
-                                pw.WriteInt(hit.WasImune);          // self.wasImmune
-                                pw.WriteList(0);                    // ToDo: targetEffectIds
-                                pw.WriteList(0);                    // ToDo: sourceEffectIds
+                            DamageInfoWriter.WriteRawInfo(pw, hit, hit.DamageType);    // rawInfo
                             pw.WriteNoneStruct();               // OnHitData
                     }
                     break;

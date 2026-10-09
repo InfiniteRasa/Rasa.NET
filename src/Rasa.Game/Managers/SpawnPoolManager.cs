@@ -205,10 +205,50 @@ namespace Rasa.Managers
                 arrivals++;
             }
 
+            // How a pool's creatures stand at their post (spawnpool_pose; NpcPoses).
+            var poses = 0;
+
+            foreach (var row in unitOfWork.Spawnpools.GetPoses())
+            {
+                if (!LoadedSpawnPools.TryGetValue(row.Id, out var pool))
+                {
+                    Logger.WriteLog(LogType.Error, $"spawnpool_pose {row.Id} names a spawnpool that is not loaded.");
+                    continue;
+                }
+
+                pool.Pose = NpcPoses.FromRow(row.Id, row.Pose);
+
+                if (pool.Pose != NpcPose.None)
+                    poses++;
+            }
+
+            // The beat a pool's creature walks (spawnpool_patrol; Patrols).
+            var patrols = 0;
+
+            foreach (var (poolId, steps) in Patrols.FromRows(unitOfWork.Spawnpools.GetPatrols()))
+            {
+                if (!LoadedSpawnPools.TryGetValue(poolId, out var pool))
+                {
+                    Logger.WriteLog(LogType.Error, $"spawnpool_patrol {poolId} names a spawnpool that is not loaded.");
+                    continue;
+                }
+
+                // A pose is for standing at a post.
+                if (pool.Pose != NpcPose.None)
+                {
+                    Logger.WriteLog(LogType.Error, $"SpawnPool {poolId} has a patrol and a pose ({pool.Pose}). It patrols, and has no pose.");
+                    pool.Pose = NpcPose.None;
+                    poses--;
+                }
+
+                pool.Patrol = steps;
+                patrols++;
+            }
+
             foreach (var mapChannel in MapChannelManager.Instance.MapChannelArray.Values)
                 InitializeMapChannel(mapChannel);
 
-            Logger.WriteLog(LogType.Initialize, $"Loaded {LoadedSpawnPools.Count} SpawnPools, {arrivals} arrival points");
+            Logger.WriteLog(LogType.Initialize, $"Loaded {LoadedSpawnPools.Count} SpawnPools, {arrivals} arrival points, {poses} posed, {patrols} patrolling");
         }
 
         internal void InitializeMapChannel(MapChannel mapChannel)
@@ -428,6 +468,18 @@ namespace Rasa.Managers
                     else
                         CreatureManager.Instance.SetLocation(creature, BaneArrivals.StepOut(mapChannel, arrival), arrival.Rotation, spawnPool.MapContextId);
 
+                    // Its pose at its post (NpcPoses). One that arrives somewhere else takes it up when it gets there.
+                    if (spawnPool.Pose != NpcPose.None)
+                        NpcPoses.Assign(creature, spawnPool.Pose, (float)spawnPool.Rotation, show: arrival == null);
+
+                    // Its beat (Patrols), which it sets off on at its first think: from here,
+                    // facing the way it was placed, or from wherever it walks in to.
+                    if (spawnPool.Patrol != null)
+                    {
+                        creature.Patrol = spawnPool.Patrol;
+                        creature.LastYaw = (float)creature.Rotation;
+                    }
+
                     if (spawnPool.FollowOwnerCharacterId != 0 ||
                         spawnPool.FollowTargetEntityId != 0)
                         BehaviorManager.Instance.SetActionFollow(
@@ -532,7 +584,7 @@ namespace Rasa.Managers
             var mapChannel = pool.RuntimeMapChannel ?? MapChannelManager.Instance.FindByContextId(pool.MapContextId);
 
             // An emplacement stands on its mount, which is exactly where its pool is.
-            var pos = Emplacements.Is(creature) ? pool.Position : SpawnPoint(mapChannel, pool, count);
+            var pos = Emplacements.Is(creature) ? pool.Position : SpawnPoint(mapChannel, pool, count, creature);
 
             // A mission scene's recovered pose, in the private instance it belongs to.
             var map = pool.RuntimeMapChannel;
@@ -566,8 +618,26 @@ namespace Rasa.Managers
         /// nearest walkable point to the centre, within the pool's own radius, stands in for it -
         /// or, for a centre whose height is a map label's guess, the nearest walkable point in
         /// the column above and below it.
+        ///
+        /// One creature alone on a point that can go nowhere (BehaviorManager.NeverMoves) is not
+        /// put on the mesh at all: it stands on the point, as an emplacement stands on its mount.
+        /// What moves is on the mesh from its first step, so it starts there; what cannot is
+        /// wherever this puts it for as long as it lives, and the navmesh is not the floor.
+        /// Its height is the top of a 0.2 m voxel, sampled every 2.4 m and joined up with
+        /// straight lines, and anything an agent can step onto - 0.9 m - is ground to it: it is
+        /// 0.17 m over the floor at the median, and beside a low wall, a cot or a crate it is a
+        /// ramp up to the top of it. Lt Col Cimoch stands on open ground 1.5 m from a line of
+        /// sandbags in Alia Das, and the mesh under him is 0.70 m over the terrain.
+        ///
+        /// So the pool's height has to be the floor's, and StandingHeights (the migration
+        /// Stand_npcs_on_their_floors) made it so: measured against the client's terrain and the
+        /// collision meshes of each map's entities.
+        ///
+        /// The one creature of a pool with a beat (Patrols) stands on the point too: its steps
+        /// are floor heights it walks between in straight lines, and the pool's point is where
+        /// it starts.
         /// </summary>
-        internal static Vector3 SpawnPoint(MapChannel mapChannel, SpawnPool pool, int count)
+        internal static Vector3 SpawnPoint(MapChannel mapChannel, SpawnPool pool, int count, Creature creature = null)
         {
             var pos = pool.Position;
 
@@ -589,6 +659,10 @@ namespace Rasa.Managers
             {
                 pos.X += Random.Shared.Next() % 5 - 2;
                 pos.Z += Random.Shared.Next() % 5 - 2;
+            }
+            else if (BehaviorManager.NeverMoves(creature) || pool.Patrol != null)
+            {
+                return pos;
             }
 
             return NavMeshManager.SnapToGround(mapChannel, pos);
@@ -761,6 +835,8 @@ namespace Rasa.Managers
                 Position = template.Position,
                 Rotation = template.Rotation,
                 Radius = template.Radius,
+                Pose = template.Pose,
+                Patrol = template.Patrol,
                 SpawnSlot = template.SpawnSlot?.Select(slot =>
                     new SpawnPoolSlot(slot.CreatureId, slot.CountMin, slot.CountMax)).ToList() ?? new List<SpawnPoolSlot>(),
                 Mode = template.Mode,

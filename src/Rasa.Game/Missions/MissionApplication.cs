@@ -479,7 +479,7 @@ namespace Rasa.Managers
             {
                 if (player.Missions.ContainsKey(definition.MissionId) ||
                     player.MissionSuccessHistory.Contains(definition.MissionId) ||
-                    player.Missions.Values.Count(mission => mission.State != MissionState.Completed) >= MissionRuntime.JournalCapacity ||
+                    player.Missions.Values.Count(mission => mission.State is not (MissionState.Completed or MissionState.Failed)) >= MissionRuntime.JournalCapacity ||
                     !ArePrerequisitesSatisfied(player, definition.MissionId, out _))
                     continue;
 
@@ -1040,8 +1040,8 @@ namespace Rasa.Managers
             if (assignment != null && assignment.MissionState is not (2 or 4) ||
                 store.HasPendingReward(player.Id, definition.MissionId))
                 failure = "an active assignment or unsettled reward already exists.";
-            else if (assignment?.MissionState == (uint)MissionState.Failed && definition.RepeatPolicy.Kind == MissionRepeatKind.Once)
-                failure = "a Once mission retains its failed journal until it is dismissed.";
+            else if (assignment?.MissionState == (uint)MissionState.Failed && IsLeftToItsRetry(definition))
+                failure = "the failed attempt is what its retry mission is offered for.";
             else if (!definition.RepeatPolicy.Allows(_utcNow(),
                 assignment?.MissionState == 4 || store.EverSucceeded(player.Id, definition.MissionId),
                 store.LastRewardedAtUtc(player.Id, definition.MissionId)))
@@ -1049,11 +1049,51 @@ namespace Rasa.Managers
             return failure == null;
         }
 
+        /// <summary>
+        /// Whether a failed attempt at this mission stays as it is, because another mission is
+        /// the way to try again: an operational mission that asks for this one Failed. Bootcamp's
+        /// Calling for Reinforcements has its retry, which is offered for as long as the journal
+        /// holds the first one failed. Taking the first again would replace that entry and take
+        /// the retry away, or run beside a retry already accepted, at the same wreck.
+        ///
+        /// Every other failed mission is taken again where it was given, and the new attempt
+        /// replaces the failed one (TryAcceptMission). There used to be a step in between: a
+        /// Once mission kept its failed journal entry until the player dismissed it, with
+        /// AbandonMission. The client cannot send that for a failed mission. Recv_MissionFailed
+        /// takes the mission out of its log (missionlog.py); after a login the log lists only
+        /// the active and the successful ones (currentmissionswindow.py _UpdateMissionList);
+        /// and Abandon is that list's button, enabled for an active mission. So a mission that
+        /// failed - by its timer, by an escort's death, or by Abandon on a mission with a
+        /// deadline, which fails it - was never offered again, and a recruit who failed
+        /// Bootcamp's retry as well had no mission left to open the way out.
+        /// </summary>
+        internal bool IsLeftToItsRetry(Mission failed) =>
+            failed.RepeatPolicy.Kind == MissionRepeatKind.Once &&
+            _catalog.Missions.Values.Any(other => other.MissionId != failed.MissionId && other.IsOperational &&
+                (AsksForFailed(other.Requirement, failed.MissionId) ||
+                    _catalog.Prerequisites.TryGetValue(other.MissionId, out var prerequisites) &&
+                    prerequisites.Any(prerequisite =>
+                        prerequisite.Kind is MissionPrerequisiteKind.MissionAccepted or MissionPrerequisiteKind.MissionCompleted &&
+                        prerequisite.RequiredMissionId == failed.MissionId &&
+                        prerequisite.RequiredMissionStateValue == (byte)MissionState.Failed)));
+
+        private static bool AsksForFailed(MissionRequirement requirement, uint missionId) =>
+            requirement switch
+            {
+                MissionStateRequirement mission => mission.MissionId == missionId && mission.State == MissionState.Failed,
+                AllRequirements all => all.Items.Any(item => AsksForFailed(item, missionId)),
+                AnyRequirement any => any.Items.Any(item => AsksForFailed(item, missionId)),
+                _ => false
+            };
+
         internal bool HasJournalCapacity(uint characterId, uint missionId, ICharUnitOfWork unit)
         {
             var previous = unit.CharacterMissions.GetByCharacterAndMission(characterId, missionId);
+            // Count leaves out the rewarded and the failed; any other entry of this mission is
+            // the one the new assignment would replace.
             return MissionRuntime.Admit(true, false, false, unit.CharacterMissions.Count(characterId) -
-                (previous != null && previous.MissionState != (uint)MissionState.Completed ? 1 : 0)).Rejection !=
+                (previous != null && previous.MissionState is not
+                    ((uint)MissionState.Completed or (uint)MissionState.Failed) ? 1 : 0)).Rejection !=
                 MissionRejection.JournalFull;
         }
 
@@ -1816,6 +1856,9 @@ namespace Rasa.Managers
                     publicationPlan.Publish(client, this, convergeMission: false);
                     aggregatePlan.Publish(client, convergeFlags: false, convergeMissions: false);
                 }
+
+                // A failed mission is its giver's to give again, and is shown over them.
+                RefreshNpcConversationStatuses(client);
                 return true;
             }
         }
@@ -1876,6 +1919,9 @@ namespace Rasa.Managers
                 client.CallMethod(
                     client.Player.EntityId,
                     new MissionFailedPacket(missionId));
+
+                // A failed mission is its giver's to give again, and is shown over them.
+                RefreshNpcConversationStatuses(client);
                 return true;
             }
         }
@@ -2964,6 +3010,11 @@ namespace Rasa.Managers
                                     objective.ObjectiveState = (byte)MissionObjectiveState.Completed;
                                     states[objective.ObjectiveId] = MissionObjectiveState.Completed;
                                     completed = true;
+                                    // Its title, as a counted objective gives its own
+                                    // (GrantObjectiveTitle): saved with the completion.
+                                    if (definition.TitleId is uint titleId && titleId != 0 &&
+                                        _unit.CharacterTitles.Add(owner.CharacterId, titleId))
+                                        owner.Titles[(tracked.Definition.MissionId, definition.ObjectiveId)] = titleId;
                                 }
                             }
                         } while (completed);
@@ -3011,7 +3062,8 @@ namespace Rasa.Managers
                             var changedCounter = counterId.HasValue && prior.Counters[counterId.Value] != current.Counters[counterId.Value];
                             if (completed || changedCounter)
                                 publications.Add(ProgressPublication.Aggregate(tracked.Definition, snapshot, definition.ObjectiveId,
-                                    changedCounter ? counterId : null, changedCounter ? current.Counters[counterId.Value] : null, completed));
+                                    changedCounter ? counterId : null, changedCounter ? current.Counters[counterId.Value] : null, completed,
+                                    owner.Titles.GetValueOrDefault((tracked.Definition.MissionId, definition.ObjectiveId))));
                         }
                     }
                     owner.Publication.CompleteAggregates(publications,
@@ -3030,6 +3082,9 @@ namespace Rasa.Managers
                 internal Dictionary<uint, TrackedMission> Missions { get; } = new();
                 internal HashSet<uint> Completable { get; } = new();
                 internal HashSet<uint> HistorySources { get; } = new();
+
+                /// <summary>The titles this transaction's aggregate completions gave, by mission and objective.</summary>
+                internal Dictionary<(uint MissionId, uint ObjectiveId), uint> Titles { get; } = new();
                 internal Owner(uint characterId, MissionProgressPublicationPlan publication)
                 {
                     CharacterId = characterId;
@@ -3066,7 +3121,9 @@ namespace Rasa.Managers
         /// <summary>
         /// The title an objective gives when it completes (the scene binding's titles), saved in
         /// the transaction that completes it. 0 when it gives none, or the character has it
-        /// already - a second character's worth of the same kills earns nothing twice.
+        /// already - a second character's worth of the same kills earns nothing twice. An
+        /// objective that is the sum of others gives its own where it completes
+        /// (AggregateProgressTransaction.Prepare).
         /// </summary>
         private static uint GrantObjectiveTitle(MissionObjectiveDefinition objective, ICharUnitOfWork unitOfWork, Client client) =>
             objective.TitleId is uint titleId && titleId != 0 &&
@@ -3368,6 +3425,10 @@ namespace Rasa.Managers
                     var dialogue = classified.Dialogue.FirstOrDefault(candidate => candidate.Key == key);
                     if (Interactions.TryCaptureTopic(client, key, unit, out var topic, dialogue?.ProgressionObjectiveId))
                         topics.Add(topic with { Dialogue = dialogue?.Definition });
+                    else if (key.Kind != MissionConversationTopicKind.Acceptance)
+                        // A mission the character holds: the journal has it and the saved assignment does not agree.
+                        Logger.WriteLog(LogType.Error,
+                            $"Mission {key.MissionId} {key.Kind} was not offered to character {client.Player.Id} by NPC {target.Creature.DbId}: its saved assignment is missing or does not match the mission log.");
                 }
                 if (!Interactions.CanOpen(client, target, unit))
                     return false;
@@ -3429,6 +3490,7 @@ namespace Rasa.Managers
             var completeable = new Dictionary<uint, RewardInfo>();
             var rewardable = new List<RewardableMissions>();
             var notYetAvailable = new List<uint>();
+            var unfinished = new List<uint>();
 
             foreach (var mission in _runtime.ForNpc(creature.DbId, creature.Npc.NpcPackageId))
             {
@@ -3437,7 +3499,7 @@ namespace Rasa.Managers
                 player.Missions.TryGetValue(mission.MissionId, out var log);
                 if (log == null || log.State is MissionState.Failed or MissionState.Completed)
                 {
-                    if (log?.State == MissionState.Failed && mission.RepeatPolicy.Kind == MissionRepeatKind.Once)
+                    if (log?.State == MissionState.Failed && IsLeftToItsRetry(mission))
                         continue;
                     var gives = mission.AcceptanceChannel.HasFlag(MissionChannel.Npc) && mission.MissionGiver == creature.DbId;
                     var everSucceeded = log?.State == MissionState.Completed ||
@@ -3477,6 +3539,10 @@ namespace Rasa.Managers
                         continue;
                     }
 
+                    // Held, handed in here, and not ready: said when the NPC has nothing else to say.
+                    if (mission.CompletionChannel.HasFlag(MissionChannel.Npc) && mission.MissionReciver == creature.DbId)
+                        unfinished.Add(mission.MissionId);
+
                     dialogue.AddRange(OpenTopics(player, mission, log, creature.Npc.NpcPackageId, creature.DbId));
                 }
                 else if (log.State == MissionState.Success &&
@@ -3494,7 +3560,8 @@ namespace Rasa.Managers
                 dialogue,
                 completeable,
                 rewardable,
-                notYetAvailable);
+                notYetAvailable,
+                unfinished);
         }
 
         /// <summary>
@@ -3503,9 +3570,9 @@ namespace Rasa.Managers
         /// the content, to finish. That is what the client's CONVO_STATUS_UNAVAILABLE is for
         /// (overheadwindow.py draws OVERHEAD_MISSION_UNAVAILABLE over the giver).
         ///
-        /// A mission asking for anything else is not ahead, it is beside: Bootcamp's retry
-        /// (2005) wants Calling for Reinforcements failed, and its giver is not to wear the
-        /// icon for everyone who has not failed it. So a required Failed state, a mission that
+        /// A mission asking for anything else is not ahead, it is beside: Bootcamp's retry of
+        /// Calling for Reinforcements wants the first attempt failed, and its giver is not to
+        /// wear the icon for everyone who has not failed it. So a required Failed state, a mission that
         /// has to be held at the time, a player flag, a map or a custom requirement keeps the
         /// mission out of this list whatever else it asks.
         /// </summary>

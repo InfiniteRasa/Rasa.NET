@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Rasa.Managers
 {
@@ -47,10 +48,10 @@ namespace Rasa.Managers
     /// pulse hits every hostile creature within PropellantRange of the shooter and ConeHalfAngleOf
     /// degrees either side of the way they face, each with its own crit roll and resistance, all
     /// listed as shots of the one pulse. The reach and the angle are ConeWeapons': the action's
-    /// own range (maxRange 10 on every (140, arg) row) and 45 degrees either side. The
-    /// pool the propellant leaves (PROPELLANT_POOL_EFFECT 10000047, with FX for each damage type)
-    /// and PROPELLANT_PUMP_EFFECT 10000046 have no numbers or behaviour in the client and are
-    /// not done.
+    /// own range (maxRange 10 on every (140, arg) row) and 45 degrees either side. A
+    /// pulse may leave a pool on the ground (PROPELLANT_POOL_EFFECT 10000047), which is
+    /// <see cref="PropellantPools"/>'; PROPELLANT_PUMP_EFFECT 10000046 has no numbers or
+    /// behaviour in the client and is not done.
     ///
     /// Machine guns (WEAPON_MACHINEGUN 149, a charged action in actionModules): the client's
     /// MachinegunAttack is a ConstantFireAttack like the rest - a looping windup while the
@@ -219,6 +220,8 @@ namespace Rasa.Managers
             // A propellant gun sprays the cone in front of the shooter; the others hit what they aim
             // at. An enemy player across a wargame is a target like a creature (Pvp).
             var targets = new List<Actor>();
+            List<Actor> pool = null;
+            var poolReach = 0f;
 
             if (session.ActionId == ActionId.WeaponFlamethrower)
             {
@@ -228,6 +231,11 @@ namespace Rasa.Managers
 
                 targets.AddRange(AbilityManager.HostilesInCone(mapChannel, player, facing, range, halfAngle));
                 targets.AddRange(Pvp.EnemiesInCone(mapChannel, player, facing, range, halfAngle));
+
+                // The pool it may leave is of the pulse as fired, and lands under those it reached
+                // while they still stand.
+                pool = targets.Where(target => target.State != CharacterState.Dead && target.State != CharacterState.Dying).ToList();
+                poolReach = range - ConeWeapons.RangeSlack;
             }
             else if (ResolveTarget(mapChannel, player) is Actor aimed && (aimed is Creature || Pvp.IsEnemyTarget(player, aimed)))
                 targets.Add(aimed);
@@ -238,6 +246,10 @@ namespace Rasa.Managers
                 pulse.Add(new TickEntry { EntityId = player.Target, Amount = taken, DamageType = damageType });
             }
 
+            // The modules in what the shooter wears and holds: their armor piercing, and what the
+            // weapon's do on a hit (ItemModuleBonuses).
+            var modules = ItemModuleBonuses.Of(player);
+
             foreach (var target in targets)
             {
                 if (target.State == CharacterState.Dead || target.State == CharacterState.Dying)
@@ -247,9 +259,9 @@ namespace Rasa.Managers
                 var rolled = RangeFalloff.Scale(damage, weapon.ItemTemplate.WeaponInfo.Range, player.Position, target.Position);
                 var crit = CriticalHits.Resolve(player, target, false, CriticalHits.AttackerChance(player, false, critBonus), ref rolled);
                 var amount = GameEffectManager.ApplyResist(target, rolled, out var resisted, damageType);
-                var landed = ActorManager.Instance.Damage(mapChannel, target, amount, player, out var outcome, damageType);
+                var landed = ActorManager.Instance.Damage(mapChannel, target, amount, player, out var outcome, damageType, armorBypassPercent: modules.ArmorPierce);
 
-                pulse.Add(new TickEntry
+                var shot = new TickEntry
                 {
                     EntityId = target.EntityId,
                     Amount = outcome.Delivered,
@@ -259,10 +271,18 @@ namespace Rasa.Managers
                     DamageType = damageType,
                     IsCritical = crit,
                     DeathBlow = landed > 0 && target.Attributes[Attributes.Health].Current <= 0
-                });
+                };
 
+                pulse.Add(shot);
+
+                // The crit's effect on a creature is announced by this shot of the pulse (HitEffects).
                 if (crit && !outcome.Immune && target.State != CharacterState.Dead && target.State != CharacterState.Dying && target.Attributes[Attributes.Health].Current > 0)
-                    CritEffects.OnCritical(mapChannel, target, player, damageType, amount);
+                    using (HitEffects.On(target, player, shot.TargetEffectIds))
+                        CritEffects.OnCritical(mapChannel, target, player, damageType, amount);
+
+                // The weapon's modules: a steal, a resist debuff, each on its own roll (ItemModuleBonuses).
+                if (landed > 0 && modules.Procs.Count > 0)
+                    ItemModuleBonuses.OnWeaponHit(mapChannel, player, target, modules.Procs);
 
                 if (leech)
                     Leech(mapChannel, player, landed, tick);
@@ -272,6 +292,9 @@ namespace Rasa.Managers
             }
 
             PulseAtObject(mapChannel, player, session, damage, damageType, pulse);
+
+            if (pool != null)
+                PropellantPools.OnPulse(mapChannel, player, damage, damageType, poolReach, pool);
 
             CellManager.Instance.CellCallMethod(mapChannel, player, tick);
         }
@@ -322,6 +345,8 @@ namespace Rasa.Managers
                 Sessions.Remove(client);
             }
 
+            PropellantPools.Stopped(client.Player);
+
             var mapChannel = client.Player?.MapChannel;
 
             if (mapChannel == null || client.Player == null)
@@ -356,11 +381,11 @@ namespace Rasa.Managers
                 return;
 
             var crit = CriticalHits.Resolve(player, target, false, CriticalHits.AttackerChance(player, false, session.CritBonus), ref amount);
+            var modules = ItemModuleBonuses.Of(player);
             var dealt = GameEffectManager.ApplyResist(target, amount, out var resisted, session.DamageType);
-            var landed = ActorManager.Instance.Damage(mapChannel, target, dealt, player, out var outcome, session.DamageType);
+            var landed = ActorManager.Instance.Damage(mapChannel, target, dealt, player, out var outcome, session.DamageType, armorBypassPercent: modules.ArmorPierce);
 
-            args.HitEntities.Add(target.EntityId);
-            args.HitData.Add(new HitData
+            var hit = new HitData
             {
                 EntityId = target.EntityId,
                 DamageType = session.DamageType,
@@ -370,10 +395,19 @@ namespace Rasa.Managers
                 WasImune = outcome.Immune ? 1 : 0,
                 IsCritical = crit ? 1 : 0,
                 DeathBlow = landed > 0 && target.Attributes[Attributes.Health].Current <= 0 ? 1 : 0
-            });
+            };
 
+            args.HitEntities.Add(target.EntityId);
+            args.HitData.Add(hit);
+
+            // The crit's effect on a creature is announced by the release's hit, in the recovery that ends the fire (HitEffects).
             if (crit && !outcome.Immune && target.State != CharacterState.Dead && target.State != CharacterState.Dying && target.Attributes[Attributes.Health].Current > 0)
-                CritEffects.OnCritical(mapChannel, target, player, session.DamageType, dealt);
+                using (HitEffects.On(target, player, hit.TargetEffectIds))
+                    CritEffects.OnCritical(mapChannel, target, player, session.DamageType, dealt);
+
+            // The weapon's modules, as on any hit of it.
+            if (landed > 0 && modules.Procs.Count > 0)
+                ItemModuleBonuses.OnWeaponHit(mapChannel, player, target, modules.Procs);
         }
 
         private static Session Begin(MapChannel mapChannel, Client client, Item weapon, ActionData action, DamageType damageType)

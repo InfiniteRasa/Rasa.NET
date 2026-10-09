@@ -389,15 +389,21 @@ namespace Rasa.Managers
                 case Kind.Hold:
                 {
                     var typeId = module == "abilities.ai.xanxwebability" ? XanxWebTypeId : HunterNetTypeId;
+                    var hold = Effect(typeId, info.Get(AbilityProperty.Duration, 5) * 1000L, false);
 
-                    return Effect(typeId, info.Get(AbilityProperty.Duration, 5) * 1000L, false);
+                    hold.ControlKind = DamageType.Root;     // an armor module's "Resist: Root" may turn it away
+
+                    return hold;
                 }
 
                 case Kind.Blind:
                 {
                     var typeId = info.Get(AbilityProperty.GameEffectId, QuillFlashTypeId);
+                    var flash = Effect(typeId, info.Get(AbilityProperty.EffectDurationMs, 2500), true);
 
-                    return Effect(typeId, info.Get(AbilityProperty.EffectDurationMs, 2500), true);
+                    flash.ControlKind = DamageType.Blind;   // an armor module's "Resist: Blind" may turn it away
+
+                    return flash;
                 }
 
                 case Kind.ResistDown:

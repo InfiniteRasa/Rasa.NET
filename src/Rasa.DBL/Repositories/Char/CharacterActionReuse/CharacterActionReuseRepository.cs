@@ -16,21 +16,13 @@ namespace Rasa.Repositories.Char.CharacterActionReuse
             _charContext = charContext;
         }
 
-        public List<CharacterActionReuseEntry> Take(uint characterId)
+        public List<CharacterActionReuseEntry> Get(uint characterId)
         {
             try
             {
-                var rows = _charContext.CreateTrackingQuery(_charContext.CharacterActionReuseEntries)
+                return _charContext.CreateNoTrackingQuery(_charContext.CharacterActionReuseEntries)
                     .Where(e => e.CharacterId == characterId)
                     .ToList();
-
-                if (rows.Count == 0)
-                    return rows;
-
-                _charContext.CharacterActionReuseEntries.RemoveRange(rows);
-                _charContext.SaveChanges();
-
-                return rows;
             }
             catch (Exception e)
             {

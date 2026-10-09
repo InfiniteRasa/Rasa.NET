@@ -31,11 +31,13 @@ namespace Rasa.Test.Missions
     public class BootcampGearingUpInteractionTests
     {
         private static readonly Vector3 CratePosition = new(398, 122, 173);
+        /// <summary>
+        /// The east lane's. The middle and west lanes' two went with Place_bootcamp_base_npcs: they
+        /// stood in front of the target the firing range soldiers' own model carries.
+        /// </summary>
         private static readonly Vector3[] PracticePositions =
         {
-            new(386, 120, 184.7f),
-            new(380, 120, 186),
-            new(375, 120, 186)
+            new(386, 120, 184.7f)
         };
 
         [TestMethod]
@@ -70,7 +72,7 @@ namespace Rasa.Test.Missions
             var targets = harness.BootcampMap.DynamicObjects
                 .Where(target => (uint)target.EntityClassId == 29365)
                 .ToArray();
-            Assert.AreEqual(3, targets.Length, "Three real Practice Dummy props must already be in the map.");
+            Assert.AreEqual(1, targets.Length, "The real Practice Dummy prop must already be in the map.");
             CollectionAssert.AreEquivalent(PracticePositions, targets.Select(target => target.Position).ToArray());
             Assert.IsTrue(targets.All(target => target.IsInWorld));
             harness.Drain();
@@ -80,7 +82,7 @@ namespace Rasa.Test.Missions
 
             var introductions = harness.Drain().OfType<CreatePhysicalEntityPacket>()
                 .Where(packet => (uint)packet.ClassId == 29365).ToArray();
-            Assert.AreEqual(3, introductions.Length);
+            Assert.AreEqual(1, introductions.Length);
             foreach (var introduction in introductions)
             {
                 Assert.IsFalse(introduction.EntityData.Any(packet => packet is CreatureInfoPacket),
@@ -97,7 +99,7 @@ namespace Rasa.Test.Missions
             var targets = harness.BootcampMap.DynamicObjects
                 .Where(target => (uint)target.EntityClassId == 29365)
                 .Select(target => target.EntityId).OrderBy(id => id).ToArray();
-            Assert.AreEqual(3, targets.Length);
+            Assert.AreEqual(1, targets.Length);
             var actors = PrepareActors(harness);
             Accept(harness, actors.McAllister);
             CompleteObjective(harness, actors.Delessio, 4);
@@ -256,6 +258,112 @@ namespace Rasa.Test.Missions
             AssertConversationUpdate(harness, actors.Hartmann);
         }
 
+        // A Practice Dummy that is hit swings back and comes up again: the client's one animation
+        // for it, which it plays for the dummy's destroyed state (PracticeTargetManager).
+        [TestMethod]
+        public void AHitKnocksThePracticeDummyBackAndItIsUpAgainWhenTheSwingIsOver()
+        {
+            using var harness = BootcampRuntimeTestHarness.Create();
+            var actors = PrepareActors(harness);
+            Accept(harness, actors.McAllister);
+            CompleteObjective(harness, actors.Delessio, 4);
+            LootCrate(harness);
+            EquipBoots(harness);
+            CompleteObjective(harness, actors.Delessio, 5);
+            CompleteObjective(harness, actors.Hartmann, 6);
+            var rifle = EquipAndReloadRifle(harness);
+            var map = harness.BootcampMap;
+            var targets = map.DynamicObjects.Where(candidate => (uint)candidate.EntityClassId == 29365).ToArray();
+            var target = targets.Single(candidate => candidate.Position == PracticePositions[0]);
+            var clock = PracticeTargetManager.Now;
+            var now = 5000L;
+
+            // The states the clients in range were told of, and for which object.
+            (ulong EntityId, UseObjectState State)[] Told() => WorldTestContext.Drain(harness.Client)
+                .Select(packet => packet.Message).OfType<CallMethodMessage>()
+                .Where(message => message.Packet is ForceStatePacket)
+                .Select(message => (message.EntityId, ((ForceStatePacket)message.Packet).State)).ToArray();
+
+            void Shoot()
+            {
+                harness.Client.Player.NextShotAt = 0;
+                harness.Client.Player.Target = target.EntityId;
+                MissileManager.Instance.RequestWeaponAttack(harness.Client,
+                    new RequestWeaponAttackPacket { ActionId = ActionId.WeaponAttack, ActionArgId = 133 });
+                MissileManager.Instance.DoWork(map, 1000);
+            }
+
+            PracticeTargetManager.Now = () => now;
+
+            try
+            {
+                Assert.AreEqual(900, PracticeTargetManager.SwingMs, "arch_hum_practice_target_hit_v01.anm is 0.9 s");
+                harness.Drain();
+
+                // Hit: the destroyed state, which is what plays the animation - and only the
+                // clients' picture of it. The object is as its scene made it.
+                Shoot();
+                CollectionAssert.AreEqual(new[] { (target.EntityId, UseObjectState.StateDestroyed) }, Told());
+                Assert.AreEqual(19U, rifle.CurrentAmmo);
+                Assert.AreEqual(UseObjectState.StateNull, target.StateId);
+                Assert.IsTrue(target.IsInWorld && target.IsEnabled);
+                Assert.AreEqual(now + 900, map.PracticeSwings[target.EntityId]);
+                Assert.AreEqual(MissionObjectiveState.Completed, harness.Client.Player.Missions[1992].Objectives[3].State);
+
+                // Not over yet: nothing.
+                now += 899;
+                PracticeTargetManager.Worker(map);
+                Assert.IsEmpty(Told());
+
+                // Hit again while it swings: a hit like any other, and no second swing.
+                Shoot();
+                Assert.AreEqual(18U, rifle.CurrentAmmo);
+                Assert.IsEmpty(Told());
+                Assert.AreEqual(5900L, map.PracticeSwings[target.EntityId], "the first swing's end stands");
+
+                // Over: intact, which stops the animation and lets it be targeted again.
+                now += 1;
+                PracticeTargetManager.Worker(map);
+                CollectionAssert.AreEqual(new[] { (target.EntityId, UseObjectState.IdesStateIntact) }, Told());
+                Assert.AreEqual(0, map.PracticeSwings.Count);
+                PracticeTargetManager.Worker(map);
+                Assert.IsEmpty(Told());
+
+                // And the next hit knocks it back again.
+                Shoot();
+                CollectionAssert.AreEqual(new[] { (target.EntityId, UseObjectState.StateDestroyed) }, Told());
+
+                // One taken out of the world partway is not stood up.
+                target.IsInWorld = false;
+                now += 900;
+                PracticeTargetManager.Worker(map);
+                Assert.IsEmpty(Told());
+                Assert.AreEqual(0, map.PracticeSwings.Count);
+                target.IsInWorld = true;
+
+                // Lightning does it as a bullet does, to the dummy it strikes.
+                CompleteObjective(harness, actors.Hartmann, 9);
+                harness.MovePlayerTo(new Vector3(380, 120, 177));
+                CellManager.Instance.UpdateVisibility(harness.Client);
+                harness.Drain();
+                CastLightning(harness, targets[0]);
+                CollectionAssert.AreEqual(new[] { (targets[0].EntityId, UseObjectState.StateDestroyed) }, Told());
+
+                // Nothing that is no Practice Dummy is knocked back.
+                var crate = BootcampRuntimeTestHarness.FindScenarioObject(map, "bootcamp-equipment-crate");
+                PracticeTargetManager.Swing(map, crate);
+                PracticeTargetManager.Swing(map, null);
+                PracticeTargetManager.Swing(null, target);
+                Assert.IsEmpty(Told());
+                Assert.AreEqual(1, map.PracticeSwings.Count);
+            }
+            finally
+            {
+                PracticeTargetManager.Now = clock;
+                map.PracticeSwings.Clear();
+            }
+        }
+
         [TestMethod]
         public void TrainingPreservesAlreadyLearnedRecruitSkillsAndRearrangedStartingAbilities()
         {
@@ -346,7 +454,7 @@ namespace Rasa.Test.Missions
             var beforeChi = harness.Client.Player.Attributes[Attributes.Chi].Current;
             harness.Drain();
 
-            CastLightning(harness, targets[1]);
+            CastLightning(harness, targets[0]);
 
             Assert.AreEqual(beforeChi - 10, harness.Client.Player.Attributes[Attributes.Chi].Current);
             Assert.AreEqual(MissionObjectiveState.Completed,
@@ -383,18 +491,18 @@ namespace Rasa.Test.Missions
         }
 
         [TestMethod]
-        public void PracticeTargetsRemainExactlyThreeAcrossPrivateInstanceReconnect()
+        public void PracticeTargetsRemainExactlyOneAcrossPrivateInstanceReconnect()
         {
             using var harness = BootcampRuntimeTestHarness.Create();
             var before = harness.BootcampMap.DynamicObjects
                 .Where(target => (uint)target.EntityClassId == 29365).ToArray();
-            Assert.AreEqual(3, before.Length);
+            Assert.AreEqual(1, before.Length);
 
             harness.ReconnectFresh();
 
             var after = harness.BootcampMap.DynamicObjects
                 .Where(target => (uint)target.EntityClassId == 29365).ToArray();
-            Assert.AreEqual(3, after.Length);
+            Assert.AreEqual(1, after.Length);
             CollectionAssert.AreEquivalent(PracticePositions, after.Select(target => target.Position).ToArray());
             Assert.IsTrue(after.All(target => target.IsInWorld && target.StateId == UseObjectState.StateNull));
             Assert.IsFalse(before.Any(target =>
@@ -522,6 +630,131 @@ namespace Rasa.Test.Missions
             AssertPackStillAcceptsChanges(harness, rifle, takenOffTo, putOnFrom);
         }
 
+        // Item modules (ItemModuleBonuses): what a piece put on carries counts at once, and the
+        // player is marked, so the next tick looks at what their client has to be told.
+        [TestMethod]
+        public void ModulesInBootsAndRifleCountOnceOnAndAreToldOnTheNextTick()
+        {
+            const uint body1 = 100060;          // Armor Module: Body Bonus [1]
+            const uint weaponResistFire1 = 900301;  // Weapon Module: Resist Fire [1]: 6
+            const uint crit5 = 900051;          // Weapon Module: Crit Hit Bonus [5]
+
+            using var harness = BootcampRuntimeTestHarness.Create();
+            var actors = PrepareActors(harness);
+            Accept(harness, actors.McAllister);
+            CompleteObjective(harness, actors.Delessio, 4);
+            LootCrate(harness);
+
+            ItemModules.Load(Rasa.Services.Preloader.ItemModuleSeed.Classes, Rasa.Services.Preloader.ItemModuleSeed.Effects);
+
+            var player = harness.Client.Player;
+            var map = player.MapChannel;
+            var boots = player.Inventory.PersonalInventory.Where(id => id != 0)
+                .Select(id => EntityManager.Instance.GetItem(id))
+                .Single(item => item.ItemTemplateId == 13066);
+
+            ManifestationManager.Instance.UpdateStatsValues(harness.Client, false);
+
+            var body = player.Attributes[Attributes.Body].CurrentMax;
+
+            Assert.IsTrue(ItemModules.TryGet(body1, out var module), "the module");
+
+            var bonus = module.Effects.Single().Amount(ItemModules.LevelOf(boots));
+
+            Assert.IsTrue(bonus > 0, "its bonus");
+            boots.SetModule(0, body1);
+            player.ModulesChanged = false;
+            ItemModuleBonuses.Worker(map);
+            Assert.AreEqual(body, player.Attributes[Attributes.Body].CurrentMax, "in the pack it is nothing");
+
+            // Put on: RequestEquipArmor works the stats out again as it always did, and marks.
+            EquipBoots(harness);
+            Assert.IsTrue(player.ModulesChanged, "marked by the boots");
+            Assert.AreEqual(body + bonus, player.Attributes[Attributes.Body].CurrentMax);
+            Assert.AreEqual(body, player.Attributes[Attributes.Body].NormalMax);
+
+            // The tick: told once, and not again.
+            harness.Drain();
+            ItemModuleBonuses.Worker(map);
+            Assert.IsFalse(player.ModulesChanged);
+            Assert.HasCount(1, harness.Drain().OfType<AttributeInfoPacket>().ToArray());
+            ItemModuleBonuses.Worker(map);
+            player.ModulesChanged = true;
+            ItemModuleBonuses.Worker(map);
+            Assert.IsEmpty(harness.Drain().OfType<AttributeInfoPacket>().ToArray());
+
+            // The rifle, with a module the client is shown the resistance of and one it is shown nothing of.
+            CompleteObjective(harness, actors.Delessio, 5);
+            CompleteObjective(harness, actors.Hartmann, 6);
+
+            var rifle = player.Inventory.PersonalInventory.Where(id => id != 0)
+                .Select(id => EntityManager.Instance.GetItem(id))
+                .Single(item => item.ItemTemplateId == 13713);
+
+            int Fire() => player.ResistanceData.Where(resist => resist.ResistanceType == DamageType.Fire).Sum(resist => resist.ResistanceAmmount);
+
+            var fire = Fire();
+
+            rifle.SetModule(0, weaponResistFire1);
+            rifle.SetModule(1, crit5);
+            player.ModulesChanged = false;
+            Assert.AreEqual(0, ItemModuleBonuses.Of(player).CritChance, "in the pack");
+
+            EquipAndReloadRifle(harness);
+            Assert.IsTrue(player.ModulesChanged, "into the drawer slot that is in hand");
+            Assert.AreEqual(5, ItemModuleBonuses.Of(player).CritChance, "read where it is used, it counts at once");
+            Assert.AreEqual(fire, Fire(), "a weapon taken in hand tells nobody anything by itself");
+
+            harness.Drain();
+            ItemModuleBonuses.Worker(map);
+            Assert.AreEqual(fire + 6, Fire(), "the tick does");
+
+            var told = harness.Drain();
+
+            Assert.HasCount(1, told.OfType<AttributeInfoPacket>().ToArray());
+            Assert.AreEqual(fire + 6, told.OfType<ResistanceDataPacket>().Last().ResistanceData
+                .Where(resist => resist.ResistanceType == DamageType.Fire).Sum(resist => resist.ResistanceAmmount));
+
+            // An empty drawer slot armed: the rifle is put away, and its modules with it. Arming
+            // saves the slot through the character manager, which here is the harness's.
+            var characters = typeof(CharacterManager).GetField("_instance", BindingFlags.Static | BindingFlags.NonPublic);
+            var before = characters.GetValue(null);
+
+            characters.SetValue(null, new CharacterManager(harness.Context, harness.Manager));
+
+            try
+            {
+                ManifestationManager.Instance.RequestArmWeapon(harness.Client, 1);
+                Assert.IsTrue(player.ModulesChanged, "marked by the arming");
+                Assert.AreEqual(0, ItemModuleBonuses.Of(player).CritChance);
+                ItemModuleBonuses.Worker(map);
+                Assert.AreEqual(fire, Fire());
+
+                // Taken in hand again.
+                ManifestationManager.Instance.RequestArmWeapon(harness.Client, 0);
+                ItemModuleBonuses.Worker(map);
+                Assert.AreEqual(fire + 6, Fire());
+            }
+            finally
+            {
+                characters.SetValue(null, before);
+            }
+
+            // Then out of the drawer altogether.
+
+            InventoryManager.Instance.RequestEquipWeapon(harness.Client, new RequestEquipWeaponPacket
+            {
+                SrcSlot = FreeEquipmentSlot(harness),
+                InventoryType = InventoryType.Personal,
+                DestSlot = 0
+            });
+            Assert.IsTrue(player.Inventory.PersonalInventory.Contains(rifle.EntityId), "back in the pack");
+            Assert.IsTrue(player.ModulesChanged, "marked by the taking out");
+            ItemModuleBonuses.Worker(map);
+            Assert.AreEqual(fire, Fire());
+            Assert.AreEqual(body + bonus, player.Attributes[Attributes.Body].CurrentMax, "the boots are still on");
+        }
+
         // Reported in play: a player could shoot the friendly soldiers on the perimeter bridge.
         // The damage was always refused; the clients were still shown the soldier being hit.
         [TestMethod]
@@ -583,7 +816,7 @@ namespace Rasa.Test.Missions
             var beforeChi = harness.Client.Player.Attributes[Attributes.Chi].Current;
             harness.Drain();
 
-            CastLightning(harness, targets[1], expectPerformed: false);
+            CastLightning(harness, targets[0], expectPerformed: false);
 
             Assert.AreEqual(beforeChi, harness.Client.Player.Attributes[Attributes.Chi].Current);
             Assert.IsTrue(harness.Drain().OfType<UserActionFailedPacket>().Any(packet =>

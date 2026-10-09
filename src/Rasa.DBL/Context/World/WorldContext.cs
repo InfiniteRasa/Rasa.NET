@@ -36,7 +36,9 @@ namespace Rasa.Context.World
         public DbSet<CreatureActionEntry> CreatureActionEntries { get; set; }
         public DbSet<CreatureAppearanceEntry> CreatureAppearanceEntries { get; set; }
         public DbSet<CreatureStatEntry> CreatureStatEntries { get; set; }
+        public DbSet<CreatureBattlecryEntry> CreatureBattlecryEntries { get; set; }
         public DbSet<CreatureClassFlagEntry> CreatureClassFlagEntries { get; set; }
+        public DbSet<CreatureLootGroupEntry> CreatureLootGroupEntries { get; set; }
         public DbSet<SkillCharacterEntry> SkillCharacterEntries { get; set; }
         public DbSet<ExperienceForLevelEntry> ExperienceForLevelEntries { get; set; }
         public DbSet<EntityClassEntry> EntityClassEntries { get; set; }
@@ -53,17 +55,24 @@ namespace Rasa.Context.World
         public DbSet<ItemTemplateResistanceEntry> ItemTemplateResistanceEntries { get; set; }
         public DbSet<ItemTemplateWeaponEntry> ItemTemplateWeaponEntries { get; set; }
         public DbSet<LogosEntry> LogosEntries { get; set; }
+        public DbSet<LootGroupEntry> LootGroupEntries { get; set; }
+        public DbSet<LootGroupItemEntry> LootGroupItemEntries { get; set; }
         public DbSet<MapInfoEntry> MapInfoEntries { get; set; }
         public DbSet<MapLinkEntry> MapLinkEntries { get; set; }
         public DbSet<KraftwerksEntry> KraftwerksEntries { get; set; }
         public DbSet<MapRegionEntry> MapRegionEntries { get; set; }
         public DbSet<MapMarkerEntry> MapMarkerEntries { get; set; }
         public DbSet<MapEmitterEntry> MapEmitterEntries { get; set; }
+        public DbSet<AmbientNpcEntry> AmbientNpcEntries { get; set; }
         public DbSet<ControlPointEntry> ControlPointEntries { get; set; }
         public DbSet<ControlPointLinkEntry> ControlPointLinkEntries { get; set; }
         public DbSet<SpawnPoolArrivalEntry> SpawnPoolArrivalEntries { get; set; }
         public DbSet<RecipeEntry> RecipeEntries { get; set; }
         public DbSet<RecipeInputEntry> RecipeInputEntries { get; set; }
+        public DbSet<ModuleClassEntry> ModuleClassEntries { get; set; }
+        public DbSet<ModuleEffectEntry> ModuleEffectEntries { get; set; }
+        public DbSet<ModuleItemEntry> ModuleItemEntries { get; set; }
+        public DbSet<ModifiableClassEntry> ModifiableClassEntries { get; set; }
         public DbSet<NpcMissionEntry> NpcMissionEntries { get; set; }
         public DbSet<NpcMissionRewardEntry> NpcMissionRewardEntries { get; set; }
         public DbSet<MissionContentDefinitionEntry> MissionContentDefinitionEntries { get; set; }
@@ -84,6 +93,8 @@ namespace Rasa.Context.World
         public DbSet<NpcPackageEntry> NpcPackageEntries { get; set; }
         public DbSet<RandomNameEntry> RandomNameEntries { get; set; }
         public DbSet<SpawnPoolEntry> SpawnPoolEntries { get; set; }
+        public DbSet<SpawnPoolPatrolEntry> SpawnPoolPatrolEntries { get; set; }
+        public DbSet<SpawnPoolPoseEntry> SpawnPoolPoseEntries { get; set; }
         public DbSet<TeleporterEntry> TeleporterEntries { get; set; }
         public DbSet<VendorEntry> VendorEntries { get; set; }
         public DbSet<VendorItemEntry> VendorItemEntries { get; set; }
@@ -105,6 +116,9 @@ namespace Rasa.Context.World
             SetupMapMarker(modelBuilder);
             SetupControlPoints(modelBuilder);
             SetupCreatureClassFlag(modelBuilder);
+            SetupCreatureBattlecry(modelBuilder);
+            SetupSpawnPoolPatrol(modelBuilder);
+            SetupLootGroups(modelBuilder);
             SetupSkillCharacter(modelBuilder);
             SetupMissionContent(modelBuilder);
             modelBuilder.Entity<MissionSceneBindingEntry>()
@@ -161,6 +175,30 @@ namespace Rasa.Context.World
         {
             modelBuilder.Entity<CreatureClassFlagEntry>()
                 .HasKey(e => new { e.ClassId, e.FlagId });
+        }
+
+        /// <summary>A battle cry package is given to a class or to a creature row, so the row is the scope and the target.</summary>
+        private static void SetupCreatureBattlecry(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<CreatureBattlecryEntry>()
+                .HasKey(e => new { e.Scope, e.TargetId });
+        }
+
+        /// <summary>A pool's patrol is several steps, so the row is the pool and the step.</summary>
+        private static void SetupSpawnPoolPatrol(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<SpawnPoolPatrolEntry>()
+                .HasKey(e => new { e.PoolId, e.Step });
+        }
+
+        /// <summary>A pool holds an item once, and a creature has a pool once: each row is its pair.</summary>
+        private static void SetupLootGroups(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<LootGroupItemEntry>()
+                .HasKey(e => new { e.GroupId, e.ItemTemplateId });
+
+            modelBuilder.Entity<CreatureLootGroupEntry>()
+                .HasKey(e => new { e.CreatureId, e.GroupId });
         }
 
         private void SetupExperienceForLevel(ModelBuilder modelBuilder)

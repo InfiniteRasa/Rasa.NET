@@ -9,7 +9,7 @@ namespace Rasa.Managers
 
     /// <summary>
     /// The waypoint titles: "Wilderness Pathfinder", "Gained every AFS Waypoint on
-    /// Wilderness.", and the ten like it.
+    /// Wilderness.", and the twelve like it.
     ///
     /// A character has one when they have gained every waypoint of the battlefield, as
     /// <see cref="LogosTitles"/> gives its titles for the Logos held: no mission is asked.
@@ -29,8 +29,10 @@ namespace Rasa.Managers
     /// waypoint row is under the id the client names it by.
     ///
     /// Divide and Marshes each have two titles for the same thing in the client, a Pathfinder
-    /// (447, 491) and a Wanderer (462, 493); the Pathfinder is the one given. Mires, Plains,
-    /// Incline and Howling Maw have none.
+    /// (447, 491) and a Wanderer (462, "Gained all Divide waypoints.", and 493), and their
+    /// Targets of Opportunity name the Wanderer ("Wanderer: Acquire all of the AFS Waypoints on
+    /// Divide."). Both are given, by the same waypoints: a title is its own entry here, and two
+    /// may be of one map. Mires, Plains, Incline and Howling Maw have none.
     ///
     /// Looked at when a waypoint is gained (DynamicObjectManager.ConvergeWaypointGrant) and when
     /// a character comes onto a map (ManifestationManager.AssignPlayer), which is where one who
@@ -61,10 +63,12 @@ namespace Rasa.Managers
         {
             new Zone(362, "Wilderness", 1220),              // Wilderness Pathfinder
             new Zone(447, "Divide", 1148),                  // Divide Pathfinder
+            new Zone(462, "Divide", 1148),                  // Divide Wanderer
             new Zone(499, "Palisades", 1244, 107, 415),     // Palisades Wanderer
             new Zone(402, "Plateau", 1497),                 // Plateau Pathfinder
             new Zone(469, "Pools", 1304),                   // Pools Wanderer
             new Zone(491, "Marshes", 1454),                 // Marshes Pathfinder
+            new Zone(493, "Marshes", 1454),                 // Marshes Wanderer
             new Zone(517, "Descent", 2047),                 // Descent Pathfinder
             new Zone(426, "Ashen Desert", 1734),            // Desert Pathfinder
             new Zone(769, "Thunderhead", 1911),             // Thunderhead Cartographer

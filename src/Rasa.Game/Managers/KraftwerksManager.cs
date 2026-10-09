@@ -31,11 +31,10 @@ namespace Rasa.Managers
     /// stated quantity, standing within reach of a station with no job of theirs still running
     /// there. The ingredients and credits are taken, the schematic is kept, and a job with the
     /// recipe's time goes on the station for that player; the result is created when they take
-    /// it. The Crafting v2 pages - salvage, extraction, integration, upgrade - need per-item
-    /// modules the server does not have yet, and are still declined with a failure the window
-    /// can show.
+    /// it. The window's other four pages - salvage, extraction, integration, upgrade - work on
+    /// the modules an item carries, and are in KraftwerksManager.Modules.
     /// </summary>
-    public class KraftwerksManager
+    public partial class KraftwerksManager
     {
         private static KraftwerksManager _instance;
         private static readonly object InstanceLock = new object();
@@ -90,7 +89,7 @@ namespace Rasa.Managers
             }
         }
 
-        private KraftwerksManager(IGameUnitOfWorkFactory gameUnitOfWorkFactory)
+        internal KraftwerksManager(IGameUnitOfWorkFactory gameUnitOfWorkFactory)
         {
             _gameUnitOfWorkFactory = gameUnitOfWorkFactory;
             _currencyManager = new ManifestationManager(gameUnitOfWorkFactory);
@@ -298,22 +297,6 @@ namespace Rasa.Managers
             return station;
         }
 
-        /// <summary>
-        /// The Crafting v2 requests, until items can carry modules: the window is told the
-        /// request failed so it re-enables its buttons, and the player is told why.
-        /// </summary>
-        private void Decline(Client client, ulong kraftwerksId, string request, string what)
-        {
-            var station = StationFor(client, kraftwerksId, request);
-
-            if (station == null)
-                return;
-
-            SendStatus(client, station);
-            client.CallMethod(station.EntityId, CraftingResultPacket.Failure(client.Player.EntityId));
-            CommunicatorManager.Instance.SystemMessage(client, $"{what} is not available on this server yet.");
-        }
-
         /// <summary>Tells the window the request failed (so it re-enables its buttons) and the player why.</summary>
         private void Fail(Client client, DynamicObject station, string why)
         {
@@ -341,7 +324,7 @@ namespace Rasa.Managers
 
             if (packet.CraftingPage != FabricationPage)
             {
-                Fail(client, station, "Only fabrication is available on this server yet.");
+                Fail(client, station, null);
                 return;
             }
 
@@ -490,6 +473,9 @@ namespace Rasa.Managers
         /// Creates the result of a finished job in the player's inventory, in stacks of the class's
         /// stack size. What does not fit stays on the job, so the player can make room and take it
         /// again. Returns true when the whole job was handed over.
+        ///
+        /// What was fabricated carries its maker's name. Mimeogel and modules do not: they were
+        /// salvaged, taken out or upgraded, not made.
         /// </summary>
         private bool HandOver(Client client, CraftingJob job)
         {
@@ -499,12 +485,13 @@ namespace Rasa.Managers
             while (job.Count > 0)
             {
                 var amount = Math.Min(job.Count, stackSize);
-                var item = ItemManager.Instance.CreateFromTemplateId(job.ResultItemTemplateId, amount, client.Player.FamilyName);
+                var crafter = job.CraftingPage == FabricationPage ? client.Player.FamilyName : "";
+                var item = ItemManager.Instance.CreateFromTemplateId(job.ResultItemTemplateId, amount, crafter);
 
                 if (item == null)
                     return false;
 
-                item.Crafter = client.Player.FamilyName;
+                item.Crafter = crafter;
 
                 if (InventoryManager.Instance.GrantItemToInventory(client, item) != null)
                 {
@@ -544,10 +531,6 @@ namespace Rasa.Managers
 
             SendStatus(client, station);
         }
-        internal void RequestSalvageItem(Client client, RequestSalvageItemPacket packet) => Decline(client, packet.KraftwerksId, "RequestSalvageItem", "Salvage");
-        internal void RequestExtractModule(Client client, RequestExtractModulePacket packet) => Decline(client, packet.KraftwerksId, "RequestExtractModule", "Module extraction");
-        internal void RequestIntegrateItem(Client client, RequestIntegrateItemPacket packet) => Decline(client, packet.KraftwerksId, "RequestIntegrateItem", "Module integration");
-        internal void RequestUpgradeItem(Client client, RequestUpgradeItemPacket packet) => Decline(client, packet.KraftwerksId, "RequestUpgradeItem", "Module upgrade");
 
         internal void RequestRetrieveFinishedCraftItem(Client client, RequestRetrieveFinishedCraftItemPacket packet)
         {

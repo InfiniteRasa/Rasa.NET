@@ -45,6 +45,9 @@ namespace Rasa.Repositories.World
             MapMarkers = mapMarkerRepository;
             MapEmitters = mapEmitterRepository;
             ControlPoints = new ControlPointRepository(dbContext);
+            ItemModules = new ItemModuleRepository(dbContext);
+            AmbientNpcs = new AmbientNpcRepository(dbContext);
+            LootGroups = new LootGroupRepository(dbContext);
             SpawnPoolArrivals = spawnPoolArrivalRepository;
             Recipes = recipeRepository;
             NpcMissions = npcMissionRepository;
@@ -69,6 +72,9 @@ namespace Rasa.Repositories.World
         public IMapMarkerRepository MapMarkers { get; }
         public IMapEmitterRepository MapEmitters { get; }
         public IControlPointRepository ControlPoints { get; }
+        public IItemModuleRepository ItemModules { get; }
+        public IAmbientNpcRepository AmbientNpcs { get; }
+        public ILootGroupRepository LootGroups { get; }
         public ISpawnPoolArrivalRepository SpawnPoolArrivals { get; }
         public IRecipeRepository Recipes { get; }
         public INpcMissionRepository NpcMissions { get; }

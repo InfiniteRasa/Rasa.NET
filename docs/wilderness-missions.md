@@ -146,7 +146,7 @@ not all 26 raw rows counted as separate targets.
 | 7 | 40 Miasmas; counter 12824 | Credit eligible kills on map 1220 |
 | 8 | All Wilderness Logos | Twelve recovered Logos IDs below (P); Earth 408 is excluded |
 | 40 | Three actual operations; counter 12854 | **Incomplete** until Pravus, Donn and Crater Lake primary operations exist and are completed |
-| 48 | All caves; counter 12865 | Six native children 49..54 need distinct outdoor region bindings |
+| 48 | All caves; counter 12865 | Six native children 49..54 need distinct outdoor region bindings; the sixth visited gives Wilderness Spelunker (title 372) |
 | 55 | Outdoor and instance story missions; counter 13685 | Persist outdoor membership but **remain incomplete** without the actual instance stories |
 | 58 | All ten targets | **Incomplete**, with final reward inaccessible |
 

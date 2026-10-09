@@ -181,6 +181,47 @@ namespace Rasa.Migrations.SqliteWorld
                     b.ToTable("action_property");
                 });
 
+            modelBuilder.Entity("Rasa.Structures.World.AmbientNpcEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("id");
+
+                    b.Property<uint>("ClassId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("class_id");
+
+                    b.Property<string>("Comment")
+                        .IsRequired()
+                        .HasColumnType("varchar(96)")
+                        .HasColumnName("comment");
+
+                    b.Property<uint>("MapContextId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("map_context_id");
+
+                    b.Property<double>("PosX")
+                        .HasColumnType("REAL")
+                        .HasColumnName("pos_x");
+
+                    b.Property<double>("PosY")
+                        .HasColumnType("REAL")
+                        .HasColumnName("pos_y");
+
+                    b.Property<double>("PosZ")
+                        .HasColumnType("REAL")
+                        .HasColumnName("pos_z");
+
+                    b.Property<double>("Rotation")
+                        .HasColumnType("REAL")
+                        .HasColumnName("rotation");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ambient_npc");
+                });
+
             modelBuilder.Entity("Rasa.Structures.World.ArmorClassEntry", b =>
                 {
                     b.Property<uint>("Id")
@@ -362,6 +403,25 @@ namespace Rasa.Migrations.SqliteWorld
                     b.ToTable("creature_appearance");
                 });
 
+            modelBuilder.Entity("Rasa.Structures.World.CreatureBattlecryEntry", b =>
+                {
+                    b.Property<uint>("Scope")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("scope");
+
+                    b.Property<uint>("TargetId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("target_id");
+
+                    b.Property<uint>("PackageId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("package_id");
+
+                    b.HasKey("Scope", "TargetId");
+
+                    b.ToTable("creature_battlecry");
+                });
+
             modelBuilder.Entity("Rasa.Structures.World.CreatureClassFlagEntry", b =>
                 {
                     b.Property<uint>("ClassId")
@@ -452,6 +512,21 @@ namespace Rasa.Migrations.SqliteWorld
                     b.HasKey("Id");
 
                     b.ToTable("creature");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.CreatureLootGroupEntry", b =>
+                {
+                    b.Property<uint>("CreatureId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("creature_id");
+
+                    b.Property<uint>("GroupId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("group_id");
+
+                    b.HasKey("CreatureId", "GroupId");
+
+                    b.ToTable("creature_loot_group");
                 });
 
             modelBuilder.Entity("Rasa.Structures.World.CreatureStatEntry", b =>
@@ -1000,6 +1075,54 @@ namespace Rasa.Migrations.SqliteWorld
                     b.HasKey("Id");
 
                     b.ToTable("logos");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.LootGroupEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Comment")
+                        .IsRequired()
+                        .HasColumnType("varchar(200)")
+                        .HasColumnName("comment");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("name");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("loot_group");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.LootGroupItemEntry", b =>
+                {
+                    b.Property<uint>("GroupId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("group_id");
+
+                    b.Property<uint>("ItemTemplateId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("item_template_id");
+
+                    b.Property<double>("Chance")
+                        .HasColumnType("REAL")
+                        .HasColumnName("chance");
+
+                    b.Property<uint>("MaxQuantity")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("max_quantity");
+
+                    b.Property<uint>("MinQuantity")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("min_quantity");
+
+                    b.HasKey("GroupId", "ItemTemplateId");
+
+                    b.ToTable("loot_group_item");
                 });
 
             modelBuilder.Entity("Rasa.Structures.World.MapEmitterEntry", b =>
@@ -2321,6 +2444,147 @@ namespace Rasa.Migrations.SqliteWorld
                         });
                 });
 
+            modelBuilder.Entity("Rasa.Structures.World.ModifiableClassEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("id");
+
+                    b.Property<uint>("ClassSetId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("class_set_id");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("modifiable_class");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.ModuleClassEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("id");
+
+                    b.Property<uint>("ClassSetId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("class_set_id");
+
+                    b.Property<string>("Comment")
+                        .IsRequired()
+                        .HasColumnType("varchar(64)")
+                        .HasColumnName("comment");
+
+                    b.Property<uint>("ExtractCost")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("extract_cost");
+
+                    b.Property<uint>("IntegrateCost")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("integrate_cost");
+
+                    b.Property<uint>("ItemClassId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("item_class_id");
+
+                    b.Property<uint>("ItemTemplateId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("item_template_id");
+
+                    b.Property<uint>("Level")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("level");
+
+                    b.Property<uint>("SalvageGain")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("salvage_gain");
+
+                    b.Property<uint>("UpgradeCost")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("upgrade_cost");
+
+                    b.Property<uint>("UpgradeModuleId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("upgrade_module_id");
+
+                    b.Property<uint>("VariantId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("variant_id");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("module_class");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.ModuleEffectEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("id");
+
+                    b.Property<int?>("Arg1")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("arg1");
+
+                    b.Property<int?>("Arg2")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("arg2");
+
+                    b.Property<int?>("Arg3")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("arg3");
+
+                    b.Property<int?>("Arg4")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("arg4");
+
+                    b.Property<uint>("EffectId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("effect_id");
+
+                    b.Property<double>("ExpValue")
+                        .HasColumnType("REAL")
+                        .HasColumnName("exp_value");
+
+                    b.Property<double>("FlatValue")
+                        .HasColumnType("REAL")
+                        .HasColumnName("flat_value");
+
+                    b.Property<double>("LinearValue")
+                        .HasColumnType("REAL")
+                        .HasColumnName("linear_value");
+
+                    b.Property<uint>("ModuleId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("module_id");
+
+                    b.Property<uint>("SetLevel")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("set_level");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("module_effect");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.ModuleItemEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("id");
+
+                    b.Property<uint>("ModuleId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("module_id");
+
+                    b.Property<uint>("Strength")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("strength");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("module_item");
+                });
+
             modelBuilder.Entity("Rasa.Structures.World.NpcGreetingEntry", b =>
                 {
                     b.Property<uint>("Id")
@@ -2330,6 +2594,10 @@ namespace Rasa.Migrations.SqliteWorld
                     b.Property<uint>("GreetingId")
                         .HasColumnType("INTEGER")
                         .HasColumnName("greeting_id");
+
+                    b.Property<bool>("Important")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("important");
 
                     b.HasKey("Id");
 
@@ -2685,6 +2953,56 @@ namespace Rasa.Migrations.SqliteWorld
                     b.HasKey("Id");
 
                     b.ToTable("spawnpool");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.SpawnPoolPatrolEntry", b =>
+                {
+                    b.Property<uint>("PoolId")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("pool_id");
+
+                    b.Property<uint>("Step")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("step");
+
+                    b.Property<double?>("Facing")
+                        .HasColumnType("REAL")
+                        .HasColumnName("facing");
+
+                    b.Property<uint>("PauseMs")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("pause_ms");
+
+                    b.Property<double>("PosX")
+                        .HasColumnType("REAL")
+                        .HasColumnName("pos_x");
+
+                    b.Property<double>("PosY")
+                        .HasColumnType("REAL")
+                        .HasColumnName("pos_y");
+
+                    b.Property<double>("PosZ")
+                        .HasColumnType("REAL")
+                        .HasColumnName("pos_z");
+
+                    b.HasKey("PoolId", "Step");
+
+                    b.ToTable("spawnpool_patrol");
+                });
+
+            modelBuilder.Entity("Rasa.Structures.World.SpawnPoolPoseEntry", b =>
+                {
+                    b.Property<uint>("Id")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("id");
+
+                    b.Property<byte>("Pose")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("pose");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("spawnpool_pose");
                 });
 
             modelBuilder.Entity("Rasa.Structures.World.TeleporterEntry", b =>

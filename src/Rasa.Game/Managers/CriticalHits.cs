@@ -54,7 +54,8 @@ namespace Rasa.Managers
 
         /// <summary>
         /// The attacker's own chance, in percent: base, Spirit, the effects on them (Crit Wave),
-        /// crouching for a ranged attack, and whatever the attack itself adds (bonus).
+        /// their item modules (ItemModuleBonuses), crouching for a ranged attack, and whatever
+        /// the attack itself adds (bonus).
         /// </summary>
         public static double AttackerChance(Actor source, bool melee, double bonus = 0)
         {
@@ -65,6 +66,9 @@ namespace Rasa.Managers
 
             if (source is Manifestation player && player.Attributes.TryGetValue(Attributes.Spirit, out var spirit))
                 chance += SpiritChance(spirit.CurrentMax, player.Level);
+
+            // "Crit Hit Chance: 3%": the modules in what a player wears and holds.
+            chance += ItemModuleBonuses.Of(source).CritChance;
 
             if (!melee && source.IsCrouching)
                 chance += CrouchedRangedBonus;

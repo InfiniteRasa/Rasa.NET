@@ -677,7 +677,11 @@ namespace Rasa.Test.Missions
             {
                 context.Database.Migrate();
                 var spawn = context.SpawnPoolEntries.AsNoTracking().Single(entry => entry.Id == 510206);
-                Assert.AreEqual(120.059, spawn.PosY, 0.001);
+                // 120.059 as seeded, 119.7 his floor's since Stand_npcs_on_their_floors, and where the
+                // GM stood for him since Place_bootcamp_base_npcs.
+                Assert.AreEqual(383.0781, spawn.PosX, 0.001);
+                Assert.AreEqual(119.5273, spawn.PosY, 0.001);
+                Assert.AreEqual(155.4141, spawn.PosZ, 0.001);
                 Assert.AreEqual(510206U, spawn.Creature1Id);
                 Assert.AreEqual(7U, context.CreatureEntries.AsNoTracking().Single(entry => entry.Id == 510203).RunSpeed);
             });
@@ -713,7 +717,9 @@ namespace Rasa.Test.Missions
                     .Where(entry => entry.Id == 520009 || entry.Id == 520010).All(entry => entry.Mode == 1));
                 Assert.AreEqual(5, context.SpawnPoolEntries.Count(entry => entry.Id >= 510216 && entry.Id <= 510220));
                 Assert.AreEqual(29769U, context.CreatureEntries.AsNoTracking().Single(entry => entry.Id == 510216).ClassId);
-                CollectionAssert.AreEquivalent(new uint[] { 7874, 7890, 7986 },
+                // The escorts: three Forean initiates as this content made them, three Infantrymen
+                // since Place_bootcamp_base_npcs.
+                CollectionAssert.AreEquivalent(new uint[] { 8716, 8716, 8716 },
                     context.CreatureEntries.AsNoTracking()
                         .Where(entry => entry.Id >= 510213 && entry.Id <= 510215).Select(entry => entry.NameId).ToArray());
                 Assert.AreEqual(3, context.MissionSpawnEntries.Count(entry => entry.MissionId == 1994 && entry.SpawnGroupId == 1));

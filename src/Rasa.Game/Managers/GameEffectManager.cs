@@ -115,7 +115,8 @@ namespace Rasa.Managers
             // the client floats "Immune" over them (COMBAT_IMMUNE_ANNOUNCED).
             // So does a creature running home after a leash (BehaviorManager.Leash): a slow would
             // keep it from getting there, a DoT would hurt what it is immune to.
-            if (!effect.IsBuff && (DebuffsBlocked(actor) || actor is Creature returning && BehaviorManager.IsReturning(returning)))
+            // Not the world's own (GameEffect.Environmental): no immunity to debuffs is one to lava.
+            if (!effect.IsBuff && !effect.Environmental && (DebuffsBlocked(actor) || actor is Creature returning && BehaviorManager.IsReturning(returning)))
             {
                 CellManager.Instance.CellCallMethod(mapChannel, actor,
                     new GameEffectAttachFailedPacket(effect.TypeId, GameEffectAttachFailedPacket.FailReason.Immune, effect.SourceId));
@@ -139,6 +140,16 @@ namespace Rasa.Managers
             {
                 CellManager.Instance.CellCallMethod(mapChannel, actor,
                     new GameEffectAttachFailedPacket(effect.TypeId, GameEffectAttachFailedPacket.FailReason.Immune, effect.SourceId));
+                return;
+            }
+
+            // A player's armor modules may turn away what would hold them where they stand, slow
+            // them or blind them - "Resist: Root 9" is nine chances in a hundred - and "Resisted"
+            // floats over them, as for a stun their Graviton Armor shrugs off (ItemModuleBonuses).
+            if (ItemModuleBonuses.ResistsControl(actor, effect))
+            {
+                CellManager.Instance.CellCallMethod(mapChannel, actor,
+                    new GameEffectAttachFailedPacket(effect.TypeId, GameEffectAttachFailedPacket.FailReason.Resist, effect.SourceId));
                 return;
             }
 
@@ -182,6 +193,10 @@ namespace Rasa.Managers
             }
 
             effect.AttachArgs = attachArgs.ToList();
+
+            // A weapon hit being resolved on this creature announces what it puts on it: the
+            // effect goes on quietly and the hit names it (HitEffects).
+            HitEffects.Claim(actor, effect);
 
             var attached = AttachedPacket(effect, effect.AnnounceOnAttach);
 
@@ -1191,6 +1206,21 @@ namespace Rasa.Managers
         public static ActorAttributes WithRegen(Actor actor, ActorAttributes attribute)
         {
             return new ActorAttributes(attribute.AttributeId, attribute.NormalMax, attribute.CurrentMax, attribute.Current, RegenAmount(actor, attribute), attribute.RefreshPeriod);
+        }
+
+        /// <summary>
+        /// The actor's attributes for sending whole (AttributeInfo): health, armour and power as
+        /// copies carrying the regeneration rate the effects on the actor make, the others as they
+        /// are held, in the order they are held in.
+        /// </summary>
+        public static Dictionary<Attributes, ActorAttributes> WithRegen(Actor actor)
+        {
+            var shown = new Dictionary<Attributes, ActorAttributes>(actor.Attributes.Count);
+
+            foreach (var (id, attribute) in actor.Attributes)
+                shown[id] = id == Attributes.Health || id == Attributes.Armor || id == Attributes.Power ? WithRegen(actor, attribute) : attribute;
+
+            return shown;
         }
 
         /// <summary>

@@ -209,6 +209,9 @@ namespace Rasa.Managers
             else if (CreatureSupport.DefersDeath(mapChannel, creature))
                 return;
 
+            // A creature that has killed its target says so (Battlecries).
+            Battlecries.KilledTarget(mapChannel, killedBy as Creature);
+
             // Killed by something fighting for a player - a trap's shot, a creature turned by
             // Traitor, a minion: the kill is that player's, experience, adrenaline, loot and
             // harvest rights alike. The blow stays the creature's for threat.
@@ -226,7 +229,7 @@ namespace Rasa.Managers
             var stateIds = new List<CharacterState> { CharacterState.Dead };
 
             creature.State = CharacterState.Dead;
-            creature.KnockbackTo = null;
+            BehaviorManager.Instance.EndCarry(mapChannel, creature);
 
             // Dead is at zero health, for every caller. All but Critical Death arrive with that
             // done. A creature killed out of its window - left to die, or finished - arrives
@@ -264,7 +267,10 @@ namespace Rasa.Managers
                     (_missionManager ?? MissionApplication.Instance).RecordScenarioCreatureDeath(creature.SpawnPool);
             }
 
-            // todo: How were credits and experience calculated when multiple players attacked the same creature? Did only the player with the first strike get experience?
+            // The kill is one player's - whoever landed it - and what it is worth is shared with
+            // their squad near the corpse: its experience and adrenaline (KillShares), its loot
+            // (LootDispenserManager), a boss's title and a garrison's prestige. Someone outside
+            // the squad who fought it too has no part in it.
 
             Client client = null;
 
@@ -297,7 +303,11 @@ namespace Rasa.Managers
                 experience += (uint)(Random.Shared.Next() % (experienceRange * 2 + 1)) - experienceRange;
 
                 // todo: Depending on level difference reduce experience
-                _manifestationManager.GainExperience(client, experience);
+
+                // Split evenly with the squad in range of the corpse (KillShares).
+                var sharers = KillShares.SharersFor(client, creature.Position);
+
+                KillShares.AwardExperience(_manifestationManager, sharers, client, experience);
 
                 // A finishing move pays the kill over again: "You get full experience for killing
                 // the enemy, and you get full experience again at the end of the Finishing Move.
@@ -305,15 +315,17 @@ namespace Rasa.Managers
                 // strategy guide). Paid as a second award flagged as the crit kill, so the client
                 // prints the ordinary line and then its "by Crit Killing" line, one for each.
                 if (critKill != CritKill.None)
-                    _manifestationManager.GainExperience(client, experience, critKill);
+                    KillShares.AwardExperience(_manifestationManager, sharers, client, experience, critKill);
 
                 // Adrenaline is earned here and nowhere else: it does not regenerate. See
                 // ManifestationManager.AdrenalinePerKillPercent. Doubled for a finish, in one
                 // award rather than two, so the bar shows one number rather than two on top of
-                // each other.
-                var adrenaline = _manifestationManager.AdrenalineForKill(client);
+                // each other. Split with the squad as the experience is.
+                KillShares.AwardAdrenaline(_manifestationManager, sharers, critKill != CritKill.None);
 
-                _manifestationManager.GainAdrenaline(client, critKill != CritKill.None ? adrenaline * 2 : adrenaline);
+                // And the kill counts towards the kill streak of each of them: after its
+                // experience, which is paid at the streak they had before it (KillStreaks).
+                KillStreaks.KillCounted(sharers);
 
                 // One of a control point's Bane garrison is worth prestige as well (ControlPoints).
                 ControlPoints.Instance.CreatureKilled(creature, client);
@@ -535,6 +547,7 @@ namespace Rasa.Managers
 
             creature.State = CharacterState.Idle;
             creature.Name = entityClass.ClassName;
+            creature.TintAtSpawn();
 
             // set creature stats
             using var unitOfWork = _gameUnitOfWorkFactory.CreateWorld();
@@ -614,23 +627,27 @@ namespace Rasa.Managers
             if (creature == null)
                 return;
 
-            // random colors for now
-            var hue = Color.RandomColor();
-            var hue2 = Color.RandomColor();
+            // One this client was given from afar is taken off it first: a second
+            // CreatePhysicalEntity would be an update, and leave it without its overhead icon
+            // (MissionContacts.Entering).
+            MissionContacts.Entering(client, creature);
 
             var entityData = new List<PythonPacket>
             {
                 // PhysicalEntity
                 new IsTargetablePacket(EntityClassManager.Instance.GetClassInfo(EntityManager.Instance.GetEntityClassId(creature.EntityId)).TargetFlag),
                 new WorldLocationDescriptorPacket(creature.Position, creature.Rotation),
-                new BodyAttributesPacket(creature.Scale, hue, 0, 0, hue2),
+                // Ignoring collision volumes and walkable surfaces, as creatures always have: the
+                // packet wrote 1 and 1 whatever it was given.
+                // Its own tints, or none, chosen when it spawned (Creature.TintAtSpawn): the same to everyone.
+                new BodyAttributesPacket(creature.Scale, creature.Hue, BodyAttributesPacket.Ignore, BodyAttributesPacket.Ignore, creature.Hue2),
                 // Creature augmentation
                 new CreatureInfoPacket(creature.NameId, false, CreatureFlagsOf(creature)),
                 // Actor augmentation
                 new ActorInfoPacket(creature),
                 new AppearanceDataPacket(creature.AppearanceData),
                 new LevelPacket(creature.Level),
-                new AttributeInfoPacket(creature.Attributes),
+                new AttributeInfoPacket(creature),
                 // HOSTILE to an enemy of the player it belongs to (Pvp), its own category otherwise.
                 new TargetCategoryPacket(client?.Player != null ? Pvp.CategoryFor(creature, client.Player) : creature.TargetCategory),
                 new UpdateAttributesPacket(creature.Attributes, 0),
@@ -700,6 +717,7 @@ namespace Rasa.Managers
             creature.SpawnPool = spawnPool;
             creature.State = CharacterState.Idle;
             creature.Name = entityClass.ClassName;
+            creature.TintAtSpawn();
             EnsureScenarioAttributes(creature);
             SetLocation(creature, position, rotation, spawnPool?.MapContextId ?? creature.MapContextId);
             creature.Controller.CurrentAction = BehaviorManager.BehaviorActionWander;
@@ -761,9 +779,13 @@ namespace Rasa.Managers
             var actorNames = new Dictionary<uint, string>();
             foreach (var entry in unitOfWork.Creatures.GetActorNames())
                 actorNames[entry.Id] = entry.ActorName;
-            var greetings = new Dictionary<uint, uint>();
+            var greetings = new Dictionary<uint, Structures.World.NpcGreetingEntry>();
             foreach (var entry in unitOfWork.Creatures.GetNpcGreetings())
-                greetings[entry.Id] = entry.GreetingId;
+                greetings[entry.Id] = entry;
+
+            // The battle cry package of each class and creature row that has one (Battlecries).
+            var battlecries = Battlecries.Load(unitOfWork.Creatures.GetBattlecries());
+            Logger.WriteLog(LogType.Initialize, $"Loaded {battlecries} creature battle cry packages");
 
             foreach (var data in creatureList)
             {
@@ -837,8 +859,11 @@ namespace Rasa.Managers
                     creature.Npc = isNpc;
 
                 // The line it greets a player with, if it has one of its own (NpcGreetings).
-                if (isNpc != null && greetings.TryGetValue(data.Id, out var greetingId) && NpcGreetings.IsLine(greetingId))
-                    isNpc.GreetingId = greetingId;
+                if (isNpc != null && greetings.TryGetValue(data.Id, out var greeting) && NpcGreetings.IsLine(greeting.GreetingId))
+                {
+                    isNpc.GreetingId = greeting.GreetingId;
+                    isNpc.GreetingImportant = greeting.Important;
+                }
 
                 if (isAuctioneer)
                     creature.Npc.NpcIsAuctioneer = true;

@@ -49,6 +49,9 @@ namespace Rasa.Structures
         //public int TimerMissileUpdate { get; set; }
         //public int TimerDynObjUpdate { get; set; }
         public long MapChannelElapsed { get; set; }
+
+        /// <summary>The tick at which this channel's sky started running: when the channel was made (Managers.SkyClock).</summary>
+        internal long SkyStartedTick { get; set; } = System.Environment.TickCount64;
         /// <summary>Milliseconds since this map's creatures last ran BehaviorManager.CreatureThink.</summary>
         public long ControllerElapsed { get; set; }
         //public int TimerPlayerUpdate { get; set; }
@@ -126,5 +129,11 @@ namespace Rasa.Structures
 
         // Missiles on this mapChannel
         public List<Missile> QueuedMissiles = new List<Missile>();
+
+        /// <summary>
+        /// The Practice Dummies a hit has knocked back, by entity id, and the tick each is up
+        /// again (PracticeTargetManager.Swing). Locked on itself.
+        /// </summary>
+        internal readonly Dictionary<ulong, long> PracticeSwings = new Dictionary<ulong, long>();
     }
 }
