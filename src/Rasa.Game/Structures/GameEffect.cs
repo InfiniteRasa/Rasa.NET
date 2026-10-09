@@ -65,6 +65,13 @@ namespace Rasa.Structures
         public bool IsBuff { get; set; } = true;
 
         /// <summary>
+        /// The world's doing and nobody's: lava (Managers.LavaDamage). What keeps debuffs off an
+        /// actor does not keep this off (GameEffectManager.Attach), and what takes debuffs away
+        /// does not take it (AbilityManager.DebuffsOn): only getting out of it does.
+        /// </summary>
+        public bool Environmental { get; set; }
+
+        /// <summary>
         /// Whether the attach packet itself announces the effect (plays its attach FX and posts
         /// the status icon). An ability's effects are attached quietly and announced by the
         /// ability's own recovery on the client - PerformRecovery names the entities hit and the
@@ -72,6 +79,14 @@ namespace Rasa.Structures
         /// Anything not announced by an action says so here.
         /// </summary>
         public bool AnnounceOnAttach { get; set; } = true;
+
+        /// <summary>
+        /// Whether a weapon hit that puts this effect on a creature may announce it in place of
+        /// the attach (Managers.HitEffects): attached quietly, named in the hit's
+        /// targetEffectIds, and seen when the hit is. No for an effect something is about to be
+        /// done with that needs its visuals there already - a tick that draws from its FX.
+        /// </summary>
+        public bool AnnounceWithHit { get; set; } = true;
 
         /// <summary>
         /// Whether a client meeting the holder after the attach has the effect announced to it
@@ -168,9 +183,9 @@ namespace Rasa.Structures
         public int IncomingRangedPercent { get; set; }
 
         /// <summary>
-        /// Percent of the shots aimed at the holder that miss it (Chaff's
-        /// DEFENSIVE_TOHIT_MODIFIER, "harder to hit"); melee is unaffected. The strongest on the
-        /// holder counts.
+        /// Percent taken off the chance that a shot aimed at the holder hits it (Chaff's
+        /// DEFENSIVE_TOHIT_MODIFIER, "harder to hit"; Managers.ToHit); melee is unaffected. The
+        /// strongest on the holder counts.
         /// </summary>
         public int MissPercent { get; set; }
 
@@ -302,6 +317,15 @@ namespace Rasa.Structures
 
         /// <summary>A freeze: while it is on, a creature cannot move but can still attack; see CrowdControl.</summary>
         public bool IsRoot { get; set; }
+
+        /// <summary>
+        /// What it does to a player that their item modules can resist, when the effect does not
+        /// say so otherwise: DamageType.Root for a creature's web or net, DamageType.Blind for
+        /// its flash. 0 for most; a root (IsRoot), a blinding (Blinds) and a slow
+        /// (MovementModifierPercent under 100) are known without it. See
+        /// ItemModuleBonuses.ControlKindOf.
+        /// </summary>
+        public DamageType ControlKind { get; set; }
 
         /// <summary>EMP crit's Armor Suppression: while on, the holder's armour stops nothing and every hit goes to health.</summary>
         public bool SuppressesArmor { get; set; }

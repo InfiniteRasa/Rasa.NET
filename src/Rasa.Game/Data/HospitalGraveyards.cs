@@ -85,6 +85,7 @@ namespace Rasa.Data
             [300] = 179,        // Hospital: Virgil's Resonator (Control Point): Hospital: Virgil's Resonator (Control Point)
             [302] = 180,        // Hospital: Mal Dys Upper Resonator (Control Point): Hospital: Mal Dys Upper Resonator (Control Point)
             [304] = 181,        // Hospital: Mal Dys Lower Resonator (Control Point): Hospital: Mal Dys Lower Resonator (Control Point)
+            [306] = 182,        // Hospital: Drill Resonator (Control Point): Hospital: Drill Resonator (Control Point)
             [308] = 184,        // Hospital: Cuthah Scout Post (Control Point): Hospital: Cuthah Scout Post (Control Point)
             [310] = 191,        // Hospital: Dead Zone Power Station (Control Point): Hospital: Dead Zone Power Station (Control Point)
             [312] = 192,        // Hospital: Cuthah Ammo Depot (Control Point): Hospital: Cuthah Ammo Depot (Control Point)

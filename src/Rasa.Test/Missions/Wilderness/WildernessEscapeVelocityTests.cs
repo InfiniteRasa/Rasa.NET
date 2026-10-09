@@ -283,6 +283,52 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.AreEqual(0, harness.Drain().OfType<MissionRewardedPacket>().Count());
         }
 
+        // The timer runs out with Pierre on her way. The client takes the failed mission out of
+        // its log and has nothing to dismiss it with; the player goes back to where she is held.
+        [TestMethod]
+        public void AfterTheDepartureDeadlinePierreIsHeldAgainAndGivesTheMissionAgain()
+        {
+            using var harness = WildernessRuntimeTestHarness.Create();
+            var pierre = Accept(harness);
+            var spawnId = pierre.SpawnPool.DbId;
+            var first = harness.Client.Player.Missions[666].AssignmentId;
+            var oldLease = harness.Manager.PublicActors.Handle(harness.Map, spawnId);
+            var due = harness.UtcNow.AddSeconds(420);
+            ReleaseForcefield(harness);
+            var start = pierre.Position;
+            DriveUntil(harness, pierre, () => Vector3.Distance(start, pierre.Position) > 2);
+            harness.Drain();
+
+            harness.UtcNow = due;
+            harness.Tick(250);
+
+            Assert.AreEqual(MissionState.Failed, harness.Client.Player.Missions[666].State);
+            Assert.AreEqual(1, harness.Drain().OfType<MissionFailedPacket>().Count());
+            AwaitRelease(harness, spawnId);
+            Assert.IsFalse(harness.Manager.PublicActors.TryResolve(harness.Map, oldLease, out _));
+
+            // Nothing is sent in between: no AbandonMission for a mission the log does not list.
+            var retryAt = harness.UtcNow;
+            pierre = Accept(harness);
+
+            Assert.AreNotEqual(first, harness.Client.Player.Missions[666].AssignmentId);
+            Assert.AreNotEqual(oldLease.RunId, harness.Manager.PublicActors.Handle(harness.Map, spawnId).RunId);
+            Assert.IsTrue(Forcefield(harness).IsEnabled, "held again");
+            Assert.AreEqual(100U, Forcefield(harness).CurrentHitPoints);
+            Assert.IsFalse(CreatureGameplayRules.CanParticipateInCombat(pierre));
+            using (var unit = harness.CreateChar())
+            {
+                Assert.AreEqual(retryAt.AddSeconds(420), unit.CharacterMissionDeadlines.Get(harness.Client.Player.Id, 666).DueAtUtc);
+                Assert.AreEqual(1, unit.CharacterMissions.Get(harness.Client.Player.Id).Count(row => row.MissionId == 666));
+                Assert.AreEqual((uint)MissionState.Failed, unit.CharacterMissions.Runtime.LatestTerminal(harness.Client.Player.Id, 666).Outcome);
+            }
+
+            // And the second attempt is a whole one: she is walked to the pad and boards.
+            ReleaseForcefield(harness);
+            DriveUntil(harness, pierre, () => harness.Client.Player.Missions[666].Completeable);
+            Assert.AreEqual(MissionObjectiveState.Completed, harness.Client.Player.Missions[666].Objectives[1].State);
+        }
+
         [TestMethod]
         public void ReconnectingAt419SecondsPreservesTheOriginalDeadlineAndExpiresAt420()
         {
@@ -465,8 +511,6 @@ namespace Rasa.Test.Missions.Wilderness
             AwaitRelease(harness, spawnId);
             Assert.IsFalse(harness.Manager.PublicActors.TryResolve(harness.Map, oldLease, out _));
             Assert.IsTrue(harness.Npc(spawnId).IsInteractable);
-            var npcs = new NpcManager(harness, harness.Manager);
-            npcs.AbandonMission(harness.Client, new AbandonMissionPacket { MissionId = 666 });
             var retryAt = harness.UtcNow;
             Accept(harness);
             var retry = harness.Manager.PublicActors.Handle(harness.Map, spawnId);

@@ -24,6 +24,7 @@ namespace Rasa.Structures
         public ActionWander ActionWander = new ActionWander();
         public ActionFollow ActionFollow = new ActionFollow();
         public ActionReturning ActionReturning = new ActionReturning();
+        public ActionPatrol ActionPatrol = new ActionPatrol();
         internal ScriptedMove ScriptedMove { get; set; }
         internal Movement LastMovement { get; set; }
         //public long[] ActionLockTime { get; set; }
@@ -102,6 +103,36 @@ namespace Rasa.Structures
         public long PathUpdateTime { get; set; }
         internal bool CatchUpRunning { get; set; }
         internal Creature OwnerAttackTarget { get; set; }
+    }
+
+    /// <summary>
+    /// Where a creature is on its patrol (Creature.Patrol; Managers.Patrols). It is kept while
+    /// the creature does something else - a fight, a run home - so it takes the beat up again
+    /// at the step it was walking to.
+    /// </summary>
+    public class ActionPatrol
+    {
+        /// <summary>The step it is walking to, or standing on.</summary>
+        public int Step { get; set; }
+
+        /// <summary>It is on the step: it turns to the step's facing, stands out its pause, and goes on to the next.</summary>
+        public bool Arrived { get; set; }
+
+        /// <summary>On the step, it has been turned to the step's facing and its pause is running.</summary>
+        public bool Faced { get; set; }
+
+        /// <summary>How much longer it stands as it is: a turn being made, a pause.</summary>
+        public long WaitMs { get; set; }
+
+        /// <summary>
+        /// It is not on its beat - just made, back from a fight, thrown - and is walking to the
+        /// step across the navmesh, as any creature walks; within Patrols.RejoinDistance of the
+        /// step it is on the beat again and walks it in straight lines.
+        /// </summary>
+        public bool Rejoining { get; set; }
+
+        /// <summary>Where the patrol last left it. Anywhere else, something moved it, and it rejoins.</summary>
+        public Vector3 LeftAt { get; set; }
     }
 
     public class ActionWander

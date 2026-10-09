@@ -19,8 +19,10 @@ namespace Rasa.Managers
     ///    creature's: its Windup sets the windup to the distance to the target over the action's
     ///    VFX_VELOCITY (30 m/s), with stopMovement, blockMovement and moveInterrupts all off, and
     ///    plays ABILITY_CREATURE_KAEL_RUSHING_BLOW_WINDUP (animation family 1438) scaled to it,
-    ///    then _RESOLVE (1439) over a 1166 ms recovery. Nothing in it moves the Kael; the server
-    ///    carries it, as it carries a Commando (AbilityManager.RushingBlow).
+    ///    then _RESOLVE (1439) over a 1166 ms recovery. Nothing in it moves the Kael. What does
+    ///    is a movement: a MoveObject of MovementType.Rush puts its controller into the client's
+    ///    RushingMoveState, which runs it to the position at the velocity (BehaviorManager.Rush),
+    ///    as a Commando is run (AbilityManager.RushingBlow).
     ///  - Its DoAbility reads hitdata as (entityId, rawInfo) pairs, unlike every other creature
     ///    class (RecoveryShape.EntityRawInfo).
     ///  - Argument 1 (CR_KAEL_RUSHING_BLOW_SHARED_MINION): damage 60-80, EFFECT_RADIUS 15,
@@ -29,9 +31,10 @@ namespace Rasa.Managers
     ///    _OPERATION_BOSS 4, _EPIC_MINIBOSS 5.
     ///
     /// So the charge goes like this. When the Kael picks the blow (8-50 m from a target it can
-    /// see, per its creature_action row), the windup goes out and the Kael is carried along the
-    /// ground toward where the target stood, ChargeStopShort short of it, arriving as the client's
-    /// windup ends: the same distance over the same speed. It does nothing else meanwhile. Where
+    /// see, per its creature_action row), the windup goes out and the Kael is sent running toward
+    /// where the target stood, ChargeStopShort short of it, at the speed that brings it there as
+    /// the client's windup ends. The clients make the run; the server keeps its own place along
+    /// it a tick at a time. It does nothing else meanwhile. Where
     /// it lands the blow falls on everyone within EFFECT_RADIUS of that spot - the target if it
     /// is still there, or anyone who stood near it - and each is knocked back 3 m on a 30% roll
     /// or staggered for DURATION seconds otherwise, as the Commando's blow stuns for its DURATION.
@@ -39,9 +42,11 @@ namespace Rasa.Managers
     /// The destination is fixed when the charge starts, as the client's windup time is: a target
     /// that runs sideways gets out of the way; one that stays, or runs straight away but not
     /// fifteen metres, does not. The charge follows the line along the navmesh and stops where
-    /// the ground ends, as a knockback does. A Kael killed or put into its Critical Death window
-    /// mid-charge never lands the blow. A manually authorized charge also requires its original
-    /// combat grant when it lands; rearming the creature cannot revive an old charge.
+    /// the ground ends or a force field stands, as a knockback does. A Kael killed or put into
+    /// its Critical Death window mid-charge never lands the blow, and is where the run ends: its
+    /// clients cannot be stopped part-way (BehaviorManager.EndCarry). A manually authorized
+    /// charge also requires its original combat grant when it lands; rearming the creature
+    /// cannot revive an old charge.
     /// </summary>
     public static class KaelRushingBlow
     {
@@ -129,19 +134,15 @@ namespace Rasa.Managers
             var radius = level != null && level.Get(AbilityProperty.EffectRadius) > 0 ? level.Get(AbilityProperty.EffectRadius) : DefaultRadius;
             var windupMs = WindupMs(Vector3.Distance(kael.Position, target.Position), velocity);
             var impact = target.Position;
-            var end = ChargeEnd(mapChannel, kael.Position, impact);
+            var end = CrowdControl.BeforeFields(mapChannel, kael, kael.Position, ChargeEnd(mapChannel, kael.Position, impact));
             var run = Vector3.Distance(kael.Position, end);
 
             CellManager.Instance.CellCallMethod(mapChannel, kael,
                 new PerformWindupPacket(PerformType.ThreeArgs, action.ActionId, action.ActionArgId, target.EntityId));
 
+            // The run, told to the clients once: there as the windup ends.
             if (run > 0.1f && windupMs > 0)
-            {
-                kael.KnockbackTo = end;
-                kael.KnockbackDirection = CrowdControl.AwayFrom(kael.Position, impact);
-                kael.KnockbackSpeed = run / (windupMs / 1000f);
-                kael.KnockbackIsPull = true;    // faces the way it runs
-            }
+                BehaviorManager.Instance.Rush(kael, end, run / (windupMs / 1000f));
 
             lock (ChargesLock)
             {
@@ -186,19 +187,15 @@ namespace Rasa.Managers
                 {
                     if (CreatureManager.IsLivingOnMap(mapChannel, kael))
                     {
-                        kael.KnockbackTo = null;
-                        kael.KnockbackSpeed = 0;
-                        kael.KnockbackIsPull = false;
+                        BehaviorManager.Instance.EndCarry(mapChannel, kael);
                         BehaviorManager.Instance.StopMoving(kael);
                         CreatureWindups.Interrupt(mapChannel, kael, charge.Action.ActionId, charge.Action.ActionArgId);
                     }
                     continue;
                 }
 
-                // Wherever the carry has got to, it is over.
-                kael.KnockbackTo = null;
-                kael.KnockbackSpeed = 0;
-                kael.KnockbackIsPull = false;
+                // The run is over: it is where it ends, as its clients have it.
+                BehaviorManager.Instance.EndCarry(mapChannel, kael);
                 kael.LastYaw = AbilityManager.YawTowards(kael.Position, charge.Impact);
                 BehaviorManager.Instance.StopMoving(kael);
 

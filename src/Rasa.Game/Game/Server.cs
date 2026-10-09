@@ -38,7 +38,7 @@ namespace Rasa.Game
 
         public Config Config { get; private set; }
         public IPAddress PublicAddress { get; }
-        public LengthedSocket AuthCommunicator { get; private set; }
+        public LengthedSocket AuthCommunicator => Volatile.Read(ref _authCommunicator);
         public LengthedSocket ListenerSocket { get; private set; }
         public QueueManager QueueManager { get; private set; }
         public LoginManager LoginManager { get; set; } = new LoginManager();
@@ -175,6 +175,9 @@ namespace Rasa.Game
             // Off, log or refuse for each of the three movement checks, and the three weapon checks.
             MovementChecks.Config = Config.MovementChecks ?? new MovementChecksConfig();
             WeaponChecks.Config = Config.WeaponChecks ?? new WeaponChecksConfig();
+
+            // How often a Steal or a Debuff Resist module fires on a hit.
+            ItemModuleBonuses.Config = Config.ItemModules ?? new ItemModulesConfig();
 
             // A message changed by editing the file goes to everyone in the world, from the loop;
             // the first load is before anyone is here.
@@ -451,6 +454,16 @@ namespace Rasa.Game
             _accountRelay.Connected = () => AuthLinkUp;
             _accountRelay.Send = request => (AuthCommunicator ?? throw new InvalidOperationException("the link to the Auth server is down")).Send(request);
             api.Accounts.Create = _accountRelay.Create;
+
+            // gametools' editors read and write the creature flags and the loot pools through
+            // these; each of the four is off until its own entry in ApiConfig turns it on.
+            var monsterFlags = new MonsterFlagStore(GameUnitOfWorkFactory);
+            var lootPools = new LootPoolStore(GameUnitOfWorkFactory);
+
+            api.MonsterFlags.Store = monsterFlags;
+            api.UpdateMonsterFlags.Store = monsterFlags;
+            api.LootPools.Store = lootPools;
+            api.UpdateLootPools.Store = lootPools;
             api.Status.Started();
             _apiApplied = true;
             api.Apply(Config.ApiConfig);
@@ -528,9 +541,15 @@ namespace Rasa.Game
             Battlegrounds.Instance.Init();
             RegionManager.Instance.RegionInit();
             EmitterManager.Instance.EmitterInit();
+            SecretPassages.DoorwayInit();
+            AmbientNpcs.Init(GameUnitOfWorkFactory);
             MapMarkerManager.Instance.MapMarkerInit();
             SpawnPoolManager.Instance.ValidatePools();
             RecipeManager.Instance.RecipeInit();
+            ItemModules.Init(GameUnitOfWorkFactory);
+
+            // What creatures drop (loot_group and its two tables); none, until pools are given.
+            LootPools.Init(GameUnitOfWorkFactory);
             AbilityManager.Instance.AbilityInit();
             ManifestationManager.Instance.LoadSkillClasses();
 
@@ -774,8 +793,9 @@ namespace Rasa.Game
             if (Interlocked.Exchange(ref _shutDown, 1) == 1)
                 return;
 
-            AuthCommunicator?.Close();
-            AuthCommunicator = null;
+            // Let go of before it is closed: the close ends its receive with an error, and a link
+            // that is still the one in use when its error arrives is made again.
+            Interlocked.Exchange(ref _authCommunicator, null)?.Close();
 
             ListenerSocket?.Close();
             ListenerSocket = null;
@@ -1037,6 +1057,17 @@ namespace Rasa.Game
                 }
             }
 
+            // Each character's removal wrote the clips of the weapons they had fired; this is
+            // for any that belonged to nobody who was taken out.
+            try
+            {
+                WeaponClips.SaveAll();
+            }
+            catch (Exception e)
+            {
+                Logger.WriteLog(LogType.Error, $"Saving the weapon clips for the shutdown threw: {e}");
+            }
+
             Logger.WriteLog(LogType.Initialize, $"Shutdown: {clients.Count} connection(s) closed, {removed} character(s) saved and taken out of the world.");
         }
 
@@ -1075,29 +1106,56 @@ namespace Rasa.Game
             ConnectCommunicator();
         }
 
+        /// <summary>
+        /// The link to the Auth server: the socket that is connecting, or connected, or logged
+        /// in, and null from the moment that one is lost until the next is started. Every way of
+        /// losing it goes through <see cref="LoseCommunicator"/>, which takes it out of here, so
+        /// "there is no link" is this being null and nothing else - not the socket's own
+        /// Connected, which stays true after the other side has closed.
+        /// </summary>
+        private LengthedSocket _authCommunicator;
+
         public void ConnectCommunicator()
         {
-            if (AuthCommunicator?.Connected ?? false)
-                AuthCommunicator?.Close();
+            // Whatever link there was is finished with: what it still has to say - the error its
+            // close ends its receive with, a connect that completes late - is no longer about
+            // the link in use, and is ignored as such.
+            var replaced = Interlocked.Exchange(ref _authCommunicator, null);
 
-            try
+            if (replaced != null)
             {
-                var socket = new LengthedSocket(SizeType.Word);
-
-                AuthCommunicator = socket;
-                socket.OnConnect += OnCommunicatorConnect;
-                socket.OnError += OnCommunicatorError;
-                socket.OnError += _ => AuthLinkLost(socket);
-                socket.OnDrop += reason => OnCommunicatorDrop(socket, reason);
-                socket.ConnectAsync(new IPEndPoint(IPAddress.Parse(Config.CommunicatorConfig.Address), Config.CommunicatorConfig.Port));
-            }
-            catch (Exception e)
-            {
-                Logger.WriteLog(LogType.Error, "Unable to create or start listening on the Auth server socket! Retrying soon... Exception:");
-                Logger.WriteLog(LogType.Error, e);
+                AuthLinkLost(replaced);
+                replaced.Close();
             }
 
             Logger.WriteLog(LogType.Network, $"*** Connecting to auth server! Address: {Config.CommunicatorConfig.Address}:{Config.CommunicatorConfig.Port}");
+
+            try
+            {
+                var endPoint = new IPEndPoint(IPAddress.Parse(Config.CommunicatorConfig.Address), Config.CommunicatorConfig.Port);
+                var socket = new LengthedSocket(SizeType.Word);
+
+                socket.OnConnect += _ => OnCommunicatorConnect(socket);
+                socket.OnError += args => OnCommunicatorError(socket, args);
+                socket.OnDrop += reason => OnCommunicatorDrop(socket, reason);
+
+                // In place before the connect is started: it can complete, or fail, before
+                // ConnectAsync returns.
+                Volatile.Write(ref _authCommunicator, socket);
+
+                socket.ConnectAsync(endPoint);
+            }
+            catch (Exception e)
+            {
+                // This said "Retrying soon" and nothing retried: no socket error follows a
+                // connect that was never started. One line, as it is now said every ten seconds
+                // for as long as it goes on.
+                Logger.WriteLog(LogType.Error, $"Unable to create the Auth server socket or start connecting it ({e.GetType().Name}: {e.Message})! Trying again in a few seconds...");
+
+                Interlocked.Exchange(ref _authCommunicator, null)?.Close();
+
+                ScheduleCommunicatorReconnect();
+            }
         }
 
         /// <summary>
@@ -1137,19 +1195,68 @@ namespace Rasa.Game
                 _authLinked = null;
         }
 
-        private void OnCommunicatorError(SocketAsyncEventArgs args)
+        /// <summary>
+        /// The socket layer's OnError for the auth link: a connect that failed, a receive or a
+        /// send that failed, and a receive that completed with no bytes - which is how the Auth
+        /// server closing the link arrives (it closes it on its way down, and a second after
+        /// refusing a login), and is not a socket error at all.
+        ///
+        /// After a close like that the socket still says Connected. This used to leave the
+        /// socket open and schedule one retry, and the retry only connected if the socket said
+        /// it was not connected: it did nothing, and nothing asked again. An Auth server restart
+        /// left the world running with no way in for anyone until it was restarted too.
+        /// </summary>
+        private void OnCommunicatorError(LengthedSocket socket, SocketAsyncEventArgs args)
         {
-            ScheduleCommunicatorReconnect();
+            string what;
 
-            Logger.WriteLog(LogType.Error, "Could not connect to the Auth server! Trying again in a few seconds...");
+            if (args.LastOperation == SocketAsyncOperation.Connect)
+                what = $"Could not connect to the Auth server ({args.SocketError})!";
+            else if (args.LastOperation == SocketAsyncOperation.Receive && args.SocketError == SocketError.Success && args.BytesTransferred == 0)
+                what = "The Auth server closed the link; world logins cannot complete until it is back.";
+            else
+                what = $"The link to the Auth server was lost ({args.LastOperation}: {args.SocketError}); world logins cannot complete until it is back.";
+
+            LoseCommunicator(socket, what);
         }
 
+        /// <summary>
+        /// The one way the auth link ends, whoever noticed: it stops being the link, is closed,
+        /// and another is made in a few seconds. Once per link, and only for the link in use -
+        /// several things notice the same dying socket (its close ends its receive with an
+        /// error, a receive that cannot be started on it is a drop), and a socket that has
+        /// already been replaced has nothing to say about the one that replaced it.
+        /// </summary>
+        private void LoseCommunicator(LengthedSocket socket, string what)
+        {
+            if (socket == null || Interlocked.CompareExchange(ref _authCommunicator, null, socket) != socket)
+                return;
+
+            AuthLinkLost(socket);
+
+            Logger.WriteLog(LogType.Error, $"{what} Trying again in a few seconds...");
+
+            // Asked for before the close, so that the next try does not depend on it.
+            ScheduleCommunicatorReconnect();
+
+            socket.Close();
+        }
+
+        /// <summary>
+        /// One try, ten seconds on, if there is still no link by then. Each try ends in a link
+        /// that has logged in or in <see cref="LoseCommunicator"/> (or the catch in
+        /// <see cref="ConnectCommunicator"/>), which is what asks for the next one.
+        /// </summary>
         private void ScheduleCommunicatorReconnect()
         {
             Timer.Add("CommReconnect", 10000, false, () =>
             {
-                if (!AuthCommunicator?.Connected ?? true)
-                    ConnectCommunicator();
+                // Not once the server is stopping: Shutdown closes the link while the loop that
+                // runs this is still going.
+                if (Volatile.Read(ref _shutDown) != 0 || AuthCommunicator != null)
+                    return;
+
+                ConnectCommunicator();
             });
         }
 
@@ -1163,48 +1270,44 @@ namespace Rasa.Game
         /// Nothing handled OnDrop here, and the reconnect only ever came from OnError, so a
         /// dropped link stayed dropped: RedirectRequests went unread, every world login failed
         /// its session check, the auth server went on listing this world as up, and only a
-        /// restart brought it back. The link is closed now - which is what makes Connected false,
-        /// the condition the reconnect waits for - and a reconnect is scheduled exactly as a
-        /// socket error schedules one. A drop from the connect itself (no args left to connect
-        /// with) is retried the same way.
+        /// restart brought it back. The link is closed now and another is made, exactly as after
+        /// a socket error. A drop from the connect itself (no args left to connect with) is
+        /// retried the same way.
         /// </summary>
         private void OnCommunicatorDrop(LengthedSocket socket, string reason)
         {
-            // Only the link in use: one already replaced by a reconnect has nothing left to say.
-            if (socket != AuthCommunicator)
-                return;
-
-            AuthLinkLost(socket);
-
-            Logger.WriteLog(LogType.Error, $"The link to the Auth server was dropped ({reason}); world logins cannot complete until it is back. Reconnecting in a few seconds...");
-
-            // Closing completes any receive still armed with an error; this is not a failed
-            // connect, and the reconnect below is already on its way.
-            socket.OnError -= OnCommunicatorError;
-            socket.Close();
-
-            ScheduleCommunicatorReconnect();
+            LoseCommunicator(socket, $"The link to the Auth server was dropped ({reason}); world logins cannot complete until it is back.");
         }
 
-        private void OnCommunicatorConnect(SocketAsyncEventArgs args)
+        private void OnCommunicatorConnect(LengthedSocket socket)
         {
-            if (args.SocketError != SocketError.Success)
+            // A connect that completes after its socket was replaced: this used to go on to
+            // subscribe, log in and arm a receive on whichever socket was the link by then.
+            if (!ReferenceEquals(socket, AuthCommunicator))
             {
-                OnCommunicatorError(args);
+                socket.Close();
                 return;
             }
 
             Logger.WriteLog(LogType.Network, "*** Connected to the Auth Server!");
 
-            AuthCommunicator.OnReceive += OnCommunicatorReceive;
-            AuthCommunicator.Send(new LoginRequestPacket
+            // The Auth server speaks first on this link (it asks for the server's info every
+            // thirty seconds) and what this side sends is an answer, the REST API's /addaccount
+            // aside. So if the path between them goes without either end's close arriving, this
+            // side has nothing to send that would fail and never finds out. The probes turn
+            // that into a socket error here in about a minute and a half, as they do on the
+            // Auth server's end of the same link.
+            socket.EnableKeepAlive();
+
+            socket.OnReceive += OnCommunicatorReceive;
+            socket.Send(new LoginRequestPacket
             {
                 ServerId = Config.ServerInfoConfig.Id,
                 Password = Config.ServerInfoConfig.Password,
                 PublicAddress = PublicAddress
             });
 
-            AuthCommunicator.ReceiveAsync();
+            socket.ReceiveAsync();
         }
 
         /// <summary>
@@ -1252,18 +1355,15 @@ namespace Rasa.Game
                 return;
             }
 
-            // Taken once: MsgGameInfoRequest and MsgRedirectRequest are dispatched from this
-            // same frame loop and used to reach straight through this field, so a rejected login
-            // followed by a buffered server-info request in the same read nulled it between the
-            // two and the second handler threw. The link was then half-dead with nothing to
-            // bring it back - only a socket error schedules a reconnect, and no socket error
-            // had happened.
-            var communicator = AuthCommunicator;
-
-            AuthCommunicator = null;
-            communicator?.Close();
-
-            Logger.WriteLog(LogType.Error, "Could not authenticate with the Auth server! Shutting down internal communication!");
+            // The Auth server says no more than "no", and one of its reasons passes by itself:
+            // the slot is still held by this server's previous link, which the Auth server has
+            // not yet noticed is gone (it finds out from a send that fails or from its keepalive
+            // probes, and this side can be back first). This used to close the link and stop -
+            // "Shutting down internal communication!" - and nothing brought it back, so a
+            // reconnect that arrived early cost the world its logins until it was restarted.
+            // A wrong id or password is tried again as well, and says so every ten seconds
+            // until the two servers' configs agree.
+            LoseCommunicator(AuthCommunicator, $"The Auth server refused this server's login (server id {Config.ServerInfoConfig.Id}): it still holds this server's last link, or the id or password is not what it has.");
         }
 
         // ReSharper disable once UnusedMember.Local
@@ -1271,7 +1371,7 @@ namespace Rasa.Game
         [PacketHandler(CommOpcode.ServerInfoRequest)]
         private void MsgGameInfoRequest(ServerInfoRequestPacket packet)
         {
-            // Nulled by MsgLoginResponse on this same thread, from the same read.
+            // Null once MsgLoginResponse has let the link go, on this same thread, from the same read.
             AuthCommunicator?.Send(new ServerInfoResponsePacket
             {
                 AgeLimit = Config.ServerInfoConfig.AgeLimit,

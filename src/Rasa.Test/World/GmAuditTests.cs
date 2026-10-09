@@ -257,6 +257,46 @@ namespace Rasa.Test.World
             Assert.AreEqual(0u, audit.Record(world.CreateClient(), GmCommandSource.Chat, ".work", ".work", GmLevel.GameMaster, GmCommandResult.Executed));
         }
 
+        [TestMethod]
+        public void TheInGameApiHandshakeIsOnTheLogToo()
+        {
+            // .ingameapiauth is not in the command table: it is answered ahead of the dispatch
+            // every other dot command goes through. What an Admin gets from it is a way into
+            // the REST API, so who asked for one, and who was refused, belongs on the log.
+            using var world = new WorldTestContext();
+            var (audit, store) = Log();
+            var admin = As(world.CreateClient(), 7, GmLevel.Admin);
+            var master = As(world.CreateClient(), 8, GmLevel.GameMaster);
+            var player = As(world.CreateClient(), 9, GmLevel.Player);
+            var commands = new ChatCommandsManager(null) { Audit = audit };
+
+            commands.ProcessCommand(admin, ".ingameapiauth");
+            commands.ProcessCommand(master, ".IngameApiAuth");
+            commands.ProcessCommand(player, ".ingameapiauth");
+            commands.ProcessCommand(admin, ".ingameapiauth now");
+
+            Assert.AreEqual(4, store.Rows.Count);
+
+            Assert.AreEqual((byte)GmCommandResult.Executed, store.Rows[0].Result);
+            Assert.AreEqual((byte)GmCommandSource.Chat, store.Rows[0].Source);
+            Assert.AreEqual(".ingameapiauth", store.Rows[0].Command);
+            Assert.AreEqual((7u, (byte)GmLevel.Admin), (store.Rows[0].AccountId, store.Rows[0].RequiredLevel));
+
+            // Refused for want of level: a game master, and an ordinary player as for any
+            // real command.
+            Assert.AreEqual((byte)GmCommandResult.Denied, store.Rows[1].Result);
+            Assert.AreEqual(".ingameapiauth", store.Rows[1].Command, "its name as the server knows it");
+            Assert.AreEqual(".IngameApiAuth", store.Rows[1].Text, "the line as entered");
+            Assert.AreEqual(((byte)GmLevel.GameMaster, (byte)GmLevel.Admin), (store.Rows[1].AccountLevel, store.Rows[1].RequiredLevel));
+
+            Assert.AreEqual((byte)GmCommandResult.Denied, store.Rows[2].Result);
+            Assert.AreEqual((9u, (byte)0), (store.Rows[2].AccountId, store.Rows[2].AccountLevel));
+
+            // It takes no arguments, and is refused with any.
+            Assert.AreEqual((byte)GmCommandResult.Denied, store.Rows[3].Result);
+            Assert.AreEqual(".ingameapiauth now", store.Rows[3].Text);
+        }
+
         #endregion
 
         #region Slash commands, requests and the console

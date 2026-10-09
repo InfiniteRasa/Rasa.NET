@@ -97,12 +97,38 @@ namespace Rasa.Test.Networking
         }
 
         [TestMethod]
-        public void AuthLoginRejectsTrailingBytes()
+        public void AuthLoginIsReadFromTheFrameTheCipherDelivers()
         {
-            using var reader = new BinaryReader(new MemoryStream(new byte[37]));
+            // A login is 37 bytes with its opcode. The auth cipher pads a frame to a multiple of
+            // eight bytes and ends it with an eight byte checksum, and the packet is handed a
+            // reader over the whole of it, so there are always bytes behind the CD key: eleven.
+            // LoginPacket.Read refused a payload with anything left in it for a while, and with
+            // that every login. This used to be AuthLoginRejectsTrailingBytes, which asked for
+            // exactly that.
+            var data = new byte[64];
+            int length;
 
-            Assert.ThrowsExactly<InvalidDataException>(() =>
-                new Rasa.Packets.Auth.Client.LoginPacket().Read(reader));
+            using (var writer = new BinaryWriter(new MemoryStream(data)))
+            {
+                new Rasa.Packets.Auth.Client.LoginPacket { UserName = "name", Password = "password", GameId = 8, CDKey = 2 }.Write(writer);
+                length = (int)writer.BaseStream.Position;
+            }
+
+            Assert.AreEqual(37, length);
+
+            AuthCryptManager.Encrypt(data, 0, ref length, data.Length);
+            Assert.AreEqual(48, length);
+            Assert.IsTrue(AuthCryptManager.Decrypt(data, 0, length));
+
+            // Behind the opcode, as the auth client's OnReceive hands it over.
+            using var reader = new BinaryReader(new MemoryStream(data, 1, length - 1));
+            var login = new Rasa.Packets.Auth.Client.LoginPacket();
+
+            login.Read(reader);
+
+            Assert.AreEqual(8u, login.GameId);
+            Assert.AreEqual((ushort)2, login.CDKey);
+            Assert.AreEqual(11, reader.BaseStream.Length - reader.BaseStream.Position, "the padding and the checksum");
         }
 
         [TestMethod]

@@ -732,7 +732,8 @@ namespace Rasa.Managers
             // be the ones nobody could ever see.
             foreach (var match in matches.OrderBy(m => m.Auction.Price))
             {
-                var modules = match.Item.ItemTemplate.ItemInfo?.ModuleIds ?? new List<int>();
+                // The item's module slots: the browse tab names the item by them, as a pack does.
+                var modules = match.Item.ModuleIds;
 
                 var row = new AuctionItem
                 {
@@ -743,10 +744,10 @@ namespace Rasa.Managers
                     RemainingDuration = match.Auction.RemainingHours(now),
                     ItemTemplateId = match.Item.ItemTemplate.ItemTemplateId,
                     StackSize = match.Item.StackSize,
-                    LootModuleId1 = modules.Count > 0 ? (uint)modules[0] : 0,
-                    LootModuleId2 = modules.Count > 1 ? (uint)modules[1] : 0,
-                    LootModuleId3 = modules.Count > 2 ? (uint)modules[2] : 0,
-                    LootModuleId4 = modules.Count > 3 ? (uint)modules[3] : 0,
+                    LootModuleId1 = modules[0],
+                    LootModuleId2 = modules[1],
+                    LootModuleId3 = modules[2],
+                    LootModuleId4 = modules[3],
                     QualitiId = (uint)match.Item.ItemTemplate.QualityId,
                     LevelRequirement = (uint)match.Level
                 };

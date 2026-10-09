@@ -132,6 +132,51 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
+        public void ASquadMateWhoArrivesByDropshipIsAnnouncedToTheSquadThere()
+        {
+            using var world = new WorldTestContext();
+            world.AddClass(EntityClasses.UsableCrSpawnerHumDropshipV01);
+            var lead = PlayerDeathTests.Player(world, 10, 0);
+            var mate = PlayerDeathTests.Player(world, 0, 0);
+            var third = world.CreateClient(400, 0);
+            var destination = CreateDestination();
+
+            // Already over there, by the pad.
+            world.Map.ClientList.Remove(third);
+            destination.ClientList.Add(third);
+            third.Player.MapChannel = destination;
+            third.Player.MapContextId = destination.MapInfo.MapContextId;
+            CellManager.Instance.AddToWorld(third);
+
+            using var squad = new SquadAfterZoningTests.TestSquad(lead, mate, third);
+            var cast = new SquadAfterZoningTests.Cast { [lead] = "lead", [mate] = "mate", [third] = "third" };
+            var maps = CreateMaps(world, destination);
+            var manager = CreateDropshipManager(maps);
+            using var managers = new ManagerInstances(maps, manager);
+
+            StartDropshipTransfer(world, destination, mate, manager);
+            foreach (var client in new[] { lead, mate, third })
+                WorldTestContext.Drain(client);
+
+            Depart(world.Map, manager, mate);
+
+            cast.Expect(lead, "destroy mate", "squad- mate");
+            cast.Expect(mate, "destroy lead", "squad- lead");
+            cast.Expect(third);
+
+            RouteMapLoaded(mate);
+
+            Assert.IsTrue(CellManager.Instance.IsInWorld(mate));
+            cast.Expect(third, "create mate", "squad- mate", "squad+ mate");
+            cast.Expect(mate, "create third", "squad- third", "squad+ third", "squad- lead", "squad+ lead");
+            cast.Expect(lead, "squad- mate", "squad+ mate");    // on the map they left, the id alone
+
+            WorldTestContext.Drain(third);
+            destination.ClientList.Clear();
+            destination.MapCellInfo.Cells.Clear();
+        }
+
+        [TestMethod]
         public void StaleMapLoadedDoesNotPublishASecondDropshipArrival()
         {
             using var world = new WorldTestContext();

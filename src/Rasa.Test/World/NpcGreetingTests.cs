@@ -2,8 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Rasa.Test.World
@@ -11,6 +14,8 @@ namespace Rasa.Test.World
     using Rasa.Context.World;
     using Rasa.Data;
     using Rasa.Managers;
+    using Rasa.Packets;
+    using Rasa.Packets.Communicator.Server;
     using Rasa.Packets.MapChannel.Client;
     using Rasa.Packets.MapChannel.Server;
     using Rasa.Repositories.Char;
@@ -256,8 +261,15 @@ namespace Rasa.Test.World
                     var rows = repository.GetNpcGreetings();
 
                     CollectionAssert.AreEquivalent(
-                        NpcGreetingSeed.Rows.Select(row => (row.CreatureId, row.GreetingId)).ToList(),
+                        NpcGreetingSeed.Rows.Concat(NpcGreetingSeed.Marked).Select(row => (row.CreatureId, row.GreetingId)).ToList(),
                         rows.Select(row => (row.Id, row.GreetingId)).ToList());
+
+                    // The client does not say which were marked. One is, with its line, by footage.
+                    CollectionAssert.AreEqual(new[] { (510002u, 488u) }, NpcGreetingSeed.Marked.ToList(), "Brigadier General Beacham");
+                    Assert.IsFalse(NpcGreetingSeed.Rows.Any(row => row.CreatureId == 510002), "he had no line before");
+                    Assert.IsTrue(NpcGreetings.IsLine(488));
+                    CollectionAssert.AreEqual(new[] { (510002u, 488u) },
+                        rows.Where(row => row.Important).Select(row => (row.Id, row.GreetingId)).ToList());
 
                     // Every one is a creature row of a class with the NPC augmentation (52).
                     var creatures = repository.Get().ToDictionary(creature => creature.Id);
@@ -272,6 +284,11 @@ namespace Rasa.Test.World
                     // A game master's line: added, changed, and taken away.
                     repository.SaveNpcGreeting(101, 146);
                     repository.SaveNpcGreeting(100, 19);
+
+                    // And its mark: on a row that has a line, and kept when the line is changed.
+                    Assert.IsTrue(repository.SaveNpcGreetingImportant(99, true));
+                    Assert.IsFalse(repository.SaveNpcGreetingImportant(4242, true), "no line, nothing to mark");
+                    repository.SaveNpcGreeting(99, 466);
                 }
 
                 using (var context = (WorldContext)PersistenceIntegrationTests.CreateContext(typeof(SqliteWorldContext), database))
@@ -279,9 +296,11 @@ namespace Rasa.Test.World
                     var repository = new CreatureRepository(context);
                     var rows = repository.GetNpcGreetings().ToDictionary(row => row.Id, row => row.GreetingId);
 
-                    Assert.AreEqual(83, rows.Count, "one added, one changed");
+                    Assert.AreEqual(84, rows.Count, "one added, two changed");
                     Assert.AreEqual(146u, rows[101]);
                     Assert.AreEqual(19u, rows[100]);
+                    Assert.AreEqual(466u, rows[99]);
+                    CollectionAssert.AreEquivalent(new[] { 99u, 510002u }, repository.GetNpcGreetings().Where(row => row.Important).Select(row => row.Id).ToList());
 
                     Assert.IsTrue(repository.DeleteNpcGreeting(101));
                     Assert.IsFalse(repository.DeleteNpcGreeting(101), "it has none now");
@@ -317,13 +336,18 @@ namespace Rasa.Test.World
 
                 using (var world = stopped.CreateWorld())
                     CollectionAssert.AreEquivalent(
-                        NpcGreetingSeed.Rows.Select(row => (row.CreatureId, row.GreetingId)).ToList(),
+                        NpcGreetingSeed.Rows.Concat(NpcGreetingSeed.Marked).Select(row => (row.CreatureId, row.GreetingId)).ToList(),
                         world.Creatures.GetNpcGreetings().Select(row => (row.Id, row.GreetingId)).ToList());
             }
 
             using var migrated = WildernessRuntimeTestHarness.Create();
 
             Assert.AreEqual(1620, NpcGreetings.For(migrated.Creatures.LoadedCreatures[Rogers]));
+            Assert.IsFalse(NpcGreetings.IsImportant(migrated.Creatures.LoadedCreatures[Rogers]));
+
+            // Brigadier General Beacham, Alia Das: his line and its mark come with the column.
+            Assert.AreEqual(488, NpcGreetings.For(migrated.Creatures.LoadedCreatures[510002]));
+            Assert.IsTrue(NpcGreetings.IsImportant(migrated.Creatures.LoadedCreatures[510002]));
         }
 
         [TestMethod]
@@ -364,6 +388,327 @@ namespace Rasa.Test.World
                 Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
                 Directory.Delete(directory, true);
             }
+        }
+
+        [TestMethod]
+        public void AnNpcWhoseLineIsMarkedImportantHasTheSpeechBubbleAndSaysItAsTheImportantGreeting()
+        {
+            using var context = MissionTestContext.WithDefinitions(321);
+            var idle = context.AddNpc(9078);
+            var npcs = new NpcManager(context, context.Manager);
+
+            NPCConversationStatusPacket Told(Creature npc)
+            {
+                context.Drain();
+                npcs.UpdateConversationStatus(context.Client, npc);
+
+                return context.Drain().OfType<NPCConversationStatusPacket>().Single();
+            }
+
+            ConversationStatus Status(Creature npc) => Told(npc).ConvoStatusId;
+
+            Dictionary<ConversationType, object> Converse(Creature npc)
+            {
+                context.Drain();
+                npcs.RequestNpcConverse(context.Client, new RequestNPCConversePacket { EntityId = npc.EntityId });
+
+                var packet = context.Drain().OfType<ConversePacket>().Single();
+                Assert.IsTrue(MissionTestContext.Encode(packet).Length > 0, "one the packet will write");
+
+                return packet.ConvoDataDict;
+            }
+
+            Assert.AreEqual(12, (int)ConversationStatus.ImportantGreeting, "CONVO_STATUS_IMPORTANT_GREETING");
+            Assert.AreEqual(12, (int)ConversationType.ImportantGreering, "CONVO_TYPE_IMPORTANT_GREETING");
+
+            // A mark and no line: nothing to say, and nothing over its head.
+            idle.Npc.GreetingImportant = true;
+            Assert.IsFalse(NpcGreetings.IsImportant(idle));
+            Assert.IsFalse(NpcGreetings.IsImportant(null));
+            Assert.IsFalse(NpcGreetings.IsImportant(new Creature()), "a creature that is no NPC");
+            Assert.AreEqual(ConversationStatus.None, Status(idle));
+
+            // With a line: the status the client draws the speech bubble for, and the line alone.
+            idle.Npc.GreetingId = 488;
+            Assert.IsTrue(NpcGreetings.IsImportant(idle));
+            Assert.AreEqual(ConversationStatus.ImportantGreeting, Status(idle));
+            Assert.AreEqual(0, Told(idle).Data.Count, "the client reads no data with it");
+
+            var said = Converse(idle);
+            Assert.AreEqual(1, said.Count);
+            Assert.AreEqual(488, said[ConversationType.ImportantGreering]);
+
+            // Not marked, it is as it was: no bubble, and the plain greeting.
+            idle.Npc.GreetingImportant = false;
+            Assert.AreEqual(ConversationStatus.Greeting, Status(idle));
+
+            var plain = Converse(idle);
+            Assert.AreEqual(1, plain.Count);
+            Assert.AreEqual(488, plain[ConversationType.Greeting]);
+
+            // Anything else it has for the player comes first: a shop's icon and a shop's window.
+            idle.Npc.GreetingImportant = true;
+            idle.Npc.Vendor = new Vendor(586);
+            Assert.AreEqual(ConversationStatus.Vending, Status(idle));
+
+            var shop = Converse(idle);
+            Assert.IsTrue(shop.ContainsKey(ConversationType.Vending));
+            Assert.IsFalse(shop.ContainsKey(ConversationType.ImportantGreering), "npc.py would show it in place of the shop");
+            Assert.IsFalse(shop.ContainsKey(ConversationType.Greeting));
+
+            // So does a mission: its pip, and straight to it.
+            var giver = context.AddNpc(77);
+            giver.Npc.GreetingId = 488;
+            giver.Npc.GreetingImportant = true;
+            Assert.AreEqual(ConversationStatus.Available, Status(giver));
+
+            var offer = Converse(giver);
+            Assert.IsTrue(offer.ContainsKey(ConversationType.MissionDispense));
+            Assert.IsFalse(offer.ContainsKey(ConversationType.ImportantGreering));
+            Assert.IsFalse(offer.ContainsKey(ConversationType.Greeting));
+
+            // And a topic list is headed by the line as a plain greeting, which is the one the
+            // client's list reads.
+            giver.Npc.Vendor = new Vendor(586);
+
+            var listed = Converse(giver);
+            Assert.AreEqual(488, listed[ConversationType.Greeting]);
+            Assert.IsFalse(listed.ContainsKey(ConversationType.ImportantGreering));
+        }
+
+        [TestMethod]
+        public void AGameMastersMarkIsKeptWithTheLineAndGoesWithIt()
+        {
+            var directory = Path.Combine(AppContext.BaseDirectory, "TestDatabases", Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(directory);
+
+            try
+            {
+                var database = Path.Combine(directory, "world");
+
+                using (var context = PersistenceIntegrationTests.CreateContext(typeof(SqliteWorldContext), database))
+                    context.Database.EnsureCreated();
+
+                var factory = new WorldFactory(database);
+                var npc = new Creature { DbId = 4242, Npc = new Npc() };
+
+                Assert.IsFalse(NpcGreetings.SetImportant(npc, true, factory), "no line of its own to mark");
+                Assert.IsFalse(NpcGreetings.SetImportant(new Creature { DbId = 5 }, true, factory), "no NPC");
+                Assert.IsFalse(NpcGreetings.SetImportant(null, true, factory));
+                Assert.AreEqual(0, Marks(database).Count);
+
+                Assert.IsTrue(NpcGreetings.Set(npc, 488, factory));
+                Assert.AreEqual((4242u, 488u, false), Marks(database).Single(), "a line starts plain");
+                Assert.IsFalse(NpcGreetings.IsImportant(npc));
+
+                Assert.IsTrue(NpcGreetings.SetImportant(npc, true, factory));
+                Assert.IsTrue(npc.Npc.GreetingImportant);
+                Assert.IsTrue(NpcGreetings.IsImportant(npc));
+                Assert.AreEqual((4242u, 488u, true), Marks(database).Single());
+
+                Assert.IsTrue(NpcGreetings.Set(npc, 1620, factory), "another line");
+                Assert.AreEqual((4242u, 1620u, true), Marks(database).Single(), "and the mark stays");
+                Assert.IsTrue(NpcGreetings.IsImportant(npc));
+
+                Assert.IsTrue(NpcGreetings.SetImportant(npc, false, factory));
+                Assert.IsFalse(npc.Npc.GreetingImportant);
+                Assert.AreEqual((4242u, 1620u, false), Marks(database).Single());
+
+                // Taken away with the line, and a line given afterwards is plain.
+                Assert.IsTrue(NpcGreetings.SetImportant(npc, true, factory));
+                Assert.IsTrue(NpcGreetings.Clear(npc, factory));
+                Assert.IsFalse(npc.Npc.GreetingImportant);
+                Assert.AreEqual(0, Marks(database).Count);
+
+                Assert.IsTrue(NpcGreetings.Set(npc, 146, factory));
+                Assert.AreEqual((4242u, 146u, false), Marks(database).Single());
+                Assert.IsFalse(NpcGreetings.IsImportant(npc));
+
+                // A row that has gone from under it: not marked, and the NPC is left as it was.
+                using (var context = (WorldContext)PersistenceIntegrationTests.CreateContext(typeof(SqliteWorldContext), database))
+                    Assert.IsTrue(new CreatureRepository(context).DeleteNpcGreeting(4242));
+
+                Assert.IsFalse(NpcGreetings.SetImportant(npc, true, factory));
+                Assert.IsFalse(npc.Npc.GreetingImportant);
+            }
+            finally
+            {
+                Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+                Directory.Delete(directory, true);
+            }
+        }
+
+        [TestMethod]
+        public void TheGreetingCommandMarksTheTargetedNpcsLineAndThePlayersWhoSeeItAreTold()
+        {
+            var directory = Path.Combine(AppContext.BaseDirectory, "TestDatabases", Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(directory);
+
+            var instance = typeof(NpcManager).GetField("_instance", BindingFlags.Static | BindingFlags.NonPublic);
+            var managerBefore = instance.GetValue(null);
+            var factoryBefore = Rasa.Game.Server.GameUnitOfWorkFactory;
+
+            try
+            {
+                var database = Path.Combine(directory, "world");
+
+                using (var world = PersistenceIntegrationTests.CreateContext(typeof(SqliteWorldContext), database))
+                    world.Database.EnsureCreated();
+
+                using var context = MissionTestContext.WithDefinitions(321);
+                var idle = context.AddNpc(9078);
+                var npcs = new NpcManager(context, context.Manager);
+                var commands = new ChatCommandsManager(npcs);
+
+                commands.RegisterChatCommands();
+                instance.SetValue(null, npcs);
+                Rasa.Game.Server.GameUnitOfWorkFactory = new WorldFactory(database);
+                context.Client.AccountEntry.Level = (byte)GmLevel.GameMaster;
+                context.Client.Player.Target = idle.EntityId;
+
+                List<PythonPacket> Run(string command)
+                {
+                    context.Drain();
+                    commands.ProcessCommand(context.Client, command);
+
+                    return context.Drain();
+                }
+
+                string Said(List<PythonPacket> packets) =>
+                    string.Join(" | ", packets.OfType<SystemMessagePacket>().Select(message => message.TextMessage));
+
+                ConversationStatus Told(List<PythonPacket> packets) =>
+                    packets.OfType<NPCConversationStatusPacket>().Single().ConvoStatusId;
+
+                // Nothing to mark until it has a line of its own.
+                var none = Run(".greeting important");
+                StringAssert.Contains(Said(none), "no greeting of its own to mark");
+                Assert.AreEqual(0, none.OfType<NPCConversationStatusPacket>().Count());
+                Assert.AreEqual(0, Marks(database).Count);
+
+                Assert.AreEqual(ConversationStatus.Greeting, Told(Run(".greeting 488")));
+                StringAssert.Contains(Said(Run(".greeting")), "says greeting 488.");
+
+                // Marked: the player looking at it has the bubble at once.
+                var marked = Run(".greeting important");
+                StringAssert.Contains(Said(marked), "is marked important: the speech bubble");
+                Assert.AreEqual(ConversationStatus.ImportantGreeting, Told(marked));
+                Assert.IsTrue(idle.Npc.GreetingImportant);
+                Assert.AreEqual((9078u, 488u, true), Marks(database).Single());
+
+                StringAssert.Contains(Said(Run(".greeting")), "says greeting 488, marked important; you have not read it.");
+
+                var again = Run(".greeting important on");
+                StringAssert.Contains(Said(again), "marked important already");
+                Assert.AreEqual(0, again.OfType<NPCConversationStatusPacket>().Count());
+
+                // Another line keeps the mark.
+                var changed = Run(".greeting 1620");
+                StringAssert.Contains(Said(changed), "says greeting 1620, marked important as its last was.");
+                Assert.AreEqual(ConversationStatus.ImportantGreeting, Told(changed));
+                Assert.AreEqual((9078u, 1620u, true), Marks(database).Single());
+
+                // Plain again.
+                var plain = Run(".greeting important off");
+                StringAssert.Contains(Said(plain), "is plain again");
+                Assert.AreEqual(ConversationStatus.Greeting, Told(plain));
+                Assert.AreEqual((9078u, 1620u, false), Marks(database).Single());
+                StringAssert.Contains(Said(Run(".greeting important off")), "is not marked important");
+
+                // Anything else after the word is not understood, and nothing is changed.
+                foreach (var command in new[] { ".greeting important maybe", ".greeting important on now", ".greeting 488 important" })
+                {
+                    StringAssert.Contains(Said(Run(command)), "usage: .greeting", command);
+                    Assert.AreEqual((9078u, 1620u, false), Marks(database).Single(), command);
+                }
+
+                // The mark goes with the line.
+                Run(".greeting important");
+                Assert.AreEqual(ConversationStatus.None, Told(Run(".greeting clear")));
+                Assert.IsFalse(idle.Npc.GreetingImportant);
+                Assert.AreEqual(0, Marks(database).Count);
+                Assert.AreEqual(ConversationStatus.Greeting, Told(Run(".greeting 146")), "and a line given afterwards is plain");
+
+                // No NPC targeted.
+                context.Client.Player.Target = 0;
+                StringAssert.Contains(Said(Run(".greeting important")), "Target an NPC");
+            }
+            finally
+            {
+                instance.SetValue(null, managerBefore);
+                Rasa.Game.Server.GameUnitOfWorkFactory = factoryBefore;
+                Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+                Directory.Delete(directory, true);
+            }
+        }
+
+        [TestMethod]
+        public void AWorldStoppedBeforeTheMarkHasItsLinesUnmarkedAndTheColumnComesWithTheGeneralsLine()
+        {
+            // Outpost Commander Rogers, Alia Das: 1620 in the seed. Brigadier General Beacham,
+            // Alia Das: no line until the column's migration, which gives him 488, marked.
+            const uint Rogers = 100;
+            const uint Beacham = 510002;
+            const string Before = "20261128000000_Add_loot_groups";
+
+            var seeded = NpcGreetingSeed.Rows.Select(row => (row.CreatureId, row.GreetingId)).ToList();
+
+            // The table and no column for the mark yet: the harness starts on it, as the
+            // Wilderness tests that stop a World between the two migrations do, and every NPC
+            // has its line, not marked.
+            using var stopped = WildernessRuntimeTestHarness.Create(targetWorldMigration: Before);
+
+            List<(uint, uint, bool)> Lines()
+            {
+                using var world = stopped.CreateWorld();
+
+                return world.Creatures.GetNpcGreetings().Select(row => (row.Id, row.GreetingId, row.Important)).ToList();
+            }
+
+            void Down() => stopped.World.GetService<IMigrator>().Migrate(Before);
+
+            CollectionAssert.AreEquivalent(seeded.Select(row => (row.CreatureId, row.GreetingId, false)).ToList(), Lines());
+            Assert.AreEqual(1620, NpcGreetings.For(stopped.Creatures.LoadedCreatures[Rogers]));
+            Assert.IsFalse(NpcGreetings.IsImportant(stopped.Creatures.LoadedCreatures[Rogers]));
+            Assert.IsFalse(NpcGreetings.HasOwn(stopped.Creatures.LoadedCreatures[Beacham]));
+
+            // Up: every line is kept, none of them marked, and the General has his, marked.
+            stopped.World.Initialize();
+
+            CollectionAssert.AreEquivalent(
+                seeded.Select(row => (row.CreatureId, row.GreetingId, false)).Append((Beacham, 488u, true)).ToList(), Lines());
+
+            using (var world = stopped.CreateWorld())
+                Assert.IsTrue(world.Creatures.SaveNpcGreetingImportant(Rogers, true));
+
+            // Down: the column goes and the lines stay, the General's with them.
+            Down();
+
+            CollectionAssert.AreEquivalent(
+                seeded.Select(row => (row.CreatureId, row.GreetingId, false)).Append((Beacham, 488u, false)).ToList(), Lines());
+
+            // Up again over a line he has already - one given by hand before the column was
+            // there: it is the line the mark is for, and he is marked. Nobody else is.
+            stopped.World.Initialize();
+
+            CollectionAssert.AreEqual(new[] { (Beacham, 488u, true) }, Lines().Where(row => row.Item3).ToList());
+            Assert.AreEqual(83, Lines().Count);
+
+            // And over another line a game master gave him: it is left as it is, not marked.
+            Down();
+            stopped.World.Database.ExecuteSqlRaw("update npc_greeting set greeting_id = 1620 where id = 510002");
+            stopped.World.Initialize();
+
+            Assert.AreEqual((Beacham, 1620u, false), Lines().Single(row => row.Item1 == Beacham));
+            Assert.IsFalse(Lines().Any(row => row.Item3));
+            Assert.AreEqual(83, Lines().Count);
+        }
+
+        private static List<(uint, uint, bool)> Marks(string database)
+        {
+            using var context = (WorldContext)PersistenceIntegrationTests.CreateContext(typeof(SqliteWorldContext), database);
+
+            return new CreatureRepository(context).GetNpcGreetings().Select(row => (row.Id, row.GreetingId, row.Important)).ToList();
         }
 
         private static List<(uint, uint)> Rows(string database)

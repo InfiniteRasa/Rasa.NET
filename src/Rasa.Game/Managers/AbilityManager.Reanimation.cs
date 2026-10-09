@@ -221,7 +221,10 @@ namespace Rasa.Managers
                 State = CharacterState.Idle,
                 Name = corpse.Name,
                 AggroRange = corpse.AggroRange,
-                Scale = corpse.Scale
+                Scale = corpse.Scale,
+                // The same body, so the same two tints.
+                Hue = corpse.Hue,
+                Hue2 = corpse.Hue2
             };
 
             // Back to full: each attribute at its maximum.

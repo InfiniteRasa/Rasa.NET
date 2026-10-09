@@ -20,7 +20,9 @@ namespace Rasa.Test.Missions
     public class BootcampMapSetupTests
     {
         private static readonly Vector3 CratePosition = new(398, 122, 173);
-        private static readonly Vector3 AlisterDestination = new(400, 120, 150);
+        /// <summary>Where his departure ends: on the command deck, where the GM stood for him (Place_bootcamp_base_npcs).</summary>
+        private static readonly Vector3 AlisterDestination = new(400.2461f, 122f, 158.8594f);
+        private const double AlisterFacing = 0.4992;
 
         [TestMethod]
         [DataRow(false)]
@@ -84,7 +86,7 @@ namespace Rasa.Test.Missions
                 }
                 harness.UtcNow += TimeSpan.FromSeconds(1);
                 harness.Manager.TickScenarios(harness.Client);
-                Assert.AreEqual(2.175, restored.Rotation, 0.001);
+                Assert.AreEqual(AlisterFacing, restored.Rotation, 0.001);
                 Assert.IsFalse(restored.IsRunning);
                 Assert.AreEqual(1, harness.BootcampMap.MapCellInfo.Cells.Values
                     .SelectMany(cell => cell.CreatureList)
@@ -339,14 +341,14 @@ namespace Rasa.Test.Missions
 
             Assert.IsTrue(Vector3.Distance(AlisterDestination, alister.Position) < 0.01f,
                 $"Alister stopped at {alister.Position} instead of {AlisterDestination}.");
-            Assert.AreEqual(2.175, alister.Rotation, 0.001);
+            Assert.AreEqual(AlisterFacing, alister.Rotation, 0.001);
             Assert.IsFalse(alister.IsRunning);
             var neighbor = harness.AddNpc(7777, position: AlisterDestination + new Vector3(0.3f, 0, 0));
             neighbor.TargetCategory = TargetCategory.Friendly;
             for (var tick = 0; tick < 240; tick++)
                 BehaviorManager.Instance.MapChannelThink(harness.BootcampMap, 250);
             Assert.IsTrue(Vector3.Distance(AlisterDestination, alister.Position) < 0.01f);
-            Assert.AreEqual(2.175, alister.Rotation, 0.001);
+            Assert.AreEqual(AlisterFacing, alister.Rotation, 0.001);
         }
 
         [TestMethod]
@@ -409,14 +411,14 @@ namespace Rasa.Test.Missions
             Assert.IsNotNull(restored);
             Assert.AreNotSame(alister, restored);
             Assert.AreEqual(AlisterDestination, restored.Position);
-            Assert.AreEqual(2.175, restored.Rotation, 0.001);
+            Assert.AreEqual(AlisterFacing, restored.Rotation, 0.001);
             Assert.IsFalse(restored.IsRunning);
             Assert.IsFalse(harness.Manager.AcceptOfferedMission(harness.Client, restored.EntityId, 1992));
             harness.Manager.RebuildScenarioRuntime(harness.Client.Player.Id, harness.BootcampMap);
             for (var tick = 0; tick < 160; tick++)
                 BehaviorManager.Instance.MapChannelThink(harness.BootcampMap, 250);
             Assert.AreEqual(AlisterDestination, restored.Position);
-            Assert.AreEqual(2.175, restored.Rotation, 0.001);
+            Assert.AreEqual(AlisterFacing, restored.Rotation, 0.001);
         }
 
         [TestMethod]

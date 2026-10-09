@@ -6,8 +6,8 @@ namespace Rasa.Packets.MapChannel.Server
     /// <summary>
     /// Recv_CallGameEffectMethod(effectId, 'UpdateLevel', (moduleId, newLevel)) on a player holding
     /// SET_LEVEL_EFFECT (gameeffectdata 10000068): how many pieces of an armor set they now wear.
-    /// Wired so that it can be sent, and deliberately sent by nothing: items here carry no
-    /// modules, and the set bonuses themselves were never in the client.
+    /// Wired so that it can be sent, and deliberately sent by nothing: no item here is found
+    /// with a set's module, and the set bonuses themselves were never in the client.
     ///
     /// UpdateLevel is a method of the effect, not of the entity: the UpdateLevel (771) opcode names
     /// it in the client's method table, but no entity class has a Recv_UpdateLevel to answer one

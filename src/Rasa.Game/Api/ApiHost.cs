@@ -29,6 +29,14 @@ namespace Rasa.Api
         /// <summary>Authentication shared by all /ingame endpoints.</summary>
         public IngameSessionService IngameSessions { get; } = new IngameSessionService();
 
+        /// <summary>GET /monsterflags and POST /updatemonsterflags, for gametools' Monster Flag Editor; Server gives them their store.</summary>
+        public MonsterFlagsEndpoint MonsterFlags { get; } = new MonsterFlagsEndpoint();
+        public UpdateMonsterFlagsEndpoint UpdateMonsterFlags { get; } = new UpdateMonsterFlagsEndpoint();
+
+        /// <summary>GET /lootpools and POST /updatelootpools, for gametools' Loot Table Editor; Server gives them their store.</summary>
+        public LootPoolsEndpoint LootPools { get; } = new LootPoolsEndpoint();
+        public UpdateLootPoolsEndpoint UpdateLootPools { get; } = new UpdateLootPoolsEndpoint();
+
         public ApiHost() : this(new ServerStatus())
         {
         }
@@ -46,6 +54,10 @@ namespace Rasa.Api
             Rest.Register(new IngameItemCategoriesEndpoint(IngameSessions));
             Rest.Register(new IngameItemsEndpoint(IngameSessions));
             Rest.Register(new IngameItemDetailsEndpoint(IngameSessions));
+            Rest.Register(MonsterFlags);
+            Rest.Register(UpdateMonsterFlags);
+            Rest.Register(LootPools);
+            Rest.Register(UpdateLootPools);
             Rest.Register(new IngameCreaturesEndpoint(IngameSessions));
             Rest.Register(new IngameCreatureActionsEndpoint(IngameSessions));
             Rest.Register(new IngameCreatureDetailsEndpoint(IngameSessions));

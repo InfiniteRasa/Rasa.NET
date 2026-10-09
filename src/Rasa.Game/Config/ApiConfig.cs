@@ -67,12 +67,26 @@ namespace Rasa.Config
         public List<string> AllowedIps { get; set; } = new List<string>();
 
         /// <summary>
+        /// The web pages that may use the API from a browser, by their origin: "null" for a
+        /// page opened from a file on disk, as gametools' editors are; "http://tools.example"
+        /// for one served from there; "*" for any. Missing or empty, as it is unless asked for,
+        /// no page may: a browser will not let one send a key, or read an answer.
+        ///
+        /// It opens only the endpoints that want a key. One that answers without a key is never
+        /// opened to pages, whatever is listed here: any page a player's browser happened to
+        /// load could otherwise use it from inside the network.
+        /// </summary>
+        public List<string> AllowedOrigins { get; set; } = new List<string>();
+
+        /// <summary>
         /// The endpoints' own settings, by name ("healthcheck", "serverstatus", "addaccount",
         /// "ingame/session/exchange", and so on).
         /// An endpoint with no entry is on, and goes by <see cref="Public"/> and
-        /// <see cref="ApiKey"/>. One that changes something ("addaccount", which makes logins)
-        /// is the other way about: off with no entry, on only by an Enabled of true in its own,
-        /// and public only by a Public of true in its own, whatever <see cref="Public"/> says.
+        /// <see cref="ApiKey"/>. One that changes something, or gives out what the server's
+        /// keeper may not want given out ("addaccount", which makes logins; gametools' four,
+        /// "monsterflags", "updatemonsterflags", "lootpools", "updatelootpools") is the other
+        /// way about: off with no entry, on only by an Enabled of true in its own, and public
+        /// only by a Public of true in its own, whatever <see cref="Public"/> says.
         /// </summary>
         public Dictionary<string, ApiEndpointConfig> Endpoints { get; set; } = new Dictionary<string, ApiEndpointConfig>();
 

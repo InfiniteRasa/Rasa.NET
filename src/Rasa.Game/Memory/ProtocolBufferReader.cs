@@ -167,7 +167,7 @@ namespace Rasa.Memory
             this.ReadDebugByte(41);
 
             this.ReadDebugByte(3);
-            var unknownByte = this.ReadByte();
+            var type = (MovementType)this.ReadByte();
 
             var x = this.ReadPackedFloat();
             var y = this.ReadPackedFloat();
@@ -182,7 +182,7 @@ namespace Rasa.Memory
 
             this.ReadDebugByte(42);
 
-            return new Movement(unknownByte, position, velocity, flags, viewDirection);
+            return new Movement(type, position, velocity, flags, viewDirection);
         }
 
         public float ReadPackedFloat()

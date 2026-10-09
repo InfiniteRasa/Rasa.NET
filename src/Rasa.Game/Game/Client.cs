@@ -60,6 +60,13 @@ namespace Rasa.Game
         internal bool AwaitingMapLoaded { get; set; }
 
         /// <summary>
+        /// The player has been put on a map and what its missions make of that is still to be
+        /// done: the client came by a map change and is Teleporting until the arrival is over
+        /// (ManifestationManager.AssignPlayer sets it, FinishArrival answers it).
+        /// </summary>
+        internal bool MissionArrivalPending { get; set; }
+
+        /// <summary>
         /// EnableDevCommands has gone to this connection. What it switches on lives in the client
         /// process, which a map change or a trip to the character screen does not restart, so it
         /// is sent once; see MapChannelManager.MapLoaded.
@@ -719,6 +726,10 @@ namespace Rasa.Game
                 // A fall, if this Move ended one (FallDamage), and the flags for a GM watching them.
                 FallDamage.OnMove(this, previousPosition, Player.Position, moveTick);
 
+                // Into lava, or out of it (LavaDamage): looked at on the Move, so a run across a
+                // narrow lake is not missed between two passes of the worker.
+                LavaDamage.OnMove(this);
+
                 if (moveMessage != null)
                     FallDamage.ShowMoveFlags(this, moveMessage, previousPosition);
 
@@ -728,6 +739,10 @@ namespace Rasa.Game
                 MissionInteractionPolicy.InvalidateIfUnavailable(this);
                 Player.Rotation = movement.ViewDirection.X;
                 Movement = movement;
+
+                // On the move or not, for whoever shoots at them (ToHit): a Move that says so
+                // and has taken them somewhere.
+                Player.MoveVelocity = movement.Position != previousPosition ? movement.Velocity : 0;
                 MissionAreaService?.RecordAcceptedMovement(
                     this,
                     previousPosition,

@@ -404,7 +404,7 @@ namespace Rasa.Managers
             var fighting = creature.Controller.ActionFighting.TargetEntityId;
 
             creature.State = CharacterState.Dead;
-            creature.KnockbackTo = null;
+            BehaviorManager.Instance.EndCarry(mapChannel, creature);
             creature.HarvestAttemptsLeft = 0;
             creature.Attributes[Attributes.Health].Current = 0;
             BehaviorManager.Instance.StopMoving(creature);

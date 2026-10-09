@@ -212,9 +212,11 @@ namespace Rasa.Managers
                         BoundCharacterId = itemData.BoundCharacterId
                     };
 
+                    ItemModules.Read(newItem, itemData);
+
                     // check if item is weapon
                     if (newItem.ItemTemplate.WeaponInfo != null)
-                        newItem.CurrentAmmo = itemData.AmmoCount;
+                        WeaponClips.Loaded(newItem, itemData.AmmoCount);
 
                     EntityManager.Instance.RegisterEntity(newItem.EntityId, EntityType.Item);
                     EntityManager.Instance.RegisterItem(newItem.EntityId, newItem);

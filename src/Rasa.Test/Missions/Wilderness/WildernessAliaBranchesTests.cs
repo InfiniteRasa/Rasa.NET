@@ -187,7 +187,6 @@ namespace Rasa.Test.Missions.Wilderness
                 Assert.IsFalse(unit.CharacterFlags.Get(harness.Client.Player.Id).ContainsKey(530002));
             WaitForMilpasRelease(harness);
             harness.Manager.PublishInitialState(harness.Client);
-            npcs.AbandonMission(harness.Client, new AbandonMissionPacket { MissionId = 1390 });
             Accept(harness, npcs, 219, 1390);
             Assert.AreNotEqual(assignment, harness.Client.Player.Missions[1390].AssignmentId);
             Assert.AreEqual(MissionObjectiveState.Incomplete, harness.Client.Player.Missions[1390].Objectives[1].State);
@@ -650,8 +649,16 @@ namespace Rasa.Test.Missions.Wilderness
                 Assert.AreEqual(attempts - 1, target.Lock.CipherAttemptsLeft,
                     "Either decode outcome must reach the normal lock-attempt boundary.");
                 Assert.AreEqual(10U, HeldQuantity(harness, 56));
-                using var unit = harness.CreateChar();
-                Assert.AreEqual(9U, unit.Items.GetItem(cipher.Id).AmmoCount);
+
+                // A use of a tool comes out of the clip in memory, as a shot does; the row is
+                // written when the clip is saved (WeaponClips).
+                using (var unit = harness.CreateChar())
+                    Assert.AreEqual(10U, unit.Items.GetItem(cipher.Id).AmmoCount);
+
+                WeaponClips.Save(cipher);
+
+                using (var unit = harness.CreateChar())
+                    Assert.AreEqual(9U, unit.Items.GetItem(cipher.Id).AmmoCount);
             }
             finally
             {
@@ -734,7 +741,6 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.AreEqual(0U, HeldQuantity(harness, 686));
             Assert.IsFalse(harness.Client.Player.Missions[428].Completeable);
             Assert.AreEqual(0U, HeldQuantity(harness, 3869));
-            npcs.AbandonMission(harness.Client, new AbandonMissionPacket { MissionId = 428 });
             Accept(harness, npcs, 510004, 428);
             var freshCrate = SupplyCrate(harness);
             Assert.AreNotEqual(oldAssignment, harness.Client.Player.Missions[428].AssignmentId);

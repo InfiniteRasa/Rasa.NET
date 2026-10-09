@@ -160,8 +160,9 @@ namespace Rasa.Managers
 
             creature.State = CharacterState.Dying;
 
-            // Stopped where it is, mid-knockback or mid-stride: nothing moves it from here.
-            creature.KnockbackTo = null;
+            // Stopped where it is, mid-carry or mid-stride: nothing moves it from here. (A rush
+            // its clients are already running ends where they will have it: EndCarry.)
+            BehaviorManager.Instance.EndCarry(mapChannel, creature);
             BehaviorManager.Instance.StopMoving(creature);
 
             // Nothing comes back while it is held: no health, no armour.

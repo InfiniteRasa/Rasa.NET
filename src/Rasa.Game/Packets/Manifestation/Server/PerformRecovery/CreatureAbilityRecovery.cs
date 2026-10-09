@@ -56,9 +56,7 @@ namespace Rasa.Packets.MapChannel.Server.PerformRecovery
             foreach (var entity in args.MisstEntities)
                 pw.WriteULong(entity);
 
-            pw.WriteList(args.Missdata.Count);
-            foreach (var missType in args.Missdata)
-                pw.WriteUInt(missType);
+            DamageInfoWriter.WriteMissTypes(pw, args.Missdata);
 
             pw.WriteList(args.HitData.Count);
             foreach (var hit in args.HitData)
@@ -112,19 +110,7 @@ namespace Rasa.Packets.MapChannel.Server.PerformRecovery
         {
             var type = hit.DamageType != 0 ? hit.DamageType : Missile.DamageType;
 
-            pw.WriteTuple(12);
-            pw.WriteUInt((uint)(type == 0 ? DamageType.Physical : type));
-            pw.WriteUInt(hit.Reflected);
-            pw.WriteUInt(hit.Filtered);
-            pw.WriteUInt(hit.Absorbed);
-            pw.WriteUInt(hit.Resisted);
-            pw.WriteLong(hit.FinalAmt);
-            pw.WriteInt(hit.IsCritical);
-            pw.WriteInt(hit.DeathBlow);
-            pw.WriteDouble(hit.CoverModifier);
-            pw.WriteInt(hit.WasImune);
-            pw.WriteList(0);                        // targetEffectIds
-            pw.WriteList(0);                        // sourceEffectIds
+            DamageInfoWriter.WriteRawInfo(pw, hit, type == 0 ? DamageType.Physical : type);
         }
     }
 }
