@@ -2088,18 +2088,6 @@ namespace Rasa.Managers
             // tracking from these MissionTrack options.
             client.CallMethod(SysEntity.ClientMethodId, new CharacterOptionsPacket(player.CharacterOptions));
 
-            // Inventory deltas precede LoginOk. Refresh the tray after its controlled actor
-            // exists so the initial image does not depend on opening the equipment selector.
-            client.CallMethod(SysEntity.ClientInventoryManagerId,
-                new Packets.Inventory.Server.InventoryCreatePacket(
-                    InventoryType.WeaponDrawerInventory, player.Inventory.WeaponDrawer.ToList(),
-                    player.Inventory.WeaponDrawer.Count));
-            client.CallMethod(player.EntityId, new WeaponDrawerSlotPacket(player.ActiveWeapon, false));
-
-            // The armed ability too, with its loadout page: not requested, so the client takes it
-            // as its requested slot as well.
-            client.CallMethod(player.EntityId, new AbilityDrawerSlotPacket(player.CurrentAbilityDrawer, false));
-
             // How long this map's sky has been running, which is what puts it at the same
             // time of day for everyone on the map (SkyClock).
             SkyClock.Send(client);
@@ -2119,6 +2107,19 @@ namespace Rasa.Managers
             // saved MissionTrack options against the current mission list, so both the
             // character options and initial mission state must be sent first.
             client.CallMethod(SysEntity.ClientMethodId, new SetControlledActorIdPacket(player.EntityId));
+
+            // The client drawer handlers resolve GetManifestation() immediately, so
+            // refresh the drawer only after the controlled actor is assigned. This
+            // restores the saved armed slot instead of showing the first weapon.
+            client.CallMethod(SysEntity.ClientInventoryManagerId,
+                new Packets.Inventory.Server.InventoryCreatePacket(
+                    InventoryType.WeaponDrawerInventory, player.Inventory.WeaponDrawer.ToList(),
+                    player.Inventory.WeaponDrawer.Count));
+            client.CallMethod(player.EntityId, new WeaponDrawerSlotPacket(player.ActiveWeapon, false));
+
+            // Restore the saved ability slot and loadout page at the same point.
+            // false tells the client this is the initial selection, not a request.
+            client.CallMethod(player.EntityId, new AbilityDrawerSlotPacket(player.CurrentAbilityDrawer, false));
 
             _characterManager.OfferStartingExperienceMission(client);
 
@@ -4793,3 +4794,4 @@ namespace Rasa.Managers
         #endregion
     }
 }
+
