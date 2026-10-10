@@ -445,20 +445,13 @@ namespace Rasa.Game
 
         private void CreateListenerSocket()
         {
-            try
-            {
-                ListenerSocket = new LengthedSocket(SizeType.Dword, false);
-                ListenerSocket.OnError += OnError;
-                ListenerSocket.OnAccept += OnAccept;
-                ListenerSocket.Bind(new IPEndPoint(IPAddress.Any, Config.GameConfig.Port));
-                ListenerSocket.Listen(Config.GameConfig.Backlog);
-            }
-            catch (Exception e)
-            {
-                Logger.WriteLog(LogType.Error, "Unable to create or start listening on the client socket! Exception:");
-                Logger.WriteLog(LogType.Error, e);
-                throw;
-            }
+            // A port in use, or one this account may not bind, is reported by ServerStartupLifecycle
+            // with the step it failed at.
+            ListenerSocket = new LengthedSocket(SizeType.Dword, false);
+            ListenerSocket.OnError += OnError;
+            ListenerSocket.OnAccept += OnAccept;
+            ListenerSocket.Bind(new IPEndPoint(IPAddress.Any, Config.GameConfig.Port));
+            ListenerSocket.Listen(Config.GameConfig.Backlog);
         }
 
         private void RegisterLoginAndQueue()
