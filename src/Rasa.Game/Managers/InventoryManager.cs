@@ -146,9 +146,8 @@ namespace Rasa.Managers
             if (tempItem == null)
                 return;
 
+            // All of a stack destroyed deletes the item (ReduceStackCount).
             ReduceStackCount(client, InventoryType.HomeInventory, tempItem, packet.Quantity);
-
-            // ToDo delete item from db? or we sill keep all items
         }
 
         public void HomeInventory_MoveItem(Client client, HomeInventory_MoveItemPacket packet)
@@ -212,9 +211,8 @@ namespace Rasa.Managers
             if (tempItem == null)
                 return;
 
+            // All of a stack destroyed deletes the item (ReduceStackCount).
             ReduceStackCount(client, InventoryType.Personal, tempItem, packet.Quantity);
-
-            // ToDo delete item from db? or we sill keep all items
         }
 
         public void PersonalInventory_MoveItem(Client client, PersonalInventory_MoveItemPacket packet)
@@ -2004,8 +2002,8 @@ namespace Rasa.Managers
         }
 
         /// <summary>
-        /// Removes a merged-away item from the database: its inventory row first, then the item
-        /// row. The item row alone used to be deleted here, and the caller was expected to
+        /// Removes an item that is gone - merged away, used up, destroyed - from the database:
+        /// its inventory row first, then the item row. The item row alone used to be deleted here, and the caller was expected to
         /// delete the inventory row afterwards - by slot, with a character id that is not
         /// written consistently, and after a call that threw. Nothing in the schema stops a
         /// character_inventory or clan_inventory row from pointing at an item that no longer
@@ -3080,15 +3078,17 @@ namespace Rasa.Managers
             // emptying it.
             if (stackDecreaseCount >= tempItem.StackSize)
             {
+                // Used up or destroyed: the item is gone, its rows with it - the inventory row by
+                // item id (its character id has been written as the character id, the account's
+                // selected slot or 0 depending on which path stored it) and the items row. The
+                // items row used to be left behind for a recovery nothing offered, referenced by
+                // nothing. Deleted before anything in memory changes, so a write that fails
+                // leaves the stack where it was.
+                DeleteItemRows(unitOfWork, tempItem);
+
                 EntityManager.Instance.DestroyPhysicalEntity(client, tempItem.EntityId, EntityType.Item);
                 client.CallMethod(SysEntity.ClientInventoryManagerId, new InventoryRemoveItemPacket(inventoryType, tempItem.EntityId));
                 FreeSlotIndex(client.Player, inventoryType, (uint)slotId);
-
-                // By item id: the row's character id has been written as the character id, the
-                // account's selected slot or 0 depending on which path stored it.
-                unitOfWork.CharacterInventories.DeleteInvItemByItemId(tempItem.Id);
-                // ToDo will we delete items from db, or we will let tham stay, so thay can be retrived
-                //ItemsTable.DeleteItem(tempItem.ItemId);
             }
             else
             {
