@@ -235,7 +235,7 @@ namespace Rasa.Game
         /// backlog passes MaxPendingBytes, is disconnected. The real client sends a handful of
         /// packets a tick - movement at most every one - so this is far above anything it does.
         /// </summary>
-        private const int MaxPacketsPerTick = 64;
+        internal const int MaxPacketsPerTick = 64;
 
 
         private static PacketRouter<ClientPacketHandler, GameOpcode> PacketRouter { get; } = new PacketRouter<ClientPacketHandler, GameOpcode>();
@@ -298,35 +298,36 @@ namespace Rasa.Game
                     return;
                 }
 
-                var handled = 0;
+                var closed = false;
 
-                foreach (var protocolPacket in DecodeIncomingPackets())
+                ReadIncomingPackets(protocolPacket =>
                 {
-                    // Stopping the enumeration leaves everything after this packet in the stream.
-                    if (++handled > MaxPacketsPerTick)
-                        break;
-
                     try
                     {
                         HandleProtocolPacket(protocolPacket);
+                        return true;
                     }
                     catch (InvalidClientMessageException)
                     {
                         Close();
-                        return;
                     }
                     catch (Exception e)
                     {
                         Logger.WriteLog(LogType.Error, $"Error handling {protocolPacket.Type} from {Socket.RemoteAddress}, disconnecting client: {e}");
                         Close();
-                        return;
                     }
-                }
+
+                    closed = true;
+                    return false;
+                });
+
+                if (closed)
+                    return;
             }
             catch (Exception e)
             {
-                // DecodeIncomingPackets() can throw while advancing the iterator (desynced
-                // or malformed stream), which the inner try above would never see.
+                // Decoding can throw (a desynced or malformed stream), which the handler's own
+                // try above never sees.
                 Logger.WriteLog(LogType.Error, $"Error decoding packet stream from {Socket.RemoteAddress}, disconnecting client: {e}");
                 Close();
                 return;
@@ -1263,16 +1264,34 @@ namespace Rasa.Game
             _incomingDataQueue.Dispose();
         }
 
-        private IEnumerable<ProtocolPacket> DecodeIncomingPackets()
+        /// <summary>
+        /// Takes this tick's packets off the inbound stream and hands each to
+        /// <paramref name="handle"/>, at most MaxPacketsPerTick of them, until the stream holds
+        /// no complete frame or the handler returns false. What is left waits in the stream.
+        ///
+        /// The limit is checked before a frame is taken. It used to be checked after: the
+        /// 65th packet had been read out of the stream, and its sequence accepted, when the
+        /// loop stopped, so it was lost - not handled this tick and not there for the next.
+        /// A StopAutoFire lost that way left the server firing.
+        ///
+        /// A frame dropped as it is read (out of order, or the untyped send-timeout check) is
+        /// not counted and does not stop the loop: it used to come back as "no more data", and
+        /// everything behind it waited for the next tick.
+        /// </summary>
+        internal void ReadIncomingPackets(Func<ProtocolPacket, bool> handle)
         {
-            // A skipped packet (out of order, or the untyped send-timeout check) used to come
-            // back as null too, which read as "no more data" and ended the loop for the tick;
-            // everything queued behind it waited for the next one, 100 ms later, and a stream
-            // with a skipped packet in every tick fell further behind on each. Skips now
-            // continue and only an incomplete frame stops.
-            while (TryDecodeNextPacket(out var packet))
-                if (packet != null)
-                    yield return packet;
+            var handled = 0;
+
+            while (handled < MaxPacketsPerTick && TryDecodeNextPacket(out var packet))
+            {
+                if (packet == null)
+                    continue;
+
+                handled++;
+
+                if (!handle(packet))
+                    return;
+            }
         }
 
         /// <returns>
