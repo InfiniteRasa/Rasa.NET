@@ -165,6 +165,9 @@ namespace Rasa.Game
         /// <summary>Whether this connection has been sent the message of the day (Managers.MessageOfTheDay).</summary>
         internal bool MotdSent { get; set; }
 
+        /// <summary>The clan feud challenges this connection has been put, by wargame id (Managers.ClanFeuds.Invite).</summary>
+        internal HashSet<uint> FeudChallengesShown { get; } = new HashSet<uint>();
+
         /// <summary>
         /// Whether the account's friends have been told this character is in the world
         /// (FriendLoggedIn), from entering it until leaving it. While it is set, arriving on a

@@ -103,9 +103,6 @@ namespace Rasa.Managers
 
             /// <summary>The character who made the challenge.</summary>
             public uint ChallengerCharacterId { get; set; }
-
-            /// <summary>Read back at startup: the challenged leader's client has not been told of it since.</summary>
-            public bool Restored { get; set; }
         }
 
         /// <summary>Where feuds and challenges are kept through a restart.</summary>
@@ -156,9 +153,6 @@ namespace Rasa.Managers
         private readonly List<Challenge> _challenges = new List<Challenge>();
         private readonly Dictionary<uint, Feud> _feuds = new Dictionary<uint, Feud>();
         private uint _nextId = 1;
-
-        /// <summary>The restored challenges each leader has been reminded of: (wargame id, character id).</summary>
-        private readonly HashSet<(uint, uint)> _reminded = new HashSet<(uint, uint)>();
 
         /// <summary>Where feuds and challenges are kept; null keeps nothing. Set by <see cref="Load"/>.</summary>
         public IStore Store { get; private set; }
@@ -289,10 +283,24 @@ namespace Rasa.Managers
 
             Say(client, PlayerMessage.PmWargameFeudYouChallenged, ("clan", target.Name));
 
-            targetLeader.CallMethod(SysEntity.ClientWargameManagerId, new ClanWargameInviteReceivedPacket(challenge.WargameId, own.Name));
+            Invite(targetLeader, challenge, own.Name);
 
             foreach (var member in _clans.Online(target.Id))
                 Say(member, PlayerMessage.PmWargameFeudYouveBeenChallenged, ("inviterClan", own.Name));
+        }
+
+        /// <summary>
+        /// The challenge put to a leader of the challenged clan: the indicator on their status
+        /// bar (ClanWargameInviteReceived), once per connection. The indicator lives in their
+        /// client and is lost with it, so a leader who logs in while the challenge stands is
+        /// given it again (PlayerEnteredWorld); one changing maps keeps it, and is not.
+        /// </summary>
+        private static void Invite(Client leader, Challenge challenge, string challengerName)
+        {
+            if (!leader.FeudChallengesShown.Add(challenge.WargameId))
+                return;
+
+            leader.CallMethod(SysEntity.ClientWargameManagerId, new ClanWargameInviteReceivedPacket(challenge.WargameId, challengerName));
         }
 
         /// <summary>FeudChallengeResponse: the challenged leader's Accept or Cancel.</summary>
@@ -712,26 +720,28 @@ namespace Rasa.Managers
             foreach (var feud in FeudsOf(clanId))
                 SendFeud(client, feud);
 
-            RemindOfRestoredChallenges(client, clanId);
+            RemindOfChallenges(client, clanId);
         }
 
         /// <summary>
-        /// A challenge read back at startup, to the challenged clan's leader once: their client
-        /// lost its indicator with the restart. A challenge made since was put to them as it was made.
+        /// Every challenge still standing against the player's clan, to the player if they are
+        /// one of its leaders and this connection has not had it (<see cref="Invite"/>): one
+        /// read back at a restart, one made while they were away, or one made while they were
+        /// on and lost with their last client. Until they had it, the challenger met "you have
+        /// already invited" and nobody could answer.
         /// </summary>
-        private void RemindOfRestoredChallenges(Client client, uint clanId)
+        private void RemindOfChallenges(Client client, uint clanId)
         {
             if (clanId == 0 || !IsLeader(client, clanId))
                 return;
 
-            List<Challenge> due;
+            List<Challenge> standing;
 
             lock (_sync)
-                due = _challenges.Where(c => c.Restored && c.TargetClanId == clanId && _reminded.Add((c.WargameId, client.Player.Id))).ToList();
+                standing = _challenges.Where(c => c.TargetClanId == clanId).ToList();
 
-            foreach (var challenge in due)
-                client.CallMethod(SysEntity.ClientWargameManagerId,
-                    new ClanWargameInviteReceivedPacket(challenge.WargameId, _clans.Find(challenge.ChallengerClanId)?.Name ?? ""));
+            foreach (var challenge in standing)
+                Invite(client, challenge, _clans.Find(challenge.ChallengerClanId)?.Name ?? "");
         }
 
         /// <summary>A player has just joined a clan: into its feuds, and out of any squad that now mixes feuding clans.</summary>
@@ -927,8 +937,7 @@ namespace Rasa.Managers
                         WargameId = row.WargameId,
                         ChallengerClanId = row.ChallengerClanId,
                         TargetClanId = row.TargetClanId,
-                        ChallengerCharacterId = row.ChallengerCharacterId,
-                        Restored = true
+                        ChallengerCharacterId = row.ChallengerCharacterId
                     });
                 }
 
