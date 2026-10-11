@@ -327,6 +327,57 @@ namespace Rasa.Test.World
                 packet.Message is CallMethodMessage call && call.Packet is TeleportArrivalPacket));
         }
 
+        // BR-204: the origin's window used to be closed by its own proximity worker once the
+        // player was seen to be gone, and when the destination came first in the map's list that
+        // was after the destination had opened its window: ExitedWaypoint, which names no
+        // waypoint, closed the window the player had just arrived to.
+        [TestMethod]
+        public void ArrivingAtAWaypointListedBeforeTheOriginLeavesItsWindowOpen()
+        {
+            using var world = new WorldTestContext();
+            var client = world.CreateClient();
+            CellManager.Instance.AddToWorld(client);
+            var manager = CreateManager(world);
+            var destination = AddWaypoint(manager, world.Map, 20, new Vector3(200, 5, 0));
+            var origin = AddWaypoint(manager, world.Map, 10, Vector3.Zero);
+            foreach (var waypoint in new[] { destination, origin })
+            {
+                waypoint.RuntimeMapChannel = world.Map;
+                waypoint.DynamicObjectType = DynamicObjectType.Waypoint;
+            }
+            client.Player.GainedWaypoints.Add(new CharacterTeleporterEntry(client.Player.Id, 20, (byte)WaypointType.Waypoint));
+
+            void Proximity()
+            {
+                foreach (var waypoint in world.Map.Teleporters.Values)
+                    manager.DynamicObjectProximityWorker(world.Map, waypoint, 1000);
+            }
+
+            Proximity();
+            Assert.IsTrue(origin.TriggeredByPlayers.Contains(client), "the window at the origin");
+            WorldTestContext.Drain(client);
+
+            manager.SelectWaypoint(client, new SelectWaypointPacket { MapInstanceId = world.Map.MapInfo.MapContextId, WaypointId = 20 });
+
+            // Closed as they go, once.
+            Assert.IsFalse(origin.TriggeredByPlayers.Contains(client));
+            Assert.AreEqual(1, Sent(client).OfType<ExitedWaypointPacket>().Count());
+
+            manager.TeleportAcknowledge(client);
+            WorldTestContext.Drain(client);
+
+            // The destination's worker before the origin's, as the map lists them.
+            Proximity();
+
+            var arrived = Sent(client);
+            Assert.AreEqual(20u, arrived.OfType<EnteredWaypointPacket>().Single().CurrentWaypointId);
+            Assert.IsFalse(arrived.OfType<ExitedWaypointPacket>().Any(), "the window just opened stays open");
+            Assert.IsTrue(destination.TriggeredByPlayers.Contains(client));
+        }
+
+        private static System.Collections.Generic.List<Rasa.Packets.PythonPacket> Sent(Client client) =>
+            WorldTestContext.Drain(client).Select(p => p.Message).OfType<CallMethodMessage>().Select(p => p.Packet).ToList();
+
         internal static DynamicObjectManager CreateManager(WorldTestContext world,
             Action<Client, CharacterUpdate, object> update = null, Func<long> clock = null)
         {

@@ -1940,6 +1940,7 @@ namespace Rasa.Managers
             var rotation = transfer.DestinationRotation;
 
             transfer.DepartAt = 0;
+            CloseWaypointWindows(client, transfer.OriginMap);
             client.State = ClientState.Teleporting;
             client.SetWorldPosition(destination, rotation);
             CellManager.Instance.UpdateVisibility(client);
@@ -1965,6 +1966,32 @@ namespace Rasa.Managers
             client.CallMethod(SysEntity.ClientMethodId, new BeginTeleportPacket());
             client.CallMethod(client.Player.EntityId,
                 new TeleportPacket(destination, rotation, TeleportType.Default, TeleportDelayMs));
+        }
+
+        /// <summary>
+        /// The waypoint, wormhole or Personal Waypoint window the player is leaving by local
+        /// travel, closed as they go: they are taken off the lists of who is at each, and their
+        /// client is told once (ExitedWaypoint).
+        ///
+        /// They were left on the origin's list, for its proximity worker to take them off once
+        /// they were seen to be gone. When that came after the arrival, it did so after the
+        /// destination's worker had opened its window, in the same pass if the destination
+        /// came first in the map's list - and ExitedWaypoint, which names no waypoint, closed
+        /// the window just opened. So in one direction of every pair of waypoints on a map, and
+        /// of wormholes on the same map, the player arrived with no window.
+        /// </summary>
+        private static void CloseWaypointWindows(Client client, MapChannel map)
+        {
+            var closed = false;
+
+            if (map != null)
+                foreach (var teleporter in map.Teleporters.Values)
+                    closed |= teleporter.TriggeredByPlayers.Remove(client);
+
+            closed |= PersonalWaypoints.CloseWindow(map, client);
+
+            if (closed)
+                client.CallMethod(SysEntity.ClientMethodId, new ExitedWaypointPacket());
         }
 
         /// <summary>
