@@ -543,7 +543,7 @@ absolute database base path avoids choosing different files when launching from
 different working directories. No preexisting World file or publication script
 is required.
 
-To access a MySql server with EF Core, set `Provider` to `MySql`. You need to provide host, port, database, user, password and timeout in the config file. Keep in mind that we fall back to the values in databasesettings.json, if your enviroment file does not overwrite a value. For MySql, you have to apply any pending migrations yourself. See "Applying migrations" for a quick start.
+To access a MySql server with EF Core, set `Provider` to `MySql`. You need to provide host, port, database, user, password and timeout in the config file. Keep in mind that we fall back to the values in databasesettings.json, if your enviroment file does not overwrite a value. For MySql, you have to apply any pending migrations yourself. See "Applying migrations" for a quick start. At startup each server checks its MySql databases and logs an error naming the migrations one has not had; it starts anyway, and what those migrations add fails when it is used.
 
 If you want to add additional migrations as part of a feature, see "Creating migrations".
 
