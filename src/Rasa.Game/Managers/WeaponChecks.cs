@@ -82,8 +82,12 @@ namespace Rasa.Managers
         }
 
         /// <summary>
-        /// The first finding about a shot from the player at the target with a weapon of this
+        /// What the checks find about a shot from the player at the target with a weapon of this
         /// range, or null. <paramref name="cover"/> is the map's cover mesh, null for none.
+        ///
+        /// Every check is made: one that only logs does not stand in for one that refuses (BR-225;
+        /// a long shot's range finding, logged by default, used to hide facing and sight). The
+        /// finding is the first that refuses, else the first; its line names the others too.
         /// </summary>
         public static Finding? Judge(Manifestation player, Actor target, float range, Navigation.CoverMesh cover)
         {
@@ -92,30 +96,45 @@ namespace Rasa.Managers
 
             var config = Config ?? new WeaponChecksConfig();
             var distance = Vector3.Distance(player.Position, target.Position);
+            var found = new List<Finding>();
 
             if (Mode(config.Range) != MovementChecksConfig.Off && range > 0)
             {
                 var reach = range * (float)RangeFalloff.FarMultiple + RangeSlack;
 
                 if (!float.IsFinite(distance) || distance > reach)
-                    return new Finding(Check.Range, $"at {target.EntityId} {distance:F0} m away with a weapon of range {range:F0}",
-                        Mode(config.Range) == MovementChecksConfig.Refuse);
+                    found.Add(new Finding(Check.Range, $"{distance:F0} m away with a weapon of range {range:F0}",
+                        Mode(config.Range) == MovementChecksConfig.Refuse));
             }
 
             if (Mode(config.Facing) != MovementChecksConfig.Off && !IsFacing(player, target.Position, FacingHalfAngle))
-                return new Finding(Check.Facing, $"at {target.EntityId}, {AngleTo(player, target.Position):F0} degrees from where they face",
-                    Mode(config.Facing) == MovementChecksConfig.Refuse);
+                found.Add(new Finding(Check.Facing, $"{AngleTo(player, target.Position):F0} degrees from where they face",
+                    Mode(config.Facing) == MovementChecksConfig.Refuse));
 
             if (Mode(config.Sight) != MovementChecksConfig.Off && cover != null && distance > SightMinDistance)
             {
                 var eye = Cover.EyeOf(player);
 
                 if (Cover.Visible(cover, eye, Cover.SamplePoints(target, eye)) <= 0)
-                    return new Finding(Check.Sight, $"at {target.EntityId} {distance:F0} m away, wholly behind cover",
-                        Mode(config.Sight) == MovementChecksConfig.Refuse);
+                    found.Add(new Finding(Check.Sight, $"{distance:F0} m away, wholly behind cover",
+                        Mode(config.Sight) == MovementChecksConfig.Refuse));
             }
 
-            return null;
+            if (found.Count == 0)
+                return null;
+
+            var first = found.Find(finding => finding.Refuse);
+
+            if (!first.Refuse)
+                first = found[0];
+
+            var others = found.FindAll(finding => finding.Check != first.Check);
+            var what = $"at {target.EntityId}, {first.What}";
+
+            foreach (var other in others)
+                what += $"; also {other.What}{(other.Refuse ? "" : " (log)")}";
+
+            return new Finding(first.Check, what, first.Refuse);
         }
 
         /// <summary>Whether the point is within the half-angle of the way the actor faces, over the ground. Standing on it counts as facing it.</summary>

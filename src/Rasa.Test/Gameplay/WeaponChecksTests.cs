@@ -96,6 +96,40 @@ namespace Rasa.Test.Gameplay
         }
 
         [TestMethod]
+        public void ALoggedRangeFindingDoesNotHideARefusingOne()
+        {
+            using var world = new WorldTestContext();
+            var player = world.CreateClient().Player;
+            var target = world.CreateClient().Player;
+            player.Rotation = 0;
+
+            // 200 m behind: past an 80 m weapon's reach, and behind.
+            target.Position = new Vector3(0, 0, 200);
+
+            var logged = WeaponChecks.Judge(player, target, 80, null);
+            Assert.AreEqual(WeaponChecks.Check.Range, logged.Value.Check, "both log: the first");
+            Assert.IsFalse(logged.Value.Refuse);
+            StringAssert.Contains(logged.Value.What, "degrees from where they face (log)", "the line names the other");
+
+            WeaponChecks.Config = new WeaponChecksConfig { Facing = "refuse" };
+            var refused = WeaponChecks.Judge(player, target, 80, null);
+            Assert.AreEqual(WeaponChecks.Check.Facing, refused.Value.Check, "range on log no longer stands in for facing (BR-225)");
+            Assert.IsTrue(refused.Value.Refuse);
+            StringAssert.Contains(refused.Value.What, "with a weapon of range 80 (log)");
+
+            // Both refuse: range, which has a message for the player.
+            WeaponChecks.Config = new WeaponChecksConfig { Facing = "refuse", Range = "refuse" };
+            Assert.AreEqual(WeaponChecks.Check.Range, WeaponChecks.Judge(player, target, 80, null).Value.Check);
+
+            // Wholly behind a wall as well, with sight refusing alone.
+            var wall = CoverMesh.Build(new float[] { -10, 0, 10, -10, 10, 10, 10, 10, 10, 10, 0, 10 }, new[] { 0, 1, 2, 0, 2, 3 });
+            WeaponChecks.Config = new WeaponChecksConfig { Sight = "refuse" };
+            var hidden = WeaponChecks.Judge(player, target, 80, wall);
+            Assert.AreEqual(WeaponChecks.Check.Sight, hidden.Value.Check);
+            Assert.IsTrue(hidden.Value.Refuse);
+        }
+
+        [TestMethod]
         public void WhollyBehindCoverIsLoggedAndPartlyIsNot()
         {
             using var world = new WorldTestContext();
@@ -186,6 +220,23 @@ namespace Rasa.Test.Gameplay
             context.Client.Player.Rotation = System.Math.PI;
             Assert.IsTrue(manager.PlayerTryFireWeapon(context.Client));
             Assert.AreEqual(5u, context.Weapon.CurrentAmmo);
+        }
+
+        [TestMethod]
+        public void ALongShotBehindIsNotFiredWhenFacingRefuses()
+        {
+            WeaponChecks.Config = new WeaponChecksConfig { Facing = "refuse" };
+
+            using var context = new WeaponAmmoContext();
+            var manager = new ManifestationManager(context);
+            var target = context.World.CreateClient(0, 200).Player;
+            context.Client.Player.Rotation = 0;
+            context.Client.Player.Target = target.EntityId;
+            OutOfRangeMessages(context.Client);
+
+            Assert.IsFalse(manager.PlayerTryFireWeapon(context.Client), "past reach on log, and behind on refuse");
+            Assert.AreEqual(7u, context.Weapon.CurrentAmmo);
+            Assert.AreEqual(0, OutOfRangeMessages(context.Client), "facing has no message");
         }
 
         [TestMethod]
