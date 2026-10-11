@@ -1323,6 +1323,9 @@ namespace Rasa.Managers
 
             client.Player.CombatExpiresAt = Environment.TickCount64 + CombatRegen.CombatTimeoutMs;
 
+            // A logout waiting on its countdown starts it again: it has to run out of a fight.
+            MapChannelManager.FoughtDuringLogout(client, Environment.TickCount64);
+
             if (client.Player.InCombat)
                 return;
 

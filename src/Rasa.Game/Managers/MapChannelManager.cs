@@ -109,6 +109,41 @@ namespace Rasa.Managers
         /// </summary>
         public const int LogoutPendingGraceMs = 1000;
 
+        /// <summary>
+        /// The least time between two restarts of a logout countdown by a fight (FoughtDuringLogout):
+        /// a held trigger or a damage over time is a combat event every tick, and each restart is a
+        /// LogoutTimeRemaining to the client.
+        /// </summary>
+        public const int LogoutRestartGapMs = 1000;
+
+        /// <summary>
+        /// A fight while a logout is requested and not yet under way (ManifestationManager.EnterCombat,
+        /// from dealing damage or taking it): the countdown starts again, and the client is sent
+        /// the fresh one, which disables the window's Logout button until it has run.
+        ///
+        /// The request used to stand for as long as nobody cancelled it, and CharacterLogout asked
+        /// only that the countdown had once run. A client that requested a logout and hid the window
+        /// without cancelling played on - with no restriction once the countdown was over (BR-189)
+        /// - and could leave whenever it liked afterwards, at once, in the middle of a fight. Now
+        /// the countdown has to run without a fight in it, as the window shows.
+        ///
+        /// Restarted at most once per LogoutRestartGapMs, and the server's own clock restarted only
+        /// when the client's is, so the two agree on when the Logout button may be pressed.
+        /// </summary>
+        public static void FoughtDuringLogout(Client client, long now)
+        {
+            var player = client?.Player;
+
+            if (player == null || !player.LogoutActive || player.RemoveFromMap || client.State != ClientState.Ingame)
+                return;
+
+            if (now - player.LogoutRequestedTick < LogoutRestartGapMs)
+                return;
+
+            player.LogoutRequestedTick = now;
+            client.CallMethod(SysEntity.ClientMethodId, new LogoutTimeRemainingPacket(LogoutDelayMs));
+        }
+
         public void CharacterLogout(Client client)
         {
             // Nothing requested, or the request was cancelled.
@@ -117,7 +152,8 @@ namespace Rasa.Managers
 
             // The delay used to be advisory - enforced only by the client's disabled button - so a
             // client that skipped the countdown could leave instantly, mid-fight. Refuse it until
-            // the countdown the server announced has actually run.
+            // the countdown the server announced has actually run, from the request or from the
+            // last fight in it (FoughtDuringLogout).
             var waited = Environment.TickCount64 - client.Player.LogoutRequestedTick;
 
             if (waited < LogoutDelayMs - LogoutDelayToleranceMs)
