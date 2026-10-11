@@ -138,8 +138,10 @@ namespace Rasa.Test.World
 
             // The Pravus Research chamber, and a use of it refused as the client would put it.
             var pravus = On(world, Channel(MapUsables.PravusResearch, "adv_foreas_concordia_wilderness_pravusresearch"));
-            Assert.AreEqual(1, MapUsables.PlayerEnteredMap(pravus));
-            Assert.AreEqual((133981504835290UL, UseObjectState.IdesStateIntact), (States(pravus).Single().EntityId, MapUsables.StateOf(pravus.Player.MapChannel, chambers[0])));
+            // Its six Bane teleporters go with it.
+            Assert.AreEqual(7, MapUsables.PlayerEnteredMap(pravus));
+            Assert.AreEqual(UseObjectState.IdesStateIntact, States(pravus).Single(state => state.EntityId == 133981504835290UL).Packet.State);
+            Assert.AreEqual(UseObjectState.IdesStateIntact, MapUsables.StateOf(pravus.Player.MapChannel, chambers[0]));
 
             pravus.Player.Position = new Vector3(224, 7.6f, 42);
             Assert.IsTrue(MapUsables.TryRequestUse(pravus, Use(133981504835290UL)));
@@ -417,5 +419,102 @@ namespace Rasa.Test.World
 
         private static PlayerMessage? Refusal(Rasa.Game.Client client) =>
             Sent(client).Select(sent => sent.Packet).OfType<UserActionFailedPacket>().Single().MsgId;
+
+        [TestMethod]
+        public void TheLastTwoStateSwitchesAreSentTheirStates()
+        {
+            var expected = new[]
+            {
+                (Class: MapUsables.BaneTeleporter, Map: MapUsables.MinosCaverns, Count: 11, State: UseObjectState.TsState1),
+                (Class: MapUsables.BaneTeleporter, Map: MapUsables.DevilsDen, Count: 14, State: UseObjectState.TsState1),
+                (Class: MapUsables.BaneTeleporter, Map: MapUsables.PravusResearch, Count: 6, State: UseObjectState.TsState1),
+                (Class: MapUsables.BaneTeleporter, Map: MapUsables.Thunderhead, Count: 1, State: UseObjectState.TsState0),
+                (Class: MapUsables.BaneTeleporter, Map: MapUsables.Incline, Count: 1, State: UseObjectState.TsState0),
+                (Class: MapUsables.HumanTeleporter, Map: MapUsables.Thunderhead, Count: 4, State: UseObjectState.TsState1),
+                (Class: MapUsables.ElohTemplesSpawner, Map: MapUsables.ElohTemples, Count: 19, State: UseObjectState.TsState1),
+                (Class: MapUsables.LogosStoneAnalyzer, Map: MapUsables.MinosCaverns, Count: 1, State: UseObjectState.TsState1),
+                (Class: MapUsables.LogosStoneAnalyzer, Map: MapUsables.DevilsDen, Count: 1, State: UseObjectState.TsState1),
+            };
+
+            using var world = new WorldTestContext();
+
+            foreach (var (classId, map, count, state) in expected)
+            {
+                var usables = MapUsables.All.Where(usable => usable.ClassId == classId && usable.MapContextId == map).ToList();
+                Assert.HasCount(count, usables, $"{classId} on {map}");
+                Assert.IsTrue(usables.All(usable => usable.State == state && usable.UsedState == null), $"{classId} on {map}");
+
+                var client = On(world, Channel(map, "fixture"));
+                MapUsables.PlayerEnteredMap(client);
+                var sent = States(client).Where(sentState => usables.Any(usable => usable.EntityId == sentState.EntityId)).ToList();
+                Assert.HasCount(count, sent);
+                Assert.IsTrue(sent.All(sentState => sentState.Packet.State == state));
+            }
+
+            Assert.HasCount(33, MapUsables.All.Where(usable => usable.ClassId == MapUsables.BaneTeleporter));
+
+            // The human teleporters disabled are the four on the deck at 383 m, none at a local
+            // teleporter of the server's (teleporter 542-548, Thunderhead Base, 339-377 m); the six
+            // that are stay unsent, in their working mesh.
+            var localTeleporters = new[]
+            {
+                new Vector3(564.7417f, 342.2656f, -432.0273f), new Vector3(575.875f, 342.2656f, -421.0664f),
+                new Vector3(636.8945f, 339.1836f, -506.9843f), new Vector3(650.9922f, 339.1836f, -493.1055f),
+                new Vector3(690.0898f, 385.8398f, -399.0f), new Vector3(633.0703f, 376.6836f, -605.8008f),
+                new Vector3(643.6367f, 376.6836f, -595.332f)
+            };
+
+            foreach (var disabled in MapUsables.All.Where(usable => usable.ClassId == MapUsables.HumanTeleporter))
+            {
+                Assert.AreEqual(383f, disabled.Position.Y, 0.01f, disabled.ToString());
+                Assert.IsTrue(localTeleporters.All(at => Vector3.Distance(at, disabled.Position) > 5f), disabled.ToString());
+            }
+        }
+
+        [TestMethod]
+        public void TheDellComputersAreSentOnAndAUseTurnsOneOffForEveryoneAndOnAgain()
+        {
+            var computers = MapUsables.All.Where(usable => usable.ClassId is MapUsables.DellNotebook or MapUsables.DellTower).ToList();
+
+            Assert.HasCount(16, computers);
+            Assert.HasCount(14, computers.Where(usable => usable.MapContextId == MapUsables.Abyss));
+            Assert.HasCount(1, computers.Where(usable => usable.MapContextId == MapUsables.Mires));
+            Assert.HasCount(1, computers.Where(usable => usable.MapContextId == MapUsables.TordenPlains));
+            Assert.IsTrue(computers.All(usable => usable.State == UseObjectState.TsState1 && usable.UsedState == UseObjectState.TsState0));
+
+            using var world = new WorldTestContext();
+            var abyss = Channel(MapUsables.Abyss, "adv_arieki_torden_abyss");
+            var computer = computers.First(usable => usable.MapContextId == MapUsables.Abyss);
+            var user = On(world, abyss);
+            user.Player.Position = computer.Position + new Vector3(1.5f, 0, 0);
+            var other = On(world, abyss);
+            other.Player.Position = computer.Position + new Vector3(250f, 0, 0);
+
+            MapUsables.PlayerEnteredMap(user);
+            var arrived = States(user).Where(sent => computers.Any(usable => usable.EntityId == sent.EntityId)).ToList();
+            Assert.HasCount(14, arrived);
+            Assert.IsTrue(arrived.All(sent => sent.Packet.State == UseObjectState.TsState1), "screens on");
+
+            Assert.IsTrue(MapUsables.TryRequestUse(user, Use(computer.EntityId)));
+            Assert.AreEqual(ActionId.UseObject, Sent(user).Select(sent => sent.Packet).OfType<PerformWindupPacket>().Single().ActionId);
+            Recover(abyss);
+
+            Assert.AreEqual(UseObjectState.TsState0, MapUsables.StateOf(abyss, computer), "off");
+            Assert.AreEqual((computer.EntityId, UseObjectState.TsState0), (Uses(other).Single().EntityId, Uses(user).Single().Packet.CurState));
+
+            Assert.IsTrue(MapUsables.TryRequestUse(user, Use(computer.EntityId)));
+            Recover(abyss);
+            Assert.AreEqual(UseObjectState.TsState1, MapUsables.StateOf(abyss, computer), "on again");
+            Assert.AreEqual(UseObjectState.TsState1, Uses(other).Single().Packet.CurState);
+
+            // The rest, used by nobody, are left as they were sent.
+            var bane = MapUsables.All.First(usable => usable.ClassId == MapUsables.BaneTeleporter);
+            var minos = Channel(bane.MapContextId, "adv_foreas_concordia_divide_minoscaverns");
+            var looker = On(world, minos);
+            looker.Player.Position = bane.Position + new Vector3(1f, 0, 0);
+            Assert.IsTrue(MapUsables.TryRequestUse(looker, Use(bane.EntityId)));
+            Recover(minos);
+            Assert.AreEqual(UseObjectState.TsState1, MapUsables.StateOf(minos, bane));
+        }
     }
 }

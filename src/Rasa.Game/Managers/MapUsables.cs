@@ -121,6 +121,29 @@ namespace Rasa.Managers
     ///
     /// The tables, chambers, drills and coils can be destroyed by players and come back
     /// (WorldDestructibles); their state on a channel follows (SetState).
+    ///
+    /// The last two-state switches the .maps place with something in a state (augmentation 9:
+    /// USE_TS_STATE_0 55, USE_TS_STATE_1 56; usabledata.specialFX and alternateMesh):
+    ///  - UsableTwoStateBaneTeleporterV01 (8044): its base mesh, arch_bane_teleporter_v01.geo,
+    ///    with arch_bane_teleporter_v01.pkg, the teleporter running, in 56; in 55 the dark
+    ///    arch_bane_teleporter_v01_off.geo. Thirty-three, none on a teleport of the server's:
+    ///    56 in the Bane bases (Minos Caverns 11, Devil's Den 14, Pravus Research 6), 55 for the
+    ///    one in Thunderhead and the one on the Incline.
+    ///  - UsableTwoStateHumTeleporter (7895): arch_hum_teleporter.geo as it stands, and in 56
+    ///    arch_hum_teleporter_disabled.geo; 55 has nothing. Of Thunderhead Base's ten, six stand
+    ///    where the server's local teleporters are (teleporter 542-545, 547, 548: class 29648, a
+    ///    fifth of a metre off) and keep the working mesh, unsent. The four on the deck above,
+    ///    at 383 m, have none behind them, and are sent 56, disabled. test_nexus2's 39 are left.
+    ///  - UsableTwoStateElohTemplesSpawner (22954): arch_eloh_temples_spawner_on.pkg in 56.
+    ///    Nineteen in the Eloh Temples, on.
+    ///  - UsableTwoStateBaneIndustrialRoomLogosStoneAnalyzer (7241):
+    ///    arch_bane_industrial_room_logosstone_analyzer_on.pkg in 56. One each in Minos Caverns
+    ///    and Devil's Den, on.
+    ///  - The Dell XPS notebook (26498) and tower (26500): prop_hum_computer_dell_xps_off.pkg in
+    ///    55, the screen lit in 56 (..._notebook_v01_on.pkg, ..._tower_v01_on.pkg). Fourteen in
+    ///    the Abyss, one in the Mires, one on Torden Plains, on. Their classes are targetable
+    ///    (entityclass target flag 1), so the client offers Use, and a use turns one off or on
+    ///    again for everyone on the map, as a fire pit is lit and put out.
     /// </summary>
     public static class MapUsables
     {
@@ -176,6 +199,13 @@ namespace Rasa.Managers
         public const uint TahrendraBase = 2125;         // adv_arieki_torden_mires_tahrendrabase
         public const uint TheRefuge = 2156;             // adv_foreas_valverde_descent_therefuge
         public const uint BrannWaterRefinery = 2093;    // adv_arieki_torden_plains_brannwaterrefinery
+        public const uint MinosCaverns = 1347;          // adv_foreas_concordia_divide_minoscaverns
+        public const uint DevilsDen = 1394;             // adv_foreas_concordia_palisades_devilsden
+        public const uint Incline = 1761;               // adv_arieki_torden_incline
+        public const uint Mires = 1759;                 // adv_arieki_torden_mires
+        public const uint TordenPlains = 1764;          // adv_arieki_torden_plains
+        public const uint ElohTemples = 1803;           // adv_foreas_concordia_palisades_elohtemples
+        public const uint Abyss = 2028;                 // adv_arieki_torden_abyss
 
         public const uint ForeanFirePitV01 = 6137;     // UsableTwoStateForeanFirePitV01
         public const uint ForeanFirePitV03 = 6212;     // UsableTwoStateForeanFirePitV03
@@ -189,6 +219,12 @@ namespace Rasa.Managers
         public const uint BaneMiningCoreDrill = 25263; // UsableTwoStateBaneMiningCoreDrillV01
         public const uint BrannAlarmLight = 24679;     // UsableTwoStateBrannAlarmLightV01
         public const uint BaneTeslaCoil = 3899;        // UsableTeslaCoilBaneV01
+        public const uint BaneTeleporter = 8044;       // UsableTwoStateBaneTeleporterV01
+        public const uint HumanTeleporter = 7895;      // UsableTwoStateHumTeleporter
+        public const uint ElohTemplesSpawner = 22954;  // UsableTwoStateElohTemplesSpawner
+        public const uint LogosStoneAnalyzer = 7241;   // UsableTwoStateBaneIndustrialRoomLogosStoneAnalyzer
+        public const uint DellNotebook = 26498;        // UsableTwoStateHumComputerDellXpsNotebookV01
+        public const uint DellTower = 26500;           // UsableTwoStateHumComputerDellXpsTowerV01
 
         public static readonly IReadOnlyList<Usable> All = new[]
         {
@@ -329,6 +365,90 @@ namespace Rasa.Managers
             Monitor(BurningSteps, 134419591467502, BrannMonitorV01, -189.4679f, 199.7323f, 192.284f, "Burning Steps monitor 2"),
             Monitor(BurningSteps, 134419591467503, BrannMonitorV01, -210.58f, 199.7323f, 192.246f, "Burning Steps monitor 3"),
             Monitor(BurningSteps, 134419591467504, BrannMonitorV01, -220.9307f, 199.7323f, 192.2075f, "Burning Steps monitor 4"),
+
+            // The Bane teleporters: active in the Bane bases of Minos Caverns, Devil's Den and Pravus Research, switched off in Thunderhead and the Incline.
+            Running(MinosCaverns, 133620727550419, BaneTeleporter, UseObjectState.TsState1, 224.5f, 11.2805f, -91.75f, "Minos Caverns Bane teleporter 1"),
+            Running(MinosCaverns, 133620727550420, BaneTeleporter, UseObjectState.TsState1, 224.5f, 11.3124f, -100.25f, "Minos Caverns Bane teleporter 2"),
+            Running(MinosCaverns, 133620727550453, BaneTeleporter, UseObjectState.TsState1, 156.014f, 3.3142f, 152.0728f, "Minos Caverns Bane teleporter 3"),
+            Running(MinosCaverns, 133620727550715, BaneTeleporter, UseObjectState.TsState1, 178.9704f, 3.0f, 63.8991f, "Minos Caverns Bane teleporter 4"),
+            Running(MinosCaverns, 133620727550723, BaneTeleporter, UseObjectState.TsState1, 215.5772f, 11.2f, -63.9974f, "Minos Caverns Bane teleporter 5"),
+            Running(MinosCaverns, 133620727550724, BaneTeleporter, UseObjectState.TsState1, 224.8f, 11.2f, -64.0f, "Minos Caverns Bane teleporter 6"),
+            Running(MinosCaverns, 133620727550730, BaneTeleporter, UseObjectState.TsState1, 186.8294f, 3.6319f, -22.6393f, "Minos Caverns Bane teleporter 7"),
+            Running(MinosCaverns, 133620727550747, BaneTeleporter, UseObjectState.TsState1, 213.9138f, 1.6172f, 106.4332f, "Minos Caverns Bane teleporter 8"),
+            Running(MinosCaverns, 133620727550748, BaneTeleporter, UseObjectState.TsState1, 213.8195f, 1.6561f, 117.689f, "Minos Caverns Bane teleporter 9"),
+            Running(MinosCaverns, 133620727550820, BaneTeleporter, UseObjectState.TsState1, 158.3235f, 3.6077f, 39.121f, "Minos Caverns Bane teleporter 10"),
+            Running(MinosCaverns, 133620727550821, BaneTeleporter, UseObjectState.TsState1, 158.1085f, 3.6077f, 58.7645f, "Minos Caverns Bane teleporter 11"),
+            Running(DevilsDen, 133822591016206, BaneTeleporter, UseObjectState.TsState1, 302.7842f, 129.1017f, 505.733f, "Devil's Den Bane teleporter 1"),
+            Running(DevilsDen, 133822591016207, BaneTeleporter, UseObjectState.TsState1, 302.8708f, 129.0f, 438.2707f, "Devil's Den Bane teleporter 2"),
+            Running(DevilsDen, 133822591016208, BaneTeleporter, UseObjectState.TsState1, 317.1948f, 129.1575f, 462.8693f, "Devil's Den Bane teleporter 3"),
+            Running(DevilsDen, 133822591016209, BaneTeleporter, UseObjectState.TsState1, 316.7856f, 129.1575f, 477.8071f, "Devil's Den Bane teleporter 4"),
+            Running(DevilsDen, 133822591016460, BaneTeleporter, UseObjectState.TsState1, 177.9686f, 143.9858f, 680.1897f, "Devil's Den Bane teleporter 5"),
+            Running(DevilsDen, 133822591016461, BaneTeleporter, UseObjectState.TsState1, 158.1994f, 143.9856f, 699.9169f, "Devil's Den Bane teleporter 6"),
+            Running(DevilsDen, 133822591016462, BaneTeleporter, UseObjectState.TsState1, 178.0263f, 143.9856f, 719.7197f, "Devil's Den Bane teleporter 7"),
+            Running(DevilsDen, 133822591016622, BaneTeleporter, UseObjectState.TsState1, 224.3984f, 143.6f, 694.1672f, "Devil's Den Bane teleporter 8"),
+            Running(DevilsDen, 133822591016869, BaneTeleporter, UseObjectState.TsState1, -108.4758f, 184.1134f, 509.4501f, "Devil's Den Bane teleporter 9"),
+            Running(DevilsDen, 133822591016872, BaneTeleporter, UseObjectState.TsState1, -82.0607f, 181.8f, 500.2865f, "Devil's Den Bane teleporter 10"),
+            Running(DevilsDen, 133822591017187, BaneTeleporter, UseObjectState.TsState1, 194.8186f, 150.8167f, 655.7701f, "Devil's Den Bane teleporter 11"),
+            Running(DevilsDen, 133822591017209, BaneTeleporter, UseObjectState.TsState1, 237.2841f, 143.6f, 690.1017f, "Devil's Den Bane teleporter 12"),
+            Running(DevilsDen, 133822591017212, BaneTeleporter, UseObjectState.TsState1, 220.3609f, 143.6f, 704.5945f, "Devil's Den Bane teleporter 13"),
+            Running(DevilsDen, 133822591017213, BaneTeleporter, UseObjectState.TsState1, 230.1767f, 143.6f, 681.7839f, "Devil's Den Bane teleporter 14"),
+            Running(PravusResearch, 133981504848293, BaneTeleporter, UseObjectState.TsState1, 143.8782f, 9.5727f, 151.4298f, "Pravus Research Bane teleporter 1"),
+            Running(PravusResearch, 133981504848294, BaneTeleporter, UseObjectState.TsState1, 143.8509f, 9.5727f, 184.56f, "Pravus Research Bane teleporter 2"),
+            Running(PravusResearch, 133981504848602, BaneTeleporter, UseObjectState.TsState1, 184.0f, 8.0148f, 128.0f, "Pravus Research Bane teleporter 3"),
+            Running(PravusResearch, 133981504848603, BaneTeleporter, UseObjectState.TsState1, 264.0f, 8.0148f, 128.0f, "Pravus Research Bane teleporter 4"),
+            Running(PravusResearch, 133981504848604, BaneTeleporter, UseObjectState.TsState1, 264.0f, 8.0148f, 208.0f, "Pravus Research Bane teleporter 5"),
+            Running(PravusResearch, 133981504848605, BaneTeleporter, UseObjectState.TsState1, 184.0f, 8.0148f, 208.0f, "Pravus Research Bane teleporter 6"),
+            Running(Incline, 134419591482129, BaneTeleporter, UseObjectState.TsState0, -443.8862f, 250.2645f, -31.8161f, "Incline Bane teleporter 1"),
+            Running(Thunderhead, 134419591464848, BaneTeleporter, UseObjectState.TsState0, 0.0f, 377.3421f, 134.0f, "Thunderhead Bane teleporter 1"),
+
+            // The four human teleporters of Thunderhead Base with no local teleporter behind them, on the deck above the working ones: disabled.
+            Running(Thunderhead, 134419591464289, HumanTeleporter, UseObjectState.TsState1, 653.4601f, 383.0f, -496.3599f, "Thunderhead disabled human teleporter 1"),
+            Running(Thunderhead, 134419591464290, HumanTeleporter, UseObjectState.TsState1, 640.3851f, 383.0f, -509.596f, "Thunderhead disabled human teleporter 2"),
+            Running(Thunderhead, 134419591476322, HumanTeleporter, UseObjectState.TsState1, 659.4149f, 383.0f, -490.4725f, "Thunderhead disabled human teleporter 3"),
+            Running(Thunderhead, 134419591476326, HumanTeleporter, UseObjectState.TsState1, 634.4655f, 383.0f, -515.3791f, "Thunderhead disabled human teleporter 4"),
+
+            // The Eloh temple spawners, on.
+            Running(ElohTemples, 134419591464763, ElohTemplesSpawner, UseObjectState.TsState1, -600.0f, 8.0f, -44.0f, "the Eloh Temples Eloh temple spawner 1"),
+            Running(ElohTemples, 134419591464768, ElohTemplesSpawner, UseObjectState.TsState1, -600.0f, 8.0f, -76.0f, "the Eloh Temples Eloh temple spawner 2"),
+            Running(ElohTemples, 134419591464769, ElohTemplesSpawner, UseObjectState.TsState1, -424.0f, 8.0f, -44.0f, "the Eloh Temples Eloh temple spawner 3"),
+            Running(ElohTemples, 134419591464770, ElohTemplesSpawner, UseObjectState.TsState1, -424.0f, 8.0f, -76.0f, "the Eloh Temples Eloh temple spawner 4"),
+            Running(ElohTemples, 134419591464778, ElohTemplesSpawner, UseObjectState.TsState1, -600.0f, -8.0f, 148.0f, "the Eloh Temples Eloh temple spawner 5"),
+            Running(ElohTemples, 134419591464780, ElohTemplesSpawner, UseObjectState.TsState1, -600.0f, -8.0f, 116.0f, "the Eloh Temples Eloh temple spawner 6"),
+            Running(ElohTemples, 134419591464782, ElohTemplesSpawner, UseObjectState.TsState1, -424.0f, -8.0f, 148.0f, "the Eloh Temples Eloh temple spawner 7"),
+            Running(ElohTemples, 134419591464783, ElohTemplesSpawner, UseObjectState.TsState1, -424.0f, -8.0f, 116.0f, "the Eloh Temples Eloh temple spawner 8"),
+            Running(ElohTemples, 134419591464792, ElohTemplesSpawner, UseObjectState.TsState1, -600.0f, -24.0f, 308.0f, "the Eloh Temples Eloh temple spawner 9"),
+            Running(ElohTemples, 134419591464794, ElohTemplesSpawner, UseObjectState.TsState1, -600.0f, -24.0f, 340.0f, "the Eloh Temples Eloh temple spawner 10"),
+            Running(ElohTemples, 134419591464795, ElohTemplesSpawner, UseObjectState.TsState1, -424.0f, -24.0f, 308.0f, "the Eloh Temples Eloh temple spawner 11"),
+            Running(ElohTemples, 134419591464797, ElohTemplesSpawner, UseObjectState.TsState1, -424.0f, -24.0f, 340.0f, "the Eloh Temples Eloh temple spawner 12"),
+            Running(ElohTemples, 134419591464800, ElohTemplesSpawner, UseObjectState.TsState1, -528.0f, -24.0f, 412.0f, "the Eloh Temples Eloh temple spawner 13"),
+            Running(ElohTemples, 134419591464801, ElohTemplesSpawner, UseObjectState.TsState1, -496.0f, -24.0f, 412.0f, "the Eloh Temples Eloh temple spawner 14"),
+            Running(ElohTemples, 134419591464808, ElohTemplesSpawner, UseObjectState.TsState1, -828.0f, 8.0f, -112.0f, "the Eloh Temples Eloh temple spawner 15"),
+            Running(ElohTemples, 134419591464809, ElohTemplesSpawner, UseObjectState.TsState1, -828.0f, 8.0f, -144.0f, "the Eloh Temples Eloh temple spawner 16"),
+            Running(ElohTemples, 134419591464811, ElohTemplesSpawner, UseObjectState.TsState1, -652.0f, 8.0f, -144.0f, "the Eloh Temples Eloh temple spawner 17"),
+            Running(ElohTemples, 134419591464812, ElohTemplesSpawner, UseObjectState.TsState1, -652.0f, 8.0f, -112.0f, "the Eloh Temples Eloh temple spawner 18"),
+            Running(ElohTemples, 134419591464837, ElohTemplesSpawner, UseObjectState.TsState1, -828.0f, -8.0f, 48.0f, "the Eloh Temples Eloh temple spawner 19"),
+
+            // The Bane logos stone analyzers of Minos Caverns and Devil's Den, on.
+            Running(MinosCaverns, 133620727550316, LogosStoneAnalyzer, UseObjectState.TsState1, 172.0f, 2.0f, -96.0f, "Minos Caverns logos stone analyzer 1"),
+            Running(DevilsDen, 133822591015846, LogosStoneAnalyzer, UseObjectState.TsState1, 177.9305f, 141.6172f, 700.0169f, "Devil's Den logos stone analyzer 1"),
+
+            // The Dell XPS notebooks and towers, screens on; a player can turn one off and on again.
+            Computer(Mires, 134419591476281, DellNotebook, 651.3418f, 225.2908f, 374.9236f, "the Mires Dell XPS notebook 1"),
+            Computer(TordenPlains, 134419591474839, DellTower, -542.7815f, 450.9174f, 426.9781f, "Torden Plains Dell XPS tower 1"),
+            Computer(Abyss, 134419591470385, DellNotebook, -690.0879f, 537.459f, -197.6664f, "the Abyss Dell XPS notebook 1"),
+            Computer(Abyss, 134419591470455, DellNotebook, -672.6851f, 537.459f, -213.2009f, "the Abyss Dell XPS notebook 2"),
+            Computer(Abyss, 134419591470456, DellNotebook, -673.464f, 537.459f, -213.2143f, "the Abyss Dell XPS notebook 3"),
+            Computer(Abyss, 134419591470459, DellNotebook, -676.7834f, 537.459f, -213.2594f, "the Abyss Dell XPS notebook 4"),
+            Computer(Abyss, 134419591470482, DellNotebook, -652.599f, 537.459f, -197.0656f, "the Abyss Dell XPS notebook 5"),
+            Computer(Abyss, 134419591470483, DellNotebook, -653.8553f, 537.459f, -197.0096f, "the Abyss Dell XPS notebook 6"),
+            Computer(Abyss, 134419591471262, DellNotebook, -12.4639f, 535.0626f, -141.12f, "the Abyss Dell XPS notebook 7"),
+            Computer(Abyss, 134419591470383, DellTower, -671.2767f, 537.459f, -197.1556f, "the Abyss Dell XPS tower 1"),
+            Computer(Abyss, 134419591470392, DellTower, -690.9185f, 537.459f, -198.382f, "the Abyss Dell XPS tower 2"),
+            Computer(Abyss, 134419591470452, DellTower, -671.2449f, 537.459f, -213.1727f, "the Abyss Dell XPS tower 3"),
+            Computer(Abyss, 134419591470457, DellTower, -677.7497f, 537.459f, -213.0578f, "the Abyss Dell XPS tower 4"),
+            Computer(Abyss, 134419591470458, DellTower, -675.7101f, 537.459f, -213.1527f, "the Abyss Dell XPS tower 5"),
+            Computer(Abyss, 134419591470471, DellTower, -655.4609f, 537.459f, -196.7045f, "the Abyss Dell XPS tower 6"),
+            Computer(Abyss, 134419591470480, DellTower, -651.5505f, 537.459f, -197.1041f, "the Abyss Dell XPS tower 7"),
         };
 
         /// <summary>A Brann dissection table, intact.</summary>
@@ -346,6 +466,10 @@ namespace Rasa.Managers
         /// <summary>A Bane articulated drill, intact.</summary>
         private static Usable Drill(uint mapContextId, ulong entityId, float x, float y, float z, string name) =>
             new Usable(mapContextId, entityId, BaneArticulatedDrill, new Vector3(x, y, z), UseObjectState.IdesStateIntact, null, name);
+
+        /// <summary>A Dell XPS computer, its screen on; a use turns it off, and the next on again.</summary>
+        private static Usable Computer(uint mapContextId, ulong entityId, uint classId, float x, float y, float z, string name) =>
+            new Usable(mapContextId, entityId, classId, new Vector3(x, y, z), UseObjectState.TsState1, UseObjectState.TsState0, name);
 
         /// <summary>A Brann monitor, on.</summary>
         private static Usable Monitor(uint mapContextId, ulong entityId, uint classId, float x, float y, float z, string name) =>
