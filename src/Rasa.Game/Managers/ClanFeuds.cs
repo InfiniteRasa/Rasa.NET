@@ -236,7 +236,7 @@ namespace Rasa.Managers
                 return;
             }
 
-            Client targetLeader;
+            List<Client> targetLeaders;
             Challenge challenge;
 
             lock (_sync)
@@ -259,9 +259,9 @@ namespace Rasa.Managers
                     return;
                 }
 
-                targetLeader = LeaderOnline(target.Id);
+                targetLeaders = LeadersOnline(target.Id);
 
-                if (targetLeader == null)
+                if (targetLeaders.Count == 0)
                 {
                     Say(client, PlayerMessage.PmWargameFeudLeaderNotOnline, ("clan", target.Name));
                     return;
@@ -283,7 +283,9 @@ namespace Rasa.Managers
 
             Say(client, PlayerMessage.PmWargameFeudYouChallenged, ("clan", target.Name));
 
-            Invite(targetLeader, challenge, own.Name);
+            // Every leader online can answer it, so every one is put it (BR-227).
+            foreach (var leader in targetLeaders)
+                Invite(leader, challenge, own.Name);
 
             foreach (var member in _clans.Online(target.Id))
                 Say(member, PlayerMessage.PmWargameFeudYouveBeenChallenged, ("inviterClan", own.Name));
@@ -291,9 +293,11 @@ namespace Rasa.Managers
 
         /// <summary>
         /// The challenge put to a leader of the challenged clan: the indicator on their status
-        /// bar (ClanWargameInviteReceived), once per connection. The indicator lives in their
-        /// client and is lost with it, so a leader who logs in while the challenge stands is
-        /// given it again (PlayerEnteredWorld); one changing maps keeps it, and is not.
+        /// bar (ClanWargameInviteReceived), once per stay in the world. The indicator lives in
+        /// their client and is lost when they leave the world - a logout, or character select,
+        /// which keeps the connection (<see cref="PlayerLeftWorld"/>) - so a leader who comes in
+        /// while the challenge stands is given it again (PlayerEnteredWorld); one changing maps
+        /// keeps it, and is not.
         /// </summary>
         private static void Invite(Client leader, Challenge challenge, string challengerName)
         {
@@ -380,9 +384,7 @@ namespace Rasa.Managers
 
             Say(client, PlayerMessage.PmWargameFeudYouRevoked, ("clan", target.Name));
 
-            var targetLeader = LeaderOnline(target.Id);
-
-            if (targetLeader != null)
+            foreach (var targetLeader in LeadersOnline(target.Id))
                 Say(targetLeader, PlayerMessage.PmWargameFeudWasRevoked, ("inviterClan", own.Name));
         }
 
@@ -744,6 +746,14 @@ namespace Rasa.Managers
                 Invite(client, challenge, _clans.Find(challenge.ChallengerClanId)?.Name ?? "");
         }
 
+        /// <summary>
+        /// Leaving the world, by a logout or for character select: the client clears its
+        /// status-bar indicators, the challenges among them. Character select keeps the
+        /// connection, and its record of the challenges it was put kept the leader from being
+        /// put them again on coming back in (BR-227).
+        /// </summary>
+        public static void PlayerLeftWorld(Client client) => client?.FeudChallengesShown.Clear();
+
         /// <summary>A player has just joined a clan: into its feuds, and out of any squad that now mixes feuding clans.</summary>
         public void MemberJoined(Client client)
         {
@@ -847,9 +857,7 @@ namespace Rasa.Managers
 
             foreach (var challenge in dropped.Where(c => c.ChallengerClanId == clanId))
             {
-                var leader = LeaderOnline(challenge.TargetClanId);
-
-                if (leader != null)
+                foreach (var leader in LeadersOnline(challenge.TargetClanId))
                     Say(leader, PlayerMessage.PmWargameFeudWasRevoked, ("inviterClan", clanName));
             }
 
@@ -1141,7 +1149,7 @@ namespace Rasa.Managers
         private bool IsLeader(Client client, uint clanId) =>
             client?.Player != null && _clans.RankOf(clanId, client.Player.Id) is byte rank && rank >= ClanRank.MinRankToChallenge;
 
-        private Client LeaderOnline(uint clanId) => _clans.Online(clanId).FirstOrDefault(c => IsLeader(c, clanId));
+        private List<Client> LeadersOnline(uint clanId) => _clans.Online(clanId).Where(c => IsLeader(c, clanId)).ToList();
 
         private static void Say(Client client, PlayerMessage message, params (string Key, string Value)[] args)
         {

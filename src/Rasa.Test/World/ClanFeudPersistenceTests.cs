@@ -319,6 +319,49 @@ namespace Rasa.Test.World
             Assert.AreEqual(0, Drain(clans.Leader(BlueId)).OfType<ClanWargameInviteReceivedPacket>().Count());
         }
 
+        // BR-227: character select keeps the connection while the client clears its indicators.
+        // A leader who went there and came back was never put the challenge again.
+        [TestMethod]
+        public void ALeaderBackFromCharacterSelectIsPutTheChallengeAgain()
+        {
+            using var world = new WorldTestContext();
+            var clans = new Clans(world);
+            var feuds = Restart(clans, tick: 1000);
+            var blueLead = clans.Leader(BlueId);
+
+            feuds.ChallengeClanToFeud(clans.Leader(GreenId), "Blue", true);
+            var invite = Drain(blueLead).OfType<ClanWargameInviteReceivedPacket>().Single();
+
+            ClanFeuds.PlayerLeftWorld(blueLead);
+            feuds.PlayerEnteredWorld(blueLead);
+
+            Assert.AreEqual(invite.WargameId, Drain(blueLead).OfType<ClanWargameInviteReceivedPacket>().Single().WargameId,
+                "the same connection, back in the world");
+            feuds.PlayerEnteredWorld(blueLead);
+            Assert.AreEqual(0, Drain(blueLead).OfType<ClanWargameInviteReceivedPacket>().Count(), "and a map change after it keeps it");
+        }
+
+        // BR-227: a new challenge went to the first leader online only; the others had it at their
+        // next login.
+        [TestMethod]
+        public void ANewChallengeIsPutToEveryLeaderOnline()
+        {
+            using var world = new WorldTestContext();
+            var clans = new Clans(world);
+            var feuds = Restart(clans, tick: 1000);
+            var blueLead = clans.Leader(BlueId);
+            var officer = clans.Promote(BlueId);
+
+            feuds.ChallengeClanToFeud(clans.Leader(GreenId), "Blue", true);
+
+            var invite = Drain(blueLead).OfType<ClanWargameInviteReceivedPacket>().Single();
+            Assert.AreEqual(invite.WargameId, Drain(officer).OfType<ClanWargameInviteReceivedPacket>().Single().WargameId);
+
+            feuds.RevokeClanFeud(clans.Leader(GreenId), "Blue");
+            Assert.AreEqual(1, Said(blueLead, PlayerMessage.PmWargameFeudWasRevoked));
+            Assert.AreEqual(1, Said(officer, PlayerMessage.PmWargameFeudWasRevoked), "both were put it, both are told");
+        }
+
         [TestMethod]
         public void AnEndedFeudAndAnAnsweredOrRevokedChallengeAreNotKept()
         {
@@ -407,6 +450,9 @@ namespace Rasa.Test.World
         private List<ClanFeudStakeEntry> Stakes() => new SqliteStore(_database).LoadStakes();
 
         private static List<PythonPacket> Drain(Client client) => MissionTestContext.Drain(client).ToList();
+
+        private static int Said(Client client, PlayerMessage message) =>
+            Drain(client).OfType<DisplayWargameMessagePacket>().Count(p => p.Message == message);
 
         /// <summary>The store the server has, over a database file: a context per call.</summary>
         private sealed class SqliteStore : ClanFeuds.IStore

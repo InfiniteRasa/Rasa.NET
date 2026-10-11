@@ -1413,6 +1413,11 @@ namespace Rasa.Managers
             if (logout)
                 RemovalStep(client, "saving cooldowns", () => ActionReuse.Save(client));
 
+            // The client clears its feud challenge indicators with the world; the next entry,
+            // from character select on the same connection too, puts them again.
+            if (logout)
+                RemovalStep(client, "forgetting feud challenges shown", () => ClanFeuds.PlayerLeftWorld(client));
+
             if (logout && player.Disconected == false)
             {
                 RemovalStep(client, "returning to character selection", () => PassClientToCharacterSelection(client));
