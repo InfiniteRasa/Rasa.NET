@@ -229,59 +229,14 @@ namespace Rasa.Auth
         private long _nextAcceptRefusalLogTick;
         private int _acceptRefusalsSinceLog;
 
-        /// <summary>
-        /// Failed logins per address. Every attempt is a database read and a hash on this loop,
-        /// and nothing slowed a guesser down: one connection per guess, as fast as they could open
-        /// them. After MaxLoginFailures within LoginFailureWindow the address is refused without a
-        /// look at the database for LoginBlock. Kept per address rather than per account, so a
-        /// stranger cannot lock someone else out by getting their password wrong.
-        /// Main loop only: logins are handled there.
-        /// </summary>
-        private readonly Dictionary<IPAddress, (int Count, DateTime WindowStart, DateTime BlockedUntil)> _loginFailures = new();
+        /// <summary>Failed logins per address, and the one login per address being verified (LoginThrottle).</summary>
+        public LoginThrottle Logins { get; } = new LoginThrottle();
 
-        private const int MaxLoginFailures = 5;
-        private static readonly TimeSpan LoginFailureWindow = TimeSpan.FromMinutes(5);
-        private static readonly TimeSpan LoginBlock = TimeSpan.FromMinutes(5);
+        public bool IsLoginBlocked(IPAddress address) => Logins.IsBlocked(address);
 
-        public bool IsLoginBlocked(IPAddress address)
-        {
-            return _loginFailures.TryGetValue(address, out var record) && record.BlockedUntil > DateTime.UtcNow;
-        }
+        public void RecordLoginFailure(IPAddress address) => Logins.RecordFailure(address);
 
-        public void RecordLoginFailure(IPAddress address)
-        {
-            var now = DateTime.UtcNow;
-
-            // Forget addresses whose window and block are both over, so the table stays the size
-            // of the current trouble rather than of every address that ever mistyped.
-            if (_loginFailures.Count > 1024)
-                foreach (var stale in _loginFailures.Where(f => f.Value.BlockedUntil < now && now - f.Value.WindowStart > LoginFailureWindow).Select(f => f.Key).ToList())
-                    _loginFailures.Remove(stale);
-
-            var (count, windowStart, blockedUntil) = _loginFailures.TryGetValue(address, out var record)
-                ? record
-                : (0, now, DateTime.MinValue);
-
-            if (now - windowStart > LoginFailureWindow)
-                (count, windowStart) = (0, now);
-
-            count++;
-
-            if (count >= MaxLoginFailures && blockedUntil < now)
-            {
-                blockedUntil = now + LoginBlock;
-                (count, windowStart) = (0, now);
-
-                Logger.WriteLog(LogType.Security, $"{MaxLoginFailures} failed logins from {address} within {LoginFailureWindow.TotalMinutes:F0} min; refusing its logins for {LoginBlock.TotalMinutes:F0} min.");
-            }
-
-            _loginFailures[address] = (count, windowStart, blockedUntil);
-        }
-
-        public void RecordLoginSuccess(IPAddress address)
-        {
-            _loginFailures.Remove(address);
-        }
+        public void RecordLoginSuccess(IPAddress address) => Logins.RecordSuccess(address);
 
         private void OnAccept(LengthedSocket newSocket)
         {
