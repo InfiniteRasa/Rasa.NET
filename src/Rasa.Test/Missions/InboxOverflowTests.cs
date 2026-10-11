@@ -66,7 +66,7 @@ namespace Rasa.Test.Missions
             using var context = MissionTestContext.WithCompletableMission(429);
             using var grant = new InventoryManager.InventoryGrant();
 
-            Assert.ThrowsException<GameplayRejectionException>(() =>
+            Assert.ThrowsExactly<GameplayRejectionException>(() =>
             {
                 using var unit = context.CreateChar();
                 unit.ExecuteTransaction(() => grant.PlanAndSave(context.Client,
