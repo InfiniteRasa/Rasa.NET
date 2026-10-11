@@ -502,6 +502,80 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
+        public void AGroupTakingTurnsAtOnePlaceCannotComeBackToItAllTogether()
+        {
+            using var f = new Fixture();
+            f.Join(Battlegrounds.Red);
+            f.Join(Battlegrounds.Blue);
+            f.Begin();
+
+            // Each joins Red while the teams are even, and deserts it: one place, taken in turn.
+            var group = new[] { f.Player(), f.Player(), f.Player() };
+
+            foreach (var member in group)
+            {
+                f.Grounds.TakeLink(member, f.RedDoor);
+                Assert.AreEqual(Battlegrounds.Red, f.Grounds.TeamOf(member.Player));
+
+                f.Grounds.PlayerLeft(member);
+                member.Player.Position = Staging;
+                Drain(member);
+            }
+
+            Assert.AreEqual(1, f.Match.Count(Battlegrounds.Red));
+            Assert.AreEqual(1, f.Match.Count(Battlegrounds.Blue));
+
+            // Back all together: the first takes the place back, and the rest are weighed like
+            // anyone. Before, all three were let in past the balance, four against one.
+            f.Grounds.TakeLink(group[0], f.RedDoor);
+            Assert.AreEqual(Battlegrounds.Red, f.Grounds.TeamOf(group[0].Player));
+
+            f.Grounds.TakeLink(group[1], f.RedDoor);
+            f.Grounds.TakeLink(group[2], f.RedDoor);
+
+            Assert.AreEqual(0u, f.Grounds.TeamOf(group[1].Player));
+            Assert.AreEqual(0u, f.Grounds.TeamOf(group[2].Player));
+            Assert.AreEqual(2, f.Match.Count(Battlegrounds.Red), "two against one, as far as the balance lets anyone");
+
+            var said = Packets(group[1]).OfType<SystemMessagePacket>().Select(m => m.TextMessage).ToList();
+            Assert.IsTrue(said.Any(m => m.Contains("wait for a place on Red Team")), "told to wait");
+            Assert.IsFalse(said.Any(m => m.Contains("join Blue Team")), "not to join the team that is closed to them");
+        }
+
+        [TestMethod]
+        public void ADeserterWhosePlaceWasFilledIsWeighedLikeAnyone()
+        {
+            using var f = new Fixture();
+            var deserter = f.Join(Battlegrounds.Red);
+            f.Join(Battlegrounds.Red);
+            var blue = f.Join(Battlegrounds.Blue);
+            f.Join(Battlegrounds.Blue);
+            f.Begin();
+
+            f.Grounds.PlayerLeft(deserter);
+            deserter.Player.Position = Staging;
+            Drain(deserter);
+
+            // A newcomer fills the place on Red, and Blue loses one.
+            var newcomer = f.Player();
+            f.Grounds.TakeLink(newcomer, f.RedDoor);
+            Assert.AreEqual(Battlegrounds.Red, f.Grounds.TeamOf(newcomer.Player));
+            f.Grounds.PlayerLeft(blue);
+
+            // Two against one, and no place of theirs left open: they wait.
+            f.Grounds.TakeLink(deserter, f.RedDoor);
+            Assert.AreEqual(0u, f.Grounds.TeamOf(deserter.Player));
+            Drain(deserter);
+
+            // Blue gets one back, and there is room on Red by the balance.
+            f.Grounds.TakeLink(f.Player(), f.BlueDoor);
+            Assert.AreEqual(2, f.Match.Count(Battlegrounds.Blue));
+
+            f.Grounds.TakeLink(deserter, f.RedDoor);
+            Assert.AreEqual(Battlegrounds.Red, f.Grounds.TeamOf(deserter.Player));
+        }
+
+        [TestMethod]
         public void ALaterDesertionReplacesTheLockoutAndForgivingClearsIt()
         {
             using var f = new Fixture();

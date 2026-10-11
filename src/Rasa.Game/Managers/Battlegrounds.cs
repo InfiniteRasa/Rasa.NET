@@ -301,6 +301,25 @@ namespace Rasa.Managers
             public List<Member> Members { get; } = new List<Member>();
 
             /// <summary>
+            /// Places left open on each team by a desertion in the match being played, and not
+            /// taken by anyone since: what a deserter going back to their team may take past the
+            /// balance check (Join). A place is one player's; whoever joins the team next fills it.
+            /// </summary>
+            public Dictionary<uint, int> OpenPlaces { get; } = new Dictionary<uint, int>();
+
+            public int OpenPlacesOn(uint team) => OpenPlaces.TryGetValue(team, out var open) ? open : 0;
+
+            /// <summary>A place on the team taken, if one was open.</summary>
+            public bool FillOpenPlace(uint team)
+            {
+                if (OpenPlacesOn(team) <= 0)
+                    return false;
+
+                OpenPlaces[team]--;
+                return true;
+            }
+
+            /// <summary>
             /// The scoreboard, a row a character: of the match being played; after it, as it ended;
             /// and before one, the teams as they stand, with nothing scored.
             /// </summary>
@@ -781,9 +800,9 @@ namespace Rasa.Managers
         /// Puts a player on a team of the match of the channel they are on, and in its base.
         /// Refused, with the client's own words, to a deserter of the other team, to a player
         /// who left a match on another copy of the map within their lockout, and when the team
-        /// has too many more players than the other - unless it is a deserter's own team, which
-        /// they may always go back to; <paramref name="force"/> is a game master's, and refuses
-        /// nothing. Returns whether they are on the team.
+        /// has too many more players than the other - unless it is a deserter going back to a
+        /// place their team still has open (Match.OpenPlaces); <paramref name="force"/> is a game
+        /// master's, and refuses nothing. Returns whether they are on the team.
         /// </summary>
         public bool Join(Client client, uint team, bool force)
         {
@@ -827,14 +846,21 @@ namespace Rasa.Managers
                 }
 
                 // A deserter going back to the team they left is not weighed against the other
-                // one: that team is closed to them for the rest of the match, so the balance check
-                // refused them the only side they may take, and told them to join the one just
-                // refused. They are taking back their own place, not tipping the scales.
-                if (!isDeserter && match.Count(team) > match.Count(Other(team)) + Math.Max(0, Config.MaxImbalance))
+                // one while the place they left is still open: the other team is closed to them for
+                // the rest of the match, and they are taking back their own place, not tipping the
+                // scales. A place is one player's, and whoever joins the team after them fills it,
+                // so a group cannot take turns deserting one place and come back all together past
+                // the balance; with none open, a deserter is weighed like anyone, and told to wait
+                // rather than to join the team that is closed to them.
+                var retakesPlace = isDeserter && match.OpenPlacesOn(team) > 0;
+
+                if (!retakesPlace && match.Count(team) > match.Count(Other(team)) + Math.Max(0, Config.MaxImbalance))
                 {
                     CommunicatorManager.Instance.DisplaySystemMessage(client,
                         team == Red ? PlayerMessage.EdmundrangeCanNotJoinRedTeamBigtext : PlayerMessage.EdmundrangeCanNotJoinBlueTeamBigtext);
-                    Say(client, $"{TeamName(team)} has more players than {TeamName(Other(team))}: join {TeamName(Other(team))}.");
+                    Say(client, isDeserter
+                        ? $"{TeamName(team)} has more players than {TeamName(Other(team))}: wait for a place on {TeamName(team)}."
+                        : $"{TeamName(team)} has more players than {TeamName(Other(team))}: join {TeamName(Other(team))}.");
                     return false;
                 }
             }
@@ -842,6 +868,7 @@ namespace Rasa.Managers
             var member = new Member { Client = client, Team = team };
 
             match.Members.Add(member);
+            match.FillOpenPlace(team);
 
             if (match.Phase == Phase.Running)
                 member.Score = ScoreFor(match, member);
@@ -904,6 +931,7 @@ namespace Rasa.Managers
             {
                 Lock(player.Id, match.Map.MapInfo.MapContextId, match.Map.InstanceId);
                 _deserters[player.Id] = member.Team;
+                match.OpenPlaces[member.Team] = match.OpenPlacesOn(member.Team) + 1;
                 Logger.WriteLog(LogType.Debug, $"Battleground {match.Map.MapInfo.MapContextId}/{match.Map.InstanceId}: {player.FamilyName} deserted {TeamName(member.Team)}.");
             }
 
@@ -1410,6 +1438,7 @@ namespace Rasa.Managers
 
             match.Phase = Phase.Running;
             match.Forced = forced;
+            match.OpenPlaces.Clear();
             match.WargameId = NextWargameId();
             match.MinEndsAt = now + Math.Max(0, Config.MinMinutes) * 60000L;
             match.PhaseEnds = now + Math.Max(1, Math.Max(Config.MinMinutes, Config.MaxMinutes)) * 60000L;
@@ -1528,6 +1557,7 @@ namespace Rasa.Managers
 
             match.Phase = Phase.Waiting;
             match.Forced = false;
+            match.OpenPlaces.Clear();
             match.ShowsResult = true;
             match.ResultEndsAt = now + ResultMs;
 
