@@ -282,8 +282,7 @@ namespace Rasa.Managers
                 ExpiresTick = Environment.TickCount64 + birthMs
             });
 
-            CellManager.Instance.CellCallMethod(map, hatchling, new PerformWindupPacket(PerformType.TwoArgs, BirthAction, (uint)hatchling.EntityClass));
-            CellManager.Instance.CellCallMethod(map, hatchling, new AbilityRecoveryPacket(BirthAction, (uint)hatchling.EntityClass, AbilityRecoveryPacket.HitDataKind.None));
+            CreatureSummons.PlayBirth(map, hatchling, (uint)hatchling.EntityClass);
 
             lock (Sync)
                 Broods.Add(new Hatchling { Map = map, Creature = hatchling, BornUntil = now + birthMs, RemoveAt = now + LifetimeMs });

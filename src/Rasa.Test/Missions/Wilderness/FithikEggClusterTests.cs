@@ -74,7 +74,9 @@ namespace Rasa.Test.Missions.Wilderness
 
             var packets = harness.Drain();
             Assert.AreEqual(UseObjectState.CsStateEnd, packets.OfType<ForceStatePacket>().Single().State);
-            Assert.HasCount(FithikEggClusters.Hatchlings, packets.OfType<AbilityRecoveryPacket>().Where(p => p.ActionId == FithikEggClusters.BirthAction).ToArray(), "each one born");
+            Assert.HasCount(FithikEggClusters.Hatchlings, packets.OfType<PerformRecoveryPacket>()
+                .Where(p => p.ActionId == FithikEggClusters.BirthAction && p.PerformType == PerformType.TwoArgs).ToArray(), "each one born");
+            Assert.IsFalse(packets.OfType<AbilityRecoveryPacket>().Any(p => p.ActionId == FithikEggClusters.BirthAction), "not in an ability's shape");
 
             foreach (var hatchling in brood)
             {

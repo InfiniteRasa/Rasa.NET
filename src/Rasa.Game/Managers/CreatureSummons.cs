@@ -534,8 +534,23 @@ namespace Rasa.Managers
                 ExpiresTick = Environment.TickCount64 + Math.Max(1000, birth.RecoveryMs)
             });
 
+            PlayBirth(mapChannel, born, classId);
+        }
+
+        /// <summary>
+        /// CREATURE_BIRTH on a creature just put in the world, keyed by its entity class: the
+        /// windup, then the recovery, each (actionId, argId) and nothing more. Its client class,
+        /// CreatureBirthAction, is a BaseActorAction - DoAction(actor) takes no hit lists - and
+        /// its LocalDoAction sets the body back to its full size, which the CREATURE_BIRTH effect
+        /// drew small. Sent as an ability's 6-tuple recovery, the call raised in DoAction and
+        /// was caught (actor.py Recv_PerformRecovery), and the creature never grew. Summons,
+        /// Amoeboid spawn and Fithik hatchlings are born this way. (The Atta cocoon's hatch is
+        /// CR_BIRTH, a TargetedAction, and keeps the ability's recovery.)
+        /// </summary>
+        public static void PlayBirth(MapChannel mapChannel, Creature born, uint classId)
+        {
             CellManager.Instance.CellCallMethod(mapChannel, born, new PerformWindupPacket(PerformType.TwoArgs, BirthAction, classId));
-            CellManager.Instance.CellCallMethod(mapChannel, born, new AbilityRecoveryPacket(BirthAction, classId, AbilityRecoveryPacket.HitDataKind.None));
+            CellManager.Instance.CellCallMethod(mapChannel, born, new PerformRecoveryPacket(PerformType.TwoArgs, BirthAction, classId));
         }
     }
 }
