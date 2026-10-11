@@ -781,8 +781,9 @@ namespace Rasa.Managers
         /// Puts a player on a team of the match of the channel they are on, and in its base.
         /// Refused, with the client's own words, to a deserter of the other team, to a player
         /// who left a match on another copy of the map within their lockout, and when the team
-        /// has too many more players than the other; <paramref name="force"/> is a game
-        /// master's, and refuses nothing. Returns whether they are on the team.
+        /// has too many more players than the other - unless it is a deserter's own team, which
+        /// they may always go back to; <paramref name="force"/> is a game master's, and refuses
+        /// nothing. Returns whether they are on the team.
         /// </summary>
         public bool Join(Client client, uint team, bool force)
         {
@@ -814,7 +815,9 @@ namespace Rasa.Managers
                     return false;
                 }
 
-                if (_deserters.TryGetValue(player.Id, out var deserted) && deserted != team)
+                var isDeserter = _deserters.TryGetValue(player.Id, out var deserted);
+
+                if (isDeserter && deserted != team)
                 {
                     CommunicatorManager.Instance.DisplaySystemMessage(client,
                         team == Red ? PlayerMessage.EdmundrangeCanNotJoinRedTeamBigtext : PlayerMessage.EdmundrangeCanNotJoinBlueTeamBigtext);
@@ -823,7 +826,11 @@ namespace Rasa.Managers
                     return false;
                 }
 
-                if (match.Count(team) > match.Count(Other(team)) + Math.Max(0, Config.MaxImbalance))
+                // A deserter going back to the team they left is not weighed against the other
+                // one: that team is closed to them for the rest of the match, so the balance check
+                // refused them the only side they may take, and told them to join the one just
+                // refused. They are taking back their own place, not tipping the scales.
+                if (!isDeserter && match.Count(team) > match.Count(Other(team)) + Math.Max(0, Config.MaxImbalance))
                 {
                     CommunicatorManager.Instance.DisplaySystemMessage(client,
                         team == Red ? PlayerMessage.EdmundrangeCanNotJoinRedTeamBigtext : PlayerMessage.EdmundrangeCanNotJoinBlueTeamBigtext);

@@ -460,6 +460,48 @@ namespace Rasa.Test.World
         }
 
         [TestMethod]
+        public void ADeserterMayGoBackToTheirOwnTeamWhenItIsTheBiggerOne()
+        {
+            using var f = new Fixture();
+            var deserter = f.Join(Battlegrounds.Red);
+            f.Join(Battlegrounds.Red);
+            f.Join(Battlegrounds.Red);
+            var blueOne = f.Join(Battlegrounds.Blue);
+            var blueTwo = f.Join(Battlegrounds.Blue);
+            f.Join(Battlegrounds.Blue);
+
+            f.Begin();
+
+            // Red deserted by one, then Blue by two: Red is the bigger team when the deserter
+            // comes back, and Blue is closed to them.
+            f.Grounds.PlayerLeft(deserter);
+            f.Grounds.PlayerLeft(blueOne);
+            f.Grounds.PlayerLeft(blueTwo);
+            Assert.AreEqual(2, f.Match.Count(Battlegrounds.Red));
+            Assert.AreEqual(1, f.Match.Count(Battlegrounds.Blue));
+
+            deserter.Player.Position = Staging;
+            Drain(deserter);
+
+            f.Grounds.TakeLink(deserter, f.BlueDoor);
+            Assert.AreEqual(0u, f.Grounds.TeamOf(deserter.Player), "the team they left is the only one");
+            Drain(deserter);
+
+            // Their own team takes them back, two up or not, with nothing said about joining Blue.
+            f.Grounds.TakeLink(deserter, f.RedDoor);
+            Assert.AreEqual(Battlegrounds.Red, f.Grounds.TeamOf(deserter.Player));
+
+            var packets = Packets(deserter);
+            CollectionAssert.DoesNotContain(packets.OfType<DisplaySystemMessagePacket>().Select(p => p.MsgId).ToArray(), PlayerMessage.EdmundrangeCanNotJoinRedTeamBigtext);
+            Assert.IsFalse(packets.OfType<SystemMessagePacket>().Any(m => m.TextMessage.Contains("join Blue Team")));
+
+            // Anyone else is still held to the balance.
+            var newcomer = f.Player();
+            f.Grounds.TakeLink(newcomer, f.RedDoor);
+            Assert.AreEqual(0u, f.Grounds.TeamOf(newcomer.Player), "3 against 1");
+        }
+
+        [TestMethod]
         public void ALaterDesertionReplacesTheLockoutAndForgivingClearsIt()
         {
             using var f = new Fixture();
