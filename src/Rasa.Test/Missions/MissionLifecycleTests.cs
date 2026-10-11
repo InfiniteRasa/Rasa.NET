@@ -124,7 +124,8 @@ namespace Rasa.Test.Missions
             context.Manager.PublishInitialState(context.Client);
 
             var packet = context.Drain().OfType<MissionStatusInfoPacket>().Single();
-            CollectionAssert.AreEquivalent(new uint[] { 321, 429, 666, 777, 888 },
+            // Completed (turned-in/rewarded) assignments stay in server history, not the client journal.
+            CollectionAssert.AreEquivalent(new uint[] { 321, 429, 666, 888 },
                 packet.MissionStatusDict.Keys.ToArray());
             Assert.AreEqual(MissionState.Active, packet.MissionStatusDict[321].MissionState);
             Assert.IsFalse(packet.MissionStatusDict[321].Completeable);
@@ -132,10 +133,45 @@ namespace Rasa.Test.Missions
             Assert.IsTrue(packet.MissionStatusDict[429].Completeable);
             Assert.AreEqual(MissionState.Failed, packet.MissionStatusDict[666].MissionState);
             Assert.IsFalse(packet.MissionStatusDict[666].Completeable);
-            Assert.AreEqual(MissionState.Completed, packet.MissionStatusDict[777].MissionState);
-            Assert.IsFalse(packet.MissionStatusDict[777].Completeable);
             Assert.AreEqual(MissionState.Success, packet.MissionStatusDict[888].MissionState);
             Assert.IsFalse(packet.MissionStatusDict[888].Completeable);
+            Assert.IsFalse(packet.MissionStatusDict.ContainsKey(777));
+
+            // Mission history and internal GM snapshots must still see completed assignments.
+            Assert.AreEqual(MissionState.Completed, context.Client.Player.Missions[777].State);
+            Assert.AreEqual(MissionState.Completed,
+                context.Manager.BuildStatusSnapshot(context.Client.Player)[777].MissionState);
+            Assert.AreEqual((uint)MissionState.Completed, context.ReadMission(777).MissionState);
+        }
+
+        [TestMethod]
+        public void ClientMissionStatusRefreshDoesNotReintroduceTurnedInMissions()
+        {
+            using var context = MissionTestContext.WithDefinitions(321, 429, 666, 777);
+            context.SeedMission(context.Client.Player.Id, 321, (uint)MissionState.Active, true);
+            context.SeedMission(context.Client.Player.Id, 429, (uint)MissionState.Success, false);
+            context.SeedMission(context.Client.Player.Id, 666, (uint)MissionState.Failed, false);
+            context.SeedMission(context.Client.Player.Id, 777, (uint)MissionState.Completed, false);
+            context.ReloadPlayerMissions();
+            context.Drain();
+
+            // An objective-complete but not turned-in Active mission remains in the packet.
+            context.Manager.PublishMissionStatus(context.Client, 321, "objective finished");
+            var packet = context.Drain().OfType<MissionStatusInfoPacket>().Single();
+            CollectionAssert.AreEquivalent(new uint[] { 321, 429, 666 },
+                packet.MissionStatusDict.Keys.ToArray());
+            Assert.IsTrue(packet.MissionStatusDict[321].Completeable);
+            Assert.AreEqual(MissionState.Success, packet.MissionStatusDict[429].MissionState);
+
+            // A completed-only refresh should not resend a redundant status packet.
+            context.Manager.PublishMissionStatus(context.Client, 777, "already rewarded");
+            Assert.AreEqual(0, context.Drain().OfType<MissionStatusInfoPacket>().Count());
+
+            // Even mixed refreshes cannot restore completed entries to the client journal.
+            context.Manager.PublishMissionStatus(context.Client, new uint[] { 777, 429 }, "mixed refresh");
+            var mixed = context.Drain().OfType<MissionStatusInfoPacket>().Single();
+            CollectionAssert.AreEquivalent(new uint[] { 321, 429, 666 },
+                mixed.MissionStatusDict.Keys.ToArray());
         }
 
         [TestMethod]
