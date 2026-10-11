@@ -411,6 +411,68 @@ namespace Rasa.Test.World
             Assert.AreEqual(0, WorldTestContext.Drain(observer).Count);
         }
 
+        // BR-203: the ship that set the player down lingers five seconds after they are free to
+        // go. It is not a flight: a destination picked from the pad in that time is taken.
+        [TestMethod]
+        public void ADestinationPickedWhileTheArrivalShipLiftsOffIsTaken()
+        {
+            using var world = new WorldTestContext();
+            world.AddClass(EntityClasses.UsableCrSpawnerHumDropshipV01);
+            var client = world.CreateClient();
+            CellManager.Instance.AddToWorld(client);
+            var destination = CreateDestination();
+            var maps = CreateMaps(world, destination);
+            var manager = CreateDropshipManager(maps);
+            using var managers = new ManagerInstances(maps, manager);
+            StartDropshipTransfer(world, destination, client, manager);
+            client.Player.GainedWaypoints.Add(
+                new CharacterTeleporterEntry(client.Player.Id, 10, (byte)WaypointType.Dropship));
+            Depart(world.Map, manager, client);
+            RouteMapLoaded(client);
+
+            var arrival = SetDown(destination, manager, client);
+            Assert.IsTrue(manager.Dropships.ContainsKey(arrival.EntityId), "still lifting off");
+            Assert.IsTrue(manager.CanBeginDropshipTravel(client, world.Map, Vector3.Zero, 0));
+            WorldTestContext.Drain(client);
+
+            manager.SelectWaypoint(client, new SelectWaypointPacket { MapInstanceId = 1, WaypointId = 10 });
+
+            Assert.IsNotNull(client.PendingTransfer);
+            Assert.IsTrue(client.PendingTransfer.IsDropship);
+            Assert.AreEqual(world.Map.MapInfo.MapContextId, client.LoadingMap);
+            var departure = manager.Dropships[client.PendingTransfer.DropshipId];
+            Assert.AreEqual(DropshipRole.Departure, departure.Role);
+            Assert.AreNotSame(arrival, departure);
+        }
+
+        [TestMethod]
+        public void ADepartingShipStillCountsAsAnActiveFlight()
+        {
+            using var world = new WorldTestContext();
+            world.AddClass(EntityClasses.UsableCrSpawnerHumDropshipV01);
+            var client = world.CreateClient();
+            CellManager.Instance.AddToWorld(client);
+            var destination = CreateDestination();
+            var maps = CreateMaps(world, destination);
+            var manager = CreateDropshipManager(maps);
+            using var managers = new ManagerInstances(maps, manager);
+            StartDropshipTransfer(world, destination, client, manager);
+            Depart(world.Map, manager, client);
+            RouteMapLoaded(client);
+            SetDown(destination, manager, client);
+
+            var departure = new Dropship(
+                TargetCategory.Friendly,
+                DropshipType.Teleporter,
+                client,
+                DropshipRole.Departure);
+            CellManager.Instance.AddToWorld(destination, departure);
+            manager.Dropships.Add(departure.EntityId, departure);
+
+            Assert.IsNull(client.PendingTransfer);
+            Assert.IsFalse(manager.CanBeginDropshipTravel(client, world.Map, Vector3.Zero, 0));
+        }
+
         [TestMethod]
         public void AMapTickDoesNotAdvanceAnotherMapsDropship()
         {
@@ -488,6 +550,18 @@ namespace Rasa.Test.World
             var arrival = manager.Dropships.Values.Single();
             for (var step = 0; step < 6; step++)
                 manager.DropshipsWorker(destination, Math.Max(0, arrival.PhaseTimeleft));
+        }
+
+        // Runs the arrival ship until it frees the player (phase 4), leaving it to lift off.
+        private static Dropship SetDown(MapChannel destination, DynamicObjectManager manager,
+            Rasa.Game.Client client)
+        {
+            var arrival = manager.Dropships.Values.Single();
+            Assert.AreEqual(DropshipRole.Arrival, arrival.Role);
+            for (var step = 0; step < 6 && client.State != ClientState.Ingame; step++)
+                manager.DropshipsWorker(destination, Math.Max(0, arrival.PhaseTimeleft));
+            Assert.AreEqual(ClientState.Ingame, client.State);
+            return arrival;
         }
 
         private static void RouteMapLoaded(Rasa.Game.Client client)

@@ -1767,9 +1767,10 @@ namespace Rasa.Managers
 
                 if (isDropship && !isStartingExperienceExit)
                 {
-                    if (Dropships.Values.Any(ship =>
-                            ship.DropshipType == DropshipType.Teleporter &&
-                            ship.Client == client))
+                    // Only a ship taking the player away is a flight. The one that set them down
+                    // stays five seconds after they are free to go (phase 4 to 5) and only lifts
+                    // off; counting it refused every pick made in those first seconds (BR-203).
+                    if (HasActiveDeparture(client))
                     {
                         RejectTravel(client, "A dropship flight is already active.");
                         return;
@@ -2109,8 +2110,14 @@ namespace Rasa.Managers
                 client.Player.State != CharacterState.Dead && client.PendingTransfer == null &&
                 CellManager.Instance.IsInWorld(client) && destination != null &&
                 CellManager.TryGetCellCoordinates(position, out _, out _) && double.IsFinite(rotation) &&
-                timeout > 0 && !Dropships.Values.Any(ship => ship.Client == client && ship.DropshipType == DropshipType.Teleporter);
+                timeout > 0 && !HasActiveDeparture(client);
         }
+
+        private bool HasActiveDeparture(Client client) =>
+            Dropships.Values.Any(ship =>
+                ship.Client == client &&
+                ship.DropshipType == DropshipType.Teleporter &&
+                ship.Role == DropshipRole.Departure);
 
         internal bool IsOneWayExit(uint mapContextId, uint waypointId) =>
             Characters.StartingExperience.IsExitPad(mapContextId, waypointId);
