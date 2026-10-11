@@ -8,6 +8,7 @@ namespace Rasa.Managers
     using Data;
     using Game;
     using Game.Missions.Persistence;
+    using Missions;
     using Packets.Communicator.Server;
     using Packets.Crafting.Client;
     using Packets.Crafting.Server;
@@ -123,6 +124,7 @@ namespace Rasa.Managers
         {
             InventoryManager.InventoryPlan inventory = null;
             ItemModules.ModuleMutation mutation = null;
+            var progress = MissionProgressPublicationPlan.Empty;
             try
             {
                 using var unit = _gameUnitOfWorkFactory.CreateChar();
@@ -132,8 +134,9 @@ namespace Rasa.Managers
                     unit.Enlist(() => new ModuleCraftAdmission(this, client, station, unit, items,
                         quantity > 0 ? input : null, target));
                     inventory = InventoryManager.InventoryPlan.For(client, unit);
+                    var events = new List<MissionProgressEvent>();
                     if (quantity > 0)
-                        inventory.ConsumeEntity(input.EntityId, quantity);
+                        events.Add(inventory.ConsumeEntity(input.EntityId, quantity));
                     var remaining = cost;
                     foreach (var entityId in client.Player.Inventory.PersonalInventory.Where(id => id != 0))
                     {
@@ -144,13 +147,14 @@ namespace Rasa.Managers
                             MissionItemProtection.IsProtected(fee, unit))
                             continue;
                         var taken = Math.Min(remaining, fee.StackSize);
-                        inventory.ConsumeEntity(entityId, taken);
+                        events.Add(inventory.ConsumeEntity(entityId, taken));
                         remaining -= taken;
                     }
                     if (remaining != 0)
                         throw new GameplayRejectionException("The Mimeomech fee is no longer available.");
                     if (target != null)
                         mutation = ItemModules.PlanSet(client, target, slot, moduleId, unit, modifiedBy);
+                    progress = MissionApplication.Instance.PlanProgress(client, events, unit);
                 });
             }
             catch (Exception error) when (GameplayRejectionException.IsExpected(error))
@@ -161,6 +165,7 @@ namespace Rasa.Managers
             }
             inventory.Publish(client);
             mutation?.Publish();
+            progress.Publish(client);
             return true;
         }
 
@@ -254,6 +259,7 @@ namespace Rasa.Managers
         private bool HandOverModule(Client client, DynamicObject station, CraftingJob job)
         {
             InventoryManager.InventoryPlan inventory = null;
+            var progress = MissionProgressPublicationPlan.Empty;
             var amount = 0u;
             var full = false;
             try
@@ -273,6 +279,8 @@ namespace Rasa.Managers
                         throw new GameplayRejectionException("The module output inventory category is full.");
                     }
                     inventory.Grant(job.ResultItemTemplateId, amount);
+                    progress = MissionApplication.Instance.PlanProgress(client,
+                        new[] { MissionProgressEvent.ItemAcquired(job.ResultClassId, amount) }, unit);
                 });
             }
             catch (Exception error) when (GameplayRejectionException.IsExpected(error))
@@ -286,6 +294,7 @@ namespace Rasa.Managers
             }
             job.Count -= amount;
             inventory.Publish(client);
+            progress.Publish(client);
             if (job.Count == 0)
                 return true;
             client.CallMethod(SysEntity.CommunicatorId, new DisplayClientMessagePacket(PlayerMessage.PmInventoryFull,

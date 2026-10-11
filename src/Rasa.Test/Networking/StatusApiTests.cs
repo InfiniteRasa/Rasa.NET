@@ -925,6 +925,8 @@ namespace Rasa.Test.Networking
             }
         }
 
+        public TestContext TestContext { get; set; }
+
         [TestMethod]
         public void AListenerThatCannotOpenItsPortStaysOffAndTheHostCarriesOn()
         {
@@ -949,10 +951,17 @@ namespace Rasa.Test.Networking
                 Assert.IsFalse(host.Rest.Running, "the port is somebody else's");
                 Assert.IsTrue(host.StatusPort.Running, "and the other listener is not held up by it");
                 Assert.AreEqual(40000, host.Status.StallMs);
+
+                TestContext.WriteLine(
+                    "Registered REST endpoints: " +
+                    string.Join(", ", host.Rest.Endpoints)
+                );
+
                 CollectionAssert.AreEqual(
                     new[]
                     {
-                        "addaccount", "healthcheck",
+                        "addaccount", "healthcheck", "ingame/creature-actions",
+                        "ingame/creatures", "ingame/creatures/{id}",
                         "ingame/items", "ingame/items/categories", "ingame/items/{id}", "ingame/session/exchange",
                         "lootpools", "monsterflags", "serverstatus", "updatelootpools", "updatemonsterflags"
                     },

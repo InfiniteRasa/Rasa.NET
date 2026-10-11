@@ -206,12 +206,12 @@ namespace Rasa.Test.Missions.Wilderness
             Assert.IsTrue(health.CurrentMax > 1);
             health.Current = 1;
             harness.Drain();
-            // A level no medpack in the pack performs. Each of these rewards is two medpacks of
-            // different levels (787's are levels 3 and 4), and a request the named item does not
+            // A level no medpack in the pack performs, including level-1 ordinary corpse drops.
+            // Each reward is two medpacks of different levels (787's are levels 3 and 4), and a request the named item does not
             // perform is carried out with a pack item that does (AbilityManager.PackItemPerforming):
             // asking for the other one's level is not a refusal.
             abilities.RequestPerformAbility(harness.Client,
-                NativeMedpackRequest(item.EntityId, 1));
+                NativeMedpackRequest(item.EntityId, 99));
             Assert.IsFalse(harness.Map.PerformRecovery.Any(action => action.ActionId == (ActionId)419));
             Assert.IsTrue(harness.Drain().OfType<UserActionFailedPacket>().Any());
             Assert.AreEqual(expectedQuantity, Held(harness, templateId));

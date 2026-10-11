@@ -85,7 +85,8 @@ namespace Rasa.Test.Missions
                 new MissionCreditPolicy(MissionCreditMode.NearbyParty, 20));
             var near = context.CreateAdditionalClient(2);
             var far = context.CreateAdditionalClient(3);
-            var giver = EntityManager.Instance.Creatures.Values.Single(creature => creature.DbId == 77);
+            var giver = context.Map.MapCellInfo.Cells.Values.SelectMany(cell => cell.CreatureList)
+                .Distinct().Single(creature => creature.DbId == 77);
 
             foreach (var client in new[] { near, far })
                 Assert.IsTrue(context.Manager.AcceptOfferedMission(client, giver.EntityId, 321));

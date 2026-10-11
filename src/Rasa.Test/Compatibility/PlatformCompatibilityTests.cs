@@ -70,7 +70,7 @@ namespace Rasa.Test.Compatibility
         {
             var repositoryRoot = FindRepositoryRoot();
             var compose = ComposeLayout.Parse(
-                File.ReadAllText(Path.Combine(repositoryRoot, "docker-compose.yml")));
+                File.ReadAllText(Path.Combine(repositoryRoot, "compose.dev.yml")));
             var image = DockerImageLayout.Create(repositoryRoot);
 
             AssertServiceLayout(
@@ -78,14 +78,20 @@ namespace Rasa.Test.Compatibility
                 compose.GetService("auth"),
                 image,
                 "Rasa.Auth",
+                "/app/auth",
+                "auth",
                 "Auth");
             AssertServiceLayout(
                 repositoryRoot,
                 compose.GetService("game"),
                 image,
                 "Rasa.Game",
+                "/app/game",
+                "game",
                 "Char",
                 "World");
+
+            AssertEntrypoint(repositoryRoot, image);
         }
 
         private static string FindRepositoryRoot()
@@ -117,24 +123,47 @@ namespace Rasa.Test.Compatibility
                 .Attribute("Version")?.Value;
         }
 
+        private static void AssertEntrypoint(string repositoryRoot, DockerImageLayout image)
+        {
+            var dockerfile = DockerfileModel.Parse(File.ReadAllText(Path.Combine(repositoryRoot, "Dockerfile")));
+            const string entrypoint = "/usr/local/bin/docker-entrypoint.sh";
+
+            Assert.IsTrue(dockerfile.Instructions.Any(instruction =>
+                instruction.Name == "ENTRYPOINT" && instruction.Arguments.Contains(entrypoint, StringComparison.Ordinal)),
+                "The runtime image must start through docker-entrypoint.sh.");
+            Assert.IsTrue(dockerfile.Instructions.Any(instruction =>
+                instruction.Name == "RUN" && instruction.Arguments.Contains("chmod +x " + entrypoint, StringComparison.Ordinal)),
+                "The runtime entrypoint must be executable.");
+            Assert.IsTrue(image.ContainsFile(entrypoint), "The entrypoint must be present in the runtime image.");
+
+            var script = File.ReadAllText(Path.Combine(repositoryRoot, "docker-entrypoint.sh"));
+            StringAssert.Contains(script, "cd /app/auth");
+            StringAssert.Contains(script, "exec dotnet Rasa.Auth.dll");
+            StringAssert.Contains(script, "cd /app/game");
+            StringAssert.Contains(script, "exec dotnet Rasa.Game.dll");
+        }
+
         private static void AssertServiceLayout(
             string repositoryRoot,
             ComposeService service,
             DockerImageLayout image,
             string projectName,
+            string runtimeDirectory,
+            string entrypointArgument,
             params string[] databaseNames)
         {
-            var outputDirectory =
-                $"/app/src/{projectName}/bin/Release/net10.0";
-            Assert.AreEqual(outputDirectory, service.WorkingDirectory, service.Name);
+            // Compose passes a selector to the Dockerfile ENTRYPOINT; the entrypoint
+            // changes into the service's runtime directory and executes its DLL.
+            Assert.IsNull(service.WorkingDirectory,
+                $"{service.Name}: working_dir comes from the Dockerfile and entrypoint.");
             CollectionAssert.AreEqual(
-                new[] { "dotnet", projectName + ".dll" },
+                new[] { entrypointArgument },
                 service.Command.ToArray(),
                 service.Name);
 
-            AssertImageFileAtWorkingDirectory(service, image, projectName + ".dll");
-            AssertImageFileAtWorkingDirectory(service, image, "appsettings.json");
-            AssertImageFileAtWorkingDirectory(service, image, "databasesettings.json");
+            AssertImageFile(image, runtimeDirectory, projectName + ".dll", service.Name);
+            AssertImageFile(image, runtimeDirectory, "appsettings.json", service.Name);
+            AssertImageFile(image, runtimeDirectory, "databasesettings.json", service.Name);
 
             using var databaseSettings = JsonDocument.Parse(File.ReadAllText(
                 Path.Combine(repositoryRoot, "src", "Rasa.DBL", "databasesettings.json")));
@@ -144,6 +173,7 @@ namespace Rasa.Test.Compatibility
                     .GetProperty("Databases")
                     .GetProperty("Provider")
                     .GetString());
+
             foreach (var databaseName in databaseNames)
             {
                 var fileName = databaseSettings.RootElement
@@ -151,49 +181,54 @@ namespace Rasa.Test.Compatibility
                     .GetProperty(databaseName)
                     .GetProperty("Database")
                     .GetString() + ".db";
-                AssertVolumeAtWorkingDirectory(service, fileName);
+                AssertDatabaseVolume(service, runtimeDirectory, fileName);
             }
 
             if (projectName != "Rasa.Game")
                 return;
 
-            AssertVolumeAtWorkingDirectory(service, "appsettings.env.json");
+            AssertVolumeAtDirectory(service, runtimeDirectory, "appsettings.env.json");
             using var appSettings = JsonDocument.Parse(File.ReadAllText(
                 Path.Combine(repositoryRoot, "src", "Rasa.Game", "appsettings.json")));
             var gameData = appSettings.RootElement.GetProperty("GameDataConfig");
             var knowledgeBasePath = PosixPath.Resolve(
-                service.WorkingDirectory,
+                runtimeDirectory,
                 gameData.GetProperty("KnowledgeBaseFile").GetString());
             var navMeshPath = PosixPath.Resolve(
-                service.WorkingDirectory,
+                runtimeDirectory,
                 gameData.GetProperty("NavMeshPath").GetString());
-            Assert.IsTrue(
-                image.ContainsFile(knowledgeBasePath),
+            Assert.IsTrue(image.ContainsFile(knowledgeBasePath),
                 $"Game image layout is missing {knowledgeBasePath}.");
-            Assert.IsTrue(
-                image.ContainsDirectory(navMeshPath),
+            Assert.IsTrue(image.ContainsDirectory(navMeshPath),
                 $"Game image layout is missing {navMeshPath}.");
-            Assert.IsTrue(
-                image.ContainsFileBelow(navMeshPath, ".nav"),
+            Assert.IsTrue(image.ContainsFileBelow(navMeshPath, ".nav"),
                 $"Game image layout contains no navmesh files below {navMeshPath}.");
         }
 
-        private static void AssertImageFileAtWorkingDirectory(
-            ComposeService service,
-            DockerImageLayout image,
-            string relativePath)
+        private static void AssertDatabaseVolume(ComposeService service, string runtimeDirectory, string fileName)
         {
-            var path = PosixPath.Resolve(service.WorkingDirectory, relativePath);
-            Assert.IsTrue(
-                image.ContainsFile(path),
-                $"{service.Name} image layout is missing {path}.");
+            var destination = PosixPath.Resolve(runtimeDirectory, fileName);
+            var volume = service.Volumes.SingleOrDefault(mount => mount.Destination == destination);
+
+            Assert.IsNotNull(volume, $"{service.Name} does not mount its database at {destination}.");
+            Assert.AreEqual("bind", volume.Type, $"{service.Name}: database must use a bind mount.");
+            Assert.AreEqual("./" + fileName, volume.Source, $"{service.Name}: unexpected database source.");
+            Assert.IsTrue(volume.CreateHostPath == false,
+                $"{service.Name}: a missing {fileName} must not be auto-created as a directory.");
         }
 
-        private static void AssertVolumeAtWorkingDirectory(
-            ComposeService service,
-            string relativePath)
+        private static void AssertImageFile(DockerImageLayout image, string runtimeDirectory,
+            string relativePath, string serviceName)
         {
-            var destination = PosixPath.Resolve(service.WorkingDirectory, relativePath);
+            var path = PosixPath.Resolve(runtimeDirectory, relativePath);
+            Assert.IsTrue(image.ContainsFile(path),
+                $"{serviceName} image layout is missing {path}.");
+        }
+
+        private static void AssertVolumeAtDirectory(ComposeService service,
+            string runtimeDirectory, string relativePath)
+        {
+            var destination = PosixPath.Resolve(runtimeDirectory, relativePath);
             CollectionAssert.Contains(
                 service.VolumeDestinations.ToArray(),
                 destination,

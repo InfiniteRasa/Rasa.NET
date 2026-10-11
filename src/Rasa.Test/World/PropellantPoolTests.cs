@@ -61,7 +61,9 @@ namespace Rasa.Test.World
             PropellantPools.OnPulse(world.Map, shooter.Player, 70, DamageType.Ice, 10f, new List<Actor>());
 
             Assert.IsEmpty(PropellantPools.Of(shooter.Player));
-            Assert.IsEmpty(Sent(shooter).OfType<GameEffectAttachedPacket>().ToArray());
+            Assert.IsEmpty(Sent(shooter).OfType<GameEffectAttachedPacket>()
+                .Where(packet => packet.EffectTypeId == PropellantPools.PoolTypeId ||
+                    packet.EffectTypeId == ConstantFire.PropellantTypeId).ToArray());
 
             PropellantPools.RollPercent = () => PropellantPools.ChancePercent - 1;
             PropellantPools.OnPulse(world.Map, shooter.Player, 70, DamageType.Ice, 10f, new List<Actor>());

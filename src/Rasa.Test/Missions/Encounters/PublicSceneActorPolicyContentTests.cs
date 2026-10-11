@@ -139,7 +139,10 @@ namespace Rasa.Test.Missions.Encounters
             var link = world.Set<ItemTemplateItemClassEntry>().Single(entry => entry.ItemTemplateId == 28);
             switch (missing)
             {
-                case "template": world.Remove(world.Set<ItemTemplateEntry>().Single(entry => entry.Id == 28)); break;
+                case "template":
+                    world.RemoveRange(world.Set<LootItemEntry>().Where(entry => entry.ItemTemplateId == 28));
+                    world.Remove(world.Set<ItemTemplateEntry>().Single(entry => entry.Id == 28));
+                    break;
                 case "link": world.Remove(link); break;
                 case "item-class": world.Remove(world.Set<ItemClassEntry>().Single(entry => entry.Id == link.ItemClass)); break;
                 case "entity-class": world.Remove(world.Set<EntityClassEntry>().Single(entry => entry.Id == link.ItemClass)); break;

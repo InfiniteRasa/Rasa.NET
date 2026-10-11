@@ -18,12 +18,14 @@ namespace Rasa.Test.Gameplay
     using Rasa.Game;
     using Rasa.Game.Handlers;
     using Rasa.Managers;
+    using Rasa.Missions;
     using Rasa.Packets;
     using Rasa.Packets.Communicator.Server;
     using Rasa.Packets.Crafting.Client;
     using Rasa.Packets.Crafting.Server;
     using Rasa.Packets.Inventory.Server;
     using Rasa.Packets.MapChannel.Server;
+    using Rasa.Packets.Mission.Server;
     using Rasa.Repositories.World;
     using Rasa.Services.Preloader;
     using Rasa.Structures;
@@ -445,6 +447,10 @@ namespace Rasa.Test.Gameplay
             private const uint OtherTemplate = 990404;
 
             private readonly BootcampRuntimeTestHarness.Harness _harness;
+            private readonly FieldInfo _missionSingleton = typeof(MissionApplication)
+                .GetField("_instance", BindingFlags.Static | BindingFlags.NonPublic);
+            private object _previousMission;
+            private bool _watchingProgress;
             private uint _nextSlot = 10;
 
             internal KraftwerksManager Station { get; }
@@ -628,8 +634,37 @@ namespace Rasa.Test.Gameplay
                         GiveStack(Body5Item, 5000, slot);
             }
 
+            internal void WatchItemProgress(MissionProgressEventKind kind, uint itemClass)
+            {
+                using var definition = MissionTestContext.WithItemProgressMission(kind, itemClass, 1000);
+                var manager = new MissionApplication(Context, definition.Manager.LoadedMissions);
+                _previousMission = _missionSingleton.GetValue(null);
+                _missionSingleton.SetValue(null, manager);
+                _watchingProgress = true;
+                Context.SeedMission(Client.Player.Id, 321, (uint)MissionState.Active, false);
+                Context.SeedObjective(Client.Player.Id, 321, 1, MissionObjectiveState.Incomplete,
+                    itemCounters: new Dictionary<uint, uint> { [itemClass] = 0 });
+                using var unit = Context.CreateChar();
+                manager.Hydrate(Client.Player, unit.CharacterMissions.Get(Client.Player.Id),
+                    unit.CharacterMissionProgress.Get(Client.Player.Id));
+                Assert.AreEqual(0u, Client.Player.Missions[321].Objectives[1].ItemCounters[itemClass]);
+                Drain();
+            }
+
+            internal void AssertItemProgress(uint itemClass, uint expected)
+            {
+                Assert.AreEqual(expected, Client.Player.Missions[321].Objectives[1].ItemCounters[itemClass],
+                    "Runtime mission item progress.");
+                using var unit = Context.CreateChar();
+                Assert.AreEqual(expected, unit.CharacterMissionProgress.Get(Client.Player.Id, 321)
+                    .Missions[321].Objectives[1].ItemCounters[itemClass],
+                    "Durable mission item progress.");
+            }
+
             public void Dispose()
             {
+                if (_watchingProgress)
+                    _missionSingleton.SetValue(null, _previousMission);
                 EntityManager.Instance.DynamicObjects.Remove(Object.EntityId);
                 _harness.Dispose();
             }
@@ -666,6 +701,128 @@ namespace Rasa.Test.Gameplay
             Assert.AreEqual(GameOpcode.CraftingFailure, sent.OfType<CraftingResultPacket>().Single().Opcode);
 
             return sent.OfType<SystemMessagePacket>().SingleOrDefault()?.TextMessage;
+        }
+
+        [TestMethod]
+        [DataRow(2u, false)]
+        [DataRow(3u, true)]
+        [DataRow(4u, false)]
+        [DataRow(4u, true)]
+        [DataRow(5u, false)]
+        [DataRow(5u, true)]
+        public void ModuleConsumptionAndFeesPreserveMissionProgress(uint page, bool watchFee)
+        {
+            using var bench = new Bench();
+            var target = bench.GiveGear(ArmorClass, LootQuality.Rare, 23,
+                page == KraftwerksManager.ExtractionPage ? Body1 : 0);
+            var input = page == KraftwerksManager.SalvagePage ? target : bench.GiveStack(Body1Item, 2);
+            bench.GiveStack(Mimeogel, 100);
+            var itemClass = watchFee ? MimeogelClass :
+                page == KraftwerksManager.SalvagePage ? ArmorClass : ModuleItemClass;
+            bench.WatchItemProgress(MissionProgressEventKind.ItemConsumed, itemClass);
+            var before = bench.Carried(itemClass);
+            var sawWrite = false;
+            bench.Context.BeforeSave = database =>
+            {
+                if (!database.ChangeTracker.Entries<Rasa.Structures.Char.CharacterMissionObjectiveItemCounterEntry>()
+                    .Any(entry => entry.Entity.MissionId == 321 && entry.State != EntityState.Unchanged))
+                    return;
+                sawWrite = true;
+                Assert.AreEqual(0u, bench.Client.Player.Missions[321].Objectives[1].ItemCounters[itemClass]);
+                Assert.IsFalse(bench.Drain().OfType<UpdateObjectiveItemCounterPacket>().Any());
+            };
+            var sent = bench.Route(ModuleRequest(bench, page, input, target));
+            bench.Context.BeforeSave = null;
+            Assert.IsTrue(Succeeded(sent));
+            var consumed = before - bench.Carried(itemClass);
+            Assert.IsTrue(consumed > 0);
+            bench.AssertItemProgress(itemClass, consumed);
+            Assert.IsTrue(sawWrite, "Progress must participate in the crafting transaction.");
+            Assert.HasCount(1, sent.OfType<UpdateObjectiveItemCounterPacket>().ToArray());
+        }
+
+        [TestMethod]
+        [DataRow(2u)]
+        [DataRow(3u)]
+        [DataRow(4u)]
+        [DataRow(5u)]
+        public void ModuleMissionProgressFailureRollsBackCraftingAndRetryCountsOnce(uint page)
+        {
+            using var bench = new Bench();
+            var target = bench.GiveGear(ArmorClass, LootQuality.Rare, 23,
+                page == KraftwerksManager.ExtractionPage ? Body1 : 0);
+            var input = page == KraftwerksManager.SalvagePage ? target : bench.GiveStack(Body1Item, 2);
+            bench.GiveStack(Mimeogel, 100);
+            var itemClass = page == KraftwerksManager.SalvagePage ? ArmorClass : MimeogelClass;
+            bench.WatchItemProgress(MissionProgressEventKind.ItemConsumed, itemClass);
+            var before = bench.DurableSnapshot();
+            var runtime = bench.RuntimeSnapshot();
+            var count = bench.Carried(itemClass);
+            bench.Context.BeforeSave = database =>
+            {
+                if (database.ChangeTracker.Entries<Rasa.Structures.Char.CharacterMissionObjectiveItemCounterEntry>()
+                    .Any(entry => entry.Entity.MissionId == 321 && entry.State != EntityState.Unchanged))
+                    throw new DbUpdateException("Owned module mission-progress failure.");
+            };
+            var sent = bench.Route(ModuleRequest(bench, page, input, target));
+            bench.Context.BeforeSave = null;
+            Assert.IsNotNull(Refusal(sent));
+            CollectionAssert.AreEqual(before, bench.DurableSnapshot());
+            Assert.AreEqual(runtime, bench.RuntimeSnapshot());
+            bench.AssertItemProgress(itemClass, 0);
+            Assert.IsFalse(sent.OfType<UpdateObjectiveItemCounterPacket>().Any());
+            Assert.IsEmpty(bench.JobBag());
+            sent = bench.Route(ModuleRequest(bench, page, input, target));
+            Assert.IsTrue(Succeeded(sent));
+            bench.AssertItemProgress(itemClass, count - bench.Carried(itemClass));
+            Assert.HasCount(1, sent.OfType<UpdateObjectiveItemCounterPacket>().ToArray());
+        }
+
+        [TestMethod]
+        public void ModuleOutputClaimsPreserveOnlyCommittedPartialAcquisitionProgress()
+        {
+            using var bench = new Bench();
+            var input = bench.GiveStack(Body1Item, 7);
+            var fee = bench.GiveStack(Mimeogel, 49999);
+            var job = Jobs(bench.Route(ModuleRequest(bench, KraftwerksManager.SalvagePage, input, null))).Single();
+            Assert.AreEqual(14u, job.Count);
+            bench.FillCraftingBag();
+            bench.WatchItemProgress(MissionProgressEventKind.ItemAcquired, MimeogelClass);
+            var before = bench.DurableSnapshot();
+            bench.Context.BeforeSave = database =>
+            {
+                if (database.ChangeTracker.Entries<Rasa.Structures.Char.CharacterMissionObjectiveItemCounterEntry>()
+                    .Any(entry => entry.Entity.MissionId == 321 && entry.State != EntityState.Unchanged))
+                    throw new DbUpdateException("Owned output acquisition-progress failure.");
+            };
+            var request = new RequestRetrieveFinishedCraftItemPacket
+            { KraftwerksId = bench.Object.EntityId, ItemId = job.ResultItemId };
+            var sent = bench.Route(request);
+            bench.Context.BeforeSave = null;
+            Assert.IsNotNull(Refusal(sent));
+            CollectionAssert.AreEqual(before, bench.DurableSnapshot());
+            Assert.AreEqual(14u, job.Count);
+            Assert.AreEqual(49999u, fee.StackSize);
+            bench.AssertItemProgress(MimeogelClass, 0);
+            Assert.IsFalse(sent.OfType<UpdateObjectiveItemCounterPacket>().Any());
+
+            sent = bench.Route(request);
+            Assert.AreEqual(13u, job.Count);
+            Assert.AreEqual(50000u, fee.StackSize);
+            bench.AssertItemProgress(MimeogelClass, 1);
+            Assert.HasCount(1, sent.OfType<UpdateObjectiveItemCounterPacket>().ToArray());
+            sent = bench.Route(request);
+            Assert.AreEqual(13u, job.Count);
+            bench.AssertItemProgress(MimeogelClass, 1);
+            Assert.IsFalse(sent.OfType<UpdateObjectiveItemCounterPacket>().Any());
+            InventoryManager.Instance.ReduceStackCount(bench.Client, InventoryType.Personal, fee, 13);
+            sent = bench.Route(request);
+            Assert.AreEqual(0u, job.Count);
+            bench.AssertItemProgress(MimeogelClass, 14);
+            Assert.HasCount(1, sent.OfType<UpdateObjectiveItemCounterPacket>().ToArray());
+            sent = bench.Route(request);
+            bench.AssertItemProgress(MimeogelClass, 14);
+            Assert.IsFalse(sent.OfType<UpdateObjectiveItemCounterPacket>().Any());
         }
 
         [TestMethod]

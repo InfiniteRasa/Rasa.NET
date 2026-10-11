@@ -980,7 +980,9 @@ namespace Rasa.Test.Missions
                     clan,
                     auction,
                     social,
-                    factory);
+                    factory,
+                    WorldContext.Database.GetAppliedMigrations()
+                        .Contains(Rasa.Test.Database.OrdinaryLootMigrationTests.SchemaMigration));
                 LoadBootcampLootContent(WorldContext);
                 LoadBootcampNav(maps);
                 if (_useWorldContent)
