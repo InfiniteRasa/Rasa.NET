@@ -9,6 +9,7 @@ namespace Rasa.Test.World
     using Rasa.Game;
     using Rasa.Managers;
     using Rasa.Packets.MapChannel.Server;
+    using Rasa.Packets.Protocol;
     using Rasa.Structures;
 
     /// <summary>
@@ -38,7 +39,7 @@ namespace Rasa.Test.World
 
             CreatureArmor.Regenerate(world.Map);
             Assert.AreEqual(200, health.Current);
-            Assert.IsFalse(WorldTestContext.Drain(enemy).OfType<UpdateHealthPacket>().Any(), "the clients predict a rate they already have");
+            Assert.AreEqual(0, HealthUpdates(enemy, creature).Count, "the clients predict a rate they already have");
 
             CreatureArmor.Regenerate(world.Map);
             Assert.AreEqual(300, health.Current);
@@ -48,14 +49,14 @@ namespace Rasa.Test.World
             Assert.IsTrue(BehaviorManager.Instance.TrySetActionFighting(creature, enemy.Player.EntityId));
 
             Assert.AreEqual(0, health.RefreshAmount);
-            var told = WorldTestContext.Drain(enemy).OfType<UpdateHealthPacket>().Single();
+            var told = HealthUpdates(enemy, creature).Single();
             Assert.AreEqual(0, told.Health.RefreshAmount);
             Assert.AreEqual(300, told.Health.Current);
 
             CreatureArmor.Regenerate(world.Map);
             CreatureArmor.Regenerate(world.Map);
             Assert.AreEqual(300, health.Current, "nothing in a fight");
-            Assert.IsFalse(WorldTestContext.Drain(enemy).OfType<UpdateHealthPacket>().Any(), "and nothing more to tell");
+            Assert.AreEqual(0, HealthUpdates(enemy, creature).Count, "and nothing more to tell");
 
             // The fight is given up - its target died, left or went out of sight: the rate is back.
             BehaviorManager.Instance.GiveUp(creature);
@@ -63,13 +64,58 @@ namespace Rasa.Test.World
             CreatureArmor.Regenerate(world.Map);
 
             Assert.AreEqual(400, health.Current);
-            told = WorldTestContext.Drain(enemy).OfType<UpdateHealthPacket>().Single();
+            told = HealthUpdates(enemy, creature).Single();
             Assert.AreEqual(100, told.Health.RefreshAmount);
 
             for (var second = 0; second < 10; second++)
                 CreatureArmor.Regenerate(world.Map);
 
             Assert.AreEqual(1000, health.Current, "whole again, and no further");
+        }
+
+        // Frighten, Confusion and Subversion drop the creature's fight as they land, and out of its
+        // fight it regained a tenth of its health a second: a 15-second Frighten left it whole.
+        [TestMethod]
+        [DataRow(AbilityManager.MindControlFrighten)]
+        [DataRow(AbilityManager.MindControlConfusion)]
+        [DataRow(AbilityManager.MindControlSubversion)]
+        public void ACreatureTurnedOnItsOwnSideRegainsNothingUntilTheControlEnds(int pump)
+        {
+            using var world = new WorldTestContext();
+            var enemy = Watch(world, x: 10);
+            var creature = Spawn(world, x: 0, maxHealth: 1000);
+            var health = creature.Attributes[Attributes.Health];
+            health.Current = 300;
+
+            var control = new GameEffect
+            {
+                TypeId = AbilityManager.MindControlTypeId,
+                EffectId = GameEffectManager.Instance.NextEffectId(world.Map),
+                ExpiresTick = System.Environment.TickCount64 + 15_000,
+                MindControlPump = pump
+            };
+            GameEffectManager.Instance.Attach(world.Map, creature, control);
+            HealthUpdates(enemy, creature);
+
+            CreatureArmor.Regenerate(world.Map);
+            CreatureArmor.Regenerate(world.Map);
+
+            Assert.AreEqual(300, health.Current, "nothing while it is held");
+            Assert.AreEqual(0, HealthUpdates(enemy, creature).Single().Health.RefreshAmount, "and the clients are told the rate is 0");
+
+            GameEffectManager.Instance.DettachEffect(world.Map, creature, control);
+            CreatureArmor.Regenerate(world.Map);
+
+            Assert.AreEqual(400, health.Current, "its health comes back once the control is over");
+        }
+
+        [TestMethod]
+        public void AnEnslavedCreatureRestsAsItsCastersOwn()
+        {
+            var creature = new Creature { TargetCategory = TargetCategory.Hostile };
+            creature.ActiveEffects[1] = new GameEffect { TypeId = AbilityManager.MindControlTypeId, EffectId = 1, MindControlPump = AbilityManager.MindControlEnslavement };
+
+            Assert.IsTrue(CreatureHealth.Rests(creature));
         }
 
         [TestMethod]
@@ -198,6 +244,21 @@ namespace Rasa.Test.World
             CellManager.Instance.GetCell(world.Map, seed & 0xFFFF, seed >> 16).ClientList.Add(client);
             return client;
         }
+
+        /// <summary>
+        /// The health updates about the creature that reached the client. WorldTestContext.Drain
+        /// gives the protocol packets as sent, a call to a method wrapped in a CallMethodMessage,
+        /// so the update is the call's packet; looked for among the protocol packets themselves
+        /// it was never there, and every check for none passed whatever was sent.
+        /// </summary>
+        private static List<UpdateHealthPacket> HealthUpdates(Client client, Creature creature) =>
+            WorldTestContext.Drain(client)
+                .Select(packet => packet.Message)
+                .OfType<CallMethodMessage>()
+                .Where(call => call.EntityId == creature.EntityId)
+                .Select(call => call.Packet)
+                .OfType<UpdateHealthPacket>()
+                .ToList();
 
         private static uint[,] CellsAt(WorldTestContext world, Vector3 position)
         {

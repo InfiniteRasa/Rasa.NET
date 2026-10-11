@@ -51,7 +51,27 @@ namespace Rasa.Managers
         {
             return creature != null
                 && TargetCategories.IsCombatant(creature.TargetCategory)
-                && creature.Controller?.CurrentAction != BehaviorManager.BehaviorActionFighting;
+                && creature.Controller?.CurrentAction != BehaviorManager.BehaviorActionFighting
+                && !TurnedAgainstItsSide(creature);
+        }
+
+        /// <summary>
+        /// Whether a player's Mind Control holds the creature as a weapon against its own side:
+        /// Frighten, Confusion or Subversion. Each drops the creature's fight as it lands
+        /// (AbilityManager.Confuse), so a frightened creature, out of its fight, regained a tenth
+        /// of its health a second and came out of a 15-second Frighten whole. It is still the
+        /// caster's enemy's fight; its health comes back when the control ends. Enslavement and
+        /// Infectious turn it to the caster's side (TurnCreature), where it rests as theirs.
+        /// </summary>
+        private static bool TurnedAgainstItsSide(Creature creature)
+        {
+            foreach (var effect in creature.ActiveEffects.Values)
+                if (effect.TypeId == AbilityManager.MindControlTypeId &&
+                    effect.MindControlPump >= AbilityManager.MindControlFrighten &&
+                    effect.MindControlPump <= AbilityManager.MindControlSubversion)
+                    return true;
+
+            return false;
         }
 
         /// <summary>The rate the creature's health moves at now: the resting rate, or 0 in a fight.</summary>
