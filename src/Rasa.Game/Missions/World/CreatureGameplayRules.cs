@@ -72,9 +72,19 @@ namespace Rasa.Game.Missions.World
                 : ActorGameplayPolicy.Ordinary;
         }
 
-        internal static bool RewardsKills(Creature creature) => creature != null &&
-            (TryRolePolicy(creature, out var policy) ? policy.RewardScenarioKills :
-                creature.SpawnPool?.ScenarioKey == null || Policy(creature).RewardScenarioKills);
+        internal static bool RewardsKills(Creature creature)
+        {
+            if (creature == null)
+                return false;
+            var scenario = creature.SpawnPool?.ScenarioKey != null;
+            if (TryRolePolicy(creature, out var policy))
+                return RewardsKills(scenario, policy);
+            return RewardsKills(scenario, null, scenario ? Policy(creature) : null);
+        }
+
+        internal static bool RewardsKills(bool scenario, ActorGameplayPolicy role,
+            ActorGameplayPolicy fallback = null) => role != null ? role.RewardScenarioKills :
+            !scenario || fallback?.RewardScenarioKills == true;
 
         internal static bool IsDefender(Creature creature) => Policy(creature).Defends;
         internal static bool CanParticipateInCombat(Creature creature) =>

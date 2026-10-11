@@ -477,8 +477,11 @@ namespace Rasa.Managers
         /// What was fabricated carries its maker's name. Mimeogel and modules do not: they were
         /// salvaged, taken out or upgraded, not made.
         /// </summary>
-        private bool HandOver(Client client, CraftingJob job)
+        private bool HandOver(Client client, DynamicObject station, CraftingJob job)
         {
+            if (job.CraftingPage != FabricationPage)
+                return HandOverModule(client, station, job);
+
             var classInfo = EntityClassManager.Instance.GetClassInfo((EntityClasses)job.ResultClassId);
             var stackSize = Math.Max(1u, classInfo?.ItemClassInfo?.StackSize ?? 1u);
 
@@ -521,7 +524,7 @@ namespace Rasa.Managers
             var jobs = JobsForWriting(client, station);
 
             foreach (var job in jobs.Where(j => j.IsFinished && which(j)).ToList())
-                if (HandOver(client, job))
+                if (HandOver(client, station, job))
                     jobs.Remove(job);
                 else
                     break;

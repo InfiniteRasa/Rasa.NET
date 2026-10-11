@@ -34,8 +34,8 @@ namespace Rasa.Api
         public UpdateMonsterFlagsEndpoint UpdateMonsterFlags { get; } = new UpdateMonsterFlagsEndpoint();
 
         /// <summary>GET /lootpools and POST /updatelootpools, for gametools' Loot Table Editor; Server gives them their store.</summary>
-        public LootPoolsEndpoint LootPools { get; } = new LootPoolsEndpoint();
-        public UpdateLootPoolsEndpoint UpdateLootPools { get; } = new UpdateLootPoolsEndpoint();
+        public WeightedLootEndpoint WeightedLoot { get; } = new WeightedLootEndpoint();
+        public UpdateWeightedLootEndpoint UpdateWeightedLoot { get; } = new UpdateWeightedLootEndpoint();
 
         public ApiHost() : this(new ServerStatus())
         {
@@ -56,8 +56,8 @@ namespace Rasa.Api
             Rest.Register(new IngameItemDetailsEndpoint(IngameSessions));
             Rest.Register(MonsterFlags);
             Rest.Register(UpdateMonsterFlags);
-            Rest.Register(LootPools);
-            Rest.Register(UpdateLootPools);
+            Rest.Register(WeightedLoot);
+            Rest.Register(UpdateWeightedLoot);
             Rest.Register(new IngameCreaturesEndpoint(IngameSessions));
             Rest.Register(new IngameCreatureActionsEndpoint(IngameSessions));
             Rest.Register(new IngameCreatureDetailsEndpoint(IngameSessions));

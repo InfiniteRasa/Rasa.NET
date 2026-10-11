@@ -45,6 +45,10 @@ namespace Rasa.Data
     /// </summary>
     public static class TargetCategories
     {
+        internal static TargetCategory FromFaction(uint faction) =>
+            System.Enum.IsDefined(typeof(TargetCategory), unchecked((int)faction))
+                ? (TargetCategory)faction : TargetCategory.Hostile;
+
         /// <summary>Whether an entity of this category can be in a fight at all.</summary>
         public static bool IsCombatant(TargetCategory category)
         {

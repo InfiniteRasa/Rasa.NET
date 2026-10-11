@@ -330,17 +330,18 @@ namespace Rasa.Managers
         /// rest (Consumable_*, Ammo_* -> consumable; Mis*, *_Mission_* and the zone-prefixed
         /// mission items -> mission; anything else -> misc). An item_template row overrides this.
         /// </summary>
-        public static InventoryCategory DefaultInventoryCategory(EntityClass entityClass)
-        {
-            var augmentations = entityClass.Augmentations;
+        public static InventoryCategory DefaultInventoryCategory(EntityClass entityClass) =>
+            DefaultInventoryCategory(entityClass.ClassName, entityClass.Augmentations);
 
+        internal static InventoryCategory DefaultInventoryCategory(string className, ICollection<AugmentationType> augmentations)
+        {
             if (augmentations.Contains(AugmentationType.Recipe) || augmentations.Contains(AugmentationType.ModuleItem))
                 return InventoryCategory.Crafting;
 
             if (augmentations.Contains(AugmentationType.Weapon) || augmentations.Contains(AugmentationType.Armor) || augmentations.Contains(AugmentationType.Equipable))
                 return InventoryCategory.Equipment;
 
-            var name = entityClass.ClassName ?? string.Empty;
+            var name = className ?? string.Empty;
 
             if (name.StartsWith("Component_") || name.StartsWith("Ingredient") || name.StartsWith("Resource_") || name.StartsWith("Crafting_") || IsRawMaterialClass(name))
                 return InventoryCategory.Crafting;

@@ -886,6 +886,7 @@ namespace Rasa.Test.World
             public INpcMissionRepository NpcMissions => throw new NotSupportedException();
             public INpcMissionRewardRepository NpcMissionRewards => throw new NotSupportedException();
             public IMissionContentRepository MissionContent => throw new NotSupportedException();
+            public IOrdinaryLootRepository OrdinaryLoot => throw new NotSupportedException();
             public INpcPackageRepository NpcPackages => throw new NotSupportedException();
             public IPlayerRandomNameRepository RandomNames => throw new NotSupportedException();
             public ITeleporterRepository Teleporters => throw new NotSupportedException();

@@ -4,8 +4,6 @@ using JetBrains.Annotations;
 
 namespace Rasa.Migrations.MySqlWorld
 {
-    using Structures.World;
-
     /// <summary>
     /// The loot pools: loot_group, a named pool; loot_group_item, the items in it, each with a
     /// chance in percent and a quantity from min to max; creature_loot_group, the pools a
@@ -25,7 +23,7 @@ namespace Rasa.Migrations.MySqlWorld
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
-                name: LootGroupEntry.TableName,
+                name: "loot_group",
                 columns: table => new
                 {
                     id = table.Column<uint>(type: "int unsigned", nullable: false),
@@ -38,7 +36,7 @@ namespace Rasa.Migrations.MySqlWorld
                 });
 
             migrationBuilder.CreateTable(
-                name: LootGroupItemEntry.TableName,
+                name: "loot_group_item",
                 columns: table => new
                 {
                     group_id = table.Column<uint>(type: "int unsigned", nullable: false),
@@ -53,7 +51,7 @@ namespace Rasa.Migrations.MySqlWorld
                 });
 
             migrationBuilder.CreateTable(
-                name: CreatureLootGroupEntry.TableName,
+                name: "creature_loot_group",
                 columns: table => new
                 {
                     creature_id = table.Column<uint>(type: "int unsigned", nullable: false),
@@ -67,9 +65,9 @@ namespace Rasa.Migrations.MySqlWorld
 
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(name: CreatureLootGroupEntry.TableName);
-            migrationBuilder.DropTable(name: LootGroupItemEntry.TableName);
-            migrationBuilder.DropTable(name: LootGroupEntry.TableName);
+            migrationBuilder.DropTable(name: "creature_loot_group");
+            migrationBuilder.DropTable(name: "loot_group_item");
+            migrationBuilder.DropTable(name: "loot_group");
         }
     }
 }

@@ -151,6 +151,7 @@ namespace Rasa
             services.AddScoped<INpcMissionRepository, NpcMissionRepository>();
             services.AddScoped<INpcMissionRewardRepository, NpcMissionRewardRepository>();
             services.AddScoped<IMissionContentRepository, MissionContentRepository>();
+            services.AddScoped<IOrdinaryLootRepository, OrdinaryLootRepository>();
             services.AddScoped<INpcPackageRepository, NpcPackageRepository>();
             services.AddScoped<IPlayerRandomNameRepository, PlayerRandomNameRepository>();
             services.AddScoped<ISpawnpoolRepository, SpawnpoolRepository>();

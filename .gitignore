@@ -254,6 +254,7 @@ docs/*
 !docs/abilities.md
 !docs/protocol-testing.md
 !docs/world-testing.md
+!docs/loot.md
 !docs/missions.md
 !docs/mission-reference.md
 !docs/wilderness-missions.md
