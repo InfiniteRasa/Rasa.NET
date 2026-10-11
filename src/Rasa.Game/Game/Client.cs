@@ -153,6 +153,23 @@ namespace Rasa.Game
         /// </summary>
         internal HashSet<Client> FarAllies { get; } = new HashSet<Client>();
 
+        /// <summary>
+        /// Placed in the cells before it was in the world - a dropship arrival, Teleporting until
+        /// the ship sets it down: who it was given then, and who was given it. The cells pass a
+        /// client that is not Ingame over, both ways, until <see cref="Managers.CellManager.CatchUp"/>
+        /// brings it in line. Null for a client placed in the world.
+        /// </summary>
+        internal ArrivalView PlacedView { get; set; }
+
+        internal sealed class ArrivalView
+        {
+            /// <summary>The players its client was given.</summary>
+            public HashSet<Client> Holds { get; } = new HashSet<Client>();
+
+            /// <summary>The players whose clients were given it.</summary>
+            public HashSet<Client> HeldBy { get; } = new HashSet<Client>();
+        }
+
         /// <summary>Environment.TickCount64 at which <see cref="FarAllies"/> is next brought up to date.</summary>
         internal long NextAllySync { get; set; }
 

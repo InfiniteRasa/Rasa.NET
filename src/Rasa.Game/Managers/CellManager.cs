@@ -190,6 +190,18 @@ namespace Rasa.Managers
 
             }
 
+            // A player placed before they are in the world sees what is here now, and nothing
+            // that comes or goes until they are (CatchUp): remember what that was.
+            client.PlacedView = client.State == ClientState.Ingame ? null : new Client.ArrivalView();
+            if (client.PlacedView != null)
+                foreach (var other in ListOfClients)
+                {
+                    if (!Detection.IsHiddenFrom(other.Player, client))
+                        client.PlacedView.Holds.Add(other);
+                    if (!Detection.IsHiddenFrom(client.Player, other))
+                        client.PlacedView.HeldBy.Add(other);
+                }
+
             // A squad or team mate who holds the other from across the map has them already (FarAllies).
             ManifestationManager.Instance.CellIntroduceClientToSefl(client);
             ManifestationManager.Instance.CellIntroduceClientToPlayers(client, FarAllies.NotHolding(client, ListOfClients));
@@ -203,6 +215,57 @@ namespace Rasa.Managers
 
             // And the squad on other maps, who were given no entity: the id this one is known by.
             PartyManager.Instance.PlacedOnMap(client);
+        }
+
+        /// <summary>
+        /// A client placed in the cells before it was in the world, now in it (the dropship's
+        /// phase 4). Introductions and discards pass over a client that is not Ingame, both ways,
+        /// so while it waited:
+        ///  - players who came into its cells - another arrival among them, placed while this one
+        ///    was not Ingame, or itself not Ingame when this one was placed - were given to
+        ///    nobody, and it to none of them;
+        ///  - players who left its cells, walking off or leaving the map, stayed on its client,
+        ///    frozen, and it on theirs.
+        /// Two players landing within a few seconds of each other never saw each other until one
+        /// left the other's cells and came back (BR-165). This gives and takes, both ways, what
+        /// its placing and the cells since have left out: the players in its cells now against
+        /// the ones it was placed among (<see cref="Client.PlacedView"/>). A squad or team mate
+        /// is kept or not made again, as on a walk (FarAllies).
+        /// </summary>
+        internal void CatchUp(Client client)
+        {
+            var placed = client?.PlacedView;
+            if (placed == null)
+                return;
+
+            client.PlacedView = null;
+
+            var player = client.Player;
+            var map = player?.MapChannel;
+            if (map == null || client.State != ClientState.Ingame || player.Disconected || !IsInWorld(client))
+                return;
+
+            var here = GetClientsInCells(map, player.Cells, client);
+            var hereSet = new HashSet<Client>(here);
+
+            bool OnMap(Client other) =>
+                other?.Player != null && other.State == ClientState.Ingame && !other.Player.Disconected &&
+                other.Player.MapChannel == map && IsInWorld(other);
+
+            // Its own client: the ones gone, and the ones it never had.
+            var stale = placed.Holds.Where(other => other?.Player != null && !hereSet.Contains(other)).ToList();
+            var unseen = here.Where(other => !placed.Holds.Contains(other)).ToList();
+            ManifestationManager.Instance.CellDiscardPlayersToClient(client, FarAllies.KeptBy(client, stale));
+            ManifestationManager.Instance.CellIntroducePlayersToClient(client, FarAllies.NotHeldBy(client, unseen));
+
+            // Theirs: the ones still on the map who walked off with it, and the ones who never had it.
+            var walkedOff = placed.HeldBy.Where(other => OnMap(other) && !hereSet.Contains(other)).ToList();
+            var unaware = here.Where(other => !placed.HeldBy.Contains(other)).ToList();
+            ManifestationManager.Instance.CellDiscardClientToPlayers(client, FarAllies.KeepingFor(client, walkedOff));
+            ManifestationManager.Instance.CellIntroduceClientToPlayers(client, FarAllies.NotHolding(client, unaware));
+
+            // Anyone it has just been given claiming a control point, as on placing.
+            DynamicObjectManager.Instance.ShowClaimsTo(client, unseen);
         }
 
         internal bool RemoveCreatureFromWorld(MapChannel mapChannel, Creature creature)
@@ -346,6 +409,7 @@ namespace Rasa.Managers
                 client.MissionConversation = null;
             MissionContacts.Forget(client);
             FarAllies.Forget(client);
+            client.PlacedView = null;
             var memberships = map.MapCellInfo.Cells.Values.Where(cell => cell.ClientList.Contains(client)).ToArray();
             if (memberships.Length == 0)
                 return;

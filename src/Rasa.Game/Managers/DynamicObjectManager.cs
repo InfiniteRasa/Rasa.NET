@@ -1262,6 +1262,10 @@ namespace Rasa.Managers
                             {
                                 dropship.Client.State = ClientState.Ingame;
 
+                                // Placed while Teleporting, passed over by the cells since: the
+                                // players who landed or walked by meanwhile, both ways (BR-165).
+                                CellManager.Instance.CatchUp(dropship.Client);
+
                                 // The buffs brought from the map left, now the player is in the
                                 // world and an attach around them reaches their own client too.
                                 EffectCarry.Restore(dropship.Client);

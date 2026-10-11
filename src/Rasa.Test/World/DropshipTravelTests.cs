@@ -473,6 +473,45 @@ namespace Rasa.Test.World
             Assert.IsFalse(manager.CanBeginDropshipTravel(client, world.Map, Vector3.Zero, 0));
         }
 
+        // BR-165: the ship setting a player down brings their client and their neighbours' in
+        // line with the cells, which passed them over while they were Teleporting.
+        [TestMethod]
+        public void WhoCameNearWhileTheShipHeldThePlayerIsSeenBothWaysWhenItSetsThemDown()
+        {
+            using var world = new WorldTestContext();
+            var destination = CreateDestination();
+            var maps = CreateMaps(world, destination);
+            var manager = CreateDropshipManager(maps);
+            using var managers = new ManagerInstances(maps, manager);
+            var walker = PlayerDeathTests.Player(world, 600, 0);
+            var client = world.CreateClient();
+            client.State = ClientState.Teleporting;
+            client.Player.MapContextId = world.Map.MapInfo.MapContextId;
+            client.LoadingMap = world.Map.MapInfo.MapContextId;
+            CellManager.Instance.AddToWorld(client);
+            var arrival = new Dropship(TargetCategory.Friendly, DropshipType.Teleporter, client, DropshipRole.Arrival);
+            CellManager.Instance.AddToWorld(world.Map, arrival);
+            manager.Dropships.Add(arrival.EntityId, arrival);
+
+            walker.Player.Position = new Vector3(4, 0, 0);
+            CellManager.Instance.UpdateVisibility(walker);
+            WorldTestContext.Drain(client);
+            WorldTestContext.Drain(walker);
+            Assert.IsNotNull(client.PlacedView);
+
+            for (var step = 0; step < 6 && client.State != ClientState.Ingame; step++)
+                manager.DropshipsWorker(world.Map, Math.Max(0, arrival.PhaseTimeleft));
+
+            Assert.AreEqual(ClientState.Ingame, client.State);
+            Assert.IsNull(client.PlacedView);
+            Assert.IsTrue(Made(client).Contains(walker.Player.EntityId));
+            Assert.IsTrue(Made(walker).Contains(client.Player.EntityId));
+        }
+
+        private static List<ulong> Made(Rasa.Game.Client client) =>
+            WorldTestContext.Drain(client).Select(p => p.Message).OfType<CallMethodMessage>()
+                .Select(m => m.Packet).OfType<Rasa.Packets.Game.Server.CreatePhysicalEntityPacket>().Select(p => p.EntityId).ToList();
+
         [TestMethod]
         public void AMapTickDoesNotAdvanceAnotherMapsDropship()
         {
